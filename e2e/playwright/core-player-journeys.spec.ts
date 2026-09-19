@@ -754,6 +754,13 @@ test.describe('Real player core journeys', () => {
 
     const socialDialog = page.getByRole('dialog', { name: 'Social Phase' })
     await expect(socialDialog).toBeVisible()
+
+    const socialTutorialPrompt = page.getByTestId('reality-social-tutorial-prompt')
+    if (await socialTutorialPrompt.isVisible()) {
+      await socialTutorialPrompt.getByRole('button', { name: 'Skip' }).click()
+      await expect(socialTutorialPrompt).toBeHidden()
+    }
+
     const energyChip = socialDialog.getByLabel(/^Energy: \d+$/)
     const initialEnergyLabel = await energyChip.getAttribute('aria-label')
     const initialEnergy = Number(initialEnergyLabel?.match(/\d+/)?.[0])
