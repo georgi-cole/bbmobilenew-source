@@ -290,7 +290,7 @@ export default function SeasonTutorialTour({
       observer.disconnect()
       resizeObserver?.disconnect()
     }
-  }, [completeWithHandoff, currentStep, moveToStep, stepIndex])
+  }, [completeWithHandoff, currentStep, moveToStep, stepIndex, tutorialSteps.length])
 
   useEffect(() => {
     tooltipRef.current?.focus()
@@ -313,7 +313,7 @@ export default function SeasonTutorialTour({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [completeWithHandoff, finishing, moveToStep, onSkip, stepIndex])
+  }, [completeWithHandoff, finishing, moveToStep, onSkip, stepIndex, tutorialSteps.length])
 
   if (typeof document === 'undefined') return null
 
