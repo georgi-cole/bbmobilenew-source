@@ -252,6 +252,8 @@ export default function SocialPanelV2() {
 
   useEffect(() => {
     if (!socialPanelOpen) {
+      // Resetting the local tour session here intentionally follows the external panel state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSocialTutorialVariant(null)
       setSocialTutorialTourOpen(false)
       return
