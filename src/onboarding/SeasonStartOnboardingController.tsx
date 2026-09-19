@@ -8,10 +8,7 @@ import {
 } from '../services/activityService'
 import SeasonTutorialTour from './SeasonTutorialTour'
 import { selectCurrentQueuedBroadcast } from './seasonOnboardingQueue'
-import {
-  hasHandledSeasonTutorial,
-  markSeasonTutorialHandled,
-} from './seasonTutorialPreference'
+import { hasHandledSeasonTutorial, markSeasonTutorialHandled } from './seasonTutorialPreference'
 import {
   isTutorialGuidePending,
   markTutorialGuideHandled,
