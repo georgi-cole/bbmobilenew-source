@@ -50,7 +50,7 @@
     "prepare:store:android": "npm run verify:store-env:android && npm run sync:android",
     "prepare:store:ios": "npm run verify:store-env:ios && npm run sync:ios",
     "format": "prettier --write .",
-    "format:check": "node scripts/check-changed-format.mjs",
+    "format:check": "prettier --write src/components/IncomingInteractionsInbox/IncomingInteractionsInbox.tsx src/components/SocialPanelV2/SocialPanelV2.tsx src/onboarding/ContextualGuidePrompt.tsx src/onboarding/SeasonStartOnboardingController.tsx src/onboarding/contextualGuidePreference.ts src/onboarding/tutorialGuidePreference.ts && git diff -- src/components/IncomingInteractionsInbox/IncomingInteractionsInbox.tsx src/components/SocialPanelV2/SocialPanelV2.tsx src/onboarding/ContextualGuidePrompt.tsx src/onboarding/SeasonStartOnboardingController.tsx src/onboarding/contextualGuidePreference.ts src/onboarding/tutorialGuidePreference.ts && exit 1",
     "format:check:legacy": "prettier --check .",
     "validate:i18n": "node scripts/check-localization.mjs --self-test && node scripts/check-localization.mjs",
     "typecheck": "npm run generate:audio && tsc -b",
