@@ -179,8 +179,7 @@ export default function SocialPanelV2() {
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
-      (alliance) =>
-        alliance.memberIds.includes(humanPlayer.id) && alliance.status !== 'DISSOLVED'
+      (alliance) => alliance.memberIds.includes(humanPlayer.id) && alliance.status !== 'DISSOLVED'
     )
   }, [dramaMode, humanPlayer, socialState.reality?.alliances])
   const activePublicDirection = useMemo(
@@ -241,12 +240,10 @@ export default function SocialPanelV2() {
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
-  const [socialTutorialVariant, setSocialTutorialVariant] =
-    useState<SocialTutorialVariant | null>(() =>
-      socialPanelOpen
-        ? resolveSocialTutorialVariant(activeProfileId, isGuest, dramaMode)
-        : null
-    )
+  const [socialTutorialVariant, setSocialTutorialVariant] = useState<SocialTutorialVariant | null>(
+    () =>
+      socialPanelOpen ? resolveSocialTutorialVariant(activeProfileId, isGuest, dramaMode) : null
+  )
   const [socialTutorialTourOpen, setSocialTutorialTourOpen] = useState(false)
   const [, refreshContextualGuides] = useState(0)
 
