@@ -457,7 +457,7 @@ export default function IncomingInteractionsInbox() {
     globalDramaMode &&
     Boolean(
       humanPlayer &&
-        pendingCommitments.some((commitment) => commitment.promisorId === humanPlayer.id)
+      pendingCommitments.some((commitment) => commitment.promisorId === humanPlayer.id)
     )
   const showIncomingContextGuide = open && hasMeaningfulIncoming && !hasSeenIncomingGuide
   const showPromiseContextGuide =
