@@ -20,9 +20,7 @@ export function contextualGuideStorageKey(
   guide: ContextualGuideId,
   profileId: string | null
 ): string {
-  return `bbmobilenew_contextual_guide_${CONTEXTUAL_GUIDE_VERSION}:${guide}:${
-    profileId ?? 'guest'
-  }`
+  return `bbmobilenew_contextual_guide_${CONTEXTUAL_GUIDE_VERSION}:${guide}:${profileId ?? 'guest'}`
 }
 
 export function hasSeenContextualGuide(
@@ -31,9 +29,7 @@ export function hasSeenContextualGuide(
   isGuest: boolean
 ): boolean {
   try {
-    return (
-      tutorialStorage(isGuest)?.getItem(contextualGuideStorageKey(guide, profileId)) === 'seen'
-    )
+    return tutorialStorage(isGuest)?.getItem(contextualGuideStorageKey(guide, profileId)) === 'seen'
   } catch {
     return false
   }
