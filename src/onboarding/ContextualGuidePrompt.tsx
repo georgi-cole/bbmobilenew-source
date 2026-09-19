@@ -28,12 +28,7 @@ export default function ContextualGuidePrompt({
         <h2 id="contextual-guide-title">{title}</h2>
         <p id="contextual-guide-copy">{body}</p>
         <div className="season-tutorial-prompt__actions">
-          <button
-            type="button"
-            className="season-tutorial__primary"
-            onClick={onComplete}
-            autoFocus
-          >
+          <button type="button" className="season-tutorial__primary" onClick={onComplete} autoFocus>
             Got it
           </button>
         </div>
