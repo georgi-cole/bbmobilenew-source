@@ -279,15 +279,38 @@ describe('Director shock orchestration', () => {
     expect(tooLate.dispatch(tryActivateSpecialVeto()) as unknown as boolean).toBe(false)
   })
 
-  it('guarantees the human a return opportunity even after an earlier AI Battle Back', () => {
+  it('never gives a pre-Tribunal eliminated human a Battle Back opportunity', () => {
+    const plan = makePlan({ aiBattleBack: true })
+    const store = makeStore({
+      phase: 'eviction_results',
+      players: playersWithStatuses({
+        active: 7,
+        evicted: 3,
+        jurors: 3,
+        humanStatus: 'evicted',
+      }),
+      seasonDirectorPlan: plan,
+      seasonDirectorHumanReturnUsed: false,
+    })
+
+    expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
+    expect(store.getState().game.battleBack?.candidates).not.toContain('user')
+    expect(
+      store
+        .getState()
+        .game.battleBack?.candidates.every((id) => id.startsWith('juror-'))
+    ).toBe(true)
+  })
+
+  it('guarantees a Tribunal-member human a return opportunity even after an earlier AI Battle Back', () => {
     const plan = makePlan({ aiBattleBack: false })
     const store = makeStore({
       phase: 'eviction_results',
       players: playersWithStatuses({
         active: 6,
         evicted: 2,
-        jurors: 1,
-        humanStatus: 'evicted',
+        jurors: 2,
+        humanStatus: 'jury',
       }),
       seasonDirectorPlan: plan,
       seasonDirectorHumanReturnUsed: false,
@@ -304,18 +327,19 @@ describe('Director shock orchestration', () => {
 
     expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
     expect(store.getState().game.battleBack?.candidates).toContain('user')
+    expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
     expect(store.getState().game.seasonDirectorHumanReturnUsed).toBe(true)
   })
 
-  it('does not grant the human a second guaranteed return opportunity', () => {
+  it('does not grant a Tribunal-member human a second guaranteed return opportunity', () => {
     const plan = makePlan({ aiBattleBack: false })
     const store = makeStore({
       phase: 'eviction_results',
       players: playersWithStatuses({
         active: 6,
         evicted: 2,
-        jurors: 1,
-        humanStatus: 'evicted',
+        jurors: 2,
+        humanStatus: 'jury',
       }),
       seasonDirectorPlan: plan,
       seasonDirectorHumanReturnUsed: true,
@@ -324,7 +348,7 @@ describe('Director shock orchestration', () => {
         active: false,
         competitionActive: false,
         weekDecided: 7,
-        candidates: ['user', 'evicted-0'],
+        candidates: ['user', 'juror-0'],
         winnerId: null,
         returnAnimationPending: false,
       },
