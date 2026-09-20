@@ -3,7 +3,6 @@ import type {
   RemoteDirectorWindow,
   RemoteSeasonDirectorConfig,
 } from '../../remoteConfig/remoteConfigTypes'
-import { mulberry32 } from '../../store/rng'
 
 export type SeasonDirectorKillSwitch =
   | 'secretMissions'
@@ -476,8 +475,19 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
   }
 }
 
+function mixDirectorSeed(value: number): number {
+  let mixed = value >>> 0
+  mixed ^= mixed >>> 16
+  mixed = Math.imul(mixed, 0x7feb352d)
+  mixed ^= mixed >>> 15
+  mixed = Math.imul(mixed, 0x846ca68b)
+  mixed ^= mixed >>> 16
+  return mixed >>> 0
+}
+
 function eventRoll(seed: number, season: number, salt: number): number {
-  return mulberry32((seed ^ Math.imul(season, salt)) >>> 0)()
+  const seasonSalt = Math.imul(season, 0x9e3779b1)
+  return mixDirectorSeed((seed ^ seasonSalt ^ salt) >>> 0) / 0x100000000
 }
 
 function rollChance(seed: number, season: number, salt: number, chance: number): boolean {
