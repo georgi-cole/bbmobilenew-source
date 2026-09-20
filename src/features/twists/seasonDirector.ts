@@ -268,7 +268,8 @@ export function sanitiseRemoteSeasonDirectorConfig(
 
   if (isRecord(raw.secretMissions)) {
     const missions: NonNullable<RemoteSeasonDirectorConfig['secretMissions']> = {}
-    if (typeof raw.secretMissions.enabled === 'boolean') missions.enabled = raw.secretMissions.enabled
+    if (typeof raw.secretMissions.enabled === 'boolean')
+      missions.enabled = raw.secretMissions.enabled
     const first = sanitiseWindow(raw.secretMissions.first, { chanceKey: 'chance' })
     const second = sanitiseWindow(raw.secretMissions.second, {
       chanceKey: 'chance',
@@ -390,13 +391,11 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
     revision: remote.revision ?? defaults.revision,
     enabled: remote.enabled ?? defaults.enabled,
     pacing: {
-      finaleLockPlayers:
-        remote.pacing?.finaleLockPlayers ?? defaults.pacing.finaleLockPlayers,
+      finaleLockPlayers: remote.pacing?.finaleLockPlayers ?? defaults.pacing.finaleLockPlayers,
       minimumSpotlightGapDays:
         remote.pacing?.minimumSpotlightGapDays ?? defaults.pacing.minimumSpotlightGapDays,
       preventSameSceneMajorEvents:
-        remote.pacing?.preventSameSceneMajorEvents ??
-        defaults.pacing.preventSameSceneMajorEvents,
+        remote.pacing?.preventSameSceneMajorEvents ?? defaults.pacing.preventSameSceneMajorEvents,
     },
     secretMissions: {
       enabled: remote.secretMissions?.enabled ?? defaults.secretMissions.enabled,
@@ -425,13 +424,11 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
       seasonChance: remote.specialSafety?.seasonChance ?? defaults.specialSafety.seasonChance,
       maxPerSeason: 1,
       weights: {
-        vip:
-          remote.specialSafety?.selection?.weights?.vip ?? defaults.specialSafety.weights.vip,
+        vip: remote.specialSafety?.selection?.weights?.vip ?? defaults.specialSafety.weights.vip,
         diamond:
           remote.specialSafety?.selection?.weights?.diamond ??
           defaults.specialSafety.weights.diamond,
-        coup:
-          remote.specialSafety?.selection?.weights?.coup ?? defaults.specialSafety.weights.coup,
+        coup: remote.specialSafety?.selection?.weights?.coup ?? defaults.specialSafety.weights.coup,
         spotlight:
           remote.specialSafety?.selection?.weights?.spotlight ??
           defaults.specialSafety.weights.spotlight,

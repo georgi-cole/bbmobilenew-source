@@ -11479,11 +11479,7 @@ export const tryActivateSecretMission =
       if (!isSecondMissionAttempt) {
         if (!plan.selections.firstSecretMission) return false
         if (
-          !isWithinDirectorWindow(
-            aliveCount,
-            policy.first,
-            plan.policy.pacing.finaleLockPlayers
-          )
+          !isWithinDirectorWindow(aliveCount, policy.first, plan.policy.pacing.finaleLockPlayers)
         ) {
           return false
         }
@@ -11497,11 +11493,7 @@ export const tryActivateSecretMission =
         return false
       }
       if (
-        !isWithinDirectorWindow(
-          aliveCount,
-          policy.second,
-          plan.policy.pacing.finaleLockPlayers
-        )
+        !isWithinDirectorWindow(aliveCount, policy.second, plan.policy.pacing.finaleLockPlayers)
       ) {
         return false
       }
@@ -11666,11 +11658,7 @@ export const tryActivateDayStartShock =
       const policy = plan.policy.morningShock
       if (!policy.enabled || !plan.selections.morningShock) return false
       if (
-        !isWithinDirectorWindow(
-          activePlayers.length,
-          policy,
-          plan.policy.pacing.finaleLockPlayers
-        )
+        !isWithinDirectorWindow(activePlayers.length, policy, plan.policy.pacing.finaleLockPlayers)
       ) {
         return false
       }
@@ -11792,9 +11780,7 @@ export const tryActivateBattleBack =
         (player) => player.status === 'evicted' || player.status === 'jury'
       )
       const human = game.players.find((player) => player.isUser)
-      const humanExited = Boolean(
-        human && (human.status === 'evicted' || human.status === 'jury')
-      )
+      const humanExited = Boolean(human && (human.status === 'evicted' || human.status === 'jury'))
 
       // Human continuation is a safety net, not a random shock. It takes
       // precedence over AI-only season selection and may follow a Double
@@ -11822,18 +11808,16 @@ export const tryActivateBattleBack =
       if (game.battleBack?.used) return false
       if (!plan.selections.aiBattleBack) return false
       if (
-        !isWithinDirectorWindow(
-          active.length,
-          policy.aiOnly,
-          plan.policy.pacing.finaleLockPlayers
-        )
+        !isWithinDirectorWindow(active.length, policy.aiOnly, plan.policy.pacing.finaleLockPlayers)
       ) {
         return false
       }
       if (exited.length < policy.aiOnly.minimumCandidates) return false
       if (!hasDirectorSpotlightRoom(game)) return false
 
-      dispatch(activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week }))
+      dispatch(
+        activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week })
+      )
       return true
     }
 
@@ -11920,9 +11904,7 @@ export const tryActivateDoubleEviction =
       const policy = plan.policy.doubleElimination
       if (!policy.enabled || !plan.selections.doubleElimination) return false
       if (usedCount >= policy.maxPerSeason) return false
-      if (
-        !isWithinDirectorWindow(aliveCount, policy, plan.policy.pacing.finaleLockPlayers)
-      ) {
+      if (!isWithinDirectorWindow(aliveCount, policy, plan.policy.pacing.finaleLockPlayers)) {
         return false
       }
       if (!hasDirectorSpotlightRoom(game)) return false
@@ -12012,13 +11994,7 @@ export const tryActivateSpecialVeto =
       const policy = plan.policy.specialSafety
       const chosenType = plan.selections.specialSafetyType
       if (!policy.enabled || !chosenType) return false
-      if (
-        !isWithinDirectorWindow(
-          alive.length,
-          policy,
-          plan.policy.pacing.finaleLockPlayers
-        )
-      ) {
+      if (!isWithinDirectorWindow(alive.length, policy, plan.policy.pacing.finaleLockPlayers)) {
         return false
       }
       if (!hasDirectorSpotlightRoom(game)) return false

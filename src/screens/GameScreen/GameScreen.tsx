@@ -388,9 +388,7 @@ export default function GameScreen() {
     !directorBattleBackKillSwitched &&
     alivePlayers.length >= humanReturnPolicy.minimumActivePlayersAfterEviction
   const showDirectorReturnNotice =
-    directorHumanReturnPending &&
-    game.battleBack?.active !== true &&
-    !directorReturnNoticeDismissed
+    directorHumanReturnPending && game.battleBack?.active !== true && !directorReturnNoticeDismissed
   const preJuryGameOver =
     game.mode !== 'survival' &&
     humanPlayer?.status === 'evicted' &&

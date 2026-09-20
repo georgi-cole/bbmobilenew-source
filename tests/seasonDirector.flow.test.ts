@@ -70,7 +70,11 @@ function playersWithStatuses(options: {
   }
 
   const humanCountsAsEvicted = humanStatus === 'evicted'
-  for (let index = 0; index < Math.max(0, (options.evicted ?? 0) - (humanCountsAsEvicted ? 1 : 0)); index += 1) {
+  for (
+    let index = 0;
+    index < Math.max(0, (options.evicted ?? 0) - (humanCountsAsEvicted ? 1 : 0));
+    index += 1
+  ) {
     players.push({
       id: `evicted-${index}`,
       name: `Evicted ${index}`,
@@ -81,7 +85,11 @@ function playersWithStatuses(options: {
   }
 
   const humanCountsAsJuror = humanStatus === 'jury'
-  for (let index = 0; index < Math.max(0, (options.jurors ?? 0) - (humanCountsAsJuror ? 1 : 0)); index += 1) {
+  for (
+    let index = 0;
+    index < Math.max(0, (options.jurors ?? 0) - (humanCountsAsJuror ? 1 : 0));
+    index += 1
+  ) {
     players.push({
       id: `juror-${index}`,
       name: `Juror ${index}`,
