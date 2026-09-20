@@ -30,7 +30,7 @@ describe('Housemates biography cinematic', () => {
     expect(HOUSEMATES_BIO_DURATION_MS).toBe(131_400);
   });
 
-  it('keeps the five mystery housemates in a separate unlockable wildcard collection', () => {
+  it('keeps the six mystery housemates in a separate unlockable wildcard collection', () => {
     expect(MYSTERY_WILDCARD_BIOS.map((card) => card.name)).toEqual([
       'Lia',
       'Ali',
