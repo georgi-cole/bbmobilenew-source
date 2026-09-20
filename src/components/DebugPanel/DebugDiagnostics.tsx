@@ -75,7 +75,7 @@ function downloadJson(filename: string, value: unknown): void {
   URL.revokeObjectURL(url)
 }
 
-function collectHealthIssues(state: RootState): HealthIssue[] {
+function collectHealthIssues(state: Pick<RootState, 'game' | 'social'>): HealthIssue[] {
   const { game, social } = state
   const issues: HealthIssue[] = []
   const playerIds = new Set(game.players.map((player) => player.id))
@@ -156,12 +156,13 @@ export default function DebugDiagnostics() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const store = useStore<RootState>()
-  const state = useAppSelector((root) => root)
+  const game = useAppSelector((root) => root.game)
+  const social = useAppSelector((root) => root.social)
   const fileRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState('')
-  const issues = useMemo(() => collectHealthIssues(state), [state])
-  const simulation = state.social.realitySimulation
-  const reality = state.social.reality
+  const issues = useMemo(() => collectHealthIssues({ game, social }), [game, social])
+  const simulation = social.realitySimulation
+  const reality = social.reality
   const latestTrace = simulation.trace.at(-1)
   const actionHistory = getDiagnosticActionHistory()
   const lastError = getLastGameDiagnostic()

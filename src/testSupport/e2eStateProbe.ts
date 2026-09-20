@@ -8,6 +8,7 @@ export interface E2EProbeHost {
   readonly __E2E__?: boolean
   readonly __bbE2EState?: E2EStateProbe
   readonly __bbE2ENewSeason?: E2ENewSeasonFixture
+  readonly __bbE2ESkipUnloadAutosave?: boolean
 }
 
 export interface E2ENewSeasonFixture {
@@ -60,5 +61,6 @@ declare global {
     __E2E__?: boolean
     __bbE2ENewSeason?: E2ENewSeasonFixture
     __bbE2EState?: E2EStateProbe
+    __bbE2ESkipUnloadAutosave?: boolean
   }
 }
