@@ -152,7 +152,6 @@ describe("Bella's Will", () => {
     expect(isBellaHeirImmune(state, 'heir')).toBe(false)
   })
 
-
   it('uses durable profile progress even when the old Twin/Bella archives are gone', () => {
     const base = {
       season: 1002,

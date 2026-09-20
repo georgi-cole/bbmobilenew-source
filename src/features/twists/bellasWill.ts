@@ -107,12 +107,10 @@ function migratedBellaProgress(
       progress?.twinShockConsumedEver === true ||
       twinShockConsumed ||
       archives.some((archive) => archive.twinShockConsumed === true),
-    unlocked:
-      progress?.unlocked === true || archives.some((archive) => archive.bellaCast === true),
+    unlocked: progress?.unlocked === true || archives.some((archive) => archive.bellaCast === true),
     hasAppeared:
       progress?.hasAppeared === true || archives.some((archive) => archive.bellaCast === true),
-    mandatorySkipConsumed:
-      progress?.mandatorySkipConsumed === true || archivedSkipConsumed,
+    mandatorySkipConsumed: progress?.mandatorySkipConsumed === true || archivedSkipConsumed,
   }
 }
 
@@ -226,9 +224,8 @@ export function chooseBellaHeir(
 }
 
 function activePlayerCount(state: GameState): number {
-  return state.players.filter(
-    (player) => player.status !== 'evicted' && player.status !== 'jury'
-  ).length
+  return state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+    .length
 }
 
 /**

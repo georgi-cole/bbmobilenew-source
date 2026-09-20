@@ -81,10 +81,7 @@ describe("Bella's Will vote effects", () => {
     const { state, human, nominees } = prepareClassicVoteState()
     inheritReward(state, human.id, 'extra_vote')
 
-    let next = gameReducer(
-      state,
-      registerBatteryLowVoteEffects({ [human.id]: 'doubleVote' })
-    )
+    let next = gameReducer(state, registerBatteryLowVoteEffects({ [human.id]: 'doubleVote' }))
     next = gameReducer(next, advance())
 
     expect(next.bellaWill?.extraVoteChoiceActive).toBe(false)
@@ -110,9 +107,7 @@ describe("Bella's Will vote effects", () => {
 
     const voter = state.players.find(
       (player) =>
-        player.id !== heir.id &&
-        player.id !== loh.id &&
-        !state.nomineeIds.includes(player.id)
+        player.id !== heir.id && player.id !== loh.id && !state.nomineeIds.includes(player.id)
     )!
     state.votes = { [voter.id]: heir.id }
     inheritReward(state, heir.id, 'remove_vote')
@@ -141,9 +136,7 @@ describe("Bella's Will vote effects", () => {
 
     const voters = state.players.filter(
       (player) =>
-        player.id !== heir.id &&
-        player.id !== loh.id &&
-        !state.nomineeIds.includes(player.id)
+        player.id !== heir.id && player.id !== loh.id && !state.nomineeIds.includes(player.id)
     )
     state.votes = {
       [voters[0]!.id]: heir.id,
@@ -190,9 +183,7 @@ describe("Bella's Will vote effects", () => {
 
     const voter = state.players.find(
       (player) =>
-        player.id !== heir.id &&
-        player.id !== loh.id &&
-        !state.nomineeIds.includes(player.id)
+        player.id !== heir.id && player.id !== loh.id && !state.nomineeIds.includes(player.id)
     )!
     state.votes = { [voter.id]: nominees[1].id }
     inheritReward(state, heir.id, 'remove_vote')

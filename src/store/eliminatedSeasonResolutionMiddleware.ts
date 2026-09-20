@@ -122,7 +122,9 @@ export const eliminatedSeasonResolutionMiddleware: Middleware = (api) => (next) 
     const archive = buildResolvedArchive((api.getState() as ResolutionState).game)
     if (archive) {
       if (archive.cupidArrowActivated !== true && archive.voxPopuliActivated !== true) {
-        api.dispatch(recordBellaCompatibleClassicCompleted({ bellaCast: archive.bellaCast === true }))
+        api.dispatch(
+          recordBellaCompatibleClassicCompleted({ bellaCast: archive.bellaCast === true })
+        )
       }
       api.dispatch(archiveSeason(archive))
     }

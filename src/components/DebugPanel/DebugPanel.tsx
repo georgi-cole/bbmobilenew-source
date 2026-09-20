@@ -60,10 +60,7 @@ import {
   activateDepressionShockForDebug,
   setDepressionShockStageForDebug,
 } from '../../features/twists/depressionShock'
-import {
-  BELLA_WILL_REWARD_LABELS,
-  type BellaWillReward,
-} from '../../features/twists/bellasWill'
+import { BELLA_WILL_REWARD_LABELS, type BellaWillReward } from '../../features/twists/bellasWill'
 import './DebugPanel.css'
 
 const PHASES: Phase[] = [
@@ -708,9 +705,11 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                           dispatch(debugSetBellaWillReward(event.target.value as BellaWillReward))
                         }
                       >
-                        {(Object.entries(BELLA_WILL_REWARD_LABELS) as Array<
-                          [BellaWillReward, string]
-                        >).map(([value, label]) => (
+                        {(
+                          Object.entries(BELLA_WILL_REWARD_LABELS) as Array<
+                            [BellaWillReward, string]
+                          >
+                        ).map(([value, label]) => (
                           <option key={value} value={value}>
                             {label}
                           </option>

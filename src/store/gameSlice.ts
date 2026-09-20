@@ -505,7 +505,8 @@ export function createInitialGameState(options?: {
   const isGuest = profilesState.isGuest
   const activeBellaProgress =
     !isGuest && profilesState.activeProfileId
-      ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)?.bellaProgress
+      ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)
+          ?.bellaProgress
       : undefined
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
@@ -1829,8 +1830,7 @@ function getSafetyRelationshipBreakdown(
   const bellaSaveBonus = nominee.id === BELLA_ID ? 18 : 0
 
   if (!relationship) {
-    const total =
-      -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
+    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
     return {
       total,
       factors: {
@@ -7804,8 +7804,7 @@ const gameSlice = createSlice({
               }),
               ...action.payload.bellaWill,
               extraVoteChoiceActive: action.payload.bellaWill.extraVoteChoiceActive ?? false,
-              lastVoteRemovalAdjustment:
-                action.payload.bellaWill.lastVoteRemovalAdjustment ?? null,
+              lastVoteRemovalAdjustment: action.payload.bellaWill.lastVoteRemovalAdjustment ?? null,
               expiredAtEndgame: action.payload.bellaWill.expiredAtEndgame ?? false,
             }
           : createBellaWillState({
@@ -9998,10 +9997,7 @@ const gameSlice = createSlice({
                 awaitingTieBreak: false,
               })
             if (rawVotesAgainstHeir > 0 && !competingDeduction) {
-              voteCounts[bellaWill.heirId] = Math.max(
-                0,
-                (voteCounts[bellaWill.heirId] ?? 0) - 1
-              )
+              voteCounts[bellaWill.heirId] = Math.max(0, (voteCounts[bellaWill.heirId] ?? 0) - 1)
               bellaWill.voteRemovalPending = false
               bellaWill.lastVoteRemovalAdjustment = {
                 week: state.week,
@@ -10599,9 +10595,8 @@ const gameSlice = createSlice({
       state.votes[humanPlayer.id] = target1
       // The second ballot keeps its source identity so stacking and audit logic
       // can distinguish an inherited Bella vote from another Double Vote power.
-      state.votes[
-        usesBellaExtraVote ? `${humanPlayer.id}__bellaWill` : `${humanPlayer.id}__dv2`
-      ] = target2
+      state.votes[usesBellaExtraVote ? `${humanPlayer.id}__bellaWill` : `${humanPlayer.id}__dv2`] =
+        target2
 
       state.awaitingHumanVote = false
       state.humanDoubleVoteActive = false

@@ -62,7 +62,8 @@ export const bellaProgressMiddleware: Middleware = (api) => (next) => (action) =
     )
 
   if (
-    (after.game.twinShockConsumed || archives.some((archive) => archive.twinShockConsumed === true)) &&
+    (after.game.twinShockConsumed ||
+      archives.some((archive) => archive.twinShockConsumed === true)) &&
     (before.game.twinShockConsumed !== after.game.twinShockConsumed ||
       progress?.twinShockConsumedEver !== true)
   ) {
@@ -73,7 +74,10 @@ export const bellaProgressMiddleware: Middleware = (api) => (next) => (action) =
     after.game.players.some((player) => player.id === BELLA_ID) &&
     after.game.bellaWill?.debugCastForced !== true
   const hasArchivedBella = firstArchivedBellaSeason != null
-  if ((afterBella || hasArchivedBella) && (progress?.unlocked !== true || progress?.hasAppeared !== true)) {
+  if (
+    (afterBella || hasArchivedBella) &&
+    (progress?.unlocked !== true || progress?.hasAppeared !== true)
+  ) {
     api.dispatch(recordBellaEncountered())
   }
   if (archivedSkipConsumed && progress?.mandatorySkipConsumed !== true) {
