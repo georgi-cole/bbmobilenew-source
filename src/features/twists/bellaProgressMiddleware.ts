@@ -24,15 +24,35 @@ export const bellaProgressMiddleware: Middleware = (api) => (next) => (action) =
 
   if (after.profiles.isGuest || !after.profiles.activeProfileId) return result
 
-  if (!before.game.twinShockConsumed && after.game.twinShockConsumed) {
+  const actionType =
+    typeof action === 'object' && action !== null && 'type' in action
+      ? String((action as { type: unknown }).type)
+      : ''
+  // Profile selection temporarily keeps the previous profile's game in memory
+  // until reset/hydration completes. Never migrate Bella progress on that transient step.
+  const profileSelectionAction =
+    actionType === 'profiles/selectActiveProfile' ||
+    actionType === 'profiles/createProfile' ||
+    actionType === 'profiles/enterGuestMode'
+  if (profileSelectionAction) return result
+
+  const activeProfile = after.profiles.profiles.find(
+    (profile) => profile.id === after.profiles.activeProfileId
+  )
+  const progress = activeProfile?.bellaProgress
+
+  if (
+    after.game.twinShockConsumed &&
+    (before.game.twinShockConsumed !== after.game.twinShockConsumed ||
+      progress?.twinShockConsumedEver !== true)
+  ) {
     api.dispatch(recordBellaTwinShockConsumed())
   }
 
-  const beforeBella = before.game.players.some((player) => player.id === BELLA_ID)
   const afterBella =
     after.game.players.some((player) => player.id === BELLA_ID) &&
     after.game.bellaWill?.debugCastForced !== true
-  if (!beforeBella && afterBella) {
+  if (afterBella && progress?.unlocked !== true) {
     api.dispatch(recordBellaEncountered())
   }
 
