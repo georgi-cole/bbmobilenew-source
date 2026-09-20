@@ -1,5 +1,6 @@
 import type { GameState, Player } from '../../types'
 import type { SeasonArchive } from '../../store/seasonArchive'
+import { getSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 
 export const BELLA_ID = 'bella'
 export const BELLA_NAME = 'Bella'
@@ -13,6 +14,8 @@ export interface BellaWillState {
   heirId: string | null
   inherited: boolean
   immunityDaysRemaining: number
+  immunityStartWeek: number | null
+  immunityEndWeek: number | null
   extraVotePending: boolean
   voteRemovalPending: boolean
   lastHeirUpdateWeek: number | null
@@ -75,6 +78,10 @@ export function wasBellaEverCast(archives: SeasonArchive[]): boolean {
   return archives.some((archive) => archive.bellaCast === true)
 }
 
+function isBellaCompatibleArchive(archive: SeasonArchive): boolean {
+  return archive.cupidArrowActivated !== true && archive.voxPopuliActivated !== true
+}
+
 export function shouldCastBella(options: {
   season: number
   seasonArchives: SeasonArchive[]
@@ -84,16 +91,36 @@ export function shouldCastBella(options: {
   const { season, seasonArchives, twinShockConsumed, seed } = options
   if (!twinShockConsumed) return false
 
+  // Bella's Will currently depends on the ordinary house-vote flow, so "next
+  // available season" means the next Classic season. Expansion seasons do not
+  // advance Bella's appearance/skip cadence.
+  const launchIntent = getSeasonLaunchIntent()
+  if (launchIntent != null && launchIntent !== 'classic') return false
+
   const twinShockSeason = findTwinShockSeason(seasonArchives)
   if (twinShockSeason == null) return false
 
-  const guaranteedSeason = twinShockSeason + 1
-  if (season < guaranteedSeason) return false
-  if (season === guaranteedSeason) return true
-  if (season === guaranteedSeason + 1) return false
+  const classicAfterTwin = [...seasonArchives]
+    .filter(
+      (archive) => archive.seasonIndex > twinShockSeason && isBellaCompatibleArchive(archive)
+    )
+    .sort((left, right) => left.seasonIndex - right.seasonIndex)
 
-  // After the guaranteed appearance and one-season skip, Bella has a stable
-  // 10% chance to return each subsequent season.
+  const priorBella = classicAfterTwin.find((archive) => archive.bellaCast === true)
+  if (!priorBella) {
+    // First compatible season after Twin Shock: Bella is guaranteed.
+    return true
+  }
+
+  const classicAfterFirstBella = classicAfterTwin.filter(
+    (archive) => archive.seasonIndex > priorBella.seasonIndex
+  )
+  if (classicAfterFirstBella.length === 0) {
+    // Skip exactly one compatible season after her first appearance.
+    return false
+  }
+
+  // Every compatible season after the mandatory skip has a stable 10% roll.
   return seededUnit((seed ^ Math.imul(season, 0x45d9f3b)) >>> 0) < 0.1
 }
 
@@ -116,6 +143,8 @@ export function createBellaWillState(options: {
     heirId: null,
     inherited: false,
     immunityDaysRemaining: 0,
+    immunityStartWeek: null,
+    immunityEndWeek: null,
     extraVotePending: false,
     voteRemovalPending: false,
     lastHeirUpdateWeek: null,
@@ -172,6 +201,8 @@ export function activateBellaInheritance(state: GameState): void {
   will.inherited = true
   if (will.reward === 'immunity_2_days') {
     will.immunityDaysRemaining = 2
+    will.immunityStartWeek = state.week + 1
+    will.immunityEndWeek = state.week + 2
   } else if (will.reward === 'extra_vote') {
     will.extraVotePending = true
   } else if (will.reward === 'remove_vote') {
@@ -183,6 +214,8 @@ export function isBellaHeirImmune(state: GameState, playerId: string): boolean {
   const will = state.bellaWill
   if (!will?.active || !will.inherited || will.heirId !== playerId) return false
   if (will.reward !== 'immunity_2_days' || will.immunityDaysRemaining <= 0) return false
+  if (will.immunityStartWeek == null || will.immunityEndWeek == null) return false
+  if (state.week < will.immunityStartWeek || state.week > will.immunityEndWeek) return false
 
   // The legacy protection never applies once the game reaches Final 4 or lower.
   const activeCount = state.players.filter(
