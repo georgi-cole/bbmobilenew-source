@@ -150,6 +150,12 @@ import {
   type AiDecisionCandidate,
   type AiDecisionFactor,
 } from '../utils/aiDecisionDebug'
+import {
+  buildSeasonDirectorPlan,
+  hasDirectorSpotlightRoom,
+  isSeasonDirectorKillSwitched,
+  isWithinDirectorWindow,
+} from '../features/twists/seasonDirector'
 
 // ─── Canonical phase order ────────────────────────────────────────────────────
 const PHASE_ORDER: Phase[] = [
@@ -527,6 +533,7 @@ export function createInitialGameState(options?: {
       ? 'vox_populi'
       : 'classic'
   const playersWithIdentity = assignAiGameIdentities(freshPlayers, seed, aiIdentityMode)
+  const seasonDirectorPlan = buildSeasonDirectorPlan(season, seed)
 
   // Season-opening broadcasts are built from the same persistent registry as
   // every later phase. This makes edits, disabling, and mixed built-in/custom
@@ -640,6 +647,8 @@ export function createInitialGameState(options?: {
     week: 1,
     phase: 'season_start',
     seed,
+    seasonDirectorPlan,
+    seasonDirectorLastSpotlightDay: null,
     lohId: null,
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
@@ -3226,7 +3235,6 @@ function queueTwinShockConfessional(
   twinShock.retryCount = 0
   if (stage === 'day4_initial') {
     twinShock.status = 'day4_pending'
-    state.twinShockConsumed = true
     state.twinShockActivatedSeason = state.season
     state.liaForcedUntilTwinShockResolved = true
   }
@@ -3238,6 +3246,7 @@ function queueTwinShockConfessional(
 }
 
 function shouldQueueTwinShockBeforeDayEnd(state: GameState): boolean {
+  if (state.seasonDirectorPlan?.policy.lifetimeSpecials.twinShock.enabled === false) return false
   if (isCupidArrowActive(state)) return false
   if (!canHumanReceiveTwinShockConfessional(state)) return false
   const twinShock = state.twinShock ?? createInitialTwinShockState()
@@ -6234,6 +6243,7 @@ const gameSlice = createSlice({
       }
       state.battleBack = bb
       state.twistActive = true
+      if (state.seasonDirectorPlan) state.seasonDirectorLastSpotlightDay = state.week
       // Push event WITH major: 'battle_back' so TvZone shows the TvAnnouncementOverlay.
       pushEvent(
         state,
@@ -6332,6 +6342,7 @@ const gameSlice = createSlice({
       state.doubleEviction.pendingSecondEviction = null
       state.twistActive = true
       state.twistActivatedThisWeek = true
+      if (state.seasonDirectorPlan) state.seasonDirectorLastSpotlightDay = state.week
     },
 
     /**
@@ -6361,6 +6372,7 @@ const gameSlice = createSlice({
       state.specialVeto.vipUseStage = 0
       state.twistActive = true
       state.twistActivatedThisWeek = true
+      if (state.seasonDirectorPlan) state.seasonDirectorLastSpotlightDay = state.week
 
       const typeLabels: Record<SpecialVetoType, string> = {
         vip: 'DOUBLE TROUBLE! This week, the holder may use the power TWICE! 👑',
@@ -7490,6 +7502,15 @@ const gameSlice = createSlice({
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
     },
+    /**
+     * Attach the latest remote Director policy to a season that has not begun yet.
+     * Used after the first asynchronous live-config fetch on a fresh install.
+     */
+    refreshSeasonDirectorPlan(state) {
+      if (state.phase !== 'season_start' || state.isLive || state.seasonDirectorPlan) return
+      state.seasonDirectorPlan = buildSeasonDirectorPlan(state.season, state.seed)
+      state.seasonDirectorLastSpotlightDay = null
+    },
     /** Reset game state with a fresh random roster. */
     resetGame(state, action: PayloadAction<SeasonArchive[] | undefined>) {
       // Mix Math.random() with Date.now() to derive a fresh 32-bit game seed.
@@ -7519,6 +7540,8 @@ const gameSlice = createSlice({
         broadcastOverrides: state.broadcastOverrides ?? {},
         customBroadcasts: state.customBroadcasts ?? [],
       }
+      fresh.seasonDirectorPlan = buildSeasonDirectorPlan(season, seed)
+      fresh.seasonDirectorLastSpotlightDay = null
       fresh.twinShockConsumed = twinShockConsumed
       fresh.twinShockActivatedSeason = state.twinShockActivatedSeason ?? null
       fresh.twinShockResolution = state.twinShockResolution ?? null
@@ -10450,6 +10473,7 @@ export const {
   replacePlayers,
   updateUserPlayerIdentity,
   clearSurvivorReplacementTransition,
+  refreshSeasonDirectorPlan,
   resetGame,
   rerollSeed,
   hydrateGame,
@@ -11402,12 +11426,12 @@ export const tryActivateSecretMission =
   (dispatch: AppDispatch, getState: () => RootState): boolean => {
     const { game, settings } = getState()
     if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
+    if (isSeasonDirectorKillSwitched('secretMissions')) return false
+
     const aliveCount = game.players.filter(
       (player) => player.status !== 'evicted' && player.status !== 'jury'
     ).length
     const seasonMissionCount = getSeasonSecretMissionCount(game)
-    // Legacy saves may not have `secretMissionSecondChanceResolved`; once two
-    // missions are already counted, treat the second-chance roll as resolved.
     const secondMissionChanceResolved =
       game.secretMissionSecondChanceResolved ?? seasonMissionCount >= 2
 
@@ -11420,38 +11444,16 @@ export const tryActivateSecretMission =
     if (
       game.twinShock?.status === 'day4_pending' ||
       game.twinShock?.status === 'day4_asked_no_correct_guess'
-    )
+    ) {
       return false
+    }
     if (!canReplaceSecretMissionSlot(game.secretMission)) return false
 
     const maxDaySpan = aliveCount - 5
     const isSecondMissionAttempt = seasonMissionCount === 1
-    if (isSecondMissionAttempt) {
-      // Do not start a mission that cannot fit before Final 5. This is an
-      // explicit seasonal cutoff, independent of template lengths.
-      if (maxDaySpan < MIN_DAYS_BEFORE_FINAL_FIVE_FOR_SECOND_MISSION) {
-        dispatch(markSecondSecretMissionChanceResolved())
-        return false
-      }
-
-      // A replacement is intentionally paced: three entire days must pass
-      // after the prior mission resolves. For old saves without the new
-      // timestamp, an expired mission's deadline is the conservative fallback.
-      const lastResolvedDay =
-        game.secretMissionLastResolvedDay ??
-        (game.secretMission?.status === 'expired' ? game.secretMission.endDay : undefined)
-      if (
-        typeof lastResolvedDay !== 'number' ||
-        game.week - lastResolvedDay <= SECOND_SECRET_MISSION_COOLDOWN_FULL_DAYS
-      ) {
-        return false
-      }
-
-      if (maxDaySpan < MIN_SECRET_MISSION_DAY_SPAN) {
-        dispatch(markSecondSecretMissionChanceResolved())
-        return false
-      }
-    }
+    const lastResolvedDay =
+      game.secretMissionLastResolvedDay ??
+      (game.secretMission?.status === 'expired' ? game.secretMission.endDay : undefined)
 
     const forcedWeek = settings.sim.secretMissionTriggerWeekOverride
     if (forcedWeek !== null) {
@@ -11463,8 +11465,73 @@ export const tryActivateSecretMission =
     }
 
     const override = settings.sim.secretMissionTriggerOverride
-    const rng = mulberry32((game.seed ^ Math.imul(game.week, 0x9e3779b1)) >>> 0)
+    const plan = game.seasonDirectorPlan
+    if (plan && override === null) {
+      const policy = plan.policy.secretMissions
+      if (!policy.enabled) return false
 
+      if (!isSecondMissionAttempt) {
+        if (!plan.selections.firstSecretMission) return false
+        if (
+          !isWithinDirectorWindow(
+            aliveCount,
+            policy.first,
+            plan.policy.pacing.finaleLockPlayers
+          )
+        ) {
+          return false
+        }
+        dispatch(triggerSecretMission(game.week))
+        return true
+      }
+
+      if (secondMissionChanceResolved || !plan.selections.secondSecretMission) return false
+      if (aliveCount < policy.second.minPlayers) {
+        dispatch(markSecondSecretMissionChanceResolved())
+        return false
+      }
+      if (
+        !isWithinDirectorWindow(
+          aliveCount,
+          policy.second,
+          plan.policy.pacing.finaleLockPlayers
+        )
+      ) {
+        return false
+      }
+      if (
+        typeof lastResolvedDay !== 'number' ||
+        game.week - lastResolvedDay <= policy.second.minimumGapDays
+      ) {
+        return false
+      }
+      if (maxDaySpan < MIN_SECRET_MISSION_DAY_SPAN) {
+        dispatch(markSecondSecretMissionChanceResolved())
+        return false
+      }
+      dispatch(triggerSecretMission({ day: game.week, maxDaySpan }))
+      return true
+    }
+
+    // Legacy/debug path kept intact for existing QA controls and old saves.
+    if (isSecondMissionAttempt) {
+      if (maxDaySpan < MIN_DAYS_BEFORE_FINAL_FIVE_FOR_SECOND_MISSION) {
+        dispatch(markSecondSecretMissionChanceResolved())
+        return false
+      }
+      if (
+        typeof lastResolvedDay !== 'number' ||
+        game.week - lastResolvedDay <= SECOND_SECRET_MISSION_COOLDOWN_FULL_DAYS
+      ) {
+        return false
+      }
+      if (maxDaySpan < MIN_SECRET_MISSION_DAY_SPAN) {
+        dispatch(markSecondSecretMissionChanceResolved())
+        return false
+      }
+    }
+
+    const rng = mulberry32((game.seed ^ Math.imul(game.week, 0x9e3779b1)) >>> 0)
     const didTrigger = checkSecretMissionTrigger(
       {
         day: game.week,
@@ -11574,6 +11641,7 @@ export const tryActivateDayStartShock =
     const { game, settings } = getState()
 
     if (isCupidArrowTwistLocked(game)) return false
+    if (isSeasonDirectorKillSwitched('morningShock')) return false
     if (!settings.sim.enableTwists) return false
     if (game.phase !== 'week_start') return false
     if (game.dayStartShock) return false
@@ -11587,12 +11655,29 @@ export const tryActivateDayStartShock =
     )
     if (activePlayers.length <= 4) return false
 
-    const chance = Math.max(0, Math.min(100, settings.sim.dayStartShockChance ?? 1))
-    if (chance <= 0) return false
+    const plan = game.seasonDirectorPlan
+    if (plan) {
+      const policy = plan.policy.morningShock
+      if (!policy.enabled || !plan.selections.morningShock) return false
+      if (
+        !isWithinDirectorWindow(
+          activePlayers.length,
+          policy,
+          plan.policy.pacing.finaleLockPlayers
+        )
+      ) {
+        return false
+      }
+    } else {
+      const chance = Math.max(0, Math.min(100, settings.sim.dayStartShockChance ?? 1))
+      if (chance <= 0) return false
+      const chanceRng = mulberry32((game.seed ^ DAY_START_SHOCK_RNG_SALT) >>> 0)
+      if (chanceRng() * 100 >= chance) return false
+    }
 
     const rng = mulberry32((game.seed ^ DAY_START_SHOCK_RNG_SALT) >>> 0)
-    if (rng() * 100 >= chance) return false
-
+    // Keep the selection RNG independent from the Director's season roll.
+    if (!plan) rng()
     const selection = buildDayStartShockSelection(
       game.players,
       rng,
@@ -11684,9 +11769,59 @@ export const tryActivateBattleBack =
     const { game, settings } = getState()
 
     if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
+    if (isSeasonDirectorKillSwitched('battleBack')) return false
     if (!settings.sim.enableTwists) return false
     if (game.battleBack?.used) return false
     if (game.phase !== 'eviction_results') return false
+
+    const plan = game.seasonDirectorPlan
+    if (plan) {
+      const policy = plan.policy.battleBack
+      if (!policy.enabled) return false
+
+      const active = game.players.filter(
+        (player) => player.status !== 'evicted' && player.status !== 'jury'
+      )
+      const exited = game.players.filter(
+        (player) => player.status === 'evicted' || player.status === 'jury'
+      )
+      const human = game.players.find((player) => player.isUser)
+      const humanExited = Boolean(
+        human && (human.status === 'evicted' || human.status === 'jury')
+      )
+
+      // Human continuation is a safety net, not a random shock. It takes
+      // precedence over AI-only season selection and may follow a Double
+      // Elimination because it gets a separate Battle Back presentation.
+      if (
+        humanExited &&
+        policy.human.guaranteedOpportunityAfterEviction &&
+        active.length >= policy.human.minimumActivePlayersAfterEviction &&
+        exited.length >= policy.human.minimumCandidates
+      ) {
+        dispatch(activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week }))
+        return true
+      }
+
+      // If the human is already out but their guaranteed window is not viable,
+      // do not spend the one Battle Back on an AI-only return.
+      if (humanExited) return false
+      if (!plan.selections.aiBattleBack) return false
+      if (
+        !isWithinDirectorWindow(
+          active.length,
+          policy.aiOnly,
+          plan.policy.pacing.finaleLockPlayers
+        )
+      ) {
+        return false
+      }
+      if (exited.length < policy.aiOnly.minimumCandidates) return false
+      if (!hasDirectorSpotlightRoom(game)) return false
+
+      dispatch(activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week }))
+      return true
+    }
 
     const jurors = game.players.filter((p) => p.status === 'jury')
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
@@ -11695,8 +11830,6 @@ export const tryActivateBattleBack =
     if (active.length < 5) return false
 
     const chance = settings.sim.battleBackChance ?? 30
-    // Use a twist-specific RNG offset so this roll is independent of the main
-    // game seed sequence and does not perturb future LOH/POS/vote outcomes.
     const rng = mulberry32((game.seed ^ 0xba77eba0) >>> 0)
     const roll = rng() * 100
 
@@ -11755,33 +11888,42 @@ export const tryActivateDoubleEviction =
     const { game, settings } = getState()
 
     if (isCupidArrowTwistLocked(game)) return false
+    if (isSeasonDirectorKillSwitched('doubleElimination')) return false
     if (game.pendingForcedShock) return false
     if (!settings.sim.enableTwists) return false
     if (game.phase !== 'nominations') return false
-    // Don't activate twice in the same week
     if (game.doubleEviction?.weekActive) return false
-    // No two twists in the same week
     if (game.twistActivatedThisWeek) return false
+
+    const alive = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
+    const aliveCount = alive.length
+    const usedCount = game.doubleEviction?.usedCount ?? 0
+    const plan = game.seasonDirectorPlan
+
+    if (plan) {
+      const policy = plan.policy.doubleElimination
+      if (!policy.enabled || !plan.selections.doubleElimination) return false
+      if (usedCount >= policy.maxPerSeason) return false
+      if (
+        !isWithinDirectorWindow(aliveCount, policy, plan.policy.pacing.finaleLockPlayers)
+      ) {
+        return false
+      }
+      if (!hasDirectorSpotlightRoom(game)) return false
+      dispatch(activateDoubleEviction())
+      return true
+    }
 
     const evictionsSoFar = game.players.filter(
       (p) => p.status === 'evicted' || p.status === 'jury'
     ).length
-    const alive = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
-    const aliveCount = alive.length
-    const usedCount = game.doubleEviction?.usedCount ?? 0
-
-    // Only attempt mid-season: after 5 evictions and above final 5
     if (evictionsSoFar < 5) return false
     if (aliveCount <= 5) return false
-    // Cap at 2 uses per season
     if (usedCount >= 2) return false
 
     const chance = settings.sim.doubleEvictionChance ?? 35
-
-    // Use a twist-specific RNG offset so this roll is independent of the main
-    // game seed sequence and does not perturb future LOH/POS/vote outcomes.
     const rng = mulberry32((game.seed ^ 0xde1cef01) >>> 0)
-    const roll = rng() * 100 // [0, 100)
+    const roll = rng() * 100
 
     if (roll >= chance) return false
 
@@ -11839,33 +11981,48 @@ export const tryActivateSpecialVeto =
     const { game, settings } = getState()
 
     if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
+    if (isSeasonDirectorKillSwitched('specialSafety')) return false
     if (game.pendingForcedShock) return false
     if (!settings.sim.enableTwists) return false
     if (game.phase !== 'pos_results') return false
     if (game.doubleEviction?.weekActive) return false
-    // No two twists in the same week
     if (game.twistActivatedThisWeek) return false
     if (game.specialVeto?.seasonUsed) return false
 
     const alive = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
-    if (alive.length <= 5) return false
+    const plan = game.seasonDirectorPlan
 
-    // Only attempt mid-season: after 5 evictions
+    if (plan) {
+      const policy = plan.policy.specialSafety
+      const chosenType = plan.selections.specialSafetyType
+      if (!policy.enabled || !chosenType) return false
+      if (
+        !isWithinDirectorWindow(
+          alive.length,
+          policy,
+          plan.policy.pacing.finaleLockPlayers
+        )
+      ) {
+        return false
+      }
+      if (!hasDirectorSpotlightRoom(game)) return false
+      dispatch(activateSpecialVeto({ type: chosenType, week: game.week }))
+      return true
+    }
+
+    if (alive.length <= 5) return false
     const evictionsSoFar = game.players.filter(
       (p) => p.status === 'evicted' || p.status === 'jury'
     ).length
     if (evictionsSoFar < 5) return false
 
     const chance = settings.sim.specialSafetyChance ?? 25
-    // Use a twist-specific RNG offset so this roll is independent of the main game seed
-    // sequence and does not perturb future LOH/POS/vote outcomes.
-    const SPECIAL_VETO_RNG_SALT = 0x5e7c7074 // arbitrary constant distinguishing this roll from others
+    const SPECIAL_VETO_RNG_SALT = 0x5e7c7074
     const rngSpecial = mulberry32((game.seed ^ SPECIAL_VETO_RNG_SALT) >>> 0)
     const roll = rngSpecial() * 100
 
     if (roll >= chance) return false
 
-    // Deterministically pick one of the 4 veto types
     const types: SpecialVetoType[] = ['vip', 'diamond', 'coup', 'spotlight']
     const typeRoll = rngSpecial()
     const chosenType = types[Math.floor(typeRoll * types.length)]
