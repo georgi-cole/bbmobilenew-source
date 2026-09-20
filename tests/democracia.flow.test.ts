@@ -35,12 +35,14 @@ import gameReducer, {
   submitCoLohNomination,
   submitPosTieBreak,
   finalizePendingEviction,
+  hydrateGame,
   queueForcedShock,
   tryActivateDemocracia,
   tryActivatePendingForcedDemocracia,
 } from '../src/store/gameSlice'
 import settingsReducer, { DEFAULT_SETTINGS } from '../src/store/settingsSlice'
 import { selectIsWaitingForInput } from '../src/store/selectors'
+import { createBellaWillState } from '../src/features/twists/bellasWill'
 import type { GameState, Player, DemocraciaState } from '../src/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -330,6 +332,34 @@ describe('Democracia twist', () => {
       store.dispatch(advance())
       expect(store.getState().game.phase).toBe('democracia_results')
       expect(store.getState().game.lohId).toBe('p4')
+    })
+
+    it('Bella nomination immunity does not block Democracia LOH votes', () => {
+      const { store } = makeVoteStore()
+      const state = store.getState().game
+      const heirId = 'p4'
+      const will = createBellaWillState({
+        active: true,
+        seed: state.seed,
+        season: state.season,
+        reward: 'immunity_2_days',
+      })
+      will.heirId = heirId
+      will.inherited = true
+      will.immunityDaysRemaining = 2
+      will.immunityStartWeek = state.week
+      will.immunityEndWeek = state.week + 1
+
+      store.dispatch(
+        hydrateGame({
+          ...state,
+          bellaWill: will,
+        } as GameState)
+      )
+      store.dispatch(submitDemocraciaVote(heirId))
+
+      expect(store.getState().game.democracia?.votesByVoterId.p0).toBe(heirId)
+      expect(store.getState().game.democracia?.awaitingHumanVote).toBe(false)
     })
 
     it('human cannot vote for themselves', () => {
