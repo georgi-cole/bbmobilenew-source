@@ -6327,7 +6327,6 @@ const gameSlice = createSlice({
     activateBattleBack(state, action: PayloadAction<{ candidates: string[]; week: number }>) {
       if (isVoxPopuliTwistLocked(state)) return
       const candidates = action.payload.candidates.filter((id) => id !== BELLA_ID)
-      if (candidates.length < 3) return
       const bb: BattleBackState = {
         used: false,
         active: true,
