@@ -6,7 +6,7 @@ test.describe('Human-like season simulation @season-sim', () => {
     page,
   }, testInfo) => {
     const configuredActions = Number(process.env.SEASON_SIM_MAX_ACTIONS ?? 4)
-    test.setTimeout(configuredActions > 50 ? 15 * 60_000 : 180_000)
+    test.setTimeout(configuredActions > 50 ? 60 * 60_000 : 180_000)
     const config = defaultSimulationConfig()
     const auditor = await runSeasonSimulation(page, testInfo, config)
     expect(

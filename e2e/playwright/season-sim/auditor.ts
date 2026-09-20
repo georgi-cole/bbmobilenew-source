@@ -32,6 +32,7 @@ export class SeasonAuditor {
     this.checkpoints.push({ name, phase: game.phase, day })
     this.auditState(name, observed)
     await this.auditLayout(name)
+    await this.writeProgress(observed, `checkpoint:${name}`)
   }
 
   async record(
@@ -49,6 +50,31 @@ export class SeasonAuditor {
       day: gameDay(game),
       ...(note ? { note } : {}),
     })
+    await this.writeProgress(state ?? (await readAppState(this.context.page)), action)
+  }
+
+  private async writeProgress(state: StateSnapshot, lastAction: string): Promise<void> {
+    const game = state.game
+    const payload = {
+      updatedAt: new Date().toISOString(),
+      elapsedMs: Date.now() - this.context.startedAtMs,
+      mode: this.context.config.mode,
+      persona: this.context.config.personaId,
+      seed: this.context.config.seeds,
+      day: gameDay(game),
+      phase: game.phase,
+      lastAction,
+      actions: this.timeline.length,
+      findings: this.findings.length,
+      objectivesVerified: this.coverage.values().filter((item) => item.status === 'verified')
+        .length,
+      objectivesTotal: this.coverage.values().length,
+    }
+    await writeFile(
+      this.context.testInfo.outputPath('season-simulation-progress.json'),
+      JSON.stringify(payload, null, 2),
+      'utf8'
+    )
   }
 
   async attachReport(name: string, terminal: string): Promise<void> {
