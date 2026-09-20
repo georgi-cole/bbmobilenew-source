@@ -7601,6 +7601,7 @@ const gameSlice = createSlice({
         seed: state.seed,
         season: state.season,
       })
+      state.bellaWill.debugCastForced = true
       pushEvent(
         state,
         `[DEBUG] Bella replaced ${replaced.name} in the active cast. Bella's Will is ready for testing. 🔧`,
