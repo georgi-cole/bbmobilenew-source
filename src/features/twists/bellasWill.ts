@@ -1,5 +1,6 @@
 import type { GameState, Player } from '../../types'
 import type { SeasonArchive } from '../../store/seasonArchive'
+import type { BellaProgress } from '../../store/profilesSlice'
 import { getSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 
 export const BELLA_ID = 'bella'
@@ -7,6 +8,12 @@ export const BELLA_NAME = 'Bella'
 export const BELLA_AVATAR = 'assets/skins/Bella_avatar.webp'
 
 export type BellaWillReward = 'immunity_2_days' | 'extra_vote' | 'remove_vote'
+
+export interface BellaVoteRemovalAdjustment {
+  week: number
+  targetId: string
+  amount: 1
+}
 
 export interface BellaWillState {
   active: boolean
@@ -17,8 +24,12 @@ export interface BellaWillState {
   immunityStartWeek: number | null
   immunityEndWeek: number | null
   extraVotePending: boolean
+  /** Human heir is currently choosing the normal and inherited Bella ballots. */
+  extraVoteChoiceActive: boolean
   voteRemovalPending: boolean
+  lastVoteRemovalAdjustment: BellaVoteRemovalAdjustment | null
   lastHeirUpdateWeek: number | null
+  expiredAtEndgame: boolean
   debugForced: boolean
   /** True only when Debug Suite injected Bella into a season that did not naturally cast her. */
   debugCastForced: boolean
@@ -47,7 +58,7 @@ const BELLA_WILL_REWARDS: readonly BellaWillReward[] = [
 
 export const BELLA_WILL_REWARD_LABELS: Record<BellaWillReward, string> = {
   immunity_2_days: 'Immunity for 2 consecutive days (inactive at Final 4/3/2)',
-  extra_vote: '1 extra vote in the next elimination',
+  extra_vote: '1 extra vote in the next eligible elimination',
   remove_vote: 'Remove 1 vote next time the heir is nominated',
 }
 
@@ -69,20 +80,40 @@ function seededUnit(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
 
-export function findTwinShockSeason(archives: SeasonArchive[]): number | null {
-  const candidates = archives
-    .filter((archive) => archive.twinShockConsumed === true)
-    .map((archive) => archive.seasonIndex)
-    .filter((season) => Number.isFinite(season))
-  return candidates.length > 0 ? Math.min(...candidates) : null
-}
-
-export function wasBellaEverCast(archives: SeasonArchive[]): boolean {
-  return archives.some((archive) => archive.bellaCast === true)
-}
-
 function isBellaCompatibleArchive(archive: SeasonArchive): boolean {
   return archive.cupidArrowActivated !== true && archive.voxPopuliActivated !== true
+}
+
+function migratedBellaProgress(
+  progress: BellaProgress | undefined,
+  archives: SeasonArchive[],
+  twinShockConsumed: boolean
+): BellaProgress {
+  const archivedBellaSeasons = archives
+    .filter((archive) => archive.bellaCast === true && isBellaCompatibleArchive(archive))
+    .map((archive) => archive.seasonIndex)
+    .filter((season) => Number.isFinite(season))
+    .sort((left, right) => left - right)
+  const firstArchivedBellaSeason = archivedBellaSeasons[0] ?? null
+  const archivedSkipConsumed =
+    firstArchivedBellaSeason != null &&
+    archives.some(
+      (archive) =>
+        isBellaCompatibleArchive(archive) && archive.seasonIndex > firstArchivedBellaSeason
+    )
+
+  return {
+    twinShockConsumedEver:
+      progress?.twinShockConsumedEver === true ||
+      twinShockConsumed ||
+      archives.some((archive) => archive.twinShockConsumed === true),
+    unlocked:
+      progress?.unlocked === true || archives.some((archive) => archive.bellaCast === true),
+    hasAppeared:
+      progress?.hasAppeared === true || archives.some((archive) => archive.bellaCast === true),
+    mandatorySkipConsumed:
+      progress?.mandatorySkipConsumed === true || archivedSkipConsumed,
+  }
 }
 
 export function shouldCastBella(options: {
@@ -90,44 +121,34 @@ export function shouldCastBella(options: {
   seasonArchives: SeasonArchive[]
   twinShockConsumed: boolean
   seed: number
+  bellaProgress?: BellaProgress
 }): boolean {
-  const { season, seasonArchives, twinShockConsumed, seed } = options
-  if (!twinShockConsumed) return false
+  const { season, seasonArchives, twinShockConsumed, seed, bellaProgress } = options
 
-  // Bella's Will currently depends on the ordinary house-vote flow, so "next
-  // available season" means the next Classic season. Expansion seasons do not
-  // advance Bella's appearance/skip cadence.
+  // Bella is Classic-only. Expansion launches neither cast her nor consume her cadence.
   const launchIntent = getSeasonLaunchIntent()
   if (launchIntent != null && launchIntent !== 'classic') return false
 
-  const twinShockSeason = findTwinShockSeason(seasonArchives)
-  if (twinShockSeason == null) return false
+  const progress = migratedBellaProgress(bellaProgress, seasonArchives, twinShockConsumed)
+  if (!progress.twinShockConsumedEver) return false
 
-  const classicAfterTwin = [...seasonArchives]
-    .filter((archive) => archive.seasonIndex > twinShockSeason && isBellaCompatibleArchive(archive))
-    .sort((left, right) => left.seasonIndex - right.seasonIndex)
+  // Once the Twin Shock has been consumed, Bella is guaranteed in the next
+  // compatible Classic season.
+  if (!progress.hasAppeared) return true
 
-  const priorBella = classicAfterTwin.find((archive) => archive.bellaCast === true)
-  if (!priorBella) {
-    // First compatible season after Twin Shock: Bella is guaranteed.
-    return true
-  }
+  // Only the first Bella appearance creates one mandatory compatible-season skip.
+  if (!progress.mandatorySkipConsumed) return false
 
-  const classicAfterFirstBella = classicAfterTwin.filter(
-    (archive) => archive.seasonIndex > priorBella.seasonIndex
-  )
-  if (classicAfterFirstBella.length === 0) {
-    // Skip exactly one compatible season after her first appearance.
-    return false
-  }
-
-  // Every compatible season after the mandatory skip has a stable 10% roll.
+  // Every compatible Classic season after that has a stable 10% return roll.
   return seededUnit((seed ^ Math.imul(season, 0x45d9f3b)) >>> 0) < 0.1
 }
 
 export function pickBellaWillReward(seed: number, season: number): BellaWillReward {
   const roll = seededUnit((seed ^ Math.imul(season + 17, 0x27d4eb2d)) >>> 0)
-  const index = Math.min(\n    BELLA_WILL_REWARDS.length - 1,\n    Math.floor(roll * BELLA_WILL_REWARDS.length)\n  )
+  const index = Math.min(
+    BELLA_WILL_REWARDS.length - 1,
+    Math.floor(roll * BELLA_WILL_REWARDS.length)
+  )
   return BELLA_WILL_REWARDS[index]
 }
 
@@ -147,8 +168,11 @@ export function createBellaWillState(options: {
     immunityStartWeek: null,
     immunityEndWeek: null,
     extraVotePending: false,
+    extraVoteChoiceActive: false,
     voteRemovalPending: false,
+    lastVoteRemovalAdjustment: null,
     lastHeirUpdateWeek: null,
+    expiredAtEndgame: false,
     debugForced: false,
     debugCastForced: false,
   }
@@ -161,8 +185,6 @@ function bellaRelationshipScore(state: GameState, candidateId: string): number {
   let score = relation.affinity
   const tags = new Set(relation.tags ?? [])
 
-  // Bella values demonstrated loyalty, devotion and protection more than
-  // generic friendliness. These weights deliberately outweigh small-talk gains.
   if (tags.has('alliance')) score += 12
   if (tags.has('shield')) score += 14
   if (tags.has('protection')) score += 18
@@ -178,28 +200,58 @@ function bellaRelationshipScore(state: GameState, candidateId: string): number {
   return score
 }
 
-export function chooseBellaHeir(state: GameState): string | null {
+export function chooseBellaHeir(
+  state: GameState,
+  excludedIds: readonly string[] = []
+): string | null {
   if (!state.bellaWill?.active) return null
+  const excluded = new Set(excludedIds)
   const candidates = state.players.filter(
     (player) =>
       player.id !== BELLA_ID &&
+      !excluded.has(player.id) &&
       player.status !== 'evicted' &&
       player.status !== 'jury'
   )
   if (candidates.length === 0) return null
 
-  return [...candidates]
-    .sort((left, right) => {
+  return (
+    [...candidates].sort((left, right) => {
       const scoreDiff =
         bellaRelationshipScore(state, right.id) - bellaRelationshipScore(state, left.id)
       if (scoreDiff !== 0) return scoreDiff
       return left.id.localeCompare(right.id)
     })[0]?.id ?? null
+  )
+}
+
+function activePlayerCount(state: GameState): number {
+  return state.players.filter(
+    (player) => player.status !== 'evicted' && player.status !== 'jury'
+  ).length
+}
+
+/**
+ * Bella's Will is an ordinary-season modifier only. As soon as the House reaches
+ * Final 4, all unresolved inheritance effects expire and can never affect F4/F3/F2.
+ */
+export function expireBellaWillAtEndgame(state: GameState): boolean {
+  const will = state.bellaWill
+  if (!will?.active || activePlayerCount(state) > 4) return false
+  will.immunityDaysRemaining = 0
+  will.immunityStartWeek = null
+  will.immunityEndWeek = null
+  will.extraVotePending = false
+  will.extraVoteChoiceActive = false
+  will.voteRemovalPending = false
+  will.expiredAtEndgame = true
+  return true
 }
 
 export function activateBellaInheritance(state: GameState): void {
   const will = state.bellaWill
   if (!will?.active || will.inherited || !will.heirId || !will.reward) return
+  if (expireBellaWillAtEndgame(state)) return
 
   will.inherited = true
   if (will.reward === 'immunity_2_days') {
@@ -216,19 +268,14 @@ export function activateBellaInheritance(state: GameState): void {
 export function isBellaHeirImmune(state: GameState, playerId: string): boolean {
   const will = state.bellaWill
   if (!will?.active || !will.inherited || will.heirId !== playerId) return false
+  if (will.expiredAtEndgame) return false
   if (will.reward !== 'immunity_2_days' || will.immunityDaysRemaining <= 0) return false
   if (will.immunityStartWeek == null || will.immunityEndWeek == null) return false
   if (state.week < will.immunityStartWeek || state.week > will.immunityEndWeek) return false
-
-  // The legacy protection never applies once the game reaches Final 4 or lower.
-  const activeCount = state.players.filter(
-    (player) => player.status !== 'evicted' && player.status !== 'jury'
-  ).length
-  return activeCount > 4
+  return activePlayerCount(state) > 4
 }
 
 export function getBellaHint(seed: number, season: number, week: number): string {
   const index = Math.abs((seed + season * 11 + week * 7) % BELLA_WILL_HINTS.length)
   return BELLA_WILL_HINTS[index]
 }
-
