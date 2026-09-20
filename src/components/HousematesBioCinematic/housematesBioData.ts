@@ -173,10 +173,11 @@ export interface HousematesBioCard {
 
 export type MysteryWildcardUnlock =
   | { kind: 'twin-shock'; label: string }
+  | { kind: 'first-cast'; label: string }
   | { kind: 'unavailable'; label: string };
 
 export interface MysteryWildcardBio {
-  id: 'lia' | 'ali' | 'noa' | 'pax' | 'rey';
+  id: 'lia' | 'ali' | 'noa' | 'pax' | 'rey' | 'bella';
   name: string;
   fullName: string;
   age: number;
@@ -231,6 +232,25 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     avatarPath: '/assets/skins/Ali_avatar.webp',
     portraitPosition: 'center 20%',
     unlock: { kind: 'twin-shock', label: 'Reveal the Twin Shock' },
+  },
+  {
+    id: 'bella',
+    name: 'Bella',
+    fullName: 'Bella',
+    age: 68,
+    location: 'Monte Carlo, Monaco',
+    profession: 'Private Investor',
+    introduction:
+      "I'm Bella. I have spent enough years in rooms where everyone wanted something to know the difference between charm and loyalty.",
+    prizePlan:
+      'I have no need to buy another beautiful thing. If I win, the prize funds financial independence programs for women rebuilding their lives.',
+    privateDetail:
+      'Bella keeps a private list of the people who have earned her trust. Protection and loyalty move a name much faster than flattery.',
+    accent: '#e6d2a8',
+    backdrop: 'fashion-atelier',
+    portraitPath: '/assets/Informal_attires/Bella_informal.png',
+    avatarPath: '/assets/skins/Bella_avatar.webp',
+    unlock: { kind: 'first-cast', label: "Encounter Bella" },
   },
   {
     id: 'noa',
