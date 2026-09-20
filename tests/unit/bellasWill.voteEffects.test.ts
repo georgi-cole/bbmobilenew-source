@@ -129,6 +129,51 @@ describe("Bella's Will vote effects", () => {
     })
   })
 
+  it('waits behind an eligible stored vote-deduction power instead of stacking reductions', () => {
+    const { state, human, loh, nominees } = prepareClassicVoteState()
+    const heir = human
+    heir.status = 'nominated'
+    nominees[0].status = 'active'
+    state.nomineeIds = [heir.id, nominees[1].id]
+    state.phase = 'live_vote'
+    state.awaitingHumanVote = false
+    state.lohId = loh.id
+
+    const voters = state.players.filter(
+      (player) =>
+        player.id !== heir.id &&
+        player.id !== loh.id &&
+        !state.nomineeIds.includes(player.id)
+    )
+    state.votes = {
+      [voters[0]!.id]: heir.id,
+      [voters[1]!.id]: heir.id,
+    }
+    state.secretMission = {
+      triggeredDay: 2,
+      status: 'rewardClaimed',
+      offeredDay: 2,
+      offerCount: 1,
+      declinedDay: null,
+      tasks: [],
+      templateId: 'silent_witness',
+      reward: {
+        type: 'voteDeduction',
+        consumed: false,
+        expired: false,
+        eligible: true,
+      },
+    }
+    inheritReward(state, heir.id, 'remove_vote')
+
+    const next = gameReducer(state, advance())
+
+    expect(next.voteResults?.[heir.id]).toBe(2)
+    expect(next.bellaWill?.voteRemovalPending).toBe(true)
+    expect(next.bellaWill?.lastVoteRemovalAdjustment).toBeNull()
+    expect(next.awaitingVoteDeductionPrompt).toBe(true)
+  })
+
   it('does not consume vote removal when nobody legally votes against the heir', () => {
     const { state, human, loh, nominees } = prepareClassicVoteState()
     const heir = human
