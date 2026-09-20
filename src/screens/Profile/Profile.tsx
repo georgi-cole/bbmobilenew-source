@@ -305,8 +305,10 @@ function buildNominationChip(nomineeIds: string[], userPlayer: Player | null): S
 }
 
 function useCareerStats(userIdentity: Pick<Player, 'id' | 'name'> | null): CareerStats {
-  return useAppSelector((s) => {
-    const archives = s.game.seasonArchives ?? []
+  const archives = useAppSelector((s) => s.game.seasonArchives)
+
+  return useMemo(() => {
+    const seasonArchives = archives ?? []
     let seasons = 0
     let lohWins = 0
     let posWins = 0
@@ -319,7 +321,7 @@ function useCareerStats(userIdentity: Pick<Player, 'id' | 'name'> | null): Caree
     let ratedSeasons = 0
     const titlesByName = new Map<string, number>()
 
-    for (const archive of archives) {
+    for (const archive of seasonArchives) {
       const me = findArchiveUserSummary(archive, userIdentity)
       if (!me) continue
 
@@ -371,7 +373,7 @@ function useCareerStats(userIdentity: Pick<Player, 'id' | 'name'> | null): Caree
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([title, count]) => ({ title: formatTitleLabel(title), count })),
     }
-  })
+  }, [archives, userIdentity])
 }
 
 function HoldRevealPill({

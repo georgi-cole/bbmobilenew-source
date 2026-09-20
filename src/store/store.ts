@@ -372,7 +372,12 @@ store.subscribe(() => {
 // Android/iOS may reclaim a background WebView without another Redux action.
 // Queue the latest current state and synchronously flush every pending run as
 // soon as the document hides. This preserves the previous durability guarantee.
-if (typeof document !== 'undefined') {
+const skipUnloadAutosaveForE2E =
+  typeof window !== 'undefined' &&
+  window.__E2E__ === true &&
+  window.__bbE2ESkipUnloadAutosave === true
+
+if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'hidden' || isRunAutosaveSuspended()) return
     const current = store.getState()
@@ -387,7 +392,7 @@ if (typeof document !== 'undefined') {
   })
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
   window.addEventListener('pagehide', () => runSnapshotAutosave.flush())
 }
 
