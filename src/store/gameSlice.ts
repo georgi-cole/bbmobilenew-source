@@ -7587,7 +7587,17 @@ const gameSlice = createSlice({
     },
     debugSetBellaWillReward(state, action: PayloadAction<BellaWillReward>) {
       if (!state.bellaWill?.active) return
+      const wasInherited = state.bellaWill.inherited
       state.bellaWill.reward = action.payload
+      state.bellaWill.immunityDaysRemaining = 0
+      state.bellaWill.immunityStartWeek = null
+      state.bellaWill.immunityEndWeek = null
+      state.bellaWill.extraVotePending = false
+      state.bellaWill.voteRemovalPending = false
+      state.bellaWill.inherited = false
+      if (wasInherited && state.bellaWill.heirId) {
+        activateBellaInheritance(state)
+      }
       state.bellaWill.debugForced = true
     },
     debugActivateBellaInheritance(state) {
@@ -8774,6 +8784,8 @@ const gameSlice = createSlice({
             pushEvent(state, getBellaHint(state.seed, state.season, state.week), 'social', {
               key: `bellas_will_hint_${state.week}`,
               phase: 'week_start',
+              forceOnTv: true,
+              broadcastDelivery: 'next',
             })
           }
           break
