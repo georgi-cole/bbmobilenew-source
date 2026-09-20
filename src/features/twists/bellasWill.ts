@@ -125,7 +125,7 @@ export function shouldCastBella(options: {
 
 export function pickBellaWillReward(seed: number, season: number): BellaWillReward {
   const roll = seededUnit((seed ^ Math.imul(season + 17, 0x27d4eb2d)) >>> 0)
-  const index = Math.min(BELLA_WILL_REWARDS.length - 1, Math.floor(roll * BELLA_WILL_REWARDS.length))
+  const index = Math.min(\n    BELLA_WILL_REWARDS.length - 1,\n    Math.floor(roll * BELLA_WILL_REWARDS.length)\n  )
   return BELLA_WILL_REWARDS[index]
 }
 
