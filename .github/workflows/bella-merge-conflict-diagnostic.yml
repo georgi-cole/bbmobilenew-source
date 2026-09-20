@@ -1,0 +1,57 @@
+name: Bella Merge Conflict Diagnostic
+
+on:
+  push:
+    branches:
+      - agent/bellas-will
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/bellas-will
+          fetch-depth: 0
+      - name: Merge main without committing
+        run: |
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main || true
+          echo "UNMERGED FILES"
+          git diff --name-only --diff-filter=U
+      - name: Print conflict blocks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              Path('src/store/gameSlice.ts'),
+              Path('src/store/store.ts'),
+              Path('src/types/index.ts'),
+          ]
+          for path in files:
+              if not path.exists():
+                  continue
+              lines = path.read_text().splitlines()
+              print(f"===== {path} =====")
+              i = 0
+              found = False
+              while i < len(lines):
+                  if lines[i].startswith('<<<<<<<'):
+                      found = True
+                      start = max(0, i - 5)
+                      j = i + 1
+                      while j < len(lines) and not lines[j].startswith('>>>>>>>'):
+                          j += 1
+                      end = min(len(lines), j + 6)
+                      for n in range(start, end):
+                          print(f"{n+1:05d}: {lines[n]}")
+                      print()
+                      i = j + 1
+                  else:
+                      i += 1
+              if not found:
+                  print("NO CONFLICT MARKERS")
+          PY
