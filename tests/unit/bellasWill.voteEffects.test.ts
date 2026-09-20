@@ -151,6 +151,10 @@ describe("Bella's Will vote effects", () => {
     }
     state.secretMission = {
       triggeredDay: 2,
+      startDay: 2,
+      endDay: 4,
+      survivalWindowEndDay: 4,
+      targetDeadlineDay: 4,
       status: 'rewardClaimed',
       offeredDay: 2,
       offerCount: 1,
