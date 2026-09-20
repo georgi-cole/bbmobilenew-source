@@ -99,7 +99,9 @@ function buildResolvedArchive(game: GameState): SeasonArchive | null {
     cupidArrowActivated: game.cupidArrow?.activatedSeason === game.season,
     voxPopuliActivated: game.voxPopuli?.activatedSeason === game.season,
     twinShockConsumed: game.twinShockConsumed === true,
-    bellaCast: game.players.some((player) => player.id === 'bella'),
+    bellaCast:
+      game.players.some((player) => player.id === 'bella') &&
+      game.bellaWill?.debugCastForced !== true,
   }
 }
 
