@@ -11779,6 +11779,11 @@ export const tryActivateBattleBack =
       const jurors = game.players.filter((player) => player.status === 'jury')
       const human = game.players.find((player) => player.isUser)
       const humanIsJuror = human?.status === 'jury'
+      const humanWasPreTribunalEvicted = human?.status === 'evicted'
+
+      // A pre-Tribunal human elimination ends the playable season. Do not
+      // launch even an AI-only Battle Back behind the game-over flow.
+      if (humanWasPreTribunalEvicted) return false
 
       // Battle Back is a Tribunal-only return mechanic. Pre-Tribunal players
       // keep status "evicted" and are never candidates. If the human reached
