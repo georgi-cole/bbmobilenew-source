@@ -1,5 +1,8 @@
 import type { GameState, SpecialVetoType } from '../../types'
-import type { RemoteSeasonDirectorConfig } from '../../remoteConfig/remoteConfigTypes'
+import type {
+  RemoteDirectorWindow,
+  RemoteSeasonDirectorConfig,
+} from '../../remoteConfig/remoteConfigTypes'
 import { mulberry32 } from '../../store/rng'
 
 export type SeasonDirectorKillSwitch =
@@ -195,28 +198,28 @@ function nonNegativeWeight(value: unknown): number | undefined {
   return number === undefined ? undefined : Math.max(0, Math.min(1000, number))
 }
 
-function copyBoolean(
-  source: Record<string, unknown>,
-  key: string,
-  target: Record<string, unknown>
-): void {
-  if (typeof source[key] === 'boolean') target[key] = source[key]
-}
-
 function sanitiseWindow(
   raw: unknown,
-  options: { chanceKey?: 'chance' | 'seasonChance'; includeGap?: boolean; includeCandidates?: boolean }
-): Record<string, unknown> | undefined {
+  options: {
+    chanceKey?: 'chance' | 'seasonChance'
+    includeGap?: boolean
+    includeCandidates?: boolean
+  }
+): RemoteDirectorWindow | undefined {
   if (!isRecord(raw)) return undefined
-  const result: Record<string, unknown> = {}
-  copyBoolean(raw, 'enabled', result)
+  const result: RemoteDirectorWindow = {}
+  if (typeof raw.enabled === 'boolean') result.enabled = raw.enabled
   const minPlayers = integerInRange(raw.minPlayers, 2, 32)
   const maxPlayers = integerInRange(raw.maxPlayers, 2, 32)
   if (minPlayers !== undefined) result.minPlayers = minPlayers
   if (maxPlayers !== undefined) result.maxPlayers = maxPlayers
-  if (options.chanceKey) {
-    const chance = percentage(raw[options.chanceKey])
-    if (chance !== undefined) result[options.chanceKey] = chance
+  if (options.chanceKey === 'chance') {
+    const chance = percentage(raw.chance)
+    if (chance !== undefined) result.chance = chance
+  }
+  if (options.chanceKey === 'seasonChance') {
+    const chance = percentage(raw.seasonChance)
+    if (chance !== undefined) result.seasonChance = chance
   }
   if (options.includeGap) {
     const minimumGapDays = integerInRange(raw.minimumGapDays, 0, 10)
@@ -280,18 +283,16 @@ export function sanitiseRemoteSeasonDirectorConfig(
   if (doubleElimination) result.doubleElimination = doubleElimination
 
   if (isRecord(raw.specialSafety)) {
-    const specialSafety = sanitiseWindow(raw.specialSafety, {
-      chanceKey: 'seasonChance',
-    }) ?? {}
+    const specialSafety: NonNullable<RemoteSeasonDirectorConfig['specialSafety']> = {
+      ...(sanitiseWindow(raw.specialSafety, { chanceKey: 'seasonChance' }) ?? {}),
+    }
     if (isRecord(raw.specialSafety.selection) && isRecord(raw.specialSafety.selection.weights)) {
       const weights: Partial<Record<SpecialVetoType, number>> = {}
       for (const type of ['vip', 'diamond', 'coup', 'spotlight'] as const) {
         const weight = nonNegativeWeight(raw.specialSafety.selection.weights[type])
         if (weight !== undefined) weights[type] = weight
       }
-      if (Object.keys(weights).length > 0) {
-        ;(specialSafety as Record<string, unknown>).selection = { weights }
-      }
+      if (Object.keys(weights).length > 0) specialSafety.selection = { weights }
     }
     if (Object.keys(specialSafety).length > 0) result.specialSafety = specialSafety
   }
