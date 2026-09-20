@@ -3,7 +3,7 @@
  *
  * Validates:
  *  1. archiveSeason prepends an entry to seasonArchives.
- *  2. archiveSeason caps the list at 50 entries.
+ *  2. archiveSeason caps the list at 1000 entries.
  *  3. replacePlayers replaces the player list wholesale.
  *  4. resetGame preserves existing seasonArchives.
  *  5. resetGame normalises all fresh players to status 'active'.
@@ -102,12 +102,12 @@ describe('archiveSeason reducer', () => {
     expect(archives[1].seasonIndex).toBe(1);
   });
 
-  it('caps list at 50 entries', () => {
+  it('caps list at 1000 entries', () => {
     const existing: SeasonArchive[] = Array.from({ length: 50 }, (_, i) => makeArchive(i + 1));
     const store = makeStore({ seasonArchives: existing });
     store.dispatch(archiveSeason(makeArchive(51)));
     const archives = store.getState().game.seasonArchives ?? [];
-    expect(archives).toHaveLength(50);
+    expect(archives).toHaveLength(1000);
     expect(archives[0].seasonIndex).toBe(51);
   });
 });
