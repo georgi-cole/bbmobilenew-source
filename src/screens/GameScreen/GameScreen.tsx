@@ -358,6 +358,7 @@ export default function GameScreen() {
 
   const humanPlayer = game.players.find((p) => p.isUser)
   const [spectatingAfterElimination, setSpectatingAfterElimination] = useState(false)
+  const [directorReturnNoticeDismissed, setDirectorReturnNoticeDismissed] = useState(false)
   const [finalThreeCeremonyPlayAvailable, setFinalThreeCeremonyPlayAvailable] = useState(false)
   const [finaleSpectatorPlayAvailable, setFinaleSpectatorPlayAvailable] = useState(true)
   const handleFinalThreeCeremonyPlayAvailability = useCallback(
@@ -374,10 +375,27 @@ export default function GameScreen() {
     game.voxPopuli.finalThreeAppealUsed !== true &&
     Boolean(humanPlayer && game.nomineeIds.includes(humanPlayer.id))
   const isVoxThirdPlace = isVoxPopuli && humanPlayer?.seasonPlacement === 3
+  const humanReturnPolicy = game.seasonDirectorPlan?.policy.battleBack.human
+  const directorBattleBackKillSwitched = useAppSelector(
+    (state: RootState) => state.remoteConfig.config?.director?.killSwitches?.battleBack === true
+  )
+  const directorHumanReturnPending =
+    game.mode !== 'survival' &&
+    humanPlayer?.status === 'evicted' &&
+    game.seasonDirectorPlan?.policy.battleBack.enabled === true &&
+    humanReturnPolicy?.guaranteedOpportunityAfterEviction === true &&
+    game.seasonDirectorHumanReturnUsed !== true &&
+    !directorBattleBackKillSwitched &&
+    alivePlayers.length >= humanReturnPolicy.minimumActivePlayersAfterEviction
+  const showDirectorReturnNotice =
+    directorHumanReturnPending &&
+    game.battleBack?.active !== true &&
+    !directorReturnNoticeDismissed
   const preJuryGameOver =
     game.mode !== 'survival' &&
     humanPlayer?.status === 'evicted' &&
     !isVoxThirdPlace &&
+    !directorHumanReturnPending &&
     !spectatingAfterElimination
   const isVoxFinalFour = isVoxPopuli && alivePlayers.length === 4
   const voxAudiencePreviewWindow =
@@ -2316,6 +2334,15 @@ export default function GameScreen() {
             onDone={() => handleBattleBackComplete()}
           />
         )}
+        <ConfirmExitModal
+          open={showDirectorReturnNotice}
+          title="Your game is not over yet"
+          description="The Big Eye will give you one chance to fight your way back into the game. Keep watching until Back 2 the Game begins."
+          confirmLabel="Keep Watching"
+          cancelLabel="Return Home"
+          onConfirm={() => setDirectorReturnNoticeDismissed(true)}
+          onCancel={handlePreJuryReturnHome}
+        />
         <ConfirmExitModal
           open={preJuryGameOver}
           title="Your season is over"
