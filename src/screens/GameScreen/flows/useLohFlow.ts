@@ -11,6 +11,7 @@ import {
   getCupidPartnerId,
   isCupidArrowActive,
 } from '../../../features/twists/cupidArrow'
+import { isBellaHeirImmune } from '../../../features/twists/bellasWill'
 
 interface UseLohFlowOptions {
   game: RootState['game']
@@ -123,9 +124,15 @@ export function useLohFlow({
     !isVoxPopuli &&
     game.publicModeEnabled === true &&
     game.doubleEviction?.weekActive !== true
+  const publicAutoNomineeId =
+    canUsePublicNomineeRule &&
+    game.lastHohCompFinisherId &&
+    !isBellaHeirImmune(game, game.lastHohCompFinisherId)
+      ? game.lastHohCompFinisherId
+      : null
   const nominationDangerLockedIds =
-    showNominationDangerSignals && canUsePublicNomineeRule
-      ? expandCupidIds(game, game.lastHohCompFinisherId ? [game.lastHohCompFinisherId] : [])
+    showNominationDangerSignals && publicAutoNomineeId
+      ? expandCupidIds(game, [publicAutoNomineeId])
       : []
 
   const nomAnimPlayers = useMemo(() => {
@@ -134,7 +141,7 @@ export function useLohFlow({
         .map((id) => game.players.find((p) => p.id === id))
         .filter(Boolean) as Player[]
       // When Public mode is active and this is not a Double Eviction, include the auto-third nominee.
-      const autoId = canUsePublicNomineeRule ? (game.lastHohCompFinisherId ?? null) : null
+      const autoId = publicAutoNomineeId
       if (autoId && !pendingNominees.includes(autoId)) {
         const autoPlayer = game.players.find((p) => p.id === autoId)
         if (autoPlayer) {
@@ -152,7 +159,7 @@ export function useLohFlow({
     return game.nomineeIds
       .map((id) => game.players.find((p) => p.id === id))
       .filter(Boolean) as Player[]
-  }, [game, showHumanNomAnim, pendingNominees, canUsePublicNomineeRule])
+  }, [game, showHumanNomAnim, pendingNominees, publicAutoNomineeId])
 
   // Build CeremonyOverlay tiles for nominations: ❓ badges fly to nominee tiles.
   // Tile rects are resolved lazily by the CeremonyOverlay via getTileRect
@@ -179,7 +186,9 @@ export function useLohFlow({
 
   const nomineeOptions = (() => {
     const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
-    const candidates = alivePlayers.filter((player) => !lohIds.has(player.id))
+    const candidates = alivePlayers.filter(
+      (player) => !lohIds.has(player.id) && !isBellaHeirImmune(game, player.id)
+    )
     if (!isCupidArrowActive(game)) return candidates
     const seenPairs = new Set<string>()
     return candidates.filter((player) => {
@@ -189,12 +198,11 @@ export function useLohFlow({
       return true
     })
   })()
-  const autoNomineeOptionId =
-    canUsePublicNomineeRule && game.lastHohCompFinisherId
-      ? (nomineeOptions.find((player) =>
-          expandCupidIds(game, [game.lastHohCompFinisherId!]).includes(player.id)
-        )?.id ?? game.lastHohCompFinisherId)
-      : undefined
+  const autoNomineeOptionId = publicAutoNomineeId
+    ? (nomineeOptions.find((player) =>
+        expandCupidIds(game, [publicAutoNomineeId]).includes(player.id)
+      )?.id ?? publicAutoNomineeId)
+    : undefined
 
   // Compact label for the forced auto-nominee option in the nomination picker.
   // 'survival' comps show "First out"; scored/unknown comps show "Lowest Score".
@@ -210,12 +218,12 @@ export function useLohFlow({
       const currentUserIsHoh = !!humanIsHoH
       console.log('NOMINATION_TRIGGERED', ids, { currentUserIsHoh, screen: 'GameScreen' })
       // Pre-consume the exact key that commitNominees will produce.
-      const autoId = canUsePublicNomineeRule ? (game.lastHohCompFinisherId ?? null) : null
+      const autoId = publicAutoNomineeId
       const fullIds = expandCupidIds(game, autoId && !ids.includes(autoId) ? [...ids, autoId] : ids)
       setAiNomAnimConsumedKey(`w${game.week}-${[...fullIds].sort().join(',')}`)
       setPendingNominees(ids)
     },
-    [game, humanIsHoH, canUsePublicNomineeRule, setAiNomAnimConsumedKey]
+    [game, humanIsHoH, publicAutoNomineeId, setAiNomAnimConsumedKey]
   )
 
   const handleNomAnimDone = useCallback(() => {
