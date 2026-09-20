@@ -46,7 +46,7 @@ import { hasCachedStoreAccess } from '../vip/vipStorage'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
-import type { SeasonArchive } from './seasonArchive'
+import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
@@ -474,7 +474,7 @@ export const FINALE_INTERVIEW_VARIANT_COUNT = 3
 /**
  * Derive the next season number from an array of season archives.
  * Uses the maximum archived `seasonIndex` rather than array length so the
- * result remains correct after the 50-entry archive cap truncates history
+ * result remains correct after the 1000-entry archive cap truncates history
  * or if entries are ever non-contiguous / out of order.
  *
  * Returns 1 when no archives exist yet.
@@ -7568,13 +7568,13 @@ const gameSlice = createSlice({
 
     /**
      * Archive the completed season.  Prepends the archive entry and caps the
-     * list at 50 entries to bound memory usage.
+     * list at MAX_SEASON_ARCHIVES entries to bound memory usage.
      */
     archiveSeason(state, action: PayloadAction<SeasonArchive>) {
       if (!state.seasonArchives) state.seasonArchives = []
       state.seasonArchives.unshift(action.payload)
-      if (state.seasonArchives.length > 50) {
-        state.seasonArchives = state.seasonArchives.slice(0, 50)
+      if (state.seasonArchives.length > MAX_SEASON_ARCHIVES) {
+        state.seasonArchives = state.seasonArchives.slice(0, MAX_SEASON_ARCHIVES)
       }
     },
     /**
@@ -7693,7 +7693,7 @@ const gameSlice = createSlice({
       const seasonArchives =
         action.payload !== undefined ? action.payload : (state.seasonArchives ?? [])
       // Derive the next season number from the maximum archived seasonIndex so the
-      // result is stable even after the 50-entry archive cap or non-contiguous entries.
+      // result is stable even after the 1000-entry archive cap or non-contiguous entries.
       const season = nextSeasonNumber(seasonArchives)
       const twinShockConsumed =
         state.twinShockConsumed === true ||
