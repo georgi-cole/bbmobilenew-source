@@ -659,6 +659,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
   const game = useAppSelector((state) => state.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const options = alivePlayers.filter((player) => game.nomineeIds.includes(player.id))
+  const isBellaExtraVote = game.bellaWill?.extraVoteChoiceActive === true
   const [vote1, setVote1] = useState<string | null>(null)
   const [vote2, setVote2] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
@@ -680,7 +681,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
       <section className="rcd-vote-step" aria-labelledby="double-vote-one">
-        <h3 id="double-vote-one">Vote 1</h3>
+        <h3 id="double-vote-one">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</h3>
         <div className="rcd-grid" role="group" aria-label="First eviction vote">
           {options.map((player) => (
             <PlayerCard
@@ -695,7 +696,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
         </div>
       </section>
       <section className="rcd-vote-step" aria-labelledby="double-vote-two">
-        <h3 id="double-vote-two">Vote 2</h3>
+        <h3 id="double-vote-two">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</h3>
         <div className="rcd-grid" role="group" aria-label="Second eviction vote">
           {options.map((player) => (
             <PlayerCard
