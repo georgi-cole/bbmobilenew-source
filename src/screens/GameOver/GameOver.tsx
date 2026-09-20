@@ -10,7 +10,11 @@ import { DEFAULT_WEIGHTS } from '../../scoring/weights'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
-import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
+import {
+  recordBellaCompatibleClassicCompleted,
+  selectActiveProfileId,
+  selectIsGuest,
+} from '../../store/profilesSlice'
 import { savedStateKeyForProfile, clearSeasonSnapshot } from '../../store/saveStatePersistence'
 import type { SeasonArchive, PlayerSeasonSummary } from '../../store/seasonArchive'
 import type { Player } from '../../types'
@@ -186,6 +190,9 @@ export default function GameOver() {
   function archiveCompletedSeason() {
     if (!archivedRef.current) {
       archivedRef.current = true
+      if (!cupidArrowActivated && !voxPopuliActivated) {
+        dispatch(recordBellaCompatibleClassicCompleted({ bellaCast }))
+      }
       dispatch(
         archiveSeason(
           buildArchive(
