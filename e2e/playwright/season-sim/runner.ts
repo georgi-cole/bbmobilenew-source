@@ -334,7 +334,7 @@ export function defaultSimulationConfig(
     objectives: objectivesForMode(mode),
     // This PR-sized smoke validates fresh setup and the first visible phases.
     // Longer UI journeys opt into a larger budget through their run config.
-    maxActions: optionalPositiveInt('SEASON_SIM_MAX_ACTIONS') ?? 4,
+    maxActions: optionalPositiveInt('SEASON_SIM_MAX_ACTIONS') ?? 1000,
     maxDays: optionalPositiveInt('SEASON_SIM_MAX_DAYS') ?? 1,
     competitionSkill:
       optionalEnum('SEASON_SIM_COMPETITION_SKILL', ['competent', 'mediocre', 'thrower'] as const) ??

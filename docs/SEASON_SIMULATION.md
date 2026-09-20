@@ -50,7 +50,7 @@ $env:SEASON_SIM_MODE = 'voxPopuli'
 $env:SEASON_SIM_PERSONA = 'chaos-agent'
 $env:SEASON_SIM_ENTITLEMENT = 'vip'
 $env:SEASON_SIM_COMPETITION_SKILL = 'competent'
-$env:SEASON_SIM_MAX_ACTIONS = '50'
+$env:SEASON_SIM_MAX_ACTIONS = '1000'
 $env:SEASON_SIM_MAX_DAYS = '10'
 $env:VITE_VIP_DEV_ENTITLEMENT = 'true'
 npm run test:season-sim:full

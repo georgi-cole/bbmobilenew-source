@@ -10,6 +10,13 @@ export interface ModeAdapter {
   describeTerminal(page: Page): Promise<string | null>
 }
 
+async function isSeasonCompleteUiVisible(page: Page): Promise<boolean> {
+  return page
+    .getByRole('heading', { name: 'Season Complete', exact: true })
+    .isVisible()
+    .catch(() => false)
+}
+
 async function openPlayMenu(page: Page): Promise<void> {
   await page
     .getByRole('navigation', { name: 'Main menu' })
@@ -34,10 +41,15 @@ function finiteAdapter(
     },
     async isTerminal(page) {
       const state = await readAppState(page)
-      return state.game.status !== 'active' || state.game.seasonFinale?.phase === 'seasonComplete'
+      return (
+        (await isSeasonCompleteUiVisible(page)) ||
+        state.game.status !== 'active' ||
+        state.game.seasonFinale?.phase === 'seasonComplete'
+      )
     },
     async describeTerminal(page) {
       const state = await readAppState(page)
+      if (await isSeasonCompleteUiVisible(page)) return 'season-complete-modal'
       if (state.game.seasonFinale?.phase === 'seasonComplete') return 'season-complete'
       return state.game.status !== 'active' ? `run-${state.game.status}` : null
     },
