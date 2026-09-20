@@ -15,7 +15,7 @@ const mockState: {
     phase?: string;
     twinShockConsumed?: boolean;
     players: Array<{ id: string; isUser: boolean }>;
-    seasonArchives: Array<{ seasonId: string }>;
+    seasonArchives: Array<{ seasonId: string; bellaCast?: boolean }>;
   };
   profiles: { activeProfileId: null; isGuest: boolean; profiles: never[] };
   remoteConfig: { config: RemoteConfig | null };
