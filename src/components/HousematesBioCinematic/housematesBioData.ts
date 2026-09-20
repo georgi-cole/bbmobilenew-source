@@ -248,7 +248,7 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
       'Bella keeps a private list of the people who have earned her trust. Protection and loyalty move a name much faster than flattery.',
     accent: '#e6d2a8',
     backdrop: 'fashion-atelier',
-    portraitPath: '/assets/Informal_attires/Bella_informal.png',
+    portraitPath: '/assets/Informal_attires/Bella_informal.webp',
     avatarPath: '/assets/skins/Bella_avatar.webp',
     unlock: { kind: 'first-cast', label: "Encounter Bella" },
   },
