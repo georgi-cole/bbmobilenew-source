@@ -242,10 +242,15 @@ export default function HomeHub() {
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
   const twinShockRevealed = useAppSelector((state) => state.game.twinShockConsumed === true)
+  const bellaInCurrentCast = useAppSelector((state) =>
+    state.game.players.some((player) => player.id === 'bella')
+  )
   const introHubPlayer = useAppSelector(
     (state) => state.game.players.find((player) => player.isUser) ?? null
   )
   const seasonArchives = useAppSelector((state) => state.game.seasonArchives ?? [])
+  const bellaUnlocked =
+    bellaInCurrentCast || seasonArchives.some((archive) => archive.bellaCast === true)
   const ownsCupidArrow = useAppSelector(selectHasCupidArrowAccess)
   const ownsSurvivalMode = useAppSelector(selectHasSurvivalModeAccess)
   const ownsVoxPopuli = useAppSelector(selectHasVoxPopuliAccess)
@@ -319,6 +324,7 @@ export default function HomeHub() {
       seasonArchives,
       achievementSummary,
       twinShockConsumed: twinShockRevealed,
+      bellaUnlocked,
       mysteryWildcards: MYSTERY_WILDCARD_BIOS,
       assetBase: import.meta.env.BASE_URL || '/',
     })
@@ -331,6 +337,7 @@ export default function HomeHub() {
     introHubPlayer,
     seasonArchives,
     twinShockRevealed,
+    bellaUnlocked,
   ])
 
   useEffect(() => {
