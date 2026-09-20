@@ -95,6 +95,8 @@ declare module '../../types' {
     seasonDirectorPlan?: SeasonDirectorPlan
     /** Day of the most recent Director-controlled major spotlight. */
     seasonDirectorLastSpotlightDay?: number | null
+    /** True after the human has received their one guaranteed return opportunity. */
+    seasonDirectorHumanReturnUsed?: boolean
   }
 }
 
