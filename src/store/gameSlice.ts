@@ -513,7 +513,10 @@ export function createInitialGameState(options?: {
   const priorTwinShockConsumed = seasonArchives.some(
     (archive) => archive.twinShockConsumed === true
   )
-  const twinShockConsumed = options?.twinShockConsumed === true || priorTwinShockConsumed
+  const twinShockConsumed =
+    options?.twinShockConsumed === true ||
+    priorTwinShockConsumed ||
+    activeBellaProgress?.twinShockConsumedEver === true
   const season = nextSeasonNumber(seasonArchives)
   const expansionDebugAccess = import.meta.env.DEV || canAccessSpecialSettings()
   const forceClassicLocal = import.meta.env.DEV && import.meta.env.VITE_FORCE_CLASSIC === 'true'
