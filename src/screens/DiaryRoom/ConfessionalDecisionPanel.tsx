@@ -614,7 +614,11 @@ function ReplacementNomineePanel({ onDecisionCommitted }: DecisionPanelProps) {
   const lohUnitIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
   const posUnitIds = new Set(expandCupidIds(game, game.posWinnerId ? [game.posWinnerId] : []))
   const replacementBaseOptions = alivePlayers.filter(
-    (p) => !lohUnitIds.has(p.id) && !posUnitIds.has(p.id) && !game.nomineeIds.includes(p.id)
+    (p) =>
+      !lohUnitIds.has(p.id) &&
+      !posUnitIds.has(p.id) &&
+      !game.nomineeIds.includes(p.id) &&
+      !isBellaHeirImmune(game, p.id)
   )
   const protectedIds = new Set(game.povProtectedIds ?? [])
   const nonProtected = replacementBaseOptions.filter((p) => !protectedIds.has(p.id))
@@ -625,6 +629,7 @@ function ReplacementNomineePanel({ onDecisionCommitted }: DecisionPanelProps) {
       !lohUnitIds.has(p.id) &&
       !posUnitIds.has(p.id) &&
       !game.nomineeIds.includes(p.id) &&
+      !isBellaHeirImmune(game, p.id) &&
       p.id !== game.specialVeto?.coupReplacement1Id
   )
   const coupNonProtected = coupBaseOptions.filter((p) => !protectedIds.has(p.id))
