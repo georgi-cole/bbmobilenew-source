@@ -210,6 +210,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
     (player) =>
       (!isVoxPopuli || !voxImmunityWinnerId || player.id !== voxImmunityWinnerId) &&
       (isVoxPopuli || !lohIds.has(player.id)) &&
+      !isBellaHeirImmune(game, player.id) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
@@ -232,8 +233,12 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       ? 3
       : 2
   const autoNomineeId =
-    !isVoxPopuli && game.publicModeEnabled === true && !isDoubleEviction
-      ? (game.lastHohCompFinisherId ?? null)
+    !isVoxPopuli &&
+    game.publicModeEnabled === true &&
+    !isDoubleEviction &&
+    game.lastHohCompFinisherId &&
+    !isBellaHeirImmune(game, game.lastHohCompFinisherId)
+      ? game.lastHohCompFinisherId
       : null
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [committing, setCommitting] = useState(false)
