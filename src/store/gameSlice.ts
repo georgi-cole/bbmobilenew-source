@@ -6058,7 +6058,14 @@ const gameSlice = createSlice({
 
       if (evicteeId === BELLA_ID && state.bellaWill?.active && !state.bellaWill.inherited) {
         const sameDoubleEvicteeId = state.doubleEviction?.pendingSecondEviction?.evicteeId ?? null
-        const excludedHeirIds = sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []
+        const unresolvedDoubleBoundaryIds =
+          state.doubleEviction?.weekActive && state.awaitingTieBreak
+            ? (state.tiedNomineeIds ?? [])
+            : []
+        const excludedHeirIds = [
+          ...(sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []),
+          ...unresolvedDoubleBoundaryIds,
+        ]
         const currentHeir = state.bellaWill.heirId
           ? state.players.find((player) => player.id === state.bellaWill?.heirId)
           : null
