@@ -1578,7 +1578,7 @@ function getReplacementEligiblePlayers(
         (options.allowLoh === true || unitIds.every((id) => !lohRoleIds.has(id))) &&
         unitIds.every((id) => !posRoleIds.has(id)) &&
         unitIds.every((id) => !state.nomineeIds.includes(id)) &&
-        canPlayerTargetPlayer(state, actorId, pl.id)
+        canPlayerNominatePlayer(state, actorId, pl.id)
       )
     })
   )
@@ -2100,7 +2100,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
           candidate.id !== actorId &&
           candidate.id !== immunityWinnerId &&
           candidate.id !== autoNomineeId &&
-          canPlayerTargetPlayer(state, actorId, candidate.id)
+          canPlayerNominatePlayer(state, actorId, candidate.id)
       )
     )
   }
@@ -2112,7 +2112,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
       (candidate) =>
         candidate.id !== actorId &&
         !lohUnitIds.has(candidate.id) &&
-        canPlayerTargetPlayer(state, state.lohId ?? actorId, candidate.id)
+        canPlayerNominatePlayer(state, state.lohId ?? actorId, candidate.id)
     )
   )
 
@@ -2141,7 +2141,7 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
         candidate.id !== voter.id &&
         candidate.id !== immunityWinnerId &&
         candidate.id !== autoNomineeId &&
-        canPlayerTargetPlayer(state, voter.id, candidate.id)
+        canPlayerNominatePlayer(state, voter.id, candidate.id)
     )
     state.voxPopuli.nominationBallots[voter.id] = pickStrategicNominationTargets(
       state,
@@ -3165,11 +3165,15 @@ function canPlayerTargetPlayer(
   actorId: string | null | undefined,
   targetId: string
 ): boolean {
-  return (
-    !isTwinAlliancePair(state, actorId, targetId) &&
-    !isSameCupidPair(state, actorId, targetId) &&
-    !isBellaHeirImmune(state, targetId)
-  )
+  return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
+}
+
+function canPlayerNominatePlayer(
+  state: GameState,
+  actorId: string | null | undefined,
+  targetId: string
+): boolean {
+  return canPlayerTargetPlayer(state, actorId, targetId) && !isBellaHeirImmune(state, targetId)
 }
 
 function usesPluralPlayerGrammar(
@@ -5084,7 +5088,7 @@ const gameSlice = createSlice({
       const id = action.payload
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id)) return
       state.pendingNominee1Id = id
@@ -5104,7 +5108,7 @@ const gameSlice = createSlice({
       if (!id1 || id2 === id1 || !areDistinctCupidPairs(state, [id1, id2])) return
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id2)) return
       if (!eligible.some((p) => p.id === id1)) return
@@ -5152,7 +5156,7 @@ const gameSlice = createSlice({
             candidate.id !== human.id &&
             candidate.id !== immunityWinnerId &&
             candidate.id !== autoNomineeId &&
-            canPlayerTargetPlayer(state, human.id, candidate.id)
+            canPlayerNominatePlayer(state, human.id, candidate.id)
         )
         const expectedCount = Math.min(getVoxBallotSize(state), eligible.length)
         const ids = [...new Set(action.payload)]
@@ -5188,7 +5192,7 @@ const gameSlice = createSlice({
       if (new Set(ids).size !== ids.length) return // duplicates check
       if (!areDistinctCupidPairs(state, ids)) return
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!ids.every((id) => eligible.some((p) => p.id === id))) return
 
@@ -8957,7 +8961,7 @@ const gameSlice = createSlice({
                     candidate.id !== human.id &&
                     candidate.id !== immunityWinnerId &&
                     candidate.id !== autoNomineeId &&
-                    canPlayerTargetPlayer(state, human.id, candidate.id)
+                    canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
             // Vox differs from Classic: every active housemate nominates,
@@ -9000,7 +9004,7 @@ const gameSlice = createSlice({
                   p.id !== coLohId &&
                   !coLohIds.includes(p.id) &&
                   !state.nomineeIds.includes(p.id) &&
-                  canPlayerTargetPlayer(state, coLohId, p.id)
+                  canPlayerNominatePlayer(state, coLohId, p.id)
               )
               if (coPool.length > 0) {
                 const nominee =
@@ -9047,7 +9051,7 @@ const gameSlice = createSlice({
           const pool = collapseCupidCandidates(
             state,
             alive.filter(
-              (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+              (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
             )
           )
           if (pool.length < nomineeCount) break
