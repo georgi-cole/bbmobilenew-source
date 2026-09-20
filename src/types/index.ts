@@ -1066,7 +1066,7 @@ export interface GameState {
   favoritePlayer?: FavoritePlayerState
   /** One-time hidden identity twist centered on Lia and Ali. */
   twinShock?: TwinShockState
-  /** Global per-save flag: once activated, Twin Shock never repeats. */
+  /** Global per-save flag: once the Twin Shock resolves, it never repeats. */
   twinShockConsumed?: boolean
   twinShockActivatedSeason?: number | null
   twinShockResolution?: TwinShockResolution | null

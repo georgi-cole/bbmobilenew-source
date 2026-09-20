@@ -31,6 +31,7 @@ import type { GameManagerConfig, GameManagerRule } from '../gameManager/gameMana
 import type { BroadcastOverride, CustomBroadcastMessage, Phase, TvEvent } from '../types'
 import { ALL_BROADCAST_PHASES, BROADCAST_CAMPAIGNS } from '../broadcasting/broadcastTemplateCatalog'
 import { sanitiseSocialActionOverrides } from '../social/socialActionManager'
+import { sanitiseRemoteSeasonDirectorConfig } from '../features/twists/seasonDirector'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -369,6 +370,9 @@ export function sanitiseRemoteConfig(raw: unknown): RemoteConfig | null {
 
   const r = raw as Record<string, unknown>
   const config: RemoteConfig = {}
+
+  const director = sanitiseRemoteSeasonDirectorConfig(r.director)
+  if (director) config.director = director
 
   const broadcast = sanitiseBroadcast(r.broadcast)
   if (broadcast) config.broadcast = broadcast

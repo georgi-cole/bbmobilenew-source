@@ -57,6 +57,21 @@ export default defineConfig({
       use: { browserName: 'webkit', ...devices['iPhone 13'] },
     },
     {
+      // iPhone 17 has a 1206×2622 physical display at 3× scale. The CSS
+      // viewport below is the rounded 402×874 browser-sized representation
+      // used by the season simulator; keep iPhone 13 WebKit for compatibility.
+      name: 'iphone-17-chromium',
+      use: {
+        browserName: 'chromium',
+        ...chromiumLaunchOptions,
+        viewport: { width: 402, height: 874 },
+        screen: { width: 402, height: 874 },
+        deviceScaleFactor: 3,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
       name: 'narrow-chromium',
       use: {
         browserName: 'chromium',

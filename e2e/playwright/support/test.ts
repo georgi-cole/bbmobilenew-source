@@ -12,9 +12,21 @@ export interface BrowserErrorCollector {
   readonly errors: readonly BrowserError[]
 }
 
+function optionalSeed(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (!raw) return fallback
+  const parsed = Number.parseInt(raw, 0)
+  return Number.isFinite(parsed) ? parsed >>> 0 : fallback
+}
+
+/**
+ * The normal E2E suite retains its historical fixture by default. Season
+ * simulations may provide a replay seed through environment variables before
+ * Playwright launches the browser, so production game code remains untouched.
+ */
 export const E2E_NEW_SEASON_FIXTURE = Object.freeze({
-  rosterSeed: 0x4f1bbcdc,
-  seasonSeed: 0x6d2b79f5,
+  rosterSeed: optionalSeed('SEASON_SIM_ROSTER_SEED', 0x4f1bbcdc),
+  seasonSeed: optionalSeed('SEASON_SIM_SEASON_SEED', 0x6d2b79f5),
 })
 
 function consoleError(message: ConsoleMessage): BrowserError | null {
@@ -22,48 +34,62 @@ function consoleError(message: ConsoleMessage): BrowserError | null {
 }
 
 async function installUnhandledRejectionReporter(page: Page): Promise<void> {
-  await page.addInitScript((newSeasonFixture) => {
-    Object.defineProperty(window, '__E2E__', {
-      configurable: false,
-      enumerable: false,
-      value: true,
-      writable: false,
-    })
+  await page.addInitScript(
+    ({ newSeasonFixture, skipUnloadAutosave }) => {
+      Object.defineProperty(window, '__E2E__', {
+        configurable: false,
+        enumerable: false,
+        value: true,
+        writable: false,
+      })
 
-    Object.defineProperty(window, '__bbE2ENewSeason', {
-      configurable: false,
-      enumerable: false,
-      value: Object.freeze(newSeasonFixture),
-      writable: false,
-    })
+      Object.defineProperty(window, '__bbE2ENewSeason', {
+        configurable: false,
+        enumerable: false,
+        value: Object.freeze(newSeasonFixture),
+        writable: false,
+      })
 
-    // Browser E2E validates UI state, not media decoding. Keeping play() inert
-    // prevents codec/autoplay differences from producing false console failures,
-    // especially in WebKit, while audio behavior remains covered by unit tests.
-    Object.defineProperty(HTMLMediaElement.prototype, 'play', {
-      configurable: true,
-      value: () => Promise.resolve(),
-      writable: true,
-    })
-    const createElement = document.createElement.bind(document)
-    document.createElement = ((tagName: string, options?: ElementCreationOptions) => {
-      const element = createElement(tagName, options)
-      if (tagName.toLowerCase() === 'audio') {
-        Object.defineProperty(element, 'src', {
-          configurable: true,
-          get: () => '',
-          set: () => undefined,
-        })
-      }
-      return element
-    }) as typeof document.createElement
+      Object.defineProperty(window, '__bbE2ESkipUnloadAutosave', {
+        configurable: false,
+        enumerable: false,
+        value: skipUnloadAutosave,
+        writable: false,
+      })
 
-    window.addEventListener('unhandledrejection', (event) => {
-      const reason = event.reason
-      const detail = reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason)
-      console.error(`[unhandledrejection] ${detail}`)
-    })
-  }, E2E_NEW_SEASON_FIXTURE)
+      // Browser E2E validates UI state, not media decoding. Keeping play() inert
+      // prevents codec/autoplay differences from producing false console failures,
+      // especially in WebKit, while audio behavior remains covered by unit tests.
+      Object.defineProperty(HTMLMediaElement.prototype, 'play', {
+        configurable: true,
+        value: () => Promise.resolve(),
+        writable: true,
+      })
+      const createElement = document.createElement.bind(document)
+      document.createElement = ((tagName: string, options?: ElementCreationOptions) => {
+        const element = createElement(tagName, options)
+        if (tagName.toLowerCase() === 'audio') {
+          Object.defineProperty(element, 'src', {
+            configurable: true,
+            get: () => '',
+            set: () => undefined,
+          })
+        }
+        return element
+      }) as typeof document.createElement
+
+      window.addEventListener('unhandledrejection', (event) => {
+        const reason = event.reason
+        const detail =
+          reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason)
+        console.error(`[unhandledrejection] ${detail}`)
+      })
+    },
+    {
+      newSeasonFixture: E2E_NEW_SEASON_FIXTURE,
+      skipUnloadAutosave: process.env.SEASON_SIM_SKIP_UNLOAD_AUTOSAVE === '1',
+    }
+  )
 }
 
 export async function readAppState(page: Page): Promise<RootState> {
