@@ -261,12 +261,8 @@ export function useLohFlow({
       expandCupidIds(game, pendingNominees).forEach((id) => {
         labels[id] = 'LOH Nominee'
       })
-      if (
-        canUsePublicNomineeRule &&
-        game.lastHohCompFinisherId &&
-        !pendingNominees.includes(game.lastHohCompFinisherId)
-      ) {
-        expandCupidIds(game, [game.lastHohCompFinisherId]).forEach((id) => {
+      if (publicAutoNomineeId && !pendingNominees.includes(publicAutoNomineeId)) {
+        expandCupidIds(game, [publicAutoNomineeId]).forEach((id) => {
           labels[id] = 'Last in LOH Comp'
         })
       }
@@ -284,7 +280,7 @@ export function useLohFlow({
       })
     }
     return labels
-  }, [game, showHumanNomAnim, pendingNominees, canUsePublicNomineeRule, isVoxPopuli])
+  }, [game, showHumanNomAnim, pendingNominees, publicAutoNomineeId, isVoxPopuli])
 
   // ── Dev: manually trigger nomination animation ────────────────────────────
   // Only visible in development builds for easy QA verification.
@@ -295,7 +291,7 @@ export function useLohFlow({
     const devNominees = eligible.slice(0, 2).map((p) => p.id)
     if (devNominees.length === 2) {
       console.log('DEV: Play Nomination Animation', devNominees)
-      const autoId = canUsePublicNomineeRule ? (game.lastHohCompFinisherId ?? null) : null
+      const autoId = publicAutoNomineeId
       const fullIds =
         autoId && !devNominees.includes(autoId) ? [...devNominees, autoId] : devNominees
       setAiNomAnimConsumedKey(`w${game.week}-${[...fullIds].sort().join(',')}`)
@@ -303,8 +299,7 @@ export function useLohFlow({
     }
   }, [
     alivePlayers,
-    canUsePublicNomineeRule,
-    game.lastHohCompFinisherId,
+    publicAutoNomineeId,
     game.week,
     setAiNomAnimConsumedKey,
     setPendingNominees,
