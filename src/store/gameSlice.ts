@@ -11776,25 +11776,24 @@ export const tryActivateBattleBack =
       const active = game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
       )
-      const exited = game.players.filter(
-        (player) => player.status === 'evicted' || player.status === 'jury'
-      )
+      const jurors = game.players.filter((player) => player.status === 'jury')
       const human = game.players.find((player) => player.isUser)
-      const humanExited = Boolean(human && (human.status === 'evicted' || human.status === 'jury'))
+      const humanIsJuror = human?.status === 'jury'
 
-      // Human continuation is a safety net, not a random shock. It takes
-      // precedence over AI-only season selection and may follow a Double
-      // Elimination because it gets a separate Battle Back presentation.
+      // Battle Back is a Tribunal-only return mechanic. Pre-Tribunal players
+      // keep status "evicted" and are never candidates. If the human reached
+      // the Tribunal and is later eliminated, their return opportunity takes
+      // precedence over the optional AI-only season selection.
       if (
-        humanExited &&
+        humanIsJuror &&
         policy.human.guaranteedOpportunityAfterEviction &&
         game.seasonDirectorHumanReturnUsed !== true &&
         active.length >= policy.human.minimumActivePlayersAfterEviction &&
-        exited.length >= policy.human.minimumCandidates
+        jurors.length >= policy.human.minimumCandidates
       ) {
         dispatch(
           activateBattleBack({
-            candidates: exited.map((player) => player.id),
+            candidates: jurors.map((player) => player.id),
             week: game.week,
             humanReturn: true,
           })
@@ -11802,9 +11801,9 @@ export const tryActivateBattleBack =
         return true
       }
 
-      // If the human is already out but their guaranteed window is not viable,
-      // do not spend the one Battle Back on an AI-only return.
-      if (humanExited) return false
+      // If the human is already in the Tribunal pool but their guaranteed
+      // window is not viable yet, do not spend the one AI-only Battle Back.
+      if (humanIsJuror) return false
       if (game.battleBack?.used) return false
       if (!plan.selections.aiBattleBack) return false
       if (
@@ -11812,11 +11811,11 @@ export const tryActivateBattleBack =
       ) {
         return false
       }
-      if (exited.length < policy.aiOnly.minimumCandidates) return false
+      if (jurors.length < policy.aiOnly.minimumCandidates) return false
       if (!hasDirectorSpotlightRoom(game)) return false
 
       dispatch(
-        activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week })
+        activateBattleBack({ candidates: jurors.map((player) => player.id), week: game.week })
       )
       return true
     }
