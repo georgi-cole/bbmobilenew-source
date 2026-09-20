@@ -20,6 +20,7 @@ import { fetchRemoteConfig, loadCachedRemoteConfig } from './remoteConfigService
 import { SoundManager } from '../services/sound/SoundManager'
 import { setRemotePlayerOverrides } from '../utils/avatar'
 import { setRemoteSocialRuntimeConfig } from '../social/socialRuntimeConfig'
+import { setRemoteSeasonDirectorConfig } from '../features/twists/seasonDirector'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ if (_initialConfig?.players) {
   setRemotePlayerOverrides(_initialConfig.players)
 }
 setRemoteSocialRuntimeConfig(_initialConfig?.social ?? null)
+setRemoteSeasonDirectorConfig(_initialConfig?.director ?? null)
 
 const initialState: RemoteConfigState = {
   // Initialise from cache synchronously so the app has content on first render
@@ -77,6 +79,7 @@ export const loadRemoteConfig = createAsyncThunk<RemoteConfig | null>(
     // Apply validated module-level registries used outside React rendering.
     setRemotePlayerOverrides(config?.players ?? [])
     setRemoteSocialRuntimeConfig(config?.social ?? null)
+    setRemoteSeasonDirectorConfig(config?.director ?? null)
 
     return config
   }
@@ -93,6 +96,7 @@ const remoteConfigSlice = createSlice({
       state.status = 'ok'
       setRemotePlayerOverrides(action.payload?.players ?? [])
       setRemoteSocialRuntimeConfig(action.payload?.social ?? null)
+      setRemoteSeasonDirectorConfig(action.payload?.director ?? null)
     },
   },
   extraReducers: (builder) => {

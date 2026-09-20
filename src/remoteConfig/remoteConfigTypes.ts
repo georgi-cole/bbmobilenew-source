@@ -177,9 +177,71 @@ export interface RemoteOperations {
   }
 }
 
+// ── Season Director ───────────────────────────────────────────────────────────
+
+export interface RemoteDirectorWindow {
+  enabled?: boolean
+  chance?: number
+  seasonChance?: number
+  minPlayers?: number
+  maxPlayers?: number
+  minimumGapDays?: number
+  minimumCandidates?: number
+  maxPerSeason?: number
+}
+
+export interface RemoteSeasonDirectorConfig {
+  schemaVersion?: 1
+  revision?: string
+  /** Director orchestration is opt-in so legacy saves/tests retain old behavior. */
+  enabled?: boolean
+  pacing?: {
+    finaleLockPlayers?: number
+    minimumSpotlightGapDays?: number
+    preventSameSceneMajorEvents?: boolean
+  }
+  secretMissions?: {
+    enabled?: boolean
+    first?: RemoteDirectorWindow
+    second?: RemoteDirectorWindow
+  }
+  doubleElimination?: RemoteDirectorWindow
+  specialSafety?: RemoteDirectorWindow & {
+    selection?: {
+      weights?: Partial<Record<'vip' | 'diamond' | 'coup' | 'spotlight', number>>
+    }
+  }
+  morningShock?: RemoteDirectorWindow
+  battleBack?: {
+    enabled?: boolean
+    maxPerSeason?: number
+    human?: {
+      guaranteedOpportunityAfterEviction?: boolean
+      minimumActivePlayersAfterEviction?: number
+      minimumCandidates?: number
+    }
+    aiOnly?: RemoteDirectorWindow
+  }
+  lifetimeSpecials?: {
+    twinShock?: {
+      enabled?: boolean
+    }
+  }
+  /** Immediate live overrides; unlike season probabilities, these are not snapshotted. */
+  killSwitches?: {
+    secretMissions?: boolean
+    doubleElimination?: boolean
+    specialSafety?: boolean
+    morningShock?: boolean
+    battleBack?: boolean
+  }
+}
+
 // ── Root config ───────────────────────────────────────────────────────────────
 
 export interface RemoteConfig {
+  /** Remote orchestration policy snapshotted when a new season starts. */
+  director?: RemoteSeasonDirectorConfig
   season?: {
     theme?: RemoteTheme
     introHub?: RemoteIntroHub

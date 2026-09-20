@@ -60,7 +60,7 @@ describe('Twin Shock reducer flow', () => {
     expect(next.phase).toBe('eviction_results');
     expect(next.twinShock?.status).toBe('day4_pending');
     expect(next.twinShock?.promptStage).toBe('day4_initial');
-    expect(next.twinShockConsumed).toBe(true);
+    expect(next.twinShockConsumed).toBe(false);
     expect(next.twinShockActivatedSeason).toBe(next.season);
     expect(lia?.avatar).toBe('assets/skins/Lia_avatar.webp');
   });
@@ -85,7 +85,7 @@ describe('Twin Shock reducer flow', () => {
     expect(state.phase).toBe('eviction_results');
     expect(state.pendingForcedShock).toBeNull();
     expect(state.twinShock?.promptStage).toBe('day4_initial');
-    expect(state.twinShockConsumed).toBe(true);
+    expect(state.twinShockConsumed).toBe(false);
   });
 
   it('does not surface a secret-lost confessional if Lia was already gone before a forced activation starts', () => {

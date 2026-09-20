@@ -19,6 +19,7 @@ import RouteLoopAudioSync from './services/sound/RouteLoopAudioSync'
 import { getAudioRouteHash, subscribeToAudioRoute } from './services/sound/audioRouteLocation'
 import AudioGate from './components/AudioGate/AudioGate'
 import { loadRemoteConfig } from './remoteConfig/remoteConfigSlice'
+import { refreshSeasonDirectorPlan } from './store/gameSlice'
 import { installGameDiagnostics } from './services/diagnostics/gameDiagnostics'
 import LiveOpsController from './components/LiveOpsController/LiveOpsController'
 import VipEntitlementSync from './components/VipEntitlementSync/VipEntitlementSync'
@@ -57,10 +58,17 @@ export default function App() {
   useEffect(() => {
     installGameDiagnostics()
     void SoundManager.init()
-    void store.dispatch(loadRemoteConfig())
+    const refreshRemoteConfig = async () => {
+      await store.dispatch(loadRemoteConfig())
+      // A fresh install creates the initial Season 1 state before the async
+      // live-config request returns. Attach the Director only while that season
+      // is still untouched; active/saved seasons keep their original snapshot.
+      store.dispatch(refreshSeasonDirectorPlan())
+    }
+    void refreshRemoteConfig()
     const refreshId = window.setInterval(
       () => {
-        void store.dispatch(loadRemoteConfig())
+        void refreshRemoteConfig()
       },
       5 * 60 * 1000
     )
