@@ -317,7 +317,9 @@ describe('Director shock orchestration', () => {
     expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
   })
 
-  it('guarantees a Tribunal-member human a return opportunity even after an earlier AI Battle Back', () => {
+  it(
+    'guarantees a Tribunal-member human a return opportunity even after an earlier AI Battle Back',
+    () => {
     const plan = makePlan({ aiBattleBack: false })
     const store = makeStore({
       phase: 'eviction_results',
@@ -343,8 +345,9 @@ describe('Director shock orchestration', () => {
     expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
     expect(store.getState().game.battleBack?.candidates).toContain('user')
     expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
-    expect(store.getState().game.seasonDirectorHumanReturnUsed).toBe(true)
-  })
+      expect(store.getState().game.seasonDirectorHumanReturnUsed).toBe(true)
+    }
+  )
 
   it('does not grant a Tribunal-member human a second guaranteed return opportunity', () => {
     const plan = makePlan({ aiBattleBack: false })
