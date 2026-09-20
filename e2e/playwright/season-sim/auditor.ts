@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test'
+import { writeFile } from 'node:fs/promises'
 
 import { readAppState } from '../support/test'
 import type { CoverageLedger } from './coverage'
@@ -69,8 +70,9 @@ export class SeasonAuditor {
         vip: state.vip,
       },
     }
+    const reportJson = JSON.stringify(report, null, 2)
     await this.context.testInfo.attach(`${name}.json`, {
-      body: JSON.stringify(report, null, 2),
+      body: reportJson,
       contentType: 'application/json',
     })
     const summary = [
@@ -94,6 +96,8 @@ export class SeasonAuditor {
           )
         : ['- none']),
     ].join('\n')
+    await writeFile(this.context.testInfo.outputPath(`${name}.json`), reportJson, 'utf8')
+    await writeFile(this.context.testInfo.outputPath(`${name}.md`), summary, 'utf8')
     await this.context.testInfo.attach(`${name}.md`, {
       body: summary,
       contentType: 'text/markdown',
@@ -134,7 +138,11 @@ export class SeasonAuditor {
         day,
       })
     this.lastWeek = Math.max(this.lastWeek, day)
-    if (this.lastPhase === game.phase && this.timeline.length > this.context.config.maxActions) {
+    if (
+      this.lastPhase === game.phase &&
+      this.timeline.length > this.context.config.maxActions &&
+      challenge.pending == null
+    ) {
       this.finding(
         'warning',
         'technical',

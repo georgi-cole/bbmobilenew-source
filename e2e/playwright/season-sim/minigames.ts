@@ -77,8 +77,8 @@ async function firstVisibleEnabled(locator: Locator): Promise<Locator | null> {
   return null
 }
 
-async function acknowledgeHostIntro(page: Page): Promise<void> {
-  const rules = page.getByRole('dialog').filter({ hasText: /Rules|How to play/i })
+async function acknowledgeHostIntro(host: Locator): Promise<void> {
+  const rules = host.locator('[role="dialog"]').filter({ hasText: /Rules|How to play/i })
   if (
     await rules
       .first()
@@ -88,7 +88,7 @@ async function acknowledgeHostIntro(page: Page): Promise<void> {
     const button = await firstVisibleEnabled(rules.first().getByRole('button'))
     if (button) await button.click()
   }
-  const demo = page.getByRole('dialog', { name: /example turn/i })
+  const demo = host.locator('[role="dialog"]').filter({ hasText: /example turn/i })
   if (await demo.isVisible().catch(() => false)) {
     const interactive = await firstVisibleEnabled(demo.getByRole('button'))
     if (interactive) await interactive.click()
@@ -97,8 +97,13 @@ async function acknowledgeHostIntro(page: Page): Promise<void> {
   }
 }
 
-async function clickCanvas(page: Page, random: SeededRandom, repeats: number): Promise<void> {
-  const canvas = page.locator('canvas').last()
+async function clickCanvas(
+  page: Page,
+  host: Locator,
+  random: SeededRandom,
+  repeats: number
+): Promise<void> {
+  const canvas = host.locator('canvas').last()
   if (!(await canvas.isVisible().catch(() => false))) return
   const box = await canvas.boundingBox()
   if (!box) return
@@ -110,8 +115,8 @@ async function clickCanvas(page: Page, random: SeededRandom, repeats: number): P
   }
 }
 
-async function clickMeaningfulButton(page: Page, random: SeededRandom): Promise<boolean> {
-  const controls = page.getByRole('button').filter({
+async function clickMeaningfulButton(host: Locator, random: SeededRandom): Promise<boolean> {
+  const controls = host.getByRole('button').filter({
     hasNotText: /open minigame menu|leave competition|keep playing|exit with 0|close results/i,
   })
   const button = await firstVisibleEnabled(controls)
@@ -134,11 +139,48 @@ export async function playVisibleMinigame(
 ): Promise<{ interacted: boolean; completed: boolean; primaryInput: string }> {
   const profile = MINIGAME_DRIVER_PROFILES[gameKey]
   if (!profile) throw new Error(`No minigame driver registered for '${gameKey}'.`)
-  await acknowledgeHostIntro(page)
+  const host = page.getByRole('dialog', { name: /minigame/i }).last()
+  await expect(host).toBeVisible()
+  await acknowledgeHostIntro(host)
   let interacted = false
 
-  if (profile.kind === 'keyboard') {
-    const input = await firstVisibleEnabled(page.locator('input:not([type="hidden"]), textarea'))
+  if (gameKey === 'majorityRules') {
+    const answer = await firstVisibleEnabled(host.getByRole('button', { name: /^SELECT [A-Z]\b/i }))
+    if (answer) {
+      await answer.click({ delay: random.int(20, 85) })
+      const lock = await firstVisibleEnabled(host.getByRole('button', { name: 'Lock in answer' }))
+      if (lock) await lock.click({ delay: random.int(20, 85) })
+      interacted = true
+    } else {
+      const continueButton = host
+        .getByRole('button', { name: /^(?:Continue|Continue watching|Skip to results)$/i })
+        .first()
+      if (await continueButton.isVisible().catch(() => false)) {
+        await page.waitForTimeout(350)
+        const stableContinue = await firstVisibleEnabled(
+          host.getByRole('button', {
+            name: /^(?:Continue|Continue watching|Skip to results)$/i,
+          })
+        )
+        if (stableContinue) {
+          try {
+            await stableContinue.click({ delay: random.int(20, 85), timeout: 2_000 })
+            interacted = true
+          } catch {
+            // The game may replace the result card during its animation;
+            // retry from the next bounded simulation action.
+          }
+        }
+      }
+    }
+  }
+
+  if (interacted || gameKey === 'majorityRules') {
+    // Majority Rules requires a visible answer selection followed by a
+    // separate visible confirmation; do not fall through to generic choice
+    // handling, which can repeatedly click the same selected answer.
+  } else if (profile.kind === 'keyboard') {
+    const input = await firstVisibleEnabled(host.locator('input:not([type="hidden"]), textarea'))
     if (input) {
       const value = skill === 'thrower' ? '0' : String(random.int(1, 9))
       await input.fill(value)
@@ -151,23 +193,23 @@ export async function playVisibleMinigame(
       interacted = true
     }
   } else if (profile.kind === 'tap') {
-    interacted = await clickMeaningfulButton(page, random)
-    await clickCanvas(page, random, skill === 'competent' ? 8 : 2)
+    interacted = await clickMeaningfulButton(host, random)
+    await clickCanvas(page, host, random, skill === 'competent' ? 8 : 2)
     interacted = true
   } else if (profile.kind === 'board' || profile.kind === 'path') {
-    interacted = await clickMeaningfulButton(page, random)
+    interacted = await clickMeaningfulButton(host, random)
     if (!interacted) {
-      await clickCanvas(page, random, skill === 'competent' ? 3 : 1)
+      await clickCanvas(page, host, random, skill === 'competent' ? 3 : 1)
       interacted = true
     }
   } else {
     const attempts = skill === 'competent' ? 3 : 1
     for (let index = 0; index < attempts; index += 1) {
-      interacted = (await clickMeaningfulButton(page, random)) || interacted
+      interacted = (await clickMeaningfulButton(host, random)) || interacted
     }
   }
 
-  const results = page.getByRole('heading', { name: /finished|results|wins|exited early/i })
+  const results = host.getByRole('heading', { name: /finished|results|wins|exited early/i })
   return {
     interacted,
     completed: await results

@@ -11,6 +11,7 @@ import { getModeAdapter } from './modeAdapters'
 import { assertMinigameDriversCoverRegistry, playVisibleMinigame } from './minigames'
 import { choosePersonaAction, getPersona } from './personas'
 import { SeededRandom } from './seededRandom'
+import { getAllGames } from '../../../src/minigames/registry'
 import {
   SEASON_SIMULATION_MODES,
   type SimulationAction,
@@ -188,12 +189,22 @@ async function handleVisibleCompetition(
 ): Promise<{ handled: boolean; gameKey?: string }> {
   const state = await readAppState(page)
   const pending = state.challenge.pending
-  if (!pending) return { handled: false }
-  const host = page.getByRole('dialog', { name: new RegExp(`${pending.game.title} minigame`, 'i') })
+  const host = pending
+    ? page.getByRole('dialog', { name: new RegExp(`${pending.game.title} minigame`, 'i') })
+    : page.getByRole('dialog', { name: /minigame/i }).last()
   if (!(await host.isVisible().catch(() => false))) return { handled: false }
-  const result = await playVisibleMinigame(page, pending.game.key, config.competitionSkill, random)
+  const dialogLabel = await host.getAttribute('aria-label')
+  const dialogGame = getAllGames().find(
+    (game) => dialogLabel?.toLowerCase() === `${game.title} minigame`.toLowerCase()
+  )
+  const gameKey = pending?.game.key ?? dialogGame?.key
+  if (!gameKey) return { handled: true }
+  const result = await playVisibleMinigame(page, gameKey, config.competitionSkill, random)
   if (!result.completed && config.competitionSkill === 'thrower') await exitMinigame(page)
-  return { handled: result.interacted, gameKey: pending.game.key }
+  // A visible modal owns the interaction surface even during a short
+  // transition where the current driver has no button to press. Never let the
+  // shared phase-advance action click behind an active minigame.
+  return { handled: true, gameKey }
 }
 
 function canAdvance(): SimulationAction {
