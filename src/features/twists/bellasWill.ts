@@ -102,9 +102,7 @@ export function shouldCastBella(options: {
   if (twinShockSeason == null) return false
 
   const classicAfterTwin = [...seasonArchives]
-    .filter(
-      (archive) => archive.seasonIndex > twinShockSeason && isBellaCompatibleArchive(archive)
-    )
+    .filter((archive) => archive.seasonIndex > twinShockSeason && isBellaCompatibleArchive(archive))
     .sort((left, right) => left.seasonIndex - right.seasonIndex)
 
   const priorBella = classicAfterTwin.find((archive) => archive.bellaCast === true)
@@ -189,7 +187,8 @@ export function chooseBellaHeir(state: GameState): string | null {
 
   return [...candidates]
     .sort((left, right) => {
-      const scoreDiff = bellaRelationshipScore(state, right.id) - bellaRelationshipScore(state, left.id)
+      const scoreDiff =
+        bellaRelationshipScore(state, right.id) - bellaRelationshipScore(state, left.id)
       if (scoreDiff !== 0) return scoreDiff
       return left.id.localeCompare(right.id)
     })[0]?.id ?? null
