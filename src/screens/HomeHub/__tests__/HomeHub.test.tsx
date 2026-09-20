@@ -451,7 +451,7 @@ describe('HomeHub', () => {
       phase: 'nominations',
       twinShockConsumed: true,
       players: [{ id: 'user', isUser: true }],
-      seasonArchives: [{ seasonId: 'season-3' }],
+      seasonArchives: [{ seasonId: 'season-3', bellaCast: true }],
     };
     (window as Window & { game?: Record<string, unknown> }).game = {
       hubNotifications: { news: true },
@@ -468,7 +468,8 @@ describe('HomeHub', () => {
         phase: 'nominations',
         twinShockConsumed: true,
         players: [{ id: 'user', isUser: true }],
-        seasonArchives: [{ seasonId: 'season-3' }],
+        seasonArchives: [{ seasonId: 'season-3', bellaCast: true }],
+        bellaUnlocked: true,
         achievementSummary: {
           playerName: 'You',
           totals: {
