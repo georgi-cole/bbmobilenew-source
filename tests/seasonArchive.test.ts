@@ -103,12 +103,14 @@ describe('archiveSeason reducer', () => {
   });
 
   it('caps list at 1000 entries', () => {
-    const existing: SeasonArchive[] = Array.from({ length: 50 }, (_, i) => makeArchive(i + 1));
+    const existing: SeasonArchive[] = Array.from({ length: 1000 }, (_, i) =>
+      makeArchive(i + 1),
+    );
     const store = makeStore({ seasonArchives: existing });
-    store.dispatch(archiveSeason(makeArchive(51)));
+    store.dispatch(archiveSeason(makeArchive(1001)));
     const archives = store.getState().game.seasonArchives ?? [];
     expect(archives).toHaveLength(1000);
-    expect(archives[0].seasonIndex).toBe(51);
+    expect(archives[0].seasonIndex).toBe(1001);
   });
 });
 
