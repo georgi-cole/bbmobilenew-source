@@ -32,6 +32,7 @@ import type { ActiveConfessionalDecision } from '../../store/confessionalDecisio
 import type { Player } from '../../types'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import { expandCupidIds, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { isBellaHeirImmune } from '../../features/twists/bellasWill'
 import { getConfessionalPowerName } from './confessionalDecisionPresentation'
 import { buildConfessionalDecisionUnits, type ConfessionalDecisionUnit } from './cupidDecisionUnits'
 import { buildVoxFirstImpressions, type VoxFirstImpression } from './voxFirstImpression'
@@ -172,6 +173,7 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const options = alivePlayers.filter(
     (player) =>
       !lohIds.has(player.id) &&
+      !isBellaHeirImmune(game, player.id) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
