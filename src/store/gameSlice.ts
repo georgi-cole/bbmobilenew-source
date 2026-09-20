@@ -7665,7 +7665,10 @@ const gameSlice = createSlice({
       state.bellaWill.immunityStartWeek = null
       state.bellaWill.immunityEndWeek = null
       state.bellaWill.extraVotePending = false
+      state.bellaWill.extraVoteChoiceActive = false
       state.bellaWill.voteRemovalPending = false
+      state.bellaWill.lastVoteRemovalAdjustment = null
+      state.bellaWill.expiredAtEndgame = false
       state.bellaWill.inherited = false
       if (wasInherited && state.bellaWill.heirId) {
         activateBellaInheritance(state)
@@ -7781,13 +7784,25 @@ const gameSlice = createSlice({
         twinShockResolution: action.payload.twinShockResolution ?? null,
         twinShockResolvedDay: action.payload.twinShockResolvedDay ?? null,
         twinShockDiscoveredByUser: action.payload.twinShockDiscoveredByUser ?? false,
-        bellaWill:
-          action.payload.bellaWill ??
-          createBellaWillState({
-            active: action.payload.players.some((player) => player.id === BELLA_ID),
-            seed: action.payload.seed,
-            season: action.payload.season,
-          }),
+        bellaWill: action.payload.bellaWill
+          ? {
+              ...createBellaWillState({
+                active: action.payload.bellaWill.active,
+                seed: action.payload.seed,
+                season: action.payload.season,
+                reward: action.payload.bellaWill.reward,
+              }),
+              ...action.payload.bellaWill,
+              extraVoteChoiceActive: action.payload.bellaWill.extraVoteChoiceActive ?? false,
+              lastVoteRemovalAdjustment:
+                action.payload.bellaWill.lastVoteRemovalAdjustment ?? null,
+              expiredAtEndgame: action.payload.bellaWill.expiredAtEndgame ?? false,
+            }
+          : createBellaWillState({
+              active: action.payload.players.some((player) => player.id === BELLA_ID),
+              seed: action.payload.seed,
+              season: action.payload.season,
+            }),
         // Saved Cupid seasons from before the visual-reveal handoff already
         // completed their announcement. Preserve their established look; only
         // a newly activated Cupid season explicitly starts at `false`.
