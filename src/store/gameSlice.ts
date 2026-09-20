@@ -6051,13 +6051,27 @@ const gameSlice = createSlice({
       state.nomineeIds = state.nomineeIds.filter((id) => id !== evicteeId)
       state.pendingEviction = null
       state.dayStartShock = null
+      expireBellaWillAtEndgame(state)
 
       if (evicteeId === BELLA_ID && state.bellaWill?.active && !state.bellaWill.inherited) {
-        if (!state.bellaWill.heirId) state.bellaWill.heirId = chooseBellaHeir(state)
+        const sameDoubleEvicteeId = state.doubleEviction?.pendingSecondEviction?.evicteeId ?? null
+        const excludedHeirIds = sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []
+        const currentHeir = state.bellaWill.heirId
+          ? state.players.find((player) => player.id === state.bellaWill?.heirId)
+          : null
+        const currentHeirIsValid =
+          currentHeir != null &&
+          currentHeir.id !== BELLA_ID &&
+          currentHeir.status !== 'evicted' &&
+          currentHeir.status !== 'jury' &&
+          !excludedHeirIds.includes(currentHeir.id)
+        if (!currentHeirIsValid) {
+          state.bellaWill.heirId = chooseBellaHeir(state, excludedHeirIds)
+        }
         activateBellaInheritance(state)
         const heir = state.players.find((player) => player.id === state.bellaWill?.heirId)
         const reward = state.bellaWill?.reward
-        if (heir && reward) {
+        if (state.bellaWill.inherited && heir && reward) {
           pushEvent(
             state,
             `Bella's Will is now in effect. ${heir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[reward]}.`,
@@ -7947,6 +7961,9 @@ const gameSlice = createSlice({
       ) {
         return
       }
+
+      // Bella's Will is never allowed to bleed into the Final 4 / Final 3 / Final 2.
+      expireBellaWillAtEndgame(state)
 
       // Emit any current-phase message that was authored after the phase had
       // already been entered. Normally these were emitted during entry and the
