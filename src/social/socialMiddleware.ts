@@ -1424,7 +1424,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       !demonstratesCommitment
     ) {
       payload = { ...payload, delta: Math.max(1, Math.round(payload.delta * 0.45)) }
-      forwardedAction = { ...(action as object), payload } as typeof action
+      forwardedAction = { ...(action as object), payload } as unknown as typeof action
     }
 
     const result = next(forwardedAction)
