@@ -128,6 +128,18 @@ import {
 import { loadBroadcastConfig } from '../broadcasting/broadcastConfigPersistence'
 import { loadDepressionShockState } from '../features/twists/depressionShock'
 import {
+  BELLA_ID,
+  BELLA_WILL_REWARD_LABELS,
+  activateBellaInheritance,
+  buildBellaPoolEntry,
+  chooseBellaHeir,
+  createBellaWillState,
+  getBellaHint,
+  isBellaHeirImmune,
+  shouldCastBella,
+  type BellaWillReward,
+} from '../features/twists/bellasWill'
+import {
   FORCED_SHOCK_CRITICAL_RULES,
   canCastClassicEvictionVote,
   getCanonicalVoterId,
@@ -421,9 +433,27 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
   }))
 }
 
-function buildInitialPlayers(twinShockConsumed = false): Player[] {
+function buildInitialPlayers(options: {
+  twinShockConsumed: boolean
+  seasonArchives: SeasonArchive[]
+  season: number
+  seed: number
+}): Player[] {
   const rosterSize = getConfiguredCastSize()
-  return [buildUserPlayer(), ...pickHouseguests(rosterSize, twinShockConsumed)]
+  const aiPlayers = pickHouseguests(rosterSize, options.twinShockConsumed)
+  if (
+    shouldCastBella({
+      season: options.season,
+      seasonArchives: options.seasonArchives,
+      twinShockConsumed: options.twinShockConsumed,
+      seed: options.seed,
+    }) &&
+    aiPlayers.length > 0
+  ) {
+    const replaceIndex = options.seed % aiPlayers.length
+    aiPlayers[replaceIndex] = buildBellaPoolEntry() as Player
+  }
+  return [buildUserPlayer(), ...aiPlayers]
 }
 
 function buildInitialCompetitionSeasonState(
@@ -459,6 +489,7 @@ function nextSeasonNumber(archives: SeasonArchive[]): number {
 export function createInitialGameState(options?: {
   twinShockConsumed?: boolean
   seed?: number
+  seasonArchives?: SeasonArchive[]
 }): GameState {
   const seed = options?.seed ?? 42
   const freshSettings = loadSettings()
@@ -468,13 +499,13 @@ export function createInitialGameState(options?: {
   const isGuest = loadProfilesState().isGuest
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
-    : (loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
+    : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
   const priorTwinShockConsumed = seasonArchives.some(
     (archive) => archive.twinShockConsumed === true
   )
   const twinShockConsumed = options?.twinShockConsumed === true || priorTwinShockConsumed
-  const freshPlayers = buildInitialPlayers(twinShockConsumed)
   const season = nextSeasonNumber(seasonArchives)
+  const freshPlayers = buildInitialPlayers({ twinShockConsumed, seasonArchives, season, seed })
   const expansionDebugAccess = import.meta.env.DEV || canAccessSpecialSettings()
   const forceClassicLocal = import.meta.env.DEV && import.meta.env.VITE_FORCE_CLASSIC === 'true'
   const cupidScheduleOptions = {
@@ -722,6 +753,11 @@ export function createInitialGameState(options?: {
     twinShockResolvedDay: null,
     twinShockDiscoveredByUser: false,
     liaForcedUntilTwinShockResolved: !twinShockConsumed,
+    bellaWill: createBellaWillState({
+      active: playersWithIdentity.some((player) => player.id === BELLA_ID),
+      seed,
+      season,
+    }),
     democracia: {
       usedThisSeason: false,
       active: false,
@@ -1770,8 +1806,11 @@ function getSafetyRelationshipBreakdown(
       allianceRead.fallbackTargetPressure * 28
     : 0
 
+  const bellaSaveBonus = nominee.id === BELLA_ID ? 18 : 0
+
   if (!relationship) {
-    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution
+    const total =
+      -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
     return {
       total,
       factors: {
@@ -1780,6 +1819,7 @@ function getSafetyRelationshipBreakdown(
         sandbagSuspicion: competitionRead.sandbagSuspicion,
         relationship: 'none',
         realityAllianceContribution,
+        bellaSaveBonus,
       },
     }
   }
@@ -1792,7 +1832,8 @@ function getSafetyRelationshipBreakdown(
     sandbagSuspicion: competitionRead.sandbagSuspicion,
     tags: relationship.tags.join(', ') || 'none',
   }
-  let score = relationship.affinity - threat * 3 - expendablePawnPenalty
+  let score = relationship.affinity - threat * 3 - expendablePawnPenalty + bellaSaveBonus
+  factors.bellaSaveBonus = bellaSaveBonus
   const identityContribution =
     allianceIdentityBias(holder?.aiGameIdentity) *
     (relationship.tags.includes('alliance') ? 1 : 0.18)
@@ -2300,6 +2341,7 @@ function shouldAiUseTargetedSafetyPower(
   })
   const strategicUpgrade = hasStrategicReplacement && replacementValue > currentValue + 18
   let useChance = strategicUpgrade ? 0.35 : 0.05
+  if (currentNominees.some((nominee) => nominee.id === BELLA_ID)) useChance += 0.15
   if (bestRelationship >= 75) useChance += 0.5
   else if (bestRelationship >= 45) useChance += 0.35
   else if (bestRelationship >= 20) useChance += 0.18
@@ -3106,7 +3148,11 @@ function canPlayerTargetPlayer(
   actorId: string | null | undefined,
   targetId: string
 ): boolean {
-  return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
+  return (
+    !isTwinAlliancePair(state, actorId, targetId) &&
+    !isSameCupidPair(state, actorId, targetId) &&
+    !isBellaHeirImmune(state, targetId)
+  )
 }
 
 function usesPluralPlayerGrammar(
@@ -4006,6 +4052,13 @@ const gameSlice = createSlice({
       action: PayloadAction<NonNullable<GameState['strategicRelationships']>>
     ) {
       state.strategicRelationships = action.payload
+      if (state.bellaWill?.active && !state.bellaWill.debugForced) {
+        const heirId = chooseBellaHeir(state)
+        if (heirId !== state.bellaWill.heirId) {
+          state.bellaWill.heirId = heirId
+          state.bellaWill.lastHeirUpdateWeek = state.week
+        }
+      }
     },
     syncStrategicAlliances(
       state,
@@ -5978,6 +6031,21 @@ const gameSlice = createSlice({
       state.pendingEviction = null
       state.dayStartShock = null
 
+      if (evicteeId === BELLA_ID && state.bellaWill?.active && !state.bellaWill.inherited) {
+        if (!state.bellaWill.heirId) state.bellaWill.heirId = chooseBellaHeir(state)
+        activateBellaInheritance(state)
+        const heir = state.players.find((player) => player.id === state.bellaWill?.heirId)
+        const reward = state.bellaWill?.reward
+        if (heir && reward) {
+          pushEvent(
+            state,
+            `Bella's Will is now in effect. ${heir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[reward]}.`,
+            'game',
+            { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+          )
+        }
+      }
+
       const cupidEvictionTemplateId = msg.includes(
         "Cupid's Arrow means you are eliminated together"
       )
@@ -7490,6 +7558,37 @@ const gameSlice = createSlice({
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
     },
+    debugSetBellaHeir(state, action: PayloadAction<string | null>) {
+      if (!state.bellaWill?.active) return
+      const heirId = action.payload
+      if (
+        heirId != null &&
+        !state.players.some(
+          (player) =>
+            player.id === heirId &&
+            player.id !== BELLA_ID &&
+            player.status !== 'evicted' &&
+            player.status !== 'jury'
+        )
+      ) {
+        return
+      }
+      state.bellaWill.heirId = heirId
+      state.bellaWill.lastHeirUpdateWeek = state.week
+      state.bellaWill.debugForced = true
+    },
+    debugSetBellaWillReward(state, action: PayloadAction<BellaWillReward>) {
+      if (!state.bellaWill?.active) return
+      state.bellaWill.reward = action.payload
+      state.bellaWill.debugForced = true
+    },
+    debugActivateBellaInheritance(state) {
+      if (!state.bellaWill?.active) return
+      if (!state.bellaWill.heirId) state.bellaWill.heirId = chooseBellaHeir(state)
+      activateBellaInheritance(state)
+      state.bellaWill.debugForced = true
+    },
+
     /** Reset game state with a fresh random roster. */
     resetGame(state, action: PayloadAction<SeasonArchive[] | undefined>) {
       // Mix Math.random() with Date.now() to derive a fresh 32-bit game seed.
@@ -7512,7 +7611,7 @@ const gameSlice = createSlice({
       // Use the factory to build a fully fresh initial state from the latest
       // persisted settings/profile, then override seed, seasonArchives, and season.
       const fresh = {
-        ...createInitialGameState({ twinShockConsumed, seed }),
+        ...createInitialGameState({ twinShockConsumed, seed, seasonArchives }),
         seasonArchives,
         season,
         status: 'active' as const,
@@ -7592,6 +7691,13 @@ const gameSlice = createSlice({
         twinShockResolution: action.payload.twinShockResolution ?? null,
         twinShockResolvedDay: action.payload.twinShockResolvedDay ?? null,
         twinShockDiscoveredByUser: action.payload.twinShockDiscoveredByUser ?? false,
+        bellaWill:
+          action.payload.bellaWill ??
+          createBellaWillState({
+            active: action.payload.players.some((player) => player.id === BELLA_ID),
+            seed: action.payload.seed,
+            season: action.payload.season,
+          }),
         // Saved Cupid seasons from before the visual-reveal handoff already
         // completed their announcement. Preserve their established look; only
         // a newly activated Cupid season explicitly starts at `false`.
@@ -8649,6 +8755,19 @@ const gameSlice = createSlice({
             phase: 'week_start',
             ...(tribunalEvent ? { announcementPrerollEventId: tribunalEvent.id } : {}),
           })
+          const bella = state.players.find((player) => player.id === BELLA_ID)
+          if (
+            state.bellaWill?.active &&
+            bella &&
+            bella.status !== 'evicted' &&
+            bella.status !== 'jury' &&
+            (state.week === 1 || state.week % 3 === 0)
+          ) {
+            pushEvent(state, getBellaHint(state.seed, state.season, state.week), 'social', {
+              key: `bellas_will_hint_${state.week}`,
+              phase: 'week_start',
+            })
+          }
           break
         }
         case 'loh_comp_announcement': {
@@ -9676,6 +9795,46 @@ const gameSlice = createSlice({
           // ballots. This keeps the result, Confessional breakdown, and archived
           // season-exit receipt from preserving a stale/forged ineligible vote.
           state.votes = validVotesByVoterId
+          // Bella's Will modifies the legal ballot only after ordinary eligibility
+          // has been established, so it cannot resurrect an invalid vote.
+          const bellaWill = state.bellaWill
+          if (bellaWill?.active && bellaWill.inherited && bellaWill.heirId) {
+            if (bellaWill.extraVotePending) {
+              const heirVoteEntry = Object.entries(validVotesByVoterId).find(
+                ([voteKey]) => getCanonicalVoterId(voteKey) === bellaWill.heirId
+              )
+              if (heirVoteEntry) {
+                const targetId = heirVoteEntry[1]
+                voteCounts[targetId] = (voteCounts[targetId] ?? 0) + 1
+                validVotesByVoterId[`${bellaWill.heirId}__bellaWill`] = targetId
+                bellaWill.extraVotePending = false
+                pushEvent(
+                  state,
+                  `Bella's Will grants ${state.players.find((p) => p.id === bellaWill.heirId)?.name ?? 'the heir'} an extra vote in tonight's elimination.`,
+                  'vote'
+                )
+              }
+            }
+            if (bellaWill.voteRemovalPending && state.nomineeIds.includes(bellaWill.heirId)) {
+              const ballotAgainstHeir = Object.entries(validVotesByVoterId)
+                .filter(([, targetId]) => targetId === bellaWill.heirId)
+                .sort(([left], [right]) => left.localeCompare(right))[0]
+              if (ballotAgainstHeir) {
+                delete validVotesByVoterId[ballotAgainstHeir[0]]
+                voteCounts[bellaWill.heirId] = Math.max(
+                  0,
+                  (voteCounts[bellaWill.heirId] ?? 0) - 1
+                )
+                pushEvent(
+                  state,
+                  `Bella's Will removes one vote cast against ${state.players.find((p) => p.id === bellaWill.heirId)?.name ?? 'the heir'}.`,
+                  'vote'
+                )
+              }
+              bellaWill.voteRemovalPending = false
+            }
+          }
+
           state.pendingExitContext = {
             week: state.week,
             leaderIds: state.coLohIds?.length
@@ -10449,6 +10608,9 @@ export const {
   archiveSeason,
   replacePlayers,
   updateUserPlayerIdentity,
+  debugSetBellaHeir,
+  debugSetBellaWillReward,
+  debugActivateBellaInheritance,
   clearSurvivorReplacementTransition,
   resetGame,
   rerollSeed,
