@@ -134,6 +134,7 @@ import {
   buildBellaPoolEntry,
   chooseBellaHeir,
   createBellaWillState,
+  expireBellaWillAtEndgame,
   getBellaHint,
   isBellaHeirImmune,
   shouldCastBella,
@@ -439,6 +440,7 @@ function buildInitialPlayers(options: {
   season: number
   seed: number
   allowBella: boolean
+  bellaProgress?: ReturnType<typeof loadProfilesState>['profiles'][number]['bellaProgress']
 }): Player[] {
   const rosterSize = getConfiguredCastSize()
   const aiPlayers = pickHouseguests(rosterSize, options.twinShockConsumed)
@@ -448,6 +450,7 @@ function buildInitialPlayers(options: {
       seasonArchives: options.seasonArchives,
       twinShockConsumed: options.twinShockConsumed,
       seed: options.seed,
+      bellaProgress: options.bellaProgress,
     }) &&
     options.allowBella &&
     aiPlayers.length > 0
@@ -498,7 +501,12 @@ export function createInitialGameState(options?: {
   const broadcastConfig = loadBroadcastConfig()
   // Guest mode never persists archives — treat as an empty history so guest
   // sessions always start at Season 1 regardless of any logged-in user data.
-  const isGuest = loadProfilesState().isGuest
+  const profilesState = loadProfilesState()
+  const isGuest = profilesState.isGuest
+  const activeBellaProgress =
+    !isGuest && profilesState.activeProfileId
+      ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)?.bellaProgress
+      : undefined
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
     : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
@@ -548,6 +556,7 @@ export function createInitialGameState(options?: {
     season,
     seed,
     allowBella: !cupidArrowIsScheduled && !voxPopuliIsScheduled,
+    bellaProgress: activeBellaProgress,
   })
   const publicModeEnabled = resolvePublicModeRuntimeEnabled(freshSettings.sim.publicMode === true, {
     hasStoreAccess: hasCachedStoreAccess('publicMode'),
