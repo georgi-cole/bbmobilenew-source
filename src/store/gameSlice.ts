@@ -438,6 +438,7 @@ function buildInitialPlayers(options: {
   seasonArchives: SeasonArchive[]
   season: number
   seed: number
+  allowBella: boolean
 }): Player[] {
   const rosterSize = getConfiguredCastSize()
   const aiPlayers = pickHouseguests(rosterSize, options.twinShockConsumed)
@@ -448,6 +449,7 @@ function buildInitialPlayers(options: {
       twinShockConsumed: options.twinShockConsumed,
       seed: options.seed,
     }) &&
+    options.allowBella &&
     aiPlayers.length > 0
   ) {
     const replaceIndex = options.seed % aiPlayers.length
@@ -505,7 +507,6 @@ export function createInitialGameState(options?: {
   )
   const twinShockConsumed = options?.twinShockConsumed === true || priorTwinShockConsumed
   const season = nextSeasonNumber(seasonArchives)
-  const freshPlayers = buildInitialPlayers({ twinShockConsumed, seasonArchives, season, seed })
   const expansionDebugAccess = import.meta.env.DEV || canAccessSpecialSettings()
   const forceClassicLocal = import.meta.env.DEV && import.meta.env.VITE_FORCE_CLASSIC === 'true'
   const cupidScheduleOptions = {
@@ -541,6 +542,13 @@ export function createInitialGameState(options?: {
     initialVoxPopuli.activatedSeason = season
     initialVoxPopuli.activatedWeek = 1
   }
+  const freshPlayers = buildInitialPlayers({
+    twinShockConsumed,
+    seasonArchives,
+    season,
+    seed,
+    allowBella: !cupidArrowIsScheduled && !voxPopuliIsScheduled,
+  })
   const publicModeEnabled = resolvePublicModeRuntimeEnabled(freshSettings.sim.publicMode === true, {
     hasStoreAccess: hasCachedStoreAccess('publicMode'),
     adminOverride: freshSettings.sim.publicModeAdminOverride === true,
