@@ -344,5 +344,85 @@
       "influenceCap": 10000,
       "infoCap": 10000
     }
+  },
+  "director": {
+    "schemaVersion": 1,
+    "revision": "director-v1",
+    "enabled": true,
+    "pacing": {
+      "finaleLockPlayers": 5,
+      "minimumSpotlightGapDays": 0,
+      "preventSameSceneMajorEvents": true
+    },
+    "secretMissions": {
+      "enabled": true,
+      "first": {
+        "chance": 100,
+        "maxPlayers": 14,
+        "minPlayers": 11
+      },
+      "second": {
+        "chance": 40,
+        "maxPlayers": 10,
+        "minPlayers": 8,
+        "minimumGapDays": 2
+      }
+    },
+    "doubleElimination": {
+      "enabled": true,
+      "seasonChance": 90,
+      "maxPerSeason": 1,
+      "maxPlayers": 10,
+      "minPlayers": 7
+    },
+    "specialSafety": {
+      "enabled": true,
+      "seasonChance": 30,
+      "maxPerSeason": 1,
+      "maxPlayers": 9,
+      "minPlayers": 6,
+      "selection": {
+        "weights": {
+          "vip": 1,
+          "diamond": 1,
+          "coup": 1,
+          "spotlight": 1
+        }
+      }
+    },
+    "morningShock": {
+      "enabled": true,
+      "seasonChance": 20,
+      "maxPerSeason": 1,
+      "maxPlayers": 13,
+      "minPlayers": 8
+    },
+    "battleBack": {
+      "enabled": true,
+      "maxPerSeason": 1,
+      "human": {
+        "guaranteedOpportunityAfterEviction": true,
+        "minimumActivePlayersAfterEviction": 5,
+        "minimumCandidates": 2
+      },
+      "aiOnly": {
+        "seasonChance": 35,
+        "maxPlayers": 9,
+        "minPlayers": 6,
+        "minimumCandidates": 3
+      }
+    },
+    "lifetimeSpecials": {
+      "twinShock": {
+        "enabled": true
+      }
+    },
+    "killSwitches": {
+      "secretMissions": false,
+      "doubleElimination": false,
+      "specialSafety": false,
+      "morningShock": false,
+      "battleBack": false
+    }
   }
 }
