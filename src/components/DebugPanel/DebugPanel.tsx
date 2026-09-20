@@ -29,6 +29,7 @@ import {
   activateVoxPopuliNow,
   setVoxPopuliSchedule,
   addTvEvent,
+  debugForceBellaIntoCast,
   debugSetBellaHeir,
   debugSetBellaWillReward,
   debugActivateBellaInheritance,
@@ -726,7 +727,19 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                     </button>
                   </>
                 ) : (
-                  <p className="dbg-help">Bella is not in the active cast.</p>
+                  <>
+                    <p className="dbg-help">
+                      Bella is not in the active cast. Load a temporary Bella test cast without
+                      changing the season cadence stored in history.
+                    </p>
+                    <button
+                      className="dbg-btn dbg-btn--wide"
+                      type="button"
+                      onClick={() => dispatch(debugForceBellaIntoCast())}
+                    >
+                      Load Bella test cast
+                    </button>
+                  </>
                 )}
               </div>
 
