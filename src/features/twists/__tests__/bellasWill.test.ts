@@ -5,7 +5,9 @@ import { withSeasonLaunchIntent } from '../../../modes/seasonLaunchIntent'
 import {
   BELLA_WILL_HINTS,
   activateBellaInheritance,
+  chooseBellaHeir,
   createBellaWillState,
+  expireBellaWillAtEndgame,
   isBellaHeirImmune,
   pickBellaWillReward,
   shouldCastBella,
@@ -148,6 +150,101 @@ describe("Bella's Will", () => {
     state.week = 6
     state.players = state.players.slice(0, 4)
     expect(isBellaHeirImmune(state, 'heir')).toBe(false)
+  })
+
+
+  it('uses durable profile progress even when the old Twin/Bella archives are gone', () => {
+    const base = {
+      season: 1002,
+      seasonArchives: [] as SeasonArchive[],
+      twinShockConsumed: false,
+      seed: 10,
+    }
+    expect(
+      withSeasonLaunchIntent('classic', () =>
+        shouldCastBella({
+          ...base,
+          bellaProgress: {
+            twinShockConsumedEver: true,
+            unlocked: false,
+            hasAppeared: false,
+            mandatorySkipConsumed: false,
+          },
+        })
+      )
+    ).toBe(true)
+
+    expect(
+      withSeasonLaunchIntent('classic', () =>
+        shouldCastBella({
+          ...base,
+          bellaProgress: {
+            twinShockConsumedEver: true,
+            unlocked: true,
+            hasAppeared: true,
+            mandatorySkipConsumed: false,
+          },
+        })
+      )
+    ).toBe(false)
+  })
+
+  it('expires every unresolved Will effect once Final 4 begins', () => {
+    const will = createBellaWillState({
+      active: true,
+      seed: 8,
+      season: 3,
+      reward: 'extra_vote',
+    })
+    will.heirId = 'heir'
+    will.inherited = true
+    will.extraVotePending = true
+    will.voteRemovalPending = true
+    will.immunityDaysRemaining = 2
+    will.immunityStartWeek = 5
+    will.immunityEndWeek = 6
+    const state = {
+      week: 5,
+      players: [
+        { id: 'heir', name: 'Heir', avatar: '', status: 'active' },
+        { id: 'p2', name: 'P2', avatar: '', status: 'active' },
+        { id: 'p3', name: 'P3', avatar: '', status: 'active' },
+        { id: 'p4', name: 'P4', avatar: '', status: 'active' },
+        { id: 'bella', name: 'Bella', avatar: '', status: 'jury' },
+      ],
+      bellaWill: will,
+    } as unknown as GameState
+
+    expect(expireBellaWillAtEndgame(state)).toBe(true)
+    expect(state.bellaWill?.expiredAtEndgame).toBe(true)
+    expect(state.bellaWill?.extraVotePending).toBe(false)
+    expect(state.bellaWill?.voteRemovalPending).toBe(false)
+    expect(state.bellaWill?.immunityDaysRemaining).toBe(0)
+  })
+
+  it('can exclude a committed Double Eviction departure when choosing Bella heir', () => {
+    const will = createBellaWillState({ active: true, seed: 9, season: 4 })
+    const state = {
+      week: 5,
+      players: [
+        { id: 'bella', name: 'Bella', avatar: '', status: 'jury' },
+        { id: 'leaving', name: 'Leaving', avatar: '', status: 'active' },
+        { id: 'safe', name: 'Safe', avatar: '', status: 'active' },
+        { id: 'p3', name: 'P3', avatar: '', status: 'active' },
+        { id: 'p4', name: 'P4', avatar: '', status: 'active' },
+        { id: 'p5', name: 'P5', avatar: '', status: 'active' },
+      ],
+      strategicRelationships: {
+        bella: {
+          leaving: { affinity: 100, tags: ['alliance'] },
+          safe: { affinity: 70, tags: ['alliance'] },
+        },
+      },
+      bellaWill: will,
+    } as unknown as GameState
+
+    expect(chooseBellaHeir(state)).toBe('leaving')
+    expect(chooseBellaHeir(state, ['leaving'])).toBe('safe')
   })
 
   it('keeps hint copy reusable instead of framing Bella as a one-time mystery', () => {
