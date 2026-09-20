@@ -1,0 +1,47 @@
+name: Temporary Director formatter
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  format-director:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor == 'georgi-cole'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format Director changes
+        run: |
+          npx prettier --write \
+            server/live-config.example.json \
+            src/features/twists/seasonDirector.ts \
+            src/screens/GameScreen/GameScreen.tsx \
+            src/store/gameSlice.ts \
+            tests/seasonDirector.flow.test.ts \
+            tests/unit/twinShock.test.ts
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            server/live-config.example.json \
+            src/features/twists/seasonDirector.ts \
+            src/screens/GameScreen/GameScreen.tsx \
+            src/store/gameSlice.ts \
+            tests/seasonDirector.flow.test.ts \
+            tests/unit/twinShock.test.ts
+          git commit -m "style: format season director changes"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
