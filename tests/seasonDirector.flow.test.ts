@@ -320,32 +320,32 @@ describe('Director shock orchestration', () => {
   it(
     'guarantees a Tribunal-member human a return opportunity even after an earlier AI Battle Back',
     () => {
-    const plan = makePlan({ aiBattleBack: false })
-    const store = makeStore({
-      phase: 'eviction_results',
-      players: playersWithStatuses({
-        active: 6,
-        evicted: 2,
-        jurors: 2,
-        humanStatus: 'jury',
-      }),
-      seasonDirectorPlan: plan,
-      seasonDirectorHumanReturnUsed: false,
-      battleBack: {
-        used: true,
-        active: false,
-        competitionActive: false,
-        weekDecided: 4,
-        candidates: ['juror-0'],
-        winnerId: 'active-0',
-        returnAnimationPending: false,
-      },
-    })
+      const plan = makePlan({ aiBattleBack: false })
+      const store = makeStore({
+        phase: 'eviction_results',
+        players: playersWithStatuses({
+          active: 6,
+          evicted: 2,
+          jurors: 2,
+          humanStatus: 'jury',
+        }),
+        seasonDirectorPlan: plan,
+        seasonDirectorHumanReturnUsed: false,
+        battleBack: {
+          used: true,
+          active: false,
+          competitionActive: false,
+          weekDecided: 4,
+          candidates: ['juror-0'],
+          winnerId: 'active-0',
+          returnAnimationPending: false,
+        },
+      })
 
-    expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
-    expect(store.getState().game.battleBack?.candidates).toContain('user')
-    expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
-      expect(store.getState().game.seasonDirectorHumanReturnUsed).toBe(true)
+      expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
+      expect(store.getState().game.battleBack?.candidates).toContain('user')
+      expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
+        expect(store.getState().game.seasonDirectorHumanReturnUsed).toBe(true)
     }
   )
 
