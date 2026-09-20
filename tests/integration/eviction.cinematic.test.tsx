@@ -163,6 +163,51 @@ describe('SpotlightEvictionOverlay – cinematic timing', () => {
     expect(screen.getByRole('dialog', { name: /Alice has been eliminated/i })).toBeTruthy()
   })
 
+  it('gives Bella an X-ray Last Will exit without changing elimination semantics', async () => {
+    const onDone = vi.fn()
+    const bella: Player = {
+      id: 'bella',
+      name: 'Bella',
+      avatar: 'assets/skins/Bella_avatar.webp',
+      status: 'active',
+      isUser: false,
+    }
+    const view = renderOverlay(
+      <SpotlightEvictionOverlay
+        evictee={bella}
+        contextLabel="Season 4 · Day 9"
+        layoutId="avatar-tile-bella"
+        onDone={onDone}
+      />
+    )
+
+    const dialog = screen.getByRole('dialog', { name: /Bella has been eliminated/i })
+    expect(dialog.getAttribute('data-exit-presentation')).toBe('bella_last_will')
+
+    await act(async () => {
+      vi.advanceTimersByTime(1750)
+    })
+
+    expect(view.container.querySelector('.seo--xray-flash')).toBeTruthy()
+    expect(view.container.querySelector('.seo__xray-flash')).toBeTruthy()
+    expect(onDone).not.toHaveBeenCalled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(450)
+    })
+
+    expect(view.container.querySelector('.seo--xray-flash')).toBeNull()
+    expect(screen.getByText('LAST WILL')).toBeTruthy()
+    expect(screen.queryByText('ELIMINATED')).toBeNull()
+    expect(onDone).not.toHaveBeenCalled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(DONE_AT)
+    })
+
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps an uploaded profile photo for the cinematic hero', async () => {
     const onDone = vi.fn()
     const sourcePhoto = 'data:image/png;base64,uploaded-profile-photo'
