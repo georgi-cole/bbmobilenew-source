@@ -31,7 +31,11 @@
     "weeklyMode": "single-game",
     "weeklyGameKey": "quickTapRace",
     "_comment3": "weeklyGameKeys is used when weeklyMode is user-selection",
-    "weeklyGameKeys": ["quickTapRace", "bullseyeBlitz", "colorMatch"]
+    "weeklyGameKeys": [
+      "quickTapRace",
+      "bullseyeBlitz",
+      "colorMatch"
+    ]
   },
   "social": {
     "_comment": "Pure-data Social and Drama overrides. Algorithms and executable rules remain bundled in the app.",
@@ -75,7 +79,9 @@
     "content": {
       "_comment": "These examples can be edited without rebuilding the app. Unknown IDs are harmless.",
       "scenarioLines": {
-        "week_start_ally_check_in": ["Fresh week. I wanted to make sure you and I are still solid."]
+        "week_start_ally_check_in": [
+          "Fresh week. I wanted to make sure you and I are still solid."
+        ]
       },
       "actionPresentation": {
         "compliment": {
@@ -123,5 +129,86 @@
       "name": "Finn",
       "bio": "Returning champion — now playing for redemption."
     }
-  ]
+  ],
+  "director": {
+    "_comment": "Season orchestration policy. Frequency/window changes are snapshotted when a new season starts; kill switches are live.",
+    "schemaVersion": 1,
+    "revision": "director-v1",
+    "enabled": true,
+    "pacing": {
+      "finaleLockPlayers": 5,
+      "minimumSpotlightGapDays": 0,
+      "preventSameSceneMajorEvents": true
+    },
+    "secretMissions": {
+      "enabled": true,
+      "first": {
+        "chance": 100,
+        "maxPlayers": 14,
+        "minPlayers": 11
+      },
+      "second": {
+        "chance": 40,
+        "maxPlayers": 10,
+        "minPlayers": 8,
+        "minimumGapDays": 2
+      }
+    },
+    "doubleElimination": {
+      "enabled": true,
+      "seasonChance": 90,
+      "maxPerSeason": 1,
+      "maxPlayers": 10,
+      "minPlayers": 7
+    },
+    "specialSafety": {
+      "enabled": true,
+      "seasonChance": 30,
+      "maxPerSeason": 1,
+      "maxPlayers": 9,
+      "minPlayers": 6,
+      "selection": {
+        "weights": {
+          "vip": 1,
+          "diamond": 1,
+          "coup": 1,
+          "spotlight": 1
+        }
+      }
+    },
+    "morningShock": {
+      "enabled": true,
+      "seasonChance": 20,
+      "maxPerSeason": 1,
+      "maxPlayers": 13,
+      "minPlayers": 8
+    },
+    "battleBack": {
+      "enabled": true,
+      "maxPerSeason": 1,
+      "human": {
+        "guaranteedOpportunityAfterEviction": true,
+        "minimumActivePlayersAfterEviction": 5,
+        "minimumCandidates": 2
+      },
+      "aiOnly": {
+        "seasonChance": 35,
+        "maxPlayers": 9,
+        "minPlayers": 6,
+        "minimumCandidates": 3
+      }
+    },
+    "lifetimeSpecials": {
+      "twinShock": {
+        "enabled": true
+      }
+    },
+    "killSwitches": {
+      "secretMissions": false,
+      "doubleElimination": false,
+      "specialSafety": false,
+      "morningShock": false,
+      "battleBack": false
+    }
+  }
 }
