@@ -123,7 +123,7 @@ export function shouldCastBella(options: {
 }): boolean {
   const { season, seasonArchives, twinShockConsumed, seed, bellaProgress } = options
 
-  // Bella is Classic-only. Expansion launches neither cast her nor consume her cadence.
+  // Bella is Classic-only by design. Expansion launches neither cast her nor consume her cadence.
   const launchIntent = getSeasonLaunchIntent()
   if (launchIntent != null && launchIntent !== 'classic') return false
 
