@@ -71,6 +71,8 @@ export interface SeasonArchive {
   voxPopuliActivated?: boolean
   /** True when the Lia/Ali twin shock was consumed in this season. */
   twinShockConsumed?: boolean
+  /** True when Bella was part of this season's cast. Drives her return cadence and Hubmates unlock. */
+  bellaCast?: boolean
   /**
    * Week numbers where a double eviction occurred (2 players evicted in one week).
    * Used to award survivedDoubleEviction points to players who survived those weeks.
