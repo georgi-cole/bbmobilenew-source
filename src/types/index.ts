@@ -1184,7 +1184,7 @@ export interface GameState {
   }
   /**
    * Archived season records. Each completed season is inserted at the front
-   * of this array (newest-first). Capped at 50 entries. Persisted to
+   * of this array (newest-first). Capped at 1000 entries. Persisted to
    * localStorage by default via archivePersistence.
    */
   seasonArchives?: SeasonArchive[]
