@@ -20,6 +20,8 @@ import profilesReducer, {
   loadProfilesState,
   saveProfilesState,
   archiveKeyForProfile,
+  recordBellaEncountered,
+  recordBellaTwinShockConsumed,
 } from './profilesSlice'
 import socialReducer from '../social/socialSlice'
 import { socialMiddleware } from '../social/socialMiddleware'
@@ -29,6 +31,7 @@ import { socialStrategyMiddleware } from '../social/socialStrategyMiddleware'
 import { realityIntegrityMiddleware } from '../social/realityIntegrityMiddleware'
 import { survivorMiddleware } from '../modes/survivorMiddleware'
 import { depressionShockMiddleware } from '../features/twists/depressionShockMiddleware'
+import { bellaProgressMiddleware } from '../features/twists/bellaProgressMiddleware'
 import { tribunalEligibilityMiddleware } from './tribunalEligibilityMiddleware'
 import { eliminatedSeasonResolutionMiddleware } from './eliminatedSeasonResolutionMiddleware'
 import { presentationConsistencyMiddleware } from './presentationConsistencyMiddleware'
@@ -122,6 +125,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       survivorMiddleware,
+      bellaProgressMiddleware,
       eliminatedSeasonResolutionMiddleware,
       tribunalEligibilityMiddleware,
       realityIntegrityMiddleware,
@@ -147,6 +151,17 @@ export const store = configureStore({
 // Public Mode = on while the active game ignored the request and stayed off.
 // In Vox this is visibility-only, so reconciliation is safe during the cycle.
 const startupState = store.getState()
+if (!startupState.profiles.isGuest && startupState.profiles.activeProfileId) {
+  if (startupState.game.twinShockConsumed) {
+    store.dispatch(recordBellaTwinShockConsumed())
+  }
+  if (
+    startupState.game.players.some((player) => player.id === 'bella') &&
+    startupState.game.bellaWill?.debugCastForced !== true
+  ) {
+    store.dispatch(recordBellaEncountered())
+  }
+}
 if (
   startupState.game.voxPopuli?.status === 'active' &&
   startupState.game.publicModeEnabled !== (startupState.settings.sim.publicMode === true)
