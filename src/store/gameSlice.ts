@@ -7566,6 +7566,47 @@ const gameSlice = createSlice({
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
     },
+    debugForceBellaIntoCast(state) {
+      if (state.players.some((player) => player.id === BELLA_ID)) {
+        if (!state.bellaWill?.active) {
+          state.bellaWill = createBellaWillState({
+            active: true,
+            seed: state.seed,
+            season: state.season,
+          })
+        }
+        return
+      }
+
+      const replaceIndex = state.players.findIndex(
+        (player) =>
+          !player.isUser &&
+          player.id !== TWIN_SHOCK_LIA_ID &&
+          player.id !== TWIN_SHOCK_ALI_ID &&
+          player.id !== 'lia_ali' &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury'
+      )
+      if (replaceIndex < 0) return
+
+      const replaced = state.players[replaceIndex]
+      const bella = buildBellaPoolEntry() as Player
+      state.players[replaceIndex] = bella
+      if (state.competitionSeasonStateByPlayerId) {
+        delete state.competitionSeasonStateByPlayerId[replaced.id]
+        state.competitionSeasonStateByPlayerId[BELLA_ID] = getDefaultCompetitionSeasonState()
+      }
+      state.bellaWill = createBellaWillState({
+        active: true,
+        seed: state.seed,
+        season: state.season,
+      })
+      pushEvent(
+        state,
+        `[DEBUG] Bella replaced ${replaced.name} in the active cast. Bella's Will is ready for testing. 🔧`,
+        'game'
+      )
+    },
     debugSetBellaHeir(state, action: PayloadAction<string | null>) {
       if (!state.bellaWill?.active) return
       const heirId = action.payload
@@ -10628,6 +10669,7 @@ export const {
   archiveSeason,
   replacePlayers,
   updateUserPlayerIdentity,
+  debugForceBellaIntoCast,
   debugSetBellaHeir,
   debugSetBellaWillReward,
   debugActivateBellaInheritance,
