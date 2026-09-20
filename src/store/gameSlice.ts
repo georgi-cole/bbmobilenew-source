@@ -9832,6 +9832,42 @@ const gameSlice = createSlice({
             })
           }
 
+          // Bella's inherited extra ballot is a real second ballot, not a
+          // duplicate tally modifier. Existing bonus-ballot effects take priority.
+          const bellaExtraVote = state.bellaWill
+          if (
+            bellaExtraVote?.active &&
+            bellaExtraVote.inherited &&
+            bellaExtraVote.extraVotePending &&
+            bellaExtraVote.heirId
+          ) {
+            const heir = state.players.find((player) => player.id === bellaExtraVote.heirId)
+            const heirId = bellaExtraVote.heirId
+            const existingBonusBallot = Object.keys(voteMap).some(
+              (voteKey) => voteKey !== heirId && getCanonicalVoterId(voteKey) === heirId
+            )
+            if (heir && !heir.isUser && eligibleVoterIds.has(heirId) && !existingBonusBallot) {
+              const eligibleTargets = state.nomineeIds.filter((nomineeId) =>
+                canPlayerTargetPlayer(state, heirId, nomineeId)
+              )
+              if (eligibleTargets.length > 0 && voteMap[heirId]) {
+                const inheritedTarget = chooseAiEvictionVote(
+                  state,
+                  heirId,
+                  eligibleTargets,
+                  (state.seed ^ hashString(`bella-will-extra:${state.week}:${heirId}`)) >>> 0
+                )
+                voteMap[`${heirId}__bellaWill`] = inheritedTarget
+                bellaExtraVote.extraVotePending = false
+                pushEvent(
+                  state,
+                  `Bella's Will grants ${heir.name} a separate extra ballot in tonight's elimination.`,
+                  'vote'
+                )
+              }
+            }
+          }
+
           // Block advance() if the human player is an eligible voter
           const humanVoter = eligibleVoters.find((p) => p.isUser)
           if (humanVoter) {
@@ -9860,6 +9896,24 @@ const gameSlice = createSlice({
               !state.humanDoubleVoteActive
             ) {
               state.awaitingDoubleVoteOffer = true
+            }
+
+            // Bella waits behind any other available bonus-ballot effect. When
+            // none is active, reuse the two-ballot Confessional UI but mark the
+            // second ballot as Bella's inherited vote rather than a generic double vote.
+            const bellaWill = state.bellaWill
+            if (
+              !state.awaitingDoubleVoteOffer &&
+              state.batteryLowVoteEffects?.[humanVoter.id]?.type !== 'doubleVote' &&
+              bellaWill?.active &&
+              bellaWill.inherited &&
+              bellaWill.extraVotePending &&
+              bellaWill.heirId === humanVoter.id &&
+              !bellaWill.expiredAtEndgame &&
+              !state.humanDoubleVoteActive
+            ) {
+              state.humanDoubleVoteActive = true
+              bellaWill.extraVoteChoiceActive = true
             }
           }
           break
@@ -9890,43 +9944,49 @@ const gameSlice = createSlice({
           // ballots. This keeps the result, Confessional breakdown, and archived
           // season-exit receipt from preserving a stale/forged ineligible vote.
           state.votes = validVotesByVoterId
-          // Bella's Will modifies the legal ballot only after ordinary eligibility
-          // has been established, so it cannot resurrect an invalid vote.
+          // Bella's vote-removal reward is a tally adjustment: raw legal ballots
+          // remain intact for the vote breakdown/audit trail. A usable stored
+          // vote-deduction power takes priority, so Bella waits for a later eviction.
           const bellaWill = state.bellaWill
-          if (bellaWill?.active && bellaWill.inherited && bellaWill.heirId) {
-            if (bellaWill.extraVotePending) {
-              const heirVoteEntry = Object.entries(validVotesByVoterId).find(
-                ([voteKey]) => getCanonicalVoterId(voteKey) === bellaWill.heirId
+          if (
+            bellaWill?.active &&
+            bellaWill.inherited &&
+            bellaWill.heirId &&
+            bellaWill.voteRemovalPending &&
+            state.nomineeIds.includes(bellaWill.heirId)
+          ) {
+            const rawVotesAgainstHeir = Object.values(validVotesByVoterId).filter(
+              (targetId) => targetId === bellaWill.heirId
+            ).length
+            const heir = state.players.find((player) => player.id === bellaWill.heirId)
+            const competingDeduction =
+              heir?.isUser === true &&
+              canUseVoteDeduction({
+                phase: nextPhase as string,
+                secretMission: state.secretMission,
+                nomineeIds: state.nomineeIds,
+                lohId: state.lohId,
+                players: state.players,
+                doubleEviction: state.doubleEviction,
+                voteResults: { ...voteCounts },
+                awaitingTieBreak: false,
+              })
+            if (rawVotesAgainstHeir > 0 && !competingDeduction) {
+              voteCounts[bellaWill.heirId] = Math.max(
+                0,
+                (voteCounts[bellaWill.heirId] ?? 0) - 1
               )
-              if (heirVoteEntry) {
-                const targetId = heirVoteEntry[1]
-                voteCounts[targetId] = (voteCounts[targetId] ?? 0) + 1
-                validVotesByVoterId[`${bellaWill.heirId}__bellaWill`] = targetId
-                bellaWill.extraVotePending = false
-                pushEvent(
-                  state,
-                  `Bella's Will grants ${state.players.find((p) => p.id === bellaWill.heirId)?.name ?? 'the heir'} an extra vote in tonight's elimination.`,
-                  'vote'
-                )
-              }
-            }
-            if (bellaWill.voteRemovalPending && state.nomineeIds.includes(bellaWill.heirId)) {
-              const ballotAgainstHeir = Object.entries(validVotesByVoterId)
-                .filter(([, targetId]) => targetId === bellaWill.heirId)
-                .sort(([left], [right]) => left.localeCompare(right))[0]
-              if (ballotAgainstHeir) {
-                delete validVotesByVoterId[ballotAgainstHeir[0]]
-                voteCounts[bellaWill.heirId] = Math.max(
-                  0,
-                  (voteCounts[bellaWill.heirId] ?? 0) - 1
-                )
-                pushEvent(
-                  state,
-                  `Bella's Will removes one vote cast against ${state.players.find((p) => p.id === bellaWill.heirId)?.name ?? 'the heir'}.`,
-                  'vote'
-                )
-              }
               bellaWill.voteRemovalPending = false
+              bellaWill.lastVoteRemovalAdjustment = {
+                week: state.week,
+                targetId: bellaWill.heirId,
+                amount: 1,
+              }
+              pushEvent(
+                state,
+                `Bella's Will subtracts one vote from ${heir?.name ?? 'the heir'}'s elimination tally.`,
+                'vote'
+              )
             }
           }
 
@@ -10469,6 +10529,7 @@ const gameSlice = createSlice({
       state.awaitingDoubleVoteOffer = false
       const sm = state.secretMission
       if (!sm?.reward || sm.reward.type !== 'doubleVote' || !sm.reward.eligible) return
+      if (state.bellaWill) state.bellaWill.extraVoteChoiceActive = false
       state.humanDoubleVoteActive = true
     },
 
@@ -10478,7 +10539,20 @@ const gameSlice = createSlice({
      */
     declineDoubleVoteReward(state) {
       state.awaitingDoubleVoteOffer = false
-      // humanDoubleVoteActive stays false (or undefined); normal vote modal follows.
+      const humanPlayer = state.players.find((player) => player.isUser)
+      const bellaWill = state.bellaWill
+      if (
+        humanPlayer &&
+        bellaWill?.active &&
+        bellaWill.inherited &&
+        bellaWill.extraVotePending &&
+        bellaWill.heirId === humanPlayer.id &&
+        !bellaWill.expiredAtEndgame &&
+        state.batteryLowVoteEffects?.[humanPlayer.id]?.type !== 'doubleVote'
+      ) {
+        state.humanDoubleVoteActive = true
+        bellaWill.extraVoteChoiceActive = true
+      }
     },
 
     /**
@@ -10501,20 +10575,37 @@ const gameSlice = createSlice({
       if (!canPlayerTargetPlayer(state, humanPlayer.id, target2)) return
       if (!state.votes) state.votes = {}
 
-      // Primary vote (same key as a normal vote)
+      const bellaWill = state.bellaWill
+      const usesBellaExtraVote =
+        bellaWill?.extraVoteChoiceActive === true &&
+        bellaWill.extraVotePending &&
+        bellaWill.heirId === humanPlayer.id
+
+      // Primary vote is always the human's normal legal ballot.
       state.votes[humanPlayer.id] = target1
-      // Secondary vote uses a suffix key, but the eviction tally canonicalizes
-      // it back to the human voter before re-checking eligibility.
-      state.votes[`${humanPlayer.id}__dv2`] = target2
+      // The second ballot keeps its source identity so stacking and audit logic
+      // can distinguish an inherited Bella vote from another Double Vote power.
+      state.votes[
+        usesBellaExtraVote ? `${humanPlayer.id}__bellaWill` : `${humanPlayer.id}__dv2`
+      ] = target2
 
       state.awaitingHumanVote = false
       state.humanDoubleVoteActive = false
 
-      // Consume the reward
-      const sm = state.secretMission
-      if (sm?.reward && sm.reward.type === 'doubleVote') {
-        sm.reward.consumed = true
-        sm.reward.eligible = false
+      if (usesBellaExtraVote && bellaWill) {
+        bellaWill.extraVotePending = false
+        bellaWill.extraVoteChoiceActive = false
+        pushEvent(
+          state,
+          `Bella's Will grants ${humanPlayer.name} a separate extra ballot in tonight's elimination.`,
+          'vote'
+        )
+      } else {
+        const sm = state.secretMission
+        if (sm?.reward && sm.reward.type === 'doubleVote') {
+          sm.reward.consumed = true
+          sm.reward.eligible = false
+        }
       }
     },
 
