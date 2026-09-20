@@ -44,16 +44,17 @@ const BELLA_WILL_REWARDS: readonly BellaWillReward[] = [
 ]
 
 export const BELLA_WILL_REWARD_LABELS: Record<BellaWillReward, string> = {
-  immunity_2_days: 'Immunity for 2 consecutive days',
+  immunity_2_days: 'Immunity for 2 consecutive days (inactive at Final 4/3/2)',
   extra_vote: '1 extra vote in the next elimination',
   remove_vote: 'Remove 1 vote next time the heir is nominated',
 }
 
-export function buildBellaPoolEntry(): Pick<Player, 'id' | 'name' | 'avatar' | 'status'> {
+export function buildBellaPoolEntry(): Pick<Player, 'id' | 'name' | 'avatar' | 'status' | 'sex'> {
   return {
     id: BELLA_ID,
     name: BELLA_NAME,
     avatar: BELLA_AVATAR,
+    sex: 'female',
     status: 'active',
   }
 }
@@ -224,19 +225,8 @@ export function isBellaHeirImmune(state: GameState, playerId: string): boolean {
   return activeCount > 4
 }
 
-export function consumeBellaImmunityDay(state: GameState): void {
-  const will = state.bellaWill
-  if (!will?.inherited || will.reward !== 'immunity_2_days') return
-  if (will.immunityDaysRemaining > 0) {
-    will.immunityDaysRemaining -= 1
-  }
-}
-
 export function getBellaHint(seed: number, season: number, week: number): string {
   const index = Math.abs((seed + season * 11 + week * 7) % BELLA_WILL_HINTS.length)
   return BELLA_WILL_HINTS[index]
 }
 
-export function getBellaPosSaveBonus(nomineeId: string): number {
-  return nomineeId === BELLA_ID ? 0.08 : 0
-}
