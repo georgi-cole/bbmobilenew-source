@@ -6337,6 +6337,7 @@ const gameSlice = createSlice({
     activateBattleBack(state, action: PayloadAction<{ candidates: string[]; week: number }>) {
       if (isVoxPopuliTwistLocked(state)) return
       const candidates = action.payload.candidates.filter((id) => id !== BELLA_ID)
+      if (candidates.length === 0) return
       const bb: BattleBackState = {
         used: false,
         active: true,
@@ -8875,6 +8876,7 @@ const gameSlice = createSlice({
           const bella = state.players.find((player) => player.id === BELLA_ID)
           if (
             state.bellaWill?.active &&
+            !state.bellaWill.expiredAtEndgame &&
             bella &&
             bella.status !== 'evicted' &&
             bella.status !== 'jury' &&
@@ -10563,20 +10565,8 @@ const gameSlice = createSlice({
      */
     declineDoubleVoteReward(state) {
       state.awaitingDoubleVoteOffer = false
-      const humanPlayer = state.players.find((player) => player.isUser)
-      const bellaWill = state.bellaWill
-      if (
-        humanPlayer &&
-        bellaWill?.active &&
-        bellaWill.inherited &&
-        bellaWill.extraVotePending &&
-        bellaWill.heirId === humanPlayer.id &&
-        !bellaWill.expiredAtEndgame &&
-        state.batteryLowVoteEffects?.[humanPlayer.id]?.type !== 'doubleVote'
-      ) {
-        state.humanDoubleVoteActive = true
-        bellaWill.extraVoteChoiceActive = true
-      }
+      // A stored Double Vote has priority for this eviction even when declined.
+      // Bella's inherited ballot remains pending for a later eligible elimination.
     },
 
     /**
