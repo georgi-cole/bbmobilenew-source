@@ -127,7 +127,11 @@ export default function GameOver() {
     (s) => s.game.voxPopuli?.activatedSeason === s.game.season
   )
   const twinShockConsumed = useAppSelector((state) => state.game.twinShockConsumed === true)
-  const bellaCast = useAppSelector((state) => state.game.players.some((player) => player.id === 'bella'))
+  const bellaCast = useAppSelector(
+    (state) =>
+      state.game.players.some((player) => player.id === 'bella') &&
+      state.game.bellaWill?.debugCastForced !== true
+  )
   const seasonArchives = useAppSelector((s) => s.game.seasonArchives ?? [])
   const favoriteWinnerId = useAppSelector((s) => s.game.favoritePlayer?.winnerId ?? null)
   const social = useAppSelector((s) => s.game.social)
