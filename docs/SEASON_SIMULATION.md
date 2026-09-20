@@ -27,6 +27,8 @@ Run the smoke on both representative mobile viewports:
 npm run test:season-sim:full
 ```
 
+For a live terminal display while the journey runs, use `npm run test:season-sim:watch` with the same environment variables. It refreshes the current day, phase, last action, findings, objective count, and elapsed time once per second.
+
 Replay with another exact seed. These environment variables are read before the browser starts, so they control both season construction and the persona's separate action stream:
 
 ```powershell
