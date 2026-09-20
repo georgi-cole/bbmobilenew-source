@@ -1,5 +1,6 @@
 import type { Middleware } from '@reduxjs/toolkit'
 import {
+  recordBellaCompatibleClassicCompleted,
   recordBellaEncountered,
   recordBellaTwinShockConsumed,
   type ProfilesState,
@@ -40,9 +41,28 @@ export const bellaProgressMiddleware: Middleware = (api) => (next) => (action) =
     (profile) => profile.id === after.profiles.activeProfileId
   )
   const progress = activeProfile?.bellaProgress
+  const archives = after.game.seasonArchives ?? []
+  const archivedBellaSeasons = archives
+    .filter(
+      (archive) =>
+        archive.bellaCast === true &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
+    .map((archive) => archive.seasonIndex)
+    .sort((left, right) => left - right)
+  const firstArchivedBellaSeason = archivedBellaSeasons[0] ?? null
+  const archivedSkipConsumed =
+    firstArchivedBellaSeason != null &&
+    archives.some(
+      (archive) =>
+        archive.seasonIndex > firstArchivedBellaSeason &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
 
   if (
-    after.game.twinShockConsumed &&
+    (after.game.twinShockConsumed || archives.some((archive) => archive.twinShockConsumed === true)) &&
     (before.game.twinShockConsumed !== after.game.twinShockConsumed ||
       progress?.twinShockConsumedEver !== true)
   ) {
@@ -52,8 +72,12 @@ export const bellaProgressMiddleware: Middleware = (api) => (next) => (action) =
   const afterBella =
     after.game.players.some((player) => player.id === BELLA_ID) &&
     after.game.bellaWill?.debugCastForced !== true
-  if (afterBella && progress?.unlocked !== true) {
+  const hasArchivedBella = firstArchivedBellaSeason != null
+  if ((afterBella || hasArchivedBella) && (progress?.unlocked !== true || progress?.hasAppeared !== true)) {
     api.dispatch(recordBellaEncountered())
+  }
+  if (archivedSkipConsumed && progress?.mandatorySkipConsumed !== true) {
+    api.dispatch(recordBellaCompatibleClassicCompleted({ bellaCast: false }))
   }
 
   return result
