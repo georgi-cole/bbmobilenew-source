@@ -6312,12 +6312,14 @@ const gameSlice = createSlice({
      */
     activateBattleBack(state, action: PayloadAction<{ candidates: string[]; week: number }>) {
       if (isVoxPopuliTwistLocked(state)) return
+      const candidates = action.payload.candidates.filter((id) => id !== BELLA_ID)
+      if (candidates.length < 3) return
       const bb: BattleBackState = {
         used: false,
         active: true,
         competitionActive: false,
         weekDecided: action.payload.week,
-        candidates: action.payload.candidates,
+        candidates,
         winnerId: null,
         returnAnimationPending: false,
       }
@@ -6357,6 +6359,7 @@ const gameSlice = createSlice({
         return
       }
 
+      if (winnerId === BELLA_ID) return
       const isCandidate = bb.candidates.includes(winnerId)
       const winner = state.players.find((p) => p.id === winnerId)
 
@@ -11926,7 +11929,7 @@ export const tryActivateBattleBack =
     if (game.battleBack?.used) return false
     if (game.phase !== 'eviction_results') return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury')
+    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
@@ -11957,7 +11960,7 @@ export const tryActivatePendingForcedBattleBack =
     if (game.battleBack?.used) return false
     if (game.twistActivatedThisWeek) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury')
+    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
