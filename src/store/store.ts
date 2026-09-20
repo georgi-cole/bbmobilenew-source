@@ -152,6 +152,7 @@ export const store = configureStore({
 // In Vox this is visibility-only, so reconciliation is safe during the cycle.
 const startupState = store.getState()
 if (!startupState.profiles.isGuest && startupState.profiles.activeProfileId) {
+  const profilesBeforeBellaMigration = store.getState().profiles
   if (startupState.game.twinShockConsumed) {
     store.dispatch(recordBellaTwinShockConsumed())
   }
@@ -160,6 +161,9 @@ if (!startupState.profiles.isGuest && startupState.profiles.activeProfileId) {
     startupState.game.bellaWill?.debugCastForced !== true
   ) {
     store.dispatch(recordBellaEncountered())
+  }
+  if (store.getState().profiles !== profilesBeforeBellaMigration) {
+    saveProfilesState(store.getState().profiles)
   }
 }
 if (
