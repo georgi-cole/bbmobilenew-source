@@ -29,6 +29,9 @@ import {
   activateVoxPopuliNow,
   setVoxPopuliSchedule,
   addTvEvent,
+  debugSetBellaHeir,
+  debugSetBellaWillReward,
+  debugActivateBellaInheritance,
 } from '../../store/gameSlice'
 import { DEFAULT_SETTINGS, setSim } from '../../store/settingsSlice'
 import {
@@ -56,6 +59,10 @@ import {
   activateDepressionShockForDebug,
   setDepressionShockStageForDebug,
 } from '../../features/twists/depressionShock'
+import {
+  BELLA_WILL_REWARD_LABELS,
+  type BellaWillReward,
+} from '../../features/twists/bellasWill'
 import './DebugPanel.css'
 
 const PHASES: Phase[] = [
@@ -664,6 +671,63 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                     Restore Active
                   </button>
                 </div>
+              </div>
+
+              <div className="dbg-row dbg-row--col">
+                <label className="dbg-label">Bella's Will</label>
+                {game.bellaWill?.active ? (
+                  <>
+                    <p className="dbg-help">
+                      Heir and reward are pinned when changed here. Current state:{' '}
+                      {game.bellaWill.inherited ? 'inherited' : 'waiting for Bella to leave'}.
+                    </p>
+                    <div className="dbg-row">
+                      <select
+                        aria-label="Bella heir"
+                        className="dbg-select"
+                        value={game.bellaWill.heirId ?? ''}
+                        onChange={(event) =>
+                          dispatch(debugSetBellaHeir(event.target.value || null))
+                        }
+                      >
+                        <option value="">— choose heir —</option>
+                        {alive
+                          .filter((player) => player.id !== 'bella')
+                          .map((player) => (
+                            <option key={player.id} value={player.id}>
+                              {player.name}
+                            </option>
+                          ))}
+                      </select>
+                      <select
+                        aria-label="Bella will reward"
+                        className="dbg-select"
+                        value={game.bellaWill.reward ?? ''}
+                        onChange={(event) =>
+                          dispatch(debugSetBellaWillReward(event.target.value as BellaWillReward))
+                        }
+                      >
+                        {(Object.entries(BELLA_WILL_REWARD_LABELS) as Array<
+                          [BellaWillReward, string]
+                        >).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      className="dbg-btn dbg-btn--wide"
+                      type="button"
+                      disabled={!game.bellaWill.heirId || game.bellaWill.inherited}
+                      onClick={() => dispatch(debugActivateBellaInheritance())}
+                    >
+                      Activate inheritance now
+                    </button>
+                  </>
+                ) : (
+                  <p className="dbg-help">Bella is not in the active cast.</p>
+                )}
               </div>
 
               <div className="dbg-row">
