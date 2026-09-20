@@ -26,6 +26,7 @@ import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
 import type { RequiredConfessionalPresentation } from './requiredConfessionalPresentation'
 import { expandCupidIds, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { isBellaHeirImmune } from '../../features/twists/bellasWill'
 import { buildConfessionalDecisionUnits, type ConfessionalDecisionUnit } from './cupidDecisionUnits'
 import { buildVoxFirstImpressions, type VoxFirstImpression } from './voxFirstImpression'
 
@@ -614,7 +615,10 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 
   const standardBase = alivePlayers.filter(
     (player) =>
-      !lohIds.has(player.id) && !posIds.has(player.id) && !game.nomineeIds.includes(player.id)
+      !lohIds.has(player.id) &&
+      !posIds.has(player.id) &&
+      !game.nomineeIds.includes(player.id) &&
+      !isBellaHeirImmune(game, player.id)
   )
   const standardUnprotected = standardBase.filter((player) => !protectedIds.has(player.id))
   const standardOptions = standardUnprotected.length > 0 ? standardUnprotected : standardBase
@@ -624,6 +628,7 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       !lohIds.has(player.id) &&
       !posIds.has(player.id) &&
       !game.nomineeIds.includes(player.id) &&
+      !isBellaHeirImmune(game, player.id) &&
       player.id !== game.specialVeto?.coupReplacement1Id
   )
   const coupUnprotected = coupBase.filter((player) => !protectedIds.has(player.id))
