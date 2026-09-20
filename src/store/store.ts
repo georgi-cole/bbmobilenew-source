@@ -20,6 +20,7 @@ import profilesReducer, {
   loadProfilesState,
   saveProfilesState,
   archiveKeyForProfile,
+  recordBellaCompatibleClassicCompleted,
   recordBellaEncountered,
   recordBellaTwinShockConsumed,
 } from './profilesSlice'
@@ -153,14 +154,41 @@ export const store = configureStore({
 const startupState = store.getState()
 if (!startupState.profiles.isGuest && startupState.profiles.activeProfileId) {
   const profilesBeforeBellaMigration = store.getState().profiles
-  if (startupState.game.twinShockConsumed) {
+  const startupArchives = startupState.game.seasonArchives ?? []
+  const archivedBellaSeasons = startupArchives
+    .filter(
+      (archive) =>
+        archive.bellaCast === true &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
+    .map((archive) => archive.seasonIndex)
+    .sort((left, right) => left - right)
+  const firstArchivedBellaSeason = archivedBellaSeasons[0] ?? null
+  const archivedBellaSkipConsumed =
+    firstArchivedBellaSeason != null &&
+    startupArchives.some(
+      (archive) =>
+        archive.seasonIndex > firstArchivedBellaSeason &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
+
+  if (
+    startupState.game.twinShockConsumed ||
+    startupArchives.some((archive) => archive.twinShockConsumed === true)
+  ) {
     store.dispatch(recordBellaTwinShockConsumed())
   }
   if (
-    startupState.game.players.some((player) => player.id === 'bella') &&
-    startupState.game.bellaWill?.debugCastForced !== true
+    (startupState.game.players.some((player) => player.id === 'bella') &&
+      startupState.game.bellaWill?.debugCastForced !== true) ||
+    firstArchivedBellaSeason != null
   ) {
     store.dispatch(recordBellaEncountered())
+  }
+  if (archivedBellaSkipConsumed) {
+    store.dispatch(recordBellaCompatibleClassicCompleted({ bellaCast: false }))
   }
   if (store.getState().profiles !== profilesBeforeBellaMigration) {
     saveProfilesState(store.getState().profiles)
