@@ -312,9 +312,7 @@ describe('Director shock orchestration', () => {
 
     expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
     expect(
-      store
-        .getState()
-        .game.battleBack?.candidates.every((id) => id.startsWith('juror-'))
+      store.getState().game.battleBack?.candidates.every((id) => id.startsWith('juror-'))
     ).toBe(true)
     expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
   })
