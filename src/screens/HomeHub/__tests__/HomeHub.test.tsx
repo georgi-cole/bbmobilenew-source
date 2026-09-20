@@ -478,7 +478,7 @@ describe('HomeHub', () => {
       });
       expect(
         (window as Window & { game?: { mysteryWildcards?: unknown[] } }).game?.mysteryWildcards,
-      ).toHaveLength(5);
+      ).toHaveLength(6);
     });
   });
 });
