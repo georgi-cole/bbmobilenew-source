@@ -193,7 +193,12 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const required = isVoxPopuli ? Math.min(2, optionUnits.length) : isDoubleEviction ? 3 : 2
   const canUsePublicNomineeRule =
     !isVoxPopuli && (game.publicModeEnabled ?? false) && !isDoubleEviction
-  const autoNomineeId = canUsePublicNomineeRule ? (game.lastHohCompFinisherId ?? null) : null
+  const autoNomineeId =
+    canUsePublicNomineeRule &&
+    game.lastHohCompFinisherId &&
+    !isBellaHeirImmune(game, game.lastHohCompFinisherId)
+      ? game.lastHohCompFinisherId
+      : null
 
   const [selected, setSelected] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
