@@ -57,7 +57,7 @@ The **Advanced JSON** configuration can manage the `director` policy used for ne
 - `doubleElimination.seasonChance` controls whether the season reserves its single Double Elimination; `minPlayers` / `maxPlayers` control the activation window.
 - `specialSafety` controls the mid/late-game Safety window and weighted selection between Double Trouble, Halo Exchange, Detox, and Force Majeure.
 - `secretMissions`, `morningShock`, and AI-only `battleBack` have their own season-level frequencies and roster windows.
-- The human Battle Back path is separate: when enabled, an eliminated human gets one return opportunity while the configured roster/candidate guardrails are still satisfied.
+- The human Battle Back path is separate: only a human who reached the Tribunal (`status: jury`) can receive the guaranteed return opportunity. Pre-Tribunal eliminations remain final and never enter the Battle Back candidate pool.
 - Twin Shock remains a one-time lifetime special. It does not consume the ordinary shock budget and is only permanently consumed after its storyline resolves.
 
 Frequency, weight, and roster-window changes are **snapshotted when a new season starts**. Publishing those values does not rewrite an in-progress season. The `director.killSwitches` fields are the exception: they are checked live and can immediately stop a not-yet-started mechanic if a production issue is discovered.
