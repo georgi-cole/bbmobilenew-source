@@ -649,6 +649,7 @@ export function createInitialGameState(options?: {
     seed,
     seasonDirectorPlan,
     seasonDirectorLastSpotlightDay: null,
+    seasonDirectorHumanReturnUsed: false,
     lohId: null,
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
@@ -6230,7 +6231,10 @@ const gameSlice = createSlice({
      * TV announcement has been seen, ~5 s after activation).
      * Called by the `tryActivateBattleBack` thunk when the probability roll passes.
      */
-    activateBattleBack(state, action: PayloadAction<{ candidates: string[]; week: number }>) {
+    activateBattleBack(
+      state,
+      action: PayloadAction<{ candidates: string[]; week: number; humanReturn?: boolean }>
+    ) {
       if (isVoxPopuliTwistLocked(state)) return
       const bb: BattleBackState = {
         used: false,
@@ -6243,6 +6247,7 @@ const gameSlice = createSlice({
       }
       state.battleBack = bb
       state.twistActive = true
+      if (action.payload.humanReturn) state.seasonDirectorHumanReturnUsed = true
       if (state.seasonDirectorPlan) state.seasonDirectorLastSpotlightDay = state.week
       // Push event WITH major: 'battle_back' so TvZone shows the TvAnnouncementOverlay.
       pushEvent(
@@ -7542,6 +7547,7 @@ const gameSlice = createSlice({
       }
       fresh.seasonDirectorPlan = buildSeasonDirectorPlan(season, seed)
       fresh.seasonDirectorLastSpotlightDay = null
+      fresh.seasonDirectorHumanReturnUsed = false
       fresh.twinShockConsumed = twinShockConsumed
       fresh.twinShockActivatedSeason = state.twinShockActivatedSeason ?? null
       fresh.twinShockResolution = state.twinShockResolution ?? null
@@ -11771,7 +11777,7 @@ export const tryActivateBattleBack =
     if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
     if (isSeasonDirectorKillSwitched('battleBack')) return false
     if (!settings.sim.enableTwists) return false
-    if (game.battleBack?.used) return false
+    if (game.battleBack?.active) return false
     if (game.phase !== 'eviction_results') return false
 
     const plan = game.seasonDirectorPlan
@@ -11796,16 +11802,24 @@ export const tryActivateBattleBack =
       if (
         humanExited &&
         policy.human.guaranteedOpportunityAfterEviction &&
+        game.seasonDirectorHumanReturnUsed !== true &&
         active.length >= policy.human.minimumActivePlayersAfterEviction &&
         exited.length >= policy.human.minimumCandidates
       ) {
-        dispatch(activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week }))
+        dispatch(
+          activateBattleBack({
+            candidates: exited.map((player) => player.id),
+            week: game.week,
+            humanReturn: true,
+          })
+        )
         return true
       }
 
       // If the human is already out but their guaranteed window is not viable,
       // do not spend the one Battle Back on an AI-only return.
       if (humanExited) return false
+      if (game.battleBack?.used) return false
       if (!plan.selections.aiBattleBack) return false
       if (
         !isWithinDirectorWindow(
@@ -11822,6 +11836,8 @@ export const tryActivateBattleBack =
       dispatch(activateBattleBack({ candidates: exited.map((player) => player.id), week: game.week }))
       return true
     }
+
+    if (game.battleBack?.used) return false
 
     const jurors = game.players.filter((p) => p.status === 'jury')
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
