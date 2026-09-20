@@ -249,8 +249,6 @@ export default function HomeHub() {
     (state) => state.game.players.find((player) => player.isUser) ?? null
   )
   const seasonArchives = useAppSelector((state) => state.game.seasonArchives ?? [])
-  const bellaUnlocked =
-    bellaInCurrentCast || seasonArchives.some((archive) => archive.bellaCast === true)
   const ownsCupidArrow = useAppSelector(selectHasCupidArrowAccess)
   const ownsSurvivalMode = useAppSelector(selectHasSurvivalModeAccess)
   const ownsVoxPopuli = useAppSelector(selectHasVoxPopuliAccess)
@@ -307,6 +305,9 @@ export default function HomeHub() {
   )
   const activeSeason = useMemo(() => getActiveFiniteSeason(savedRuns), [savedRuns])
   const activeSeasonSnapshot = activeSeason?.snapshot ?? null
+  const bellaUnlocked =
+    seasonArchives.some((archive) => archive.bellaCast === true) ||
+    (Boolean(activeSeasonSnapshot) && bellaInCurrentCast)
   const survivorSnapshot = savedRuns?.runs.survival ?? null
   const lastSnapshot = useMemo(() => getPlayableLastRun(savedRuns), [savedRuns])
   const hasEndedSurvivorRecord =
