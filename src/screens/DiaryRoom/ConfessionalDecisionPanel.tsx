@@ -404,6 +404,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
   const game = useAppSelector((s) => s.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const options = alivePlayers.filter((p) => game.nomineeIds.includes(p.id))
+  const isBellaExtraVote = game.bellaWill?.extraVoteChoiceActive === true
 
   const [vote1, setVote1] = useState<string | null>(null)
   const [vote2, setVote2] = useState<string | null>(null)
@@ -427,7 +428,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
   return (
     <div className="cdp-shell" data-testid="confessional-decision-options">
       <div className="cdp-section">
-        <p className="cdp-section__label">Vote 1</p>
+        <p className="cdp-section__label">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</p>
         <div className="cdp-option-grid" role="group" aria-label="First eviction vote choice">
           {options.map((p) => (
             <PlayerRow
@@ -442,7 +443,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
         </div>
       </div>
       <div className="cdp-section">
-        <p className="cdp-section__label">Vote 2</p>
+        <p className="cdp-section__label">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</p>
         <div className="cdp-option-grid" role="group" aria-label="Second eviction vote choice">
           {options.map((p) => (
             <PlayerRow
