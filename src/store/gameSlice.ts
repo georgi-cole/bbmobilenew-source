@@ -7708,7 +7708,7 @@ const gameSlice = createSlice({
       activateBellaInheritance(state)
       state.bellaWill.debugForced = true
     },
-/**
+    /**
      * Attach the latest remote Director policy to a season that has not begun yet.
      * Used after the first asynchronous live-config fetch on a fresh install.
      */
@@ -12186,9 +12186,7 @@ export const tryActivateBattleBack =
 
     if (game.battleBack?.used) return false
 
-    const jurors = game.players.filter(
-      (p) => p.status === 'jury' && p.id !== BELLA_ID
-    )
+    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
