@@ -279,7 +279,7 @@ describe('Director shock orchestration', () => {
     expect(tooLate.dispatch(tryActivateSpecialVeto()) as unknown as boolean).toBe(false)
   })
 
-  it('never gives a pre-Tribunal eliminated human a Battle Back opportunity', () => {
+  it('ends Battle Back orchestration when the human is eliminated before the Tribunal', () => {
     const plan = makePlan({ aiBattleBack: true })
     const store = makeStore({
       phase: 'eviction_results',
@@ -293,13 +293,30 @@ describe('Director shock orchestration', () => {
       seasonDirectorHumanReturnUsed: false,
     })
 
+    expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(false)
+    expect(store.getState().game.battleBack).toBeUndefined()
+  })
+
+  it('uses Tribunal members only for an AI Battle Back while the human is still active', () => {
+    const plan = makePlan({ aiBattleBack: true })
+    const store = makeStore({
+      phase: 'eviction_results',
+      players: playersWithStatuses({
+        active: 7,
+        evicted: 3,
+        jurors: 3,
+        humanStatus: 'active',
+      }),
+      seasonDirectorPlan: plan,
+    })
+
     expect(store.dispatch(tryActivateBattleBack()) as unknown as boolean).toBe(true)
-    expect(store.getState().game.battleBack?.candidates).not.toContain('user')
     expect(
       store
         .getState()
         .game.battleBack?.candidates.every((id) => id.startsWith('juror-'))
     ).toBe(true)
+    expect(store.getState().game.battleBack?.candidates).not.toContain('evicted-0')
   })
 
   it('guarantees a Tribunal-member human a return opportunity even after an earlier AI Battle Back', () => {
