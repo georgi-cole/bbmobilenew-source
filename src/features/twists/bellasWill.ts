@@ -20,6 +20,8 @@ export interface BellaWillState {
   voteRemovalPending: boolean
   lastHeirUpdateWeek: number | null
   debugForced: boolean
+  /** True only when Debug Suite injected Bella into a season that did not naturally cast her. */
+  debugCastForced: boolean
 }
 
 declare module '../../types' {
@@ -148,6 +150,7 @@ export function createBellaWillState(options: {
     voteRemovalPending: false,
     lastHeirUpdateWeek: null,
     debugForced: false,
+    debugCastForced: false,
   }
 }
 
