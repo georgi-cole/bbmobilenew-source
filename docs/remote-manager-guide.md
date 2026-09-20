@@ -50,6 +50,20 @@ Paste the token into the Publish tab when needed. The panel keeps it only in the
 5. Use priority when multiple rules can match; higher numbers win.
 6. Publish. Protected twist rules and participant eligibility still take precedence.
 
+### Tune Season Director orchestration
+
+The **Advanced JSON** configuration can manage the `director` policy used for new seasons.
+
+- `doubleElimination.seasonChance` controls whether the season reserves its single Double Elimination; `minPlayers` / `maxPlayers` control the activation window.
+- `specialSafety` controls the mid/late-game Safety window and weighted selection between Double Trouble, Halo Exchange, Detox, and Force Majeure.
+- `secretMissions`, `morningShock`, and AI-only `battleBack` have their own season-level frequencies and roster windows.
+- The human Battle Back path is separate: when enabled, an eliminated human gets one return opportunity while the configured roster/candidate guardrails are still satisfied.
+- Twin Shock remains a one-time lifetime special. It does not consume the ordinary shock budget and is only permanently consumed after its storyline resolves.
+
+Frequency, weight, and roster-window changes are **snapshotted when a new season starts**. Publishing those values does not rewrite an in-progress season. The `director.killSwitches` fields are the exception: they are checked live and can immediately stop a not-yet-started mechanic if a production issue is discovered.
+
+To tune the Director, edit the `director` object in **Advanced JSON**, validate it, then publish through a review PR or directly to main. Released clients refresh the live configuration on the normal five-minute cadence.
+
 ### Tune Social/Drama energy
 
 1. Open **Social**.
