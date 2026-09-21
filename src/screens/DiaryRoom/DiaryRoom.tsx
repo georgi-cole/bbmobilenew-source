@@ -514,6 +514,8 @@ export default function DiaryRoom() {
   // When non-null the player must complete the decision before leaving.
   const activeConfessionalDecision = useAppSelector(selectActiveConfessionalDecision)
   const confessionalDecisionPending = activeConfessionalDecision !== null
+  const twinShockResponseRequired =
+    activeConfessionalDecision?.type === 'twin_shock' && Boolean(gameState.twinShock?.promptStage)
   const navigationBlocker = useBlocker(confessionalDecisionPending)
   const navigationBlockerState = navigationBlocker.state
   const resetNavigationBlocker = navigationBlocker.reset
@@ -800,7 +802,16 @@ export default function DiaryRoom() {
   }, [confessionalLocked, playerId, voxPopuliActive])
 
   useEffect(() => {
-    if (confessionalLocked || !activeDecisionPresentation) return
+    // Twin Shock has a free-text answer rather than the button panel used by
+    // ceremony decisions. Keep its prompt in the dedicated required-response
+    // card above the mission checklist; injecting it at the bottom of chat can
+    // hide the only actionable instruction behind a tall stored-reward card.
+    if (
+      confessionalLocked ||
+      !activeDecisionPresentation ||
+      activeConfessionalDecision?.type === 'twin_shock'
+    )
+      return
     setMessages((prev) => {
       if (prev.some((msg) => msg.decisionKey === activeDecisionPresentation.key)) return prev
       const decisionMsg: ChatMessage = {
@@ -814,7 +825,7 @@ export default function DiaryRoom() {
       saveChat(playerId, updated)
       return updated
     })
-  }, [activeDecisionPresentation, confessionalLocked, playerId])
+  }, [activeConfessionalDecision?.type, activeDecisionPresentation, confessionalLocked, playerId])
 
   useEffect(() => {
     if (confessionalLocked) return
@@ -1392,6 +1403,22 @@ export default function DiaryRoom() {
               <p className="diary-room__prompt">
                 "You are now in the Confessional. No one can hear you. Speak freely."
               </p>
+              {twinShockResponseRequired && activeDecisionPresentation && (
+                <section
+                  className="diary-room__twin-shock-prompt"
+                  aria-label="Required response from The Big Eye"
+                  data-testid="twin-shock-required-response"
+                >
+                  <span className="diary-room__twin-shock-eyebrow">📺 Response required</span>
+                  <p className="diary-room__twin-shock-question">
+                    {activeDecisionPresentation.prompt}
+                  </p>
+                  <p className="diary-room__twin-shock-hint">
+                    Reply below with your best guess. On the final call, you can also say &ldquo;I
+                    give up&rdquo; to continue the game.
+                  </p>
+                </section>
+              )}
               {userPlayer && realityReadEnabled && (
                 <details className="diary-room__reality-recap">
                   <summary>Your private game read</summary>
@@ -1848,10 +1875,16 @@ export default function DiaryRoom() {
                   className="diary-room__textarea"
                   value={entry}
                   onChange={(e) => setEntry(e.target.value)}
-                  placeholder="What are you thinking?"
+                  placeholder={
+                    twinShockResponseRequired
+                      ? 'Reply to The Big Eye to continue…'
+                      : 'What are you thinking?'
+                  }
                   rows={2}
                   maxLength={280}
-                  aria-label="Diary entry"
+                  aria-label={
+                    twinShockResponseRequired ? 'Required response to The Big Eye' : 'Diary entry'
+                  }
                 />
                 <div className="diary-room__footer">
                   <span className="diary-room__charcount">{entry.length}/280</span>

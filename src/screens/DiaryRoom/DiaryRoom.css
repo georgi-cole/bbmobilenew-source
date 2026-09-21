@@ -515,6 +515,42 @@
   border-left: 3px solid #8b5cf6;
 }
 
+.diary-room__twin-shock-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 13px 14px;
+  border: 1px solid rgba(241, 165, 204, 0.48);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(211, 106, 171, 0.18), transparent 34%),
+    linear-gradient(160deg, rgba(56, 28, 64, 0.96), rgba(22, 12, 30, 0.98));
+  box-shadow: 0 12px 28px rgba(8, 4, 12, 0.32);
+}
+
+.diary-room__twin-shock-eyebrow {
+  color: #f1a5cc;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diary-room__twin-shock-question {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.diary-room__twin-shock-hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .diary-room__textarea {
   width: 100%;
   box-sizing: border-box;

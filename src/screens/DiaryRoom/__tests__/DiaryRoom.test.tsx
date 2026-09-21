@@ -10,6 +10,7 @@ import gameReducer, {
   offerSecretMission,
   acceptSecretMission,
   completeMission,
+  claimMissionReward,
   hydrateGame,
 } from '../../../store/gameSlice'
 import settingsReducer from '../../../store/settingsSlice'
@@ -237,6 +238,56 @@ describe('DiaryRoom', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
+  })
+
+  it('keeps the Day 5 Twin Shock response above a stored secret-mission reward and releases the lock', async () => {
+    const { store } = renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (appStore) => {
+        appStore.dispatch(triggerSecretMission(5))
+        appStore.dispatch(offerSecretMission(5))
+        appStore.dispatch(acceptSecretMission())
+        appStore.dispatch(completeMission())
+        appStore.dispatch(claimMissionReward('doubleVote'))
+        const game = (appStore.getState() as RootState).game
+        appStore.dispatch(
+          hydrateGame({
+            ...game,
+            phase: 'eviction_results',
+            week: 5,
+            twinShock: {
+              status: 'day4_asked_no_correct_guess',
+              promptStage: 'day5_final',
+              queuedDay: 4,
+              retryCount: 0,
+              cluesShownDays: [],
+              pendingRevealAnimation: null,
+            },
+          })
+        )
+      },
+    })
+
+    const response = screen.getByTestId('twin-shock-required-response')
+    const mission = screen.getByLabelText(/secret mission checklist/i)
+    expect(response).toHaveTextContent(
+      /last time, i asked you whether you had noticed anything off about lia/i
+    )
+    expect(
+      response.compareDocumentPosition(mission) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(screen.getByTestId('diary-room-back-locked')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Required response to The Big Eye'), {
+      target: { value: 'I give up' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350)
+    })
+
+    expect(store.getState().game.twinShock?.promptStage).toBeNull()
+    expect(screen.queryByTestId('twin-shock-required-response')).toBeNull()
+    expect(screen.getByRole('button', { name: /go back/i })).toBeTruthy()
   })
 
   it('greets the player on first entry', async () => {
