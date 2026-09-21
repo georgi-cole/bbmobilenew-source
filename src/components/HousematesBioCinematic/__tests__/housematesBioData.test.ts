@@ -30,16 +30,17 @@ describe('Housemates biography cinematic', () => {
     expect(HOUSEMATES_BIO_DURATION_MS).toBe(131_400);
   });
 
-  it('keeps the five mystery housemates in a separate unlockable wildcard collection', () => {
+  it('keeps the six mystery housemates in a separate unlockable wildcard collection', () => {
     expect(MYSTERY_WILDCARD_BIOS.map((card) => card.name)).toEqual([
       'Lia',
       'Ali',
+      'Bella',
       'Noa',
       'Pax',
       'Rey',
     ]);
     expect(MYSTERY_WILDCARD_BIOS.every((card) => card.unlock.kind.length > 0)).toBe(true);
-    expect(new Set(MYSTERY_WILDCARD_BIOS.map((card) => card.prizePlan)).size).toBe(5);
+    expect(new Set(MYSTERY_WILDCARD_BIOS.map((card) => card.prizePlan)).size).toBe(6);
 
     const canonicalIds = new Set(HOUSEMATES_BIO_CARDS.map((card) => card.id));
     expect(MYSTERY_WILDCARD_BIOS.every((card) => !canonicalIds.has(card.id))).toBe(true);

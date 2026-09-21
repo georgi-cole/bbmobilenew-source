@@ -1,5 +1,8 @@
 // ─── Season Archive Types ─────────────────────────────────────────────────────
 
+/** Long-history cap. Bella progression is persisted separately and never depends on this window. */
+export const MAX_SEASON_ARCHIVES = 1000
+
 /**
  * Per-player summary captured at the end of a season.
  * Raw boolean/integer fields are populated by GameOver.buildArchive().
@@ -71,6 +74,8 @@ export interface SeasonArchive {
   voxPopuliActivated?: boolean
   /** True when the Lia/Ali twin shock was consumed in this season. */
   twinShockConsumed?: boolean
+  /** True when Bella was part of this season's cast. Historical only; permanent cadence lives on the profile. */
+  bellaCast?: boolean
   /**
    * Week numbers where a double eviction occurred (2 players evicted in one week).
    * Used to award survivedDoubleEviction points to players who survived those weeks.

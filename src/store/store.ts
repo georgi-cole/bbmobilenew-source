@@ -20,6 +20,9 @@ import profilesReducer, {
   loadProfilesState,
   saveProfilesState,
   archiveKeyForProfile,
+  recordBellaCompatibleClassicCompleted,
+  recordBellaEncountered,
+  recordBellaTwinShockConsumed,
 } from './profilesSlice'
 import socialReducer from '../social/socialSlice'
 import { socialMiddleware } from '../social/socialMiddleware'
@@ -29,6 +32,7 @@ import { socialStrategyMiddleware } from '../social/socialStrategyMiddleware'
 import { realityIntegrityMiddleware } from '../social/realityIntegrityMiddleware'
 import { survivorMiddleware } from '../modes/survivorMiddleware'
 import { depressionShockMiddleware } from '../features/twists/depressionShockMiddleware'
+import { bellaProgressMiddleware } from '../features/twists/bellaProgressMiddleware'
 import { tribunalEligibilityMiddleware } from './tribunalEligibilityMiddleware'
 import { eliminatedSeasonResolutionMiddleware } from './eliminatedSeasonResolutionMiddleware'
 import { presentationConsistencyMiddleware } from './presentationConsistencyMiddleware'
@@ -122,6 +126,7 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
       survivorMiddleware,
+      bellaProgressMiddleware,
       eliminatedSeasonResolutionMiddleware,
       tribunalEligibilityMiddleware,
       realityIntegrityMiddleware,
@@ -147,6 +152,48 @@ export const store = configureStore({
 // Public Mode = on while the active game ignored the request and stayed off.
 // In Vox this is visibility-only, so reconciliation is safe during the cycle.
 const startupState = store.getState()
+if (!startupState.profiles.isGuest && startupState.profiles.activeProfileId) {
+  const profilesBeforeBellaMigration = store.getState().profiles
+  const startupArchives = startupState.game.seasonArchives ?? []
+  const archivedBellaSeasons = startupArchives
+    .filter(
+      (archive) =>
+        archive.bellaCast === true &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
+    .map((archive) => archive.seasonIndex)
+    .sort((left, right) => left - right)
+  const firstArchivedBellaSeason = archivedBellaSeasons[0] ?? null
+  const archivedBellaSkipConsumed =
+    firstArchivedBellaSeason != null &&
+    startupArchives.some(
+      (archive) =>
+        archive.seasonIndex > firstArchivedBellaSeason &&
+        archive.cupidArrowActivated !== true &&
+        archive.voxPopuliActivated !== true
+    )
+
+  if (
+    startupState.game.twinShockConsumed ||
+    startupArchives.some((archive) => archive.twinShockConsumed === true)
+  ) {
+    store.dispatch(recordBellaTwinShockConsumed())
+  }
+  if (
+    (startupState.game.players.some((player) => player.id === 'bella') &&
+      startupState.game.bellaWill?.debugCastForced !== true) ||
+    firstArchivedBellaSeason != null
+  ) {
+    store.dispatch(recordBellaEncountered())
+  }
+  if (archivedBellaSkipConsumed) {
+    store.dispatch(recordBellaCompatibleClassicCompleted({ bellaCast: false }))
+  }
+  if (store.getState().profiles !== profilesBeforeBellaMigration) {
+    saveProfilesState(store.getState().profiles)
+  }
+}
 if (
   startupState.game.voxPopuli?.status === 'active' &&
   startupState.game.publicModeEnabled !== (startupState.settings.sim.publicMode === true)

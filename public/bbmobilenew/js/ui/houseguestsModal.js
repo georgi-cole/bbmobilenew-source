@@ -10,7 +10,7 @@
   let currentView = null; // 'list' or 'detail'
   let selectedHouseguest = null;
   let closeTimeout = null; // Track pending close timeout to prevent race condition
-  const MYSTERY_WILDCARD_IDS = ['lia', 'ali', 'noa', 'pax', 'rey'];
+  const MYSTERY_WILDCARD_IDS = ['lia', 'ali', 'bella', 'noa', 'pax', 'rey'];
   const AVATAR_FILE_OVERRIDES = { mimi: 'mimi_avatar.webp' };
 
   function assetUrl(path) {
@@ -59,7 +59,10 @@
     const twinShockUnlocked = g.twinShockConsumed === true;
     const mysteryHousemates = MYSTERY_WILDCARD_IDS.map((id, index) => {
       const profile = profilesById.get(id);
-      const unlocked = (id === 'lia' || id === 'ali') && twinShockUnlocked && profile;
+      const unlocked =
+        (((id === 'lia' || id === 'ali') && twinShockUnlocked) ||
+          (id === 'bella' && g.bellaUnlocked === true)) &&
+        profile;
       if (!unlocked) {
         return {
           id: `mystery-${id}`,

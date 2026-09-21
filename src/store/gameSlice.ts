@@ -46,7 +46,7 @@ import { hasCachedStoreAccess } from '../vip/vipStorage'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
-import type { SeasonArchive } from './seasonArchive'
+import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
@@ -127,6 +127,19 @@ import {
 } from '../broadcasting/broadcastTemplateCatalog'
 import { loadBroadcastConfig } from '../broadcasting/broadcastConfigPersistence'
 import { loadDepressionShockState } from '../features/twists/depressionShock'
+import {
+  BELLA_ID,
+  BELLA_WILL_REWARD_LABELS,
+  activateBellaInheritance,
+  buildBellaPoolEntry,
+  chooseBellaHeir,
+  createBellaWillState,
+  expireBellaWillAtEndgame,
+  getBellaHint,
+  isBellaHeirImmune,
+  shouldCastBella,
+  type BellaWillReward,
+} from '../features/twists/bellasWill'
 import {
   FORCED_SHOCK_CRITICAL_RULES,
   canCastClassicEvictionVote,
@@ -427,9 +440,31 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
   }))
 }
 
-function buildInitialPlayers(twinShockConsumed = false): Player[] {
+function buildInitialPlayers(options: {
+  twinShockConsumed: boolean
+  seasonArchives: SeasonArchive[]
+  season: number
+  seed: number
+  allowBella: boolean
+  bellaProgress?: ReturnType<typeof loadProfilesState>['profiles'][number]['bellaProgress']
+}): Player[] {
   const rosterSize = getConfiguredCastSize()
-  return [buildUserPlayer(), ...pickHouseguests(rosterSize, twinShockConsumed)]
+  const aiPlayers = pickHouseguests(rosterSize, options.twinShockConsumed)
+  if (
+    shouldCastBella({
+      season: options.season,
+      seasonArchives: options.seasonArchives,
+      twinShockConsumed: options.twinShockConsumed,
+      seed: options.seed,
+      bellaProgress: options.bellaProgress,
+    }) &&
+    options.allowBella &&
+    aiPlayers.length > 0
+  ) {
+    const replaceIndex = options.seed % aiPlayers.length
+    aiPlayers[replaceIndex] = buildBellaPoolEntry() as Player
+  }
+  return [buildUserPlayer(), ...aiPlayers]
 }
 
 function buildInitialCompetitionSeasonState(
@@ -445,7 +480,7 @@ export const FINALE_INTERVIEW_VARIANT_COUNT = 3
 /**
  * Derive the next season number from an array of season archives.
  * Uses the maximum archived `seasonIndex` rather than array length so the
- * result remains correct after the 50-entry archive cap truncates history
+ * result remains correct after the 1000-entry archive cap truncates history
  * or if entries are ever non-contiguous / out of order.
  *
  * Returns 1 when no archives exist yet.
@@ -465,21 +500,30 @@ function nextSeasonNumber(archives: SeasonArchive[]): number {
 export function createInitialGameState(options?: {
   twinShockConsumed?: boolean
   seed?: number
+  seasonArchives?: SeasonArchive[]
 }): GameState {
   const seed = options?.seed ?? 42
   const freshSettings = loadSettings()
   const broadcastConfig = loadBroadcastConfig()
   // Guest mode never persists archives — treat as an empty history so guest
   // sessions always start at Season 1 regardless of any logged-in user data.
-  const isGuest = loadProfilesState().isGuest
+  const profilesState = loadProfilesState()
+  const isGuest = profilesState.isGuest
+  const activeBellaProgress =
+    !isGuest && profilesState.activeProfileId
+      ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)
+          ?.bellaProgress
+      : undefined
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
-    : (loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
+    : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
   const priorTwinShockConsumed = seasonArchives.some(
     (archive) => archive.twinShockConsumed === true
   )
-  const twinShockConsumed = options?.twinShockConsumed === true || priorTwinShockConsumed
-  const freshPlayers = buildInitialPlayers(twinShockConsumed)
+  const twinShockConsumed =
+    options?.twinShockConsumed === true ||
+    priorTwinShockConsumed ||
+    activeBellaProgress?.twinShockConsumedEver === true
   const season = nextSeasonNumber(seasonArchives)
   const expansionDebugAccess = import.meta.env.DEV || canAccessSpecialSettings()
   const forceClassicLocal = import.meta.env.DEV && import.meta.env.VITE_FORCE_CLASSIC === 'true'
@@ -516,6 +560,14 @@ export function createInitialGameState(options?: {
     initialVoxPopuli.activatedSeason = season
     initialVoxPopuli.activatedWeek = 1
   }
+  const freshPlayers = buildInitialPlayers({
+    twinShockConsumed,
+    seasonArchives,
+    season,
+    seed,
+    allowBella: !cupidArrowIsScheduled && !voxPopuliIsScheduled,
+    bellaProgress: activeBellaProgress,
+  })
   const publicModeEnabled = resolvePublicModeRuntimeEnabled(freshSettings.sim.publicMode === true, {
     hasStoreAccess: hasCachedStoreAccess('publicMode'),
     adminOverride: freshSettings.sim.publicModeAdminOverride === true,
@@ -732,6 +784,11 @@ export function createInitialGameState(options?: {
     twinShockResolvedDay: null,
     twinShockDiscoveredByUser: false,
     liaForcedUntilTwinShockResolved: !twinShockConsumed,
+    bellaWill: createBellaWillState({
+      active: playersWithIdentity.some((player) => player.id === BELLA_ID),
+      seed,
+      season,
+    }),
     democracia: {
       usedThisSeason: false,
       active: false,
@@ -1535,7 +1592,7 @@ function getReplacementEligiblePlayers(
         (options.allowLoh === true || unitIds.every((id) => !lohRoleIds.has(id))) &&
         unitIds.every((id) => !posRoleIds.has(id)) &&
         unitIds.every((id) => !state.nomineeIds.includes(id)) &&
-        canPlayerTargetPlayer(state, actorId, pl.id)
+        canPlayerNominatePlayer(state, actorId, pl.id)
       )
     })
   )
@@ -1780,8 +1837,10 @@ function getSafetyRelationshipBreakdown(
       allianceRead.fallbackTargetPressure * 28
     : 0
 
+  const bellaSaveBonus = nominee.id === BELLA_ID ? 18 : 0
+
   if (!relationship) {
-    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution
+    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
     return {
       total,
       factors: {
@@ -1790,6 +1849,7 @@ function getSafetyRelationshipBreakdown(
         sandbagSuspicion: competitionRead.sandbagSuspicion,
         relationship: 'none',
         realityAllianceContribution,
+        bellaSaveBonus,
       },
     }
   }
@@ -1802,7 +1862,8 @@ function getSafetyRelationshipBreakdown(
     sandbagSuspicion: competitionRead.sandbagSuspicion,
     tags: relationship.tags.join(', ') || 'none',
   }
-  let score = relationship.affinity - threat * 3 - expendablePawnPenalty
+  let score = relationship.affinity - threat * 3 - expendablePawnPenalty + bellaSaveBonus
+  factors.bellaSaveBonus = bellaSaveBonus
   const identityContribution =
     allianceIdentityBias(holder?.aiGameIdentity) *
     (relationship.tags.includes('alliance') ? 1 : 0.18)
@@ -2052,7 +2113,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
           candidate.id !== actorId &&
           candidate.id !== immunityWinnerId &&
           candidate.id !== autoNomineeId &&
-          canPlayerTargetPlayer(state, actorId, candidate.id)
+          canPlayerNominatePlayer(state, actorId, candidate.id)
       )
     )
   }
@@ -2064,7 +2125,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
       (candidate) =>
         candidate.id !== actorId &&
         !lohUnitIds.has(candidate.id) &&
-        canPlayerTargetPlayer(state, state.lohId ?? actorId, candidate.id)
+        canPlayerNominatePlayer(state, state.lohId ?? actorId, candidate.id)
     )
   )
 
@@ -2093,7 +2154,7 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
         candidate.id !== voter.id &&
         candidate.id !== immunityWinnerId &&
         candidate.id !== autoNomineeId &&
-        canPlayerTargetPlayer(state, voter.id, candidate.id)
+        canPlayerNominatePlayer(state, voter.id, candidate.id)
     )
     state.voxPopuli.nominationBallots[voter.id] = pickStrategicNominationTargets(
       state,
@@ -2310,6 +2371,7 @@ function shouldAiUseTargetedSafetyPower(
   })
   const strategicUpgrade = hasStrategicReplacement && replacementValue > currentValue + 18
   let useChance = strategicUpgrade ? 0.35 : 0.05
+  if (currentNominees.some((nominee) => nominee.id === BELLA_ID)) useChance += 0.15
   if (bestRelationship >= 75) useChance += 0.5
   else if (bestRelationship >= 45) useChance += 0.35
   else if (bestRelationship >= 20) useChance += 0.18
@@ -3117,6 +3179,14 @@ function canPlayerTargetPlayer(
   targetId: string
 ): boolean {
   return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
+}
+
+function canPlayerNominatePlayer(
+  state: GameState,
+  actorId: string | null | undefined,
+  targetId: string
+): boolean {
+  return canPlayerTargetPlayer(state, actorId, targetId) && !isBellaHeirImmune(state, targetId)
 }
 
 function usesPluralPlayerGrammar(
@@ -4016,6 +4086,13 @@ const gameSlice = createSlice({
       action: PayloadAction<NonNullable<GameState['strategicRelationships']>>
     ) {
       state.strategicRelationships = action.payload
+      if (state.bellaWill?.active && !state.bellaWill.debugForced) {
+        const heirId = chooseBellaHeir(state)
+        if (heirId !== state.bellaWill.heirId) {
+          state.bellaWill.heirId = heirId
+          state.bellaWill.lastHeirUpdateWeek = state.week
+        }
+      }
     },
     syncStrategicAlliances(
       state,
@@ -5024,7 +5101,7 @@ const gameSlice = createSlice({
       const id = action.payload
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id)) return
       state.pendingNominee1Id = id
@@ -5044,7 +5121,7 @@ const gameSlice = createSlice({
       if (!id1 || id2 === id1 || !areDistinctCupidPairs(state, [id1, id2])) return
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id2)) return
       if (!eligible.some((p) => p.id === id1)) return
@@ -5092,7 +5169,7 @@ const gameSlice = createSlice({
             candidate.id !== human.id &&
             candidate.id !== immunityWinnerId &&
             candidate.id !== autoNomineeId &&
-            canPlayerTargetPlayer(state, human.id, candidate.id)
+            canPlayerNominatePlayer(state, human.id, candidate.id)
         )
         const expectedCount = Math.min(getVoxBallotSize(state), eligible.length)
         const ids = [...new Set(action.payload)]
@@ -5128,7 +5205,7 @@ const gameSlice = createSlice({
       if (new Set(ids).size !== ids.length) return // duplicates check
       if (!areDistinctCupidPairs(state, ids)) return
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!ids.every((id) => eligible.some((p) => p.id === id))) return
 
@@ -5987,6 +6064,42 @@ const gameSlice = createSlice({
       state.nomineeIds = state.nomineeIds.filter((id) => id !== evicteeId)
       state.pendingEviction = null
       state.dayStartShock = null
+      expireBellaWillAtEndgame(state)
+
+      if (evicteeId === BELLA_ID && state.bellaWill?.active && !state.bellaWill.inherited) {
+        const sameDoubleEvicteeId = state.doubleEviction?.pendingSecondEviction?.evicteeId ?? null
+        const unresolvedDoubleBoundaryIds =
+          state.doubleEviction?.weekActive && state.awaitingTieBreak
+            ? (state.tiedNomineeIds ?? [])
+            : []
+        const excludedHeirIds = [
+          ...(sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []),
+          ...unresolvedDoubleBoundaryIds,
+        ]
+        const currentHeir = state.bellaWill.heirId
+          ? state.players.find((player) => player.id === state.bellaWill?.heirId)
+          : null
+        const currentHeirIsValid =
+          currentHeir != null &&
+          currentHeir.id !== BELLA_ID &&
+          currentHeir.status !== 'evicted' &&
+          currentHeir.status !== 'jury' &&
+          !excludedHeirIds.includes(currentHeir.id)
+        if (!currentHeirIsValid) {
+          state.bellaWill.heirId = chooseBellaHeir(state, excludedHeirIds)
+        }
+        activateBellaInheritance(state)
+        const heir = state.players.find((player) => player.id === state.bellaWill?.heirId)
+        const reward = state.bellaWill?.reward
+        if (state.bellaWill.inherited && heir && reward) {
+          pushEvent(
+            state,
+            `Bella's Will is now in effect. ${heir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[reward]}.`,
+            'game',
+            { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+          )
+        }
+      }
 
       const cupidEvictionTemplateId = msg.includes(
         "Cupid's Arrow means you are eliminated together"
@@ -6236,12 +6349,14 @@ const gameSlice = createSlice({
       action: PayloadAction<{ candidates: string[]; week: number; humanReturn?: boolean }>
     ) {
       if (isVoxPopuliTwistLocked(state)) return
+      const candidates = action.payload.candidates.filter((id) => id !== BELLA_ID)
+      if (candidates.length === 0) return
       const bb: BattleBackState = {
         used: false,
         active: true,
         competitionActive: false,
         weekDecided: action.payload.week,
-        candidates: action.payload.candidates,
+        candidates,
         winnerId: null,
         returnAnimationPending: false,
       }
@@ -6283,6 +6398,7 @@ const gameSlice = createSlice({
         return
       }
 
+      if (winnerId === BELLA_ID) return
       const isCandidate = bb.candidates.includes(winnerId)
       const winner = state.players.find((p) => p.id === winnerId)
 
@@ -7479,13 +7595,13 @@ const gameSlice = createSlice({
 
     /**
      * Archive the completed season.  Prepends the archive entry and caps the
-     * list at 50 entries to bound memory usage.
+     * list at MAX_SEASON_ARCHIVES entries to bound memory usage.
      */
     archiveSeason(state, action: PayloadAction<SeasonArchive>) {
       if (!state.seasonArchives) state.seasonArchives = []
       state.seasonArchives.unshift(action.payload)
-      if (state.seasonArchives.length > 50) {
-        state.seasonArchives = state.seasonArchives.slice(0, 50)
+      if (state.seasonArchives.length > MAX_SEASON_ARCHIVES) {
+        state.seasonArchives = state.seasonArchives.slice(0, MAX_SEASON_ARCHIVES)
       }
     },
     /**
@@ -7506,6 +7622,91 @@ const gameSlice = createSlice({
       human.avatar = action.payload.photoId
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
+    },
+    debugForceBellaIntoCast(state) {
+      if (state.players.some((player) => player.id === BELLA_ID)) {
+        if (!state.bellaWill?.active) {
+          state.bellaWill = createBellaWillState({
+            active: true,
+            seed: state.seed,
+            season: state.season,
+          })
+        }
+        return
+      }
+
+      const replaceIndex = state.players.findIndex(
+        (player) =>
+          !player.isUser &&
+          player.id !== TWIN_SHOCK_LIA_ID &&
+          player.id !== TWIN_SHOCK_ALI_ID &&
+          player.id !== 'lia_ali' &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury'
+      )
+      if (replaceIndex < 0) return
+
+      const replaced = state.players[replaceIndex]
+      const bella = buildBellaPoolEntry() as Player
+      state.players[replaceIndex] = bella
+      if (state.competitionSeasonStateByPlayerId) {
+        delete state.competitionSeasonStateByPlayerId[replaced.id]
+        state.competitionSeasonStateByPlayerId[BELLA_ID] = getDefaultCompetitionSeasonState()
+      }
+      state.bellaWill = createBellaWillState({
+        active: true,
+        seed: state.seed,
+        season: state.season,
+      })
+      state.bellaWill.debugCastForced = true
+      pushEvent(
+        state,
+        `[DEBUG] Bella replaced ${replaced.name} in the active cast. Bella's Will is ready for testing. 🔧`,
+        'game'
+      )
+    },
+    debugSetBellaHeir(state, action: PayloadAction<string | null>) {
+      if (!state.bellaWill?.active) return
+      const heirId = action.payload
+      if (
+        heirId != null &&
+        !state.players.some(
+          (player) =>
+            player.id === heirId &&
+            player.id !== BELLA_ID &&
+            player.status !== 'evicted' &&
+            player.status !== 'jury'
+        )
+      ) {
+        return
+      }
+      state.bellaWill.heirId = heirId
+      state.bellaWill.lastHeirUpdateWeek = state.week
+      state.bellaWill.debugForced = true
+    },
+    debugSetBellaWillReward(state, action: PayloadAction<BellaWillReward>) {
+      if (!state.bellaWill?.active) return
+      const wasInherited = state.bellaWill.inherited
+      state.bellaWill.reward = action.payload
+      state.bellaWill.immunityDaysRemaining = 0
+      state.bellaWill.immunityStartWeek = null
+      state.bellaWill.immunityEndWeek = null
+      state.bellaWill.extraVotePending = false
+      state.bellaWill.extraVoteChoiceActive = false
+      state.bellaWill.voteRemovalPending = false
+      state.bellaWill.lastVoteRemovalAdjustment = null
+      state.bellaWill.expiredAtEndgame = false
+      state.bellaWill.inherited = false
+      if (wasInherited && state.bellaWill.heirId) {
+        activateBellaInheritance(state)
+      }
+      state.bellaWill.debugForced = true
+    },
+    debugActivateBellaInheritance(state) {
+      if (!state.bellaWill?.active) return
+      if (!state.bellaWill.heirId) state.bellaWill.heirId = chooseBellaHeir(state)
+      activateBellaInheritance(state)
+      state.bellaWill.debugForced = true
     },
     /**
      * Attach the latest remote Director policy to a season that has not begun yet.
@@ -7530,7 +7731,7 @@ const gameSlice = createSlice({
       const seasonArchives =
         action.payload !== undefined ? action.payload : (state.seasonArchives ?? [])
       // Derive the next season number from the maximum archived seasonIndex so the
-      // result is stable even after the 50-entry archive cap or non-contiguous entries.
+      // result is stable even after the 1000-entry archive cap or non-contiguous entries.
       const season = nextSeasonNumber(seasonArchives)
       const twinShockConsumed =
         state.twinShockConsumed === true ||
@@ -7538,7 +7739,7 @@ const gameSlice = createSlice({
       // Use the factory to build a fully fresh initial state from the latest
       // persisted settings/profile, then override seed, seasonArchives, and season.
       const fresh = {
-        ...createInitialGameState({ twinShockConsumed, seed }),
+        ...createInitialGameState({ twinShockConsumed, seed, seasonArchives }),
         seasonArchives,
         season,
         status: 'active' as const,
@@ -7621,6 +7822,24 @@ const gameSlice = createSlice({
         twinShockResolution: action.payload.twinShockResolution ?? null,
         twinShockResolvedDay: action.payload.twinShockResolvedDay ?? null,
         twinShockDiscoveredByUser: action.payload.twinShockDiscoveredByUser ?? false,
+        bellaWill: action.payload.bellaWill
+          ? {
+              ...createBellaWillState({
+                active: action.payload.bellaWill.active,
+                seed: action.payload.seed,
+                season: action.payload.season,
+                reward: action.payload.bellaWill.reward,
+              }),
+              ...action.payload.bellaWill,
+              extraVoteChoiceActive: action.payload.bellaWill.extraVoteChoiceActive ?? false,
+              lastVoteRemovalAdjustment: action.payload.bellaWill.lastVoteRemovalAdjustment ?? null,
+              expiredAtEndgame: action.payload.bellaWill.expiredAtEndgame ?? false,
+            }
+          : createBellaWillState({
+              active: action.payload.players.some((player) => player.id === BELLA_ID),
+              seed: action.payload.seed,
+              season: action.payload.season,
+            }),
         // Saved Cupid seasons from before the visual-reveal handoff already
         // completed their announcement. Preserve their established look; only
         // a newly activated Cupid season explicitly starts at `false`.
@@ -7794,6 +8013,9 @@ const gameSlice = createSlice({
       ) {
         return
       }
+
+      // Bella's Will is never allowed to bleed into the Final 4 / Final 3 / Final 2.
+      expireBellaWillAtEndgame(state)
 
       // Emit any current-phase message that was authored after the phase had
       // already been entered. Normally these were emitted during entry and the
@@ -8678,6 +8900,22 @@ const gameSlice = createSlice({
             phase: 'week_start',
             ...(tribunalEvent ? { announcementPrerollEventId: tribunalEvent.id } : {}),
           })
+          const bella = state.players.find((player) => player.id === BELLA_ID)
+          if (
+            state.bellaWill?.active &&
+            !state.bellaWill.expiredAtEndgame &&
+            bella &&
+            bella.status !== 'evicted' &&
+            bella.status !== 'jury' &&
+            (state.week === 1 || state.week % 3 === 0)
+          ) {
+            pushEvent(state, getBellaHint(state.seed, state.season, state.week), 'social', {
+              key: `bellas_will_hint_${state.week}`,
+              phase: 'week_start',
+              forceOnTv: true,
+              broadcastDelivery: 'next',
+            })
+          }
           break
         }
         case 'loh_comp_announcement': {
@@ -8796,7 +9034,7 @@ const gameSlice = createSlice({
                     candidate.id !== human.id &&
                     candidate.id !== immunityWinnerId &&
                     candidate.id !== autoNomineeId &&
-                    canPlayerTargetPlayer(state, human.id, candidate.id)
+                    canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
             // Vox differs from Classic: every active housemate nominates,
@@ -8839,7 +9077,7 @@ const gameSlice = createSlice({
                   p.id !== coLohId &&
                   !coLohIds.includes(p.id) &&
                   !state.nomineeIds.includes(p.id) &&
-                  canPlayerTargetPlayer(state, coLohId, p.id)
+                  canPlayerNominatePlayer(state, coLohId, p.id)
               )
               if (coPool.length > 0) {
                 const nominee =
@@ -8886,7 +9124,7 @@ const gameSlice = createSlice({
           const pool = collapseCupidCandidates(
             state,
             alive.filter(
-              (p) => p.id !== state.lohId && canPlayerTargetPlayer(state, state.lohId, p.id)
+              (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
             )
           )
           if (pool.length < nomineeCount) break
@@ -9647,6 +9885,42 @@ const gameSlice = createSlice({
             })
           }
 
+          // Bella's inherited extra ballot is a real second ballot, not a
+          // duplicate tally modifier. Existing bonus-ballot effects take priority.
+          const bellaExtraVote = state.bellaWill
+          if (
+            bellaExtraVote?.active &&
+            bellaExtraVote.inherited &&
+            bellaExtraVote.extraVotePending &&
+            bellaExtraVote.heirId
+          ) {
+            const heir = state.players.find((player) => player.id === bellaExtraVote.heirId)
+            const heirId = bellaExtraVote.heirId
+            const existingBonusBallot = Object.keys(voteMap).some(
+              (voteKey) => voteKey !== heirId && getCanonicalVoterId(voteKey) === heirId
+            )
+            if (heir && !heir.isUser && eligibleVoterIds.has(heirId) && !existingBonusBallot) {
+              const eligibleTargets = state.nomineeIds.filter((nomineeId) =>
+                canPlayerTargetPlayer(state, heirId, nomineeId)
+              )
+              if (eligibleTargets.length > 0 && voteMap[heirId]) {
+                const inheritedTarget = chooseAiEvictionVote(
+                  state,
+                  heirId,
+                  eligibleTargets,
+                  (state.seed ^ hashString(`bella-will-extra:${state.week}:${heirId}`)) >>> 0
+                )
+                voteMap[`${heirId}__bellaWill`] = inheritedTarget
+                bellaExtraVote.extraVotePending = false
+                pushEvent(
+                  state,
+                  `Bella's Will grants ${heir.name} a separate extra ballot in tonight's elimination.`,
+                  'vote'
+                )
+              }
+            }
+          }
+
           // Block advance() if the human player is an eligible voter
           const humanVoter = eligibleVoters.find((p) => p.isUser)
           if (humanVoter) {
@@ -9675,6 +9949,24 @@ const gameSlice = createSlice({
               !state.humanDoubleVoteActive
             ) {
               state.awaitingDoubleVoteOffer = true
+            }
+
+            // Bella waits behind any other available bonus-ballot effect. When
+            // none is active, reuse the two-ballot Confessional UI but mark the
+            // second ballot as Bella's inherited vote rather than a generic double vote.
+            const bellaWill = state.bellaWill
+            if (
+              !state.awaitingDoubleVoteOffer &&
+              state.batteryLowVoteEffects?.[humanVoter.id]?.type !== 'doubleVote' &&
+              bellaWill?.active &&
+              bellaWill.inherited &&
+              bellaWill.extraVotePending &&
+              bellaWill.heirId === humanVoter.id &&
+              !bellaWill.expiredAtEndgame &&
+              !state.humanDoubleVoteActive
+            ) {
+              state.humanDoubleVoteActive = true
+              bellaWill.extraVoteChoiceActive = true
             }
           }
           break
@@ -9705,6 +9997,49 @@ const gameSlice = createSlice({
           // ballots. This keeps the result, Confessional breakdown, and archived
           // season-exit receipt from preserving a stale/forged ineligible vote.
           state.votes = validVotesByVoterId
+          // Bella's vote-removal reward is a tally adjustment: raw legal ballots
+          // remain intact for the vote breakdown/audit trail. A usable stored
+          // vote-deduction power takes priority, so Bella waits for a later eviction.
+          const bellaWill = state.bellaWill
+          if (
+            bellaWill?.active &&
+            bellaWill.inherited &&
+            bellaWill.heirId &&
+            bellaWill.voteRemovalPending &&
+            state.nomineeIds.includes(bellaWill.heirId)
+          ) {
+            const rawVotesAgainstHeir = Object.values(validVotesByVoterId).filter(
+              (targetId) => targetId === bellaWill.heirId
+            ).length
+            const heir = state.players.find((player) => player.id === bellaWill.heirId)
+            const competingDeduction =
+              heir?.isUser === true &&
+              canUseVoteDeduction({
+                phase: nextPhase as string,
+                secretMission: state.secretMission,
+                nomineeIds: state.nomineeIds,
+                lohId: state.lohId,
+                players: state.players,
+                doubleEviction: state.doubleEviction,
+                voteResults: { ...voteCounts },
+                awaitingTieBreak: false,
+              })
+            if (rawVotesAgainstHeir > 0 && !competingDeduction) {
+              voteCounts[bellaWill.heirId] = Math.max(0, (voteCounts[bellaWill.heirId] ?? 0) - 1)
+              bellaWill.voteRemovalPending = false
+              bellaWill.lastVoteRemovalAdjustment = {
+                week: state.week,
+                targetId: bellaWill.heirId,
+                amount: 1,
+              }
+              pushEvent(
+                state,
+                `Bella's Will subtracts one vote from ${heir?.name ?? 'the heir'}'s elimination tally.`,
+                'vote'
+              )
+            }
+          }
+
           state.pendingExitContext = {
             week: state.week,
             leaderIds: state.coLohIds?.length
@@ -10244,6 +10579,7 @@ const gameSlice = createSlice({
       state.awaitingDoubleVoteOffer = false
       const sm = state.secretMission
       if (!sm?.reward || sm.reward.type !== 'doubleVote' || !sm.reward.eligible) return
+      if (state.bellaWill) state.bellaWill.extraVoteChoiceActive = false
       state.humanDoubleVoteActive = true
     },
 
@@ -10253,7 +10589,8 @@ const gameSlice = createSlice({
      */
     declineDoubleVoteReward(state) {
       state.awaitingDoubleVoteOffer = false
-      // humanDoubleVoteActive stays false (or undefined); normal vote modal follows.
+      // A stored Double Vote has priority for this eviction even when declined.
+      // Bella's inherited ballot remains pending for a later eligible elimination.
     },
 
     /**
@@ -10276,20 +10613,36 @@ const gameSlice = createSlice({
       if (!canPlayerTargetPlayer(state, humanPlayer.id, target2)) return
       if (!state.votes) state.votes = {}
 
-      // Primary vote (same key as a normal vote)
+      const bellaWill = state.bellaWill
+      const usesBellaExtraVote =
+        bellaWill?.extraVoteChoiceActive === true &&
+        bellaWill.extraVotePending &&
+        bellaWill.heirId === humanPlayer.id
+
+      // Primary vote is always the human's normal legal ballot.
       state.votes[humanPlayer.id] = target1
-      // Secondary vote uses a suffix key, but the eviction tally canonicalizes
-      // it back to the human voter before re-checking eligibility.
-      state.votes[`${humanPlayer.id}__dv2`] = target2
+      // The second ballot keeps its source identity so stacking and audit logic
+      // can distinguish an inherited Bella vote from another Double Vote power.
+      state.votes[usesBellaExtraVote ? `${humanPlayer.id}__bellaWill` : `${humanPlayer.id}__dv2`] =
+        target2
 
       state.awaitingHumanVote = false
       state.humanDoubleVoteActive = false
 
-      // Consume the reward
-      const sm = state.secretMission
-      if (sm?.reward && sm.reward.type === 'doubleVote') {
-        sm.reward.consumed = true
-        sm.reward.eligible = false
+      if (usesBellaExtraVote && bellaWill) {
+        bellaWill.extraVotePending = false
+        bellaWill.extraVoteChoiceActive = false
+        pushEvent(
+          state,
+          `Bella's Will grants ${humanPlayer.name} a separate extra ballot in tonight's elimination.`,
+          'vote'
+        )
+      } else {
+        const sm = state.secretMission
+        if (sm?.reward && sm.reward.type === 'doubleVote') {
+          sm.reward.consumed = true
+          sm.reward.eligible = false
+        }
       }
     },
 
@@ -10478,6 +10831,10 @@ export const {
   archiveSeason,
   replacePlayers,
   updateUserPlayerIdentity,
+  debugForceBellaIntoCast,
+  debugSetBellaHeir,
+  debugSetBellaWillReward,
+  debugActivateBellaInheritance,
   clearSurvivorReplacementTransition,
   refreshSeasonDirectorPlan,
   resetGame,
@@ -11776,7 +12133,9 @@ export const tryActivateBattleBack =
       const active = game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
       )
-      const jurors = game.players.filter((player) => player.status === 'jury')
+      const jurors = game.players.filter(
+        (player) => player.status === 'jury' && player.id !== BELLA_ID
+      )
       const human = game.players.find((player) => player.isUser)
       const humanIsJuror = human?.status === 'jury'
       const humanWasPreTribunalEvicted = human?.status === 'evicted'
@@ -11827,7 +12186,7 @@ export const tryActivateBattleBack =
 
     if (game.battleBack?.used) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury')
+    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
@@ -11856,7 +12215,7 @@ export const tryActivatePendingForcedBattleBack =
     if (game.battleBack?.used) return false
     if (game.twistActivatedThisWeek) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury')
+    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false

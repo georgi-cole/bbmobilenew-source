@@ -15,7 +15,7 @@ const mockState: {
     phase?: string;
     twinShockConsumed?: boolean;
     players: Array<{ id: string; isUser: boolean }>;
-    seasonArchives: Array<{ seasonId: string }>;
+    seasonArchives: Array<{ seasonId: string; bellaCast?: boolean }>;
   };
   profiles: { activeProfileId: null; isGuest: boolean; profiles: never[] };
   remoteConfig: { config: RemoteConfig | null };
@@ -451,7 +451,7 @@ describe('HomeHub', () => {
       phase: 'nominations',
       twinShockConsumed: true,
       players: [{ id: 'user', isUser: true }],
-      seasonArchives: [{ seasonId: 'season-3' }],
+      seasonArchives: [{ seasonId: 'season-3', bellaCast: true }],
     };
     (window as Window & { game?: Record<string, unknown> }).game = {
       hubNotifications: { news: true },
@@ -468,7 +468,8 @@ describe('HomeHub', () => {
         phase: 'nominations',
         twinShockConsumed: true,
         players: [{ id: 'user', isUser: true }],
-        seasonArchives: [{ seasonId: 'season-3' }],
+        seasonArchives: [{ seasonId: 'season-3', bellaCast: true }],
+        bellaUnlocked: true,
         achievementSummary: {
           playerName: 'You',
           totals: {
@@ -478,7 +479,7 @@ describe('HomeHub', () => {
       });
       expect(
         (window as Window & { game?: { mysteryWildcards?: unknown[] } }).game?.mysteryWildcards,
-      ).toHaveLength(5);
+      ).toHaveLength(6);
     });
   });
 });

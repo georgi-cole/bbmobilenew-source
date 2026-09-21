@@ -17,6 +17,7 @@ import { hydrateChallenge } from '../../store/challengeSlice'
 import { loadSeasonArchives } from '../../store/archivePersistence'
 import {
   selectActiveProfileId,
+  selectCurrentProfile,
   selectIsGuest,
   archiveKeyForProfile,
 } from '../../store/profilesSlice'
@@ -242,6 +243,9 @@ export default function HomeHub() {
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
   const twinShockRevealed = useAppSelector((state) => state.game.twinShockConsumed === true)
+  const bellaInCurrentCast = useAppSelector((state) =>
+    state.game.players.some((player) => player.id === 'bella')
+  )
   const introHubPlayer = useAppSelector(
     (state) => state.game.players.find((player) => player.isUser) ?? null
   )
@@ -262,6 +266,7 @@ export default function HomeHub() {
   )
   const dayCount = week
   const activeProfileId = useAppSelector(selectActiveProfileId)
+  const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
   const { url: bgUrl } = useBackgroundTheme()
   const remoteBgUrl = useAppSelector(selectRemoteIntroHubBg)
@@ -302,6 +307,10 @@ export default function HomeHub() {
   )
   const activeSeason = useMemo(() => getActiveFiniteSeason(savedRuns), [savedRuns])
   const activeSeasonSnapshot = activeSeason?.snapshot ?? null
+  const bellaUnlocked =
+    currentProfile?.bellaProgress?.unlocked === true ||
+    seasonArchives.some((archive) => archive.bellaCast === true) ||
+    (Boolean(activeSeasonSnapshot) && bellaInCurrentCast)
   const survivorSnapshot = savedRuns?.runs.survival ?? null
   const lastSnapshot = useMemo(() => getPlayableLastRun(savedRuns), [savedRuns])
   const hasEndedSurvivorRecord =
@@ -319,6 +328,7 @@ export default function HomeHub() {
       seasonArchives,
       achievementSummary,
       twinShockConsumed: twinShockRevealed,
+      bellaUnlocked,
       mysteryWildcards: MYSTERY_WILDCARD_BIOS,
       assetBase: import.meta.env.BASE_URL || '/',
     })
@@ -331,6 +341,7 @@ export default function HomeHub() {
     introHubPlayer,
     seasonArchives,
     twinShockRevealed,
+    bellaUnlocked,
   ])
 
   useEffect(() => {

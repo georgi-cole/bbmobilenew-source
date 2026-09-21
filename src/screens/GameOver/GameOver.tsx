@@ -10,7 +10,11 @@ import { DEFAULT_WEIGHTS } from '../../scoring/weights'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
-import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
+import {
+  recordBellaCompatibleClassicCompleted,
+  selectActiveProfileId,
+  selectIsGuest,
+} from '../../store/profilesSlice'
 import { savedStateKeyForProfile, clearSeasonSnapshot } from '../../store/saveStatePersistence'
 import type { SeasonArchive, PlayerSeasonSummary } from '../../store/seasonArchive'
 import type { Player } from '../../types'
@@ -96,7 +100,8 @@ function buildArchive(
   summaries: PlayerSeasonSummary[],
   cupidArrowActivated: boolean,
   voxPopuliActivated: boolean,
-  twinShockConsumed: boolean
+  twinShockConsumed: boolean,
+  bellaCast: boolean
 ): SeasonArchive {
   return {
     seasonIndex: season,
@@ -106,6 +111,7 @@ function buildArchive(
     cupidArrowActivated,
     voxPopuliActivated,
     twinShockConsumed,
+    bellaCast,
   }
 }
 
@@ -125,6 +131,11 @@ export default function GameOver() {
     (s) => s.game.voxPopuli?.activatedSeason === s.game.season
   )
   const twinShockConsumed = useAppSelector((state) => state.game.twinShockConsumed === true)
+  const bellaCast = useAppSelector(
+    (state) =>
+      state.game.players.some((player) => player.id === 'bella') &&
+      state.game.bellaWill?.debugCastForced !== true
+  )
   const seasonArchives = useAppSelector((s) => s.game.seasonArchives ?? [])
   const favoriteWinnerId = useAppSelector((s) => s.game.favoritePlayer?.winnerId ?? null)
   const social = useAppSelector((s) => s.game.social)
@@ -179,6 +190,9 @@ export default function GameOver() {
   function archiveCompletedSeason() {
     if (!archivedRef.current) {
       archivedRef.current = true
+      if (!cupidArrowActivated && !voxPopuliActivated) {
+        dispatch(recordBellaCompatibleClassicCompleted({ bellaCast }))
+      }
       dispatch(
         archiveSeason(
           buildArchive(
@@ -186,7 +200,8 @@ export default function GameOver() {
             summaries,
             cupidArrowActivated,
             voxPopuliActivated,
-            twinShockConsumed
+            twinShockConsumed,
+            bellaCast
           )
         )
       )

@@ -103,6 +103,14 @@ describe('activateBattleBack', () => {
     expect(bb!.winnerId).toBeNull()
   })
 
+  it('filters Bella out of direct Battle Back candidate lists', () => {
+    const players = makePlayers(10)
+    players[1] = { ...players[1], id: 'bella', name: 'Bella', status: 'jury' }
+    const store = makeStore({ players })
+    store.dispatch(activateBattleBack({ candidates: ['bella', 'p2', 'p3', 'p4'], week: 4 }))
+    expect(store.getState().game.battleBack?.candidates).toEqual(['p2', 'p3', 'p4'])
+  })
+
   it('pushes a twist TV event with major:battle_back', () => {
     const store = makeStore()
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
@@ -384,6 +392,24 @@ describe('tryActivateBattleBack thunk', () => {
       const player = store.getState().game.players.find((p) => p.id === id)
       expect(player?.status).toBe('jury')
     })
+  })
+
+  it('does not count Bella toward the three eligible Tribunal returnees', () => {
+    const players = makePlayers(12)
+    players[8] = { ...players[8], id: 'bella', name: 'Bella', status: 'jury' }
+    players[9].status = 'jury'
+    players[10].status = 'jury'
+    const store = makeStore(
+      { players, phase: 'eviction_results', seed: 1234 },
+      { sim: { ...DEFAULT_SETTINGS.sim, enableTwists: true, battleBackChance: 100 } }
+    )
+
+    const activated = store.dispatch(
+      tryActivateBattleBack() as Parameters<typeof store.dispatch>[0]
+    )
+
+    expect(activated).toBe(false)
+    expect(store.getState().game.battleBack?.candidates ?? []).not.toContain('bella')
   })
 
   it('does not activate when chance is 0', () => {

@@ -103,6 +103,12 @@ function assertStoredVotesAreEligible(state: GameState): void {
 }
 
 describe('critical shock / ruleset matrix', () => {
+  it("maps Bella's inherited extra-vote key back to the heir", () => {
+    expect(getCanonicalVoterId('player-7__bellaWill')).toBe('player-7')
+    expect(getCanonicalVoterId('player-7__dv2')).toBe('player-7')
+    expect(getCanonicalVoterId('player-7')).toBe('player-7')
+  })
+
   it('forces every current shock to declare its critical engine impact and behavioral coverage', () => {
     // Add a key here only after adding/updating a behavioral scenario for that
     // shock in this file. Combined with the exhaustive production registry,

@@ -26,6 +26,7 @@ import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
 import type { RequiredConfessionalPresentation } from './requiredConfessionalPresentation'
 import { expandCupidIds, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { isBellaHeirImmune } from '../../features/twists/bellasWill'
 import { buildConfessionalDecisionUnits, type ConfessionalDecisionUnit } from './cupidDecisionUnits'
 import { buildVoxFirstImpressions, type VoxFirstImpression } from './voxFirstImpression'
 
@@ -209,6 +210,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
     (player) =>
       (!isVoxPopuli || !voxImmunityWinnerId || player.id !== voxImmunityWinnerId) &&
       (isVoxPopuli || !lohIds.has(player.id)) &&
+      !isBellaHeirImmune(game, player.id) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
@@ -231,8 +233,12 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       ? 3
       : 2
   const autoNomineeId =
-    !isVoxPopuli && game.publicModeEnabled === true && !isDoubleEviction
-      ? (game.lastHohCompFinisherId ?? null)
+    !isVoxPopuli &&
+    game.publicModeEnabled === true &&
+    !isDoubleEviction &&
+    game.lastHohCompFinisherId &&
+    !isBellaHeirImmune(game, game.lastHohCompFinisherId)
+      ? game.lastHohCompFinisherId
       : null
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [committing, setCommitting] = useState(false)
@@ -614,7 +620,10 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
 
   const standardBase = alivePlayers.filter(
     (player) =>
-      !lohIds.has(player.id) && !posIds.has(player.id) && !game.nomineeIds.includes(player.id)
+      !lohIds.has(player.id) &&
+      !posIds.has(player.id) &&
+      !game.nomineeIds.includes(player.id) &&
+      !isBellaHeirImmune(game, player.id)
   )
   const standardUnprotected = standardBase.filter((player) => !protectedIds.has(player.id))
   const standardOptions = standardUnprotected.length > 0 ? standardUnprotected : standardBase
@@ -624,6 +633,7 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       !lohIds.has(player.id) &&
       !posIds.has(player.id) &&
       !game.nomineeIds.includes(player.id) &&
+      !isBellaHeirImmune(game, player.id) &&
       player.id !== game.specialVeto?.coupReplacement1Id
   )
   const coupUnprotected = coupBase.filter((player) => !protectedIds.has(player.id))
@@ -659,6 +669,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
   const game = useAppSelector((state) => state.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const options = alivePlayers.filter((player) => game.nomineeIds.includes(player.id))
+  const isBellaExtraVote = game.bellaWill?.extraVoteChoiceActive === true
   const [vote1, setVote1] = useState<string | null>(null)
   const [vote2, setVote2] = useState<string | null>(null)
   const [committing, setCommitting] = useState(false)
@@ -680,7 +691,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
       <section className="rcd-vote-step" aria-labelledby="double-vote-one">
-        <h3 id="double-vote-one">Vote 1</h3>
+        <h3 id="double-vote-one">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</h3>
         <div className="rcd-grid" role="group" aria-label="First eviction vote">
           {options.map((player) => (
             <PlayerCard
@@ -695,7 +706,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
         </div>
       </section>
       <section className="rcd-vote-step" aria-labelledby="double-vote-two">
-        <h3 id="double-vote-two">Vote 2</h3>
+        <h3 id="double-vote-two">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</h3>
         <div className="rcd-grid" role="group" aria-label="Second eviction vote">
           {options.map((player) => (
             <PlayerCard

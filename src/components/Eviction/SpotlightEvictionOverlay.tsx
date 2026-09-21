@@ -13,6 +13,7 @@ import { resolvePresentationAvatarCandidates } from '../../utils/presentationAva
 import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
 import { useAppDispatch } from '../../store/hooks'
 import { setEvictionOverlay, clearEvictionOverlay } from '../../store/gameSlice'
+import { getEvictionPresentationVariant } from './evictionPresentation'
 import './SpotlightEvictionOverlay.css'
 import './SpotlightEvictionOverlayParity.css'
 
@@ -35,7 +36,9 @@ import './SpotlightEvictionOverlayParity.css'
 //
 const LIVE_BUG_AT = 750
 const EXPAND_START = 900
+const BELLA_XRAY_AT = 1660
 const DESAT_AT = 1800
+const BELLA_XRAY_CLEAR_AT = 2020
 const LOWER_THIRD_AT = 2100
 const HOLD_START = 3000
 const PRE_RETURN_AT = 4650
@@ -153,11 +156,14 @@ export default function SpotlightEvictionOverlay({
   const [sourcePhotoFailed, setSourcePhotoFailed] = useState(false)
 
   const isReturn = variant === 'return'
+  const exitPresentation = getEvictionPresentationVariant(evictee.id, variant)
+  const isBellaLastWill = exitPresentation === 'bella_last_will'
   const optimizedForAppleTouch = isAppleTouchDevice()
   const [phase, setPhase] = useState<Phase>(isReturn ? 'holding' : 'spotlight')
   const [cameraExpanded, setCameraExpanded] = useState(isReturn)
   const [showLiveBug, setShowLiveBug] = useState(false)
   const [showLowerThird, setShowLowerThird] = useState(false)
+  const [showXrayFlash, setShowXrayFlash] = useState(false)
   const [showReturnStrike, setShowReturnStrike] = useState(isReturn)
   const [desaturated, setDesaturated] = useState(isReturn)
   const [showHeroPortrait, setShowHeroPortrait] = useState(!isReturn)
@@ -248,7 +254,7 @@ export default function SpotlightEvictionOverlay({
   }, [])
 
   useEffect(() => {
-    if (isReturn || typeof window === 'undefined') {
+    if (isReturn || isBellaLastWill || typeof window === 'undefined') {
       setStampAssetState('error')
       return undefined
     }
@@ -266,7 +272,7 @@ export default function SpotlightEvictionOverlay({
     return () => {
       active = false
     }
-  }, [isReturn])
+  }, [isBellaLastWill, isReturn])
 
   useEffect(() => {
     const timers: ReturnType<typeof setTimeout>[] = []
@@ -361,6 +367,20 @@ export default function SpotlightEvictionOverlay({
         dbg('Sep 9 image camera-push treatment')
       }, EXPAND_START)
     )
+    if (isBellaLastWill) {
+      timers.push(
+        setTimeout(() => {
+          setShowXrayFlash(true)
+          dbg('Bella X-ray flash')
+        }, BELLA_XRAY_AT)
+      )
+      timers.push(
+        setTimeout(() => {
+          setShowXrayFlash(false)
+          dbg('Bella X-ray flash clear')
+        }, BELLA_XRAY_CLEAR_AT)
+      )
+    }
     timers.push(
       setTimeout(() => {
         setDesaturated(true)
@@ -383,6 +403,7 @@ export default function SpotlightEvictionOverlay({
       setTimeout(() => {
         setShowLowerThird(false)
         setShowLiveBug(false)
+        setShowXrayFlash(false)
         setDesaturated(false)
         dbg('prepare return')
       }, PRE_RETURN_AT)
@@ -429,7 +450,7 @@ export default function SpotlightEvictionOverlay({
     ? 'saturate(0.65) contrast(1.03) brightness(0.9)'
     : CINEMATIC_FILTER
 
-  const labelText = 'ELIMINATED'
+  const labelText = isBellaLastWill ? 'LAST WILL' : 'ELIMINATED'
   const lowerThirdLabel = getLowerThirdLabel(false, labelText, contextLabel)
   const source = geometry.source
   const heroExpanded = cameraExpanded
@@ -452,7 +473,9 @@ export default function SpotlightEvictionOverlay({
     'seo',
     `seo--${phase}`,
     isReturn ? 'seo--return' : '',
-    optimizedForAppleTouch ? ' seo--ios' : '',
+    isBellaLastWill ? 'seo--bella-last-will' : '',
+    showXrayFlash ? 'seo--xray-flash' : '',
+    optimizedForAppleTouch ? 'seo--ios' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -467,6 +490,7 @@ export default function SpotlightEvictionOverlay({
           ? `${evictee.name} is returning to the house`
           : `${evictee.name} has been eliminated`
       }
+      data-exit-presentation={exitPresentation}
     >
       <motion.div
         className="seo__dim"
@@ -484,6 +508,19 @@ export default function SpotlightEvictionOverlay({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={noMotion ?? { duration: 0.25 }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {!isReturn && isBellaLastWill && showXrayFlash && (
+          <motion.div
+            className="seo__xray-flash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={noMotion ?? { duration: 0.09, ease: 'easeOut' }}
+            aria-hidden="true"
           />
         )}
       </AnimatePresence>

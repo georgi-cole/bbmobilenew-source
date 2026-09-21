@@ -192,7 +192,10 @@ export function getClassicEvictionTieBreakerId(state: GameState): string | null 
   return null
 }
 
-/** Synthetic second-vote keys still belong to the same human voter. */
+/** Synthetic vote keys still belong to the player who owns the power. */
 export function getCanonicalVoterId(voteKey: string): string {
-  return voteKey.endsWith('__dv2') ? voteKey.slice(0, -'__dv2'.length) : voteKey
+  for (const suffix of ['__dv2', '__bellaWill'] as const) {
+    if (voteKey.endsWith(suffix)) return voteKey.slice(0, -suffix.length)
+  }
+  return voteKey
 }

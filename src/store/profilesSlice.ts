@@ -44,6 +44,35 @@ export interface ProfileBio {
   sexuality?: string
 }
 
+export interface BellaProgress {
+  /** Permanent marker used to unlock Bella's post-Twin casting cadence. */
+  twinShockConsumedEver: boolean
+  /** Permanent Hubmates unlock; never inferred solely from the capped season archive. */
+  unlocked: boolean
+  /** True once Bella has actually appeared in a non-debug cast. */
+  hasAppeared: boolean
+  /** True once the one required compatible Classic season after her first appearance is completed. */
+  mandatorySkipConsumed: boolean
+}
+
+const DEFAULT_BELLA_PROGRESS: BellaProgress = {
+  twinShockConsumedEver: false,
+  unlocked: false,
+  hasAppeared: false,
+  mandatorySkipConsumed: false,
+}
+
+function coerceBellaProgress(raw: unknown): BellaProgress | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const value = raw as Partial<BellaProgress>
+  return {
+    twinShockConsumedEver: value.twinShockConsumedEver === true,
+    unlocked: value.unlocked === true,
+    hasAppeared: value.hasAppeared === true,
+    mandatorySkipConsumed: value.mandatorySkipConsumed === true,
+  }
+}
+
 export interface StoredProfile {
   /** Stable unique identifier (timestamp+random). */
   id: string
@@ -63,6 +92,8 @@ export interface StoredProfile {
   achievements?: string[]
   /** Reward-event keys already paid, preventing a reload from duplicating XP. */
   forecastRewardEventIds?: string[]
+  /** Permanent Bella discovery/casting cadence state. */
+  bellaProgress?: BellaProgress
 }
 
 export const PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT = 'public_favorite_oracle'
@@ -131,6 +162,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     forecastRewardEventIds: Array.isArray(r.forecastRewardEventIds)
       ? r.forecastRewardEventIds.filter((eventId): eventId is string => typeof eventId === 'string')
       : [],
+    bellaProgress: coerceBellaProgress(r.bellaProgress),
   }
 }
 
@@ -266,6 +298,49 @@ const profilesSlice = createSlice({
       if (bio !== undefined) profile.bio = { ...profile.bio, ...bio }
     },
 
+    /** Persist the fact that this profile has consumed the Lia/Ali Twin Shock. */
+    recordBellaTwinShockConsumed(state) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile) return
+      profile.bellaProgress = {
+        ...DEFAULT_BELLA_PROGRESS,
+        ...profile.bellaProgress,
+        twinShockConsumedEver: true,
+      }
+    },
+
+    /** Unlock Bella immediately when she enters a real cast. */
+    recordBellaEncountered(state) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile) return
+      profile.bellaProgress = {
+        ...DEFAULT_BELLA_PROGRESS,
+        ...profile.bellaProgress,
+        unlocked: true,
+        hasAppeared: true,
+      }
+    },
+
+    /**
+     * Consume Bella's one mandatory post-debut skip only when a compatible
+     * Classic season actually completes without Bella.
+     */
+    recordBellaCompatibleClassicCompleted(state, action: PayloadAction<{ bellaCast: boolean }>) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile) return
+      const progress = {
+        ...DEFAULT_BELLA_PROGRESS,
+        ...profile.bellaProgress,
+      }
+      if (action.payload.bellaCast) {
+        progress.unlocked = true
+        progress.hasAppeared = true
+      } else if (progress.hasAppeared && !progress.mandatorySkipConsumed) {
+        progress.mandatorySkipConsumed = true
+      }
+      profile.bellaProgress = progress
+    },
+
     /** Award a correct Public Favorite forecast once per season event. */
     awardPublicFavoriteForecast(state, action: PayloadAction<{ eventId: string }>) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
@@ -316,6 +391,9 @@ export const {
   createProfile,
   selectActiveProfile,
   updateProfile,
+  recordBellaTwinShockConsumed,
+  recordBellaEncountered,
+  recordBellaCompatibleClassicCompleted,
   awardPublicFavoriteForecast,
   deleteProfile,
   enterGuestMode,

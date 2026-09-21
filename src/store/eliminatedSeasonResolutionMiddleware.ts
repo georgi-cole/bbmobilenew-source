@@ -3,6 +3,7 @@ import { computeLeaderboardScore } from '../scoring/computeLeaderboard'
 import { DEFAULT_WEIGHTS } from '../scoring/weights'
 import type { GameState, Player } from '../types'
 import { archiveSeason } from './gameSlice'
+import { recordBellaCompatibleClassicCompleted } from './profilesSlice'
 import type { PlayerSeasonSummary, SeasonArchive } from './seasonArchive'
 
 type ResolutionState = {
@@ -99,6 +100,9 @@ function buildResolvedArchive(game: GameState): SeasonArchive | null {
     cupidArrowActivated: game.cupidArrow?.activatedSeason === game.season,
     voxPopuliActivated: game.voxPopuli?.activatedSeason === game.season,
     twinShockConsumed: game.twinShockConsumed === true,
+    bellaCast:
+      game.players.some((player) => player.id === 'bella') &&
+      game.bellaWill?.debugCastForced !== true,
   }
 }
 
@@ -116,7 +120,14 @@ export const eliminatedSeasonResolutionMiddleware: Middleware = (api) => (next) 
     (action as { type: string }).type === 'game/resetGame'
   ) {
     const archive = buildResolvedArchive((api.getState() as ResolutionState).game)
-    if (archive) api.dispatch(archiveSeason(archive))
+    if (archive) {
+      if (archive.cupidArrowActivated !== true && archive.voxPopuliActivated !== true) {
+        api.dispatch(
+          recordBellaCompatibleClassicCompleted({ bellaCast: archive.bellaCast === true })
+        )
+      }
+      api.dispatch(archiveSeason(archive))
+    }
   }
   return next(action)
 }

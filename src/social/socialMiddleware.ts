@@ -77,6 +77,7 @@ import {
 import { deriveRealitySimulationSeed, type RealitySimulationState } from './realitySimulation'
 import { getRealityModeAdapter, type RealityCeremonyKind } from './reality'
 import { createIncomingInteraction } from './incomingInteractionFactory'
+import { BELLA_ID } from '../features/twists/bellasWill'
 
 const SOCIAL_PHASES = new Set<string>(['social_1', 'social_2'])
 
@@ -1389,7 +1390,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
   // ── Alliance formed / betrayal: relationship-tag-driven deltas ───────────
   if (type === 'social/updateRelationship') {
-    const payload = (
+    let payload = (
       action as unknown as {
         payload: {
           source: string
@@ -1401,7 +1402,32 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         }
       }
     ).payload
-    const result = next(action)
+
+    // Bella is deliberately difficult to win over with ordinary warmth. Small
+    // positive shifts in *her* view of somebody are dampened unless the event
+    // carries a concrete loyalty/protection signal. Negative consequences stay
+    // fully intact, so betrayal still matters immediately.
+    const bellaCommitmentTags = new Set([
+      'alliance',
+      'protection',
+      'shield',
+      'safety_promise',
+      'ride_or_die',
+      'promise_keeper',
+    ])
+    const demonstratesCommitment = (payload.tags ?? []).some((tag) => bellaCommitmentTags.has(tag))
+    let forwardedAction = action
+    if (
+      payload.source === BELLA_ID &&
+      typeof payload.delta === 'number' &&
+      payload.delta > 0 &&
+      !demonstratesCommitment
+    ) {
+      payload = { ...payload, delta: Math.max(1, Math.round(payload.delta * 0.45)) }
+      forwardedAction = { ...(action as object), payload } as unknown as typeof action
+    }
+
+    const result = next(forwardedAction)
     if (
       isDramaModeEnabled(api as unknown as MiddlewareAPI) &&
       !payload.twinPropagation &&

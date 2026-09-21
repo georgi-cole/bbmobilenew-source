@@ -32,6 +32,7 @@ import type { ActiveConfessionalDecision } from '../../store/confessionalDecisio
 import type { Player } from '../../types'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import { expandCupidIds, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { isBellaHeirImmune } from '../../features/twists/bellasWill'
 import { getConfessionalPowerName } from './confessionalDecisionPresentation'
 import { buildConfessionalDecisionUnits, type ConfessionalDecisionUnit } from './cupidDecisionUnits'
 import { buildVoxFirstImpressions, type VoxFirstImpression } from './voxFirstImpression'
@@ -172,6 +173,7 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const options = alivePlayers.filter(
     (player) =>
       !lohIds.has(player.id) &&
+      !isBellaHeirImmune(game, player.id) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
@@ -191,7 +193,12 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const required = isVoxPopuli ? Math.min(2, optionUnits.length) : isDoubleEviction ? 3 : 2
   const canUsePublicNomineeRule =
     !isVoxPopuli && (game.publicModeEnabled ?? false) && !isDoubleEviction
-  const autoNomineeId = canUsePublicNomineeRule ? (game.lastHohCompFinisherId ?? null) : null
+  const autoNomineeId =
+    canUsePublicNomineeRule &&
+    game.lastHohCompFinisherId &&
+    !isBellaHeirImmune(game, game.lastHohCompFinisherId)
+      ? game.lastHohCompFinisherId
+      : null
 
   const [selected, setSelected] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -404,6 +411,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
   const game = useAppSelector((s) => s.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const options = alivePlayers.filter((p) => game.nomineeIds.includes(p.id))
+  const isBellaExtraVote = game.bellaWill?.extraVoteChoiceActive === true
 
   const [vote1, setVote1] = useState<string | null>(null)
   const [vote2, setVote2] = useState<string | null>(null)
@@ -427,7 +435,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
   return (
     <div className="cdp-shell" data-testid="confessional-decision-options">
       <div className="cdp-section">
-        <p className="cdp-section__label">Vote 1</p>
+        <p className="cdp-section__label">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</p>
         <div className="cdp-option-grid" role="group" aria-label="First eviction vote choice">
           {options.map((p) => (
             <PlayerRow
@@ -442,7 +450,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
         </div>
       </div>
       <div className="cdp-section">
-        <p className="cdp-section__label">Vote 2</p>
+        <p className="cdp-section__label">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</p>
         <div className="cdp-option-grid" role="group" aria-label="Second eviction vote choice">
           {options.map((p) => (
             <PlayerRow
@@ -611,7 +619,11 @@ function ReplacementNomineePanel({ onDecisionCommitted }: DecisionPanelProps) {
   const lohUnitIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
   const posUnitIds = new Set(expandCupidIds(game, game.posWinnerId ? [game.posWinnerId] : []))
   const replacementBaseOptions = alivePlayers.filter(
-    (p) => !lohUnitIds.has(p.id) && !posUnitIds.has(p.id) && !game.nomineeIds.includes(p.id)
+    (p) =>
+      !lohUnitIds.has(p.id) &&
+      !posUnitIds.has(p.id) &&
+      !game.nomineeIds.includes(p.id) &&
+      !isBellaHeirImmune(game, p.id)
   )
   const protectedIds = new Set(game.povProtectedIds ?? [])
   const nonProtected = replacementBaseOptions.filter((p) => !protectedIds.has(p.id))
@@ -622,6 +634,7 @@ function ReplacementNomineePanel({ onDecisionCommitted }: DecisionPanelProps) {
       !lohUnitIds.has(p.id) &&
       !posUnitIds.has(p.id) &&
       !game.nomineeIds.includes(p.id) &&
+      !isBellaHeirImmune(game, p.id) &&
       p.id !== game.specialVeto?.coupReplacement1Id
   )
   const coupNonProtected = coupBaseOptions.filter((p) => !protectedIds.has(p.id))

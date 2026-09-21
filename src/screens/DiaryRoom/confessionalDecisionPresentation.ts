@@ -82,8 +82,13 @@ export function getConfessionalDecisionPresentation(
       keyParts.push(`offer=${game.week}`)
       break
     case 'double_vote':
-      prompt = 'Choose your two eviction votes. You may vote for the same nominee twice.'
-      keyParts.push(`nominees=${game.nomineeIds.join(',')}`)
+      prompt = game.bellaWill?.extraVoteChoiceActive
+        ? "Bella's Will grants you one inherited extra ballot. Choose your normal vote and Bella's extra vote."
+        : 'Choose your two eviction votes. You may vote for the same nominee twice.'
+      keyParts.push(
+        `nominees=${game.nomineeIds.join(',')}`,
+        `source=${game.bellaWill?.extraVoteChoiceActive ? 'bella' : 'stored-double'}`
+      )
       break
     case 'mission_immunity_offer': {
       const duration = game.secretMission?.reward?.durationDays ?? 1
