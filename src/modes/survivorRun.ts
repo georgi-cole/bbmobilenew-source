@@ -251,7 +251,8 @@ export function createSurvivorRun(): GameState {
     voxPopuli: createInitialVoxPopuliState(null),
     cfg: {
       ...(base.cfg ?? {}),
-      jurySize: 0,
+      tribunalSize: 0,
+      jurySize: 0, // legacy alias for older survival saves
       enableJuryReturn: false,
       enableSpectatorReact: false,
     },
