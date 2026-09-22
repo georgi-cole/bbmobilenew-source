@@ -113,7 +113,9 @@ export const SOCIAL_STORY_BIBLE = {
 
   responseSets: {
     background_nominate: [
-      { label: 'Ask why', responseType: 'positive' },
+      // A question asks for information; it is not consent to a nomination
+      // plan or an implied alliance commitment.
+      { label: 'Ask why', responseType: 'neutral' },
       { label: 'Offer a deal', responseType: 'neutral' },
       { label: 'Stand your ground', responseType: 'negative' },
       { label: 'Keep it private', responseType: 'dismiss' },

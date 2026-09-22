@@ -138,7 +138,11 @@ function result(
 
 function playerName(state: RootState, playerId: string | null | undefined): string {
   if (!playerId) return 'that nominee'
-  return state.game.players.find((player) => player.id === playerId)?.name ?? 'that nominee'
+  return (
+    state.game.players.find(
+      (player) => player.id === playerId || (playerId === 'user' && player.isUser)
+    )?.name ?? 'that nominee'
+  )
 }
 
 /**
@@ -256,6 +260,14 @@ function buildLohConsultationSummary(
         : null) ?? nominees[0]
     const backupId =
       plan.backupTargetId && !nominees.includes(plan.backupTargetId) ? plan.backupTargetId : null
+
+    // The Safety holder chooses whether a replacement seat exists. Asking them
+    // to create a route that puts *them* on the block is neither actionable nor
+    // believable strategy. Keep the underlying plan private and advise them to
+    // hold instead of presenting a self-destructive ambush as LOH advice.
+    if (backupId === input.actorId) {
+      return `Do not use it. I had a backup in mind, but I am not asking you to put yourself at risk.`
+    }
 
     if (backupId) {
       const saveId = nominees.find((id) => id !== currentTargetId) ?? nominees[0]

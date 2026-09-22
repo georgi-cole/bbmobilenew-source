@@ -12,6 +12,7 @@ import gameReducer, {
   completeMission,
   claimMissionReward,
   hydrateGame,
+  addTvEvent,
 } from '../../../store/gameSlice'
 import settingsReducer from '../../../store/settingsSlice'
 import socialReducer from '../../../social/socialSlice'
@@ -711,6 +712,47 @@ describe('DiaryRoom', () => {
     expect(screen.getByLabelText(/eviction vote breakdown/i)).toBeTruthy()
     expect(screen.getByText(/who voted for whom/i)).toBeTruthy()
     expect(screen.getByText(/then look closely\. the curtain is lifting now\./i)).toBeTruthy()
+  })
+
+  it('consumes the Faux-TV confessional reminder when the vote breakdown is opened', async () => {
+    const { store } = renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (appStore) => {
+        const game = (appStore.getState() as RootState).game
+        saveEvictionVoteBreakdownUnlock({
+          gameId: game.gameId,
+          week: 2,
+          phase: 'eviction_results',
+          votes: { [game.players[1].id]: game.players[2].id },
+          nomineeIds: [game.players[2].id, game.players[4].id],
+          evicteeId: game.players[2].id,
+          status: 'available',
+        })
+        appStore.dispatch(hydrateGame({ ...game, week: 2, phase: 'week_end' }))
+        appStore.dispatch(
+          addTvEvent({
+            text: 'Go to the Confessional before the day is over.',
+            type: 'game',
+            channels: ['tv', 'mainLog'],
+            meta: {
+              week: 2,
+              phase: 'week_end',
+              forceOnTv: true,
+              broadcastLevel: 'major',
+              confessionalVoteBreakdown: true,
+            },
+          })
+        )
+      },
+    })
+
+    await flushConversationTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+
+    const reminder = store
+      .getState()
+      .game.tvFeed.find((event) => event.meta?.confessionalVoteBreakdown === true)
+    expect(reminder?.meta?.broadcastConsumed).toBe(true)
+    expect(store.getState().game.broadcastQueue).not.toContain(reminder?.id)
   })
 
   it('blocks router navigation away while a confessional decision is pending', () => {

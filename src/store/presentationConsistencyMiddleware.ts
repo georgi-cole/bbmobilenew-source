@@ -80,17 +80,9 @@ function decorateOutgoingLohBroadcast(api: MiddlewareAPI): void {
     return
   }
 
-  if (game.phase !== 'loh_comp') return
-  const event = currentTemplateEvent(game, 'loh.competition-start')
-  if (!event || /outgoing LOH/i.test(event.text)) return
-
-  api.dispatch(
-    updateTvEvent({
-      id: event.id,
-      text: `${event.text.trim()} ${eligibilityCopy}`,
-      type: event.type,
-    })
-  )
+  // The announcement card is the single Faux-TV source for this eligibility
+  // rule. Repeating it on the competition-start event replays the same news
+  // immediately after the player has dismissed it.
 }
 
 function correctVoxCompetitionBroadcast(api: MiddlewareAPI): void {

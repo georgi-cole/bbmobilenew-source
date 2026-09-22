@@ -71,6 +71,12 @@ describe('incomingInteractionPresentation', () => {
       'Stand your ground',
       'Keep it private',
     ])
+    expect(options.map((option) => option.responseType)).toEqual([
+      'neutral',
+      'neutral',
+      'negative',
+      'dismiss',
+    ])
   })
 
   it('lets the human join, observe, intervene, or lay low in an AI group scene', () => {

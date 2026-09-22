@@ -35,6 +35,7 @@ import {
   recordSecretMissionEasterEgg,
   submitTwinShockAnswer,
   selectAlivePlayers,
+  consumeBroadcastEvent,
 } from '../../store/gameSlice'
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
@@ -1540,6 +1541,15 @@ export default function DiaryRoom() {
                       type="button"
                       onClick={() => {
                         setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('revealed'))
+                        const reminder = [...gameState.tvFeed]
+                          .reverse()
+                          .find(
+                            (event) =>
+                              event.meta?.confessionalVoteBreakdown === true &&
+                              event.meta?.week === activeVoteBreakdown.week &&
+                              event.meta?.broadcastConsumed !== true
+                          )
+                        if (reminder) dispatch(consumeBroadcastEvent(reminder.id))
                         pushBigEyeMessage('Then look closely. The curtain is lifting now.')
                       }}
                     >

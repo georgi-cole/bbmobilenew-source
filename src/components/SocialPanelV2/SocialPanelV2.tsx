@@ -267,12 +267,6 @@ export default function SocialPanelV2() {
   const publicRequestProgress = activePublicDirection
     ? getPublicRequestProgressStage(activePublicDirection)
     : null
-  const safetyConsultationOpen =
-    game.voxPopuli?.status !== 'active' &&
-    ['pos_results', 'pos_ceremony'].includes(game.phase) &&
-    game.posWinnerId === humanPlayer?.id &&
-    Boolean(game.lohId) &&
-    !game.povSavedId
   useEffect(
     () => () => {
       if (successPulseTimerRef.current !== null) {
@@ -326,18 +320,9 @@ export default function SocialPanelV2() {
     !selectedAction?.requiredTargetStatus &&
     selectedActionId !== 'proposeAlliance'
   const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
-  // A POS holder begins with the LOH selected for an individual consultation
-  // without mutating local state from an effect. Group selections always use
-  // the player's explicit picks, so this default cannot replace a multi-select.
-  const suggestedSafetyTargetId =
-    safetyConsultationOpen &&
-    targetMode === 'primary' &&
-    primaryTargetId === null &&
-    selectedTargets.size === 0
-      ? game.lohId
-      : null
-  const effectivePrimaryTargetId =
-    targetMode === 'none' ? null : (primaryTargetId ?? suggestedSafetyTargetId)
+  // A social visit always starts with the roster unselected. Contextual calls
+  // can highlight an action, but never choose a housemate on the player's behalf.
+  const effectivePrimaryTargetId = targetMode === 'none' ? null : primaryTargetId
   const selectedPlayerIds = useMemo(
     () =>
       selectedTargets.size > 0
@@ -845,7 +830,7 @@ export default function SocialPanelV2() {
   // Keep the player's chosen hubmate in the read panel while they browse
   // moves. Some moves do not require a target to execute, but selecting one
   // should not erase the context the player just chose.
-  const focusedTargetId = primaryTargetId ?? suggestedSafetyTargetId
+  const focusedTargetId = primaryTargetId
   const focusedPlayer = focusedTargetId
     ? (game.players.find((player) => player.id === focusedTargetId) ?? null)
     : null

@@ -154,6 +154,29 @@ describe('incoming interaction contextual resolution', () => {
     expect(resolution.outcomeText).toBe('Mimi says they felt shut out and wanted a direct answer.')
   })
 
+  it('keeps an alliance vote question open while giving the player a reason', () => {
+    const resolution = resolveIncomingResponse({
+      interaction: makeInteraction({
+        id: 'lia-vote-rationale',
+        fromId: 'lia',
+        type: 'deal_offer',
+        text: 'My vote has not moved. I am still on Remy.',
+        payload: { scenarioKey: 'background_nominate', subjectId: 'remy' },
+      }),
+      responseType: 'neutral',
+      responseLabel: 'Ask why',
+      fromName: 'Lia',
+      subjectName: 'Remy',
+      phase: 'live_vote',
+      actorAffinity: 25,
+      playerAffinity: 25,
+    })
+
+    expect(resolution.outcomeText).toContain('Remy has the weaker support')
+    expect(resolution.outcomeText).toContain('before either of you locks a shared plan')
+    expect(resolution.memoryDelta.trustMomentum).toBeGreaterThanOrEqual(0)
+  })
+
   it('gives a Safety question a specific concise outcome', () => {
     const interaction = makeInteraction({
       id: 'authored-safety-fallout',

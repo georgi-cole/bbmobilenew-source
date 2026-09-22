@@ -745,6 +745,116 @@
   color: #a0a0b8;
 }
 
+/* Phone play keeps each round's decision in the initial viewport. The roster
+   remains scrollable context, while result cards become compact horizontal
+   summaries so the post-elimination choices are visible without hunting. */
+@media (max-width: 699px) {
+  .ta-main {
+    padding: 12px;
+  }
+
+  .ta-bid-phase {
+    gap: 10px;
+  }
+
+  .ta-bid-control {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .ta-bid-control__label {
+    font-size: 18px;
+  }
+
+  .ta-bid-control__confirm {
+    min-height: 46px;
+    margin-top: 0;
+  }
+
+  .ta-player-grid--compact {
+    grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+    gap: 5px;
+    margin-bottom: 0;
+  }
+
+  .ta-player-grid--compact .ta-player-card {
+    gap: 2px;
+    padding: 5px 2px;
+  }
+
+  .ta-player-grid--compact .ta-player-card__avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .ta-player-grid--compact .ta-player-card__name,
+  .ta-player-grid--compact .ta-player-card__bank {
+    font-size: 9px;
+  }
+
+  .ta-elimination-phase {
+    justify-content: flex-start;
+    gap: 12px;
+    padding-top: 4px;
+  }
+
+  .ta-elimination-spotlight {
+    flex-direction: row;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .ta-elimination-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-areas:
+      'avatar name'
+      'avatar message';
+    flex: 1 1 0;
+    min-width: 0;
+    gap: 2px 8px;
+    padding: 12px 10px;
+    border-radius: 12px;
+    text-align: left;
+  }
+
+  .ta-elimination-card__avatar {
+    grid-area: avatar;
+    width: 42px;
+    height: 42px;
+  }
+
+  .ta-elimination-card__name {
+    grid-area: name;
+    align-self: end;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .ta-elimination-card__msg {
+    grid-area: message;
+    align-self: start;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .ta-spectate-prompt {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .ta-spectate-prompt__actions {
+    flex-direction: row;
+  }
+
+  .ta-spectate-prompt__actions .ta-btn {
+    flex: 1 1 0;
+    padding: 10px 8px;
+    font-size: 13px;
+  }
+}
+
 /* ─── Spectate Prompt ────────────────────────────────────────────────────────── */
 
 .ta-spectate-prompt {
@@ -1093,7 +1203,7 @@
 
 /* ─── Responsive / larger screens ───────────────────────────────────────────── */
 
-@media (min-width: 440px) {
+@media (min-width: 700px) {
   .ta-player-grid {
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   }

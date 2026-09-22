@@ -393,10 +393,9 @@ export default function TrapAuction({
           </div>
         )}
 
-        {/* Player grid (compact) */}
-        {renderPlayerGrid(state.players, true)}
-
-        {/* Human bid control */}
+        {/* Put the live controls ahead of the roster on phone. The roster stays
+            available immediately below, while the action that advances the
+            round never requires a scavenger-hunt scroll. */}
         <div className="ta-bid-control">
           <div className="ta-bid-control__bank">
             <span className="ta-bid-control__bank-label">Your Bank</span>
@@ -460,6 +459,9 @@ export default function TrapAuction({
             Lock In {bidValue} 👁
           </button>
         </div>
+
+        {/* Player grid (compact) */}
+        {renderPlayerGrid(state.players, true)}
       </div>
     );
   }

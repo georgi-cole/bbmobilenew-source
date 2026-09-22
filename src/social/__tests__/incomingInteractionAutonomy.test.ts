@@ -267,6 +267,7 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(
       scheduled.every((entry) => entry.interaction.payload?.scenarioKey === 'nominee_veto_pitch')
     ).toBe(true)
+    expect(new Set(scheduled.map((entry) => entry.interaction.text)).size).toBe(2)
   })
 
   it('keeps alliance-tagged relationships from turning hostile', () => {
