@@ -75,8 +75,19 @@ export const tribunalEligibilityMiddleware: Middleware<unknown, RootLike> =
     if (!playerId) return result
 
     const player = storeApi.getState().game.players.find((candidate) => candidate.id === playerId)
-    if (!player || player.tribunalEligible === false) return result
+    if (!player) return result
 
-    storeApi.dispatch(updatePlayer({ ...player, tribunalEligible: false }))
+    // Extraordinary exits are never Tribunal members. Normalize any reducer
+    // that already committed a late removal as "jury" before this middleware
+    // had a chance to persist the eligibility flag.
+    if (player.tribunalEligible !== false || player.status === 'jury') {
+      storeApi.dispatch(
+        updatePlayer({
+          ...player,
+          status: player.status === 'jury' ? 'evicted' : player.status,
+          tribunalEligible: false,
+        })
+      )
+    }
     return result
   }
