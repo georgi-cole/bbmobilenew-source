@@ -328,6 +328,14 @@ describe('selectConfessionalMissionBadge — reward states', () => {
     expect(selectConfessionalMissionBadge(s)).toBe(true);
   });
 
+  it('returns false for the instant Influence reward after it has already been granted', () => {
+    const s = stateWith({
+      status: 'rewardClaimed',
+      reward: createMissionReward('plus1000Influence'),
+    });
+    expect(selectConfessionalMissionBadge(s)).toBe(false);
+  });
+
   it('returns false when status is rewardClaimed and reward is emptyBox (not eligible)', () => {
     const s = stateWith({
       status: 'rewardClaimed',
