@@ -1270,6 +1270,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
     'nominee_hoh_plea',
     'safety_holder_consults_loh',
     'nominee_understands_loh',
+    'automatic_nominee_reaction',
     'nominee_confronts_loh',
     'replacement_nominee_reacts_to_loh',
     'nominee_campaign',
@@ -1432,6 +1433,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I will not pretend seeing my name felt good, but I understand you had to make a move. I wanted to hear it from you.',
     'You put me in danger, {hoh}. I am trying to separate the game decision from our relationship.',
     'I get that the LOH has to show their cards. I need to know whether this was strategy or something personal.',
+  ],
+  automatic_nominee_reaction: [
+    'Finishing last put me on the block automatically. I know that was the rule, not somebody choosing my name.',
+    'The competition result put me in danger. I am not treating it like a personal nomination from the LOH.',
+    'I landed on the block because I finished last. That hurts, but I know exactly where it came from.',
   ],
   nominee_confronts_loh: [
     'You looked me in the eye and then put my name up. Tell me why I should not take that personally.',
