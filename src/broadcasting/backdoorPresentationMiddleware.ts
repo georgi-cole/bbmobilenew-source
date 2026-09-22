@@ -18,6 +18,7 @@ type BackdoorPresentationState = {
   game: {
     week: number
     lohId: string | null
+    players?: Array<{ id: string; name: string; isUser?: boolean }>
     lohNominationPlan?: BackdoorPlanSnapshot
     lohSocialPlan?: LohSocialPlanSnapshot
   }
@@ -66,6 +67,17 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
     plan.disclosedTargetByPlayerId?.[entry.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
   if (!disclosedTargetId) return action
 
+  const playerName = (playerId: string, fallback: string) =>
+    state.game.players?.find(
+      (player) => player.id === playerId || (playerId === 'user' && player.isUser === true)
+    )?.name ?? fallback
+  const canonicalSubjectId =
+    disclosedTargetId === 'user'
+      ? (state.game.players?.find((player) => player.isUser === true)?.id ?? disclosedTargetId)
+      : disclosedTargetId
+  const lohName = playerName(state.game.lohId ?? '', 'The LOH')
+  const subjectName = playerName(disclosedTargetId, 'another player')
+
   const isBackupPlan =
     disclosedTargetId === plan.backupTargetId && disclosedTargetId !== plan.currentTargetId
   return {
@@ -74,10 +86,12 @@ function canonicalizeLohTargetLog(action: unknown, state: BackdoorPresentationSt
       ...typedAction.payload,
       entry: {
         ...entry,
-        subjectId: disclosedTargetId,
-        // The legacy maneuver may already have authored copy around its own
-        // affinity-only guess. Let Recent Activity render from canonical context.
-        narrative: undefined,
+        subjectId: canonicalSubjectId,
+        // This is an activity receipt, not dialogue. Resolve aliases before
+        // writing it so a player never sees a raw internal id such as "user".
+        narrative: isBackupPlan
+          ? `${lohName} told you ${subjectName} is the backup plan if nominations change.`
+          : `${lohName} told you ${subjectName} is the current target.`,
         context: {
           ...entry.context,
           lohPlanType: isBackupPlan ? 'backup_plan' : 'current_target',

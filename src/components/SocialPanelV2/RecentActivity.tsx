@@ -155,7 +155,11 @@ export default function RecentActivity({
             )
             const audienceName = targetNames.join(', ')
             const subjectName = entry.subjectId
-              ? (playerById.get(entry.subjectId)?.name ?? entry.subjectId)
+              ? (playerById.get(entry.subjectId)?.name ??
+                (entry.subjectId === 'user'
+                  ? players?.find((player) => player.isUser)?.name
+                  : undefined) ??
+                entry.subjectId)
               : null
             const narrativeContext = subjectName
               ? `${targetName} about ${subjectName}`

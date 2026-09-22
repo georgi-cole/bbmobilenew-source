@@ -206,8 +206,16 @@ export function resolveIncomingResponse(
     phase: input.phase,
     senderIsNominated: input.senderIsNominated ?? false,
   })
+  // Asking an ally why they favour a nominee is fact-finding, not acceptance of
+  // their plan. Keep that conversation open while giving the player a usable
+  // strategic reason for the proposed vote.
+  const voteRationale =
+    scenarioName === 'background_nominate' && /ask why/i.test(input.responseLabel ?? '')
+      ? `${input.fromName} explains that ${input.subjectName ?? 'that nominee'} has the weaker support and is the cleaner vote. They want your read before either of you locks a shared plan.`
+      : undefined
   const outcomeText = compactOutcomeText(
-    authoredOutcome ??
+    voteRationale ??
+      authoredOutcome ??
       fallbackScenarioOutcome(scenarioName, stance, input.fromName, input.subjectName)
   )
 

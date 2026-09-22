@@ -1140,13 +1140,11 @@ body.mode-surveyeval .tv-zone__head-pills .game-top-chip--neutral {
   position: relative;
   z-index: 3;
   max-width: 34rem;
-  max-height: calc(1.36em * 4);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  font-size: clamp(0.78rem, 3.4cqw, 1.04rem);
-  line-height: 1.36;
+  max-height: calc(1.3em * 5 + 0.38rem);
+  overflow: auto;
+  scrollbar-width: none;
+  font-size: clamp(0.72rem, 3.1cqw, 0.98rem);
+  line-height: 1.3;
   text-align: center;
   text-wrap: balance;
   background: transparent;
@@ -1157,7 +1155,7 @@ body.mode-surveyeval .tv-zone__head-pills .game-top-chip--neutral {
    last line room for its descenders instead of clipping it at the clamp edge. */
 .tv-zone__daily-card .tv-zone__now--depression-shock {
   max-width: 32rem;
-  max-height: calc(1.28em * 4 + 0.45rem);
+  max-height: calc(1.24em * 5 + 0.45rem);
   padding-block: 0.28rem;
   font-size: clamp(0.72rem, 3cqw, 0.94rem);
   line-height: 1.28;

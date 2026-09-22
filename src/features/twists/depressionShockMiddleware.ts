@@ -130,7 +130,15 @@ function announceSurpriseDecision(
         type: 'twist',
         source: 'system',
         channels: ['tv', 'mainLog'],
-        meta: { depressionShock: true, surpriseDecision: 'nomination', week: after.week },
+        meta: {
+          depressionShock: true,
+          surpriseDecision: 'nomination',
+          week: after.week,
+          forceOnTv: true,
+          broadcastLevel: 'major',
+          broadcastDelivery: 'next',
+          announcementTitle: 'Depression Shock',
+        },
       },
     })
     return
@@ -151,7 +159,15 @@ function announceSurpriseDecision(
       type: 'twist',
       source: 'system',
       channels: ['tv', 'mainLog'],
-      meta: { depressionShock: true, surpriseDecision: 'safety', week: after.week },
+      meta: {
+        depressionShock: true,
+        surpriseDecision: 'safety',
+        week: after.week,
+        forceOnTv: true,
+        broadcastLevel: 'major',
+        broadcastDelivery: 'next',
+        announcementTitle: 'Depression Shock',
+      },
     },
   })
 }
@@ -205,7 +221,15 @@ function maybeTriggerRandomFight(
       type: 'social',
       source: 'system',
       channels: ['tv', 'mainLog'],
-      meta: { depressionShock: true, randomFight: true, week: game.week },
+      meta: {
+        depressionShock: true,
+        randomFight: true,
+        week: game.week,
+        forceOnTv: true,
+        broadcastLevel: 'major',
+        broadcastDelivery: 'next',
+        announcementTitle: 'Depression Shock',
+      },
     },
   })
 }

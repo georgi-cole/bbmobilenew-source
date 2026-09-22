@@ -1631,7 +1631,12 @@ function generateInteractionText(
     pendingInteractions
       .filter(
         (interaction) =>
-          interaction.fromId === actorId && interaction.createdWeek >= recentLineCutoffWeek
+          // A line must be fresh for this actor over the normal cooldown, and
+          // it must also be unique among the currently open session. Two
+          // nominees can make the same pitch, but they should never appear to
+          // have copied the exact same message to the player.
+          (interaction.fromId === actorId && interaction.createdWeek >= recentLineCutoffWeek) ||
+          (interaction.createdWeek === context.week && !interaction.resolved)
       )
       .map((interaction) => interaction.payload?.variantId as string | undefined)
       .filter((id): id is string => typeof id === 'string')
@@ -1639,8 +1644,11 @@ function generateInteractionText(
 
   const remoteTemplates = getRemoteScenarioLines(plan.scenarioKey)
   if (remoteTemplates?.length) {
-    const template =
-      remoteTemplates[Math.floor(rng() * remoteTemplates.length)] ?? remoteTemplates[0]
+    const availableTemplates = remoteTemplates.filter(
+      (_template, index) => !recentVariantIds.has(`remote_${plan.scenarioKey}:${index}`)
+    )
+    const templatePool = availableTemplates.length > 0 ? availableTemplates : remoteTemplates
+    const template = templatePool[Math.floor(rng() * templatePool.length)] ?? templatePool[0]
     return {
       text: renderInteractionTemplate(template, textContext),
       variantFamilyId: `remote_${plan.scenarioKey}`,
@@ -1670,7 +1678,11 @@ function generateInteractionText(
 
   // Fallback: use the legacy flat template array.
   const templates = SCENARIO_TEMPLATES[plan.scenarioKey] ?? SCENARIO_TEMPLATES.generic_check_in
-  const template = templates[Math.floor(rng() * templates.length)] ?? 'We need to talk.'
+  const availableTemplates = templates.filter(
+    (_template, index) => !recentVariantIds.has(`legacy_${plan.scenarioKey}:${index}`)
+  )
+  const templatePool = availableTemplates.length > 0 ? availableTemplates : templates
+  const template = templatePool[Math.floor(rng() * templatePool.length)] ?? 'We need to talk.'
   return {
     text: renderInteractionTemplate(template, textContext),
     variantFamilyId: `legacy_${plan.scenarioKey}`,

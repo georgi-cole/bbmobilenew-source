@@ -163,9 +163,9 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
   },
   {
     id: 'break_alliance',
-    title: 'Break the Pact',
+    title: 'Break the Alliance',
     icon: '\uD83D\uDDE1\uFE0F',
-    description: 'End an alliance and accept the memory it leaves behind.',
+    description: 'Dissolve this strategic alliance and accept the fallout it leaves behind.',
     category: 'aggressive',
     kind: 'aggressive',
     baseCost: { energy: 0 },
@@ -223,9 +223,9 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
   },
   {
     id: 'break_bromance',
-    title: 'End the Pact',
+    title: 'End the Ride-or-Die',
     icon: '\u2702\uFE0F',
-    description: 'Tell your ride-or-die the partnership is over.',
+    description: 'End this personal ride-or-die bond; it does not dissolve a separate alliance.',
     category: 'aggressive',
     kind: 'aggressive',
     baseCost: { energy: 0 },

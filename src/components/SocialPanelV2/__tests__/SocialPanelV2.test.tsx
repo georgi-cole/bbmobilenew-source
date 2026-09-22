@@ -288,6 +288,24 @@ describe('SocialPanelV2 – layout', () => {
     const recentLog = screen.getByLabelText('Recent Activity log')
     expect(actionsColumn.contains(recentLog)).toBe(false)
   })
+
+  it('starts with no housemate selected and lets the same tap deselect them', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const player = store.getState().game.players.find((candidate) => !candidate.isUser)!
+    act(() => {
+      store.dispatch(openSocialPanel())
+    })
+    renderPanel(store)
+
+    const card = screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0]!
+    expect(card).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(card)
+    expect(card).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(card)
+    expect(card).toHaveAttribute('aria-pressed', 'false')
+  })
 })
 
 describe('SocialPanelV2 – close behaviour', () => {

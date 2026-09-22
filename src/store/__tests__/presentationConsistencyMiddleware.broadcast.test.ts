@@ -226,6 +226,38 @@ describe('presentationConsistencyMiddleware important broadcasts', () => {
       })
     )
   })
+
+  it('does not repeat the outgoing-LOH ineligibility copy on competition start', () => {
+    const state = {
+      game: {
+        phase: 'loh_comp',
+        week: 4,
+        prevHohId: 'user',
+        tvFeed: [
+          {
+            id: 'loh-competition-start',
+            text: 'The Leader of the Hub competition has begun!',
+            type: 'game',
+            timestamp: 1,
+            meta: { week: 4, phase: 'loh_comp', broadcastTemplateId: 'loh.competition-start' },
+          },
+        ],
+        players: [{ id: 'user', name: 'Ok', isUser: true, status: 'active' }],
+        replacementNeeded: false,
+      },
+    }
+    const next = vi.fn((action) => action)
+    const api = { getState: () => state, dispatch: vi.fn() }
+
+    presentationConsistencyMiddleware(api as never)(next as never)({ type: 'game/advance' })
+
+    expect(api.dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'game/updateTvEvent',
+        payload: expect.objectContaining({ id: 'loh-competition-start' }),
+      })
+    )
+  })
 })
 
 describe('presentationConsistencyMiddleware Vox audience-vote Play gate', () => {

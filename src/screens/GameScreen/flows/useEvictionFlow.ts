@@ -485,6 +485,10 @@ export function useEvictionFlow({
             // critical shock announcement.
             broadcastDelivery: 'next',
             announcementTitle: 'Confessional Unlocked',
+            // The Confessional owns this reminder after the vote reveal. It
+            // must be consumed as soon as that reveal is opened, rather than
+            // lingering as a stale Faux-TV task for the rest of the day.
+            confessionalVoteBreakdown: true,
           },
         })
       )
