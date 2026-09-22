@@ -98,6 +98,16 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'refuse to apologize': says('they stop looking for comfort and start planning against you.'),
     'give them space': acts('takes the space and postpones the relationship conversation.'),
   },
+  automatic_nominee_reaction: {
+    'acknowledge the rule': says('they appreciate that you are treating the last-place rule as the cause, not a personal nomination.'),
+    'hear how they feel': says('they are frustrated with the result, but not blaming the LOH for putting them there.'),
+    'talk next steps': says('they want to focus on Safety and the vote rather than relitigating a choice nobody made.'),
+    'give them space': acts('takes the space and starts planning from the automatic block.'),
+    'keep it factual': says('they agree that the competition result is the relevant fact and move on to survival.'),
+    'ask what they need now': says('they need a path through Safety and enough votes to stay.'),
+    'focus on safety': says('they shift immediately to the next controllable part of the week.'),
+    'end the talk': acts('ends the conversation without turning the rule-driven nomination into a grievance.'),
+  },
   nominee_confronts_loh: {
     'meet the anger honestly': says('they wanted you to admit the move damaged the relationship.'),
     'explain the calculation': says(
