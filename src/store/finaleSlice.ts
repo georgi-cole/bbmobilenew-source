@@ -150,15 +150,8 @@ const finaleSlice = createSlice({
     ) {
       if (state.hasStarted) return // idempotency guard
 
-      const {
-        finalistIds,
-        jurorIds,
-        humanPlayerIds,
-        seed,
-        cfg,
-        publicApprovalProfiles,
-        reality,
-      } = action.payload
+      const { finalistIds, jurorIds, humanPlayerIds, seed, cfg, publicApprovalProfiles, reality } =
+        action.payload
 
       // ── Resolve the optional equal-weight public ballot ──────────────────
       let publicJurorEnabled = false

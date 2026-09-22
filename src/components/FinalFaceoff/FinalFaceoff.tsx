@@ -229,8 +229,7 @@ export default function FinalFaceoff() {
         humanPlayerIds: humanIds,
         seed: game.seed,
         cfg: {
-          publicFinalVoteEnabled:
-            game.cfg?.publicFinalVoteEnabled ?? game.cfg?.americasVoteEnabled,
+          publicFinalVoteEnabled: game.cfg?.publicFinalVoteEnabled ?? game.cfg?.americasVoteEnabled,
         },
         publicApprovalProfiles: hasPublicProfiles ? publicOpinion.profiles : undefined,
         reality: socialReality,

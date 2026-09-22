@@ -53,7 +53,10 @@ describe('finaleSlice', () => {
     state = finaleReducer(
       undefined,
       startFinale(
-        startPayload({ cfg: { publicFinalVoteEnabled: true }, publicApprovalProfiles: publicProfiles })
+        startPayload({
+          cfg: { publicFinalVoteEnabled: true },
+          publicApprovalProfiles: publicProfiles,
+        })
       )
     )
     expect(state.publicJurorEnabled).toBe(true)
@@ -63,10 +66,7 @@ describe('finaleSlice', () => {
     const tied = finaleReducer(
       finaleReducer(
         finaleReducer(
-          finaleReducer(
-            undefined,
-            startFinale(startPayload({ jurorIds: ['juror-a', 'juror-b'] }))
-          ),
+          finaleReducer(undefined, startFinale(startPayload({ jurorIds: ['juror-a', 'juror-b'] }))),
           forceJurorVote({ jurorId: 'juror-a', finalistId: 'finalist-a' })
         ),
         forceJurorVote({ jurorId: 'juror-b', finalistId: 'finalist-b' })

@@ -56,9 +56,7 @@ export default function JurorBubble({
       <div className="jb-body">
         <span className="jb-name">
           {juror.name}
-          {isPublic && (
-            <span className="jb-public-badge">Public Vote</span>
-          )}
+          {isPublic && <span className="jb-public-badge">Public Vote</span>}
         </span>
 
         {/* Phase-2 vote reveal: "X cast a vote for Y" */}

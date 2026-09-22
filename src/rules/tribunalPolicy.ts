@@ -71,7 +71,5 @@ export function isTribunalEligiblePlayer(player: Player): boolean {
 }
 
 export function getTribunalMembers(players: readonly Player[]): Player[] {
-  return players.filter(
-    (player) => player.status === 'jury' && isTribunalEligiblePlayer(player)
-  )
+  return players.filter((player) => player.status === 'jury' && isTribunalEligiblePlayer(player))
 }
