@@ -1,9 +1,9 @@
 /**
- * finaleSlice – Redux state for the Final Jury voting sequence.
+ * finaleSlice – Redux state for the Final Tribunal voting sequence.
  *
  * Lifecycle:
- *   startFinale()  → overlay appears, jurors listed
- *   revealNextJuror() / castVote() → votes accumulate one by one
+ *   startFinale()  → overlay appears, Tribunal members listed
+ *   revealNextJuror() / castVote() → Tribunal votes accumulate one by one
  *   finalizeFinale() → winner computed, player state updated via callback
  */
 
@@ -44,7 +44,7 @@ export interface FinaleState {
   isActive: boolean
   /** IDs of the 2 players competing as finalists. */
   finalistIds: string[]
-  /** Original (unshuffled) effective jury IDs — preserved for rerolling. */
+  /** Original (unshuffled) Tribunal member IDs — preserved for rerolling. */
   jurorIds: string[]
   /** Ordered list of juror IDs (shuffle-ordered for reveal). */
   revealOrder: string[]
@@ -61,7 +61,7 @@ export interface FinaleState {
   winnerId: string | null
   /** ID of the runner-up, or null. */
   runnerUpId: string | null
-  /** Whether the jury-return mechanic fired and who came back. */
+  /** @deprecated Legacy save field. Finale setup no longer returns pre-Tribunal exits. */
   returnedJurorId: string | null
   /** Whether the finale has fully completed (winner declared). */
   isComplete: boolean
@@ -119,13 +119,13 @@ const finaleSlice = createSlice({
   reducers: {
     /**
      * Initialise the finale.
-     * Computes AI votes, reveal order, and optional jury-return.
+     * Computes AI Tribunal votes, reveal order, and the optional public finalist ballot.
      */
     startFinale(
       state,
       action: PayloadAction<{
         finalistIds: string[]
-        /** Jury member IDs (status === 'jury'). */
+        /** Tribunal member IDs (internal status === 'jury'). */
         jurorIds: string[]
         /**
          * @deprecated Accepted for callers restoring older finale payloads.
@@ -144,7 +144,7 @@ const finaleSlice = createSlice({
         }
         /** Optional public approval profiles to enable the public juror vote. */
         publicApprovalProfiles?: Record<string, PlayerPublicProfile>
-        /** Reality history used to ground AI juror decisions in the actual season. */
+        /** Reality history used to ground AI Tribunal decisions in the actual season. */
         reality?: RealityDomainState
       }>
     ) {
