@@ -1,0 +1,268 @@
+/* ── GameBottomNav ──────────────────────────────────────────────────────── */
+.game-bottom-nav {
+  --game-bottom-nav-content-height: clamp(46px, var(--nav-bar-height, 60px), 60px);
+  --game-bottom-nav-inline-gutter: max(10px, var(--safe-left), var(--safe-right));
+  --game-bottom-nav-panel-radius: 18px;
+  position: relative;
+  width: calc(100% - var(--game-bottom-nav-inline-gutter) - var(--game-bottom-nav-inline-gutter));
+  max-width: 456px;
+  height: calc(var(--game-bottom-nav-content-height) + var(--safe-bottom));
+  margin-inline: auto;
+  padding-bottom: var(--safe-bottom);
+  flex-shrink: 0;
+  overflow: visible;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.game-bottom-nav.nav-bar {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  isolation: isolate;
+}
+
+/*
+ * Keep the visual panel a stable size on every platform. The outer nav still
+ * reserves the iOS home-indicator safe area, but that safety space is no longer
+ * painted as part of the panel (which made the iPhone bar look stretched).
+ */
+.game-bottom-nav.nav-bar::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: var(--game-bottom-nav-content-height);
+  background: linear-gradient(180deg, rgba(17, 24, 37, 0.96), rgba(12, 18, 31, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--game-bottom-nav-panel-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(2, 6, 16, 0.24);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  content: '';
+}
+
+/* The decorative shell is clipped to the panel instead of the safe-area spacer. */
+.game-bottom-nav__shell {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  width: 100%;
+  height: var(--game-bottom-nav-content-height);
+  object-fit: cover;
+  border-radius: var(--game-bottom-nav-panel-radius);
+  clip-path: inset(0 round var(--game-bottom-nav-panel-radius));
+  opacity: 0.16;
+  mix-blend-mode: soft-light;
+  filter: saturate(0.72) brightness(0.82);
+  pointer-events: none;
+  user-select: none;
+}
+
+.game-bottom-nav__items {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  column-gap: 7px;
+  width: 100%;
+  height: var(--game-bottom-nav-content-height);
+  padding: 1px 2.25% 3px;
+  background: transparent;
+}
+
+.game-bottom-nav__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  gap: 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 8px;
+  padding: 4px 6px 3px;
+  cursor: pointer;
+  color: rgba(238, 242, 255, 0.92);
+  opacity: 0.9;
+  box-shadow: 0 4px 10px rgba(3, 8, 20, 0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition:
+    opacity 150ms ease,
+    background 150ms ease,
+    filter 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.game-bottom-nav__item:hover:not(:disabled),
+.game-bottom-nav__item:active:not(:disabled) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.055));
+  filter: brightness(1.02);
+}
+
+.game-bottom-nav__item:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.game-bottom-nav__item--active {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.06));
+}
+
+.game-bottom-nav__glyph {
+  position: relative;
+  z-index: 1;
+  width: var(--game-nav-glyph-size, 22px);
+  height: var(--game-nav-glyph-size, 22px);
+  object-fit: contain;
+  filter: saturate(0.86) contrast(0.94) brightness(0.97);
+  pointer-events: none;
+  user-select: none;
+}
+
+.game-bottom-nav__label {
+  position: relative;
+  z-index: 1;
+  display: var(--game-nav-item-label-display, block);
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.24px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.game-bottom-nav__item--active .game-bottom-nav__glyph,
+.game-bottom-nav__item--active .game-bottom-nav__label {
+  opacity: 1;
+}
+
+.game-bottom-nav__item:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+:root[style*='--game-bottom-controls-mode: compact'] .game-bottom-nav__items {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+:root[style*='--game-bottom-controls-mode: compact'] .game-bottom-nav__item {
+  min-height: 44px;
+  gap: 0;
+  padding: 5px 4px;
+}
+
+:root[style*='--game-bottom-controls-mode: compact'] .game-bottom-nav__glyph {
+  --game-nav-glyph-size: 24px;
+}
+
+/* Refined information architecture: frequent destinations stay visible; utilities move to More. */
+.game-bottom-nav--refined-architecture .game-bottom-nav__items {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-inline: 5%;
+}
+
+.game-bottom-nav__more-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1499;
+  background: transparent;
+}
+
+.game-bottom-nav__more-menu {
+  position: fixed;
+  right: max(
+    10px,
+    calc((100vw - min(100vw, var(--app-shell-max-width, 480px))) / 2 + 10px + var(--safe-right))
+  );
+  bottom: calc(var(--nav-bar-height, 60px) + var(--safe-bottom) + 8px);
+  z-index: 1500;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(232px, calc(100vw - 28px));
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--game-radius-3);
+  background: rgba(12, 18, 31, 0.97);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.game-bottom-nav__more-menu button {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.04));
+  color: rgba(244, 246, 255, 0.94);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.game-bottom-nav__more-menu button:hover,
+.game-bottom-nav__more-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.game-bottom-nav__more-menu button:focus-visible {
+  outline: 2px solid rgba(151, 139, 255, 0.88);
+  outline-offset: -2px;
+}
+
+.game-bottom-nav__more-menu img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.game-bottom-nav__more-menu span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.game-bottom-nav--refined-architecture .game-bottom-nav__item--active::after {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 18px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #9487ff;
+  box-shadow: 0 0 9px rgba(148, 135, 255, 0.7);
+  content: '';
+}

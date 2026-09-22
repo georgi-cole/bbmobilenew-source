@@ -1,0 +1,72 @@
+/* IntroSplash — full-screen logo-only intro overlay */
+
+.intro-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Top padding clears the status bar / notch on native mobile */
+  padding-top: var(--app-safe-area-top, env(safe-area-inset-top, 0px));
+  background: #000;
+  /* Not user-dismissable — auto-dismiss only (native app behaviour) */
+  pointer-events: none;
+
+  /* Fade in, then hold */
+  animation: intro-splash-fadein 400ms ease both;
+}
+
+/* Fade-out class applied by parent before unmounting */
+.intro-splash--exit {
+  animation: intro-splash-fadeout 350ms ease both;
+}
+
+@keyframes intro-splash-fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-splash-fadeout {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* SVG decoration ring — removed */
+
+/* Logo image */
+.intro-splash__logo {
+  width: min(220px, 55vw);
+  height: auto;
+  object-fit: contain;
+  user-select: none;
+  animation: intro-logo-fadein 600ms ease both;
+}
+
+/* Inline SVG fallback logo */
+.intro-splash__logo--fallback {
+  width: min(220px, 55vw);
+  height: min(220px, 55vw);
+}
+
+@keyframes intro-logo-fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Title text — hidden per design (branding removed from splash) */
+.intro-splash__title {
+  display: none;
+}

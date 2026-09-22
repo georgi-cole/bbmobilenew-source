@@ -1,0 +1,295 @@
+.twin-shock-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 8800;
+  pointer-events: none;
+  color: #fff;
+  --twin-shock-beam-color: rgba(255, 214, 102, 0.96);
+  --twin-shock-glow-color: rgba(255, 214, 102, 0.82);
+}
+
+.twin-shock-reveal__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(15, 22, 34, 0.08) 0, rgba(5, 10, 18, 0.88) 72%),
+    rgba(5, 10, 18, 0.82);
+  animation: twin-shock-fade-in 520ms ease-out both;
+}
+
+.twin-shock-reveal__flare {
+  position: absolute;
+  left: calc(var(--twin-shock-left) - 40px);
+  top: calc(var(--twin-shock-top) - 60px);
+  width: calc(var(--twin-shock-width) + 80px);
+  height: calc(var(--twin-shock-height) + 120px);
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 255, 255, 0.22) 0,
+    rgba(255, 255, 255, 0) 70%
+  );
+  opacity: 0.35;
+  filter: blur(12px);
+  animation: twin-shock-flare 1600ms ease-in-out infinite alternate;
+}
+
+.twin-shock-reveal__beam {
+  position: absolute;
+  left: calc(var(--twin-shock-left) - 10px);
+  top: calc(var(--twin-shock-top) - 10px);
+  width: calc(var(--twin-shock-width) + 20px);
+  height: calc(var(--twin-shock-height) + 20px);
+  border: 2px solid var(--twin-shock-beam-color);
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.18),
+    0 0 26px var(--twin-shock-glow-color),
+    inset 0 0 20px rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  animation: twin-shock-pulse 1500ms ease-in-out infinite alternate;
+}
+
+.twin-shock-reveal--combined.twin-shock-reveal--transform,
+.twin-shock-reveal--combined.twin-shock-reveal--settled {
+  --twin-shock-beam-color: rgba(112, 231, 255, 0.96);
+  --twin-shock-glow-color: rgba(112, 231, 255, 0.9);
+}
+
+.twin-shock-reveal--ali_enters.twin-shock-reveal--transform,
+.twin-shock-reveal--ali_enters.twin-shock-reveal--settled {
+  --twin-shock-beam-color: rgba(102, 255, 178, 0.96);
+  --twin-shock-glow-color: rgba(102, 255, 178, 0.86);
+}
+
+.twin-shock-reveal__tile {
+  position: absolute;
+  left: var(--twin-shock-left);
+  top: var(--twin-shock-top);
+  width: var(--twin-shock-width);
+  height: var(--twin-shock-height);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(18, 25, 39, 0.9), rgba(8, 13, 22, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transform-origin: center;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: twin-shock-tile-rise 850ms ease-out both;
+}
+
+.twin-shock-reveal--transform .twin-shock-reveal__tile {
+  animation: twin-shock-swap 1100ms ease-out both;
+}
+
+.twin-shock-reveal--settled .twin-shock-reveal__tile {
+  opacity: 0;
+  transform: scale(1);
+  animation: none;
+  transition:
+    opacity 420ms ease,
+    transform 420ms ease;
+}
+
+.twin-shock-reveal--settled .twin-shock-reveal__shade,
+.twin-shock-reveal--settled .twin-shock-reveal__flare,
+.twin-shock-reveal--settled .twin-shock-reveal__beam {
+  opacity: 0;
+  animation: none;
+  transition: opacity 420ms ease;
+}
+
+.twin-shock-reveal__avatar-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.twin-shock-reveal__avatar {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* Keep portraits proportional across the rectangular roster tile. */
+  object-fit: contain;
+  object-position: center;
+  transition:
+    opacity 900ms ease,
+    transform 900ms ease,
+    filter 900ms ease;
+}
+
+.twin-shock-reveal__avatar--before,
+.twin-shock-reveal__avatar-fallback--before {
+  opacity: 1;
+  transform: scale(1);
+  filter: saturate(0.94);
+}
+
+.twin-shock-reveal__avatar--after,
+.twin-shock-reveal__avatar-fallback--after {
+  opacity: 1;
+  transform: scale(1);
+  filter: saturate(1.14);
+  animation: twin-shock-avatar-arrive 900ms ease-out both;
+}
+
+.twin-shock-reveal__avatar-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(1rem, 3vw, 2rem);
+  font-weight: 800;
+}
+
+.twin-shock-reveal--transform .twin-shock-reveal__avatar--before,
+.twin-shock-reveal--transform .twin-shock-reveal__avatar-fallback--before,
+.twin-shock-reveal--settled .twin-shock-reveal__avatar--before,
+.twin-shock-reveal--settled .twin-shock-reveal__avatar-fallback--before {
+  opacity: 0;
+  transform: scale(1.16);
+  filter: blur(5px);
+}
+
+.twin-shock-reveal--transform .twin-shock-reveal__avatar--after,
+.twin-shock-reveal--transform .twin-shock-reveal__avatar-fallback--after,
+.twin-shock-reveal--settled .twin-shock-reveal__avatar--after,
+.twin-shock-reveal--settled .twin-shock-reveal__avatar-fallback--after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@keyframes twin-shock-avatar-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.08);
+    filter: blur(4px) saturate(1.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0) saturate(1.14);
+  }
+}
+
+@keyframes twin-shock-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes twin-shock-pulse {
+  from {
+    transform: scale(0.99);
+    opacity: 0.72;
+  }
+  to {
+    transform: scale(1.025);
+    opacity: 1;
+  }
+}
+
+@keyframes twin-shock-flare {
+  from {
+    opacity: 0.18;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0.44;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes twin-shock-tile-rise {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes twin-shock-swap {
+  0% {
+    transform: scale(0.96);
+  }
+  42% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twin-shock-reveal__shade,
+  .twin-shock-reveal__flare,
+  .twin-shock-reveal__beam,
+  .twin-shock-reveal__tile,
+  .twin-shock-reveal--transform .twin-shock-reveal__tile,
+  .twin-shock-reveal__avatar {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+    transition-duration: 1ms;
+  }
+}
+
+/* Issue #1241 — Ali-enters begins with the outgoing housemate already evicted. */
+.twin-shock-reveal--ali_enters .twin-shock-reveal__avatar-wrap {
+  position: relative;
+}
+
+.twin-shock-reveal--ali_enters .twin-shock-reveal__avatar-wrap::after {
+  content: '';
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    164deg,
+    transparent 42%,
+    rgba(108, 0, 12, 0.28) 43%,
+    rgba(255, 42, 58, 0.96) 47%,
+    rgba(161, 0, 20, 0.96) 53%,
+    rgba(255, 98, 106, 0.86) 56%,
+    transparent 57%
+  );
+  filter: drop-shadow(0 0 7px rgba(239, 35, 60, 0.64));
+  opacity: 1;
+  pointer-events: none;
+  transform: scale(1);
+  transition:
+    opacity 0.46s ease,
+    transform 0.64s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.twin-shock-reveal--ali_enters.twin-shock-reveal--intro .twin-shock-reveal__avatar--before,
+.twin-shock-reveal--ali_enters.twin-shock-reveal--transform .twin-shock-reveal__avatar--before {
+  filter: grayscale(1) saturate(0) contrast(1.08) brightness(0.68);
+  /* Keep the outgoing portrait proportional while the elimination slash appears. */
+  transform: scale(1) rotate(-1.2deg);
+}
+
+.twin-shock-reveal--ali_enters.twin-shock-reveal--transform .twin-shock-reveal__avatar-wrap::after,
+.twin-shock-reveal--ali_enters.twin-shock-reveal--settle .twin-shock-reveal__avatar-wrap::after {
+  opacity: 0;
+  transform: scale(1.16) rotate(-2deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twin-shock-reveal--ali_enters .twin-shock-reveal__avatar-wrap::after {
+    transition: none;
+  }
+}

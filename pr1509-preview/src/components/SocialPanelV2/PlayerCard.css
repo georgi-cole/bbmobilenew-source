@@ -1,0 +1,378 @@
+/* ─── PlayerCard ─────────────────────────────────────────────────────────────
+ * Selectable houseguest card used inside the SocialPanelV2 roster column.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.pc {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
+  outline: none;
+  overflow: hidden;
+  /* Button element resets */
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  padding: 0;
+}
+
+.pc:hover:not(.pc--disabled) {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.pc:focus-visible {
+  outline: 2px solid var(--color-accent, #6366f1);
+  outline-offset: 2px;
+}
+
+/* ── Compact header row (always visible) ────────────────────────────────── */
+.pc__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.pc__row .pa {
+  margin-top: 0.08rem;
+}
+
+.pc__identity {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 0.22rem;
+}
+
+/* ── Selected state ─────────────────────────────────────────────────────── */
+.pc--selected {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* ── Disabled state ─────────────────────────────────────────────────────── */
+.pc--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Name ───────────────────────────────────────────────────────────────── */
+.pc__name {
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text, rgba(255, 255, 255, 0.92));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Status pill ────────────────────────────────────────────────────────── */
+.pc__status {
+  justify-self: start;
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.08rem 0.28rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.48));
+  flex-shrink: 0;
+}
+
+.pc__status--hoh {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--color-gold-primary, #fbbf24);
+}
+
+.pc__status--nominated {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.pc__status--pov {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.pc__status--evicted,
+.pc__status--jury {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.35));
+}
+
+/* ── Cupid's Arrow pair marker ─────────────────────────────────────────── */
+.pc__cupid-pair {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--cupid-pair-color, #f9a8d4);
+  letter-spacing: 0.015em;
+}
+
+/* ── Relationship label ──────────────────────────────────────────────────── */
+.pc__rel-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.pc__rel-label--neutral {
+  background: rgba(99, 179, 237, 0.12);
+  color: #63b3ed;
+}
+.pc__rel-label--friendly {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
+.pc__rel-label--allies {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+.pc__rel-label--strained {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+.pc__rel-label--enemies {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ── Affinity percent ───────────────────────────────────────────────────── */
+.pc__affinity {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--color-accent, #6366f1);
+  flex-shrink: 0;
+}
+
+/* ── Expanded detail panel (shown when selected) ────────────────────────── */
+/* Renders as a compact chip row: [Rel label] [Affinity] [Mood]
+   No large avatar, no repeated name/status — only new contextual info.      */
+.pc__expanded {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(99, 102, 241, 0.07);
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
+  overflow: hidden;
+  animation: pc-expand-in 0.16s ease-out;
+}
+
+@keyframes pc-expand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pc__expanded-affinity {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-accent, #6366f1);
+  flex-shrink: 0;
+}
+
+/* ── Mood chip ──────────────────────────────────────────────────────────── */
+.pc__mood {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.pc__mood--good {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+}
+.pc__mood--neutral {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.55);
+}
+.pc__mood--bad {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.pc__bond-chip {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.1rem 0.34rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pc__bond-chip--ally,
+.pc__bond-chip--bromance {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.14);
+}
+.pc__bond-chip--romance {
+  color: #f9a8d4;
+  background: rgba(236, 72, 153, 0.13);
+}
+.pc__bond-chip--rival,
+.pc__bond-chip--betrayal {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.13);
+}
+
+/* ── Delta arrow (relationship change indicator) ────────────────────────── */
+.pc__delta-arrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.pc__delta-arrow--up {
+  color: #22c55e;
+}
+.pc__delta-arrow--down {
+  color: #ef4444;
+}
+
+/* A completed social move leaves a brief, directional receipt on the affected
+ * houseguest. It is visual only: the expanded card still owns the durable
+ * relationship detail. */
+.pc--relationship-pulse {
+  position: relative;
+  overflow: hidden;
+}
+
+.pc--relationship-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: pc-relationship-wash 0.85s ease-out both;
+}
+
+.pc--relationship-pulse-up {
+  border-color: rgba(109, 225, 175, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(82, 215, 157, 0.17),
+    0 0 1.1rem rgba(52, 211, 153, 0.18);
+}
+
+.pc--relationship-pulse-down {
+  border-color: rgba(251, 136, 126, 0.75);
+  box-shadow:
+    0 0 0 1px rgba(239, 91, 91, 0.16),
+    0 0 1.1rem rgba(239, 68, 68, 0.18);
+}
+
+.pc--relationship-pulse-up::after {
+  background: radial-gradient(circle at 25% 25%, rgba(110, 255, 194, 0.28), transparent 52%);
+}
+
+.pc--relationship-pulse-down::after {
+  background: radial-gradient(circle at 25% 25%, rgba(255, 126, 126, 0.26), transparent 52%);
+}
+
+.pc__relationship-shift {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.24rem;
+  margin: 0 0.34rem 0.32rem;
+  padding: 0.16rem 0.28rem;
+  border-radius: 0.32rem;
+  color: rgba(248, 250, 252, 0.92);
+  background: rgba(7, 12, 19, 0.38);
+  font-size: 0.53rem;
+  font-weight: 800;
+  letter-spacing: 0.018em;
+  animation: pc-relationship-receipt 0.85s ease-out both;
+}
+
+.pc--relationship-pulse-up .pc__relationship-shift b {
+  color: #77efb0;
+}
+
+.pc--relationship-pulse-down .pc__relationship-shift b {
+  color: #ff9898;
+}
+
+@keyframes pc-relationship-wash {
+  0% {
+    opacity: 0;
+    transform: translateX(-65%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(65%);
+  }
+}
+
+@keyframes pc-relationship-receipt {
+  0% {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  74% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.16rem);
+  }
+}
+
+/* ── Reduce motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pc {
+    transition: none !important;
+  }
+  .pc:hover:not(.pc--disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+  .pc__expanded {
+    animation: none;
+  }
+  .pc--relationship-pulse::after,
+  .pc__relationship-shift {
+    animation: none;
+  }
+}
