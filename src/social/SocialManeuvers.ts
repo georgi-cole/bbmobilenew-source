@@ -161,41 +161,28 @@ function buildSnoopNarrative(
 }
 
 function buildLohTargetNarrative(
-  social: SocialState,
   game: ManeuverGameState | undefined,
-  actorId: string,
   lohId: string,
-  priorRepeats: number
+  priorRepeats: number,
+  disclosedPlan: { targetName: string; isBackdoor: boolean } | null
 ): string {
   const lohName = game?.players.find((player) => player.id === lohId)?.name ?? 'The LOH'
   if (priorRepeats >= 2) {
     return `${lohName}: "I have answered this already. Stop pressing me."`
   }
-  if (priorRepeats === 1) {
-    return `${lohName}: "My answer has not changed. Watch what happens at the ceremony."`
-  }
-  const nominees = new Set(game?.nomineeIds ?? [])
-  const candidates = (game?.players ?? [])
-    .filter(
-      (player) =>
-        player.id !== lohId &&
-        player.status !== 'evicted' &&
-        player.status !== 'jury' &&
-        !nominees.has(player.id)
-    )
-    .sort(
-      (a, b) =>
-        (social.relationships[lohId]?.[a.id]?.affinity ?? 0) -
-        (social.relationships[lohId]?.[b.id]?.affinity ?? 0)
-    )
-  const likelyTarget = candidates[0]
-  if (!likelyTarget || likelyTarget.id === actorId) {
+  if (!disclosedPlan) {
     return `${lohName}: "I am still weighing my options. I am not giving you a name yet."`
   }
-  if (nominees.size > 0) {
-    return `${lohName}: "If safety changes my nominations, ${likelyTarget.name} is my current backup plan."`
+  const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(
+    game?.phase ?? ''
+  )
+  if (finalBlockLocked) {
+    return `${lohName}: "${disclosedPlan.targetName} is who I want out now."`
   }
-  return `${lohName}: "Right now, ${likelyTarget.name} is the person I am watching most closely."`
+  if (disclosedPlan.isBackdoor) {
+    return `${lohName}: "If Safety changes my nominations, ${disclosedPlan.targetName} is the backup plan."`
+  }
+  return `${lohName}: "Right now, ${disclosedPlan.targetName} is my current target."`
 }
 
 function getRepetitionSuccessChances(
@@ -1083,7 +1070,14 @@ export function executeAction(
       : actionId === 'snoop_around'
         ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
         : actionId === 'ask_loh_target' && !safetyAdviceOpen
-          ? buildLohTargetNarrative(state.social, state.game, actorId, targetId, priorRepeats)
+          ? buildLohTargetNarrative(
+              state.game,
+              targetId,
+              priorRepeats,
+              lohTargetPlan
+                ? { targetName: lohTargetPlan.targetName, isBackdoor: lohTargetPlan.isBackdoor }
+                : null
+            )
           : undefined
 
   const entry: SocialActionLogEntry = {
