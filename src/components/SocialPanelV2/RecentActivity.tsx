@@ -162,7 +162,7 @@ export default function RecentActivity({
                 entry.subjectId)
               : null
             const subjectIsHuman = entry.subjectId
-              ? playerById.get(entry.subjectId)?.isUser === true
+              ? playerById.get(entry.subjectId)?.isUser === true || entry.subjectId === 'user'
               : false
             const narrativeContext = subjectName
               ? `${targetName} about ${subjectName}`
