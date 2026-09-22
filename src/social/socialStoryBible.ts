@@ -150,6 +150,12 @@ export const SOCIAL_STORY_BIBLE = {
       { label: 'Stand by the move', responseType: 'negative' },
       { label: 'End the talk', responseType: 'dismiss' },
     ],
+    automatic_nominee_reaction: [
+      { label: 'Acknowledge the rule', responseType: 'positive' },
+      { label: 'Hear how they feel', responseType: 'neutral' },
+      { label: 'Talk next steps', responseType: 'negative' },
+      { label: 'Give them space', responseType: 'dismiss' },
+    ],
     nominee_confronts_loh: [
       { label: 'Own the decision', responseType: 'positive' },
       { label: 'Keep it strategic', responseType: 'neutral' },
