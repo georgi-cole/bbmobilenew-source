@@ -784,7 +784,7 @@ export function executeAction(
       } | null
     }
   }
-  const freshLohTargetPlan =
+  const inferredLohTargetPlan =
     actionId === 'ask_loh_target'
       ? getLohTargetPlan(rootState.game, state.social.relationships, targetId)
       : null
@@ -793,21 +793,22 @@ export function executeAction(
     savedLohPlan && savedLohPlan.week === rootState.game?.week && savedLohPlan.lohId === targetId
       ? savedLohPlan
       : null
-  // A persisted plan carries disclosure history, not a permanent target. Safety
-  // can replace a nominee between two conversations, so always reconcile the
-  // current and backup targets with the live block before answering again.
-  const lohPlanState = freshLohTargetPlan
-    ? {
-        ...(existingLohPlan ?? {
+  // The persisted social plan is the ceremony's canonical truth source and is
+  // reconciled by lohNominationPlanning as the block changes. Never replace it
+  // with a fresh affinity guess at presentation time. Inference is retained
+  // only as a compatibility fallback for modes/old saves without a stored plan.
+  const lohPlanState =
+    existingLohPlan ??
+    (inferredLohTargetPlan
+      ? {
           week: rootState.game?.week ?? 0,
           lohId: targetId,
+          currentTargetId: inferredLohTargetPlan.currentTargetId,
+          backupTargetId: inferredLohTargetPlan.backupTargetId,
           askCountsByPlayerId: {},
           disclosedTargetByPlayerId: {},
-        }),
-        currentTargetId: freshLohTargetPlan.currentTargetId,
-        backupTargetId: freshLohTargetPlan.backupTargetId,
-      }
-    : null
+        }
+      : null)
   const priorLohAsks = lohPlanState?.askCountsByPlayerId[actorId] ?? 0
   const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(
     rootState.game?.phase ?? ''
