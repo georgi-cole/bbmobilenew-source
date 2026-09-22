@@ -27,6 +27,11 @@ describe('broadcast template catalog', () => {
       level: 'minor',
       major: undefined,
     })
+    expect(getBroadcastTemplate('shock.democracia')).toMatchObject({
+      kind: 'feed',
+      level: 'minor',
+      major: 'democracia',
+    })
   })
 
   it('has at least one visible source template for every manager phase', () => {
