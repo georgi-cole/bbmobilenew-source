@@ -49,12 +49,11 @@ export function getConfessionalDecisionPresentation(
           ? 3
           : 2
       const alivePlayerIdsCsv = alivePlayers.map((player) => player.id).join(',')
-      prompt =
-        isVoxPopuli
-          ? isVoxFinalFour
-            ? 'Cast one secret nomination vote. Last place is already on the block, and nobody has immunity.'
-            : `Cast ${required === 1 ? 'your secret nomination vote' : 'two secret nomination votes'}. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
-          : required === 3
+      prompt = isVoxPopuli
+        ? isVoxFinalFour
+          ? 'Cast one secret nomination vote. Last place is already on the block, and nobody has immunity.'
+          : `Cast ${required === 1 ? 'your secret nomination vote' : 'two secret nomination votes'}. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
+        : required === 3
           ? 'Choose the three players you want to nominate for the Double Elimination.'
           : 'Choose the two players you want to nominate.'
       keyParts.push(
@@ -64,8 +63,8 @@ export function getConfessionalDecisionPresentation(
           isVoxPopuli
             ? (game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId ?? 'none')
             : game.publicModeEnabled && !game.doubleEviction?.weekActive
-            ? (game.lastHohCompFinisherId ?? 'none')
-            : 'none'
+              ? (game.lastHohCompFinisherId ?? 'none')
+              : 'none'
         }`,
         `alive=${alivePlayerIdsCsv}`
       )
