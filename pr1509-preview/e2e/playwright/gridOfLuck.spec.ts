@@ -1,0 +1,48 @@
+import { closeDebugPanelIfOpen, test, expect, type Page } from './support/test'
+
+async function gotoGridOfLuck(page: Page) {
+  await page.goto('./#/gol-test')
+  await expect(page.getByRole('heading', { name: /Mystic Chamber/i })).toBeVisible({
+    timeout: 10000,
+  })
+  await closeDebugPanelIfOpen(page)
+}
+
+async function playThroughOneReveal(page: Page) {
+  const eventCard = page.getByTestId('grid-of-luck-event-card')
+  const boxes = page.getByTestId('grid-of-luck-box')
+
+  await expect(boxes).toHaveCount(20)
+  await boxes.nth(10).click({ force: true })
+
+  await expect(eventCard).toContainText(/choice locked/i, { timeout: 3000 })
+  await expect(eventCard).toContainText(/you reach for box 11/i, { timeout: 3000 })
+
+  await expect(eventCard).toContainText(/seal opening/i, { timeout: 4000 })
+  await expect(eventCard).toContainText(/box 11 opens and reveals/i, { timeout: 4000 })
+
+  await expect(eventCard).toContainText(/continue ritual/i, { timeout: 4000 })
+  await expect(eventCard).toContainText(/You uncover a hidden bonus/i)
+  await expect(boxes.nth(10)).toContainText(/Hidden Bonus/i)
+}
+
+test.describe('Grid of Luck / Mystic Chamber @smoke @minigame @mobile @accessibility', () => {
+  test('reveals a box with a readable beat on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 1600 })
+    await gotoGridOfLuck(page)
+
+    await expect(page.getByText('Choose a box to begin the ritual.')).toBeVisible()
+    await playThroughOneReveal(page)
+  })
+
+  test('keeps the key CTA readable on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await gotoGridOfLuck(page)
+
+    await expect(page.getByRole('button', { name: /Continue Ritual/i })).toBeHidden()
+    await playThroughOneReveal(page)
+    await expect(page.getByRole('button', { name: /Continue Ritual/i })).toBeVisible()
+    await expect(page.getByTestId('grid-of-luck-player-card').first()).toBeVisible()
+    await expect(page.getByTestId('grid-of-luck-box').first()).toBeVisible()
+  })
+})

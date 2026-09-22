@@ -40,6 +40,7 @@ import {
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
 import { getConfessionalDecisionPresentation } from './confessionalDecisionPresentation'
+import RequiredConfessionalSession from './RequiredConfessionalSession'
 import { getSecretMissionEasterEggByIntent } from '../../bb/secretMissionEasterEggs'
 import {
   SECRET_MISSION_BOX_REWARDS,
@@ -845,9 +846,9 @@ export default function DiaryRoom() {
   }, [activeConfessionalDecision?.type, activeDecisionPresentation, confessionalLocked, playerId])
 
   useEffect(() => {
-    if (confessionalLocked) return
+    if (confessionalLocked || confessionalDecisionPending) return
     confessEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeDecisionPresentation, confessionalLocked, messages])
+  }, [activeDecisionPresentation, confessionalDecisionPending, confessionalLocked, messages])
 
   useEffect(() => {
     if (confessionalLocked) {
@@ -870,7 +871,7 @@ export default function DiaryRoom() {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [confessionalLocked])
+  }, [confessionalDecisionPending, confessionalLocked])
 
   const ticTacToeWinner = getTicTacToeWinner(ticTacToeBoard)
   const ticTacToeDraw = !ticTacToeWinner && ticTacToeBoard.every((cell) => cell !== null)
@@ -934,7 +935,7 @@ export default function DiaryRoom() {
   }, [currentWeekForMission])
 
   useEffect(() => {
-    if (confessionalLocked) return
+    if (confessionalLocked || confessionalDecisionPending) return
     const sm = secretMissionRef.current
     const week = currentWeekRef.current
     const shouldOffer =
@@ -962,7 +963,7 @@ export default function DiaryRoom() {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [confessionalLocked])
+  }, [confessionalDecisionPending, confessionalLocked])
 
   const assignedRewardBoxes = useMemo(
     () =>
@@ -975,7 +976,7 @@ export default function DiaryRoom() {
   // success and prompts box selection. Also re-runs on lock changes so any
   // pending reveal timeout is canceled if the player becomes ineligible.
   useEffect(() => {
-    if (confessionalLocked) return
+    if (confessionalLocked || confessionalDecisionPending) return
     const sm = secretMissionRef.current
     if (!sm || sm.status !== 'rewardPending') {
       rewardMsgInjectedForMissionRef.current = null
@@ -1001,7 +1002,7 @@ export default function DiaryRoom() {
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [confessionalLocked, rewardMissionKey, secretMission?.status])
+  }, [confessionalDecisionPending, confessionalLocked, rewardMissionKey, secretMission?.status])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -1284,6 +1285,23 @@ export default function DiaryRoom() {
     setVoxNominationAdPending(false)
     pushBigEyeMessage('The seal is broken. Every secret nomination is now on the record below.')
   }, [pushBigEyeMessage])
+
+  // ConfessionalRoute owns normal navigation, but this fallback preserves the
+  // same invariant for previews, tests, and any future caller that mounts the
+  // room directly: a required interaction never shares the exploratory room.
+  if (confessionalDecisionPending) {
+    return (
+      <RequiredConfessionalSession
+        decision={activeConfessionalDecision}
+        onReturnToGame={(returnCue) =>
+          navigate('/game', {
+            replace: true,
+            state: { resumedFromConfessional: true, returnCue },
+          })
+        }
+      />
+    )
+  }
 
   return (
     <div className="diary-room">
@@ -1871,13 +1889,6 @@ export default function DiaryRoom() {
                                 vote from your total.
                               </p>
                             )}
-                            {secretMission.reward.type === 'immunity' &&
-                              activeConfessionalDecision?.type === 'mission_immunity_offer' && (
-                                <p className="diary-room__reward-active-hint">
-                                  📺 The Big Eye is ready to ask whether you want to spend it right
-                                  now.
-                                </p>
-                              )}
                           </>
                         )}
                       </div>

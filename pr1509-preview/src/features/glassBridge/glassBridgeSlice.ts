@@ -1,0 +1,894 @@
+/**
+ * glassBridgeSlice.ts — Redux slice for "The Crystal Path"
+ *
+ * A sequential elimination challenge where players cross a path of paired
+ * crystal platforms one row at a time.  Each row has exactly one safe platform
+ * (left or right).  Choosing the wrong platform breaks it and eliminates the player.
+ *
+ * Phases:
+ *   idle           → not started
+ *   order_selection → players pick numbers; AI picks automatically
+ *   order_reveal    → shuffled order is shown
+ *   playing         → sequential gameplay loop
+ *   complete        → final rankings determined
+ *
+ * All randomness is provided by the Mulberry32 seeded RNG; Math.random() is
+ * never called.
+ */
+
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { mulberry32 } from '../../store/rng'
+import type { CompetitionSkillProfile } from '../../ai/competition/types'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type TileSide = 'left' | 'right'
+
+export interface BridgeRow {
+  /** The safe tile for this row. Hidden from visible state in the UI. */
+  safeSide: TileSide
+  leftBroken: boolean
+  rightBroken: boolean
+  /**
+   * Set when a previous player safely stepped on this row, revealing the safe side
+   * to subsequent AI players via observable behavior.
+   * null = not yet revealed; a TileSide value = safe side was revealed.
+   */
+  revealedSafeSide?: TileSide | null
+}
+
+/**
+ * Per-player progress tracking.
+ * Row numbers are 1-based in all public state.
+ * furthestRowReached = 0 means the player has not cleared any row.
+ */
+export interface GlassBridgePlayerProgress {
+  playerId: string
+  /** Timestamp (Date.now ms) when the player made their first jump onto row 1. */
+  firstStepAtMs?: number
+  /** 1-based row number of the furthest safely-crossed row (0 = none). */
+  furthestRowReached: number
+  /** Elapsed ms since challengeStartTimeMs when the player first reached
+   *  furthestRowReached.  0 when furthestRowReached is 0. */
+  timeReachedFurthestRowMs: number
+  eliminated: boolean
+  /** Elapsed ms since challengeStartTimeMs when the player finished.
+   *  Only set when the player has successfully crossed all rows. */
+  finishTimeMs?: number
+  /** Cumulative penalty in ms added for hint usage (30 000 ms per hint). */
+  hintPenaltyMs: number
+  /** Tile currently occupied after the player's latest safe step. */
+  currentSide?: TileSide
+}
+
+export type GlassBridgePhase = 'idle' | 'order_selection' | 'order_reveal' | 'playing' | 'complete'
+
+export interface GlassBridgeParticipant {
+  id: string
+  name: string
+  isHuman: boolean
+  competitionProfile?: CompetitionSkillProfile
+}
+
+export interface GlassBridgeState {
+  phase: GlassBridgePhase
+  seed: number
+  competitionType: 'LOH' | 'POS'
+
+  /** Ordered list of participants. */
+  participants: GlassBridgeParticipant[]
+
+  /** Number of rows in the bridge. */
+  rowsCount: number
+
+  /** Bridge rows (0-indexed internally; UI should present as 1-based). */
+  rows: BridgeRow[]
+
+  /** Global timer limit in ms. */
+  globalTimeLimitMs: number
+
+  /** Timestamp (ms, from Date.now()) when the first player started. */
+  challengeStartTimeMs: number | null
+
+  // ── Order selection ──────────────────────────────────────────────────────
+
+  /** Numbers already chosen during order selection (values 1..N). */
+  chosenNumbers: Record<string, number>
+
+  /** Shuffled turn order produced after order reveal.
+   *  Index 0 = first to play. */
+  turnOrder: string[]
+
+  // ── Gameplay ─────────────────────────────────────────────────────────────
+
+  /** Index into turnOrder for the currently active player. */
+  currentTurnIndex: number
+
+  /** 1-based row the current player is about to step onto. */
+  currentPlayerRow: number
+
+  /** Per-player progress map. */
+  progress: Record<string, GlassBridgePlayerProgress>
+
+  /** Ordered list of eliminated player IDs (first eliminated = index 0). */
+  eliminationOrder: string[]
+
+  /** Winner determined at completion. */
+  winnerId: string | null
+
+  /** Ordered placements (1st place = index 0). */
+  placements: string[]
+
+  /** Whether the outcome has been applied to the game engine. */
+  outcomeResolved: boolean
+
+  /** When true, the global timer has expired. */
+  timerExpired: boolean
+
+  /** The human player's id (null = no human). */
+  humanPlayerId: string | null
+
+  /** Whether the human is currently spectating (eliminated but watching). */
+  humanSpectating: boolean
+
+  /** Unstarted players released onto the bridge once less than a minute remains. */
+  parallelPlayerIds: string[]
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DEFAULT_ROWS_COUNT = 16
+const TIME_LIMIT_PER_PLAYER_MS = 16_000
+const DEFAULT_TIME_LIMIT_MS = 10 * TIME_LIMIT_PER_PLAYER_MS
+
+/** Penalty applied to finish time for each hint used by a player (30 seconds). */
+export const HINT_PENALTY_MS = 30_000
+/** Maximum number of hints a player may use in a single run. */
+export const MAX_HINTS_PER_RUN = 3
+
+export function buildGlassBridgeTimeLimitMs(participantCount: number): number {
+  return Math.max(1, participantCount) * TIME_LIMIT_PER_PLAYER_MS
+}
+
+export const PARALLEL_START_THRESHOLD_MS = 60_000
+export const COLLISION_OVERRIDE_THRESHOLD_MS = 15_000
+export const MAX_PARALLEL_MOVERS = 3
+export const PARALLEL_RELEASE_INTERVAL_MS = 4_000
+
+export function shouldStartParallelPlayers(remainingMs: number): boolean {
+  return remainingMs <= PARALLEL_START_THRESHOLD_MS
+}
+
+/** Respect occupied tiles while time permits, but stop waiting in the final 15 seconds. */
+export function chooseParallelAiSide(
+  row: BridgeRow,
+  occupiedSides: TileSide[],
+  remainingMs: number,
+  rng: () => number,
+  profile?: CompetitionSkillProfile
+): TileSide {
+  const preferred = aiDecideStep(row, rng, profile)
+  if (remainingMs < COLLISION_OVERRIDE_THRESHOLD_MS || !occupiedSides.includes(preferred)) {
+    return preferred
+  }
+  const alternative: TileSide = preferred === 'left' ? 'right' : 'left'
+  const alternativeBroken = alternative === 'left' ? row.leftBroken : row.rightBroken
+  return !alternativeBroken && !occupiedSides.includes(alternative) ? alternative : preferred
+}
+
+/**
+ * Default accuracy when AI observes one broken tile and infers the safe side.
+ * Used as the minimum floor; higher-nerve profiles can exceed it slightly.
+ *
+ * 99.9% → AI almost always chooses the logically safe tile.
+ * 0.1%  → "slip accident" — AI steps onto the broken tile despite knowing better.
+ */
+const DEFAULT_AI_OBVIOUS_SAFE_ACCURACY = 0.999
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Fisher-Yates shuffle using seeded RNG. */
+function shuffleArray<T>(rng: () => number, arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/** Generate bridge rows using seeded RNG. */
+export function generateBridgeRows(rng: () => number, rowsCount: number): BridgeRow[] {
+  return Array.from({ length: rowsCount }, () => ({
+    safeSide: rng() < 0.5 ? 'left' : 'right',
+    leftBroken: false,
+    rightBroken: false,
+    revealedSafeSide: null,
+  }))
+}
+
+/**
+ * Derive the AI accuracy for an "obvious safe" situation from the player's
+ * competition profile if available, otherwise use the default.
+ *
+ * The required floor is 99.9%, but higher-nerve profiles can still gain a
+ * small bonus above that minimum so skill continues to matter in obvious-safe
+ * situations without ever dropping below the requested threshold.
+ */
+export function deriveAiObviousSafeAccuracy(profile?: CompetitionSkillProfile): number {
+  if (!profile) return DEFAULT_AI_OBVIOUS_SAFE_ACCURACY
+  // nerve 0–100 → 0.999–0.9999 accuracy.
+  const computed = DEFAULT_AI_OBVIOUS_SAFE_ACCURACY + (profile.nerve / 100) * 0.0009
+  return Math.min(0.9999, Math.max(DEFAULT_AI_OBVIOUS_SAFE_ACCURACY, computed))
+}
+
+/**
+ * AI step decision logic.
+ *
+ * The AI may only use visible public state (broken tile flags, revealed safe side).
+ * It must NOT read safeSide directly.
+ *
+ * Decision priority:
+ *  1. If a previous player safely crossed this row (revealedSafeSide set):
+ *     choose that side with 95% probability (remembers what was revealed).
+ *  2. Else if one tile is broken: use deriveAiObviousSafeAccuracy (≥ 99.9%) to
+ *     choose the obviously safe side.
+ *  3. Else: pure 50/50 guess.
+ *
+ * @param row        The row the AI is stepping onto.
+ * @param rng        Seeded RNG function.
+ * @param profile    Optional competition profile to calibrate accuracy.
+ * @returns chosen tile side.
+ */
+export function aiDecideStep(
+  row: Pick<BridgeRow, 'leftBroken' | 'rightBroken'> & { revealedSafeSide?: TileSide | null },
+  rng: () => number,
+  profile?: CompetitionSkillProfile
+): TileSide {
+  const { leftBroken, rightBroken, revealedSafeSide } = row
+
+  // Priority 1: a previous player already revealed the safe side by safely crossing.
+  if (revealedSafeSide) {
+    const opposite: TileSide = revealedSafeSide === 'left' ? 'right' : 'left'
+    return rng() < 0.95 ? revealedSafeSide : opposite
+  }
+
+  if (leftBroken && rightBroken) {
+    // Invalid state — should never happen in a valid simulation.
+    // Fail-safe: choose randomly.
+    if (import.meta.env.DEV) {
+      console.warn('[GlassBridge] aiDecideStep: both tiles broken — recovering safely')
+    }
+    return rng() < 0.5 ? 'left' : 'right'
+  }
+
+  if (leftBroken) {
+    // Right tile is logically safe.
+    const accuracy = deriveAiObviousSafeAccuracy(profile)
+    if (rng() < accuracy) return 'right'
+    // Slip accident — AI loses footing and steps onto the broken tile.
+    return 'left'
+  }
+
+  if (rightBroken) {
+    // Left tile is logically safe.
+    const accuracy = deriveAiObviousSafeAccuracy(profile)
+    if (rng() < accuracy) return 'left'
+    // Slip accident — AI loses footing and steps onto the broken tile.
+    return 'right'
+  }
+
+  // No information — pure 50/50 guess.
+  return rng() < 0.5 ? 'left' : 'right'
+}
+
+/** Build the final sorted placements array from completed progress data. */
+export function buildPlacements(
+  progress: Record<string, GlassBridgePlayerProgress>,
+  turnOrder: string[]
+): string[] {
+  const players = Object.values(progress)
+
+  // Finished players first, sorted by effective finish time ascending.
+  // Effective finish time = raw finish time + any hint-usage penalty.
+  const finished = players
+    .filter(
+      (p): p is GlassBridgePlayerProgress & { finishTimeMs: number } => p.finishTimeMs !== undefined
+    )
+    .sort((a, b) => {
+      const aEff = a.finishTimeMs + (a.hintPenaltyMs ?? 0)
+      const bEff = b.finishTimeMs + (b.hintPenaltyMs ?? 0)
+      return aEff - bEff
+    })
+
+  // Non-finishers sorted by progress then time then original turn order.
+  const nonFinishers = players
+    .filter((p) => p.finishTimeMs === undefined)
+    .sort((a, b) => {
+      if (b.furthestRowReached !== a.furthestRowReached) {
+        return b.furthestRowReached - a.furthestRowReached
+      }
+      if (a.timeReachedFurthestRowMs !== b.timeReachedFurthestRowMs) {
+        return a.timeReachedFurthestRowMs - b.timeReachedFurthestRowMs
+      }
+      // Fall back to turn order (earlier turn = higher placement on tie).
+      const ai = turnOrder.indexOf(a.playerId)
+      const bi = turnOrder.indexOf(b.playerId)
+      return ai - bi
+    })
+
+  return [...finished, ...nonFinishers].map((p) => p.playerId)
+}
+
+// ─── Initial state ────────────────────────────────────────────────────────────
+
+const initialState: GlassBridgeState = {
+  phase: 'idle',
+  seed: 0,
+  competitionType: 'LOH',
+  participants: [],
+  rowsCount: DEFAULT_ROWS_COUNT,
+  rows: [],
+  globalTimeLimitMs: DEFAULT_TIME_LIMIT_MS,
+  challengeStartTimeMs: null,
+  chosenNumbers: {},
+  turnOrder: [],
+  currentTurnIndex: 0,
+  currentPlayerRow: 1,
+  progress: {},
+  eliminationOrder: [],
+  winnerId: null,
+  placements: [],
+  outcomeResolved: false,
+  timerExpired: false,
+  humanPlayerId: null,
+  humanSpectating: false,
+  parallelPlayerIds: [],
+}
+
+// ─── Slice ────────────────────────────────────────────────────────────────────
+
+const glassBridgeSlice = createSlice({
+  name: 'glassBridge',
+  initialState,
+  reducers: {
+    /** Initialize a new Glass Bridge game. */
+    initGlassBridge(
+      state,
+      action: PayloadAction<{
+        participantIds: string[]
+        participants?: Array<{
+          id: string
+          name: string
+          isHuman: boolean
+          competitionProfile?: CompetitionSkillProfile
+        }>
+        competitionType: 'LOH' | 'POS'
+        seed: number
+        rowsCount?: number
+        globalTimeLimitMs?: number
+        humanPlayerId?: string | null
+      }>
+    ) {
+      const {
+        participantIds,
+        participants,
+        competitionType,
+        seed,
+        rowsCount = DEFAULT_ROWS_COUNT,
+        globalTimeLimitMs = buildGlassBridgeTimeLimitMs(participantIds.length),
+        humanPlayerId = null,
+      } = action.payload
+
+      const rng = mulberry32(seed)
+
+      // Build participant list.
+      const resolvedParticipants: GlassBridgeParticipant[] = participantIds.map((id) => {
+        const extra = participants?.find((p) => p.id === id)
+        return {
+          id,
+          name: extra?.name ?? id,
+          isHuman: extra?.isHuman ?? id === 'user',
+          competitionProfile: extra?.competitionProfile,
+        }
+      })
+
+      // Generate bridge.
+      const rows = generateBridgeRows(rng, rowsCount)
+
+      // Build initial progress for each player.
+      const progress: Record<string, GlassBridgePlayerProgress> = {}
+      for (const id of participantIds) {
+        progress[id] = {
+          playerId: id,
+          firstStepAtMs: undefined,
+          furthestRowReached: 0,
+          timeReachedFurthestRowMs: 0,
+          eliminated: false,
+          hintPenaltyMs: 0,
+          currentSide: undefined,
+        }
+      }
+
+      // Determine human player id.
+      const resolvedHumanId =
+        humanPlayerId ?? resolvedParticipants.find((p) => p.isHuman)?.id ?? null
+
+      Object.assign(state, {
+        ...initialState,
+        phase: 'order_selection',
+        seed,
+        competitionType,
+        participants: resolvedParticipants,
+        rowsCount,
+        rows,
+        globalTimeLimitMs,
+        chosenNumbers: {},
+        progress,
+        eliminationOrder: [],
+        winnerId: null,
+        placements: [],
+        outcomeResolved: false,
+        timerExpired: false,
+        humanPlayerId: resolvedHumanId,
+        humanSpectating: false,
+      })
+    },
+
+    /**
+     * Record a number choice during order selection.
+     * Human calls this explicitly; AI choices are pre-generated and dispatched
+     * in bulk by the component.
+     */
+    recordNumberChoice(state, action: PayloadAction<{ playerId: string; number: number }>) {
+      if (state.phase !== 'order_selection') return
+      const { playerId, number } = action.payload
+      // Validate: playerId must be a known participant.
+      if (!state.participants.some((p) => p.id === playerId)) return
+      // Validate: number must be in range.
+      const n = state.participants.length
+      if (number < 1 || number > n) return
+      // Prevent overwriting an existing pick.
+      if (state.chosenNumbers[playerId] !== undefined) return
+      // Prevent picking a number already taken by another participant.
+      const alreadyTaken = Object.values(state.chosenNumbers).includes(number)
+      if (alreadyTaken) return
+      state.chosenNumbers[playerId] = number
+    },
+
+    /**
+     * Finalise order selection: shuffle the chosen numbers and produce the
+     * turn order.  Call this after all players have chosen.
+     */
+    finaliseOrderSelection(state) {
+      if (state.phase !== 'order_selection') return
+
+      const rng = mulberry32(state.seed + 1) // distinct sub-seed for order shuffle
+
+      // Map number → playerId.
+      const numberToPlayer: Record<number, string> = {}
+      for (const [pid, num] of Object.entries(state.chosenNumbers)) {
+        numberToPlayer[num] = pid
+      }
+
+      // All numbers that were chosen (sorted).
+      const chosenNums = Object.values(state.chosenNumbers).sort((a, b) => a - b)
+
+      // Shuffle the numbers.
+      const shuffled = shuffleArray(rng, chosenNums)
+
+      // Turn order = players mapped in shuffled order.
+      const turnOrder = shuffled.map((n) => numberToPlayer[n]).filter(Boolean)
+
+      state.turnOrder = turnOrder
+      state.phase = 'order_reveal'
+    },
+
+    /** Advance from order_reveal to playing (called after the reveal animation). */
+    startPlaying(state, action: PayloadAction<{ now: number }>) {
+      if (state.phase !== 'order_reveal') return
+      state.phase = 'playing'
+      state.challengeStartTimeMs = action.payload.now
+      state.currentTurnIndex = 0
+      state.currentPlayerRow = 1
+    },
+
+    /** Release waiting players gradually; the final scramble may release everyone. */
+    startParallelPlayers(state, action: PayloadAction<{ releaseAll?: boolean } | undefined>) {
+      if (state.phase !== 'playing' || state.timerExpired) return
+      const activeId = state.turnOrder[state.currentTurnIndex]
+      const waiting = state.turnOrder.filter((playerId) => {
+        const progress = state.progress[playerId]
+        return (
+          playerId !== activeId &&
+          !state.parallelPlayerIds.includes(playerId) &&
+          progress?.firstStepAtMs === undefined &&
+          !progress.eliminated &&
+          progress.finishTimeMs === undefined
+        )
+      })
+      const activeParallelCount = state.parallelPlayerIds.filter((playerId) => {
+        const progress = state.progress[playerId]
+        return progress && !progress.eliminated && progress.finishTimeMs === undefined
+      }).length
+      const capacity = action.payload?.releaseAll
+        ? waiting.length
+        : Math.max(0, MAX_PARALLEL_MOVERS - activeParallelCount)
+      state.parallelPlayerIds.push(...waiting.slice(0, capacity))
+    },
+
+    /** Resolve an independently active player's next row without changing the main turn. */
+    resolveParallelStep(
+      state,
+      action: PayloadAction<{
+        playerId: string
+        chosenSide: TileSide
+        now: number
+        remainingMs?: number
+      }>
+    ) {
+      if (state.phase !== 'playing' || state.timerExpired) return
+      const { playerId, chosenSide, now, remainingMs = 0 } = action.payload
+      if (!state.parallelPlayerIds.includes(playerId)) return
+      const progress = state.progress[playerId]
+      if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) return
+      const rowNumber = progress.furthestRowReached + 1
+      const row = state.rows[rowNumber - 1]
+      if (!row) return
+      if (progress.firstStepAtMs === undefined) progress.firstStepAtMs = now
+      const elapsed = state.challengeStartTimeMs === null ? 0 : now - state.challengeStartTimeMs
+      const occupiedSides = Object.entries(state.progress)
+        .filter(
+          ([otherId, other]) =>
+            otherId !== playerId &&
+            !other.eliminated &&
+            other.finishTimeMs === undefined &&
+            other.furthestRowReached === rowNumber &&
+            other.currentSide
+        )
+        .map(([, other]) => other.currentSide!)
+      let resolvedSide = chosenSide
+      if (remainingMs >= COLLISION_OVERRIDE_THRESHOLD_MS && occupiedSides.includes(resolvedSide)) {
+        const alternative: TileSide = resolvedSide === 'left' ? 'right' : 'left'
+        const alternativeBroken = alternative === 'left' ? row.leftBroken : row.rightBroken
+        if (!alternativeBroken && !occupiedSides.includes(alternative)) resolvedSide = alternative
+      }
+
+      if (resolvedSide === row.safeSide) {
+        progress.furthestRowReached = rowNumber
+        progress.timeReachedFurthestRowMs = elapsed
+        progress.currentSide = resolvedSide
+        row.revealedSafeSide = resolvedSide
+        if (rowNumber >= state.rowsCount) {
+          progress.finishTimeMs = elapsed
+          progress.currentSide = undefined
+        }
+      } else {
+        if (resolvedSide === 'left') row.leftBroken = true
+        else row.rightBroken = true
+        progress.eliminated = true
+        progress.currentSide = undefined
+        if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
+      }
+    },
+
+    /**
+     * Resolve a single step: the active player steps onto `chosenSide`.
+     *
+     * Side effects:
+     *  - If safe: advances the player's row; updates furthestRowReached.
+     *  - If unsafe: marks the tile broken; eliminates the player.
+     *  - If the player finishes (reaches last row safely): records finishTimeMs.
+     */
+    resolveStep(state, action: PayloadAction<{ chosenSide: TileSide; now: number }>) {
+      if (state.phase !== 'playing') return
+
+      const { chosenSide, now } = action.payload
+      const activeId = state.turnOrder[state.currentTurnIndex]
+      if (!activeId) return
+
+      const progress = state.progress[activeId]
+      if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) return
+
+      if (progress.firstStepAtMs === undefined) {
+        progress.firstStepAtMs = now
+      }
+      const elapsed = now - progress.firstStepAtMs
+
+      // If the global timer has already expired, do not process any more steps.
+      // The component's timer effect is responsible for dispatching expireTimer()/completeGame().
+      if (state.timerExpired) return
+
+      // Check if the timer just expired at this moment.
+      if (state.globalTimeLimitMs > 0 && elapsed >= state.globalTimeLimitMs) {
+        // Mark expired and eliminate remaining players; do not resolve the step.
+        state.timerExpired = true
+        for (const p of Object.values(state.progress)) {
+          if (!p.eliminated && p.finishTimeMs === undefined) {
+            p.eliminated = true
+            if (!state.eliminationOrder.includes(p.playerId)) {
+              state.eliminationOrder.push(p.playerId)
+            }
+          }
+        }
+        return
+      }
+
+      const rowIdx = state.currentPlayerRow - 1 // 0-based
+      if (rowIdx < 0 || rowIdx >= state.rows.length) return
+      const row = state.rows[rowIdx]
+
+      if (chosenSide === row.safeSide) {
+        // Safe — advance.
+        progress.furthestRowReached = state.currentPlayerRow
+        progress.timeReachedFurthestRowMs = elapsed
+        progress.currentSide = chosenSide
+
+        // Mark this row's safe side as revealed so subsequent AI players can use it.
+        row.revealedSafeSide = chosenSide
+
+        if (state.currentPlayerRow >= state.rowsCount) {
+          // Player has crossed the final row — they finished!
+          progress.finishTimeMs = elapsed
+          progress.currentSide = undefined
+          // Advance to next turn.
+          state.currentTurnIndex += 1
+          state.currentPlayerRow = 1
+        } else {
+          state.currentPlayerRow += 1
+        }
+      } else {
+        // Wrong tile — break and eliminate.
+        if (chosenSide === 'left') {
+          row.leftBroken = true
+        } else {
+          row.rightBroken = true
+        }
+        progress.eliminated = true
+        progress.currentSide = undefined
+        state.eliminationOrder.push(activeId)
+
+        // Advance to next turn.
+        state.currentTurnIndex += 1
+        state.currentPlayerRow = 1
+      }
+    },
+
+    /** Advance to the next player's turn (called when a player's turn ends cleanly). */
+    advanceTurn(state) {
+      if (state.phase !== 'playing') return
+      state.currentTurnIndex += 1
+      state.currentPlayerRow = 1
+    },
+
+    /** Mark the global timer as expired; ongoing actions should stop. */
+    expireTimer(state) {
+      // Idempotency guard — avoid duplicating entries in eliminationOrder.
+      if (state.timerExpired) return
+      state.timerExpired = true
+      // Eliminate any unfinished players.
+      for (const p of Object.values(state.progress)) {
+        if (!p.eliminated && p.finishTimeMs === undefined) {
+          p.eliminated = true
+          state.eliminationOrder.push(p.playerId)
+        }
+      }
+    },
+
+    /**
+     * Deterministically simulate every unfinished run when the eliminated human
+     * chooses Skip to Result. Known rows are crossed with certainty, while only
+     * unresolved rows use the seeded AI decision model.
+     */
+    fastForwardRemainingPlayers(state) {
+      if (state.phase !== 'playing') return
+      const rng = mulberry32((state.seed ^ 0x5f3759df ^ state.eliminationOrder.length) >>> 0)
+      let simulatedElapsed = Math.max(
+        0,
+        ...Object.values(state.progress).flatMap((progress) => [
+          progress.timeReachedFurthestRowMs,
+          progress.finishTimeMs ?? 0,
+        ])
+      )
+      let timerExhausted = false
+
+      for (const playerId of state.turnOrder) {
+        const progress = state.progress[playerId]
+        if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) continue
+        const profile = state.participants.find(
+          (participant) => participant.id === playerId
+        )?.competitionProfile
+        if (progress.firstStepAtMs === undefined) {
+          progress.firstStepAtMs = (state.challengeStartTimeMs ?? 0) + simulatedElapsed
+        }
+
+        while (!progress.eliminated && progress.finishTimeMs === undefined) {
+          const rowNumber = progress.furthestRowReached + 1
+          const row = state.rows[rowNumber - 1]
+          if (!row) break
+          const knownSafeSide =
+            row.revealedSafeSide ??
+            (row.leftBroken !== row.rightBroken ? (row.leftBroken ? 'right' : 'left') : null)
+          const chosenSide = knownSafeSide ?? aiDecideStep(row, rng, profile)
+          simulatedElapsed += knownSafeSide ? 180 : 900 + Math.floor(rng() * 901)
+
+          if (state.globalTimeLimitMs > 0 && simulatedElapsed >= state.globalTimeLimitMs) {
+            timerExhausted = true
+            break
+          }
+
+          if (chosenSide === row.safeSide) {
+            progress.furthestRowReached = rowNumber
+            progress.timeReachedFurthestRowMs = simulatedElapsed
+            progress.currentSide = chosenSide
+            row.revealedSafeSide = chosenSide
+            if (rowNumber >= state.rowsCount) {
+              progress.finishTimeMs = simulatedElapsed
+              progress.currentSide = undefined
+            }
+          } else {
+            if (chosenSide === 'left') row.leftBroken = true
+            else row.rightBroken = true
+            progress.eliminated = true
+            progress.currentSide = undefined
+            if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
+          }
+        }
+
+        if (timerExhausted) break
+      }
+
+      if (timerExhausted) {
+        state.timerExpired = true
+        for (const progress of Object.values(state.progress)) {
+          if (!progress.eliminated && progress.finishTimeMs === undefined) {
+            progress.eliminated = true
+            progress.currentSide = undefined
+            if (!state.eliminationOrder.includes(progress.playerId)) {
+              state.eliminationOrder.push(progress.playerId)
+            }
+          }
+        }
+      }
+
+      state.currentTurnIndex = state.turnOrder.length
+      state.currentPlayerRow = 1
+      state.parallelPlayerIds = []
+      state.placements = buildPlacements(state.progress, state.turnOrder)
+      state.winnerId = state.placements[0] ?? null
+      state.phase = 'complete'
+    },
+
+    /** Compute final rankings and transition to complete. */
+    completeGame(state) {
+      if (state.phase !== 'playing' && state.phase !== 'complete') return
+
+      // Ensure any remaining unfinished players are eliminated.
+      for (const p of Object.values(state.progress)) {
+        if (!p.eliminated && p.finishTimeMs === undefined) {
+          p.eliminated = true
+          if (!state.eliminationOrder.includes(p.playerId)) {
+            state.eliminationOrder.push(p.playerId)
+          }
+        }
+      }
+
+      const placements = buildPlacements(state.progress, state.turnOrder)
+      state.placements = placements
+      state.winnerId = placements[0] ?? null
+      state.phase = 'complete'
+    },
+
+    /** Mark human as spectating (eliminated but watching). */
+    setHumanSpectating(state, action: PayloadAction<boolean>) {
+      state.humanSpectating = action.payload
+    },
+
+    /**
+     * Record that a player used a hint.
+     * Adds HINT_PENALTY_MS (30 000) to the player's hintPenaltyMs.
+     * No-ops when called for a non-existent player or when the player has
+     * already used MAX_HINTS_PER_RUN hints (enforced at the state level).
+     */
+    recordHintUsed(state, action: PayloadAction<{ playerId: string }>) {
+      const p = state.progress[action.payload.playerId]
+      if (p) {
+        const hintsAlreadyUsed = Math.floor((p.hintPenaltyMs ?? 0) / HINT_PENALTY_MS)
+        if (hintsAlreadyUsed >= MAX_HINTS_PER_RUN) return
+        p.hintPenaltyMs = (p.hintPenaltyMs ?? 0) + HINT_PENALTY_MS
+      }
+    },
+
+    /** Mark the game outcome as applied to the engine (idempotency guard). */
+    markGlassBridgeOutcomeResolved(state) {
+      state.outcomeResolved = true
+    },
+
+    /** Reset to idle state. */
+    resetGlassBridge() {
+      return initialState
+    },
+  },
+})
+
+export const {
+  initGlassBridge,
+  recordNumberChoice,
+  finaliseOrderSelection,
+  startPlaying,
+  startParallelPlayers,
+  resolveParallelStep,
+  resolveStep,
+  advanceTurn,
+  expireTimer,
+  fastForwardRemainingPlayers,
+  completeGame,
+  setHumanSpectating,
+  recordHintUsed,
+  markGlassBridgeOutcomeResolved,
+  resetGlassBridge,
+} = glassBridgeSlice.actions
+
+export default glassBridgeSlice.reducer
+
+// ─── Selectors ────────────────────────────────────────────────────────────────
+
+export function selectActivePlayerId(state: GlassBridgeState): string | null {
+  return state.turnOrder[state.currentTurnIndex] ?? null
+}
+
+export function selectIsGameOver(state: GlassBridgeState): boolean {
+  if (state.timerExpired) return true
+  if (state.currentTurnIndex >= state.turnOrder.length) return true
+  const allDone = Object.values(state.progress).every(
+    (p) => p.eliminated || p.finishTimeMs !== undefined
+  )
+  return allDone
+}
+
+/**
+ * Pre-simulate an AI player's entire turn through the bridge.
+ * Returns an array of steps (chosenSide, result) — useful for testing
+ * determinism or running headless simulations.
+ */
+export function simulateAiTurn(
+  rows: BridgeRow[],
+  rng: () => number,
+  profile?: CompetitionSkillProfile
+): Array<{ row: number; chosenSide: TileSide; result: 'safe' | 'break' }> {
+  const steps: Array<{ row: number; chosenSide: TileSide; result: 'safe' | 'break' }> = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const chosen = aiDecideStep(row, rng, profile)
+    const result = chosen === row.safeSide ? 'safe' : 'break'
+    steps.push({ row: i + 1, chosenSide: chosen, result })
+    if (result === 'break') break
+  }
+  return steps
+}
+
+/**
+ * Build AI number choices for order selection.
+ * Each AI picks a unique number from the remaining pool.
+ * Returns a map of playerId → chosenNumber.
+ */
+export function buildAiNumberChoices(
+  participantIds: string[],
+  humanId: string | null,
+  alreadyChosen: Record<string, number>,
+  rng: () => number
+): Record<string, number> {
+  const n = participantIds.length
+  const taken = new Set(Object.values(alreadyChosen))
+  const available = Array.from({ length: n }, (_, i) => i + 1).filter((num) => !taken.has(num))
+
+  const result: Record<string, number> = {}
+  for (const id of participantIds) {
+    if (id === humanId) continue // human picks interactively
+    if (alreadyChosen[id] !== undefined) continue // already chose
+    if (available.length === 0) break
+    const idx = Math.floor(rng() * available.length)
+    result[id] = available.splice(idx, 1)[0]
+  }
+  return result
+}

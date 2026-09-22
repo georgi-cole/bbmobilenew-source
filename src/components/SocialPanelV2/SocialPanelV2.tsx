@@ -1341,16 +1341,19 @@ export default function SocialPanelV2() {
             <span className="sp2-footer__feedback" role="status" aria-live="polite">
               {feedbackMsg}
             </span>
-          ) : executionEligibility.reason && selectedActionId ? (
-            <span className="sp2-footer__feedback sp2-footer__feedback--hint">
-              {executionEligibility.reason}
-            </span>
           ) : (
-            <span className="sp2-footer__cost">
-              {selectedCostLabel
-                ? `Cost: ${selectedScopeLabel ? `${selectedScopeLabel} · ` : ''}${selectedCostLabel}`
-                : 'Cost: —'}
-            </span>
+            <>
+              <span className="sp2-footer__cost">
+                {selectedCostLabel
+                  ? `Cost: ${selectedScopeLabel ? `${selectedScopeLabel} · ` : ''}${selectedCostLabel}`
+                  : 'Cost: —'}
+              </span>
+              {executionEligibility.reason && selectedActionId ? (
+                <span className="sp2-footer__feedback sp2-footer__feedback--hint">
+                  {executionEligibility.reason}
+                </span>
+              ) : null}
+            </>
           )}
           <button
             className={`sp2-footer__execute${successPulse ? ' sp2-footer__execute--pulse' : ''}`}

@@ -1,0 +1,196 @@
+/**
+ * compSelectionUtils — shared types, constants, and validation helper for the
+ * Comp Selection feature.
+ *
+ * Kept in a separate module so CompSelection.tsx satisfies the
+ * react-refresh/only-export-components lint rule (component files must only
+ * export React components).
+ */
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Selection strategy for the challenge scheduler.
+ *
+ * - `random-games`       – picks any non-retired game (existing behaviour).
+ * - `single-game`        – always use the game at `selectedGameId`.
+ * - `user-selection`     – pick deterministically from the `selectedGameIds` pool.
+ * - `arcade-only`        – restrict to the `arcade` registry category.
+ * - `trivia-only`        – restrict to the `trivia` registry category.
+ * - `endurance-only`     – restrict to the `endurance` registry category.
+ * - `logic-only`         – restrict to the `logic` registry category.
+ * - `retired`            – pick from retired games only.
+ * - `misc`               – games not matching any of the main categories (fallback).
+ * - `unique`             – default mapped mode; uses the day/housemate/type campaign map
+ *                          and avoids every played LOH/POS game while the current eligible
+ *                          pool still contains an unused game.
+ * - `bracket-template`   – select from the default bracket template pool for the
+ *                          current player count and competition type (LOH/POS).
+ *                          Falls back to random selection when the bracket pool is empty.
+ * - `competition-map`    – follow the competition map's declared order for the
+ *                          current day, roster size, phase, and LOH/POS slot.
+ */
+export type CompSelectionMode =
+  | 'random-games'
+  | 'single-game'
+  | 'user-selection'
+  | 'arcade-only'
+  | 'trivia-only'
+  | 'endurance-only'
+  | 'logic-only'
+  | 'retired'
+  | 'misc'
+  | 'unique'
+  | 'bracket-template'
+  | 'competition-map'
+
+/** A competition entry returned by fetchGames(). */
+export interface CompGame {
+  /** Stable machine-readable identifier (e.g. "tap-race", "trivia-blitz"). */
+  id: string
+  /** Human-readable display name. */
+  name: string
+  /** Emoji icon for visual identification. */
+  icon: string
+  /** Broad category used for filtering (e.g. "physical", "mental", "endurance"). */
+  category: 'physical' | 'mental' | 'endurance' | 'social' | 'mixed'
+  /** Whether this game is currently enabled in the simulation. */
+  enabled: boolean
+}
+
+/** Shape of the save payload sent to onSave(). */
+export interface CompSelectionPayload {
+  /** Selection strategy for the challenge scheduler. Defaults to `'competition-map'`. */
+  mode?: CompSelectionMode
+  /**
+   * Registry key of the single game to always use.
+   * Only consulted when `mode === 'single-game'`.
+   */
+  selectedGameId?: string
+  /**
+   * Registry keys of games in the user-curated pool.
+   * Only consulted when `mode === 'user-selection'`.
+   */
+  selectedGameIds?: string[]
+  /** IDs of games the user has toggled ON. @deprecated No longer used by the settings UI. */
+  enabledIds?: string[]
+  /**
+   * Optional maximum number of comps to pick each week.
+   * null = no limit (use all enabled).
+   * @deprecated No longer used by the settings UI.
+   */
+  weeklyLimit?: number | null
+  /** Active filter category, or null for "all". @deprecated No longer used by the settings UI. */
+  filterCategory?: CompGame['category'] | null
+}
+
+/** Props accepted by the CompSelection component. */
+export interface CompSelectionProps {
+  /**
+   * Async function that resolves to the list of available comp games.
+   * Injected so callers can mock or provide real API data.
+   */
+  fetchGames: () => Promise<CompGame[]>
+  /**
+   * Called when the user saves their selection.
+   * The component does not perform any persistence itself.
+   */
+  onSave?: (payload: CompSelectionPayload) => Promise<void> | void
+  /**
+   * Optional live-change callback fired immediately on user interaction.
+   * Use this when the parent persists changes continuously instead of waiting
+   * for an explicit save action.
+   */
+  onChange?: (payload: CompSelectionPayload) => void
+  /** Optional initial payload to pre-populate the form. */
+  initialPayload?: Partial<CompSelectionPayload>
+}
+
+/** Result returned by validateCompSelection(). */
+export interface ValidationResult {
+  valid: boolean
+  errors: string[]
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const CATEGORY_LABELS: Record<CompGame['category'], string> = {
+  physical: '💪 Physical',
+  mental: '🧠 Mental',
+  endurance: '⏱️ Endurance',
+  social: '🤝 Social',
+  mixed: '🎲 Mixed',
+}
+
+export const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS) as Array<CompGame['category']>
+
+// ── Validation ────────────────────────────────────────────────────────────────
+
+/**
+ * Client-side validation for a CompSelectionPayload.
+ *
+ * Rules expressible in draft-07 JSON Schema (see src/api/schema/comp_selection.json)
+ * are mirrored here: `enabledIds` non-empty, items non-empty string, unique.
+ * Rules that require application logic (known IDs only, weeklyLimit <=
+ * enabledIds.length, filterCategory enum check) are also enforced here but
+ * cannot be expressed in the JSON schema alone.
+ */
+export function validateCompSelection(
+  payload: CompSelectionPayload,
+  allGames: CompGame[]
+): ValidationResult {
+  const errors: string[] = []
+
+  const enabledIds = payload.enabledIds ?? []
+  const weeklyLimit = payload.weeklyLimit ?? null
+  const filterCategory = payload.filterCategory ?? null
+
+  if (enabledIds.length === 0) {
+    errors.push('At least one competition must be enabled.')
+  }
+
+  // Enforce non-empty string IDs (schema: minLength >= 1 for enabledIds items).
+  const emptyIds = enabledIds.filter((id) => id === '')
+  if (emptyIds.length > 0) {
+    errors.push('Enabled competition IDs must be non-empty strings.')
+  }
+
+  // Enforce uniqueness of IDs (schema: uniqueItems: true for enabledIds).
+  const seenIds = new Set<string>()
+  const duplicateIds = enabledIds.filter((id) => {
+    if (seenIds.has(id)) return true
+    seenIds.add(id)
+    return false
+  })
+  if (duplicateIds.length > 0) {
+    const uniqueDuplicates = Array.from(new Set(duplicateIds))
+    errors.push(`Duplicate game ID(s) in enabledIds: ${uniqueDuplicates.join(', ')}.`)
+  }
+
+  // Enforce known IDs (application logic — not representable in JSON Schema).
+  // Skip empty-string IDs here to avoid double-reporting (already flagged above).
+  const knownIds = new Set(allGames.map((g) => g.id))
+  const unknownIds = enabledIds.filter((id) => id !== '' && !knownIds.has(id))
+  if (unknownIds.length > 0) {
+    errors.push(`Unknown game ID(s): ${unknownIds.join(', ')}.`)
+  }
+
+  if (weeklyLimit !== null) {
+    if (!Number.isInteger(weeklyLimit) || weeklyLimit < 1) {
+      errors.push('Daily limit must be a positive integer or null (no limit).')
+    }
+    // Application logic constraint: weeklyLimit <= enabledIds.length.
+    if (weeklyLimit > enabledIds.length) {
+      errors.push('Daily limit cannot exceed the number of enabled competitions.')
+    }
+  }
+
+  // Enforce filterCategory enum (application logic — category list is dynamic).
+  if (filterCategory !== null && !ALL_CATEGORIES.includes(filterCategory as CompGame['category'])) {
+    errors.push(
+      `Invalid filterCategory "${String(filterCategory)}". Expected one of: ${ALL_CATEGORIES.join(', ')} or null.`
+    )
+  }
+
+  return { valid: errors.length === 0, errors }
+}

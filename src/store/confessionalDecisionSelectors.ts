@@ -15,7 +15,7 @@
 
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from './store';
-import type { Phase } from '../types';
+import type { GameState, Phase } from '../types';
 
 /** All known ceremony decision types that route through the Confessional. */
 export type ConfessionalDecisionType =
@@ -38,6 +38,112 @@ export interface ActiveConfessionalDecision {
   week: number;
   /** Current game phase (informational). */
   phase: Phase;
+  /**
+   * Stable identity for this exact interaction stage. It distinguishes chained
+   * power steps and a Twin Shock retry from a previous response in the same
+   * week and phase.
+   */
+  interactionId?: string;
+}
+
+/**
+ * Returns the stage within a decision type that is relevant to a player-facing
+ * session. It deliberately uses only persisted game state so an interrupted
+ * session has the same identity after a reload.
+ */
+export function getConfessionalInteractionId(
+  game: GameState,
+  type: ConfessionalDecisionType
+): string {
+  const prefix = [game.gameId ?? `season-${game.season}`, game.week, game.phase, type]
+
+  switch (type) {
+    case 'nominations': {
+      const humanId = game.players.find((player) => player.isUser)?.id ?? 'none'
+      const aliveIds = game.players
+        .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+        .map((player) => player.id)
+        .join(',')
+      prefix.push(
+        game.voxPopuli?.status === 'active' ? 'vox' : 'classic',
+        `human-${humanId}`,
+        `loh-${game.lohId ?? 'none'}`,
+        `auto-${game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId ?? 'none'}`,
+        `alive-${aliveIds}`
+      )
+      break
+    }
+    case 'eviction_vote':
+      prefix.push(`nominees-${game.nomineeIds.join(',')}`)
+      break
+    case 'double_vote_offer':
+      prefix.push('stored-double-offer')
+      break
+    case 'double_vote':
+      prefix.push(
+        game.bellaWill?.extraVoteChoiceActive ? 'bella-extra' : 'stored-double',
+        `nominees-${game.nomineeIds.join(',')}`
+      )
+      break
+    case 'mission_immunity_offer':
+      prefix.push(
+        `duration-${game.secretMission?.reward?.durationDays ?? 1}`,
+        `nominees-${game.nomineeIds.join(',')}`
+      )
+      break
+    case 'pos_decision':
+      prefix.push(
+        `power-${game.specialVeto?.activeType ?? 'standard'}`,
+        `winner-${game.posWinnerId ?? 'none'}`
+      )
+      break
+    case 'vip_second_use':
+      prefix.push(
+        `vip-use-${game.specialVeto?.vipUseStage ?? 0}`,
+        `winner-${game.posWinnerId ?? 'none'}`
+      )
+      break
+    case 'pos_save_target':
+      prefix.push(
+        game.specialVeto?.awaitingVipSecondSaveTarget ? 'vip-second-save' : 'save',
+        `nominees-${game.nomineeIds.join(',')}`
+      )
+      break
+    case 'replacement_nominee':
+      prefix.push(
+        game.specialVeto?.awaitingCoupReplacement1
+          ? 'coup-1'
+          : game.specialVeto?.awaitingCoupReplacement2
+            ? 'coup-2'
+            : game.specialVeto?.awaitingHolderReplacement
+              ? 'holder'
+              : 'standard',
+        `nominees-${game.nomineeIds.join(',')}`,
+        `saved-${game.povSavedId ?? 'none'}`
+      )
+      break
+    case 'tie_break':
+      prefix.push(
+        `tied-${(game.tiedNomineeIds ?? game.nomineeIds).join(',')}`,
+        `pending-${game.pendingEviction ? 'yes' : 'no'}`
+      )
+      break
+    case 'twin_shock':
+      prefix.push(
+        game.twinShock?.promptStage ?? 'none',
+        `retry-${game.twinShock?.retryCount ?? 0}`
+      )
+      break
+    default:
+      break
+  }
+
+  return prefix.join(':')
+}
+
+/** Compatibility fallback for callers that construct a decision in a test. */
+export function getConfessionalDecisionKey(decision: ActiveConfessionalDecision): string {
+  return decision.interactionId ?? `${decision.type}:${decision.week}:${decision.phase}`
 }
 
 /**
@@ -77,25 +183,32 @@ function getActiveConfessionalDecisionFromGame(
   const humanPlayer = game.players?.find((p) => p.isUser);
   if (!humanPlayer) return null;
   if (humanPlayer.status === 'evicted' || humanPlayer.status === 'jury') return null;
-  if (game.twinShock?.promptStage) return { type: 'twin_shock', week, phase };
+  const active = (type: ConfessionalDecisionType): ActiveConfessionalDecision => ({
+    type,
+    week,
+    phase,
+    interactionId: getConfessionalInteractionId(game, type),
+  });
+
+  if (game.twinShock?.promptStage) return active('twin_shock');
 
   // ── Nominations ─────────────────────────────────────────────────────────
   if (game.awaitingNominations) {
-    return { type: 'nominations', week, phase };
+    return active('nominations');
   }
 
   // ── POS (Power of Safety) ceremony decisions ─────────────────────────────
   if (game.awaitingMissionImmunityOffer) {
-    return { type: 'mission_immunity_offer', week, phase };
+    return active('mission_immunity_offer');
   }
   if (game.awaitingPovDecision) {
-    return { type: 'pos_decision', week, phase };
+    return active('pos_decision');
   }
   if (game.specialVeto?.awaitingVipSecondUseDecision) {
-    return { type: 'vip_second_use', week, phase };
+    return active('vip_second_use');
   }
   if (game.awaitingPovSaveTarget || game.specialVeto?.awaitingVipSecondSaveTarget) {
-    return { type: 'pos_save_target', week, phase };
+    return active('pos_save_target');
   }
   if (
     game.replacementNeeded ||
@@ -103,23 +216,23 @@ function getActiveConfessionalDecisionFromGame(
     game.specialVeto?.awaitingCoupReplacement1 ||
     game.specialVeto?.awaitingCoupReplacement2
   ) {
-    return { type: 'replacement_nominee', week, phase };
+    return active('replacement_nominee');
   }
 
   // ── Live eviction vote (incl. Double-Vote shock) ──────────────────────────
   if (game.awaitingDoubleVoteOffer) {
-    return { type: 'double_vote_offer', week, phase };
+    return active('double_vote_offer');
   }
   if (game.awaitingHumanVote && game.humanDoubleVoteActive) {
-    return { type: 'double_vote', week, phase };
+    return active('double_vote');
   }
   if (game.awaitingHumanVote) {
-    return { type: 'eviction_vote', week, phase };
+    return active('eviction_vote');
   }
 
   // ── Tie-break (human LOH must break tied vote) ────────────────────────────
   if (game.awaitingTieBreak) {
-    return { type: 'tie_break', week, phase };
+    return active('tie_break');
   }
 
   return null;

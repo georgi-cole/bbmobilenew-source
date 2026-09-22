@@ -1,0 +1,237 @@
+.phone-preview-page {
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: clamp(1rem, 2.5vw, 2rem);
+  overflow: auto;
+  color: #fff;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(138, 92, 238, 0.23), transparent 25rem),
+    radial-gradient(circle at 82% 76%, rgba(246, 194, 93, 0.1), transparent 24rem), #07050e;
+}
+
+.phone-preview-page__intro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: min(100%, 960px);
+  margin: 0 auto 1.5rem;
+}
+
+.phone-preview-page__eyebrow {
+  margin: 0 0 0.45rem;
+  color: #f4cf7f;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.phone-preview-page h1 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+
+.phone-preview-page__intro p:not(.phone-preview-page__eyebrow) {
+  margin: 0.65rem 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.45;
+}
+
+.phone-preview-page__controls {
+  display: flex;
+  align-items: end;
+  gap: 0.65rem;
+}
+
+.phone-preview-page__controls label {
+  display: grid;
+  gap: 0.28rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.phone-preview-page__controls select,
+.phone-preview-page__back {
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.72rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+  font: inherit;
+}
+
+.phone-preview-page__controls select {
+  min-width: 13rem;
+  padding: 0 0.7rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.phone-preview-page__controls option {
+  color: #fff;
+  background: #171421;
+}
+
+.phone-preview-page__back {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.82rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.phone-preview-page__devices {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  width: 100%;
+}
+
+.phone-preview-page__device {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.phone-preview-page__device-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: var(--phone-width, 393px);
+  gap: 1rem;
+}
+
+.phone-preview-page__device-heading div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.phone-preview-page__device-heading strong {
+  font-size: 0.82rem;
+}
+
+.phone-preview-page__device-heading span,
+.phone-preview-page__device-heading code {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.65rem;
+}
+
+.phone-preview-page__device-heading code {
+  padding: 0.25rem 0.42rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.phone-preview-page__phone {
+  position: relative;
+  width: var(--phone-width, 393px);
+  height: var(--phone-height, 852px);
+  box-sizing: content-box;
+  overflow: hidden;
+  padding: 11px;
+  border: 2px solid #5e5c66;
+  border-radius: 3.45rem;
+  background: linear-gradient(125deg, #35343c, #0d0d12 12%, #1c1b22 86%, #45434c);
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.56),
+    0 0 0 7px rgba(255, 255, 255, 0.035),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.13);
+}
+
+.phone-preview-page__camera {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  left: 50%;
+  width: 7.6rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: #050509;
+  pointer-events: none;
+}
+
+.phone-preview-page__phone--punch-hole .phone-preview-page__camera {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #17171e;
+  border-radius: 50%;
+}
+
+.phone-preview-page__side-button {
+  position: absolute;
+  width: 0.24rem;
+  border-radius: 0 0.3rem 0.3rem 0;
+  background: #4d4b54;
+}
+
+.phone-preview-page__side-button--volume {
+  top: 9rem;
+  left: -0.34rem;
+  height: 4.1rem;
+}
+
+.phone-preview-page__side-button--power {
+  top: 12rem;
+  right: -0.34rem;
+  height: 5.4rem;
+  border-radius: 0.3rem 0 0 0.3rem;
+}
+
+.phone-preview-page__screen {
+  display: block;
+  width: var(--phone-width, 393px);
+  height: var(--phone-height, 852px);
+  border: 0;
+  border-radius: 2.78rem;
+  background: #06050c;
+}
+
+@media (max-width: 940px) {
+  .phone-preview-page__intro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .phone-preview-page__devices {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 450px) {
+  .phone-preview-page__controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .phone-preview-page__phone {
+    width: min(var(--phone-width), calc(100vw - 2rem));
+    height: auto;
+    padding: 0;
+    border-radius: 1.9rem;
+    aspect-ratio: var(--phone-aspect, 393 / 852);
+  }
+
+  .phone-preview-page__screen {
+    width: 100%;
+    height: 100%;
+    border-radius: 1.85rem;
+  }
+
+  .phone-preview-page__camera {
+    top: 9px;
+  }
+}

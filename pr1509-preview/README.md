@@ -1,0 +1,518 @@
+# The Big Eye
+
+A React + TypeScript + Vite mobile-first app.
+
+## Before opening a PR
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup, validation commands, and PR expectations.
+
+Quick checklist:
+
+```bash
+npm run lint:ci    # zero ESLint warnings
+npm run typecheck  # TypeScript
+npm test           # Vitest suite
+```
+
+- UI changes → include screenshots in the PR description.
+- New env vars → add to `server/.env.example`, never commit `server/.env`.
+
+## Dev setup
+
+```bash
+npm ci
+npm run dev        # http://localhost:5173
+```
+
+## Full bootstrap
+
+Install both root and server dependencies in one step:
+
+```bash
+npm run bootstrap
+```
+
+## Build
+
+```bash
+npm run build      # public/release build, output in dist/
+npm run preview    # preview the production build
+```
+
+### Private test build and public release build
+
+- `npm run dev:admin` or `npm run build:admin`: private test build with debug tools and test store access.
+- `npm run build:release`: public build with debug disabled and paid features locked until purchased.
+
+Do not deploy the admin build to a public URL. The `main` deployment uses `npm run build`, which is the locked release build.
+
+### Mobile builds
+
+For native Android/iOS builds, set the matching API base URL in:
+
+- `.env.android` using `VITE_ANDROID_API_BASE_URL`
+- `.env.ios` using `VITE_IOS_API_BASE_URL`
+
+Then build with:
+
+```bash
+npm run build:android
+npm run build:ios
+```
+
+These modes keep local development on `http://localhost:4000` but switch the
+packaged app to the real backend.
+
+## GitHub Pages deployment
+
+Pushes to `main` trigger the **Build and deploy Pages** workflow, which runs
+`npm run build` and publishes the `./dist` folder to the `github-pages`
+environment. The site is served at
+`https://georgi-cole.github.io/bbmobilenew/`.
+
+## Architecture
+
+### Public Mode
+
+The audience/public-request system has a dedicated reference covering its relationship truth model, Classic/Cupid/Vox behavior, action mappings, lifecycle, and verification steps: [PUBLIC_MODE.md](PUBLIC_MODE.md).
+
+```
+src/
+  types/           # TypeScript interfaces (Player, GameState, Phase…)
+  store/           # GameContext — useReducer state, no Redux
+  components/
+    ui/            # StatusPill, PlayerAvatar, TvZone
+    layout/        # AppShell, NavBar
+  screens/         # One folder per screen
+    HomeHub/
+    GameScreen/    # TvZone + interactive avatar roster
+    DiaryRoom/     # Confessional + event log + Weekly Diary Room Log
+    Houseguests/
+    Profile/
+    Leaderboard/
+    Credits/
+    Week/
+    CreatePlayer/
+  routes.tsx       # All routes in one place
+  App.tsx          # Root: GameProvider + RouterProvider
+```
+
+### Adding a new screen
+
+1. `src/screens/MyScreen/MyScreen.tsx` (+ optional `.css`)
+2. Import and add a `<Route>` in `src/routes.tsx`
+3. _(Optional)_ Add a nav tab in `src/components/layout/NavBar.tsx`
+
+### Adding a new status pill variant
+
+1. Add the key to `StatusPillVariant` in `src/types/index.ts`
+2. Add a `.status-pill--<key>` rule in `src/components/ui/StatusPill.css`
+
+### Adding a new game event type
+
+1. Extend the `TvEvent.type` union in `src/types/index.ts`
+2. Add an emoji mapping in `TVLog.tsx` (`TYPE_ICONS`) and a border-left colour in `TVLog.css`
+3. Add teaser/full template strings to `src/data/tv-log-templates.json`
+
+### TVLog component
+
+`src/components/TVLog/TVLog.tsx` is the scrollable event-log strip rendered
+below the main TV viewport in `TvZone`.
+
+**Props**
+
+| Prop            | Type        | Default     | Description                                                                                                  |
+| --------------- | ----------- | ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `entries`       | `TvEvent[]` | —           | Full list of TV events, newest first                                                                         |
+| `mainTVMessage` | `string?`   | `undefined` | Text shown in the TV viewport; the first log entry is suppressed when it matches, preventing a duplicate row |
+| `maxVisible`    | `number?`   | `3`         | Number of rows visible before the log scrolls                                                                |
+
+**Teaser truncation** — long event texts are clipped to 60 characters in the
+collapsed state. Click/tap any row to toggle the full text.
+
+**Message templates** — `src/data/tv-log-templates.json` defines `teaser` and
+`full` template strings for each event type in a Big-Brother tone. The
+`getTemplate(type)` utility in `src/utils/tvLogTemplates.ts` returns the right
+pair for generating event text — intended for use at **event-creation time**
+(e.g. when building the `text` passed to `addTvEvent()`), not inside TVLog
+itself. The `tease(text, maxLen?)` function handles plain-text truncation of
+whatever text is passed into the component.
+
+### TV Announcement Overlay
+
+`TvZone` renders an inline broadcast-stinger overlay (`TvAnnouncementOverlay`)
+inside the TV viewport whenever a **major** game event arrives or a popup phase
+transition is detected. The overlay displays a styled full-bleed announcement
+(title, subtitle, optional live badge) and exposes an info button that opens a
+fullscreen `TvAnnouncementModal` with detailed phase copy.
+
+**Triggering an announcement**
+
+Announcements are driven by **game-phase transitions** (see phase reference
+table below). For backwards compatibility, setting `meta.major` (or the
+top-level `major` field) on a `TvEvent` to one of the recognised keys also
+triggers an overlay:
+
+| Key                     | Auto-dismiss |
+| ----------------------- | ------------ |
+| `nomination_ceremony`   | manual       |
+| `veto_ceremony`         | manual       |
+| `live_eviction`         | manual       |
+| `final4`                | manual       |
+| `final3_announcement`   | manual       |
+| `final_hoh`             | manual       |
+| `jury`                  | manual       |
+| `battle_back`           | manual       |
+| `double_eviction`       | manual       |
+| `twist`                 | manual       |
+| `hoh_comp_announcement` | manual       |
+| `pos_comp_announcement` | manual       |
+
+> **Note:** The correct key for the Final 3 announcement is `final3_announcement`.
+> Earlier documentation erroneously listed this as `final3`.
+
+Example event shape:
+
+```ts
+addTvEvent({
+  id: 'evt-nom-1',
+  type: 'game',
+  text: 'The nominations are set — Rune and Nova are on the block.',
+  timestamp: Date.now(),
+  meta: { major: 'nomination_ceremony', week: 1 },
+})
+```
+
+All overlay announcements are dismissed by the central Play/Continue FAB
+via the `tv:announcement-dismiss` custom event (see phase reference below).
+
+---
+
+## iOS Home Screen (A2HS) / Standalone Testing
+
+When the app is added to an iOS home screen and launched as a PWA (standalone
+mode), Safari uses a different rendering context that can strip `backdrop-filter`,
+flatten `border-radius` on `<button>` elements, and ignore custom shadows.
+
+### How to reproduce
+
+1. Open the deployed site (`https://georgi-cole.github.io/bbmobilenew/`) in
+   **Safari on iOS** (not Chrome/Firefox — they don't support `navigator.standalone`).
+2. Tap the **Share** button → **Add to Home Screen** → **Add**.
+3. Launch the app from the home-screen icon — it now runs in standalone mode.
+4. Verify the HomeHub button stack renders with asymmetric rounded corners and
+   visible shadows (not flattened system-style buttons).
+
+### How the fix works
+
+- **`src/main.tsx`** — detects standalone mode via `navigator.standalone` and
+  `matchMedia('(display-mode: standalone)')` and adds `is-standalone` to
+  `<html>`.
+- **`src/styles/_ios-standalone-fixes.css`** — scoped under both
+  `@media (display-mode: standalone)` and `html.is-standalone` to ensure rules
+  fire even before JS has run. Key overrides:
+  - `-webkit-appearance: none` — prevents Safari from rendering native button
+    chrome.
+  - `border-radius: 28px 8px 28px 8px` — explicit px values that WebKit honours
+    in standalone context.
+  - `border-radius: inherit` on `::before` / `::after` pseudo-elements.
+  - `backdrop-filter: none` + enhanced `box-shadow` — consistent shadow without
+    relying on blur compositing.
+- **`index.html`** — `apple-mobile-web-app-capable` and related meta tags
+  enable proper standalone behaviour and status-bar integration.
+
+### Remote debugging on iOS
+
+1. Enable **Safari → Preferences → Advanced → Show Develop menu** on your Mac.
+2. Connect iPhone via USB; trust the connection.
+3. Open **Develop → [Your iPhone] → [page]** in desktop Safari DevTools.
+4. Inspect element styles and verify `html.is-standalone` class is present and
+   the standalone-specific CSS rules are applied.
+
+### PO / QA: Fast elimination cycle
+
+Use the Debug Panel when you want to jump through a full elimination cycle without
+clicking every phase manually.
+
+1. Open the app with debug access enabled.
+2. Open the Debug Panel.
+3. Press `Simulate Elimination Cycle`.
+4. Check that the game advances through one full cycle and lands on the next stable week state.
+
+What this button does:
+
+- seeds social noise, incoming interactions, approval shifts, and relationship updates
+- resolves blocker states like save prompts, veto prompts, vote prompts, tie-breaks, and pending evictions
+- finalizes the elimination so you can continue testing the next phase immediately
+
+Use it for quick end-to-end sanity checks of old and new games, especially when you want to
+verify that the cycle still behaves realistically without manually playing through each step.
+
+The **Weekly Diary Room Log** feature lets admins record and publish a
+structured summary of each The Big Eye week. Guests can view published
+weeks; only admins may create, edit, or export unpublished drafts.
+
+### Feature flag
+
+| Variable                             | Default   | Description                                            |
+| ------------------------------------ | --------- | ------------------------------------------------------ |
+| `FEATURE_DIARY_WEEK` (server)        | `true`    | Set to `false` to disable the backend routes entirely. |
+| `VITE_FEATURE_DIARY_WEEK` (frontend) | `true`    | Set to `false` to hide the Weekly tab in the UI.       |
+| `ADMIN_API_KEY` (server)             | _(unset)_ | Secret key required for admin write operations.        |
+
+### Migration
+
+If you add a relational database, run the migration in
+`src/migrations/20260222_add_diary_week_table.sql` against your PostgreSQL
+instance:
+
+```bash
+psql -d <your_db> -f src/migrations/20260222_add_diary_week_table.sql
+```
+
+To revert, run the DOWN section at the bottom of the migration file.
+
+> **Current behaviour:** The server uses an in-memory store (no persistent DB).
+> Data is lost on restart. The SQL migration is a forward-looking schema stub
+> for when a persistent DB is introduced.
+
+### API endpoints
+
+All routes are under `/api` and rate-limited together with the rest of the API.
+
+| Method  | Path                                       | Auth                   | Description                                                                   |
+| ------- | ------------------------------------------ | ---------------------- | ----------------------------------------------------------------------------- |
+| `GET`   | `/api/seasons/:seasonId/weeks`             | Guest                  | List weeks. Add `?publishedOnly=true` to hide drafts (admins always see all). |
+| `GET`   | `/api/seasons/:seasonId/weeks/:weekNumber` | Guest (published only) | Fetch a single week.                                                          |
+| `POST`  | `/api/seasons/:seasonId/weeks`             | **Admin**              | Create a new week.                                                            |
+| `PATCH` | `/api/seasons/:seasonId/weeks/:weekNumber` | **Admin**              | Partially update a week.                                                      |
+| `GET`   | `/api/weeks/:id/export?format=json`        | Guest (published only) | Export full week payload as JSON.                                             |
+
+Admin requests must include the `x-admin-key` header matching `ADMIN_API_KEY`.
+
+### Payload example — Create week
+
+```jsonc
+// POST /api/seasons/1/weeks
+// x-admin-key: <your-ADMIN_API_KEY>
+{
+  "weekNumber": 1,
+  "startAt": "2026-01-05",
+  "endAt": "2026-01-12",
+  "hohWinner": "Alice",
+  "povWinner": "Bob",
+  "nominees": ["Charlie", "Dave"],
+  "replacementNominee": null,
+  "evictionVotes": [
+    { "voter": "Alice", "votedFor": "Charlie" },
+    { "voter": "Bob", "votedFor": "Charlie" },
+    { "voter": "Eve", "votedFor": "Dave" },
+  ],
+  "socialEvents": ["Pool party on Day 3", "Cooking competition Day 5"],
+  "misc": ["Houseguest twist announced"],
+  "notes": "Quiet week overall.",
+  "published": false,
+}
+```
+
+Response `201 Created`:
+
+```jsonc
+{
+  "data": {
+    "id": "dw_1704412800000_1",
+    "seasonId": "1",
+    "weekNumber": 1,
+    "hohWinner": "Alice",
+    "povWinner": "Bob",
+    "nominees": ["Charlie", "Dave"],
+    "replacementNominee": null,
+    "evictionVotes": [...],
+    "published": false,
+    "createdBy": "admin",
+    "createdAt": "2026-01-05T00:00:00.000Z",
+    "updatedBy": "admin",
+    "updatedAt": "2026-01-05T00:00:00.000Z"
+  }
+}
+```
+
+### Running the tests
+
+```bash
+# from the repo root — requires server deps to be installed
+cd server && npm ci && cd ..
+NODE_PATH=./server/node_modules node --test tests/diaryWeek.spec.cjs
+```
+
+All 15 integration tests should pass (create, fetch, patch, export, list).
+
+### QA checklist
+
+- [ ] `npm run typecheck` — no TypeScript errors
+- [ ] `npm run lint` — no ESLint errors
+- [ ] `NODE_PATH=./server/node_modules node --test tests/diaryWeek.spec.cjs` — all 15 tests pass
+- [ ] Start the server (`cd server && npm start`) and the frontend (`npm run dev`)
+- [ ] Open the Diary Room screen → **Weekly** tab appears
+- [ ] Without an admin key, the editor is hidden; only the view is shown
+- [ ] Enter a valid admin key → **Edit** button appears
+- [ ] Create a week as admin → week appears in view
+- [ ] Export JSON downloads a `.json` file
+- [ ] A non-admin `curl -X POST /api/seasons/1/weeks` returns `403 Forbidden`
+
+## TvZone Announcement Overlay — phase trigger reference
+
+The inline stinger overlay in `TvZone` is driven by **game-phase transitions**, not text heuristics. Popups are shown only for the following phases:
+
+| Phase                   | Trigger condition | Announcement shown      |
+| ----------------------- | ----------------- | ----------------------- |
+| `hoh_comp_announcement` | any alive count   | HOH Competition         |
+| `pos_comp_announcement` | any alive count   | Power of Safety         |
+| `nominations`           | any alive count   | Nomination Ceremony     |
+| `pov_ceremony`          | alive count !== 4 | Veto Ceremony           |
+| `pov_ceremony`          | alive count === 4 | Final 4 — Veto Ceremony |
+| `live_vote`             | any alive count   | Live Eviction           |
+| `final3`                | alive count === 3 | Final 3                 |
+| `final3_decision`       | any alive count   | Final HOH Decision      |
+| `jury`                  | any alive count   | Jury Votes              |
+
+**No overlay** is shown for: `week_start`, `hoh_comp`, `pov_comp`, `final3_comp1`, `final3_comp2`, `final3_comp3`, and all other phases — these remain normal text messages.
+
+All overlay announcements require manual dismissal. The central Play/Continue FAB should dispatch the following event to dismiss an active announcement:
+
+```js
+window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))
+```
+
+An explicit `event.meta.major` or `event.major` field on a `TvEvent` can also trigger an overlay for backwards compatibility (valid keys: `nomination_ceremony`, `veto_ceremony`, `live_eviction`, `final4`, `final3_announcement`, `final_hoh`, `jury`, `battle_back`, `double_eviction`, `twist`, `hoh_comp_announcement`, `pos_comp_announcement`).
+
+> **After merging**, please attach a screenshot of the updated TV area (full-bleed announcement visible) to this PR for visual verification.
+
+---
+
+## Intro Hub UI
+
+The **Intro Hub** is a lightweight, framework-agnostic overlay of rounded navigation chips
+that can be added to any page in the app. It is implemented as plain CSS + vanilla JS files
+and does **not** require changes to the Vite/React build pipeline.
+
+### Preview
+
+![Intro Hub UI](https://github.com/user-attachments/assets/7696ee07-0268-4102-8a63-349a79c418c4)
+
+_Chips in all four corners with notification dots on News (bottom-left) and Store (bottom-right)._
+
+### Added files
+
+| File                            | Description                                                        |
+| ------------------------------- | ------------------------------------------------------------------ |
+| `css/intro-hub.css`             | Chip styles (rounded pill, badge dot, corner positions)            |
+| `js/ui/introHub.js`             | Hub module — auto-inits `#intro-hub`, exposes runtime API          |
+| `tests/test_intro_hub.html`     | Standalone test page (open directly in a browser)                  |
+| `css/houseguests-modal.css`     | Modal styles — copied from `georgi-cole/bbmobile`                  |
+| `js/data/houseguests.js`        | Houseguest data source — copied from `georgi-cole/bbmobile`        |
+| `js/data/houseguests.js.backup` | Original backup — copied from `georgi-cole/bbmobile`               |
+| `js/ui/houseguestsModal.js`     | Houseguests list/detail modal — copied from `georgi-cole/bbmobile` |
+| `js/houseguest-profile.js`      | Full-screen profile modal — copied from `georgi-cole/bbmobile`     |
+| `js/ui/houseguestSheet.js`      | Bottom sheet profile — copied from `georgi-cole/bbmobile`          |
+| `src/ui/houseguestsList.js`     | Guest card handlers — copied from `georgi-cole/bbmobile`           |
+| `screenshots/intro-hub-1.png`   | Placeholder screenshot (replace with real screenshot)              |
+| `screenshots/intro-hub-2.png`   | Placeholder screenshot (replace with real screenshot)              |
+
+### How to test locally
+
+Open `tests/test_intro_hub.html` directly in a browser (no build step required):
+
+```
+open tests/test_intro_hub.html
+# or
+python3 -m http.server 8080   # then visit http://localhost:8080/tests/test_intro_hub.html
+```
+
+Chips appear in the four corners. Use the on-screen buttons to test notification dots and
+the Houseguests panel.
+
+### How to wire into the React app
+
+Because the app uses Vite + React, the recommended approach is to mount the hub container
+inside a component and load the static scripts as side-effects.
+
+1. **Add the container** to a component that wraps your intro/lobby screen:
+
+```tsx
+// In your component (e.g. IntroScreen.tsx or App.tsx)
+<div id="intro-hub" />
+```
+
+2. **Import the CSS** (e.g. in `src/index.css` or the component):
+
+```css
+@import '../css/intro-hub.css';
+@import '../css/houseguests-modal.css';
+```
+
+3. **Load the JS modules** as side-effects in the component's `useEffect`:
+
+```tsx
+import { useEffect } from 'react'
+
+useEffect(() => {
+  // Load houseguest data first, then the modal, then the hub
+  const scripts = ['/js/data/houseguests.js', '/js/ui/houseguestsModal.js', '/js/ui/introHub.js']
+  scripts.forEach((src) => {
+    if (!document.querySelector(`script[src="${src}"]`)) {
+      const s = document.createElement('script')
+      s.src = src
+      document.body.appendChild(s)
+    }
+  })
+}, [])
+```
+
+Or copy the modules into `src/` and import them as ES modules — they use
+`(function(global){ ... })(window)` UMD wrappers that work in either context.
+
+4. **Pre-configure notifications** before the hub loads:
+
+```ts
+window.game = window.game || {}
+window.game.hubNotifications = { news: true }
+```
+
+### Runtime notification API
+
+```js
+// Show a notification dot on the 'news' chip
+window.game.hub.setNotification('news', true)
+
+// Clear the dot
+window.game.hub.setNotification('news', false)
+
+// Re-read window.game.hubNotifications and apply all dots at once
+window.game.hub.refreshNotifications()
+```
+
+### Houseguests chip integration
+
+The Houseguests chip calls (in priority order):
+
+1. `window.game.houseguests.openPanel()` — override this to plug in your own panel
+2. `window.HouseguestsModal.open('list')` — used automatically when `houseguestsModal.js` is loaded
+3. A built-in placeholder panel — shown if neither of the above is available
+
+### Source files in georgi-cole/bbmobile (commit `9c3afb1`)
+
+- [css/houseguests-modal.css](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/css/houseguests-modal.css)
+- [js/data/houseguests.js](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/js/data/houseguests.js)
+- [js/data/houseguests.js.backup](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/js/data/houseguests.js.backup)
+- [js/ui/houseguestsModal.js](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/js/ui/houseguestsModal.js)
+- [js/houseguest-profile.js](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/js/houseguest-profile.js)
+- [js/ui/houseguestSheet.js](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/js/ui/houseguestSheet.js)
+- [src/ui/houseguestsList.js](https://github.com/georgi-cole/bbmobile/blob/9c3afb150140e5bc74a82994d962f843ffd13052/src/ui/houseguestsList.js)
+
+> **Note:** `js/ui/houseguestsList.js` does not exist in bbmobile; only `src/ui/houseguestsList.js`
+> was found and has been copied to that same path (`src/ui/houseguestsList.js`) in this repo.
+>
+> **Note:** `js/ui/houseguestSheet.js` uses ES6 `import` syntax and requires a module bundler
+> (e.g. Vite/webpack) to run. It is copied verbatim for completeness but **cannot** be loaded
+> as a plain `<script>` tag — integrate it through the existing Vite build instead.

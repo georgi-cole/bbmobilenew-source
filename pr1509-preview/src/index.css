@@ -1,0 +1,347 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Global base styles — bbmobilenew
+   Mobile-first, dark theme, safe-area aware.
+
+   Design tokens (CSS custom properties):
+     --color-bg          dark background
+     --color-card        surface / card
+     --color-text        primary text
+     --color-text-muted  secondary text
+     --color-accent      primary accent (indigo)
+     --color-accent-2    secondary accent (purple)
+
+   Add new tokens here; they are automatically available everywhere.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&display=swap');
+
+/* ── Design Tokens ────────────────────────────────────────────────────────── */
+:root {
+  /* Palette */
+  --color-bg: #0d111a;
+  --color-card: #141b26;
+  --color-card-2: #1a2336;
+  --color-text: rgba(255, 255, 255, 0.92);
+  --color-text-muted: rgba(255, 255, 255, 0.48);
+  --color-accent: #6366f1;
+  --color-accent-2: #8b5cf6;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-gold-primary: #fbbf24;
+  --color-gold-secondary: #f59e0b;
+  --color-gold-deep: #d97706;
+
+  /* TV surface (used by TvZone) */
+  --tv-surface: #0b121a;
+
+  /* Safe-area layout */
+  /* Capacitor SystemBars replaces these values with measured Android window
+     insets when the WebView draws edge-to-edge. Keeping the aliases separate
+     lets the same variables work in browsers, iOS and native Android. */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-top: var(--safe-area-inset-top);
+  --safe-bottom: var(--safe-area-inset-bottom);
+  --safe-left: var(--safe-area-inset-left);
+  --safe-right: var(--safe-area-inset-right);
+  /* One top-edge contract for every screen. Capacitor's measured inset wins
+     during normal operation; the fallback only covers WKWebView's zero-inset
+     startup frame on native iOS. */
+  --app-safe-area-top-fallback: 0px;
+  --app-safe-area-top: max(
+    var(--app-safe-area-top-fallback),
+    var(--safe-top),
+    env(safe-area-inset-top, 0px)
+  );
+  --app-safe-area-top-extra: max(0px, calc(var(--app-safe-area-top) - 16px));
+  --floating-corner-top-base: 12px;
+  --floating-corner-top-safe-padding: 8px;
+  --floating-corner-left-base: 16px;
+  --floating-corner-left-safe-padding: 16px;
+  --floating-corner-right-base: 16px;
+  --floating-corner-right-safe-padding: 16px;
+  --floating-corner-top-offset: max(
+    var(--floating-corner-top-base),
+    calc(var(--app-safe-area-top) + var(--floating-corner-top-safe-padding))
+  );
+  --floating-corner-left-offset: max(
+    var(--floating-corner-left-base),
+    calc(var(--safe-left) + var(--floating-corner-left-safe-padding))
+  );
+  --floating-corner-right-offset: max(
+    var(--floating-corner-right-base),
+    calc(var(--safe-right) + var(--floating-corner-right-safe-padding))
+  );
+
+  /* Typography */
+  font-family:
+    'Montserrat',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+}
+
+/* iOS zooms the entire page when a focused text control renders below 16px.
+   In a persistent WebView that zoom/pan can survive route changes and make the
+   fixed game cabinet appear scrollable. Keep every touch text-entry surface at
+   the platform's no-auto-zoom threshold; non-text inputs retain their sizing. */
+@media (pointer: coarse) {
+  input:not([type='button']):not([type='checkbox']):not([type='color']):not([type='file']):not(
+      [type='image']
+    ):not([type='radio']):not([type='range']):not([type='reset']):not([type='submit']),
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Never infer an inset from the device user agent. Android reports its actual
+   system-bar/cutout inset through Capacitor SystemBars; a fixed Pixel fallback
+   creates a visible dead band on non-cutout devices such as Pixel XL. */
+
+/* ── Base elements ────────────────────────────────────────────────────────── */
+button {
+  font-family: inherit;
+}
+
+/* Remove default blue tap highlight on mobile */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Shared native button system for menus, dialogs, and HUD actions.
+   Keep the visual language neon and glassy, but make the sizing/padding
+   consistent across repeated UI patterns. */
+.game-button {
+  --game-button-bg: linear-gradient(180deg, rgba(25, 33, 53, 0.96), rgba(15, 20, 33, 0.98));
+  --game-button-border: rgba(255, 255, 255, 0.12);
+  --game-button-shadow: 0 10px 24px rgba(2, 6, 16, 0.22);
+  --game-button-text: var(--color-text);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--game-button-border);
+  border-radius: 14px;
+  background: var(--game-button-bg);
+  color: var(--game-button-text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  box-shadow: var(--game-button-shadow);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease,
+    opacity 150ms ease,
+    filter 150ms ease;
+}
+
+.game-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.18);
+  filter: brightness(1.02);
+}
+
+.game-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+.game-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.game-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.78);
+  outline-offset: 2px;
+}
+
+.game-button--primary {
+  --game-button-bg: linear-gradient(135deg, rgba(92, 100, 255, 0.96), rgba(136, 84, 255, 0.96));
+  --game-button-border: rgba(255, 255, 255, 0.15);
+  --game-button-shadow: 0 12px 28px rgba(56, 70, 255, 0.24), 0 0 22px rgba(139, 92, 246, 0.12);
+}
+
+.game-button--secondary {
+  --game-button-bg: linear-gradient(180deg, rgba(22, 31, 49, 0.96), rgba(14, 19, 31, 0.98));
+}
+
+.game-button--menu {
+  min-height: 40px;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.game-button--ghost {
+  --game-button-bg: rgba(255, 255, 255, 0.04);
+  --game-button-border: rgba(255, 255, 255, 0.1);
+  --game-button-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.game-button--icon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-radius: 14px;
+}
+
+.game-button--close {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.game-button--back {
+  padding-inline: 0.95rem 1.05rem;
+}
+
+.game-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Shared placeholder screen layout ────────────────────────────────────── */
+.placeholder-screen {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  gap: 8px;
+  min-height: 100%;
+}
+
+.placeholder-screen__title {
+  margin: 0 0 4px;
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--color-text);
+}
+
+.placeholder-screen__section {
+  margin: 16px 0 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-text-muted);
+}
+
+.placeholder-screen__note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+/* ── Accessibility utilities ──────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── No-animations mode ───────────────────────────────────────────────────── */
+/* Toggled by AppShell when the user disables animations in Settings.          */
+/* Suppresses all CSS animations and transitions globally.                     */
+body.no-animations *,
+body.no-animations *::before,
+body.no-animations *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Hide overlay backdrops and dimmers so they don't block game progression.    */
+body.no-animations .tv-ann-modal__backdrop,
+body.no-animations .overlay-backdrop,
+body.no-animations .backdrop,
+body.no-animations .modal-backdrop {
+  display: none !important;
+}
+
+/* ── Visual freeze mode ───────────────────────────────────────────────────── */
+html[data-visual-freeze='true'],
+html[data-visual-freeze='true'] body {
+  scroll-behavior: auto;
+}
+
+html[data-visual-freeze='true'] *,
+html[data-visual-freeze='true'] *::before,
+html[data-visual-freeze='true'] *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+html[data-visual-freeze='true'] .tv-ann-modal__backdrop,
+html[data-visual-freeze='true'] .overlay-backdrop,
+html[data-visual-freeze='true'] .backdrop,
+html[data-visual-freeze='true'] .modal-backdrop {
+  display: none !important;
+}

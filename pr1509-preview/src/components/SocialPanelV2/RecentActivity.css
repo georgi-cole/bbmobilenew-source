@@ -1,0 +1,229 @@
+/* ─── RecentActivity ─────────────────────────────────────────────────────────
+ * Styles for the recent social actions feed component.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.ra-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.ra-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ra-header::before {
+  content: none;
+}
+
+.ra-title {
+  color: rgba(223, 208, 247, 0.7);
+  font-size: 0.57rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ra-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+
+.ra-history-btn {
+  border: 1px solid rgba(223, 196, 133, 0.3);
+  border-radius: 999px;
+  padding: 0.13rem 0.34rem;
+  color: #e6ce87;
+  background: rgba(110, 72, 29, 0.14);
+  font: inherit;
+  font-size: 0.55rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ra-clear-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.48));
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ra-clear-btn:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.ra-empty {
+  margin: auto 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.3));
+  font-style: italic;
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+/* ── Entry list ──────────────────────────────────────────────────────────── */
+.ra-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+}
+
+.ra-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.34rem 0.46rem;
+  background: linear-gradient(100deg, rgba(65, 47, 85, 0.22), rgba(255, 255, 255, 0.025));
+  border: 1px solid rgba(225, 205, 255, 0.09);
+  border-radius: 8px;
+  font-size: 0.72rem;
+}
+
+.ra-container:not(.ra-container--expanded) .ra-entry {
+  align-items: center;
+  min-height: 2.3rem;
+  padding-block: 0.3rem;
+}
+
+.ra-container:not(.ra-container--expanded) .ra-entry__action-tag,
+.ra-container:not(.ra-container--expanded) .ra-entry__delta,
+.ra-container:not(.ra-container--expanded) .ra-entry__resources {
+  display: none;
+}
+
+.ra-container:not(.ra-container--expanded) .ra-entry__narrative {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 0.66rem;
+  line-height: 1.28;
+}
+
+/* ── Icon ────────────────────────────────────────────────────────────────── */
+.ra-entry__icon {
+  font-size: 0.78rem;
+  font-weight: 900;
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+}
+
+.ra-entry__icon--positive {
+  color: #34d399;
+}
+.ra-entry__icon--negative {
+  color: #ef4444;
+}
+.ra-entry__icon--neutral {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Narrative text ──────────────────────────────────────────────────────── */
+.ra-entry__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ra-entry__action-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent, #6366f1);
+  opacity: 0.8;
+}
+
+.ra-entry__narrative {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* ── Delta ────────────────────────────────────────────────────────────────── */
+.ra-entry__delta {
+  font-weight: 700;
+  font-size: 0.62rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.ra-entry__delta--positive {
+  color: #34d399;
+}
+.ra-entry__delta--negative {
+  color: #ef4444;
+}
+.ra-entry__delta--neutral {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+/* ── Timestamp ───────────────────────────────────────────────────────────── */
+.ra-entry__time {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.62rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ── New-entry highlight ─────────────────────────────────────────────────── */
+.ra-entry__resources {
+  color: #f2c66d;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  align-self: flex-start;
+}
+
+@keyframes ra-entry-highlight {
+  0% {
+    transform: translateY(0.4rem);
+    background: rgba(146, 100, 238, 0.3);
+    box-shadow: 0 0 1rem rgba(128, 83, 218, 0.2);
+  }
+  100% {
+    transform: translateY(0);
+    background: linear-gradient(100deg, rgba(65, 47, 85, 0.22), rgba(255, 255, 255, 0.025));
+    box-shadow: none;
+  }
+}
+
+.ra-entry--new {
+  animation: ra-entry-highlight 1.2s ease-out forwards;
+}
+
+/* ── Reduce motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ra-clear-btn {
+    transition: none !important;
+  }
+  .ra-entry--new {
+    animation: none;
+  }
+}
