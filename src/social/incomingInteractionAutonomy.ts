@@ -248,8 +248,7 @@ function getRealityAllianceState(
   playerId: string
 ): { present: boolean; live: boolean } {
   const alliance = Object.values(context.reality?.alliances ?? {}).find(
-    (candidate) =>
-      candidate.memberIds.includes(actorId) && candidate.memberIds.includes(playerId)
+    (candidate) => candidate.memberIds.includes(actorId) && candidate.memberIds.includes(playerId)
   )
   return {
     present: alliance != null,
