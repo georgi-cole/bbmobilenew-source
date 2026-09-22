@@ -140,8 +140,9 @@ describe('generateDirectionsForCycle', () => {
       ...completedBreak,
       id: 'repair',
       type: 'repair_relationship',
-      createdWeek: 8,
-      completedWeek: 8,
+      // Same-week repair must still win because it was appended later.
+      createdWeek: 7,
+      completedWeek: 7,
     }
     const afterRepair = getEligibleDirectionCandidates(actor, {
       players: [actor, ally],
