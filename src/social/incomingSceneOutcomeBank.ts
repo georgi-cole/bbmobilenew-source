@@ -302,7 +302,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   automatic_nominee_reaction: {
     positive: [
-      '{from} appreciates that you are not pretending the automatic nomination was anybody\'s personal move.',
+      "{from} appreciates that you are not pretending the automatic nomination was anybody's personal move.",
       '{from} leaves focused on surviving the rule-driven block rather than inventing a betrayal.',
     ],
     neutral: [
