@@ -1147,15 +1147,19 @@ export interface GameState {
      */
     multiEviction?: boolean
     /**
-     * Number of jury members (default 7).
-     * Formula: nonJuryEvictions = totalPlayers - 2 - jurySize;
-     * players evicted at index < nonJuryEvictions go home (status 'evicted'),
-     * the rest become jurors (status 'jury').
+     * Locked Tribunal size for this season. Standard Classic seasons scale by
+     * starting cast size; a 16-player cast uses nine Tribunal members.
+     */
+    tribunalSize?: number
+    /**
+     * @deprecated Legacy saved-game alias for tribunalSize. Read for backwards
+     * compatibility only; new seasons persist tribunalSize.
      */
     jurySize?: number
     /**
-     * When true, one pre-jury evictee may return to the jury house via
-     * jury-return scoring before voting begins.
+     * @deprecated Legacy finale-time promotion flag. The Tribunal is now fixed
+     * when each standard eviction is committed; pre-Tribunal exits are never
+     * promoted at the finale.
      */
     enableJuryReturn?: boolean
     /**
@@ -1169,8 +1173,13 @@ export interface GameState {
      */
     tVoteReveal?: number
     /**
-     * When true, a tied vote is broken by "America's Vote" (random pick).
-     * Default false – ties are broken deterministically via seeded RNG.
+     * When true, the public casts one equal-weight ballot in the Final 2.
+     * The public ballot never promotes extra Tribunal members or gains extra weight.
+     */
+    publicFinalVoteEnabled?: boolean
+    /**
+     * @deprecated Legacy alias for publicFinalVoteEnabled retained for saved-game
+     * compatibility.
      */
     americasVoteEnabled?: boolean
     /**
