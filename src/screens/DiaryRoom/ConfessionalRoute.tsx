@@ -1,9 +1,13 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  selectActiveConfessionalDecision,
+  type ActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import { consumeBroadcastEvent } from '../../store/gameSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import DiaryRoom from './DiaryRoom'
+import { findConfessionalSourceBroadcast } from './confessionalBroadcastReceipt'
 import RequiredConfessionalSession from './RequiredConfessionalSession'
 
 export default function ConfessionalRoute() {
@@ -12,24 +16,18 @@ export default function ConfessionalRoute() {
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
   const focusedDecision = activeDecision?.type === 'twin_shock' ? null : activeDecision
   const tvFeed = useAppSelector((state) => state.game.tvFeed)
+  const currentWeek = useAppSelector((state) => state.game.week)
   const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
 
   const returnToGame = useCallback(
-    (returnCue: string) => {
-      // A required Confessional decision acknowledges the Faux-TV prompt that
-      // opened it. Without this receipt the prompt survives the route change
-      // and is selected again when the game screen remounts.
-      const normalizedCue = returnCue.toLowerCase()
-      const sourcePrompt = tvFeed.find((event) => {
-        if (event.meta?.broadcastConsumed === true) return false
-        const text = event.text.toLowerCase()
-        if (normalizedCue.includes('halo exchange'))
-          return text.includes('will you use halo exchange')
-        if (normalizedCue.includes('double vote')) return text.includes('double vote')
-        if (normalizedCue.includes('safety'))
-          return text.includes('will you use') || text.includes('power of safety')
-        return false
-      })
+    (
+      returnCue: string,
+      decisionType: ActiveConfessionalDecision['type'] | null
+    ) => {
+      // Consume the exact prompt associated with the decision that was just
+      // committed. Broadcast template metadata is authoritative; copy parsing
+      // is retained only for legacy saves that pre-date structured templates.
+      const sourcePrompt = findConfessionalSourceBroadcast(tvFeed, decisionType, currentWeek)
       if (sourcePrompt) dispatch(consumeBroadcastEvent(sourcePrompt.id))
       setRequiredSessionActive(false)
       navigate('/game', {
@@ -40,7 +38,7 @@ export default function ConfessionalRoute() {
         },
       })
     },
-    [dispatch, navigate, tvFeed]
+    [currentWeek, dispatch, navigate, tvFeed]
   )
 
   if (activeDecision?.type === 'twin_shock') {
