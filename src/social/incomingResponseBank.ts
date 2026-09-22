@@ -153,6 +153,11 @@ export const DRAMA_RESPONSE_BANK: Record<string, ResponseSet[]> = {
     set('Offer a path back', 'Hear their anger', 'Refuse apology', 'Walk away'),
     set('Calm the fallout', 'Keep it strategic', 'Match their heat', 'Say nothing'),
   ],
+  'scenario:automatic_nominee_reaction': [
+    set('Acknowledge the rule', 'Hear how they feel', 'Talk next steps', 'Give them space'),
+    set('Keep it factual', 'Ask what they need now', 'Focus on Safety', 'End the talk'),
+    set('Name the rule clearly', 'Let them vent', 'Discuss the vote', 'Move on'),
+  ],
   'scenario:survivor_gratitude': [
     set('Share the moment', 'Accept thanks', 'Call in a favor', 'Move on'),
     set('Celebrate together', 'Keep it modest', 'Remind them they owe you', 'Change topic'),
