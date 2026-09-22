@@ -311,6 +311,33 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('snide_remark')
   })
 
+  it('keeps betrayal ahead of survivor gratitude after an eviction vote', () => {
+    const context = buildContext({
+      phase: 'eviction_results',
+      nomineeIds: ['ally', 'evictee'],
+      pendingEvictionId: 'evictee',
+      relationships: {
+        ally: { user: { affinity: 55, tags: ['alliance', 'betrayal'] } },
+        evictee: { user: { affinity: 0, tags: [] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'nominated' },
+        { id: 'evictee', name: 'Evictee', status: 'nominated' },
+      ],
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('eviction_results', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'ally'
+    )?.interaction
+    expect(interaction?.type).toBe('warning')
+    expect(interaction?.payload?.scenarioKey).toBe('betrayal_warning')
+  })
+
   it('adds the new thematic phases to eligible scheduling', () => {
     expect(ELIGIBLE_PHASES.has('social_1')).toBe(true)
     expect(ELIGIBLE_PHASES.has('nomination_results')).toBe(true)
