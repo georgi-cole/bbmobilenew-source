@@ -107,6 +107,10 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'ask what they need now': says('they need a path through Safety and enough votes to stay.'),
     'focus on safety': says('they shift immediately to the next controllable part of the week.'),
     'end the talk': acts('ends the conversation without turning the rule-driven nomination into a grievance.'),
+    'name the rule clearly': says('they agree the last-place rule, not an LOH choice, is what put them on the block.'),
+    'let them vent': says('they vent about the competition result without turning it into blame against the LOH.'),
+    'discuss the vote': says('they move the conversation toward the votes they still need to survive.'),
+    'move on': acts('moves on from the automatic nomination and starts working the rest of the week.'),
   },
   nominee_confronts_loh: {
     'meet the anger honestly': says('they wanted you to admit the move damaged the relationship.'),
