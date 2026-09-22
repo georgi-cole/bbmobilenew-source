@@ -209,6 +209,13 @@ function pickSummary(name: string, seed: number): string {
   return SUMMARY_POOL[idx].replace('{name}', name)
 }
 
+/** Labels for a claimed power that is still waiting for future use. */
+const REWARD_LABELS: Record<string, string> = {
+  doubleVote: 'Double Vote',
+  voteDeduction: 'Vote Deduction',
+  immunity: 'Secret Immunity',
+}
+
 const REWARD_REVEAL_COPY: Record<
   SecretMissionBoxRewardType,
   (week: number, durationDays?: number) => string
@@ -1817,6 +1824,51 @@ export default function DiaryRoom() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+
+              {/* A completed mission is history; only an actually actionable stored
+                  power remains visible here, as a separate compact status card. */}
+              {secretMission?.status === 'rewardClaimed' &&
+                secretMission.reward?.eligible &&
+                !secretMission.reward.consumed &&
+                !secretMission.reward.expired &&
+                secretMission.reward.type !== 'plus1000Influence' &&
+                secretMission.reward.type !== 'emptyBox' && (
+                  <div className="diary-room__reward-claimed" aria-label="Stored secret power">
+                    <p className="diary-room__reward-claimed-active">
+                      🔮 Secret power stored:{' '}
+                      <strong>
+                        {REWARD_LABELS[secretMission.reward.type] ?? secretMission.reward.type}
+                      </strong>
+                      {secretMission.reward.type === 'immunity' &&
+                      secretMission.reward.durationDays
+                        ? ` — ${secretMission.reward.durationDays} day${secretMission.reward.durationDays === 1 ? '' : 's'}`
+                        : ''}
+                    </p>
+                    {secretMission.reward.type === 'immunity' && (
+                      <p className="diary-room__reward-active-hint">
+                        Use it during the Safety Ceremony while nominated. Expires after Day{' '}
+                        {secretMission.reward.activeUntilDay ?? currentWeekForMission}.
+                      </p>
+                    )}
+                    {secretMission.reward.type === 'doubleVote' && (
+                      <p className="diary-room__reward-active-hint">
+                        It will be offered automatically at your next eligible live vote.
+                      </p>
+                    )}
+                    {secretMission.reward.type === 'voteDeduction' && (
+                      <p className="diary-room__reward-active-hint">
+                        If you are on the block at an eligible eviction, you may remove one vote
+                        from your total.
+                      </p>
+                    )}
+                    {secretMission.reward.type === 'immunity' &&
+                      activeConfessionalDecision?.type === 'mission_immunity_offer' && (
+                        <p className="diary-room__reward-active-hint">
+                          📺 The Big Eye is ready to ask whether you want to spend it right now.
+                        </p>
+                      )}
                   </div>
                 )}
               <ChatBubbles
