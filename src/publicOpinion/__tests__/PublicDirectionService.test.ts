@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Player } from '../../types'
+import type { PublicDirection } from '../types'
+import { getEligibleDirectionCandidates } from '../publicDirectionContracts'
 import { generateDirectionsForCycle } from '../PublicDirectionService'
 
 function player(id: string, isUser = false): Player {
@@ -82,6 +84,77 @@ describe('generateDirectionsForCycle', () => {
 
     expect(relationshipRequest).toBeDefined()
     expect(relationshipRequest?.expiresAtWeek).toBe(6)
+  })
+
+  it('uses only live or successfully completed relationship requests to suppress contradictions', () => {
+    const actor = player('test', true)
+    const ally = player('nova')
+    const relationships = {
+      test: { nova: { affinity: 30, tags: ['alliance'] } },
+      nova: { test: { affinity: 30, tags: ['alliance'] } },
+    }
+    const failedBreak: PublicDirection = {
+      id: 'failed-break',
+      type: 'break_alliance',
+      playerId: actor.id,
+      relatedPlayerId: ally.id,
+      description: 'Break the alliance',
+      status: 'failed',
+      createdWeek: 4,
+      expiresAtWeek: 5,
+      approvalDelta: 0,
+    }
+
+    const afterFailedBreak = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [failedBreak],
+    })
+    expect(
+      afterFailedBreak.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(true)
+
+    const completedBreak: PublicDirection = {
+      ...failedBreak,
+      id: 'completed-break',
+      status: 'completed',
+      createdWeek: 7,
+      completedWeek: 7,
+    }
+    const afterCompletedBreak = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [completedBreak],
+    })
+    expect(
+      afterCompletedBreak.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(false)
+
+    const repaired: PublicDirection = {
+      ...completedBreak,
+      id: 'repair',
+      type: 'repair_relationship',
+      createdWeek: 8,
+      completedWeek: 8,
+    }
+    const afterRepair = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [completedBreak, repaired],
+    })
+    expect(
+      afterRepair.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(true)
+    expect(afterRepair.some((candidate) => candidate.type === 'break_alliance')).toBe(false)
   })
 
   it('does not issue a second live request to a player already carrying one', () => {
