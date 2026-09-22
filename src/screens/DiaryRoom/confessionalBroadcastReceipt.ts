@@ -9,7 +9,9 @@ const TEMPLATE_IDS_BY_DECISION: Partial<Record<DecisionType, readonly string[]>>
 
 function legacyPromptMatches(decisionType: DecisionType | null, text: string): boolean {
   if (decisionType === 'pos_decision') {
-    return /will you use (?:halo exchange|double trouble|detox|(?:the )?power of safety)/i.test(text)
+    return /will you use (?:halo exchange|double trouble|detox|(?:the )?power of safety)/i.test(
+      text
+    )
   }
   if (decisionType === 'double_vote_offer') {
     return /(?:double vote.*(?:available|use|activate)|(?:use|activate).*double vote)/i.test(text)

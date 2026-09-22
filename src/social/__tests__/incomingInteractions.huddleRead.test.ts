@@ -29,7 +29,7 @@ const players = [
 ]
 
 describe('buildAllianceGroupRead', () => {
-  it('renders each active alliance member\'s concrete nomination preference', () => {
+  it("renders each active alliance member's concrete nomination preference", () => {
     const read = buildAllianceGroupRead(
       interaction({
         allianceGroupHuddle: true,

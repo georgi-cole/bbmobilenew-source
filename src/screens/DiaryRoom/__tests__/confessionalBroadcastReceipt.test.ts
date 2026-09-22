@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { TvEvent } from '../../../types'
 import { findConfessionalSourceBroadcast } from '../confessionalBroadcastReceipt'
 
-function event(
-  id: string,
-  text: string,
-  timestamp: number,
-  meta: TvEvent['meta'] = {}
-): TvEvent {
+function event(id: string, text: string, timestamp: number, meta: TvEvent['meta'] = {}): TvEvent {
   return { id, text, type: 'game', timestamp, meta }
 }
 
