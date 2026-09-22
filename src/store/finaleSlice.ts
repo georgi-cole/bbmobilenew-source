@@ -259,38 +259,77 @@ const finaleSlice = createSlice({
      * Updates revealedCount to maximum (reveals any still-hidden jurors).
      * No-op if winner already declared.
      */
-    finalizeFinale(state, action: PayloadAction<{ seed: number }>) {
+    finalizeFinale(state, _action: PayloadAction<{ seed: number }>) {
       if (state.isComplete) return
 
       // Reveal any outstanding jurors
       state.revealedCount = state.revealOrder.length
       state.awaitingHumanJurorId = null
 
-      const tally = tallyVotes(
-        state.votes,
-        state.publicJurorEnabled ? { [PUBLIC_JUROR_ID]: state.publicVoteWeight ?? 1 } : {}
-      )
+      const tally = tallyVotes(state.votes)
       const [a, b] = state.finalistIds
-      const aVotes = a ? (tally[a] ?? 0) : 0
-      const bVotes = b ? (tally[b] ?? 0) : 0
 
       if (!a || !b) {
         state.isComplete = false
         return
       }
 
-      const tied = aVotes === bVotes
-      const winnerId = tied
-        ? determineWinner(tally, state.finalistIds, action.payload.seed)
-        : aVotes > bVotes
-          ? a
-          : b
+      let winnerId = determineWinner(tally, state.finalistIds)
+      let tieBreakReason: FinaleState['tieBreakReason'] = null
+
+      if (!winnerId) {
+        // A single public ballot can turn a 5–4 Tribunal majority into a 5–5
+        // combined tally. In that case the Tribunal itself remains decisive.
+        const tribunalVotes = Object.fromEntries(
+          Object.entries(state.votes).filter(([jurorId]) => jurorId !== PUBLIC_JUROR_ID)
+        )
+        const tribunalWinner = determineWinner(tallyVotes(tribunalVotes), state.finalistIds)
+        if (tribunalWinner) {
+          winnerId = tribunalWinner
+          tieBreakReason = 'tribunal_majority'
+        }
+      }
+
+      if (!winnerId) {
+        // Legacy/even Tribunal saves can still tie. Resolve those from the
+        // persisted season-long juror evaluations rather than RNG.
+        const scoreFor = (finalistId: string) =>
+          Object.values(state.juryScorecards).reduce(
+            (total, scorecard) => total + (scorecard[finalistId] ?? 0),
+            0
+          )
+        const aScore = scoreFor(a)
+        const bScore = scoreFor(b)
+        if (Math.abs(aScore - bScore) > 0.0001) {
+          winnerId = aScore > bScore ? a : b
+          tieBreakReason = 'season_evaluation'
+        }
+      }
+
+      if (!winnerId && state.publicVotedFor && state.finalistIds.includes(state.publicVotedFor)) {
+        winnerId = state.publicVotedFor
+        tieBreakReason = 'public_final_vote'
+      }
+
+      if (!winnerId) {
+        // Last-resort migration safety for a malformed old save with no usable
+        // season evidence. Stable ordering is explicit and non-random.
+        winnerId = [...state.finalistIds].sort()[0] ?? null
+        tieBreakReason = 'legacy_recovery'
+      }
+
+      if (!winnerId) {
+        state.isComplete = false
+        return
+      }
+
       const runnerUpId = state.finalistIds.find((id) => id !== winnerId) ?? null
 
       state.winnerId = winnerId
       state.runnerUpId = runnerUpId
       state.isComplete = true
-      state.tieBreakUsed = tied
+      state.tieBreakUsed = tieBreakReason !== null
+      state.tieBreakReason = tieBreakReason
     },
 
     /**
@@ -362,9 +401,10 @@ const finaleSlice = createSlice({
     hydrateFinale(_state, action: PayloadAction<FinaleState>) {
       return {
         ...action.payload,
-        publicVoteWeight: action.payload.publicVoteWeight ?? 1,
+        publicVoteWeight: 1,
         juryScorecards: action.payload.juryScorecards ?? {},
         tieBreakUsed: action.payload.tieBreakUsed ?? false,
+        tieBreakReason: action.payload.tieBreakReason ?? null,
       }
     },
   },
@@ -396,11 +436,12 @@ export default finaleSlice.reducer
 export const selectFinale = (state: RootState) => state.finale
 
 export const selectFinaleTimings = createSelector(
-  (state: RootState) => state.game.cfg,
-  (cfg) => {
-    const jurySize = cfg?.jurySize ?? 7
+  [(state: RootState) => state.game.cfg, (state: RootState) => state.game.players.length],
+  (cfg, currentCastSize) => {
+    const startingCastSize = cfg?.tribunalStartingCastSize ?? currentCastSize
+    const tribunalSize = Math.max(1, resolveTribunalSize(startingCastSize, cfg))
     const tJuryFinale = cfg?.tJuryFinale ?? 42_000
-    const tVoteReveal = cfg?.tVoteReveal ?? Math.round(tJuryFinale / jurySize)
+    const tVoteReveal = cfg?.tVoteReveal ?? Math.round(tJuryFinale / tribunalSize)
     return { tJuryFinale, tVoteReveal }
   }
 )
