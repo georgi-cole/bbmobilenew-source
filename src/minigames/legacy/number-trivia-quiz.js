@@ -21,10 +21,10 @@
     { q: 'How many seasons has The Big Eye aired (as of 2024)?', a: 26 },
     { q: 'How many cameras are typically in The Big Eye house?', a: 94 },
     { q: 'What is the age requirement to apply for The Big Eye?', a: 21 },
-    { q: 'How many Tribunal members vote in a standard 16-player Classic season?', a: 9 },
+    { q: 'How many Tribunal members typically vote in the finale?', a: 9 },
     { q: 'How many parts does the Final LOH competition have?', a: 3 },
     { q: 'How many POS competitions occur in a standard week?', a: 1 },
-    { q: 'How many exits come before the Tribunal in a standard 16-player Classic season?', a: 5 },
+    { q: 'What week does the Tribunal phase typically start?', a: 5 },
     { q: 'How many housemates were in the first season of The Big Eye?', a: 10 },
     { q: 'How many Back 2 the Game Shocks have occurred in The Big Eye history?', a: 4 },
     
