@@ -7,6 +7,8 @@ import {
   type AutonomyStore,
 } from '../incomingInteractionAutonomy'
 import { getInteractionDedupeReason } from '../incomingInteractionScheduler'
+import { createRealityAlliance } from '../reality/relationshipForms'
+import { createInitialRealityDomainState } from '../reality/state'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from '../types'
 
 function buildContext(overrides: Partial<AutonomyContext> = {}): AutonomyContext {
@@ -336,6 +338,39 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     )?.interaction
     expect(interaction?.type).toBe('warning')
     expect(interaction?.payload?.scenarioKey).toBe('betrayal_warning')
+  })
+
+  it('does not repropose an alliance when a formal Reality alliance already exists', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'formal-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'week_start' },
+    })
+    const context = buildContext({
+      phase: 'week_start',
+      reality,
+      relationships: {
+        ally: { user: { affinity: 80, tags: [] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+      random: () => 0,
+    })
+
+    expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('alliance_proposal')
+
+    const store = buildStore(context)
+    scheduleIncomingInteractionsForPhase('week_start', store, context)
+    expect(
+      store.social.scheduledIncomingInteractions.some(
+        (entry) => entry.interaction.type === 'alliance_proposal'
+      )
+    ).toBe(false)
   })
 
   it('adds the new thematic phases to eligible scheduling', () => {
