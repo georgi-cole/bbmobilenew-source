@@ -178,7 +178,7 @@ const TRIBUNAL_NOTES: Tile[] = [
   {
     kicker: 'MEMBERS',
     title: 'Who joins',
-    copy: 'Once the Tribunal stage begins, eligible eliminated players become Tribunal members instead of leaving the season behind.',
+    copy: 'Tribunal size scales with the starting cast. In the standard 16-player Classic season, the first five exits are pre-Tribunal and the next nine eligible standard exits fill the Tribunal.',
   },
   {
     kicker: 'GAME',
@@ -436,16 +436,17 @@ export default function Rules() {
             <h2 className="rules-section__title">The Tribunal</h2>
           </div>
           <p className="rules-section__intro">
-            The Tribunal is formed from eligible eliminated players late in the season. Leaving the
-            main game does not always mean leaving the story: Tribunal members watch the endgame and
-            ultimately choose the winner.
+            The Tribunal forms at a fixed point based on the season's starting cast. A standard
+            16-player Classic season has nine Tribunal seats after five pre-Tribunal exits. Special
+            or extraordinary removals are not promoted into those seats.
           </p>
           <div className="rules-step-grid">
             {TRIBUNAL_NOTES.map((tile) => renderTile(tile, 'rules-step-card'))}
           </div>
           <p className="rules-section__note">
             How you treat people throughout the season can matter as much as your competition
-            record. The finalists need the Tribunal's respect as well as a strong resume.
+            record. Loyalty, betrayals, promises, protection, and the way a member leaves the game
+            can all shape that member's final judgment.
           </p>
         </section>
 

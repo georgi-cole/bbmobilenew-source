@@ -457,8 +457,8 @@
   font-weight: 700;
 }
 
-/* ── Jury return banner ──────────────────────────────────────────────────── */
-.fo-jury-return {
+/* ── Tribunal tiebreak banner ───────────────────────────────────────────── */
+.fo-tie-break {
   background: rgba(139, 92, 246, 0.1);
   border: 1px solid rgba(139, 92, 246, 0.4);
   border-radius: 10px;
@@ -794,7 +794,7 @@
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.fo-jury-return {
+.fo-tie-break {
   z-index: 14;
   display: flex;
   align-items: center;
@@ -808,7 +808,7 @@
   backdrop-filter: blur(16px);
 }
 
-.fo-jury-return > span {
+.fo-tie-break > span {
   color: var(--fo-gold);
   font-size: 0.62rem;
   font-weight: 950;

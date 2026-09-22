@@ -45,6 +45,11 @@ import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
+import {
+  getTribunalMembers,
+  preTribunalExitCount,
+  resolveTribunalSize,
+} from '../rules/tribunalPolicy'
 import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
 import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
@@ -585,6 +590,8 @@ export function createInitialGameState(options?: {
       ? 'vox_populi'
       : 'classic'
   const playersWithIdentity = assignAiGameIdentities(freshPlayers, seed, aiIdentityMode)
+  const tribunalStartingCastSize = playersWithIdentity.length
+  const tribunalSize = resolveTribunalSize(tribunalStartingCastSize)
   const seasonDirectorPlan = buildSeasonDirectorPlan(season, seed)
 
   // Season-opening broadcasts are built from the same persistent registry as
@@ -747,6 +754,10 @@ export function createInitialGameState(options?: {
     evictionSplashId: null,
     pendingEviction: null,
     players: playersWithIdentity,
+    cfg: {
+      tribunalSize,
+      tribunalStartingCastSize,
+    },
     competitionSeasonStateByPlayerId: buildInitialCompetitionSeasonState(playersWithIdentity),
     tvFeed: initialTvFeed,
     broadcastQueue: initialBroadcastQueue,
@@ -2963,20 +2974,27 @@ type CommitPublicSavePayload =
     }
 
 /**
- * Determine whether the next evicted player should become a juror ('jury')
- * or simply go home ('evicted'), based on the configured jury size.
+ * Decide Tribunal membership at the moment an exit is committed.
  *
- * Formula (default jurySize = 7 for a 12-player season):
- *   nonJuryEvictions = totalPlayers - 2 - jurySize
- * The first `nonJuryEvictions` players evicted go home; the rest become jury.
+ * The season boundary is locked to the starting cast. The standard 16-player
+ * Classic format therefore has five pre-Tribunal exits and nine Tribunal
+ * seats. Extraordinary removals never join, and a filled Tribunal never grows
+ * just because a replacement shock introduced an extra contestant.
  */
-function evictedStatus(state: GameState): 'evicted' | 'jury' {
-  if (isVoxPopuliActive(state)) return 'evicted'
-  const totalPlayers = state.players.length
-  const jurySize = state.cfg?.jurySize ?? 7
-  const nonJuryEvictions = totalPlayers - 2 - jurySize
-  const evictedSoFar = state.players.filter((p) => p.status === 'evicted').length
-  return evictedSoFar < nonJuryEvictions ? 'evicted' : 'jury'
+function evictedStatus(state: GameState, evictee: Player): 'evicted' | 'jury' {
+  if (isVoxPopuliActive(state) || evictee.tribunalEligible === false) return 'evicted'
+
+  const startingCastSize = state.cfg?.tribunalStartingCastSize ?? state.players.length
+  const tribunalSize = resolveTribunalSize(startingCastSize, state.cfg)
+  if (tribunalSize <= 0 || getTribunalMembers(state.players).length >= tribunalSize) {
+    return 'evicted'
+  }
+
+  const committedExits = state.players.filter(
+    (player) => player.status === 'evicted' || player.status === 'jury'
+  ).length
+  const preTribunalExits = preTribunalExitCount(startingCastSize, tribunalSize)
+  return committedExits < preTribunalExits ? 'evicted' : 'jury'
 }
 
 function archiveSeasonExitContext(state: GameState, playerId: string) {
@@ -6060,7 +6078,7 @@ const gameSlice = createSlice({
         : null
 
       assignSeasonPlacementOnExit(state, evicteeId)
-      evictee.status = evictedStatus(state)
+      evictee.status = evictedStatus(state, evictee)
       state.nomineeIds = state.nomineeIds.filter((id) => id !== evicteeId)
       state.pendingEviction = null
       state.dayStartShock = null
@@ -6316,7 +6334,7 @@ const gameSlice = createSlice({
       if (!evictee || !finalHoh) return
 
       assignSeasonPlacementOnExit(state, evicteeId)
-      evictee.status = evictedStatus(state)
+      evictee.status = evictedStatus(state, evictee)
       state.nomineeIds = state.nomineeIds.filter((id) => id !== evicteeId)
       state.awaitingFinal3Eviction = false
       completeFinalThreeController(state, evicteeId)
@@ -7086,7 +7104,7 @@ const gameSlice = createSlice({
 
       // Evict the chosen player.
       assignSeasonPlacementOnExit(state, evicteeId)
-      evictee.status = evictedStatus(state)
+      evictee.status = evictedStatus(state, evictee)
       state.nomineeIds = state.nomineeIds.filter((id) => id !== evicteeId)
       completeFinalThreeController(state, evicteeId)
 
@@ -8396,7 +8414,7 @@ const gameSlice = createSlice({
         if (nominees.length > 0) {
           const evictee = seededPick(rng, nominees)
           assignSeasonPlacementOnExit(state, evictee.id)
-          evictee.status = evictedStatus(state)
+          evictee.status = evictedStatus(state, evictee)
           state.nomineeIds = state.nomineeIds.filter((id) => id !== evictee.id)
           state.awaitingFinal3Eviction = false
           completeFinalThreeController(state, evictee.id)

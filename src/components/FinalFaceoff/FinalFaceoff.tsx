@@ -42,6 +42,7 @@ import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import SeasonRecapCinematic from '../SeasonRecapCinematic/SeasonRecapCinematic'
 import TribunalMemberStage from '../TribunalMemberStage/TribunalMemberStage'
 import { splitFinalePlayers } from './finaleEligibility'
+import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import {
   FIRST_CLUE_DELAY_MS,
   clueReadingHoldMs,
@@ -216,7 +217,7 @@ export default function FinalFaceoff() {
   useEffect(() => {
     if (finale.hasStarted) return
 
-    const { finalists, jurors, preJury } = splitFinalePlayers(game.players)
+    const { finalists, jurors } = splitFinalePlayers(game.players)
     const humanIds = game.players.filter((p) => p.isUser).map((p) => p.id)
 
     const hasPublicProfiles = Object.keys(publicOpinion.profiles).length > 0
@@ -225,12 +226,10 @@ export default function FinalFaceoff() {
       startFinale({
         finalistIds: finalists.map((p) => p.id),
         jurorIds: jurors.map((p) => p.id),
-        preJuryIds: preJury.map((p) => p.id),
         humanPlayerIds: humanIds,
         seed: game.seed,
         cfg: {
-          enableJuryReturn: game.cfg?.enableJuryReturn,
-          americasVoteEnabled: game.cfg?.americasVoteEnabled,
+          publicFinalVoteEnabled: game.cfg?.publicFinalVoteEnabled ?? game.cfg?.americasVoteEnabled,
         },
         publicApprovalProfiles: hasPublicProfiles ? publicOpinion.profiles : undefined,
         reality: socialReality,
@@ -386,13 +385,7 @@ export default function FinalFaceoff() {
     if (player) finalists.push(player)
   }
 
-  const tally =
-    phase === 'revealVotes'
-      ? tallyVotes(
-          visibleVotesMap,
-          finale.publicJurorEnabled ? { [PUBLIC_JUROR_ID]: finale.publicVoteWeight ?? 1 } : {}
-        )
-      : {}
+  const tally = phase === 'revealVotes' ? tallyVotes(visibleVotesMap) : {}
 
   // Keep each newly attributed vote in a fixed focus panel. The complete
   // history stays stationary and remains available for manual scrolling.
@@ -496,19 +489,23 @@ export default function FinalFaceoff() {
         </div>
       </div>
 
-      {/* Jury-return notice */}
-      {finale.returnedJurorId && (
-        <div className="fo-jury-return">
-          <span>Tribunal return</span>
-          {game.players.find((p) => p.id === finale.returnedJurorId)?.name ?? ''} rejoined the
-          Tribunal.
+      {finale.isComplete && finale.tieBreakReason && (
+        <div className="fo-tie-break" role="status">
+          <span>Tiebreak</span>
+          {finale.tieBreakReason === 'tribunal_majority'
+            ? 'The public ballot tied the total. The Tribunal-only majority decides the winner.'
+            : finale.tieBreakReason === 'season_evaluation'
+              ? 'A tied Tribunal was resolved by the season-long Tribunal evaluations.'
+              : finale.tieBreakReason === 'public_final_vote'
+                ? 'The public finalist ballot resolved an otherwise tied Tribunal.'
+                : 'A malformed legacy finale was resolved by stable recovery rules.'}
         </div>
       )}
 
       {/* Phase 1 (clues): cinematic full-body cutout stage ──────────────── */}
       {isCluesPhase ? (
         <TribunalMemberStage
-          tribunalMembers={game.players.filter((player) => player.status === 'jury')}
+          tribunalMembers={getTribunalMembers(game.players)}
           revealedJurors={revealed
             .map((r) => {
               const publicJuror =

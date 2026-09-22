@@ -1,5 +1,5 @@
 /**
- * Jury utility functions for the Finale / Final Jury Voting sequence.
+ * Tribunal utility functions for the Final 2 voting sequence.
  *
  * All functions are pure (no side-effects) to keep them easily testable.
  */
@@ -7,93 +7,22 @@
 import { mulberry32 } from '../store/rng'
 import type { RealityDomainState } from '../social/reality'
 import { computeRealityJuryEvaluation, realityJuryEvaluationScore } from '../social/reality'
+import { preTribunalExitCount, shouldJoinTribunal } from '../rules/tribunalPolicy'
 
-// ─── Jury composition ────────────────────────────────────────────────────────
+// ─── Tribunal composition ────────────────────────────────────────────────────
 
-/**
- * Returns the number of "pre-jury" evictions (players evicted before jury).
- * Formula: totalPlayers - 2 (finalists) - jurySize.
- * e.g. 12 total, 7 jury → 3 pre-jury evictions.
- */
-export function nonJuryEvictionCount(totalPlayers: number, jurySize: number): number {
-  return Math.max(0, totalPlayers - 2 - jurySize)
+/** @deprecated Use preTribunalExitCount from rules/tribunalPolicy. */
+export function nonJuryEvictionCount(totalPlayers: number, tribunalSize: number): number {
+  return preTribunalExitCount(totalPlayers, tribunalSize)
 }
 
-/**
- * Given the 0-based index of a player's eviction (how many players were
- * already evicted/jury when they left), decide whether they become a juror.
- */
+/** @deprecated Use shouldJoinTribunal from rules/tribunalPolicy. */
 export function shouldBeJuror(
   evictionIndex: number,
   totalPlayers: number,
-  jurySize: number
+  tribunalSize: number
 ): boolean {
-  return evictionIndex >= nonJuryEvictionCount(totalPlayers, jurySize)
-}
-
-/**
- * If there is an even number of jurors, promote the next eligible pre-jury
- * evictee to break the potential tie (ensures odd jury count).
- *
- * @param jurorIds       Current jury member IDs (ordered: most-recent last).
- * @param preJuryIds     Pre-jury evictee IDs (ordered: most-recent last).
- * @returns              Possibly extended juror list with one extra member.
- */
-export function ensureOddJurors(jurorIds: string[], preJuryIds: string[]): string[] {
-  if (jurorIds.length % 2 === 1) return jurorIds
-  // Pick the most recently evicted pre-juror not already in the jury
-  // (prevents duplicates when jury-return mechanic already promoted them).
-  const extra = [...preJuryIds].reverse().find((id) => !jurorIds.includes(id))
-  return extra ? [...jurorIds, extra] : jurorIds
-}
-
-export type PublicVoteParityResolution = {
-  jurorIds: string[]
-  publicVoteWeight: 1 | 2
-}
-
-/**
- * Keep the total finale vote weight odd when a public ballot is present.
- *
- * Prefer an even number of regular Tribunal members (normally eight), then add
- * one public vote. If no eligible pre-Tribunal player can be promoted, the
- * public ballot is explicitly worth two votes instead.
- */
-export function resolvePublicVoteParity(
-  jurorIds: string[],
-  eligiblePreJuryIds: string[],
-  publicVoteEnabled: boolean
-): PublicVoteParityResolution {
-  if (!publicVoteEnabled) {
-    return {
-      jurorIds: ensureOddJurors(jurorIds, eligiblePreJuryIds),
-      publicVoteWeight: 1,
-    }
-  }
-
-  if (jurorIds.length % 2 === 0) {
-    return { jurorIds, publicVoteWeight: 1 }
-  }
-
-  const extra = [...eligiblePreJuryIds].reverse().find((id) => !jurorIds.includes(id))
-
-  if (extra) {
-    return {
-      jurorIds: [...jurorIds, extra],
-      publicVoteWeight: 1,
-    }
-  }
-
-  return { jurorIds, publicVoteWeight: 2 }
-}
-
-/**
- * Jury-return mechanic: pick the pre-jury evictee who "won their way back"
- * (highest score proxy = last evicted pre-juror, per bbmobile spec).
- * Returns the player ID to promote to jury, or null if none eligible.
- */
-export function juryReturnCandidate(preJuryIds: string[]): string | null {
-  return preJuryIds.length > 0 ? preJuryIds[preJuryIds.length - 1] : null
+  return shouldJoinTribunal(evictionIndex, totalPlayers, tribunalSize)
 }
 
 // ─── Voting ──────────────────────────────────────────────────────────────────
@@ -116,34 +45,22 @@ export function tallyVotes(
 }
 
 /**
- * Determine the winner from tallied votes.
- * On a tie, falls back to seeded RNG.
- * When `americasVoteEnabled` is true the UI labels the tiebreak as "America's Vote",
- * but the underlying resolution is identical (seeded RNG).
- *
- * @param tally              Vote counts per finalist.
- * @param finalistIds        Exactly 2 finalist IDs.
- * @param seed               RNG seed for deterministic tiebreak.
- * @returns                  Winner ID.
+ * Resolve a non-tied Final 2 tally. Ties return null so the finale reducer can
+ * apply the explicit Tribunal tiebreak policy instead of a random result.
  */
 export function determineWinner(
   tally: Record<string, number>,
-  finalistIds: string[],
-  seed: number
-): string {
-  if (finalistIds.length < 2) return finalistIds[0] ?? ''
+  finalistIds: string[]
+): string | null {
+  if (finalistIds.length < 2) return finalistIds[0] ?? null
   const [a, b] = finalistIds
   const aVotes = tally[a] ?? 0
   const bVotes = tally[b] ?? 0
-
-  if (aVotes !== bVotes) return aVotes > bVotes ? a : b
-
-  // Tie: use seeded RNG (deterministic; UI may label this "America's Vote").
-  const rng = mulberry32(seed)
-  return rng() < 0.5 ? a : b
+  if (aVotes === bVotes) return null
+  return aVotes > bVotes ? a : b
 }
 
-// ─── AI juror voting ─────────────────────────────────────────────────────────
+// ─── AI Tribunal voting ─────────────────────────────────────────────────────────
 
 /** Simple hash of a string to a 32-bit integer (for per-juror RNG derivation). */
 function hashStr(s: string): number {
@@ -193,11 +110,35 @@ export function realityJurorScorecard(
       )
     )
   })
-  if (!hasEvidence) return undefined
+  if (hasEvidence) {
+    return Object.fromEntries(
+      finalistIds.map((finalistId) => {
+        const evaluation = computeRealityJuryEvaluation(reality, jurorId, finalistId, false)
+        return [finalistId, realityJuryEvaluationScore(evaluation)]
+      })
+    )
+  }
+
+  // If juror-specific history is sparse, use season-grounded public perception
+  // before the absolute seeded fallback.
+  const hasPublicEvidence = finalistIds.some(
+    (finalistId) => (reality.publicPerception[finalistId]?.sourceEventIds?.length ?? 0) > 0
+  )
+  if (!hasPublicEvidence) return undefined
+
   return Object.fromEntries(
     finalistIds.map((finalistId) => {
-      const evaluation = computeRealityJuryEvaluation(reality, jurorId, finalistId, false)
-      return [finalistId, realityJuryEvaluationScore(evaluation)]
+      const perception = reality.publicPerception[finalistId]
+      const score = perception
+        ? (perception.strategicRespect ?? 0) * 0.3 +
+          (perception.competitionRespect ?? 0) * 0.2 +
+          (perception.likability ?? 0) * 0.2 +
+          (perception.authenticity ?? 0) * 0.12 +
+          (perception.loyalty ?? 0) * 0.1 +
+          (perception.entertainment ?? 0) * 0.08 -
+          (perception.controversy ?? 0) * 0.08
+        : 0
+      return [finalistId, score]
     })
   )
 }

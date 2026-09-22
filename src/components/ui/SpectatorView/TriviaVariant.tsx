@@ -26,9 +26,9 @@ const BIG_EYE_QUESTIONS = [
     ai: 1,
   },
   {
-    q: 'How many Tribunal members typically vote in a Final 2?',
-    answers: ['5', '7', '9', 'Varies'],
-    ai: 1,
+    q: 'In a standard 16-player Classic season, how many Tribunal members vote?',
+    answers: ['5', '7', '9', '11'],
+    ai: 2,
   },
   {
     q: 'Final 3 Part 3 is a ___ competition.',
@@ -41,9 +41,9 @@ const BIG_EYE_QUESTIONS = [
     ai: 0,
   },
   {
-    q: 'Tribunal members live together in the ___ house.',
-    answers: ['Camp', 'Studio', 'Tribunal', 'Archive'],
-    ai: 2,
+    q: 'How many exits come before the Tribunal in a standard 16-player Classic season?',
+    answers: ['5', '3', '7', '9'],
+    ai: 0,
   },
 ];
 

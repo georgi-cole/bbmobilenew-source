@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -505,7 +506,7 @@ export default function GameScreen() {
           autoDismissMs: 3500,
         }
       : null
-  const juryPlayers = useMemo(() => game.players.filter((p) => p.status === 'jury'), [game.players])
+  const tribunalPlayers = useMemo(() => getTribunalMembers(game.players), [game.players])
 
   // Combine compile-time flag with runtime cfg override.
   // game.cfg?.enableSpectatorReact defaults to true when omitted.
@@ -1917,7 +1918,7 @@ export default function GameScreen() {
         {/* ── Jury phase reveal: cinematic full-screen overlay ──────────────── */}
         <JuryPhaseRevealOverlay
           open={game.phase === 'jury_announcement'}
-          jurors={juryPlayers}
+          jurors={tribunalPlayers}
           onEnterVote={handleEnterJuryVote}
         />
 

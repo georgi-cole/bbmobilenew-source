@@ -2,6 +2,7 @@ import type { Middleware } from '@reduxjs/toolkit'
 import { computeLeaderboardScore } from '../scoring/computeLeaderboard'
 import { DEFAULT_WEIGHTS } from '../scoring/weights'
 import type { GameState, Player } from '../types'
+import { resolveTribunalSize } from '../rules/tribunalPolicy'
 import { archiveSeason } from './gameSlice'
 import { recordBellaCompatibleClassicCompleted } from './profilesSlice'
 import type { PlayerSeasonSummary, SeasonArchive } from './seasonArchive'
@@ -71,7 +72,8 @@ function buildResolvedArchive(game: GameState): SeasonArchive | null {
   })
   const projectedFinalWeek = game.week + Math.max(0, stillInGame.length - 2)
   const placementById = new Map(rankedRemaining.map((player, index) => [player.id, index + 1]))
-  const tribunalSize = game.cfg?.jurySize ?? 7
+  const tribunalStartingCastSize = game.cfg?.tribunalStartingCastSize ?? game.players.length
+  const tribunalSize = resolveTribunalSize(tribunalStartingCastSize, game.cfg)
 
   const summaries = game.players.map((player) => {
     const summary = { ...baseById.get(player.id)! }

@@ -521,7 +521,9 @@ export interface RealityJuryEvaluation {
   betrayalResentment: number
   fairness: number
   ownership: number
+  /** Automatic sendoff impression derived from exit-window relationship history. */
   goodbyeQuality: number
+  /** Reserved for a future interactive Tribunal question/plea system. */
   finalAnswerQuality: number
   sourceEventIds: string[]
 }

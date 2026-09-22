@@ -696,6 +696,85 @@ function eventKnownToJuror(event: RealitySocialEvent, jurorId: string): boolean 
   )
 }
 
+function automaticGoodbyeQuality(
+  state: RealityDomainState,
+  jurorId: string,
+  finalistId: string
+): number {
+  const eviction = [...state.events]
+    .reverse()
+    .find((event) => event.type === 'CEREMONY_EVICTION' && event.targetIds.includes(jurorId))
+  if (!eviction) return 0
+
+  const relationship = getRealityRelationship(state, jurorId, finalistId)
+  let score =
+    relationship.warmth * 0.08 +
+    relationship.trust * 0.08 +
+    relationship.reliability * 0.06 +
+    relationship.gratitude * 0.05 -
+    relationship.resentment * 0.1
+
+  const exitWindow = state.events.filter(
+    (event) =>
+      event.day >= Math.max(1, eviction.day - 1) &&
+      event.day <= eviction.day &&
+      event.actorId === finalistId &&
+      eventKnownToJuror(event, jurorId)
+  )
+
+  if (
+    exitWindow.some(
+      (event) => event.type === 'CEREMONY_NOMINATIONS_LOCKED' && event.targetIds.includes(jurorId)
+    )
+  ) {
+    score -= 14
+  }
+  if (
+    exitWindow.some(
+      (event) => event.type === 'CEREMONY_SAFETY_USED' && event.targetIds.includes(jurorId)
+    )
+  ) {
+    score += 18
+  }
+  if (
+    exitWindow.some(
+      (event) => event.type === 'CEREMONY_SAFETY_DECLINED' && event.targetIds.includes(jurorId)
+    )
+  ) {
+    score -= 8
+  }
+  if (
+    exitWindow.some(
+      (event) =>
+        event.targetIds.includes(jurorId) &&
+        (event.type === 'ALLIANCE_BETRAYAL' ||
+          event.tags.some((tag) => /betray|blindside|lie|broken/i.test(tag)))
+    )
+  ) {
+    score -= 12
+  }
+
+  const voteIntent = state.voteIntents[finalistId]
+  if (voteIntent?.day === eviction.day && voteIntent.actualTargetId === jurorId) {
+    score -= 16
+  }
+
+  for (const promise of Object.values(state.promises)) {
+    if (
+      promise.promisorId !== finalistId ||
+      !promise.beneficiaryIds.includes(jurorId) ||
+      promise.resolvedAt?.day !== eviction.day
+    ) {
+      continue
+    }
+    const stake = Math.max(0, Math.min(1, promise.stakes))
+    if (promise.status === 'KEPT') score += 5 + stake * 7
+    if (promise.status === 'BROKEN') score -= 8 + stake * 10
+  }
+
+  return clamp(score, -100, 100)
+}
+
 export function computeRealityJuryEvaluation(
   state: RealityDomainState,
   jurorId: string,
@@ -750,7 +829,7 @@ export function computeRealityJuryEvaluation(
       relationship.reliability * 0.5 + relationship.trust * 0.35 - betrayalEvents.length * 12
     ),
     ownership: clamp(ownedMoves.length * 7),
-    goodbyeQuality: 0,
+    goodbyeQuality: automaticGoodbyeQuality(state, jurorId, finalistId),
     finalAnswerQuality: 0,
     sourceEventIds: sourceEvents.map((event) => event.id).slice(-80),
   }
@@ -759,7 +838,6 @@ export function computeRealityJuryEvaluation(
   )
   if (existingIndex >= 0) {
     const previous = state.juryEvaluations[existingIndex]
-    evaluation.goodbyeQuality = previous.goodbyeQuality
     evaluation.finalAnswerQuality = previous.finalAnswerQuality
     if (persist) state.juryEvaluations[existingIndex] = evaluation
   } else if (persist) {

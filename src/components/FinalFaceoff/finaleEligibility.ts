@@ -1,12 +1,7 @@
 import type { Player } from '../../types'
+import { getTribunalMembers, isTribunalEligiblePlayer } from '../../rules/tribunalPolicy'
 
-/**
- * Extraordinary removals persist `tribunalEligible = false`; normal evictees
- * remain eligible for Tribunal membership or parity promotion.
- */
-export function isTribunalEligiblePlayer(player: Player): boolean {
-  return player.tribunalEligible !== false
-}
+export { isTribunalEligiblePlayer }
 
 export function splitFinalePlayers(players: Player[]): {
   finalists: Player[]
@@ -15,9 +10,9 @@ export function splitFinalePlayers(players: Player[]): {
 } {
   return {
     finalists: players.filter((player) => player.status !== 'evicted' && player.status !== 'jury'),
-    jurors: players.filter(
-      (player) => player.status === 'jury' && isTribunalEligiblePlayer(player)
-    ),
+    jurors: getTribunalMembers(players),
+    // Kept for archive/debug consumers only. Finale composition must never
+    // promote this group into the Tribunal.
     preJury: players.filter(
       (player) => player.status === 'evicted' && isTribunalEligiblePlayer(player)
     ),

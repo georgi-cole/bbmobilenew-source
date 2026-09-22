@@ -38,12 +38,12 @@ function startPayload(overrides: Partial<Parameters<typeof startFinale>[0]> = {}
 }
 
 describe('finaleSlice', () => {
-  it('only includes the public ballot when America’s Vote is enabled', () => {
+  it('only includes the public finalist ballot when the feature is enabled', () => {
     let state = finaleReducer(
       undefined,
       startFinale(
         startPayload({
-          cfg: { americasVoteEnabled: false },
+          cfg: { publicFinalVoteEnabled: false },
           publicApprovalProfiles: publicProfiles,
         })
       )
@@ -53,24 +53,44 @@ describe('finaleSlice', () => {
     state = finaleReducer(
       undefined,
       startFinale(
-        startPayload({ cfg: { americasVoteEnabled: true }, publicApprovalProfiles: publicProfiles })
+        startPayload({
+          cfg: { publicFinalVoteEnabled: true },
+          publicApprovalProfiles: publicProfiles,
+        })
       )
     )
     expect(state.publicJurorEnabled).toBe(true)
   })
 
-  it('recovers a tied legacy ballot with a deterministic tiebreak', () => {
-    let state = finaleReducer(
-      undefined,
-      startFinale(startPayload({ jurorIds: ['juror-a', 'juror-b'] }))
+  it('recovers a malformed even Tribunal without a random champion', () => {
+    const tied = finaleReducer(
+      finaleReducer(
+        finaleReducer(
+          finaleReducer(undefined, startFinale(startPayload({ jurorIds: ['juror-a', 'juror-b'] }))),
+          forceJurorVote({ jurorId: 'juror-a', finalistId: 'finalist-a' })
+        ),
+        forceJurorVote({ jurorId: 'juror-b', finalistId: 'finalist-b' })
+      ),
+      finalizeFinale({ seed: 987 })
     )
-    state = finaleReducer(state, forceJurorVote({ jurorId: 'juror-a', finalistId: 'finalist-a' }))
-    state = finaleReducer(state, forceJurorVote({ jurorId: 'juror-b', finalistId: 'finalist-b' }))
-    state = finaleReducer(state, finalizeFinale({ seed: 987 }))
 
-    expect(state.isComplete).toBe(true)
-    expect(state.tieBreakUsed).toBe(true)
-    expect(['finalist-a', 'finalist-b']).toContain(state.winnerId)
+    const tiedDifferentSeed = finaleReducer(
+      {
+        ...tied,
+        isComplete: false,
+        winnerId: null,
+        runnerUpId: null,
+        tieBreakUsed: false,
+        tieBreakReason: null,
+      },
+      finalizeFinale({ seed: 1 })
+    )
+
+    expect(tied.isComplete).toBe(true)
+    expect(tied.tieBreakUsed).toBe(true)
+    expect(tied.tieBreakReason).toBe('legacy_recovery')
+    expect(tied.winnerId).toBe('finalist-a')
+    expect(tiedDifferentSeed.winnerId).toBe(tied.winnerId)
   })
 
   it('stops Skip All at an uncast human ballot', () => {
