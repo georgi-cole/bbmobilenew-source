@@ -7,39 +7,39 @@
  * Renders RiskWheelComp directly so the full spin/decision/elimination flow
  * can be exercised without running a full season.
  */
-import { useMemo, useState } from 'react';
-import RiskWheelComp from '../../components/RiskWheelComp/RiskWheelComp';
-import type { RiskWheelCompetitionType } from '../../features/riskWheel/riskWheelSlice';
+import { useMemo, useState } from 'react'
+import RiskWheelComp from '../../components/RiskWheelComp/RiskWheelComp'
+import type { RiskWheelCompetitionType } from '../../features/riskWheel/riskWheelSlice'
 
 const ALL_PARTICIPANTS = [
-  { id: 'user', name: 'You',     isHuman: true,  precomputedScore: 0, previousPR: null },
-  { id: 'ava',  name: 'Ava',     isHuman: false, precomputedScore: 0, previousPR: null },
-  { id: 'rex',  name: 'Rex',     isHuman: false, precomputedScore: 0, previousPR: null },
-  { id: 'mia',  name: 'Mia',     isHuman: false, precomputedScore: 0, previousPR: null },
-  { id: 'leo',  name: 'Leo',     isHuman: false, precomputedScore: 0, previousPR: null },
-  { id: 'zoe',  name: 'Zoe',     isHuman: false, precomputedScore: 0, previousPR: null },
-];
+  { id: 'user', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+  { id: 'ava', name: 'Ava', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'rex', name: 'Rex', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'mia', name: 'Mia', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'leo', name: 'Leo', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'zoe', name: 'Zoe', isHuman: false, precomputedScore: 0, previousPR: null },
+]
 
 export default function RiskWheelTestPage() {
-  const [prizeType, setPrizeType] = useState<RiskWheelCompetitionType>('LOH');
-  const [seed, setSeed] = useState(42);
-  const [playerCount, setPlayerCount] = useState(4);
-  const [humanInGame, setHumanInGame] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [keepOnComplete, setKeepOnComplete] = useState(true);
-  const [premiumPresentation, setPremiumPresentation] = useState(false);
-  const [gameKey, setGameKey] = useState(0);
+  const [prizeType, setPrizeType] = useState<RiskWheelCompetitionType>('LOH')
+  const [seed, setSeed] = useState(42)
+  const [playerCount, setPlayerCount] = useState(4)
+  const [humanInGame, setHumanInGame] = useState(true)
+  const [running, setRunning] = useState(false)
+  const [keepOnComplete, setKeepOnComplete] = useState(true)
+  const [premiumPresentation, setPremiumPresentation] = useState(false)
+  const [gameKey, setGameKey] = useState(0)
 
   const participants = useMemo(() => {
-    const pool = humanInGame ? ALL_PARTICIPANTS : ALL_PARTICIPANTS.filter((p) => !p.isHuman);
-    return pool.slice(0, Math.max(2, Math.min(playerCount, pool.length)));
-  }, [playerCount, humanInGame]);
+    const pool = humanInGame ? ALL_PARTICIPANTS : ALL_PARTICIPANTS.filter((p) => !p.isHuman)
+    return pool.slice(0, Math.max(2, Math.min(playerCount, pool.length)))
+  }, [playerCount, humanInGame])
 
-  const participantIds = participants.map((p) => p.id);
+  const participantIds = participants.map((p) => p.id)
 
   function startGame() {
-    setGameKey((k) => k + 1);
-    setRunning(true);
+    setGameKey((k) => k + 1)
+    setRunning(true)
   }
 
   return (
@@ -100,7 +100,9 @@ export default function RiskWheelTestPage() {
               style={{ padding: '0.3rem 0.6rem', borderRadius: 6 }}
             >
               {[2, 3, 4, 5, 6].map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n}>
+                  {n}
+                </option>
               ))}
             </select>
           </label>
@@ -185,5 +187,5 @@ export default function RiskWheelTestPage() {
         </div>
       )}
     </div>
-  );
+  )
 }
