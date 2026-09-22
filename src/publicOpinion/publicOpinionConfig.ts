@@ -78,6 +78,12 @@ export const publicOpinionConfig = {
    * via partial-progress accumulation.
    */
   missionCompletionThreshold: 100,
+  /**
+   * Only the unreachable rounding tail may snap to completion. With the
+   * current 70/30 weights and one 40% repeated-move credit, 70 + 28 = 98 can
+   * be the highest reachable total for an otherwise satisfied direction.
+   */
+  missionCompletionTailTolerance: 2,
   /** Progress weight awarded when a direct action satisfies a mission trigger. */
   missionDirectProgressWeight: 70,
   /** Progress weight awarded for an indirect / social action toward a mission. */
