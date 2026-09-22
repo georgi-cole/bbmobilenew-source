@@ -669,6 +669,60 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     }
   }
 
+  it('shows a stored future power without keeping the completed mission checklist', () => {
+    const secretMission = buildMission({
+      status: 'rewardClaimed',
+      tasks: [
+        {
+          id: 'completed-task',
+          type: 'survive_days',
+          description: 'Survive the mission window',
+          current: 1,
+          target: 1,
+          completed: true,
+        },
+      ],
+      reward: {
+        type: 'doubleVote',
+        consumed: false,
+        expired: false,
+        eligible: true,
+      },
+    })
+    const store = makeStore({ secretMission })
+    renderDiaryRoom(store)
+
+    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
+    expect(screen.getByLabelText(/stored secret power/i)).toHaveTextContent('Double Vote')
+  })
+
+  it('hides both mission checklist and stored-power card after instant Influence is delivered', () => {
+    const secretMission = buildMission({
+      status: 'rewardClaimed',
+      tasks: [
+        {
+          id: 'completed-task',
+          type: 'survive_days',
+          description: 'Survive the mission window',
+          current: 1,
+          target: 1,
+          completed: true,
+        },
+      ],
+      reward: {
+        type: 'plus1000Influence',
+        consumed: false,
+        expired: false,
+        eligible: true,
+      },
+    })
+    const store = makeStore({ secretMission })
+    renderDiaryRoom(store)
+
+    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
+    expect(screen.queryByLabelText(/stored secret power/i)).toBeNull()
+  })
+
   it('shows the actual target player name in a target_nominated task description', () => {
     const players = buildPlayers()
     // p2 will be the marked target
