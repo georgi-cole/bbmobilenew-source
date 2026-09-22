@@ -60,7 +60,7 @@ export function determineWinner(
   return aVotes > bVotes ? a : b
 }
 
-// ─── AI juror voting ─────────────────────────────────────────────────────────
+// ─── AI Tribunal voting ─────────────────────────────────────────────────────────
 
 /** Simple hash of a string to a 32-bit integer (for per-juror RNG derivation). */
 function hashStr(s: string): number {
@@ -110,11 +110,35 @@ export function realityJurorScorecard(
       )
     )
   })
-  if (!hasEvidence) return undefined
+  if (hasEvidence) {
+    return Object.fromEntries(
+      finalistIds.map((finalistId) => {
+        const evaluation = computeRealityJuryEvaluation(reality, jurorId, finalistId, false)
+        return [finalistId, realityJuryEvaluationScore(evaluation)]
+      })
+    )
+  }
+
+  // If juror-specific history is sparse, use season-grounded public perception
+  // before the absolute seeded fallback.
+  const hasPublicEvidence = finalistIds.some(
+    (finalistId) => (reality.publicPerception[finalistId]?.sourceEventIds.length ?? 0) > 0
+  )
+  if (!hasPublicEvidence) return undefined
+
   return Object.fromEntries(
     finalistIds.map((finalistId) => {
-      const evaluation = computeRealityJuryEvaluation(reality, jurorId, finalistId, false)
-      return [finalistId, realityJuryEvaluationScore(evaluation)]
+      const perception = reality.publicPerception[finalistId]
+      const score = perception
+        ? perception.strategicRespect * 0.3 +
+          perception.competitionRespect * 0.2 +
+          perception.likability * 0.2 +
+          perception.authenticity * 0.12 +
+          perception.loyalty * 0.1 +
+          perception.entertainment * 0.08 -
+          perception.controversy * 0.08
+        : 0
+      return [finalistId, score]
     })
   )
 }
