@@ -17,13 +17,12 @@ import {
   aiJurorVote,
   determineWinner,
   tallyVotes,
-  resolvePublicVoteParity,
-  juryReturnCandidate,
   pickPhrase,
   JURY_LOCKED_LINES,
   PUBLIC_JURY_VOTE_LINES,
   realityJurorScorecard,
 } from '../utils/juryUtils'
+import { resolveTribunalSize } from '../rules/tribunalPolicy'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -75,12 +74,18 @@ export interface FinaleState {
   publicJurorEnabled: boolean
   /** The finalist ID that the public voted for, or null. */
   publicVotedFor: string | null
-  /** Explicit public ballot weight used by both resolver and reveal UI. */
-  publicVoteWeight: 1 | 2
-  /** Compact, history-derived scores used to keep jury rerolls grounded in the season. */
+  /** Public ballot is always one equal-weight vote. Kept for save compatibility. */
+  publicVoteWeight: 1
+  /** Compact, history-derived scores used to keep Tribunal rerolls grounded in the season. */
   juryScorecards: Record<string, Record<string, number>>
-  /** Whether a deterministic recovery tiebreak was needed. */
+  /** Whether the explicit Tribunal tiebreak policy was needed. */
   tieBreakUsed: boolean
+  tieBreakReason:
+    | 'tribunal_majority'
+    | 'season_evaluation'
+    | 'public_final_vote'
+    | 'legacy_recovery'
+    | null
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -103,6 +108,7 @@ const initialState: FinaleState = {
   publicVoteWeight: 1,
   juryScorecards: {},
   tieBreakUsed: false,
+  tieBreakReason: null,
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -121,14 +127,20 @@ const finaleSlice = createSlice({
         finalistIds: string[]
         /** Jury member IDs (status === 'jury'). */
         jurorIds: string[]
-        /** Pre-jury evictee IDs (status === 'evicted'), most-recent last. */
-        preJuryIds: string[]
+        /**
+         * @deprecated Accepted for callers restoring older finale payloads.
+         * Pre-Tribunal exits are never promoted into the Tribunal.
+         */
+        preJuryIds?: string[]
         /** Human player IDs (to show voting UI instead of auto-vote). */
         humanPlayerIds: string[]
         seed: number
         cfg?: {
-          enableJuryReturn?: boolean
+          publicFinalVoteEnabled?: boolean
+          /** @deprecated Legacy alias. */
           americasVoteEnabled?: boolean
+          /** @deprecated Ignored legacy finale-time return flag. */
+          enableJuryReturn?: boolean
         }
         /** Optional public approval profiles to enable the public juror vote. */
         publicApprovalProfiles?: Record<string, PlayerPublicProfile>
@@ -141,7 +153,6 @@ const finaleSlice = createSlice({
       const {
         finalistIds,
         jurorIds,
-        preJuryIds,
         humanPlayerIds,
         seed,
         cfg,
@@ -149,10 +160,12 @@ const finaleSlice = createSlice({
         reality,
       } = action.payload
 
-      // ── Resolve public ballot before composing the Tribunal ──────────────
+      // ── Resolve the optional equal-weight public ballot ──────────────────
       let publicJurorEnabled = false
       let publicVotedFor: string | null = null
-      if (cfg?.americasVoteEnabled && publicApprovalProfiles) {
+      const publicFinalVoteEnabled =
+        cfg?.publicFinalVoteEnabled ?? cfg?.americasVoteEnabled ?? false
+      if (publicFinalVoteEnabled && publicApprovalProfiles) {
         const publicVoteResult = resolvePublicJuryVote({
           finalistIds,
           profiles: publicApprovalProfiles,
@@ -163,22 +176,10 @@ const finaleSlice = createSlice({
         }
       }
 
-      // ── Jury-return mechanic ──────────────────────────────────────────────
+      // Tribunal membership was already fixed when each eviction happened.
+      // Finale setup must never promote a pre-Tribunal exit for parity.
       let effectiveJurorIds = [...jurorIds]
-      let returnedJurorId: string | null = null
-      if (cfg?.enableJuryReturn) {
-        const returnee = juryReturnCandidate(preJuryIds)
-        if (returnee) {
-          effectiveJurorIds = [...effectiveJurorIds, returnee]
-          returnedJurorId = returnee
-        }
-      }
-
-      // Prefer eight eligible regular members + one public vote. If no eligible
-      // pre-Tribunal player remains, the public ballot is visibly worth two.
-      const parity = resolvePublicVoteParity(effectiveJurorIds, preJuryIds, publicJurorEnabled)
-      effectiveJurorIds = parity.jurorIds
-      const publicVoteWeight = parity.publicVoteWeight
+      const publicVoteWeight = 1 as const
 
       // ── Shuffle jury for reveal order ─────────────────────────────────────
       const rng = mulberry32(seed)
@@ -212,13 +213,14 @@ const finaleSlice = createSlice({
       state.awaitingHumanJurorId = null
       state.winnerId = null
       state.runnerUpId = null
-      state.returnedJurorId = returnedJurorId
+      state.returnedJurorId = null
       state.isComplete = false
       state.publicJurorEnabled = publicJurorEnabled
       state.publicVotedFor = publicVotedFor
       state.publicVoteWeight = publicVoteWeight
       state.juryScorecards = juryScorecards
       state.tieBreakUsed = false
+      state.tieBreakReason = null
     },
 
     /**
