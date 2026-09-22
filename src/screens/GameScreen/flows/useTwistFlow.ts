@@ -461,7 +461,8 @@ export function useTwistFlow({
         ? game.players.filter(
             (player) =>
               (battleBack?.candidates ?? []).includes(player.id) &&
-              (player.status === 'jury' || player.status === 'evicted')
+              player.status === 'jury' &&
+              player.tribunalEligible !== false
           )
         : [],
     [battleBack?.active, battleBack?.candidates, game.players]
