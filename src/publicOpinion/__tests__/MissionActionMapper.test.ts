@@ -101,6 +101,42 @@ describe('public request progress', () => {
     expect(setback.newProgress).toBe(44)
   })
 
+  it('snaps only the unreachable 98% damping tail, not ordinary 95–97% progress', () => {
+    const repeatedDirect = direction({
+      id: 'target-rune',
+      type: 'target_player',
+      progressPercent: 70,
+      progressHistory: [
+        {
+          key: 'nominated_target:nominated_target:rune',
+          eventType: 'nominated_target',
+          targetId: 'rune',
+          delta: 70,
+          week: 4,
+        },
+      ],
+    })
+    const [tail] = resolveEventMissionProgress(
+      { type: 'nominated_target', actorId: 'test', targetId: 'rune', week: 4 },
+      [repeatedDirect]
+    )
+    expect(tail.newProgress).toBe(98)
+    expect(tail.isComplete).toBe(true)
+
+    const [ordinary] = resolveEventMissionProgress(
+      {
+        type: 'negative_social',
+        actorId: 'test',
+        targetId: 'rune',
+        actionId: 'warning',
+        week: 4,
+      },
+      [direction({ id: 'target-rune-97', type: 'target_player', progressPercent: 67 })]
+    )
+    expect(ordinary.newProgress).toBe(97)
+    expect(ordinary.isComplete).toBe(false)
+  })
+
   it('keeps genuinely binary competition requests immediate', () => {
     const [signal] = resolveEventMissionProgress({ type: 'pov_win', actorId: 'test', week: 4 }, [
       direction({ id: 'win-safety', type: 'win_veto' }),
