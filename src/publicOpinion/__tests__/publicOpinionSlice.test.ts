@@ -59,7 +59,7 @@ describe('public opinion editorial pacing', () => {
     expect(state.feed.some((entry) => entry.eventType === 'eviction')).toBe(true)
   })
 
-  it('persists request progress history and completes exactly once at 100%', () => {
+  it('persists request progress history, snaps the bounded completion tail to 100%, and completes exactly once', () => {
     let state = reducer(undefined, initializeProfiles(['you']))
     state = reducer(
       state,
@@ -73,15 +73,15 @@ describe('public opinion editorial pacing', () => {
         createdWeek: 4,
         expiresAtWeek: 6,
         approvalDelta: 5,
-        progressPercent: 90,
+        progressPercent: 70,
       })
     )
     state = reducer(
       state,
       updateMissionProgress({
         directionId: 'closer-rune',
-        progressPercent: 100,
-        progressDelta: 10,
+        progressPercent: 98,
+        progressDelta: 28,
         progressKey: 'positive_social:deep_talk:rune',
         eventType: 'positive_social',
         actionId: 'deep_talk',
@@ -91,6 +91,7 @@ describe('public opinion editorial pacing', () => {
     )
 
     expect(state.directions[0].status).toBe('completed')
+    expect(state.directions[0].progressPercent).toBe(100)
     expect(state.directions[0].progressHistory).toHaveLength(1)
     expect(state.profiles.you.completedDirectionCount).toBe(1)
 
