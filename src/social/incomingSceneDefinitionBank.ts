@@ -45,6 +45,11 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
     stakes: 'high',
     kind: 'conflict',
   },
+  automatic_nominee_reaction: {
+    topic: 'their automatic last-place nomination',
+    stakes: 'high',
+    kind: 'strategy',
+  },
   nominee_confronts_loh: {
     topic: 'the nomination confrontation',
     stakes: 'high',
