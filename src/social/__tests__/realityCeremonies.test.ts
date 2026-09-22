@@ -698,4 +698,40 @@ describe('history-grounded strategic and jury decisions', () => {
     const evaluation = computeRealityJuryEvaluation(state, 'juror', 'kai')
     expect(generateRealityJuryQuestion(evaluation)).toMatch(/\?$/)
   })
+
+  it('derives sendoff quality from the way a Tribunal member leaves the game', () => {
+    const state = createInitialRealityDomainState()
+
+    recordRealityCeremonyOutcome(state, {
+      kind: 'NOMINATIONS_LOCKED',
+      day: 6,
+      phase: 'nomination_results',
+      actorId: 'cold-finalist',
+      targetIds: ['juror'],
+      witnessIds: ['juror', 'cold-finalist', 'warm-finalist'],
+      publicEligible: false,
+    })
+    recordRealityCeremonyOutcome(state, {
+      kind: 'SAFETY_USED',
+      day: 6,
+      phase: 'pos_ceremony_results',
+      actorId: 'warm-finalist',
+      targetIds: ['juror'],
+      witnessIds: ['juror', 'cold-finalist', 'warm-finalist'],
+      publicEligible: false,
+    })
+    recordRealityCeremonyOutcome(state, {
+      kind: 'EVICTION',
+      day: 6,
+      phase: 'eviction_results',
+      targetIds: ['juror'],
+      witnessIds: ['juror', 'cold-finalist', 'warm-finalist'],
+      publicEligible: false,
+    })
+
+    const warm = computeRealityJuryEvaluation(state, 'juror', 'warm-finalist', false)
+    const cold = computeRealityJuryEvaluation(state, 'juror', 'cold-finalist', false)
+
+    expect(warm.goodbyeQuality).toBeGreaterThan(cold.goodbyeQuality)
+  })
 })
