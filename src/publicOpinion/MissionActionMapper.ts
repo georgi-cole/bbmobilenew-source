@@ -548,7 +548,9 @@ export function resolveEventMissionProgress(
     const newProgress = Math.min(100, Math.max(0, currentProgress + requestedDelta))
     const progressDelta = newProgress - currentProgress
     if (progressDelta === 0) continue
-    const isComplete = newProgress >= threshold || newProgress >= 95
+    const isComplete =
+      newProgress >= threshold ||
+      newProgress >= threshold - publicOpinionConfig.missionCompletionTailTolerance
 
     signals.push({
       directionId: direction.id,
