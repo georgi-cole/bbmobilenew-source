@@ -127,18 +127,19 @@ export function getEligibleDirectionCandidates(
     // and must not suppress the opposite direction forever (failed directions
     // intentionally do not have a completedWeek in older saves).
     const recentArcDirections = (context.existingDirections ?? [])
+      .map((direction, index) => ({ direction, index }))
       .filter(
-        (direction) =>
+        ({ direction }) =>
           direction.playerId === actor.id &&
           direction.relatedPlayerId === relatedPlayer.id &&
           (direction.status === 'active' || direction.status === 'completed')
       )
-      .filter((direction) => {
+      .filter(({ direction }) => {
         if (direction.status === 'active' || context.week === undefined) return true
         const resolvedWeek = direction.completedWeek ?? direction.createdWeek
         return context.week - resolvedWeek <= 3
       })
-      .filter((direction) =>
+      .filter(({ direction }) =>
         [
           'break_alliance',
           'show_loyalty',
@@ -149,14 +150,18 @@ export function getEligibleDirectionCandidates(
       )
       .sort((left, right) => {
         const leftWeek =
-          left.status === 'completed' ? (left.completedWeek ?? left.createdWeek) : left.createdWeek
+          left.direction.status === 'completed'
+            ? (left.direction.completedWeek ?? left.direction.createdWeek)
+            : left.direction.createdWeek
         const rightWeek =
-          right.status === 'completed'
-            ? (right.completedWeek ?? right.createdWeek)
-            : right.createdWeek
-        return rightWeek - leftWeek
+          right.direction.status === 'completed'
+            ? (right.direction.completedWeek ?? right.direction.createdWeek)
+            : right.direction.createdWeek
+        // Direction arrays are append-only, so array position is the canonical
+        // tie-breaker for multiple relationship beats resolved in one week.
+        return rightWeek - leftWeek || right.index - left.index
       })
-    const latestArcDirection = recentArcDirections[0]
+    const latestArcDirection = recentArcDirections[0]?.direction
     const recentlyBrokeAlliance = latestArcDirection?.type === 'break_alliance'
     const recentlyReinforcedAlliance =
       latestArcDirection != null &&
