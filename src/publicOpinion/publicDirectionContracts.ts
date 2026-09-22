@@ -122,25 +122,47 @@ export function getEligibleDirectionCandidates(
   for (const relatedPlayer of others) {
     const facts = getRelationshipFacts(context, actor.id, relatedPlayer.id)
     const isCupidPair = context.cupidPairIds?.includes(relatedPlayer.id) ?? false
-    const pairDirections = (context.existingDirections ?? []).filter(
-      (direction) =>
-        direction.playerId === actor.id &&
-        direction.relatedPlayerId === relatedPlayer.id &&
-        direction.status !== 'expired'
-    )
-    const isRecent = (direction: PublicDirection) =>
-      direction.status === 'active' ||
-      context.week === undefined ||
-      direction.completedWeek === undefined ||
-      context.week - direction.completedWeek <= 3
-    const recentlyBrokeAlliance = pairDirections.some(
-      (direction) => direction.type === 'break_alliance' && isRecent(direction)
-    )
-    const recentlyReinforcedAlliance = pairDirections.some(
-      (direction) =>
-        ['show_loyalty', 'reinforce_alliance', 'protect_player'].includes(direction.type) &&
-        isRecent(direction)
-    )
+    // Only live or successfully completed requests define the audience's current
+    // relationship story. A failed/expired request is not a relationship event
+    // and must not suppress the opposite direction forever (failed directions
+    // intentionally do not have a completedWeek in older saves).
+    const recentArcDirections = (context.existingDirections ?? [])
+      .filter(
+        (direction) =>
+          direction.playerId === actor.id &&
+          direction.relatedPlayerId === relatedPlayer.id &&
+          (direction.status === 'active' || direction.status === 'completed')
+      )
+      .filter((direction) => {
+        if (direction.status === 'active' || context.week === undefined) return true
+        const resolvedWeek = direction.completedWeek ?? direction.createdWeek
+        return context.week - resolvedWeek <= 3
+      })
+      .filter((direction) =>
+        [
+          'break_alliance',
+          'show_loyalty',
+          'reinforce_alliance',
+          'protect_player',
+          'repair_relationship',
+        ].includes(direction.type)
+      )
+      .sort((left, right) => {
+        const leftWeek =
+          left.status === 'completed' ? (left.completedWeek ?? left.createdWeek) : left.createdWeek
+        const rightWeek =
+          right.status === 'completed'
+            ? (right.completedWeek ?? right.createdWeek)
+            : right.createdWeek
+        return rightWeek - leftWeek
+      })
+    const latestArcDirection = recentArcDirections[0]
+    const recentlyBrokeAlliance = latestArcDirection?.type === 'break_alliance'
+    const recentlyReinforcedAlliance =
+      latestArcDirection != null &&
+      ['show_loyalty', 'reinforce_alliance', 'protect_player', 'repair_relationship'].includes(
+        latestArcDirection.type
+      )
 
     if (facts.activeAlliance && !recentlyBrokeAlliance) {
       candidates.push({
