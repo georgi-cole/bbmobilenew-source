@@ -109,12 +109,8 @@ describe('context-aware social conversation summaries', () => {
 
   it('keeps LOH target disclosure on the persisted canonical plan instead of affinity guesses', () => {
     const store = makeContextStore()
-    store.dispatch(
-      updateRelationship({ source: 'holder', target: 'nominee-1', delta: 60 })
-    )
-    store.dispatch(
-      updateRelationship({ source: 'holder', target: 'nominee-2', delta: -60 })
-    )
+    store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-1', delta: 60 }))
+    store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-2', delta: -60 }))
     const game = store.getState().game
     store.dispatch(
       hydrateGame({
