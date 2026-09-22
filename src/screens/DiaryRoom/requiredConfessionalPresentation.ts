@@ -1,11 +1,7 @@
 import { calculateRequiredDoubleEvictionSlots } from '../../features/twists/doubleEvictionTieUtils'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import type { GameState } from '../../types'
-import {
-  getConfessionalDecisionKey,
-  getConfessionalInteractionId,
-} from '../../store/confessionalDecisionSelectors'
-import { getConfessionalPowerName } from './confessionalPowerName'
+import { getConfessionalPowerName } from './confessionalDecisionPresentation'
 import { isCupidArrowActive } from '../../features/twists/cupidArrow'
 
 export type RequiredConfessionalTone = 'private' | 'strategic' | 'danger' | 'power'
@@ -23,6 +19,17 @@ export interface RequiredConfessionalPresentation {
   returnCue: string
 }
 
+function buildKey(decision: ActiveConfessionalDecision, game: GameState): string {
+  return [
+    decision.type,
+    decision.week,
+    decision.phase,
+    game.nomineeIds.join(','),
+    game.tiedNomineeIds?.join(',') ?? '',
+    game.specialVeto?.activeType ?? 'standard',
+  ].join(':')
+}
+
 export function getRequiredConfessionalPresentation(
   decision: ActiveConfessionalDecision,
   game: GameState
@@ -33,16 +40,13 @@ export function getRequiredConfessionalPresentation(
     : `PRIVATE CEREMONY · DAY ${decision.week}`
   const powerName = getConfessionalPowerName(game)
   const tiedIds = game.tiedNomineeIds ?? game.nomineeIds
-  const key = decision.interactionId
-    ? getConfessionalDecisionKey(decision)
-    : getConfessionalInteractionId(game, decision.type)
+  const key = buildKey(decision, game)
 
   switch (decision.type) {
     case 'nominations': {
       const isVoxPopuli = game.voxPopuli?.status === 'active'
       const human = game.players.find(
-        (player) =>
-          player.isUser && player.status !== 'evicted' && player.status !== 'jury'
+        (player) => player.isUser && player.status !== 'evicted' && player.status !== 'jury'
       )
       const activeCount = game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
@@ -57,9 +61,7 @@ export function getRequiredConfessionalPresentation(
       )
       const voxEligibleCount = game.players.filter(
         (player) =>
-          player.status !== 'evicted' &&
-          player.status !== 'jury' &&
-          !voxExcludedIds.has(player.id)
+          player.status !== 'evicted' && player.status !== 'jury' && !voxExcludedIds.has(player.id)
       ).length
       const required = isVoxPopuli
         ? Math.min(isVoxFinalFour ? 1 : 2, voxEligibleCount)
@@ -79,17 +81,19 @@ export function getRequiredConfessionalPresentation(
             ? 'Cast one secret nomination vote. Last place is already on the block, and nobody has immunity today.'
             : `Privately choose ${required === 1 ? 'the eligible housemate' : 'two housemates'} to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
           : survival
-          ? `Select ${required} contestants for elimination consideration.`
-          : `Choose the ${required === 1 ? 'player' : required === 2 ? 'two players' : `${required} players`} you want to nominate. Your choices remain private until you return to the house.`,
+            ? `Select ${required} contestants for elimination consideration.`
+            : `As Leader, you must nominate ${required} housemates. Your choices remain private until you return to the house.`,
         consequence: isVoxPopuli
           ? isVoxFinalFour
             ? 'The highest total joins the last-place housemate on the block. A tie expands the block.'
             : 'Only the aggregate totals will be revealed. Everyone tied at the qualifying cutoff is nominated.'
           : survival
-          ? 'The selected contestants will enter the next elimination cycle.'
-          : 'Your nominations will be revealed publicly after you leave the Confessional.',
+            ? 'The selected contestants will enter the next elimination cycle.'
+            : 'Your nominations will be revealed publicly after you leave the Confessional.',
         confirmLabel: isVoxPopuli ? 'Seal secret ballot' : 'Confirm nominations',
-        confirmation: isVoxPopuli ? 'Your secret ballot is sealed.' : 'Your nominations are locked.',
+        confirmation: isVoxPopuli
+          ? 'Your secret ballot is sealed.'
+          : 'Your nominations are locked.',
         tone: 'strategic',
         returnCue: 'nomination_ceremony',
       }
@@ -104,10 +108,10 @@ export function getRequiredConfessionalPresentation(
             ? 'Elimination Vote'
             : 'Live Eviction Vote',
         prompt: isCupidArrowActive(game)
-          ? 'Choose one nominated pair. You and your partner cast this decision together; your joint ballot counts as two votes.'
+          ? 'Choose one nominated pair. You and your partner cast this decision together, and the ballot counts as two votes.'
           : survival
             ? 'Select the contestant you want removed from the current run.'
-            : 'Choose who you want to eliminate. Your private vote is final once sealed.',
+            : 'Cast your private vote for the nominee whose game you want to end tonight.',
         consequence: 'Once confirmed, this vote cannot be changed.',
         confirmLabel: 'Seal eviction vote',
         confirmation: 'Your eviction vote is sealed.',
@@ -127,23 +131,19 @@ export function getRequiredConfessionalPresentation(
         tone: 'power',
         returnCue: 'double_vote',
       }
-    case 'double_vote': {
-      const isBellaExtraVote = game.bellaWill?.extraVoteChoiceActive === true
+    case 'double_vote':
       return {
         key,
         eyebrow: dayLabel,
-        title: isBellaExtraVote ? "Bella's Will · Extra Ballot" : 'Cast Two Eviction Votes',
-        prompt: isBellaExtraVote
-          ? "Bella's Will grants you one inherited extra ballot. Choose your normal vote and Bella's extra vote."
-          : 'Choose your two eviction votes. You may place both votes on one nominee or split them.',
+        title: 'Cast Two Eviction Votes',
+        prompt: 'Choose both votes. You may place both votes on one nominee or split them.',
         consequence: 'Both votes will be submitted together and cannot be changed afterward.',
         confirmLabel: 'Seal both votes',
         confirmation: 'Both eviction votes are sealed.',
-        stepLabel: isBellaExtraVote ? "Bella's Will · Extra ballot" : 'Power decision · Step 2 of 2',
+        stepLabel: 'Power decision · Step 2 of 2',
         tone: 'danger',
         returnCue: 'live_vote',
       }
-    }
     case 'mission_immunity_offer': {
       const duration = game.secretMission?.reward?.durationDays ?? 1
       return {
@@ -164,7 +164,7 @@ export function getRequiredConfessionalPresentation(
         key,
         eyebrow: dayLabel,
         title: `${powerName} Decision`,
-        prompt: `Do you want to use ${powerName} during this ceremony?`,
+        prompt: `Decide whether to use ${powerName} during this ceremony.`,
         consequence:
           'If you activate the power, you will continue directly to the required target selections.',
         confirmLabel: 'Confirm power decision',
@@ -243,31 +243,18 @@ export function getRequiredConfessionalPresentation(
         returnCue: 'eviction_results',
       }
     }
-    case 'twin_shock': {
-      const stage = game.twinShock?.promptStage
+    case 'twin_shock':
       return {
         key,
         eyebrow: dayLabel,
         title: 'Private Story Session',
-        prompt:
-          stage === 'day4_initial'
-            ? 'I need to ask you something. Have you noticed anything off about Lia?'
-            : stage === 'day4_detail'
-              ? 'What exactly have you noticed?'
-              : stage === 'day5_final'
-                ? 'Last time, I asked whether you had noticed anything off about Lia. I will ask one last time: what do you think is going on?'
-                : stage === 'day5_give_up'
-                  ? 'Say that you give up, and I will tell you the secret.'
-                  : stage === 'secret_lost'
-                    ? 'As Lia is no longer in the House, her secret will remain unrevealed. You are free to leave.'
-                    : 'The Big Eye has called you in for a private conversation.',
-        consequence: 'Give the Big Eye a clear answer to continue the story.',
-        confirmLabel: 'Send response',
+        prompt: 'The Big Eye has called you in for a private conversation.',
+        consequence: 'Respond to the Big Eye to continue the story.',
+        confirmLabel: 'Continue',
         confirmation: 'Your answer is recorded.',
         tone: 'private',
         returnCue: 'story_session',
       }
-    }
     default:
       return {
         key,

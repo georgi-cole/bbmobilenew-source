@@ -104,6 +104,8 @@ export function generateDirectionsForCycle(params: {
   dramaMode?: boolean
   /** Players who already have a live request should not receive a second one */
   excludePlayerIds?: readonly string[]
+  /** Existing directions prevent contradictory audience story arcs. */
+  existingDirections?: readonly PublicDirection[]
 }): PublicDirection[] {
   const {
     players,
@@ -118,6 +120,7 @@ export function generateDirectionsForCycle(params: {
     prioritizeHuman = false,
     dramaMode = false,
     excludePlayerIds = [],
+    existingDirections = [],
   } = params
 
   const excluded = new Set(excludePlayerIds)
@@ -141,12 +144,14 @@ export function generateDirectionsForCycle(params: {
   for (const player of selectedPlayers) {
     const eligible = getEligibleDirectionCandidates(player, {
       players: activePlayers,
+      week,
       relationships,
       realityAlliances,
       dramaAlliances,
       cupidPairIds: cupidPartnersByPlayerId[player.id] ? [cupidPartnersByPlayerId[player.id]] : [],
       voxPopuliActive,
       dramaMode,
+      existingDirections,
     })
     // The solo competition route is intentionally retained as the final safe
     // fallback, but every selected candidate has a concrete completion path.

@@ -92,6 +92,69 @@ function isAllianceStrategyScenario(value: unknown): boolean {
   return typeof value === 'string' && ALLIANCE_STRATEGY_SCENARIOS.has(value)
 }
 
+export function buildAllianceGroupRead(
+  interaction: IncomingInteraction,
+  players: readonly { id: string; name: string; status: string; isUser?: boolean }[]
+): string | null {
+  if (interaction.payload?.allianceGroupHuddle !== true) return null
+  const rawTargetPreferences = interaction.payload?.allianceMemberTargetPreferences
+  if (
+    !rawTargetPreferences ||
+    typeof rawTargetPreferences !== 'object' ||
+    Array.isArray(rawTargetPreferences)
+  ) {
+    return null
+  }
+  const rawFallbackPreferences = interaction.payload?.allianceMemberFallbackPreferences
+  const fallbackPreferences =
+    rawFallbackPreferences &&
+    typeof rawFallbackPreferences === 'object' &&
+    !Array.isArray(rawFallbackPreferences)
+      ? rawFallbackPreferences
+      : null
+  const playerById = new Map(
+    players
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => [player.id, player] as const)
+  )
+  const humanId = players.find((player) => player.isUser)?.id
+  const authoredMemberIds = Array.isArray(interaction.payload?.allianceGroupMemberIds)
+    ? interaction.payload.allianceGroupMemberIds.filter(
+        (id): id is string => typeof id === 'string'
+      )
+    : Object.keys(rawTargetPreferences)
+  const strategyKind =
+    interaction.payload?.allianceStrategyKind === 'SAFETY'
+      ? 'SAFETY'
+      : interaction.payload?.allianceStrategyKind === 'VOTE'
+        ? 'VOTE'
+        : 'NOMINATION'
+  const reads = [...new Set(authoredMemberIds)]
+    .filter((memberId) => memberId !== humanId && playerById.has(memberId))
+    .flatMap((memberId) => {
+      const targetId = (rawTargetPreferences as Record<string, unknown>)[memberId]
+      if (typeof targetId !== 'string') return []
+      const memberName = playerById.get(memberId)?.name ?? memberId
+      const targetName = playerById.get(targetId)?.name ?? targetId
+      if (strategyKind === 'SAFETY') {
+        const fallbackId = (fallbackPreferences as Record<string, unknown> | null)?.[memberId]
+        const replacement =
+          typeof fallbackId === 'string' ? (playerById.get(fallbackId)?.name ?? fallbackId) : null
+        return [
+          replacement
+            ? `${memberName}: save ${targetName} → replacement ${replacement}`
+            : `${memberName}: save ${targetName}`,
+        ]
+      }
+      return [
+        strategyKind === 'VOTE'
+          ? `${memberName}: vote ${targetName}`
+          : `${memberName}: target ${targetName}`,
+      ]
+    })
+  return reads.length > 0 ? `Alliance reads — ${reads.join('; ')}.` : null
+}
+
 function resolveRealityIncomingInteraction(
   dispatch: AppDispatch,
   getState: () => RootState,
@@ -593,7 +656,8 @@ function buildResponseOutcomeText(
   responseType: IncomingInteractionResponseType,
   fromName: string,
   subjectName?: string,
-  responseLabel?: string
+  responseLabel?: string,
+  players: readonly { id: string; name: string; status: string; isUser?: boolean }[] = []
 ): string | undefined {
   const hasContextualScenario = typeof interaction.payload?.scenarioKey === 'string'
   if (interaction.type === 'alliance_proposal' && responseType === 'accept') {
@@ -602,6 +666,12 @@ function buildResponseOutcomeText(
 
   const scenarioKey = interaction.payload?.scenarioKey
   if (isAllianceStrategyScenario(scenarioKey)) {
+    if (interaction.payload?.allianceGroupHuddle === true && responseType === 'neutral') {
+      const concreteRead = buildAllianceGroupRead(interaction, players)
+      if (concreteRead) {
+        return `You heard the alliance without committing. ${concreteRead}`
+      }
+    }
     if (responseType === 'accept' || responseType === 'positive') {
       return interaction.payload?.allianceGroupHuddle === true
         ? `Your position joined ${fromName}'s alliance huddle. Any majority-backed plan is now recorded.`
@@ -782,8 +852,14 @@ function applyIncomingChoiceConsequences({
       ? contextualResolution.playerDelta
       : 0
   const outcomeText =
-    buildResponseOutcomeText(interaction, responseType, fromName, subjectName, responseLabel) ??
-    contextualResolution.outcomeText
+    buildResponseOutcomeText(
+      interaction,
+      responseType,
+      fromName,
+      subjectName,
+      responseLabel,
+      state.game.players
+    ) ?? contextualResolution.outcomeText
   const acceptedAlliance = interaction.type === 'alliance_proposal' && responseType === 'accept'
 
   if (

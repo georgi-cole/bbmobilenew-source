@@ -161,6 +161,9 @@ export default function RecentActivity({
                   : undefined) ??
                 entry.subjectId)
               : null
+            const subjectIsHuman = entry.subjectId
+              ? playerById.get(entry.subjectId)?.isUser === true || entry.subjectId === 'user'
+              : false
             const narrativeContext = subjectName
               ? `${targetName} about ${subjectName}`
               : audienceName
@@ -185,8 +188,12 @@ export default function RecentActivity({
               entry.narrative ??
               (entry.actionId === 'ask_loh_target' && subjectName
                 ? entry.context?.lohPlanType === 'backup_plan'
-                  ? `${targetName} told you ${subjectName} is their backup plan if nominations change.`
-                  : `${targetName} told you ${subjectName} is their current target.`
+                  ? subjectIsHuman
+                    ? `${targetName} told you that you are their backup plan if nominations change.`
+                    : `${targetName} told you ${subjectName} is their backup plan if nominations change.`
+                  : subjectIsHuman
+                    ? `${targetName} told you that you are their current target.`
+                    : `${targetName} told you ${subjectName} is their current target.`
                 : dramaMode
                   ? getSocialNarrative(entry.actionId, narrativeContext, entry.timestamp)
                   : `You targeted ${narrativeContext}.`)

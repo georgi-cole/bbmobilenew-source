@@ -111,6 +111,46 @@ describe('intelligence system', () => {
     expect(lead.source).toBe('House rumour')
   })
 
+  it('keeps facts about eliminated players out of current Intel leads', () => {
+    const fact = buildIntelFactFromSocialAction(
+      {
+        actionId: 'proposeAlliance',
+        actorId: 'sol',
+        targetId: 'lux',
+        cost: 1,
+        delta: 4,
+        outcome: 'success',
+        newEnergy: 4,
+        timestamp: 1234,
+        week: 4,
+        phase: 'social_1',
+        source: 'system',
+      },
+      players,
+      'social_1'
+    )
+    expect(fact).not.toBeNull()
+    if (!fact) return
+
+    const domain = createInitialRealityDomainState()
+    addRealityFact(domain, fact)
+    const memory = makeIntelMemory({
+      ownerId: 'human',
+      fact,
+      sourceType: 'HEARSAY',
+      sourceChain: ['sol'],
+      confidence: 0.7,
+      day: 4,
+      phase: 'social_1',
+    })
+    learnRealityFact(domain, { ownerId: 'human', factId: fact.id, memory, confidence: 0.7 })
+
+    const withLuxEvicted = players.map((player) =>
+      player.id === 'lux' ? { ...player, status: 'evicted' as const } : player
+    )
+    expect(getIntelLeadViews(domain, 'human', withLuxEvicted, 4)).toEqual([])
+  })
+
   it('varies repeated private-meeting lead copy while retaining the concrete names', () => {
     const domain = createInitialRealityDomainState()
     for (const id of ['a', 'c']) {

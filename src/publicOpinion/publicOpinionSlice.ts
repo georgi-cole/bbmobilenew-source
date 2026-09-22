@@ -56,6 +56,10 @@ function applyDirectionCompletionRewards(
 ): void {
   direction.status = 'completed'
   direction.completedWeek = week
+  // Once the objective is accepted as complete (including the bounded 98%
+  // damping tail), persist the canonical completed value so history and UI do
+  // not show a "completed" request stuck below 100%.
+  direction.progressPercent = 100
 
   const profile = state.profiles[direction.playerId]
   if (!profile) return
@@ -397,7 +401,15 @@ const publicOpinionSlice = createSlice({
         ].slice(-publicOpinionConfig.missionProgressHistoryLimit)
       }
 
-      if (direction.progressPercent >= publicOpinionConfig.missionCompletionThreshold) {
+      // A final damped action can legitimately stop at 98 even though no
+      // further repeat can earn credit. Snap only that configured rounding
+      // tail; 95–97% remains genuinely incomplete.
+      if (
+        direction.progressPercent >= publicOpinionConfig.missionCompletionThreshold ||
+        direction.progressPercent >=
+          publicOpinionConfig.missionCompletionThreshold -
+            publicOpinionConfig.missionCompletionTailTolerance
+      ) {
         applyDirectionCompletionRewards(state, direction, week)
       }
     },

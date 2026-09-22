@@ -87,6 +87,7 @@ export interface AutonomyContext {
   isDoubleEviction?: boolean
   specialVeto?: string | null
   lastHohCompFinisherId?: string | null
+  autoNomineeId?: string | null
   voxPopuliActive?: boolean
   playerSocialActionCount?: number
   dramaMode?: boolean
@@ -137,6 +138,7 @@ export interface AutonomyStore {
       doubleEviction?: { weekActive?: boolean }
       specialVeto?: { activeType?: string | null }
       lastHohCompFinisherId?: string | null
+      nominationContext?: { autoNomineeId: string | null } | null
       voxPopuli?: { status?: string } | null
     }
   }
@@ -161,6 +163,7 @@ type InteractionScenarioKey =
   | 'nominee_campaign'
   | 'nomination_aftershock'
   | 'nominee_understands_loh'
+  | 'automatic_nominee_reaction'
   | 'nominee_confronts_loh'
   | 'replacement_nominee_reacts_to_loh'
   | 'post_veto_gratitude'
@@ -207,6 +210,7 @@ const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
   'safety_holder_consults_loh',
   'loh_consults_safety_holder',
   'nominee_understands_loh',
+  'automatic_nominee_reaction',
   'nominee_confronts_loh',
   'replacement_nominee_reacts_to_loh',
   'live_vote_pitch',
@@ -234,6 +238,22 @@ interface RelationshipSignals {
   isMildAlly: boolean
   isStrongEnemy: boolean
   isMildEnemy: boolean
+  /** Canonical alliance state, including Reality alliances not mirrored in legacy tags. */
+  isAlliance: boolean
+}
+
+function getRealityAllianceState(
+  context: AutonomyContext,
+  actorId: string,
+  playerId: string
+): { present: boolean; live: boolean } {
+  const alliance = Object.values(context.reality?.alliances ?? {}).find(
+    (candidate) => candidate.memberIds.includes(actorId) && candidate.memberIds.includes(playerId)
+  )
+  return {
+    present: alliance != null,
+    live: alliance?.status === 'ACTIVE' || alliance?.status === 'PROBATIONARY',
+  }
 }
 
 interface ActorConstraints {
@@ -248,6 +268,7 @@ interface ActorConstraints {
   playerIsNominee: boolean
   playerCanVote: boolean
   playerFinishedLastLohComp: boolean
+  actorWasAutoNominee: boolean
   actorWasSaved: boolean
   actorWasReplacementNominee: boolean
   actorIsPendingEvictee: boolean
@@ -380,6 +401,8 @@ function buildRelationshipSignals(
   const neglectRatio = memoryCaps.neglect > 0 ? (memoryEntry?.neglect ?? 0) / memoryCaps.neglect : 0
   const trustMomentum = computeTrustMomentumNormalized(memoryEntry)
 
+  const realityAlliance = getRealityAllianceState(context, actorId, playerId)
+
   return {
     affinity,
     tags: new Set(relEntry?.tags ?? []),
@@ -392,6 +415,9 @@ function buildRelationshipSignals(
     isMildAlly: affinity >= thresholds.mildAlly,
     isStrongEnemy: affinity <= thresholds.strongEnemy,
     isMildEnemy: affinity <= thresholds.mildEnemy,
+    isAlliance: realityAlliance.present
+      ? realityAlliance.live
+      : relEntry?.tags.includes('alliance') === true,
   }
 }
 
@@ -423,6 +449,7 @@ function buildActorConstraints(
     nomineeIds.includes(playerId) || playerEntry?.status.includes('nominated') === true
   const playerCanVote = !context.voxPopuliActive && !playerIsNominee && !playerIsHoh
   const playerFinishedLastLohComp = context.lastHohCompFinisherId === playerId
+  const actorWasAutoNominee = context.autoNomineeId === actor.id
   const actorWasSaved = context.povSavedId === actor.id
   const actorWasReplacementNominee = (context.replacementNomineeIds ?? []).includes(actor.id)
   const actorIsPendingEvictee = context.pendingEvictionId === actor.id
@@ -441,6 +468,7 @@ function buildActorConstraints(
     playerIsNominee,
     playerCanVote,
     playerFinishedLastLohComp,
+    actorWasAutoNominee,
     actorWasSaved,
     actorWasReplacementNominee,
     actorIsPendingEvictee,
@@ -463,17 +491,21 @@ function canSendInteractionType(
       // the human holds Safety; ordinary HOH deal offers remain blocked.
       return !constraints.actorIsCurrentHoh || constraints.playerHasSafetyPower
     case 'alliance_proposal':
-      return !signals.tags.has('alliance') && signals.affinity > 0
+      return !signals.isAlliance && signals.affinity > 0
     case 'snide_remark':
-      return !signals.tags.has('alliance') && !constraints.actorSurvivedCurrentVote
+      return (
+        (!signals.isAlliance || signals.tags.has('betrayal')) &&
+        !constraints.actorSurvivedCurrentVote
+      )
     case 'warning':
       return (
-        !signals.tags.has('alliance') &&
-        !constraints.actorSurvivedCurrentVote &&
+        (signals.tags.has('betrayal') ||
+          (!signals.isAlliance && !constraints.actorSurvivedCurrentVote)) &&
         !(constraints.actorIsCurrentHoh && constraints.playerHasSafetyPower)
       )
     case 'compliment':
-      return !signals.tags.has('betrayal') || constraints.actorSurvivedCurrentVote
+      // Survival gratitude must never erase an unresolved betrayal signal.
+      return !signals.tags.has('betrayal')
     default:
       return true
   }
@@ -777,9 +809,6 @@ function fallbackInteractionPlan(
 ): InteractionPlan | null {
   const thresholds = socialConfig.incomingInteractionAutonomyTuning.scenarioThresholds
   if (constraints.actorIsPendingEvictee) return null
-  if (constraints.actorSurvivedCurrentVote) {
-    return { type: 'compliment', scenarioKey: 'survivor_gratitude' }
-  }
   if (
     signals.tags.has('betrayal') ||
     (signals.resentmentRatio >= thresholds.resentmentHigh && signals.affinity < 0)
@@ -789,7 +818,10 @@ function fallbackInteractionPlan(
       scenarioKey: 'betrayal_warning',
     }
   }
-  if (signals.neglectRatio >= thresholds.neglectHigh && !signals.tags.has('alliance')) {
+  if (constraints.actorSurvivedCurrentVote) {
+    return { type: 'compliment', scenarioKey: 'survivor_gratitude' }
+  }
+  if (signals.neglectRatio >= thresholds.neglectHigh && !signals.isAlliance) {
     return { type: 'warning', scenarioKey: 'ignored_warning' }
   }
   if (signals.tags.has('target')) {
@@ -798,7 +830,7 @@ function fallbackInteractionPlan(
       scenarioKey: 'targeted_snark',
     }
   }
-  if (signals.tags.has('alliance')) {
+  if (signals.isAlliance) {
     return {
       type: signals.isStrongAlly ? 'compliment' : 'check_in',
       scenarioKey: 'alliance_reassurance',
@@ -847,11 +879,16 @@ function resolveIncomingInteractionPlan(
       context.phase === 'pos_results' &&
       constraints.playerHasSafetyPower &&
       !constraints.actorIsNominee &&
-      (signals.isMildAlly || signals.tags.has('alliance'))
+      (signals.isMildAlly || signals.isAlliance)
     ) {
       plan = { type: 'compliment', scenarioKey: 'safety_win_congratulations' }
+    } else if (context.phase === 'nomination_results' && constraints.actorWasAutoNominee) {
+      // Automatic last-place nominations are rules-driven, not an LOH choice.
+      // Resolve this before every ordinary nomination reaction so the sender
+      // can never accuse the human (LOH or otherwise) of choosing them.
+      plan = { type: 'check_in', scenarioKey: 'automatic_nominee_reaction' }
     } else if (context.phase === 'nomination_results' && constraints.playerIsNominee) {
-      if (signals.isMildAlly || signals.tags.has('alliance')) {
+      if (signals.isMildAlly || signals.isAlliance) {
         plan = { type: 'check_in', scenarioKey: 'player_nominated_support' }
       } else if (
         signals.isMildEnemy ||
@@ -867,7 +904,7 @@ function resolveIncomingInteractionPlan(
       (context.phase === 'loh_results' || context.phase === 'social_1') &&
       constraints.playerFinishedLastLohComp
     ) {
-      if (signals.isMildAlly || signals.tags.has('alliance')) {
+      if (signals.isMildAlly || signals.isAlliance) {
         plan = { type: 'check_in', scenarioKey: 'competition_low_finish_support' }
       } else if (signals.isMildEnemy) {
         plan = { type: 'snide_remark', scenarioKey: 'competition_low_finish_taunt' }
@@ -882,8 +919,10 @@ function resolveIncomingInteractionPlan(
         scenarioKey: 'social_momentum_notice',
       }
     } else if (context.phase === 'eviction_results' && constraints.actorSurvivedCurrentVote) {
-      if (
-        !signals.tags.has('alliance') &&
+      if (signals.tags.has('betrayal')) {
+        plan = { type: 'warning', scenarioKey: 'betrayal_warning' }
+      } else if (
+        !signals.isAlliance &&
         signals.affinity >= thresholds.allianceProposalMinAffinity
       ) {
         plan = { type: 'alliance_proposal', scenarioKey: 'survivor_gratitude' }
@@ -895,10 +934,7 @@ function resolveIncomingInteractionPlan(
       constraints.actorWasSaved &&
       (constraints.playerIsHoh || constraints.playerHasSafetyPower)
     ) {
-      if (
-        !signals.tags.has('alliance') &&
-        signals.affinity >= thresholds.allianceProposalMinAffinity
-      ) {
+      if (!signals.isAlliance && signals.affinity >= thresholds.allianceProposalMinAffinity) {
         plan = { type: 'alliance_proposal', scenarioKey: 'post_veto_gratitude' }
       } else {
         plan = { type: 'compliment', scenarioKey: 'post_veto_gratitude' }
@@ -935,9 +971,9 @@ function resolveIncomingInteractionPlan(
       !constraints.actorIsNominee &&
       !constraints.actorIsCurrentHoh
     ) {
-      if (signals.isStrongAlly || signals.tags.has('alliance')) {
+      if (signals.isStrongAlly || signals.isAlliance) {
         plan = {
-          type: signals.tags.has('alliance') ? 'check_in' : 'compliment',
+          type: signals.isAlliance ? 'check_in' : 'compliment',
           scenarioKey: 'hoh_safety_request',
         }
       } else {
@@ -966,7 +1002,7 @@ function resolveIncomingInteractionPlan(
         plan = { type: 'check_in', scenarioKey: 'post_veto_campaign' }
       }
     } else if (context.phase === 'loh_results' && constraints.playerIsHoh) {
-      if (signals.isStrongAlly || signals.tags.has('alliance')) {
+      if (signals.isStrongAlly || signals.isAlliance) {
         plan = { type: 'compliment', scenarioKey: 'hoh_congratulations' }
       } else if (
         signals.tags.has('betrayal') ||
@@ -980,7 +1016,7 @@ function resolveIncomingInteractionPlan(
       }
     } else if (
       (context.phase === 'week_start' || context.phase === 'social_1') &&
-      !signals.tags.has('alliance') &&
+      !signals.isAlliance &&
       signals.isStrongAlly
     ) {
       plan = { type: 'alliance_proposal', scenarioKey: 'week_start_alliance_lock' }
@@ -999,14 +1035,21 @@ function resolveIncomingInteractionPlan(
       romanceEnabled: context.romanceEnabled,
     })
     if (beat) {
+      const allianceAwareBeat =
+        signals.isAlliance &&
+        beat.storyFamily !== 'conflict' &&
+        beat.storyFamily !== 'repair' &&
+        beat.storyFamily !== 'alliance'
       plan = {
         type:
-          beat.intent === 'RECRUIT'
+          beat.intent === 'RECRUIT' && !signals.isAlliance
             ? 'alliance_proposal'
             : beat.storyFamily === 'conflict'
               ? 'warning'
               : 'check_in',
-        scenarioKey: beat.scenarioKey,
+        // A formal alliance must not regress to first-meeting friendship copy
+        // merely because the Reality edge label has not caught up yet.
+        scenarioKey: allianceAwareBeat ? 'relationship_alliance_follow_up' : beat.scenarioKey,
         relationshipIntent: beat.intent,
         relationshipBeatId: `relationship-beat:${actorId}:${playerId}:${beat.intent}:${context.week}`,
       }
@@ -1041,7 +1084,7 @@ function resolveIncomingInteractionPlan(
     return fallback
   }
 
-  if (signals.tags.has('alliance')) {
+  if (signals.isAlliance) {
     return { type: 'check_in', scenarioKey: 'alliance_reassurance' }
   }
   if (signals.isStrongEnemy) {
@@ -1241,6 +1284,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
     'nominee_hoh_plea',
     'safety_holder_consults_loh',
     'nominee_understands_loh',
+    'automatic_nominee_reaction',
     'nominee_confronts_loh',
     'replacement_nominee_reacts_to_loh',
     'nominee_campaign',
@@ -1403,6 +1447,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I will not pretend seeing my name felt good, but I understand you had to make a move. I wanted to hear it from you.',
     'You put me in danger, {hoh}. I am trying to separate the game decision from our relationship.',
     'I get that the LOH has to show their cards. I need to know whether this was strategy or something personal.',
+  ],
+  automatic_nominee_reaction: [
+    'Finishing last put me on the block automatically. I know that was the rule, not somebody choosing my name.',
+    'The competition result put me in danger. I am not treating it like a personal nomination from the LOH.',
+    'I landed on the block because I finished last. That hurts, but I know exactly where it came from.',
   ],
   nominee_confronts_loh: [
     'You looked me in the eye and then put my name up. Tell me why I should not take that personally.',
@@ -1775,6 +1824,8 @@ export function scheduleIncomingInteractionsForPhase(
     specialVeto: contextOverride?.specialVeto ?? gameState?.specialVeto?.activeType ?? null,
     lastHohCompFinisherId:
       contextOverride?.lastHohCompFinisherId ?? gameState?.lastHohCompFinisherId ?? null,
+    autoNomineeId:
+      contextOverride?.autoNomineeId ?? gameState?.nominationContext?.autoNomineeId ?? null,
     voxPopuliActive: contextOverride?.voxPopuliActive ?? gameState?.voxPopuli?.status === 'active',
     playerSocialActionCount:
       contextOverride?.playerSocialActionCount ??

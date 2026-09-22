@@ -23,10 +23,7 @@ import {
   selectHumanCanUseSocialModules,
   selectHumanCanUseIncomingSocialModule,
 } from '../../store/selectors'
-import {
-  getConfessionalDecisionKey,
-  selectActiveConfessionalDecision,
-} from '../../store/confessionalDecisionSelectors'
+import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import {
   getBlockedSocialModuleAnnouncementMessage,
   getIncomingSocialModuleAvailability,
@@ -218,7 +215,7 @@ export default function FloatingActionBar({
   const previousSecretMissionRewardPendingKeyRef = useRef<string | null>(null)
   const hasSeenConfessionalSpotlight = game.hasSeenConfessionalSpotlight === true
   const activeConfessionalDecisionKey = activeConfessionalDecision
-    ? getConfessionalDecisionKey(activeConfessionalDecision)
+    ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
     : null
   useEffect(() => {
     if (confessionalAlertCount <= prevConfessionalCountRef.current) {

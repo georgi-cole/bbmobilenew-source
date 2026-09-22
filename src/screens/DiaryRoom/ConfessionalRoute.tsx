@@ -1,17 +1,31 @@
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
-import { useAppSelector } from '../../store/hooks'
+import {
+  selectActiveConfessionalDecision,
+  type ActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
+import { consumeBroadcastEvent } from '../../store/gameSlice'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import DiaryRoom from './DiaryRoom'
+import { findConfessionalSourceBroadcast } from './confessionalBroadcastReceipt'
 import RequiredConfessionalSession from './RequiredConfessionalSession'
 
 export default function ConfessionalRoute() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
-  const [requiredSessionActive, setRequiredSessionActive] = useState(activeDecision !== null)
+  const focusedDecision = activeDecision?.type === 'twin_shock' ? null : activeDecision
+  const tvFeed = useAppSelector((state) => state.game.tvFeed)
+  const currentWeek = useAppSelector((state) => state.game.week)
+  const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
 
   const returnToGame = useCallback(
-    (returnCue: string) => {
+    (returnCue: string, decisionType: ActiveConfessionalDecision['type'] | null) => {
+      // Consume the exact prompt associated with the decision that was just
+      // committed. Broadcast template metadata is authoritative; copy parsing
+      // is retained only for legacy saves that pre-date structured templates.
+      const sourcePrompt = findConfessionalSourceBroadcast(tvFeed, decisionType, currentWeek)
+      if (sourcePrompt) dispatch(consumeBroadcastEvent(sourcePrompt.id))
       setRequiredSessionActive(false)
       navigate('/game', {
         replace: true,
@@ -21,11 +35,15 @@ export default function ConfessionalRoute() {
         },
       })
     },
-    [navigate]
+    [currentWeek, dispatch, navigate, tvFeed]
   )
 
-  if (activeDecision !== null || requiredSessionActive) {
-    return <RequiredConfessionalSession decision={activeDecision} onReturnToGame={returnToGame} />
+  if (activeDecision?.type === 'twin_shock') {
+    return <DiaryRoom />
+  }
+
+  if (requiredSessionActive) {
+    return <RequiredConfessionalSession decision={focusedDecision} onReturnToGame={returnToGame} />
   }
 
   return <DiaryRoom />

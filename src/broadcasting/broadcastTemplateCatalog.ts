@@ -381,9 +381,15 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'loh_comp',
     'DEMOCRACIA! The house will elect its Leader by popular vote.',
     'twist',
-    'critical',
+    // Democracia already has the canonical full-screen phase card above.
+    // Keep this legacy receipt in the activity log only so activation cannot
+    // replay another Faux-TV shock when the player presses Play.
+    'minor',
     'democracia',
-    'Democracia shock'
+    'Democracia shock',
+    false,
+    undefined,
+    { importance: 'required', presentationMode: 'log_only' }
   ),
   feed(
     'loh.vox-last-place',

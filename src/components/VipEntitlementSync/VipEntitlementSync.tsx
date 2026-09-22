@@ -12,13 +12,6 @@ import {
 
 const REALITY_MODE_DEFAULT_APPLIED_KEY = 'bbmobilenew:reality-mode-default-applied:v1'
 
-function isLocalQaSession(): boolean {
-  if (typeof window === 'undefined') return false
-  if (!['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) return false
-  const params = new URLSearchParams(window.location.search)
-  return params.get('debug') === '1' && params.get('qa') === '1'
-}
-
 function hasAppliedRealityModeDefault(): boolean {
   try {
     return localStorage.getItem(REALITY_MODE_DEFAULT_APPLIED_KEY) === '1'
@@ -40,7 +33,7 @@ export default function VipEntitlementSync() {
   const storeState = useAppSelector(selectVip)
   const isVipActive = useAppSelector(selectIsVipActive)
   const hasDramaMode = useAppSelector(selectHasDramaModeAccess)
-  const hasPublicMode = useAppSelector(selectHasPublicModeAccess) || isLocalQaSession()
+  const hasPublicMode = useAppSelector(selectHasPublicModeAccess)
   const hasTribunalHouse = useAppSelector(selectHasTribunalHouseAccess)
   const dramaMode = useAppSelector((state) => state.settings.gameUX.dramaMode)
   const publicMode = useAppSelector((state) => state.settings.sim.publicMode)

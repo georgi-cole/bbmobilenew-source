@@ -1,6 +1,6 @@
 ﻿import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
-import gameReducer from '../../src/store/gameSlice'
+import gameReducer, { hydrateGame } from '../../src/store/gameSlice'
 import settingsReducer, { setGameUX } from '../../src/store/settingsSlice'
 import socialReducer, {
   setEnergyBankEntry,
@@ -105,6 +105,33 @@ describe('context-aware social conversation summaries', () => {
 
     makeContextStore({ trust: 25, nomineeIds: [] })
     expect(run('ask_safety_plan').summary).toContain('leaving the nominations unchanged')
+  })
+
+  it('keeps LOH target disclosure on the persisted canonical plan instead of affinity guesses', () => {
+    const store = makeContextStore()
+    store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-1', delta: 60 }))
+    store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-2', delta: -60 }))
+    const game = store.getState().game
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        phase: 'social_1',
+        lohSocialPlan: {
+          week: game.week,
+          lohId: 'holder',
+          currentTargetId: 'nominee-1',
+          backupTargetId: 'nominee-2',
+          askCountsByPlayerId: { actor: 1 },
+          disclosedTargetByPlayerId: {},
+        },
+      })
+    )
+
+    const result = run('ask_loh_target')
+    expect(result.success).toBe(true)
+    expect(result.summary).toContain('Nico')
+    expect(result.summary).toContain('current target')
+    expect(result.summary).not.toContain('Maya is my current target')
   })
 
   it('distinguishes trusted and guarded Safety requests at the rule boundary', () => {

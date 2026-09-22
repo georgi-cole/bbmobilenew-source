@@ -14,7 +14,9 @@ test.describe('Human-like season simulation @season-sim', () => {
       'the smoke run should progress through visible Day 1 controls'
     ).not.toHaveLength(0)
     await auditor.assertNoErrorsAtEnd()
-    // Close the page explicitly so long-lived game timers do not delay context teardown.
-    await page.close({ runBeforeUnload: false })
+    // Leave the active React tree before the fixture closes its browser context.
+    // This is equivalent to a player leaving the app and lets phase-level
+    // animation work clean up before Playwright teardown begins.
+    await page.goto('about:blank')
   })
 })

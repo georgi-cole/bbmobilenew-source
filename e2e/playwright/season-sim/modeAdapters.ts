@@ -3,8 +3,6 @@ import { expect, type Page } from '@playwright/test'
 import { readAppState } from '../support/test'
 import type { SeasonSimulationMode } from './types'
 
-const UI_TIMEOUT = 30_000
-
 export interface ModeAdapter {
   readonly mode: SeasonSimulationMode
   launch(page: Page): Promise<void>
@@ -39,9 +37,7 @@ function finiteAdapter(
         .getByRole('navigation', { name: 'Play menu' })
         .getByRole('button', { name: label, exact: true })
         .click()
-      await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
-        timeout: UI_TIMEOUT,
-      })
+      await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible()
     },
     async isTerminal(page) {
       const state = await readAppState(page)
@@ -74,9 +70,7 @@ const survivalAdapter: ModeAdapter = {
       await expect(continueButton).toBeVisible()
       await continueButton.click()
     }
-    await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
-      timeout: UI_TIMEOUT,
-    })
+    await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible()
   },
   async isTerminal(page) {
     const state = await readAppState(page)

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Player } from '../../types'
+import type { PublicDirection } from '../types'
+import { getEligibleDirectionCandidates } from '../publicDirectionContracts'
+import { createRealityAlliance } from '../../social/reality/relationshipForms'
+import { createInitialRealityDomainState } from '../../social/reality/state'
 import { generateDirectionsForCycle } from '../PublicDirectionService'
 
 function player(id: string, isUser = false): Player {
@@ -47,6 +51,33 @@ describe('generateDirectionsForCycle', () => {
     expect(breakRequest?.actionHint).toContain('nova')
   })
 
+  it('does not treat a dormant Reality alliance as active because of a stale legacy tag', () => {
+    const actor = player('test', true)
+    const ally = player('nova')
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'dormant-pact',
+      founderIds: [actor.id],
+      memberIds: [ally.id],
+      purpose: 'Old agreement',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'DORMANT'
+
+    const candidates = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 5,
+      relationships: {
+        test: { nova: { affinity: 25, tags: ['alliance'] } },
+        nova: { test: { affinity: 25, tags: ['alliance'] } },
+      },
+      realityAlliances: reality.alliances,
+    })
+
+    expect(candidates.some((candidate) => candidate.type === 'reinforce_alliance')).toBe(false)
+    expect(candidates.some((candidate) => candidate.type === 'show_loyalty')).toBe(false)
+  })
+
   it('writes AI requests as audience story beats without exposing the action route', () => {
     const directions = generateDirectionsForCycle({
       players: [player('lux'), player('dex')],
@@ -82,6 +113,78 @@ describe('generateDirectionsForCycle', () => {
 
     expect(relationshipRequest).toBeDefined()
     expect(relationshipRequest?.expiresAtWeek).toBe(6)
+  })
+
+  it('uses only live or successfully completed relationship requests to suppress contradictions', () => {
+    const actor = player('test', true)
+    const ally = player('nova')
+    const relationships = {
+      test: { nova: { affinity: 30, tags: ['alliance'] } },
+      nova: { test: { affinity: 30, tags: ['alliance'] } },
+    }
+    const failedBreak: PublicDirection = {
+      id: 'failed-break',
+      type: 'break_alliance',
+      playerId: actor.id,
+      relatedPlayerId: ally.id,
+      description: 'Break the alliance',
+      status: 'failed',
+      createdWeek: 4,
+      expiresAtWeek: 5,
+      approvalDelta: 0,
+    }
+
+    const afterFailedBreak = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [failedBreak],
+    })
+    expect(
+      afterFailedBreak.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(true)
+
+    const completedBreak: PublicDirection = {
+      ...failedBreak,
+      id: 'completed-break',
+      status: 'completed',
+      createdWeek: 7,
+      completedWeek: 7,
+    }
+    const afterCompletedBreak = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [completedBreak],
+    })
+    expect(
+      afterCompletedBreak.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(false)
+
+    const repaired: PublicDirection = {
+      ...completedBreak,
+      id: 'repair',
+      type: 'repair_relationship',
+      // Same-week repair must still win because it was appended later.
+      createdWeek: 7,
+      completedWeek: 7,
+    }
+    const afterRepair = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 8,
+      relationships,
+      existingDirections: [completedBreak, repaired],
+    })
+    expect(
+      afterRepair.some((candidate) =>
+        ['reinforce_alliance', 'show_loyalty'].includes(candidate.type)
+      )
+    ).toBe(true)
+    expect(afterRepair.some((candidate) => candidate.type === 'break_alliance')).toBe(false)
   })
 
   it('does not issue a second live request to a player already carrying one', () => {

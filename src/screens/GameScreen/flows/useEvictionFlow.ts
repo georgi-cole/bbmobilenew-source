@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import {
   activateVoteDeductionReward,
   addTvEvent,
@@ -26,6 +26,8 @@ import { rankPublicEvictionTieNominees } from '../../../publicOpinion/PublicEvic
 import { mulberry32 } from '../../../store/rng'
 import { getOutcomeVisibleEvicteeIds, hasUnresolvedTopVoteTie } from '../evictionTieVisuals'
 import {
+  buildEvictionVoteBreakdownPlayerNamesById,
+  buildEvictionVoteBreakdownRows,
   isEvictionVoteBreakdownActive,
   loadEvictionVoteBreakdownUnlock,
   saveEvictionVoteBreakdownUnlock,
@@ -38,6 +40,7 @@ import {
 } from '../../../features/twists/cupidArrow'
 
 export const POST_VOTE_ANNOUNCEMENT_MS = 3600
+export const POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS = 400
 const AI_TIE_STAGE_DELAY_MS = 3000
 const AI_TIE_DECIDING_DELAY_MS = 3000
 const AI_TIE_DECISION_DELAY_MS = 3000
@@ -139,6 +142,8 @@ interface UseEvictionFlowOptions {
   final4Stage: Final4Stage
   setFinal4Stage: Dispatch<SetStateAction<Final4Stage>>
   publicOpinionProfiles: Record<string, PlayerPublicProfile>
+  isMountedRef: MutableRefObject<boolean>
+  setAdPending: Dispatch<SetStateAction<boolean>>
   dispatch: AppDispatch
 }
 
@@ -153,14 +158,34 @@ export function useEvictionFlow({
   final4Stage,
   setFinal4Stage,
   publicOpinionProfiles,
+  isMountedRef,
+  setAdPending,
   dispatch,
 }: UseEvictionFlowOptions) {
+  const [showVoteBreakdownPrompt, setShowVoteBreakdownPrompt] = useState(false)
+  const [voteBreakdownPromptIsPostEviction, setVoteBreakdownPromptIsPostEviction] = useState(false)
+  const [postEvictionVoteBreakdown, setPostEvictionVoteBreakdown] =
+    useState<VoteBreakdownSnapshot | null>(null)
   const [postVoteAnnouncement, setPostVoteAnnouncement] = useState<Announcement | null>(null)
   const [aiTiebreakStage, setAiTiebreakStage] = useState<AiTiebreakStage | null>(null)
   const [activeAiTiebreakContext, setActiveAiTiebreakContext] = useState<AiTiebreakContext | null>(
     null
   )
+  const isPostEvictionConfessionalModeRef = useRef(false)
   const postEvictionVoteSnapshotRef = useRef<VoteBreakdownSnapshot | null>(null)
+  const autoRevealOwnEvictionVotesRef = useRef(false)
+  const postEvictionVoteBreakdownPromptTimerRef = useRef<ReturnType<
+    typeof window.setTimeout
+  > | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (postEvictionVoteBreakdownPromptTimerRef.current != null) {
+        window.clearTimeout(postEvictionVoteBreakdownPromptTimerRef.current)
+        postEvictionVoteBreakdownPromptTimerRef.current = null
+      }
+    }
+  }, [])
 
   // ── Vote Results Popup ────────────────────────────────────────────────────
   // Show vote results whenever they are available, including during a tie-break
@@ -242,6 +267,8 @@ export function useEvictionFlow({
         return false
       }
 
+      isPostEvictionConfessionalModeRef.current = true
+      autoRevealOwnEvictionVotesRef.current = evictee.isUser === true
       postEvictionVoteSnapshotRef.current = {
         gameId: game.gameId,
         votes: { ...(game.votes ?? {}) },
@@ -264,6 +291,13 @@ export function useEvictionFlow({
       hasVoteBreakdownData,
     ]
   )
+
+  const queueVoteBreakdownPrompt = useCallback(() => {
+    if (!canOfferVoteBreakdown || hasActiveVoteBreakdownUnlock()) return false
+    setVoteBreakdownPromptIsPostEviction(false)
+    setShowVoteBreakdownPrompt(true)
+    return true
+  }, [canOfferVoteBreakdown, hasActiveVoteBreakdownUnlock])
 
   const proceedAfterVoteResults = useCallback(() => {
     dispatch(dismissVoteResults())
@@ -368,9 +402,10 @@ export function useEvictionFlow({
       return
     }
 
-    // No clear evictee (tie or edge case): the tie-break flow remains in charge.
+    // No clear evictee (tie or edge case): fall back to the original inline flow.
+    if (queueVoteBreakdownPrompt()) return
     proceedAfterVoteResults()
-  }, [armPostEvictionVoteBreakdown, game, proceedAfterVoteResults])
+  }, [armPostEvictionVoteBreakdown, game, proceedAfterVoteResults, queueVoteBreakdownPrompt])
 
   const handlePostVoteAnnouncementDismiss = useCallback(() => {
     setPostVoteAnnouncement(null)
@@ -397,27 +432,125 @@ export function useEvictionFlow({
     return () => window.clearTimeout(timeoutId)
   }, [game.awaitingVoteDeductionPrompt, handleVoteResultsDone, resumeVoteResultsAfterDeduction])
 
-  const queueVoteBreakdownConfessionalOffer = useCallback(
-    (snapshot: VoteBreakdownSnapshot) => {
-      saveEvictionVoteBreakdownUnlock({ ...snapshot, status: 'available' })
+  const unlockVoteBreakdown = useCallback(() => {
+    const wasPostEviction = isPostEvictionConfessionalModeRef.current
+    // In post-eviction mode the game has already advanced (pendingEviction is null,
+    // phase may be week_end). Use the snapshot captured at vote-results dismiss time
+    // to save the correct week/phase and per-voter vote data.
+    const snapshot = postEvictionVoteSnapshotRef.current ?? {
+      gameId: game.gameId,
+      week: game.week,
+      phase: game.phase,
+      votes: { ...(game.votes ?? {}) },
+      nomineeIds: [...game.nomineeIds],
+      evicteeId: game.pendingEviction?.evicteeId ?? null,
+    }
+    Object.entries(snapshot.votes).forEach(([voterId, targetId]) => {
+      const voterName = game.players.find((player) => player.id === voterId)?.name ?? voterId
+      const targetName = game.players.find((player) => player.id === targetId)?.name ?? targetId
       dispatch(
         addTvEvent({
-          text: 'The Big Eye has a private offer waiting in the Confessional.',
-          type: 'game',
+          text: `${voterName} voted to eliminate ${targetName}.`,
+          type: 'vote',
           source: 'system',
+          channels: ['mainLog'],
+        })
+      )
+    })
+    if (wasPostEviction && humanPlayerEliminated) {
+      setPostEvictionVoteBreakdown(snapshot)
+    } else {
+      saveEvictionVoteBreakdownUnlock({
+        gameId: snapshot.gameId,
+        week: snapshot.week,
+        phase: snapshot.phase,
+        votes: snapshot.votes,
+        nomineeIds: snapshot.nomineeIds,
+        evicteeId: snapshot.evicteeId,
+        status: 'available',
+      })
+      dispatch(
+        addTvEvent({
+          text: 'Go to the Confessional before the day is over.',
+          type: 'game',
+          // This notice is emitted after the eviction cinematic, when the game
+          // is usually already in week_end. Keep it on the Faux TV even though
+          // it was not part of the phase's managed broadcast queue.
           channels: ['tv', 'mainLog'],
           meta: {
             forceOnTv: true,
             broadcastLevel: 'major',
+            // This is created after the eviction/day-end sequence has already
+            // started. Take the next Faux-TV slot without pretending it is a
+            // critical shock announcement.
             broadcastDelivery: 'next',
             announcementTitle: 'Confessional Unlocked',
+            // The Confessional owns this reminder after the vote reveal. It
+            // must be consumed as soon as that reveal is opened, rather than
+            // lingering as a stale Faux-TV task for the rest of the day.
             confessionalVoteBreakdown: true,
           },
         })
       )
-    },
-    [dispatch]
+    }
+    postEvictionVoteSnapshotRef.current = null
+    isPostEvictionConfessionalModeRef.current = false
+    setVoteBreakdownPromptIsPostEviction(false)
+    setShowVoteBreakdownPrompt(false)
+    setAdPending(false)
+    if (!wasPostEviction) {
+      // Only advance in the classic inline flow; in post-eviction mode the game
+      // has already moved past eviction_results.
+      proceedAfterVoteResults()
+    }
+  }, [
+    dispatch,
+    game.gameId,
+    game.nomineeIds,
+    game.pendingEviction?.evicteeId,
+    game.phase,
+    game.players,
+    game.votes,
+    game.week,
+    humanPlayerEliminated,
+    proceedAfterVoteResults,
+    setAdPending,
+  ])
+
+  const handleVoteBreakdownSkip = useCallback(() => {
+    const wasPostEviction = isPostEvictionConfessionalModeRef.current
+    postEvictionVoteSnapshotRef.current = null
+    isPostEvictionConfessionalModeRef.current = false
+    setVoteBreakdownPromptIsPostEviction(false)
+    setShowVoteBreakdownPrompt(false)
+    setAdPending(false)
+    if (!wasPostEviction) proceedAfterVoteResults()
+  }, [proceedAfterVoteResults, setAdPending])
+
+  const postEvictionVoteBreakdownPlayerNamesById = useMemo(
+    () => buildEvictionVoteBreakdownPlayerNamesById(game.players),
+    [game.players]
   )
+  const postEvictionVoteBreakdownRows = useMemo(
+    () =>
+      postEvictionVoteBreakdown
+        ? buildEvictionVoteBreakdownRows(
+            postEvictionVoteBreakdown.votes,
+            postEvictionVoteBreakdownPlayerNamesById
+          )
+        : [],
+    [postEvictionVoteBreakdown, postEvictionVoteBreakdownPlayerNamesById]
+  )
+
+  useEffect(() => {
+    if (showVoteResults) return
+    const timeoutId = window.setTimeout(() => {
+      setVoteBreakdownPromptIsPostEviction(false)
+      setShowVoteBreakdownPrompt(false)
+      setAdPending(false)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [setAdPending, showVoteResults])
 
   // For AI tiebreak: pass evictee=null to the modal so it surfaces the tie banner
   // and calls onTiebreakerRequired, giving us the hook to run choreography.
@@ -740,16 +873,35 @@ export function useEvictionFlow({
         dispatch(advance())
       }
     }
-    // Never interrupt the eviction result with a generic modal. If the breakdown
-    // is eligible, leave it as a private Confessional offer after the cinematic.
-    const voteBreakdownSnapshot = postEvictionVoteSnapshotRef.current
-    if (voteBreakdownSnapshot && !hasQueuedPartnerEviction && !humanPlayerEliminated) {
-      queueVoteBreakdownConfessionalOffer(voteBreakdownSnapshot)
+    // Show the confessional breakdown prompt if it was flagged during vote-results
+    // dismissal (post-eviction confessional mode).
+    if (isPostEvictionConfessionalModeRef.current && !hasQueuedPartnerEviction) {
+      if (autoRevealOwnEvictionVotesRef.current && postEvictionVoteSnapshotRef.current) {
+        setPostEvictionVoteBreakdown(postEvictionVoteSnapshotRef.current)
+        postEvictionVoteSnapshotRef.current = null
+        autoRevealOwnEvictionVotesRef.current = false
+        isPostEvictionConfessionalModeRef.current = false
+        return
+      }
+      if (postEvictionVoteBreakdownPromptTimerRef.current != null) {
+        window.clearTimeout(postEvictionVoteBreakdownPromptTimerRef.current)
+        postEvictionVoteBreakdownPromptTimerRef.current = null
+      }
+      postEvictionVoteBreakdownPromptTimerRef.current = window.setTimeout(() => {
+        postEvictionVoteBreakdownPromptTimerRef.current = null
+        if (!isMountedRef.current) return
+        setVoteBreakdownPromptIsPostEviction(true)
+        setShowVoteBreakdownPrompt(true)
+      }, POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
     }
-    postEvictionVoteSnapshotRef.current = null
-  }, [dispatch, game, humanPlayerEliminated, queueVoteBreakdownConfessionalOffer, setFinal4Stage])
+  }, [dispatch, game, setFinal4Stage, isMountedRef])
 
   return {
+    showVoteBreakdownPrompt,
+    voteBreakdownPromptIsPostEviction,
+    handleVoteBreakdownSkip,
+    postEvictionVoteBreakdown,
+    setPostEvictionVoteBreakdown,
     postVoteAnnouncement,
     aiTiebreakStage,
     showVoteResults,
@@ -759,6 +911,9 @@ export function useEvictionFlow({
     showVoteDeductionOffer,
     handleVoteDeductionAccept,
     handleVoteDeductionDecline,
+    unlockVoteBreakdown,
+    postEvictionVoteBreakdownRows,
+    postEvictionVoteBreakdownPlayerNamesById,
     voteResultsEvictee,
     aiTiebreakAnnouncement,
     handleTiebreakerRequired,

@@ -1495,6 +1495,22 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
     ]
   ),
 
+  automatic_nominee_reaction: makeScenePool(
+    'anr',
+    [
+      'Finishing last put me up automatically. I know that was the rule, not the LOH choosing me.',
+      'The competition result put me on the block. I am frustrated, but I am not calling it a betrayal.',
+    ],
+    [
+      'I hate being in danger, but I know exactly why I am here. I need to think about what comes next.',
+      'Nobody had to pick my name for this. I finished last, so now I have to survive the consequence.',
+    ],
+    [
+      'I am still on the block because of that last-place result. I am focused on Safety and the vote now.',
+      'The rule put me here. I would rather talk about how I get out of danger than blame the wrong person.',
+    ]
+  ),
+
   nominee_confronts_loh: makeScenePool(
     'ncl',
     [

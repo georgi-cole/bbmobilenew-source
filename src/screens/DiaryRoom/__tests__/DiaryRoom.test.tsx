@@ -5,7 +5,6 @@ import { configureStore } from '@reduxjs/toolkit'
 import { createMemoryRouter, useNavigate } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import DiaryRoom, { DIARY_ROOM_ENTRY_OVERLAY_MS } from '../DiaryRoom'
-import ConfessionalRoute from '../ConfessionalRoute'
 import gameReducer, {
   triggerSecretMission,
   offerSecretMission,
@@ -26,10 +25,7 @@ import {
 
 function renderDiaryRoom(
   initialEntries = ['/game', '/diary-room'],
-  options?: {
-    setupStore?: (store: ReturnType<typeof configureStore>) => void
-    useRequiredRoute?: boolean
-  }
+  options?: { setupStore?: (store: ReturnType<typeof configureStore>) => void }
 ) {
   const store = configureStore({
     reducer: {
@@ -49,10 +45,7 @@ function renderDiaryRoom(
           router={createMemoryRouter(
             [
               { path: '/game', element: <div>Game route</div> },
-              {
-                path: '/diary-room',
-                element: options?.useRequiredRoute ? <ConfessionalRoute /> : <DiaryRoom />,
-              },
+              { path: '/diary-room', element: <DiaryRoom /> },
               { path: '/self-evicted', element: <div>Self-evicted route</div> },
             ],
             {
@@ -216,7 +209,7 @@ describe('DiaryRoom', () => {
     expect(screen.getByRole('button', { name: /yes, leave/i })).toBeTruthy()
   })
 
-  it('does not expose the voluntary self-evict flow while a decision is pending', () => {
+  it('does not open the self-evict modal while a confessional decision is pending', async () => {
     renderDiaryRoom(['/game', '/diary-room'], {
       setupStore: (appStore) => {
         const game = (appStore.getState() as RootState).game
@@ -230,14 +223,26 @@ describe('DiaryRoom', () => {
       },
     })
 
+    fireEvent.change(screen.getByLabelText(/diary entry/i), {
+      target: { value: 'I wanna leave' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await flushConversationTimers()
+
+    fireEvent.change(screen.getByLabelText(/diary entry/i), {
+      target: { value: 'yes' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+
+    await flushConversationTimers()
+
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
-    expect(screen.queryByLabelText(/diary entry/i)).toBeNull()
+    expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
   })
 
   it('keeps the Day 5 Twin Shock response above a stored secret-mission reward and releases the lock', async () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
-      useRequiredRoute: true,
       setupStore: (appStore) => {
         appStore.dispatch(triggerSecretMission(5))
         appStore.dispatch(offerSecretMission(5))
@@ -263,20 +268,24 @@ describe('DiaryRoom', () => {
       },
     })
 
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
-    expect(
-      screen.getByText(/last time, i asked whether you had noticed anything off about lia/i)
-    ).toBeTruthy()
+    const response = screen.getByTestId('twin-shock-required-response')
     expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
+    expect(response).toHaveTextContent(
+      /last time, i asked you whether you had noticed anything off about lia/i
+    )
+    expect(screen.getByTestId('diary-room-back-locked')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Required response to The Big Eye'), {
       target: { value: 'I give up' },
     })
-    fireEvent.click(screen.getByRole('button', { name: /send response/i }))
+    fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350)
+    })
 
     expect(store.getState().game.twinShock?.promptStage).toBeNull()
-    expect(screen.queryByTestId('required-confessional-decision')).toBeNull()
-    expect(screen.getByRole('button', { name: /return to the house/i })).toBeTruthy()
+    expect(screen.queryByTestId('twin-shock-required-response')).toBeNull()
+    expect(screen.getByRole('button', { name: /go back/i })).toBeTruthy()
   })
 
   it('greets the player on first entry', async () => {
@@ -377,7 +386,6 @@ describe('DiaryRoom', () => {
 
   it('answers task-number hint requests from the active mission checklist', async () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
-      useRequiredRoute: true,
       setupStore: (store) => {
         store.dispatch(triggerSecretMission(5))
         store.dispatch(offerSecretMission(5))
@@ -761,12 +769,12 @@ describe('DiaryRoom', () => {
     fireEvent.click(screen.getByRole('button', { name: /leave route/i }))
 
     expect(screen.queryByText('Game route')).toBeNull()
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
+    expect(screen.getByLabelText(/confessional chat/i)).toBeTruthy()
+    expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
   })
 
   it('renders a pending vote as a Big Eye chat message and appends the user reply after selection', () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
-      useRequiredRoute: true,
       setupStore: (appStore) => {
         const game = (appStore.getState() as RootState).game
         appStore.dispatch(
@@ -782,19 +790,20 @@ describe('DiaryRoom', () => {
 
     const targetName = store.getState().game.players[1].name
 
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
+    expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
     expect(screen.getByText(/choose who you want to eliminate/i)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: new RegExp(targetName, 'i') }))
-    fireEvent.click(screen.getByRole('button', { name: /seal eviction vote/i }))
 
-    expect(screen.getByText(new RegExp(`voted to eliminate ${targetName}`, 'i'))).toBeTruthy()
+    expect(screen.getByText(new RegExp(`I choose ${targetName}`, 'i'))).toBeTruthy()
+    expect(
+      screen.getByText(/your choice has been recorded\. the ceremony will proceed\./i)
+    ).toBeTruthy()
     expect(store.getState().game.awaitingHumanVote).toBe(false)
   })
 
   it('appends a new Big Eye decision message when one confessional choice leads to the next', () => {
     renderDiaryRoom(['/game', '/diary-room'], {
-      useRequiredRoute: true,
       setupStore: (appStore) => {
         const game = (appStore.getState() as RootState).game
         appStore.dispatch(
@@ -812,20 +821,17 @@ describe('DiaryRoom', () => {
 
     expect(screen.getByText(/do you want to use power of safety/i)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: /use power of safety/i }))
-    fireEvent.click(screen.getByRole('button', { name: /confirm power decision/i }))
+    fireEvent.click(screen.getByRole('button', { name: /use power/i }))
 
-    expect(screen.getByText(/activated power of safety/i)).toBeTruthy()
-    expect(screen.getByRole('button', { name: /continue to the next decision/i })).toBeTruthy()
-    expect(screen.queryByText(/select the nominee you want to save/i)).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /continue to the next decision/i }))
-    expect(screen.getByText(/select the nominee you want to save/i)).toBeTruthy()
+    expect(screen.getByText(/i will use power of safety/i)).toBeTruthy()
+    expect(
+      screen.getByText(/your choice has been recorded\. the ceremony will proceed\./i)
+    ).toBeTruthy()
+    expect(screen.getByText(/choose which nominee you want to save/i)).toBeTruthy()
   })
 
   it('mentions the public auto-nominee in the appended nomination summary', () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
-      useRequiredRoute: true,
       setupStore: (appStore) => {
         const game = (appStore.getState() as RootState).game
         const userId = game.players.find((player) => player.isUser)?.id ?? game.players[0].id
@@ -859,9 +865,11 @@ describe('DiaryRoom', () => {
       state.players.find((player) => player.id === autoNomineeId)?.name ?? 'Unknown'
 
     expect(
-      screen.getByText(new RegExp(`${autoNomineeName} is the last-place nominee`, 'i'))
+      screen.getByText(new RegExp(`${autoNomineeName} is already the last-place nominee`, 'i'))
     ).toBeTruthy()
-    expect(screen.getByText(/nominated .*last-place nominee/i)).toBeTruthy()
+    expect(
+      screen.getByText(/your choice has been recorded\. the ceremony will proceed\./i)
+    ).toBeTruthy()
     expect(store.getState().game.nomineeIds).toContain(autoNomineeId)
   })
 

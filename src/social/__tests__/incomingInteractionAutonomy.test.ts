@@ -7,6 +7,8 @@ import {
   type AutonomyStore,
 } from '../incomingInteractionAutonomy'
 import { getInteractionDedupeReason } from '../incomingInteractionScheduler'
+import { createRealityAlliance } from '../reality/relationshipForms'
+import { createInitialRealityDomainState } from '../reality/state'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from '../types'
 
 function buildContext(overrides: Partial<AutonomyContext> = {}): AutonomyContext {
@@ -156,6 +158,30 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(interaction?.payload?.scenarioKey).toBe('nominee_understands_loh')
   })
 
+  it('attributes an automatic last-place nomination to the rule before LOH conflict logic', () => {
+    const context = buildContext({
+      phase: 'nomination_results',
+      lohId: 'user',
+      nomineeIds: ['nominee'],
+      autoNomineeId: 'nominee',
+      relationships: {
+        nominee: { user: { affinity: -70, tags: ['betrayal', 'target'] } },
+      },
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('nomination_results', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'nominee'
+    )?.interaction
+    expect(interaction?.type).toBe('check_in')
+    expect(interaction?.payload?.scenarioKey).toBe('automatic_nominee_reaction')
+    expect(interaction?.text).toMatch(/finishing last|competition result|finished last/i)
+    expect(interaction?.text).not.toMatch(/you nominated me|you put me|your move/i)
+  })
+
   it('routes nominees to deal offers when the player holds veto power', () => {
     const context = buildContext({
       phase: 'pos_results',
@@ -285,6 +311,92 @@ describe('incomingInteractionAutonomy thematic routing', () => {
 
     expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('warning')
     expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('snide_remark')
+  })
+
+  it('keeps betrayal ahead of survivor gratitude after an eviction vote', () => {
+    const context = buildContext({
+      phase: 'eviction_results',
+      nomineeIds: ['ally', 'evictee'],
+      pendingEvictionId: 'evictee',
+      relationships: {
+        ally: { user: { affinity: 55, tags: ['alliance', 'betrayal'] } },
+        evictee: { user: { affinity: 0, tags: [] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'nominated' },
+        { id: 'evictee', name: 'Evictee', status: 'nominated' },
+      ],
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('eviction_results', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'ally'
+    )?.interaction
+    expect(interaction?.type).toBe('warning')
+    expect(interaction?.payload?.scenarioKey).toBe('betrayal_warning')
+  })
+
+  it('does not repropose an alliance when a formal Reality alliance already exists', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'formal-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'week_start' },
+    })
+    const context = buildContext({
+      phase: 'week_start',
+      reality,
+      relationships: {
+        ally: { user: { affinity: 80, tags: [] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+      random: () => 0,
+    })
+
+    expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('alliance_proposal')
+
+    const store = buildStore(context)
+    scheduleIncomingInteractionsForPhase('week_start', store, context)
+    expect(
+      store.social.scheduledIncomingInteractions.some(
+        (entry) => entry.interaction.type === 'alliance_proposal'
+      )
+    ).toBe(false)
+  })
+
+  it('does not let a stale alliance tag keep a dormant Reality alliance active', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'dormant-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Old protection deal',
+      at: { day: 2, phase: 'week_start' },
+    })
+    alliance.status = 'DORMANT'
+    const context = buildContext({
+      phase: 'week_start',
+      reality,
+      relationships: {
+        ally: { user: { affinity: 80, tags: ['alliance'] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+      random: () => 0,
+    })
+
+    expect(chooseIncomingInteractionType('ally', 'user', context)).toBe('alliance_proposal')
   })
 
   it('adds the new thematic phases to eligible scheduling', () => {

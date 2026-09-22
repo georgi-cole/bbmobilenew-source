@@ -142,6 +142,13 @@ export const selectConfessionalAlertCount = (state: RootState): number => {
 
   const sm = state.game?.secretMission
   const activeConfessionalDecision = selectActiveConfessionalDecision(state)
+  const rewardBeingResolved =
+    sm?.status === 'rewardClaimed' &&
+    sm.reward != null &&
+    ((sm.reward.type === 'doubleVote' &&
+      (state.game?.awaitingDoubleVoteOffer || state.game?.humanDoubleVoteActive)) ||
+      (sm.reward.type === 'voteDeduction' && state.game?.awaitingVoteDeductionPrompt) ||
+      (sm.reward.type === 'immunity' && state.game?.awaitingMissionImmunityOffer))
   let count = 0
 
   if (
@@ -150,7 +157,16 @@ export const selectConfessionalAlertCount = (state: RootState): number => {
       sm.status === 'offered' ||
       sm.status === 'accepted' ||
       sm.status === 'rewardPending' ||
-      (sm.status === 'rewardClaimed' && sm.reward?.eligible))
+      (sm.status === 'rewardClaimed' &&
+        sm.reward?.eligible &&
+        !sm.reward.consumed &&
+        !sm.reward.expired &&
+        // Instant rewards (notably +1000 Influence) are already delivered;
+        // they must not keep the Confessional badge lit for the rest of the
+        // season. Only powers that still require future use remain actionable.
+        sm.reward.type !== 'plus1000Influence' &&
+        sm.reward.type !== 'emptyBox' &&
+        !rewardBeingResolved))
   ) {
     count += 1
   }

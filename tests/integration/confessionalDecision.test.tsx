@@ -15,12 +15,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { configureStore } from '@reduxjs/toolkit'
-import gameReducer, { hydrateGame } from '../../src/store/gameSlice'
+import gameReducer from '../../src/store/gameSlice'
 import profilesReducer from '../../src/store/profilesSlice'
 import settingsReducer from '../../src/store/settingsSlice'
 import challengeReducer from '../../src/store/challengeSlice'
@@ -31,9 +31,9 @@ import type { GameState, Player } from '../../src/types'
 import { selectActiveConfessionalDecision } from '../../src/store/confessionalDecisionSelectors'
 import { selectConfessionalAlertCount } from '../../src/store/selectors'
 import GameScreen from '../../src/screens/GameScreen/GameScreen'
+import DiaryRoom from '../../src/screens/DiaryRoom/DiaryRoom'
 import ConfessionalDecisionPanel from '../../src/screens/DiaryRoom/ConfessionalDecisionPanel'
 import ConfessionalRoute from '../../src/screens/DiaryRoom/ConfessionalRoute'
-import RequiredConfessionalSession from '../../src/screens/DiaryRoom/RequiredConfessionalSession'
 import type { SecretMissionState } from '../../src/bb/secretMission'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ function renderDiaryRoom(store: ReturnType<typeof makeStore>) {
         router={createMemoryRouter(
           [
             { path: '/game', element: <div data-testid="game-screen" /> },
-            { path: '/diary-room', element: <ConfessionalRoute /> },
+            { path: '/diary-room', element: <DiaryRoom /> },
           ],
           {
             initialEntries: ['/game', '/diary-room'],
@@ -285,109 +285,6 @@ describe('selectActiveConfessionalDecision', () => {
     const dec = selectActiveConfessionalDecision(store.getState())
     expect(dec?.week).toBe(5)
   })
-
-  it('gives a Twin Shock retry a new interaction identity', () => {
-    const twinShock = {
-      status: 'day4_asked_no_correct_guess' as const,
-      promptStage: 'day5_final' as const,
-      queuedDay: 4,
-      retryCount: 0,
-      cluesShownDays: [],
-      pendingRevealAnimation: null,
-    }
-    const first = makeStore({ phase: 'eviction_results', week: 5, twinShock })
-    const retry = makeStore({
-      phase: 'eviction_results',
-      week: 5,
-      twinShock: { ...twinShock, retryCount: 1 },
-    })
-
-    expect(selectActiveConfessionalDecision(first.getState())?.interactionId).not.toBe(
-      selectActiveConfessionalDecision(retry.getState())?.interactionId
-    )
-  })
-})
-
-describe('ConfessionalRoute — required-session ownership', () => {
-  it('promotes an open voluntary visit when a decision becomes required', () => {
-    const store = makeStore({ phase: 'live_vote', awaitingHumanVote: false })
-    renderDiaryRoom(store)
-    expect(screen.queryByTestId('required-confessional-session')).toBeNull()
-
-    act(() => {
-      const game = store.getState().game
-      store.dispatch(hydrateGame({ ...game, awaitingHumanVote: true }))
-    })
-
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
-    expect(screen.getByTestId('required-confessional-decision')).toBeTruthy()
-    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
-  })
-
-  it('keeps a Twin Shock retry resolvable after an unclear answer', () => {
-    const store = makeStore({
-      phase: 'eviction_results',
-      week: 5,
-      twinShock: {
-        status: 'day4_asked_no_correct_guess',
-        promptStage: 'day5_final',
-        queuedDay: 4,
-        retryCount: 0,
-        cluesShownDays: [],
-        pendingRevealAnimation: null,
-      },
-    })
-    renderDiaryRoom(store)
-
-    fireEvent.change(screen.getByLabelText('Required response to The Big Eye'), {
-      target: { value: 'Blue curtains.' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Send response' }))
-
-    expect(store.getState().game.twinShock?.retryCount).toBe(1)
-    expect(screen.getByLabelText('Required response to The Big Eye')).not.toBeDisabled()
-    expect(screen.queryByText(/could not record that choice/i)).toBeNull()
-  })
-
-  it('restores controls when a stale reducer submission is rejected', async () => {
-    const store = makeStore({
-      phase: 'live_vote',
-      awaitingHumanVote: false,
-      nomineeIds: ['p2', 'p3'],
-    })
-
-    render(
-      <Provider store={store}>
-        <RouterProvider
-          router={createMemoryRouter(
-            [
-              { path: '/game', element: <div data-testid="game-screen" /> },
-              {
-                path: '/diary-room',
-                element: (
-                  <RequiredConfessionalSession
-                    decision={{ type: 'eviction_vote', week: 2, phase: 'live_vote' }}
-                    onReturnToGame={() => undefined}
-                  />
-                ),
-              },
-            ],
-            { initialEntries: ['/diary-room'] }
-          )}
-        />
-      </Provider>
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Player 2' }))
-    fireEvent.click(screen.getByRole('button', { name: /seal eviction vote/i }))
-
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(/could not record that choice/i)
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Player 2' }))
-    expect(screen.getByRole('button', { name: /seal eviction vote/i })).toBeEnabled()
-  })
 })
 
 // ── Final 4 / Final 3 exclusion ────────────────────────────────────────────
@@ -472,6 +369,64 @@ describe('selectConfessionalAlertCount', () => {
       phase: 'live_vote',
       awaitingHumanVote: true,
       humanDoubleVoteActive: true,
+    })
+    expect(selectConfessionalAlertCount(store.getState())).toBe(1)
+  })
+
+  it('does not double-count the stored Double Vote when its offer is active', () => {
+    const store = makeStore({
+      phase: 'live_vote',
+      awaitingHumanVote: true,
+      awaitingDoubleVoteOffer: true,
+      secretMission: {
+        triggeredDay: 2,
+        startDay: 2,
+        endDay: 5,
+        survivalWindowEndDay: 5,
+        targetDeadlineDay: 5,
+        status: 'rewardClaimed',
+        offeredDay: 2,
+        offerCount: 1,
+        declinedDay: null,
+        tasks: [],
+        templateId: 'silent_witness',
+        reward: {
+          type: 'doubleVote',
+          consumed: false,
+          expired: false,
+          eligible: true,
+        },
+      },
+    })
+    expect(selectConfessionalAlertCount(store.getState())).toBe(1)
+  })
+
+  it('does not double-count stored Immunity while its Confessional offer is active', () => {
+    const store = makeStore({
+      phase: 'pos_ceremony_results',
+      awaitingMissionImmunityOffer: true,
+      secretMission: {
+        triggeredDay: 2,
+        startDay: 2,
+        endDay: 5,
+        survivalWindowEndDay: 5,
+        targetDeadlineDay: 5,
+        status: 'rewardClaimed',
+        offeredDay: 2,
+        offerCount: 1,
+        declinedDay: null,
+        tasks: [],
+        templateId: 'silent_witness',
+        reward: {
+          type: 'immunity',
+          consumed: false,
+          expired: false,
+          eligible: true,
+          durationDays: 2,
+          claimDay: 2,
+          activeUntilDay: 3,
+        },
+      },
     })
     expect(selectConfessionalAlertCount(store.getState())).toBe(1)
   })
@@ -579,21 +534,19 @@ describe('DiaryRoom — confessional decision panel', () => {
   it('shows the decision zone when a ceremony decision is pending', () => {
     const store = makeStore({ phase: 'live_vote', awaitingHumanVote: true })
     renderDiaryRoom(store)
-    expect(screen.getByTestId('required-confessional-session')).toBeTruthy()
+    expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
   })
 
   it('does NOT show the decision zone when no ceremony decision is pending', () => {
     const store = makeStore({ phase: 'live_vote', awaitingHumanVote: false })
     renderDiaryRoom(store)
-    expect(screen.queryByTestId('required-confessional-session')).toBeNull()
+    expect(screen.queryByTestId('confessional-decision-message')).toBeNull()
   })
 
   it('locks the back button when a ceremony decision is pending', () => {
     const store = makeStore({ phase: 'live_vote', awaitingHumanVote: true })
     renderDiaryRoom(store)
-    expect(
-      screen.getByLabelText('Decision required — complete your choice before leaving')
-    ).toBeTruthy()
+    expect(screen.getByTestId('diary-room-back-locked')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /go back/i })).toBeNull()
   })
 
@@ -601,9 +554,7 @@ describe('DiaryRoom — confessional decision panel', () => {
     const store = makeStore({ phase: 'live_vote', awaitingHumanVote: false })
     renderDiaryRoom(store)
     expect(screen.getByRole('button', { name: /go back/i })).toBeTruthy()
-    expect(
-      screen.queryByLabelText('Decision required — complete your choice before leaving')
-    ).toBeNull()
+    expect(screen.queryByTestId('diary-room-back-locked')).toBeNull()
   })
 
   it('does NOT lock back or show decision zone for Final 4 phase', () => {
@@ -612,10 +563,8 @@ describe('DiaryRoom — confessional decision panel', () => {
       awaitingHumanVote: true,
     })
     renderDiaryRoom(store)
-    expect(
-      screen.queryByLabelText('Decision required — complete your choice before leaving')
-    ).toBeNull()
-    expect(screen.queryByTestId('required-confessional-session')).toBeNull()
+    expect(screen.queryByTestId('diary-room-back-locked')).toBeNull()
+    expect(screen.queryByTestId('confessional-decision-message')).toBeNull()
     expect(screen.getByRole('button', { name: /go back/i })).toBeTruthy()
   })
 
@@ -660,7 +609,7 @@ describe('DiaryRoom — confessional decision panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm save target' }))
 
     expect(store.getState().game.awaitingPovSaveTarget).toBe(false)
-    expect(screen.getByText(/Saved Player 2/i)).toBeTruthy()
+    expect(screen.getByText(/Decision confirmed\. Return to the House/i)).toBeTruthy()
     expect(screen.queryByTestId('required-confessional-decision')).toBeNull()
     expect(screen.queryByText('Select a pair')).toBeNull()
   })
@@ -719,6 +668,60 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
       ...overrides,
     }
   }
+
+  it('shows a stored future power without keeping the completed mission checklist', () => {
+    const secretMission = buildMission({
+      status: 'rewardClaimed',
+      tasks: [
+        {
+          id: 'completed-task',
+          type: 'survive_days',
+          description: 'Survive the mission window',
+          current: 1,
+          target: 1,
+          completed: true,
+        },
+      ],
+      reward: {
+        type: 'doubleVote',
+        consumed: false,
+        expired: false,
+        eligible: true,
+      },
+    })
+    const store = makeStore({ secretMission })
+    renderDiaryRoom(store)
+
+    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
+    expect(screen.getByLabelText(/stored secret power/i)).toHaveTextContent('Double Vote')
+  })
+
+  it('hides both mission checklist and stored-power card after instant Influence is delivered', () => {
+    const secretMission = buildMission({
+      status: 'rewardClaimed',
+      tasks: [
+        {
+          id: 'completed-task',
+          type: 'survive_days',
+          description: 'Survive the mission window',
+          current: 1,
+          target: 1,
+          completed: true,
+        },
+      ],
+      reward: {
+        type: 'plus1000Influence',
+        consumed: false,
+        expired: false,
+        eligible: true,
+      },
+    })
+    const store = makeStore({ secretMission })
+    renderDiaryRoom(store)
+
+    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
+    expect(screen.queryByLabelText(/stored secret power/i)).toBeNull()
+  })
 
   it('shows the actual target player name in a target_nominated task description', () => {
     const players = buildPlayers()
@@ -853,7 +856,6 @@ describe('ConfessionalDecisionPanel — Democracia POS tie-break', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /Player 2/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Seal deciding vote/i }))
 
     const game = store.getState().game
     expect(game.awaitingTieBreak).toBe(false)

@@ -591,48 +591,6 @@
   font-size: 0.82rem;
 }
 
-.rcd-text-response {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.rcd-text-response > span {
-  color: rgba(233, 224, 249, 0.75);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.rcd-text-response textarea {
-  width: 100%;
-  resize: vertical;
-  border: 1px solid rgba(183, 156, 255, 0.4);
-  border-radius: 0.75rem;
-  background: rgba(10, 8, 22, 0.72);
-  color: #f9f7ff;
-  font: inherit;
-  line-height: 1.45;
-  padding: 0.8rem;
-}
-
-.rcd-text-response textarea:focus-visible {
-  outline: 2px solid #c2a4ff;
-  outline-offset: 2px;
-}
-
-.rcd-text-response small,
-.required-confessional__commit-failure {
-  color: rgba(233, 224, 249, 0.75);
-  font-size: 0.8rem;
-  line-height: 1.4;
-}
-
-.required-confessional__commit-failure {
-  color: #ffd68a;
-  margin: 0.85rem 0 0;
-}
-
 @media (max-width: 420px) {
   .required-confessional__header-spacer {
     width: 34px;

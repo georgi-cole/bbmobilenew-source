@@ -159,18 +159,11 @@ async function exerciseSocial(page: Page, personaId: string): Promise<boolean> {
     .getByRole('button', { name: preferred })
     .first()
   const fallback = dialog.locator('[aria-label="Action grid"]').getByRole('button').first()
-  const candidate = (await action.isVisible().catch(() => false)) ? action : fallback
-  if (!(await candidate.isVisible().catch(() => false))) return false
-  if (!(await candidate.isEnabled().catch(() => false))) {
-    await dialog.getByRole('button', { name: 'Close social panel' }).click()
-    return false
-  }
-  await candidate.click()
+  if (await action.isVisible().catch(() => false)) await action.click()
+  else if (await fallback.isVisible().catch(() => false)) await fallback.click()
+  else return false
   const execute = dialog.getByRole('button', { name: 'Execute' })
-  if (!(await execute.isEnabled({ timeout: UI_TIMEOUT }).catch(() => false))) {
-    await dialog.getByRole('button', { name: 'Close social panel' }).click()
-    return false
-  }
+  await expect(execute).toBeEnabled({ timeout: UI_TIMEOUT })
   if (personaId === 'exploit-breaker') await execute.dblclick()
   else await execute.click()
   await dialog.getByRole('button', { name: 'Close social panel' }).click()
@@ -314,15 +307,7 @@ export async function runSeasonSimulation(
   }
 
   await auditor.checkpoint('final')
-  if (process.env.SEASON_SIM_CAPTURE_FINAL === '1') {
-    await page
-      .screenshot({
-        path: testInfo.outputPath(`${config.id}-final.png`),
-        fullPage: true,
-        timeout: 10_000,
-      })
-      .catch(() => undefined)
-  }
+  await page.screenshot({ path: testInfo.outputPath(`${config.id}-final.png`), fullPage: true })
   await auditor.attachReport(config.id, terminal)
   return auditor
 }
@@ -349,7 +334,7 @@ export function defaultSimulationConfig(
     objectives: objectivesForMode(mode),
     // This PR-sized smoke validates fresh setup and the first visible phases.
     // Longer UI journeys opt into a larger budget through their run config.
-    maxActions: optionalPositiveInt('SEASON_SIM_MAX_ACTIONS') ?? 4,
+    maxActions: optionalPositiveInt('SEASON_SIM_MAX_ACTIONS') ?? 1000,
     maxDays: optionalPositiveInt('SEASON_SIM_MAX_DAYS') ?? 1,
     competitionSkill:
       optionalEnum('SEASON_SIM_COMPETITION_SKILL', ['competent', 'mediocre', 'thrower'] as const) ??
