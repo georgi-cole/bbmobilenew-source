@@ -1343,7 +1343,6 @@ export default function SocialPanelV2() {
             <button
               type="button"
               className={`sp2-footer__feedback${feedbackExpanded ? ' sp2-footer__feedback--expanded' : ''}`}
-              role="status"
               aria-live="polite"
               aria-expanded={feedbackExpanded}
               onClick={() => setFeedbackExpanded((expanded) => !expanded)}
