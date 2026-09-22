@@ -39,11 +39,12 @@ function hasRealityAlliance(
   alliances: Record<string, RealityAlliance> | undefined,
   actorId: string,
   targetId: string
-): { active: boolean; fractured: boolean } {
+): { present: boolean; active: boolean; fractured: boolean } {
   const match = Object.values(alliances ?? {}).find(
     (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
   )
   return {
+    present: match != null,
     // Dormant alliances are not an active promise. They may be revived by an
     // explicit repair action, but should not generate a new loyalty directive.
     active: match?.status === 'ACTIVE' || match?.status === 'PROBATIONARY',
@@ -87,7 +88,7 @@ export function getRelationshipFacts(
   return {
     affinity,
     mutualAffinity,
-    activeAlliance: legacyAlliance || reality.active || drama.active,
+    activeAlliance: reality.active || drama.active || (!reality.present && legacyAlliance),
     fracturedAlliance: reality.fractured || drama.fractured,
     rivalry: affinity < 0 || (inward?.affinity ?? 0) < 0 || tags.has('rival'),
     betrayal: tags.has('betrayal'),
