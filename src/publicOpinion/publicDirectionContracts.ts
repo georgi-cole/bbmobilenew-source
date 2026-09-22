@@ -2,7 +2,7 @@ import type { Player } from '../types'
 import { hasAllianceBetween } from '../social/socialAlliance'
 import type { DramaAlliance, RelationshipsMap } from '../social/types'
 import type { RealityAlliance } from '../social/reality/types'
-import type { DirectionType } from './types'
+import type { DirectionType, PublicDirection } from './types'
 
 export interface RelationshipFacts {
   affinity: number
@@ -24,12 +24,15 @@ export interface DirectionCandidate {
 
 export interface DirectionContractContext {
   players: readonly Player[]
+  week?: number
   relationships?: RelationshipsMap
   realityAlliances?: Record<string, RealityAlliance>
   dramaAlliances?: readonly DramaAlliance[]
   cupidPairIds?: readonly string[]
   voxPopuliActive?: boolean
   dramaMode?: boolean
+  /** Previously issued directions, used to keep a story arc coherent. */
+  existingDirections?: readonly PublicDirection[]
 }
 
 function hasRealityAlliance(
@@ -41,7 +44,9 @@ function hasRealityAlliance(
     (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
   )
   return {
-    active: match?.status === 'ACTIVE' || match?.status === 'DORMANT',
+    // Dormant alliances are not an active promise. They may be revived by an
+    // explicit repair action, but should not generate a new loyalty directive.
+    active: match?.status === 'ACTIVE' || match?.status === 'PROBATIONARY',
     fractured: match?.status === 'FRACTURED',
   }
 }
@@ -117,8 +122,27 @@ export function getEligibleDirectionCandidates(
   for (const relatedPlayer of others) {
     const facts = getRelationshipFacts(context, actor.id, relatedPlayer.id)
     const isCupidPair = context.cupidPairIds?.includes(relatedPlayer.id) ?? false
+    const pairDirections = (context.existingDirections ?? []).filter(
+      (direction) =>
+        direction.playerId === actor.id &&
+        direction.relatedPlayerId === relatedPlayer.id &&
+        direction.status !== 'expired'
+    )
+    const isRecent = (direction: PublicDirection) =>
+      direction.status === 'active' ||
+      context.week === undefined ||
+      direction.completedWeek === undefined ||
+      context.week - direction.completedWeek <= 3
+    const recentlyBrokeAlliance = pairDirections.some(
+      (direction) => direction.type === 'break_alliance' && isRecent(direction)
+    )
+    const recentlyReinforcedAlliance = pairDirections.some(
+      (direction) =>
+        ['show_loyalty', 'reinforce_alliance', 'protect_player'].includes(direction.type) &&
+        isRecent(direction)
+    )
 
-    if (facts.activeAlliance) {
+    if (facts.activeAlliance && !recentlyBrokeAlliance) {
       candidates.push({
         type: 'reinforce_alliance',
         relatedPlayer,
@@ -140,7 +164,7 @@ export function getEligibleDirectionCandidates(
         rationale: `The audience is watching whether this alliance holds under pressure.`,
         completionLabel: `Show real loyalty to ${relatedPlayer.name}`,
       })
-      if (!isCupidPair) {
+      if (!isCupidPair && !recentlyReinforcedAlliance) {
         candidates.push({
           type: 'break_alliance',
           relatedPlayer,
@@ -154,7 +178,7 @@ export function getEligibleDirectionCandidates(
       continue
     }
 
-    if (facts.mutualAffinity > 0 && !facts.betrayal) {
+    if (facts.mutualAffinity > 0 && !facts.betrayal && !recentlyBrokeAlliance) {
       candidates.push({
         type: 'align_with',
         relatedPlayer,

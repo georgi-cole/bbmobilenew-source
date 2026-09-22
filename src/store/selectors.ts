@@ -150,7 +150,12 @@ export const selectConfessionalAlertCount = (state: RootState): number => {
       sm.status === 'offered' ||
       sm.status === 'accepted' ||
       sm.status === 'rewardPending' ||
-      (sm.status === 'rewardClaimed' && sm.reward?.eligible))
+      (sm.status === 'rewardClaimed' &&
+        sm.reward?.eligible &&
+        // Instant rewards (notably +1000 Influence) are already delivered;
+        // they must not keep the Confessional badge lit for the rest of the
+        // season. Powers that still require a future decision remain visible.
+        sm.reward.type !== 'plus1000Influence'))
   ) {
     count += 1
   }

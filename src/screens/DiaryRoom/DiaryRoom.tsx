@@ -209,14 +209,6 @@ function pickSummary(name: string, seed: number): string {
   return SUMMARY_POOL[idx].replace('{name}', name)
 }
 
-/** Human-readable labels for each reward type used in the UI. */
-const REWARD_LABELS: Record<string, string> = {
-  plus1000Influence: '1,000 Influence',
-  doubleVote: 'Double Vote',
-  voteDeduction: 'Vote Deduction',
-  immunity: 'Secret Immunity',
-}
-
 const REWARD_REVEAL_COPY: Record<
   SecretMissionBoxRewardType,
   (week: number, durationDays?: number) => string
@@ -1717,18 +1709,14 @@ export default function DiaryRoom() {
               {/* ── Secret mission checklist (active) ─────────────────────── */}
               {secretMission &&
                 (secretMission.status === 'accepted' ||
-                  secretMission.status === 'rewardPending' ||
-                  secretMission.status === 'rewardClaimed') && (
+                  secretMission.status === 'rewardPending') && (
                   <div
                     className="diary-room__mission-checklist"
                     aria-label="Secret mission checklist"
                   >
                     <p className="diary-room__mission-title">
                       🕵️ Secret Mission
-                      {secretMission.status === 'rewardPending' ||
-                      secretMission.status === 'rewardClaimed'
-                        ? ' — Complete!'
-                        : ''}
+                      {secretMission.status === 'rewardPending' ? ' — Complete!' : ''}
                     </p>
                     {secretMission.tasks.map((task) => {
                       const targetName = task.targetPlayerId
@@ -1827,59 +1815,6 @@ export default function DiaryRoom() {
                             </button>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {/* ── Claimed reward status (rewardClaimed) ────────────── */}
-                    {secretMission.status === 'rewardClaimed' && secretMission.reward && (
-                      <div className="diary-room__reward-claimed" aria-label="Claimed reward">
-                        {secretMission.reward.expired ? (
-                          <p className="diary-room__reward-claimed-expired">
-                            ⏳ Your secret reward expired before it could be used.
-                          </p>
-                        ) : secretMission.reward.consumed ? (
-                          <p className="diary-room__reward-claimed-used">
-                            ✔️ {REWARD_LABELS[secretMission.reward.type] ?? 'Secret reward'} used.
-                          </p>
-                        ) : (
-                          <>
-                            <p className="diary-room__reward-claimed-active">
-                              🔮 Secret power stored:{' '}
-                              <strong>
-                                {REWARD_LABELS[secretMission.reward.type] ??
-                                  secretMission.reward.type}
-                              </strong>
-                              {secretMission.reward.type === 'immunity' &&
-                              secretMission.reward.durationDays
-                                ? ` — ${secretMission.reward.durationDays} day${secretMission.reward.durationDays === 1 ? '' : 's'}`
-                                : ''}
-                            </p>
-                            {secretMission.reward.type === 'immunity' && (
-                              <p className="diary-room__reward-active-hint">
-                                Use it during the Safety Ceremony while nominated. Expires after Day{' '}
-                                {secretMission.reward.activeUntilDay ?? currentWeekForMission}.
-                              </p>
-                            )}
-                            {secretMission.reward.type === 'doubleVote' && (
-                              <p className="diary-room__reward-active-hint">
-                                It will be offered automatically at your next eligible live vote.
-                              </p>
-                            )}
-                            {secretMission.reward.type === 'voteDeduction' && (
-                              <p className="diary-room__reward-active-hint">
-                                If you are on the block at an eligible eviction, you may remove one
-                                vote from your total.
-                              </p>
-                            )}
-                            {secretMission.reward.type === 'immunity' &&
-                              activeConfessionalDecision?.type === 'mission_immunity_offer' && (
-                                <p className="diary-room__reward-active-hint">
-                                  📺 The Big Eye is ready to ask whether you want to spend it right
-                                  now.
-                                </p>
-                              )}
-                          </>
-                        )}
                       </div>
                     )}
                   </div>

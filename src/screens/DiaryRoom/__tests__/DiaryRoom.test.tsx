@@ -269,13 +269,10 @@ describe('DiaryRoom', () => {
     })
 
     const response = screen.getByTestId('twin-shock-required-response')
-    const mission = screen.getByLabelText(/secret mission checklist/i)
+    expect(screen.queryByLabelText(/secret mission checklist/i)).toBeNull()
     expect(response).toHaveTextContent(
       /last time, i asked you whether you had noticed anything off about lia/i
     )
-    expect(
-      response.compareDocumentPosition(mission) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy()
     expect(screen.getByTestId('diary-room-back-locked')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Required response to The Big Eye'), {

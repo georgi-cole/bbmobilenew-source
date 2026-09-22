@@ -397,7 +397,13 @@ const publicOpinionSlice = createSlice({
         ].slice(-publicOpinionConfig.missionProgressHistoryLimit)
       }
 
-      if (direction.progressPercent >= publicOpinionConfig.missionCompletionThreshold) {
+      // Progress is displayed as a rounded percentage. A final damped action
+      // can legitimately leave an otherwise satisfied request at 98–99%; do
+      // not strand the player waiting for an impossible fractional event.
+      if (
+        direction.progressPercent >= publicOpinionConfig.missionCompletionThreshold ||
+        direction.progressPercent >= 95
+      ) {
         applyDirectionCompletionRewards(state, direction, week)
       }
     },

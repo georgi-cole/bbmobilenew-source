@@ -381,7 +381,10 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'loh_comp',
     'DEMOCRACIA! The house will elect its Leader by popular vote.',
     'twist',
-    'critical',
+    // Democracia already has the canonical full-screen phase card above.
+    // Keep this legacy feed entry log-only so activation cannot enqueue a
+    // second full-screen shock when the player presses Play.
+    'minor',
     'democracia',
     'Democracia shock'
   ),

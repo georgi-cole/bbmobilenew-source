@@ -233,6 +233,7 @@ export default function SocialPanelV2() {
   const [multiSelectActive, setMultiSelectActive] = useState(false)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
+  const [feedbackExpanded, setFeedbackExpanded] = useState(false)
   const [successPulse, setSuccessPulse] = useState(false)
   const [relationshipPulseDeltas, setRelationshipPulseDeltas] = useState<
     ReadonlyMap<string, number>
@@ -816,6 +817,7 @@ export default function SocialPanelV2() {
               } of ${targetIds.length} selected housemates.`
           : firstResult.summary
     )
+    setFeedbackExpanded(false)
 
     if (successfulResults.length > 0) {
       const targetNames = targetIds.map(
@@ -1338,9 +1340,17 @@ export default function SocialPanelV2() {
 
         <footer className="sp2-footer" data-reality-tutorial="footer">
           {feedbackMsg ? (
-            <span className="sp2-footer__feedback" role="status" aria-live="polite">
+            <button
+              type="button"
+              className={`sp2-footer__feedback${feedbackExpanded ? ' sp2-footer__feedback--expanded' : ''}`}
+              role="status"
+              aria-live="polite"
+              aria-expanded={feedbackExpanded}
+              onClick={() => setFeedbackExpanded((expanded) => !expanded)}
+              title="Tap to expand the full result"
+            >
               {feedbackMsg}
-            </span>
+            </button>
           ) : executionEligibility.reason && selectedActionId ? (
             <span className="sp2-footer__feedback sp2-footer__feedback--hint">
               {executionEligibility.reason}

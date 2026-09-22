@@ -827,6 +827,7 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
             excludePlayerIds: (nextState.publicOpinion?.directions ?? [])
               .filter((direction) => direction.status === 'active')
               .map((direction) => direction.playerId),
+            existingDirections: nextState.publicOpinion?.directions ?? [],
           })
           for (const direction of newDirections) {
             store.dispatch(addDirection(direction))

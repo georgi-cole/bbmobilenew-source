@@ -3970,11 +3970,11 @@ export function chooseAiEvictionVote(
         backstabChance = Math.max(
           0.01,
           Math.min(
-            0.62,
-            0.025 +
-              threat * 0.012 +
-              betrayalChanceModifier(voterIdentity) +
-              allianceRead.betrayalPressure * 0.42
+            0.12,
+            0.01 +
+              threat * 0.006 +
+              betrayalChanceModifier(voterIdentity) * 0.35 +
+              allianceRead.betrayalPressure * 0.12
           )
         )
         backstabRoll = rng()
@@ -3995,7 +3995,7 @@ export function chooseAiEvictionVote(
       } else {
         backstabChance = Math.max(
           0,
-          Math.min(0.36, 0.05 + threat * 0.015 + betrayalChanceModifier(voterIdentity))
+          Math.min(0.15, 0.02 + threat * 0.008 + betrayalChanceModifier(voterIdentity) * 0.5)
         )
         backstabRoll = rng()
         factors.backstabChance = backstabChance

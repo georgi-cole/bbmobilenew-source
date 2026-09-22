@@ -277,9 +277,14 @@ function sourceLabel(memory: RealityMemory | undefined): string {
 export function getIntelLeadViews(
   domain: RealityDomainState,
   ownerId: string,
-  players: readonly Pick<Player, 'id' | 'name'>[],
+  players: readonly Pick<Player, 'id' | 'name' | 'status'>[],
   currentDay: number
 ): IntelLeadView[] {
+  const activeIds = new Set(
+    players
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
   return Object.values(domain.beliefsByOwner[ownerId] ?? {})
     .filter(
       (belief) =>
@@ -289,7 +294,12 @@ export function getIntelLeadViews(
     )
     .map((belief) => ({ belief, fact: domain.facts[belief.id.replace(`belief:${ownerId}:`, '')] }))
     .filter((entry): entry is { belief: RealityBelief; fact: RealityFact } =>
-      Boolean(entry.fact && SUPPORTED_INTEL_PROPOSITIONS.has(entry.fact.propositionType))
+      Boolean(
+        entry.fact &&
+        SUPPORTED_INTEL_PROPOSITIONS.has(entry.fact.propositionType) &&
+        entry.fact.subjectIds.every((id) => activeIds.has(id)) &&
+        (!entry.fact.objectId || activeIds.has(entry.fact.objectId))
+      )
     )
     .map(({ belief, fact }) => {
       const memory = (domain.memoriesByOwner[ownerId] ?? []).find((entry) =>

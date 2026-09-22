@@ -317,9 +317,9 @@ function getStandardAllianceFailureDelta(gaslightOccurred: boolean): number {
 }
 function getAllianceBetrayalChance(affinity: number): number {
   const normalizedAffinity = normalizeAffinity(affinity)
-  if (normalizedAffinity < -0.15) return 0.35
-  if (normalizedAffinity < 0.2) return 0.16
-  return 0.04
+  if (normalizedAffinity < -0.15) return 0.2
+  if (normalizedAffinity < 0.2) return 0.04
+  return 0.01
 }
 
 function getLohTargetPlan(
