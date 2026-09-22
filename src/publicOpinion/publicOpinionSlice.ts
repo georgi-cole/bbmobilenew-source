@@ -397,12 +397,14 @@ const publicOpinionSlice = createSlice({
         ].slice(-publicOpinionConfig.missionProgressHistoryLimit)
       }
 
-      // Progress is displayed as a rounded percentage. A final damped action
-      // can legitimately leave an otherwise satisfied request at 98–99%; do
-      // not strand the player waiting for an impossible fractional event.
+      // A final damped action can legitimately stop at 98 even though no
+      // further repeat can earn credit. Snap only that configured rounding
+      // tail; 95–97% remains genuinely incomplete.
       if (
         direction.progressPercent >= publicOpinionConfig.missionCompletionThreshold ||
-        direction.progressPercent >= 95
+        direction.progressPercent >=
+          publicOpinionConfig.missionCompletionThreshold -
+            publicOpinionConfig.missionCompletionTailTolerance
       ) {
         applyDirectionCompletionRewards(state, direction, week)
       }
