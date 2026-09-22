@@ -1,0 +1,160 @@
+import type { BroadcastEditorialMetadata } from '../broadcasting/broadcastEditorialPolicy'
+
+/**
+ * activityService — channel-based activity routing for bbmobilenew.
+ *
+ * Events produced by social actions, TV messages, and the Diary Room are
+ * tagged with one or more destination channels so each consumer only
+ * receives the events it cares about:
+ *
+ *   recentActivity — Social modal Recent Activity panel (sessionLogs).
+ *   tv             — TV-zone viewport one-liner (shown in the BB TV bezel).
+ *   dr             — Diary Room log (concise manual-interaction summaries).
+ *   mainLog        — Main-screen TVLog strip below the TV viewport.
+ *
+ * Backward-compatibility rule: TvEvent entries that carry NO channels field
+ * and no new editorial presentation metadata are treated as legacy events and
+ * remain visible everywhere (mainLog + tv), except for the explicit retired or
+ * service-message compatibility cases below.
+ */
+
+/** Destination channels an activity event can be routed to. */
+export type ActivityChannel = 'recentActivity' | 'tv' | 'dr' | 'mainLog'
+
+/** Origin of an activity event — user gesture vs. background/AI system. */
+export type ActivitySource = 'manual' | 'system'
+
+// ── Visibility predicates ─────────────────────────────────────────────────
+
+type ActivityVisibilityEvent = {
+  channels?: ActivityChannel[]
+  type?: string
+  text?: string
+  meta?: {
+    suppressTv?: boolean
+    editorial?: BroadcastEditorialMetadata
+    [key: string]: unknown
+  }
+}
+
+const PUBLIC_MODE_STATUS_TEMPLATE_ID = 'season.public-mode-rule'
+const PUBLIC_MODE_STATUS_TEXT = /^\s*\[Rules\]\s*Public mode:\s*(?:ON|OFF)\s*$/i
+
+/**
+ * The season-start Public Mode ON/OFF status is configuration information,
+ * not an in-world TV beat. This is intentionally the only legacy service-message
+ * exclusion: do not infer or suppress any other rule/system/social copy.
+ */
+export function isServiceConfigurationEvent(ev: ActivityVisibilityEvent): boolean {
+  if (ev.meta?.broadcastTemplateId === PUBLIC_MODE_STATUS_TEMPLATE_ID) return true
+  return typeof ev.text === 'string' && PUBLIC_MODE_STATUS_TEXT.test(ev.text)
+}
+
+/**
+ * The original season-start copy is replaced by the staged onboarding welcome.
+ * Hide only the exact legacy defaults so Broadcast Manager customisations are
+ * not swallowed by this compatibility bridge.
+ */
+export function isLegacySeasonWelcomeEvent(ev: ActivityVisibilityEvent): boolean {
+  if (typeof ev.text !== 'string') return false
+  return (
+    /^Welcome to The Big Eye hub! 🏠 Season \d+ is about to begin\.$/.test(ev.text) ||
+    /^The Big Eye hub is now filled with love! 🏠 Season \d+ is about to begin\. Get some chocolate and press play\.$/.test(
+      ev.text
+    )
+  )
+}
+
+/**
+ * Back 2 the Game completion is a result/log message, not a new shock trigger.
+ * Keeping it out of the TV viewport prevents TvZone's legacy Battle Back text
+ * fallback from interpreting the winner event as a second fullscreen announcement.
+ */
+export function isBattleBackReturnResultEvent(ev: ActivityVisibilityEvent): boolean {
+  return (
+    ev.type === 'twist' &&
+    typeof ev.text === 'string' &&
+    /won\s+back\s*2\s+the\s+game.*returns?\s+to\s+the\s+game/i.test(ev.text)
+  )
+}
+
+/**
+ * Returns true when the event should appear in the main-screen TVLog strip.
+ *
+ * Rules:
+ *  - Replaced legacy welcome defaults: false; the staged welcome supersedes them.
+ *  - No channels (legacy event): visible everywhere → true.
+ *  - Has channels: visible only if 'mainLog' or 'tv' is included.
+ *
+ * Editorial presentation does not suppress history/Game Log visibility.
+ */
+export function isVisibleInMainLog(ev: ActivityVisibilityEvent): boolean {
+  if (isLegacySeasonWelcomeEvent(ev)) return false
+  if (!ev.channels) return true
+  return ev.channels.includes('mainLog') || ev.channels.includes('tv')
+}
+
+/**
+ * Returns true when the event should appear in the TV-zone viewport.
+ *
+ * Explicit Force-to-TV remains authoritative. After that override, the P0
+ * editorial contract may explicitly classify an event as log-only. Events
+ * without editorial metadata stay on the legacy routing path.
+ */
+export function isVisibleOnTv(ev: ActivityVisibilityEvent): boolean {
+  // These two superseded startup templates are never presentation content.
+  // Keep this ahead of Force to TV so an old persisted override cannot revive
+  // the duplicate "about to begin" screen.
+  if (isLegacySeasonWelcomeEvent(ev)) return false
+  // Broadcast Manager's "Force to TV" remains an explicit authoring
+  // instruction for all current content. The legacy startup templates above
+  // are the sole retired exception.
+  if (ev.meta?.forceOnTv === true) return true
+  if (ev.meta?.editorial?.presentationMode === 'log_only') return false
+  if (isServiceConfigurationEvent(ev)) return false
+  if (isBattleBackReturnResultEvent(ev)) return false
+  if (ev.meta?.suppressTv === true) return false
+  if (!ev.channels) return true
+  return ev.channels.includes('tv') || ev.channels.includes('mainLog')
+}
+
+/**
+ * Returns true when the event should appear in the Diary Room log.
+ *
+ * Rules:
+ *  - Has channels including 'dr' AND source === 'manual': visible in DR.
+ *  - Legacy diary events (no channels, type === 'diary'): still visible.
+ *  - All other events: not visible in DR.
+ */
+export function isVisibleInDr(ev: {
+  channels?: ActivityChannel[]
+  source?: ActivitySource
+  type?: string
+}): boolean {
+  if (ev.channels) {
+    return ev.channels.includes('dr') && ev.source === 'manual'
+  }
+  // Legacy fallback: plain diary-type events without channel tags.
+  return ev.type === 'diary'
+}
+
+// ── Summary builder ───────────────────────────────────────────────────────
+
+/**
+ * Build a concise one-line Diary Room summary for a completed social session.
+ *
+ * @param week         Current game week number.
+ * @param count        Total number of manual social actions performed.
+ * @param successCount Number of successful actions.
+ * @param failCount    Number of failed actions.
+ */
+export function buildDrSessionSummary(
+  week: number,
+  count: number,
+  successCount: number,
+  failCount: number
+): string {
+  const sLabel = successCount === 1 ? 'success' : 'successes'
+  const fLabel = failCount === 1 ? 'failure' : 'failures'
+  return `📋 Day ${week}: ${count} social action(s) — ${successCount} ${sLabel}, ${failCount} ${fLabel}.`
+}

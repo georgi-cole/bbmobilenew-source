@@ -8,8 +8,7 @@ import RequiredConfessionalSession from './RequiredConfessionalSession'
 export default function ConfessionalRoute() {
   const navigate = useNavigate()
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
-  const focusedDecision = activeDecision?.type === 'twin_shock' ? null : activeDecision
-  const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
+  const [requiredSessionActive, setRequiredSessionActive] = useState(activeDecision !== null)
 
   const returnToGame = useCallback(
     (returnCue: string) => {
@@ -25,12 +24,8 @@ export default function ConfessionalRoute() {
     [navigate]
   )
 
-  if (activeDecision?.type === 'twin_shock') {
-    return <DiaryRoom />
-  }
-
-  if (requiredSessionActive) {
-    return <RequiredConfessionalSession decision={focusedDecision} onReturnToGame={returnToGame} />
+  if (activeDecision !== null || requiredSessionActive) {
+    return <RequiredConfessionalSession decision={activeDecision} onReturnToGame={returnToGame} />
   }
 
   return <DiaryRoom />

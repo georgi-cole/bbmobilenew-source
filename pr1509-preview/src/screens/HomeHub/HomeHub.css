@@ -1,0 +1,286 @@
+/* HomeHub — narrower asymmetric buttons, stronger glass look */
+
+body:has(.homehub-shell) .app-shell {
+  background: var(--color-bg, #050813);
+}
+
+/* Shell fills the viewport; HomeHub owns its own decorative paint. */
+.homehub-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: calc(100% + var(--app-safe-area-top, 0px) + var(--safe-bottom, 0px));
+  overflow: hidden;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-top: calc(-1 * var(--app-safe-area-top, 0px));
+  margin-bottom: calc(-1 * var(--safe-bottom, 0px));
+  box-sizing: border-box;
+}
+
+/* Master portrait frame for safe interactive content */
+.homehub-frame {
+  position: relative;
+  width: min(100vw, 480px);
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  padding-top: var(--app-safe-area-top, env(safe-area-inset-top, 0px));
+  padding-bottom: var(--safe-bottom);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.homehub-intro-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    transform 350ms ease;
+}
+
+.homehub-intro-bg::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 72%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.5) 32%,
+    rgba(0, 0, 0, 0.18) 62%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.homehub-remote-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #000;
+  pointer-events: none;
+}
+
+/* Foreground content container: centered in the frame */
+.homehub-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Main hub container uses vertical centering */
+.home-hub {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 10px 36px;
+  box-sizing: border-box;
+}
+
+/* Title */
+.home-hub__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.home-hub__title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: var(--color-text, #fff);
+  text-transform: uppercase;
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Buttons stack: centered, with entrance animation on first render */
+.home-hub__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+  padding: 8px 4px;
+  animation: hub-nav-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  max-height: min(70dvh, 590px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.home-hub__mode-button--surveyeval .btn-bg {
+  filter: saturate(0.42) brightness(0.9);
+}
+
+/* Store artwork is also used in the modal, where it has a proportional global
+   size rule. Keep the launcher icons explicit so visiting the store can never
+   resize this menu. */
+.home-hub__mode-button .home-hub__expansion-icon.store-product-icon {
+  display: block;
+  width: 1.42rem;
+  height: 1.42rem;
+  flex: 0 0 1.42rem;
+  fill: none;
+  stroke: #dce3ff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(20, 16, 72, 0.5));
+}
+
+.home-hub__expansion-icon .store-product-icon__surface {
+  fill: rgba(46, 42, 105, 0.42);
+}
+
+.home-hub__expansion-icon .store-product-icon__core {
+  fill: rgba(222, 228, 255, 0.82);
+}
+
+.home-hub__mode-button--vox .home-hub__expansion-icon {
+  stroke: #bfe5ea;
+}
+
+.home-hub__mode-button--cupid .home-hub__expansion-icon {
+  stroke: #f0cbd7;
+}
+
+.home-hub__button-icon {
+  display: block;
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(20, 16, 72, 0.5));
+}
+
+.game-btn--secondary_small .home-hub__button-icon {
+  width: 25px;
+  height: 25px;
+}
+
+@keyframes hub-nav-enter {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Footer note */
+.homehub-footer {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.88rem;
+}
+
+/* Responsive: smaller screens */
+@media (max-width: 420px) {
+  .home-hub__title {
+    font-size: 1.8rem;
+  }
+  .home-hub {
+    padding-bottom: 28px;
+  }
+  .home-hub__buttons {
+    gap: 9px;
+    max-height: min(73dvh, 560px);
+  }
+}
+
+.homehub-resume-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 8000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(6, 8, 12, 0.62);
+}
+
+.homehub-resume-modal__card {
+  width: min(560px, 94vw);
+  border-radius: 24px;
+  padding: 24px 20px 22px;
+  background:
+    radial-gradient(circle at top, rgba(115, 130, 255, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(9, 14, 28, 0.98), rgba(12, 18, 33, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
+  text-align: center;
+}
+
+.homehub-resume-modal__title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #f4f6ff;
+}
+
+.homehub-resume-modal__desc {
+  margin: 10px 0 0;
+  color: rgba(237, 242, 255, 0.82);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.homehub-resume-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  margin-top: 22px;
+}
+
+.homehub-resume-modal__btn {
+  width: min(100%, 280px);
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f6ff;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.homehub-resume-modal__btn--primary {
+  background: linear-gradient(180deg, #7766ff, #5c4fe6);
+  box-shadow: 0 12px 26px rgba(94, 79, 230, 0.32);
+}
+
+.homehub-resume-modal__btn--secondary {
+  background: transparent;
+  border-color: rgba(255, 170, 170, 0.42);
+  color: #ffcbcb;
+}
+
+.homehub-resume-modal__btn--ghost {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(244, 246, 255, 0.9);
+}

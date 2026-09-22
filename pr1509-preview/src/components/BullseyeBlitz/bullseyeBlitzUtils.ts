@@ -1,0 +1,343 @@
+import type { Player } from '../../types'
+import { mulberry32 } from '../../store/rng'
+import { resolveAvatar } from '../../utils/avatar'
+
+export type TargetKind = 'standard' | 'bonus' | 'hazard'
+
+export interface BullseyeRoundConfig {
+  roundNumber: number
+  durationSeconds: number
+  spawnIntervalMs: number
+  maxTargets: number
+  targetWeights: Record<TargetKind, number>
+  targetLifetimes: Record<TargetKind, number>
+  hazardPenalty: number
+  difficultyLabel: string
+}
+
+interface TargetConfig {
+  emoji: string
+  /** Base score delta when tapped. */
+  points: number
+  /** Milliseconds the target lives before disappearing. */
+  lifetimeMs: number
+  /** CSS class modifier. */
+  cls: string
+  /** Tooltip / aria label. */
+  label: string
+}
+
+export const TARGET_CONFIGS: Record<TargetKind, TargetConfig> = {
+  standard: {
+    emoji: '🎯',
+    points: 10,
+    lifetimeMs: 2200,
+    cls: 'bbl__target--standard',
+    label: 'Standard target +10',
+  },
+  bonus: {
+    emoji: '⭐',
+    points: 25,
+    lifetimeMs: 1300,
+    cls: 'bbl__target--bonus',
+    label: 'Bonus target +25',
+  },
+  hazard: {
+    emoji: '💣',
+    points: -15,
+    lifetimeMs: 2800,
+    cls: 'bbl__target--hazard',
+    label: 'Hazard! −15 if tapped',
+  },
+}
+
+const DEFAULT_TARGET_WEIGHTS: Record<TargetKind, number> = {
+  standard: 0.6,
+  bonus: 0.25,
+  hazard: 0.15,
+}
+
+const ROUND_PRESETS = [
+  {
+    durationSeconds: 18,
+    spawnIntervalMs: 560,
+    maxTargets: 6,
+    targetWeights: { standard: 0.58, bonus: 0.27, hazard: 0.15 },
+    lifetimeMultiplier: 1,
+    hazardPenalty: -15,
+    difficultyLabel: 'Opening round — balanced targets and a steady pace.',
+  },
+  {
+    durationSeconds: 17,
+    spawnIntervalMs: 500,
+    maxTargets: 7,
+    targetWeights: { standard: 0.54, bonus: 0.24, hazard: 0.22 },
+    lifetimeMultiplier: 0.94,
+    hazardPenalty: -20,
+    difficultyLabel: 'Things speed up — and the bombs get cheekier.',
+  },
+  {
+    durationSeconds: 16,
+    spawnIntervalMs: 450,
+    maxTargets: 8,
+    targetWeights: { standard: 0.5, bonus: 0.22, hazard: 0.28 },
+    lifetimeMultiplier: 0.88,
+    hazardPenalty: -25,
+    difficultyLabel: 'Pressure round — blink and you might miss your shot.',
+  },
+  {
+    durationSeconds: 15,
+    spawnIntervalMs: 410,
+    maxTargets: 8,
+    targetWeights: { standard: 0.46, bonus: 0.21, hazard: 0.33 },
+    lifetimeMultiplier: 0.82,
+    hazardPenalty: -30,
+    difficultyLabel: 'Semi-final scramble — the arena gets wild now.',
+  },
+  {
+    durationSeconds: 14,
+    spawnIntervalMs: 370,
+    maxTargets: 9,
+    targetWeights: { standard: 0.42, bonus: 0.2, hazard: 0.38 },
+    lifetimeMultiplier: 0.76,
+    hazardPenalty: -35,
+    difficultyLabel: 'Final sprint — pure chaos, pure glory.',
+  },
+] as const
+
+export const BULLSEYE_CHALLENGE_ROUNDS = ROUND_PRESETS.length
+
+/**
+ * Envelope ceiling used to normalise an AI's per-round baseScore to a 0–1
+ * skill level.  Set to 640 so the hybrid resolver's 80–500 base-score range
+ * maps to well-separated, human-shaped skill levels:
+ *   baseScore  80 → skill ≈ 0.125 (clearly weaker)
+ *   baseScore 300 → skill ≈ 0.469 (mid-field — respectable but beatable)
+ *   baseScore 400 → skill ≈ 0.625 (strong — a genuine threat)
+ *   baseScore 640 → skill = 1.000 (theoretical ceiling)
+ */
+const AI_SCORE_MAX = 640
+
+/**
+ * Lowest baseScore the hybrid score resolver emits for this minigame
+ * (`targetPractice.minScore`).  Used to anchor the AI band floor: a contestant
+ * at this baseScore is the weakest realistic AI and scores `bandMin`.
+ */
+const MIN_BASE_SCORE = 80
+
+/**
+ * Per-round AI score bands `[min, max]` mapped against a contestant's 0–1 skill
+ * level (skill 0 → min, skill 1 → max).
+ *
+ * A fast human realistically clears 40+ targets in the opening round (e.g.
+ * 27 × 🎯 + 20 × ⭐ ≈ 755 pts).  The earlier gameplay simulation was structurally
+ * capped at roughly one spawn per spawn-interval tick (~320 pts at peak skill),
+ * so the AI field clustered around 120–160 and the human ran away with every
+ * round — the result was a foregone conclusion the moment round one ended.
+ *
+ * These bands lift the AI field into the human-competitive range with ceilings
+ * above a strong human round (round one starts around 450–900), so the cumulative
+ * leaderboard can always include at least one AI path that catches or beats the
+ * player.  The bands rise a little each round as targets spawn faster and score
+ * opportunities increase, while the floor remains high enough that even weaker
+ * AIs stay relevant instead of clustering hundreds of points behind after round
+ * one.
+ */
+export const BULLSEYE_AI_ROUND_BANDS: ReadonlyArray<readonly [number, number]> = [
+  [450, 900], // Round 1 — opening round
+  [500, 975], // Round 2 — speeds up
+  [550, 1050], // Round 3 — pressure round
+  [600, 1125], // Round 4 — semi-final
+  [650, 1200], // Round 5 — final sprint
+] as const
+
+/**
+ * Resolve the AI score band for a round, clamping out-of-range round numbers to
+ * the first/last preset so the function never returns `undefined`.
+ */
+export function bullseyeAiBandForRound(roundNumber: number): readonly [number, number] {
+  const index = Math.min(Math.max(roundNumber - 1, 0), BULLSEYE_AI_ROUND_BANDS.length - 1)
+  return BULLSEYE_AI_ROUND_BANDS[index]
+}
+
+/**
+ * Map a 0–1 skill level onto a round's `[bandMin, bandMax]` score band.
+ *
+ * The realistic hybrid-resolver envelope starts at baseScore 80, i.e.
+ * `minRealisticSkill = 80 / AI_SCORE_MAX ≈ 0.125`, which anchors the band floor.
+ * Interpolation is continuous in two phases:
+ *   skill 0               → 0        (a non-competing entry scores nothing)
+ *   skill minRealisticSkill → bandMin  (weakest realistic AI)
+ *   skill 1               → bandMax  (theoretical ceiling)
+ */
+function interpolateSkillToBand(skill: number, bandMin: number, bandMax: number): number {
+  const minRealisticSkill = MIN_BASE_SCORE / AI_SCORE_MAX
+  if (skill <= minRealisticSkill) {
+    return (skill / minRealisticSkill) * bandMin
+  }
+  const realisticProgress = (skill - minRealisticSkill) / (1 - minRealisticSkill)
+  return bandMin + (bandMax - bandMin) * realisticProgress
+}
+
+/**
+ * Select a random target kind using weighted distribution.
+ * Defaults to:
+ *  standard:  60 %
+ *  bonus:     25 %
+ *  hazard:    15 %
+ * Callers can override the default weights for harder tournament rounds.
+ */
+export function pickTargetKind(
+  random01: number,
+  weights: Record<TargetKind, number> = DEFAULT_TARGET_WEIGHTS
+): TargetKind {
+  const standardThreshold = weights.standard
+  const bonusThreshold = standardThreshold + weights.bonus
+  if (random01 < standardThreshold) return 'standard'
+  if (random01 < bonusThreshold) return 'bonus'
+  return 'hazard'
+}
+
+export function getBullseyeRoundConfig(roundNumber: number): BullseyeRoundConfig {
+  const preset = ROUND_PRESETS[Math.min(Math.max(roundNumber - 1, 0), ROUND_PRESETS.length - 1)]
+
+  return {
+    roundNumber,
+    durationSeconds: preset.durationSeconds,
+    spawnIntervalMs: preset.spawnIntervalMs,
+    maxTargets: preset.maxTargets,
+    targetWeights: preset.targetWeights,
+    targetLifetimes: {
+      standard: Math.round(TARGET_CONFIGS.standard.lifetimeMs * preset.lifetimeMultiplier),
+      bonus: Math.round(TARGET_CONFIGS.bonus.lifetimeMs * preset.lifetimeMultiplier),
+      hazard: Math.round(TARGET_CONFIGS.hazard.lifetimeMs * preset.lifetimeMultiplier),
+    },
+    hazardPenalty: preset.hazardPenalty,
+    difficultyLabel: preset.difficultyLabel,
+  }
+}
+
+/**
+ * Compute how many players to cut after a Bullseye Blitz round.
+ *
+ * The default target is to remove roughly the bottom 20% of the active field,
+ * while also pacing the bracket so a five-round tournament reaches a final
+ * duel with two contestants by the last round. Once exactly two contestants
+ * remain, callers should treat that as the final duel and skip this helper.
+ */
+export function getBullseyeEliminationCount(
+  activeCount: number,
+  roundNumber: number,
+  totalRounds: number = BULLSEYE_CHALLENGE_ROUNDS
+): number {
+  if (activeCount <= 2) return 0
+
+  const remainingEliminationRounds = Math.max(1, totalRounds - roundNumber)
+  const minimumCut = Math.max(1, Math.floor(activeCount * 0.2))
+  const paceCut = Math.floor((activeCount - 2) / remainingEliminationRounds)
+
+  return Math.min(activeCount - 2, Math.max(minimumCut, paceCut))
+}
+
+export interface ScoreEntry {
+  id: string
+  name: string
+  avatar: string
+  score: number
+  hits: { standard: number; bonus: number; hazard: number }
+  isHuman: boolean
+}
+
+/**
+ * Build a ranked leaderboard from raw scores + participant list.
+ *
+ * Tie-breaking rule (deterministic):
+ *   Equal scores → lower participant index wins (earlier in the participants array).
+ *   This is explicit and documented so it is never silently falling back to
+ *   arbitrary order.
+ */
+export function buildRankedLeaderboard(
+  participants: string[],
+  scores: Record<string, number>,
+  humanId: string | undefined,
+  players: Player[],
+  humanHits?: { standard: number; bonus: number; hazard: number }
+): ScoreEntry[] {
+  type RankedEntry = ScoreEntry & { participantIndex: number }
+
+  const entries: RankedEntry[] = participants.map((id, idx) => {
+    const p = players.find((pl) => pl.id === id)
+    const isHuman = id === humanId
+    return {
+      id,
+      name: p?.name ?? id,
+      avatar: p ? resolveAvatar(p) : '🧑',
+      score: scores[id] ?? 0,
+      hits: isHuman && humanHits ? humanHits : { standard: 0, bonus: 0, hazard: 0 },
+      isHuman,
+      participantIndex: idx,
+    }
+  })
+
+  const rankedEntries = entries.sort((a, b) => {
+    const diff = b.score - a.score
+    if (diff !== 0) return diff
+    return a.participantIndex - b.participantIndex
+  })
+
+  return rankedEntries.map(({ participantIndex: _participantIndex, ...entry }) => entry)
+}
+
+function hashTournamentSeed(seed: number, participantId: string, roundNumber: number): number {
+  let hash = seed ^ (roundNumber * 0x9e3779b9)
+  for (let i = 0; i < participantId.length; i += 1) {
+    hash = Math.imul(hash ^ participantId.charCodeAt(i), 16777619)
+  }
+  return hash >>> 0
+}
+
+/**
+ * Resolve a single Bullseye Blitz round score for an AI participant.
+ *
+ * The `baseScore` parameter is the AI's per-round capacity produced by the
+ * hybrid score resolver.  It spans the full targetPractice envelope (80–500)
+ * and is normalised against the envelope ceiling (`AI_SCORE_MAX = 640`) so
+ * every point in the range maps to a distinct skill level:
+ *   baseScore  80 → skill ≈ 0.125 (clearly weaker)
+ *   baseScore 300 → skill ≈ 0.469 (mid-field — competitive but beatable)
+ *   baseScore 400 → skill ≈ 0.625 (strong — a genuine threat)
+ *   baseScore 640 → skill = 1.000 (theoretical ceiling)
+ *
+ * The normalised skill is interpolated across the round's competitive band
+ * (`BULLSEYE_AI_ROUND_BANDS`) so the AI field lands in the same scoring range a
+ * human reaches, keeping the tournament suspenseful instead of a runaway.  A
+ * deterministic ±7 % per-player swing is layered on top so a contestant can
+ * have an off (or hot) round — driving genuine drama around the eliminations —
+ * without ever reordering clearly different skill tiers.
+ *
+ * Results are deterministic: same (baseScore, roundNumber, seed, participantId)
+ * inputs always produce the same output.
+ */
+export function simulateBullseyeAiRoundScore(
+  baseScore: number,
+  roundNumber: number,
+  seed: number,
+  participantId: string
+): number {
+  const rng = mulberry32(hashTournamentSeed(seed, participantId, roundNumber))
+  const [bandMin, bandMax] = bullseyeAiBandForRound(roundNumber)
+
+  // Normalise baseScore against the envelope ceiling so the full 80–500 range
+  // maps to distinct skill levels.  Values outside [0, AI_SCORE_MAX] are clamped.
+  const skill = Math.min(1, Math.max(0, baseScore) / AI_SCORE_MAX)
+
+  // Interpolate the skill across the round's competitive band (skill 0 → 0,
+  // skill 0.125 → bandMin, skill 1 → bandMax).
+  const bandScore = interpolateSkillToBand(skill, bandMin, bandMax)
+
+  // ±7 % per-player, per-round swing for believable off/hot rounds.  Bounded so
+  // it never flips clearly separated skill tiers (the band gap dwarfs the swing).
+  const swing = 1 + (rng() - 0.5) * 0.14
+
+  return Math.max(0, Math.round(bandScore * swing))
+}

@@ -1,0 +1,215 @@
+/* ─── PlayerAvatar ───────────────────────────────────────────────────────────
+ * Reusable circular avatar tile for decision modals.
+ * Three sizes: sm (2rem), md (3rem), lg (4rem).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.pa {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  isolation: isolate;
+  /* sm default */
+  width: 2rem;
+  height: 2rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  overflow: visible;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s,
+    transform 0.14s;
+}
+
+.pa__img,
+.pa__fallback,
+.pa__ring {
+  position: relative;
+  z-index: 1;
+}
+
+/* Size variants */
+.pa--sm {
+  width: 2rem;
+  height: 2rem;
+}
+.pa--md {
+  width: 3rem;
+  height: 3rem;
+}
+.pa--lg {
+  width: 4rem;
+  height: 4rem;
+}
+
+/* Button reset when used as interactive element */
+button.pa {
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+}
+
+button.pa:hover {
+  transform: scale(1.07);
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.18),
+    0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+button.pa:focus-visible {
+  outline: 2px solid var(--color-accent, #6366f1);
+  outline-offset: 3px;
+}
+
+/* ── Photo image ─────────────────────────────────────────────────────────── */
+.pa__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.pa__img--loaded {
+  opacity: 1;
+  animation: paFadeIn 0.3s ease;
+}
+
+@keyframes paFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Emoji / initials fallback ──────────────────────────────────────────── */
+.pa__fallback {
+  font-size: 1.2em;
+  line-height: 1;
+  user-select: none;
+}
+
+/* ── Evicted state (greyed) ─────────────────────────────────────────────── */
+.pa--evicted .pa__img,
+.pa--evicted .pa__fallback {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+/* ── Status ring (visible when selected) ────────────────────────────────── */
+.pa__ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  pointer-events: none;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+
+/* ── Selected state ─────────────────────────────────────────────────────── */
+.pa--selected {
+  border-color: rgba(100, 160, 255, 0.7);
+  box-shadow:
+    0 0 0 2px rgba(100, 160, 255, 0.2),
+    0 4px 16px rgba(80, 130, 255, 0.3);
+  animation: paSelectPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pa--selected .pa__ring {
+  border-color: rgba(100, 160, 255, 0.5);
+  box-shadow: 0 0 8px rgba(100, 160, 255, 0.4);
+}
+
+@keyframes paSelectPop {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ── Reduce motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pa,
+  .pa::before,
+  .pa::after,
+  .pa__img,
+  .pa__ring {
+    animation: none !important;
+    transition: none !important;
+  }
+  .pa__img {
+    opacity: 1;
+  }
+}
+
+/* ── Revive animation (jury → active transition) ────────────────────────── */
+@keyframes revive-pop {
+  0% {
+    filter: grayscale(1);
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  40% {
+    filter: grayscale(0.3);
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  70% {
+    filter: grayscale(0);
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    filter: grayscale(0);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.pa--revived .pa__img,
+.pa--revived .pa__fallback {
+  animation: revive-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa--revived .pa__img,
+  .pa--revived .pa__fallback {
+    animation: none !important;
+    filter: grayscale(0);
+    opacity: 1;
+  }
+}
+
+/* ── Relationship-tone outline rings ─────────────────────────────────────
+ * Applied via pa--rel-{tone} classes. Uses box-shadow to avoid layout shift
+ * and support circular crops. Transition matches the base .pa transition.
+ * ────────────────────────────────────────────────────────────────────────── */
+.pa--rel-good {
+  box-shadow:
+    0 0 0 2px rgba(46, 204, 113, 0.85),
+    0 0 6px rgba(46, 204, 113, 0.35);
+}
+
+.pa--rel-neutral {
+  box-shadow:
+    0 0 0 2px rgba(234, 179, 8, 0.85),
+    0 0 6px rgba(234, 179, 8, 0.35);
+}
+
+.pa--rel-bad {
+  box-shadow:
+    0 0 0 2px rgba(239, 68, 68, 0.85),
+    0 0 6px rgba(239, 68, 68, 0.35);
+}

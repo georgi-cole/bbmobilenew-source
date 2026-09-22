@@ -1,0 +1,1948 @@
+.container {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  padding: 0;
+  overflow: visible;
+}
+
+.headerRow {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  max-width: calc(100% - 16px);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(10, 15, 26, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  animation: houseguestHeaderFlash 2200ms ease forwards;
+}
+.header {
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  color: #bfc3c8;
+  margin: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.count {
+  color: #9aa0a6;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+@keyframes houseguestHeaderFlash {
+  0%,
+  68% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  flex: 0 0 auto;
+  min-height: 0;
+  gap: var(--game-roster-gap, 5px);
+  grid-template-columns: repeat(4, minmax(0, var(--game-avatar-tile-size, 1fr)));
+  grid-auto-rows: max-content;
+  align-content: start;
+  justify-content: center;
+  justify-items: stretch;
+  align-items: start;
+  height: var(--game-roster-board-height, auto);
+  max-height: none;
+  overflow: visible;
+}
+
+:global(body.mode-surveyeval) .surveyevalShock {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  color: #f4ffff;
+  background: radial-gradient(
+    circle,
+    rgba(76, 235, 255, 0.72),
+    rgba(39, 215, 223, 0.12) 52%,
+    transparent 74%
+  );
+  box-shadow:
+    inset 0 0 0 2px rgba(223, 251, 255, 0.82),
+    inset 0 0 24px rgba(39, 215, 223, 0.8);
+  text-shadow: 0 0 12px #27d7df;
+  animation: surveyevalTileShock 1650ms steps(3, end) both;
+}
+:global(body.mode-surveyeval) .surveyevalShock i {
+  position: absolute;
+  font-style: normal;
+  font-size: clamp(1.4rem, 7vw, 2.3rem);
+  animation: surveyevalSpark 1450ms ease-out both;
+}
+:global(body.mode-surveyeval) .surveyevalShock i:nth-child(1) {
+  transform: translate(-35px, -28px) rotate(-18deg);
+}
+:global(body.mode-surveyeval) .surveyevalShock i:nth-child(2) {
+  transform: translate(32px, -4px) rotate(16deg);
+  animation-delay: 80ms;
+}
+:global(body.mode-surveyeval) .surveyevalShock i:nth-child(3) {
+  transform: translate(-24px, 28px) rotate(8deg);
+  animation-delay: 130ms;
+}
+:global(body.mode-surveyeval) .surveyevalShock b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 3px;
+  background: rgba(244, 255, 255, 0.96);
+  box-shadow: 0 0 8px #dffbff;
+  transform-origin: left center;
+  animation: surveyevalGlass 1550ms ease-out both;
+}
+:global(body.mode-surveyeval) .surveyevalShock b:nth-of-type(1) {
+  transform: rotate(28deg) translate(0, -20px);
+}
+:global(body.mode-surveyeval) .surveyevalShock b:nth-of-type(2) {
+  transform: rotate(148deg) translate(10px, 8px);
+  animation-delay: 70ms;
+}
+:global(body.mode-surveyeval) .surveyevalShock b:nth-of-type(3) {
+  transform: rotate(-55deg) translate(15px, 12px);
+  animation-delay: 140ms;
+}
+@keyframes surveyevalTileShock {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  10%,
+  28%,
+  44%,
+  78% {
+    opacity: 1;
+  }
+  20%,
+  36%,
+  58% {
+    opacity: 0.32;
+  }
+}
+@keyframes surveyevalSpark {
+  from {
+    opacity: 0;
+    scale: 0.4;
+  }
+  28%,
+  72% {
+    opacity: 1;
+    scale: 1.18;
+  }
+  to {
+    opacity: 0;
+    scale: 0.72;
+  }
+}
+@keyframes surveyevalGlass {
+  0%,
+  24% {
+    opacity: 0;
+    scale: 0.2;
+  }
+  38%,
+  82% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 1.28;
+  }
+}
+
+/* A short, non-interactive weather reveal sweeps across the roster whenever a
+   daily transition begins, then leaves the avatars exactly as they were. */
+.weatherReveal {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0;
+  animation: rosterWeatherReveal 3s ease-out both;
+}
+
+:global(body.mode-surveyeval) [data-replacement-target='true'] .avatarWrap {
+  animation: surveyevalAssembly 1050ms steps(4, end) both;
+}
+@keyframes surveyevalAssembly {
+  0% {
+    opacity: 0;
+    transform: scale(0.75) rotate(-4deg);
+    filter: grayscale(1) brightness(1.8);
+  }
+  55% {
+    opacity: 0.8;
+    transform: scale(1.04) rotate(2deg);
+    filter: grayscale(0.4) brightness(1.4);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+    filter: none;
+  }
+}
+
+.weatherReveal::before,
+.weatherReveal::after {
+  position: absolute;
+  inset: -18%;
+  content: '';
+  pointer-events: none;
+}
+
+.weatherReveal[data-weather='sunny'] {
+  background: radial-gradient(circle at 78% 16%, rgba(255, 222, 130, 0.76), transparent 25%);
+}
+
+.weatherReveal[data-weather='sunny']::before {
+  background: conic-gradient(
+    from 8deg at 78% 16%,
+    transparent 0 8deg,
+    rgba(255, 232, 160, 0.18) 9deg 14deg,
+    transparent 15deg 34deg
+  );
+  animation: rosterWeatherSpin 3s linear both;
+}
+
+.weatherReveal[data-weather='cloudy'] {
+  background: linear-gradient(
+    180deg,
+    rgba(192, 211, 220, 0.38),
+    rgba(98, 133, 150, 0.18) 58%,
+    transparent
+  );
+}
+
+.weatherReveal[data-weather='cloudy']::before {
+  background:
+    radial-gradient(ellipse at 18% 30%, rgba(229, 239, 241, 0.34), transparent 23%),
+    radial-gradient(ellipse at 69% 18%, rgba(204, 222, 227, 0.28), transparent 28%),
+    radial-gradient(ellipse at 88% 56%, rgba(163, 191, 202, 0.2), transparent 24%);
+  animation: rosterWeatherDrift 3s ease-out both;
+}
+
+.weatherReveal[data-weather='rainy'],
+.weatherReveal[data-weather='stormy'] {
+  background: linear-gradient(
+    180deg,
+    rgba(100, 157, 188, 0.32),
+    rgba(23, 57, 79, 0.16) 64%,
+    transparent
+  );
+}
+
+.weatherReveal[data-weather='rainy']::before,
+.weatherReveal[data-weather='stormy']::before {
+  inset: -24% -8%;
+  background:
+    radial-gradient(ellipse 1px 8px at 6% 12%, rgba(220, 243, 255, 0.82) 0 38%, transparent 45%),
+    radial-gradient(
+      ellipse 1.2px 11px at 15% 48%,
+      rgba(190, 225, 242, 0.72) 0 38%,
+      transparent 45%
+    ),
+    radial-gradient(ellipse 1px 8px at 26% 26%, rgba(230, 247, 255, 0.76) 0 38%, transparent 45%),
+    radial-gradient(ellipse 1.3px 12px at 36% 70%, rgba(194, 226, 243, 0.7) 0 38%, transparent 45%),
+    radial-gradient(ellipse 1px 9px at 47% 38%, rgba(228, 246, 255, 0.78) 0 38%, transparent 45%),
+    radial-gradient(
+      ellipse 1.2px 11px at 58% 18%,
+      rgba(191, 223, 241, 0.72) 0 38%,
+      transparent 45%
+    ),
+    radial-gradient(ellipse 1px 8px at 68% 58%, rgba(228, 246, 255, 0.76) 0 38%, transparent 45%),
+    radial-gradient(
+      ellipse 1.3px 12px at 79% 32%,
+      rgba(189, 223, 241, 0.72) 0 38%,
+      transparent 45%
+    ),
+    radial-gradient(ellipse 1px 9px at 91% 76%, rgba(227, 246, 255, 0.78) 0 38%, transparent 45%);
+  filter: drop-shadow(0 0 2px rgba(192, 228, 246, 0.3));
+  animation: rosterWeatherRain 780ms linear 4 both;
+}
+
+.weatherReveal[data-weather='rainy']::after {
+  background:
+    radial-gradient(ellipse at 28% 16%, rgba(207, 226, 231, 0.32), transparent 28%),
+    radial-gradient(ellipse at 76% 34%, rgba(144, 180, 198, 0.25), transparent 31%);
+}
+
+.weatherReveal[data-weather='sunset'] {
+  background:
+    radial-gradient(circle at 78% 82%, rgba(255, 172, 99, 0.68), transparent 30%),
+    linear-gradient(180deg, rgba(159, 100, 153, 0.24), transparent 60%);
+}
+
+.weatherReveal[data-weather='starry'] {
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.8) 0 1px, transparent 2px),
+    radial-gradient(circle at 64% 18%, rgba(214, 226, 255, 0.74) 0 1px, transparent 2px),
+    radial-gradient(circle at 84% 62%, rgba(255, 255, 255, 0.7) 0 1px, transparent 2px),
+    radial-gradient(circle at 36% 74%, rgba(207, 221, 255, 0.64) 0 1px, transparent 2px);
+  background-size: 100% 100%;
+}
+
+.weatherReveal[data-weather='starry']::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(85, 112, 211, 0.34), transparent 55%);
+}
+
+.weatherReveal[data-weather='misty'] {
+  background: linear-gradient(
+    180deg,
+    rgba(193, 218, 226, 0.28),
+    rgba(117, 151, 164, 0.2) 52%,
+    transparent
+  );
+}
+
+.weatherReveal[data-weather='misty']::before {
+  background:
+    radial-gradient(ellipse at 18% 64%, rgba(228, 240, 241, 0.5), transparent 32%),
+    radial-gradient(ellipse at 55% 38%, rgba(187, 213, 220, 0.42), transparent 35%),
+    radial-gradient(ellipse at 90% 68%, rgba(213, 231, 235, 0.38), transparent 34%);
+  filter: blur(8px);
+  animation: rosterWeatherDrift 3s ease-out both;
+}
+
+.weatherReveal[data-weather='snowy'] {
+  background: linear-gradient(
+    180deg,
+    rgba(202, 225, 246, 0.34),
+    rgba(111, 147, 185, 0.16) 65%,
+    transparent
+  );
+}
+
+.weatherReveal[data-weather='snowy']::before {
+  inset: -20% -8%;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 1.5px, transparent 1.8px),
+    radial-gradient(circle, rgba(220, 239, 255, 0.78) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.7) 0 1.2px, transparent 1.6px);
+  background-position:
+    0 0,
+    13px 21px,
+    27px 7px;
+  background-size:
+    42px 52px,
+    52px 64px,
+    61px 71px;
+  animation: rosterWeatherSnow 2.1s linear both;
+}
+
+.weatherReveal[data-weather='stormy'] {
+  background:
+    radial-gradient(ellipse at 46% 2%, rgba(159, 181, 255, 0.34), transparent 32%),
+    linear-gradient(180deg, rgba(45, 64, 98, 0.54), rgba(11, 24, 44, 0.26) 62%, transparent);
+}
+
+.weatherReveal[data-weather='stormy']::after {
+  top: -12%;
+  right: auto;
+  bottom: auto;
+  left: 51%;
+  width: 54px;
+  height: 128%;
+  background: linear-gradient(
+    90deg,
+    rgba(191, 215, 255, 0.42),
+    rgba(246, 250, 255, 0.98) 46%,
+    rgba(176, 205, 255, 0.46)
+  );
+  clip-path: polygon(
+    48% 0,
+    62% 0,
+    50% 25%,
+    72% 25%,
+    39% 58%,
+    56% 58%,
+    24% 100%,
+    39% 65%,
+    20% 65%,
+    48% 35%,
+    34% 35%
+  );
+  filter: drop-shadow(0 0 5px rgba(183, 211, 255, 0.95))
+    drop-shadow(0 0 18px rgba(133, 165, 255, 0.7));
+  animation: rosterWeatherLightning 2.5s steps(1, end) both;
+}
+
+.weatherReveal[data-weather='rainbow'] {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 96, 133, 0.45),
+      rgba(255, 206, 86, 0.36),
+      rgba(91, 209, 255, 0.42),
+      rgba(153, 111, 255, 0.38)
+    ),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 66%);
+}
+
+.weatherReveal[data-weather='rainbow']::before {
+  inset: 8% 10% auto;
+  height: 68%;
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  border: 7px solid transparent;
+  border-top-color: rgba(255, 84, 117, 0.9);
+  border-right-color: rgba(255, 219, 92, 0.9);
+  border-left-color: rgba(86, 196, 255, 0.9);
+  filter: drop-shadow(0 0 12px rgba(235, 247, 255, 0.58));
+}
+
+@keyframes rosterWeatherReveal {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.96;
+  }
+  64% {
+    opacity: 0.64;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rosterWeatherDrift {
+  from {
+    transform: translate3d(-8%, -2%, 0);
+  }
+  to {
+    transform: translate3d(8%, 4%, 0);
+  }
+}
+
+@keyframes rosterWeatherRain {
+  from {
+    transform: translate3d(-3%, -14%, 0);
+  }
+  to {
+    transform: translate3d(5%, 18%, 0);
+  }
+}
+
+@keyframes rosterWeatherSnow {
+  from {
+    transform: translate3d(-2%, -14%, 0);
+  }
+  to {
+    transform: translate3d(4%, 18%, 0);
+  }
+}
+
+@keyframes rosterWeatherLightning {
+  0%,
+  34%,
+  38%,
+  100% {
+    opacity: 0;
+  }
+  35%,
+  37% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes rosterWeatherSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(36deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weatherReveal,
+  .weatherReveal::before {
+    animation-duration: 1.4s;
+  }
+}
+
+.gridItem {
+  width: var(--game-avatar-tile-size, 100%);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.scrollRoster .grid {
+  height: auto;
+  max-height: var(--game-roster-max-height, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.container[data-header-mode='persistent'] .headerRow {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  max-width: 100%;
+  width: 100%;
+  margin: 0 0 var(--game-layout-rhythm, 8px);
+  padding-inline: 6px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+  opacity: 1;
+  transform: none;
+  /* The persistent header contains the roster Log control. */
+  pointer-events: auto;
+}
+
+.rosterLogLauncher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 58px;
+  height: 25px;
+  margin-left: auto;
+  padding: 0 7px;
+  border: 1px solid rgba(190, 174, 220, 0.09);
+  border-top-color: rgba(228, 216, 255, 0.28);
+  border-bottom-color: rgba(120, 100, 165, 0.045);
+  border-radius: 7px;
+  background:
+    radial-gradient(ellipse at 34% 0%, rgba(224, 207, 246, 0.09), transparent 54%),
+    linear-gradient(180deg, rgba(50, 27, 61, 0.72), rgba(27, 14, 37, 0.8) 46%, rgba(9, 7, 17, 0.9));
+  color: rgba(225, 216, 236, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(239, 229, 255, 0.095),
+    inset 0 -2px 4px rgba(3, 2, 8, 0.54),
+    0 2px 6px rgba(3, 2, 9, 0.32),
+    0 0 8px rgba(105, 82, 190, 0.055);
+  font: inherit;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    color 150ms ease,
+    transform 120ms ease;
+}
+
+.rosterLogLauncher span:first-child {
+  color: rgba(201, 187, 224, 0.8);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.rosterLogLauncher:hover,
+.rosterLogLauncher:focus-visible {
+  border-color: rgba(207, 191, 238, 0.24);
+  border-top-color: rgba(238, 227, 255, 0.42);
+  background:
+    radial-gradient(ellipse at 34% 0%, rgba(234, 218, 255, 0.13), transparent 56%),
+    linear-gradient(180deg, rgba(62, 35, 75, 0.78), rgba(28, 15, 39, 0.9));
+  color: rgba(244, 237, 250, 0.94);
+}
+
+.rosterLogLauncher:active {
+  transform: scale(0.97);
+}
+
+.rosterLogLauncher:focus-visible {
+  outline: 2px solid var(--game-focus-color);
+  outline-offset: 2px;
+}
+
+.container[data-header-mode='tv-chip'] .headerRow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  opacity: 1;
+  animation: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  position: relative;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+.avatarWrap {
+  position: relative;
+  width: 100%;
+  height: var(--game-avatar-tile-height, var(--game-avatar-tile-size, auto));
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #030303;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 26%, rgba(255, 255, 255, 0.05));
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(6, 10, 17, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 10px 18px rgba(0, 0, 0, 0.26);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Live vote: restore the original red inner-frame/sweep treatment, then
+   radiate danger the same way the LOH nomination state does: by breathing the
+   outer red box-shadow around the avatar tile. */
+.liveEvictionNominee {
+  border-color: rgba(248, 87, 87, 0.86);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(248, 87, 87, 0.34),
+    inset 0 1px 0 rgba(255, 228, 228, 0.12),
+    inset 0 0 0 1px rgba(248, 87, 87, 0.36);
+  animation: liveEvictionNomineeGlow 2.4s ease-in-out infinite;
+}
+
+.liveEvictionNominee::before {
+  animation: liveEvictionNomineeSweep 2.2s linear infinite;
+}
+
+@keyframes liveEvictionNomineeGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.48),
+      0 0 0 1px rgba(248, 87, 87, 0.3),
+      0 0 10px rgba(220, 38, 38, 0.18),
+      inset 0 1px 0 rgba(255, 228, 228, 0.12),
+      inset 0 0 0 1px rgba(248, 87, 87, 0.32);
+  }
+  50% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.48),
+      0 0 0 1px rgba(248, 87, 87, 0.52),
+      0 0 22px rgba(239, 68, 68, 0.46),
+      inset 0 1px 0 rgba(255, 228, 228, 0.18),
+      inset 0 0 0 1px rgba(248, 87, 87, 0.48);
+  }
+}
+
+@keyframes liveEvictionNomineeSweep {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(7, 10, 16, 0.56),
+      inset -18px 0 24px rgba(220, 38, 38, 0.34),
+      inset 0 0 20px 5px rgba(12, 17, 27, 0.62);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(7, 10, 16, 0.56),
+      inset 18px 0 24px rgba(248, 87, 87, 0.42),
+      inset 0 0 20px 5px rgba(12, 17, 27, 0.62);
+  }
+}
+
+.tile[data-cupid-pair] .avatarWrap {
+  border-color: color-mix(in srgb, var(--cupid-pair-color) 20%, rgba(255, 255, 255, 0.11));
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    0 0 0 1px color-mix(in srgb, var(--cupid-pair-color) 12%, transparent),
+    0 0 7px color-mix(in srgb, var(--cupid-pair-color) 5%, transparent);
+}
+
+.cupidLoveRevealed {
+  animation: cupidLoveFrameReveal 1160ms cubic-bezier(0.16, 0.86, 0.25, 1)
+    calc(var(--cupid-pair-index, 0) * 150ms) both;
+}
+
+.cupidLoveAvatar {
+  animation: cupidLovePortraitReveal 1160ms cubic-bezier(0.16, 0.86, 0.25, 1)
+    calc(var(--cupid-pair-index, 0) * 150ms) both;
+}
+
+.cupidLoveReturning {
+  animation: cupidLoveReturnFrame 1350ms cubic-bezier(0.16, 0.82, 0.24, 1) both;
+}
+
+/* A non-destructive, live expression layer lets all cast portraits take on the
+   same sad look during the shock, including custom and profile-photo avatars. */
+.depressionAvatarWrap {
+  border-color: rgba(116, 151, 198, 0.46);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.52),
+    inset 0 0 24px rgba(38, 61, 90, 0.64);
+}
+
+.depressionAvatar {
+  filter: saturate(0.42) brightness(0.72) contrast(0.92);
+  transform: translateY(2px) scale(1.025);
+}
+
+.depressionExpression {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  left: 25%;
+  right: 25%;
+  top: 38%;
+  height: 26%;
+  opacity: 0.58;
+  background:
+    radial-gradient(
+      ellipse at 26% 29%,
+      transparent 0 17%,
+      rgba(14, 20, 33, 0.86) 19% 23%,
+      transparent 25%
+    ),
+    radial-gradient(
+      ellipse at 74% 29%,
+      transparent 0 17%,
+      rgba(14, 20, 33, 0.86) 19% 23%,
+      transparent 25%
+    ),
+    radial-gradient(
+      ellipse at 50% 88%,
+      transparent 0 37%,
+      rgba(15, 20, 31, 0.82) 40% 44%,
+      transparent 47%
+    );
+  filter: blur(0.25px) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.82));
+  mix-blend-mode: multiply;
+}
+
+.depressionRecoveryWrap {
+  animation: depressionBurstFrame 1250ms ease-out both;
+}
+
+.depressionRecoveryAvatar {
+  animation: depressionBurstAvatar 1250ms ease-out both;
+}
+
+.depressionBurst {
+  position: absolute;
+  inset: -18%;
+  z-index: 8;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 251, 204, 0.95) 0 8%,
+    rgba(255, 221, 113, 0.52) 22%,
+    transparent 62%
+  );
+  mix-blend-mode: screen;
+  animation: depressionBurstLight 1250ms ease-out both;
+}
+
+@keyframes depressionBurstFrame {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 231, 132, 0);
+  }
+  35% {
+    box-shadow:
+      0 0 28px rgba(255, 231, 132, 0.9),
+      inset 0 0 22px rgba(255, 247, 196, 0.72);
+  }
+  100% {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.42);
+  }
+}
+
+@keyframes depressionBurstAvatar {
+  0% {
+    filter: saturate(0.42) brightness(0.72);
+    transform: scale(1.025);
+  }
+  35% {
+    filter: saturate(1.8) brightness(1.48);
+    transform: scale(1.08);
+  }
+  100% {
+    filter: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes depressionBurstLight {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  28% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+.cupidLoveReturnAvatar {
+  animation: cupidLoveReturnPortrait 1350ms cubic-bezier(0.16, 0.82, 0.24, 1) both;
+}
+
+.cupidLoveStorm {
+  position: absolute;
+  inset: -48%;
+  z-index: 8;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 244, 221, 0.95) 0%,
+    rgba(255, 167, 203, 0.72) 25%,
+    rgba(247, 177, 108, 0.26) 48%,
+    transparent 70%
+  );
+  animation: cupidLoveColorStorm 1180ms cubic-bezier(0.16, 0.86, 0.25, 1)
+    calc(var(--cupid-pair-index, 0) * 150ms) both;
+}
+
+.cupidLoveStorm i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: #ff8eb5;
+  font-size: 42px;
+  font-style: normal;
+  text-shadow:
+    0 0 10px #fff,
+    0 0 26px rgba(255, 125, 180, 0.95);
+  animation: cupidHeartBurst 1080ms cubic-bezier(0.14, 0.78, 0.22, 1)
+    calc(var(--cupid-pair-index, 0) * 150ms) both;
+}
+.cupidLoveStorm i:nth-child(2) {
+  color: #ffd18b;
+  animation-delay: 80ms;
+}
+.cupidLoveStorm i:nth-child(3) {
+  color: #f5a4d6;
+  animation-delay: 140ms;
+}
+.cupidLoveStorm i:nth-child(4) {
+  color: #ffb0c9;
+  animation-delay: 200ms;
+}
+
+@keyframes cupidLoveFrameReveal {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 1px rgba(241, 184, 197, 0.06),
+      0 0 0 rgba(233, 151, 176, 0);
+  }
+  34% {
+    transform: scale(1.055);
+    box-shadow:
+      0 0 0 2px rgba(255, 224, 230, 0.9),
+      0 0 42px rgba(255, 117, 169, 0.92),
+      inset 0 0 32px rgba(255, 231, 192, 0.75);
+  }
+  100% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(234, 155, 174, 0.16),
+      0 0 14px rgba(213, 108, 137, 0.12);
+  }
+}
+
+@keyframes cupidLovePortraitReveal {
+  0% {
+    opacity: 0.04;
+    filter: saturate(0.45) brightness(2.25) blur(3px);
+    transform: scale(1.12);
+  }
+  34% {
+    opacity: 0.92;
+    filter: saturate(1.3) brightness(1.18) blur(0);
+    transform: scale(1.025);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes cupidLoveReturnFrame {
+  0% {
+    box-shadow:
+      0 0 0 2px rgba(255, 191, 211, 0.92),
+      0 0 42px rgba(244, 108, 163, 0.9);
+    transform: scale(1.04);
+  }
+  48% {
+    box-shadow:
+      0 0 0 1px rgba(194, 158, 188, 0.32),
+      0 0 18px rgba(140, 104, 159, 0.22);
+    transform: scale(0.985);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cupidLoveReturnPortrait {
+  0% {
+    opacity: 0.04;
+    filter: brightness(2.25) saturate(2.2) hue-rotate(322deg) blur(2px);
+    transform: scale(1.1);
+  }
+  28% {
+    opacity: 1;
+    filter: brightness(1.42) saturate(1.5) hue-rotate(330deg);
+    transform: scale(1.04);
+  }
+  62% {
+    filter: brightness(0.9) saturate(0.35);
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes cupidLoveColorStorm {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-35deg);
+  }
+  26% {
+    opacity: 1;
+    transform: scale(0.78) rotate(12deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35) rotate(32deg);
+  }
+}
+
+@keyframes cupidHeartBurst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15) rotate(-24deg);
+  }
+  24% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--heart-x, 45px)), calc(-50% - 115px)) scale(1.7)
+      rotate(34deg);
+  }
+}
+.cupidLoveStorm i:nth-child(1) {
+  --heart-x: -62px;
+}
+.cupidLoveStorm i:nth-child(2) {
+  --heart-x: 58px;
+}
+.cupidLoveStorm i:nth-child(3) {
+  --heart-x: -22px;
+}
+.cupidLoveStorm i:nth-child(4) {
+  --heart-x: 28px;
+}
+
+.cupidPairMarker {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  z-index: 6;
+  display: grid;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 21px;
+  padding: 0 2px 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--cupid-pair-color) 78%, white 22%);
+  border-radius: 3px 2px 10px 5px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 38%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--cupid-pair-color) 88%, #fff 12%),
+      var(--cupid-pair-color)
+    );
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 72% 100%, 0 80%);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.48);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  pointer-events: none;
+  transform: rotate(3deg);
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+}
+
+.cupidPairMarkerReveal {
+  animation: cupidCapLand 620ms cubic-bezier(0.2, 0.88, 0.25, 1.12)
+    calc(var(--cupid-pair-index, 0) * 125ms + 380ms) both;
+}
+
+.cupidPairFocused [class*='avatarWrap'] {
+  transform: translateY(-3px) scale(1.025);
+  border-color: color-mix(in srgb, var(--cupid-pair-color) 62%, white 12%);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.5),
+    0 0 0 2px color-mix(in srgb, var(--cupid-pair-color) 40%, transparent),
+    0 0 20px color-mix(in srgb, var(--cupid-pair-color) 30%, transparent);
+}
+
+@keyframes cupidCapLand {
+  0% {
+    opacity: 0;
+    transform: translate(12px, -14px) rotate(18deg) scale(0.44);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-2px, 2px) rotate(1deg) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(3deg) scale(1);
+  }
+}
+
+:global(body.experiment-game-chrome-refined) .avatarWrap {
+  /* Quiet gallery rim: enough separation from the blackberry surface without
+     turning the roster into a grid of hard, detached cards. */
+  border-color: rgba(169, 141, 195, 0.16);
+  border-radius: var(--game-radius-2);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(34, 23, 46, 0.3),
+    inset 0 1px 0 rgba(248, 234, 204, 0.09);
+}
+
+:global(body.experiment-game-chrome-refined) .avatarWrap::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 10, 21, 0.46),
+    inset 0 1px 0 rgba(235, 216, 177, 0.11),
+    inset 0 0 16px 5px rgba(12, 9, 18, 0.56);
+}
+
+.nomination_loh {
+  border-color: rgba(255, 215, 96, 0.72);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(255, 215, 120, 0.32),
+    0 0 16px rgba(255, 212, 84, 0.32),
+    inset 0 1px 0 rgba(255, 248, 220, 0.16),
+    inset 0 0 0 1px rgba(255, 215, 96, 0.36);
+  animation: nominationLohGlow 2.8s ease-in-out infinite;
+}
+
+.nomination_danger {
+  border-color: rgba(251, 146, 60, 0.6);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(249, 115, 22, 0.22),
+    0 0 14px rgba(249, 115, 22, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.nomination_danger::before {
+  animation: nominationDangerSweep 2.2s linear infinite;
+}
+
+.nomination_locked {
+  border-color: rgba(239, 68, 68, 0.82);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(239, 68, 68, 0.38),
+    0 0 16px rgba(239, 68, 68, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(248, 113, 113, 0.28);
+}
+
+/* Subtle bottom vignette so the name text reads cleanly on any portrait */
+.avatarWrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.58) 0%,
+    rgba(0, 0, 0, 0.2) 38%,
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Inner edge vignette — softens cutout halos and anchors the portrait into the tile */
+.avatarWrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(7, 10, 16, 0.56),
+    inset 0 0 16px 5px rgba(12, 17, 27, 0.62);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.nameOverlay {
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  left: 6px;
+  font-size: 10px;
+  color: #ffffff;
+  opacity: 1;
+  text-align: right;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.nameHidden {
+  opacity: 0;
+}
+
+.nameRevealed {
+  color: #ffffff;
+  isolation: isolate;
+  animation: houseguestNameReveal 980ms cubic-bezier(0.16, 0.82, 0.24, 1) both;
+}
+
+.nameRevealed::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -18px -12px -8px;
+  background:
+    radial-gradient(circle at 18% 72%, rgba(255, 234, 140, 0.92) 0 1px, transparent 2px),
+    radial-gradient(circle at 44% 34%, rgba(235, 214, 255, 0.9) 0 1.4px, transparent 2.8px),
+    radial-gradient(circle at 72% 72%, rgba(255, 246, 192, 0.96) 0 1.2px, transparent 2.5px),
+    radial-gradient(ellipse at 52% 76%, rgba(203, 152, 255, 0.75), transparent 47%);
+  filter: blur(0.4px);
+  opacity: 0;
+  transform: scale(0.45);
+  animation: houseguestNameLights 980ms cubic-bezier(0.16, 0.82, 0.24, 1) both;
+  pointer-events: none;
+}
+
+.nameRevealed::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -3px;
+  width: 18px;
+  left: -28px;
+  background: linear-gradient(90deg, transparent, rgba(255, 250, 204, 0.94), transparent);
+  box-shadow: 0 0 13px rgba(245, 211, 255, 0.82);
+  opacity: 0;
+  transform: skewX(-20deg);
+  animation: houseguestNameLightSweep 980ms ease-out both;
+  pointer-events: none;
+}
+
+@keyframes houseguestNameReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(7px) scale(0.84);
+    letter-spacing: 0.16em;
+    text-shadow: 0 0 15px rgba(244, 214, 255, 0.92);
+  }
+  56% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04);
+    letter-spacing: 0.02em;
+    text-shadow: 0 0 10px rgba(244, 214, 255, 0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    letter-spacing: normal;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  }
+}
+
+@keyframes houseguestNameLights {
+  0%,
+  22% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  52% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.42);
+  }
+}
+
+@keyframes houseguestNameLightSweep {
+  0%,
+  33% {
+    opacity: 0;
+    left: -28px;
+  }
+  41% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 0.84;
+  }
+  100% {
+    opacity: 0;
+    left: calc(100% + 14px);
+  }
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: transparent;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.avatarPlaceholder {
+  width: 70%;
+  height: 70%;
+  background: linear-gradient(90deg, #3b3f45, #2b2d30);
+  border-radius: 8px;
+}
+
+.youBadge {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  background: #4b6cff;
+  color: white;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  z-index: 4;
+}
+
+.nameRow {
+  display: none;
+}
+
+.evicted .avatar,
+.evicted .avatarPlaceholder {
+  filter: grayscale(50%) brightness(0.72) opacity(0.78);
+  transition: filter 0.6s ease;
+}
+
+.evicted {
+  opacity: 0.6;
+  transform: scale(0.96);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+/* ── Interactive hover / active states ───────────────────────────────────── */
+.tile[role='button']:hover:not(.evicted) .avatarWrap,
+.tile[role='button']:focus-visible:not(.evicted) .avatarWrap {
+  border-color: rgba(232, 194, 92, 0.18);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.44),
+    0 0 22px rgba(214, 165, 56, 0.18),
+    0 0 42px rgba(214, 165, 56, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 10px 18px rgba(0, 0, 0, 0.22);
+}
+
+.tile[role='button']:active:not(.evicted) .avatarWrap {
+  border-color: rgba(232, 194, 92, 0.16);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.38),
+    0 0 18px rgba(214, 165, 56, 0.12),
+    inset 0 2px 10px rgba(0, 0, 0, 0.42);
+}
+
+.cross {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: block;
+  object-fit: contain;
+  z-index: 5;
+  /* The strike is permanent; animation only controls its one-time entrance. */
+  opacity: 1;
+}
+
+.crossAnimated {
+  animation: crossFadeIn 0.35s ease-out forwards;
+}
+
+.cupidEvictionMark {
+  position: absolute;
+  inset: 7%;
+  z-index: 5;
+  display: block;
+  width: 86%;
+  height: 86%;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.58) rotate(-7deg);
+  animation: cupidEvictionHeartIn 720ms cubic-bezier(0.16, 1.25, 0.32, 1) forwards;
+}
+
+.cupidEvictionHeartHalf {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.cupidEvictionHeartHalf:first-of-type {
+  animation: cupidEvictionLeftSettle 900ms cubic-bezier(0.2, 0.78, 0.2, 1) 260ms both;
+}
+
+.cupidEvictionHeartHalf:nth-of-type(2) {
+  animation: cupidEvictionRightSettle 900ms cubic-bezier(0.2, 0.78, 0.2, 1) 260ms both;
+}
+
+.cupidEvictionCrack {
+  fill: none;
+  stroke: rgba(255, 228, 239, 0.92);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 88;
+  stroke-dashoffset: 88;
+  animation: cupidEvictionCrackDraw 680ms ease 640ms forwards;
+}
+
+@keyframes cupidEvictionHeartIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.58) rotate(-7deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.06) rotate(2deg);
+  }
+  100% {
+    opacity: 0.94;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes cupidEvictionLeftSettle {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  48% {
+    transform: translate(-4px, 2px) rotate(-4deg);
+  }
+  100% {
+    transform: translate(-2px, 1px) rotate(-2deg);
+  }
+}
+
+@keyframes cupidEvictionRightSettle {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  48% {
+    transform: translate(4px, 2px) rotate(4deg);
+  }
+  100% {
+    transform: translate(2px, 1px) rotate(2deg);
+  }
+}
+
+@keyframes cupidEvictionCrackDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes crossFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes nominationLohGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(255, 215, 120, 0.28),
+      0 0 14px rgba(255, 212, 84, 0.22),
+      inset 0 1px 0 rgba(255, 248, 220, 0.14),
+      inset 0 0 0 1px rgba(255, 215, 96, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(255, 215, 120, 0.4),
+      0 0 18px rgba(255, 212, 84, 0.38),
+      inset 0 1px 0 rgba(255, 248, 220, 0.18),
+      inset 0 0 0 1px rgba(255, 215, 96, 0.42);
+  }
+}
+
+@keyframes nominationDangerSweep {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgba(7, 10, 16, 0.56),
+      inset -12px 0 18px rgba(249, 115, 22, 0.3),
+      inset 0 0 16px 5px rgba(12, 17, 27, 0.62);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1px rgba(7, 10, 16, 0.56),
+      inset 12px 0 18px rgba(251, 146, 60, 0.34),
+      inset 0 0 16px 5px rgba(12, 17, 27, 0.62);
+  }
+}
+
+/* ── Status badge stack ─────────────────────────────────────────────────────── */
+/* Positioned in the top-left corner; badges stack vertically. */
+.badgeStack {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  border-radius: 5px;
+  padding: 2px 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  /* Subtle border for legibility on any background */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.statusBadgeImage {
+  display: block;
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+
+.cupidStatusIcon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(20, 2, 13, 0.52));
+}
+
+.cupidStatusIconFill {
+  fill: #ff9bc0;
+  stroke: #ffe2ed;
+  stroke-width: 1.15;
+  stroke-linejoin: round;
+}
+
+.cupidStatusIconCrack {
+  fill: none;
+  stroke: #54122f;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tile[data-cupid-pair] .statusBadge {
+  border-color: rgba(255, 179, 208, 0.32);
+  background:
+    radial-gradient(circle at 32% 18%, rgba(255, 236, 244, 0.13), transparent 44%),
+    linear-gradient(145deg, rgba(91, 30, 67, 0.82), rgba(46, 18, 45, 0.88));
+  box-shadow:
+    0 2px 6px rgba(15, 3, 11, 0.46),
+    inset 0 1px 0 rgba(255, 236, 244, 0.09);
+}
+
+/* Cupid changes the finish, not the meaning: the familiar crown and shield
+   remain readable at a glance, with a restrained rose-gold treatment. */
+.cupidPermanentLoh,
+.cupidPermanentPos {
+  border-color: rgba(255, 213, 157, 0.52) !important;
+  background:
+    radial-gradient(circle at 30% 18%, rgba(255, 248, 222, 0.24), transparent 45%),
+    linear-gradient(145deg, rgba(131, 74, 77, 0.9), rgba(91, 44, 66, 0.92)) !important;
+  box-shadow:
+    0 2px 7px rgba(20, 4, 13, 0.54),
+    inset 0 1px 0 rgba(255, 238, 205, 0.18) !important;
+}
+
+.cupidPermanentLoh .statusBadgeImage {
+  filter: sepia(0.38) saturate(1.28) hue-rotate(322deg) brightness(1.12);
+}
+
+.cupidPermanentPos .statusBadgeImage {
+  filter: sepia(0.48) saturate(1.42) hue-rotate(304deg) brightness(1.1);
+}
+
+/* Per-badge accent colours */
+.badge_hoh {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.badge_pov {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+.badge_nominated {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.badge_jury {
+  background: rgba(156, 163, 175, 0.18);
+  border-color: rgba(156, 163, 175, 0.3);
+}
+.badge_first {
+  background: rgba(251, 191, 36, 0.3);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+.badge_second {
+  background: rgba(156, 163, 175, 0.25);
+  border-color: rgba(156, 163, 175, 0.45);
+}
+.badge_third {
+  background: rgba(180, 113, 60, 0.25);
+  border-color: rgba(180, 113, 60, 0.45);
+}
+
+/* 12-tile and 16-tile grid layouts (both use 4 columns) */
+.hgGrid12,
+.hgGrid16 {
+  grid-template-columns: repeat(4, minmax(0, var(--game-avatar-tile-size, 1fr)));
+}
+
+/* Inactive/placeholder tile */
+.hgTileInactive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.hgPlaceholderImg {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: grayscale(1);
+}
+
+.hgPlaceholderLabel {
+  font-size: 0.65rem;
+  margin-top: 4px;
+  color: var(--color-text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tile:focus-within,
+.tile:focus {
+  outline: 3px solid rgba(75, 108, 255, 0.14);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+/* ── Compact mode ────────────────────────────────────────────────────────── */
+.compact {
+  padding: 2px 4px;
+}
+
+.compact .grid {
+  gap: var(--game-roster-gap, 5px);
+}
+
+.compact .avatarWrap {
+  border-radius: 7px;
+}
+
+.compact .nameOverlay {
+  font-size: 8px;
+  bottom: 3px;
+  right: 4px;
+  left: 4px;
+}
+
+.compact .statusBadge {
+  font-size: 9px;
+  padding: 1px 2px;
+}
+
+/* In compact mode the roster must use the same cabinet width as the Faux TV.
+   The measured tile size still controls the fixed row height, while the
+   column tracks fill the available width instead of leaving a centred inset. */
+.compactSmall .grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.compactSmall .gridItem {
+  width: 100%;
+}
+
+.compactSmall .tile,
+.compactSmall .hgTileInactive {
+  width: 100%;
+  margin-inline: 0;
+}
+
+.compactSmall .hgPlaceholderImg {
+  width: 28px;
+  height: 28px;
+}
+
+.roboStatsBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 7800;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(5, 8, 14, 0.18), rgba(5, 8, 14, 0.72));
+}
+
+.roboStatsSheet {
+  width: min(420px, 100%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px 14px 10px 10px;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(96, 165, 250, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(13, 22, 35, 0.98), rgba(8, 13, 22, 0.98));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.62);
+  padding: 10px 14px 14px;
+  color: #f8fafc;
+  animation: roboStatsSheetIn 180ms ease-out both;
+}
+
+.roboStatsHandle {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.28);
+}
+
+.roboStatsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.roboStatsEyebrow {
+  margin: 0 0 3px;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.roboStatsName {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.roboStatsClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.roboStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.roboStatsGrid div {
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.roboStatsGrid dt {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.roboStatsGrid dd {
+  margin: 3px 0 0;
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 850;
+}
+
+@keyframes roboStatsSheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headerRow {
+    animation: none;
+    opacity: 0;
+  }
+
+  .nomination_loh,
+  .nomination_danger::before,
+  .liveEvictionNominee,
+  .liveEvictionNominee::before,
+  .roboStatsSheet {
+    animation: none !important;
+  }
+}
+
+.interactionInstructions {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.holdProgress {
+  display: none;
+}
+:global(body.experiment-game-chrome-refined) .interactive {
+  cursor: pointer;
+  outline: none;
+}
+:global(body.experiment-game-chrome-refined) .interactive .avatarWrap {
+  transition:
+    transform 150ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+:global(body.experiment-game-chrome-refined) .interactive:hover .avatarWrap,
+:global(body.experiment-game-chrome-refined) .interactive:focus-visible .avatarWrap {
+  transform: translateY(-2px);
+  border-color: rgba(232, 194, 92, 0.18);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.38),
+    0 0 24px rgba(214, 165, 56, 0.16),
+    0 0 46px rgba(214, 165, 56, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+:global(body.experiment-game-chrome-refined) .pressing .avatarWrap {
+  transform: scale(0.975);
+  border-color: rgba(232, 194, 92, 0.34);
+}
+:global(body.experiment-game-chrome-refined) .holdProgress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  display: block;
+  width: 100%;
+  height: 3px;
+  transform-origin: left;
+  border-radius: 999px;
+  /* Match the KoleQuant preload rail: cool white into cyan and violet. */
+  background: linear-gradient(90deg, #f5f7ff 0%, #74d8ff 54%, #9a7dff 100%);
+  box-shadow:
+    0 0 12px rgba(116, 216, 255, 0.48),
+    0 0 18px rgba(154, 125, 255, 0.36);
+  animation: rosterHoldProgress 450ms linear both;
+}
+@keyframes rosterHoldProgress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Issue #1242 — roster-only reverse eviction for Back 2 the Game. */
+.returning {
+  opacity: 1;
+  transform: none;
+}
+
+.returning .avatar,
+.returning .avatarPlaceholder {
+  transform-origin: center;
+  animation: battleBackReturnPortrait 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.returning .avatarWrap {
+  animation: battleBackReturnTile 1.9s ease-out forwards;
+}
+
+.returningCross {
+  animation: battleBackReturnStrike 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes battleBackReturnPortrait {
+  0% {
+    filter: grayscale(100%) brightness(0.62) opacity(0.76);
+    transform: scaleX(1.14) scaleY(0.84) rotate(-1.2deg);
+  }
+  42% {
+    filter: grayscale(72%) brightness(0.74) opacity(0.88);
+    transform: scaleX(1.07) scaleY(0.91) rotate(-0.4deg);
+  }
+  100% {
+    filter: grayscale(0%) brightness(1) opacity(1);
+    transform: scaleX(1) scaleY(1) rotate(0);
+  }
+}
+
+@keyframes battleBackReturnTile {
+  0% {
+    box-shadow:
+      0 0 0 1px rgba(239, 68, 68, 0.5),
+      0 0 20px rgba(239, 68, 68, 0.38);
+  }
+  58% {
+    box-shadow:
+      0 0 0 1px rgba(96, 165, 250, 0.38),
+      0 0 18px rgba(96, 165, 250, 0.3);
+  }
+  100% {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.42),
+      0 0 0 1px rgba(6, 10, 17, 0.46),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      inset 0 10px 18px rgba(0, 0, 0, 0.26);
+  }
+}
+
+@keyframes battleBackReturnStrike {
+  0%,
+  28% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  62%,
+  100% {
+    opacity: 0;
+    transform: scale(1.2) rotate(-4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .returning .avatar,
+  .returning .avatarPlaceholder,
+  .returning .avatarWrap {
+    animation: none;
+    filter: none;
+    transform: none;
+  }
+
+  .returningCross {
+    display: none;
+    animation: none;
+  }
+}

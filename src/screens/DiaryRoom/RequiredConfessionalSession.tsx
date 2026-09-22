@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useBlocker } from 'react-router'
-import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  type ActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setConfessionalMusicMode } from '../../store/uiSlice'
 import {
@@ -65,13 +68,34 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
   >(decision?.type ?? null)
   const [completedDecision, setCompletedDecision] = useState<CompletedDecisionState | null>(null)
   const [completedSummary, setCompletedSummary] = useState<string | null>(null)
+  const [commitRevision, setCommitRevision] = useState(0)
+  const [commitFailure, setCommitFailure] = useState<string | null>(null)
+  const [lastCommittedInteractionId, setLastCommittedInteractionId] = useState<string | null>(null)
   const navigationBlocker = useBlocker(decision !== null)
   const presentation = useMemo(
     () => (decision ? getRequiredConfessionalPresentation(decision, game) : null),
     [decision, game]
   )
-  const displayDecision = decision ?? completedDecision?.decision ?? null
-  const displayPresentation = presentation ?? completedDecision?.presentation ?? null
+  const activeInteractionId = decision ? getConfessionalDecisionKey(decision) : null
+  const completedInteractionId = completedDecision
+    ? getConfessionalDecisionKey(completedDecision.decision)
+    : null
+  const twinShockRetry =
+    decision?.type === 'twin_shock' &&
+    completedDecision?.decision.type === 'twin_shock' &&
+    activeInteractionId?.replace(/:retry-\d+$/, '') ===
+      completedInteractionId?.replace(/:retry-\d+$/, '')
+  const chainedDecisionPending =
+    decision !== null &&
+    completedDecision !== null &&
+    activeInteractionId !== completedInteractionId &&
+    !twinShockRetry
+  const displayDecision = chainedDecisionPending
+    ? (completedDecision?.decision ?? null)
+    : (decision ?? completedDecision?.decision ?? null)
+  const displayPresentation = chainedDecisionPending
+    ? (completedDecision?.presentation ?? null)
+    : (presentation ?? completedDecision?.presentation ?? null)
   const decisionComplete = decision === null && completedDecision !== null
   const confirmedPlayers = useMemo(() => {
     if (!completedSummary) return []
@@ -103,6 +127,25 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
   useEffect(() => {
     if (decision) dispatch(setConfessionalMusicMode('normal'))
   }, [decision, dispatch])
+
+  useEffect(() => {
+    if (!lastCommittedInteractionId) return
+    const timeout = window.setTimeout(() => {
+      if (activeInteractionId === lastCommittedInteractionId) {
+        // Reducers reject stale or invalid payloads. Re-mount the form and explain
+        // the rejection instead of leaving its local committing state disabled.
+        setCompletedDecision(null)
+        setCompletedSummary(null)
+        setCommitFailure(
+          'The Big Eye could not record that choice. Review the available options and try again.'
+        )
+      } else {
+        setCommitFailure(null)
+      }
+      setLastCommittedInteractionId(null)
+    })
+    return () => window.clearTimeout(timeout)
+  }, [activeInteractionId, lastCommittedInteractionId])
 
   const handleReturnToGame = () => {
     dispatch(setConfessionalMusicMode('normal'))
@@ -211,7 +254,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
                   </strong>
                   <span className="diary-room__bubble-text">{displayPresentation.prompt}</span>
 
-                  {decisionComplete ? (
+                  {decisionComplete || chainedDecisionPending ? (
                     <section
                       className="required-confessional__decision-reveal"
                       aria-label="Confirmed decision"
@@ -244,16 +287,30 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
                           })}
                         </div>
                       )}
-                      <p className="required-confessional__decision-complete required-confessional__decision-complete--return">
-                        Return to the House to continue the ceremony.
-                      </p>
+                      {chainedDecisionPending ? (
+                        <button
+                          className="rcd-confirm__button"
+                          type="button"
+                          onClick={() => {
+                            setCompletedDecision(null)
+                            setCompletedSummary(null)
+                          }}
+                        >
+                          Continue to the next decision
+                        </button>
+                      ) : (
+                        <p className="required-confessional__decision-complete required-confessional__decision-complete--return">
+                          Return to the House to continue the ceremony.
+                        </p>
+                      )}
                     </section>
                   ) : (
                     <RequiredConfessionalDecision
-                      key={displayPresentation.key}
+                      key={`${displayPresentation.key}:${commitRevision}`}
                       decision={displayDecision}
                       presentation={displayPresentation}
                       onDecisionCommitted={(summary) => {
+                        const committedInteractionId = getConfessionalDecisionKey(displayDecision)
                         setLastReturnCue(displayPresentation.returnCue)
                         setLastDecisionType(displayDecision.type)
                         setCompletedSummary(summary)
@@ -261,11 +318,18 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
                           decision: displayDecision,
                           presentation: displayPresentation,
                         })
+                        setLastCommittedInteractionId(committedInteractionId)
+                        setCommitRevision((revision) => revision + 1)
                         if (VOTE_DECISION_TYPES.has(displayDecision.type)) {
                           dispatch(setConfessionalMusicMode('vote-committed'))
                         }
                       }}
                     />
+                  )}
+                  {commitFailure && (
+                    <p className="required-confessional__commit-failure" role="alert">
+                      {commitFailure}
+                    </p>
                   )}
                 </div>
               ) : (

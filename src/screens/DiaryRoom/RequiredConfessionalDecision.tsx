@@ -18,6 +18,7 @@ import {
   submitTieBreak,
   submitVipSecondSaveTarget,
   submitVipSecondUseDecision,
+  submitTwinShockAnswer,
 } from '../../store/gameSlice'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -805,6 +806,58 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
   )
 }
 
+function TwinShockDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
+  const dispatch = useAppDispatch()
+  const promptStage = useAppSelector((state) => state.game.twinShock?.promptStage)
+  const [answer, setAnswer] = useState('')
+  const [committing, setCommitting] = useState(false)
+  const canAcknowledge = promptStage === 'secret_lost'
+  const trimmedAnswer = answer.trim()
+
+  const submit = () => {
+    if (committing || (!canAcknowledge && !trimmedAnswer)) return
+    setCommitting(true)
+    dispatch(submitTwinShockAnswer(canAcknowledge ? 'I understand.' : trimmedAnswer))
+    onDecisionCommitted(
+      canAcknowledge
+        ? 'The Big Eye has closed this private story session.'
+        : 'Your answer is recorded.'
+    )
+  }
+
+  return (
+    <div className="rcd-layout" data-testid="required-confessional-decision">
+      {!canAcknowledge && (
+        <label className="rcd-text-response">
+          <span>Your private response</span>
+          <textarea
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value)}
+            placeholder="Reply to the Big Eye…"
+            maxLength={360}
+            rows={4}
+            disabled={committing}
+            aria-label="Required response to The Big Eye"
+          />
+          <small>On the final call, you can also say “I give up.”</small>
+        </label>
+      )}
+      <ConfirmTray
+        review={
+          canAcknowledge
+            ? 'The Big Eye has shared all that can be shared.'
+            : trimmedAnswer || 'Write your response'
+        }
+        consequence={presentation.consequence}
+        confirmLabel={canAcknowledge ? 'Acknowledge and continue' : presentation.confirmLabel}
+        disabled={!canAcknowledge && !trimmedAnswer}
+        committing={committing}
+        onConfirm={submit}
+      />
+    </div>
+  )
+}
+
 export default function RequiredConfessionalDecision({
   decision,
   presentation,
@@ -866,6 +919,10 @@ export default function RequiredConfessionalDecision({
     case 'tie_break':
       return (
         <TieBreakDecision presentation={presentation} onDecisionCommitted={onDecisionCommitted} />
+      )
+    case 'twin_shock':
+      return (
+        <TwinShockDecision presentation={presentation} onDecisionCommitted={onDecisionCommitted} />
       )
     default:
       return null

@@ -1,0 +1,490 @@
+/* Profile */
+.profile-screen {
+  --profile-plum-panel: linear-gradient(180deg, rgba(27, 23, 33, 0.97), rgba(13, 11, 18, 0.98));
+  padding: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse at 50% 6%, rgba(112, 72, 156, 0.12), transparent 42%),
+    linear-gradient(180deg, rgba(19, 9, 32, 0.42), rgba(9, 6, 17, 0.18));
+}
+
+.profile-screen__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(129, 83, 174, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(31, 22, 39, 0.97), rgba(14, 11, 19, 0.98));
+  border: 1px solid rgba(205, 190, 236, 0.1);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.profile-screen__avatar {
+  font-size: 3.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.profile-screen__avatar-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+}
+
+.profile-screen__identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-screen__name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-screen__sub {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.profile-screen__header-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.profile-screen__icon-btn {
+  white-space: nowrap;
+}
+
+.profile-screen__guest-banner {
+  background: rgba(255, 180, 60, 0.08);
+  border: 1px solid rgba(255, 180, 60, 0.2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.82rem;
+  color: rgba(255, 200, 80, 0.9);
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.profile-screen__back-btn {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+  font-size: 1.2rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.profile-screen__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.profile-screen__page-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.profile-screen__guest-banner a,
+.profile-screen__guest-link {
+  color: rgba(196, 181, 253, 0.92);
+  font-weight: 700;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.profile-screen__status-card,
+.profile-screen__bio-card,
+.profile-screen__stats-card,
+.profile-screen__titles-card,
+.profile-screen__survivor-card {
+  background: var(--profile-plum-panel);
+  border: 1px solid rgba(205, 190, 236, 0.1);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.profile-screen__status-card,
+.profile-screen__stats-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(77, 88, 126, 0.11), transparent 40%),
+    linear-gradient(180deg, rgba(24, 24, 31, 0.97), rgba(12, 12, 17, 0.98));
+}
+
+.profile-screen__bio-card,
+.profile-screen__titles-card {
+  background:
+    radial-gradient(circle at 0 0, rgba(126, 88, 79, 0.08), transparent 40%),
+    linear-gradient(180deg, rgba(29, 24, 30, 0.97), rgba(14, 11, 17, 0.98));
+}
+
+.profile-screen__survivor-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(72, 103, 105, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(23, 25, 30, 0.97), rgba(11, 12, 17, 0.98));
+}
+
+.profile-screen__section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0 0 10px;
+}
+
+.profile-screen__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.profile-screen__hold-pill {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.profile-screen__hold-pill--revealed {
+  align-items: flex-start;
+  min-width: 160px;
+  padding: 8px 12px;
+  white-space: normal;
+}
+
+.profile-screen__hold-pill-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.profile-screen__hold-pill-caption {
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.profile-screen__hold-pill-value {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.profile-screen__hold-pill-hint {
+  font-size: 0.62rem;
+  font-weight: 600;
+  opacity: 0.86;
+}
+
+.profile-screen__no-game,
+.profile-screen__empty-text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.profile-screen__bio-story {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.profile-screen__bio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.profile-screen__bio-item {
+  font-size: 0.78rem;
+}
+
+.profile-screen__bio-key {
+  color: rgba(255, 255, 255, 0.4);
+  display: block;
+  margin-bottom: 1px;
+}
+
+.profile-screen__bio-val {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+}
+
+.profile-screen__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.profile-screen__stat {
+  text-align: center;
+}
+
+.profile-screen__stat-val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: rgba(196, 181, 253, 0.92);
+  display: block;
+}
+
+.profile-screen__stat-key {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.profile-screen__titles-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-screen__title-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.profile-screen__title-count {
+  color: rgba(196, 181, 253, 0.92);
+}
+
+.profile-screen__survivor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.profile-screen__survivor-copy {
+  margin: -4px 0 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.45;
+}
+
+.profile-screen__survivor-count {
+  flex-shrink: 0;
+  min-width: 54px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.14);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+  color: rgba(235, 244, 255, 0.95);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.profile-screen__survivor-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.profile-screen__survivor-stat {
+  padding: 10px 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.profile-screen__survivor-stat-val {
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: rgba(124, 190, 255, 0.95);
+  line-height: 1;
+}
+
+.profile-screen__survivor-stat-key {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.profile-screen__survivor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-screen__survivor-empty {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-screen__survivor-empty-hint {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.profile-screen__survivor-achievement {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-screen__survivor-achievement--unlocked {
+  background:
+    radial-gradient(circle at top right, rgba(139, 92, 246, 0.13), transparent 38%),
+    rgba(255, 255, 255, 0.045);
+  border-color: rgba(196, 181, 253, 0.18);
+}
+
+.profile-screen__survivor-achievement--secret:not(.profile-screen__survivor-achievement--unlocked) {
+  background: rgba(255, 255, 255, 0.03);
+  border-style: dashed;
+}
+
+.profile-screen__survivor-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.profile-screen__survivor-tier,
+.profile-screen__survivor-category {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-screen__survivor-tier {
+  background: rgba(139, 92, 246, 0.14);
+  color: rgba(232, 224, 255, 0.94);
+}
+
+.profile-screen__survivor-category {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.profile-screen__survivor-name {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.profile-screen__survivor-subtitle {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.profile-screen__survivor-requirement,
+.profile-screen__survivor-unlocked {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.profile-screen__survivor-unlocked {
+  margin-top: 6px;
+  color: rgba(115, 190, 255, 0.9);
+}
+
+.profile-screen__switch-btn {
+  width: 100%;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 480px) {
+  .profile-screen__stats-grid {
+    gap: 8px;
+  }
+
+  .profile-screen__survivor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-screen__survivor-header {
+    align-items: flex-start;
+  }
+
+  .profile-screen__survivor-copy {
+    line-height: 1.35;
+  }
+
+  .profile-screen__survivor-count {
+    min-width: max-content;
+    padding: 6px 9px;
+    font-size: 0.72rem;
+  }
+
+  .profile-screen__survivor-stat {
+    padding: 9px 8px 10px;
+  }
+
+  .profile-screen__survivor-empty {
+    padding: 12px;
+  }
+}

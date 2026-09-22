@@ -1,0 +1,11 @@
+/*
+ * _introhub-buttons.css
+ *
+ * Cross-platform normalisation layer for HomeHub UI.
+ *
+ * The `.home-hub__btn` button rules that were previously in this file have been
+ * removed — buttons are now rendered via the GameButton component which manages
+ * its own styles in src/components/GameButton/GameButton.css.
+ *
+ * Classes on <html> are set at runtime by src/utils/displayMode.ts.
+ */

@@ -1,0 +1,1129 @@
+/* ─── FinalFaceoff – Finale Overlay ──────────────────────────────────────────
+   Fullscreen overlay that covers any screen during the jury-vote sequence.
+   z-index: 7000 (below DebugPanel 8999 / FAB 9000, above everything else).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Overlay backdrop ────────────────────────────────────────────────────── */
+.fo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
+  background: #05080f;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  animation: fo-fadein 0.5s ease;
+}
+
+.fo-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 30% at 80% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes fo-fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.fo-header {
+  padding: 0.85rem 1rem 0.5rem;
+  text-align: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+  background: linear-gradient(180deg, rgba(10, 12, 28, 0.95) 0%, transparent 100%);
+}
+.fo-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: #a5b4fc; /* fallback for browsers/selection that don't support gradient text */
+  background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.fo-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Finalists row ───────────────────────────────────────────────────────── */
+.fo-finalists {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.fo-finalist {
+  flex: 1;
+  max-width: 10rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  background: linear-gradient(160deg, #141b2e 0%, #0f1520 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 0.85rem 0.5rem;
+  position: relative;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+.fo-finalist__avatar {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+.fo-finalist__name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-text);
+}
+.fo-finalist__votes {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--color-accent);
+}
+
+.fo-current-vote {
+  flex: 1;
+  min-height: clamp(250px, 32dvh, 390px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin: 0.35rem 1rem 0.6rem;
+  padding: clamp(0.7rem, 2.2vh, 1.35rem) clamp(0.65rem, 3vw, 1.4rem);
+  border: 1px solid rgba(232, 191, 118, 0.38);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(185, 166, 255, 0.12), transparent 52%),
+    linear-gradient(110deg, rgba(232, 191, 118, 0.1), rgba(185, 166, 255, 0.08)),
+    rgba(8, 9, 16, 0.92);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.24),
+    inset 0 1px rgba(255, 255, 255, 0.05);
+  animation: fo-fadein 0.4s ease;
+}
+
+.fo-current-vote__flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(0.45rem, 2.6vw, 1.6rem);
+  width: min(100%, 46rem);
+  margin: 0 auto;
+}
+
+.fo-current-vote__side {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: clamp(0.5rem, 1.8vh, 0.9rem);
+  min-width: 0;
+  text-align: center;
+}
+
+.fo-current-vote__avatar.pa {
+  display: block;
+  width: clamp(4.5rem, 15vw, 7.25rem);
+  height: auto;
+  aspect-ratio: 1;
+  border: 2px solid rgba(232, 191, 118, 0.72);
+  border-radius: 50%;
+  background: #161725;
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.38),
+    0 0 26px rgba(232, 191, 118, 0.13);
+}
+
+.fo-current-vote__avatar--choice.pa {
+  border-color: rgba(185, 166, 255, 0.78);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.38),
+    0 0 26px rgba(185, 166, 255, 0.16);
+}
+
+.fo-current-vote__label {
+  display: grid;
+  justify-items: center;
+  gap: 0.18rem;
+  max-width: 100%;
+}
+
+.fo-current-vote__arrow {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  color: #f5ce75;
+  font-size: clamp(1.5rem, 6vw, 2.5rem);
+  font-weight: 900;
+  text-shadow: 0 0 22px rgba(245, 206, 117, 0.35);
+}
+
+.fo-current-vote__arrow small {
+  color: rgba(255, 231, 173, 0.58);
+  font-size: 0.46rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.fo-current-vote__record {
+  display: grid;
+  align-items: center;
+  max-width: 36rem;
+  width: 100%;
+  min-height: 3.2rem;
+  margin: 0.15rem auto 0;
+  padding: 0.7rem 0.9rem 0.15rem;
+  border-top: 1px solid rgba(232, 191, 118, 0.2);
+  color: rgba(255, 246, 222, 0.78);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.86rem, 2.4vw, 1.15rem);
+  line-height: 1.35;
+  text-align: center;
+}
+
+.fo-current-vote small {
+  color: rgba(255, 231, 173, 0.62);
+  font-size: 0.48rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.fo-current-vote strong {
+  overflow: hidden;
+  color: #fff8e8;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.1rem, 4vw, 1.55rem);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fo-current-vote__public {
+  display: grid;
+  width: clamp(4.5rem, 15vw, 7.25rem);
+  height: auto;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid rgba(232, 191, 118, 0.72);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 191, 118, 0.16), rgba(8, 9, 16, 0.84));
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.38),
+    0 0 26px rgba(232, 191, 118, 0.13);
+  font-size: clamp(2rem, 8vw, 3.5rem);
+}
+
+@media (max-width: 520px) {
+  .fo-current-vote {
+    margin-inline: 0.6rem;
+    padding: 0.6rem 0.45rem;
+  }
+  .fo-current-vote__flow {
+    gap: 0.3rem;
+  }
+  .fo-current-vote strong {
+    font-size: clamp(1rem, 4.2vw, 1.25rem);
+  }
+  .fo-current-vote__record {
+    min-height: 2.8rem;
+    padding-inline: 0.25rem;
+  }
+}
+
+/* ── Winner banner ──────────────────────────────────────────────────────── */
+.fo-finalist--winner {
+  border-color: rgba(255, 215, 0, 0.6);
+  animation: fo-winner-glow 2s ease-in-out infinite;
+}
+.fo-finalist--winner .fo-finalist__votes {
+  color: gold;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+@keyframes fo-winner-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 30px rgba(255, 215, 0, 0.2),
+      0 0 60px rgba(255, 215, 0, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 50px rgba(255, 215, 0, 0.35),
+      0 0 80px rgba(255, 215, 0, 0.18);
+  }
+}
+.fo-winner-badge {
+  position: absolute;
+  top: -0.65rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #111;
+  font-size: 0.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+  animation: fo-badge-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes fo-badge-bounce {
+  from {
+    transform: translateX(-50%) scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── Jury bubbles list ───────────────────────────────────────────────────── */
+.fo-jurors {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Tally panel ─────────────────────────────────────────────────────────── */
+.fo-tally {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  position: relative;
+  z-index: 1;
+}
+.fo-tally__item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+.fo-tally__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fo-tally__count {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--color-accent);
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+.fo-controls {
+  padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.3);
+}
+.fo-btn {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-2) 100%);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
+}
+.fo-btn:hover:not(:disabled) {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+.fo-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.fo-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.fo-btn--secondary {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text-muted);
+  box-shadow: none;
+}
+.fo-btn--secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Human vote panel ────────────────────────────────────────────────────── */
+.fo-human-vote {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  animation: fo-fadein 0.3s ease;
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.15);
+}
+.fo-human-vote__prompt {
+  font-size: 0.82rem;
+  color: var(--color-text);
+  font-weight: 700;
+  text-align: center;
+}
+.fo-human-vote__choices {
+  display: flex;
+  gap: 0.6rem;
+}
+.fo-human-vote__choice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  color: var(--color-text);
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    transform 0.14s,
+    box-shadow 0.18s;
+}
+.fo-human-vote__choice:hover {
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.14);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+}
+.fo-human-vote__choice:active {
+  transform: scale(0.97);
+}
+.fo-human-vote__choice-avatar {
+  font-size: 1.6rem;
+}
+.fo-human-vote__choice-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ── Jury return banner ──────────────────────────────────────────────────── */
+.fo-jury-return {
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  margin: 0 1rem 0.3rem;
+  font-size: 0.78rem;
+  color: #a78bfa;
+  text-align: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  animation: fo-fadein 0.3s ease;
+}
+
+/* ── JurorBubble ─────────────────────────────────────────────────────────── */
+.jb-bubble {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  background: linear-gradient(135deg, rgba(20, 24, 44, 0.9) 0%, rgba(14, 17, 32, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.6rem 0.85rem;
+  animation: jb-slidein 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+@keyframes jb-slidein {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Public vote bubble — gold/global theme */
+.jb-bubble--public {
+  background: linear-gradient(135deg, rgba(30, 22, 48, 0.95) 0%, rgba(16, 12, 30, 0.95) 100%);
+  border-color: rgba(212, 175, 55, 0.45);
+  box-shadow: 0 0 24px rgba(212, 175, 55, 0.12);
+}
+
+/* Flash ring animation when vote is attributed */
+.jb-bubble--flash {
+  animation: jb-flash 0.6s ease 0.3s;
+  border-color: rgba(249, 207, 119, 0.72);
+  box-shadow:
+    0 0 0 2px rgba(249, 207, 119, 0.12),
+    0 0 28px rgba(249, 207, 119, 0.18);
+  z-index: 2;
+}
+.jb-flash-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  border: 2px solid rgba(165, 180, 252, 0.8);
+  pointer-events: none;
+  animation: jb-ring-expand 0.6s ease forwards;
+}
+@keyframes jb-ring-expand {
+  0% {
+    opacity: 1;
+    inset: 0;
+  }
+  100% {
+    opacity: 0;
+    inset: -8px;
+    border-radius: 20px;
+  }
+}
+@keyframes jb-flash {
+  0%,
+  100% {
+    background: linear-gradient(135deg, rgba(20, 24, 44, 0.9) 0%, rgba(14, 17, 32, 0.9) 100%);
+  }
+  30% {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(139, 92, 246, 0.2) 100%);
+  }
+}
+.jb-bubble--public.jb-bubble--flash {
+  animation: jb-flash-public 0.6s ease 0.3s;
+}
+@keyframes jb-flash-public {
+  0%,
+  100% {
+    box-shadow: 0 0 24px rgba(212, 175, 55, 0.12);
+  }
+  30% {
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.55);
+  }
+}
+
+.jb-avatar {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+.jb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.jb-name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--color-text);
+  letter-spacing: 0.02em;
+}
+.jb-public-badge {
+  font-size: 0.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  background: linear-gradient(135deg, #d4af37 0%, #f0c060 100%);
+  color: #1a0f00;
+  padding: 0.1rem 0.45rem;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
+.jb-phrase {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+.jb-vote-statement {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  font-weight: 600;
+  animation: jb-vote-reveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  line-height: 1.4;
+}
+.jb-vote-statement--public {
+  color: #d4af37;
+}
+.jb-vote-statement__finalist {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 800;
+  color: #e0e7ff;
+}
+.jb-vote-statement--public .jb-vote-statement__finalist {
+  color: #f0c060;
+}
+
+.jb-vote {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.84rem;
+  color: #a5b4fc;
+  font-weight: 700;
+  animation: jb-vote-reveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.jb-vote--public {
+  color: #d4af37;
+}
+@keyframes jb-vote-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+  }
+}
+.jb-vote-pending {
+  font-size: 0.9rem;
+  color: rgba(165, 180, 252, 0.4);
+  letter-spacing: 0.2em;
+  animation: jb-pending-pulse 1.2s ease-in-out infinite;
+}
+@keyframes jb-pending-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* ─── Cinematic Tribunal redesign ──────────────────────────────────────────
+   Phone-first ceremonial chamber. The game logic above is unchanged; these
+   rules turn the same clues, choices and ballots into one coherent finale. */
+.fo-overlay {
+  --fo-gold: #e8bf76;
+  --fo-violet: #b9a6ff;
+  --fo-ink: #05060a;
+  color: #f8f4ed;
+  background: var(--fo-ink);
+  isolation: isolate;
+}
+
+.fo-overlay::before {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(4, 5, 9, 0.34), rgba(3, 4, 7, 0.58) 56%, rgba(2, 3, 5, 0.94)),
+    radial-gradient(circle at 50% 12%, rgba(232, 191, 118, 0.12), transparent 30%);
+}
+
+.fo-chamber,
+.fo-chamber__light,
+.fo-chamber__grain {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+}
+
+.fo-chamber {
+  inset: -2%;
+  background: url('/assets/cinematic-backgrounds/tribunal-chamber.webp') center / cover no-repeat;
+  filter: saturate(0.82) contrast(1.05) brightness(0.74);
+  animation: fo-chamber-breathe 16s ease-in-out infinite alternate;
+}
+
+.fo-chamber__light {
+  z-index: -2;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(232, 170, 80, 0.08),
+      transparent 35%,
+      transparent 65%,
+      rgba(162, 137, 255, 0.1)
+    ),
+    radial-gradient(ellipse at 50% 88%, rgba(245, 226, 192, 0.13), transparent 38%);
+  mix-blend-mode: screen;
+}
+
+.fo-chamber__grain {
+  z-index: 30;
+  opacity: 0.09;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    rgba(255, 255, 255, 0.12) 3px 4px
+  );
+  mix-blend-mode: soft-light;
+}
+
+@keyframes fo-chamber-breathe {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.07);
+  }
+}
+
+.fo-header {
+  z-index: 12;
+  display: grid;
+  justify-items: center;
+  flex: 0 0 auto;
+  padding: max(12px, calc(env(safe-area-inset-top, 0px) + 8px)) 58px 10px;
+  border: 0;
+  background: linear-gradient(180deg, rgba(2, 3, 6, 0.9), rgba(2, 3, 6, 0.42) 72%, transparent);
+  pointer-events: none;
+}
+
+.fo-header__eyebrow {
+  margin: 0 0 3px;
+  color: var(--fo-gold);
+  font-size: clamp(0.54rem, 2vw, 0.72rem);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.fo-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.32em;
+  color: #fff;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.55rem, 7vw, 3.4rem);
+  font-weight: 500;
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+  text-transform: none;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.66);
+}
+
+.fo-title span {
+  color: rgba(255, 255, 255, 0.66);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.39em;
+  font-weight: 850;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.fo-subtitle {
+  margin-top: 7px;
+  color: rgba(255, 255, 255, 0.69);
+  font-size: clamp(0.64rem, 2.5vw, 0.82rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.fo-header__progress {
+  width: min(210px, 48vw);
+  height: 2px;
+  margin-top: 9px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fo-header__progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--fo-gold), #fff, var(--fo-violet));
+  box-shadow: 0 0 12px rgba(232, 191, 118, 0.72);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fo-jury-return {
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0 12px 6px;
+  padding: 0.48rem 0.7rem;
+  border-color: rgba(232, 191, 118, 0.36);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(9, 8, 12, 0.68);
+  backdrop-filter: blur(16px);
+}
+
+.fo-jury-return > span {
+  color: var(--fo-gold);
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.fo-controls {
+  z-index: 24;
+  justify-content: center;
+  padding: 8px 14px max(10px, calc(env(safe-area-inset-bottom, 0px) + 8px));
+  border: 0;
+  background: linear-gradient(0deg, rgba(2, 3, 6, 0.96), rgba(2, 3, 6, 0.58) 72%, transparent);
+}
+
+.fo-btn {
+  flex: 0 1 340px;
+  min-height: 48px;
+  border: 1px solid rgba(232, 191, 118, 0.44);
+  border-radius: 999px;
+  background: linear-gradient(115deg, #c69244, #f0cf8c 46%, #a98fff);
+  color: #090806;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.34),
+    0 0 24px rgba(232, 191, 118, 0.16);
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.fo-btn--secondary {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(7, 8, 13, 0.58);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+/* Verdict act: the finalists read as opposing cases, not small profile tiles. */
+.fo-finalists {
+  z-index: 4;
+  flex: 0 0 clamp(260px, 40dvh, 390px);
+  gap: 8px;
+  padding: 2px 12px 8px;
+}
+
+.fo-finalist {
+  max-width: 320px;
+  min-width: 0;
+  overflow: hidden;
+  display: block;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.14);
+  border-radius: 20px 20px 8px 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(5, 6, 10, 0.82)), rgba(7, 8, 13, 0.55);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(12px);
+}
+
+.fo-finalist:first-child {
+  border-top-color: rgba(232, 191, 118, 0.55);
+}
+
+.fo-finalist:nth-child(2) {
+  border-top-color: rgba(185, 166, 255, 0.58);
+}
+
+.fo-finalist__portrait-frame {
+  position: absolute;
+  inset: 0 0 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.fo-finalist__portrait.pa {
+  display: block;
+  flex: 0 0 auto;
+  width: min(94%, 15rem);
+  height: auto;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 2px solid rgba(232, 191, 118, 0.64);
+  border-radius: 50%;
+  background: #111725;
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.52),
+    0 0 34px rgba(232, 191, 118, 0.18);
+  filter: none;
+  animation: fo-finalist-arrive 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fo-finalist:nth-child(2) .fo-finalist__portrait.pa {
+  border-color: rgba(185, 166, 255, 0.68);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.52),
+    0 0 34px rgba(185, 166, 255, 0.2);
+  animation-delay: 90ms;
+}
+
+.fo-finalist--winner .fo-finalist__portrait.pa {
+  border-color: rgba(255, 239, 185, 0.92);
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.52),
+    0 0 42px rgba(247, 211, 132, 0.34);
+}
+
+.fo-finalist__portrait .pa__img {
+  object-position: center 18%;
+}
+
+@keyframes fo-finalist-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fo-finalist__meta {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  padding: 9px 10px 10px;
+  background: linear-gradient(0deg, rgba(3, 4, 7, 0.98), rgba(3, 4, 7, 0.76), transparent);
+}
+
+.fo-finalist__role {
+  grid-column: 1;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.fo-finalist__name {
+  grid-column: 1;
+  overflow: hidden;
+  color: #fff;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.05rem, 5vw, 1.75rem);
+  font-weight: 500;
+  line-height: 0.95;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fo-finalist__votes {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--fo-gold);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.8rem, 8vw, 3rem);
+  font-weight: 500;
+  line-height: 0.8;
+}
+
+.fo-finalist:nth-child(2) .fo-finalist__votes {
+  color: #c7b8ff;
+}
+
+.fo-finalist__votes small {
+  display: none;
+}
+
+.fo-finalist--winner {
+  border-color: rgba(247, 211, 132, 0.85);
+  box-shadow:
+    0 0 0 1px rgba(247, 211, 132, 0.24),
+    0 0 50px rgba(247, 211, 132, 0.26);
+}
+
+.fo-winner-badge {
+  top: 9px;
+  z-index: 3;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #15100a;
+  background: linear-gradient(115deg, #fff2c2, #d69a3b);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+.fo-jurors {
+  z-index: 5;
+  margin: 0 8px;
+  padding: 8px 6px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(3, 4, 8, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  scrollbar-width: thin;
+}
+
+.jb-bubble {
+  align-items: center;
+  min-height: 54px;
+  border-color: rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.jb-name {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.jb-vote-statement {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 0.72rem;
+}
+
+.jb-vote-statement__finalist {
+  color: var(--fo-gold);
+}
+
+.jb-bubble--public {
+  border-color: rgba(232, 191, 118, 0.42);
+  background: linear-gradient(100deg, rgba(232, 191, 118, 0.13), rgba(185, 166, 255, 0.08));
+}
+
+.fo-tally {
+  z-index: 6;
+  gap: 6px;
+  padding: 6px 12px 2px;
+  border: 0;
+}
+
+.fo-tally__item {
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(4, 5, 9, 0.68);
+  backdrop-filter: blur(12px);
+}
+
+.fo-tally__name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.fo-tally__count {
+  color: var(--fo-gold);
+}
+
+@media (min-width: 700px) {
+  .fo-header {
+    padding-top: max(20px, calc(env(safe-area-inset-top, 0px) + 16px));
+  }
+
+  .fo-title {
+    font-size: clamp(2.5rem, 4vw, 4rem);
+  }
+
+  .fo-finalists,
+  .fo-jurors,
+  .fo-tally {
+    width: min(100% - 48px, 1040px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .fo-finalists {
+    flex-basis: min(42dvh, 400px);
+    gap: 18px;
+  }
+
+  .fo-finalist {
+    max-width: 420px;
+  }
+
+  .fo-finalist__portrait-frame {
+    bottom: 64px;
+  }
+}
+
+@media (max-height: 700px) {
+  .fo-header {
+    padding-top: max(8px, env(safe-area-inset-top, 0px));
+    padding-bottom: 6px;
+  }
+
+  .fo-subtitle,
+  .fo-header__progress {
+    margin-top: 4px;
+  }
+
+  .fo-finalists {
+    flex-basis: 230px;
+  }
+
+  .fo-finalist__portrait.pa {
+    width: min(90%, 9.25rem);
+    height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fo-chamber,
+  .fo-finalist__portrait {
+    animation: none;
+  }
+}

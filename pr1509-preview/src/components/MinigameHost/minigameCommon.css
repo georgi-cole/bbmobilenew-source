@@ -1,0 +1,129 @@
+/* minigameCommon.css
+ * Shared layout for every minigame "complete" / final-results screen.
+ *
+ * Goal: constrain the placements list so the Continue button is always visible
+ * even with many players (>8), while keeping the layout responsive.
+ */
+
+/* ── Container ─────────────────────────────────────────────────────────────── */
+.minigame-complete {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: none;
+  min-height: 100%;
+  margin: 0;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
+    max(1.25rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top, rgba(67, 122, 184, 0.15), transparent 38%),
+    linear-gradient(180deg, #071426 0%, #0b1930 100%);
+}
+
+/* ── Scrollable placements area ────────────────────────────────────────────── */
+/*
+ * --minigame-list-max-height can be set on any ancestor to tune the cap, e.g.:
+ *   .gb-complete { --minigame-list-max-height: 40vh; }
+ * Default (46vh) keeps the list short enough that the Continue button
+ * remains visible without scrolling the page.
+ */
+.minigame-placement-list {
+  width: 100%;
+  max-width: 640px;
+  max-height: none;
+  overflow: visible;
+  padding: 0.375rem 0.5rem;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: transparent;
+  /* smooth scroll — disabled under prefers-reduced-motion */
+  scroll-behavior: smooth;
+}
+
+/* ── Continue button area ──────────────────────────────────────────────────── */
+.minigame-continue-area {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  /* always sit below the scroll area */
+  position: sticky;
+  bottom: calc(-1.25rem + env(safe-area-inset-bottom, 0px));
+  z-index: 4;
+  margin-top: auto;
+  padding: 0.75rem 0 max(0.25rem, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent, rgba(7, 20, 38, 0.96) 32%);
+}
+
+/* Standard results action used whenever a game does not provide a themed CTA. */
+.minigame-complete-continue {
+  width: min(100%, 22rem);
+  min-height: 48px;
+  padding: 0.85rem 1.5rem;
+  border: 0;
+  border-radius: 8px;
+  background: #e94560;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(233, 69, 96, 0.24);
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
+}
+
+.minigame-complete-continue:hover:not(:disabled) {
+  background: #f0526b;
+  box-shadow: 0 10px 26px rgba(233, 69, 96, 0.32);
+}
+
+.minigame-complete-continue:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.minigame-complete-continue:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
+}
+
+.minigame-complete-continue:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Optional: opt-in sticky behaviour for future use */
+.minigame-continue-sticky {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 2;
+}
+
+/* ── Scrollbar styling (WebKit) ─────────────────────────────────────────────── */
+.minigame-placement-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.minigame-placement-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+}
+.minigame-placement-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Reduced-motion ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .minigame-placement-list {
+    scroll-behavior: auto;
+  }
+}
