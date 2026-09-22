@@ -372,6 +372,64 @@ describe('selectConfessionalAlertCount', () => {
     })
     expect(selectConfessionalAlertCount(store.getState())).toBe(1)
   })
+
+  it('does not double-count the stored Double Vote when its offer is active', () => {
+    const store = makeStore({
+      phase: 'live_vote',
+      awaitingHumanVote: true,
+      awaitingDoubleVoteOffer: true,
+      secretMission: {
+        triggeredDay: 2,
+        startDay: 2,
+        endDay: 5,
+        survivalWindowEndDay: 5,
+        targetDeadlineDay: 5,
+        status: 'rewardClaimed',
+        offeredDay: 2,
+        offerCount: 1,
+        declinedDay: null,
+        tasks: [],
+        templateId: 'silent_witness',
+        reward: {
+          type: 'doubleVote',
+          consumed: false,
+          expired: false,
+          eligible: true,
+        },
+      },
+    })
+    expect(selectConfessionalAlertCount(store.getState())).toBe(1)
+  })
+
+  it('does not double-count stored Immunity while its Confessional offer is active', () => {
+    const store = makeStore({
+      phase: 'pos_ceremony_results',
+      awaitingMissionImmunityOffer: true,
+      secretMission: {
+        triggeredDay: 2,
+        startDay: 2,
+        endDay: 5,
+        survivalWindowEndDay: 5,
+        targetDeadlineDay: 5,
+        status: 'rewardClaimed',
+        offeredDay: 2,
+        offerCount: 1,
+        declinedDay: null,
+        tasks: [],
+        templateId: 'silent_witness',
+        reward: {
+          type: 'immunity',
+          consumed: false,
+          expired: false,
+          eligible: true,
+          durationDays: 2,
+          claimDay: 2,
+          activeUntilDay: 3,
+        },
+      },
+    })
+    expect(selectConfessionalAlertCount(store.getState())).toBe(1)
+  })
 })
 
 // ── GameScreen: confessional prompt on main TV ─────────────────────────────
