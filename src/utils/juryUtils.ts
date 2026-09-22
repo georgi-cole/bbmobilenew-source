@@ -122,7 +122,7 @@ export function realityJurorScorecard(
   // If juror-specific history is sparse, use season-grounded public perception
   // before the absolute seeded fallback.
   const hasPublicEvidence = finalistIds.some(
-    (finalistId) => (reality.publicPerception[finalistId]?.sourceEventIds.length ?? 0) > 0
+    (finalistId) => (reality.publicPerception[finalistId]?.sourceEventIds?.length ?? 0) > 0
   )
   if (!hasPublicEvidence) return undefined
 
@@ -130,13 +130,13 @@ export function realityJurorScorecard(
     finalistIds.map((finalistId) => {
       const perception = reality.publicPerception[finalistId]
       const score = perception
-        ? perception.strategicRespect * 0.3 +
-          perception.competitionRespect * 0.2 +
-          perception.likability * 0.2 +
-          perception.authenticity * 0.12 +
-          perception.loyalty * 0.1 +
-          perception.entertainment * 0.08 -
-          perception.controversy * 0.08
+        ? (perception.strategicRespect ?? 0) * 0.3 +
+          (perception.competitionRespect ?? 0) * 0.2 +
+          (perception.likability ?? 0) * 0.2 +
+          (perception.authenticity ?? 0) * 0.12 +
+          (perception.loyalty ?? 0) * 0.1 +
+          (perception.entertainment ?? 0) * 0.08 -
+          (perception.controversy ?? 0) * 0.08
         : 0
       return [finalistId, score]
     })
