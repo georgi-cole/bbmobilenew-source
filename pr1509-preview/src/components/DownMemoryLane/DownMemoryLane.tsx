@@ -26,6 +26,14 @@ interface MemoryLanePortraitProps {
   alt: string
 }
 
+function isDiceBearAvatarUrl(candidate: string): boolean {
+  try {
+    return new URL(candidate, 'https://example.invalid').hostname === 'api.dicebear.com'
+  } catch {
+    return false
+  }
+}
+
 function MemoryLanePortrait({ id, name, avatar, isUser, alt }: MemoryLanePortraitProps) {
   const { candidates: baseCandidates } = useResolvedAvatarSrc({
     id,
@@ -41,7 +49,7 @@ function MemoryLanePortrait({ id, name, avatar, isUser, alt }: MemoryLanePortrai
       ])
     ),
   ]
-  const nonDiceBear = candidates.filter((candidate) => !candidate.includes('api.dicebear.com'))
+  const nonDiceBear = candidates.filter((candidate) => !isDiceBearAvatarUrl(candidate))
   const orderedCandidates = nonDiceBear
   const [failedSources, setFailedSources] = useState<string[]>([])
   const src = orderedCandidates.find((candidate) => !failedSources.includes(candidate))
