@@ -156,6 +156,30 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(interaction?.payload?.scenarioKey).toBe('nominee_understands_loh')
   })
 
+  it('attributes an automatic last-place nomination to the rule before LOH conflict logic', () => {
+    const context = buildContext({
+      phase: 'nomination_results',
+      lohId: 'user',
+      nomineeIds: ['nominee'],
+      autoNomineeId: 'nominee',
+      relationships: {
+        nominee: { user: { affinity: -70, tags: ['betrayal', 'target'] } },
+      },
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('nomination_results', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'nominee'
+    )?.interaction
+    expect(interaction?.type).toBe('check_in')
+    expect(interaction?.payload?.scenarioKey).toBe('automatic_nominee_reaction')
+    expect(interaction?.text).toMatch(/finishing last|competition result|finished last/i)
+    expect(interaction?.text).not.toMatch(/you nominated me|you put me|your move/i)
+  })
+
   it('routes nominees to deal offers when the player holds veto power', () => {
     const context = buildContext({
       phase: 'pos_results',
