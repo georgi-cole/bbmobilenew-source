@@ -14,7 +14,6 @@ import type { Player } from '../../types'
 import type { JurorReveal } from '../../store/finaleSlice'
 import { PUBLIC_JUROR_ID } from '../../store/finaleSlice'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
-import { useAppSelector } from '../../store/hooks'
 
 interface Props {
   juror: Player
@@ -34,8 +33,6 @@ export default function JurorBubble({
   isFlashing = false,
 }: Props) {
   const isPublic = reveal.jurorId === PUBLIC_JUROR_ID
-  const publicVoteWeight = useAppSelector((state) => state.finale.publicVoteWeight ?? 1)
-  const voteWeight = isPublic ? publicVoteWeight : 1
 
   return (
     <div
@@ -60,7 +57,7 @@ export default function JurorBubble({
         <span className="jb-name">
           {juror.name}
           {isPublic && (
-            <span className="jb-public-badge">Public Vote{voteWeight === 2 ? ' ×2' : ''}</span>
+            <span className="jb-public-badge">Public Vote</span>
           )}
         </span>
 
@@ -68,9 +65,9 @@ export default function JurorBubble({
         {voteVisible && finalist ? (
           <span
             className={`jb-vote-statement${isPublic ? ' jb-vote-statement--public' : ''}`}
-            aria-label={`${juror.name} cast ${voteWeight === 2 ? 'two votes' : 'a vote'} for ${finalist.name}`}
+            aria-label={`${juror.name} cast a vote for ${finalist.name}`}
           >
-            cast {voteWeight === 2 ? 'two votes' : 'a vote'} for{' '}
+            cast a vote for{' '}
             <span className="jb-vote-statement__finalist">
               <PlayerAvatar player={finalist} size="sm" showRelationshipOutline={false} />
               <strong>{finalist.name}</strong>
