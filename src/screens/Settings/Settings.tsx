@@ -24,6 +24,7 @@ import {
   selectHasPublicModeAccess,
   selectIsVipActive,
 } from '../../store/vipSlice'
+import { canAccessSpecialSettings } from '../../utils/debugMode'
 import {
   REALITY_MODE_PRESETS,
   getProfileRealityAgeEligibility,
@@ -39,6 +40,13 @@ import {
 import './Settings.css'
 
 type LockedFeature = 'realityMode' | 'publicMode' | 'vipThemes'
+
+function isLocalQaSession(): boolean {
+  if (typeof window === 'undefined') return false
+  if (!['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) return false
+  const params = new URLSearchParams(window.location.search)
+  return params.get('debug') === '1' && params.get('qa') === '1'
+}
 
 const REALITY_PRESET_LABEL_KEYS: Record<RealityModePreset, TranslationKey> = {
   casual: 'settings.realityStyle.casual',
@@ -87,7 +95,8 @@ export default function Settings() {
   const settings = useAppSelector(selectSettings)
   const isVipActive = useAppSelector(selectIsVipActive)
   const hasDramaMode = useAppSelector(selectHasDramaModeAccess)
-  const hasPublicMode = useAppSelector(selectHasPublicModeAccess)
+  const hasPublicMode =
+    useAppSelector(selectHasPublicModeAccess) || canAccessSpecialSettings() || isLocalQaSession()
   const pendingPublicModeEnabled = useAppSelector((state) => state.game.pendingPublicModeEnabled)
   const activePublicModeEnabled = useAppSelector((state) => state.game.publicModeEnabled === true)
   const publicModeChangeNeedsNextDay = useAppSelector((state) => {
@@ -251,7 +260,12 @@ export default function Settings() {
           onChange: (settingsDispatch, val) =>
             settingsDispatch(
               setSim(
-                val ? { publicMode: true } : { publicMode: false, publicModeAdminOverride: false }
+                val
+                  ? {
+                      publicMode: true,
+                      ...(isLocalQaSession() ? { publicModeAdminOverride: true } : {}),
+                    }
+                  : { publicMode: false, publicModeAdminOverride: false }
               )
             ),
         },

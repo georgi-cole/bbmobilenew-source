@@ -1,0 +1,3402 @@
+[
+  {
+    "canonicalName": "Mickey Mouse",
+    "normalizedName": "mickey mouse",
+    "acceptedAliases": ["Mickey", "Mickey Mouse"],
+    "normalizedAliases": ["mickey", "mickey mouse"],
+    "hints": [
+      "A classic animated character.",
+      "Part of a cheerful group of old-school cartoon friends.",
+      "Often seen with gloves, shorts, and round ears.",
+      "His longtime partner is Minnie.",
+      "Disney uses him as its main mascot."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Minnie Mouse",
+    "normalizedName": "minnie mouse",
+    "acceptedAliases": ["Minnie Mouse"],
+    "normalizedAliases": ["minnie mouse"],
+    "hints": [
+      "A classic animated character.",
+      "Part of a cheerful group of old-school cartoon friends.",
+      "Known for bows, polka dots, and a warm personality.",
+      "Her longtime partner is Mickey.",
+      "Her first name rhymes with a very famous mouse."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Donald Duck",
+    "normalizedName": "donald duck",
+    "acceptedAliases": ["Donald Duck"],
+    "normalizedAliases": ["donald duck"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A classic Disney character with a very recognizable voice.",
+      "He is often angry, funny, and unlucky.",
+      "His nephews are Huey, Dewey, and Louie.",
+      "He is a white duck who wears a sailor shirt."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Daisy Duck",
+    "normalizedName": "daisy duck",
+    "acceptedAliases": ["Daisy Duck"],
+    "normalizedAliases": ["daisy duck"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney duck character often shown with a bow and fashionable clothes.",
+      "She is often Donald Duck's girlfriend.",
+      "She appears in the Mickey and Donald universe.",
+      "Her first name is also a flower."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Scrooge McDuck",
+    "normalizedName": "scrooge mcduck",
+    "acceptedAliases": ["Uncle Scrooge", "Scrooge McDuck"],
+    "normalizedAliases": ["uncle scrooge", "scrooge mcduck"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney character known for extreme wealth.",
+      "He is Donald Duck's uncle.",
+      "He often swims in a giant pile of gold coins.",
+      "He is central to DuckTales."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Goofy",
+    "normalizedName": "goofy",
+    "acceptedAliases": ["Goofy"],
+    "normalizedAliases": ["goofy"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A classic Disney friend of Mickey Mouse.",
+      "He is tall, silly, and very clumsy.",
+      "He has a distinctive laugh and voice.",
+      "His name literally suggests being silly."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Pluto",
+    "normalizedName": "pluto",
+    "acceptedAliases": ["Pluto the Dog", "Pluto"],
+    "normalizedAliases": ["pluto dog", "pluto"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney animal character who does not speak like Goofy.",
+      "He is Mickey Mouse's loyal pet.",
+      "He is usually drawn as a yellow-orange dog.",
+      "His name is also the name of a dwarf planet."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Cinderella",
+    "normalizedName": "cinderella",
+    "acceptedAliases": ["Cinderella"],
+    "normalizedAliases": ["cinderella"],
+    "hints": [
+      "Comes from a story world built around wishes, danger, and transformation.",
+      "A fairy-tale heroine made globally famous by Disney.",
+      "She is treated badly by her stepmother and stepsisters.",
+      "A fairy godmother helps her attend a royal ball.",
+      "She leaves behind a glass slipper."
+    ],
+    "baseClueFact": "A well-known fictional character from Fairy tale.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Fairy tale"
+  },
+  {
+    "canonicalName": "Snow White",
+    "normalizedName": "snow white",
+    "acceptedAliases": ["Snow White"],
+    "normalizedAliases": ["snow white"],
+    "hints": [
+      "Comes from a story world built around wishes, danger, and transformation.",
+      "A classic fairy-tale princess.",
+      "She is poisoned by an apple.",
+      "Her story has an evil queen and a magic mirror.",
+      "She lives with the Seven Dwarfs."
+    ],
+    "baseClueFact": "A well-known fictional character from Fairy tale.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Fairy tale"
+  },
+  {
+    "canonicalName": "Ariel",
+    "normalizedName": "ariel",
+    "acceptedAliases": ["The Little Mermaid", "Ariel"],
+    "normalizedAliases": ["little mermaid", "ariel"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney princess who lives under the sea.",
+      "She has a beautiful singing voice.",
+      "She dreams of becoming human.",
+      "She is King Triton's daughter."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Belle",
+    "normalizedName": "belle",
+    "acceptedAliases": ["Belle from Beauty and the Beast", "Belle"],
+    "normalizedAliases": ["belle from beauty and beast", "belle"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney heroine who loves reading.",
+      "She lives in a small French village.",
+      "She enters a cursed castle.",
+      "Her story is Beauty and the Beast."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Simba",
+    "normalizedName": "simba",
+    "acceptedAliases": ["Simba"],
+    "normalizedAliases": ["simba"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A young lion from a famous Disney film.",
+      "His father is Mufasa.",
+      "He runs away after a tragedy.",
+      "He later returns to reclaim Pride Rock."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Mufasa",
+    "normalizedName": "mufasa",
+    "acceptedAliases": ["Mufasa"],
+    "normalizedAliases": ["mufasa"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A wise lion ruler in a Disney film.",
+      "He is Simba's father.",
+      "His brother Scar betrays him.",
+      "He teaches about the circle of life."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Aladdin",
+    "normalizedName": "aladdin",
+    "acceptedAliases": ["Aladdin"],
+    "normalizedAliases": ["aladdin"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney hero from a Middle Eastern-inspired fantasy world.",
+      "He discovers a magical lamp.",
+      "He is helped by a blue Genie.",
+      "He falls in love with Princess Jasmine."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Genie",
+    "normalizedName": "genie",
+    "acceptedAliases": ["The Genie", "Genie"],
+    "normalizedAliases": ["genie", "genie"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A magical Disney character who lives in a lamp.",
+      "He grants three wishes.",
+      "He is blue and extremely funny.",
+      "Robin Williams voiced him in the 1992 animated film."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Elsa",
+    "normalizedName": "elsa",
+    "acceptedAliases": ["Queen Elsa", "Elsa"],
+    "normalizedAliases": ["queen elsa", "elsa"],
+    "hints": [
+      "A royal character from an animated musical story.",
+      "Struggles with a power she tries to hide.",
+      "A sister relationship is central to her story.",
+      "Ice and snow appear whenever emotions run high.",
+      "She sings about letting it go."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Anna",
+    "normalizedName": "anna",
+    "acceptedAliases": ["Princess Anna", "Anna"],
+    "normalizedAliases": ["princess anna", "anna"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney princess known for bravery and optimism.",
+      "She is Elsa's younger sister.",
+      "She appears in Frozen.",
+      "Her sister controls ice and snow."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Olaf",
+    "normalizedName": "olaf",
+    "acceptedAliases": ["Olaf"],
+    "normalizedAliases": ["olaf"],
+    "hints": [
+      "A comic side character from an animated musical story.",
+      "Innocent optimism is his main energy.",
+      "He dreams about warmth despite what he is made of.",
+      "A living snowman brought to life by magic.",
+      "Friends with Anna and Elsa."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Moana",
+    "normalizedName": "moana",
+    "acceptedAliases": ["Moana"],
+    "normalizedAliases": ["moana"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney heroine from a Pacific island.",
+      "She sails to save her people.",
+      "She meets the demigod Maui.",
+      "Her film title is also her name."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Maui",
+    "normalizedName": "maui",
+    "acceptedAliases": ["Maui from Moana", "Maui"],
+    "normalizedAliases": ["maui from moana", "maui"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney demigod with a magical fishhook.",
+      "He can shapeshift into animals.",
+      "He helps Moana on her ocean journey.",
+      "Dwayne Johnson voiced him."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Peter Pan",
+    "normalizedName": "peter pan",
+    "acceptedAliases": ["Peter Pan"],
+    "normalizedAliases": ["peter pan"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A magical boy from children's literature.",
+      "He lives in Neverland.",
+      "He can fly and is helped by Tinker Bell.",
+      "He fights Captain Hook."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "Tinker Bell",
+    "normalizedName": "tinker bell",
+    "acceptedAliases": ["Tinkerbell", "Tinker Bell"],
+    "normalizedAliases": ["tinkerbell", "tinker bell"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A tiny fairy from the Peter Pan stories.",
+      "She is often shown with wings and a green dress.",
+      "She helps Peter Pan with pixie dust.",
+      "She became one of Disney's famous fairies."
+    ],
+    "baseClueFact": "A well-known fictional character from Disney.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Pinocchio",
+    "normalizedName": "pinocchio",
+    "acceptedAliases": ["Pinocchio"],
+    "normalizedAliases": ["pinocchio"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A wooden puppet from a famous children's story.",
+      "He wants to become a real boy.",
+      "His nose grows when he lies.",
+      "Jiminy Cricket often acts as his conscience."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "Winnie the Pooh",
+    "normalizedName": "winnie pooh",
+    "acceptedAliases": ["Pooh", "Pooh Bear", "Winnie the Pooh"],
+    "normalizedAliases": ["pooh", "pooh bear", "winnie pooh"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A gentle bear from children's stories.",
+      "He loves honey.",
+      "His friends include Piglet, Tigger, and Eeyore.",
+      "He lives in the Hundred Acre Wood."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "Tigger",
+    "normalizedName": "tigger",
+    "acceptedAliases": ["Tigger"],
+    "normalizedAliases": ["tigger"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A very energetic tiger from children's stories.",
+      "He loves bouncing.",
+      "He is friends with Winnie the Pooh.",
+      "His name sounds like tiger with a playful twist."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "SpongeBob SquarePants",
+    "normalizedName": "spongebob squarepants",
+    "acceptedAliases": ["Spongebob", "SpongeBob SquarePants"],
+    "normalizedAliases": ["spongebob", "spongebob squarepants"],
+    "hints": [
+      "Belongs to a colorful animated comedy world.",
+      "A yellow animated sea sponge.",
+      "He works at the Krusty Krab.",
+      "His best friend is Patrick Star.",
+      "He lives in Bikini Bottom."
+    ],
+    "baseClueFact": "A well-known fictional character from Nickelodeon.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Nickelodeon"
+  },
+  {
+    "canonicalName": "Patrick Star",
+    "normalizedName": "patrick star",
+    "acceptedAliases": ["Patrick", "Patrick Star"],
+    "normalizedAliases": ["patrick", "patrick star"],
+    "hints": [
+      "Belongs to a colorful animated comedy world.",
+      "A pink starfish from a famous animated series.",
+      "He lives under a rock.",
+      "He is SpongeBob's best friend.",
+      "He is lovable but not very smart."
+    ],
+    "baseClueFact": "A well-known fictional character from Nickelodeon.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Nickelodeon"
+  },
+  {
+    "canonicalName": "Squidward Tentacles",
+    "normalizedName": "squidward tentacles",
+    "acceptedAliases": ["Squidward", "Squidward Tentacles"],
+    "normalizedAliases": ["squidward", "squidward tentacles"],
+    "hints": [
+      "Belongs to a colorful animated comedy world.",
+      "A grumpy character from SpongeBob SquarePants.",
+      "He works as a cashier at the Krusty Krab.",
+      "He plays the clarinet.",
+      "He is often annoyed by SpongeBob and Patrick."
+    ],
+    "baseClueFact": "A well-known fictional character from Nickelodeon.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Nickelodeon"
+  },
+  {
+    "canonicalName": "Homer Simpson",
+    "normalizedName": "homer simpson",
+    "acceptedAliases": ["Homer", "Homer Simpson"],
+    "normalizedAliases": ["homer", "homer simpson"],
+    "hints": [
+      "Became widely known through television.",
+      "A cartoon father from a long-running animated sitcom.",
+      "He works at a nuclear power plant.",
+      "He loves doughnuts and beer.",
+      "He often says 'D'oh!'."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Bart Simpson",
+    "normalizedName": "bart simpson",
+    "acceptedAliases": ["Bart", "Bart Simpson"],
+    "normalizedAliases": ["bart", "bart simpson"],
+    "hints": [
+      "Became widely known through television.",
+      "A mischievous cartoon boy.",
+      "He rides a skateboard.",
+      "He is Homer and Marge's son.",
+      "One catchphrase is 'Eat my shorts'."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Lisa Simpson",
+    "normalizedName": "lisa simpson",
+    "acceptedAliases": ["Lisa", "Lisa Simpson"],
+    "normalizedAliases": ["lisa", "lisa simpson"],
+    "hints": [
+      "Became widely known through television.",
+      "A smart cartoon girl from The Simpsons.",
+      "He plays the saxophone.",
+      "He is known for intelligence and strong opinions.",
+      "He is Bart's sister."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Marge Simpson",
+    "normalizedName": "marge simpson",
+    "acceptedAliases": ["Marge", "Marge Simpson"],
+    "normalizedAliases": ["marge", "marge simpson"],
+    "hints": [
+      "Became widely known through television.",
+      "A cartoon mother from The Simpsons.",
+      "He has very tall blue hair.",
+      "He is married to Homer Simpson.",
+      "He is often the voice of reason in the family."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Bugs Bunny",
+    "normalizedName": "bugs bunny",
+    "acceptedAliases": ["Bugs", "Bugs Bunny"],
+    "normalizedAliases": ["bugs", "bugs bunny"],
+    "hints": [
+      "Comes from fast-paced classic cartoon comedy.",
+      "A famous Warner Bros. cartoon rabbit.",
+      "He often eats carrots.",
+      "He is one of the Looney Tunes characters.",
+      "His catchphrase is 'What's up, Doc?'."
+    ],
+    "baseClueFact": "A well-known fictional character from Looney Tunes.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Looney Tunes"
+  },
+  {
+    "canonicalName": "Daffy Duck",
+    "normalizedName": "daffy duck",
+    "acceptedAliases": ["Daffy", "Daffy Duck"],
+    "normalizedAliases": ["daffy", "daffy duck"],
+    "hints": [
+      "Comes from fast-paced classic cartoon comedy.",
+      "A black cartoon duck from Warner Bros.",
+      "He is often dramatic, jealous, and funny.",
+      "He is frequently paired with Bugs Bunny.",
+      "His name suggests silly or crazy behavior."
+    ],
+    "baseClueFact": "A well-known fictional character from Looney Tunes.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Looney Tunes"
+  },
+  {
+    "canonicalName": "Tweety",
+    "normalizedName": "tweety",
+    "acceptedAliases": ["Tweety Bird", "Tweety"],
+    "normalizedAliases": ["tweety bird", "tweety"],
+    "hints": [
+      "Comes from fast-paced classic cartoon comedy.",
+      "A tiny yellow Looney Tunes bird.",
+      "He is often chased by Sylvester the Cat.",
+      "He says 'I tawt I taw a puddy tat'.",
+      "He looks innocent but is clever."
+    ],
+    "baseClueFact": "A well-known fictional character from Looney Tunes.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Looney Tunes"
+  },
+  {
+    "canonicalName": "Tom Cat",
+    "normalizedName": "tom cat",
+    "acceptedAliases": ["Tom", "Tom from Tom and Jerry", "Tom Cat"],
+    "normalizedAliases": ["tom", "tom from tom and jerry", "tom cat"],
+    "hints": [
+      "A popular cartoon animal.",
+      "Part of a very famous animated duo.",
+      "Usually plays the bigger but less successful pursuer.",
+      "A gray housecat whose plans often backfire painfully.",
+      "Rival name: Jerry."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Jerry Mouse",
+    "normalizedName": "jerry mouse",
+    "acceptedAliases": ["Jerry", "Jerry from Tom and Jerry", "Jerry Mouse"],
+    "normalizedAliases": ["jerry", "jerry from tom and jerry", "jerry mouse"],
+    "hints": [
+      "A popular cartoon animal.",
+      "Part of a very famous animated duo.",
+      "Often survives chase scenes through speed and tricks.",
+      "Small, clever, and strongly associated with cheese.",
+      "Rival name: Tom."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Scooby-Doo",
+    "normalizedName": "scoobydoo",
+    "acceptedAliases": ["Scooby Doo", "Scooby-Doo"],
+    "normalizedAliases": ["scooby doo", "scoobydoo"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A talking dog from a mystery cartoon.",
+      "He solves cases with Mystery Inc.",
+      "He is easily scared but loves snacks.",
+      "His best friend is Shaggy."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Shaggy Rogers",
+    "normalizedName": "shaggy rogers",
+    "acceptedAliases": ["Shaggy", "Shaggy Rogers"],
+    "normalizedAliases": ["shaggy", "shaggy rogers"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A laid-back cartoon mystery solver.",
+      "He is Scooby-Doo's best friend.",
+      "He is always hungry and easily scared.",
+      "He often wears a green shirt."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Fred Flintstone",
+    "normalizedName": "fred flintstone",
+    "acceptedAliases": ["Fred", "Fred Flintstone"],
+    "normalizedAliases": ["fred", "fred flintstone"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A cartoon father from a prehistoric sitcom.",
+      "He lives in Bedrock.",
+      "He works at a quarry.",
+      "He shouts 'Yabba-Dabba-Doo!'."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Garfield",
+    "normalizedName": "garfield",
+    "acceptedAliases": ["Garfield"],
+    "normalizedAliases": ["garfield"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A lazy orange cartoon cat.",
+      "He loves lasagna.",
+      "He hates Mondays.",
+      "His owner is Jon Arbuckle."
+    ],
+    "baseClueFact": "A well-known fictional character from Comics.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Popeye",
+    "normalizedName": "popeye",
+    "acceptedAliases": ["Popeye the Sailor", "Popeye"],
+    "normalizedAliases": ["popeye sailor", "popeye"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A cartoon sailor with huge forearms.",
+      "He becomes stronger after eating spinach.",
+      "He loves Olive Oyl.",
+      "His rival is Bluto or Brutus."
+    ],
+    "baseClueFact": "A well-known fictional character from Comics.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Super Mario",
+    "normalizedName": "super mario",
+    "acceptedAliases": ["Mario", "Mario Mario", "Super Mario"],
+    "normalizedAliases": ["mario", "mario mario", "super mario"],
+    "hints": [
+      "A video game hero from colorful platform adventures.",
+      "Often travels through pipes, castles, and strange kingdoms.",
+      "Usually tries to stop a spiked fire-breathing ruler.",
+      "Red hat, mustache, and jumping are signature details.",
+      "His brother is Luigi."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "very_easy",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Luigi",
+    "normalizedName": "luigi",
+    "acceptedAliases": ["Luigi"],
+    "normalizedAliases": ["luigi"],
+    "hints": [
+      "Players usually encounter him through Nintendo video games.",
+      "A Nintendo video game character.",
+      "He is Mario's taller brother.",
+      "He wears green.",
+      "He is often shown as nervous but loyal."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "easy",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Princess Peach",
+    "normalizedName": "princess peach",
+    "acceptedAliases": ["Peach", "Princess Peach"],
+    "normalizedAliases": ["peach", "princess peach"],
+    "hints": [
+      "Players usually encounter her through Nintendo video games.",
+      "A Nintendo princess from the Mario games.",
+      "She rules the Mushroom Kingdom.",
+      "She is often kidnapped by Bowser.",
+      "She usually wears a pink dress."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "medium",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Bowser",
+    "normalizedName": "bowser",
+    "acceptedAliases": ["King Bowser", "Bowser"],
+    "normalizedAliases": ["king bowser", "bowser"],
+    "hints": [
+      "Players usually encounter him through Nintendo video games.",
+      "A large turtle-like villain from the Mario games.",
+      "He often kidnaps Princess Peach.",
+      "He breathes fire.",
+      "He is Mario's main enemy."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "medium",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Sonic the Hedgehog",
+    "normalizedName": "sonic hedgehog",
+    "acceptedAliases": ["Sonic", "Sonic the Hedgehog"],
+    "normalizedAliases": ["sonic", "sonic hedgehog"],
+    "hints": [
+      "A video game mascot built around movement.",
+      "Usually races through bright obstacle-filled stages.",
+      "Collects rings while fighting mechanical enemies.",
+      "Blue coloring and red shoes are signature details.",
+      "Known as the hedgehog famous for speed."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "easy",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Pikachu",
+    "normalizedName": "pikachu",
+    "acceptedAliases": ["Pikachu"],
+    "normalizedAliases": ["pikachu"],
+    "hints": [
+      "A small creature from a huge collecting-and-battling franchise.",
+      "Often appears beside a young trainer.",
+      "Yellow coloring and electric powers are key traits.",
+      "Red cheeks and a repeated self-name make it recognizable.",
+      "Ash Ketchum's signature partner."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "very_easy",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Ash Ketchum",
+    "normalizedName": "ash ketchum",
+    "acceptedAliases": ["Ash", "Ash Ketchum"],
+    "normalizedAliases": ["ash", "ash ketchum"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "A young Pokémon trainer from Pallet Town.",
+      "His partner is Pikachu.",
+      "He wants to become a Pokémon Master.",
+      "He is the main hero of the Pokémon anime."
+    ],
+    "baseClueFact": "A well-known fictional character from Anime.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Barbie",
+    "normalizedName": "barbie",
+    "acceptedAliases": ["Barbie"],
+    "normalizedAliases": ["barbie"],
+    "hints": [
+      "Connected to Toy pop culture.",
+      "A fashion doll first launched in 1959.",
+      "He has had many careers and styles.",
+      "Her boyfriend is Ken.",
+      "He became the lead character of a major 2023 film."
+    ],
+    "baseClueFact": "A well-known fictional character from Toy.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Toy"
+  },
+  {
+    "canonicalName": "Ken",
+    "normalizedName": "ken",
+    "acceptedAliases": ["Ken Doll", "Ken"],
+    "normalizedAliases": ["ken doll", "ken"],
+    "hints": [
+      "Connected to Toy pop culture.",
+      "A male fashion doll closely associated with Barbie.",
+      "He is often presented as Barbie's boyfriend.",
+      "Ryan Gosling played him in the 2023 Barbie film.",
+      "His name is short and simple."
+    ],
+    "baseClueFact": "A well-known fictional character from Toy.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Toy"
+  },
+  {
+    "canonicalName": "Superman",
+    "normalizedName": "superman",
+    "acceptedAliases": ["Clark Kent", "Superman"],
+    "normalizedAliases": ["clark kent", "superman"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A DC Comics superhero.",
+      "He comes from the planet Krypton.",
+      "His secret identity is Clark Kent.",
+      "He wears a cape and has an S symbol on his chest."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "very_easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Batman",
+    "normalizedName": "batman",
+    "acceptedAliases": ["Bruce Wayne", "Batman"],
+    "normalizedAliases": ["bruce wayne", "batman"],
+    "hints": [
+      "A dark superhero without traditional superpowers.",
+      "Uses fear, wealth, training, and detective work.",
+      "Operates mostly at night in a crime-heavy city.",
+      "Cape, cowl, cave, and gadgets are key clues.",
+      "Bruce Wayne is the person under the mask."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "very_easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Wonder Woman",
+    "normalizedName": "wonder woman",
+    "acceptedAliases": ["Diana Prince", "Wonder Woman"],
+    "normalizedAliases": ["diana prince", "wonder woman"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A DC superheroine and Amazon princess.",
+      "She comes from Themyscira.",
+      "She uses a lasso, bracelets, and a sword.",
+      "Her civilian name is Diana Prince."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "very_easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Spider-Man",
+    "normalizedName": "spiderman",
+    "acceptedAliases": ["Spiderman", "Peter Parker", "Spider-Man"],
+    "normalizedAliases": ["spiderman", "peter parker", "spiderman"],
+    "hints": [
+      "A superhero who protects a busy city.",
+      "Balances ordinary personal problems with masked responsibility.",
+      "Acrobatics and sticky movement define the action.",
+      "Usually swings between buildings on webs.",
+      "Peter Parker is the person under the mask."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "very_easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Iron Man",
+    "normalizedName": "iron man",
+    "acceptedAliases": ["Tony Stark", "Iron Man"],
+    "normalizedAliases": ["tony stark", "iron man"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel superhero in high-tech armor.",
+      "He is a billionaire inventor.",
+      "His real name is Tony Stark.",
+      "Robert Downey Jr. played him in the Marvel films."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "very_easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Captain America",
+    "normalizedName": "captain america",
+    "acceptedAliases": ["Steve Rogers", "Captain America"],
+    "normalizedAliases": ["steve rogers", "captain america"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel superhero created during World War II.",
+      "He carries a circular shield.",
+      "His real name is Steve Rogers.",
+      "He is known as the First Avenger."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "medium",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Hulk",
+    "normalizedName": "hulk",
+    "acceptedAliases": ["The Hulk", "Bruce Banner", "Hulk"],
+    "normalizedAliases": ["hulk", "bruce banner", "hulk"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel character who transforms when angry.",
+      "His human identity is Bruce Banner.",
+      "He is huge, green, and extremely strong.",
+      "A famous phrase is 'Hulk smash'."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Thor",
+    "normalizedName": "thor",
+    "acceptedAliases": ["Thor Odinson", "Thor"],
+    "normalizedAliases": ["thor odinson", "thor"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel superhero based on a Norse god.",
+      "He wields the hammer Mjolnir.",
+      "He is associated with thunder and Asgard.",
+      "Chris Hemsworth plays him in the Marvel films."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Black Panther",
+    "normalizedName": "black panther",
+    "acceptedAliases": ["T'Challa", "TChalla", "Black Panther"],
+    "normalizedAliases": ["t challa", "tchalla", "black panther"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel superhero and king.",
+      "He rules Wakanda.",
+      "His suit is made with vibranium.",
+      "Chadwick Boseman famously played him."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "hard",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Wolverine",
+    "normalizedName": "wolverine",
+    "acceptedAliases": ["Logan", "Wolverine"],
+    "normalizedAliases": ["logan", "wolverine"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel mutant known for claws and healing.",
+      "He is a member of the X-Men.",
+      "He has adamantium claws.",
+      "Hugh Jackman famously played him."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Deadpool",
+    "normalizedName": "deadpool",
+    "acceptedAliases": ["Wade Wilson", "Deadpool"],
+    "normalizedAliases": ["wade wilson", "deadpool"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A Marvel antihero known for jokes and chaos.",
+      "He breaks the fourth wall.",
+      "His real name is Wade Wilson.",
+      "Ryan Reynolds plays him in the films."
+    ],
+    "baseClueFact": "A globally known superhero character.",
+    "difficulty": "easy",
+    "category": "superhero",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "The Joker",
+    "normalizedName": "joker",
+    "acceptedAliases": ["Joker", "The Joker"],
+    "normalizedAliases": ["joker", "joker"],
+    "hints": [
+      "A famous fictional antagonist.",
+      "Chaos matters more to him than money or order.",
+      "Uses clown imagery in a very dangerous way.",
+      "Usually haunts Gotham stories.",
+      "Batman is his main enemy."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "very_easy",
+    "category": "villain",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Harley Quinn",
+    "normalizedName": "harley quinn",
+    "acceptedAliases": ["Harleen Quinzel", "Harley Quinn"],
+    "normalizedAliases": ["harleen quinzel", "harley quinn"],
+    "hints": [
+      "Comes from a world of illustrated heroes, villains, and long-running lore.",
+      "A DC character who began as the Joker's partner.",
+      "She was originally Dr. Harleen Quinzel.",
+      "She often carries a bat or mallet.",
+      "Margot Robbie played her in several films."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "hard",
+    "category": "villain",
+    "era": "Comics"
+  },
+  {
+    "canonicalName": "Darth Vader",
+    "normalizedName": "darth vader",
+    "acceptedAliases": ["Anakin Skywalker", "Darth Vader"],
+    "normalizedAliases": ["anakin skywalker", "darth vader"],
+    "hints": [
+      "A masked figure from a space fantasy saga.",
+      "Serves an empire and inspires fear across the galaxy.",
+      "Recognizable by black armor and heavy breathing.",
+      "Uses a red lightsaber and the dark side.",
+      "Famously revealed as Luke Skywalker's father."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "Luke Skywalker",
+    "normalizedName": "luke skywalker",
+    "acceptedAliases": ["Luke", "Luke Skywalker"],
+    "normalizedAliases": ["luke", "luke skywalker"],
+    "hints": [
+      "Belongs to a space fantasy story with wars, rebels, and strange worlds.",
+      "A hero from Star Wars.",
+      "He grows up on Tatooine.",
+      "He trains as a Jedi.",
+      "He is the son of Darth Vader."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "Princess Leia",
+    "normalizedName": "princess leia",
+    "acceptedAliases": ["Leia Organa", "Leia", "Princess Leia"],
+    "normalizedAliases": ["leia organa", "leia", "princess leia"],
+    "hints": [
+      "A leader from a space fantasy saga.",
+      "Connected to rebellion, royalty, and sharp courage.",
+      "Known for iconic hair and fearless diplomacy.",
+      "Sibling of a young hero from a desert planet.",
+      "Her first name is Leia."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "Yoda",
+    "normalizedName": "yoda",
+    "acceptedAliases": ["Yoda"],
+    "normalizedAliases": ["yoda"],
+    "hints": [
+      "Belongs to a space fantasy story with wars, rebels, and strange worlds.",
+      "A wise green Jedi Master from Star Wars.",
+      "He speaks in unusual word order.",
+      "He trains Luke Skywalker.",
+      "He is small but extremely powerful."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "Chewbacca",
+    "normalizedName": "chewbacca",
+    "acceptedAliases": ["Chewie", "Chewbacca"],
+    "normalizedAliases": ["chewie", "chewbacca"],
+    "hints": [
+      "Belongs to a space fantasy story with wars, rebels, and strange worlds.",
+      "A tall furry character from Star Wars.",
+      "He is a Wookiee.",
+      "He is Han Solo's loyal co-pilot.",
+      "His friends call him Chewie."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "R2-D2",
+    "normalizedName": "r2d2",
+    "acceptedAliases": ["R2D2", "Artoo", "R2-D2"],
+    "normalizedAliases": ["r2d2", "artoo", "r2d2"],
+    "hints": [
+      "Belongs to a space fantasy story with wars, rebels, and strange worlds.",
+      "A small droid from Star Wars.",
+      "He communicates with beeps.",
+      "He is blue and white.",
+      "He often appears with C-3PO."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "C-3PO",
+    "normalizedName": "c3po",
+    "acceptedAliases": ["C3PO", "Threepio", "C-3PO"],
+    "normalizedAliases": ["c3po", "threepio", "c3po"],
+    "hints": [
+      "Belongs to a space fantasy story with wars, rebels, and strange worlds.",
+      "A golden droid from Star Wars.",
+      "He is fluent in many forms of communication.",
+      "He is often anxious and formal.",
+      "He is usually paired with R2-D2."
+    ],
+    "baseClueFact": "A well-known fictional character from Star Wars.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Star Wars"
+  },
+  {
+    "canonicalName": "Harry Potter",
+    "normalizedName": "harry potter",
+    "acceptedAliases": ["Harry Potter"],
+    "normalizedAliases": ["harry potter"],
+    "hints": [
+      "A young fantasy hero connected to a hidden magical world.",
+      "School, friendship, and an old prophecy shape his story.",
+      "A scar and glasses are major visual clues.",
+      "He attends Hogwarts.",
+      "His enemy is Voldemort."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Hermione Granger",
+    "normalizedName": "hermione granger",
+    "acceptedAliases": ["Hermione", "Hermione Granger"],
+    "normalizedAliases": ["hermione", "hermione granger"],
+    "hints": [
+      "Belongs to a fantasy story shaped by quests and dangerous power.",
+      "A young witch from Harry Potter.",
+      "She is one of Harry's best friends.",
+      "She is known for intelligence and studying hard.",
+      "Emma Watson played her in the films."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Ron Weasley",
+    "normalizedName": "ron weasley",
+    "acceptedAliases": ["Ron", "Ron Weasley"],
+    "normalizedAliases": ["ron", "ron weasley"],
+    "hints": [
+      "Belongs to a fantasy story shaped by quests and dangerous power.",
+      "A red-haired wizard from Harry Potter.",
+      "He is one of Harry's best friends.",
+      "He comes from the Weasley family.",
+      "Rupert Grint played him in the films."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Lord Voldemort",
+    "normalizedName": "lord voldemort",
+    "acceptedAliases": ["Voldemort", "Tom Riddle", "Lord Voldemort"],
+    "normalizedAliases": ["voldemort", "tom riddle", "lord voldemort"],
+    "hints": [
+      "A fantasy villain feared by an entire magical society.",
+      "Many characters avoid saying his name.",
+      "Obsessed with immortality and pure power.",
+      "Pale, snake-like imagery surrounds him.",
+      "Harry Potter is his chosen enemy."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "medium",
+    "category": "villain",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Frodo Baggins",
+    "normalizedName": "frodo baggins",
+    "acceptedAliases": ["Frodo", "Frodo Baggins"],
+    "normalizedAliases": ["frodo", "frodo baggins"],
+    "hints": [
+      "Belongs to a fantasy story shaped by quests and dangerous power.",
+      "A hobbit from The Lord of the Rings.",
+      "He inherits a dangerous ring.",
+      "He travels to Mordor.",
+      "His mission is to destroy the One Ring."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Gandalf",
+    "normalizedName": "gandalf",
+    "acceptedAliases": ["Gandalf the Grey", "Gandalf the White", "Gandalf"],
+    "normalizedAliases": ["gandalf grey", "gandalf white", "gandalf"],
+    "hints": [
+      "Belongs to a fantasy story shaped by quests and dangerous power.",
+      "A wizard from The Lord of the Rings.",
+      "He carries a staff and helps the Fellowship.",
+      "He says 'You shall not pass!'.",
+      "He is first known as the Grey and later the White."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Gollum",
+    "normalizedName": "gollum",
+    "acceptedAliases": ["Smeagol", "Sméagol", "Gollum"],
+    "normalizedAliases": ["smeagol", "smeagol", "gollum"],
+    "hints": [
+      "Belongs to a fantasy story shaped by quests and dangerous power.",
+      "A tragic creature from The Lord of the Rings.",
+      "He is obsessed with the One Ring.",
+      "He calls the ring 'my precious'.",
+      "He was once known as Sméagol."
+    ],
+    "baseClueFact": "A well-known fictional character from Fantasy.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Fantasy"
+  },
+  {
+    "canonicalName": "Sherlock Holmes",
+    "normalizedName": "sherlock holmes",
+    "acceptedAliases": ["Holmes", "Sherlock Holmes"],
+    "normalizedAliases": ["holmes", "sherlock holmes"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A fictional detective created by Arthur Conan Doyle.",
+      "He lives at 221B Baker Street.",
+      "His friend is Dr. Watson.",
+      "He is famous for brilliant deduction."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "Dracula",
+    "normalizedName": "dracula",
+    "acceptedAliases": ["Count Dracula", "Dracula"],
+    "normalizedAliases": ["count dracula", "dracula"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A famous vampire from Gothic literature.",
+      "He was created by Bram Stoker.",
+      "He comes from Transylvania.",
+      "He drinks blood and lives in a castle."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "Frankenstein's Monster",
+    "normalizedName": "frankenstein s monster",
+    "acceptedAliases": ["Frankenstein", "The Monster", "Frankenstein's Monster"],
+    "normalizedAliases": ["frankenstein", "monster", "frankenstein s monster"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A creature from Mary Shelley's novel.",
+      "He is assembled from body parts.",
+      "Many people mistakenly call the creature by his creator's name.",
+      "His creator is Victor Frankenstein."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "James Bond",
+    "normalizedName": "james bond",
+    "acceptedAliases": ["007", "Bond", "James Bond"],
+    "normalizedAliases": ["007", "bond", "james bond"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional British spy.",
+      "He works for MI6.",
+      "His code number is 007.",
+      "He likes gadgets, cars, and 'shaken, not stirred'."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Indiana Jones",
+    "normalizedName": "indiana jones",
+    "acceptedAliases": ["Indy", "Indiana Jones"],
+    "normalizedAliases": ["indy", "indiana jones"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional archaeologist and adventurer.",
+      "He wears a fedora and carries a whip.",
+      "Harrison Ford played him.",
+      "He searches for ancient artifacts."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Rocky Balboa",
+    "normalizedName": "rocky balboa",
+    "acceptedAliases": ["Rocky", "Rocky Balboa"],
+    "normalizedAliases": ["rocky", "rocky balboa"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional boxer from Philadelphia.",
+      "Sylvester Stallone played him.",
+      "He runs up the steps of the Philadelphia Museum of Art.",
+      "He is the main character of a long-running boxing-film series."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Forrest Gump",
+    "normalizedName": "forrest gump",
+    "acceptedAliases": ["Forrest", "Forrest Gump"],
+    "normalizedAliases": ["forrest", "forrest gump"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A film character played by Tom Hanks.",
+      "He says life is like a box of chocolates.",
+      "He runs across America.",
+      "He appears in many major historical moments."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Shrek",
+    "normalizedName": "shrek",
+    "acceptedAliases": ["Shrek"],
+    "normalizedAliases": ["shrek"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A green ogre from an animated film series.",
+      "He lives in a swamp.",
+      "His best friend is Donkey.",
+      "He marries Princess Fiona."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Donkey",
+    "normalizedName": "donkey",
+    "acceptedAliases": ["Donkey from Shrek", "Donkey"],
+    "normalizedAliases": ["donkey from shrek", "donkey"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A talking animal from Shrek.",
+      "He is loud, funny, and loyal.",
+      "He becomes friends with a green ogre.",
+      "Eddie Murphy voiced him."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "hard",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Gru",
+    "normalizedName": "gru",
+    "acceptedAliases": ["Felonius Gru", "Gru"],
+    "normalizedAliases": ["felonius gru", "gru"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A former supervillain from Despicable Me.",
+      "He adopts three girls.",
+      "He is surrounded by Minions.",
+      "He has a long nose and distinctive accent."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Minion",
+    "normalizedName": "minion",
+    "acceptedAliases": ["Minions", "Minion"],
+    "normalizedAliases": ["minions", "minion"],
+    "hints": [
+      "First became famous through animated stories.",
+      "Small yellow creatures from Despicable Me.",
+      "He speak in a silly mixed language.",
+      "He wear goggles and blue overalls.",
+      "He serve Gru."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Captain Jack Sparrow",
+    "normalizedName": "captain jack sparrow",
+    "acceptedAliases": ["Jack Sparrow", "Captain Jack Sparrow"],
+    "normalizedAliases": ["jack sparrow", "captain jack sparrow"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional pirate from Pirates of the Caribbean.",
+      "He has dreadlocks, beads, and a strange walk.",
+      "Johnny Depp played him.",
+      "He is captain of the Black Pearl."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Wednesday Addams",
+    "normalizedName": "wednesday addams",
+    "acceptedAliases": ["Wednesday", "Wednesday Addams"],
+    "normalizedAliases": ["wednesday", "wednesday addams"],
+    "hints": [
+      "Became widely known through television.",
+      "A dark and deadpan girl from The Addams Family.",
+      "She wears black and has braided hair.",
+      "She became newly popular through a Netflix series.",
+      "Her name is a day of the week."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Morticia Addams",
+    "normalizedName": "morticia addams",
+    "acceptedAliases": ["Morticia", "Morticia Addams"],
+    "normalizedAliases": ["morticia", "morticia addams"],
+    "hints": [
+      "Became widely known through television.",
+      "A gothic woman from The Addams Family.",
+      "She wears long black dresses.",
+      "She is married to Gomez Addams.",
+      "She is Wednesday's mother."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Gomez Addams",
+    "normalizedName": "gomez addams",
+    "acceptedAliases": ["Gomez", "Gomez Addams"],
+    "normalizedAliases": ["gomez", "gomez addams"],
+    "hints": [
+      "Became widely known through television.",
+      "An eccentric character from The Addams Family.",
+      "He is married to Morticia.",
+      "He is Wednesday and Pugsley's father.",
+      "He is known for dramatic affection and dark humor."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "The Grinch",
+    "normalizedName": "grinch",
+    "acceptedAliases": ["Grinch", "The Grinch"],
+    "normalizedAliases": ["grinch", "grinch"],
+    "hints": [
+      "Strongly linked with a winter holiday story.",
+      "A green fictional character from Dr. Seuss.",
+      "He dislikes Christmas at first.",
+      "He tries to steal Christmas from the Whos.",
+      "His heart grows three sizes."
+    ],
+    "baseClueFact": "A well-known fictional character from Christmas.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Christmas"
+  },
+  {
+    "canonicalName": "Rudolph",
+    "normalizedName": "rudolph",
+    "acceptedAliases": ["Rudolph the Red-Nosed Reindeer", "Rudolph"],
+    "normalizedAliases": ["rudolph rednosed reindeer", "rudolph"],
+    "hints": [
+      "Strongly linked with a winter holiday story.",
+      "A Christmas reindeer from a famous song and story.",
+      "He has a shiny red nose.",
+      "Other reindeer laugh at him at first.",
+      "He guides Santa's sleigh through fog."
+    ],
+    "baseClueFact": "A well-known fictional character from Christmas.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Christmas"
+  },
+  {
+    "canonicalName": "Santa Claus",
+    "normalizedName": "santa claus",
+    "acceptedAliases": ["Father Christmas", "Saint Nicholas", "Santa Claus"],
+    "normalizedAliases": ["father christmas", "saint nicholas", "santa claus"],
+    "hints": [
+      "Comes from a story people recognize across generations.",
+      "A legendary figure associated with Christmas.",
+      "He is often shown in a red suit with a white beard.",
+      "He travels with reindeer and a sleigh.",
+      "He brings gifts to children."
+    ],
+    "baseClueFact": "A famous figure from folklore and legend.",
+    "difficulty": "very_easy",
+    "category": "legendary figure",
+    "era": "Folklore"
+  },
+  {
+    "canonicalName": "Easter Bunny",
+    "normalizedName": "easter bunny",
+    "acceptedAliases": ["The Easter Bunny", "Easter Bunny"],
+    "normalizedAliases": ["easter bunny", "easter bunny"],
+    "hints": [
+      "Comes from a story people recognize across generations.",
+      "A holiday character associated with Easter.",
+      "It is often shown as a rabbit.",
+      "It brings or hides colorful eggs.",
+      "Its name combines the holiday and the animal."
+    ],
+    "baseClueFact": "A famous figure from folklore and legend.",
+    "difficulty": "easy",
+    "category": "legendary figure",
+    "era": "Folklore"
+  },
+  {
+    "canonicalName": "Robin Hood",
+    "normalizedName": "robin hood",
+    "acceptedAliases": ["Robin Hood"],
+    "normalizedAliases": ["robin hood"],
+    "hints": [
+      "Comes from a story people recognize across generations.",
+      "A legendary English outlaw.",
+      "He lives in Sherwood Forest.",
+      "He is an expert archer.",
+      "He steals from the rich and gives to the poor."
+    ],
+    "baseClueFact": "A famous figure from folklore and legend.",
+    "difficulty": "medium",
+    "category": "legendary figure",
+    "era": "Folklore"
+  },
+  {
+    "canonicalName": "Tarzan",
+    "normalizedName": "tarzan",
+    "acceptedAliases": ["Tarzan"],
+    "normalizedAliases": ["tarzan"],
+    "hints": [
+      "Connected to Literature pop culture.",
+      "A fictional man raised in the jungle.",
+      "He was created by Edgar Rice Burroughs.",
+      "He swings on vines and communicates with animals.",
+      "He is known as the lord of the jungle."
+    ],
+    "baseClueFact": "A well-known fictional character from Literature.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Literature"
+  },
+  {
+    "canonicalName": "King Kong",
+    "normalizedName": "king kong",
+    "acceptedAliases": ["King Kong"],
+    "normalizedAliases": ["king kong"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A giant movie monster.",
+      "He is an enormous gorilla-like ape.",
+      "He climbs the Empire State Building in a famous scene.",
+      "His name combines a royal title and a short repeated sound."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Godzilla",
+    "normalizedName": "godzilla",
+    "acceptedAliases": ["Godzilla"],
+    "normalizedAliases": ["godzilla"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A giant monster from Japanese films.",
+      "He is linked to radiation and city destruction.",
+      "He fights other monsters.",
+      "He is often called the King of the Monsters."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "E.T.",
+    "normalizedName": "et",
+    "acceptedAliases": ["ET", "E T", "E.T."],
+    "normalizedAliases": ["et", "e t", "et"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A friendly alien from a Steven Spielberg film.",
+      "He befriends a boy named Elliott.",
+      "He wants to phone home.",
+      "His name is only two letters."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Neo",
+    "normalizedName": "neo",
+    "acceptedAliases": ["Neo from The Matrix", "Neo"],
+    "normalizedAliases": ["neo from matrix", "neo"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional hacker from The Matrix.",
+      "He discovers reality is a simulation.",
+      "He is played by Keanu Reeves.",
+      "He dodges bullets in slow motion."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Morpheus",
+    "normalizedName": "morpheus",
+    "acceptedAliases": ["Morpheus from The Matrix", "Morpheus"],
+    "normalizedAliases": ["morpheus from matrix", "morpheus"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A character from The Matrix.",
+      "He is Neo's mentor.",
+      "He offers the red pill and blue pill choice.",
+      "Laurence Fishburne played him."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Jack Dawson",
+    "normalizedName": "jack dawson",
+    "acceptedAliases": ["Jack from Titanic", "Jack Dawson"],
+    "normalizedAliases": ["jack from titanic", "jack dawson"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional character from Titanic.",
+      "He wins a ticket onto the ship.",
+      "He falls in love with Rose.",
+      "Leonardo DiCaprio played him."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Rose DeWitt Bukater",
+    "normalizedName": "rose dewitt bukater",
+    "acceptedAliases": ["Rose from Titanic", "Rose", "Rose DeWitt Bukater"],
+    "normalizedAliases": ["rose from titanic", "rose", "rose dewitt bukater"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional character from Titanic.",
+      "He is engaged to Cal but falls in love with Jack.",
+      "He is played by Kate Winslet.",
+      "He survives the sinking."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Hannibal Lecter",
+    "normalizedName": "hannibal lecter",
+    "acceptedAliases": ["Hannibal", "Hannibal Lecter"],
+    "normalizedAliases": ["hannibal", "hannibal lecter"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A fictional psychiatrist and serial killer.",
+      "He is extremely intelligent and polite.",
+      "He appears in The Silence of the Lambs.",
+      "Anthony Hopkins famously played him."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "hard",
+    "category": "villain",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Terminator",
+    "normalizedName": "terminator",
+    "acceptedAliases": ["The Terminator", "T-800", "Terminator"],
+    "normalizedAliases": ["terminator", "t800", "terminator"],
+    "hints": [
+      "Became famous through major movie stories.",
+      "A cyborg from a sci-fi action film series.",
+      "Arnold Schwarzenegger played the most famous version.",
+      "He says 'I'll be back'.",
+      "He is also known as the T-800."
+    ],
+    "baseClueFact": "A well-known fictional character from Film.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Film"
+  },
+  {
+    "canonicalName": "Lara Croft",
+    "normalizedName": "lara croft",
+    "acceptedAliases": ["Tomb Raider", "Lara Croft"],
+    "normalizedAliases": ["tomb raider", "lara croft"],
+    "hints": [
+      "Players usually encounter her through video games.",
+      "A video game and film heroine.",
+      "She is a British archaeologist and adventurer.",
+      "She is associated with archaeology and tomb raiding.",
+      "Angelina Jolie played her in films."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "medium",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Pac-Man",
+    "normalizedName": "pacman",
+    "acceptedAliases": ["Pacman", "Pac-Man"],
+    "normalizedAliases": ["pacman", "pacman"],
+    "hints": [
+      "Players usually encounter him through classic arcade games.",
+      "A classic arcade game character.",
+      "He moves through mazes eating dots.",
+      "He is chased by ghosts.",
+      "He is a yellow circle with a mouth."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "easy",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Donkey Kong",
+    "normalizedName": "donkey kong",
+    "acceptedAliases": ["Donkey Kong"],
+    "normalizedAliases": ["donkey kong"],
+    "hints": [
+      "Players usually encounter him through Nintendo video games.",
+      "A Nintendo character from classic arcade games.",
+      "He is a large gorilla.",
+      "He throws barrels in early games.",
+      "He is connected to Mario's early history."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "medium",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Link",
+    "normalizedName": "link",
+    "acceptedAliases": ["Link from Zelda", "Link"],
+    "normalizedAliases": ["link from zelda", "link"],
+    "hints": [
+      "A fantasy video game hero.",
+      "Usually explores dungeons, forests, temples, and ruins.",
+      "Often carries a sword, shield, and quiet courage.",
+      "Frequently protects a princess and a kingdom called Hyrule.",
+      "The Master Sword is strongly tied to him."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "hard",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Zelda",
+    "normalizedName": "zelda",
+    "acceptedAliases": ["Princess Zelda", "Zelda"],
+    "normalizedAliases": ["princess zelda", "zelda"],
+    "hints": [
+      "A royal figure from a fantasy video game world.",
+      "Connected to an ancient kingdom, magic, and recurring danger.",
+      "Often protected by a quiet sword-carrying hero.",
+      "People often mistake her for the playable hero.",
+      "The franchise title includes her name."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "hard",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Master Chief",
+    "normalizedName": "master chief",
+    "acceptedAliases": ["Master Chief"],
+    "normalizedAliases": ["master chief"],
+    "hints": [
+      "Players usually encounter him through the Halo video games.",
+      "A video game hero from the Halo series.",
+      "He wears green futuristic armor.",
+      "He is a supersoldier.",
+      "His real name is John-117."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "very_hard",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Kratos",
+    "normalizedName": "kratos",
+    "acceptedAliases": ["Kratos"],
+    "normalizedAliases": ["kratos"],
+    "hints": [
+      "Players usually encounter him through action-adventure video games.",
+      "A video game character known for rage and mythology.",
+      "He first fights Greek gods.",
+      "He later appears in Norse mythology settings.",
+      "He has pale skin and red markings."
+    ],
+    "baseClueFact": "A famous character from video games.",
+    "difficulty": "hard",
+    "category": "video game character",
+    "era": "Video games"
+  },
+  {
+    "canonicalName": "Luffy",
+    "normalizedName": "luffy",
+    "acceptedAliases": ["Monkey D Luffy", "Monkey D. Luffy", "Luffy"],
+    "normalizedAliases": ["monkey luffy", "monkey luffy", "luffy"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "An anime and manga pirate hero.",
+      "He wears a straw hat.",
+      "His body can stretch like rubber.",
+      "He wants to become King of the Pirates."
+    ],
+    "baseClueFact": "A famous character from anime.",
+    "difficulty": "hard",
+    "category": "anime character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Naruto Uzumaki",
+    "normalizedName": "naruto uzumaki",
+    "acceptedAliases": ["Naruto", "Naruto Uzumaki"],
+    "normalizedAliases": ["naruto", "naruto uzumaki"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "An anime and manga ninja.",
+      "He has whisker-like marks on his cheeks.",
+      "He dreams of becoming Hokage.",
+      "He contains the Nine-Tails fox."
+    ],
+    "baseClueFact": "A famous character from anime.",
+    "difficulty": "medium",
+    "category": "anime character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Goku",
+    "normalizedName": "goku",
+    "acceptedAliases": ["Son Goku", "Goku"],
+    "normalizedAliases": ["son goku", "goku"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "An anime hero known for martial arts and transformations.",
+      "He is a Saiyan.",
+      "He can become Super Saiyan.",
+      "He is the main character of Dragon Ball."
+    ],
+    "baseClueFact": "A famous character from anime.",
+    "difficulty": "very_easy",
+    "category": "anime character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Sailor Moon",
+    "normalizedName": "sailor moon",
+    "acceptedAliases": ["Usagi Tsukino", "Sailor Moon"],
+    "normalizedAliases": ["usagi tsukino", "sailor moon"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "An anime magical girl hero.",
+      "Her civilian name is Usagi Tsukino.",
+      "She fights evil with other Sailor Guardians.",
+      "Her name includes the moon."
+    ],
+    "baseClueFact": "A famous character from anime.",
+    "difficulty": "medium",
+    "category": "anime character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Totoro",
+    "normalizedName": "totoro",
+    "acceptedAliases": ["My Neighbor Totoro", "Totoro"],
+    "normalizedAliases": ["my neighbor totoro", "totoro"],
+    "hints": [
+      "Belongs to a Japanese animated or manga-linked story world.",
+      "A large gentle creature from a Studio Ghibli film.",
+      "He appears with two young sisters.",
+      "He waits at a bus stop in a famous scene.",
+      "The film is My Neighbor Totoro."
+    ],
+    "baseClueFact": "A famous character from anime.",
+    "difficulty": "very_hard",
+    "category": "anime character",
+    "era": "Anime"
+  },
+  {
+    "canonicalName": "Dora the Explorer",
+    "normalizedName": "dora explorer",
+    "acceptedAliases": ["Dora", "Dora the Explorer"],
+    "normalizedAliases": ["dora", "dora explorer"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A children's cartoon girl who goes on adventures.",
+      "She often asks the audience questions.",
+      "Her monkey friend is Boots.",
+      "She carries a Backpack and uses a Map."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Peppa Pig",
+    "normalizedName": "peppa pig",
+    "acceptedAliases": ["Peppa", "Peppa Pig"],
+    "normalizedAliases": ["peppa", "peppa pig"],
+    "hints": [
+      "First became famous through animated stories.",
+      "A small pink cartoon pig from a children's show.",
+      "She lives with Mummy Pig, Daddy Pig, and George.",
+      "She loves jumping in muddy puddles.",
+      "Her name starts with P."
+    ],
+    "baseClueFact": "A well-known fictional character from Animation.",
+    "difficulty": "easy",
+    "category": "fictional character",
+    "era": "Animation"
+  },
+  {
+    "canonicalName": "Hello Kitty",
+    "normalizedName": "hello kitty",
+    "acceptedAliases": ["Hello Kitty"],
+    "normalizedAliases": ["hello kitty"],
+    "hints": [
+      "Connected to Toy pop culture.",
+      "A cute Japanese character created by Sanrio.",
+      "She is usually shown as a white cat-like girl.",
+      "She wears a bow near one ear.",
+      "She appears on countless toys and accessories."
+    ],
+    "baseClueFact": "A well-known fictional character from Toy.",
+    "difficulty": "medium",
+    "category": "fictional character",
+    "era": "Toy"
+  },
+  {
+    "canonicalName": "Maleficent",
+    "normalizedName": "maleficent",
+    "acceptedAliases": ["Maleficent"],
+    "normalizedAliases": ["maleficent"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A powerful dark fairy from a Disney story.",
+      "She curses Princess Aurora.",
+      "She has horns and a dramatic black outfit.",
+      "Angelina Jolie played her in live-action films."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "easy",
+    "category": "villain",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Cruella de Vil",
+    "normalizedName": "cruella vil",
+    "acceptedAliases": ["Cruella", "Cruella de Vil"],
+    "normalizedAliases": ["cruella", "cruella vil"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney villain known for dramatic fashion.",
+      "She wants coats made from dalmatian puppies.",
+      "She has black-and-white hair.",
+      "Her story is connected to 101 Dalmatians."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "medium",
+    "category": "villain",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Ursula",
+    "normalizedName": "ursula",
+    "acceptedAliases": ["Ursula from Little Mermaid", "Ursula"],
+    "normalizedAliases": ["ursula from little mermaid", "ursula"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney sea witch.",
+      "She takes Ariel's voice.",
+      "She has tentacles and a dramatic villain style.",
+      "She appears in The Little Mermaid."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "hard",
+    "category": "villain",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Scar",
+    "normalizedName": "scar",
+    "acceptedAliases": ["Scar from Lion King", "Scar"],
+    "normalizedAliases": ["scar from lion king", "scar"],
+    "hints": [
+      "Connected to a long-running family entertainment universe.",
+      "A Disney villain from The Lion King.",
+      "He is Mufasa's brother.",
+      "He tricks Simba and takes over the Pride Lands.",
+      "His name refers to the mark on his face."
+    ],
+    "baseClueFact": "A famous fictional antagonist.",
+    "difficulty": "easy",
+    "category": "villain",
+    "era": "Disney"
+  },
+  {
+    "canonicalName": "Hercules",
+    "normalizedName": "hercules",
+    "acceptedAliases": ["Hercules"],
+    "normalizedAliases": ["hercules"],
+    "hints": [
+      "Comes from ancient stories about gods, monsters, and heroes.",
+      "A legendary hero from Greek mythology.",
+      "He is famous for great strength.",
+      "He completed twelve labors.",
+      "Disney made an animated film about him."
+    ],
+    "baseClueFact": "A famous figure from mythology.",
+    "difficulty": "hard",
+    "category": "mythological figure",
+    "era": "Mythology"
+  },
+  {
+    "canonicalName": "Zeus",
+    "normalizedName": "zeus",
+    "acceptedAliases": ["Zeus"],
+    "normalizedAliases": ["zeus"],
+    "hints": [
+      "Comes from ancient stories about gods, monsters, and heroes.",
+      "A god from Greek mythology.",
+      "He rules Mount Olympus.",
+      "He is associated with thunder and lightning.",
+      "He is father of many gods and heroes."
+    ],
+    "baseClueFact": "A famous figure from mythology.",
+    "difficulty": "medium",
+    "category": "mythological figure",
+    "era": "Mythology"
+  },
+  {
+    "canonicalName": "Athena",
+    "normalizedName": "athena",
+    "acceptedAliases": ["Athena"],
+    "normalizedAliases": ["athena"],
+    "hints": [
+      "Comes from ancient stories about gods, monsters, and heroes.",
+      "A Greek goddess associated with wisdom.",
+      "She is often linked to owls and helmets.",
+      "The city of Athens is named after her.",
+      "She is a daughter of Zeus."
+    ],
+    "baseClueFact": "A famous figure from mythology.",
+    "difficulty": "very_hard",
+    "category": "mythological figure",
+    "era": "Mythology"
+  },
+  {
+    "canonicalName": "Medusa",
+    "normalizedName": "medusa",
+    "acceptedAliases": ["Medusa"],
+    "normalizedAliases": ["medusa"],
+    "hints": [
+      "Comes from ancient stories about gods, monsters, and heroes.",
+      "A figure from Greek mythology.",
+      "She has snakes instead of hair.",
+      "People who look at her turn to stone.",
+      "Perseus kills her in the myth."
+    ],
+    "baseClueFact": "A famous figure from mythology.",
+    "difficulty": "very_hard",
+    "category": "mythological figure",
+    "era": "Mythology"
+  },
+  {
+    "canonicalName": "Michael Jackson",
+    "normalizedName": "michael jackson",
+    "acceptedAliases": ["MJ", "King of Pop", "Michael Jackson"],
+    "normalizedAliases": ["mj", "king pop", "michael jackson"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American pop star often called the King of Pop.",
+      "He released Thriller, one of the best-selling albums ever.",
+      "He made the moonwalk dance move world famous.",
+      "His hits include Billie Jean, Beat It, and Smooth Criminal."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Whitney Houston",
+    "normalizedName": "whitney houston",
+    "acceptedAliases": ["Whitney Houston"],
+    "normalizedAliases": ["whitney houston"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer known for one of pop music's strongest voices.",
+      "She starred in The Bodyguard.",
+      "Her version of I Will Always Love You became a global hit.",
+      "She was nicknamed The Voice."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Mariah Carey",
+    "normalizedName": "mariah carey",
+    "acceptedAliases": ["Mariah Carey"],
+    "normalizedAliases": ["mariah carey"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer with a famous vocal range.",
+      "She is known for whistle notes.",
+      "Her Christmas song returns to charts every year.",
+      "The song is All I Want for Christmas Is You."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Shakira",
+    "normalizedName": "shakira",
+    "acceptedAliases": ["Shakira"],
+    "normalizedAliases": ["shakira"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Colombian singer and dancer who became a global pop star.",
+      "She is famous for belly-dance-inspired movement.",
+      "Her hits include Hips Don't Lie and Whenever, Wherever.",
+      "She performed at the Super Bowl halftime show with Jennifer Lopez."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Cher",
+    "normalizedName": "cher",
+    "acceptedAliases": ["Cher"],
+    "normalizedAliases": ["cher"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer and actress with a career spanning decades.",
+      "She first became famous as part of Sonny and Cher.",
+      "Her hit Believe became famous for its vocal effect.",
+      "She is often called the Goddess of Pop."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Madonna",
+    "normalizedName": "madonna",
+    "acceptedAliases": ["Queen of Pop", "Madonna"],
+    "normalizedAliases": ["queen pop", "madonna"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American pop icon often called the Queen of Pop.",
+      "She became huge in the 1980s.",
+      "Her hits include Like a Virgin, Vogue, and Material Girl.",
+      "She is famous for constant reinvention."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Beyonce",
+    "normalizedName": "beyonce",
+    "acceptedAliases": ["Beyoncé", "Queen Bey", "Beyonce"],
+    "normalizedAliases": ["beyonce", "queen bey", "beyonce"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer who first became famous with Destiny's Child.",
+      "She is known for powerful vocals and elaborate performances.",
+      "Her fans often call her Queen Bey.",
+      "Her songs include Single Ladies and Halo."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Lady Gaga",
+    "normalizedName": "lady gaga",
+    "acceptedAliases": ["Lady Gaga"],
+    "normalizedAliases": ["lady gaga"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American pop star known for theatrical fashion.",
+      "She released hits like Poker Face and Bad Romance.",
+      "She also acted in A Star Is Born.",
+      "She famously wore a meat dress."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Taylor Swift",
+    "normalizedName": "taylor swift",
+    "acceptedAliases": ["Taylor Swift"],
+    "normalizedAliases": ["taylor swift"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer-songwriter who began in country music.",
+      "She is known for autobiographical lyrics and massive fan culture.",
+      "Her albums include Fearless, 1989, and Midnights.",
+      "Her Eras Tour became a global cultural event."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Rihanna",
+    "normalizedName": "rihanna",
+    "acceptedAliases": ["Rihanna"],
+    "normalizedAliases": ["rihanna"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A singer from Barbados who became a global pop and R&B star.",
+      "Her hits include Umbrella, Diamonds, and We Found Love.",
+      "She founded the Fenty Beauty brand.",
+      "Her fans often call her RiRi."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Britney Spears",
+    "normalizedName": "britney spears",
+    "acceptedAliases": ["Britney Spears"],
+    "normalizedAliases": ["britney spears"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American pop star who became famous as a teenager.",
+      "Her debut single was ...Baby One More Time.",
+      "She is strongly associated with late-1990s pop.",
+      "She was often called the Princess of Pop."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Elvis Presley",
+    "normalizedName": "elvis presley",
+    "acceptedAliases": ["Elvis", "The King", "Elvis Presley"],
+    "normalizedAliases": ["elvis", "king", "elvis presley"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "An American singer and actor often called the King of Rock and Roll.",
+      "He helped popularize rock and roll.",
+      "He lived at Graceland.",
+      "His hits include Jailhouse Rock and Can't Help Falling in Love."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "very_easy",
+    "category": "singer",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Freddie Mercury",
+    "normalizedName": "freddie mercury",
+    "acceptedAliases": ["Freddie Mercury"],
+    "normalizedAliases": ["freddie mercury"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "A British rock singer with a powerful stage presence.",
+      "He was the lead singer of Queen.",
+      "He performed at Live Aid in 1985.",
+      "His songs include Bohemian Rhapsody and We Are the Champions."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Elton John",
+    "normalizedName": "elton john",
+    "acceptedAliases": ["Elton John"],
+    "normalizedAliases": ["elton john"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British singer and pianist known for flamboyant style.",
+      "He often performs wearing colorful glasses.",
+      "His hits include Rocket Man and Your Song.",
+      "He helped create music for The Lion King."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Adele",
+    "normalizedName": "adele",
+    "acceptedAliases": ["Adele"],
+    "normalizedAliases": ["adele"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British singer known for emotional songs and a rich voice.",
+      "Her albums are named after ages, such as 19, 21, 25, and 30.",
+      "Her songs include Hello and Someone Like You.",
+      "She has won many Grammy Awards."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Celine Dion",
+    "normalizedName": "celine dion",
+    "acceptedAliases": ["Céline Dion", "Celine Dion"],
+    "normalizedAliases": ["celine dion", "celine dion"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian singer with a powerful voice.",
+      "She represented Switzerland at Eurovision in 1988.",
+      "Her biggest global hit was from Titanic.",
+      "The song is My Heart Will Go On."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Tina Turner",
+    "normalizedName": "tina turner",
+    "acceptedAliases": ["Tina Turner"],
+    "normalizedAliases": ["tina turner"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "An American-born singer with an explosive stage presence.",
+      "She became famous with Ike Turner and later as a solo star.",
+      "Her hits include What's Love Got to Do with It.",
+      "She was called the Queen of Rock 'n' Roll."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "hard",
+    "category": "singer",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Dolly Parton",
+    "normalizedName": "dolly parton",
+    "acceptedAliases": ["Dolly Parton"],
+    "normalizedAliases": ["dolly parton"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American country singer, songwriter, and actress.",
+      "She wrote Jolene and I Will Always Love You.",
+      "She starred in the film 9 to 5.",
+      "She founded the Imagination Library."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Prince",
+    "normalizedName": "prince",
+    "acceptedAliases": ["Prince"],
+    "normalizedAliases": ["prince"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "An American musician known for genre-blending and flamboyant style.",
+      "He was a singer, guitarist, producer, and performer.",
+      "He was strongly associated with the color purple.",
+      "His famous album and film is Purple Rain."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "very_hard",
+    "category": "singer",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Bob Marley",
+    "normalizedName": "bob marley",
+    "acceptedAliases": ["Bob Marley"],
+    "normalizedAliases": ["bob marley"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "A Jamaican singer who popularized reggae worldwide.",
+      "He was associated with Rastafari culture.",
+      "His songs include One Love and No Woman, No Cry.",
+      "He performed with The Wailers."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Eminem",
+    "normalizedName": "eminem",
+    "acceptedAliases": ["Marshall Mathers", "Slim Shady", "Eminem"],
+    "normalizedAliases": ["marshall mathers", "slim shady", "eminem"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American rapper from Detroit.",
+      "He is also known as Slim Shady.",
+      "His real name is Marshall Mathers.",
+      "His songs include Lose Yourself and Without Me."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "rapper",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Snoop Dogg",
+    "normalizedName": "snoop dogg",
+    "acceptedAliases": ["Snoop Dogg"],
+    "normalizedAliases": ["snoop dogg"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American rapper from California.",
+      "He became famous through Dr. Dre's productions.",
+      "He is known for a relaxed delivery and laid-back persona.",
+      "His name includes an animal often associated with loyalty."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "rapper",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Tupac Shakur",
+    "normalizedName": "tupac shakur",
+    "acceptedAliases": ["2Pac", "Tupac", "Tupac Shakur"],
+    "normalizedAliases": ["2pac", "tupac", "tupac shakur"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "An American rapper and actor famous in the 1990s.",
+      "He is also known as 2Pac.",
+      "His songs include California Love and Changes.",
+      "He died after a shooting in Las Vegas in 1996."
+    ],
+    "baseClueFact": "A globally recognized music figure from 20th Century.",
+    "difficulty": "medium",
+    "category": "rapper",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Drake",
+    "normalizedName": "drake",
+    "acceptedAliases": ["Drake"],
+    "normalizedAliases": ["drake"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian rapper and singer.",
+      "He first became known as an actor on Degrassi.",
+      "His hits include Hotline Bling and God's Plan.",
+      "He is one of the most streamed artists in the world."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "rapper",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "The Weeknd",
+    "normalizedName": "weeknd",
+    "acceptedAliases": ["Weeknd", "Abel Tesfaye", "The Weeknd"],
+    "normalizedAliases": ["weeknd", "abel tesfaye", "weeknd"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian singer whose real name is Abel Tesfaye.",
+      "He is known for dark pop and R&B sounds.",
+      "His hit Blinding Lights became globally huge.",
+      "His stage name begins with The."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Billie Eilish",
+    "normalizedName": "billie eilish",
+    "acceptedAliases": ["Billie Eilish"],
+    "normalizedAliases": ["billie eilish"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer who became famous as a teenager.",
+      "She often works with her brother Finneas.",
+      "Her breakout hit was Bad Guy.",
+      "She is known for whispery vocals and distinctive fashion."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Ariana Grande",
+    "normalizedName": "ariana grande",
+    "acceptedAliases": ["Ariana Grande"],
+    "normalizedAliases": ["ariana grande"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer and former Nickelodeon actress.",
+      "She is known for a high vocal range.",
+      "Her signature look often includes a high ponytail.",
+      "Her hits include Thank U, Next and 7 Rings."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Justin Bieber",
+    "normalizedName": "justin bieber",
+    "acceptedAliases": ["Justin Bieber"],
+    "normalizedAliases": ["justin bieber"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian singer who became famous as a teenager.",
+      "He was discovered through YouTube videos.",
+      "His early hit was Baby.",
+      "He later released songs like Sorry and Peaches."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Ed Sheeran",
+    "normalizedName": "ed sheeran",
+    "acceptedAliases": ["Ed Sheeran"],
+    "normalizedAliases": ["ed sheeran"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British singer-songwriter known for using a loop pedal.",
+      "His hits include Shape of You and Perfect.",
+      "He often performs with just a guitar.",
+      "He has red hair."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Jennifer Lopez",
+    "normalizedName": "jennifer lopez",
+    "acceptedAliases": ["JLo", "J.Lo", "Jennifer Lopez"],
+    "normalizedAliases": ["jlo", "jlo", "jennifer lopez"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer, dancer, and actress.",
+      "She is also known as J.Lo.",
+      "She starred in Selena and Hustlers.",
+      "She performed at the Super Bowl halftime show with Shakira."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Katy Perry",
+    "normalizedName": "katy perry",
+    "acceptedAliases": ["Katy Perry"],
+    "normalizedAliases": ["katy perry"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American pop singer known for colorful costumes.",
+      "Her hits include Firework and Roar.",
+      "She sang I Kissed a Girl.",
+      "She has been a judge on American Idol."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Bruno Mars",
+    "normalizedName": "bruno mars",
+    "acceptedAliases": ["Bruno Mars"],
+    "normalizedAliases": ["bruno mars"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer and performer.",
+      "His hits include Uptown Funk and Just the Way You Are.",
+      "He is known for retro funk and dance-heavy shows.",
+      "His stage surname is a planet."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Dua Lipa",
+    "normalizedName": "dua lipa",
+    "acceptedAliases": ["Dua Lipa"],
+    "normalizedAliases": ["dua lipa"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British-Albanian pop singer.",
+      "Her hits include New Rules and Levitating.",
+      "She is known for dance-pop songs.",
+      "Her first name means love in Albanian."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Miley Cyrus",
+    "normalizedName": "miley cyrus",
+    "acceptedAliases": ["Miley Cyrus"],
+    "normalizedAliases": ["miley cyrus"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American singer and actress.",
+      "She became famous as Hannah Montana.",
+      "Her songs include Wrecking Ball and Flowers.",
+      "She is the daughter of Billy Ray Cyrus."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Hannah Montana",
+    "normalizedName": "hannah montana",
+    "acceptedAliases": ["Hannah Montana"],
+    "normalizedAliases": ["hannah montana"],
+    "hints": [
+      "Became widely known through television.",
+      "A fictional teenage pop star from Disney Channel.",
+      "She lives a double life.",
+      "Miley Cyrus played her.",
+      "Her show was called by her stage name."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "very_hard",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Harry Styles",
+    "normalizedName": "harry styles",
+    "acceptedAliases": ["Harry Styles"],
+    "normalizedAliases": ["harry styles"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British singer and actor.",
+      "He was a member of One Direction.",
+      "His solo hits include Watermelon Sugar and As It Was.",
+      "He is known for fashion-forward style."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "singer",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "BTS",
+    "normalizedName": "bts",
+    "acceptedAliases": ["Bangtan Boys", "BTS"],
+    "normalizedAliases": ["bangtan boys", "bts"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A South Korean pop group known worldwide.",
+      "Their fans are called ARMY.",
+      "Their hits include Dynamite and Butter.",
+      "Their name is three letters."
+    ],
+    "baseClueFact": "A globally recognized music figure from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "music group",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Tom Cruise",
+    "normalizedName": "tom cruise",
+    "acceptedAliases": ["Tom Cruise"],
+    "normalizedAliases": ["tom cruise"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor famous for action films.",
+      "He plays Ethan Hunt in Mission: Impossible.",
+      "He is known for doing many of his own stunts.",
+      "He also starred in Top Gun."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Brad Pitt",
+    "normalizedName": "brad pitt",
+    "acceptedAliases": ["Brad Pitt"],
+    "normalizedAliases": ["brad pitt"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American film star and producer.",
+      "He starred in Fight Club, Troy, and Ocean's Eleven.",
+      "He won an Oscar for Once Upon a Time in Hollywood.",
+      "He was married to Angelina Jolie."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Angelina Jolie",
+    "normalizedName": "angelina jolie",
+    "acceptedAliases": ["Angelina Jolie"],
+    "normalizedAliases": ["angelina jolie"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actress and humanitarian.",
+      "She played Lara Croft in Tomb Raider.",
+      "She won an Oscar for Girl, Interrupted.",
+      "She was married to Brad Pitt."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Leonardo DiCaprio",
+    "normalizedName": "leonardo dicaprio",
+    "acceptedAliases": ["DiCaprio", "Leonardo DiCaprio"],
+    "normalizedAliases": ["dicaprio", "leonardo dicaprio"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor who became a global star with Titanic.",
+      "He starred in The Wolf of Wall Street and Inception.",
+      "He won an Oscar for The Revenant.",
+      "His first name is the same as da Vinci's."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Johnny Depp",
+    "normalizedName": "johnny depp",
+    "acceptedAliases": ["Johnny Depp"],
+    "normalizedAliases": ["johnny depp"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor known for unusual characters.",
+      "He played Captain Jack Sparrow.",
+      "He worked often with Tim Burton.",
+      "He played Edward Scissorhands and Willy Wonka."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Dwayne Johnson",
+    "normalizedName": "dwayne johnson",
+    "acceptedAliases": ["The Rock", "Dwayne Johnson"],
+    "normalizedAliases": ["rock", "dwayne johnson"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor and former professional wrestler.",
+      "He was famous in WWE.",
+      "His nickname is The Rock.",
+      "He starred in Jumanji and Fast & Furious films."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Will Smith",
+    "normalizedName": "will smith",
+    "acceptedAliases": ["Will Smith"],
+    "normalizedAliases": ["will smith"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor and rapper.",
+      "He starred in The Fresh Prince of Bel-Air.",
+      "He played Agent J in Men in Black.",
+      "He won an Oscar for King Richard."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Morgan Freeman",
+    "normalizedName": "morgan freeman",
+    "acceptedAliases": ["Morgan Freeman"],
+    "normalizedAliases": ["morgan freeman"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor with one of cinema's most recognizable voices.",
+      "He starred in The Shawshank Redemption.",
+      "He played God in Bruce Almighty.",
+      "He is often used as a narrator."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Marilyn Monroe",
+    "normalizedName": "marilyn monroe",
+    "acceptedAliases": ["Marilyn Monroe"],
+    "normalizedAliases": ["marilyn monroe"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "An American actress and model from old Hollywood.",
+      "She was famous for blonde hair and glamorous image.",
+      "She starred in Some Like It Hot.",
+      "One famous image shows her white dress blowing upward."
+    ],
+    "baseClueFact": "A globally recognized screen performer from 20th Century.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Charlie Chaplin",
+    "normalizedName": "charlie chaplin",
+    "acceptedAliases": ["Chaplin", "Charlie Chaplin"],
+    "normalizedAliases": ["chaplin", "charlie chaplin"],
+    "hints": [
+      "Rose to fame before the internet era made celebrity instant.",
+      "A British comic actor from the silent film era.",
+      "He created the character The Tramp.",
+      "He wore a bowler hat and carried a cane.",
+      "He had a tiny mustache and exaggerated walk."
+    ],
+    "baseClueFact": "A globally recognized screen performer from 20th Century.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "20th Century"
+  },
+  {
+    "canonicalName": "Mr Bean",
+    "normalizedName": "mr bean",
+    "acceptedAliases": ["Mister Bean", "Rowan Atkinson", "Mr Bean"],
+    "normalizedAliases": ["mister bean", "rowan atkinson", "mr bean"],
+    "hints": [
+      "Became widely known through television.",
+      "A British comedy character who rarely speaks.",
+      "He is played by Rowan Atkinson.",
+      "He often causes chaos through awkward behavior.",
+      "He drives a small green Mini."
+    ],
+    "baseClueFact": "A well-known fictional character from Television.",
+    "difficulty": "very_easy",
+    "category": "fictional character",
+    "era": "Television"
+  },
+  {
+    "canonicalName": "Oprah Winfrey",
+    "normalizedName": "oprah winfrey",
+    "acceptedAliases": ["Oprah", "Oprah Winfrey"],
+    "normalizedAliases": ["oprah", "oprah winfrey"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American television host and media executive.",
+      "She hosted one of the most successful talk shows in history.",
+      "She is often referred to by her first name only.",
+      "She is associated with book clubs and powerful interviews."
+    ],
+    "baseClueFact": "A well-known fictional character from modern pop culture.",
+    "difficulty": "easy",
+    "category": "TV personality",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Kim Kardashian",
+    "normalizedName": "kim kardashian",
+    "acceptedAliases": ["Kim Kardashian"],
+    "normalizedAliases": ["kim kardashian"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American reality TV personality and businesswoman.",
+      "She became famous through Keeping Up with the Kardashians.",
+      "She founded SKIMS.",
+      "Her family name is extremely famous in celebrity culture."
+    ],
+    "baseClueFact": "A well-known fictional character from modern pop culture.",
+    "difficulty": "medium",
+    "category": "celebrity",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Arnold Schwarzenegger",
+    "normalizedName": "arnold schwarzenegger",
+    "acceptedAliases": ["Schwarzenegger", "Arnold Schwarzenegger"],
+    "normalizedAliases": ["schwarzenegger", "arnold schwarzenegger"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An Austrian-American bodybuilder, actor, and politician.",
+      "He won Mr. Olympia multiple times.",
+      "He played the Terminator.",
+      "He served as governor of California."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Sylvester Stallone",
+    "normalizedName": "sylvester stallone",
+    "acceptedAliases": ["Stallone", "Sylvester Stallone"],
+    "normalizedAliases": ["stallone", "sylvester stallone"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor and filmmaker.",
+      "He created and played Rocky Balboa.",
+      "He also played John Rambo.",
+      "He is associated with action films and boxing."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Keanu Reeves",
+    "normalizedName": "keanu reeves",
+    "acceptedAliases": ["Keanu Reeves"],
+    "normalizedAliases": ["keanu reeves"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian actor known for a calm public image.",
+      "He played Neo in The Matrix.",
+      "He also plays John Wick.",
+      "He is strongly associated with black suits and action roles."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Jim Carrey",
+    "normalizedName": "jim carrey",
+    "acceptedAliases": ["Jim Carrey"],
+    "normalizedAliases": ["jim carrey"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Canadian-American actor famous for physical comedy.",
+      "He starred in The Mask, Ace Ventura, and Dumb and Dumber.",
+      "He is known for elastic facial expressions.",
+      "He also starred in The Truman Show."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Robin Williams",
+    "normalizedName": "robin williams",
+    "acceptedAliases": ["Robin Williams"],
+    "normalizedAliases": ["robin williams"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American comedian and actor famous for improvisation.",
+      "He voiced the Genie in Aladdin.",
+      "He starred in Mrs. Doubtfire and Good Will Hunting.",
+      "He had a fast and energetic comic style."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Harrison Ford",
+    "normalizedName": "harrison ford",
+    "acceptedAliases": ["Harrison Ford"],
+    "normalizedAliases": ["harrison ford"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actor famous for adventure and sci-fi roles.",
+      "He played Han Solo in Star Wars.",
+      "He played Indiana Jones.",
+      "He also starred in Blade Runner."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "easy",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Meryl Streep",
+    "normalizedName": "meryl streep",
+    "acceptedAliases": ["Meryl Streep"],
+    "normalizedAliases": ["meryl streep"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actress widely considered one of the greatest.",
+      "She starred in The Devil Wears Prada.",
+      "She has received many Academy Award nominations.",
+      "She played Margaret Thatcher in The Iron Lady."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Julia Roberts",
+    "normalizedName": "julia roberts",
+    "acceptedAliases": ["Julia Roberts"],
+    "normalizedAliases": ["julia roberts"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actress with a famous smile.",
+      "She starred in Pretty Woman.",
+      "She won an Oscar for Erin Brockovich.",
+      "She became one of the biggest stars of the 1990s."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Jennifer Aniston",
+    "normalizedName": "jennifer aniston",
+    "acceptedAliases": ["Jennifer Aniston"],
+    "normalizedAliases": ["jennifer aniston"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American actress famous for a sitcom role.",
+      "She played Rachel Green.",
+      "Her hairstyle in the 1990s became very famous.",
+      "The show was Friends."
+    ],
+    "baseClueFact": "A globally recognized screen performer from modern pop culture.",
+    "difficulty": "medium",
+    "category": "actor",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Lady Diana",
+    "normalizedName": "lady diana",
+    "acceptedAliases": ["Princess Diana", "Diana Spencer", "Lady Diana"],
+    "normalizedAliases": ["princess diana", "diana spencer", "lady diana"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British royal figure loved around the world.",
+      "She married Prince Charles.",
+      "She was the mother of Princes William and Harry.",
+      "She was often called the People's Princess."
+    ],
+    "baseClueFact": "A widely known royal figure from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "royal",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Queen Elizabeth II",
+    "normalizedName": "queen elizabeth ii",
+    "acceptedAliases": ["Elizabeth II", "Queen Elizabeth II"],
+    "normalizedAliases": ["elizabeth ii", "queen elizabeth ii"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A British monarch who reigned for more than 70 years.",
+      "She became queen in 1952.",
+      "She was the mother of King Charles III.",
+      "She is often shown with pearls, hats, and corgis."
+    ],
+    "baseClueFact": "A widely known royal figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "royal",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Donald Trump",
+    "normalizedName": "donald trump",
+    "acceptedAliases": ["Trump", "Donald Trump"],
+    "normalizedAliases": ["trump", "donald trump"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American businessman, TV personality, and politician.",
+      "He hosted The Apprentice.",
+      "He served as President of the United States.",
+      "His surname became one of the most recognizable in global politics."
+    ],
+    "baseClueFact": "A widely known political figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "politician",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Barack Obama",
+    "normalizedName": "barack obama",
+    "acceptedAliases": ["Obama", "Barack Obama"],
+    "normalizedAliases": ["obama", "barack obama"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "An American politician who became globally famous in 2008.",
+      "He served as President of the United States.",
+      "He was the first Black person elected to that office.",
+      "His campaign slogan included 'Yes We Can'."
+    ],
+    "baseClueFact": "A widely known political figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "politician",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Vladimir Putin",
+    "normalizedName": "vladimir putin",
+    "acceptedAliases": ["Putin", "Vladimir Putin"],
+    "normalizedAliases": ["putin", "vladimir putin"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Russian politician and former intelligence officer.",
+      "He has served as president and prime minister of Russia.",
+      "He is one of the most internationally recognized modern political figures.",
+      "His surname begins with P and often appears in world news."
+    ],
+    "baseClueFact": "A widely known political figure from modern pop culture.",
+    "difficulty": "easy",
+    "category": "politician",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Volodymyr Zelenskyy",
+    "normalizedName": "volodymyr zelenskyy",
+    "acceptedAliases": ["Zelensky", "Zelenskyy", "Volodymyr Zelenskyy"],
+    "normalizedAliases": ["zelensky", "zelenskyy", "volodymyr zelenskyy"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Ukrainian politician and former actor-comedian.",
+      "He starred in Servant of the People.",
+      "He became president of Ukraine.",
+      "He became globally known during Russia's full-scale invasion of Ukraine."
+    ],
+    "baseClueFact": "A widely known political figure from modern pop culture.",
+    "difficulty": "very_hard",
+    "category": "politician",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Pope Francis",
+    "normalizedName": "pope francis",
+    "acceptedAliases": ["Francis", "Pope Francis"],
+    "normalizedAliases": ["francis", "pope francis"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A religious leader from Argentina.",
+      "He became pope in 2013.",
+      "He was the first pope from the Americas.",
+      "He chose the papal name Francis."
+    ],
+    "baseClueFact": "A globally known religious figure from modern pop culture.",
+    "difficulty": "medium",
+    "category": "religious figure",
+    "era": "Modern"
+  },
+  {
+    "canonicalName": "Jesus Christ",
+    "normalizedName": "jesus christ",
+    "acceptedAliases": ["Jesus", "Christ", "Jesus Christ"],
+    "normalizedAliases": ["jesus", "christ", "jesus christ"],
+    "hints": [
+      "Has been recognized across many centuries.",
+      "A religious figure known throughout the world.",
+      "Christians believe he is the Son of God.",
+      "His life is described in the New Testament.",
+      "He is associated with Christmas and Easter."
+    ],
+    "baseClueFact": "A globally known religious figure from Ancient.",
+    "difficulty": "very_easy",
+    "category": "religious figure",
+    "era": "Ancient"
+  },
+  {
+    "canonicalName": "Mona Lisa",
+    "normalizedName": "mona lisa",
+    "acceptedAliases": ["Mona Lisa"],
+    "normalizedAliases": ["mona lisa"],
+    "hints": [
+      "Is tied to one of the most studied artworks in history.",
+      "A famous painted woman with a mysterious smile.",
+      "She appears in a portrait by Leonardo da Vinci.",
+      "The painting is kept in the Louvre.",
+      "The artwork's title is also her name."
+    ],
+    "baseClueFact": "A famous figure from a work of art.",
+    "difficulty": "very_easy",
+    "category": "artwork figure",
+    "era": "Renaissance"
+  },
+  {
+    "canonicalName": "Cristiano Ronaldo",
+    "normalizedName": "cristiano ronaldo",
+    "acceptedAliases": ["Ronaldo", "CR7", "Cristiano Ronaldo"],
+    "normalizedAliases": ["ronaldo", "cr7", "cristiano ronaldo"],
+    "hints": [
+      "Built fame in the age of global mass media.",
+      "A Portuguese footballer famous around the world.",
+      "He played for Manchester United, Real Madrid, Juventus, and Portugal.",
+      "He is associated with the number 7.",
+      "His nickname is CR7."
+    ],
+    "baseClueFact": "A globally recognized sports figure from modern pop culture.",
+    "difficulty": "very_easy",
+    "category": "athlete",
+    "era": "Modern"
+  }
+]

@@ -123,7 +123,10 @@ import {
   saveVoxNominationReveal,
 } from '../../features/voxNominationRevealStorage'
 
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  selectActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
 import { useEndgameFlow } from './flows/useEndgameFlow'
@@ -136,10 +139,7 @@ import {
   getCupidPartnerId,
   isCupidArrowActive,
 } from '../../features/twists/cupidArrow'
-export {
-  POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS,
-  POST_VOTE_ANNOUNCEMENT_MS,
-} from './flows/useEvictionFlow'
+export { POST_VOTE_ANNOUNCEMENT_MS } from './flows/useEvictionFlow'
 import './GameScreen.css'
 
 const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
@@ -312,7 +312,7 @@ export default function GameScreen() {
   }, [dispatch, game.voxPopuli?.finaleStage])
   const pendingPreAdPlacementRef = useRef<AdPlacement | null>(null)
   const activeConfessionalDecisionKey = activeConfessionalDecision
-    ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
+    ? getConfessionalDecisionKey(activeConfessionalDecision)
     : null
   const [storedConfessionalPrompt, setStoredConfessionalPrompt] = useState<{
     decisionKey: string | null
@@ -877,11 +877,6 @@ export default function GameScreen() {
   })
 
   const {
-    showVoteBreakdownPrompt,
-    voteBreakdownPromptIsPostEviction,
-    handleVoteBreakdownSkip,
-    postEvictionVoteBreakdown,
-    setPostEvictionVoteBreakdown,
     postVoteAnnouncement,
     aiTiebreakStage,
     showVoteResults,
@@ -891,8 +886,6 @@ export default function GameScreen() {
     showVoteDeductionOffer,
     handleVoteDeductionAccept,
     handleVoteDeductionDecline,
-    unlockVoteBreakdown,
-    postEvictionVoteBreakdownRows,
     voteResultsEvictee,
     aiTiebreakAnnouncement,
     handleTiebreakerRequired,
@@ -911,8 +904,6 @@ export default function GameScreen() {
     final4Stage,
     setFinal4Stage,
     publicOpinionProfiles,
-    isMountedRef,
-    setAdPending,
     dispatch,
   })
 
@@ -1328,11 +1319,7 @@ export default function GameScreen() {
           showEvictionSplash,
           aiTiebreakStage !== null,
         ],
-        blocksControls: [
-          showVoteBreakdownPrompt,
-          postEvictionVoteBreakdown !== null,
-          showVoxNominationRevealPrompt,
-        ],
+        blocksControls: [showVoxNominationRevealPrompt],
       },
       endgame: {
         awaitingDecision: [
@@ -2363,38 +2350,6 @@ export default function GameScreen() {
         {isSocialModeEnabled(game.mode) && socialSummaryOpen && <SocialSummaryPopup />}
 
         {/* ── Ad Prompts ───────────────────────────────────────────────────── */}
-        {!deferConditionPromptsForPresentation && showVoteBreakdownPrompt && (
-          <AdPrompt
-            icon="🗳️"
-            title="Peek Behind the Curtain?"
-            description={
-              voteBreakdownPromptIsPostEviction
-                ? 'Watch a short ad to unlock the vote reveal showing who voted for whom after this live eviction.'
-                : 'Watch a short ad to unlock the Confessional reveal showing who voted for whom after this live eviction.'
-            }
-            watchLabel="Watch Ad to Unlock Vote Reveal"
-            skipLabel="Continue"
-            onWatch={() => {
-              if (adPending) return
-              setAdPending(true)
-              const state = storeRef.current.getState()
-              if (!window.GameAds?.showRewarded) {
-                dispatch(recordAdShown('eviction_vote_breakdown'))
-                unlockVoteBreakdown()
-                return
-              }
-              const requested = showRewarded('eviction_vote_breakdown', state, dispatch, () =>
-                unlockVoteBreakdown()
-              )
-              if (!requested) {
-                unlockVoteBreakdown()
-              }
-            }}
-            onSkip={handleVoteBreakdownSkip}
-            pending={adPending}
-          />
-        )}
-
         {!deferConditionPromptsForPresentation && showVoxNominationRevealPrompt && (
           <AdPrompt
             icon="🗳️"
@@ -2457,53 +2412,6 @@ export default function GameScreen() {
               pending={adPending}
             />
           )}
-
-        {!deferConditionPromptsForPresentation && postEvictionVoteBreakdown && (
-          <div
-            className="ad-prompt__backdrop"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Vote Breakdown"
-          >
-            <div className="ad-prompt__card game-screen__vote-breakdown-card">
-              <div className="game-screen__vote-breakdown-header">
-                <span className="game-screen__vote-breakdown-eyebrow">Vote Breakdown</span>
-                <strong>Who voted for whom</strong>
-              </div>
-              <div
-                className="game-screen__vote-breakdown-table"
-                role="table"
-                aria-label="Eviction vote breakdown"
-              >
-                {postEvictionVoteBreakdownRows.map((row) => (
-                  <div key={row.voterKey} className="game-screen__vote-breakdown-row" role="row">
-                    <span className="game-screen__vote-breakdown-cell" role="cell">
-                      {row.voterName}
-                    </span>
-                    <span className="game-screen__vote-breakdown-arrow" aria-hidden="true">
-                      →
-                    </span>
-                    <span
-                      className="game-screen__vote-breakdown-cell game-screen__vote-breakdown-cell--target"
-                      role="cell"
-                    >
-                      {row.targetName}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="game-screen__vote-breakdown-actions">
-                <button
-                  type="button"
-                  className="ad-prompt__btn ad-prompt__btn--watch"
-                  onClick={() => setPostEvictionVoteBreakdown(null)}
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* social_energy_recharge: rewarded prompt when energy hits 0 */}
         {!deferConditionPromptsForPresentation && showEnergyRechargePrompt && humanPlayer && (

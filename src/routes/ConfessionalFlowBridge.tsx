@@ -1,6 +1,9 @@
 import { useEffect, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { selectActiveConfessionalDecision } from '../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  selectActiveConfessionalDecision,
+} from '../store/confessionalDecisionSelectors'
 import { useAppSelector } from '../store/hooks'
 
 interface Props {
@@ -12,9 +15,7 @@ export default function ConfessionalFlowBridge({ children }: Props) {
   const location = useLocation()
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
   const gameMode = useAppSelector((state) => state.game.mode)
-  const activeDecisionKey = activeDecision
-    ? `${activeDecision.type}:${activeDecision.week}:${activeDecision.phase}`
-    : null
+  const activeDecisionKey = activeDecision ? getConfessionalDecisionKey(activeDecision) : null
 
   useEffect(() => {
     if (gameMode === 'survival' || !activeDecisionKey || location.pathname === '/diary-room')

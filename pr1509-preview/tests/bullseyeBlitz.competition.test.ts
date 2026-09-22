@@ -1,0 +1,633 @@
+/**
+ * Bullseye Blitz (targetPractice) — competition regression tests.
+ *
+ * Covers:
+ *  1. Winner is the player with the highest score.
+ *  2. Last-place finisher is the player with the lowest score.
+ *  3. Explicit lastPlaceId from the component takes priority over score derivation.
+ *  4. Public mode auto-nominee matches the last-place finisher from the competition.
+ *  5. Human nomination flow continues correctly after the game resolves.
+ *  6. AI-only nomination flow produces the correct winner + last-place.
+ *  7. Hazard penalty: hitting a hazard drops a player's score, possibly to last place.
+ *  8. Bonus targets: a bonus hit can swing ranking.
+ *  9. Tie-breaking: equal scores resolved by participant index (lower index wins).
+ * 10. buildRankedLeaderboard utility: deterministic ranking from canonical scores.
+ */
+
+import { describe, it, expect } from 'vitest'
+import { configureStore } from '@reduxjs/toolkit'
+import gameReducer, {
+  launchMinigame,
+  completeMinigame,
+  commitNominees,
+  advance,
+} from '../src/store/gameSlice'
+import settingsReducer from '../src/store/settingsSlice'
+import publicOpinionReducer from '../src/publicOpinion/publicOpinionSlice'
+import type { GameState, Player, CompleteMinigamePayload } from '../src/types'
+import {
+  buildRankedLeaderboard,
+  BULLSEYE_AI_ROUND_BANDS,
+  bullseyeAiBandForRound,
+  getBullseyeEliminationCount,
+  getBullseyeRoundConfig,
+  pickTargetKind,
+  simulateBullseyeAiRoundScore,
+  TARGET_CONFIGS,
+} from '../src/components/BullseyeBlitz/bullseyeBlitzUtils'
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function makePlayers(count: number): Player[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `p${i}`,
+    name: `Player ${i}`,
+    avatar: '🧑',
+    status: 'active' as const,
+    isUser: i === 0, // p0 is the human unless overridden
+  }))
+}
+
+function makeStore(overrides: Partial<GameState> = {}) {
+  const players = overrides.players ?? makePlayers(5)
+  const base: GameState = {
+    season: 1,
+    week: 2,
+    phase: 'loh_comp',
+    seed: 42,
+    lohId: null,
+    prevHohId: null,
+    nomineeIds: [],
+    publicModeEnabled: true,
+    posWinnerId: null,
+    replacementNeeded: false,
+    povSavedId: null,
+    awaitingNominations: false,
+    pendingNominee1Id: null,
+    awaitingPovDecision: false,
+    awaitingPovSaveTarget: false,
+    lastHohCompFinisherId: null,
+    publicSavedNomineeId: null,
+    nominationContext: null,
+    awaitingPublicSave: false,
+    votes: {},
+    awaitingHumanVote: false,
+    awaitingTieBreak: false,
+    tiedNomineeIds: null,
+    awaitingFinal3Eviction: false,
+    awaitingFinal3Plea: false,
+    f3Part1WinnerId: null,
+    f3Part2WinnerId: null,
+    voteResults: null,
+    evictionSplashId: null,
+    pendingEviction: null,
+    players,
+    tvFeed: [],
+    isLive: false,
+  }
+
+  return configureStore({
+    reducer: {
+      game: gameReducer,
+      settings: settingsReducer,
+      publicOpinion: publicOpinionReducer,
+    },
+    preloadedState: {
+      game: { ...base, ...overrides } as GameState,
+    },
+  })
+}
+
+/**
+ * Pre-dispatch launchMinigame so completeMinigame has a session to resolve against.
+ */
+function setupMinigameSession(
+  store: ReturnType<typeof makeStore>,
+  playerIds: string[],
+  aiScores: Record<string, number>
+) {
+  store.dispatch(
+    launchMinigame({
+      key: 'targetPractice',
+      participants: playerIds,
+      seed: 42,
+      options: { timeLimit: 20 },
+      aiScores,
+    })
+  )
+}
+
+/**
+ * Advance loh_results → social_1 → nominations → nomination_results.
+ */
+function advanceToNominationResults(store: ReturnType<typeof makeStore>) {
+  store.dispatch(advance()) // loh_results → social_1
+  store.dispatch(advance()) // social_1    → nominations
+  store.dispatch(advance()) // nominations → nomination_results
+}
+
+// ── 1. Winner correctness ─────────────────────────────────────────────────────
+
+describe('Bullseye Blitz — winner correctness', () => {
+  it('winner is the player with the highest score (human wins)', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 80, p2: 70, p3: 60 })
+
+    store.dispatch(completeMinigame({ humanScore: 120 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lohId).toBe('p0')
+  })
+
+  it('winner is the player with the highest score (AI wins)', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 180, p2: 140, p3: 100 })
+
+    store.dispatch(completeMinigame({ humanScore: 90 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lohId).toBe('p1')
+  })
+
+  it('phase transitions to loh_results after completeMinigame', () => {
+    const players = makePlayers(3)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2'], { p1: 110, p2: 80 })
+
+    store.dispatch(completeMinigame({ humanScore: 95 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.phase).toBe('loh_results')
+  })
+})
+
+// ── 2. Last-place finisher correctness ────────────────────────────────────────
+
+describe('Bullseye Blitz — last-place finisher correctness', () => {
+  it('last-place is the player with the lowest score (AI last)', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 150, p2: 120, p3: 40 })
+
+    store.dispatch(completeMinigame({ humanScore: 160 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p3')
+  })
+
+  it('last-place is the human when their score is lowest', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 200, p2: 180, p3: 160 })
+
+    store.dispatch(completeMinigame({ humanScore: 30 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p0')
+  })
+
+  it('explicit lastPlaceId from the component overrides score-based derivation', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    // Score-based derivation would pick p3 (score 50) but component says p2 is last
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 160, p2: 80, p3: 50 })
+
+    store.dispatch(
+      completeMinigame({ humanScore: 170, lastPlaceId: 'p2' } as CompleteMinigamePayload)
+    )
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p2')
+  })
+
+  it('invalid lastPlaceId (equals the winner) falls back to score-based derivation', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 100, p2: 90, p3: 50 })
+
+    // p0 wins; passing p0 as lastPlaceId is invalid — store falls back to p3
+    store.dispatch(
+      completeMinigame({ humanScore: 130, lastPlaceId: 'p0' } as CompleteMinigamePayload)
+    )
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p3')
+  })
+
+  it('winner is NOT set as last-place finisher', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 110, p2: 100, p3: 80 })
+
+    store.dispatch(completeMinigame({ humanScore: 130 } as CompleteMinigamePayload))
+
+    const state = store.getState().game
+    expect(state.lastHohCompFinisherId).not.toBe(state.lohId)
+  })
+})
+
+// ── 3. Public-mode auto-nominee matches last-place finisher ───────────────────
+
+describe('Bullseye Blitz — Public mode auto-nominee', () => {
+  it('auto-nominee in Public mode matches the last-place finisher from the game', () => {
+    const players = makePlayers(6)
+    const store = makeStore({ players, publicModeEnabled: true })
+
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'], {
+      p1: 200,
+      p2: 180,
+      p3: 160,
+      p4: 140,
+      p5: 35,
+    })
+    store.dispatch(completeMinigame({ humanScore: 210 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p5')
+
+    advanceToNominationResults(store)
+
+    // Human LOH (p0) must nominate two players
+    expect(store.getState().game.awaitingNominations).toBe(true)
+
+    store.dispatch(commitNominees(['p1', 'p2']))
+
+    const afterNoms = store.getState().game
+    // Auto-third nominee must match canonical last-place finisher
+    expect(afterNoms.nominationContext?.autoNomineeId).toBe('p5')
+    expect(afterNoms.nomineeIds).toContain('p5')
+  })
+
+  it('auto-nominee is NOT added when public mode is disabled', () => {
+    const players = makePlayers(5)
+    const store = makeStore({ players, publicModeEnabled: false })
+
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3', 'p4'], {
+      p1: 180,
+      p2: 160,
+      p3: 140,
+      p4: 50,
+    })
+    store.dispatch(completeMinigame({ humanScore: 200 } as CompleteMinigamePayload))
+
+    advanceToNominationResults(store)
+    store.dispatch(commitNominees(['p1', 'p2']))
+
+    const afterNoms = store.getState().game
+    expect(afterNoms.nomineeIds).toHaveLength(2)
+    expect(afterNoms.nominationContext).toBeNull()
+  })
+})
+
+// ── 4. Human nomination flow ──────────────────────────────────────────────────
+
+describe('Bullseye Blitz — human nomination flow', () => {
+  it('awaitingNominations is true for the human LOH', () => {
+    const players = makePlayers(5)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3', 'p4'], { p1: 100, p2: 90, p3: 80, p4: 70 })
+
+    store.dispatch(completeMinigame({ humanScore: 150 } as CompleteMinigamePayload))
+    advanceToNominationResults(store)
+
+    expect(store.getState().game.phase).toBe('nomination_results')
+    expect(store.getState().game.awaitingNominations).toBe(true)
+  })
+
+  it('human can commit two nominations successfully', () => {
+    const players = makePlayers(5)
+    const store = makeStore({ players, publicModeEnabled: false })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3', 'p4'], { p1: 100, p2: 90, p3: 80, p4: 70 })
+
+    store.dispatch(completeMinigame({ humanScore: 150 } as CompleteMinigamePayload))
+    advanceToNominationResults(store)
+    store.dispatch(commitNominees(['p1', 'p2']))
+
+    const state = store.getState().game
+    expect(state.nomineeIds).toContain('p1')
+    expect(state.nomineeIds).toContain('p2')
+    expect(state.awaitingNominations).toBe(false)
+  })
+})
+
+// ── 5. AI-only nomination flow ────────────────────────────────────────────────
+
+describe('Bullseye Blitz — AI-only nomination flow', () => {
+  it('AI LOH correctly sets lohId and lastHohCompFinisherId', () => {
+    const players = makePlayers(4)
+    players.forEach((p) => {
+      p.isUser = false
+    })
+    const store = makeStore({ players })
+
+    setupMinigameSession(store, ['p1', 'p2', 'p3'], { p1: 200, p2: 120, p3: 60 })
+    store.dispatch(completeMinigame({ humanScore: 0 } as CompleteMinigamePayload))
+
+    const state = store.getState().game
+    expect(state.lohId).toBe('p1')
+    expect(state.lastHohCompFinisherId).toBe('p3')
+  })
+
+  it('AI LOH in Public mode auto-nominates last-place finisher', () => {
+    const players = makePlayers(6)
+    players.forEach((p) => {
+      p.isUser = false
+    })
+    const store = makeStore({ players, publicModeEnabled: true })
+
+    setupMinigameSession(store, ['p1', 'p2', 'p3', 'p4', 'p5'], {
+      p1: 220,
+      p2: 180,
+      p3: 150,
+      p4: 120,
+      p5: 45,
+    })
+    store.dispatch(completeMinigame({ humanScore: 0 } as CompleteMinigamePayload))
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p5')
+
+    advanceToNominationResults(store)
+
+    const afterNoms = store.getState().game
+    // p5 (last-place) must end up nominated
+    expect(afterNoms.nomineeIds).toContain('p5')
+    const autoNomineeOrAlreadyPicked =
+      afterNoms.nominationContext?.autoNomineeId === 'p5' || afterNoms.nomineeIds.includes('p5')
+    expect(autoNomineeOrAlreadyPicked).toBe(true)
+  })
+})
+
+// ── 6. Hazard penalty affects ranking ────────────────────────────────────────
+
+describe('Bullseye Blitz — hazard penalty', () => {
+  it('hazard hits reduce score and can push a player to last place', () => {
+    // p0 human hits 3 hazards: effectively has 100 - 45 = 55 pts
+    // p3 AI has 60 pts — without penalty p0 would beat p3, but with penalty p3 wins
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 140, p2: 110, p3: 60 })
+
+    // Human's effective score after hazard hits is below p3
+    store.dispatch(completeMinigame({ humanScore: 55 } as CompleteMinigamePayload))
+
+    const state = store.getState().game
+    expect(state.lohId).toBe('p1')
+    expect(state.lastHohCompFinisherId).toBe('p0')
+  })
+
+  it('TARGET_CONFIGS hazard has negative points', () => {
+    expect(TARGET_CONFIGS.hazard.points).toBeLessThan(0)
+  })
+
+  it('TARGET_CONFIGS standard has positive points', () => {
+    expect(TARGET_CONFIGS.standard.points).toBeGreaterThan(0)
+  })
+
+  it('TARGET_CONFIGS bonus has higher points than standard', () => {
+    expect(TARGET_CONFIGS.bonus.points).toBeGreaterThan(TARGET_CONFIGS.standard.points)
+  })
+})
+
+// ── 7. Bonus target scoring ───────────────────────────────────────────────────
+
+describe('Bullseye Blitz — bonus target scoring', () => {
+  it('bonus hit can swing ranking in favour of a lower raw-hit player', () => {
+    // p0 human: 4 standard + 4 bonus = 4×10 + 4×25 = 140
+    // p1 AI: 160 pts (pre-computed)
+    // Despite fewer hits, bonus hits give p0 a competitive score
+    const players = makePlayers(3)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2'], { p1: 160, p2: 80 })
+
+    store.dispatch(completeMinigame({ humanScore: 140 } as CompleteMinigamePayload))
+
+    const state = store.getState().game
+    expect(state.lohId).toBe('p1') // AI just barely beats human
+    expect(state.lastHohCompFinisherId).toBe('p2')
+  })
+})
+
+// ── 8. Tie-breaking via participant index ─────────────────────────────────────
+
+describe('Bullseye Blitz — tie-breaking', () => {
+  it('buildRankedLeaderboard: lower participant index wins on equal scores (rank)', () => {
+    const players = makePlayers(3)
+    const participants = ['p0', 'p1', 'p2']
+    const scores = { p0: 100, p1: 100, p2: 100 } // everyone tied
+
+    const ranked = buildRankedLeaderboard(participants, scores, 'p0', players)
+
+    // p0 first (index 0), p1 second (index 1), p2 third (index 2)
+    expect(ranked[0].id).toBe('p0')
+    expect(ranked[1].id).toBe('p1')
+    expect(ranked[2].id).toBe('p2')
+  })
+
+  it('buildRankedLeaderboard: higher score wins regardless of index', () => {
+    const players = makePlayers(3)
+    const participants = ['p0', 'p1', 'p2']
+    const scores = { p0: 80, p1: 120, p2: 100 }
+
+    const ranked = buildRankedLeaderboard(participants, scores, 'p0', players)
+
+    expect(ranked[0].id).toBe('p1')
+    expect(ranked[1].id).toBe('p2')
+    expect(ranked[2].id).toBe('p0')
+  })
+
+  it('tied last-place: explicit lastPlaceId from component overrides tie-break', () => {
+    const players = makePlayers(4)
+    const store = makeStore({ players })
+    // p2 and p3 both score 50; participant-index tie-break would pick p3 as last
+    // but the component explicitly says p2 is last
+    setupMinigameSession(store, ['p0', 'p1', 'p2', 'p3'], { p1: 150, p2: 50, p3: 50 })
+
+    store.dispatch(
+      completeMinigame({ humanScore: 160, lastPlaceId: 'p2' } as CompleteMinigamePayload)
+    )
+
+    expect(store.getState().game.lastHohCompFinisherId).toBe('p2')
+  })
+})
+
+// ── 9. pickTargetKind distribution ───────────────────────────────────────────
+
+describe('Bullseye Blitz — pickTargetKind', () => {
+  it('returns standard for values below 0.6', () => {
+    expect(pickTargetKind(0)).toBe('standard')
+    expect(pickTargetKind(0.59)).toBe('standard')
+  })
+
+  it('returns bonus for values in [0.60, 0.85)', () => {
+    expect(pickTargetKind(0.6)).toBe('bonus')
+    expect(pickTargetKind(0.84)).toBe('bonus')
+  })
+
+  it('returns hazard for values >= 0.85', () => {
+    expect(pickTargetKind(0.85)).toBe('hazard')
+    expect(pickTargetKind(1.0)).toBe('hazard')
+  })
+})
+
+describe('Bullseye Blitz — tournament helpers', () => {
+  it('eliminates roughly the bottom 20% while pacing the field to a round-five final duel', () => {
+    expect(getBullseyeEliminationCount(15, 1)).toBe(3)
+    expect(getBullseyeEliminationCount(12, 2)).toBe(3)
+    expect(getBullseyeEliminationCount(9, 3)).toBe(3)
+    expect(getBullseyeEliminationCount(7, 1)).toBe(1)
+    expect(getBullseyeEliminationCount(6, 2)).toBe(1)
+    expect(getBullseyeEliminationCount(5, 3)).toBe(1)
+    expect(getBullseyeEliminationCount(4, 4)).toBe(2)
+    expect(getBullseyeEliminationCount(2, 5)).toBe(0)
+    expect(getBullseyeEliminationCount(1, 5)).toBe(0)
+  })
+
+  it('later rounds are harder than earlier rounds', () => {
+    const roundOne = getBullseyeRoundConfig(1)
+    const roundFour = getBullseyeRoundConfig(4)
+
+    expect(roundFour.spawnIntervalMs).toBeLessThan(roundOne.spawnIntervalMs)
+    expect(roundFour.targetLifetimes.standard).toBeLessThan(roundOne.targetLifetimes.standard)
+    expect(roundFour.targetWeights.hazard).toBeGreaterThan(roundOne.targetWeights.hazard)
+    expect(roundFour.hazardPenalty).toBeLessThan(roundOne.hazardPenalty)
+  })
+
+  it('AI round scores stay deterministic and competitive across rounds', () => {
+    // Use a mid-range baseScore (250 → skill ≈ 0.39 with AI_SCORE_MAX=640) to
+    // represent a mid-field AI that can accumulate a respectable tournament total.
+    const baseScore = 250
+    const roundOneA = simulateBullseyeAiRoundScore(baseScore, 1, 42, 'p1')
+    const roundOneB = simulateBullseyeAiRoundScore(baseScore, 1, 42, 'p1')
+    const roundThree = simulateBullseyeAiRoundScore(baseScore, 3, 42, 'p1')
+
+    expect(roundOneA).toBe(roundOneB)
+    expect(roundOneA).toBeGreaterThan(50)
+    expect(roundThree).toBeGreaterThan(10)
+  })
+
+  it('AI gameplay simulation produces realistic scores in the human-play range', () => {
+    // Human players typically score 100–300 per round in round 1 (18 s, 560 ms spawns).
+    // With AI_SCORE_MAX=640, a baseScore=300 maps to skill ≈ 0.47 — a mid-field
+    // competitor who should accumulate a competitive tournament total.
+    // We sample multiple seeds to verify the distribution.
+    const scores = [42, 99, 1337, 7, 256].map((seed) =>
+      simulateBullseyeAiRoundScore(300, 1, seed, 'contestant')
+    )
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length
+
+    // Average should be solidly above the old 50–70 placeholder range,
+    // reflecting genuine mid-round performance.
+    expect(average).toBeGreaterThan(500)
+    expect(average).toBeLessThan(800)
+  })
+
+  it('higher baseScore yields higher expected score than lower baseScore', () => {
+    // Strong AI (baseScore=300) should consistently outscore weak AI (baseScore=80).
+    // Verified across several seeds to confirm skill ordering is preserved.
+    const seeds = [1, 2, 3, 4, 5, 6, 7, 8]
+    let strongWins = 0
+    for (const seed of seeds) {
+      const strong = simulateBullseyeAiRoundScore(300, 1, seed, 'ai')
+      const weak = simulateBullseyeAiRoundScore(80, 1, seed, 'ai')
+      if (strong > weak) strongWins += 1
+    }
+    // Strong AI should win the majority of matchups (≥ 6 of 8).
+    expect(strongWins).toBeGreaterThanOrEqual(6)
+  })
+
+  it('strong AI can reach a score that would beat a strong human round', () => {
+    // Regression for the screenshot where the human posted 755 in round 1: a
+    // strong AI must have a real path past that score so the outcome is not known
+    // immediately.  baseScore 500 is the top realistic targetPractice resolver
+    // output before the theoretical 640 ceiling used for clamping.
+    const seeds = [1, 5, 13, 42, 99]
+    const scores = seeds.map((seed) => simulateBullseyeAiRoundScore(500, 1, seed, 'threat'))
+    const maxScore = Math.max(...scores)
+    expect(maxScore).toBeGreaterThan(755)
+  })
+
+  it('AI score spread covers a wide range across different skill levels', () => {
+    // Weak, average, and strong AI should produce clearly distinct score bands
+    // so the leaderboard feels like a real field rather than a cluster.
+    const seed = 42
+    const weak = simulateBullseyeAiRoundScore(80, 1, seed, 'p-weak')
+    const average = simulateBullseyeAiRoundScore(240, 1, seed, 'p-avg')
+    const strong = simulateBullseyeAiRoundScore(380, 1, seed, 'p-strong')
+
+    expect(strong).toBeGreaterThan(average)
+    expect(average).toBeGreaterThan(weak)
+    // Strong AI should score noticeably more than weak — at least 80 pts higher.
+    expect(strong - weak).toBeGreaterThan(80)
+  })
+
+  it('AI scores land in the human-competitive band so the field is not a runaway', () => {
+    // Regression for the "AIs have no chance" report: a fast human clears 40+
+    // targets in round 1 (~755 pts).  The AI field must reach and exceed that
+    // scoring range — across the baseScore envelope every round-1 score should
+    // sit inside the round band (with the ±7 % swing) rather than clustering near
+    // ~120-160.
+    const [bandMin, bandMax] = bullseyeAiBandForRound(1)
+    const lowerBound = Math.floor(bandMin * 0.93) - 1
+    const upperBound = Math.ceil(bandMax * 1.07) + 1
+
+    for (const base of [80, 160, 240, 300, 380, 460, 500]) {
+      for (const seed of [1, 7, 42, 99, 256]) {
+        const score = simulateBullseyeAiRoundScore(base, 1, seed, `ai-${base}-${seed}`)
+        expect(score).toBeGreaterThanOrEqual(lowerBound)
+        expect(score).toBeLessThanOrEqual(upperBound)
+      }
+    }
+
+    // Even the weakest AI should comfortably clear the old ~150 ceiling.
+    // baseScore 80 maps to bandMin (450); with the −7 % swing the floor is ~419,
+    // so 400 is a safe lower bound that still proves we left the old cluster behind.
+    const weakest = simulateBullseyeAiRoundScore(80, 1, 42, 'weakest')
+    expect(weakest).toBeGreaterThan(400)
+  })
+
+  it('AI round bands rise across rounds so cumulative ceilings stay above a strong human', () => {
+    // Later rounds spawn faster, so the AI ceiling should keep climbing rather
+    // than falling behind a strong human's accumulated total.
+    expect(BULLSEYE_AI_ROUND_BANDS).toHaveLength(5)
+    for (let i = 1; i < BULLSEYE_AI_ROUND_BANDS.length; i += 1) {
+      const [prevMin, prevMax] = BULLSEYE_AI_ROUND_BANDS[i - 1]
+      const [curMin, curMax] = BULLSEYE_AI_ROUND_BANDS[i]
+      expect(curMin).toBeGreaterThanOrEqual(prevMin)
+      expect(curMax).toBeGreaterThanOrEqual(prevMax)
+    }
+
+    const cumulativeAiCeilings = BULLSEYE_AI_ROUND_BANDS.map((_, index) =>
+      BULLSEYE_AI_ROUND_BANDS.slice(0, index + 1).reduce((sum, [, max]) => sum + max, 0)
+    )
+
+    cumulativeAiCeilings.forEach((ceiling, index) => {
+      const strongHumanCumulative = 755 * (index + 1)
+      expect(ceiling).toBeGreaterThan(strongHumanCumulative)
+    })
+  })
+
+  it('bullseyeAiBandForRound clamps out-of-range rounds to the presets', () => {
+    expect(bullseyeAiBandForRound(0)).toEqual(BULLSEYE_AI_ROUND_BANDS[0])
+    expect(bullseyeAiBandForRound(1)).toEqual(BULLSEYE_AI_ROUND_BANDS[0])
+    expect(bullseyeAiBandForRound(99)).toEqual(
+      BULLSEYE_AI_ROUND_BANDS[BULLSEYE_AI_ROUND_BANDS.length - 1]
+    )
+  })
+
+  it('AI score ceilings increase in later rounds to preserve comeback pressure', () => {
+    const r1 = simulateBullseyeAiRoundScore(250, 1, 77, 'player')
+    const r5 = simulateBullseyeAiRoundScore(250, 5, 77, 'player')
+    expect(r5).toBeGreaterThan(r1)
+  })
+})
+
+// ── 10. Backward-compat: legacy numeric payload ───────────────────────────────
+
+describe('Bullseye Blitz — backward-compat: legacy numeric payload', () => {
+  it('passing a bare number to completeMinigame still works', () => {
+    const players = makePlayers(3)
+    const store = makeStore({ players })
+    setupMinigameSession(store, ['p0', 'p1', 'p2'], { p1: 120, p2: 80 })
+
+    // Legacy callers pass a bare number
+    store.dispatch(completeMinigame(150))
+
+    const state = store.getState().game
+    expect(state.lohId).toBe('p0')
+    expect(state.lastHohCompFinisherId).toBe('p2')
+  })
+})

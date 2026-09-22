@@ -1,0 +1,150 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, act, fireEvent } from '@testing-library/react'
+import { Provider } from 'react-redux'
+import { MemoryRouter } from 'react-router'
+import { configureStore } from '@reduxjs/toolkit'
+import gameReducer from '../../src/store/gameSlice'
+import profilesReducer from '../../src/store/profilesSlice'
+import challengeReducer from '../../src/store/challengeSlice'
+import socialReducer from '../../src/social/socialSlice'
+import uiReducer from '../../src/store/uiSlice'
+import settingsReducer from '../../src/store/settingsSlice'
+import publicOpinionReducer from '../../src/publicOpinion/publicOpinionSlice'
+import type { GameState, Player } from '../../src/types'
+import GameScreen from '../../src/screens/GameScreen/GameScreen'
+
+vi.mock('../../src/minigames/LegacyMinigameWrapper', () => ({
+  default: () => null,
+}))
+
+vi.mock('../../src/components/ui/TvZone', () => ({
+  default: () => <div data-testid="tv-zone" />,
+}))
+
+function makeStore(overrides: Partial<GameState> = {}) {
+  const players: Player[] = [
+    { id: 'user', name: 'You', avatar: '🧑', status: 'active', isUser: true },
+    { id: 'f1', name: 'Finalist 1', avatar: '👩', status: 'active', isUser: false },
+    { id: 'j1', name: 'Juror 1', avatar: '🧑', status: 'jury', isUser: false },
+    { id: 'j2', name: 'Juror 2', avatar: '👩', status: 'jury', isUser: false },
+    { id: 'j3', name: 'Juror 3', avatar: '🧑', status: 'jury', isUser: false },
+  ]
+
+  const base: GameState = {
+    season: 1,
+    week: 12,
+    phase: 'jury_announcement',
+    seed: 77,
+    lohId: 'user',
+    prevHohId: null,
+    nomineeIds: [],
+    posWinnerId: null,
+    replacementNeeded: false,
+    awaitingNominations: false,
+    pendingNominee1Id: null,
+    pendingMinigame: null,
+    minigameResult: null,
+    twistActive: false,
+    awaitingPovDecision: false,
+    awaitingPovSaveTarget: false,
+    votes: {},
+    voteResults: null,
+    awaitingHumanVote: false,
+    awaitingTieBreak: false,
+    tiedNomineeIds: null,
+    awaitingFinal3Eviction: false,
+    awaitingFinal3Plea: false,
+    f3Part1WinnerId: null,
+    f3Part2WinnerId: null,
+    evictionSplashId: null,
+    players,
+    tvFeed: [],
+    isLive: false,
+  }
+
+  return configureStore({
+    reducer: {
+      game: gameReducer,
+      profiles: profilesReducer,
+      challenge: challengeReducer,
+      social: socialReducer,
+      ui: uiReducer,
+      settings: settingsReducer,
+      publicOpinion: publicOpinionReducer,
+    },
+    preloadedState: { game: { ...base, ...overrides } },
+  })
+}
+
+function renderGameScreen(store: ReturnType<typeof makeStore>) {
+  return render(
+    <Provider store={store}>
+      <MemoryRouter>
+        <GameScreen />
+      </MemoryRouter>
+    </Provider>
+  )
+}
+
+describe('Jury phase transition', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows the cinematic overlay when phase is jury_announcement', async () => {
+    const store = makeStore()
+    renderGameScreen(store)
+    await act(async () => {})
+
+    expect(store.getState().game.phase).toBe('jury_announcement')
+    expect(screen.getByRole('dialog', { name: /The Tribunal Takes Control/i })).toBeTruthy()
+  })
+
+  it('shows the Skip button during the animation sequence', async () => {
+    const store = makeStore()
+    renderGameScreen(store)
+    await act(async () => {})
+
+    expect(screen.getByRole('button', { name: /Skip sequence/i })).toBeTruthy()
+  })
+
+  it('reveals Enter Tribunal Vote and Spy Tribunal after skipping the sequence', async () => {
+    const store = makeStore()
+    renderGameScreen(store)
+    await act(async () => {})
+
+    fireEvent.click(screen.getByRole('button', { name: /Skip sequence/i }))
+    expect(screen.getByRole('button', { name: /Enter Tribunal Vote/i })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Spy Tribunal/i })).toBeTruthy()
+  })
+
+  it('auto-advances to jury phase when animations are disabled (body.no-animations)', async () => {
+    const store = makeStore()
+    document.body.classList.add('no-animations')
+
+    try {
+      renderGameScreen(store)
+      await act(async () => {})
+
+      expect(store.getState().game.phase).toBe('jury')
+      expect(screen.queryByRole('dialog', { name: /The Tribunal Takes Control/i })).toBeNull()
+    } finally {
+      document.body.classList.remove('no-animations')
+    }
+  })
+
+  it('transitions to jury phase when Enter Jury Vote is clicked after skip', async () => {
+    const store = makeStore()
+    renderGameScreen(store)
+    await act(async () => {})
+
+    fireEvent.click(screen.getByRole('button', { name: /Skip sequence/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Enter Tribunal Vote/i }))
+
+    expect(store.getState().game.phase).toBe('jury')
+  })
+})

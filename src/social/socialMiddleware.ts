@@ -31,7 +31,6 @@ import { SocialEngine } from './SocialEngine'
 import {
   snapshotWeekRelationships,
   applyEnergyDelta,
-  applyInfluenceDelta,
   decaySocialMemory,
   drainEvictedPlayerSocial,
   invalidateIncomingInteractions,
@@ -657,11 +656,6 @@ function grantEnergy(api: MiddlewareAPI, playerId: string, delta: number): void 
   } else {
     api.dispatch(applyEnergyDelta({ playerId, delta }))
   }
-}
-
-/** Dispatch influence delta (integer pts ×100) to a player. */
-function grantInfluence(api: MiddlewareAPI, playerId: string, delta: number): void {
-  api.dispatch(applyInfluenceDelta({ playerId, delta }))
 }
 
 function applySafetyRelationshipConsequences(
@@ -1495,8 +1489,6 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         // Reward only the actual transition into a new alliance.
         grantEnergy(api as unknown as MiddlewareAPI, payload.source, 2)
         grantEnergy(api as unknown as MiddlewareAPI, payload.target, 2)
-        grantInfluence(api as unknown as MiddlewareAPI, payload.source, 200)
-        grantInfluence(api as unknown as MiddlewareAPI, payload.target, 200)
       } else if (payload.tags.includes('betrayal')) {
         // Broke alliance: actor loses 3 energy.
         grantEnergy(api as unknown as MiddlewareAPI, payload.source, -3)

@@ -1,0 +1,171 @@
+import { useState, useEffect, useRef } from 'react'
+import type { Player } from '../../types'
+import { isEmoji } from '../../utils/avatar'
+import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
+import { getRelationshipTone, type RelationshipScale } from './relationshipOutline'
+import { SoundManager } from '../../services/sound/SoundManager'
+import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
+import './PlayerAvatar.css'
+
+interface PlayerAvatarProps {
+  player: Player
+  className?: string
+  /** Whether this avatar is currently selected (shows selection ring) */
+  selected?: boolean
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg'
+  /** Called when avatar is tapped/clicked */
+  onClick?: (player: Player) => void
+  /** Affinity value toward this player (normalized -1..1 or percent 0..100). When provided, a relationship-tone ring is shown. */
+  affinity?: number | null
+  /** How to interpret affinity. Social gameplay uses the signed -100..100 scale. */
+  relationshipScale?: RelationshipScale
+  /** Whether to show the relationship-tone outline ring. Defaults to true. Set to false to opt out (e.g. main roster tiles, jury panel). */
+  showRelationshipOutline?: boolean
+  /** Whether to apply the greyscale evicted style when player.status is 'evicted'/'jury'. Defaults to true. Set to false to suppress during animations (e.g. vote reveal). */
+  showEvictedStyle?: boolean
+}
+
+/**
+ * PlayerAvatar — reusable avatar tile for decision modals.
+ *
+ * Renders a circular photo avatar with:
+ *  - Multi-step image fallback: iterates all resolveAvatarCandidates before emoji/initials
+ *  - Load animation (fade-in)
+ *  - Subtle border + status ring
+ *  - Selected state (glow ring) and hover state
+ *
+ * Used in TvDecisionModal, TvMultiSelectModal, VoteResultsPopup, etc.
+ */
+export default function PlayerAvatar({
+  player,
+  className,
+  selected = false,
+  size = 'md',
+  onClick,
+  affinity,
+  relationshipScale = 'auto',
+  showRelationshipOutline = true,
+  showEvictedStyle = true,
+}: PlayerAvatarProps) {
+  const { candidates: resolvedCandidates } = useResolvedAvatarSrc(player)
+  const candidates = resolvedCandidates.flatMap(resolvePresentationAvatarCandidates)
+  const candidatesKey = candidates.join('\n')
+  const [imageState, setImageState] = useState({
+    candidatesKey,
+    candidateIdx: 0,
+    showFallback: false,
+    loaded: false,
+  })
+  const [revived, setRevived] = useState(false)
+  const prevStatusRef = useRef(player.status)
+
+  // Detect jury → active transition and trigger revive animation.
+  useEffect(() => {
+    const prev = prevStatusRef.current
+    prevStatusRef.current = player.status
+    if ((prev === 'jury' || prev === 'evicted') && player.status === 'active') {
+      void SoundManager.play('ui:confirm')
+      // Defer setState to avoid synchronous setState inside effect body.
+      const startId = setTimeout(() => setRevived(true), 0)
+      const endId = setTimeout(() => setRevived(false), 900)
+      // Reset revived if status changes again before the timer fires
+      // (e.g. jury → active → evicted within 900 ms) to prevent the class sticking.
+      return () => {
+        clearTimeout(startId)
+        clearTimeout(endId)
+        setRevived(false)
+      }
+    }
+  }, [player.status])
+
+  const candidateIdx = imageState.candidatesKey === candidatesKey ? imageState.candidateIdx : 0
+  const showFallback = imageState.candidatesKey === candidatesKey ? imageState.showFallback : false
+  const loaded = imageState.candidatesKey === candidatesKey ? imageState.loaded : false
+  const avatarSrc = candidates[candidateIdx] ?? ''
+
+  function handleError() {
+    if (candidateIdx < candidates.length - 1) {
+      setImageState({
+        candidatesKey,
+        candidateIdx: candidateIdx + 1,
+        showFallback: false,
+        loaded: false,
+      })
+    } else {
+      setImageState({
+        candidatesKey,
+        candidateIdx,
+        showFallback: true,
+        loaded: false,
+      })
+    }
+  }
+
+  const isEvicted = showEvictedStyle && (player.status === 'evicted' || player.status === 'jury')
+
+  const tone = showRelationshipOutline ? getRelationshipTone(affinity, relationshipScale) : 'none'
+  const toneLabel =
+    tone === 'good' ? 'Close' : tone === 'neutral' ? 'Mixed' : tone === 'bad' ? 'Strained' : null
+
+  const classes = [
+    'pa',
+    `pa--${size}`,
+    className ?? '',
+    selected ? 'pa--selected' : '',
+    isEvicted ? 'pa--evicted' : '',
+    revived ? 'pa--revived' : '',
+    tone !== 'none' ? `pa--rel-${tone}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const inner = showFallback ? (
+    <span className="pa__fallback" aria-hidden="true">
+      {isEmoji(player.avatar ?? '') ? player.avatar : player.name.charAt(0).toUpperCase()}
+    </span>
+  ) : (
+    <img
+      className={`pa__img${loaded ? ' pa__img--loaded' : ''}`}
+      src={avatarSrc}
+      alt=""
+      onError={handleError}
+      onLoad={() =>
+        setImageState({
+          candidatesKey,
+          candidateIdx,
+          showFallback: false,
+          loaded: true,
+        })
+      }
+      aria-hidden="true"
+    />
+  )
+
+  if (onClick) {
+    return (
+      <button
+        className={classes}
+        onClick={() => onClick(player)}
+        aria-pressed={selected}
+        aria-label={toneLabel ? `${player.name} — ${toneLabel}` : player.name}
+        title={toneLabel ? `${player.name} — ${toneLabel}` : player.name}
+        type="button"
+      >
+        <span className="pa__ring" aria-hidden="true" />
+        {inner}
+      </button>
+    )
+  }
+
+  return (
+    <span
+      className={classes}
+      aria-label={toneLabel ? `${player.name} — ${toneLabel}` : undefined}
+      title={toneLabel ? `${player.name} — ${toneLabel}` : undefined}
+    >
+      <span className="pa__ring" aria-hidden="true" />
+      {inner}
+    </span>
+  )
+}

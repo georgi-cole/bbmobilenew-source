@@ -1,0 +1,90 @@
+export type CompetitionCategory =
+  | 'physical'
+  | 'mental'
+  | 'precision'
+  | 'endurance'
+  | 'luck'
+  | 'hybrid'
+
+export type ScoreDirection = 'higher-is-better' | 'lower-is-better'
+
+export interface CompetitionSkillProfile {
+  /** Optional aggregate rating; may be computed from the other skill fields. */
+  overall?: number
+  physical: number
+  mental: number
+  precision: number
+  nerve: number
+  consistency: number
+  clutch: number
+  chokeRisk: number
+  luck: number
+}
+
+export interface CompetitionSeasonState {
+  /** Recent performance momentum (small temporary nudges). */
+  form: number
+  /** Short-term belief/steadiness from recent outcomes. */
+  confidence: number
+  /** Light wear from repeated competition participation. */
+  fatigue: number
+  /** House-visible, smoothed relative performance. 0 = weakest observed, 100 = strongest observed. */
+  observedStrength?: number
+  /** Consecutive ranked competitions finished in the bottom performance band. */
+  recentBottomStreak?: number
+  /** Suspicion that recent weak results may be deliberate sandbagging. 0..100. */
+  sandbagSuspicion?: number
+  /** Number of ranked competition results incorporated into the public read. */
+  performanceSamples?: number
+  /** Best relative performance the house has seen from this player. 0..100. */
+  peakRelativePerformance?: number
+}
+
+export interface CompetitionSkillWeights {
+  physical: number
+  mental: number
+  precision: number
+  nerve: number
+  luck?: number
+  consistency?: number
+  clutch?: number
+  chokeRisk?: number
+}
+
+export interface MinigameAiScoreBucket {
+  minScore: number
+  maxScore: number
+  weight: number
+}
+
+export interface MinigameAiModel {
+  key: string
+  category: CompetitionCategory
+  scoreDirection: ScoreDirection
+  volatility: number
+  weights: CompetitionSkillWeights
+  minScore?: number
+  maxScore?: number
+  scoreBuckets?: MinigameAiScoreBucket[]
+  /**
+   * Maximum possible elapsed time in ms for the game (e.g. numRounds × perRoundLimit).
+   * When set, `startChallenge` generates a simulated tiebreaker time for each AI
+   * and stores it alongside `aiScores`.  A higher AI score produces a proportionally
+   * shorter simulated elapsed time.
+   */
+  tiebreakerMaxMs?: number
+  notes?: string
+}
+
+export interface AiSimulationContext {
+  minigameKey: string
+  seed: number
+  participants: string[]
+  timeLimitSeconds?: number
+}
+
+export interface AiParticipantSnapshot {
+  playerId: string
+  isUser: boolean
+  profile?: CompetitionSkillProfile
+}

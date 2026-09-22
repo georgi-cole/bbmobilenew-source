@@ -1,0 +1,232 @@
+# Famous Figures
+
+A Big Brother-style trivia minigame where players identify famous pop-culture figures and characters from progressive clues. Sister game to **Biography Blitz**.
+
+## Game Rules
+
+1. A famous figure or character is hidden — you see only an initial "clue" sentence.
+2. You can request up to **5 hints**, each more specific than the last.
+3. Type your guess at any time — fuzzy matching accepts reasonable spelling variants.
+4. **Scoring:** fewer hints used = higher score.
+   | Hints used | Points |
+   |------------|--------|
+   | 0 (base clue only) | **10** |
+   | 1 | 9 |
+   | 2 | 7 |
+   | 3 | 5 |
+   | 4 | 3 |
+   | 5 | 1 |
+   | Overtime | 1 |
+5. **Three rounds** per match. Highest cumulative score wins.
+6. **Tiebreaker:** most correct rounds. If still tied, the first tied player wins.
+
+---
+
+## Per-player Progression
+
+Each player gets their own **unique, reproducible** shuffled figure queue for the match.
+
+- Built at match start via `mulberry32(seed ^ fnv1a32(playerId))`.
+- Each player guesses a **different** figure from every other player in the same round.
+- A player's **personal round cursor** (`playerRoundCursor`) increments immediately on
+  each correct guess, independently of the global round timer.
+- When a player's cursor reaches `totalRounds` before the match ends, they see a
+  personal **"waiting for others"** screen displaying their per-round breakdown and a
+  live scoreboard until the global match completes.
+
+### Key state fields
+
+| Field                       | Type                       | Description                                                          |
+| --------------------------- | -------------------------- | -------------------------------------------------------------------- |
+| `playerFigureQueues`        | `Record<string, number[]>` | Per-player list of figure indices (length = `totalRounds`)           |
+| `playerRoundCursor`         | `Record<string, number>`   | How many rounds each player has solved so far (0…`totalRounds`)      |
+| `playerPersonalRoundScores` | `Record<string, number[]>` | Points earned per solved round, written immediately on correct guess |
+
+Use `getPlayerFigureIndex(state, playerId, round)` to resolve the correct figure index for any player and round.
+
+---
+
+## Hint System
+
+Hints are revealed one at a time; requesting more reduces the points available.
+
+| Index | Source             | Content                                                                                |
+| ----- | ------------------ | -------------------------------------------------------------------------------------- |
+| 0     | Dataset `hints[0]` | Vague — no direct identifying information                                              |
+| 1     | Dataset `hints[1]` | General field or era                                                                   |
+| 2     | Dataset `hints[2]` | More specific behavior, role, or relationship                                          |
+| 3     | Dataset `hints[3]` | Strong signature trait, object, catchphrase, or context                                |
+| 4     | Dataset `hints[4]` | Near-giveaway clue such as a rival, companion, title link, or final identifying detail |
+
+> **Note:** All five dataset hints are shown at runtime. `getHintText` only falls back to generated name clues if an older row is missing a late hint.
+
+---
+
+## Dataset Format (JSON Schema)
+
+Each figure in `src/games/famous-figures/data/famous_figures.json` follows this schema:
+
+```json
+{
+  "canonicalName": "Mickey Mouse",
+  "normalizedName": "mickey mouse",
+  "acceptedAliases": ["Mickey", "Mickey Mouse"],
+  "normalizedAliases": ["mickey", "mickey mouse"],
+  "hints": [
+    "Hint 1 — vague, no direct identifying info",
+    "Hint 2 — general field or era",
+    "Hint 3 - more specific behavior or relationship",
+    "Hint 4 - strong signature trait or context",
+    "Hint 5 - near-giveaway final clue"
+  ],
+  "baseClueFact": "A single sentence shown as the initial clue.",
+  "difficulty": "easy",
+  "category": "artist",
+  "era": "Renaissance"
+}
+```
+
+### Field definitions
+
+| Field               | Type                                                         | Description                                                                                                            |
+| ------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `canonicalName`     | `string`                                                     | The official display name used in reveals                                                                              |
+| `normalizedName`    | `string`                                                     | Output of `normalizeForMatching(canonicalName)`                                                                        |
+| `acceptedAliases`   | `string[]`                                                   | Alternative names players might use                                                                                    |
+| `normalizedAliases` | `string[]`                                                   | `normalizeForMatching` applied to each alias                                                                           |
+| `hints`             | `[string, string, string, string, string]`                   | Exactly 5 entries, shown at runtime from broad to specific                                                             |
+| `baseClueFact`      | `string`                                                     | Opening clue shown before any hint is requested                                                                        |
+| `difficulty`        | `"very_easy" \| "easy" \| "medium" \| "hard" \| "very_hard"` | Internal recognizability band; affects AI accuracy, hints needed, and reaction speed. It is never shown to the player. |
+| `category`          | `string`                                                     | Free-form (artist, scientist, ruler, leader, etc.)                                                                     |
+| `era`               | `string`                                                     | Historical period                                                                                                      |
+
+---
+
+## Alias Rules
+
+An alias is a recognisable alternative form of the name. Good aliases:
+
+- **Mononyms** — single-name recognition (`"Mozart"`, `"Michelangelo"`)
+- **Shortened forms** — omit first or last name (`"Einstein"`, `"Darwin"`)
+- **Regnal names** — title-only forms used historically (`"Caesar"`)
+- **Honorific forms** — `"Mahatma Gandhi"` (Mohandas Gandhi's honorific)
+- **Abbreviations** — `"MLK"` for Martin Luther King Jr
+
+All aliases and the canonical name must have a corresponding pre-computed `normalizedAlias` (the output of `normalizeForMatching`). Always regenerate normalized forms when adding or modifying a figure.
+
+---
+
+## Fuzzy Matching
+
+The fuzzy matcher is in `src/games/famous-figures/fuzzy.ts`.
+
+### Normalisation (`normalizeForMatching`)
+
+1. NFD Unicode decomposition → strip combining diacritics (removes accents)
+2. Replace apostrophes/elision marks (`'`, `'`, `` ` ``) with spaces
+3. Lowercase
+4. Strip non-alphanumeric/space characters (punctuation, hyphens)
+5. Remove standalone particles: `de da del di von van al ibn el of the d l`
+6. Collapse whitespace
+
+**Examples:**
+
+| Input                 | Normalised        |
+| --------------------- | ----------------- |
+| `Galileo Galilei`     | `galileo galilei` |
+| `Leonardo da Vinci`   | `leonardo vinci`  |
+| `Joan of Arc`         | `joan arc`        |
+| `Jeanne d'Arc`        | `jeanne arc`      |
+| `Alexander the Great` | `alexander great` |
+| `Nikola Tesla`        | `nikola tesla`    |
+
+### Damerau-Levenshtein Distance
+
+Full **Damerau-Levenshtein** distance (not restricted). Transpositions count as a single edit (e.g. `"enistein"` → `"einstein"` = 1 edit).
+
+### Acceptance threshold
+
+- If the normalised alias length **≤ 4**: require **exact match** (prevents short strings like `"MLK"` accepting `"MLJ"`).
+- Otherwise: accept if DL distance ≤ `Math.max(1, Math.floor(aliasLength × 0.22))`.
+
+---
+
+## How to Add / Modify Figures
+
+1. Open `src/games/famous-figures/data/famous_figures.json`.
+2. Add a new object following the JSON schema above.
+3. **Manually compute** `normalizedName` and `normalizedAliases` using `normalizeForMatching`:
+   ```ts
+   import { normalizeForMatching } from 'src/games/famous-figures/fuzzy'
+   console.log(normalizeForMatching('Joan of Arc')) // → "joan arc"
+   ```
+4. Write all five hints as a gradual ladder: broad category, general relationship or world, behavior or role, strong signature trait, then a near-giveaway final clue.
+5. Run tests: `npm run test:famous-figures`
+
+AI contestants also have stable general-knowledge profiles and deterministic figure-specific familiarity. This allows strong players to answer recognizable figures early while preserving occasional blind spots, specialist solves, hesitation, and correct answers after four or five hints.
+
+---
+
+## Edge Cases
+
+### Mononyms
+
+Figures known by a single name (e.g. Michelangelo, Mozart, Cleopatra):
+
+- The `canonicalName` is the mononym and is **always a direct match target** — you do not need to add it to `acceptedAliases`.
+- Only add the mononym to `acceptedAliases` / `normalizedAliases` if you also want to list alternative spellings or variants of the mononym itself.
+- Short mononyms (≤4 chars) are matched by **exact** spelling only (no fuzzy distance allowed).
+- Mononym entries still need five curated hints; generated name clues are only a fallback for incomplete legacy rows.
+
+### Regnal and title names
+
+- Caesar (alias for Julius Caesar), Gandhi (for Mahatma Gandhi).
+- Place the short form in `acceptedAliases` so it is matched against directly.
+
+### Particles in names
+
+The normaliser strips `de`, `da`, `del`, `di`, `von`, `van`, `al`, `ibn`, `el`, `of`, `the`, `d`, `l`. Pre-compute all `normalizedName`/`normalizedAliases` fields using the normaliser function to ensure accuracy.
+
+### Diacritics
+
+The normaliser strips all combining diacritics via NFD decomposition. `Cleopâtra`, `Gàlilëo`, `Góngora` all normalise without accents.
+
+---
+
+## Admin Fallback Notes
+
+- The 200-figure dataset is embedded in the bundle; no server fetch is required.
+- If a figure at index N is somehow missing (programming error), the relevant `submitPlayerGuess` call silently no-ops.
+- Seed-based figure shuffling ensures reproducible round order across page reloads.
+- Per-player queues are built with `mulberry32(seed ^ fnv1a32(playerId))` — reproducible but unique per player.
+
+---
+
+## Run Instructions
+
+```bash
+# Run Famous Figures unit tests only
+npm run test:famous-figures
+
+# Run all tests
+npm test
+
+# Start the development server
+npm run start:famous-figures
+```
+
+---
+
+## File Locations
+
+| File                                                     | Purpose                                          |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| `src/games/famous-figures/model.ts`                      | TypeScript types (`FigureRow`, `MatchStatus`, …) |
+| `src/games/famous-figures/fuzzy.ts`                      | Normalisation + Damerau-Levenshtein matching     |
+| `src/games/famous-figures/hints.ts`                      | Hint generation (`getHintText`)                  |
+| `src/games/famous-figures/data/famous_figures.json`      | 200-figure dataset                               |
+| `src/features/famousFigures/famousFiguresSlice.ts`       | Redux slice (state machine)                      |
+| `src/features/famousFigures/thunks.ts`                   | Outcome resolution thunk                         |
+| `src/components/FamousFiguresComp/FamousFiguresComp.tsx` | React UI component                               |
+| `src/components/FamousFiguresComp/FamousFiguresComp.css` | Styles                                           |
+| `tests/unit/famous-figures/`                             | Unit + integration tests                         |

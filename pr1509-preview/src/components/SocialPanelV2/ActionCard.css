@@ -1,0 +1,342 @@
+/* ─── ActionCard ────────────────────────────────────────────────────────────
+ * Styles for a single social-action card rendered inside ActionGrid.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+.ac-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(2.6rem, 1fr) auto;
+  align-content: start;
+  gap: 0.4rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(224, 183, 88, 0.08), transparent 47%),
+    linear-gradient(145deg, rgba(29, 18, 38, 0.78), rgba(11, 8, 16, 0.88));
+  border: 1px solid rgba(221, 207, 191, 0.12);
+  border-radius: 13px;
+  padding: 0.64rem 0.68rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 6rem;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.075),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.014);
+  backdrop-filter: blur(8px) saturate(1.08);
+  -webkit-backdrop-filter: blur(8px) saturate(1.08);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+  user-select: none;
+  outline: none;
+}
+
+@media (max-width: 699px) {
+  .ac-card {
+    min-height: 0;
+    padding: 0.68rem 0.75rem;
+    touch-action: manipulation;
+  }
+
+  .ac-card__title,
+  .ac-card__description,
+  .ac-badge {
+    overflow-wrap: anywhere;
+  }
+
+  .ac-card__tooltip {
+    position: static;
+    width: 100%;
+    max-width: none;
+    transform: none;
+  }
+
+  .ac-card__tooltip::after {
+    display: none;
+  }
+}
+
+.ac-card:hover:not(.ac-card--disabled) {
+  border-color: rgba(207, 180, 132, 0.48);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(224, 181, 113, 0.15), transparent 50%),
+    linear-gradient(145deg, rgba(42, 25, 57, 0.99), rgba(18, 11, 27, 0.99));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.ac-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-accent, #6366f1);
+}
+
+.ac-card:active:not(.ac-card--disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Selected state ────────────────────────────────────────────────────────── */
+@keyframes ac-selected-outline {
+  0% {
+    box-shadow: 0 0 0 0 rgba(216, 180, 104, 0.5);
+  }
+  60% {
+    box-shadow: 0 0 0 4px rgba(216, 180, 104, 0.13);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgba(216, 180, 104, 0.1);
+  }
+}
+
+.ac-card--selected {
+  border-color: rgba(230, 199, 117, 0.72);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(235, 201, 122, 0.16), transparent 44%),
+    linear-gradient(125deg, rgba(109, 40, 217, 0.54), rgba(58, 18, 118, 0.64)),
+    rgba(26, 12, 43, 0.8);
+  box-shadow:
+    0 0 0 1px rgba(232, 199, 119, 0.14),
+    0 0.6rem 1.25rem rgba(42, 24, 48, 0.26);
+  animation: ac-selected-outline 0.26s ease-out forwards;
+}
+
+/* ── Disabled state ─────────────────────────────────────────────────────────  */
+.ac-card--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Visible preview: a paid action is discoverable in Classic but opens the
+ * upgrade path instead of entering the action-selection flow. */
+.ac-card--premium-locked {
+  border-color: rgba(251, 191, 36, 0.32);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.07), rgba(99, 102, 241, 0.08));
+  opacity: 0.78;
+}
+
+.ac-card--premium-locked:hover {
+  border-color: rgba(251, 191, 36, 0.7);
+  opacity: 0.94;
+}
+
+.ac-card--premium-locked:active {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.16), rgba(99, 102, 241, 0.18));
+  border-color: rgba(251, 191, 36, 0.9);
+  opacity: 1;
+  transform: scale(0.98);
+}
+
+/* Unavailable (unaffordable) — dimmed but still clickable */
+.ac-card--unavailable {
+  opacity: 0.55;
+}
+
+/* ── Tooltip (replaces the old full-overlay): shown on hover/long-press ─────
+ * Hidden by default so the text never blocks card content. Appears above the
+ * card on desktop hover or when JS adds ac-card--tooltip-open (long-press). */
+.ac-card__tooltip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12, 16, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  border-radius: 6px;
+  white-space: normal;
+  max-width: 11rem;
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+/* Caret pointing down to the card */
+.ac-card__tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(12, 16, 28, 0.96);
+}
+
+/* Show on desktop hover */
+.ac-card:hover .ac-card__tooltip {
+  opacity: 1;
+}
+
+/* Show on mobile long-press */
+.ac-card--tooltip-open .ac-card__tooltip {
+  opacity: 1;
+}
+
+/* ── Header (icon + title) ──────────────────────────────────────────────────  */
+.ac-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.ac-card__icon {
+  display: inline-grid;
+  width: 1.72rem;
+  height: 1.72rem;
+  place-items: center;
+  border: 1px solid rgba(230, 202, 122, 0.2);
+  border-radius: 0.56rem;
+  background: rgba(12, 9, 19, 0.46);
+  font-size: 0.94rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Title ──────────────────────────────────────────────────────────────────  */
+.ac-card__title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--color-text, rgba(255, 255, 255, 0.92));
+  line-height: 1.2;
+}
+
+.ac-card__premium-badge {
+  position: absolute;
+  top: -0.58rem;
+  right: -0.48rem;
+  display: block;
+  width: 1.62rem;
+  height: 1.62rem;
+  filter: drop-shadow(0 0.15rem 0.26rem rgba(10, 7, 28, 0.6));
+  transform: rotate(5deg);
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+  z-index: 2;
+}
+
+.ac-card__premium-badge .store-product-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: #d9b86c;
+  stroke-width: 2.2;
+}
+
+.ac-card__premium-badge .store-product-icon__surface {
+  fill: rgba(32, 24, 66, 0.96);
+}
+
+.ac-card__premium-badge .store-product-icon__core {
+  fill: #f0dda4;
+}
+
+.ac-card--premium-locked:hover .ac-card__premium-badge {
+  filter: drop-shadow(0 0 0.34rem rgba(185, 167, 255, 0.78));
+  transform: rotate(0deg) scale(1.07);
+}
+
+/* ── Description ────────────────────────────────────────────────────────────  */
+.ac-card__description {
+  min-height: 2.6rem;
+  font-size: 0.66rem;
+  color: rgba(227, 219, 239, 0.58);
+  line-height: 1.34;
+}
+
+/* ── Cost chips ─────────────────────────────────────────────────────────────  */
+.ac-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-height: 1.52rem;
+  margin-top: 0;
+}
+
+.ac-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.16rem 0.36rem;
+  border-radius: 999px;
+  font-size: 0.63rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ac-chip--energy {
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: var(--color-gold-primary, #fbbf24);
+}
+
+.ac-chip--influence {
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+
+.ac-chip--info {
+  background: rgba(99, 179, 237, 0.12);
+  border: 1px solid rgba(99, 179, 237, 0.3);
+  color: #63b3ed;
+}
+
+/* ── Preview button ─────────────────────────────────────────────────────────  */
+.ac-card__preview-btn {
+  align-self: flex-end;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.48));
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ac-card__preview-btn:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  color: var(--color-accent, #6366f1);
+}
+
+/* ── Availability accent borders ─────────────────────────────────────────── */
+.ac-card--available {
+  border-left: 3px solid rgba(52, 211, 153, 0.7);
+}
+
+.ac-card--risky {
+  border-left: 3px solid rgba(239, 68, 68, 0.7);
+}
+
+/* ── Requirement badge ──────────────────────────────────────────────────────  */
+.ac-badge {
+  display: inline-block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--color-text-muted, rgba(255, 255, 255, 0.48));
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
+
+/* ── Reduce motion ───────────────────────────────────────────────────────────  */
+@media (prefers-reduced-motion: reduce) {
+  .ac-card,
+  .ac-card__preview-btn {
+    transition: none !important;
+  }
+  .ac-card--selected,
+  .ac-card:hover:not(.ac-card--disabled) {
+    animation: none;
+    transform: none;
+    box-shadow: none;
+  }
+}
