@@ -63,6 +63,9 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
     getEffectiveSocialMode({ game, settings, vip }) === 'drama'
   const [entryActive, setEntryActive] = useState(true)
   const [lastReturnCue, setLastReturnCue] = useState('game')
+  const [sourceDecisionType] = useState<ActiveConfessionalDecision['type'] | null>(
+    decision?.type ?? null
+  )
   const [lastDecisionType, setLastDecisionType] = useState<
     ActiveConfessionalDecision['type'] | null
   >(decision?.type ?? null)
@@ -109,7 +112,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
 
   const handleReturnToGame = () => {
     dispatch(setConfessionalMusicMode('normal'))
-    onReturnToGame(lastReturnCue, lastDecisionType)
+    onReturnToGame(lastReturnCue, sourceDecisionType)
   }
 
   return (
