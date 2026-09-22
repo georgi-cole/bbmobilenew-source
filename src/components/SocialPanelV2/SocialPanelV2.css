@@ -569,6 +569,8 @@
   border: 0;
   padding: 0;
   background: transparent;
+  width: 100%;
+  font: inherit;
   text-align: left;
   cursor: pointer;
   overflow: hidden;
