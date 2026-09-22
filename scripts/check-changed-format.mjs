@@ -58,7 +58,6 @@ console.log(`Auditing ${files.length} changed Prettier-supported file(s).`)
 if (files.length === 0) process.exit(0)
 
 const violations = []
-const formattedViolations = new Map()
 const legacyExceptions = []
 const checked = []
 
@@ -93,10 +92,7 @@ for (const file of files) {
   }
 
   checked.push(file)
-  if (!currentClean) {
-    violations.push(file)
-    formattedViolations.set(file, await prettier.format(currentSource, options))
-  }
+  if (!currentClean) violations.push(file)
 }
 
 console.log(`Strictly checked: ${checked.length}`)
@@ -105,18 +101,7 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
-  for (const file of violations) {
-    console.error(`  ${file}`)
-    const formatted = formattedViolations.get(file)
-    if (formatted) {
-      console.error(`FORMAT_BASE64_BEGIN:${file}`)
-      const encoded = Buffer.from(formatted, 'utf8').toString('base64')
-      for (let offset = 0; offset < encoded.length; offset += 6000) {
-        console.error(`FORMAT_BASE64_CHUNK:${encoded.slice(offset, offset + 6000)}`)
-      }
-      console.error(`FORMAT_BASE64_END:${file}`)
-    }
-  }
+  for (const file of violations) console.error(`  ${file}`)
   process.exit(1)
 }
 
