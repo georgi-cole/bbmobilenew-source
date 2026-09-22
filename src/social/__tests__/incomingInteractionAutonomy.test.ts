@@ -373,6 +373,32 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     ).toBe(false)
   })
 
+  it('does not let a stale alliance tag keep a dormant Reality alliance active', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'dormant-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Old protection deal',
+      at: { day: 2, phase: 'week_start' },
+    })
+    alliance.status = 'DORMANT'
+    const context = buildContext({
+      phase: 'week_start',
+      reality,
+      relationships: {
+        ally: { user: { affinity: 80, tags: ['alliance'] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+      random: () => 0,
+    })
+
+    expect(chooseIncomingInteractionType('ally', 'user', context)).toBe('alliance_proposal')
+  })
+
   it('adds the new thematic phases to eligible scheduling', () => {
     expect(ELIGIBLE_PHASES.has('social_1')).toBe(true)
     expect(ELIGIBLE_PHASES.has('nomination_results')).toBe(true)
