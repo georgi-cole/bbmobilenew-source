@@ -242,17 +242,19 @@ interface RelationshipSignals {
   isAlliance: boolean
 }
 
-function hasLiveRealityAlliance(
+function getRealityAllianceState(
   context: AutonomyContext,
   actorId: string,
   playerId: string
-): boolean {
-  return Object.values(context.reality?.alliances ?? {}).some(
-    (alliance) =>
-      (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
-      alliance.memberIds.includes(actorId) &&
-      alliance.memberIds.includes(playerId)
+): { present: boolean; live: boolean } {
+  const alliance = Object.values(context.reality?.alliances ?? {}).find(
+    (candidate) =>
+      candidate.memberIds.includes(actorId) && candidate.memberIds.includes(playerId)
   )
+  return {
+    present: alliance != null,
+    live: alliance?.status === 'ACTIVE' || alliance?.status === 'PROBATIONARY',
+  }
 }
 
 interface ActorConstraints {
