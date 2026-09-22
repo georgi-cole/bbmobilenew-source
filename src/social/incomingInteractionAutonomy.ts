@@ -163,6 +163,7 @@ type InteractionScenarioKey =
   | 'nominee_campaign'
   | 'nomination_aftershock'
   | 'nominee_understands_loh'
+  | 'automatic_nominee_reaction'
   | 'nominee_confronts_loh'
   | 'replacement_nominee_reacts_to_loh'
   | 'post_veto_gratitude'
@@ -209,6 +210,7 @@ const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
   'safety_holder_consults_loh',
   'loh_consults_safety_holder',
   'nominee_understands_loh',
+  'automatic_nominee_reaction',
   'nominee_confronts_loh',
   'replacement_nominee_reacts_to_loh',
   'live_vote_pitch',
@@ -873,10 +875,13 @@ function resolveIncomingInteractionPlan(
       (signals.isMildAlly || signals.isAlliance)
     ) {
       plan = { type: 'compliment', scenarioKey: 'safety_win_congratulations' }
+    } else if (context.phase === 'nomination_results' && constraints.actorWasAutoNominee) {
+      // Automatic last-place nominations are rules-driven, not an LOH choice.
+      // Resolve this before every ordinary nomination reaction so the sender
+      // can never accuse the human (LOH or otherwise) of choosing them.
+      plan = { type: 'check_in', scenarioKey: 'automatic_nominee_reaction' }
     } else if (context.phase === 'nomination_results' && constraints.playerIsNominee) {
-      if (constraints.actorWasAutoNominee) {
-        plan = { type: 'check_in', scenarioKey: 'nominee_understands_loh' }
-      } else if (signals.isMildAlly || signals.isAlliance) {
+      if (signals.isMildAlly || signals.isAlliance) {
         plan = { type: 'check_in', scenarioKey: 'player_nominated_support' }
       } else if (
         signals.isMildEnemy ||
