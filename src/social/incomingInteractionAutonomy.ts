@@ -490,15 +490,19 @@ function canSendInteractionType(
     case 'alliance_proposal':
       return !signals.isAlliance && signals.affinity > 0
     case 'snide_remark':
-      return !signals.isAlliance && !constraints.actorSurvivedCurrentVote
+      return (
+        (!signals.isAlliance || signals.tags.has('betrayal')) &&
+        !constraints.actorSurvivedCurrentVote
+      )
     case 'warning':
       return (
-        !signals.isAlliance &&
-        !constraints.actorSurvivedCurrentVote &&
+        (signals.tags.has('betrayal') ||
+          (!signals.isAlliance && !constraints.actorSurvivedCurrentVote)) &&
         !(constraints.actorIsCurrentHoh && constraints.playerHasSafetyPower)
       )
     case 'compliment':
-      return !signals.tags.has('betrayal') || constraints.actorSurvivedCurrentVote
+      // Survival gratitude must never erase an unresolved betrayal signal.
+      return !signals.tags.has('betrayal')
     default:
       return true
   }
@@ -1028,14 +1032,21 @@ function resolveIncomingInteractionPlan(
       romanceEnabled: context.romanceEnabled,
     })
     if (beat) {
+      const allianceAwareBeat =
+        signals.isAlliance &&
+        beat.storyFamily !== 'conflict' &&
+        beat.storyFamily !== 'repair' &&
+        beat.storyFamily !== 'alliance'
       plan = {
         type:
-          beat.intent === 'RECRUIT'
+          beat.intent === 'RECRUIT' && !signals.isAlliance
             ? 'alliance_proposal'
             : beat.storyFamily === 'conflict'
               ? 'warning'
               : 'check_in',
-        scenarioKey: beat.scenarioKey,
+        // A formal alliance must not regress to first-meeting friendship copy
+        // merely because the Reality edge label has not caught up yet.
+        scenarioKey: allianceAwareBeat ? 'relationship_alliance_follow_up' : beat.scenarioKey,
         relationshipIntent: beat.intent,
         relationshipBeatId: `relationship-beat:${actorId}:${playerId}:${beat.intent}:${context.week}`,
       }
