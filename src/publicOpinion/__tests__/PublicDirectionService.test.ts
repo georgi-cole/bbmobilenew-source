@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Player } from '../../types'
 import type { PublicDirection } from '../types'
 import { getEligibleDirectionCandidates } from '../publicDirectionContracts'
+import { createRealityAlliance } from '../../social/reality/relationshipForms'
+import { createInitialRealityDomainState } from '../../social/reality/state'
 import { generateDirectionsForCycle } from '../PublicDirectionService'
 
 function player(id: string, isUser = false): Player {
@@ -47,6 +49,33 @@ describe('generateDirectionsForCycle', () => {
     const breakRequest = directions.find((direction) => direction.type === 'break_alliance')
     expect(breakRequest?.relatedPlayerId).toBe('nova')
     expect(breakRequest?.actionHint).toContain('nova')
+  })
+
+  it('does not treat a dormant Reality alliance as active because of a stale legacy tag', () => {
+    const actor = player('test', true)
+    const ally = player('nova')
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'dormant-pact',
+      founderIds: [actor.id],
+      memberIds: [ally.id],
+      purpose: 'Old agreement',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'DORMANT'
+
+    const candidates = getEligibleDirectionCandidates(actor, {
+      players: [actor, ally],
+      week: 5,
+      relationships: {
+        test: { nova: { affinity: 25, tags: ['alliance'] } },
+        nova: { test: { affinity: 25, tags: ['alliance'] } },
+      },
+      realityAlliances: reality.alliances,
+    })
+
+    expect(candidates.some((candidate) => candidate.type === 'reinforce_alliance')).toBe(false)
+    expect(candidates.some((candidate) => candidate.type === 'show_loyalty')).toBe(false)
   })
 
   it('writes AI requests as audience story beats without exposing the action route', () => {
