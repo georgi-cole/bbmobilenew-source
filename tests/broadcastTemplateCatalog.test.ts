@@ -31,6 +31,11 @@ describe('broadcast template catalog', () => {
       kind: 'feed',
       level: 'minor',
       major: 'democracia',
+      forceOnTv: false,
+      editorial: {
+        importance: 'required',
+        presentationMode: 'log_only',
+      },
     })
   })
 
