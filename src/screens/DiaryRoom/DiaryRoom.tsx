@@ -1841,8 +1841,7 @@ export default function DiaryRoom() {
                       <strong>
                         {REWARD_LABELS[secretMission.reward.type] ?? secretMission.reward.type}
                       </strong>
-                      {secretMission.reward.type === 'immunity' &&
-                      secretMission.reward.durationDays
+                      {secretMission.reward.type === 'immunity' && secretMission.reward.durationDays
                         ? ` — ${secretMission.reward.durationDays} day${secretMission.reward.durationDays === 1 ? '' : 's'}`
                         : ''}
                     </p>
