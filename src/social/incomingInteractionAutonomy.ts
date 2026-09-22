@@ -402,6 +402,8 @@ function buildRelationshipSignals(
   const neglectRatio = memoryCaps.neglect > 0 ? (memoryEntry?.neglect ?? 0) / memoryCaps.neglect : 0
   const trustMomentum = computeTrustMomentumNormalized(memoryEntry)
 
+  const realityAlliance = getRealityAllianceState(context, actorId, playerId)
+
   return {
     affinity,
     tags: new Set(relEntry?.tags ?? []),
@@ -414,9 +416,9 @@ function buildRelationshipSignals(
     isMildAlly: affinity >= thresholds.mildAlly,
     isStrongEnemy: affinity <= thresholds.strongEnemy,
     isMildEnemy: affinity <= thresholds.mildEnemy,
-    isAlliance:
-      relEntry?.tags.includes('alliance') === true ||
-      hasLiveRealityAlliance(context, actorId, playerId),
+    isAlliance: realityAlliance.present
+      ? realityAlliance.live
+      : relEntry?.tags.includes('alliance') === true,
   }
 }
 
