@@ -300,6 +300,24 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} walks away with the nomination still feeling personal because you would not discuss it.',
     ],
   },
+  automatic_nominee_reaction: {
+    positive: [
+      '{from} appreciates that you are not pretending the automatic nomination was anybody\'s personal move.',
+      '{from} leaves focused on surviving the rule-driven block rather than inventing a betrayal.',
+    ],
+    neutral: [
+      '{from} keeps the competition result separate from their relationship with you.',
+      '{from} accepts that finishing last, not an LOH choice, is what put them in danger.',
+    ],
+    negative: [
+      '{from} dislikes your response, but still knows the nomination itself came from the competition rule.',
+      '{from} turns attention to Safety and votes rather than blaming you for the automatic block.',
+    ],
+    dismiss: [
+      '{from} leaves the conversation unresolved, but the source of the nomination remains clear.',
+      '{from} gives you space and starts campaigning without rewriting the automatic nomination as a personal shot.',
+    ],
+  },
   nominee_confronts_loh: {
     positive: [
       '{from} hears enough ownership to stop the confrontation from becoming a house-wide fight.',
