@@ -20,10 +20,7 @@ export default function ConfessionalRoute() {
   const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
 
   const returnToGame = useCallback(
-    (
-      returnCue: string,
-      decisionType: ActiveConfessionalDecision['type'] | null
-    ) => {
+    (returnCue: string, decisionType: ActiveConfessionalDecision['type'] | null) => {
       // Consume the exact prompt associated with the decision that was just
       // committed. Broadcast template metadata is authoritative; copy parsing
       // is retained only for legacy saves that pre-date structured templates.
