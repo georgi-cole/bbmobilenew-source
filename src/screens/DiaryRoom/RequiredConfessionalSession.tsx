@@ -24,7 +24,10 @@ import './RequiredConfessionalCompletion.css'
 
 interface Props {
   decision: ActiveConfessionalDecision | null
-  onReturnToGame: (returnCue: string) => void
+  onReturnToGame: (
+    returnCue: string,
+    decisionType: ActiveConfessionalDecision['type'] | null
+  ) => void
 }
 
 interface CompletedDecisionState {
@@ -106,7 +109,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
 
   const handleReturnToGame = () => {
     dispatch(setConfessionalMusicMode('normal'))
-    onReturnToGame(lastReturnCue)
+    onReturnToGame(lastReturnCue, lastDecisionType)
   }
 
   return (
