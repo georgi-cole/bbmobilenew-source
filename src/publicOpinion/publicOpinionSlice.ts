@@ -56,6 +56,10 @@ function applyDirectionCompletionRewards(
 ): void {
   direction.status = 'completed'
   direction.completedWeek = week
+  // Once the objective is accepted as complete (including the bounded 98%
+  // damping tail), persist the canonical completed value so history and UI do
+  // not show a "completed" request stuck below 100%.
+  direction.progressPercent = 100
 
   const profile = state.profiles[direction.playerId]
   if (!profile) return
