@@ -110,7 +110,10 @@ if (violations.length > 0) {
     const formatted = formattedViolations.get(file)
     if (formatted) {
       console.error(`FORMAT_BASE64_BEGIN:${file}`)
-      console.error(Buffer.from(formatted, 'utf8').toString('base64'))
+      const encoded = Buffer.from(formatted, 'utf8').toString('base64')
+      for (let offset = 0; offset < encoded.length; offset += 6000) {
+        console.error(`FORMAT_BASE64_CHUNK:${encoded.slice(offset, offset + 6000)}`)
+      }
       console.error(`FORMAT_BASE64_END:${file}`)
     }
   }
