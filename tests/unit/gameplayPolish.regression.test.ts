@@ -6,7 +6,8 @@ import finaleReducer, {
   PUBLIC_JUROR_ID,
   startFinale,
 } from '../../src/store/finaleSlice'
-import { resolvePublicVoteParity, tallyVotes } from '../../src/utils/juryUtils'
+import { tallyVotes } from '../../src/utils/juryUtils'
+import { defaultTribunalSizeForCast, preTribunalExitCount } from '../../src/rules/tribunalPolicy'
 import {
   getOutcomeVisibleEvicteeIds,
   hasUnresolvedTopVoteTie,
@@ -93,28 +94,16 @@ describe('gameplay polish regressions', () => {
     expect(rosterCss).toContain('battleBackReturnStrike')
   })
 
-  it('prefers eight regular members plus one public vote', () => {
-    const result = resolvePublicVoteParity(
-      ['j1', 'j2', 'j3', 'j4', 'j5', 'j6', 'j7'],
-      ['pre1'],
-      true
-    )
-
-    expect(result.jurorIds).toHaveLength(8)
-    expect(result.jurorIds).toContain('pre1')
-    expect(result.publicVoteWeight).toBe(1)
-    expect(result.jurorIds.length + result.publicVoteWeight).toBe(9)
+  it('uses a nine-member Tribunal after five exits in the standard 16-player season', () => {
+    const tribunalSize = defaultTribunalSizeForCast(16)
+    expect(tribunalSize).toBe(9)
+    expect(preTribunalExitCount(16, tribunalSize)).toBe(5)
   })
 
-  it('weights the public vote ×2 when no eligible promotion exists', () => {
-    const result = resolvePublicVoteParity(['j1', 'j2', 'j3', 'j4', 'j5', 'j6', 'j7'], [], true)
-
-    expect(result.jurorIds).toHaveLength(7)
-    expect(result.publicVoteWeight).toBe(2)
-    expect(result.jurorIds.length + result.publicVoteWeight).toBe(9)
-    expect(tallyVotes({ j1: 'a', [PUBLIC_JUROR_ID]: 'b' }, { [PUBLIC_JUROR_ID]: 2 })).toEqual({
+  it('keeps the public finalist ballot equal to one Tribunal vote', () => {
+    expect(tallyVotes({ j1: 'a', [PUBLIC_JUROR_ID]: 'b' })).toEqual({
       a: 1,
-      b: 2,
+      b: 1,
     })
   })
 
@@ -185,25 +174,32 @@ describe('gameplay polish regressions', () => {
     ).toBe('other')
   })
 
-  it('persists public ×2 and resolves the displayed weighted tally without a hidden tie-break', () => {
+  it('never promotes pre-Tribunal exits and lets the Tribunal majority break a public-created tie', () => {
     let state = finaleReducer(undefined, { type: '@@init' })
     state = finaleReducer(
       state,
       startFinale({
         finalistIds: ['a', 'b'],
         jurorIds: ['j1', 'j2', 'j3', 'j4', 'j5', 'j6', 'j7'],
-        preJuryIds: [],
+        preJuryIds: ['pre1'],
         humanPlayerIds: [],
         seed: 42,
+        cfg: {
+          publicFinalVoteEnabled: true,
+          enableJuryReturn: true,
+        },
         publicApprovalProfiles: {
-          a: profile('a', 95),
-          b: profile('b', 10),
+          a: profile('a', 10),
+          b: profile('b', 95),
         },
       })
     )
 
+    expect(state.jurorIds).toHaveLength(7)
+    expect(state.jurorIds).not.toContain('pre1')
+    expect(state.returnedJurorId).toBeNull()
     expect(state.publicJurorEnabled).toBe(true)
-    expect(state.publicVoteWeight).toBe(2)
+    expect(state.publicVoteWeight).toBe(1)
     expect(state.revealOrder.at(-1)).toBe(PUBLIC_JUROR_ID)
 
     state = {
@@ -221,7 +217,9 @@ describe('gameplay polish regressions', () => {
     }
     state = finaleReducer(state, finalizeFinale({ seed: 42 }))
 
-    expect(state.winnerId).toBe('b')
+    expect(state.winnerId).toBe('a')
+    expect(state.tieBreakUsed).toBe(true)
+    expect(state.tieBreakReason).toBe('tribunal_majority')
     expect(state.isComplete).toBe(true)
   })
 })
