@@ -1151,6 +1151,8 @@ export interface GameState {
      * starting cast size; a 16-player cast uses nine Tribunal members.
      */
     tribunalSize?: number
+    /** Starting eligible cast used to keep the Tribunal boundary fixed all season. */
+    tribunalStartingCastSize?: number
     /**
      * @deprecated Legacy saved-game alias for tribunalSize. Read for backwards
      * compatibility only; new seasons persist tribunalSize.
