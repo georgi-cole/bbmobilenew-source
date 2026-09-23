@@ -70,7 +70,10 @@ function estimateStringBytes(value: string): number {
 }
 
 function classifyFailure(error: unknown): DurablePersistenceFailureReason {
-  if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+  if (
+    error instanceof DOMException &&
+    (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+  ) {
     return 'quota_exceeded'
   }
   return 'storage_unavailable'
