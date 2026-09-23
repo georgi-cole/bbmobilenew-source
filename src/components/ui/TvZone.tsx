@@ -1899,6 +1899,9 @@ export default function TvZone(props: TvZoneProps) {
             )}
             {props.voteResultsReveal && (
               <AnimatedVoteResultsModal
+                key={props.voteResultsReveal.nominees
+                  .map(({ nominee, voteCount }) => `${nominee.id}:${voteCount}`)
+                  .join('|')}
                 nominees={props.voteResultsReveal.nominees}
                 resultMode={props.voteResultsReveal.resultMode}
                 evictee={props.voteResultsReveal.evictee}
