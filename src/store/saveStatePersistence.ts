@@ -539,8 +539,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
           if (oldValue === null || oldValue === undefined) removeDurableItem(rollbackKey)
           else setDurableItem(rollbackKey, oldValue)
         }
-        if (previousMetadata === null)
-          removeDurableItem(savedRunsKeyForProfile(profile.profileId))
+        if (previousMetadata === null) removeDurableItem(savedRunsKeyForProfile(profile.profileId))
         else setDurableItem(savedRunsKeyForProfile(profile.profileId), previousMetadata)
       } catch {
         // Keep the original failure classification; the active Redux run remains open.
