@@ -92,7 +92,22 @@ for (const file of files) {
   }
 
   checked.push(file)
-  if (!currentClean) violations.push(file)
+  if (!currentClean) {
+    violations.push(file)
+    if (file === 'src/store/saveStatePersistence.ts') {
+      const formatted = await prettier.format(currentSource, options)
+      const currentLines = currentSource.split('\n')
+      const formattedLines = formatted.split('\n')
+      const maxLines = Math.max(currentLines.length, formattedLines.length)
+      for (let index = 0; index < maxLines; index += 1) {
+        if (currentLines[index] === formattedLines[index]) continue
+        console.error(`FORMAT_DEBUG line ${index + 1}`)
+        console.error(`CURRENT: ${currentLines[index] ?? '<missing>'}`)
+        console.error(`EXPECTED: ${formattedLines[index] ?? '<missing>'}`)
+        break
+      }
+    }
+  }
 }
 
 console.log(`Strictly checked: ${checked.length}`)
