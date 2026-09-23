@@ -1,9 +1,10 @@
+import { getDurableItem, removeDurableItem, setDurableItem } from './durablePersistence'
 import type { SeasonArchive } from './seasonArchive';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 /**
- * Set to `false` to disable localStorage persistence entirely.
+ * Set to `false` to disable durable persistence entirely.
  * When false, `saveSeasonArchives` is a no-op and `loadSeasonArchives`
  * always returns undefined — making it easy to replace with a server-backed
  * persistence layer without touching call-sites.
@@ -16,28 +17,28 @@ export const DEFAULT_ARCHIVE_KEY = 'bbmobilenew:seasonArchives';
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
 /**
- * Persist `archives` to localStorage under `key`.
+ * Persist `archives` to durable storage under `key`.
  * Silently swallows errors (quota exceeded, private-browsing restrictions, etc.)
  * so the calling code never has to guard against storage failures.
  */
 export function saveSeasonArchives(key: string, archives: SeasonArchive[]): void {
   if (!enabled) return;
   try {
-    localStorage.setItem(key, JSON.stringify(archives));
+    setDurableItem(key, JSON.stringify(archives));
   } catch {
     // Storage unavailable or quota exceeded — ignore.
   }
 }
 
 /**
- * Load season archives from localStorage under `key`.
+ * Load season archives from durable storage under `key`.
  * Returns `undefined` when persistence is disabled, the key is not present,
  * or the stored value cannot be parsed as JSON.
  */
 export function loadSeasonArchives(key: string): SeasonArchive[] | undefined {
   if (!enabled) return undefined;
   try {
-    const raw = localStorage.getItem(key);
+    const raw = getDurableItem(key);
     if (raw === null) return undefined;
     return JSON.parse(raw) as SeasonArchive[];
   } catch {
@@ -48,7 +49,7 @@ export function loadSeasonArchives(key: string): SeasonArchive[] | undefined {
 /** Remove a profile-scoped archive payload when that profile is deleted. */
 export function clearSeasonArchives(key: string): void {
   try {
-    localStorage.removeItem(key)
+    removeDurableItem(key)
   } catch {
     // Best-effort cleanup when storage is unavailable.
   }
