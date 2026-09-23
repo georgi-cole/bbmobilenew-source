@@ -1,10 +1,16 @@
 import type { SocialState } from '../social/types'
+import type { GameState } from '../types'
 
 /**
  * Persistence-only retention limits. Runtime state can remain richer; snapshots
  * deliberately omit verbose diagnostics and old inbox history that are not
  * required to resume gameplay.
  */
+export const PERSISTED_GAME_LIMITS = {
+  tvFeed: 400,
+  history: 250,
+} as const
+
 export const PERSISTED_SOCIAL_LIMITS = {
   sessionLogs: 80,
   actionHistory: 240,
@@ -12,6 +18,31 @@ export const PERSISTED_SOCIAL_LIMITS = {
   resolvedIncomingInteractions: 60,
   realityTrace: 80,
 } as const
+
+
+function compactTvFeed(game: GameState): GameState['tvFeed'] {
+  if (game.tvFeed.length <= PERSISTED_GAME_LIMITS.tvFeed) return [...game.tvFeed]
+
+  const retainedIds = new Set(
+    game.tvFeed.slice(0, PERSISTED_GAME_LIMITS.tvFeed).map((event) => event.id)
+  )
+  for (const queuedId of game.broadcastQueue ?? []) retainedIds.add(queuedId)
+  if (game.lastPlainBroadcastEventId) retainedIds.add(game.lastPlainBroadcastEventId)
+
+  return game.tvFeed.filter((event) => retainedIds.has(event.id))
+}
+
+/**
+ * Compact presentation/audit history while preserving current broadcast queue
+ * targets and all authoritative gameplay state.
+ */
+export function compactGameStateForPersistence(state: GameState): GameState {
+  return {
+    ...state,
+    tvFeed: compactTvFeed(state),
+    history: state.history?.slice(-PERSISTED_GAME_LIMITS.history),
+  }
+}
 
 function tail<T>(items: readonly T[] | undefined, limit: number): T[] | undefined {
   if (!items) return undefined
