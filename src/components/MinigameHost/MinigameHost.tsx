@@ -10,7 +10,7 @@
 // The host also owns one seamless edge utility dock for revisiting rules and
 // leaving a competition. Individual minigames must not render their own exit UI.
 
-import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore, type ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
@@ -60,7 +60,7 @@ import MemoryColorsComp from '../MemoryColorsComp/MemoryColorsComp'
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import TrapAuctionComp from '../TrapAuction/TrapAuction'
 import ColorMatchComp from '../ColorMatchComp/ColorMatchComp'
-import reactComponents from '../../minigames/reactComponents'
+import reactComponents, { type GenericMinigameProps } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
 import './MinigameHost.css'
 
@@ -760,7 +760,7 @@ export default function MinigameHost({
     }
 
     if (game.implementation === 'react' && game.reactComponentKey === 'Capitalization') {
-      const CapitalizationComp = reactComponents.Capitalization as React.ComponentType<
+      const CapitalizationComp = reactComponents.Capitalization as ComponentType<
         GenericMinigameProps & { context?: 'loh' | 'battleBack' }
       >
       const capitalizationContext =
