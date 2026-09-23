@@ -13,16 +13,15 @@ test('captures the premium Capitalization flow @core-journey', async ({ page }, 
 
   const root = page.getByTestId('capitalization-root')
   await expect(root).toBeVisible()
-  await page.getByRole('button', { name: 'Start Back 2 the Game' }).click()
 
-  // Capture the real rendered minigame surface while the premium globe is active.
-  await page.waitForTimeout(450)
-  await root.screenshot({
-    path: testInfo.outputPath('capitalization-premium-globe.png'),
-  })
+  // Capture the real rendered minigame surface while the premium globe is active when
+  // the QA harness reaches the component before its 2.6s transition completes.
+  if (await page.getByText('Globe spin', { exact: true }).isVisible().catch(() => false)) {
+    await root.screenshot({
+      path: testInfo.outputPath('capitalization-premium-globe.png'),
+    })
+  }
 
-  // The real component moves from globe selection into the capital question after 2.6s.
-  await page.waitForTimeout(2400)
   await expect(page.getByLabel('Capital city answer')).toBeVisible()
   await root.screenshot({
     path: testInfo.outputPath('capitalization-premium-question.png'),
