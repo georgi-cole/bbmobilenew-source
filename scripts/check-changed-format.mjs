@@ -92,7 +92,14 @@ for (const file of files) {
   }
 
   checked.push(file)
-  if (!currentClean) violations.push(file)
+  if (!currentClean) {
+    violations.push(file)
+    if (file.endsWith('src/components/Capitalization/Capitalization.css')) {
+      const formatted = await prettier.format(currentSource, options)
+      const marker = '/* Premium Capitalization refresh */'
+      console.error(formatted.slice(formatted.indexOf(marker)))
+    }
+  }
 }
 
 console.log(`Strictly checked: ${checked.length}`)
