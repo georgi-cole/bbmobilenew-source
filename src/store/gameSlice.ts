@@ -2048,6 +2048,131 @@ export function getNominationTargetScore(
   return getNominationTargetBreakdown(state, lohId, candidate).total
 }
 
+/**
+ * One strategic resolver for every ordinary replacement decision. It starts
+ * from the regular nomination read, then adds the time-sensitive information
+ * that exists only once Safety may open the block: the LOH's stored backup,
+ * an active Ambush, promises, competing pact pressure, and only a small
+ * seeded variation. Alliances are therefore strong protection, not immunity.
+ */
+export function getStrategicReplacementNomineeBreakdown(
+  state: GameState,
+  decisionMakerId: string,
+  candidate: Player,
+  randomDraw = 0
+): { total: number; factors: Record<string, AiDecisionFactor> } {
+  const nomination = getNominationTargetBreakdown(state, decisionMakerId, candidate)
+  const relationship = getStrategicRelationship(state, decisionMakerId, candidate.id)
+  const tags = new Set(relationship?.tags ?? [])
+  const allianceRead = getStrategicAllianceDecisionRead(state, decisionMakerId, candidate.id)
+  const isLohDecision = decisionMakerId === state.lohId
+  const socialPlan =
+    isLohDecision &&
+    state.lohSocialPlan?.week === state.week &&
+    state.lohSocialPlan.lohId === decisionMakerId
+      ? state.lohSocialPlan
+      : null
+  const nominationPlan = isLohDecision ? state.lohNominationPlan : null
+  const canonicalBackupPressure = socialPlan?.backupTargetId === candidate.id ? 78 : 0
+  const hiddenAmbushPressure =
+    nominationPlan?.strategy === 'backdoor' &&
+    nominationPlan.status !== 'executed' &&
+    nominationPlan.status !== 'failed' &&
+    nominationPlan.status !== 'compromised' &&
+    nominationPlan.targetId === candidate.id
+      ? 105
+      : 0
+  const explicitProtectionPenalty = tags.has('safety_promise')
+    ? -48
+    : tags.has('protection') || tags.has('shield')
+      ? -26
+      : 0
+  const ambushIntentPressure = allianceRead.betrayalPressure * 88
+  const competingAlliancePressure =
+    allianceRead.currentTargetPressure * 28 + allianceRead.fallbackTargetPressure * 12
+  const boundedVariation = Math.max(0, Math.min(1, randomDraw)) * 6
+  const factors: Record<string, AiDecisionFactor> = {
+    ...nomination.factors,
+    canonicalBackupPressure,
+    hiddenAmbushPressure,
+    explicitProtectionPenalty,
+    competingAlliancePressure,
+    ambushIntentPressure,
+    boundedVariation,
+  }
+  const total =
+    nomination.total +
+    canonicalBackupPressure +
+    hiddenAmbushPressure +
+    explicitProtectionPenalty +
+    competingAlliancePressure +
+    ambushIntentPressure +
+    boundedVariation
+  factors.total = total
+  return { total, factors }
+}
+
+export function pickStrategicReplacementNominee(
+  state: GameState,
+  decisionMakerId: string | null | undefined,
+  candidates: Player[],
+  rng: () => number,
+  options: { reason?: string } = {}
+): Player | null {
+  if (!decisionMakerId || candidates.length === 0) return null
+  const scored = candidates.map((candidate) => {
+    const randomDraw = rng()
+    const breakdown = getStrategicReplacementNomineeBreakdown(
+      state,
+      decisionMakerId,
+      candidate,
+      randomDraw
+    )
+    return { player: candidate, ...breakdown }
+  })
+  const bestScore = Math.max(...scored.map((entry) => entry.total))
+  const tied = scored.filter((entry) => entry.total === bestScore)
+  const chosen = seededPick(rng, tied)?.player ?? null
+  traceAiDecision({
+    kind: 'replacement_nominee',
+    actorId: decisionMakerId,
+    actorName: state.players.find((player) => player.id === decisionMakerId)?.name,
+    chosenId: chosen?.id ?? null,
+    week: state.week,
+    phase: state.phase,
+    seed: state.seed,
+    reason: options.reason ?? 'selected strategic replacement nominee',
+    context: { tiedBestCount: tied.length },
+    candidates: scored.map<AiDecisionCandidate>((entry) => ({
+      id: entry.player.id,
+      label: entry.player.name,
+      total: entry.total,
+      factors: { ...entry.factors, selected: entry.player.id === chosen?.id },
+    })),
+  })
+  return chosen
+}
+
+function pickStrategicReplacementNominees(
+  state: GameState,
+  decisionMakerId: string | null | undefined,
+  candidates: Player[],
+  count: number,
+  rng: () => number,
+  options: { reason?: string } = {}
+): Player[] {
+  const remaining = [...candidates]
+  const chosen: Player[] = []
+  while (chosen.length < count && remaining.length > 0) {
+    const next = pickStrategicReplacementNominee(state, decisionMakerId, remaining, rng, options)
+    if (!next) break
+    chosen.push(next)
+    const index = remaining.findIndex((candidate) => candidate.id === next.id)
+    if (index >= 0) remaining.splice(index, 1)
+  }
+  return chosen
+}
+
 function rememberOriginalNominations(state: GameState): void {
   if (!state.lohId || state.nomineeIds.length === 0) return
   if (state.currentWeekNominationRecord?.week === state.week) return
@@ -2494,7 +2619,10 @@ function ensureMinimumNominees(
       return false
     }
 
-    const replacement = seededPick(rng, eligible)
+    const replacement = pickStrategicReplacementNominee(state, state.lohId, eligible, rng, {
+      reason: 'restored the normal block with the canonical strategic replacement resolver',
+    })
+    if (!replacement) return false
     appendNominee(state, replacement.id)
     state.replacementNomineeIds = [
       ...new Set([...(state.replacementNomineeIds ?? []), replacement.id]),
@@ -3995,7 +4123,7 @@ export function chooseAiEvictionVote(
       } else {
         backstabChance = Math.max(
           0,
-          Math.min(0.15, 0.02 + threat * 0.008 + betrayalChanceModifier(voterIdentity) * 0.5)
+          Math.min(0.18, 0.04 + threat * 0.008 + betrayalChanceModifier(voterIdentity) * 0.5)
         )
         backstabRoll = rng()
         factors.backstabChance = backstabChance
@@ -4154,6 +4282,35 @@ const gameSlice = createSlice({
     },
     setLohSocialPlan(state, action: PayloadAction<NonNullable<GameState['lohSocialPlan']>>) {
       state.lohSocialPlan = action.payload
+    },
+    adoptSuggestedReplacementTarget(
+      state,
+      action: PayloadAction<{ lohId: string; targetId: string; suggestedById: string }>
+    ) {
+      const plan = state.lohNominationPlan
+      if (
+        !plan ||
+        plan.week !== state.week ||
+        plan.lohId !== action.payload.lohId ||
+        plan.strategy === 'backdoor'
+      ) {
+        return
+      }
+      const target = state.players.find((player) => player.id === action.payload.targetId)
+      if (
+        !target ||
+        target.status !== 'active' ||
+        target.id === state.lohId ||
+        target.id === state.posWinnerId ||
+        state.nomineeIds.includes(target.id) ||
+        (state.povProtectedIds ?? []).includes(target.id)
+      ) {
+        return
+      }
+      plan.replacementTargetOverrideId = target.id
+      if (state.lohSocialPlan?.week === state.week && state.lohSocialPlan.lohId === state.lohId) {
+        state.lohSocialPlan.backupTargetId = target.id
+      }
     },
     setLohSafetyAdvice(state, action: PayloadAction<NonNullable<GameState['lohSafetyAdvice']>>) {
       state.lohSafetyAdvice = action.payload
@@ -5475,7 +5632,16 @@ const gameSlice = createSlice({
           })
           if (eligible.length > 0) {
             const rng = mulberry32(state.seed)
-            const replacement = seededPick(rng, eligible)
+            const replacement = pickStrategicReplacementNominee(
+              state,
+              posWinner.id,
+              eligible,
+              rng,
+              {
+                reason: 'selected Halo Exchange replacement from the holder strategic read',
+              }
+            )
+            if (!replacement) return
             state.nomineeIds.push(replacement.id)
             const rp = state.players.find((pl) => pl.id === replacement.id)
             if (rp) rp.status = 'nominated'
@@ -5512,7 +5678,14 @@ const gameSlice = createSlice({
               'game'
             )
           } else {
-            const replacement = seededPick(mulberry32(state.seed), eligible)
+            const replacement = pickStrategicReplacementNominee(
+              state,
+              owner.id,
+              eligible,
+              mulberry32(state.seed),
+              { reason: 'selected co-LOH replacement from the owner strategic read' }
+            )
+            if (!replacement) return
             appendNominee(state, replacement.id)
             state.coLohNomineeByCoLohId ??= {}
             state.coLohNomineeByCoLohId[owner.id] = replacement.id
@@ -5541,7 +5714,10 @@ const gameSlice = createSlice({
         const eligible = getReplacementEligiblePlayers(state, alive)
         if (eligible.length > 0) {
           const rng = mulberry32(state.seed)
-          const replacement = seededPick(rng, eligible)
+          const replacement = pickStrategicReplacementNominee(state, lohPlayer?.id, eligible, rng, {
+            reason: 'selected standard LOH replacement from the canonical strategic resolver',
+          })
+          if (!replacement) return
           state.nomineeIds.push(replacement.id)
           const rp = state.players.find((pl) => pl.id === replacement.id)
           if (rp) rp.status = 'nominated'
@@ -6905,7 +7081,10 @@ const gameSlice = createSlice({
         const eligible = getReplacementEligiblePlayers(state, aliveNow)
         if (eligible.length > 0) {
           const rng = mulberry32(state.seed)
-          const replacement = seededPick(rng, eligible)
+          const replacement = pickStrategicReplacementNominee(state, lohPlayer?.id, eligible, rng, {
+            reason: 'selected Double Trouble replacement from the canonical strategic resolver',
+          })
+          if (!replacement) return
           state.nomineeIds.push(replacement.id)
           const rp = state.players.find((pl) => pl.id === replacement.id)
           if (rp) rp.status = 'nominated'
@@ -8492,22 +8671,9 @@ const gameSlice = createSlice({
         const lohPlayer = state.players.find((pl) => pl.id === state.lohId)
         const eligible = getReplacementEligiblePlayers(state, aliveNow)
         if (eligible.length > 0) {
-          const disclosedBackupId =
-            state.lohSocialPlan?.week === state.week && state.lohSocialPlan.lohId === state.lohId
-              ? state.lohSocialPlan.backupTargetId
-              : null
-          const replacement =
-            eligible.find((player) => player.id === disclosedBackupId) ??
-            pickStrategicAiPlayer(state, eligible, rng, 'highest', {
-              debug: {
-                kind: 'replacement_nominee',
-                actorId: state.lohId ?? undefined,
-                reason: disclosedBackupId
-                  ? 'disclosed backup was unavailable; selected highest threat replacement'
-                  : 'selected highest threat replacement',
-                context: { disclosedBackupId: disclosedBackupId ?? null },
-              },
-            })
+          const replacement = pickStrategicReplacementNominee(state, state.lohId, eligible, rng, {
+            reason: 'resolved staged LOH replacement against canonical backup and ambush intent',
+          })
           if (replacement) appendNominee(state, replacement.id)
           pushEvent(
             state,
@@ -9365,13 +9531,16 @@ const gameSlice = createSlice({
               } else {
                 const eligible = getReplacementEligiblePlayers(state, alive)
                 if (eligible.length > 0) {
-                  const replacement = pickStrategicAiPlayer(state, eligible, rng, 'highest', {
-                    debug: {
-                      kind: 'replacement_nominee',
-                      actorId: lohPlayer?.id ?? state.lohId ?? undefined,
-                      reason: 'selected highest threat replacement after Safety save',
-                    },
-                  })
+                  const replacement = pickStrategicReplacementNominee(
+                    state,
+                    lohPlayer?.id ?? state.lohId,
+                    eligible,
+                    rng,
+                    {
+                      reason:
+                        'selected Force Majeure replacement from the canonical strategic resolver',
+                    }
+                  )
                   if (replacement) {
                     appendNominee(state, replacement.id)
                     pushEvent(
@@ -9443,13 +9612,15 @@ const gameSlice = createSlice({
                   actorId: posWinner.id,
                 })
                 if (eligible.length > 0) {
-                  const replacement = pickStrategicAiPlayer(state, eligible, rng, 'highest', {
-                    debug: {
-                      kind: 'replacement_nominee',
-                      actorId: posWinner.id,
-                      reason: 'selected highest threat Halo Exchange backup',
-                    },
-                  })
+                  const replacement = pickStrategicReplacementNominee(
+                    state,
+                    posWinner.id,
+                    eligible,
+                    rng,
+                    {
+                      reason: 'selected Halo Exchange replacement from the holder strategic read',
+                    }
+                  )
                   if (replacement) {
                     appendNominee(state, replacement.id)
                     pushEvent(
@@ -9486,13 +9657,15 @@ const gameSlice = createSlice({
                     'game'
                   )
                   if (eligible.length > 0) {
-                    const replacement = pickStrategicAiPlayer(state, eligible, rng, 'highest', {
-                      debug: {
-                        kind: 'replacement_nominee',
-                        actorId: posWinner?.id ?? state.lohId ?? undefined,
-                        reason: 'selected highest threat Halo Exchange backup',
-                      },
-                    })
+                    const replacement = pickStrategicReplacementNominee(
+                      state,
+                      posWinner?.id ?? state.lohId,
+                      eligible,
+                      rng,
+                      {
+                        reason: 'selected Halo Exchange replacement from the holder strategic read',
+                      }
+                    )
                     if (replacement) {
                       appendNominee(state, replacement.id)
                       pushEvent(
@@ -9596,9 +9769,14 @@ const gameSlice = createSlice({
                   `${posWinner?.name ?? 'The Detox holder'} used Detox! ${removedNames} are cleared from the block! ⚡`
                 )
                 if (eligible.length >= 2) {
-                  const replacements = pickStrategicAiPlayers(state, eligible, 2, rng, {
-                    preferLoh: true,
-                  })
+                  const replacements = pickStrategicReplacementNominees(
+                    state,
+                    posWinner?.id ?? state.lohId,
+                    eligible,
+                    2,
+                    rng,
+                    { reason: 'selected strategic Detox replacements' }
+                  )
                   replacements.forEach((r) => {
                     appendNominee(state, r.id)
                   })
@@ -11458,12 +11636,8 @@ function resolveDebugBlockers(
 
   if (game.specialVeto?.awaitingHolderReplacement) {
     const eligible = getReplacementEligiblePlayers(game, alive, 1, { actorId: game.posWinnerId })
-    const replacement = pickStrategicAiPlayer(game, eligible, rng, 'highest', {
-      debug: {
-        kind: 'replacement_nominee',
-        actorId: game.posWinnerId ?? undefined,
-        reason: 'selected highest threat Halo Exchange backup',
-      },
+    const replacement = pickStrategicReplacementNominee(game, game.posWinnerId, eligible, rng, {
+      reason: 'selected strategic Halo Exchange backup',
     })
     if (replacement) {
       dispatch(submitDiamondReplacement(replacement.id))
@@ -11478,12 +11652,8 @@ function resolveDebugBlockers(
       allowLoh: true,
       actorId: game.posWinnerId,
     })
-    const replacement = pickStrategicAiPlayer(game, eligible, rng, 'highest', {
-      debug: {
-        kind: 'replacement_nominee',
-        actorId: game.posWinnerId ?? undefined,
-        reason: 'selected highest threat Detox backup',
-      },
+    const replacement = pickStrategicReplacementNominee(game, game.posWinnerId, eligible, rng, {
+      reason: 'selected strategic Coup backup',
     })
     if (replacement) {
       dispatch(submitCoupReplacement(replacement.id))

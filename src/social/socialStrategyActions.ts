@@ -5,7 +5,14 @@ import {
 } from './socialSlice'
 import { makeIntelMemory, selectIntelFactForActor } from './intelligenceSystem'
 import type { SocialActionLogEntry } from './types'
-import { strategyHumanPlayer, type StrategyApi, type StrategyState } from './socialStrategyShared'
+import {
+  seededUnit,
+  strategyAffinity,
+  strategyHumanPlayer,
+  strategyTags,
+  type StrategyApi,
+  type StrategyState,
+} from './socialStrategyShared'
 
 const REPAIR_ACTIONS = new Set([
   'compliment',
@@ -80,6 +87,79 @@ function applyStrategicNudge(
       deltas: nudge,
     })
   )
+}
+
+export function getSuggestedReplacementAcceptanceChance(
+  state: StrategyState,
+  entry: SocialActionLogEntry
+): number {
+  const lohId = entry.targetId
+  const trust = strategyAffinity(state, lohId, entry.actorId)
+  const requesterTags = strategyTags(state, lohId, entry.actorId)
+  const candidateTags = strategyTags(state, lohId, entry.subjectId ?? '')
+  const candidateAffinity = strategyAffinity(state, lohId, entry.subjectId ?? '')
+  const influence = Math.min(5, state.social.influenceBank[entry.actorId] ?? 0)
+  const allianceBonus =
+    requesterTags.has('alliance') || requesterTags.has('primary_alliance') ? 0.24 : 0
+  const promiseBonus =
+    requesterTags.has('protection') || requesterTags.has('safety_promise') ? 0.1 : 0
+  const candidateResistance =
+    candidateTags.has('alliance') || candidateTags.has('protection') ? -0.24 : 0
+  const candidatePressure = Math.max(-0.08, Math.min(0.22, -candidateAffinity / 450))
+  return Math.max(
+    0.05,
+    Math.min(
+      0.92,
+      0.12 +
+        ((trust + 100) / 200) * 0.38 +
+        allianceBonus +
+        promiseBonus +
+        influence * 0.03 +
+        candidatePressure +
+        candidateResistance
+    )
+  )
+}
+
+function adoptSuggestedReplacement(
+  api: StrategyApi,
+  state: StrategyState,
+  entry: SocialActionLogEntry
+): void {
+  if (
+    entry.actionId !== 'suggest_replacement' ||
+    entry.outcome !== 'success' ||
+    !entry.subjectId ||
+    entry.targetId !== state.game.lohId
+  ) {
+    return
+  }
+  const plan = state.game.lohNominationPlan
+  const candidate = state.game.players.find((player) => player.id === entry.subjectId)
+  if (
+    !plan ||
+    plan.week !== state.game.week ||
+    plan.strategy === 'backdoor' ||
+    !candidate ||
+    candidate.status !== 'active' ||
+    state.game.nomineeIds.includes(candidate.id) ||
+    candidate.id === state.game.posWinnerId ||
+    (state.game.povProtectedIds ?? []).includes(candidate.id)
+  ) {
+    return
+  }
+
+  const chance = getSuggestedReplacementAcceptanceChance(state, entry)
+  const draw = seededUnit(
+    state.game.seed,
+    `replacement-suggestion:${entry.timestamp}:${entry.actorId}:${candidate.id}`
+  )
+  if (draw > chance) return
+
+  api.dispatch({
+    type: 'game/adoptSuggestedReplacementTarget',
+    payload: { lohId: entry.targetId, targetId: candidate.id, suggestedById: entry.actorId },
+  })
 }
 
 function deliverKnownIntel(input: {
@@ -208,5 +288,6 @@ export function processHumanSocialStrategyAction(
 
   repairSuspicion(api, state, entry)
   applyStrategicNudge(api, state, entry)
+  adoptSuggestedReplacement(api, state, entry)
   applyConcreteIntelPayoff(api, state, entry, human.id)
 }

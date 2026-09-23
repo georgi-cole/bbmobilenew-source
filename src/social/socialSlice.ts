@@ -71,6 +71,7 @@ import {
   recordRealityAllianceBetrayal as applyRealityAllianceBetrayal,
   renameRealityAlliance as applyRealityAllianceRename,
   recordRealityCeremonyOutcome,
+  reconcileRealityBattleBackReturn as reconcileRealityBattleBackReturnDomain,
   upsertRealityDebt,
   upsertRealityPromise,
   upsertRealitySecret,
@@ -127,9 +128,12 @@ function projectRealityTags(
   }
   const exitedSharedAlliance = reality.events.some(
     (event) =>
-      ['ALLIANCE_MEMBER_LEFT', 'ALLIANCE_MEMBER_DEFECTED', 'ALLIANCE_MEMBER_EXPELLED'].includes(
-        event.type
-      ) &&
+      [
+        'ALLIANCE_MEMBER_LEFT',
+        'ALLIANCE_MEMBER_DEFECTED',
+        'ALLIANCE_MEMBER_EXPELLED',
+        'ALLIANCE_MEMBER_EVICTED',
+      ].includes(event.type) &&
       event.participantIds.includes(sourceId) &&
       event.participantIds.includes(targetId) &&
       (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
@@ -495,6 +499,25 @@ const socialSlice = createSlice({
     },
     recordRealityCeremony(state, action: PayloadAction<RealityCeremonyInput>) {
       recordRealityCeremonyOutcome(state.reality as RealityDomainState, action.payload)
+      projectRealityRelationshipsIntoLegacy(
+        state.reality as RealityDomainState,
+        state.relationships
+      )
+    },
+    reconcileRealityBattleBackReturn(
+      state,
+      action: PayloadAction<{
+        playerId: string
+        day: number
+        phase: string
+        activeActorIds: string[]
+      }>
+    ) {
+      reconcileRealityBattleBackReturnDomain(state.reality as RealityDomainState, {
+        playerId: action.payload.playerId,
+        at: { day: action.payload.day, phase: action.payload.phase },
+        activeActorIds: action.payload.activeActorIds,
+      })
       projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,
         state.relationships
@@ -1024,6 +1047,7 @@ export const {
   upsertRealitySecretRecord,
   upsertRealityThreadRecord,
   recordRealityCeremony,
+  reconcileRealityBattleBackReturn,
   recordRealityActualVote,
   recordRealityAllianceBetrayal,
   renameRealityAllianceRecord,

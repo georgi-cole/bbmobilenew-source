@@ -68,7 +68,7 @@ type PartialSocialState = {
 
 interface ManeuverPlayer {
   id: string
-  name: string
+  name?: string
   status: string
   isUser?: boolean
   aiGameIdentity?: {
@@ -92,6 +92,7 @@ interface ManeuverGameState {
     backupTargetId: string | null
     askCountsByPlayerId: Record<string, number>
     disclosedTargetByPlayerId?: Record<string, string>
+    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
   } | null
 }
 
@@ -116,6 +117,83 @@ const ALLIANCE_REJECTION_DELTA = -6
 const ALLIANCE_GASLIGHT_DELTA = -10
 const ALLIANCE_BETRAYAL_DELTA = -8
 const ALLIANCE_GASLIGHT_AFFINITY_THRESHOLD = 0
+
+export type LohPlanDisclosureOutcome = 'truthful' | 'vague' | 'false'
+
+/**
+ * Decide what an LOH says without changing the strategic plan itself. A close
+ * ally usually gets the truth; a threatened or distrusted asker gets a vague
+ * answer, or a credible decoy when the LOH is setting an ambush.
+ */
+export function resolveLohPlanDisclosure(input: {
+  game?: { players?: ManeuverPlayer[] }
+  relationships: SocialState['relationships']
+  lohId: string
+  askerId: string
+  actualTargetId: string | null
+  priorAsks: number
+  ambushIntent: boolean
+  routineCurrentTarget?: boolean
+  random: () => number
+}): { outcome: LohPlanDisclosureOutcome; statedTargetId: string | null } {
+  const {
+    game,
+    relationships,
+    lohId,
+    askerId,
+    actualTargetId,
+    priorAsks,
+    ambushIntent,
+    routineCurrentTarget = false,
+    random,
+  } = input
+  if (!actualTargetId || priorAsks >= 2) return { outcome: 'vague', statedTargetId: null }
+
+  const relationship = relationships[lohId]?.[askerId]
+  const tags = new Set(relationship?.tags ?? [])
+  const closeAlly =
+    tags.has('alliance') ||
+    tags.has('primary_alliance') ||
+    tags.has('ride_or_die') ||
+    tags.has('protection')
+  const trust = relationship?.affinity ?? 0
+  const decoys = (game?.players ?? [])
+    .filter(
+      (player) =>
+        !['evicted', 'jury'].includes(player.status) &&
+        player.id !== actualTargetId &&
+        player.id !== askerId &&
+        player.id !== lohId
+    )
+    .sort(
+      (left, right) =>
+        (relationships[lohId]?.[right.id]?.affinity ?? 0) -
+          (relationships[lohId]?.[left.id]?.affinity ?? 0) || left.id.localeCompare(right.id)
+    )
+  const falseAnswer = () => {
+    const decoy =
+      decoys[Math.floor(Math.max(0, Math.min(0.999999, random())) * decoys.length)] ?? null
+    return decoy
+      ? { outcome: 'false' as const, statedTargetId: decoy.id }
+      : { outcome: 'vague' as const, statedTargetId: null }
+  }
+
+  if (closeAlly && trust >= 10) return { outcome: 'truthful', statedTargetId: actualTargetId }
+  if (routineCurrentTarget && trust >= 0 && !ambushIntent) {
+    return { outcome: 'truthful', statedTargetId: actualTargetId }
+  }
+  if (ambushIntent && !closeAlly)
+    return random() < 0.8 ? falseAnswer() : { outcome: 'vague', statedTargetId: null }
+  if (trust >= 30) {
+    return random() < 0.72
+      ? { outcome: 'truthful', statedTargetId: actualTargetId }
+      : { outcome: 'vague', statedTargetId: null }
+  }
+  if (trust <= -10) return { outcome: 'vague', statedTargetId: null }
+  return random() < 0.25
+    ? { outcome: 'truthful', statedTargetId: actualTargetId }
+    : { outcome: 'vague', statedTargetId: null }
+}
 
 function countPriorRepeatedActions(
   logs: SocialActionLogEntry[],
@@ -781,6 +859,7 @@ export function executeAction(
         backupTargetId: string | null
         askCountsByPlayerId: Record<string, number>
         disclosedTargetByPlayerId?: Record<string, string>
+        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
       } | null
     }
   }
@@ -807,6 +886,7 @@ export function executeAction(
           backupTargetId: inferredLohTargetPlan.backupTargetId,
           askCountsByPlayerId: {},
           disclosedTargetByPlayerId: {},
+          disclosureOutcomeByPlayerId: {},
         }
       : null)
   const priorLohAsks = lohPlanState?.askCountsByPlayerId[actorId] ?? 0
@@ -814,38 +894,47 @@ export function executeAction(
     rootState.game?.phase ?? ''
   )
   const safetyAdviceOpen = ['pos_results', 'pos_ceremony'].includes(rootState.game?.phase ?? '')
-  const lohDisclosureId = lohPlanState
+  const actualLohDisclosureId = lohPlanState
     ? finalBlockLocked
       ? lohPlanState.currentTargetId
       : priorLohAsks % 2 === 1 && lohPlanState.currentTargetId
         ? lohPlanState.currentTargetId
         : (lohPlanState.backupTargetId ?? lohPlanState.currentTargetId)
     : null
-  const lohDisclosurePlayer = rootState.game?.players?.find(
-    (player) => player.id === lohDisclosureId
-  )
   const lohIdentity = rootState.game?.players?.find(
     (player) => player.id === targetId
   )?.aiGameIdentity
-  const rareDirectAdmission =
-    lohDisclosureId === actorId &&
-    priorLohAsks === 1 &&
-    recipientTrust <= 10 &&
-    ['aggressive_competitor', 'chaos_agent', 'lone_wolf'].includes(lohIdentity?.archetype ?? '')
-  // The LOH may share another name as misdirection, but should not casually tell
-  // a player that *they* are the current or backup target. A small subset of
-  // blunt personalities can do so only after being pressed again.
-  const lohWillDisclose =
-    !!lohDisclosureId &&
-    (lohDisclosureId !== actorId || rareDirectAdmission) &&
-    recipientTrust >= 0 &&
-    priorLohAsks < 2
+  const ambushIntent =
+    actualLohDisclosureId === actorId ||
+    (safetyAdviceOpen && Boolean(lohPlanState?.backupTargetId)) ||
+    (['aggressive_competitor', 'chaos_agent', 'lone_wolf'].includes(lohIdentity?.archetype ?? '') &&
+      recipientTrust < 0)
+  const lohDisclosure =
+    actionId === 'ask_loh_target'
+      ? resolveLohPlanDisclosure({
+          game: rootState.game,
+          relationships: state.social.relationships,
+          lohId: targetId,
+          askerId: actorId,
+          actualTargetId: actualLohDisclosureId,
+          priorAsks: priorLohAsks,
+          ambushIntent,
+          routineCurrentTarget:
+            actualLohDisclosureId === lohPlanState?.currentTargetId && !safetyAdviceOpen,
+          random,
+        })
+      : { outcome: 'vague' as const, statedTargetId: null }
+  const lohDisclosureId = lohDisclosure.statedTargetId
+  const lohWillDisclose = lohDisclosure.outcome !== 'vague' && Boolean(lohDisclosureId)
+  const lohDisclosurePlayer = rootState.game?.players?.find(
+    (player) => player.id === lohDisclosureId
+  )
   const lohTargetPlan =
     lohWillDisclose && lohDisclosureId
       ? {
           targetId: lohDisclosureId,
           targetName: lohDisclosurePlayer?.name ?? lohDisclosureId,
-          isBackdoor: lohDisclosureId === lohPlanState?.backupTargetId,
+          isBackdoor: actualLohDisclosureId === lohPlanState?.backupTargetId,
         }
       : null
   let outcome = options?.outcome ?? 'success'
@@ -986,6 +1075,10 @@ export function executeAction(
               [actorId]: lohDisclosureId,
             }
           : lohPlanState.disclosedTargetByPlayerId,
+        disclosureOutcomeByPlayerId: {
+          ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
+          [actorId]: lohDisclosure.outcome,
+        },
       },
     })
   }
@@ -1093,6 +1186,7 @@ export function executeAction(
             lohPlanType: lohTargetPlan.isBackdoor
               ? ('backup_plan' as const)
               : ('current_target' as const),
+            lohDisclosureOutcome: lohDisclosure.outcome,
           },
         }
       : {}),

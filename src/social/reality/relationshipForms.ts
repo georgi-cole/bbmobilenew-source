@@ -9,6 +9,7 @@ import type {
   RealityClock,
   RealityDomainState,
   RealityGrievance,
+  RealityReentryAllianceSnapshot,
   RealityRomance,
   RealityVoteIntent,
 } from './types'
@@ -356,6 +357,298 @@ export function removeRealityAllianceMember(
   }
   refreshRealityAllianceOverlaps(state)
   return alliance
+}
+
+function snapshotRealityAlliance(alliance: RealityAlliance): RealityReentryAllianceSnapshot {
+  return {
+    allianceId: alliance.id,
+    memberIds: [...alliance.memberIds],
+    founderIds: [...alliance.founderIds],
+    leaderIds: [...alliance.leaderIds],
+    secrecy: alliance.secrecy,
+    cohesion: alliance.cohesion,
+    fractureRisk: alliance.fractureRisk,
+    purpose: alliance.purpose,
+    currentTargetIds: [...alliance.currentTargetIds],
+    fallbackTargetIds: [...alliance.fallbackTargetIds],
+    sharedPromiseIds: [...alliance.sharedPromiseIds],
+    memberCommitment: { ...alliance.memberCommitment },
+    memberPerceivedStatus: { ...alliance.memberPerceivedStatus },
+    memberPlanBeliefs: Object.fromEntries(
+      Object.entries(alliance.memberPlanBeliefs).map(([memberId, beliefs]) => [
+        memberId,
+        [...beliefs],
+      ])
+    ),
+    operationalRoles: Object.fromEntries(
+      Object.entries(alliance.operationalRoles).map(([memberId, roles]) => [memberId, [...roles]])
+    ),
+    genuine: alliance.genuine,
+    infiltratorIds: [...alliance.infiltratorIds],
+    status: alliance.status,
+  }
+}
+
+/** Preserve formal alliance history immediately before an eviction removes the member. */
+export function captureRealityReentryProfile(
+  state: RealityDomainState,
+  playerId: string,
+  evictedAt: RealityClock
+): void {
+  const alliances = Object.values(state.alliances)
+    .filter((alliance) => alliance.status !== 'DISSOLVED' && alliance.memberIds.includes(playerId))
+    .map(snapshotRealityAlliance)
+  state.reentryProfiles[playerId] = { evictedAt: { ...evictedAt }, alliances }
+}
+
+function activePromiseContinuityPenalty(
+  state: RealityDomainState,
+  survivorId: string,
+  returningId: string
+): number {
+  return Object.values(state.promises).reduce((penalty, promise) => {
+    if (promise.status !== 'ACTIVE' || promise.promisorId !== survivorId) return penalty
+    if (promise.beneficiaryIds.includes(returningId)) return penalty
+    const protectionPromise = /protect|safety|shield|final.?two|alliance/i.test(promise.kind)
+    return penalty + (protectionPromise ? 0.12 : 0.04)
+  }, 0)
+}
+
+function strongerCompetingPactPenalty(
+  state: RealityDomainState,
+  snapshot: RealityReentryAllianceSnapshot,
+  survivorId: string
+): number {
+  const formerCommitment = snapshot.memberCommitment[survivorId] ?? 0.5
+  return Object.values(state.alliances).reduce((penalty, alliance) => {
+    if (
+      alliance.id === snapshot.allianceId ||
+      (alliance.status !== 'ACTIVE' && alliance.status !== 'PROBATIONARY') ||
+      !alliance.memberIds.includes(survivorId)
+    ) {
+      return penalty
+    }
+    const commitment = alliance.memberCommitment[survivorId] ?? 0
+    return penalty + (commitment >= Math.max(0.62, formerCommitment + 0.08) ? 0.2 : 0)
+  }, 0)
+}
+
+function targetContinuityPenalty(
+  state: RealityDomainState,
+  snapshot: RealityReentryAllianceSnapshot,
+  returningId: string
+): number {
+  const presentAlliance = state.alliances[snapshot.allianceId]
+  const formerPactTargetsReturning = Boolean(
+    presentAlliance &&
+    (presentAlliance.currentTargetIds.includes(returningId) ||
+      presentAlliance.fallbackTargetIds.includes(returningId))
+  )
+  const otherPactsTargetReturning = Object.values(state.alliances).some(
+    (alliance) =>
+      (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+      snapshot.memberIds.some((memberId) => alliance.memberIds.includes(memberId)) &&
+      (alliance.currentTargetIds.includes(returningId) ||
+        alliance.fallbackTargetIds.includes(returningId))
+  )
+  return (formerPactTargetsReturning ? 0.58 : 0) + (otherPactsTargetReturning ? 0.24 : 0)
+}
+
+function restoreSnapshotAlliance(
+  state: RealityDomainState,
+  snapshot: RealityReentryAllianceSnapshot,
+  returningId: string,
+  status: 'ACTIVE' | 'PROBATIONARY',
+  commitmentFactor: number,
+  at: RealityClock
+): RealityAlliance {
+  let alliance = state.alliances[snapshot.allianceId]
+  if (!alliance || alliance.status === 'DISSOLVED') {
+    alliance = {
+      id: snapshot.allianceId,
+      memberIds: snapshot.memberIds.filter((memberId) => memberId !== returningId),
+      founderIds: [...snapshot.founderIds],
+      leaderIds: snapshot.leaderIds.filter((memberId) => memberId !== returningId),
+      secrecy: snapshot.secrecy,
+      cohesion: snapshot.cohesion,
+      fractureRisk: snapshot.fractureRisk,
+      purpose: snapshot.purpose,
+      currentTargetIds: [...snapshot.currentTargetIds],
+      fallbackTargetIds: [...snapshot.fallbackTargetIds],
+      sharedPromiseIds: [...snapshot.sharedPromiseIds],
+      memberCommitment: {},
+      memberPerceivedStatus: {},
+      memberPlanBeliefs: {},
+      operationalRoles: {},
+      suspectedByIds: [],
+      knownLeakEventIds: [],
+      overlapAllianceIds: [],
+      status,
+      genuine: snapshot.genuine,
+      infiltratorIds: [],
+    }
+    for (const memberId of alliance.memberIds) {
+      alliance.memberCommitment[memberId] = snapshot.memberCommitment[memberId] ?? 0.5
+      alliance.memberPerceivedStatus[memberId] =
+        snapshot.memberPerceivedStatus[memberId] ?? 'REGULAR'
+      alliance.memberPlanBeliefs[memberId] = [...(snapshot.memberPlanBeliefs[memberId] ?? [])]
+      alliance.operationalRoles[memberId] = [...(snapshot.operationalRoles[memberId] ?? [])]
+    }
+    state.alliances[alliance.id] = alliance
+  }
+
+  if (!alliance.memberIds.includes(returningId)) alliance.memberIds.push(returningId)
+  alliance.memberCommitment[returningId] = clamp01(
+    (snapshot.memberCommitment[returningId] ?? 0.5) * commitmentFactor
+  )
+  alliance.memberPerceivedStatus[returningId] =
+    status === 'ACTIVE' ? (snapshot.memberPerceivedStatus[returningId] ?? 'REGULAR') : 'REGULAR'
+  alliance.memberPlanBeliefs[returningId] =
+    status === 'ACTIVE' ? [...(snapshot.memberPlanBeliefs[returningId] ?? [])] : []
+  alliance.operationalRoles[returningId] = [...(snapshot.operationalRoles[returningId] ?? [])]
+  alliance.infiltratorIds = snapshot.infiltratorIds.includes(returningId)
+    ? [...new Set([...alliance.infiltratorIds, returningId])]
+    : alliance.infiltratorIds.filter((memberId) => memberId !== returningId)
+  alliance.genuine = alliance.infiltratorIds.length === 0
+  alliance.lastMeeting = at
+  refreshRealityAllianceDynamics(alliance)
+  alliance.status = status
+  refreshRealityAllianceOverlaps(state)
+  return alliance
+}
+
+/**
+ * Reconcile Battle Back re-entry instead of replaying old state. Same-day
+ * returns retain a viable pact strongly; time away, competing commitments,
+ * promises, and targeting can downgrade it to probationary or former.
+ */
+export function reconcileRealityBattleBackReturn(
+  state: RealityDomainState,
+  input: { playerId: string; at: RealityClock; activeActorIds: readonly string[] }
+): {
+  restoredAllianceIds: string[]
+  probationaryAllianceIds: string[]
+  formerAllianceIds: string[]
+} {
+  const profile = state.reentryProfiles[input.playerId]
+  const outcome = {
+    restoredAllianceIds: [] as string[],
+    probationaryAllianceIds: [] as string[],
+    formerAllianceIds: [] as string[],
+  }
+  if (!profile) return outcome
+
+  const daysAbsent = Math.max(0, input.at.day - profile.evictedAt.day)
+  const activeIds = new Set(input.activeActorIds)
+  for (const snapshot of profile.alliances) {
+    const survivingMembers = snapshot.memberIds.filter(
+      (memberId) => memberId !== input.playerId && activeIds.has(memberId)
+    )
+    if (survivingMembers.length === 0) {
+      outcome.formerAllianceIds.push(snapshot.allianceId)
+      continue
+    }
+
+    const relationshipPenalty = survivingMembers.reduce((total, survivorId) => {
+      const edge = state.relationships[survivorId]?.[input.playerId]
+      return (
+        total +
+        (edge && (edge.trust < 0 || edge.resentment >= 45 || edge.suspicion >= 48) ? 0.2 : 0)
+      )
+    }, 0)
+    const continuityPenalty = Math.min(
+      0.9,
+      daysAbsent * 0.15 +
+        relationshipPenalty +
+        targetContinuityPenalty(state, snapshot, input.playerId) +
+        survivingMembers.reduce(
+          (total, survivorId) =>
+            total +
+            strongerCompetingPactPenalty(state, snapshot, survivorId) +
+            activePromiseContinuityPenalty(state, survivorId, input.playerId),
+          0
+        )
+    )
+    const originalCommitment =
+      snapshot.memberIds.reduce(
+        (total, memberId) => total + (snapshot.memberCommitment[memberId] ?? 0.5),
+        0
+      ) / Math.max(1, snapshot.memberIds.length)
+    const continuity = originalCommitment - continuityPenalty
+    const sameDay = daysAbsent === 0
+    const canResumeActive = sameDay
+      ? continuity >= 0.38
+      : daysAbsent === 1 && continuity >= 0.68 && continuityPenalty < 0.2
+    const canResumeProbationary =
+      daysAbsent <= 2
+        ? continuity >= 0.34 && continuityPenalty < 0.58
+        : daysAbsent === 3 && continuity >= 0.7 && continuityPenalty < 0.22
+
+    if (!canResumeActive && !canResumeProbationary) {
+      outcome.formerAllianceIds.push(snapshot.allianceId)
+      continue
+    }
+
+    const status = canResumeActive ? 'ACTIVE' : 'PROBATIONARY'
+    const commitmentFactor = Math.max(0.42, 0.96 - daysAbsent * 0.13 - continuityPenalty * 0.2)
+    const alliance = restoreSnapshotAlliance(
+      state,
+      snapshot,
+      input.playerId,
+      status,
+      commitmentFactor,
+      input.at
+    )
+    if (status === 'ACTIVE') outcome.restoredAllianceIds.push(alliance.id)
+    else outcome.probationaryAllianceIds.push(alliance.id)
+
+    for (const survivorId of survivingMembers) {
+      const decay = daysAbsent * 2 + (status === 'PROBATIONARY' ? 3 : 0)
+      if (decay <= 0) continue
+      applyRealityRelationshipChange(state, {
+        sourceId: survivorId,
+        targetId: input.playerId,
+        day: input.at.day,
+        phase: input.at.phase,
+        eventId: `battle-back:${snapshot.allianceId}:${input.playerId}:${input.at.day}`,
+        meaningful: false,
+        deltas: { trust: -decay, loyalty: -decay * 1.2, reliability: -decay },
+      })
+      applyRealityRelationshipChange(state, {
+        sourceId: input.playerId,
+        targetId: survivorId,
+        day: input.at.day,
+        phase: input.at.phase,
+        eventId: `battle-back:${snapshot.allianceId}:${input.playerId}:${input.at.day}`,
+        meaningful: false,
+        deltas: { trust: -decay, loyalty: -decay * 1.2, reliability: -decay },
+      })
+    }
+  }
+
+  appendRealityEvent(state, {
+    ...input.at,
+    type: 'ALLIANCE_REENTRY_RECONCILED',
+    actorId: input.playerId,
+    targetIds: [
+      ...outcome.restoredAllianceIds,
+      ...outcome.probationaryAllianceIds,
+      ...outcome.formerAllianceIds,
+    ],
+    participantIds: [input.playerId],
+    witnessIds: [...input.activeActorIds.filter((id) => id !== input.playerId)],
+    visibility: 'GROUP_VISIBLE',
+    outcome: outcome.formerAllianceIds.length > 0 ? 'PARTIAL' : 'SUCCESS',
+    reason: `battle_back:${daysAbsent}:active=${outcome.restoredAllianceIds.join(',')}:probationary=${outcome.probationaryAllianceIds.join(',')}:former=${outcome.formerAllianceIds.join(',')}`,
+    tags: ['ALLIANCE', 'REENTRY', daysAbsent === 0 ? 'SAME_DAY' : 'ABSENCE_REASSESSMENT'],
+    relatedFactIds: [],
+    relatedPromiseIds: [],
+    relatedThreadIds: [],
+    publicEligible: false,
+    juryEligible: true,
+  })
+  delete state.reentryProfiles[input.playerId]
+  return outcome
 }
 
 function maybeDefectRealityAllianceMember(

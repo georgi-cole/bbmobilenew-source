@@ -1,4 +1,4 @@
-import type { Middleware } from '@reduxjs/toolkit'
+import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { resolveLanguagePreference, translate } from '../i18n'
 import { applyDramaAction, recordRealityAllianceBetrayal, updateRelationship } from './socialSlice'
 import { getEffectiveSocialMode } from './socialMode'
@@ -10,7 +10,7 @@ interface IntegrityPlayer {
   status: string
 }
 
-interface IntegrityState {
+export interface NominationBetrayalState {
   game: {
     week: number
     phase: string
@@ -38,7 +38,13 @@ interface IntegrityState {
   }
 }
 
-const POSITIVE_BOND_TAGS = new Set(['alliance', 'romance', 'bromance'])
+const POSITIVE_BOND_TAGS = new Set([
+  'alliance',
+  'primary_alliance',
+  'ride_or_die',
+  'romance',
+  'bromance',
+])
 const PUBLIC_HOUSE_EVENT = /^HOUSE\s+(?:SHOCK|EXPOSED)\s*:/i
 
 function escapeRegExp(value: string): string {
@@ -80,6 +86,102 @@ function combinedTags(
 }
 
 /**
+ * Apply the same durable betrayal across initial and replacement nominations.
+ * The Reality record supplies the large trust, loyalty, reliability, and
+ * commitment rupture; legacy affinity/tags keep older screens in agreement.
+ */
+export function applyNominationBetrayalConsequences(
+  api: Pick<MiddlewareAPI, 'dispatch'>,
+  before: NominationBetrayalState,
+  after: NominationBetrayalState,
+  nomineeIds: readonly string[],
+  source: 'initial' | 'replacement'
+): void {
+  if (
+    getEffectiveSocialMode(after) !== 'drama' ||
+    after.game.voxPopuli?.status === 'active' ||
+    !after.game.lohId
+  ) {
+    return
+  }
+
+  const lohId = after.game.lohId
+  for (const nomineeId of nomineeIds) {
+    const tags = combinedTags(before.social.relationships, lohId, nomineeId)
+    if (!tags.some((tag) => POSITIVE_BOND_TAGS.has(tag)) || tags.includes('betrayal')) continue
+
+    const lohName = after.game.players.find((player) => player.id === lohId)?.name ?? lohId
+    const nomineeName =
+      after.game.players.find((player) => player.id === nomineeId)?.name ?? nomineeId
+    const ruptureTags = getBrokenBondTags(tags)
+    const coreBond = tags.some((tag) =>
+      ['primary_alliance', 'ride_or_die', 'romance'].includes(tag)
+    )
+    const outwardAffinity = before.social.relationships?.[lohId]?.[nomineeId]?.affinity ?? 0
+    const inwardAffinity = before.social.relationships?.[nomineeId]?.[lohId]?.affinity ?? 0
+    const baseOutward = coreBond ? 82 : 62
+    const baseInward = coreBond ? 94 : 72
+
+    api.dispatch(
+      updateRelationship({
+        source: lohId,
+        target: nomineeId,
+        delta: Math.min(-baseOutward, -baseOutward - Math.max(0, outwardAffinity) * 0.35),
+        tags: ruptureTags,
+        actionSource: 'system',
+        skipRealityProjection: true,
+      })
+    )
+    api.dispatch(
+      updateRelationship({
+        source: nomineeId,
+        target: lohId,
+        delta: Math.min(-baseInward, -baseInward - Math.max(0, inwardAffinity) * 0.4),
+        tags: ruptureTags,
+        actionSource: 'system',
+        skipRealityProjection: true,
+      })
+    )
+    api.dispatch(
+      applyDramaAction({
+        actionId: 'betray',
+        actorId: lohId,
+        targetId: nomineeId,
+        actorName: lohName,
+        targetName: nomineeName,
+        week: after.game.week,
+        phase: after.game.phase,
+        success: true,
+      })
+    )
+    api.dispatch(
+      recordRealityAllianceBetrayal({
+        actorId: lohId,
+        targetId: nomineeId,
+        kind: 'NOMINATION',
+        day: after.game.week,
+        phase: after.game.phase,
+        sourceEventId: `${source}-nomination:${after.game.week}:${lohId}:${nomineeId}`,
+      })
+    )
+    api.dispatch({
+      type: 'game/addTvEvent',
+      payload: {
+        text: translate(
+          resolveLanguagePreference(after.settings?.localization?.language),
+          'social.event.bondBetrayal',
+          { lohName, nomineeName }
+        ),
+        type: 'social',
+        source: 'system',
+        channels: ['tv', 'mainLog'],
+        meta: { dramaEvent: true, week: after.game.week, bondBetrayal: true, source },
+      },
+    })
+  }
+}
+
+/**
  * Guards two cross-cutting Reality invariants:
  *
  * 1. A fresh public house shock may not be generated about somebody who has
@@ -89,7 +191,7 @@ function combinedTags(
  *    the old positive bond alive.
  */
 export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action) => {
-  const before = api.getState() as IntegrityState
+  const before = api.getState() as NominationBetrayalState
   const typedAction = action as {
     type?: string
     payload?: {
@@ -118,7 +220,7 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
 
   if (!typedAction.type?.startsWith('game/')) return result
 
-  const after = api.getState() as IntegrityState
+  const after = api.getState() as NominationBetrayalState
   if (
     getEffectiveSocialMode(after) !== 'drama' ||
     after.game.voxPopuli?.status === 'active' ||
@@ -133,75 +235,7 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
   )
   if (newlyAddedNominees.length === 0) return result
 
-  const lohId = after.game.lohId
-  for (const nomineeId of newlyAddedNominees) {
-    const tags = combinedTags(before.social.relationships, lohId, nomineeId)
-    if (!tags.some((tag) => POSITIVE_BOND_TAGS.has(tag)) || tags.includes('betrayal')) continue
-
-    const lohName = after.game.players.find((player) => player.id === lohId)?.name ?? lohId
-    const nomineeName =
-      after.game.players.find((player) => player.id === nomineeId)?.name ?? nomineeId
-    const ruptureTags = getBrokenBondTags(tags)
-    const outwardAffinity = before.social.relationships?.[lohId]?.[nomineeId]?.affinity ?? 0
-    const inwardAffinity = before.social.relationships?.[nomineeId]?.[lohId]?.affinity ?? 0
-
-    api.dispatch(
-      updateRelationship({
-        source: lohId,
-        target: nomineeId,
-        delta: Math.min(-45, -60 - outwardAffinity),
-        tags: ruptureTags,
-        actionSource: 'system',
-        skipRealityProjection: true,
-      })
-    )
-    api.dispatch(
-      updateRelationship({
-        source: nomineeId,
-        target: lohId,
-        delta: Math.min(-55, -70 - inwardAffinity),
-        tags: ruptureTags,
-        actionSource: 'system',
-        skipRealityProjection: true,
-      })
-    )
-    api.dispatch(
-      applyDramaAction({
-        actionId: 'betray',
-        actorId: lohId,
-        targetId: nomineeId,
-        actorName: lohName,
-        targetName: nomineeName,
-        week: after.game.week,
-        phase: after.game.phase,
-        success: true,
-      })
-    )
-    api.dispatch(
-      recordRealityAllianceBetrayal({
-        actorId: lohId,
-        targetId: nomineeId,
-        kind: 'NOMINATION',
-        day: after.game.week,
-        phase: after.game.phase,
-        sourceEventId: `replacement-nomination:${after.game.week}:${lohId}:${nomineeId}`,
-      })
-    )
-    api.dispatch({
-      type: 'game/addTvEvent',
-      payload: {
-        text: translate(
-          resolveLanguagePreference(after.settings?.localization?.language),
-          'social.event.bondBetrayal',
-          { lohName, nomineeName }
-        ),
-        type: 'social',
-        source: 'system',
-        channels: ['tv', 'mainLog'],
-        meta: { dramaEvent: true, week: after.game.week, bondBetrayal: true },
-      },
-    })
-  }
+  applyNominationBetrayalConsequences(api, before, after, newlyAddedNominees, 'replacement')
 
   return result
 }

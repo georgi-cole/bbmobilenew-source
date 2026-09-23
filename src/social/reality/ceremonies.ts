@@ -7,6 +7,7 @@ import { createRealityContestantState, createRealityPerception } from './state'
 import { reconcileNemesisWithVoluntarySafety } from './relationshipAutonomy'
 import {
   adjustRealityAllianceCommitment,
+  captureRealityReentryProfile,
   recordRealityAllianceBetrayal,
   recordRealityAlliancePlanDefiance,
   removeRealityAllianceMember,
@@ -373,6 +374,7 @@ function applyCeremonyAftermath(
 
   if (kind === 'EVICTION') {
     for (const targetId of event.targetIds) {
+      captureRealityReentryProfile(state, targetId, { day: event.day, phase: event.phase })
       const evictee = contestant(state, targetId)
       evictee.stress = clamp(evictee.stress + 28, 0, 100)
       evictee.emotions.sadness = clamp(evictee.emotions.sadness + 35, 0, 100)

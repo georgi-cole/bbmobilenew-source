@@ -191,6 +191,7 @@ export interface SocialActionLogEntry {
   /** Structured context used to render action-specific history without parsing text. */
   context?: {
     lohPlanType?: 'current_target' | 'backup_plan'
+    lohDisclosureOutcome?: 'truthful' | 'vague' | 'false'
   }
   /** Energy deducted (backward-compatible; prefer `costs.energy`). */
   cost: number

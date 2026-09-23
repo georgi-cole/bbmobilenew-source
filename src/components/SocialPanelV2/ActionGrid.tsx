@@ -193,6 +193,8 @@ export default function ActionGrid({
   )
   const safetyConsultationOpen =
     actorHasSafety && (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
+  const replacementConsultationOpen =
+    !actorHasSafety && (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
 
   function contextualizeAction(action: SocialActionDefinition) {
     if (action.id !== 'ask_loh_target') return action
@@ -201,6 +203,13 @@ export default function ActionGrid({
         ...action,
         title: t('social.action.askLohSafety.title'),
         description: t('social.action.askLohSafety.description'),
+      }
+    }
+    if (replacementConsultationOpen) {
+      return {
+        ...action,
+        title: t('social.action.askReplacementPlan.title'),
+        description: t('social.action.askReplacementPlan.description'),
       }
     }
     if (

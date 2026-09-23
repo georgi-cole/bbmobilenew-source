@@ -146,6 +146,9 @@ export const EN_US_MESSAGES = {
   'social.action.askLohPlan.title': 'Ask LOH Plan',
   'social.action.askLohPlan.description':
     'Ask who the LOH is considering before nominations are locked.',
+  'social.action.askReplacementPlan.title': 'Ask Replacement Plan',
+  'social.action.askReplacementPlan.description':
+    'Ask who the LOH would name if Safety opens a seat on the block.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Broken alliance',
   'broadcast.shock.aria': 'Shock announcement: {title}',
@@ -322,6 +325,9 @@ const FR_FR_MESSAGES = {
   'social.action.askLohPlan.title': 'Demander le plan du LOH',
   'social.action.askLohPlan.description':
     'Demandez qui le LOH envisage avant le verrouillage des nominations.',
+  'social.action.askReplacementPlan.title': 'Demander le plan de remplacement',
+  'social.action.askReplacementPlan.description':
+    'Demandez qui le LOH nommerait si la Safety libérait une place sur le bloc.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Alliance brisée',
   'broadcast.shock.aria': 'Annonce choc : {title}',
@@ -487,6 +493,9 @@ const IT_IT_MESSAGES = {
   'social.action.askLohPlan.title': 'Chiedi il piano del LOH',
   'social.action.askLohPlan.description':
     'Chiedi chi sta considerando il LOH prima che le nomination vengano bloccate.',
+  'social.action.askReplacementPlan.title': 'Chiedi il piano di sostituzione',
+  'social.action.askReplacementPlan.description':
+    'Chiedi chi il LOH nominerebbe se la Safety liberasse un posto nel blocco.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Alleanza spezzata',
   'broadcast.shock.aria': 'Annuncio shock: {title}',
@@ -652,6 +661,9 @@ const ES_ES_MESSAGES = {
   'social.action.askLohPlan.title': 'Preguntar el plan del LOH',
   'social.action.askLohPlan.description':
     'Pregunta a quién está considerando el LOH antes de cerrar las nominaciones.',
+  'social.action.askReplacementPlan.title': 'Preguntar el plan de reemplazo',
+  'social.action.askReplacementPlan.description':
+    'Pregunta a quién nominaría el LOH si Safety liberara un puesto en el bloque.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Alianza rota',
   'broadcast.shock.aria': 'Anuncio impactante: {title}',
@@ -817,6 +829,9 @@ const PT_PT_MESSAGES = {
   'social.action.askLohPlan.title': 'Perguntar o plano do LOH',
   'social.action.askLohPlan.description':
     'Pergunte quem o LOH está a considerar antes de as nomeações serem fechadas.',
+  'social.action.askReplacementPlan.title': 'Perguntar o plano de substituição',
+  'social.action.askReplacementPlan.description':
+    'Pergunte quem o LOH nomearia se a Safety abrisse uma vaga no bloco.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Aliança desfeita',
   'broadcast.shock.aria': 'Anúncio de choque: {title}',
@@ -981,6 +996,9 @@ const DE_DE_MESSAGES = {
   'social.action.askLohPlan.title': 'LOH-Plan erfragen',
   'social.action.askLohPlan.description':
     'Frage, wen der LOH erwägt, bevor die Nominierungen feststehen.',
+  'social.action.askReplacementPlan.title': 'Ersatzplan erfragen',
+  'social.action.askReplacementPlan.description':
+    'Frage, wen der LOH nominieren würde, wenn Safety einen Platz auf dem Block freimacht.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Zerbrochene Allianz',
   'broadcast.shock.aria': 'Schockankündigung: {title}',
@@ -1134,6 +1152,8 @@ const ZH_CN_MESSAGES = {
   'social.action.askWhoGoes.description': '询问 LOH 想从最终提名席位中淘汰哪位已锁定的提名人。',
   'social.action.askLohPlan.title': '询问 LOH 的计划',
   'social.action.askLohPlan.description': '在提名锁定前询问 LOH 正在考虑谁。',
+  'social.action.askReplacementPlan.title': '询问替补计划',
+  'social.action.askReplacementPlan.description': '询问如果 Safety 腾出提名席位，LOH 会提名谁。',
   'social.relationship.ex': '💔 前任',
   'social.relationship.brokenAlliance': '💔 破裂的联盟',
   'broadcast.shock.aria': '震撼公告：{title}',
@@ -1295,6 +1315,9 @@ const BG_BG_MESSAGES = {
   'social.action.askLohPlan.title': 'Попитай за плана на LOH',
   'social.action.askLohPlan.description':
     'Попитай кого обмисля LOH, преди номинациите да бъдат заключени.',
+  'social.action.askReplacementPlan.title': 'Попитай за плана за заместник',
+  'social.action.askReplacementPlan.description':
+    'Попитай кого LOH би номинирал, ако Safety освободи място в блока.',
   'social.relationship.ex': '💔 Бивш партньор',
   'social.relationship.brokenAlliance': '💔 Разпаднат съюз',
   'broadcast.shock.aria': 'Шоково съобщение: {title}',
@@ -1458,6 +1481,9 @@ const RU_RU_MESSAGES = {
   'social.action.askLohPlan.title': 'Спросить план LOH',
   'social.action.askLohPlan.description':
     'Спросите, кого рассматривает LOH до окончательного закрепления номинаций.',
+  'social.action.askReplacementPlan.title': 'Спросить план замены',
+  'social.action.askReplacementPlan.description':
+    'Спросите, кого LOH номинирует, если Safety освободит место в блоке.',
   'social.relationship.ex': '💔 Бывший партнёр',
   'social.relationship.brokenAlliance': '💔 Разрушенный союз',
   'broadcast.shock.aria': 'Шоковое объявление: {title}',
@@ -1622,6 +1648,9 @@ const UK_UA_MESSAGES = {
   'social.action.askLohPlan.title': 'Запитати план LOH',
   'social.action.askLohPlan.description':
     'Запитайте, кого розглядає LOH до остаточного закріплення номінацій.',
+  'social.action.askReplacementPlan.title': 'Запитати план заміни',
+  'social.action.askReplacementPlan.description':
+    'Запитайте, кого LOH номінує, якщо Safety звільнить місце в блоці.',
   'social.relationship.ex': '💔 Колишній партнер',
   'social.relationship.brokenAlliance': '💔 Зруйнований союз',
   'broadcast.shock.aria': 'Шокове оголошення: {title}',
@@ -1783,6 +1812,9 @@ const TR_TR_MESSAGES = {
   'social.action.askLohPlan.title': 'LOH planını sor',
   'social.action.askLohPlan.description':
     'Adaylıklar kilitlenmeden önce LOH’un kimi düşündüğünü sor.',
+  'social.action.askReplacementPlan.title': 'Yedek planını sor',
+  'social.action.askReplacementPlan.description':
+    'Safety blokta bir yer açarsa LOH’un kimi aday göstereceğini sor.',
   'social.relationship.ex': '💔 Eski partner',
   'social.relationship.brokenAlliance': '💔 Bozulmuş ittifak',
   'broadcast.shock.aria': 'Şok duyurusu: {title}',
