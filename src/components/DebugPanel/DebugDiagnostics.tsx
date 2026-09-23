@@ -13,6 +13,11 @@ import {
   getLastGameDiagnostic,
 } from '../../services/diagnostics/gameDiagnostics'
 import { revokeDebugAccess } from '../../utils/debugMode'
+import {
+  createSavedSeasonSnapshot,
+  getSavePersistenceDiagnostics,
+  inspectLocalStorageUsageBytes,
+} from '../../store/saveStatePersistence'
 
 const CHECKPOINT_KEY = 'bbmobilenew:debug-checkpoint:v1'
 const SNAPSHOT_VERSION = 1
@@ -63,6 +68,20 @@ function parseSnapshot(raw: string): DebugSnapshot {
     throw new Error('This is not a compatible debug snapshot.')
   }
   return parsed as DebugSnapshot
+}
+
+function estimateJsonBytes(value: unknown): number {
+  try {
+    return JSON.stringify(value).length * 2
+  } catch {
+    return 0
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
 function downloadJson(filename: string, value: unknown): void {
@@ -157,7 +176,11 @@ export default function DebugDiagnostics() {
   const navigate = useNavigate()
   const store = useStore<RootState>()
   const game = useAppSelector((root) => root.game)
+  const finale = useAppSelector((root) => root.finale)
+  const challenge = useAppSelector((root) => root.challenge)
   const social = useAppSelector((root) => root.social)
+  const publicOpinion = useAppSelector((root) => root.publicOpinion)
+  const activeProfileId = useAppSelector((root) => root.profiles.activeProfileId)
   const fileRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState('')
   const issues = useMemo(() => collectHealthIssues({ game, social }), [game, social])
@@ -166,6 +189,23 @@ export default function DebugDiagnostics() {
   const latestTrace = simulation.trace.at(-1)
   const actionHistory = getDiagnosticActionHistory()
   const lastError = getLastGameDiagnostic()
+  const persistenceDiagnostics = getSavePersistenceDiagnostics()
+  const storageUsageBytes = inspectLocalStorageUsageBytes()
+  const persistenceProjection = useMemo(() => {
+    const snapshot = createSavedSeasonSnapshot(
+      activeProfileId ?? 'debug-profile',
+      { game, finale, challenge, social, publicOpinion },
+      new Date().toISOString()
+    )
+    return {
+      total: estimateJsonBytes(snapshot),
+      game: estimateJsonBytes(snapshot.game),
+      social: estimateJsonBytes(snapshot.social),
+      finale: estimateJsonBytes(snapshot.finale),
+      challenge: estimateJsonBytes(snapshot.challenge),
+      publicOpinion: estimateJsonBytes(snapshot.publicOpinion),
+    }
+  }, [activeProfileId, challenge, finale, game, publicOpinion, social])
 
   const restoreSnapshot = (snapshot: DebugSnapshot) => {
     dispatch(hydrateGame(snapshot.state.game))
@@ -282,6 +322,35 @@ export default function DebugDiagnostics() {
           <dd>{actionHistory.at(-1)?.type ?? '—'}</dd>
           <dt>Last error</dt>
           <dd>{lastError?.message ?? lastError?.reason ?? '—'}</dd>
+        </dl>
+      </section>
+
+      <section className="dbg-section">
+        <h3 className="dbg-section__title">Save persistence</h3>
+        <dl className="dbg-grid">
+          <dt>Projected save</dt>
+          <dd>{formatBytes(persistenceProjection.total)}</dd>
+          <dt>Game payload</dt>
+          <dd>{formatBytes(persistenceProjection.game)}</dd>
+          <dt>Social payload</dt>
+          <dd>{formatBytes(persistenceProjection.social)}</dd>
+          <dt>Finale / challenge</dt>
+          <dd>
+            {formatBytes(persistenceProjection.finale)} / {formatBytes(persistenceProjection.challenge)}
+          </dd>
+          <dt>Public opinion</dt>
+          <dd>{formatBytes(persistenceProjection.publicOpinion)}</dd>
+          <dt>Site localStorage</dt>
+          <dd>{formatBytes(storageUsageBytes)}</dd>
+          <dt>Write circuit</dt>
+          <dd>{persistenceDiagnostics.blockedReason ?? 'open'}</dd>
+          <dt>Last serialized save</dt>
+          <dd>{formatBytes(persistenceDiagnostics.lastSnapshotBytes)}</dd>
+          <dt>Serialize / write</dt>
+          <dd>
+            {persistenceDiagnostics.lastSerializeMs.toFixed(1)} ms /{' '}
+            {persistenceDiagnostics.lastWriteMs.toFixed(1)} ms
+          </dd>
         </dl>
       </section>
 
