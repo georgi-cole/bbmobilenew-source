@@ -283,7 +283,7 @@ export default function ProfilePicker() {
 
     clearProfileSaveStorage(id)
     clearSeasonArchives(archiveKeyForProfile(id))
-    await flushSavePersistence()
+    if (!(await flushSavePersistence())) return
     dispatch(deleteProfile(id))
     setPendingDeleteId(null)
   }
