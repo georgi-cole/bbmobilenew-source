@@ -91,7 +91,7 @@ export function compactSocialStateForPersistence(state: SocialState): SocialStat
 
   const compactTrace = state.realitySimulation.trace
     .slice(-PERSISTED_SOCIAL_LIMITS.realityTrace)
-    .map(({ candidates: _candidates, ...entry }) => entry)
+    .map((entry) => ({ ...entry, candidates: undefined }))
 
   return {
     ...state,
