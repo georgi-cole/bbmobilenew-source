@@ -337,7 +337,8 @@ export default function DebugDiagnostics() {
           <dd>{formatBytes(persistenceProjection.social)}</dd>
           <dt>Finale / challenge</dt>
           <dd>
-            {formatBytes(persistenceProjection.finale)} / {formatBytes(persistenceProjection.challenge)}
+            {formatBytes(persistenceProjection.finale)} /{' '}
+            {formatBytes(persistenceProjection.challenge)}
           </dd>
           <dt>Public opinion</dt>
           <dd>{formatBytes(persistenceProjection.publicOpinion)}</dd>
