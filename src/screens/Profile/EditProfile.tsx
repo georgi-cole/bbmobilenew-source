@@ -5,12 +5,14 @@ import {
   selectCurrentProfile,
   updateProfile,
   deleteProfile,
+  archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
 import { resetGame, updateUserPlayerIdentity } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
-import { clearSavedRun } from '../../store/saveStatePersistence'
+import { clearProfileSaveStorage } from '../../store/saveStatePersistence'
+import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import './EditProfile.css'
@@ -230,13 +232,10 @@ export default function EditProfile() {
       await deleteImage(profile.photoId)
     }
 
-    // Remove every run slot before changing the active profile. Suspending
-    // autosave prevents the deleted profile's in-memory season being saved
-    // under whichever profile becomes active next.
-    clearSavedRun(profile.id, 'classic')
-    clearSavedRun(profile.id, 'cupidArrow')
-    clearSavedRun(profile.id, 'voxPopuli')
-    clearSavedRun(profile.id, 'survival')
+    // Remove every persistence record owned by the deleted profile. Suspending
+    // autosave prevents its in-memory season being saved under the next profile.
+    clearProfileSaveStorage(profile.id)
+    clearSeasonArchives(archiveKeyForProfile(profile.id))
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
