@@ -335,10 +335,13 @@ export async function initializeDurablePersistence(
     backend = selected
     await migrateLegacyLocalStorage(selected)
     initialized = true
-  })().catch((error) => {
+  })().catch(async (error) => {
     console.warn('[persistence] Durable storage initialization failed.', error)
-    backend = new LocalStorageFallbackBackend()
+    const fallback = new LocalStorageFallbackBackend()
+    const entries = await fallback.loadAll()
+    backend = fallback
     cache.clear()
+    for (const [key, value] of entries) cache.set(key, value)
     initialized = true
   })
 
