@@ -426,10 +426,7 @@ function writeStorage(key: string, serialized: string): boolean {
   if (persistenceWriteBlockedReason !== null) return false
   const serializedBytes = byteLength(serialized)
   const queued = setDurableItem(key, serialized)
-  if (!queued) {
-    reportSavePersistenceIssue('write_failed', 'storage_unavailable')
-    return false
-  }
+  if (!queued) return false
 
   const isSnapshotPayload =
     key.startsWith(SAVED_RUN_SLOT_KEY_PREFIX) || key.startsWith(SAVED_STATE_KEY_PREFIX)
