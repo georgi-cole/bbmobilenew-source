@@ -6,7 +6,7 @@
 // Key behaviours:
 //  - Each profile can keep Classic, Survival and expansion runs side by side.
 //  - Each run slot is stored independently so adding game types does not create
-//    one increasingly large localStorage value.
+//    one increasingly large durable payload.
 //  - Guest mode never writes or reads snapshots.
 //  - Stale/invalid snapshots are silently discarded on load.
 //  - Legacy single-slot and embedded multi-run saves are migrated safely.
@@ -558,7 +558,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
  * Fast path for an already-migrated profile: write only the active run slot and
  * the tiny metadata record. The old implementation re-serialized and rewrote all
  * four potentially-large campaign slots on every Redux change, turning one Play
- * press into repeated synchronous localStorage work.
+ * press into repeated large persistence work.
  */
 function persistSingleRunSnapshot(
   profileId: string,
@@ -837,6 +837,6 @@ export function clearProfileSaveStorage(profileId: string): void {
     }
     retrySavePersistenceWrites()
   } catch {
-    // Deletion remains best-effort when browser storage is unavailable.
+    // Deletion remains best-effort when durable storage is unavailable.
   }
 }
