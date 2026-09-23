@@ -2,6 +2,7 @@ import {
   closeDebugPanelIfOpen,
   dismissPermissionPromptIfPresent,
   expect,
+  listDurableKeys,
   readAppState,
   test,
   type Page,
@@ -90,14 +91,9 @@ test.describe('Run exit lifecycle', () => {
     await advanceToAutosavableProgress(page)
 
     await expect
-      .poll(
-        () =>
-          page.evaluate(
-            (prefix) => Object.keys(localStorage).some((key) => key.startsWith(prefix)),
-            SAVED_RUNS_KEY_PREFIX
-          ),
-        { timeout: SCREEN_TIMEOUT_MS }
-      )
+      .poll(async () => (await listDurableKeys(page, SAVED_RUNS_KEY_PREFIX)).length > 0, {
+        timeout: SCREEN_TIMEOUT_MS,
+      })
       .toBe(true)
 
     await page
