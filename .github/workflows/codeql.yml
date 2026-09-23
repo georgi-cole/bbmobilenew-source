@@ -67,8 +67,7 @@ jobs:
           -project ios/App/App.xcodeproj
           -target App
           -configuration Debug
-          -sdk iphonesimulator
-          ARCH=arm64
+          -destination "generic/platform=iOS Simulator"
           CODE_SIGNING_REQUIRED=NO
           CODE_SIGNING_ALLOWED=NO
 
