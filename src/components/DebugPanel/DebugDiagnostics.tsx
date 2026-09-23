@@ -16,8 +16,10 @@ import { revokeDebugAccess } from '../../utils/debugMode'
 import {
   createSavedSeasonSnapshot,
   getSavePersistenceDiagnostics,
+  inspectDurableSaveStorageBytes,
   inspectLocalStorageUsageBytes,
 } from '../../store/saveStatePersistence'
+import { getDurablePersistenceDiagnostics } from '../../store/durablePersistence'
 
 const CHECKPOINT_KEY = 'bbmobilenew:debug-checkpoint:v1'
 const SNAPSHOT_VERSION = 1
@@ -191,7 +193,9 @@ export default function DebugDiagnostics() {
   const actionHistory = getDiagnosticActionHistory()
   const lastError = getLastGameDiagnostic()
   const persistenceDiagnostics = getSavePersistenceDiagnostics()
-  const storageUsageBytes = inspectLocalStorageUsageBytes()
+  const durableDiagnostics = getDurablePersistenceDiagnostics()
+  const durableUsageBytes = inspectDurableSaveStorageBytes()
+  const localStorageUsageBytes = inspectLocalStorageUsageBytes()
   const persistenceProjection = useMemo(() => {
     const snapshot = createSavedSeasonSnapshot(
       activeProfileId ?? 'debug-profile',
@@ -342,8 +346,20 @@ export default function DebugDiagnostics() {
           </dd>
           <dt>Public opinion</dt>
           <dd>{formatBytes(persistenceProjection.publicOpinion)}</dd>
-          <dt>Site localStorage</dt>
-          <dd>{formatBytes(storageUsageBytes)}</dd>
+          <dt>Backend</dt>
+          <dd>{durableDiagnostics.backend}</dd>
+          <dt>Durable save data</dt>
+          <dd>{formatBytes(durableUsageBytes)}</dd>
+          <dt>Remaining localStorage</dt>
+          <dd>{formatBytes(localStorageUsageBytes)}</dd>
+          <dt>Pending durable writes</dt>
+          <dd>{durableDiagnostics.pendingWrites}</dd>
+          <dt>Migrated legacy keys</dt>
+          <dd>{durableDiagnostics.migratedLegacyKeys}</dd>
+          <dt>Last durable flush</dt>
+          <dd>{durableDiagnostics.lastFlushMs.toFixed(1)} ms</dd>
+          <dt>Durable failure</dt>
+          <dd>{durableDiagnostics.lastFailureReason ?? 'none'}</dd>
           <dt>Write circuit</dt>
           <dd>{persistenceDiagnostics.blockedReason ?? 'open'}</dd>
           <dt>Last serialized save</dt>
