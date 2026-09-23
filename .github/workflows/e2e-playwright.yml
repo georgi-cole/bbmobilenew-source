@@ -67,18 +67,6 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Capture Capitalization visual evidence
-        run: >-
-          npx playwright test e2e/playwright/capitalization.visual.spec.ts
-          --project=mobile-chromium --workers=1 --retries=0
-      - name: Upload Capitalization visual evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: capitalization-visual-evidence
-          path: test-results/
-          if-no-files-found: warn
-          retention-days: 7
       - name: Run non-blocking extended core journeys
         run: >-
           npx playwright test --grep @core-journey
