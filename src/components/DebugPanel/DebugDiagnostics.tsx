@@ -72,7 +72,8 @@ function parseSnapshot(raw: string): DebugSnapshot {
 
 function estimateJsonBytes(value: unknown): number {
   try {
-    return JSON.stringify(value).length * 2
+    const serialized = JSON.stringify(value)
+    return serialized ? serialized.length * 2 : 0
   } catch {
     return 0
   }
