@@ -25,6 +25,7 @@
 import type { Middleware } from '@reduxjs/toolkit'
 import type { StrategicAllianceSnapshot } from '../types'
 import { settleSecretMissionDay } from '../store/gameSlice'
+import { applyNominationBetrayalConsequences } from './realityIntegrityMiddleware'
 import { SocialEngine } from './SocialEngine'
 import {
   snapshotWeekRelationships,
@@ -37,6 +38,7 @@ import {
   recordRealityActualVote,
   recordRealityAllianceBetrayal,
   recordRealityCeremony,
+  reconcileRealityBattleBackReturn,
   setEnergyBankEntry,
   pushIncomingInteraction,
   removeRelationshipTags,
@@ -1273,57 +1275,14 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       afterState.game?.lohId &&
       afterState.game.voxPopuli?.status !== 'active'
     ) {
-      const lohId = afterState.game.lohId
       const newNominees = afterState.game.nomineeIds.filter((id) => !prevNominees.includes(id))
-      for (const nomineeId of newNominees) {
-        const prior = prevState.social?.relationships?.[lohId]?.[nomineeId]
-        if (!prior?.tags.some((tag) => ['alliance', 'romance', 'bromance'].includes(tag))) continue
-        const lohName = afterState.game.players.find((player) => player.id === lohId)?.name ?? lohId
-        const nomineeName =
-          afterState.game.players.find((player) => player.id === nomineeId)?.name ?? nomineeId
-        api.dispatch(
-          updateRelationship({
-            source: lohId,
-            target: nomineeId,
-            delta: -18,
-            tags: ['betrayal'],
-            actionSource: 'system',
-            skipRealityProjection: true,
-          })
-        )
-        api.dispatch(
-          updateRelationship({
-            source: nomineeId,
-            target: lohId,
-            delta: -24,
-            tags: ['betrayal'],
-            actionSource: 'system',
-            skipRealityProjection: true,
-          })
-        )
-        api.dispatch(
-          applyDramaAction({
-            actionId: 'betray',
-            actorId: lohId,
-            targetId: nomineeId,
-            actorName: lohName,
-            targetName: nomineeName,
-            week: afterState.game.week,
-            phase: newPhase,
-            success: true,
-          })
-        )
-        api.dispatch({
-          type: 'game/addTvEvent',
-          payload: {
-            text: `HOUSE SHOCK: ${lohName} nominated ally ${nomineeName}. The pact has become a public betrayal.`,
-            type: 'social',
-            source: 'system',
-            channels: ['tv', 'mainLog'],
-            meta: { dramaEvent: true, week: afterState.game.week },
-          },
-        })
-      }
+      applyNominationBetrayalConsequences(
+        api as unknown as import('@reduxjs/toolkit').MiddlewareAPI,
+        prevState as unknown as import('./realityIntegrityMiddleware').NominationBetrayalState,
+        afterState as unknown as import('./realityIntegrityMiddleware').NominationBetrayalState,
+        newNominees,
+        'initial'
+      )
     }
 
     // Social engine lifecycle
@@ -1626,6 +1585,34 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     const winner = (prevState.game?.players ?? []).find((p) => p.id === winnerId)
 
     const result = next(action)
+
+    const returnedState = api.getState() as StateWithGame
+    const returnedPlayer = returnedState.game?.players.find((player) => player.id === winnerId)
+    if (
+      returnedPlayer?.status === 'active' &&
+      getEffectiveSocialMode(returnedState) === 'drama' &&
+      returnedState.social?.reality
+    ) {
+      api.dispatch(
+        reconcileRealityBattleBackReturn({
+          playerId: winnerId,
+          day: returnedState.game.week ?? 1,
+          phase: returnedState.game.phase,
+          activeActorIds: returnedState.game.players
+            .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+            .map((player) => player.id),
+        })
+      )
+      const reconciledState = api.getState() as StateWithGame
+      api.dispatch({
+        type: 'game/syncStrategicRelationships',
+        payload: reconciledState.social?.relationships ?? {},
+      })
+      api.dispatch({
+        type: 'game/syncStrategicAlliances',
+        payload: buildStrategicAllianceSnapshot(reconciledState),
+      })
+    }
 
     if (winner?.isUser) {
       const restoredEnergy =

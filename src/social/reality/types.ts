@@ -361,6 +361,37 @@ export interface RealityAlliance {
   infiltratorIds: RealityActorId[]
 }
 
+/**
+ * A durable record of the formal commitments a contestant had when they left
+ * the house. It deliberately preserves history without treating an eviction
+ * as a promise that every old deal will be reinstated on a Battle Back return.
+ */
+export interface RealityReentryAllianceSnapshot {
+  allianceId: string
+  memberIds: RealityActorId[]
+  founderIds: RealityActorId[]
+  leaderIds: RealityActorId[]
+  secrecy: number
+  cohesion: number
+  fractureRisk: number
+  purpose: string
+  currentTargetIds: RealityActorId[]
+  fallbackTargetIds: RealityActorId[]
+  sharedPromiseIds: string[]
+  memberCommitment: Record<RealityActorId, number>
+  memberPerceivedStatus: Record<RealityActorId, 'CORE' | 'REGULAR' | 'PERIPHERAL'>
+  memberPlanBeliefs: Record<RealityActorId, string[]>
+  operationalRoles: Record<RealityActorId, string[]>
+  genuine: boolean
+  infiltratorIds: RealityActorId[]
+  status: RealityAllianceStatus
+}
+
+export interface RealityReentryProfile {
+  evictedAt: RealityClock
+  alliances: RealityReentryAllianceSnapshot[]
+}
+
 export interface RealityRomance {
   id: string
   participantIds: [RealityActorId, RealityActorId]
@@ -549,5 +580,7 @@ export interface RealityDomainState {
   voteIntents: Record<RealityActorId, RealityVoteIntent>
   publicPerception: Record<RealityActorId, RealityPerception>
   juryEvaluations: RealityJuryEvaluation[]
+  /** Captured at eviction and consumed when a Battle Back winner returns. */
+  reentryProfiles: Record<RealityActorId, RealityReentryProfile>
   relationshipAutonomy: RealityRelationshipAutonomyState
 }

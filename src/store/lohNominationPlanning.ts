@@ -23,6 +23,8 @@ export interface LohNominationPlan {
   selectionBasis: 'strategy' | 'cold_start'
   targetScore: number
   backdoorChance: number
+  /** A credible human replacement suggestion accepted by the current LOH. */
+  replacementTargetOverrideId?: string | null
   /** Everyone alive is allowed to play Safety; retained as an audit snapshot. */
   safetyParticipantIds?: string[]
   revealPending?: boolean
@@ -349,14 +351,16 @@ function planMatchesCurrentLoh(state: GameState): boolean {
 }
 
 function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
+  const disclosureOutcomeByPlayerId = state.lohSocialPlan?.disclosureOutcomeByPlayerId ?? {}
   if (plan.strategy !== 'backdoor') {
     return {
       week: state.week,
       lohId: plan.lohId,
       currentTargetId: plan.targetId,
-      backupTargetId: plan.backupTargetId,
+      backupTargetId: plan.replacementTargetOverrideId ?? plan.backupTargetId,
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
+      disclosureOutcomeByPlayerId,
     }
   }
 
@@ -368,6 +372,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       backupTargetId: plan.backupTargetId,
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
+      disclosureOutcomeByPlayerId,
     }
   }
 
@@ -390,6 +395,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       backupTargetId: null,
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
+      disclosureOutcomeByPlayerId,
     }
   }
 
@@ -400,6 +406,7 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
     backupTargetId: plan.targetId,
     askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
     disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
+    disclosureOutcomeByPlayerId,
   }
 }
 
@@ -424,6 +431,9 @@ function cloneForPlayerMutation(state: GameState): GameState {
           ...state.lohSocialPlan,
           askCountsByPlayerId: { ...state.lohSocialPlan.askCountsByPlayerId },
           disclosedTargetByPlayerId: { ...(state.lohSocialPlan.disclosedTargetByPlayerId ?? {}) },
+          disclosureOutcomeByPlayerId: {
+            ...(state.lohSocialPlan.disclosureOutcomeByPlayerId ?? {}),
+          },
         }
       : state.lohSocialPlan,
     lohNominationPlan: state.lohNominationPlan
@@ -748,17 +758,27 @@ function reconcileCanonicalSocialDisclosure(previous: GameState, state: GameStat
   const nextCounts = { ...(state.lohSocialPlan?.askCountsByPlayerId ?? {}) }
   const previousCounts = previousSocialPlan?.askCountsByPlayerId ?? {}
   const disclosed = { ...(previousSocialPlan?.disclosedTargetByPlayerId ?? {}) }
+  const outcomes = { ...(previousSocialPlan?.disclosureOutcomeByPlayerId ?? {}) }
+  const submittedDisclosures = state.lohSocialPlan?.disclosedTargetByPlayerId ?? {}
+  const submittedOutcomes = state.lohSocialPlan?.disclosureOutcomeByPlayerId ?? {}
   const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.phase)
 
   for (const [actorId, nextCount] of Object.entries(nextCounts)) {
     const priorCount = previousCounts[actorId] ?? 0
     if (nextCount <= priorCount) continue
-    const disclosureId = finalBlockLocked
+    const canonicalDisclosureId = finalBlockLocked
       ? canonical.currentTargetId
       : priorCount % 2 === 1 && canonical.currentTargetId
         ? canonical.currentTargetId
         : (canonical.backupTargetId ?? canonical.currentTargetId)
-    if (disclosureId) disclosed[actorId] = disclosureId
+    const outcome = submittedOutcomes[actorId] ?? 'truthful'
+    outcomes[actorId] = outcome
+    if (outcome === 'vague') {
+      delete disclosed[actorId]
+    } else {
+      const statedId = submittedDisclosures[actorId] ?? canonicalDisclosureId
+      if (statedId) disclosed[actorId] = statedId
+    }
   }
 
   return {
@@ -767,6 +787,7 @@ function reconcileCanonicalSocialDisclosure(previous: GameState, state: GameStat
       ...canonical,
       askCountsByPlayerId: nextCounts,
       disclosedTargetByPlayerId: disclosed,
+      disclosureOutcomeByPlayerId: outcomes,
     },
   }
 }

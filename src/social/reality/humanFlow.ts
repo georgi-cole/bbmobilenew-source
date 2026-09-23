@@ -699,9 +699,15 @@ function buildLohConsultationSummary(
 
   const disclosedTargetId =
     plan.disclosedTargetByPlayerId?.[input.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
+  const disclosureOutcome = plan.disclosureOutcomeByPlayerId?.[input.actorId]
+  if (disclosureOutcome === 'vague')
+    return `${playerName(state, state.game.lohId)} kept the replacement plan vague.`
   if (!disclosedTargetId) return fallback
 
   const disclosedName = playerName(state, disclosedTargetId)
+  if (disclosureOutcome === 'false') {
+    return `${disclosedName} is the name I am willing to give you if Safety opens the block.`
+  }
   if (nominees.includes(disclosedTargetId)) {
     return `${disclosedName} is my current target. That is who I want the pressure on.`
   }

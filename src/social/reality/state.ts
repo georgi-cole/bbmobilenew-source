@@ -158,6 +158,7 @@ export function createInitialRealityDomainState(
     voteIntents: {},
     publicPerception: {},
     juryEvaluations: [],
+    reentryProfiles: {},
     relationshipAutonomy: {
       intents: {},
       boundaries: {},
@@ -244,6 +245,8 @@ export function normalizeRealityDomainState(
     publicPerception:
       input.publicPerception && isRecord(input.publicPerception) ? input.publicPerception : {},
     juryEvaluations: Array.isArray(input.juryEvaluations) ? input.juryEvaluations.slice(-500) : [],
+    reentryProfiles:
+      input.reentryProfiles && isRecord(input.reentryProfiles) ? input.reentryProfiles : {},
     relationshipAutonomy: {
       ...base.relationshipAutonomy,
       ...(input.relationshipAutonomy && isRecord(input.relationshipAutonomy)

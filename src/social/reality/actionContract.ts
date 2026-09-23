@@ -1,6 +1,7 @@
 import { SOCIAL_ACTIONS, resolveActionTargetMode } from '../socialActions'
 import type { SocialActionDefinition } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
+import { getCanonicalRelationshipTags, isRepairableRelationship } from '../relationshipSemantics'
 import { actorHasBelief } from './knowledge'
 import {
   getDefaultRealityEffects,
@@ -279,29 +280,7 @@ function relationshipTagsForReality(
   actorId: string,
   targetId: string
 ): Set<string> {
-  const edge = reality.relationships[actorId]?.[targetId]
-  const tags = new Set<string>()
-  const formalPairAlliances = Object.values(reality.alliances).filter(
-    (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
-  )
-  const hasLiveFormalAlliance = formalPairAlliances.some(
-    (alliance) => alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
-  )
-  const hasFormalAllianceHistory = formalPairAlliances.length > 0
-  if (hasLiveFormalAlliance) tags.add('alliance')
-  if (!edge) return tags
-  if (
-    !hasFormalAllianceHistory &&
-    (edge.perceivedLabel === 'ALLY' || edge.perceivedLabel === 'CORE_ALLY')
-  ) {
-    tags.add('alliance')
-  }
-  if (edge.perceivedLabel === 'ROMANCE' || edge.perceivedLabel === 'POWER_PAIR') {
-    tags.add('romance')
-  }
-  if (edge.perceivedLabel === 'RIVAL') tags.add('rivalry')
-  if (edge.perceivedLabel === 'ENEMY') tags.add('betrayal')
-  return tags
+  return getCanonicalRelationshipTags({ reality, actorId, targetId })
 }
 
 function projectedAffinity(reality: RealityDomainState, actorId: string, targetId: string): number {
@@ -402,7 +381,9 @@ export function evaluateRealityCandidate({
     const affinity = projectedAffinity(reality, actor.id, targetId)
     if (
       requiredRelationshipTags.length > 0 &&
-      !requiredRelationshipTags.some((tag) => tags.has(tag))
+      !(action.id === 'repair_bond'
+        ? isRepairableRelationship({ reality, actorId: actor.id, targetId })
+        : requiredRelationshipTags.some((tag) => tags.has(tag)))
     ) {
       blockedReasons.push('relationship_required')
     }
