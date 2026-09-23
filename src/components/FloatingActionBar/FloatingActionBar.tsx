@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   advance,
@@ -35,9 +36,13 @@ import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
 import {
   clearSavedRun,
   clearSeasonSnapshot,
+  createSavedSeasonSnapshot,
+  flushSavePersistence,
   getSavedRunSlot,
   loadSavedRunProfile,
+  retrySavePersistenceWrites,
   savedStateKeyForProfile,
+  saveRunSnapshot,
 } from '../../store/saveStatePersistence'
 import {
   createSurvivorRun,
@@ -50,6 +55,7 @@ import GameControlDock from '../GameControlDock/GameControlDock'
 import ConfessionalSpotlightOverlay from './ConfessionalSpotlightOverlay'
 import { resolveBalancedDockBottom } from './floatingActionBarLayout'
 import { resolvePublicMeterDestination } from './publicMeterNavigation'
+import type { RootState } from '../../store/store'
 
 const CONFESSIONAL_FLASH_DURATION_MS = 1800
 const SURVIVOR_DISABLED_MESSAGE_MS = 5000
@@ -86,6 +92,7 @@ export default function FloatingActionBar({
 }: FloatingActionBarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const reduxStore = useStore<RootState>()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -449,20 +456,37 @@ export default function FloatingActionBar({
     setHomeConfirmOpen(true)
   }, [])
 
-  const leaveSeasonAndReturnHome = useCallback(() => {
+  const returnHomeWithoutSaving = useCallback(() => {
     setHomeConfirmOpen(false)
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
     dispatch(resetGame())
     navigate('/')
   }, [dispatch, navigate])
 
-  const abandonSeasonAndReturnHome = useCallback(() => {
+  const saveSeasonAndReturnHome = useCallback(async () => {
+    if (!canPersistActiveRun || !activeProfileId) {
+      returnHomeWithoutSaving()
+      return
+    }
+
+    retrySavePersistenceWrites()
+    const currentState = reduxStore.getState()
+    const accepted = saveRunSnapshot(
+      activeProfileId,
+      createSavedSeasonSnapshot(activeProfileId, currentState)
+    )
+    if (!accepted || !(await flushSavePersistence())) return
+    returnHomeWithoutSaving()
+  }, [activeProfileId, canPersistActiveRun, reduxStore, returnHomeWithoutSaving])
+
+  const abandonSeasonAndReturnHome = useCallback(async () => {
     if (canPersistActiveRun && activeProfileId) {
       clearSavedRun(activeProfileId, currentRunSlot)
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+      if (!(await flushSavePersistence())) return
     }
-    leaveSeasonAndReturnHome()
-  }, [activeProfileId, canPersistActiveRun, currentRunSlot, leaveSeasonAndReturnHome])
+    returnHomeWithoutSaving()
+  }, [activeProfileId, canPersistActiveRun, currentRunSlot, returnHomeWithoutSaving])
 
   const handleMoreClick = useCallback(
     (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store') => {
@@ -565,7 +589,7 @@ export default function FloatingActionBar({
         confirmLabel={canPersistActiveRun ? 'Save & Home' : 'Leave Season'}
         secondaryLabel={canPersistActiveRun ? 'Abandon Season' : undefined}
         cancelLabel="Cancel"
-        onConfirm={leaveSeasonAndReturnHome}
+        onConfirm={canPersistActiveRun ? saveSeasonAndReturnHome : returnHomeWithoutSaving}
         onSecondary={canPersistActiveRun ? abandonSeasonAndReturnHome : undefined}
         onCancel={() => setHomeConfirmOpen(false)}
       />

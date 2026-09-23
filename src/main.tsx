@@ -13,6 +13,7 @@ import { applyDisplayModeClasses } from './utils/displayMode'
 import { applyVisualFreezeState } from './utils/visualFreeze'
 import { buildViewportMetaContent } from './components/layout/viewportMeta'
 import { store } from './store/store'
+import { initializeDurablePersistence } from './store/durablePersistence'
 import { setAudio } from './store/settingsSlice'
 import { SocialEngine } from './social/SocialEngine'
 import { syncRuntimeAudioSettings } from './services/sound/audioSettingsSync'
@@ -148,8 +149,13 @@ window.toggleIntroHubMusic = function () {
 const rootElement = document.getElementById('root')!
 rootElement.dataset.buildId = BUILD_ID
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-)
+async function mountApp() {
+  await initializeDurablePersistence()
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  )
+}
+
+void mountApp()

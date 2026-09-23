@@ -12,6 +12,7 @@ import {
   clearSavedRun,
   clearSeasonSnapshot,
   createSavedSeasonSnapshot,
+  flushSavePersistence,
   getSavedRunSlot,
   retrySavePersistenceWrites,
   savedStateKeyForProfile,
@@ -99,14 +100,16 @@ export default function NavBar() {
     navigate('/rules')
   }
 
-  function saveActiveRun(): boolean {
+  async function saveActiveRun(): Promise<boolean> {
     if (!activeProfileId || isGuest) return false
     retrySavePersistenceWrites()
     const currentState = reduxStore.getState()
-    return saveRunSnapshot(
+    const accepted = saveRunSnapshot(
       activeProfileId,
       createSavedSeasonSnapshot(activeProfileId, currentState)
     )
+    if (!accepted) return false
+    return flushSavePersistence()
   }
 
   function resetRuntimeAndReturnHome() {
@@ -115,21 +118,25 @@ export default function NavBar() {
     navigate('/')
   }
 
-  function saveThenReturnHome() {
-    if (saveActiveRun()) {
+  async function saveThenReturnHome() {
+    if (await saveActiveRun()) {
       resetRuntimeAndReturnHome()
       return
     }
     setSaveError(true)
   }
 
-  function abandonSeason() {
+  async function abandonSeason() {
     if (!isGuest && activeProfileId) {
       // Clear the durable slot before resetting runtime state. The autosave
       // revision guard will reject any already-queued snapshot for this run,
       // preventing "Abandon" from being resurrected as a Continue card.
       clearSavedRun(activeProfileId, currentRunSlot)
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+      if (!(await flushSavePersistence())) {
+        setSaveError(true)
+        return
+      }
     }
     resetRuntimeAndReturnHome()
   }
@@ -149,7 +156,7 @@ export default function NavBar() {
       ? 'Save and return home?'
       : 'Leave this season?'
   const modalDescription = saveError
-    ? 'Your season is still open. Free some browser storage and try again.'
+    ? 'Your season is still open. Free some device storage and try again.'
     : canPersistActiveRun
       ? 'Save & Home keeps this season available to Continue. Abandon Season permanently removes this in-progress run.'
       : 'Guest seasons cannot be saved. Leaving will discard this run.'

@@ -1,3 +1,4 @@
+import { getDurableItem } from './durablePersistence'
 import {
   getSavedRunSlot,
   savedRunsKeyForProfile,
@@ -39,7 +40,7 @@ function snapshotRunId(snapshot: SavedSeasonSnapshot): string | null {
  */
 function readPersistenceRevision(profileId: string): string | null | undefined {
   try {
-    const raw = localStorage.getItem(savedRunsKeyForProfile(profileId))
+    const raw = getDurableItem(savedRunsKeyForProfile(profileId))
     if (!raw) return null
     const parsed = JSON.parse(raw) as {
       activeRunId?: unknown
@@ -59,7 +60,7 @@ function readPersistenceRevision(profileId: string): string | null | undefined {
  * Coalesces a synchronous burst of Redux updates into one durable save per
  * profile/run slot while avoiding repeated multi-hundred-kilobyte writes during
  * autonomous social churn. The latest snapshot wins inside that window and
- * `flush()` remains synchronous for lifecycle boundaries such as visibility loss.
+ * `flush()` drains the Redux-side queue immediately; the durable backend is flushed separately.
  *
  * The small profile metadata's active/last run identity acts as a persistence
  * revision. If another flow clears or replaces the active run after a snapshot

@@ -25,6 +25,7 @@ import {
 } from '../../store/gameSlice'
 import {
   createSavedSeasonSnapshot,
+  flushSavePersistence,
   retrySavePersistenceWrites,
   saveRunSnapshot,
 } from '../../store/saveStatePersistence'
@@ -1521,15 +1522,16 @@ export default function TvZone(props: TvZoneProps) {
   const isCupidOutlinePulse = cupidOutlinePulseActive
   const isLiveVoteFocus = voteResultsRevealActive
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!canSave || !activeProfileId) return
 
     retrySavePersistenceWrites()
     const currentState = reduxStore.getState()
-    const ok = saveRunSnapshot(
+    const accepted = saveRunSnapshot(
       activeProfileId,
       createSavedSeasonSnapshot(activeProfileId, currentState)
     )
+    const ok = accepted && (await flushSavePersistence())
     setSaveStatus(ok ? 'saved' : 'error')
     setSaveFeedbackIsError(!ok)
     setSaveFeedbackOpen(true)

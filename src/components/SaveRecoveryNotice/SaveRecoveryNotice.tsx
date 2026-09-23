@@ -23,14 +23,14 @@ function getIssueCopy(issue: SavePersistenceIssue) {
         // i18n-ignore: emergency persistence copy currently follows the app's English fallback policy
         title: 'Progress could not be saved',
         // i18n-ignore: emergency persistence copy currently follows the app's English fallback policy
-        body: 'Browser storage is full. Your season is still open, so free some site storage and try Save & Home again.',
+        body: 'Device storage is full. Your season is still open, so free some storage and try Save & Home again.',
       }
     case 'storage_unavailable':
       return {
         // i18n-ignore: emergency persistence copy currently follows the app's English fallback policy
         title: 'Saving is unavailable',
         // i18n-ignore: emergency persistence copy currently follows the app's English fallback policy
-        body: 'This browser is blocking site storage. Allow storage for this site, then try Save & Home again.',
+        body: 'Durable storage is unavailable on this device. Your season is still open; try Save & Home again before closing the game.',
       }
     case 'serialization_failed':
       return {

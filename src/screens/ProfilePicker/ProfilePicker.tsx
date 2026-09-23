@@ -19,7 +19,11 @@ import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
 import { clearSeasonArchives, loadSeasonArchives } from '../../store/archivePersistence'
-import { clearProfileSaveStorage, loadSavedRunProfile } from '../../store/saveStatePersistence'
+import {
+  clearProfileSaveStorage,
+  flushSavePersistence,
+  loadSavedRunProfile,
+} from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
@@ -279,6 +283,7 @@ export default function ProfilePicker() {
 
     clearProfileSaveStorage(id)
     clearSeasonArchives(archiveKeyForProfile(id))
+    if (!(await flushSavePersistence())) return
     dispatch(deleteProfile(id))
     setPendingDeleteId(null)
   }
@@ -379,7 +384,11 @@ export default function ProfilePicker() {
               <div className="profile-picker__create-photo-section">
                 <div className="profile-picker__create-photo-wrap">
                   {newPhotoPreview ? (
-                    <img className="profile-picker__create-photo-img" src={newPhotoPreview} alt="New profile" />
+                    <img
+                      className="profile-picker__create-photo-img"
+                      src={newPhotoPreview}
+                      alt="New profile"
+                    />
                   ) : (
                     <span className="profile-picker__create-photo-avatar">{newAvatar}</span>
                   )}

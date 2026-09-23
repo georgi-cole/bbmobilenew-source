@@ -45,6 +45,7 @@ import {
   clearSavedRun,
   getSavedRunSlot,
   createSavedSeasonSnapshot,
+  flushSavePersistence,
   isSavePersistenceBlocked,
   saveRunSnapshot,
 } from './saveStatePersistence'
@@ -253,7 +254,7 @@ function hasMeaningfulGameProgress(game: ReturnType<typeof store.getState>['game
 
 // Autosaves are coalesced so a single Play transition can update several Redux
 // slices without repeatedly serializing/writing the campaign on the same input
-// turn. Lifecycle boundaries still flush synchronously below.
+// turn. Lifecycle boundaries drain the snapshot queue and start a durable flush below.
 const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
 
 // Persist settings to localStorage whenever they change
@@ -278,7 +279,7 @@ let prevFinalePhase = prevGame.seasonFinale?.phase
 let prevSocial = store.getState().social
 let prevPublicOpinion = store.getState().publicOpinion
 let prevChallenge = store.getState().challenge
-// Persist season archives to localStorage whenever they change
+// Persist season archives to the durable backend whenever they change
 let prevSeasonArchives = store.getState().game.seasonArchives
 // Track archive length together with the profile that owns those archives.
 // Using a profile-scoped baseline prevents profile switches and game hydration
@@ -385,7 +386,10 @@ store.subscribe(() => {
       // Finale transitions are user-visible checkpoints. Flush these immediately
       // so a reload between the transition and the trailing autosave cannot lose
       // awards or restore an earlier finale phase.
-      if (finalePhaseChanged) runSnapshotAutosave.flush()
+      if (finalePhaseChanged) {
+        runSnapshotAutosave.flush()
+        void flushSavePersistence()
+      }
     }
   }
   if (current.game.seasonArchives !== prevSeasonArchives) {
@@ -443,11 +447,15 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
       )
     }
     runSnapshotAutosave.flush()
+    void flushSavePersistence()
   })
 }
 
 if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
-  window.addEventListener('pagehide', () => runSnapshotAutosave.flush())
+  window.addEventListener('pagehide', () => {
+    runSnapshotAutosave.flush()
+    void flushSavePersistence()
+  })
 }
 
 export type RootState = ReturnType<typeof store.getState>
