@@ -29,6 +29,15 @@ import {
   compactGameStateForPersistence,
   compactSocialStateForPersistence,
 } from './saveStateCompaction'
+import {
+  flushDurablePersistence,
+  getDurableItem,
+  inspectDurableStorageUsageBytes,
+  removeDurableItem,
+  setDurableItem,
+  setDurablePersistenceFailureListener,
+  setDurablePersistenceFlushListener,
+} from './durablePersistence'
 
 export const SAVED_STATE_KEY_PREFIX = 'bbmobilenew:savedSeason:'
 export const SAVED_RUNS_KEY_PREFIX = 'bbmobilenew:savedRuns:'
@@ -119,6 +128,18 @@ function reportSavePersistenceIssue(
   }
 }
 
+setDurablePersistenceFailureListener((reason) => {
+  reportSavePersistenceIssue('write_failed', reason)
+})
+
+setDurablePersistenceFlushListener((durationMs, success) => {
+  lastSavePersistenceDiagnostics = {
+    ...lastSavePersistenceDiagnostics,
+    lastWriteMs: durationMs,
+    blockedReason: success ? null : lastSavePersistenceDiagnostics.blockedReason,
+  }
+})
+
 export function getLastSavePersistenceIssue(): SavePersistenceIssue | null {
   return lastSavePersistenceIssue
 }
@@ -161,6 +182,14 @@ export function inspectLocalStorageUsageBytes(): number {
     return 0
   }
   return total
+}
+
+export function inspectDurableSaveStorageBytes(): number {
+  return inspectDurableStorageUsageBytes()
+}
+
+export async function flushSavePersistence(): Promise<boolean> {
+  return flushDurablePersistence()
 }
 
 export interface SavedSeasonSnapshot {
@@ -395,34 +424,33 @@ function serialize(value: unknown): string | null {
 
 function writeStorage(key: string, serialized: string): boolean {
   if (persistenceWriteBlockedReason !== null) return false
-  const startedAt = nowMs()
   const serializedBytes = byteLength(serialized)
-  try {
-    localStorage.setItem(key, serialized)
-    const isSnapshotPayload =
-      key.startsWith(SAVED_RUN_SLOT_KEY_PREFIX) || key.startsWith(SAVED_STATE_KEY_PREFIX)
-    lastSavePersistenceDiagnostics = {
-      ...lastSavePersistenceDiagnostics,
-      blockedReason: null,
-      lastKey: isSnapshotPayload ? key : lastSavePersistenceDiagnostics.lastKey,
-      lastSnapshotBytes: isSnapshotPayload
-        ? serializedBytes
-        : lastSavePersistenceDiagnostics.lastSnapshotBytes,
-      lastWriteMs: Math.max(0, nowMs() - startedAt),
-    }
-    if (import.meta.env.DEV) {
-      console.debug(`[save] wrote ${key} (${serializedBytes} bytes)`)
-      if (isSnapshotPayload && serializedBytes >= SAVE_SNAPSHOT_WARNING_BYTES) {
-        console.warn(
-          `[save] snapshot is ${serializedBytes} bytes; persistence budget warning is ${SAVE_SNAPSHOT_WARNING_BYTES} bytes`
-        )
-      }
-    }
-    return true
-  } catch (error) {
-    reportSavePersistenceIssue('write_failed', classifyWriteFailure(error))
+  const queued = setDurableItem(key, serialized)
+  if (!queued) {
+    reportSavePersistenceIssue('write_failed', 'storage_unavailable')
     return false
   }
+
+  const isSnapshotPayload =
+    key.startsWith(SAVED_RUN_SLOT_KEY_PREFIX) || key.startsWith(SAVED_STATE_KEY_PREFIX)
+  lastSavePersistenceDiagnostics = {
+    ...lastSavePersistenceDiagnostics,
+    blockedReason: null,
+    lastKey: isSnapshotPayload ? key : lastSavePersistenceDiagnostics.lastKey,
+    lastSnapshotBytes: isSnapshotPayload
+      ? serializedBytes
+      : lastSavePersistenceDiagnostics.lastSnapshotBytes,
+  }
+
+  if (import.meta.env.DEV) {
+    console.debug(`[save] queued ${key} (${serializedBytes} bytes)`)
+    if (isSnapshotPayload && serializedBytes >= SAVE_SNAPSHOT_WARNING_BYTES) {
+      console.warn(
+        `[save] snapshot is ${serializedBytes} bytes; persistence budget warning is ${SAVE_SNAPSHOT_WARNING_BYTES} bytes`
+      )
+    }
+  }
+  return true
 }
 
 export function saveSeasonSnapshot(key: string, snapshot: SavedSeasonSnapshot): boolean {
@@ -433,7 +461,7 @@ export function saveSeasonSnapshot(key: string, snapshot: SavedSeasonSnapshot): 
 
 export function loadSeasonSnapshot(key: string): SavedSeasonSnapshot | null {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = getDurableItem(key)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<SavedSeasonSnapshot>
     if (parsed.version !== 1) return null
@@ -473,7 +501,7 @@ function metadataFromProfile(profile: SavedRunProfile): SavedRunProfileMetadata 
  */
 function loadSplitMetadata(profileId: string): SavedRunProfileMetadata | null {
   try {
-    const raw = localStorage.getItem(savedRunsKeyForProfile(profileId))
+    const raw = getDurableItem(savedRunsKeyForProfile(profileId))
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<SavedRunProfile> & SavedRunProfileMetadata
     if ('runs' in parsed) return null
@@ -488,12 +516,12 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
   const metadataRaw = serialize(metadataFromProfile(profile))
   if (metadataRaw === null) return false
 
-  const previousMetadata = localStorage.getItem(savedRunsKeyForProfile(profile.profileId))
+  const previousMetadata = getDurableItem(savedRunsKeyForProfile(profile.profileId))
   const previousSlots = new Map<SavedRunSlot, string | null>()
   for (const slot of ALL_RUN_SLOTS) {
     previousSlots.set(
       slot,
-      localStorage.getItem(savedRunSlotKeyForProfile(profile.profileId, slot))
+      getDurableItem(savedRunSlotKeyForProfile(profile.profileId, slot))
     )
   }
 
@@ -505,7 +533,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
     const key = savedRunSlotKeyForProfile(profile.profileId, slot)
     const snapshot = profile.runs[slot]
     if (!snapshot) {
-      localStorage.removeItem(key)
+      removeDurableItem(key)
       continue
     }
     const raw = serialize(snapshot)
@@ -514,12 +542,12 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
         for (const rollbackSlot of ALL_RUN_SLOTS) {
           const oldValue = previousSlots.get(rollbackSlot)
           const rollbackKey = savedRunSlotKeyForProfile(profile.profileId, rollbackSlot)
-          if (oldValue === null) localStorage.removeItem(rollbackKey)
-          else localStorage.setItem(rollbackKey, oldValue)
+          if (oldValue === null) removeDurableItem(rollbackKey)
+          else setDurableItem(rollbackKey, oldValue)
         }
         if (previousMetadata === null)
-          localStorage.removeItem(savedRunsKeyForProfile(profile.profileId))
-        else localStorage.setItem(savedRunsKeyForProfile(profile.profileId), previousMetadata)
+          removeDurableItem(savedRunsKeyForProfile(profile.profileId))
+        else setDurableItem(savedRunsKeyForProfile(profile.profileId), previousMetadata)
       } catch {
         // Keep the original failure classification; the active Redux run remains open.
       }
@@ -547,15 +575,15 @@ function persistSingleRunSnapshot(
   const snapshotRaw = snapshot ? serialize(snapshot) : null
   if (metadataRaw === null || (snapshot && snapshotRaw === null)) return false
 
-  const previousMetadata = localStorage.getItem(metadataKey)
-  const previousSlot = localStorage.getItem(slotKey)
+  const previousMetadata = getDurableItem(metadataKey)
+  const previousSlot = getDurableItem(slotKey)
 
   const rollback = () => {
     try {
-      if (previousMetadata === null) localStorage.removeItem(metadataKey)
-      else localStorage.setItem(metadataKey, previousMetadata)
-      if (previousSlot === null) localStorage.removeItem(slotKey)
-      else localStorage.setItem(slotKey, previousSlot)
+      if (previousMetadata === null) removeDurableItem(metadataKey)
+      else setDurableItem(metadataKey, previousMetadata)
+      if (previousSlot === null) removeDurableItem(slotKey)
+      else setDurableItem(slotKey, previousSlot)
     } catch {
       // Preserve the original write failure; Redux still contains the live run.
     }
@@ -565,14 +593,14 @@ function persistSingleRunSnapshot(
     if (snapshotRaw !== null) {
       if (!writeStorage(slotKey, snapshotRaw)) return false
     } else {
-      localStorage.removeItem(slotKey)
+      removeDurableItem(slotKey)
     }
     if (!writeStorage(metadataKey, metadataRaw)) {
       rollback()
       return false
     }
     // Once split metadata is committed the legacy single-slot payload is obsolete.
-    localStorage.removeItem(savedStateKeyForProfile(profileId))
+    removeDurableItem(savedStateKeyForProfile(profileId))
     return true
   } catch (error) {
     rollback()
@@ -585,7 +613,7 @@ export function loadSavedRunProfile(profileId: string): SavedRunProfile {
   const key = savedRunsKeyForProfile(profileId)
   let malformedRaw: string | null = null
   try {
-    const raw = localStorage.getItem(key)
+    const raw = getDurableItem(key)
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<SavedRunProfile> & SavedRunProfileMetadata
       const splitRuns = loadSlotRuns(profileId)
@@ -601,7 +629,7 @@ export function loadSavedRunProfile(profileId: string): SavedRunProfile {
     }
   } catch {
     try {
-      malformedRaw = localStorage.getItem(key)
+      malformedRaw = getDurableItem(key)
     } catch {
       malformedRaw = null
     }
@@ -610,7 +638,7 @@ export function loadSavedRunProfile(profileId: string): SavedRunProfile {
   if (malformedRaw) {
     try {
       sessionStorage.setItem(CORRUPT_SAVE_RECOVERY_KEY, malformedRaw)
-      localStorage.removeItem(key)
+      removeDurableItem(key)
     } catch {
       // Recovery can continue even if the damaged payload cannot be quarantined.
     }
@@ -641,7 +669,7 @@ export function saveRunProfile(profile: SavedRunProfile): boolean {
   const saved = persistSplitProfile(profile)
   if (saved) {
     try {
-      localStorage.removeItem(savedStateKeyForProfile(profile.profileId))
+      removeDurableItem(savedStateKeyForProfile(profile.profileId))
     } catch {
       // Legacy cleanup is best-effort only.
     }
@@ -764,8 +792,8 @@ export function clearSavedRun(profileId: string, mode: SavedRunSlot): void {
     try {
       // Free the large payload first. This makes abandon/delete resilient even
       // when the browser was already at its quota limit.
-      localStorage.removeItem(slotKey)
-      localStorage.removeItem(savedStateKeyForProfile(profileId))
+      removeDurableItem(slotKey)
+      removeDurableItem(savedStateKeyForProfile(profileId))
       const nextMetadata: SavedRunProfileMetadata = {
         ...metadata,
         activeRunId: metadata.activeRunId === removedRunId ? null : metadata.activeRunId,
@@ -796,7 +824,7 @@ export function clearSavedRun(profileId: string, mode: SavedRunSlot): void {
 
 export function clearSeasonSnapshot(key: string): void {
   try {
-    localStorage.removeItem(key)
+    removeDurableItem(key)
   } catch {
     // Ignore.
   }
@@ -805,10 +833,10 @@ export function clearSeasonSnapshot(key: string): void {
 /** Remove every persistence record owned by a profile. Safe to call during deletion. */
 export function clearProfileSaveStorage(profileId: string): void {
   try {
-    localStorage.removeItem(savedStateKeyForProfile(profileId))
-    localStorage.removeItem(savedRunsKeyForProfile(profileId))
+    removeDurableItem(savedStateKeyForProfile(profileId))
+    removeDurableItem(savedRunsKeyForProfile(profileId))
     for (const slot of ALL_RUN_SLOTS) {
-      localStorage.removeItem(savedRunSlotKeyForProfile(profileId, slot))
+      removeDurableItem(savedRunSlotKeyForProfile(profileId, slot))
     }
     retrySavePersistenceWrites()
   } catch {
