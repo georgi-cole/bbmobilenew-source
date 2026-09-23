@@ -18,8 +18,8 @@ import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
-import { loadSeasonArchives } from '../../store/archivePersistence'
-import { clearSavedRun, loadSavedRunProfile } from '../../store/saveStatePersistence'
+import { clearSeasonArchives, loadSeasonArchives } from '../../store/archivePersistence'
+import { clearProfileSaveStorage, loadSavedRunProfile } from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
@@ -277,12 +277,8 @@ export default function ProfilePicker() {
       await deleteImage(profile.photoId)
     }
 
-    // Delete every modern run slot. clearSavedRun also performs best-effort
-    // cleanup of the legacy single-slot key through saveRunProfile().
-    clearSavedRun(id, 'classic')
-    clearSavedRun(id, 'cupidArrow')
-    clearSavedRun(id, 'voxPopuli')
-    clearSavedRun(id, 'survival')
+    clearProfileSaveStorage(id)
+    clearSeasonArchives(archiveKeyForProfile(id))
     dispatch(deleteProfile(id))
     setPendingDeleteId(null)
   }
