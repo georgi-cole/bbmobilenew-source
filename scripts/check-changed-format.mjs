@@ -99,6 +99,15 @@ console.log(`Strictly checked: ${checked.length}`)
 console.log(`Legacy-format exceptions already dirty at merge base: ${legacyExceptions.length}`)
 for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 
+if (violations.includes('src/components/Capitalization/Capitalization.css')) {
+  const file = 'src/components/Capitalization/Capitalization.css'
+  const source = await readFile(file, 'utf8')
+  const config = (await prettier.resolveConfig(file)) ?? {}
+  console.log('--- CAPITALIZATION PRETTIER OUTPUT START ---')
+  console.log(await prettier.format(source, { ...config, filepath: file }))
+  console.log('--- CAPITALIZATION PRETTIER OUTPUT END ---')
+}
+
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
