@@ -286,7 +286,6 @@ describe('simulateSnakeAiScore', () => {
       / seeds.length;
     expect(highAvg).toBeGreaterThanOrEqual(lowAvg);
   });
-});
 
   it('never exposes a sub-floor completion across a broad high-skill seed sample', () => {
     const highProfile = {
