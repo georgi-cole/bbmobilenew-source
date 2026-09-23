@@ -4,8 +4,10 @@ import {
   CORRUPT_SAVE_RECOVERY_KEY,
   createSavedSeasonSnapshot,
   getLastSavePersistenceIssue,
+  isSavePersistenceBlocked,
   loadSavedRunProfile,
   markSurvivorAchievementCelebrationSeen,
+  retrySavePersistenceWrites,
   saveRunSnapshot,
   savedRunsKeyForProfile,
   savedRunSlotKeyForProfile,
@@ -18,6 +20,7 @@ describe('saveStatePersistence survivor progression', () => {
     localStorage.clear()
     sessionStorage.clear()
     clearLastSavePersistenceIssue()
+    retrySavePersistenceWrites()
   })
 
   afterEach(() => {
@@ -25,6 +28,45 @@ describe('saveStatePersistence survivor progression', () => {
     localStorage.clear()
     sessionStorage.clear()
     clearLastSavePersistenceIssue()
+    retrySavePersistenceWrites()
+  })
+
+
+  it('opens a circuit breaker after quota exhaustion and only retries on demand', () => {
+    const snapshot = {
+      version: 1,
+      profileId: 'profile-1',
+      savedAt: '2026-09-23T10:00:00.000Z',
+      game: {
+        mode: 'classic',
+        week: 7,
+        status: 'active',
+        runId: 'run-quota',
+        gameId: 'run-quota',
+        players: [],
+      },
+      finale: {},
+      social: {},
+    } as unknown as SavedSeasonSnapshot
+
+    const setItemSpy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
+      })
+
+    expect(saveRunSnapshot('profile-1', snapshot)).toBe(false)
+    expect(isSavePersistenceBlocked()).toBe(true)
+    const failedWriteCount = setItemSpy.mock.calls.length
+
+    expect(saveRunSnapshot('profile-1', snapshot)).toBe(false)
+    expect(setItemSpy).toHaveBeenCalledTimes(failedWriteCount)
+
+    setItemSpy.mockRestore()
+    retrySavePersistenceWrites()
+
+    expect(isSavePersistenceBlocked()).toBe(false)
+    expect(saveRunSnapshot('profile-1', snapshot)).toBe(true)
   })
 
   it('quarantines a damaged run and reports a visible recovery event', () => {
