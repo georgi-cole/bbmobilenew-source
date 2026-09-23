@@ -9,6 +9,7 @@ import gameReducer from '../src/store/gameSlice';
 import settingsReducer from '../src/store/settingsSlice';
 import { getGame } from '../src/minigames/registry';
 import { simulateSnakeAiScore } from '../src/ai/competition/snakeAiSimulator';
+import type { MinigameSession } from '../src/types';
 
 vi.mock('../src/ai/competition/snakeAiSimulator', () => ({
   simulateSnakeAiScore: vi.fn(({ playerId }: { playerId: string }) => {
@@ -270,6 +271,25 @@ describe('SnakeGame leaderboard ordering — sortScoreEntries contract', () => {
     await act(async () => { vi.advanceTimersByTime(13000); });
   }
 
+  function makeSessionStore(session: MinigameSession) {
+    const base = gameReducer(undefined, { type: '@@INIT' });
+    return configureStore({
+      reducer: { game: gameReducer, settings: settingsReducer },
+      preloadedState: {
+        game: {
+          ...base,
+          phase: 'loh_comp' as const,
+          pendingMinigame: session,
+          players: [
+            { id: 'p0', name: 'You', avatar: '🙂', status: 'active', isUser: true },
+            { id: 'p1', name: 'FastAI', avatar: '🤖', status: 'active', isUser: false },
+            { id: 'p2', name: 'SlowAI', avatar: '🤖', status: 'active', isUser: false },
+          ],
+        },
+      },
+    });
+  }
+
   it('completers rank above non-completers', async () => {
     // p1 and p2 complete (different times); p0 and p3 don't complete
     simulateMock.mockImplementation(({ playerId }: { playerId: string }) => {
@@ -315,6 +335,38 @@ describe('SnakeGame leaderboard ordering — sortScoreEntries contract', () => {
     expect(fastAiIdx).toBeGreaterThanOrEqual(0);
     expect(slowAiIdx).toBeGreaterThanOrEqual(0);
     expect(fastAiIdx).toBeLessThan(slowAiIdx);
+  });
+
+  it('persists the time-ranked winner for LOH/POS instead of re-deriving a 1000-point tie', async () => {
+    simulateMock.mockImplementation(({ playerId }: { playerId: string }) => {
+      if (playerId === 'p1') return { score: 1000, completionMs: 80_000 };
+      if (playerId === 'p2') return { score: 1000, completionMs: 92_000 };
+      return { score: 0, completionMs: null };
+    });
+
+    const session: MinigameSession = {
+      key: 'snake',
+      participants: ['p0', 'p1', 'p2'],
+      seed: 42,
+      options: {},
+      aiScores: {},
+      hybridResolveOnComplete: true,
+    };
+    const store = makeSessionStore(session);
+
+    render(
+      <Provider store={store}>
+        <SnakeGame autoStart session={session} />
+      </Provider>,
+    );
+
+    await act(async () => { vi.advanceTimersByTime(13000); });
+    expect(screen.getByText(/FastAI wins!/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+
+    expect(store.getState().game.lohId).toBe('p1');
+    expect(store.getState().game.lastCompetitionResolution?.winnerId).toBe('p1');
   });
 
   it('among non-completers, higher score ranks higher', async () => {
