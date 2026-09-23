@@ -98,7 +98,10 @@ function reportSavePersistenceIssue(
   kind: SavePersistenceIssue['kind'],
   reason?: SaveFailureReason
 ): void {
-  if (kind === 'write_failed' && (reason === 'quota_exceeded' || reason === 'storage_unavailable')) {
+  if (
+    kind === 'write_failed' &&
+    (reason === 'quota_exceeded' || reason === 'storage_unavailable')
+  ) {
     persistenceWriteBlockedReason = reason
     lastSavePersistenceDiagnostics = {
       ...lastSavePersistenceDiagnostics,
