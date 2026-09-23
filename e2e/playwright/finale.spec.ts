@@ -3,6 +3,7 @@ import {
   dismissPermissionPromptIfPresent,
   expect,
   readAppState,
+  readDurableItem,
   test,
   type Page,
 } from './support/test'
@@ -99,36 +100,34 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
 }
 
 async function readPersistedRun(page: Page): Promise<PersistedRunFacts> {
-  return page.evaluate((classicRunKey) => {
-    const raw = localStorage.getItem(classicRunKey)
-    if (!raw) throw new Error('profile-scoped Classic finale snapshot is missing')
+  const raw = await readDurableItem(page, CLASSIC_RUN_KEY)
+  if (!raw) throw new Error('profile-scoped Classic finale snapshot is missing')
 
-    const snapshot = JSON.parse(raw) as {
-      finale?: { runnerUpId?: string | null; winnerId?: string | null }
-      game?: {
-        favoritePlayer?: { winnerId?: string | null } | null
-        history?: Array<{
-          data?: { awardAmount?: number; winnerId?: string }
-          type?: string
-        }>
-        seasonFinale?: { phase?: string } | null
-      }
+  const snapshot = JSON.parse(raw) as {
+    finale?: { runnerUpId?: string | null; winnerId?: string | null }
+    game?: {
+      favoritePlayer?: { winnerId?: string | null } | null
+      history?: Array<{
+        data?: { awardAmount?: number; winnerId?: string }
+        type?: string
+      }>
+      seasonFinale?: { phase?: string } | null
     }
-    if (!snapshot.game) throw new Error('Classic finale snapshot is incomplete')
+  }
+  if (!snapshot.game) throw new Error('Classic finale snapshot is incomplete')
 
-    return {
-      awardEvents: (snapshot.game.history ?? [])
-        .filter((event) => event.type === 'favoritePlayer:award')
-        .map((event) => ({
-          awardAmount: event.data?.awardAmount,
-          winnerId: event.data?.winnerId,
-        })),
-      favoriteWinnerId: snapshot.game.favoritePlayer?.winnerId ?? null,
-      finaleRunnerUpId: snapshot.finale?.runnerUpId ?? null,
-      finaleWinnerId: snapshot.finale?.winnerId ?? null,
-      seasonFinalePhase: snapshot.game.seasonFinale?.phase ?? null,
-    }
-  }, CLASSIC_RUN_KEY)
+  return {
+    awardEvents: (snapshot.game.history ?? [])
+      .filter((event) => event.type === 'favoritePlayer:award')
+      .map((event) => ({
+        awardAmount: event.data?.awardAmount,
+        winnerId: event.data?.winnerId,
+      })),
+    favoriteWinnerId: snapshot.game.favoritePlayer?.winnerId ?? null,
+    finaleRunnerUpId: snapshot.finale?.runnerUpId ?? null,
+    finaleWinnerId: snapshot.finale?.winnerId ?? null,
+    seasonFinalePhase: snapshot.game.seasonFinale?.phase ?? null,
+  }
 }
 
 async function readArchive(page: Page): Promise<{
@@ -138,30 +137,25 @@ async function readArchive(page: Page): Promise<{
   seasonId: string | null
   summaries: ArchiveSummary[]
 }> {
-  return page.evaluate(
-    ({ archiveKey, classicRunKey, legacySavedStateKey }) => {
-      const archiveRaw = localStorage.getItem(archiveKey)
-      const archives = archiveRaw
-        ? (JSON.parse(archiveRaw) as Array<{
-            playerSummaries?: ArchiveSummary[]
-            seasonId?: string
-          }>)
-        : []
+  const [archiveRaw, classicRunRaw, legacySaveRaw] = await Promise.all([
+    readDurableItem(page, ARCHIVE_KEY),
+    readDurableItem(page, CLASSIC_RUN_KEY),
+    readDurableItem(page, LEGACY_SAVED_STATE_KEY),
+  ])
+  const archives = archiveRaw
+    ? (JSON.parse(archiveRaw) as Array<{
+        playerSummaries?: ArchiveSummary[]
+        seasonId?: string
+      }>)
+    : []
 
-      return {
-        archiveCount: archives.length,
-        classicRunPresent: localStorage.getItem(classicRunKey) != null,
-        legacySavePresent: localStorage.getItem(legacySavedStateKey) != null,
-        seasonId: archives[0]?.seasonId ?? null,
-        summaries: archives[0]?.playerSummaries ?? [],
-      }
-    },
-    {
-      archiveKey: ARCHIVE_KEY,
-      classicRunKey: CLASSIC_RUN_KEY,
-      legacySavedStateKey: LEGACY_SAVED_STATE_KEY,
-    }
-  )
+  return {
+    archiveCount: archives.length,
+    classicRunPresent: classicRunRaw != null,
+    legacySavePresent: legacySaveRaw != null,
+    seasonId: archives[0]?.seasonId ?? null,
+    summaries: archives[0]?.playerSummaries ?? [],
+  }
 }
 
 /** Open the debug panel by clicking the FAB toggle (if not already open). */
