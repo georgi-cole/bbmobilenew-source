@@ -6,6 +6,10 @@ test('captures the premium Capitalization flow @core-journey', async ({ page }, 
   )
 
   await closeDebugPanelIfOpen(page)
+  await page.getByRole('button', { name: 'Minimize minigame lab' }).click()
+  await page.locator('.minigame-lab__restore').evaluate((element) => {
+    ;(element as HTMLElement).style.display = 'none'
+  })
 
   const root = page.getByTestId('capitalization-root')
   await expect(root).toBeVisible()
