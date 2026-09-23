@@ -96,6 +96,34 @@ describe('Capitalization component', () => {
     });
   });
 
+  it('only replays the globe reveal when the continent changes', () => {
+    render(<Capitalization seed={44} participants={participants} onFinish={vi.fn()} />);
+
+    expect(screen.getByText('Globe spin')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(2700);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.queryByText('Globe spin')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.queryByText('Globe spin')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(screen.getByLabelText('Round standings')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(screen.getByText('Globe spin')).toBeInTheDocument();
+  });
+
   it('keeps every Back 2 the Game contestant active through all nine questions', () => {
     const onFinish = vi.fn();
     const battleBackParticipants = participants.slice(0, 3);
