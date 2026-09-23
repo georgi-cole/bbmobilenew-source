@@ -539,7 +539,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
         for (const rollbackSlot of ALL_RUN_SLOTS) {
           const oldValue = previousSlots.get(rollbackSlot)
           const rollbackKey = savedRunSlotKeyForProfile(profile.profileId, rollbackSlot)
-          if (oldValue === null) removeDurableItem(rollbackKey)
+          if (oldValue == null) removeDurableItem(rollbackKey)
           else setDurableItem(rollbackKey, oldValue)
         }
         if (previousMetadata === null)
