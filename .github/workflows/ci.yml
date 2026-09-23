@@ -149,8 +149,9 @@ jobs:
         run: >-
           xcodebuild build
           -project ios/App/App.xcodeproj
-          -target App
+          -scheme App
           -configuration Debug
+          -destination 'generic/platform=iOS Simulator'
           -sdk iphonesimulator
           ARCHS=arm64
           CODE_SIGNING_REQUIRED=NO
