@@ -10688,6 +10688,9 @@ const gameSlice = createSlice({
 
       // Apply the deduction (floor at 0 to be safe)
       state.voteResults[humanPlayer.id] = Math.max(0, (state.voteResults[humanPlayer.id] ?? 0) - 1)
+      if (state.pendingExitContext) {
+        state.pendingExitContext.voteCounts = { ...state.voteResults }
+      }
 
       // Recompute the evictee based on the updated tallies
       let maxVotes = -1
@@ -10702,14 +10705,52 @@ const gameSlice = createSlice({
       if (topNominees.length === 1) {
         const newEvictee = state.players.find((p) => p.id === topNominees[0])
         if (newEvictee) {
+          state.awaitingTieBreak = false
+          state.awaitingPosTieBreak = false
+          state.tiedNomineeIds = null
           state.pendingEviction = {
             evicteeId: newEvictee.id,
             evictionMessage: `${newEvictee.name}, you have been eliminated from The Big Eye house. 🚪`,
           }
         }
+      } else {
+        state.pendingEviction = null
+        const isCoLohDay = Array.isArray(state.coLohIds) && state.coLohIds.length >= 2
+        const tieBreakerPlayerId = getClassicEvictionTieBreakerId(state)
+        const tieBreakerPlayer = state.players.find((player) => player.id === tieBreakerPlayerId)
+        const usesPosTieBreaker =
+          isCoLohDay ||
+          (tieBreakerPlayerId != null &&
+            tieBreakerPlayerId === state.posWinnerId &&
+            tieBreakerPlayerId !== state.lohId)
+        const tiedNames = topNominees
+          .map((id) => state.players.find((player) => player.id === id)?.name ?? id)
+          .join(' and ')
+
+        state.tiedNomineeIds = topNominees
+        if (tieBreakerPlayer?.isUser) {
+          state.awaitingTieBreak = true
+          state.awaitingPosTieBreak = usesPosTieBreaker
+          const roleLabel = usesPosTieBreaker ? 'as POS holder' : 'as LOH'
+          pushEvent(
+            state,
+            `It's a tie between ${tiedNames}! ${tieBreakerPlayer.name}, ${roleLabel}, you must break the tie. 🗳️`,
+            'game'
+          )
+        } else {
+          state.awaitingTieBreak = false
+          state.awaitingPosTieBreak = false
+          const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
+          const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
+          const evicted = state.players.find((player) => player.id === evicteeId)
+          if (evicted) {
+            const evictionMessage = tieBreakerPlayer
+              ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from The Big Eye house. 🗳️`
+              : `${evicted.name} has been eliminated from The Big Eye house. 🚪`
+            state.pendingEviction = { evicteeId: evicted.id, evictionMessage }
+          }
+        }
       }
-      // Note: canUseVoteDeduction guards against tie-creation so topNominees.length
-      // should always be 1 here.
 
       // Consume the reward
       sm.reward.consumed = true

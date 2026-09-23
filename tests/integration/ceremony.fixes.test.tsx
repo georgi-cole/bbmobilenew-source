@@ -563,9 +563,7 @@ describe('Ceremony fix: live badge choreography for save and replacement', () =>
     expect(
       document.querySelectorAll('.ceremony-overlay__badge[data-badge-origin="tile"]')
     ).toHaveLength(2)
-    expect(
-      document.querySelector('[aria-label="Player 4 named backup nominee"]')
-    ).not.toBeNull()
+    expect(document.querySelector('[aria-label="Player 4 named backup nominee"]')).not.toBeNull()
     expect(document.querySelectorAll('[title="Nominated"]')).toHaveLength(1)
   })
 })
@@ -581,6 +579,59 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+  })
+
+  it('re-enters the vote reveal and tie-break flow after Vote Deduction changes 4–3 to 3–3', async () => {
+    const players = makePlayers(6).map((player) => ({
+      ...player,
+      status: player.id === 'p0' || player.id === 'p2' ? ('nominated' as const) : player.status,
+    }))
+    const store = makeStore({
+      phase: 'eviction_results',
+      lohId: 'p1',
+      nomineeIds: ['p0', 'p2'],
+      players,
+      voteResults: { p0: 4, p2: 3 },
+      votes: { p1: 'p0', p3: 'p0', p4: 'p0', p5: 'p0', p6: 'p2', p7: 'p2', p8: 'p2' },
+      pendingEviction: { evicteeId: 'p0', evictionMessage: 'Player 0 has been eliminated. 🚪' },
+      awaitingVoteDeductionPrompt: true,
+      secretMission: {
+        triggeredDay: 3,
+        status: 'rewardClaimed',
+        offeredDay: 3,
+        offerCount: 1,
+        declinedDay: null,
+        tasks: [],
+        templateId: 'silent_witness',
+        reward: { type: 'voteDeduction', consumed: false, expired: false, eligible: true },
+      },
+    })
+
+    renderWithStore(store)
+    await act(async () => {})
+
+    act(() => {
+      screen.getByText('Done').click()
+    })
+    expect(screen.getByRole('dialog')).toHaveTextContent('stored Vote Deduction power')
+
+    fireEvent.click(screen.getByRole('button', { name: /Yes — remove 1 vote/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    fireEvent.click(screen.getByText('Decision locked in!'))
+
+    expect(store.getState().game.voteResults).toEqual({ p0: 3, p2: 3 })
+    expect(store.getState().game.secretMission?.reward?.consumed).toBe(true)
+    expect(store.getState().game.pendingEviction?.evictionMessage).toContain('breaks the tie')
+
+    await act(async () => {
+      vi.advanceTimersByTime(0)
+    })
+    act(() => {
+      capturedOnTiebreakerRequired?.(['p0', 'p2'])
+    })
+
+    expect(screen.getByTestId('external-announcement')).toHaveTextContent('It’s a Tie!')
+    expect(store.getState().game.voteResults).toBeNull()
   })
 
   it('offers the rewarded vote breakdown reveal after the eviction animation', async () => {

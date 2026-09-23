@@ -392,10 +392,18 @@ export function useEvictionFlow({
     if (!resumeVoteResultsAfterDeduction || game.awaitingVoteDeductionPrompt) return
     const timeoutId = window.setTimeout(() => {
       setResumeVoteResultsAfterDeduction(false)
+      // Revised tied tallies get a fresh reveal. Its tie callback routes through
+      // the same LOH/POS decision or AI tie-break choreography as a natural tie.
+      if (hasUnresolvedTopVoteTie(game.voteResults)) return
       handleVoteResultsDone()
     }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [game.awaitingVoteDeductionPrompt, handleVoteResultsDone, resumeVoteResultsAfterDeduction])
+  }, [
+    game.awaitingVoteDeductionPrompt,
+    game.voteResults,
+    handleVoteResultsDone,
+    resumeVoteResultsAfterDeduction,
+  ])
 
   const queueVoteBreakdownConfessionalOffer = useCallback(
     (snapshot: VoteBreakdownSnapshot) => {

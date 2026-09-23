@@ -895,12 +895,6 @@ export function canUseVoteDeduction(state: ActivationCheckState): boolean {
   const humanVoteCount = state.voteResults[humanPlayer.id] ?? 0
   if (humanVoteCount <= 0) return false
 
-  const afterDeduction = humanVoteCount - 1
-  const otherCounts = state.nomineeIds
-    .filter((id) => id !== humanPlayer.id)
-    .map((id) => state.voteResults?.[id] ?? 0)
-  if (otherCounts.some((count) => count === afterDeduction)) return false
-
   return true
 }
 
