@@ -808,6 +808,7 @@ export function clearProfileSaveStorage(profileId: string): void {
     for (const slot of ALL_RUN_SLOTS) {
       localStorage.removeItem(savedRunSlotKeyForProfile(profileId, slot))
     }
+    retrySavePersistenceWrites()
   } catch {
     // Deletion remains best-effort when browser storage is unavailable.
   }
