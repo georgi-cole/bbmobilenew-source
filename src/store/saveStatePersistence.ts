@@ -25,7 +25,10 @@ import type { SocialState } from '../social/types'
 import type { PublicOpinionState } from '../publicOpinion/types'
 import type { ChallengeState } from './challengeSlice'
 import type { SurvivorAchievementUnlockMap } from '../modes/survivorAchievements'
-import { compactSocialStateForPersistence } from './saveStateCompaction'
+import {
+  compactGameStateForPersistence,
+  compactSocialStateForPersistence,
+} from './saveStateCompaction'
 
 export const SAVED_STATE_KEY_PREFIX = 'bbmobilenew:savedSeason:'
 export const SAVED_RUNS_KEY_PREFIX = 'bbmobilenew:savedRuns:'
@@ -197,12 +200,12 @@ export function createSavedSeasonSnapshot(
     version: 1,
     profileId,
     savedAt,
-    game: {
+    game: compactGameStateForPersistence({
       ...campaignGame,
       mode: state.game.mode ?? 'classic',
       lastPlayedAt: Number.isFinite(savedAtMs) ? savedAtMs : Date.now(),
       saveVersion: state.game.saveVersion ?? 2,
-    },
+    }),
     finale: state.finale,
     social: compactSocialStateForPersistence(state.social),
     publicOpinion: state.publicOpinion,
