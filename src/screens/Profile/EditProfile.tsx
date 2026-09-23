@@ -239,7 +239,7 @@ export default function EditProfile() {
     // autosave prevents its in-memory season being saved under the next profile.
     clearProfileSaveStorage(profile.id)
     clearSeasonArchives(archiveKeyForProfile(profile.id))
-    await flushSavePersistence()
+    if (!(await flushSavePersistence())) return
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
