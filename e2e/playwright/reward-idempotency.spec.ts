@@ -160,9 +160,7 @@ async function closePhaseInformationIfPresent(page: Page): Promise<void> {
   }
 }
 
-async function createWeekTwoEnergyFixture(
-  page: Page
-): Promise<{ humanId: string; lohId: string }> {
+async function createWeekTwoEnergyFixture(page: Page): Promise<{ humanId: string; lohId: string }> {
   const raw = await readDurableItem(page, CLASSIC_RUN_KEY)
   if (!raw) throw new Error('profile-scoped Classic save is missing')
 
