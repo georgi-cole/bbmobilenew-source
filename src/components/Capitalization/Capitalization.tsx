@@ -28,26 +28,24 @@ import {
   type CapitalizationRoundPerformance,
   type CapitalizationStanding,
 } from './capitalizationUtils'
-import {
-  CAPITALIZATION_AFRICA_ASSET,
-  CAPITALIZATION_ASIA_ASSET,
-  CAPITALIZATION_EUROPE_ASSET,
-  CAPITALIZATION_GLOBE_ASSET,
-  CAPITALIZATION_NORTH_AMERICA_ASSET,
-  CAPITALIZATION_OCEANIA_ASSET,
-  CAPITALIZATION_SOUTH_AMERICA_ASSET,
-} from './capitalizationAssets'
+import globePremiumAsset from '../../assets/capitalization/globe-premium.webp'
+import europeAsset from '../../assets/capitalization/continent-europe.webp'
+import africaAsset from '../../assets/capitalization/continent-africa.webp'
+import asiaAsset from '../../assets/capitalization/continent-asia.webp'
+import northAmericaAsset from '../../assets/capitalization/continent-north-america.webp'
+import southAmericaAsset from '../../assets/capitalization/continent-south-america.webp'
+import oceaniaAsset from '../../assets/capitalization/continent-oceania.webp'
 import './Capitalization.css'
 
 const SPIN_DURATION_MS = 2600
 
 const CAPITALIZATION_CONTINENT_ART: Record<CapitalizationContinent, string> = {
-  Africa: CAPITALIZATION_AFRICA_ASSET,
-  Asia: CAPITALIZATION_ASIA_ASSET,
-  Europe: CAPITALIZATION_EUROPE_ASSET,
-  'North America': CAPITALIZATION_NORTH_AMERICA_ASSET,
-  'South America': CAPITALIZATION_SOUTH_AMERICA_ASSET,
-  Oceania: CAPITALIZATION_OCEANIA_ASSET,
+  Africa: africaAsset,
+  Asia: asiaAsset,
+  Europe: europeAsset,
+  'North America': northAmericaAsset,
+  'South America': southAmericaAsset,
+  Oceania: oceaniaAsset,
 }
 
 type CapitalizationPhase = 'spinning' | 'question' | 'answerReview' | 'scoreboard'
@@ -857,7 +855,7 @@ function CapitalizationGlobe({
     <div className="capitalization__globe-visual" aria-hidden="true">
       <img
         className="capitalization__globe-hero"
-        src={CAPITALIZATION_GLOBE_ASSET}
+        src={globePremiumAsset}
         alt=""
         decoding="async"
         onError={() => setHeroAssetFailed(true)}
