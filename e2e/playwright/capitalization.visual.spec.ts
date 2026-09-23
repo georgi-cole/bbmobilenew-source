@@ -2,7 +2,7 @@ import { closeDebugPanelIfOpen, expect, test } from './support/test'
 
 test('captures the premium Capitalization flow @core-journey', async ({ page }, testInfo) => {
   await page.goto(
-    './#/minigame-lab?game=capitalization&seed=424242&players=3&skipRules=1&skipCountdown=1'
+    './#/minigame-lab?game=capitalization&seed=424242&players=3&skipRules=1&skipCountdown=1&context=battleBack'
   )
 
   await closeDebugPanelIfOpen(page)
@@ -13,6 +13,7 @@ test('captures the premium Capitalization flow @core-journey', async ({ page }, 
 
   const root = page.getByTestId('capitalization-root')
   await expect(root).toBeVisible()
+  await page.getByRole('button', { name: 'Start Back 2 the Game' }).click()
 
   // Capture the real rendered minigame surface while the premium globe is active.
   await page.waitForTimeout(450)
@@ -40,6 +41,8 @@ test('captures the premium Capitalization flow @core-journey', async ({ page }, 
   }
 
   await expect(page.getByLabel('Round standings')).toBeVisible()
+  await expect(page.getByText(/All contestants remain in play/i)).toBeVisible()
+  await expect(page.getByText(/3 alive/i)).toBeVisible()
   await root.screenshot({
     path: testInfo.outputPath('capitalization-premium-standings.png'),
   })
