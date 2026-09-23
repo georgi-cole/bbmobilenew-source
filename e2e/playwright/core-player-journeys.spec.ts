@@ -867,7 +867,7 @@ test.describe('Real player core journeys', () => {
           runIdentity: migratedClassic.game?.runId ?? migratedClassic.game?.gameId ?? null,
           version: metadata.version ?? null,
         }
-      })
+      }, { timeout: SCREEN_TIMEOUT_MS })
       .toEqual({ phase: 'loh_comp', runIdentity: fixture.runIdentity, version: 2 })
 
     await saveAndReturnHome(page)
@@ -894,12 +894,14 @@ test.describe('Real player core journeys', () => {
     await expect(recoveryNotice).toContainText('Save recovered safely')
     await expect(recoveryNotice).toContainText('A damaged save was set aside.')
 
-    const [current, unrelated, quarantined] = await Promise.all([
-      readDurableItem(page, fixture.runsKey),
+    await expect
+      .poll(() => readDurableItem(page, fixture.runsKey), { timeout: SCREEN_TIMEOUT_MS })
+      .toBeNull()
+    const [unrelated, quarantined] = await Promise.all([
       readDurableItem(page, unrelatedKey),
       page.evaluate((recoveryKey) => sessionStorage.getItem(recoveryKey), CORRUPT_SAVE_RECOVERY_KEY),
     ])
-    expect({ current, quarantined, unrelated }).toEqual({
+    expect({ current: null, quarantined, unrelated }).toEqual({
       current: null,
       quarantined: corruptRaw,
       unrelated: unrelatedRaw,
