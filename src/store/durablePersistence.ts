@@ -307,7 +307,10 @@ function scheduleFlush(): void {
 
 function recordMutation(key: string, value: string | null): void {
   const existing = pending.get(key)
-  const before = existing?.before ?? cache.get(key) ?? null
+  // Preserve an explicit null baseline. Null means the key did not exist in
+  // durable storage before the first coalesced mutation and must not be
+  // replaced by the cache's newer optimistic value.
+  const before = existing ? existing.before : (cache.get(key) ?? null)
 
   if (value === null) cache.delete(key)
   else cache.set(key, value)
