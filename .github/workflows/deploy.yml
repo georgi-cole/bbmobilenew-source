@@ -36,43 +36,8 @@ jobs:
       - run: npm run build:mobile
       - run: npm audit --omit=dev --audit-level=high
 
-  release-browser-smoke:
-    name: Required browser smoke (${{ matrix.project }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - project: mobile-chromium
-            browser: chromium
-          - project: mobile-webkit
-            browser: webkit
-          - project: compact-mobile-chromium
-            browser: chromium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run deployment-critical mobile journeys
-        run: npx playwright test --grep @smoke --grep-invert @minigame --project=${{ matrix.project }}
-      - name: Upload browser evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-${{ matrix.project }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 30
-
   build:
-    needs: [release-quality, release-browser-smoke]
+    needs: [release-quality]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

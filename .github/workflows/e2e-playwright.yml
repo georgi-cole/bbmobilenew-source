@@ -8,12 +8,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Keep this required check intentionally small and deterministic. The job name
-  # is preserved so existing branch-protection rules do not need to change.
+  # Keep the existing required check name so branch protection remains intact.
+  # Run the deployment smoke matrix here so browser regressions fail before merge.
   core-journeys:
     name: Core journeys (${{ matrix.project }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     permissions:
       contents: read
     strategy:
@@ -27,13 +27,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Run blocking PR smoke journeys
+      - name: Install smoke browsers
+        run: npx playwright install --with-deps chromium webkit
+      - name: Run deployment smoke journeys before merge
         run: >-
-          npx playwright test e2e/playwright/core-player-journeys.spec.ts
-          --grep "fresh player creates a profile and launches a usable campaign|saved progress survives a browser reload and resumes at the exact phase"
-          --project=${{ matrix.project }} --workers=1 --retries=0
+          npx playwright test --grep @smoke --grep-invert @minigame
+          --project=mobile-chromium --project=mobile-webkit
+          --project=compact-mobile-chromium --workers=1 --retries=0
       - name: Run finale progression and recovery journey
         run: >-
           npx playwright test e2e/playwright/finale.spec.ts
