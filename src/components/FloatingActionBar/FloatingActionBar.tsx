@@ -479,10 +479,11 @@ export default function FloatingActionBar({
     returnHomeWithoutSaving()
   }, [activeProfileId, canPersistActiveRun, reduxStore, returnHomeWithoutSaving])
 
-  const abandonSeasonAndReturnHome = useCallback(() => {
+  const abandonSeasonAndReturnHome = useCallback(async () => {
     if (canPersistActiveRun && activeProfileId) {
       clearSavedRun(activeProfileId, currentRunSlot)
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+      if (!(await flushSavePersistence())) return
     }
     returnHomeWithoutSaving()
   }, [activeProfileId, canPersistActiveRun, currentRunSlot, returnHomeWithoutSaving])
