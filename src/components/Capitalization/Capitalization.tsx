@@ -28,9 +28,25 @@ import {
   type CapitalizationRoundPerformance,
   type CapitalizationStanding,
 } from './capitalizationUtils'
+import globePremiumAsset from '../../assets/capitalization/globe-premium.webp'
+import europeAsset from '../../assets/capitalization/continent-europe.webp'
+import africaAsset from '../../assets/capitalization/continent-africa.webp'
+import asiaAsset from '../../assets/capitalization/continent-asia.webp'
+import northAmericaAsset from '../../assets/capitalization/continent-north-america.webp'
+import southAmericaAsset from '../../assets/capitalization/continent-south-america.webp'
+import oceaniaAsset from '../../assets/capitalization/continent-oceania.webp'
 import './Capitalization.css'
 
 const SPIN_DURATION_MS = 2600
+
+const CAPITALIZATION_CONTINENT_ART: Record<CapitalizationContinent, string> = {
+  Africa: africaAsset,
+  Asia: asiaAsset,
+  Europe: europeAsset,
+  'North America': northAmericaAsset,
+  'South America': southAmericaAsset,
+  Oceania: oceaniaAsset,
+}
 
 type CapitalizationPhase = 'spinning' | 'question' | 'answerReview' | 'scoreboard'
 type CapitalizationContext = 'loh' | 'battleBack'
@@ -123,12 +139,38 @@ export default function Capitalization({
   const questionStartedAtRef = useRef(0)
   const completionFiredRef = useRef(false)
   const rulesGame = getGame('capitalization')
+  const rulesPresentationGame = useMemo(() => {
+    if (!rulesGame || context !== 'battleBack') return rulesGame
+    return {
+      ...rulesGame,
+      title: 'Capitalization — Back 2 the Game',
+      description:
+        'All return candidates play the complete Capitalization challenge. Scores carry across every continent.',
+      instructions: [
+        'The globe selects three continents, with three capital-city questions on each.',
+        'Every return candidate plays all nine questions.',
+        'Faster first-try answers score more; hints halve the question score and skips score zero.',
+        'Nobody is eliminated after Question 3 or Question 6 in Back 2 the Game.',
+        'Scores carry across all three continents.',
+        'After Question 9, the highest total score wins the right to return to the game.',
+      ],
+    }
+  }, [context, rulesGame])
+
+  useEffect(() => {
+    Object.values(CAPITALIZATION_CONTINENT_ART).forEach((src) => {
+      const image = new Image()
+      image.decoding = 'async'
+      image.src = src
+    })
+  }, [])
 
   const currentQuestion = questionSet.questions[questionIndex]
   const currentContinentIndex =
     Math.floor(questionIndex / CAPITALIZATION_QUESTIONS_PER_CONTINENT) + 1
   const humanStanding = standings.find((standing) => standing.participantId === humanId) ?? null
-  const humanEliminated = humanStanding?.eliminatedAfterQuestion !== null
+  const humanEliminated =
+    context !== 'battleBack' && humanStanding?.eliminatedAfterQuestion !== null
   const rankedStandings = useMemo(() => rankCapitalizationStandings(standings), [standings])
   const activeCount = standings.filter(
     (standing) => standing.eliminatedAfterQuestion === null
@@ -204,6 +246,7 @@ export default function Capitalization({
 
       const scoredStandings = applyCapitalizationPerformance(standings, performanceByParticipantId)
       const shouldEliminate =
+        context !== 'battleBack' &&
         currentQuestion.questionNumber % CAPITALIZATION_QUESTIONS_PER_CONTINENT === 0 &&
         currentQuestion.questionNumber < CAPITALIZATION_TOTAL_QUESTIONS
       const { standings: nextStandings, eliminatedIds } = shouldEliminate
@@ -230,7 +273,7 @@ export default function Capitalization({
       )
       setPhase(checkpoint ? 'scoreboard' : 'answerReview')
     },
-    [currentQuestion, humanId, phase, resolvedParticipants, runSeed, standings]
+    [context, currentQuestion, humanId, phase, resolvedParticipants, runSeed, standings]
   )
 
   const submitAnswer = useCallback(() => {
@@ -374,13 +417,19 @@ export default function Capitalization({
   const showCheckpoint = phase === 'scoreboard' && scoreboard
   const showGlobe = phase === 'spinning'
   const isBattleBackContext = context === 'battleBack'
-  const rootClassName = ['capitalization', `capitalization--${phase}`].join(' ')
+  const rootClassName = [
+    'capitalization',
+    `capitalization--${phase}`,
+    isBattleBackContext ? 'capitalization--battle-back' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <>
-      {rulesOpen && rulesGame && (
+      {rulesOpen && rulesPresentationGame && (
         <MinigameRules
-          game={rulesGame}
+          game={rulesPresentationGame}
           confirmLabel={t('capitalization.startBattleBack')}
           onConfirm={() => setRulesOpen(false)}
         />
@@ -423,6 +472,13 @@ export default function Capitalization({
             </div>
           </header>
 
+          {isBattleBackContext && (
+            <div className="capitalization__battle-back-rule" role="note">
+              <strong>Everyone stays in the challenge through Question 9.</strong>
+              <span>No intermediate eliminations · highest total score returns to the game.</span>
+            </div>
+          )}
+
           {showCheckpoint ? (
             <Scoreboard
               scoreboard={scoreboard}
@@ -454,6 +510,20 @@ export default function Capitalization({
                   className="capitalization__question-panel"
                   aria-label={t('capitalization.aria.question')}
                 >
+                  {currentQuestion && (
+                    <div className="capitalization__continent-hero" aria-hidden="true">
+                      <img
+                        src={CAPITALIZATION_CONTINENT_ART[currentQuestion.continent]}
+                        alt=""
+                        decoding="async"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true
+                        }}
+                      />
+                      <span>{currentQuestion.continent}</span>
+                    </div>
+                  )}
+
                   <div className="capitalization__country-strip">
                     <span
                       className="capitalization__flag"
@@ -659,9 +729,11 @@ function Scoreboard({
         <p>
           {scoreboard.final
             ? finalWinnerSummary
-            : eliminatedNames
-              ? `Eliminated before the next continent: ${eliminatedNames}.`
-              : 'No elimination before the next continent.'}
+            : isBattleBackContext
+              ? 'All contestants remain in play. Scores carry into the next continent.'
+              : eliminatedNames
+                ? `Eliminated before the next continent: ${eliminatedNames}.`
+                : 'No elimination before the next continent.'}
         </p>
       </div>
 
@@ -674,11 +746,15 @@ function Scoreboard({
               ? isBattleBackContext
                 ? 'Winner'
                 : 'LOH'
-              : eliminatedNow
-                ? 'Eliminated'
-                : eliminated
-                  ? `Out Q${standing.eliminatedAfterQuestion}`
-                  : 'Alive'
+              : scoreboard.final && isBattleBackContext
+                ? 'Finalist'
+                : !scoreboard.final && isBattleBackContext
+                  ? 'In play'
+                  : eliminatedNow
+                    ? 'Eliminated'
+                    : eliminated
+                      ? `Out Q${standing.eliminatedAfterQuestion}`
+                      : 'Alive'
 
           return (
             <li
@@ -720,7 +796,9 @@ function Scoreboard({
             ? isBattleBackContext
               ? `${winner?.participantName ?? 'Winner'} tops the final board.`
               : `${winner?.participantName ?? 'Winner'} leads the final board.`
-            : 'Next globe spin starts when you continue.'}
+            : isBattleBackContext
+              ? 'Everyone continues. The next globe spin starts when you continue.'
+              : 'Next globe spin starts when you continue.'}
         </span>
         <button type="button" onClick={onContinue}>
           {scoreboard.final && !isBattleBackContext ? 'Crown LOH' : 'Continue'}
@@ -737,6 +815,7 @@ function CapitalizationGlobe({
   phase: CapitalizationPhase
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [heroAssetFailed, setHeroAssetFailed] = useState(false)
   const viewRef = useRef({ latitude: 8, longitude: 0 })
   const spinRef = useRef<{
     startedAt: number
@@ -759,10 +838,11 @@ function CapitalizationGlobe({
   }, [question?.questionNumber, question])
 
   useEffect(() => {
+    if (!heroAssetFailed) return undefined
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas) return undefined
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    if (!ctx) return undefined
     let frame = 0
     const draw = (now: number) => {
       renderGlobe(ctx, canvas, now, viewRef, spinRef, question, phase)
@@ -770,9 +850,39 @@ function CapitalizationGlobe({
     }
     frame = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(frame)
-  }, [phase, question])
+  }, [heroAssetFailed, phase, question])
 
-  return <canvas ref={canvasRef} className="capitalization__globe" aria-hidden="true" />
+  const continentAsset = question ? CAPITALIZATION_CONTINENT_ART[question.continent] : null
+
+  if (heroAssetFailed) {
+    return <canvas ref={canvasRef} className="capitalization__globe" aria-hidden="true" />
+  }
+
+  return (
+    <div className="capitalization__globe-visual" aria-hidden="true">
+      <img
+        className="capitalization__globe-hero"
+        src={globePremiumAsset}
+        alt=""
+        decoding="async"
+        onError={() => setHeroAssetFailed(true)}
+      />
+      {continentAsset && (
+        <img
+          className="capitalization__continent-reveal"
+          src={continentAsset}
+          alt=""
+          decoding="async"
+          onError={(event) => {
+            event.currentTarget.hidden = true
+          }}
+        />
+      )}
+      <span className="capitalization__orbit capitalization__orbit--one" />
+      <span className="capitalization__orbit capitalization__orbit--two" />
+      <span className="capitalization__orbit capitalization__orbit--three" />
+    </div>
+  )
 }
 
 function renderGlobe(
