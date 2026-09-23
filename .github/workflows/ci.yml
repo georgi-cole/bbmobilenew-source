@@ -149,5 +149,6 @@ jobs:
           -target App
           -configuration Debug
           -sdk iphonesimulator
+          SWIFT_ENABLE_EXPLICIT_MODULES=NO
           CODE_SIGNING_REQUIRED=NO
           CODE_SIGNING_ALLOWED=NO
