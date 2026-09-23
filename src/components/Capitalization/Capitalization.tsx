@@ -169,8 +169,9 @@ export default function Capitalization({
   const currentContinentIndex =
     Math.floor(questionIndex / CAPITALIZATION_QUESTIONS_PER_CONTINENT) + 1
   const humanStanding = standings.find((standing) => standing.participantId === humanId) ?? null
-  const humanEliminated =
-    context !== 'battleBack' && humanStanding?.eliminatedAfterQuestion !== null
+  const humanEliminated = Boolean(
+    context !== 'battleBack' && humanStanding?.eliminatedAfterQuestion != null
+  )
   const rankedStandings = useMemo(() => rankCapitalizationStandings(standings), [standings])
   const activeCount = standings.filter(
     (standing) => standing.eliminatedAfterQuestion === null
