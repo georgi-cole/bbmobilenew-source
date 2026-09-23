@@ -92,6 +92,118 @@ async function installUnhandledRejectionReporter(page: Page): Promise<void> {
   )
 }
 
+const E2E_DURABLE_DB_NAME = 'big-eye-persistence'
+const E2E_DURABLE_DB_VERSION = 1
+const E2E_DURABLE_STORE_NAME = 'kv'
+
+export async function readDurableItem(page: Page, key: string): Promise<string | null> {
+  return page.evaluate(
+    async ({ dbName, dbVersion, storeName, storageKey }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(dbName, dbVersion)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () =>
+          reject(request.error ?? new Error('Durable E2E database could not be opened.'))
+      })
+
+      try {
+        return await new Promise<string | null>((resolve, reject) => {
+          const transaction = db.transaction(storeName, 'readonly')
+          const request = transaction.objectStore(storeName).get(storageKey)
+          request.onsuccess = () => {
+            const row = request.result as { value?: unknown } | undefined
+            resolve(typeof row?.value === 'string' ? row.value : null)
+          }
+          request.onerror = () =>
+            reject(request.error ?? new Error('Durable E2E record could not be read.'))
+          transaction.onabort = () =>
+            reject(transaction.error ?? new Error('Durable E2E read transaction aborted.'))
+        })
+      } finally {
+        db.close()
+      }
+    },
+    {
+      dbName: E2E_DURABLE_DB_NAME,
+      dbVersion: E2E_DURABLE_DB_VERSION,
+      storeName: E2E_DURABLE_STORE_NAME,
+      storageKey: key,
+    }
+  )
+}
+
+export async function writeDurableItem(page: Page, key: string, value: string): Promise<void> {
+  await page.evaluate(
+    async ({ dbName, dbVersion, storeName, storageKey, storageValue }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(dbName, dbVersion)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () =>
+          reject(request.error ?? new Error('Durable E2E database could not be opened.'))
+      })
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction(storeName, 'readwrite')
+          transaction.objectStore(storeName).put({ key: storageKey, value: storageValue })
+          transaction.oncomplete = () => resolve()
+          transaction.onerror = () =>
+            reject(transaction.error ?? new Error('Durable E2E write failed.'))
+          transaction.onabort = () =>
+            reject(transaction.error ?? new Error('Durable E2E write transaction aborted.'))
+        })
+      } finally {
+        db.close()
+      }
+    },
+    {
+      dbName: E2E_DURABLE_DB_NAME,
+      dbVersion: E2E_DURABLE_DB_VERSION,
+      storeName: E2E_DURABLE_STORE_NAME,
+      storageKey: key,
+      storageValue: value,
+    }
+  )
+}
+
+export async function listDurableKeys(page: Page, prefix = ''): Promise<string[]> {
+  return page.evaluate(
+    async ({ dbName, dbVersion, storeName, keyPrefix }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(dbName, dbVersion)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () =>
+          reject(request.error ?? new Error('Durable E2E database could not be opened.'))
+      })
+
+      try {
+        return await new Promise<string[]>((resolve, reject) => {
+          const transaction = db.transaction(storeName, 'readonly')
+          const request = transaction.objectStore(storeName).getAllKeys()
+          request.onsuccess = () =>
+            resolve(
+              request.result
+                .filter((key): key is string => typeof key === 'string')
+                .filter((key) => key.startsWith(keyPrefix))
+            )
+          request.onerror = () =>
+            reject(request.error ?? new Error('Durable E2E keys could not be read.'))
+          transaction.onabort = () =>
+            reject(transaction.error ?? new Error('Durable E2E key transaction aborted.'))
+        })
+      } finally {
+        db.close()
+      }
+    },
+    {
+      dbName: E2E_DURABLE_DB_NAME,
+      dbVersion: E2E_DURABLE_DB_VERSION,
+      storeName: E2E_DURABLE_STORE_NAME,
+      keyPrefix: prefix,
+    }
+  )
+}
+
 export async function readAppState(page: Page): Promise<RootState> {
   await expect
     .poll(() => page.evaluate(() => window.__bbE2EState != null), {
