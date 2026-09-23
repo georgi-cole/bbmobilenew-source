@@ -46,6 +46,18 @@ function compactIncomingInteractions(
  * multi-megabyte synchronous JSON write.
  */
 export function compactSocialStateForPersistence(state: SocialState): SocialState {
+  // Old/partially-migrated saves may temporarily lack newer SocialState fields.
+  // Preserve them verbatim rather than turning a save attempt into a crash.
+  if (
+    !state.realitySimulation ||
+    !Array.isArray(state.realitySimulation.trace) ||
+    !Array.isArray(state.sessionLogs) ||
+    !Array.isArray(state.incomingInteractionLogs) ||
+    !Array.isArray(state.incomingInteractions)
+  ) {
+    return state
+  }
+
   const compactTrace = state.realitySimulation.trace
     .slice(-PERSISTED_SOCIAL_LIMITS.realityTrace)
     .map(({ candidates: _candidates, ...entry }) => entry)
