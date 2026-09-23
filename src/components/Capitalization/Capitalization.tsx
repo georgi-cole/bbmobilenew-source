@@ -385,7 +385,11 @@ export default function Capitalization({
       finishCompetition(scoreboard.standings)
       return
     }
+
     const nextQuestion = questionSet.questions[questionIndex + 1]
+    if (!nextQuestion) return
+    const continentChanged = nextQuestion.continent !== scoreboard.question.continent
+
     setAnswerInput('')
     setAttempts(0)
     setInputError(null)
@@ -394,9 +398,20 @@ export default function Capitalization({
     setAutoAdvanceReview(false)
     setScoreboard(null)
     setQuestionStartedAtMs(0)
-    setFeedback(`The globe is landing on ${nextQuestion?.continent ?? 'the next continent'}.`)
     setQuestionIndex((index) => index + 1)
-    setPhase('spinning')
+
+    if (continentChanged) {
+      setFeedback(`The globe is landing on ${nextQuestion.continent}.`)
+      setPhase('spinning')
+      return
+    }
+
+    const startedAt = Date.now()
+    questionStartedAtRef.current = startedAt
+    setQuestionStartedAtMs(startedAt)
+    setNowMs(startedAt)
+    setFeedback(`Name the capital of ${nextQuestion.name}.`)
+    setPhase('question')
   }, [finishCompetition, questionIndex, questionSet.questions, scoreboard])
 
   useEffect(() => {
