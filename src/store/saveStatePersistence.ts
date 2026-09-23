@@ -516,10 +516,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
   const previousMetadata = getDurableItem(savedRunsKeyForProfile(profile.profileId))
   const previousSlots = new Map<SavedRunSlot, string | null>()
   for (const slot of ALL_RUN_SLOTS) {
-    previousSlots.set(
-      slot,
-      getDurableItem(savedRunSlotKeyForProfile(profile.profileId, slot))
-    )
+    previousSlots.set(slot, getDurableItem(savedRunSlotKeyForProfile(profile.profileId, slot)))
   }
 
   // Shrink an old embedded multi-run value first. This frees the duplicated space
