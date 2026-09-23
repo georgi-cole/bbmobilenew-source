@@ -1,9 +1,11 @@
-import { expect, test } from './support/test'
+import { closeDebugPanelIfOpen, expect, test } from './support/test'
 
 test('captures the premium Capitalization flow @core-journey', async ({ page }, testInfo) => {
   await page.goto(
     './#/minigame-lab?game=capitalization&seed=424242&players=3&skipRules=1&skipCountdown=1'
   )
+
+  await closeDebugPanelIfOpen(page)
 
   const root = page.getByTestId('capitalization-root')
   await expect(root).toBeVisible()
