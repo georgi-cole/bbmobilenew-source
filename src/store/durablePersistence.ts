@@ -363,7 +363,10 @@ export function setDurableItem(key: string, value: string): boolean {
     try {
       localStorage.setItem(key, value)
       return true
-    } catch {
+    } catch (error) {
+      const reason = classifyFailure(error)
+      lastFailureReason = reason
+      failureListener?.(reason, error)
       return false
     }
   }
@@ -390,7 +393,10 @@ export function removeDurableItem(key: string): boolean {
     try {
       localStorage.removeItem(key)
       return true
-    } catch {
+    } catch (error) {
+      const reason = classifyFailure(error)
+      lastFailureReason = reason
+      failureListener?.(reason, error)
       return false
     }
   }
