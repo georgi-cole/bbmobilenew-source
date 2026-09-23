@@ -10,7 +10,15 @@
 // The host also owns one seamless edge utility dock for revisiting rules and
 // leaving a competition. Individual minigames must not render their own exit UI.
 
-import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore, type ComponentType } from 'react'
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+  type ComponentType,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
