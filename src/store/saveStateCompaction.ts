@@ -19,7 +19,6 @@ export const PERSISTED_SOCIAL_LIMITS = {
   realityTrace: 80,
 } as const
 
-
 function compactTvFeed(game: GameState): GameState['tvFeed'] {
   if (game.tvFeed.length <= PERSISTED_GAME_LIMITS.tvFeed) return [...game.tvFeed]
 
