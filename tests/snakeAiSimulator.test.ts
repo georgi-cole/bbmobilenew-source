@@ -8,10 +8,11 @@
  *  4. Higher skill produces equal-or-better score on average.
  *  5. The AI terminates (does not run forever).
  *  6. normaliseSnakeScore clamps values to [0, 1000].
- *  7. simulateSnakeAiScore returns { score, completionMs } in valid ranges.
- *  8. Different player IDs produce different scores from the same session seed.
- *  9. The AI occasionally reaches a non-zero score (is not always trivially bad).
- * 10. Not every run ends in completion (AI is fallible).
+ *  7. Unrealistically fast completions are normalised into a human-like floor.
+ *  8. simulateSnakeAiScore returns { score, completionMs } in valid ranges.
+ *  9. Different player IDs produce different scores from the same session seed.
+ * 10. The AI occasionally reaches a non-zero score (is not always trivially bad).
+ * 11. Not every run ends in completion (AI is fallible).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,6 +20,8 @@ import {
   simulateSnakeAiRun,
   simulateSnakeAiScore,
   normaliseSnakeScore,
+  normaliseSnakeCompletionMs,
+  MIN_REALISTIC_COMPLETION_MS,
 } from '../src/ai/competition/snakeAiSimulator';
 
 // ── 1. Basic correctness ───────────────────────────────────────────────────────
@@ -159,7 +162,32 @@ describe('normaliseSnakeScore', () => {
   });
 });
 
-// ── 4. simulateSnakeAiScore ───────────────────────────────────────────────────
+// ── 4. Completion-time realism ────────────────────────────────────────────────
+
+describe('normaliseSnakeCompletionMs', () => {
+  it('never reports an AI completion below the realistic human floor', () => {
+    for (const rawMs of [2_100, 30_000, 45_000, 59_850]) {
+      expect(normaliseSnakeCompletionMs(rawMs)).toBeGreaterThanOrEqual(
+        MIN_REALISTIC_COMPLETION_MS,
+      );
+    }
+  });
+
+  it('preserves the ordering of fast simulated runs', () => {
+    const raw = [30_000, 45_000, 60_000, 70_000, 74_850];
+    const adjusted = raw.map(normaliseSnakeCompletionMs);
+    for (let i = 1; i < adjusted.length; i++) {
+      expect(adjusted[i]).toBeGreaterThan(adjusted[i - 1]);
+    }
+  });
+
+  it('leaves ordinary completion times unchanged', () => {
+    expect(normaliseSnakeCompletionMs(75_000)).toBe(75_000);
+    expect(normaliseSnakeCompletionMs(90_000)).toBe(90_000);
+  });
+});
+
+// ── 5. simulateSnakeAiScore ───────────────────────────────────────────────────
 
 describe('simulateSnakeAiScore', () => {
   it('returns an object with score and completionMs', () => {
@@ -192,7 +220,7 @@ describe('simulateSnakeAiScore', () => {
     for (let seed = 1; seed <= 300; seed++) {
       const result = simulateSnakeAiScore({ sessionSeed: seed, playerId: 'skilled', profile: highProfile });
       if (result.completionMs !== null) {
-        expect(result.completionMs).toBeGreaterThan(0);
+        expect(result.completionMs).toBeGreaterThanOrEqual(MIN_REALISTIC_COMPLETION_MS);
         expect(result.score).toBe(1000);
         foundCompleter = true;
         break;
@@ -258,9 +286,26 @@ describe('simulateSnakeAiScore', () => {
       / seeds.length;
     expect(highAvg).toBeGreaterThanOrEqual(lowAvg);
   });
+
+  it('never exposes a sub-floor completion across a broad high-skill seed sample', () => {
+    const highProfile = {
+      overall: 95, physical: 90, mental: 90, precision: 98,
+      nerve: 95, consistency: 95, clutch: 90, chokeRisk: 5, luck: 60,
+    };
+    for (let seed = 1; seed <= 200; seed++) {
+      const result = simulateSnakeAiScore({
+        sessionSeed: seed,
+        playerId: 'fast-ai',
+        profile: highProfile,
+      });
+      if (result.completionMs !== null) {
+        expect(result.completionMs).toBeGreaterThanOrEqual(MIN_REALISTIC_COMPLETION_MS);
+      }
+    }
+  });
 });
 
-// ── 5. Human-like imperfection ────────────────────────────────────────────────
+// ── 6. Human-like imperfection ────────────────────────────────────────────────
 
 describe('simulateSnakeAiRun — human-like imperfection', () => {
   it('not every run completes the target (AI is fallible at low skill)', () => {

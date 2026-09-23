@@ -3,7 +3,7 @@
  *
  * Supports two rendering modes:
  *  1. LOH/POS path: receives `session` + `players`; dispatches `completeMinigame`
- *     with a canonical `CompleteMinigamePayload` (humanScore + lastPlaceId).
+ *     with a canonical `CompleteMinigamePayload` (humanScore + winnerId + lastPlaceId).
  *  2. MinigameHost (challenge) path: receives `participantIds` + `onFinish`;
  *     reveals a local leaderboard, then calls `onFinish(score)` after Continue.
  *
@@ -755,8 +755,9 @@ export default function SnakeGame({
   const handleDone = useCallback(() => {
     const humanScore = normaliseScore(currentScoreRef.current);
     if (session) {
+      const winnerId = scores[0]?.id;
       const lastPlaceId = scores.length > 0 ? scores[scores.length - 1].id : undefined;
-      const payload: CompleteMinigamePayload = { humanScore, lastPlaceId };
+      const payload: CompleteMinigamePayload = { humanScore, winnerId, lastPlaceId };
       dispatch(completeMinigame(payload));
       return;
     }

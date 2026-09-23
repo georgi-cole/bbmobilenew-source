@@ -10,6 +10,10 @@
  *  - Bounded flood-fill lookahead (capped, not full-depth) evaluates moves.
  *  - Mistake probability grows as the snake lengthens, simulating pressure.
  *  - Periodic mistake windows (seeded randomness) cause occasional bad turns.
+ *  - Small skill-weighted detours model human steering inefficiency instead of
+ *    letting the pathfinder hug the mathematically shortest route every time.
+ *  - Penalty food is usually avoided by stronger players and all special food
+ *    expires on the same timer as the playable game.
  *  - Loop/stall detection: if the snake hasn't eaten in too long it "gives up"
  *    and makes a fatal move, modelling human frustration.
  *
@@ -53,9 +57,28 @@ const SCORE_SCALE = 1000;
 /** Hard tick ceiling — prevents runaway simulations. */
 const MAX_TICKS = 12_000;
 
+/** Non-standard food lifetime, matching SnakeGame.tsx (6 seconds). */
+const SPECIAL_FOOD_EXPIRY_TICKS = Math.ceil(6_000 / TICK_MS);
+
+/**
+ * Absolute AI leaderboard floor for a completed run.  The headless simulator
+ * can occasionally combine adjacent food spawns with an unusually bonus-heavy
+ * sequence and produce a technically valid but implausibly machine-perfect
+ * finish.  Human runs may still beat this if the player actually does so.
+ */
+export const MIN_REALISTIC_COMPLETION_MS = 60_000;
+
+/**
+ * Only raw AI runs faster than this are compressed into the realistic lower
+ * envelope.  The transform is monotonic, so a faster simulated route still
+ * ranks ahead of a slower one.
+ */
+const FAST_RUN_NORMALISATION_THRESHOLD_MS = 75_000;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Vec2 = { x: number; y: number };
+type FoodType = 'standard' | 'bonus' | 'penalty';
 
 const DIRECTIONS: readonly Vec2[] = [
   { x: 0, y: -1 }, // up
@@ -148,8 +171,11 @@ function pickDirection(
   snake: Vec2[],
   currentDir: Vec2,
   food: Vec2,
+  foodType: FoodType,
+  avoidPenalty: boolean,
   rng: () => number,
   mistakeProb: number,
+  detourProb: number,
   forceRandom: boolean,
   floodCap: number,
 ): Vec2 {
@@ -174,12 +200,25 @@ function pickDirection(
   if (safe.length === 0) return currentDir; // no escape — die next tick
 
   // ── Mistake window ─────────────────────────────────────────────────────────
+  // Mistakes deliberately use the full safe set, so an AI can still
+  // accidentally collect a penalty item even when it otherwise recognises it.
   if (forceRandom || rng() < mistakeProb) {
     return safe[Math.floor(rng() * safe.length)];
   }
 
+  // A player who recognises a penalty should not intentionally steer directly
+  // into it when another immediately safe option exists.
+  const strategicSafe =
+    foodType === 'penalty' && avoidPenalty
+      ? safe.filter((d) => {
+          const nxt = add(head, d);
+          return nxt.x !== food.x || nxt.y !== food.y;
+        })
+      : safe;
+  const candidates = strategicSafe.length > 0 ? strategicSafe : safe;
+
   // ── Score each safe move ───────────────────────────────────────────────────
-  const scored = safe.map((d) => {
+  const scored = candidates.map((d) => {
     const nxt = add(head, d);
     // Simulate the move: add new head, temporarily exclude its position.
     const afterOccupied = new Set(occupied);
@@ -189,12 +228,21 @@ function pickDirection(
     return { d, space, dist };
   });
 
-  // Sort: prefer larger open space; break ties by closer food distance.
+  // Sort: prefer larger open space.  For recognised penalty food, break close
+  // safety ties by moving farther away; otherwise route toward the food.
   scored.sort((a, b) => {
     const spaceDiff = b.space - a.space;
     if (Math.abs(spaceDiff) > 2) return spaceDiff;
+    if (foodType === 'penalty' && avoidPenalty) return b.dist - a.dist;
     return a.dist - b.dist;
   });
+
+  // Human steering is not shortest-path perfect.  Occasionally take the
+  // second-best safe route; unlike a mistake this remains strategically safe
+  // and mostly just adds a few believable extra cells to the route.
+  if (scored.length > 1 && rng() < detourProb) {
+    return scored[1].d;
+  }
 
   return scored[0].d;
 }
@@ -233,10 +281,13 @@ export function simulateSnakeAiRun(seed: number, skill: number): SnakeAiRunResul
   let food: Vec2 = placeFood(snake, rng);
   // Assign first food type using RNG (mirrors SnakeGame.tsx placeFood)
   let foodTypeRoll = rng();
-  let currentFoodType: 'standard' | 'bonus' | 'penalty' =
+  let currentFoodType: FoodType =
     foodTypeRoll < BONUS_FOOD_CHANCE ? 'bonus'
     : foodTypeRoll < BONUS_FOOD_CHANCE + PENALTY_FOOD_CHANCE ? 'penalty'
     : 'standard';
+  let specialFoodAgeTicks = 0;
+  let avoidPenalty =
+    currentFoodType === 'penalty' && rng() < (0.55 + clampedSkill * 0.40);
 
   let accumulatedScore = 0;
   let ticksSinceFood = 0;
@@ -268,8 +319,26 @@ export function simulateSnakeAiRun(seed: number, skill: number): SnakeAiRunResul
     // Kept small intentionally to prevent perfect play.
     const floodCap = Math.round(12 + clampedSkill * 18);
 
+    // Even skilled humans do not trace a mathematically shortest route every
+    // single tick.  Low skill and a long snake both add modest route noise.
+    const detourProb = Math.max(
+      0.03,
+      0.10 - clampedSkill * 0.06 + growthFactor * 0.02,
+    );
+
     // ── Choose direction ───────────────────────────────────────────────────
-    dir = pickDirection(snake, dir, food, rng, mistakeProb, isLooping, floodCap);
+    dir = pickDirection(
+      snake,
+      dir,
+      food,
+      currentFoodType,
+      avoidPenalty,
+      rng,
+      mistakeProb,
+      detourProb,
+      isLooping,
+      floodCap,
+    );
 
     // ── Move ───────────────────────────────────────────────────────────────
     const newHead = add(snake[0], dir);
@@ -305,9 +374,30 @@ export function simulateSnakeAiRun(seed: number, skill: number): SnakeAiRunResul
         foodTypeRoll < BONUS_FOOD_CHANCE ? 'bonus'
         : foodTypeRoll < BONUS_FOOD_CHANCE + PENALTY_FOOD_CHANCE ? 'penalty'
         : 'standard';
+      specialFoodAgeTicks = 0;
+      avoidPenalty =
+        currentFoodType === 'penalty' && rng() < (0.55 + clampedSkill * 0.40);
     } else {
       snake = snake.slice(0, -1);
       ticksSinceFood++;
+
+      // Match the playable game: bonus and penalty items disappear after six
+      // seconds if they are not collected.  This is especially important for
+      // recognised penalties, which stronger AIs will often route around.
+      if (currentFoodType !== 'standard') {
+        specialFoodAgeTicks++;
+        if (specialFoodAgeTicks >= SPECIAL_FOOD_EXPIRY_TICKS) {
+          food = placeFood(snake, rng);
+          foodTypeRoll = rng();
+          currentFoodType =
+            foodTypeRoll < BONUS_FOOD_CHANCE ? 'bonus'
+            : foodTypeRoll < BONUS_FOOD_CHANCE + PENALTY_FOOD_CHANCE ? 'penalty'
+            : 'standard';
+          specialFoodAgeTicks = 0;
+          avoidPenalty =
+            currentFoodType === 'penalty' && rng() < (0.55 + clampedSkill * 0.40);
+        }
+      }
     }
 
     // ── Stall protection ───────────────────────────────────────────────────
@@ -360,6 +450,24 @@ export function normaliseSnakeScore(score: number): number {
   return Math.max(0, Math.min(SCORE_SCALE, score));
 }
 
+/**
+ * Compress only the implausibly fast lower tail of AI completion times into a
+ * realistic human envelope.  The mapping is monotonic and continuous at the
+ * threshold, so simulated route quality still determines ordering.
+ */
+export function normaliseSnakeCompletionMs(rawMs: number): number {
+  if (rawMs >= FAST_RUN_NORMALISATION_THRESHOLD_MS) return rawMs;
+
+  const boundedRaw = Math.max(0, rawMs);
+  const ratio = boundedRaw / FAST_RUN_NORMALISATION_THRESHOLD_MS;
+  const adjusted =
+    MIN_REALISTIC_COMPLETION_MS +
+    ratio * (FAST_RUN_NORMALISATION_THRESHOLD_MS - MIN_REALISTIC_COMPLETION_MS);
+
+  // Keep results aligned to the game's 150 ms movement tick.
+  return Math.ceil(adjusted / TICK_MS) * TICK_MS;
+}
+
 /** Result returned by simulateSnakeAiScore. */
 export interface SnakeAiScoreResult {
   /** Normalised 0–1000 score. */
@@ -393,6 +501,8 @@ export function simulateSnakeAiScore({
   const skill = snakeSkillFromProfile(profile);
   const result = simulateSnakeAiRun(participantSeed, skill);
   const score = normaliseSnakeScore(result.score);
-  const completionMs = result.completed ? result.ticks * TICK_MS : null;
+  const rawCompletionMs = result.completed ? result.ticks * TICK_MS : null;
+  const completionMs =
+    rawCompletionMs === null ? null : normaliseSnakeCompletionMs(rawCompletionMs);
   return { score, completionMs };
 }
