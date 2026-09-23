@@ -453,7 +453,13 @@ export async function flushDurablePersistence(): Promise<boolean> {
       lastFailureReason = reason
 
       for (const mutation of batch) {
-        if (pending.has(mutation.key)) continue
+        const newerMutation = pending.get(mutation.key)
+        if (newerMutation) {
+          // The newer cache value remains valid, but its rollback baseline must
+          // point to the last actually durable value rather than this failed batch.
+          newerMutation.before = mutation.before
+          continue
+        }
         if (mutation.before === null) cache.delete(mutation.key)
         else cache.set(mutation.key, mutation.before)
       }
