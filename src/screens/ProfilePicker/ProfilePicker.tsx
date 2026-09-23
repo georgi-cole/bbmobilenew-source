@@ -19,7 +19,11 @@ import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
 import { clearSeasonArchives, loadSeasonArchives } from '../../store/archivePersistence'
-import { clearProfileSaveStorage, loadSavedRunProfile } from '../../store/saveStatePersistence'
+import {
+  clearProfileSaveStorage,
+  flushSavePersistence,
+  loadSavedRunProfile,
+} from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
@@ -279,6 +283,7 @@ export default function ProfilePicker() {
 
     clearProfileSaveStorage(id)
     clearSeasonArchives(archiveKeyForProfile(id))
+    await flushSavePersistence()
     dispatch(deleteProfile(id))
     setPendingDeleteId(null)
   }
