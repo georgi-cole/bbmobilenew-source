@@ -100,6 +100,7 @@ export default function NavBar() {
 
   function saveActiveRun(): boolean {
     if (!activeProfileId || isGuest) return false
+    retrySavePersistenceWrites()
     const currentState = reduxStore.getState()
     return saveRunSnapshot(
       activeProfileId,
