@@ -391,16 +391,20 @@ function writeStorage(key: string, serialized: string): boolean {
   const serializedBytes = byteLength(serialized)
   try {
     localStorage.setItem(key, serialized)
+    const isSnapshotPayload =
+      key.startsWith(SAVED_RUN_SLOT_KEY_PREFIX) || key.startsWith(SAVED_STATE_KEY_PREFIX)
     lastSavePersistenceDiagnostics = {
       ...lastSavePersistenceDiagnostics,
       blockedReason: null,
-      lastKey: key,
-      lastSnapshotBytes: serializedBytes,
+      lastKey: isSnapshotPayload ? key : lastSavePersistenceDiagnostics.lastKey,
+      lastSnapshotBytes: isSnapshotPayload
+        ? serializedBytes
+        : lastSavePersistenceDiagnostics.lastSnapshotBytes,
       lastWriteMs: Math.max(0, nowMs() - startedAt),
     }
     if (import.meta.env.DEV) {
       console.debug(`[save] wrote ${key} (${serializedBytes} bytes)`)
-      if (serializedBytes >= SAVE_SNAPSHOT_WARNING_BYTES) {
+      if (isSnapshotPayload && serializedBytes >= SAVE_SNAPSHOT_WARNING_BYTES) {
         console.warn(
           `[save] snapshot is ${serializedBytes} bytes; persistence budget warning is ${SAVE_SNAPSHOT_WARNING_BYTES} bytes`
         )
