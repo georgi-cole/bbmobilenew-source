@@ -126,13 +126,17 @@ export default function NavBar() {
     setSaveError(true)
   }
 
-  function abandonSeason() {
+  async function abandonSeason() {
     if (!isGuest && activeProfileId) {
       // Clear the durable slot before resetting runtime state. The autosave
       // revision guard will reject any already-queued snapshot for this run,
       // preventing "Abandon" from being resurrected as a Continue card.
       clearSavedRun(activeProfileId, currentRunSlot)
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
+      if (!(await flushSavePersistence())) {
+        setSaveError(true)
+        return
+      }
     }
     resetRuntimeAndReturnHome()
   }
