@@ -166,6 +166,39 @@ export async function writeDurableItem(page: Page, key: string, value: string): 
   )
 }
 
+export async function removeDurableItem(page: Page, key: string): Promise<void> {
+  await page.evaluate(
+    async ({ dbName, dbVersion, storeName, storageKey }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(dbName, dbVersion)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () =>
+          reject(request.error ?? new Error('Durable E2E database could not be opened.'))
+      })
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const transaction = db.transaction(storeName, 'readwrite')
+          transaction.objectStore(storeName).delete(storageKey)
+          transaction.oncomplete = () => resolve()
+          transaction.onerror = () =>
+            reject(transaction.error ?? new Error('Durable E2E delete failed.'))
+          transaction.onabort = () =>
+            reject(transaction.error ?? new Error('Durable E2E delete transaction aborted.'))
+        })
+      } finally {
+        db.close()
+      }
+    },
+    {
+      dbName: E2E_DURABLE_DB_NAME,
+      dbVersion: E2E_DURABLE_DB_VERSION,
+      storeName: E2E_DURABLE_STORE_NAME,
+      storageKey: key,
+    }
+  )
+}
+
 export async function listDurableKeys(page: Page, prefix = ''): Promise<string[]> {
   return page.evaluate(
     async ({ dbName, dbVersion, storeName, keyPrefix }) => {
