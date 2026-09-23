@@ -76,7 +76,9 @@ function nowMs(): number {
 }
 
 function byteLength(value: string): number {
-  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(value).byteLength
+  // localStorage stores DOMStrings. Using UTF-16 code units is a cheap,
+  // allocation-free size estimate for diagnostics and avoids creating another
+  // multi-megabyte Uint8Array on the autosave hot path.
   return value.length * 2
 }
 
