@@ -45,6 +45,7 @@ import {
   clearSavedRun,
   getSavedRunSlot,
   createSavedSeasonSnapshot,
+  flushSavePersistence,
   isSavePersistenceBlocked,
   saveRunSnapshot,
 } from './saveStatePersistence'
@@ -385,7 +386,10 @@ store.subscribe(() => {
       // Finale transitions are user-visible checkpoints. Flush these immediately
       // so a reload between the transition and the trailing autosave cannot lose
       // awards or restore an earlier finale phase.
-      if (finalePhaseChanged) runSnapshotAutosave.flush()
+      if (finalePhaseChanged) {
+        runSnapshotAutosave.flush()
+        void flushSavePersistence()
+      }
     }
   }
   if (current.game.seasonArchives !== prevSeasonArchives) {
@@ -443,11 +447,15 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
       )
     }
     runSnapshotAutosave.flush()
+    void flushSavePersistence()
   })
 }
 
 if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
-  window.addEventListener('pagehide', () => runSnapshotAutosave.flush())
+  window.addEventListener('pagehide', () => {
+    runSnapshotAutosave.flush()
+    void flushSavePersistence()
+  })
 }
 
 export type RootState = ReturnType<typeof store.getState>
