@@ -21,6 +21,11 @@ const config: CapacitorConfig = {
   },
 
   plugins: {
+    CapacitorSQLite: {
+      iosDatabaseLocation: 'Library/CapacitorDatabase',
+      iosIsEncryption: false,
+      androidIsEncryption: false,
+    },
     SystemBars: {
       style: 'DARK',
       hidden: false,
