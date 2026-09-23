@@ -45,6 +45,7 @@ import {
   clearSavedRun,
   getSavedRunSlot,
   createSavedSeasonSnapshot,
+  isSavePersistenceBlocked,
   saveRunSnapshot,
 } from './saveStatePersistence'
 import { createRunSnapshotAutosaveController } from './runSnapshotAutosave'
@@ -372,6 +373,7 @@ store.subscribe(() => {
     const activeProfileId = current.profiles.activeProfileId
     if (
       !isRunAutosaveSuspended() &&
+      !isSavePersistenceBlocked() &&
       !current.profiles.isGuest &&
       activeProfileId &&
       hasMeaningfulGameProgress(current.game)
@@ -429,7 +431,12 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
     if (document.visibilityState !== 'hidden' || isRunAutosaveSuspended()) return
     const current = store.getState()
     const activeProfileId = current.profiles.activeProfileId
-    if (!current.profiles.isGuest && activeProfileId && hasMeaningfulGameProgress(current.game)) {
+    if (
+      !isSavePersistenceBlocked() &&
+      !current.profiles.isGuest &&
+      activeProfileId &&
+      hasMeaningfulGameProgress(current.game)
+    ) {
       runSnapshotAutosave.schedule(
         activeProfileId,
         createSavedSeasonSnapshot(activeProfileId, current)
