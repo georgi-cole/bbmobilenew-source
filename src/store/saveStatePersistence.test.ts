@@ -48,11 +48,9 @@ describe('saveStatePersistence survivor progression', () => {
       social: {},
     } as unknown as SavedSeasonSnapshot
 
-    const setItemSpy = vi
-      .spyOn(Storage.prototype, 'setItem')
-      .mockImplementation(() => {
-        throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
-      })
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
+    })
 
     expect(saveRunSnapshot('profile-1', snapshot)).toBe(false)
     expect(isSavePersistenceBlocked()).toBe(true)
