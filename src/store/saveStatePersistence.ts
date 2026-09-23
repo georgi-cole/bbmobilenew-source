@@ -215,7 +215,7 @@ export interface SavedSeasonState {
  * Build the durable campaign payload shared by automatic and manual saves.
  *
  * Completed-season history and Broadcast Manager authoring data have their own
- * localStorage keys. Keeping them out of every run snapshot avoids duplicating
+ * persistence records. Keeping them out of every run snapshot avoids duplicating
  * large, unrelated values and prevents a runtime-only authoring value from
  * blocking an otherwise valid campaign save.
  */
@@ -536,7 +536,7 @@ function persistSplitProfile(profile: SavedRunProfile): boolean {
         for (const rollbackSlot of ALL_RUN_SLOTS) {
           const oldValue = previousSlots.get(rollbackSlot)
           const rollbackKey = savedRunSlotKeyForProfile(profile.profileId, rollbackSlot)
-          if (oldValue == null) removeDurableItem(rollbackKey)
+          if (oldValue === null || oldValue === undefined) removeDurableItem(rollbackKey)
           else setDurableItem(rollbackKey, oldValue)
         }
         if (previousMetadata === null)
