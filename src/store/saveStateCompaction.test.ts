@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { SocialState } from '../social/types'
 import {
+  compactGameStateForPersistence,
   compactSocialStateForPersistence,
+  PERSISTED_GAME_LIMITS,
   PERSISTED_SOCIAL_LIMITS,
 } from './saveStateCompaction'
 
@@ -19,6 +21,36 @@ function entries(count: number) {
 }
 
 describe('saveStateCompaction', () => {
+
+  it('bounds persisted TV/history while retaining queued broadcast targets', () => {
+    const tvFeed = Array.from({ length: 500 }, (_, index) => ({
+      id: `event-${index}`,
+      text: `Event ${index}`,
+      type: 'game' as const,
+      timestamp: index,
+    }))
+    const runtime = {
+      tvFeed,
+      broadcastQueue: ['event-499'],
+      lastPlainBroadcastEventId: 'event-498',
+      history: Array.from({ length: 300 }, (_, index) => ({
+        type: 'test',
+        week: index,
+        data: {},
+        timestamp: index,
+      })),
+    } as unknown as import('../types').GameState
+
+    const compact = compactGameStateForPersistence(runtime)
+
+    expect(compact.tvFeed.length).toBe(PERSISTED_GAME_LIMITS.tvFeed)
+    expect(compact.tvFeed.some((event) => event.id === 'event-499')).toBe(true)
+    expect(compact.tvFeed.some((event) => event.id === 'event-498')).toBe(true)
+    expect(compact.history).toHaveLength(PERSISTED_GAME_LIMITS.history)
+    expect(runtime.tvFeed).toHaveLength(500)
+    expect(runtime.history).toHaveLength(300)
+  })
+
   it('bounds persistence-only debug and history collections without mutating runtime state', () => {
     const incoming = Array.from({ length: 100 }, (_, index) => ({
       id: `incoming-${index}`,
