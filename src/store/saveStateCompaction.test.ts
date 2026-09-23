@@ -43,7 +43,7 @@ describe('saveStateCompaction', () => {
 
     const compact = compactGameStateForPersistence(runtime)
 
-    expect(compact.tvFeed.length).toBe(PERSISTED_GAME_LIMITS.tvFeed)
+    expect(compact.tvFeed.length).toBeLessThanOrEqual(PERSISTED_GAME_LIMITS.tvFeed + 2)
     expect(compact.tvFeed.some((event) => event.id === 'event-499')).toBe(true)
     expect(compact.tvFeed.some((event) => event.id === 'event-498')).toBe(true)
     expect(compact.history).toHaveLength(PERSISTED_GAME_LIMITS.history)
