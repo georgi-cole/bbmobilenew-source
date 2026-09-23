@@ -11,7 +11,10 @@ import {
 import { resetGame, updateUserPlayerIdentity } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
-import { clearProfileSaveStorage } from '../../store/saveStatePersistence'
+import {
+  clearProfileSaveStorage,
+  flushSavePersistence,
+} from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
@@ -236,6 +239,7 @@ export default function EditProfile() {
     // autosave prevents its in-memory season being saved under the next profile.
     clearProfileSaveStorage(profile.id)
     clearSeasonArchives(archiveKeyForProfile(profile.id))
+    await flushSavePersistence()
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
