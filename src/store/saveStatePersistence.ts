@@ -25,12 +25,17 @@ import type { SocialState } from '../social/types'
 import type { PublicOpinionState } from '../publicOpinion/types'
 import type { ChallengeState } from './challengeSlice'
 import type { SurvivorAchievementUnlockMap } from '../modes/survivorAchievements'
+import {
+  compactGameStateForPersistence,
+  compactSocialStateForPersistence,
+} from './saveStateCompaction'
 
 export const SAVED_STATE_KEY_PREFIX = 'bbmobilenew:savedSeason:'
 export const SAVED_RUNS_KEY_PREFIX = 'bbmobilenew:savedRuns:'
 export const SAVED_RUN_SLOT_KEY_PREFIX = 'bbmobilenew:savedRunSlot:'
 export const SAVE_PERSISTENCE_ISSUE_EVENT = 'bb:save-persistence-issue'
 export const CORRUPT_SAVE_RECOVERY_KEY = 'bbmobilenew:recovery:lastCorruptSave'
+export const SAVE_SNAPSHOT_WARNING_BYTES = 1_500_000
 
 export type SaveFailureReason =
   | 'quota_exceeded'
@@ -44,7 +49,38 @@ export type SavePersistenceIssue = {
   reason?: SaveFailureReason
 }
 
+export interface SavePersistenceDiagnostics {
+  blockedReason: SaveFailureReason | null
+  lastKey: string | null
+  lastSnapshotBytes: number
+  lastSerializeMs: number
+  lastWriteMs: number
+  warningThresholdBytes: number
+}
+
 let lastSavePersistenceIssue: SavePersistenceIssue | null = null
+let persistenceWriteBlockedReason: SaveFailureReason | null = null
+let lastSavePersistenceDiagnostics: SavePersistenceDiagnostics = {
+  blockedReason: null,
+  lastKey: null,
+  lastSnapshotBytes: 0,
+  lastSerializeMs: 0,
+  lastWriteMs: 0,
+  warningThresholdBytes: SAVE_SNAPSHOT_WARNING_BYTES,
+}
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now()
+}
+
+function byteLength(value: string): number {
+  // localStorage stores DOMStrings. Using UTF-16 code units is a cheap,
+  // allocation-free size estimate for diagnostics and avoids creating another
+  // multi-megabyte Uint8Array on the autosave hot path.
+  return value.length * 2
+}
 
 function classifyWriteFailure(error: unknown): SaveFailureReason {
   if (error instanceof DOMException) {
@@ -62,6 +98,16 @@ function reportSavePersistenceIssue(
   kind: SavePersistenceIssue['kind'],
   reason?: SaveFailureReason
 ): void {
+  if (
+    kind === 'write_failed' &&
+    (reason === 'quota_exceeded' || reason === 'storage_unavailable')
+  ) {
+    persistenceWriteBlockedReason = reason
+    lastSavePersistenceDiagnostics = {
+      ...lastSavePersistenceDiagnostics,
+      blockedReason: reason,
+    }
+  }
   if (lastSavePersistenceIssue?.kind === kind && lastSavePersistenceIssue.reason === reason) return
   lastSavePersistenceIssue = { kind, reason, occurredAt: new Date().toISOString() }
   if (typeof window !== 'undefined') {
@@ -79,6 +125,42 @@ export function getLastSavePersistenceIssue(): SavePersistenceIssue | null {
 
 export function clearLastSavePersistenceIssue(): void {
   lastSavePersistenceIssue = null
+}
+
+export function isSavePersistenceBlocked(): boolean {
+  return persistenceWriteBlockedReason !== null
+}
+
+/**
+ * Explicitly re-arm persistence after the player asks to retry a save or after
+ * cleanup has freed space. Autosave never clears the breaker on its own.
+ */
+export function retrySavePersistenceWrites(): void {
+  persistenceWriteBlockedReason = null
+  lastSavePersistenceDiagnostics = {
+    ...lastSavePersistenceDiagnostics,
+    blockedReason: null,
+  }
+}
+
+export function getSavePersistenceDiagnostics(): SavePersistenceDiagnostics {
+  return { ...lastSavePersistenceDiagnostics }
+}
+
+/** Expensive by design: call only from diagnostics/tests, never on every autosave. */
+export function inspectLocalStorageUsageBytes(): number {
+  let total = 0
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index)
+      if (!key) continue
+      const value = localStorage.getItem(key) ?? ''
+      total += byteLength(key) + byteLength(value)
+    }
+  } catch {
+    return 0
+  }
+  return total
 }
 
 export interface SavedSeasonSnapshot {
@@ -123,14 +205,14 @@ export function createSavedSeasonSnapshot(
     version: 1,
     profileId,
     savedAt,
-    game: {
+    game: compactGameStateForPersistence({
       ...campaignGame,
       mode: state.game.mode ?? 'classic',
       lastPlayedAt: Number.isFinite(savedAtMs) ? savedAtMs : Date.now(),
       saveVersion: state.game.saveVersion ?? 2,
-    },
+    }),
     finale: state.finale,
-    social: state.social,
+    social: compactSocialStateForPersistence(state.social),
     publicOpinion: state.publicOpinion,
     challenge: state.challenge,
   }
@@ -295,8 +377,15 @@ function createPersistenceReplacer(): (this: unknown, key: string, value: unknow
 }
 
 function serialize(value: unknown): string | null {
+  const startedAt = nowMs()
   try {
-    return JSON.stringify(value, createPersistenceReplacer())
+    const serialized = JSON.stringify(value, createPersistenceReplacer())
+    lastSavePersistenceDiagnostics = {
+      ...lastSavePersistenceDiagnostics,
+      lastSnapshotBytes: byteLength(serialized),
+      lastSerializeMs: Math.max(0, nowMs() - startedAt),
+    }
+    return serialized
   } catch (error) {
     if (import.meta.env.DEV) console.warn('[save] snapshot serialization failed', error)
     reportSavePersistenceIssue('write_failed', 'serialization_failed')
@@ -305,10 +394,29 @@ function serialize(value: unknown): string | null {
 }
 
 function writeStorage(key: string, serialized: string): boolean {
+  if (persistenceWriteBlockedReason !== null) return false
+  const startedAt = nowMs()
+  const serializedBytes = byteLength(serialized)
   try {
     localStorage.setItem(key, serialized)
+    const isSnapshotPayload =
+      key.startsWith(SAVED_RUN_SLOT_KEY_PREFIX) || key.startsWith(SAVED_STATE_KEY_PREFIX)
+    lastSavePersistenceDiagnostics = {
+      ...lastSavePersistenceDiagnostics,
+      blockedReason: null,
+      lastKey: isSnapshotPayload ? key : lastSavePersistenceDiagnostics.lastKey,
+      lastSnapshotBytes: isSnapshotPayload
+        ? serializedBytes
+        : lastSavePersistenceDiagnostics.lastSnapshotBytes,
+      lastWriteMs: Math.max(0, nowMs() - startedAt),
+    }
     if (import.meta.env.DEV) {
-      console.debug(`[save] wrote ${key} (${new Blob([serialized]).size} bytes)`)
+      console.debug(`[save] wrote ${key} (${serializedBytes} bytes)`)
+      if (isSnapshotPayload && serializedBytes >= SAVE_SNAPSHOT_WARNING_BYTES) {
+        console.warn(
+          `[save] snapshot is ${serializedBytes} bytes; persistence budget warning is ${SAVE_SNAPSHOT_WARNING_BYTES} bytes`
+        )
+      }
     }
     return true
   } catch (error) {
@@ -318,6 +426,7 @@ function writeStorage(key: string, serialized: string): boolean {
 }
 
 export function saveSeasonSnapshot(key: string, snapshot: SavedSeasonSnapshot): boolean {
+  if (persistenceWriteBlockedReason !== null) return false
   const serialized = serialize(snapshot)
   return serialized !== null && writeStorage(key, serialized)
 }
@@ -528,6 +637,7 @@ export function loadSavedRunProfile(profileId: string): SavedRunProfile {
 }
 
 export function saveRunProfile(profile: SavedRunProfile): boolean {
+  if (persistenceWriteBlockedReason !== null) return false
   const saved = persistSplitProfile(profile)
   if (saved) {
     try {
@@ -540,6 +650,7 @@ export function saveRunProfile(profile: SavedRunProfile): boolean {
 }
 
 export function saveRunSnapshot(profileId: string, snapshot: SavedSeasonSnapshot): boolean {
+  if (persistenceWriteBlockedReason !== null) return false
   const mode = normalizeGameMode(snapshot.game.mode)
   const slot = getSavedRunSlot(snapshot.game)
   const runId = getRunId(snapshot)
@@ -643,6 +754,33 @@ export function getLastPlayedRun(profileId: string): SavedSeasonSnapshot | null 
 }
 
 export function clearSavedRun(profileId: string, mode: SavedRunSlot): void {
+  // Deleting a run can free the quota that tripped the circuit breaker.
+  retrySavePersistenceWrites()
+
+  const metadata = loadSplitMetadata(profileId)
+  if (metadata) {
+    const slotKey = savedRunSlotKeyForProfile(profileId, mode)
+    const removedRunId = getRunId(loadSeasonSnapshot(slotKey) ?? undefined)
+    try {
+      // Free the large payload first. This makes abandon/delete resilient even
+      // when the browser was already at its quota limit.
+      localStorage.removeItem(slotKey)
+      localStorage.removeItem(savedStateKeyForProfile(profileId))
+      const nextMetadata: SavedRunProfileMetadata = {
+        ...metadata,
+        activeRunId: metadata.activeRunId === removedRunId ? null : metadata.activeRunId,
+        lastPlayedRunId:
+          metadata.lastPlayedRunId === removedRunId ? null : metadata.lastPlayedRunId,
+        savedAt: new Date().toISOString(),
+      }
+      const raw = serialize(nextMetadata)
+      if (raw !== null) writeStorage(savedRunsKeyForProfile(profileId), raw)
+    } catch (error) {
+      reportSavePersistenceIssue('write_failed', classifyWriteFailure(error))
+    }
+    return
+  }
+
   const current = loadSavedRunProfile(profileId)
   const nextRuns = { ...current.runs }
   delete nextRuns[mode]
@@ -661,5 +799,19 @@ export function clearSeasonSnapshot(key: string): void {
     localStorage.removeItem(key)
   } catch {
     // Ignore.
+  }
+}
+
+/** Remove every persistence record owned by a profile. Safe to call during deletion. */
+export function clearProfileSaveStorage(profileId: string): void {
+  try {
+    localStorage.removeItem(savedStateKeyForProfile(profileId))
+    localStorage.removeItem(savedRunsKeyForProfile(profileId))
+    for (const slot of ALL_RUN_SLOTS) {
+      localStorage.removeItem(savedRunSlotKeyForProfile(profileId, slot))
+    }
+    retrySavePersistenceWrites()
+  } catch {
+    // Deletion remains best-effort when browser storage is unavailable.
   }
 }

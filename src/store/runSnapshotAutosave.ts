@@ -6,7 +6,7 @@ import {
 } from './saveStatePersistence'
 
 /** Trailing save window for autonomous simulation churn. Lifecycle boundaries flush immediately. */
-export const RUN_SNAPSHOT_AUTOSAVE_DELAY_MS = 1500
+export const RUN_SNAPSHOT_AUTOSAVE_DELAY_MS = 4000
 
 type SaveRunSnapshot = (profileId: string, snapshot: SavedSeasonSnapshot) => boolean
 
@@ -57,8 +57,8 @@ function readPersistenceRevision(profileId: string): string | null | undefined {
 
 /**
  * Coalesces a synchronous burst of Redux updates into one durable save per
- * profile/run slot without keeping gameplay progress pending longer than the
- * current JavaScript task. The latest snapshot wins inside that burst and
+ * profile/run slot while avoiding repeated multi-hundred-kilobyte writes during
+ * autonomous social churn. The latest snapshot wins inside that window and
  * `flush()` remains synchronous for lifecycle boundaries such as visibility loss.
  *
  * The small profile metadata's active/last run identity acts as a persistence

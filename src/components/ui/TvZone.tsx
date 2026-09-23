@@ -23,7 +23,11 @@ import {
   selectAlivePlayers,
   syncPhaseBroadcasts,
 } from '../../store/gameSlice'
-import { createSavedSeasonSnapshot, saveRunSnapshot } from '../../store/saveStatePersistence'
+import {
+  createSavedSeasonSnapshot,
+  retrySavePersistenceWrites,
+  saveRunSnapshot,
+} from '../../store/saveStatePersistence'
 import { DEFAULT_SETTINGS, setAudio } from '../../store/settingsSlice'
 import { setMusicMix } from '../../store/uiSlice'
 import type { RootState } from '../../store/store'
@@ -1520,6 +1524,7 @@ export default function TvZone(props: TvZoneProps) {
   const handleSave = useCallback(() => {
     if (!canSave || !activeProfileId) return
 
+    retrySavePersistenceWrites()
     const currentState = reduxStore.getState()
     const ok = saveRunSnapshot(
       activeProfileId,

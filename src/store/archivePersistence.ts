@@ -44,3 +44,12 @@ export function loadSeasonArchives(key: string): SeasonArchive[] | undefined {
     return undefined;
   }
 }
+
+/** Remove a profile-scoped archive payload when that profile is deleted. */
+export function clearSeasonArchives(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Best-effort cleanup when storage is unavailable.
+  }
+}
