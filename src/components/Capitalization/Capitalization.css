@@ -628,7 +628,6 @@
   }
 }
 
-
 /* Premium Capitalization refresh */
 .capitalization {
   background:
@@ -643,7 +642,8 @@
 .capitalization__scoreboard {
   border-color: rgba(243, 199, 95, 0.15);
   background:
-    linear-gradient(145deg, rgba(17, 29, 35, 0.97), rgba(11, 20, 24, 0.97)), rgba(12, 21, 24, 0.96);
+    linear-gradient(145deg, rgba(17, 29, 35, 0.97), rgba(11, 20, 24, 0.97)),
+    rgba(12, 21, 24, 0.96);
   box-shadow:
     0 22px 56px rgba(0, 0, 0, 0.38),
     inset 0 1px rgba(255, 255, 255, 0.035);
@@ -697,7 +697,8 @@
   place-items: center;
   background:
     radial-gradient(circle at 50% 44%, rgba(19, 105, 145, 0.28), transparent 45%),
-    radial-gradient(circle at 50% 95%, rgba(243, 199, 95, 0.09), transparent 36%), #040b10;
+    radial-gradient(circle at 50% 95%, rgba(243, 199, 95, 0.09), transparent 36%),
+    #040b10;
 }
 
 .capitalization__globe-panel::before {
@@ -740,7 +741,8 @@
 }
 
 .capitalization__globe-hero {
-  animation: capitalization-premium-globe-spin 2.6s cubic-bezier(0.22, 0.75, 0.2, 1) both;
+  animation: capitalization-premium-globe-spin 2.6s cubic-bezier(0.22, 0.75, 0.2, 1)
+    both;
 }
 
 .capitalization__continent-reveal {
@@ -814,7 +816,11 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, transparent 42%, rgba(7, 16, 21, 0.94) 100%);
+  background: linear-gradient(
+    to bottom,
+    transparent 42%,
+    rgba(7, 16, 21, 0.94) 100%
+  );
   pointer-events: none;
 }
 
@@ -843,7 +849,11 @@
 
 .capitalization__flag {
   border-color: rgba(243, 199, 95, 0.16);
-  background: linear-gradient(145deg, rgba(9, 21, 27, 0.94), rgba(21, 29, 27, 0.94));
+  background: linear-gradient(
+    145deg,
+    rgba(9, 21, 27, 0.94),
+    rgba(21, 29, 27, 0.94)
+  );
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
 }
 
@@ -879,7 +889,11 @@
 
 .capitalization__standing-card--leader {
   border-color: rgba(243, 199, 95, 0.5);
-  background: linear-gradient(120deg, rgba(243, 199, 95, 0.13), rgba(42, 116, 145, 0.08));
+  background: linear-gradient(
+    120deg,
+    rgba(243, 199, 95, 0.13),
+    rgba(42, 116, 145, 0.08)
+  );
 }
 
 .capitalization__rank {
