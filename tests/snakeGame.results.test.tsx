@@ -348,7 +348,7 @@ describe('SnakeGame leaderboard ordering — sortScoreEntries contract', () => {
       key: 'snake',
       participants: ['p0', 'p1', 'p2'],
       seed: 42,
-      options: {},
+      options: { timeLimit: 0 },
       aiScores: {},
       hybridResolveOnComplete: true,
     };
