@@ -69,7 +69,6 @@ jobs:
           -configuration Debug
           -sdk iphonesimulator
           ARCH=arm64
-          SWIFT_ENABLE_EXPLICIT_MODULES=NO
           CODE_SIGNING_REQUIRED=NO
           CODE_SIGNING_ALLOWED=NO
 
