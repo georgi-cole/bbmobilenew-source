@@ -744,6 +744,31 @@ export function getLastPlayedRun(profileId: string): SavedSeasonSnapshot | null 
 export function clearSavedRun(profileId: string, mode: SavedRunSlot): void {
   // Deleting a run can free the quota that tripped the circuit breaker.
   retrySavePersistenceWrites()
+
+  const metadata = loadSplitMetadata(profileId)
+  if (metadata) {
+    const slotKey = savedRunSlotKeyForProfile(profileId, mode)
+    const removedRunId = getRunId(loadSeasonSnapshot(slotKey) ?? undefined)
+    try {
+      // Free the large payload first. This makes abandon/delete resilient even
+      // when the browser was already at its quota limit.
+      localStorage.removeItem(slotKey)
+      localStorage.removeItem(savedStateKeyForProfile(profileId))
+      const nextMetadata: SavedRunProfileMetadata = {
+        ...metadata,
+        activeRunId: metadata.activeRunId === removedRunId ? null : metadata.activeRunId,
+        lastPlayedRunId:
+          metadata.lastPlayedRunId === removedRunId ? null : metadata.lastPlayedRunId,
+        savedAt: new Date().toISOString(),
+      }
+      const raw = serialize(nextMetadata)
+      if (raw !== null) writeStorage(savedRunsKeyForProfile(profileId), raw)
+    } catch (error) {
+      reportSavePersistenceIssue('write_failed', classifyWriteFailure(error))
+    }
+    return
+  }
+
   const current = loadSavedRunProfile(profileId)
   const nextRuns = { ...current.runs }
   delete nextRuns[mode]
