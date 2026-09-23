@@ -59,12 +59,18 @@ describe('durablePersistence', () => {
     const failure = vi.fn()
     setDurablePersistenceFailureListener(failure)
     backend.failWrites = true
+    const newKey = 'bbmobilenew:savedRunSlot:profile-1:voxPopuli'
     expect(setDurableItem(legacyKey, '{"version":2}')).toBe(true)
+    expect(setDurableItem(newKey, '{"step":1}')).toBe(true)
+    expect(setDurableItem(newKey, '{"step":2}')).toBe(true)
     expect(getDurableItem(legacyKey)).toBe('{"version":2}')
+    expect(getDurableItem(newKey)).toBe('{"step":2}')
     expect(await flushDurablePersistence()).toBe(false)
 
     expect(getDurableItem(legacyKey)).toBe('{"version":1}')
     expect(backend.values.get(legacyKey)).toBe('{"version":1}')
+    expect(getDurableItem(newKey)).toBeNull()
+    expect(backend.values.has(newKey)).toBe(false)
     expect(failure).toHaveBeenCalledWith('quota_exceeded', expect.any(DOMException))
 
     const diagnostics = getDurablePersistenceDiagnostics()
