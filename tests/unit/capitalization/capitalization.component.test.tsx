@@ -96,32 +96,60 @@ describe('Capitalization component', () => {
     });
   });
 
-  it('uses battle back copy on the final scoreboard when mounted in battle back mode', () => {
+  it('keeps every Back 2 the Game contestant active through all nine questions', () => {
     const onFinish = vi.fn();
+    const battleBackParticipants = participants.slice(0, 3);
+
     render(
       <Capitalization
         seed={44}
-        participants={participants}
+        participants={battleBackParticipants}
         onFinish={onFinish}
         context="battleBack"
       />,
     );
+
+    expect(
+      screen.getByText(/every return candidate plays all nine questions/i),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start Back 2 the Game' }));
 
     for (let question = 1; question <= 9; question += 1) {
       act(() => {
         vi.advanceTimersByTime(2700);
       });
 
+      expect(screen.getByLabelText('Capital city answer')).not.toBeDisabled();
       fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
-      fireEvent.click(
-        screen.getByRole('button', {
-          name: 'Continue',
-        }),
-      );
+
+      if (question === 3 || question === 6) {
+        expect(
+          screen.getByText(/all contestants remain in play/i),
+        ).toBeInTheDocument();
+        expect(screen.getAllByText('In play', { exact: false })).toHaveLength(3);
+        expect(screen.queryByText(/Out Q\d+/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Eliminated$/)).not.toBeInTheDocument();
+      }
+
+      if (question < 9) {
+        fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      }
     }
 
     expect(screen.queryByText('Crown LOH')).not.toBeInTheDocument();
     expect(screen.getByText(/won the right to return to the game/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\/9 correct/)).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+
     expect(onFinish).toHaveBeenCalledTimes(1);
+    expect(onFinish.mock.calls[0][2]).toMatchObject({
+      authoritativeWinnerId: expect.any(String),
+      rawResults: expect.objectContaining({
+        human: expect.any(Number),
+        'ai-1': expect.any(Number),
+        'ai-2': expect.any(Number),
+      }),
+    });
   });
 });
