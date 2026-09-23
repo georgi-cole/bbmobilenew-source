@@ -802,7 +802,6 @@ export function clearSeasonSnapshot(key: string): void {
   }
 }
 
-
 /** Remove every persistence record owned by a profile. Safe to call during deletion. */
 export function clearProfileSaveStorage(profileId: string): void {
   try {
