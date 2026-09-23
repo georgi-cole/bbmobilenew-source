@@ -852,22 +852,25 @@ test.describe('Real player core journeys', () => {
     await expect(page.getByRole('button', { name: playerName, exact: true })).toBeVisible()
 
     await expect
-      .poll(async () => {
-        const [metadataRaw, migratedClassicRaw] = await Promise.all([
-          readDurableItem(page, fixture.runsKey),
-          readDurableItem(page, fixture.classicRunKey),
-        ])
-        if (!metadataRaw || !migratedClassicRaw) return null
-        const metadata = JSON.parse(metadataRaw) as { version?: number }
-        const migratedClassic = JSON.parse(migratedClassicRaw) as {
-          game?: { phase?: string; runId?: string; gameId?: string }
-        }
-        return {
-          phase: migratedClassic.game?.phase ?? null,
-          runIdentity: migratedClassic.game?.runId ?? migratedClassic.game?.gameId ?? null,
-          version: metadata.version ?? null,
-        }
-      }, { timeout: SCREEN_TIMEOUT_MS })
+      .poll(
+        async () => {
+          const [metadataRaw, migratedClassicRaw] = await Promise.all([
+            readDurableItem(page, fixture.runsKey),
+            readDurableItem(page, fixture.classicRunKey),
+          ])
+          if (!metadataRaw || !migratedClassicRaw) return null
+          const metadata = JSON.parse(metadataRaw) as { version?: number }
+          const migratedClassic = JSON.parse(migratedClassicRaw) as {
+            game?: { phase?: string; runId?: string; gameId?: string }
+          }
+          return {
+            phase: migratedClassic.game?.phase ?? null,
+            runIdentity: migratedClassic.game?.runId ?? migratedClassic.game?.gameId ?? null,
+            version: metadata.version ?? null,
+          }
+        },
+        { timeout: SCREEN_TIMEOUT_MS }
+      )
       .toEqual({ phase: 'loh_comp', runIdentity: fixture.runIdentity, version: 2 })
 
     await saveAndReturnHome(page)
@@ -899,7 +902,10 @@ test.describe('Real player core journeys', () => {
       .toBeNull()
     const [unrelated, quarantined] = await Promise.all([
       readDurableItem(page, unrelatedKey),
-      page.evaluate((recoveryKey) => sessionStorage.getItem(recoveryKey), CORRUPT_SAVE_RECOVERY_KEY),
+      page.evaluate(
+        (recoveryKey) => sessionStorage.getItem(recoveryKey),
+        CORRUPT_SAVE_RECOVERY_KEY
+      ),
     ])
     expect({ current: null, quarantined, unrelated }).toEqual({
       current: null,
