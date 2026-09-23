@@ -21,7 +21,6 @@ function entries(count: number) {
 }
 
 describe('saveStateCompaction', () => {
-
   it('bounds persisted TV/history while retaining queued broadcast targets', () => {
     const tvFeed = Array.from({ length: 500 }, (_, index) => ({
       id: `event-${index}`,
