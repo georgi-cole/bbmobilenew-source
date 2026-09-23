@@ -1,4 +1,12 @@
-import { closeDebugPanelIfOpen, expect, readAppState, test, type Page } from './support/test'
+import {
+  closeDebugPanelIfOpen,
+  expect,
+  readAppState,
+  readDurableItem,
+  test,
+  type Page,
+  writeDurableItem,
+} from './support/test'
 
 const PROFILE_ID = 'e2e-reward-profile'
 const PROFILE_NAME = 'Reward Journey Player'
@@ -152,81 +160,74 @@ async function closePhaseInformationIfPresent(page: Page): Promise<void> {
   }
 }
 
-async function createWeekTwoEnergyFixture(page: Page): Promise<{ humanId: string; lohId: string }> {
-  return page.evaluate(
-    ({ adsStorageKey, classicRunKey, savedRunsKey }) => {
-      const raw = localStorage.getItem(classicRunKey)
-      if (!raw) throw new Error('profile-scoped Classic save is missing')
+async function createWeekTwoEnergyFixture(
+  page: Page
+): Promise<{ humanId: string; lohId: string }> {
+  const raw = await readDurableItem(page, CLASSIC_RUN_KEY)
+  if (!raw) throw new Error('profile-scoped Classic save is missing')
 
-      const snapshot = JSON.parse(raw) as {
-        savedAt?: string
-        game?: {
-          lohId?: string | null
-          nomineeIds?: string[]
-          phase?: string
-          players?: Array<{
-            id: string
-            isUser?: boolean
-            stats?: { lohWins?: number }
-            status?: string
-          }>
-          posWinnerId?: string | null
-          povSavedId?: string | null
-          prevHohId?: string | null
-          week?: number
-        }
-        social?: {
-          energyBank?: Record<string, number>
-          panelOpen?: boolean
-        }
-      }
-      const game = snapshot?.game
-      const social = snapshot?.social
-      if (!snapshot || !game || !social || !game.players || !social.energyBank) {
-        throw new Error('Classic save does not contain a complete game and social snapshot')
-      }
-
-      const human = game.players.find((player) => player.isUser)
-      const loh = game.players.find((player) => !player.isUser && player.status !== 'evicted')
-      if (!human || !loh) throw new Error('fixture needs one human and one active AI housemate')
-
-      for (const player of game.players) {
-        if (player.status !== 'evicted' && player.status !== 'jury') player.status = 'active'
-      }
-      human.status = 'active'
-      loh.status = 'loh'
-      loh.stats = { ...loh.stats, lohWins: Math.max(1, loh.stats?.lohWins ?? 0) }
-
-      game.week = 2
-      game.phase = 'social_1'
-      game.lohId = loh.id
-      game.prevHohId = null
-      game.nomineeIds = []
-      game.posWinnerId = null
-      game.povSavedId = null
-      social.energyBank[human.id] = 0
-      social.panelOpen = false
-
-      const savedAt = '2026-07-21T00:01:00.000Z'
-      snapshot.savedAt = savedAt
-      localStorage.setItem(classicRunKey, JSON.stringify(snapshot))
-
-      const metadataRaw = localStorage.getItem(savedRunsKey)
-      if (metadataRaw) {
-        const metadata = JSON.parse(metadataRaw) as { savedAt?: string }
-        metadata.savedAt = savedAt
-        localStorage.setItem(savedRunsKey, JSON.stringify(metadata))
-      }
-      localStorage.removeItem(adsStorageKey)
-
-      return { humanId: human.id, lohId: loh.id }
-    },
-    {
-      adsStorageKey: ADS_STORAGE_KEY,
-      classicRunKey: CLASSIC_RUN_KEY,
-      savedRunsKey: SAVED_RUNS_KEY,
+  const snapshot = JSON.parse(raw) as {
+    savedAt?: string
+    game?: {
+      lohId?: string | null
+      nomineeIds?: string[]
+      phase?: string
+      players?: Array<{
+        id: string
+        isUser?: boolean
+        stats?: { lohWins?: number }
+        status?: string
+      }>
+      posWinnerId?: string | null
+      povSavedId?: string | null
+      prevHohId?: string | null
+      week?: number
     }
-  )
+    social?: {
+      energyBank?: Record<string, number>
+      panelOpen?: boolean
+    }
+  }
+  const game = snapshot?.game
+  const social = snapshot?.social
+  if (!snapshot || !game || !social || !game.players || !social.energyBank) {
+    throw new Error('Classic save does not contain a complete game and social snapshot')
+  }
+
+  const human = game.players.find((player) => player.isUser)
+  const loh = game.players.find((player) => !player.isUser && player.status !== 'evicted')
+  if (!human || !loh) throw new Error('fixture needs one human and one active AI housemate')
+
+  for (const player of game.players) {
+    if (player.status !== 'evicted' && player.status !== 'jury') player.status = 'active'
+  }
+  human.status = 'active'
+  loh.status = 'loh'
+  loh.stats = { ...loh.stats, lohWins: Math.max(1, loh.stats?.lohWins ?? 0) }
+
+  game.week = 2
+  game.phase = 'social_1'
+  game.lohId = loh.id
+  game.prevHohId = null
+  game.nomineeIds = []
+  game.posWinnerId = null
+  game.povSavedId = null
+  social.energyBank[human.id] = 0
+  social.panelOpen = false
+
+  const savedAt = '2026-07-21T00:01:00.000Z'
+  snapshot.savedAt = savedAt
+  await writeDurableItem(page, CLASSIC_RUN_KEY, JSON.stringify(snapshot))
+
+  const metadataRaw = await readDurableItem(page, SAVED_RUNS_KEY)
+  if (metadataRaw) {
+    const metadata = JSON.parse(metadataRaw) as { savedAt?: string }
+    metadata.savedAt = savedAt
+    await writeDurableItem(page, SAVED_RUNS_KEY, JSON.stringify(metadata))
+  }
+
+  await page.evaluate((adsStorageKey) => localStorage.removeItem(adsStorageKey), ADS_STORAGE_KEY)
+  return { humanId: human.id, lohId: loh.id }
 }
 
 test.describe('Rewarded social-energy economy journey', () => {
