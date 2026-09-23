@@ -631,9 +631,11 @@
 /* Premium Capitalization refresh */
 .capitalization {
   background:
-    radial-gradient(circle at 50% -10%, rgba(34, 144, 196, 0.2), transparent 40%),
-    radial-gradient(circle at 14% 28%, rgba(243, 199, 95, 0.1), transparent 32%),
-    linear-gradient(155deg, #071117 0%, #0b161b 46%, #121715 100%);
+    linear-gradient(180deg, rgba(3, 10, 14, 0.5), rgba(4, 11, 16, 0.78)),
+    radial-gradient(circle at 50% -10%, rgba(34, 144, 196, 0.16), transparent 42%),
+    radial-gradient(circle at 14% 28%, rgba(243, 199, 95, 0.08), transparent 34%),
+    url('../../assets/capitalization/capitalization-background.webp') center top / cover no-repeat,
+    #071117;
 }
 
 .capitalization__header,
@@ -642,7 +644,8 @@
 .capitalization__scoreboard {
   border-color: rgba(243, 199, 95, 0.15);
   background:
-    linear-gradient(145deg, rgba(17, 29, 35, 0.97), rgba(11, 20, 24, 0.97)), rgba(12, 21, 24, 0.96);
+    linear-gradient(145deg, rgba(17, 29, 35, 0.91), rgba(11, 20, 24, 0.92)), rgba(12, 21, 24, 0.9);
+  backdrop-filter: blur(10px);
   box-shadow:
     0 22px 56px rgba(0, 0, 0, 0.38),
     inset 0 1px rgba(255, 255, 255, 0.035);
@@ -729,25 +732,31 @@
 .capitalization__globe-hero,
 .capitalization__continent-reveal {
   position: absolute;
-  inset: 5%;
-  width: 90%;
-  height: 90%;
-  object-fit: contain;
-  border-radius: 50%;
   user-select: none;
   -webkit-user-drag: none;
 }
 
 .capitalization__globe-hero {
+  inset: 5%;
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  border-radius: 50%;
   animation: capitalization-premium-globe-spin 2.6s cubic-bezier(0.22, 0.75, 0.2, 1) both;
 }
 
 .capitalization__continent-reveal {
+  width: 92%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid rgba(243, 199, 95, 0.28);
+  border-radius: 22px;
   opacity: 0;
   transform: scale(0.72);
   animation: capitalization-continent-arrival 2.6s ease-out both;
   box-shadow:
-    0 0 0 1px rgba(243, 199, 95, 0.26),
+    0 0 0 1px rgba(243, 199, 95, 0.08),
+    0 24px 64px rgba(0, 0, 0, 0.42),
     0 0 56px rgba(243, 199, 95, 0.17);
 }
 
@@ -796,13 +805,13 @@
 .capitalization__question-panel {
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 0%, rgba(52, 145, 184, 0.12), transparent 36%),
-    rgba(13, 23, 28, 0.97);
+    radial-gradient(circle at 50% 0%, rgba(52, 145, 184, 0.11), transparent 38%),
+    rgba(13, 23, 28, 0.9);
 }
 
 .capitalization__continent-hero {
   position: relative;
-  height: 150px;
+  height: 180px;
   margin: -18px -18px 0;
   overflow: hidden;
   border-bottom: 1px solid rgba(243, 199, 95, 0.18);
@@ -820,10 +829,9 @@
 .capitalization__continent-hero img {
   width: 100%;
   height: 100%;
-  padding: 8px 12px;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
-  transform: scale(1.04);
+  transform: scale(1.02);
   animation: capitalization-continent-hero-enter 520ms ease-out both;
 }
 
@@ -967,11 +975,11 @@
 
 @keyframes capitalization-continent-hero-enter {
   from {
-    transform: scale(1.11);
-    opacity: 0.4;
+    transform: scale(1.08);
+    opacity: 0.35;
   }
   to {
-    transform: scale(1.04);
+    transform: scale(1.02);
     opacity: 1;
   }
 }
@@ -1005,7 +1013,12 @@
   }
 
   .capitalization__continent-hero {
-    height: 112px;
+    height: 132px;
     margin: -14px -14px 0;
+  }
+
+  .capitalization__continent-reveal {
+    width: 94%;
+    border-radius: 16px;
   }
 }
