@@ -31,7 +31,6 @@ describe('saveStatePersistence survivor progression', () => {
     retrySavePersistenceWrites()
   })
 
-
   it('opens a circuit breaker after quota exhaustion and only retries on demand', () => {
     const snapshot = {
       version: 1,
