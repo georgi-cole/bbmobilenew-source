@@ -1,3 +1,4 @@
+import { getDurableItem } from './durablePersistence'
 import {
   getSavedRunSlot,
   savedRunsKeyForProfile,
@@ -39,7 +40,7 @@ function snapshotRunId(snapshot: SavedSeasonSnapshot): string | null {
  */
 function readPersistenceRevision(profileId: string): string | null | undefined {
   try {
-    const raw = localStorage.getItem(savedRunsKeyForProfile(profileId))
+    const raw = getDurableItem(savedRunsKeyForProfile(profileId))
     if (!raw) return null
     const parsed = JSON.parse(raw) as {
       activeRunId?: unknown
