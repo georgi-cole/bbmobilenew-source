@@ -4,7 +4,7 @@ Eyeoleans are the persistent soft currency for the player profile. They replace 
 
 ## Product rules
 
-Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score.
+Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score. Season-performance rewards are calculated from canonical stats and banked at settlement, so the finale acts as a payday rather than every individual action minting currency.
 
 | Result                           |                                          Eyeoleans |
 | -------------------------------- | -------------------------------------------------: |
@@ -17,7 +17,7 @@ Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbi
 | Back 2 the Game win              |                                         8,000 each |
 | Tribunal member                  |                                              5,000 |
 | Survive double eviction          |                                              7,000 |
-| Survive triple eviction          |                                             10,000 |
+| Survive triple eviction          |              10,000 when an authoritative flag exists |
 | Correct Public Favorite forecast |                                              2,500 |
 
 The starting values deliberately preserve the relative shape of the former season score model at 1 point = 1,000 Eyeoleans, while removing the old special-case rule that reduced the combined reward when one player won both the season and Public Favorite. Currency rewards are additive.
@@ -35,11 +35,13 @@ For the first economy version, these do **not** credit the persistent wallet:
 
 This prevents players from optimizing repetitive actions instead of trying to play the season well, and keeps future Store prices economically meaningful.
 
+Double-eviction survival is already recorded by the game when that twist resolves. Triple-elimination history exists in recap data, but there is not yet a canonical player-level triple-survival mutation in the current engine; the 10,000 reward is therefore reserved and will only pay once that authoritative flag is produced.
+
 ## Persistence and idempotency
 
 The wallet lives on the selected local profile and is persisted by the existing profile persistence layer.
 
-A season is settled with a stable settlement ID. Reopening/reloading the finale therefore cannot pay the same season twice. Store debits also require a transaction ID and are rejected when duplicated or when the balance is insufficient.
+A season is settled with a stable settlement ID. Reopening/reloading the finale therefore cannot pay the same season twice. Store debits also require a transaction ID and are rejected when duplicated or when the balance is insufficient. Recent ledger rows can be trimmed for display without losing the longer-lived processed transaction IDs used for duplicate protection.
 
 Guest play can show the season's calculated payout, but does not bank it because guest profiles are intentionally non-persistent.
 
