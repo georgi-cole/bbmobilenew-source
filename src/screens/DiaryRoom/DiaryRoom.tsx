@@ -678,6 +678,59 @@ export default function DiaryRoom() {
       .slice(0, 6)
     const nameFor = (id: string | null | undefined) => (id ? (playerNameById.get(id) ?? id) : null)
 
+    const formalAlliances = Object.values(realityDomain.alliances ?? {})
+      .filter(
+        (alliance) =>
+          alliance.memberIds.includes(playerId) &&
+          alliance.status !== 'DISSOLVED'
+      )
+      .map((alliance) => ({
+        id: alliance.id,
+        name: alliance.name?.trim() || null,
+        memberNames: alliance.memberIds.map((id) => nameFor(id) ?? id),
+        status: alliance.status,
+      }))
+
+    const legacyAllianceNames =
+      formalAlliances.length === 0
+        ? relationshipRows
+            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
+            .map((row) => row.name)
+        : []
+
+    const alliances =
+      formalAlliances.length > 0
+        ? formalAlliances
+        : legacyAllianceNames.length > 0
+          ? [
+              {
+                id: 'relationship-allies',
+                name: null,
+                memberNames: [playerName, ...legacyAllianceNames],
+                status: 'ACTIVE',
+              },
+            ]
+          : []
+
+    const publicFeed = gameState.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
+    const recentEvictedNames: string[] = []
+    const pendingEvicteeName = nameFor(gameState.pendingEviction?.evicteeId)
+    if (pendingEvicteeName) recentEvictedNames.push(pendingEvicteeName)
+    for (const eventText of [...publicFeed].reverse()) {
+      const normalized = eventText.toLowerCase()
+      if (
+        !normalized.includes('evicted') &&
+        !normalized.includes('eliminated') &&
+        !normalized.includes('went home') &&
+        !normalized.includes('left the house')
+      ) {
+        continue
+      }
+      const matched = players.find((player) => normalized.includes(player.name.toLowerCase()))
+      if (matched && !recentEvictedNames.includes(matched.name)) recentEvictedNames.push(matched.name)
+      if (recentEvictedNames.length >= 2) break
+    }
+
     return {
       season: gameState.season,
       week: gameState.week,
@@ -695,19 +748,24 @@ export default function DiaryRoom() {
         timesNominated: userPlayer?.stats?.timesNominated ?? 0,
       },
       closestRelationships: relationshipRows,
-      recentPublicEvents: gameState.tvFeed.slice(-8).map((event) => event.text.slice(0, 280)),
+      alliances,
+      recentEvictedNames,
+      recentPublicEvents: publicFeed.slice(-8),
     }
   }, [
     gameState.lohId,
     gameState.nomineeIds,
+    gameState.pendingEviction,
     gameState.phase,
     gameState.posWinnerId,
     gameState.season,
     gameState.tvFeed,
     gameState.week,
     playerId,
+    playerName,
     playerNameById,
     players,
+    realityDomain.alliances,
     socialRelationships,
     userPlayer,
   ])
