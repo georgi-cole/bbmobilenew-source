@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { EyeoleanRewardLine } from '../economy/eyeoleans'
 import profilesReducer, {
+  armEyeoleanStorePower,
+  consumeEyeoleanStorePower,
   createProfile,
   purchaseEyeoleanStoreProduct,
+  returnEyeoleanStorePower,
   settleSeasonEyeoleans,
   spendEyeoleans,
 } from './profilesSlice'
@@ -198,4 +201,79 @@ describe('Eyeolean profile wallet', () => {
     expect(state.profiles[0]?.eyeoleanInventory).toEqual({})
     expect(state.profiles[0]?.eyeoleanTransactions).toEqual([])
   })
+
+  it('reserves one purchased power and returns it without loss when disarmed', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    state = profilesReducer(
+      state,
+      settleSeasonEyeoleans({ seasonId: 'eyeoleans:season:1:game-a', rewards: REWARDS })
+    )
+    state = profilesReducer(
+      state,
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'store:extra-vote:reserve',
+        productKey: 'extra_vote',
+      })
+    )
+
+    state = profilesReducer(
+      state,
+      armEyeoleanStorePower({
+        productKey: 'extra_vote',
+        gameId: 'game-a',
+        season: 1,
+        week: 3,
+      })
+    )
+
+    expect(state.profiles[0]?.eyeoleanInventory?.extra_vote).toBe(0)
+    expect(state.profiles[0]?.eyeoleanPowerReservations?.extra_vote).toMatchObject({
+      productKey: 'extra_vote',
+      gameId: 'game-a',
+      season: 1,
+      armedWeek: 3,
+    })
+
+    state = profilesReducer(
+      state,
+      returnEyeoleanStorePower({ productKey: 'extra_vote', gameId: 'game-a' })
+    )
+
+    expect(state.profiles[0]?.eyeoleanInventory?.extra_vote).toBe(1)
+    expect(state.profiles[0]?.eyeoleanPowerReservations?.extra_vote).toBeUndefined()
+  })
+
+  it('consumes an armed power without refund only after gameplay confirms use', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    state = profilesReducer(
+      state,
+      settleSeasonEyeoleans({ seasonId: 'eyeoleans:season:1:game-a', rewards: REWARDS })
+    )
+    state = profilesReducer(
+      state,
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'store:remove-vote:reserve',
+        productKey: 'remove_vote',
+      })
+    )
+    state = profilesReducer(
+      state,
+      armEyeoleanStorePower({
+        productKey: 'remove_vote',
+        gameId: 'game-a',
+        season: 1,
+        week: 4,
+      })
+    )
+
+    state = profilesReducer(
+      state,
+      consumeEyeoleanStorePower({ productKey: 'remove_vote', gameId: 'game-a' })
+    )
+
+    expect(state.profiles[0]?.eyeoleanInventory?.remove_vote).toBe(0)
+    expect(state.profiles[0]?.eyeoleanPowerReservations?.remove_vote).toBeUndefined()
+    expect(state.profiles[0]?.eyeoleans).toBe(115_000)
+  })
+
 })
