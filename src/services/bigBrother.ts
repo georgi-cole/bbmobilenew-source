@@ -112,7 +112,6 @@ export interface BigEyeTurnAnalysis {
   nextLocalState: BigEyeConversationState
 }
 
-
 const DIRECTOR_TIMEOUT_MS = 22000
 
 function clamp(value: number, min: number, max: number): number {
@@ -261,10 +260,10 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
   )
   const deterministicIntelligence = Boolean(
     frame.knowledgeQuery ||
-      frame.contradiction ||
-      frame.speechAct === 'challenge_request' ||
-      frame.speechAct === 'prediction' ||
-      frame.speechAct === 'answer'
+    frame.contradiction ||
+    frame.speechAct === 'challenge_request' ||
+    frame.speechAct === 'prediction' ||
+    frame.speechAct === 'answer'
   )
   const directorEligible = !authoredFlow && !deterministicIntelligence
   const route: BigEyeTurnRoute = authoredFlow
@@ -273,20 +272,19 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
       ? 'deterministic'
       : 'generative'
 
-  const localText =
-    authoredFlow
-      ? reply.text
-      : directLocalBigEyeReply({
-          diaryText: payload.diaryText,
-          playerName: payload.playerName,
-          seed: payload.seed,
-          intent: semanticIntent,
-          state,
-          history: payload.history,
-          memorySummary: payload.memorySummary,
-          world: payload.world,
-          frame,
-        }) || reply.text
+  const localText = authoredFlow
+    ? reply.text
+    : directLocalBigEyeReply({
+        diaryText: payload.diaryText,
+        playerName: payload.playerName,
+        seed: payload.seed,
+        intent: semanticIntent,
+        state,
+        history: payload.history,
+        memorySummary: payload.memorySummary,
+        world: payload.world,
+        frame,
+      }) || reply.text
 
   const localMemorySummary = updateLocalBigEyeMemory({
     diaryText: payload.diaryText,
@@ -370,4 +368,3 @@ export async function generateBigBrotherReply(
     vipEligible: analysis.vipEligible,
   }
 }
-

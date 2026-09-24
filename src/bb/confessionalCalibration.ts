@@ -4,10 +4,7 @@ import {
   type BigEyeConversationState,
   type BigEyeIntent,
 } from './confessionalBigEye'
-import {
-  getSalientConfessionalObservation,
-  type BigEyeWorldSnapshot,
-} from './confessionalSalience'
+import { getSalientConfessionalObservation, type BigEyeWorldSnapshot } from './confessionalSalience'
 import type {
   ConfessionalEmotion,
   ConfessionalSalienceEvent,
@@ -379,7 +376,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Closest relationship',
     category: 'knowledge',
     tier: 'contract',
-    description: 'The strongest measured relationship should be framed as a signal, not secret loyalty.',
+    description:
+      'The strongest measured relationship should be framed as a signal, not secret loyalty.',
     turns: [
       {
         text: 'Who am I closest to?',
@@ -581,7 +579,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Two-turn belief update',
     category: 'continuity',
     tier: 'calibration',
-    description: 'A later trust reversal should replace the compact belief rather than endlessly stack.',
+    description:
+      'A later trust reversal should replace the compact belief rather than endlessly stack.',
     turns: [
       {
         text: 'I trust Maya.',
@@ -803,7 +802,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Player asks about The Eye',
     category: 'character',
     tier: 'calibration',
-    description: 'A social question should keep the character voice instead of generic assistance language.',
+    description:
+      'A social question should keep the character voice instead of generic assistance language.',
     turns: [
       {
         text: 'How are you doing?',
@@ -988,13 +988,7 @@ function evaluateTurn(
   }
   if (expected.topicsAll?.length) {
     const missing = expected.topicsAll.filter((topic) => !analysis.frame.topics.includes(topic))
-    addCheck(
-      checks,
-      'Topics',
-      expected.topicsAll,
-      analysis.frame.topics,
-      missing.length === 0
-    )
+    addCheck(checks, 'Topics', expected.topicsAll, analysis.frame.topics, missing.length === 0)
   }
   if (expected.emotionsAny?.length) {
     const actual = analysis.frame.emotions.map((emotion) => emotion.type)

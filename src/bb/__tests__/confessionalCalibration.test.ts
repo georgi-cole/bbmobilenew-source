@@ -12,7 +12,9 @@ describe('Confessional calibration lab', () => {
       CONFESSIONAL_CALIBRATION_SCENARIOS.length
     )
 
-    const categories = new Set(CONFESSIONAL_CALIBRATION_SCENARIOS.map((scenario) => scenario.category))
+    const categories = new Set(
+      CONFESSIONAL_CALIBRATION_SCENARIOS.map((scenario) => scenario.category)
+    )
     expect(categories).toEqual(
       new Set(['understanding', 'knowledge', 'continuity', 'authored', 'character', 'salience'])
     )

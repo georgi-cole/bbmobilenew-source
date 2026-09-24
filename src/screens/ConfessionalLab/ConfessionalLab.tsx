@@ -621,9 +621,11 @@ export default function ConfessionalLab() {
               </button>
             </div>
             <div className="clab__filters">
-              {(['all', ...Object.keys(CATEGORY_LABELS)] as Array<
-                'all' | ConfessionalCalibrationCategory
-              >).map((category) => (
+              {(
+                ['all', ...Object.keys(CATEGORY_LABELS)] as Array<
+                  'all' | ConfessionalCalibrationCategory
+                >
+              ).map((category) => (
                 <button
                   type="button"
                   key={category}

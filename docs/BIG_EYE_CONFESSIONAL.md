@@ -35,7 +35,6 @@ The lab calls the same pure routing analysis used by `generateBigBrotherReply`, 
 
 The JSON report button copies the active config revision plus contract/calibration failures, which makes it practical to compare behavior before and after a remote databank update.
 
-
 ## Why this architecture
 
 The previous implementation classified a small set of intents and selected a short template. It could recognize a topic, but it did not receive the season situation, relationship graph, recent dialogue, or any durable memory. The result was relevant but stateless and often aphoristic.

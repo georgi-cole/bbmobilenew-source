@@ -2,8 +2,7 @@
   min-height: 100%;
   padding: 1rem;
   background:
-    radial-gradient(circle at 85% 0%, rgba(99 102 241 / 0.12), transparent 32rem),
-    var(--color-bg);
+    radial-gradient(circle at 85% 0%, rgba(99 102 241 / 0.12), transparent 32rem), var(--color-bg);
   color: var(--color-text);
 }
 
