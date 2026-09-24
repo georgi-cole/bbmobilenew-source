@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useStore } from 'react-redux'
+import { useSelector, useStore } from 'react-redux'
 import {
   advance,
   awardFavoritePrize,
@@ -248,7 +248,9 @@ export function useTwistFlow({
     game.nomineeIds.length === (isCupidArrowActive(game) ? 6 : 3) &&
     !pendingPublicSaveResult
 
-  const publicSaveApprovals = useMemo(() => {
+  const publicOpinionFeed = useSelector((state: RootState) => state.publicOpinion.feed)
+
+  const publicSaveBaseApprovals = useMemo(() => {
     const out: Record<string, number> = {}
     game.nomineeIds.forEach((id) => {
       const partnerId = getCupidPartnerId(game, id)
@@ -268,23 +270,41 @@ export function useTwistFlow({
       const base = publicOpinionProfiles[id]
       adjusted[id] = {
         playerId: id,
-        approval: publicSaveApprovals[id] ?? 50,
-        previousApproval: base?.previousApproval ?? publicSaveApprovals[id] ?? 50,
+        approval: publicSaveBaseApprovals[id] ?? 50,
+        previousApproval: base?.previousApproval ?? publicSaveBaseApprovals[id] ?? 50,
         seasonApprovals: base?.seasonApprovals ?? [],
         completedDirectionCount: base?.completedDirectionCount ?? 0,
         cumulativePositiveDelta: base?.cumulativePositiveDelta ?? 0,
       }
     })
     return adjusted
-  }, [game, publicOpinionProfiles, publicSaveApprovals])
+  }, [game, publicOpinionProfiles, publicSaveBaseApprovals])
 
   const publicSaveResolution = useMemo(() => {
     if (!showPublicSaveReveal) return null
     return resolvePublicSaveNominee({
       nomineeIds: game.nomineeIds,
       profiles: pairAdjustedPublicProfiles,
+      context: {
+        seed: game.seed ?? 0,
+        week: game.week,
+        feed: publicOpinionFeed,
+        nominationCounts: Object.fromEntries(
+          game.players.map((player) => [player.id, player.stats?.timesNominated ?? 0])
+        ),
+      },
     })
-  }, [showPublicSaveReveal, game.nomineeIds, pairAdjustedPublicProfiles])
+  }, [
+    showPublicSaveReveal,
+    game.nomineeIds,
+    game.players,
+    game.seed,
+    game.week,
+    pairAdjustedPublicProfiles,
+    publicOpinionFeed,
+  ])
+  const publicSaveApprovals =
+    publicSaveResolution?.voteShareByPlayerId ?? publicSaveBaseApprovals
   const publicSaveWinnerId = publicSaveResolution?.savedId || null
 
   const publicSaveResultAnnouncement = useMemo<Announcement | null>(() => {
