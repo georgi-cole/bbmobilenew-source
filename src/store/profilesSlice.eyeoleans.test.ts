@@ -50,11 +50,18 @@ describe('Eyeolean profile wallet', () => {
     )
 
     const profileId = state.activeProfileId
-    const profile = state.profiles.find((entry) => entry.id === profileId)
-    if (!profile) throw new Error('profile missing in test setup')
-
-    profile.eyeoleanTransactions = []
-    profile.processedEyeoleanTransactionIds = ['store:old-skin']
+    state = {
+      ...state,
+      profiles: state.profiles.map((profile) =>
+        profile.id === profileId
+          ? {
+              ...profile,
+              eyeoleanTransactions: [],
+              processedEyeoleanTransactionIds: ['store:old-skin'],
+            }
+          : profile
+      ),
+    }
 
     state = profilesReducer(
       state,
