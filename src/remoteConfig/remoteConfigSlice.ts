@@ -21,6 +21,7 @@ import { SoundManager } from '../services/sound/SoundManager'
 import { setRemotePlayerOverrides } from '../utils/avatar'
 import { setRemoteSocialRuntimeConfig } from '../social/socialRuntimeConfig'
 import { setRemoteSeasonDirectorConfig } from '../features/twists/seasonDirector'
+import { setRemoteConfessionalConfig } from '../bb/confessionalRuntimeConfig'
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ if (_initialConfig?.players) {
 }
 setRemoteSocialRuntimeConfig(_initialConfig?.social ?? null)
 setRemoteSeasonDirectorConfig(_initialConfig?.director ?? null)
+setRemoteConfessionalConfig(_initialConfig?.confessional ?? null)
 
 const initialState: RemoteConfigState = {
   // Initialise from cache synchronously so the app has content on first render
@@ -80,6 +82,7 @@ export const loadRemoteConfig = createAsyncThunk<RemoteConfig | null>(
     setRemotePlayerOverrides(config?.players ?? [])
     setRemoteSocialRuntimeConfig(config?.social ?? null)
     setRemoteSeasonDirectorConfig(config?.director ?? null)
+    setRemoteConfessionalConfig(config?.confessional ?? null)
 
     return config
   }
@@ -97,6 +100,7 @@ const remoteConfigSlice = createSlice({
       setRemotePlayerOverrides(action.payload?.players ?? [])
       setRemoteSocialRuntimeConfig(action.payload?.social ?? null)
       setRemoteSeasonDirectorConfig(action.payload?.director ?? null)
+      setRemoteConfessionalConfig(action.payload?.confessional ?? null)
     },
   },
   extraReducers: (builder) => {
