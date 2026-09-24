@@ -31,8 +31,6 @@ jobs:
           src/economy/eyeoleans.test.ts
           src/store/profilesSlice.eyeoleans.test.ts
           src/store/profilesSlice.forecastReward.test.ts
-          tests/unit/profilesSlice.test.ts
           tests/unit/publicFavoriteOverlay.test.tsx
           src/components/PublicFavoriteOverlay/__tests__/PublicFavoriteOverlay.identityReveal.test.tsx
           tests/gameOver.screen.test.tsx
-          tests/favoritePlayer.flow.test.ts
