@@ -172,7 +172,7 @@ describe('PublicFavoriteOverlay', () => {
       await vi.advanceTimersByTimeAsync(2_100)
     })
 
-    const board = screen.getByRole('region', { name: 'Public vote ranking board' })
+    const board = screen.getByRole('region', { name: 'Top three live audience vote' })
     fireEvent.click(within(board).getByRole('button', { name: /Taylor, rank 1, 44%/i }))
     expect(screen.getByText(/This does not change the official result/i)).toBeInTheDocument()
 
