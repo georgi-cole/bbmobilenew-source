@@ -12,6 +12,10 @@
 //    creating circular Redux dependencies.
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  PUBLIC_FAVORITE_FORECAST_EYEOLEANS,
+  type EyeoleanRewardLine,
+} from '../economy/eyeoleans'
 import type { RootState } from './store'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -73,6 +77,24 @@ function coerceBellaProgress(raw: unknown): BellaProgress | undefined {
   }
 }
 
+export type EyeoleanTransactionSource =
+  | 'season_reward'
+  | 'forecast_reward'
+  | 'store_purchase'
+  | 'purchase_credit'
+  | 'adjustment'
+
+export interface EyeoleanTransaction {
+  /** Stable idempotency key. Duplicate IDs are never applied twice. */
+  id: string
+  /** Positive = credit, negative = spend. */
+  amount: number
+  source: EyeoleanTransactionSource
+  label: string
+  createdAt: string
+  seasonId?: string
+}
+
 export interface StoredProfile {
   /** Stable unique identifier (timestamp+random). */
   id: string
@@ -86,18 +108,29 @@ export interface StoredProfile {
   bio?: ProfileBio
   /** ISO timestamp when the profile was created. */
   createdAt: string
-  /** Permanent progression earned by this profile across all seasons. */
+  /**
+   * @deprecated Legacy XP is retained only so old profiles can be read safely.
+   * New progression uses the Eyeolean wallet.
+   */
   lifetimeXp?: number
+  /** Persistent soft-currency balance carried across seasons. */
+  eyeoleans?: number
+  /** Recent wallet ledger entries for auditability and future Store UI. */
+  eyeoleanTransactions?: EyeoleanTransaction[]
+  /** Season settlement IDs already paid; prevents finale reload/replay duplication. */
+  settledEyeoleanSeasonIds?: string[]
   /** Permanent achievement identifiers unlocked by this profile. */
   achievements?: string[]
-  /** Reward-event keys already paid, preventing a reload from duplicating XP. */
+  /** Reward-event keys already paid, preventing a reload from duplicating Eyeoleans. */
   forecastRewardEventIds?: string[]
   /** Permanent Bella discovery/casting cadence state. */
   bellaProgress?: BellaProgress
 }
 
 export const PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT = 'public_favorite_oracle'
-export const PUBLIC_FAVORITE_FORECAST_XP = 100
+
+const MAX_EYEOLEAN_TRANSACTIONS = 500
+const MAX_SETTLED_EYEOLEAN_SEASONS = 1000
 
 export interface ProfilesState {
   profiles: StoredProfile[]
@@ -137,12 +170,93 @@ function generateId(): string {
  * do not cause runtime errors downstream (e.g. new Date(createdAt) crashes,
  * rendering undefined name, etc.).
  */
+function coerceEyeoleanTransaction(raw: unknown): EyeoleanTransaction | null {
+  if (!raw || typeof raw !== 'object') return null
+  const value = raw as Partial<EyeoleanTransaction>
+  const allowedSources: EyeoleanTransactionSource[] = [
+    'season_reward',
+    'forecast_reward',
+    'store_purchase',
+    'purchase_credit',
+    'adjustment',
+  ]
+  if (
+    typeof value.id !== 'string' ||
+    !value.id ||
+    typeof value.amount !== 'number' ||
+    !Number.isFinite(value.amount) ||
+    value.amount === 0 ||
+    typeof value.source !== 'string' ||
+    !allowedSources.includes(value.source as EyeoleanTransactionSource) ||
+    typeof value.label !== 'string' ||
+    !value.label ||
+    typeof value.createdAt !== 'string' ||
+    !value.createdAt
+  ) {
+    return null
+  }
+
+  return {
+    id: value.id,
+    amount: Math.trunc(value.amount),
+    source: value.source as EyeoleanTransactionSource,
+    label: value.label,
+    createdAt: value.createdAt,
+    seasonId: typeof value.seasonId === 'string' && value.seasonId ? value.seasonId : undefined,
+  }
+}
+
+function appendEyeoleanTransaction(
+  profile: StoredProfile,
+  transaction: EyeoleanTransaction
+): boolean {
+  const transactions = profile.eyeoleanTransactions ?? []
+  if (transactions.some((entry) => entry.id === transaction.id)) return false
+
+  profile.eyeoleanTransactions = [...transactions, transaction].slice(-MAX_EYEOLEAN_TRANSACTIONS)
+  return true
+}
+
+function creditEyeoleans(
+  profile: StoredProfile,
+  transaction: Omit<EyeoleanTransaction, 'amount'> & { amount: number }
+): number {
+  const requested = Math.max(0, Math.floor(transaction.amount))
+  if (requested <= 0) return 0
+
+  const current = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
+  const next = Math.min(Number.MAX_SAFE_INTEGER, current + requested)
+  const credited = next - current
+  if (credited <= 0) return 0
+
+  if (!appendEyeoleanTransaction(profile, { ...transaction, amount: credited })) return 0
+  profile.eyeoleans = next
+  return credited
+}
+
 function coerceStoredProfile(raw: unknown): StoredProfile | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   // id and createdAt are required; discard the entry if either is missing.
   if (typeof r.id !== 'string' || !r.id) return null
   if (typeof r.createdAt !== 'string' || !r.createdAt) return null
+
+  const forecastRewardEventIds = Array.isArray(r.forecastRewardEventIds)
+    ? r.forecastRewardEventIds.filter(
+        (eventId): eventId is string => typeof eventId === 'string' && eventId.length > 0
+      )
+    : []
+  const storedEyeoleanBalance =
+    typeof r.eyeoleans === 'number' && Number.isFinite(r.eyeoleans)
+      ? Math.max(0, Math.floor(r.eyeoleans))
+      : null
+  // The only shipped XP award was the Public Favorite forecast. Preserve those
+  // earned rewards when an old profile first enters the Eyeolean economy.
+  const migratedForecastBalance =
+    storedEyeoleanBalance == null
+      ? forecastRewardEventIds.length * PUBLIC_FAVORITE_FORECAST_EYEOLEANS
+      : storedEyeoleanBalance
+
   return {
     id: r.id,
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'You',
@@ -154,14 +268,24 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
       typeof r.lifetimeXp === 'number' && Number.isFinite(r.lifetimeXp)
         ? Math.max(0, Math.floor(r.lifetimeXp))
         : 0,
+    eyeoleans: migratedForecastBalance,
+    eyeoleanTransactions: Array.isArray(r.eyeoleanTransactions)
+      ? r.eyeoleanTransactions
+          .map(coerceEyeoleanTransaction)
+          .filter((entry): entry is EyeoleanTransaction => entry !== null)
+          .slice(-MAX_EYEOLEAN_TRANSACTIONS)
+      : [],
+    settledEyeoleanSeasonIds: Array.isArray(r.settledEyeoleanSeasonIds)
+      ? r.settledEyeoleanSeasonIds
+          .filter((seasonId): seasonId is string => typeof seasonId === 'string' && seasonId.length > 0)
+          .slice(-MAX_SETTLED_EYEOLEAN_SEASONS)
+      : [],
     achievements: Array.isArray(r.achievements)
       ? r.achievements.filter(
           (achievement): achievement is string => typeof achievement === 'string'
         )
       : [],
-    forecastRewardEventIds: Array.isArray(r.forecastRewardEventIds)
-      ? r.forecastRewardEventIds.filter((eventId): eventId is string => typeof eventId === 'string')
-      : [],
+    forecastRewardEventIds,
     bellaProgress: coerceBellaProgress(r.bellaProgress),
   }
 }
@@ -271,6 +395,9 @@ const profilesSlice = createSlice({
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
         createdAt: new Date().toISOString(),
+        eyeoleans: 0,
+        eyeoleanTransactions: [],
+        settledEyeoleanSeasonIds: [],
       }
       state.profiles.push(profile)
       state.activeProfileId = profile.id
@@ -341,6 +468,76 @@ const profilesSlice = createSlice({
       profile.bellaProgress = progress
     },
 
+    /**
+     * Settle a completed season into the active profile wallet exactly once.
+     * Guest mode has no active profile, so nothing is banked.
+     */
+    settleSeasonEyeoleans(
+      state,
+      action: PayloadAction<{ seasonId: string; rewards: EyeoleanRewardLine[] }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      const seasonId = action.payload.seasonId.trim()
+      if (!profile || !seasonId) return
+
+      const settled = profile.settledEyeoleanSeasonIds ?? []
+      if (settled.includes(seasonId)) return
+
+      const createdAt = new Date().toISOString()
+      action.payload.rewards.forEach((reward) => {
+        const amount = Math.max(0, Math.floor(reward.amount))
+        if (amount <= 0) return
+        creditEyeoleans(profile, {
+          id: `${seasonId}:${reward.code}`,
+          amount,
+          source: 'season_reward',
+          label:
+            reward.quantity > 1
+              ? `${reward.label} ×${reward.quantity}`
+              : reward.label,
+          createdAt,
+          seasonId,
+        })
+      })
+
+      profile.settledEyeoleanSeasonIds = [...settled, seasonId].slice(
+        -MAX_SETTLED_EYEOLEAN_SEASONS
+      )
+    },
+
+    /**
+     * Store-ready debit. A duplicate transaction or insufficient balance is a no-op,
+     * preventing double purchases and negative balances.
+     */
+    spendEyeoleans(
+      state,
+      action: PayloadAction<{ transactionId: string; amount: number; label: string }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      const transactionId = action.payload.transactionId.trim()
+      const amount = Math.max(0, Math.floor(action.payload.amount))
+      const label = action.payload.label.trim()
+      if (!profile || !transactionId || !label || amount <= 0) return
+
+      const transactions = profile.eyeoleanTransactions ?? []
+      if (transactions.some((entry) => entry.id === transactionId)) return
+
+      const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
+      if (balance < amount) return
+
+      if (
+        appendEyeoleanTransaction(profile, {
+          id: transactionId,
+          amount: -amount,
+          source: 'store_purchase',
+          label,
+          createdAt: new Date().toISOString(),
+        })
+      ) {
+        profile.eyeoleans = balance - amount
+      }
+    },
+
     /** Award a correct Public Favorite forecast once per season event. */
     awardPublicFavoriteForecast(state, action: PayloadAction<{ eventId: string }>) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
@@ -350,7 +547,13 @@ const profilesSlice = createSlice({
       if (rewardedEvents.includes(action.payload.eventId)) return
 
       profile.forecastRewardEventIds = [...rewardedEvents, action.payload.eventId].slice(-100)
-      profile.lifetimeXp = Math.max(0, profile.lifetimeXp ?? 0) + PUBLIC_FAVORITE_FORECAST_XP
+      creditEyeoleans(profile, {
+        id: `forecast:${action.payload.eventId}`,
+        amount: PUBLIC_FAVORITE_FORECAST_EYEOLEANS,
+        source: 'forecast_reward',
+        label: 'Public Favorite forecast',
+        createdAt: new Date().toISOString(),
+      })
       if (!profile.achievements?.includes(PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT)) {
         profile.achievements = [
           ...(profile.achievements ?? []),
@@ -394,6 +597,8 @@ export const {
   recordBellaTwinShockConsumed,
   recordBellaEncountered,
   recordBellaCompatibleClassicCompleted,
+  settleSeasonEyeoleans,
+  spendEyeoleans,
   awardPublicFavoriteForecast,
   deleteProfile,
   enterGuestMode,
@@ -412,5 +617,7 @@ export const selectCurrentProfile = (state: RootState): StoredProfile | null => 
   if (isGuest || !activeProfileId) return null
   return profiles.find((p) => p.id === activeProfileId) ?? null
 }
+
+export const selectEyeoleanBalance = (state: RootState) => selectCurrentProfile(state)?.eyeoleans ?? 0
 
 export default profilesSlice.reducer
