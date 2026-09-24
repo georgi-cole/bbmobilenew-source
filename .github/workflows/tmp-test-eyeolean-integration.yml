@@ -1,0 +1,27 @@
+name: Temporary Eyeolean Integration Tests
+
+on:
+  push:
+    branches:
+      - feature/eyeolean-economy
+
+jobs:
+  eyeolean-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run Eyeolean and Public Favorite tests
+        run: >-
+          npx vitest run
+          src/economy/eyeoleans.test.ts
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/profilesSlice.forecastReward.test.ts
+          tests/unit/publicFavoriteOverlay.test.tsx
+          src/components/PublicFavoriteOverlay/__tests__/PublicFavoriteOverlay.identityReveal.test.tsx
