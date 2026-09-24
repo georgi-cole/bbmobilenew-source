@@ -437,6 +437,19 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               <button
                 className="dbg-btn dbg-btn--wide"
                 type="button"
+                onClick={() =>
+                  navigate({
+                    pathname: '/confessional-lab',
+                    search: searchParams.toString() ? `?${searchParams.toString()}` : '?debug=1',
+                  })
+                }
+              >
+                {/* i18n-ignore: Debug-only navigation control intentionally uses canonical English */}
+                Open Confessional Lab
+              </button>
+              <button
+                className="dbg-btn dbg-btn--wide"
+                type="button"
                 onClick={() => navigate('/broadcast-manager?debug=1')}
               >
                 {/* i18n-ignore: Debug-only navigation control intentionally uses canonical English */}
