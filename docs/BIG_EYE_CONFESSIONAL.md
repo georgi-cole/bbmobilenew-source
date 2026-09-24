@@ -2,6 +2,27 @@
 
 The Confessional is local-first. A deterministic authored director owns game actions, contextual dialogue, topic-level memory, and response timing without any per-message inference cost. A premium generative director can be enabled as an optional enhancement.
 
+
+## Confessional 2.0 intelligence layer
+
+The local-first pipeline now builds a multi-signal comprehension frame before choosing dialogue. A turn may simultaneously contain several topics and emotions, a named housemate, trust/distrust/target/protection/dependency stance, a speech act, a factual query, a prediction, a continuation of the previous thread, and a contradiction with compact season memory.
+
+Conversation continuity is split deliberately. The visible transcript remains session-only and is cleared between visits. A bounded per-game semantic state in local storage retains only the current topic/focus and slow rapport, while the existing compact memory ledger stores non-verbatim beliefs, intentions, dependencies, predictions and concerns. The Eye can therefore remember the season without retaining the full private transcript.
+
+A salience layer compares the previous Confessional world snapshot with the current one and selects at most one high-value returning observation, such as a new nomination, Leader or Safety win, survival, return to the game, relationship change, or late-game transition. Common observable questions about the Leader, nominees, remaining players, player stats, current phase, recent public events and the Eye's compact memory are answered locally with no inference call.
+
+Protected authored flows and deterministic knowledge/continuity turns bypass the normal generative director. If VIP is selected, the ordinary generative call is skipped; deterministic turns keep the VIP credit, while eligible open conversation goes directly to the VIP worker. This preserves game correctness while reducing avoidable latency and inference cost.
+
+The director's eye state and intensity now produce subtle CSS-only reactions in the Confessional. Text is never corrupted for a glitch, and reduced-motion preferences remain respected. The free-text limit is 500 characters so players can give enough context for meaningful replies.
+
+## Remote Big Eye databank
+
+The root live-config document now accepts a validated confessional section with a revision, feature switches, persona tuning, comprehension vocabulary and slang, authored intent response pools, Challenge Me prompts, salience weights/templates, and generative-director character tuning. Invalid fields and unknown intent keys are discarded, and bundled defaults remain the final fallback.
+
+Remote configuration is pure data. It may change what the Eye recognizes, says, emphasizes or visually performs; it cannot execute code, dispatch arbitrary game actions, grant powers, alter votes, complete missions or bypass eligibility rules.
+
+Both the Express/OpenAI director and the Cloudflare VIP director independently fetch the trusted published character tuning and cache it briefly. The client never supplies arbitrary prompt instructions to those backends.
+
 ## Why this architecture
 
 The previous implementation classified a small set of intents and selected a short template. It could recognize a topic, but it did not receive the season situation, relationship graph, recent dialogue, or any durable memory. The result was relevant but stateless and often aphoristic.
