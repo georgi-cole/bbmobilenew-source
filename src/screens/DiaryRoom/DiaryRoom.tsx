@@ -138,13 +138,13 @@ const SUMMARY_POOL = [
 ]
 
 const FIRST_VISIT_GREETING =
-  'Hello, {name}! Welcome to the confessional. Here your thoughts may be echoed off the walls but your secrets will never leave the safe space. Share away.'
+  'Hello, {name}. Welcome to the Confessional. What you say here stays here. I know what happened in the House; I want to know what it meant to you.'
 
 const RETURNING_VISIT_GREETINGS = [
-  'Welcome back. I am all eyes.',
-  'I have been expecting you.',
-  'Ah, you return.',
-  'Something tells me you are uneasy.',
+  'Back again. What changed?',
+  'You again. Sit down.',
+  'I was wondering when you would come back.',
+  'The door is closed. Your turn.',
 ]
 
 // ─── Secret immunity reward messages ──────────────────────────────────────────
