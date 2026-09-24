@@ -432,10 +432,11 @@ export function updateConversationStateFromFrame(
             lastEyeQuestion: responseAsksQuestion
               ? responseText
               : (state.thread?.lastEyeQuestion ?? null),
-            lastEyeStatement: responseAsksQuestion
-              ? (state.thread?.lastEyeStatement ?? null)
-              : responseText,
-            contextReason: state.thread?.contextReason ?? null,
+            lastEyeStatement: responseText,
+            contextReason:
+              frame.speechAct === 'clarification' || frame.coreferenceUsed
+                ? (state.thread?.contextReason ?? null)
+                : null,
           }
         : null,
     rapport: {
