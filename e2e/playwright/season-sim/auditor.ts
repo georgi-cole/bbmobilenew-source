@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 
 import { readAppState } from '../support/test'
 import type { CoverageLedger } from './coverage'
+import { buildSimulationEyeoleanSample } from './economyCalibration'
 import type { SimulationContext, SimulationFinding, TimelineEntry } from './types'
 
 const activeStatus = new Set(['active', 'jury'])
@@ -79,6 +80,7 @@ export class SeasonAuditor {
 
   async attachReport(name: string, terminal: string): Promise<void> {
     const state = await readAppState(this.context.page)
+    const economySample = buildSimulationEyeoleanSample(state.game)
     const report = {
       schemaVersion: 1,
       config: this.context.config,
@@ -89,6 +91,7 @@ export class SeasonAuditor {
       findings: this.findings,
       objectives: this.coverage.values(),
       checkpoints: this.checkpoints,
+      ...(economySample ? { economySample } : {}),
       finalState: {
         game: state.game,
         challenge: state.challenge,
@@ -106,6 +109,9 @@ export class SeasonAuditor {
       '',
       `Terminal: ${terminal}`,
       `Seed: roster=${this.context.config.seeds.roster}, season=${this.context.config.seeds.season}, actor=${this.context.config.seeds.actor}`,
+      ...(economySample
+        ? ['', '## Eyeolean economy', `- payout: ${economySample.total.toLocaleString('en-US')}`, `- source: ${economySample.source}`]
+        : []),
       '',
       '## Objectives',
       ...this.coverage
