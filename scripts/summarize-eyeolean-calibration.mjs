@@ -81,8 +81,7 @@ function readReports(files) {
   for (const file of files) {
     try {
       const parsed = JSON.parse(readFileSync(file, 'utf8'))
-      if (!parsed || parsed.schemaVersion !== 1 || !parsed.economySample) continue
-      if ((parsed.findings ?? []).some((finding) => finding?.severity === 'error')) continue
+      if (!parsed || parsed.schemaVersion !== 1 || !parsed.config) continue
       reports.push({ file, report: parsed })
     } catch {
       // Ignore unrelated or partial JSON artifacts.
@@ -106,8 +105,16 @@ function sampleKey(report, sample) {
 }
 
 function buildReport(reports) {
+  const invalidReports = reports.filter((entry) =>
+    (entry.report.findings ?? []).some((finding) => finding?.severity === 'error')
+  )
+  const completedReports = reports.filter(
+    (entry) =>
+      entry.report.economySample &&
+      !(entry.report.findings ?? []).some((finding) => finding?.severity === 'error')
+  )
   const unique = new Map()
-  for (const entry of reports) {
+  for (const entry of completedReports) {
     const sample = entry.report.economySample
     unique.set(sampleKey(entry.report, sample), { ...entry, sample })
   }
@@ -140,8 +147,27 @@ function buildReport(reports) {
   const compWins = (entry) =>
     Number(entry.sample.summary?.lohWins ?? 0) + Number(entry.sample.summary?.posWins ?? 0)
 
+  const nonFinalistEntries = entries.filter((entry) => rank(entry) !== 1 && rank(entry) !== 2)
+  const nonFinalistTotals = nonFinalistEntries.map((entry) => entry.sample.total)
+  const threshold = (amount) => {
+    if (nonFinalistTotals.length === 0) return { count: 0, share: 0 }
+    const count = nonFinalistTotals.filter((value) => value >= amount).length
+    return { count, share: count / nonFinalistTotals.length }
+  }
+  const anchorCodes = new Set(['season_winner', 'runner_up', 'public_favorite'])
+  const secondaryMinted = sourceMix
+    .filter((source) => !anchorCodes.has(source.code))
+    .reduce((sum, source) => sum + source.total, 0)
+
   return {
     generatedAt: new Date().toISOString(),
+    inputReports: reports.length,
+    excludedWithErrors: invalidReports.length,
+    excludedWithoutCompletedOutcome: reports.filter(
+      (entry) =>
+        !entry.report.economySample &&
+        !(entry.report.findings ?? []).some((finding) => finding?.severity === 'error')
+    ).length,
     sampleSize: entries.length,
     totalMinted,
     overall: distribution(totals),
@@ -155,6 +181,11 @@ function buildReport(reports) {
       competitionHeavy: byPredicate((entry) => compWins(entry) >= 3),
     },
     rewardSources: sourceMix,
+    pressure: {
+      nonFinalistAtOrAboveRunnerUp: threshold(50_000),
+      nonFinalistAtOrAbovePublicFavorite: threshold(25_000),
+      secondaryRewardShareOfMinted: totalMinted > 0 ? secondaryMinted / totalMinted : 0,
+    },
   }
 }
 
@@ -166,7 +197,10 @@ function markdown(report) {
   const lines = [
     '# Eyeolean calibration report',
     '',
-    'Completed unique samples: ' + report.sampleSize,
+    'Simulation reports read: ' + report.inputReports,
+    'Completed valid unique samples: ' + report.sampleSize,
+    'Excluded with auditor errors: ' + report.excludedWithErrors,
+    'Excluded without a completed authoritative outcome: ' + report.excludedWithoutCompletedOutcome,
     'Total Eyeoleans minted: ' + money(report.totalMinted),
     '',
     '| Segment | N | Median | P75 | P90 | Max |',
@@ -193,6 +227,22 @@ function markdown(report) {
   }
 
   lines.push(
+    '',
+    '## Balance pressure',
+    '',
+    '- Non-finalists at or above 50,000 runner-up anchor: ' +
+      report.pressure.nonFinalistAtOrAboveRunnerUp.count +
+      ' (' +
+      (report.pressure.nonFinalistAtOrAboveRunnerUp.share * 100).toFixed(1) +
+      '%)',
+    '- Non-finalists at or above 25,000 Public Favorite anchor: ' +
+      report.pressure.nonFinalistAtOrAbovePublicFavorite.count +
+      ' (' +
+      (report.pressure.nonFinalistAtOrAbovePublicFavorite.share * 100).toFixed(1) +
+      '%)',
+    '- Secondary rewards share of minted season currency: ' +
+      (report.pressure.secondaryRewardShareOfMinted * 100).toFixed(1) +
+      '%',
     '',
     '## Reward source mix',
     '',
