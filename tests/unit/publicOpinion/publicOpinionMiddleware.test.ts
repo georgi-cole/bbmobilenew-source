@@ -331,6 +331,62 @@ describe('publicOpinionMiddleware', () => {
     expect(store.getState().publicOpinion.profiles.p1.approval).toBeGreaterThan(50)
   })
 
+  it('applies the stronger counter penalty when a player acts directly against a request', () => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        publicOpinion: publicOpinionReducer,
+      },
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
+      preloadedState: {
+        game: makeGameState({
+          players: [makePlayer('p1', 'Aria'), makePlayer('p2', 'Kian')],
+          week: 2,
+        }),
+      },
+    })
+
+    store.dispatch(initializeProfiles(['p1', 'p2']))
+    store.dispatch(
+      addDirection(
+        makeDirection({
+          id: 'protect-dir',
+          type: 'protect_player',
+          playerId: 'p1',
+          relatedPlayerId: 'p2',
+          progressPercent: 0,
+        })
+      )
+    )
+
+    store.dispatch({
+      type: 'social/recordSocialAction',
+      payload: {
+        entry: {
+          actionId: 'betray',
+          actorId: 'p1',
+          targetId: 'p2',
+          cost: 1,
+          delta: -5,
+          outcome: 'success',
+          newEnergy: 5,
+          timestamp: 1,
+          week: 2,
+          score: -0.6,
+          source: 'system',
+        },
+      },
+    })
+
+    const state = store.getState().publicOpinion
+    expect(state.directions.find((direction) => direction.id === 'protect-dir')?.status).toBe(
+      'failed'
+    )
+    expect(state.profiles.p1.approval).toBeLessThan(
+      publicOpinionConfig.DEFAULT_APPROVAL + publicOpinionConfig.directionRewards.fail
+    )
+  })
+
   it('provides a small visible recovery path when approval is critically low', () => {
     const store = configureStore({
       reducer: {
