@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS } from '../economy/eyeoleans'
 import profilesReducer, {
   awardPublicFavoriteForecast,
   createProfile,
   PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT,
-  PUBLIC_FAVORITE_FORECAST_XP,
 } from './profilesSlice'
 
 describe('Public Favorite forecast profile reward', () => {
-  it('adds permanent XP and the achievement only once for an event', () => {
+  it('adds permanent Eyeoleans and the achievement only once for an event', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     state = profilesReducer(
       state,
@@ -19,7 +19,9 @@ describe('Public Favorite forecast profile reward', () => {
     )
 
     const profile = state.profiles[0]
-    expect(profile.lifetimeXp).toBe(PUBLIC_FAVORITE_FORECAST_XP)
+    expect(profile.eyeoleans).toBe(PUBLIC_FAVORITE_FORECAST_EYEOLEANS)
+    expect(profile.eyeoleanTransactions).toHaveLength(1)
+    expect(profile.eyeoleanTransactions?.[0]?.source).toBe('forecast_reward')
     expect(profile.achievements).toContain(PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT)
     expect(profile.forecastRewardEventIds).toEqual(['season-11-public-favorite'])
   })
