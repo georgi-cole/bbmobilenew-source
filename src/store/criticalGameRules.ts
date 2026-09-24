@@ -194,7 +194,7 @@ export function getClassicEvictionTieBreakerId(state: GameState): string | null 
 
 /** Synthetic vote keys still belong to the player who owns the power. */
 export function getCanonicalVoterId(voteKey: string): string {
-  for (const suffix of ['__dv2', '__bellaWill'] as const) {
+  for (const suffix of ['__dv2', '__bellaWill', '__storeExtraVote'] as const) {
     if (voteKey.endsWith(suffix)) return voteKey.slice(0, -suffix.length)
   }
   return voteKey

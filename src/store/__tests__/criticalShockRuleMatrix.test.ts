@@ -106,6 +106,7 @@ describe('critical shock / ruleset matrix', () => {
   it("maps Bella's inherited extra-vote key back to the heir", () => {
     expect(getCanonicalVoterId('player-7__bellaWill')).toBe('player-7')
     expect(getCanonicalVoterId('player-7__dv2')).toBe('player-7')
+    expect(getCanonicalVoterId('player-7__storeExtraVote')).toBe('player-7')
     expect(getCanonicalVoterId('player-7')).toBe('player-7')
   })
 
