@@ -254,7 +254,6 @@ describe('localBigEyeDirector', () => {
     expect(text).toContain('confirmed eviction')
   })
 
-
   it('does not persist a trust belief just because the player asks about trust', () => {
     const memory = updateLocalBigEyeMemory({
       diaryText: 'Can I trust Nico?',
@@ -266,5 +265,4 @@ describe('localBigEyeDirector', () => {
 
     expect(memory).not.toContain('Belief — trusts Nico')
   })
-
 })

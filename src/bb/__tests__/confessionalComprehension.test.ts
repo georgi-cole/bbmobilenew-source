@@ -231,7 +231,6 @@ describe('Big Eye comprehension frame', () => {
     expect(next.thread?.lastEyeQuestion).toContain('Do you have the votes?')
   })
 
-
   it('does not turn relationship questions into declared trust or target stances', () => {
     const trustQuestion = buildBigEyeComprehensionFrame({
       text: 'Can I trust Nico?',
@@ -251,5 +250,4 @@ describe('Big Eye comprehension frame', () => {
     expect(trustQuestion.contradiction).toBeNull()
     expect(evictionQuestion.relationshipStances).not.toContain('target')
   })
-
 })

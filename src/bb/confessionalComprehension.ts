@@ -137,7 +137,9 @@ function detectKnowledgeQuery(
   if (/how many (?:people|players|housemates).*(?:left|remain)|who is left/.test(text)) {
     return 'remaining'
   }
-  if (/who am i closest to|who do i have the best relationship with|closest relationship/.test(text)) {
+  if (
+    /who am i closest to|who do i have the best relationship with|closest relationship/.test(text)
+  ) {
     return 'closest_relationship'
   }
   if (
@@ -306,12 +308,12 @@ export function buildBigEyeComprehensionFrame(input: {
   const inheritedFocus = input.state.thread?.focusPlayer ?? null
   const coreferenceUsed = Boolean(
     entities.length === 0 &&
-      inheritedFocus &&
-      (hasCoreferencePronoun(text) ||
-        isAgreement(text) ||
-        isDisagreement(text) ||
-        isClarification(text) ||
-        text.split(' ').length <= 5)
+    inheritedFocus &&
+    (hasCoreferencePronoun(text) ||
+      isAgreement(text) ||
+      isDisagreement(text) ||
+      isClarification(text) ||
+      text.split(' ').length <= 5)
   )
   const focusPlayer = entities[0] ?? (coreferenceUsed ? inheritedFocus : null)
 

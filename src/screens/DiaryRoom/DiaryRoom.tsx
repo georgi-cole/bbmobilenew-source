@@ -680,9 +680,7 @@ export default function DiaryRoom() {
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
       .filter(
-        (alliance) =>
-          alliance.memberIds.includes(playerId) &&
-          alliance.status !== 'DISSOLVED'
+        (alliance) => alliance.memberIds.includes(playerId) && alliance.status !== 'DISSOLVED'
       )
       .map((alliance) => ({
         id: alliance.id,
@@ -727,7 +725,8 @@ export default function DiaryRoom() {
         continue
       }
       const matched = players.find((player) => normalized.includes(player.name.toLowerCase()))
-      if (matched && !recentEvictedNames.includes(matched.name)) recentEvictedNames.push(matched.name)
+      if (matched && !recentEvictedNames.includes(matched.name))
+        recentEvictedNames.push(matched.name)
       if (recentEvictedNames.length >= 2) break
     }
 

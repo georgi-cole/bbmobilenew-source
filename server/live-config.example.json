@@ -31,11 +31,7 @@
     "weeklyMode": "single-game",
     "weeklyGameKey": "quickTapRace",
     "_comment3": "weeklyGameKeys is used when weeklyMode is user-selection",
-    "weeklyGameKeys": [
-      "quickTapRace",
-      "bullseyeBlitz",
-      "colorMatch"
-    ]
+    "weeklyGameKeys": ["quickTapRace", "bullseyeBlitz", "colorMatch"]
   },
   "social": {
     "_comment": "Pure-data Social and Drama overrides. Algorithms and executable rules remain bundled in the app.",
@@ -79,9 +75,7 @@
     "content": {
       "_comment": "These examples can be edited without rebuilding the app. Unknown IDs are harmless.",
       "scenarioLines": {
-        "week_start_ally_check_in": [
-          "Fresh week. I wanted to make sure you and I are still solid."
-        ]
+        "week_start_ally_check_in": ["Fresh week. I wanted to make sure you and I are still solid."]
       },
       "actionPresentation": {
         "compliment": {
@@ -151,28 +145,11 @@
     },
     "comprehension": {
       "emotionPhrases": {
-        "suspicion": [
-          "suspicious",
-          "sketchy",
-          "shady",
-          "lying",
-          "dont trust",
-          "do not trust"
-        ],
-        "indecision": [
-          "not sure",
-          "dont know",
-          "do not know",
-          "maybe",
-          "torn"
-        ]
+        "suspicion": ["suspicious", "sketchy", "shady", "lying", "dont trust", "do not trust"],
+        "indecision": ["not sure", "dont know", "do not know", "maybe", "torn"]
       },
       "slang": {
-        "overwhelmed": [
-          "im cooked",
-          "i am cooked",
-          "this is cooked"
-        ]
+        "overwhelmed": ["im cooked", "i am cooked", "this is cooked"]
       },
       "trustTerms": [
         "i trust",
@@ -253,9 +230,7 @@
           "Noted. Gratitude is rare currency in this house.",
           "You are welcome. Now spend that clearer head wisely."
         ],
-        "realness": [
-          "More real than you think."
-        ],
+        "realness": ["More real than you think."],
         "love_confession": [
           "Careful. Attachment is a weakness here.",
           "We should probably keep this between us.",
@@ -275,27 +250,15 @@
         "late_game": 60
       },
       "templates": {
-        "returned": [
-          "I watched you leave. Apparently the House was not finished with you."
-        ],
-        "newly_nominated": [
-          "Back already. And this time your name is on the block."
-        ],
-        "became_leader": [
-          "Power suits you. For now."
-        ],
-        "won_safety": [
-          "You won safety. I noticed."
-        ],
-        "survived_nomination": [
-          "Still here. That was not guaranteed."
-        ],
+        "returned": ["I watched you leave. Apparently the House was not finished with you."],
+        "newly_nominated": ["Back already. And this time your name is on the block."],
+        "became_leader": ["Power suits you. For now."],
+        "won_safety": ["You won safety. I noticed."],
+        "survived_nomination": ["Still here. That was not guaranteed."],
         "closest_relationship_changed": [
           "Your closest connection has changed since the last time you sat in that chair."
         ],
-        "late_game": [
-          "Fewer faces. Heavier choices. Sit down."
-        ]
+        "late_game": ["Fewer faces. Heavier choices. Sit down."]
       }
     },
     "director": {
@@ -304,14 +267,7 @@
       "humour": 0.32,
       "mystery": 0.45,
       "verbosity": 0.42,
-      "preferredMoves": [
-        "answer",
-        "observe",
-        "challenge",
-        "remember",
-        "tease",
-        "probe"
-      ],
+      "preferredMoves": ["answer", "observe", "challenge", "remember", "tease", "probe"],
       "forbiddenCliches": [
         "trust is currency",
         "the house is listening",

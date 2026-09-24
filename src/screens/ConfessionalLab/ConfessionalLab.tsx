@@ -115,9 +115,7 @@ export default function ConfessionalLab() {
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
       .filter(
-        (alliance) =>
-          alliance.memberIds.includes(playerId) &&
-          alliance.status !== 'DISSOLVED'
+        (alliance) => alliance.memberIds.includes(playerId) && alliance.status !== 'DISSOLVED'
       )
       .map((alliance) => ({
         id: alliance.id,
@@ -160,7 +158,8 @@ export default function ConfessionalLab() {
         continue
       }
       const matched = game.players.find((player) => normalized.includes(player.name.toLowerCase()))
-      if (matched && !recentEvictedNames.includes(matched.name)) recentEvictedNames.push(matched.name)
+      if (matched && !recentEvictedNames.includes(matched.name))
+        recentEvictedNames.push(matched.name)
       if (recentEvictedNames.length >= 2) break
     }
 

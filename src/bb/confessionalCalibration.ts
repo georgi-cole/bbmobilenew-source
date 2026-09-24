@@ -946,7 +946,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Grounded Finn read',
     category: 'knowledge',
     tier: 'contract',
-    description: 'Person reads describe actual relationship state and never fabricate observed behavior.',
+    description:
+      'Person reads describe actual relationship state and never fabricate observed behavior.',
     turns: [
       {
         text: 'What do you think about Finn?',

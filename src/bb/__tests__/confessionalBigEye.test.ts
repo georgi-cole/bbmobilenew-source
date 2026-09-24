@@ -154,5 +154,4 @@ describe('confessionalBigEye', () => {
     expect(reply.intent).toBe('no')
     expect(reply.nextState.lastQuestion).toBeNull()
   })
-
 })
