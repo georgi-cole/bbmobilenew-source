@@ -12420,7 +12420,7 @@ export const tryActivateBattleBack =
       )
       const jurors = getBattleBackEligiblePlayers(game.players)
       const human = game.players.find((player) => player.isUser)
-      const humanIsJuror = human?.status === 'jury'
+      const humanIsJuror = human ? jurors.some((player) => player.id === human.id) : false
       const humanWasPreTribunalEvicted = human?.status === 'evicted'
 
       // A pre-Tribunal human elimination ends the playable season. Do not
@@ -12434,6 +12434,7 @@ export const tryActivateBattleBack =
       if (
         humanIsJuror &&
         policy.human.guaranteedOpportunityAfterEviction &&
+        policy.human.maxGuaranteedOpportunitiesPerSeason > 0 &&
         game.seasonDirectorHumanReturnUsed !== true &&
         active.length >= policy.human.minimumActivePlayersAfterEviction &&
         jurors.length >= policy.human.minimumCandidates
@@ -12461,6 +12462,7 @@ export const tryActivateBattleBack =
       ) {
         return false
       }
+      if (policy.aiOnly.maxPerSeason <= 0) return false
       if (!plan.selections.aiBattleBack) return false
       if (
         !isWithinDirectorWindow(active.length, policy.aiOnly, plan.policy.pacing.finaleLockPlayers)
@@ -12513,7 +12515,7 @@ export const tryActivatePendingForcedBattleBack =
     if (game.battleBack?.used) return false
     if (game.twistActivatedThisWeek) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
+    const jurors = getBattleBackEligiblePlayers(game.players)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
