@@ -274,7 +274,11 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
     frame.contradiction ||
     frame.speechAct === 'challenge_request' ||
     frame.speechAct === 'prediction' ||
-    frame.speechAct === 'answer'
+    frame.speechAct === 'answer' ||
+    frame.speechAct === 'agreement' ||
+    frame.speechAct === 'disagreement' ||
+    frame.speechAct === 'clarification' ||
+    frame.speechAct === 'target_declaration'
   )
   const directorEligible = !authoredFlow && !deterministicIntelligence
   const route: BigEyeTurnRoute = authoredFlow
