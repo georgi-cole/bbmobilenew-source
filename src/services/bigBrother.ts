@@ -84,6 +84,8 @@ export interface BigBrotherResponse {
   memorySummary: string
   performance: BigEyePerformance
   source: 'ai' | 'offline'
+  /** False when a deterministic authored/knowledge turn should not consume a VIP credit. */
+  vipEligible: boolean
 }
 
 export type { BigEyeConversationState, BigEyeAction, BigEyeIntent }
@@ -236,7 +238,9 @@ export async function generateBigBrotherReply(
   })
   const semanticIntent = frame.primaryIntent
   const discoveredEgg = getSecretMissionEasterEggByIntent(reply.intent)
-  const preserveAuthoredFlow = Boolean(reply.action || state.lastQuestion || discoveredEgg)
+  const preserveAuthoredFlow = Boolean(
+    reply.action || state.lastQuestion || reply.nextState.lastQuestion || discoveredEgg
+  )
   const preserveDeterministicIntelligence = Boolean(
     frame.knowledgeQuery ||
       frame.contradiction ||
@@ -307,6 +311,7 @@ export async function generateBigBrotherReply(
     memorySummary,
     performance,
     source: directedText ? 'ai' : 'offline',
+    vipEligible: !preserveAuthoredFlow && !preserveDeterministicIntelligence,
   }
 }
 
