@@ -2,19 +2,18 @@ name: Temp Cancel Eyeolean Calibration
 
 on:
   push:
-    branches:
-      - feature/eyeolean-economy
 
 permissions:
   actions: write
   contents: read
 
 jobs:
-  cancel:
-    if: github.event.head_commit.message == 'chore: cancel Eyeolean calibration'
+  stop-calibration:
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel calibration run
+      - name: Cancel calibration runs
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api --method POST repos/${{ github.repository }}/actions/runs/35986783950/cancel
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --method POST /repos/georgi-cole/bbmobilenew/actions/runs/35986783950/cancel
+          gh api --method POST /repos/georgi-cole/bbmobilenew/actions/runs/35986429359/cancel
