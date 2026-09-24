@@ -162,9 +162,7 @@ describe('Eyeolean profile wallet', () => {
       remove_vote: 1,
     })
     expect(profile.eyeoleanTransactions?.slice(-3).map((entry) => entry.amount)).toEqual([
-      -3_000,
-      -3_000,
-      -5_000,
+      -3_000, -3_000, -5_000,
     ])
   })
 
@@ -200,5 +198,4 @@ describe('Eyeolean profile wallet', () => {
     expect(state.profiles[0]?.eyeoleanInventory).toEqual({})
     expect(state.profiles[0]?.eyeoleanTransactions).toEqual([])
   })
-
 })

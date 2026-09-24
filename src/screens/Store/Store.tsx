@@ -180,7 +180,10 @@ export default function Store() {
         <GameBackButton className="vip-store__back" onClick={goBack} />
       </header>
 
-      <section className="vip-store__standalone vip-store__eyeolean-market" aria-labelledby="eyeolean-items-title">
+      <section
+        className="vip-store__standalone vip-store__eyeolean-market"
+        aria-labelledby="eyeolean-items-title"
+      >
         <div className="vip-store__eyeolean-heading">
           <div>
             <p className="vip-store__eyebrow">Experimental soft-currency items</p>
@@ -226,11 +229,7 @@ export default function Store() {
                     disabled={!canBuy}
                     aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
                   >
-                    {currentProfile
-                      ? canBuy
-                        ? 'Buy'
-                        : 'Not enough'
-                      : 'Profile required'}
+                    {currentProfile ? (canBuy ? 'Buy' : 'Not enough') : 'Profile required'}
                   </button>
                 </div>
               </article>

@@ -608,15 +608,13 @@
   color: #8ce5c2;
 }
 
-
 /* Experimental soft-currency storefront. Kept visually distinct from paid entitlements. */
 .vip-store__eyeolean-market {
   padding: 0.9rem;
   border: 1px solid rgba(117, 230, 255, 0.18);
   border-radius: 17px;
   background:
-    linear-gradient(145deg, rgba(14, 116, 144, 0.1), transparent 42%),
-    rgba(17, 24, 39, 0.58);
+    linear-gradient(145deg, rgba(14, 116, 144, 0.1), transparent 42%), rgba(17, 24, 39, 0.58);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 12px 28px rgba(2, 6, 16, 0.18);

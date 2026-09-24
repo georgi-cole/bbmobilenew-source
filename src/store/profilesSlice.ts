@@ -216,9 +216,7 @@ function coerceEyeoleanTransaction(raw: unknown): EyeoleanTransaction | null {
   }
 }
 
-function coerceEyeoleanInventory(
-  raw: unknown
-): Partial<Record<EyeoleanStoreProductKey, number>> {
+function coerceEyeoleanInventory(raw: unknown): Partial<Record<EyeoleanStoreProductKey, number>> {
   if (!raw || typeof raw !== 'object') return {}
   const source = raw as Record<string, unknown>
   const inventory: Partial<Record<EyeoleanStoreProductKey, number>> = {}
