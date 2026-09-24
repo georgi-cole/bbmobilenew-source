@@ -187,6 +187,17 @@ export function buildBigEyeComprehensionFrame(input: {
 }): BigEyeComprehensionFrame {
   const config = getConfessionalRuntimeConfig()
   const text = normalizeInput(input.text)
+  let primaryIntent = input.intent
+  if (primaryIntent === 'unknown' || primaryIntent === 'curiosity') {
+    for (const [intent, phrases] of Object.entries(config.comprehension.slang) as Array<
+      [BigEyeIntent, string[] | undefined]
+    >) {
+      if (phrases?.some((phrase) => text.includes(normalizeInput(phrase)))) {
+        primaryIntent = intent
+        break
+      }
+    }
+  }
   const entities = findEntities(text, input.world)
   const focusPlayer = entities[0] ?? input.state.thread?.focusPlayer ?? null
 
@@ -214,12 +225,12 @@ export function buildBigEyeComprehensionFrame(input: {
 
   const knowledgeQuery = detectKnowledgeQuery(text)
   const predictedWinner = config.features.predictions ? detectPrediction(text, input.world) : null
-  const speechAct = inferSpeechAct(text, input.intent, input.state, knowledgeQuery, predictedWinner)
+  const speechAct = inferSpeechAct(text, primaryIntent, input.state, knowledgeQuery, predictedWinner)
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
     input.state.thread &&
-      (input.intent === 'yes' ||
-        input.intent === 'no' ||
+      (primaryIntent === 'yes' ||
+        primaryIntent === 'no' ||
         entities.some((entity) => entity === input.state.thread?.focusPlayer) ||
         (topics[0] && topics[0] === input.state.thread.topic))
   )
@@ -235,7 +246,7 @@ export function buildBigEyeComprehensionFrame(input: {
   if (responseMoves.length === 0) responseMoves.push('observe', 'probe')
 
   return {
-    primaryIntent: input.intent,
+    primaryIntent,
     speechAct,
     topics: unique(topics),
     emotions,
