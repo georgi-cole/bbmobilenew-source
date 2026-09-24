@@ -417,7 +417,7 @@ test.describe('Finale / Jury flow @release', () => {
 
     await expect(page.getByText('Season champion', { exact: true })).toBeVisible()
     await expect(page.getByText(winner.name, { exact: true }).first()).toBeVisible()
-    await expect(page.getByText('Runner-up', { exact: true })).toBeVisible()
+    await expect(page.getByText('Runner-up', { exact: true }).first()).toBeVisible()
     await expect(page.getByText(runnerUp.name, { exact: true }).first()).toBeVisible()
 
     const completedState = await readAppState(page)
