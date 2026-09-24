@@ -77,7 +77,7 @@ Reward values are not considered permanently balanced just because the arithmeti
 - minimum, mean, median, P25, P75, P90, P95, and maximum payout;
 - finalist, winner, runner-up, Public Favorite, comeback, competition-heavy, and non-finalist segments;
 - reward-source contribution to total minted currency;
-- how often a non-finalist reaches the 25,000 Public Favorite anchor or 50,000 runner-up anchor.
+- how often a non-finalist reaches the 25,000 Public Favorite anchor or 50,000 runner-up anchor from secondary rewards alone, excluding the three anchor prizes themselves.
 
 The human-like Playwright season simulator now writes an `economySample` into completed simulation reports. It uses an authoritative archived summary when the eliminated-season resolver has already produced one, otherwise it accepts the live state only after `seasonComplete`. Partial/action-budget runs are excluded instead of being treated as zero-payout seasons.
 
@@ -98,6 +98,6 @@ The batch command generates the normal per-season Playwright reports and then wr
 
 A 1,000-season run is intentionally manual rather than PR CI: these are full UI-driven seasons and are much more expensive than reducer/unit tests. Calibration reports also exclude simulation samples that contain an error-severity auditor finding.
 
-The first balance guardrail is that the P90 non-finalist payout should remain below the 50,000 runner-up anchor. We should also inspect the share of currency coming from secondary rewards before setting Store prices. The calibration report is evidence for price bands; it does not auto-change rewards or prices.
+The first balance guardrail is that the P90 non-finalist secondary-reward payout should remain below the 50,000 runner-up anchor. We should also inspect the share of currency coming from secondary rewards before setting Store prices. The calibration report is evidence for price bands; it does not auto-change rewards or prices.
 
 The 5,000 correct Public Favorite forecast reward is a separate meta-game credit and is not part of the season-settlement distribution. It should be calibrated separately once forecast-attempt and forecast-hit rates are collected at scale.
