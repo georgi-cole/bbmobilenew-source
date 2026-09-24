@@ -423,13 +423,18 @@ function pickConfiguredChallenge(input: LocalBigEyeDirectorInput): string {
 }
 
 function buildRapportLine(input: LocalBigEyeDirectorInput): string | null {
+  const config = getConfessionalRuntimeConfig()
   const familiarity = input.state.rapport?.familiarity ?? 0
-  if (familiarity < 5) return null
+  const familiarThreshold = 4 + Math.round((1 - config.persona.warmth) * 3)
+  const closeThreshold = familiarThreshold + 6
+  if (familiarity < familiarThreshold) return null
   if (input.intent === 'greeting') {
-    if (familiarity >= 12) return 'You again. I was wondering when you would come back.'
+    if (familiarity >= closeThreshold) {
+      return 'You again. I was wondering when you would come back.'
+    }
     return 'Back already. Sit down.'
   }
-  if (input.intent === 'farewell' && familiarity >= 8) {
+  if (input.intent === 'farewell' && familiarity >= familiarThreshold + 3) {
     return 'Go on, then. I will still be here when the next thought becomes too loud.'
   }
   return null
