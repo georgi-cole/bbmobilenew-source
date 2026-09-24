@@ -48,10 +48,8 @@ vi.mock('framer-motion', async () => {
       set: vi.fn(),
     }),
     useSpring: (value: { get: () => number }) => value,
-    useTransform: (
-      value: { get: () => number },
-      transform: (current: number) => string
-    ) => transform(value.get()),
+    useTransform: (value: { get: () => number }, transform: (current: number) => string) =>
+      transform(value.get()),
     useReducedMotion: () => false,
   }
 })

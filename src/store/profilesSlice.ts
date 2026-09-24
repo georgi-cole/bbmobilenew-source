@@ -214,7 +214,8 @@ function appendEyeoleanTransaction(
   transaction: EyeoleanTransaction
 ): boolean {
   const transactions = profile.eyeoleanTransactions ?? []
-  const processedIds = profile.processedEyeoleanTransactionIds ?? transactions.map((entry) => entry.id)
+  const processedIds =
+    profile.processedEyeoleanTransactionIds ?? transactions.map((entry) => entry.id)
   if (processedIds.includes(transaction.id)) return false
 
   profile.eyeoleanTransactions = [...transactions, transaction].slice(-MAX_EYEOLEAN_TRANSACTIONS)
@@ -536,13 +537,7 @@ const profilesSlice = createSlice({
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       const transactionId = action.payload.transactionId.trim()
       const label = action.payload.label.trim()
-      if (
-        !profile ||
-        !transactionId ||
-        !label ||
-        !Number.isFinite(action.payload.amount)
-      )
-        return
+      if (!profile || !transactionId || !label || !Number.isFinite(action.payload.amount)) return
       const amount = Math.max(0, Math.floor(action.payload.amount))
       if (amount <= 0) return
 

@@ -17,7 +17,7 @@ Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbi
 | Back 2 the Game win              |                                         8,000 each |
 | Tribunal member                  |                                              5,000 |
 | Survive double eviction          |                                              7,000 |
-| Survive triple eviction          |              10,000 when an authoritative flag exists |
+| Survive triple eviction          |           10,000 when an authoritative flag exists |
 | Correct Public Favorite forecast |                                              2,500 |
 
 The starting values deliberately preserve the relative shape of the former season score model at 1 point = 1,000 Eyeoleans, while removing the old special-case rule that reduced the combined reward when one player won both the season and Public Favorite. Currency rewards are additive.
