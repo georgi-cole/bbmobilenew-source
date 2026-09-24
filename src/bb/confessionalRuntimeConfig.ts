@@ -182,7 +182,14 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
       embarrassment: ['embarrassed', 'awkward', 'humiliated', 'ashamed'],
       indecision: ['not sure', 'dont know', 'do not know', 'maybe', 'confused', 'torn'],
     },
-    trustTerms: ['trust', 'loyal', 'believe them', 'believe him', 'believe her'],
+    trustTerms: [
+      'i trust',
+      'i believe them',
+      'i believe him',
+      'i believe her',
+      'loyal to me',
+      'has my back',
+    ],
     distrustTerms: [
       'dont trust',
       'do not trust',
