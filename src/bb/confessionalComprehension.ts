@@ -270,11 +270,11 @@ function inferContradiction(
     /\b(?:trust|loyal|believe)\b/.test(text) && !/\b(?:dont|do not|not)\b.*\btrust\b/.test(text)
   const distrustsNow = /\b(?:dont trust|do not trust|lying|liar|sketchy|shady|snake)\b/.test(text)
 
-  if (
-    trustsNow &&
-    (memory.includes(`distrusts ${focus}`) || memory.includes(`targeting ${focus}`))
-  ) {
+  if (trustsNow && memory.includes(`distrusts ${focus}`)) {
     return `You previously described ${focusPlayer} as someone you did not trust.`
+  }
+  if (trustsNow && memory.includes(`targeting ${focus}`)) {
+    return `You previously told me you wanted ${focusPlayer} out of the game.`
   }
   if (distrustsNow && memory.includes(`trusts ${focus}`)) {
     return `You previously described ${focusPlayer} as someone you trusted.`
@@ -361,7 +361,8 @@ export function buildBigEyeComprehensionFrame(input: {
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
     input.state.thread &&
-    (primaryIntent === 'yes' ||
+    (coreferenceUsed ||
+      primaryIntent === 'yes' ||
       primaryIntent === 'no' ||
       entities.some((entity) => entity === input.state.thread?.focusPlayer) ||
       (topics[0] && topics[0] === input.state.thread.topic))
