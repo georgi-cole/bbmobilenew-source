@@ -1,4 +1,4 @@
-import type { Middleware } from '@reduxjs/toolkit'
+import type { Dispatch, Middleware, MiddlewareAPI, UnknownAction } from '@reduxjs/toolkit'
 import {
   activateStoreExtraVote,
   advance,
@@ -12,6 +12,7 @@ import {
   consumeEyeoleanStorePower,
   returnEyeoleanStorePower,
   type EyeoleanPowerReservation,
+  type ProfilesState,
 } from './profilesSlice'
 import {
   canTriggerStoreExtraVote,
@@ -19,29 +20,33 @@ import {
   getActiveHousemateCount,
 } from '../economy/eyeoleanPowerRules'
 import type { EyeoleanStoreProductKey } from '../economy/storeCatalog'
-import type { RootState } from './store'
+import type { GameState } from '../types'
 
-function activeReservations(state: RootState) {
+type PowerMiddlewareState = {
+  game: GameState
+  profiles: ProfilesState
+}
+
+type PowerMiddlewareApi = MiddlewareAPI<Dispatch<UnknownAction>, PowerMiddlewareState>
+
+function activeReservations(state: PowerMiddlewareState) {
   const { activeProfileId, isGuest, profiles } = state.profiles
   if (isGuest || !activeProfileId) return {}
   return profiles.find((profile) => profile.id === activeProfileId)?.eyeoleanPowerReservations ?? {}
 }
 
 function reservationFor(
-  state: RootState,
+  state: PowerMiddlewareState,
   productKey: EyeoleanStoreProductKey
 ): EyeoleanPowerReservation | undefined {
   return activeReservations(state)[productKey]
 }
 
-function reservationMatchesGame(state: RootState, productKey: EyeoleanStoreProductKey): boolean {
+function reservationMatchesGame(state: PowerMiddlewareState, productKey: EyeoleanStoreProductKey): boolean {
   return reservationFor(state, productKey)?.gameId === state.game.gameId
 }
 
-function reconcileReservations(api: {
-  getState: () => RootState
-  dispatch: (action: unknown) => unknown
-}) {
+function reconcileReservations(api: PowerMiddlewareApi) {
   const state = api.getState()
   const human = state.game.players.find((player) => player.isUser)
   const shouldReturn =
@@ -65,20 +70,14 @@ function reconcileReservations(api: {
   })
 }
 
-function tryActivateExtraVote(api: {
-  getState: () => RootState
-  dispatch: (action: unknown) => unknown
-}) {
+function tryActivateExtraVote(api: PowerMiddlewareApi) {
   const state = api.getState()
   if (!reservationMatchesGame(state, 'extra_vote')) return
   if (!canTriggerStoreExtraVote(state.game)) return
   api.dispatch(activateStoreExtraVote())
 }
 
-function tryApplyVoteRemoval(api: {
-  getState: () => RootState
-  dispatch: (action: unknown) => unknown
-}) {
+function tryApplyVoteRemoval(api: PowerMiddlewareApi) {
   const before = api.getState()
   if (!reservationMatchesGame(before, 'remove_vote')) return
   if (!canTriggerStoreVoteRemoval(before.game)) return
@@ -100,15 +99,16 @@ function tryApplyVoteRemoval(api: {
   )
 }
 
-export const eyeoleanPowerMiddleware: Middleware<unknown, RootState> =
-  (api) => (next) => (action) => {
-    const before = api.getState()
+export const eyeoleanPowerMiddleware: Middleware = (api) => {
+  const typedApi = api as unknown as PowerMiddlewareApi
+  return (next) => (action) => {
+    const before = typedApi.getState()
     const storeExtraWasActive = before.game.storeExtraVoteChoiceActive === true
     const result = next(action)
 
-    reconcileReservations(api)
+    reconcileReservations(typedApi)
 
-    const afterReconcile = api.getState()
+    const afterReconcile = typedApi.getState()
     if (
       submitHumanDoubleVote.match(action) &&
       storeExtraWasActive &&
@@ -120,7 +120,7 @@ export const eyeoleanPowerMiddleware: Middleware<unknown, RootState> =
         afterReconcile.game.votes?.[`${human.id}__storeExtraVote`] &&
         reservationMatchesGame(afterReconcile, 'extra_vote')
       ) {
-        api.dispatch(
+        typedApi.dispatch(
           consumeEyeoleanStorePower({
             productKey: 'extra_vote',
             gameId: afterReconcile.game.gameId,
@@ -134,12 +134,13 @@ export const eyeoleanPowerMiddleware: Middleware<unknown, RootState> =
       declineDoubleVoteReward.match(action) ||
       hydrateGame.match(action)
     ) {
-      tryActivateExtraVote(api)
+      tryActivateExtraVote(typedApi)
     }
 
     if (advance.match(action) || declineVoteDeduction.match(action) || hydrateGame.match(action)) {
-      tryApplyVoteRemoval(api)
+      tryApplyVoteRemoval(typedApi)
     }
 
     return result
   }
+}
