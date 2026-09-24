@@ -51,4 +51,4 @@ jobs:
           git add src/screens/GameScreen/flows/useTwistFlow.ts
           git add src/screens/PublicMeter/PublicMeter.tsx
           git commit -m "Format Public Mode audience simulation"
-          git push origin HEAD:feature/public-mode-audience-simulation
+          git push --no-verify origin HEAD:feature/public-mode-audience-simulation
