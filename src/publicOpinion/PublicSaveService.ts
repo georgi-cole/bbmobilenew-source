@@ -155,7 +155,7 @@ function buildComponents(params: {
           storyline: storylineScore(playerId, context?.feed, week),
           underdog: underdogScore(playerId, context?.nominationCounts),
           approval: clamp(profile?.approval ?? 50, 0, 100),
-          noise: pollNoise(seed, week, playerId),
+          noise: context ? pollNoise(seed, week, playerId) : 0,
         },
       ]
     })
