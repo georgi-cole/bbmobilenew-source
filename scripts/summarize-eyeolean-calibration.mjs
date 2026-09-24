@@ -82,6 +82,7 @@ function readReports(files) {
     try {
       const parsed = JSON.parse(readFileSync(file, 'utf8'))
       if (!parsed || parsed.schemaVersion !== 1 || !parsed.economySample) continue
+      if ((parsed.findings ?? []).some((finding) => finding?.severity === 'error')) continue
       reports.push({ file, report: parsed })
     } catch {
       // Ignore unrelated or partial JSON artifacts.
