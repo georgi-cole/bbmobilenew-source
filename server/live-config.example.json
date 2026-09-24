@@ -31,7 +31,11 @@
     "weeklyMode": "single-game",
     "weeklyGameKey": "quickTapRace",
     "_comment3": "weeklyGameKeys is used when weeklyMode is user-selection",
-    "weeklyGameKeys": ["quickTapRace", "bullseyeBlitz", "colorMatch"]
+    "weeklyGameKeys": [
+      "quickTapRace",
+      "bullseyeBlitz",
+      "colorMatch"
+    ]
   },
   "social": {
     "_comment": "Pure-data Social and Drama overrides. Algorithms and executable rules remain bundled in the app.",
@@ -75,7 +79,9 @@
     "content": {
       "_comment": "These examples can be edited without rebuilding the app. Unknown IDs are harmless.",
       "scenarioLines": {
-        "week_start_ally_check_in": ["Fresh week. I wanted to make sure you and I are still solid."]
+        "week_start_ally_check_in": [
+          "Fresh week. I wanted to make sure you and I are still solid."
+        ]
       },
       "actionPresentation": {
         "compliment": {
@@ -124,6 +130,119 @@
       "bio": "Returning champion — now playing for redemption."
     }
   ],
+  "confessional": {
+    "schemaVersion": 1,
+    "revision": "confessional-2.0.0",
+    "features": {
+      "memoryCallbacks": true,
+      "proactiveObservations": true,
+      "deterministicKnowledge": true,
+      "visualEyeReactions": true,
+      "predictions": true,
+      "challengeMe": true
+    },
+    "persona": {
+      "warmth": 0.38,
+      "sarcasm": 0.34,
+      "mystery": 0.46,
+      "questionFrequency": 0.56,
+      "callbackFrequency": 0.42,
+      "conciseBias": 0.48
+    },
+    "comprehension": {
+      "emotionPhrases": {
+        "suspicion": [
+          "suspicious",
+          "sketchy",
+          "shady",
+          "lying",
+          "dont trust",
+          "do not trust"
+        ],
+        "indecision": [
+          "not sure",
+          "dont know",
+          "do not know",
+          "maybe",
+          "torn"
+        ]
+      },
+      "slang": {
+        "overwhelmed": [
+          "im cooked",
+          "i am cooked",
+          "this is cooked"
+        ]
+      }
+    },
+    "responses": {
+      "challengePrompts": [
+        "Before you come back here, have one honest conversation with the person you trust least.",
+        "Before your next visit, verify one promise instead of collecting three more.",
+        "For the next hour, keep your plan to yourself and listen to who talks too much."
+      ]
+    },
+    "salience": {
+      "weights": {
+        "returned": 100,
+        "newly_nominated": 95,
+        "became_leader": 85,
+        "won_safety": 80,
+        "survived_nomination": 82,
+        "closest_relationship_changed": 70,
+        "late_game": 60
+      },
+      "templates": {
+        "returned": [
+          "I watched you leave. Apparently the House was not finished with you."
+        ],
+        "newly_nominated": [
+          "Back already. And this time your name is on the block."
+        ],
+        "became_leader": [
+          "Power suits you. For now."
+        ],
+        "won_safety": [
+          "You won safety. I noticed."
+        ],
+        "survived_nomination": [
+          "Still here. That was not guaranteed."
+        ],
+        "closest_relationship_changed": [
+          "Your closest connection has changed since the last time you sat in that chair."
+        ],
+        "late_game": [
+          "Fewer faces. Heavier choices. Sit down."
+        ]
+      }
+    },
+    "director": {
+      "authority": 0.82,
+      "warmth": 0.36,
+      "humour": 0.32,
+      "mystery": 0.45,
+      "verbosity": 0.42,
+      "preferredMoves": [
+        "answer",
+        "observe",
+        "challenge",
+        "remember",
+        "tease",
+        "probe"
+      ],
+      "forbiddenCliches": [
+        "trust is currency",
+        "the house is listening",
+        "your feelings are valid",
+        "interesting"
+      ],
+      "directives": [
+        "Prefer specific callbacks over generic atmosphere.",
+        "A very short answer is allowed when it is dramatically sharper.",
+        "Notice contradictions without inventing motives."
+      ]
+    }
+  },
   "director": {
     "_comment": "Season orchestration policy. Frequency/window changes are snapshotted when a new season starts; kill switches are live.",
     "schemaVersion": 1,
