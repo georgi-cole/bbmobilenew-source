@@ -50,6 +50,11 @@ import {
   type SecretMissionBoxRewardType,
 } from '../../bb/secretMission'
 import { classifyTwinShockAnswer, resolveTwinShockTurn } from '../../bb/twinShock'
+import {
+  buildBigEyeWorldSnapshot,
+  getSalientConfessionalObservation,
+  type BigEyeWorldSnapshot,
+} from '../../bb/confessionalSalience'
 import { applyInfluenceDelta, renameRealityAllianceRecord } from '../../social/socialSlice'
 import { getEffectiveSocialMode } from '../../social/socialMode'
 import RealityLedger from '../../components/RealityLedger/RealityLedger'
@@ -239,8 +244,12 @@ function summaryKey(playerId: string): string {
   return `bb_dr_summary_emitted_${playerId}`
 }
 
-function conversationStateKey(playerId: string): string {
-  return `bb_dr_state_${playerId}`
+function conversationStateKey(gameId: string, playerId: string): string {
+  return `big_eye_state_${gameId}_${playerId}`
+}
+
+function worldSnapshotKey(gameId: string, playerId: string): string {
+  return `big_eye_world_snapshot_${gameId}_${playerId}`
 }
 
 function visitCountKey(playerId: string): string {
@@ -343,18 +352,58 @@ function saveChat(playerId: string, messages: ChatMessage[]): void {
   }
 }
 
-function saveConversationState(playerId: string, state: BigEyeConversationState): void {
+function loadConversationState(gameId: string, playerId: string): BigEyeConversationState {
+  const fallback = createInitialBigEyeState()
   try {
-    sessionStorage.setItem(conversationStateKey(playerId), JSON.stringify(state))
+    const raw = localStorage.getItem(conversationStateKey(gameId, playerId))
+    if (!raw) return fallback
+    const parsed = JSON.parse(raw) as Partial<BigEyeConversationState>
+    return {
+      ...fallback,
+      ...parsed,
+      recentIntents: Array.isArray(parsed.recentIntents) ? parsed.recentIntents.slice(-6) : [],
+      thread: parsed.thread ?? null,
+      rapport: { ...fallback.rapport, ...(parsed.rapport ?? {}) },
+    }
   } catch {
-    // fail silently
+    return fallback
+  }
+}
+
+function saveConversationState(
+  gameId: string,
+  playerId: string,
+  state: BigEyeConversationState
+): void {
+  try {
+    localStorage.setItem(conversationStateKey(gameId, playerId), JSON.stringify(state))
+  } catch {
+    // Local character continuity is optional.
+  }
+}
+
+function loadWorldSnapshot(gameId: string, playerId: string): BigEyeWorldSnapshot | null {
+  try {
+    const raw = localStorage.getItem(worldSnapshotKey(gameId, playerId))
+    return raw ? (JSON.parse(raw) as BigEyeWorldSnapshot) : null
+  } catch {
+    return null
+  }
+}
+
+function saveWorldSnapshot(gameId: string, playerId: string, snapshot: BigEyeWorldSnapshot): void {
+  try {
+    localStorage.setItem(worldSnapshotKey(gameId, playerId), JSON.stringify(snapshot))
+  } catch {
+    // Salience callbacks are optional.
   }
 }
 
 function clearConversationSession(playerId: string): void {
   try {
+    // The visible transcript remains session-only and is intentionally cleared
+    // between visits. Semantic thread/rapport state lives separately per season.
     sessionStorage.removeItem(chatKey(playerId))
-    sessionStorage.removeItem(conversationStateKey(playerId))
   } catch {
     // fail silently
   }
@@ -372,11 +421,17 @@ function recordConfessionalVisit(playerId: string): number {
   }
 }
 
-function buildEntryGreeting(playerName: string, seed: number, visitCount: number): ChatMessage {
+function buildEntryGreeting(
+  playerName: string,
+  seed: number,
+  visitCount: number,
+  observation?: string | null
+): ChatMessage {
   const text =
     visitCount <= 1
       ? FIRST_VISIT_GREETING.replace('{name}', playerName)
-      : // Second visit should use the first returning line, so offset the
+      : observation ||
+        // Second visit should use the first returning line, so offset the
         // visit count by two before applying the seeded rotation.
         RETURNING_VISIT_GREETINGS[(seed + visitCount - 2) % RETURNING_VISIT_GREETINGS.length]
 
@@ -464,6 +519,14 @@ function ChatBubbles({
               key={msg.id}
               className={`diary-room__bubble diary-room__bubble--${msg.role}${isActiveDecision ? ' diary-room__bubble--decision' : ''}${msg.performance ? ` diary-room__bubble--${msg.performance.delivery}` : ''}`}
               data-emotion={msg.performance?.emotion}
+              data-eye-state={msg.performance?.eyeState}
+              style={
+                msg.performance
+                  ? ({
+                      '--big-eye-intensity': msg.performance.intensity,
+                    } as CSSProperties)
+                  : undefined
+              }
               data-testid={isActiveDecision ? 'confessional-decision-message' : undefined}
             >
               <span className="diary-room__bubble-author">
@@ -552,8 +615,9 @@ export default function DiaryRoom() {
   )
   const [showVoxNominationAdPrompt, setShowVoxNominationAdPrompt] = useState(false)
   const [voxNominationAdPending, setVoxNominationAdPending] = useState(false)
-  const [conversationState, setConversationState] =
-    useState<BigEyeConversationState>(createInitialBigEyeState)
+  const [conversationState, setConversationState] = useState<BigEyeConversationState>(() =>
+    loadConversationState(gameState.gameId, playerId)
+  )
   const [vipStatus, setVipStatus] = useState<BigEyeVipStatus | null>(null)
   const [vipSelected, setVipSelected] = useState(false)
   const [vipNotice, setVipNotice] = useState<string | null>(null)
@@ -643,8 +707,14 @@ export default function DiaryRoom() {
     userPlayer,
   ])
 
+  const bigEyeWorldRef = useRef(bigEyeWorld)
+  useEffect(() => {
+    bigEyeWorldRef.current = bigEyeWorld
+  }, [bigEyeWorld])
+
   useEffect(() => {
     setMemorySummary(loadBigEyeMemory(gameState.gameId, playerId))
+    setConversationState(loadConversationState(gameState.gameId, playerId))
   }, [gameState.gameId, playerId])
 
   useEffect(() => {
@@ -790,9 +860,8 @@ export default function DiaryRoom() {
       return
     }
 
-    const nextConversationState = createInitialBigEyeState()
+    const nextConversationState = loadConversationState(gameState.gameId, playerId)
     setConversationState(nextConversationState)
-    saveConversationState(playerId, nextConversationState)
     if (confessionalDecisionPendingRef.current) {
       setMessages([])
       saveChat(playerId, [])
@@ -809,7 +878,12 @@ export default function DiaryRoom() {
               buildEntryGreeting(
                 playerNameRef.current,
                 seedRef.current ?? 0,
-                recordConfessionalVisit(playerId)
+                recordConfessionalVisit(playerId),
+                getSalientConfessionalObservation({
+                  previous: loadWorldSnapshot(gameState.gameId, playerId),
+                  current: bigEyeWorldRef.current,
+                  playerName: playerNameRef.current,
+                })?.text
               ),
             ]
       const shouldTeachRevealPhrase =
@@ -827,12 +901,17 @@ export default function DiaryRoom() {
         : baseMessages
       setMessages(nextMessages)
       saveChat(playerId, nextMessages)
+      saveWorldSnapshot(
+        gameState.gameId,
+        playerId,
+        buildBigEyeWorldSnapshot(bigEyeWorldRef.current)
+      )
     })
 
     return () => {
       cancelled = true
     }
-  }, [confessionalLocked, playerId, voxPopuliActive])
+  }, [confessionalLocked, gameState.gameId, playerId, voxPopuliActive])
 
   useEffect(() => {
     // Twin Shock has a free-text answer rather than the button panel used by
@@ -1156,6 +1235,7 @@ export default function DiaryRoom() {
         history: messages.slice(-12).map((message) => ({ role: message.role, text: message.text })),
         memorySummary,
         world: bigEyeWorld,
+        skipDirector: requestVipForThisTurn,
       })
       let replyText = resp.text
       let vipReplyUsed = false
@@ -1203,7 +1283,7 @@ export default function DiaryRoom() {
       }
 
       setConversationState(resp.nextState)
-      saveConversationState(playerId, resp.nextState)
+      saveConversationState(gameState.gameId, playerId, resp.nextState)
       setMemorySummary(resp.memorySummary)
       saveBigEyeMemory(gameState.gameId, playerId, resp.memorySummary)
 
@@ -1936,13 +2016,13 @@ export default function DiaryRoom() {
                       : 'What are you thinking?'
                   }
                   rows={2}
-                  maxLength={280}
+                  maxLength={500}
                   aria-label={
                     twinShockResponseRequired ? 'Required response to The Big Eye' : 'Diary entry'
                   }
                 />
                 <div className="diary-room__footer">
-                  <span className="diary-room__charcount">{entry.length}/280</span>
+                  <span className="diary-room__charcount">{entry.length}/500</span>
                   <div className="diary-room__footer-actions">
                     <button
                       className={`diary-room__vip-toggle${vipSelected ? ' diary-room__vip-toggle--selected' : ''}`}
