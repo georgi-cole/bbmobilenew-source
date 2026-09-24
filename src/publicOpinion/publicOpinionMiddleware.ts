@@ -359,6 +359,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
         nomineeIds: nominees,
         lohId,
         approvals,
+        nominationCounts: Object.fromEntries(
+          (game.players ?? []).map((player) => [player.id, player.stats?.timesNominated ?? 0])
+        ),
         week,
       })
       dispatchReactionDeltas(store, reactions, week)
@@ -659,6 +662,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
             nomineeIds,
             lohId: game.lohId,
             approvals,
+            nominationCounts: Object.fromEntries(
+              (game.players ?? []).map((player) => [player.id, player.stats?.timesNominated ?? 0])
+            ),
             week,
           })
           dispatchReactionDeltas(store, reactions, week)
@@ -828,6 +834,19 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
         week,
       })
       dispatchReactionDeltas(store, reactions, week)
+
+      const survivalReactions = computeBlockSurvivalReactions({
+        nomineeIds: prevState.game?.nomineeIds ?? [],
+        evicteeId,
+        approvals,
+        nominationCounts: Object.fromEntries(
+          (prevState.game?.players ?? []).map((player) => [
+            player.id,
+            player.stats?.timesNominated ?? 0,
+          ])
+        ),
+      })
+      dispatchReactionDeltas(store, survivalReactions, week)
     }
   }
 
