@@ -504,6 +504,13 @@ function groundedSemanticReply(
       : `Then ${focus} is your target. Clear. Wanting someone gone is the easy part; making the move without exposing yourself is the game.`
   }
 
+  if (
+    focus &&
+    /playing (?:his|her|their) own game|playing for (?:himself|herself|themselves)/.test(text)
+  ) {
+    return `Then you see ${focus} as aligned with you only while your interests overlap. That is not automatically betrayal; it is a reason to stop treating the alliance as unconditional.`
+  }
+
   if (focus && frame.relationshipStances.includes('distrust') && frame.relationshipStances.includes('depend')) {
     return `You do not trust ${focus}, but you still need them. That is leverage, not loyalty. Use the relationship if it protects you; do not confuse usefulness with safety.`
   }
