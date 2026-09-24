@@ -384,6 +384,57 @@ describe('DiaryRoom', () => {
     expect(screen.queryByRole('button', { name: /shuffle mission/i })).toBeNull()
   })
 
+  it('keeps an already-active secret mission compact until the player expands it', () => {
+    const { store } = renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (appStore) => {
+        appStore.dispatch(triggerSecretMission(5))
+        appStore.dispatch(offerSecretMission(5))
+        appStore.dispatch(acceptSecretMission())
+      },
+    })
+
+    const mission = store.getState().game.secretMission!
+    const toggle = screen.getByRole('button', { name: /secret mission/i })
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(
+      screen.getByText(
+        new RegExp(
+          `${mission.tasks.filter((task) => task.completed).length}/${mission.tasks.length} objectives complete`,
+          'i'
+        )
+      )
+    ).toBeTruthy()
+    expect(document.getElementById('secret-mission-details')).toBeNull()
+
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById('secret-mission-details')).toBeTruthy()
+
+    fireEvent.click(toggle)
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('secret-mission-details')).toBeNull()
+  })
+
+  it('expands a secret mission when the player accepts it for the first time', () => {
+    renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (store) => {
+        store.dispatch(triggerSecretMission(5))
+        store.dispatch(offerSecretMission(5))
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /accept the mission/i }))
+
+    expect(screen.getByRole('button', { name: /secret mission/i })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    )
+    expect(document.getElementById('secret-mission-details')).toBeTruthy()
+  })
+
   it('answers task-number hint requests from the active mission checklist', async () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
       setupStore: (store) => {
