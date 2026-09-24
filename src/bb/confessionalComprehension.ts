@@ -109,7 +109,7 @@ function detectKnowledgeQuery(text: string): ConfessionalKnowledgeQuery | null {
 }
 
 function detectPrediction(text: string, world?: ConfessionalWorldContext): string | null {
-  if (!world || !/(?:think|predict|bet|believe).*(?:win|winner)/.test(text)) return null
+  if (!world || !/\b(?:think|predict|bet|believe)\b.*\b(?:win|winner)\b/.test(text)) return null
   return (
     world.remainingHousemates.find((name) => text.includes(normalizeInput(name))) ??
     world.closestRelationships.find((row) => text.includes(normalizeInput(row.name)))?.name ??
@@ -138,7 +138,7 @@ function inferSpeechAct(
 ): ConfessionalSpeechAct {
   if (knowledgeQuery === 'memory') return 'memory_query'
   if (knowledgeQuery) return 'factual_question'
-  if (/challenge me|give me a challenge|dare me/.test(text)) return 'challenge_request'
+  if (/\bchallenge me\b|\bgive me a challenge\b|\bdare me\b/.test(text)) return 'challenge_request'
   if (predictedWinner) return 'prediction'
   if (state.thread && (intent === 'yes' || intent === 'no')) return 'answer'
   if (intent === 'advice_request' || intent === 'strategy') return 'advice_request'
@@ -151,7 +151,7 @@ function inferSpeechAct(
   ) {
     return 'vent'
   }
-  if (/?$/.test(text) || /^(who|what|when|where|why|how|can|could|should|would|do|does|is|are)/.test(text)) {
+  if (/\?$/.test(text) || /^(who|what|when|where|why|how|can|could|should|would|do|does|is|are)\b/.test(text)) {
     return 'factual_question'
   }
   if (intent === 'unknown') return 'statement'
@@ -166,8 +166,8 @@ function inferContradiction(
   if (!focusPlayer || !memorySummary) return null
   const memory = normalizeInput(memorySummary)
   const focus = normalizeInput(focusPlayer)
-  const trustsNow = /(?:trust|loyal|believe)/.test(text) && !/(?:dont|do not|not).*trust/.test(text)
-  const distrustsNow = /(?:dont trust|do not trust|lying|liar|sketchy|shady|snake)/.test(text)
+  const trustsNow = /\b(?:trust|loyal|believe)\b/.test(text) && !/\b(?:dont|do not|not)\b.*\btrust\b/.test(text)
+  const distrustsNow = /\b(?:dont trust|do not trust|lying|liar|sketchy|shady|snake)\b/.test(text)
 
   if (trustsNow && (memory.includes(`distrusts ${focus}`) || memory.includes(`targeting ${focus}`))) {
     return `You previously described ${focusPlayer} as someone you did not trust.`
