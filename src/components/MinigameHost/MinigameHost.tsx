@@ -761,11 +761,17 @@ export default function MinigameHost({
 
     if (game.implementation === 'react' && game.reactComponentKey === 'Capitalization') {
       const CapitalizationComp = reactComponents.Capitalization
+      const capitalizationContext =
+        gameOptions.capitalizationContext === 'battleBack' ? 'battleBack' : 'loh'
+      const capitalizationSeed = typeof gameOptions.seed === 'number' ? gameOptions.seed : undefined
+
       return (
         <CapitalizationComp
           autoStart={true}
           participantIds={participantIds}
           participants={participants}
+          seed={capitalizationSeed}
+          context={capitalizationContext}
           onFinish={(
             value: number,
             tiebreakerMs?: number,

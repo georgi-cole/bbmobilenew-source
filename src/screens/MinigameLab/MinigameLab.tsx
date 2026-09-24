@@ -91,6 +91,8 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const [isMinimized, setIsMinimized] = useState(false)
 
   const freezeEnabled = getRouteFlag('freeze')
+  const capitalizationContext =
+    params.get('context') === 'battleBack' ? ('battleBack' as const) : undefined
   const selectedGame =
     activeGames.find((game) => game.key === selectedGameKey) ?? activeGames[0] ?? null
   const participants = useMemo(() => buildParticipants(playerCount), [playerCount])
@@ -151,7 +153,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           <MinigameHost
             key={previewKey}
             game={selectedGame}
-            gameOptions={{ seed }}
+            gameOptions={{ seed, capitalizationContext }}
             participants={participants}
             skipRules={skipRules}
             skipCountdown={skipCountdown}
@@ -217,6 +219,9 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             {activeGames.length} {keyboardGamesOnly ? 'keyboard games' : 'active games'}
           </span>
           <span className="minigame-lab__badge">{playerCount} players</span>
+          {selectedGame?.key === 'capitalization' && capitalizationContext === 'battleBack' && (
+            <span className="minigame-lab__badge">Back 2 the Game context</span>
+          )}
         </div>
 
         <div className="minigame-lab__controls">
@@ -302,7 +307,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
         <MinigameHost
           key={previewKey}
           game={selectedGame}
-          gameOptions={{ seed }}
+          gameOptions={{ seed, capitalizationContext }}
           participants={participants}
           skipRules={skipRules}
           skipCountdown={skipCountdown}

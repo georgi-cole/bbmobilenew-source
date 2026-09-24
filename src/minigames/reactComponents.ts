@@ -88,6 +88,8 @@ export interface GenericMinigameProps {
   seed?: number
   /** When true the game starts immediately on mount (no Start button needed). */
   autoStart?: boolean
+  /** Capitalization only: selects standard LOH or Back 2 the Game rules. */
+  context?: 'loh' | 'battleBack'
   /** Battery Low only: enable one-shot vote effects in compatible weekly formats. */
   voteEffectsEnabled?: boolean
   /** Authoritative participant ids forwarded from MinigameHost for hosted competitions. */
