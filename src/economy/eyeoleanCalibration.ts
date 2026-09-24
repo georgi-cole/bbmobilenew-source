@@ -69,6 +69,7 @@ interface EvaluatedSample {
   input: EyeoleanCalibrationSample
   rewards: EyeoleanRewardLine[]
   total: number
+  secondaryTotal: number
 }
 
 const ANCHOR_CODES = new Set<EyeoleanRewardCode>(['season_winner', 'runner_up', 'public_favorite'])
@@ -147,6 +148,9 @@ function evaluate(sample: EyeoleanCalibrationSample): EvaluatedSample {
     input: sample,
     rewards,
     total: totalEyeoleanRewards(rewards),
+    secondaryTotal: rewards
+      .filter((reward) => !ANCHOR_CODES.has(reward.code))
+      .reduce((sum, reward) => sum + reward.amount, 0),
   }
 }
 
@@ -198,6 +202,7 @@ export function buildEyeoleanCalibrationReport(
     .sort((left, right) => right.total - left.total || left.code.localeCompare(right.code))
 
   const nonFinalistTotals = nonFinalists.map((sample) => sample.total)
+  const nonFinalistSecondaryTotals = nonFinalists.map((sample) => sample.secondaryTotal)
 
   return {
     sampleSize: evaluated.length,
@@ -224,11 +229,11 @@ export function buildEyeoleanCalibrationReport(
     rewardSources,
     pressure: {
       nonFinalistAtOrAboveRunnerUp: thresholdMetric(
-        nonFinalistTotals,
+        nonFinalistSecondaryTotals,
         EYEOLEAN_REWARD_AMOUNTS.runnerUp
       ),
       nonFinalistAtOrAbovePublicFavorite: thresholdMetric(
-        nonFinalistTotals,
+        nonFinalistSecondaryTotals,
         EYEOLEAN_REWARD_AMOUNTS.publicFavorite
       ),
       secondaryRewardShareOfMinted: totalMinted > 0 ? secondaryMinted / totalMinted : 0,
