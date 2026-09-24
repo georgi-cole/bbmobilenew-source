@@ -142,6 +142,7 @@ describe('PublicFavoriteOverlay', () => {
   it('does not leak the season-winner countdown into favorite-player voting', () => {
     render(<PublicFavoriteOverlay candidates={PLAYERS} seed={41} onComplete={vi.fn()} />)
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     const spotlight = screen.getByRole('region', { name: 'Houseguest Spotlight' })
     expect(within(spotlight).queryByLabelText(/Final reveal in 0:\d{2}/i)).not.toBeInTheDocument()
   })
@@ -157,6 +158,7 @@ describe('PublicFavoriteOverlay', () => {
       />
     )
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_100)
     })
@@ -179,6 +181,7 @@ describe('PublicFavoriteOverlay', () => {
   it('uses a readable fast-forward cadence instead of 260 ms eliminations', () => {
     render(<PublicFavoriteOverlay candidates={PLAYERS} seed={41} onComplete={vi.fn()} />)
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward public favorite vote' }))
 
     expect(mockedUseBattleBackVoting.mock.calls.at(-1)?.[0]).toMatchObject({
