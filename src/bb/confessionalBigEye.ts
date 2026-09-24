@@ -1,3 +1,5 @@
+import { getConfessionalRuntimeConfig } from './confessionalRuntimeConfig'
+
 export type BigEyeIntent =
   | 'greeting'
   | 'farewell'
@@ -97,7 +99,6 @@ interface ResponseEntry {
 }
 
 const MAX_RECENT_INTENTS = 6
-const GLITCH_CHANCE = 0.01
 
 export const YES_SYNONYMS = [
   'yes',
@@ -748,7 +749,11 @@ function getTurnRandom(
 }
 
 function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number): string {
-  const baseResponses = INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses
+  const remoteResponses = getConfessionalRuntimeConfig().responses.intents[intent as BigEyeIntent]
+  const baseResponses =
+    remoteResponses?.length
+      ? remoteResponses
+      : INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses
   const pool =
     intent === 'unknown' && mood !== 'neutral'
       ? [
@@ -759,13 +764,6 @@ function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number):
         ]
       : baseResponses
   return pool[Math.floor(rng() * pool.length)] ?? pool[0]
-}
-
-function distortText(text: string): string {
-  return text
-    .split('')
-    .map((char, index) => (/[a-z]/i.test(char) && index % 2 === 0 ? `${char}\u0334` : char))
-    .join('')
 }
 
 export function detectIntent(input: string): BigEyeIntent {
@@ -809,8 +807,10 @@ export function detectIntent(input: string): BigEyeIntent {
   return bestIntent
 }
 
-function nextMood(intent: BigEyeIntent, state: BigEyeConversationState): BigEyeMood {
-  return MOOD_BY_INTENT[intent] ?? state.mood ?? 'neutral'
+function nextMood(intent: BigEyeIntent): BigEyeMood {
+  // Mood is a momentary delivery state. Long-term relationship texture belongs
+  // to rapport, so a cold/soft beat must not leak indefinitely into later topics.
+  return MOOD_BY_INTENT[intent] ?? 'neutral'
 }
 
 function buildNextState(
@@ -823,7 +823,7 @@ function buildNextState(
     lastQuestion: nextQuestion ?? null,
     lastIntent: intent,
     recentIntents,
-    mood: nextMood(intent, state),
+    mood: nextMood(intent),
     turnCount: state.turnCount + 1,
     thread: state.thread ?? null,
     rapport: state.rapport ?? { familiarity: 0, warmth: 0, friction: 0 },
@@ -847,7 +847,9 @@ export function getResponse(
     '{{name}}',
     context.playerName ?? 'Houseguest'
   )
-  const text = rng() < GLITCH_CHANCE ? distortText(baseText) : baseText
+  // Keep spoken text accessible. Visual glitching is handled by performance
+  // metadata/CSS rather than corrupting characters in the message itself.
+  const text = baseText
   const nextState = buildNextState(intent, state, nextQuestion)
 
   return {
