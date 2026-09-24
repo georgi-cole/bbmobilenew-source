@@ -1245,6 +1245,11 @@ export interface GameState {
    */
   humanDoubleVoteActive?: boolean
   /**
+   * True only while a purchased Extra Vote is driving the two-ballot UI.
+   * The profile reservation is consumed only after a legal second ballot is recorded.
+   */
+  storeExtraVoteChoiceActive?: boolean
+  /**
    * PR 3 — voteDeduction activation: set by advance() during eviction_results
    * when the human player is a nominee with votes against them, has an eligible
    * voteDeduction reward, and no conflicting twist is active.
