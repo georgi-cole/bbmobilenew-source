@@ -28,6 +28,12 @@ export interface LocalBigEyeWorld {
     affinity: number
     tags: string[]
   }>
+  playerStats?: {
+    leaderWins: number
+    safetyWins: number
+    timesNominated: number
+  }
+  recentPublicEvents?: string[]
 }
 
 export interface LocalBigEyeDirectorInput {
@@ -382,12 +388,12 @@ function resolveKnowledgeReply(
       return `${closest.name} is the connection currently reading strongest from the information available to me. That is not a promise of loyalty.`
     }
     case 'stats':
-      if (!('playerStats' in world) || !world.playerStats) {
+      if (!world.playerStats) {
         return 'Your competition record is not available in this view.'
       }
       return `Your record: ${world.playerStats.leaderWins} Leader win${world.playerStats.leaderWins === 1 ? '' : 's'}, ${world.playerStats.safetyWins} Safety win${world.playerStats.safetyWins === 1 ? '' : 's'}, and ${world.playerStats.timesNominated} nomination${world.playerStats.timesNominated === 1 ? '' : 's'}.`
     case 'recent_events': {
-      const events = 'recentPublicEvents' in world ? world.recentPublicEvents?.slice(-2) ?? [] : []
+      const events = world.recentPublicEvents?.slice(-2) ?? []
       return events.length
         ? `Most recently: ${events.join(' ')}`
         : 'Nothing recent is recorded strongly enough for me to recap.'
