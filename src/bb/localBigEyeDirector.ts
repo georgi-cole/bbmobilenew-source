@@ -676,7 +676,9 @@ export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string
     for (const stance of frame.relationshipStances) {
       if (stance === 'trust') additions.push(`Belief — trusts ${frame.focusPlayer}`)
       if (stance === 'distrust') additions.push(`Belief — distrusts ${frame.focusPlayer}`)
-      if (stance === 'target') additions.push(`Intent — targeting ${frame.focusPlayer}`)
+      if (stance === 'target' && frame.speechAct === 'target_declaration') {
+        additions.push(`Intent — targeting ${frame.focusPlayer}`)
+      }
       if (stance === 'protect') additions.push(`Intent — protecting ${frame.focusPlayer}`)
       if (stance === 'depend') additions.push(`Dependency — needs ${frame.focusPlayer}`)
     }
