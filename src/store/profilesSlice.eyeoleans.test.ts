@@ -275,5 +275,4 @@ describe('Eyeolean profile wallet', () => {
     expect(state.profiles[0]?.eyeoleanPowerReservations?.remove_vote).toBeUndefined()
     expect(state.profiles[0]?.eyeoleans).toBe(115_000)
   })
-
 })

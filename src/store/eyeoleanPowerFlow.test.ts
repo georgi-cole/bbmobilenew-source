@@ -84,9 +84,7 @@ describe('Eyeolean Store voting powers', () => {
 
     const voters = state.players.filter(
       (player) =>
-        player.id !== human.id &&
-        player.id !== loh.id &&
-        !state.nomineeIds.includes(player.id)
+        player.id !== human.id && player.id !== loh.id && !state.nomineeIds.includes(player.id)
     )
     state.votes = {
       [voters[0]!.id]: human.id,

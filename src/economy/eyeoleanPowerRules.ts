@@ -7,9 +7,8 @@ export interface EyeoleanPowerAvailability {
 }
 
 export function getActiveHousemateCount(game: GameState): number {
-  return game.players.filter(
-    (player) => player.status !== 'evicted' && player.status !== 'jury'
-  ).length
+  return game.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+    .length
 }
 
 export function isEyeoleanPowerEndgameLocked(game: GameState): boolean {

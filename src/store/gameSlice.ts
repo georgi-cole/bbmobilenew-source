@@ -4230,9 +4230,7 @@ function applyOneVoteDeductionToHuman(state: GameState): boolean {
     const count = state.voteResults[id] ?? 0
     if (count > maxVotes) maxVotes = count
   }
-  const topNominees = state.nomineeIds.filter(
-    (id) => (state.voteResults![id] ?? 0) === maxVotes
-  )
+  const topNominees = state.nomineeIds.filter((id) => (state.voteResults![id] ?? 0) === maxVotes)
 
   if (topNominees.length === 1) {
     const newEvictee = state.players.find((player) => player.id === topNominees[0])

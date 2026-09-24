@@ -12,10 +12,7 @@ import {
   getEyeoleanStoreProduct,
   type EyeoleanStoreProductKey,
 } from '../../economy/storeCatalog'
-import {
-  armEyeoleanPower,
-  disarmEyeoleanPower,
-} from '../../economy/eyeoleanPowerLifecycle'
+import { armEyeoleanPower, disarmEyeoleanPower } from '../../economy/eyeoleanPowerLifecycle'
 import {
   getEyeoleanPowerArmAvailability,
   isEyeoleanPowerDisarmLocked,
@@ -78,20 +75,14 @@ export default function ConfessionalWallet() {
     if (!human || !will?.active || !will.inherited || will.heirId !== human.id || !will.reward) {
       return null
     }
-    if (
-      will.reward === 'extra_vote' &&
-      will.extraVotePending
-    ) {
+    if (will.reward === 'extra_vote' && will.extraVotePending) {
       return {
         source: "Bella's Will",
         title: 'Inherited Extra Vote',
         detail: 'Automatic. It has priority over a purchased Extra Vote for the same eviction.',
       }
     }
-    if (
-      will.reward === 'remove_vote' &&
-      will.voteRemovalPending
-    ) {
+    if (will.reward === 'remove_vote' && will.voteRemovalPending) {
       return {
         source: "Bella's Will",
         title: 'Inherited Vote Removal',
@@ -253,7 +244,10 @@ export default function ConfessionalWallet() {
           {[activeEarnedPower, bellaPower]
             .filter((power): power is NonNullable<typeof power> => Boolean(power))
             .map((power) => (
-              <article className="diary-room__wallet-earned-card" key={`${power.source}:${power.title}`}>
+              <article
+                className="diary-room__wallet-earned-card"
+                key={`${power.source}:${power.title}`}
+              >
                 <span>{power.source}</span>
                 <strong>{power.title}</strong>
                 <p>{power.detail}</p>

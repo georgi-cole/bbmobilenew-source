@@ -689,7 +689,11 @@ const profilesSlice = createSlice({
       if (!profile || state.isGuest) return
       const { productKey } = action.payload
       const gameId = action.payload.gameId.trim()
-      if (!gameId || !Number.isFinite(action.payload.season) || !Number.isFinite(action.payload.week)) {
+      if (
+        !gameId ||
+        !Number.isFinite(action.payload.season) ||
+        !Number.isFinite(action.payload.week)
+      ) {
         return
       }
 

@@ -5,10 +5,7 @@ import {
   selectCurrentProfile,
 } from '../store/profilesSlice'
 import type { EyeoleanStoreProductKey } from './storeCatalog'
-import {
-  getEyeoleanPowerArmAvailability,
-  isEyeoleanPowerDisarmLocked,
-} from './eyeoleanPowerRules'
+import { getEyeoleanPowerArmAvailability, isEyeoleanPowerDisarmLocked } from './eyeoleanPowerRules'
 
 export interface EyeoleanPowerCommandResult {
   ok: boolean
@@ -47,8 +44,7 @@ export function armEyeoleanPower(productKey: EyeoleanStoreProductKey) {
       })
     )
 
-    const reservation =
-      selectCurrentProfile(getState())?.eyeoleanPowerReservations?.[productKey]
+    const reservation = selectCurrentProfile(getState())?.eyeoleanPowerReservations?.[productKey]
     if (!reservation || reservation.gameId !== state.game.gameId) {
       return { ok: false, message: 'The power could not be armed.' }
     }
