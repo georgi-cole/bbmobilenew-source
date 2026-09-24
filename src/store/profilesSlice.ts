@@ -114,6 +114,11 @@ export interface StoredProfile {
   eyeoleans?: number
   /** Recent wallet ledger entries for auditability and future Store UI. */
   eyeoleanTransactions?: EyeoleanTransaction[]
+  /**
+   * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
+   * an old purchase callback cannot become payable again after enough transactions.
+   */
+  processedEyeoleanTransactionIds?: string[]
   /** Season settlement IDs already paid; prevents finale reload/replay duplication. */
   settledEyeoleanSeasonIds?: string[]
   /** Permanent achievement identifiers unlocked by this profile. */
@@ -127,6 +132,7 @@ export interface StoredProfile {
 export const PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT = 'public_favorite_oracle'
 
 const MAX_EYEOLEAN_TRANSACTIONS = 500
+const MAX_PROCESSED_EYEOLEAN_TRANSACTION_IDS = 5000
 const MAX_SETTLED_EYEOLEAN_SEASONS = 1000
 
 export interface ProfilesState {
@@ -208,9 +214,13 @@ function appendEyeoleanTransaction(
   transaction: EyeoleanTransaction
 ): boolean {
   const transactions = profile.eyeoleanTransactions ?? []
-  if (transactions.some((entry) => entry.id === transaction.id)) return false
+  const processedIds = profile.processedEyeoleanTransactionIds ?? transactions.map((entry) => entry.id)
+  if (processedIds.includes(transaction.id)) return false
 
   profile.eyeoleanTransactions = [...transactions, transaction].slice(-MAX_EYEOLEAN_TRANSACTIONS)
+  profile.processedEyeoleanTransactionIds = [...processedIds, transaction.id].slice(
+    -MAX_PROCESSED_EYEOLEAN_TRANSACTION_IDS
+  )
   return true
 }
 
@@ -272,6 +282,20 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
           .filter((entry): entry is EyeoleanTransaction => entry !== null)
           .slice(-MAX_EYEOLEAN_TRANSACTIONS)
       : [],
+    processedEyeoleanTransactionIds: Array.isArray(r.processedEyeoleanTransactionIds)
+      ? r.processedEyeoleanTransactionIds
+          .filter(
+            (transactionId): transactionId is string =>
+              typeof transactionId === 'string' && transactionId.length > 0
+          )
+          .slice(-MAX_PROCESSED_EYEOLEAN_TRANSACTION_IDS)
+      : Array.isArray(r.eyeoleanTransactions)
+        ? r.eyeoleanTransactions
+            .map(coerceEyeoleanTransaction)
+            .filter((entry): entry is EyeoleanTransaction => entry !== null)
+            .map((entry) => entry.id)
+            .slice(-MAX_PROCESSED_EYEOLEAN_TRANSACTION_IDS)
+        : [],
     settledEyeoleanSeasonIds: Array.isArray(r.settledEyeoleanSeasonIds)
       ? r.settledEyeoleanSeasonIds
           .filter(
@@ -396,6 +420,7 @@ const profilesSlice = createSlice({
         createdAt: new Date().toISOString(),
         eyeoleans: 0,
         eyeoleanTransactions: [],
+        processedEyeoleanTransactionIds: [],
         settledEyeoleanSeasonIds: [],
       }
       state.profiles.push(profile)
@@ -513,8 +538,10 @@ const profilesSlice = createSlice({
       const label = action.payload.label.trim()
       if (!profile || !transactionId || !label || amount <= 0) return
 
-      const transactions = profile.eyeoleanTransactions ?? []
-      if (transactions.some((entry) => entry.id === transactionId)) return
+      const processedIds =
+        profile.processedEyeoleanTransactionIds ??
+        (profile.eyeoleanTransactions ?? []).map((entry) => entry.id)
+      if (processedIds.includes(transactionId)) return
 
       const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
       if (balance < amount) return
