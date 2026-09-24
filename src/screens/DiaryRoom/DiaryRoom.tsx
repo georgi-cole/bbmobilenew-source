@@ -557,9 +557,7 @@ export default function DiaryRoom() {
   const [vipStatus, setVipStatus] = useState<BigEyeVipStatus | null>(null)
   const [vipSelected, setVipSelected] = useState(false)
   const [vipNotice, setVipNotice] = useState<string | null>(null)
-  const [missionExpanded, setMissionExpanded] = useState(
-    secretMission?.status === 'rewardPending'
-  )
+  const [missionExpanded, setMissionExpanded] = useState(secretMission?.status === 'rewardPending')
   const {
     active: ticTacToeActive,
     launchTicTacToe,
@@ -1738,7 +1736,9 @@ export default function DiaryRoom() {
                 (secretMission.status === 'accepted' ||
                   secretMission.status === 'rewardPending') && (
                   <section
-                    className={`diary-room__mission-checklist${missionExpanded ? ' diary-room__mission-checklist--expanded' : ''}`}
+                    className={`diary-room__mission-checklist${
+                      missionExpanded ? ' diary-room__mission-checklist--expanded' : ''
+                    }`}
                     aria-label="Secret mission checklist"
                   >
                     <button
