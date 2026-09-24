@@ -497,6 +497,18 @@ function groundedSemanticReply(
     return 'Fair question. I was being more theatrical than useful. Ask me what you want explained, and I will answer it plainly.'
   }
 
+  if (['i dont', 'dont', 'i do not', 'do not'].includes(text)) {
+    return "You don't what? Finish the thought."
+  }
+
+  if (
+    focus &&
+    frame.speechAct === 'factual_question' &&
+    (frame.topics.includes('trust') || frame.topics.includes('alliance'))
+  ) {
+    return resolveKnowledgeReply('person_read', input, facts)
+  }
+
   if (frame.speechAct === 'target_declaration' && focus) {
     const distrust = frame.relationshipStances.includes('distrust')
     return distrust
