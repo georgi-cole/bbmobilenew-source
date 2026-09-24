@@ -65,6 +65,34 @@ describe('Eyeolean profile wallet', () => {
     expect(state.profiles[0]?.eyeoleanTransactions).toHaveLength(0)
   })
 
+  it('rejects non-finite credits and debits without corrupting the wallet', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+
+    state = profilesReducer(
+      state,
+      settleSeasonEyeoleans({
+        seasonId: 'eyeoleans:season:bad-credit',
+        rewards: [
+          {
+            code: 'loh_win',
+            label: 'LOH win',
+            quantity: 1,
+            unitAmount: Number.NaN,
+            amount: Number.NaN,
+          },
+        ],
+      })
+    )
+    state = profilesReducer(
+      state,
+      spendEyeoleans({ transactionId: 'store:bad-debit', amount: Number.NaN, label: 'Invalid' })
+    )
+
+    const profile = state.profiles[0]
+    expect(profile.eyeoleans).toBe(0)
+    expect(profile.eyeoleanTransactions).toEqual([])
+  })
+
   it('spends atomically and never permits duplicate or overdrawn purchases', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     state = profilesReducer(
