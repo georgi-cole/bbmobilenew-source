@@ -1,10 +1,14 @@
 import type { Middleware } from '@reduxjs/toolkit'
+import {
+  buildEyeoleanSeasonSettlementId,
+  computeSeasonEyeoleanRewards,
+} from '../economy/eyeoleans'
 import { computeLeaderboardScore } from '../scoring/computeLeaderboard'
 import { DEFAULT_WEIGHTS } from '../scoring/weights'
 import type { GameState, Player } from '../types'
 import { resolveTribunalSize } from '../rules/tribunalPolicy'
 import { archiveSeason } from './gameSlice'
-import { recordBellaCompatibleClassicCompleted } from './profilesSlice'
+import { recordBellaCompatibleClassicCompleted, settleSeasonEyeoleans } from './profilesSlice'
 import type { PlayerSeasonSummary, SeasonArchive } from './seasonArchive'
 
 type ResolutionState = {
@@ -121,13 +125,26 @@ export const eliminatedSeasonResolutionMiddleware: Middleware = (api) => (next) 
     'type' in action &&
     (action as { type: string }).type === 'game/resetGame'
   ) {
-    const archive = buildResolvedArchive((api.getState() as ResolutionState).game)
+    const game = (api.getState() as ResolutionState).game
+    const archive = buildResolvedArchive(game)
     if (archive) {
       if (archive.cupidArrowActivated !== true && archive.voxPopuliActivated !== true) {
         api.dispatch(
           recordBellaCompatibleClassicCompleted({ bellaCast: archive.bellaCast === true })
         )
       }
+
+      const humanId = game.players.find((player) => player.isUser)?.id
+      const humanSummary = archive.playerSummaries.find((summary) => summary.playerId === humanId)
+      if (humanSummary) {
+        api.dispatch(
+          settleSeasonEyeoleans({
+            seasonId: buildEyeoleanSeasonSettlementId(game.season, game.gameId, game.seed),
+            rewards: computeSeasonEyeoleanRewards(humanSummary),
+          })
+        )
+      }
+
       api.dispatch(archiveSeason(archive))
     }
   }
