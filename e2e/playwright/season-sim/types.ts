@@ -61,6 +61,10 @@ export interface SimulationRunConfig {
   competitionSkill: SimulationSkill
   /** Smoke journeys only use normal UI. Full runs may resume an audited checkpoint. */
   assistedCheckpoint?: string
+  /** Skip the final full-page screenshot for high-volume calibration batches. */
+  captureFinalScreenshot?: boolean
+  /** Keep only calibration-relevant report data instead of the full final Redux state/timeline. */
+  compactEconomyReport?: boolean
 }
 
 export interface SimulationAction {
@@ -111,12 +115,12 @@ export interface SimulationReport {
   startedAt: string
   finishedAt: string
   terminal: string
-  timeline: TimelineEntry[]
+  timeline?: TimelineEntry[]
   findings: SimulationFinding[]
-  objectives: ObjectiveResult[]
-  checkpoints: Array<{ name: string; phase: string; day: number }>
+  objectives?: ObjectiveResult[]
+  checkpoints?: Array<{ name: string; phase: string; day: number }>
   economySample?: SimulationEyeoleanSample
-  finalState: Pick<RootState, 'game' | 'challenge' | 'social' | 'vip'>
+  finalState?: Pick<RootState, 'game' | 'challenge' | 'social' | 'vip'>
 }
 
 export interface SimulationContext {
