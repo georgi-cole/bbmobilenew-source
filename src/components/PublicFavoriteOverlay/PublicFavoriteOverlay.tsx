@@ -8,6 +8,7 @@ import {
   useSpring,
   useTransform,
 } from 'framer-motion'
+import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS } from '../../economy/eyeoleans'
 import { selectPublicOpinion } from '../../publicOpinion'
 import { useAppSelector } from '../../store/hooks'
 import type { Player } from '../../types'
@@ -33,6 +34,8 @@ interface Props {
   onComplete: (winnerId: string) => void
   onAudienceSurgeRequest?: (playerId: string) => Promise<boolean> | boolean
   onForecastAward?: (eventId: string) => void
+  canBankEyeoleans?: boolean
+  forecastEventScope?: string
 }
 
 type VoteTrend = 'up' | 'down' | 'stable'
@@ -373,11 +376,13 @@ function AudiencePlayerRail({
 function ForecastPick({
   candidates,
   selectedPlayerId,
+  canBankEyeoleans,
   onSelect,
   onLock,
 }: {
   candidates: Player[]
   selectedPlayerId: string | null
+  canBankEyeoleans: boolean
   onSelect: (playerId: string) => void
   onLock: () => void
 }) {
@@ -430,7 +435,11 @@ function ForecastPick({
       >
         Lock {selectedPlayer?.name ?? 'forecast'}
       </button>
-      <p className="pf-overlay__forecast-reward">Correct calls build your cosmetic streak.</p>
+      <p className="pf-overlay__forecast-reward">
+        {canBankEyeoleans
+          ? `Correct call: +${formatEyeoleans(PUBLIC_FAVORITE_FORECAST_EYEOLEANS)} and your forecast streak.`
+          : 'Correct calls build your forecast streak. Select a profile to bank Eyeoleans.'}
+      </p>
     </section>
   )
 }
@@ -598,6 +607,7 @@ function ViewerSpotlightPanel({
               ? `${selectedPlayer.name} is receiving a temporary +5-point audience surge.`
               : 'Choose any remaining housemate, then watch to give them a temporary +5-point audience surge.'}
           </p>
+          <p className="pf-overlay__surge-description">This does not change the official result.</p>
         </div>
         <button
           type="button"
@@ -651,6 +661,7 @@ function FinalReveal({
   mode,
   forecastPick,
   forecastStreak,
+  canBankEyeoleans,
   onClose,
 }: {
   winner: Player | undefined
@@ -659,6 +670,7 @@ function FinalReveal({
   mode: 'favorite' | 'season_winner'
   forecastPick: Player | null
   forecastStreak: number
+  canBankEyeoleans: boolean
   onClose: () => void
 }) {
   return (
@@ -695,7 +707,9 @@ function FinalReveal({
       {winner && forecastPick && mode === 'favorite' && (
         <p className="pf-overlay__called-winner">
           {forecastPick.id === winner.id
-            ? `Forecast right · ${forecastStreak}× streak`
+            ? canBankEyeoleans
+              ? `Forecast right · +${formatEyeoleans(PUBLIC_FAVORITE_FORECAST_EYEOLEANS)} · ${forecastStreak}× streak`
+              : `Forecast right · ${forecastStreak}× streak`
             : `Your call: ${forecastPick.name}`}
         </p>
       )}
@@ -720,6 +734,8 @@ export default function PublicFavoriteOverlay({
   onComplete,
   onAudienceSurgeRequest,
   onForecastAward,
+  canBankEyeoleans = false,
+  forecastEventScope,
 }: Props) {
   const publicOpinion = useAppSelector(selectPublicOpinion)
   const configuredEliminationIntervalMs =
@@ -1119,11 +1135,13 @@ export default function PublicFavoriteOverlay({
     forecastResolvedRef.current = true
     saveForecastStreak(resolvedForecastStreak)
     if (forecastPickId === resolvedWinnerId) {
-      const eventId = `public-favorite-forecast:${seed}:${[...candidateIds].sort().join(',')}`
+      const eventScope = forecastEventScope?.trim() || String(seed)
+      const eventId = `public-favorite-forecast:${eventScope}:${[...candidateIds].sort().join(',')}`
       onForecastAward?.(eventId)
     }
   }, [
     candidateIds,
+    forecastEventScope,
     forecastPickId,
     isComplete,
     mode,
@@ -1232,6 +1250,7 @@ export default function PublicFavoriteOverlay({
                   <ForecastPick
                     candidates={candidates}
                     selectedPlayerId={forecastPickId}
+                    canBankEyeoleans={canBankEyeoleans}
                     onSelect={setForecastPickId}
                     onLock={handleForecastLock}
                   />
@@ -1320,6 +1339,7 @@ export default function PublicFavoriteOverlay({
               mode={mode}
               forecastPick={forecastPick}
               forecastStreak={resolvedForecastStreak}
+              canBankEyeoleans={canBankEyeoleans}
               onClose={handleClose}
             />
           )}

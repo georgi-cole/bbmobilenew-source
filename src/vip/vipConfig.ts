@@ -67,12 +67,10 @@ export const NO_ADS_PRODUCT_ID =
   import.meta.env.VITE_NO_ADS_PRODUCT_ID?.trim() || 'com.georgicole.thebigeye.noads'
 
 export const CUPID_ARROW_PRODUCT_ID =
-  import.meta.env.VITE_CUPID_ARROW_PRODUCT_ID?.trim() ||
-  'com.georgicole.thebigeye.cupidarrow'
+  import.meta.env.VITE_CUPID_ARROW_PRODUCT_ID?.trim() || 'com.georgicole.thebigeye.cupidarrow'
 
 export const VOX_POPULI_PRODUCT_ID =
-  import.meta.env.VITE_VOX_POPULI_PRODUCT_ID?.trim() ||
-  'com.georgicole.thebigeye.voxpopuli'
+  import.meta.env.VITE_VOX_POPULI_PRODUCT_ID?.trim() || 'com.georgicole.thebigeye.voxpopuli'
 
 export const PREMIUM_CHALLENGES_PRODUCT_ID =
   import.meta.env.VITE_PREMIUM_CHALLENGES_PRODUCT_ID?.trim() ||
@@ -317,17 +315,18 @@ export const STANDALONE_PRODUCT_KEYS: readonly StoreEntitlementKey[] =
     product.entitlement == null || !product.availableInRelease ? [] : [product.entitlement]
   )
 
-export const EXPANSION_PRODUCT_KEYS: readonly StoreEntitlementKey[] =
-  STORE_PRODUCT_CATALOG.flatMap((product) =>
-    product.entitlement != null &&
-    product.category === 'expansion' &&
-    product.availableInRelease
-      ? [product.entitlement]
-      : []
-  )
+// The Store groups products by the player's choice, rather than their internal feature type.
+// Vox Populi and Cupid's Arrow are distinct ways to play; Public and Reality deepen a season.
+export const GAME_MODE_PRODUCT_KEYS = [
+  'survivalMode',
+  'voxPopuli',
+  'cupidArrow',
+] as const satisfies readonly StoreEntitlementKey[]
 
-export const FEATURE_PRODUCT_KEYS: readonly StoreEntitlementKey[] =
-  STANDALONE_PRODUCT_KEYS.filter((key) => !EXPANSION_PRODUCT_KEYS.includes(key))
+export const EXPANSION_PRODUCT_KEYS = [
+  'publicMode',
+  'dramaMode',
+] as const satisfies readonly StoreEntitlementKey[]
 
 export function getStoreProductDefinition(key: StoreProductKey): StoreProductDefinition {
   const definition = STORE_PRODUCT_CATALOG.find((product) => product.key === key)

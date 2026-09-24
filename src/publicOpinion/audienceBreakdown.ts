@@ -110,6 +110,15 @@ export function getAudienceApproval(breakdown: AudienceBreakdown): number {
 function getWeights(reason: string, eventType?: string): Record<AudienceMetric, number> {
   const signal = `${reason} ${eventType ?? ''}`.toLowerCase()
 
+  if (/(romance|bromance|ride_or_die)/.test(signal)) {
+    return { charisma: 0.55, gameplay: 0.1, integrity: 0.35 }
+  }
+  if (/(fan_favorite|underdog|pile_on|repeated_targeting)/.test(signal)) {
+    return { charisma: 0.65, gameplay: 0.05, integrity: 0.3 }
+  }
+  if (/(drama_value|villain_callout)/.test(signal)) {
+    return { charisma: 0.55, gameplay: 0.3, integrity: 0.15 }
+  }
   if (/(hoh|loh|pov|pos|competition|immunity|performance|last_place|quit_early)/.test(signal)) {
     return { charisma: 0, gameplay: 1, integrity: 0 }
   }
@@ -147,10 +156,22 @@ export function applyAudienceApprovalDelta(
 ): { breakdown: AudienceBreakdown; approval: number; appliedDelta: number } {
   const current = getAudienceBreakdown(profile)
   const weights = getWeights(input.reason, input.eventType)
+  const damping = publicOpinionConfig.positiveApprovalDamping
+  const positiveMultiplier =
+    profile.approval >= damping.belovedThreshold
+      ? damping.belovedMultiplier
+      : profile.approval >= damping.strongThreshold
+        ? damping.strongMultiplier
+        : profile.approval >= damping.likedThreshold
+          ? damping.likedMultiplier
+          : 1
+  const effectiveDelta = input.delta > 0 ? input.delta * positiveMultiplier : input.delta
   const next: AudienceBreakdown = {
-    charisma: round(clamp(current.charisma + input.delta * METRICS.length * weights.charisma)),
-    gameplay: round(clamp(current.gameplay + input.delta * METRICS.length * weights.gameplay)),
-    integrity: round(clamp(current.integrity + input.delta * METRICS.length * weights.integrity)),
+    charisma: round(clamp(current.charisma + effectiveDelta * METRICS.length * weights.charisma)),
+    gameplay: round(clamp(current.gameplay + effectiveDelta * METRICS.length * weights.gameplay)),
+    integrity: round(
+      clamp(current.integrity + effectiveDelta * METRICS.length * weights.integrity)
+    ),
     recentChanges: [...current.recentChanges],
   }
   const approval = getAudienceApproval(next)

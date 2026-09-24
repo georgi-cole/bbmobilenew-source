@@ -4,16 +4,21 @@ import RecapImage from '../../components/SeasonRecapCinematic/RecapImage'
 import { preloadRecapImageSources } from '../../components/SeasonRecapCinematic/recapImagePreload'
 import { buildSeasonRecapData } from '../../components/SeasonRecapCinematic/seasonRecapData'
 import type { PublicOpinionState } from '../../publicOpinion/types'
-import { computeAllTimeLeaderboard } from '../../scoring/computeAllTime'
-import { computeLeaderboardScore, computeSeasonLeaderboard } from '../../scoring/computeLeaderboard'
-import { DEFAULT_WEIGHTS } from '../../scoring/weights'
+import {
+  buildEyeoleanSeasonSettlementId,
+  computeSeasonEyeoleanRewards,
+  formatEyeoleans,
+  totalEyeoleanRewards,
+} from '../../economy/eyeoleans'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
 import {
   recordBellaCompatibleClassicCompleted,
   selectActiveProfileId,
+  selectCurrentProfile,
   selectIsGuest,
+  settleSeasonEyeoleans,
 } from '../../store/profilesSlice'
 import { savedStateKeyForProfile, clearSeasonSnapshot } from '../../store/saveStatePersistence'
 import type { SeasonArchive, PlayerSeasonSummary } from '../../store/seasonArchive'
@@ -32,7 +37,6 @@ import './GameOver.css'
 import './AftermathTabloid.css'
 
 const CAROUSEL_INTERVAL_MS = 5000
-const LOGO_SRC = `${import.meta.env.BASE_URL}assets/kolequant.png`
 // i18n-ignore: Internal TypeScript property name; this identifier is never rendered to players.
 const EMPTY_AFTERMATH_STORIES: AftermathIssue['stories'] = []
 
@@ -90,7 +94,6 @@ function buildSummaries(
       titlesWon: titlesByPlayerId.get(p.id) ?? [],
       leaderboardScore: 0,
     }
-    summary.leaderboardScore = computeLeaderboardScore(summary, DEFAULT_WEIGHTS)
     return summary
   })
 }
@@ -122,6 +125,7 @@ export default function GameOver() {
   const navigate = useNavigate()
   const players = useAppSelector((s) => s.game.players)
   const gameId = useAppSelector((s) => s.game.gameId)
+  const seed = useAppSelector((s) => s.game.seed)
   const season = useAppSelector((s) => s.game.season)
   const week = useAppSelector((s) => s.game.week)
   const cupidArrowActivated = useAppSelector(
@@ -136,12 +140,13 @@ export default function GameOver() {
       state.game.players.some((player) => player.id === 'bella') &&
       state.game.bellaWill?.debugCastForced !== true
   )
-  const seasonArchives = useAppSelector((s) => s.game.seasonArchives ?? [])
   const favoriteWinnerId = useAppSelector((s) => s.game.favoritePlayer?.winnerId ?? null)
+  const favoriteAwardAmount = useAppSelector((s) => s.game.favoritePlayer?.awardAmount ?? 25_000)
   const social = useAppSelector((s) => s.game.social)
   const history = useAppSelector((s) => s.game.history ?? [])
   const publicOpinion = useAppSelector((s) => s.publicOpinion)
   const activeProfileId = useAppSelector(selectActiveProfileId)
+  const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
   const archivedRef = useRef(false)
   const aftermathStoryRequestRef = useRef(0)
@@ -156,9 +161,28 @@ export default function GameOver() {
   const winner = players.find((p) => p.isWinner) ?? players.find((p) => p.finalRank === 1)
   const runnerUp = players.find((p) => p.finalRank === 2)
   const favoriteWinner = players.find((p) => p.id === favoriteWinnerId)
-  const summaries = buildSummaries(players, favoriteWinnerId, week, publicOpinion)
-  const seasonLeaderboard = computeSeasonLeaderboard(summaries, DEFAULT_WEIGHTS).slice(0, 5)
-  const allTimeLeaderboard = computeAllTimeLeaderboard(seasonArchives, DEFAULT_WEIGHTS).slice(0, 5)
+  const userPlayer = players.find((player) => player.isUser) ?? null
+  const summaries = useMemo(
+    () => buildSummaries(players, favoriteWinnerId, week, publicOpinion),
+    [favoriteWinnerId, players, publicOpinion, week]
+  )
+  const userSummary = useMemo(
+    () => summaries.find((summary) => summary.playerId === userPlayer?.id) ?? null,
+    [summaries, userPlayer?.id]
+  )
+  const seasonRewards = useMemo(
+    () =>
+      computeSeasonEyeoleanRewards(userSummary, {
+        publicFavoriteAwardAmount: favoriteAwardAmount,
+      }),
+    [favoriteAwardAmount, userSummary]
+  )
+  const seasonEarnings = useMemo(() => totalEyeoleanRewards(seasonRewards), [seasonRewards])
+  const seasonSettlementId = useMemo(
+    () => buildEyeoleanSeasonSettlementId(season, gameId, seed),
+    [gameId, season, seed]
+  )
+  const walletBalance = currentProfile?.eyeoleans ?? 0
   const issueStorageKey = useMemo(
     () => aftermathIssueStorageKey(activeProfileId, gameId, season),
     [activeProfileId, gameId, season]
@@ -182,12 +206,31 @@ export default function GameOver() {
   }, [issueStorageKey])
 
   useEffect(() => {
+    if (isGuest || !activeProfileId || !userSummary) return
+    dispatch(
+      settleSeasonEyeoleans({
+        seasonId: seasonSettlementId,
+        rewards: seasonRewards,
+      })
+    )
+  }, [activeProfileId, dispatch, isGuest, seasonRewards, seasonSettlementId, userSummary])
+
+  useEffect(() => {
     if (panel !== 'aftermath') return
     const nextStory = aftermathStories[storyIndex + 1]
     if (nextStory) void preloadRecapImageSources(nextStory.imageSources)
   }, [aftermathStories, panel, storyIndex])
 
   function archiveCompletedSeason() {
+    if (!isGuest && activeProfileId && userSummary) {
+      dispatch(
+        settleSeasonEyeoleans({
+          seasonId: seasonSettlementId,
+          rewards: seasonRewards,
+        })
+      )
+    }
+
     if (!archivedRef.current) {
       archivedRef.current = true
       if (!cupidArrowActivated && !voxPopuliActivated) {
@@ -360,33 +403,62 @@ export default function GameOver() {
           <div
             className={`gameover-carousel__slide${carouselSlide === 1 ? ' gameover-carousel__slide--active' : ''}`}
           >
-            <p className="gameover-carousel__heading">Season Top 5</p>
-            <ul className="gameover-scoreboard">
-              {seasonLeaderboard.map((entry, i) => (
-                <li key={entry.playerId} className="gameover-scoreboard__row">
-                  <span className="gameover-scoreboard__rank">#{i + 1}</span>
-                  <span className="gameover-scoreboard__name">{entry.displayName}</span>
-                  <span className="gameover-scoreboard__score">{entry.score} pts</span>
-                </li>
-              ))}
-            </ul>
-            <img className="gameover-record-logo" src={LOGO_SRC} alt="KoleQuant" />
+            <p className="gameover-carousel__heading">Your Season Payday</p>
+            <div className="gameover-eyeolean-payout">
+              {seasonRewards.length > 0 ? (
+                <ul className="gameover-eyeolean-list">
+                  {seasonRewards.map((reward) => (
+                    <li key={reward.code} className="gameover-eyeolean-row">
+                      <span className="gameover-eyeolean-row__label">
+                        {reward.label}
+                        {reward.quantity > 1 ? ` ×${reward.quantity}` : ''}
+                      </span>
+                      <strong className="gameover-eyeolean-row__amount">
+                        +{formatEyeoleans(reward.amount)}
+                      </strong>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="gameover-eyeolean-empty">
+                  No payout events this season. Your next season starts with a clean slate.
+                </div>
+              )}
+
+              <div className="gameover-eyeolean-total">
+                <span>Season earned</span>
+                <strong>+{formatEyeoleans(seasonEarnings)}</strong>
+                <small>Eyeoleans</small>
+              </div>
+            </div>
           </div>
 
           <div
             className={`gameover-carousel__slide${carouselSlide === 2 ? ' gameover-carousel__slide--active' : ''}`}
           >
-            <p className="gameover-carousel__heading">All-Time Top 5</p>
-            <ul className="gameover-scoreboard">
-              {allTimeLeaderboard.map((entry, i) => (
-                <li key={entry.playerId} className="gameover-scoreboard__row">
-                  <span className="gameover-scoreboard__rank">#{i + 1}</span>
-                  <span className="gameover-scoreboard__name">{entry.displayName}</span>
-                  <span className="gameover-scoreboard__score">{entry.totalScore} pts</span>
-                </li>
-              ))}
-            </ul>
-            <img className="gameover-record-logo" src={LOGO_SRC} alt="KoleQuant" />
+            <p className="gameover-carousel__heading">
+              {isGuest ? 'Eyeolean Preview' : 'Eyeolean Wallet'}
+            </p>
+            <div className="gameover-eyeolean-wallet">
+              <span className="gameover-eyeolean-wallet__eyebrow">
+                {isGuest ? 'Guest season earnings' : 'Available balance'}
+              </span>
+              <strong className="gameover-eyeolean-wallet__balance">
+                {formatEyeoleans(isGuest ? seasonEarnings : walletBalance)}
+              </strong>
+              <span className="gameover-eyeolean-wallet__currency">Eyeoleans</span>
+
+              <div className="gameover-eyeolean-wallet__season">
+                <span>This season</span>
+                <strong>+{formatEyeoleans(seasonEarnings)}</strong>
+              </div>
+
+              <p className="gameover-eyeolean-wallet__copy">
+                {isGuest
+                  ? 'Guest rewards are preview-only. Select or create a profile to bank Eyeoleans across seasons.'
+                  : 'Saved to this profile across seasons and ready for future Store purchases.'}
+              </p>
+            </div>
           </div>
         </div>
 

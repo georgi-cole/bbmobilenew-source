@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises'
 
 import { readAppState } from '../support/test'
 import type { CoverageLedger } from './coverage'
+import { buildSimulationEyeoleanSample } from './economyCalibration'
 import type { SimulationContext, SimulationFinding, TimelineEntry } from './types'
 
 const activeStatus = new Set(['active', 'jury'])
@@ -79,22 +80,29 @@ export class SeasonAuditor {
 
   async attachReport(name: string, terminal: string): Promise<void> {
     const state = await readAppState(this.context.page)
+    const economySample = buildSimulationEyeoleanSample(state.game)
+    const compactEconomyReport = this.context.config.compactEconomyReport === true
     const report = {
       schemaVersion: 1,
       config: this.context.config,
       startedAt: new Date(this.context.startedAtMs).toISOString(),
       finishedAt: new Date().toISOString(),
       terminal,
-      timeline: this.timeline,
       findings: this.findings,
-      objectives: this.coverage.values(),
-      checkpoints: this.checkpoints,
-      finalState: {
-        game: state.game,
-        challenge: state.challenge,
-        social: state.social,
-        vip: state.vip,
-      },
+      ...(economySample ? { economySample } : {}),
+      ...(compactEconomyReport
+        ? {}
+        : {
+            timeline: this.timeline,
+            objectives: this.coverage.values(),
+            checkpoints: this.checkpoints,
+            finalState: {
+              game: state.game,
+              challenge: state.challenge,
+              social: state.social,
+              vip: state.vip,
+            },
+          }),
     }
     const reportJson = JSON.stringify(report, null, 2)
     await this.context.testInfo.attach(`${name}.json`, {
@@ -106,6 +114,14 @@ export class SeasonAuditor {
       '',
       `Terminal: ${terminal}`,
       `Seed: roster=${this.context.config.seeds.roster}, season=${this.context.config.seeds.season}, actor=${this.context.config.seeds.actor}`,
+      ...(economySample
+        ? [
+            '',
+            '## Eyeolean economy',
+            `- payout: ${economySample.total.toLocaleString('en-US')}`,
+            `- source: ${economySample.source}`,
+          ]
+        : []),
       '',
       '## Objectives',
       ...this.coverage

@@ -768,6 +768,162 @@
   }
 }
 
+/* Wallet: compact utility treatment, using the Confessional's violet/cyan palette. */
+.diary-room__wallet {
+  gap: 12px;
+}
+
+.diary-room__wallet-balance-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 12px;
+  border-color: rgba(151, 139, 255, 0.28);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(69, 47, 125, 0.82), rgba(22, 17, 45, 0.96));
+}
+
+.diary-room__wallet-balance-card > .diary-room__wallet-balance-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.diary-room__wallet-balance-meta {
+  display: grid;
+  gap: 1px;
+}
+
+.diary-room__wallet-balance-meta small {
+  color: #c4b5fd;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.diary-room__wallet-coin {
+  width: 32px;
+  height: 32px;
+  border-color: rgba(165, 243, 252, 0.36);
+  border-radius: 9px;
+  color: #a5f3fc;
+  background: linear-gradient(145deg, rgba(8, 145, 178, 0.3), rgba(67, 56, 202, 0.34));
+  box-shadow: none;
+}
+
+.diary-room__wallet-balance-card strong {
+  color: #f5f3ff;
+  font-size: clamp(1.35rem, 5vw, 1.6rem);
+  letter-spacing: -0.045em;
+}
+
+.diary-room__wallet-store-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border-color: rgba(196, 181, 253, 0.4);
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  box-shadow: 0 6px 14px rgba(76, 29, 149, 0.25);
+  font-size: 0.66rem;
+}
+
+.diary-room__wallet-section-heading {
+  align-items: end;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.diary-room__wallet-section-heading h2 {
+  font-size: 0.98rem;
+}
+
+.diary-room__wallet-section-heading > p {
+  margin-bottom: 2px;
+  font-size: 0.64rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.diary-room__wallet-power-list {
+  gap: 8px;
+}
+
+.diary-room__wallet-power {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 9px;
+  padding: 10px;
+  border-color: rgba(151, 139, 255, 0.16);
+  border-radius: 13px;
+  background: rgba(22, 18, 41, 0.86);
+}
+
+.diary-room__wallet-power--armed {
+  border-color: rgba(117, 230, 255, 0.28);
+  background: linear-gradient(90deg, rgba(8, 145, 178, 0.1), rgba(22, 18, 41, 0.9));
+}
+
+.diary-room__wallet-power-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+.diary-room__wallet-power-title {
+  gap: 5px;
+}
+
+.diary-room__wallet-power-title h3 {
+  font-size: 0.82rem;
+}
+
+.diary-room__wallet-power-title span,
+.diary-room__wallet-owned {
+  padding: 2px 5px;
+  font-size: 0.54rem;
+}
+
+.diary-room__wallet-owned {
+  color: #c4b5fd;
+  font-weight: 850;
+}
+
+.diary-room__wallet-power-copy p {
+  margin-top: 3px;
+  font-size: 0.62rem;
+  line-height: 1.3;
+}
+
+.diary-room__wallet-power-action {
+  display: block;
+}
+
+.diary-room__wallet-primary-btn,
+.diary-room__wallet-secondary-btn {
+  width: auto;
+  min-width: 52px;
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 0.65rem;
+}
+
+.diary-room__wallet-power-action small {
+  display: block;
+  max-width: 76px;
+  margin-top: 4px;
+  font-size: 0.54rem;
+}
+
+@media (max-width: 560px) {
+  .diary-room__wallet-power {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  .diary-room__wallet-power-action {
+    grid-column: auto;
+  }
+}
+
 .diary-room__confess-form {
   display: flex;
   flex-direction: column;
@@ -1972,4 +2128,347 @@
 
 .diary-room__reality-recap-badge .store-product-icon__core {
   fill: #f0dda4;
+}
+
+/* ── Wallet tab ──────────────────────────────────────────────────────────── */
+.diary-room__wallet {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.diary-room__wallet-balance-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 13px;
+  border: 1px solid rgba(235, 202, 125, 0.36);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(255, 225, 137, 0.08), transparent 45%),
+    linear-gradient(145deg, rgba(43, 29, 78, 0.98), rgba(19, 14, 39, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 24px rgba(4, 3, 14, 0.22);
+}
+
+.diary-room__wallet-balance-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.diary-room__wallet-coin {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  border: 1px solid rgba(255, 231, 157, 0.56);
+  border-radius: 10px;
+  color: #201332;
+  background: linear-gradient(145deg, #f7e0a0, #bb8437);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.24);
+}
+
+.diary-room__wallet-coin::before {
+  content: '◈';
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.diary-room__wallet-balance-card > div {
+  display: grid;
+  gap: 2px;
+}
+
+.diary-room__wallet-eyebrow {
+  color: #d8b4fe;
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.diary-room__wallet-balance-card strong {
+  color: #fff4c9;
+  font-size: clamp(1.35rem, 5.4vw, 1.72rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.diary-room__wallet-balance-card small {
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+}
+
+.diary-room__wallet-store-btn,
+.diary-room__wallet-primary-btn,
+.diary-room__wallet-secondary-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.diary-room__wallet-store-btn,
+.diary-room__wallet-primary-btn {
+  border: 1px solid rgba(216, 180, 254, 0.42);
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #5b21b6);
+  box-shadow: 0 8px 18px rgba(91, 33, 182, 0.2);
+}
+
+.diary-room__wallet-store-btn {
+  min-height: 34px;
+  padding: 0 11px;
+  border-color: rgba(255, 235, 185, 0.56);
+  color: #2c1a0c;
+  background: linear-gradient(135deg, #f4d990, #c88b37);
+  box-shadow: 0 7px 14px rgba(0, 0, 0, 0.18);
+}
+
+.diary-room__wallet-primary-btn {
+  width: 100%;
+  padding: 0 10px;
+}
+
+.diary-room__wallet-secondary-btn {
+  width: 100%;
+  padding: 0 10px;
+  border: 1px solid rgba(196, 181, 253, 0.25);
+  color: #ddd6fe;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.diary-room__wallet-store-btn:disabled,
+.diary-room__wallet-primary-btn:disabled,
+.diary-room__wallet-secondary-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.diary-room__wallet-section-heading {
+  display: grid;
+  gap: 5px;
+}
+
+.diary-room__wallet-section-heading h2 {
+  margin: 2px 0 0;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.diary-room__wallet-section-heading > p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.diary-room__wallet-power-list {
+  display: grid;
+  gap: 10px;
+}
+
+.diary-room__wallet-power {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 15px;
+  background:
+    linear-gradient(160deg, rgba(139, 92, 246, 0.06), transparent 48%), rgba(23, 20, 29, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.diary-room__wallet-power--armed {
+  border-color: rgba(117, 230, 255, 0.34);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(117, 230, 255, 0.1), transparent 38%),
+    rgba(23, 20, 29, 0.94);
+}
+
+.diary-room__wallet-power-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(117, 230, 255, 0.24);
+  border-radius: 12px;
+  color: #a5f3fc;
+  background: rgba(8, 145, 178, 0.11);
+  font-size: 0.92rem;
+  font-weight: 950;
+}
+
+.diary-room__wallet-power-icon[data-product='remove_vote'] {
+  border-color: rgba(196, 181, 253, 0.24);
+  color: #ddd6fe;
+  background: rgba(124, 58, 237, 0.12);
+}
+
+.diary-room__wallet-power-copy {
+  min-width: 0;
+}
+
+.diary-room__wallet-power-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.diary-room__wallet-power-title h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.diary-room__wallet-power-title span {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.diary-room__wallet-power-title span[data-status='armed'] {
+  border-color: rgba(117, 230, 255, 0.25);
+  color: #a5f3fc;
+  background: rgba(8, 145, 178, 0.09);
+}
+
+.diary-room__wallet-power-copy p {
+  margin: 5px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.diary-room__wallet-power-copy small {
+  display: block;
+  margin-top: 6px;
+  color: rgba(216, 180, 254, 0.72);
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+.diary-room__wallet-power-action {
+  display: grid;
+  gap: 5px;
+}
+
+.diary-room__wallet-power-action small {
+  color: var(--color-text-muted);
+  font-size: 0.58rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.diary-room__wallet-notice {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(110, 231, 183, 0.2);
+  border-radius: 10px;
+  color: #8ce5c2;
+  background: rgba(16, 185, 129, 0.07);
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.diary-room__wallet-notice--error {
+  border-color: rgba(253, 164, 175, 0.22);
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.07);
+}
+
+.diary-room__wallet-earned {
+  display: grid;
+  gap: 9px;
+  padding-top: 3px;
+}
+
+.diary-room__wallet-earned-card {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid rgba(216, 180, 254, 0.13);
+  border-radius: 13px;
+  background: rgba(139, 92, 246, 0.055);
+}
+
+.diary-room__wallet-earned-card > span {
+  color: #d8b4fe;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diary-room__wallet-earned-card > strong {
+  color: var(--color-text);
+  font-size: 0.84rem;
+}
+
+.diary-room__wallet-earned-card > p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.diary-room__wallet-final4 {
+  padding: 11px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  border-radius: 13px;
+  background: rgba(245, 158, 11, 0.055);
+}
+
+.diary-room__wallet-final4 strong {
+  color: #f7d786;
+  font-size: 0.78rem;
+}
+
+.diary-room__wallet-final4 p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+  .diary-room__wallet-power {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .diary-room__wallet-power-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .diary-room__wallet-power-action {
+    grid-column: 2;
+  }
+
+  .diary-room__wallet-balance-card {
+    align-items: flex-end;
+  }
+
+  .diary-room__wallet-balance-pitch {
+    display: none;
+  }
 }

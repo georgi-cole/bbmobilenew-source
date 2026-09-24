@@ -100,6 +100,53 @@ function applyDirectionCompletionRewards(
   }
 }
 
+function applyDirectionFailurePenalty(
+  state: PublicOpinionState,
+  direction: PublicDirection,
+  week: number,
+  counter = false
+): void {
+  if (direction.status === 'failed') return
+  direction.status = 'failed'
+
+  const profile = state.profiles[direction.playerId]
+  if (!profile) return
+
+  const delta = counter
+    ? publicOpinionConfig.directionRewards.counter
+    : publicOpinionConfig.directionRewards.fail
+  const reason = counter ? 'direction_counter' : 'direction_failed'
+  const applied = applyAudienceApprovalDelta(profile, {
+    delta,
+    reason,
+    week,
+  })
+  profile.previousApproval = profile.approval
+  profile.audienceBreakdown = applied.breakdown
+  profile.approval = applied.approval
+  profile.seasonApprovals.push(applied.approval)
+  state.lastUpdatedWeek = week
+
+  const feedEntry: PublicFeedEntry = {
+    id: `${direction.playerId}-${week}-${Date.now()}-dir-failed`,
+    playerId: direction.playerId,
+    text: createPublicNarrative({
+      reason,
+      playerId: direction.playerId,
+      delta: applied.appliedDelta,
+      week,
+    }),
+    delta: applied.appliedDelta,
+    week,
+    timestamp: Date.now(),
+    reason,
+  }
+  state.feed.unshift(feedEntry)
+  if (state.feed.length > 50) {
+    state.feed = state.feed.slice(0, 50)
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const publicOpinionSlice = createSlice({
@@ -283,6 +330,7 @@ const publicOpinionSlice = createSlice({
         directionId: string
         status: 'completed' | 'failed' | 'expired'
         week: number
+        counter?: boolean
       }>
     ) {
       const { directionId, status, week } = action.payload
@@ -296,51 +344,23 @@ const publicOpinionSlice = createSlice({
         return
       }
 
-      direction.status = status
-
-      // Apply fail penalty; expired directions carry no penalty.
       if (status === 'failed') {
-        const profile = state.profiles[direction.playerId]
-        if (profile) {
-          const delta = publicOpinionConfig.directionRewards.fail
-          const applied = applyAudienceApprovalDelta(profile, {
-            delta,
-            reason: 'direction_failed',
-            week,
-          })
-          profile.previousApproval = profile.approval
-          profile.audienceBreakdown = applied.breakdown
-          profile.approval = applied.approval
-          profile.seasonApprovals.push(applied.approval)
-          state.lastUpdatedWeek = week
-
-          const feedEntry: PublicFeedEntry = {
-            id: `${direction.playerId}-${week}-${Date.now()}-dir-failed`,
-            playerId: direction.playerId,
-            text: createPublicNarrative({
-              reason: 'direction_failed',
-              playerId: direction.playerId,
-              delta: applied.appliedDelta,
-              week,
-            }),
-            delta,
-            week,
-            timestamp: Date.now(),
-            reason: 'direction_failed',
-          }
-          state.feed.unshift(feedEntry)
-          if (state.feed.length > 50) {
-            state.feed = state.feed.slice(0, 50)
-          }
-        }
+        applyDirectionFailurePenalty(state, direction, week, action.payload.counter === true)
+        return
       }
+
+      // Expired means the world invalidated the request; it remains neutral.
+      direction.status = status
     },
 
     pruneExpiredDirections(state, action: PayloadAction<{ week: number }>) {
       const { week } = action.payload
       for (const direction of state.directions) {
         if (direction.status === 'active' && direction.expiresAtWeek <= week) {
-          direction.status = 'expired'
+          // If the request was still valid when its deadline passed, it was
+          // missed rather than invalidated. Impossible requests are expired
+          // neutrally by expireInvalidDirections before this reducer runs.
+          applyDirectionFailurePenalty(state, direction, week)
         }
       }
     },

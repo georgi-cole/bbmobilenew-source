@@ -452,7 +452,7 @@ DRAMA_DIALOGUE_BANK.arc.bromance.established = [
 ]
 DRAMA_DIALOGUE_BANK.arc.bromance.strained = [
   ...DRAMA_DIALOGUE_BANK.arc.bromance.strained,
-  '{a} heard that {b} had a backup plan, and it did not include them.',
+  '{a} heard that {b} was weighing an option that did not include them.',
   '{a} and {b} disagreed over a vote neither can afford to lose.',
   'The jokes stopped when {a} questioned where {b} had really been all night.',
 ]
@@ -524,7 +524,7 @@ DRAMA_DIALOGUE_BANK.rumour.secret_romance = [
 DRAMA_DIALOGUE_BANK.rumour.targeting = [
   ...DRAMA_DIALOGUE_BANK.rumour.targeting,
   '{source} says {subject} is the name power players keep testing.',
-  '{source} heard that {subject} is the backup plan nobody wants to own.',
+  "{source} heard {subject}'s name in more than one private conversation.",
 ]
 DRAMA_DIALOGUE_BANK.rumour.fake_deal = [
   ...DRAMA_DIALOGUE_BANK.rumour.fake_deal,
@@ -549,7 +549,7 @@ DRAMA_DIALOGUE_BANK.exposure.secret_romance = [
 DRAMA_DIALOGUE_BANK.exposure.targeting = [
   ...DRAMA_DIALOGUE_BANK.exposure.targeting,
   'HOUSE EXPOSED: Multiple private pitches named {subject} as the next move.',
-  'HOUSE EXPOSED: {subject} was the backup plan in more rooms than anyone admitted.',
+  "HOUSE EXPOSED: Private conversations have put {subject}'s name in circulation.",
 ]
 DRAMA_DIALOGUE_BANK.exposure.fake_deal = [
   ...DRAMA_DIALOGUE_BANK.exposure.fake_deal,

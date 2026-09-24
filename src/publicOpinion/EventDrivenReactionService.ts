@@ -11,47 +11,49 @@
  * so the result is deterministic given the current state.
  */
 
-import { publicOpinionConfig } from './publicOpinionConfig';
+import { publicOpinionConfig } from './publicOpinionConfig'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ReactionDelta {
-  playerId: string;
-  delta: number;
-  reason: string;
+  playerId: string
+  delta: number
+  reason: string
   /** Feed event type for attribution (e.g. 'nomination', 'eviction'). */
-  eventType: string;
+  eventType: string
   /** ID of the player whose action caused this reaction (optional). */
-  attributedToId?: string;
+  attributedToId?: string
 }
 
-type ApprovalBand = 'beloved' | 'liked' | 'mixed' | 'disliked' | 'hated';
+type ApprovalBand = 'beloved' | 'liked' | 'mixed' | 'disliked' | 'hated'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getApprovalBand(approval: number): ApprovalBand {
-  const { beloved, liked, disliked, hated } = publicOpinionConfig.reactionThresholds;
-  if (approval >= beloved) return 'beloved';
-  if (approval >= liked) return 'liked';
-  if (approval < hated) return 'hated';
-  if (approval < disliked) return 'disliked';
-  return 'mixed';
+  const { beloved, liked, disliked, hated } = publicOpinionConfig.reactionThresholds
+  if (approval >= beloved) return 'beloved'
+  if (approval >= liked) return 'liked'
+  if (approval < hated) return 'hated'
+  if (approval < disliked) return 'disliked'
+  return 'mixed'
 }
 
 function clampDelta(delta: number, cap: number): number {
-  return Math.min(cap, Math.max(-cap, delta));
+  return Math.min(cap, Math.max(-cap, delta))
 }
 
 // ── Nomination reactions ───────────────────────────────────────────────────────
 
 export interface NominationReactionInput {
   /** IDs of the players just nominated. */
-  nomineeIds: string[];
+  nomineeIds: string[]
   /** ID of the LOH who made the nominations (null for automated/unknown). */
-  lohId: string | null;
+  lohId: string | null
   /** Current approval map: playerId → approval (0–100). */
-  approvals: Record<string, number>;
-  week: number;
+  approvals: Record<string, number>
+  /** Current season nomination counts, including the nomination being resolved when available. */
+  nominationCounts?: Record<string, number>
+  week: number
 }
 
 /**
@@ -64,76 +66,93 @@ export interface NominationReactionInput {
  *   representing audience outrage at their nomination.
  */
 export function computeNominationReactions(input: NominationReactionInput): ReactionDelta[] {
-  const { nomineeIds, lohId, approvals, week } = input;
-  const { nominationReactions, maxDeltaPerEvent } = publicOpinionConfig;
-  const cap = maxDeltaPerEvent.nomination_reaction;
-  const results: ReactionDelta[] = [];
+  const { nomineeIds, lohId, approvals, nominationCounts = {}, week } = input
+  const { nominationReactions, maxDeltaPerEvent } = publicOpinionConfig
+  const cap = maxDeltaPerEvent.nomination_reaction
+  const results: ReactionDelta[] = []
 
   for (const nomineeId of nomineeIds) {
-    const approval = approvals[nomineeId] ?? publicOpinionConfig.DEFAULT_APPROVAL;
-    const band = getApprovalBand(approval);
+    const approval = approvals[nomineeId] ?? publicOpinionConfig.DEFAULT_APPROVAL
+    const band = getApprovalBand(approval)
+    const nominationCount = nominationCounts[nomineeId] ?? 1
+    const repeatTarget = nominationCount >= 2
+    const chronicTarget = nominationCount >= 3
 
-    // ── LOH backlash ──────────────────────────────────────────────────────
+    // ── LOH reaction ──────────────────────────────────────────────────────
     if (lohId && lohId !== nomineeId) {
-      let hohDelta = 0;
+      let hohDelta = 0
       if (band === 'beloved') {
-        hohDelta = nominationReactions.hohBelovedNomineePenalty;
+        hohDelta = nominationReactions.hohBelovedNomineePenalty
       } else if (band === 'liked') {
-        hohDelta = nominationReactions.hohLikedNomineePenalty;
+        hohDelta = nominationReactions.hohLikedNomineePenalty
+      } else if (band === 'hated') {
+        hohDelta = 2
+      } else if (band === 'disliked') {
+        hohDelta = 1
       }
+
+      // Repeatedly targeting somebody viewers already like reads increasingly
+      // personal and strengthens the backlash.
+      if (repeatTarget && approval >= 60) hohDelta -= 1
+      if (chronicTarget && approval >= 70) hohDelta -= 1
+
       if (hohDelta !== 0) {
         results.push({
           playerId: lohId,
           delta: clampDelta(hohDelta, cap),
-          reason: 'hoh_nomination_backlash',
+          reason: hohDelta > 0 ? 'hoh_popular_targeting' : 'hoh_nomination_backlash',
           eventType: 'nomination',
           attributedToId: nomineeId,
-        });
+        })
       }
     }
 
-    // ── Nominee sympathy ──────────────────────────────────────────────────
-    let sympathy = 0;
+    // ── Nominee sympathy / underdog reaction ──────────────────────────────
+    let sympathy = 0
     if (band === 'beloved') {
-      sympathy = nominationReactions.nomineeSympathyBeloved;
+      sympathy = nominationReactions.nomineeSympathyBeloved
     } else if (band === 'liked') {
-      sympathy = nominationReactions.nomineeSympathyLiked;
+      sympathy = nominationReactions.nomineeSympathyLiked
     } else {
-      sympathy = nominationReactions.nomineeSympathyMixed;
+      sympathy = nominationReactions.nomineeSympathyMixed
     }
+
+    // Being repeatedly put in danger can manufacture an underdog even when the
+    // nominee did not begin the season as a favourite.
+    if (repeatTarget && approval >= 40) sympathy += 1
+    if (chronicTarget && approval >= 55) sympathy += 1
+
     if (sympathy !== 0) {
       results.push({
         playerId: nomineeId,
         delta: clampDelta(sympathy, cap),
-        reason: 'nomination_sympathy',
+        reason: repeatTarget ? 'nomination_underdog_sympathy' : 'nomination_sympathy',
         eventType: 'nomination',
         attributedToId: lohId ?? undefined,
-      });
+      })
     }
   }
 
-  // Suppress unused week to satisfy lint rules — it is passed for future use
-  // (e.g., logging or context-sensitive rules) but not needed by current logic.
-  void week;
+  void week
 
-  return results;
+  return results
 }
 
 // ── Eviction reactions ─────────────────────────────────────────────────────────
 
 export interface EvictionReactionInput {
   /** ID of the player who was evicted. */
-  evicteeId: string;
+  evicteeId: string
   /** ID of the LOH who made the nominations that led to this eviction. */
-  lohId: string | null;
+  lohId: string | null
   /**
    * ID of the POS holder if they used the veto (and thus affected the block).
    * Null if the POS was not used or the holder is unknown.
    */
-  povHolderId: string | null;
+  povHolderId: string | null
   /** Current approval map: playerId → approval (0–100). */
-  approvals: Record<string, number>;
-  week: number;
+  approvals: Record<string, number>
+  week: number
 }
 
 /**
@@ -147,31 +166,31 @@ export interface EvictionReactionInput {
  *   if they were disliked/hated (underdog narrative on departure).
  */
 export function computeEvictionReactions(input: EvictionReactionInput): ReactionDelta[] {
-  const { evicteeId, lohId, povHolderId, approvals, week } = input;
-  const { evictionReactions, maxDeltaPerEvent } = publicOpinionConfig;
-  const cap = maxDeltaPerEvent.eviction_reaction;
-  const results: ReactionDelta[] = [];
+  const { evicteeId, lohId, povHolderId, approvals, week } = input
+  const { evictionReactions, maxDeltaPerEvent } = publicOpinionConfig
+  const cap = maxDeltaPerEvent.eviction_reaction
+  const results: ReactionDelta[] = []
 
-  const evicteeApproval = approvals[evicteeId] ?? publicOpinionConfig.DEFAULT_APPROVAL;
-  const band = getApprovalBand(evicteeApproval);
+  const evicteeApproval = approvals[evicteeId] ?? publicOpinionConfig.DEFAULT_APPROVAL
+  const band = getApprovalBand(evicteeApproval)
 
   // ── Responsible-actor reactions ──────────────────────────────────────────
   const responsibleIds = [lohId, povHolderId].filter(
-    (id): id is string => id !== null && id !== evicteeId,
-  );
+    (id): id is string => id !== null && id !== evicteeId
+  )
   // De-duplicate (e.g. LOH won POS and used it on the same player)
-  const uniqueResponsible = [...new Set(responsibleIds)];
+  const uniqueResponsible = [...new Set(responsibleIds)]
 
   for (const actorId of uniqueResponsible) {
-    let actorDelta = 0;
+    let actorDelta = 0
     if (band === 'beloved') {
-      actorDelta = evictionReactions.belovedEvictedResponsiblePenalty;
+      actorDelta = evictionReactions.belovedEvictedResponsiblePenalty
     } else if (band === 'liked') {
-      actorDelta = evictionReactions.likedEvictedResponsiblePenalty;
+      actorDelta = evictionReactions.likedEvictedResponsiblePenalty
     } else if (band === 'hated') {
-      actorDelta = evictionReactions.hatedEvictedResponsibleBoost;
+      actorDelta = evictionReactions.hatedEvictedResponsibleBoost
     } else if (band === 'disliked') {
-      actorDelta = evictionReactions.dislikedEvictedResponsibleBoost;
+      actorDelta = evictionReactions.dislikedEvictedResponsibleBoost
     }
     if (actorDelta !== 0) {
       results.push({
@@ -180,7 +199,7 @@ export function computeEvictionReactions(input: EvictionReactionInput): Reaction
         reason: 'eviction_reaction',
         eventType: 'eviction',
         attributedToId: evicteeId,
-      });
+      })
     }
   }
 
@@ -189,11 +208,11 @@ export function computeEvictionReactions(input: EvictionReactionInput): Reaction
   // Disliked/hated players receive a small sympathy boost on departure —
   // the underdog-exit narrative: even a villain gets a moment of farewell
   // goodwill from a subset of viewers as they walk out the door.
-  let evicteeDelta = 0;
+  let evicteeDelta = 0
   if (band === 'beloved') {
-    evicteeDelta = evictionReactions.evictedBelovedFinalPenalty;
+    evicteeDelta = evictionReactions.evictedBelovedFinalPenalty
   } else if (band === 'disliked' || band === 'hated') {
-    evicteeDelta = evictionReactions.evictedDislikedFinalBoost;
+    evicteeDelta = evictionReactions.evictedDislikedFinalBoost
   }
   if (evicteeDelta !== 0) {
     results.push({
@@ -201,26 +220,57 @@ export function computeEvictionReactions(input: EvictionReactionInput): Reaction
       delta: clampDelta(evicteeDelta, cap),
       reason: band === 'beloved' ? 'eviction_beloved' : 'eviction_underdog_exit',
       eventType: 'eviction',
-    });
+    })
   }
 
-  void week;
+  void week
 
-  return results;
+  return results
+}
+
+// ── Block survival / underdog reactions ───────────────────────────────────────
+
+export function computeBlockSurvivalReactions(input: {
+  nomineeIds: string[]
+  evicteeId: string
+  approvals: Record<string, number>
+  nominationCounts?: Record<string, number>
+}): ReactionDelta[] {
+  const { nomineeIds, evicteeId, approvals, nominationCounts = {} } = input
+  const results: ReactionDelta[] = []
+
+  for (const nomineeId of nomineeIds) {
+    if (nomineeId === evicteeId) continue
+    const approval = approvals[nomineeId] ?? publicOpinionConfig.DEFAULT_APPROVAL
+    const nominationCount = nominationCounts[nomineeId] ?? 0
+    if (nominationCount < 2) continue
+
+    let delta = 1
+    if (nominationCount >= 3 && approval >= 55) delta += 1
+
+    results.push({
+      playerId: nomineeId,
+      delta: clampDelta(delta, publicOpinionConfig.maxDeltaPerEvent.eviction_reaction),
+      reason: 'survived_repeated_targeting',
+      eventType: 'eviction',
+    })
+  }
+
+  return results
 }
 
 // ── POS / Public-save reactions ───────────────────────────────────────────────
 
 export interface PovSaveReactionInput {
   /** ID of the player who was saved (by POS or public vote). */
-  savedPlayerId: string;
+  savedPlayerId: string
   /** ID of the player who saved them (POS holder). Null for public-save twists. */
-  saviorId: string | null;
+  saviorId: string | null
   /** Current approval map: playerId → approval (0–100). */
-  approvals: Record<string, number>;
-  week: number;
+  approvals: Record<string, number>
+  week: number
   /** Whether this is a public-save twist (vs a normal POS save). */
-  isPublicSave?: boolean;
+  isPublicSave?: boolean
 }
 
 /**
@@ -233,16 +283,16 @@ export interface PovSaveReactionInput {
  *   slight penalty when saving a disliked/hated player.
  */
 export function computePovSaveReactions(input: PovSaveReactionInput): ReactionDelta[] {
-  const { savedPlayerId, saviorId, approvals, week, isPublicSave = false } = input;
-  const { povSaveReactions, maxDeltaPerEvent } = publicOpinionConfig;
+  const { savedPlayerId, saviorId, approvals, week, isPublicSave = false } = input
+  const { povSaveReactions, maxDeltaPerEvent } = publicOpinionConfig
   const cap = isPublicSave
     ? maxDeltaPerEvent.public_save_reaction
-    : maxDeltaPerEvent.pov_save_reaction;
-  const eventType = isPublicSave ? 'public_save' : 'pov_save';
-  const results: ReactionDelta[] = [];
+    : maxDeltaPerEvent.pov_save_reaction
+  const eventType = isPublicSave ? 'public_save' : 'pov_save'
+  const results: ReactionDelta[] = []
 
-  const savedApproval = approvals[savedPlayerId] ?? publicOpinionConfig.DEFAULT_APPROVAL;
-  const band = getApprovalBand(savedApproval);
+  const savedApproval = approvals[savedPlayerId] ?? publicOpinionConfig.DEFAULT_APPROVAL
+  const band = getApprovalBand(savedApproval)
 
   // Saved player boost
   results.push({
@@ -251,15 +301,15 @@ export function computePovSaveReactions(input: PovSaveReactionInput): ReactionDe
     reason: isPublicSave ? 'public_save' : 'pov_save',
     eventType,
     attributedToId: saviorId ?? undefined,
-  });
+  })
 
   // Savior reactions (only for POS, not public save)
   if (saviorId && !isPublicSave) {
-    let saviorDelta = 0;
+    let saviorDelta = 0
     if (band === 'beloved' || band === 'liked') {
-      saviorDelta = povSaveReactions.saveLikedPlayerBoost;
+      saviorDelta = povSaveReactions.saveLikedPlayerBoost
     } else if (band === 'disliked' || band === 'hated') {
-      saviorDelta = povSaveReactions.saveDislikedPlayerPenalty;
+      saviorDelta = povSaveReactions.saveDislikedPlayerPenalty
     }
     if (saviorDelta !== 0) {
       results.push({
@@ -268,11 +318,11 @@ export function computePovSaveReactions(input: PovSaveReactionInput): ReactionDe
         reason: 'pov_save_reaction',
         eventType,
         attributedToId: savedPlayerId,
-      });
+      })
     }
   }
 
-  void week;
+  void week
 
-  return results;
+  return results
 }

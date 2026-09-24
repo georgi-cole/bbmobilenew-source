@@ -2347,6 +2347,8 @@ export default function GameScreen() {
             onComplete={handleFavoriteComplete}
             onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
             onForecastAward={handleForecastAward}
+            canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
+            forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
           />
         )}
 

@@ -92,7 +92,7 @@ export interface SettingsState {
     dayStartShockChance: number
     /** When true, show the "Public's Favorite Player" vote after the finale winner reveal. */
     enableFavoritePlayer: boolean
-    /** Cash prize (USD) awarded to the Public's Favorite Player winner. */
+    /** Eyeolean prize awarded to the Public's Favorite Player winner. */
     favoritePlayerAwardAmount: number
     /**
      * DEBUG/TESTING ONLY — overrides the secret mission trigger chance for all eligible days.

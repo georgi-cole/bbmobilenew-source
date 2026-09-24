@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { formatEyeoleans } from '../../economy/eyeoleans'
 import { useAppSelector } from '../../store/hooks'
 import {
   PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT,
@@ -628,7 +629,7 @@ export default function Profile() {
             You are playing as <strong>Guest</strong>
           </p>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
-            Stats and season archives are not saved in guest mode.
+            Stats, season archives, and Eyeoleans are not saved in guest mode.
           </p>
           <p style={{ margin: '8px 0 0' }}>
             <button
@@ -815,25 +816,23 @@ export default function Profile() {
         </div>
       )}
 
-      {profile &&
-        ((profile.lifetimeXp ?? 0) > 0 ||
-          profile.achievements?.includes(PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT)) && (
-          <div className="profile-screen__stats-card">
-            <p className="profile-screen__section-title">Player Progress</p>
-            <div className="profile-screen__stats-grid">
-              <div className="profile-screen__stat">
-                <span className="profile-screen__stat-val">{profile.lifetimeXp ?? 0}</span>
-                <span className="profile-screen__stat-key">All-time XP</span>
-              </div>
-              {profile.achievements?.includes(PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT) && (
-                <div className="profile-screen__stat profile-screen__stat--achievement">
-                  <span className="profile-screen__stat-val">🔮</span>
-                  <span className="profile-screen__stat-key">Audience Oracle</span>
-                </div>
-              )}
-            </div>
+      <div className="profile-screen__stats-card">
+        <p className="profile-screen__section-title">Eyeolean Wallet</p>
+        <div className="profile-screen__stats-grid">
+          <div className="profile-screen__stat">
+            <span className="profile-screen__stat-val">
+              {formatEyeoleans(profile.eyeoleans ?? 0)}
+            </span>
+            <span className="profile-screen__stat-key">Available</span>
           </div>
-        )}
+          {profile.achievements?.includes(PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT) && (
+            <div className="profile-screen__stat profile-screen__stat--achievement">
+              <span className="profile-screen__stat-val">🔮</span>
+              <span className="profile-screen__stat-key">Audience Oracle</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="profile-screen__survivor-card">
         <div className="profile-screen__survivor-header">

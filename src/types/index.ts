@@ -227,7 +227,8 @@ export type Phase =
   | 'nomination_results'
   /**
    * Pre-veto public save phase (normal weeks only).
-   * The nominee with the highest public approval is automatically saved,
+   * The public saves one nominee through a contextual audience ballot informed
+   * by approval, audience profile, momentum and the current season story,
    * reducing the block from 3 back down to 2 before the veto competition.
    * Skipped transparently during Double Eviction weeks.
    */
@@ -688,7 +689,7 @@ export interface FavoritePlayerState {
   votes: Record<string, number>
   /** ID of the winner once voting completes; null while in progress. */
   winnerId: string | null
-  /** Cash award amount for the winner (dollars). */
+  /** Eyeolean award amount for the Public Favorite winner. */
   awardAmount: number
 }
 
@@ -1256,6 +1257,11 @@ export interface GameState {
    * one. Cleared (reward consumed) by submitHumanDoubleVote.
    */
   humanDoubleVoteActive?: boolean
+  /**
+   * True only while a purchased Extra Vote is driving the two-ballot UI.
+   * The profile reservation is consumed only after a legal second ballot is recorded.
+   */
+  storeExtraVoteChoiceActive?: boolean
   /**
    * PR 3 — voteDeduction activation: set by advance() during eviction_results
    * when the human player is a nominee with votes against them, has an eligible

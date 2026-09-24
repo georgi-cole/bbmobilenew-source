@@ -43,6 +43,13 @@ vi.mock('framer-motion', async () => {
     MotionConfig: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
     motion,
+    useMotionValue: (value: number) => ({
+      get: () => value,
+      set: vi.fn(),
+    }),
+    useSpring: (value: { get: () => number }) => value,
+    useTransform: (value: { get: () => number }, transform: (current: number) => string) =>
+      transform(value.get()),
     useReducedMotion: () => false,
   }
 })
@@ -142,6 +149,7 @@ describe('PublicFavoriteOverlay', () => {
   it('does not leak the season-winner countdown into favorite-player voting', () => {
     render(<PublicFavoriteOverlay candidates={PLAYERS} seed={41} onComplete={vi.fn()} />)
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     const spotlight = screen.getByRole('region', { name: 'Houseguest Spotlight' })
     expect(within(spotlight).queryByLabelText(/Final reveal in 0:\d{2}/i)).not.toBeInTheDocument()
   })
@@ -157,15 +165,16 @@ describe('PublicFavoriteOverlay', () => {
       />
     )
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_100)
     })
 
-    const board = screen.getByRole('region', { name: 'Public vote ranking board' })
+    const board = screen.getByRole('region', { name: 'Top three live audience vote' })
     fireEvent.click(within(board).getByRole('button', { name: /Taylor, rank 1, 44%/i }))
     expect(screen.getByText(/This does not change the official result/i)).toBeInTheDocument()
 
-    const cta = screen.getByRole('button', { name: /Watch to Spotlight Taylor/i })
+    const cta = screen.getByRole('button', { name: /Watch to boost Taylor/i })
     await act(async () => {
       fireEvent.click(cta)
       fireEvent.click(cta)
@@ -179,6 +188,7 @@ describe('PublicFavoriteOverlay', () => {
   it('uses a readable fast-forward cadence instead of 260 ms eliminations', () => {
     render(<PublicFavoriteOverlay candidates={PLAYERS} seed={41} onComplete={vi.fn()} />)
 
+    fireEvent.click(screen.getByRole('button', { name: /^Lock / }))
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward public favorite vote' }))
 
     expect(mockedUseBattleBackVoting.mock.calls.at(-1)?.[0]).toMatchObject({
