@@ -50,18 +50,20 @@ export interface Player {
     gamePRs?: Record<string, number>
   }
   /**
-   * The game week number when this player was evicted (set by assignSeasonPlacementOnExit).
-   * Undefined for players who were never evicted (winner, runner-up who reaches finale).
-   * Cleared by completeBattleBack so returning players receive a fresh week stamp on
-   * their second eviction.
+   * The game week number when this player was most recently evicted.
+   * Undefined for active players and cleared when a Battle Back winner returns.
    */
   evictedAtWeek?: number
+  /** First exit week retained for recap/history when a Battle Back winner returns. */
+  firstEvictedAtWeek?: number
   /**
-   * Explicit placement captured at elimination time.
-   * Uses Big Brother style numbering where 1 = winner, 2 = runner-up,
-   * 3 = third place, etc.
+   * Explicit current/final placement captured at elimination time.
+   * Cleared on Battle Back return so a later second eviction can stamp the
+   * contestant's true final placement.
    */
   seasonPlacement?: number
+  /** First exit placement retained separately from the final season placement. */
+  firstExitPlacement?: number
   /** Set to 1 for the winner, 2 for runner-up after finale. */
   finalRank?: number
   /** True once the player is confirmed season winner. */
@@ -362,7 +364,7 @@ export interface SpectatorActiveState {
  * attempted (first-time lazy initialisation).
  */
 export interface BattleBackState {
-  /** True once the twist has fired (or been decided) this season — prevents repeats. */
+  /** True once this Battle Back session has resolved. */
   used: boolean
   /**
    * True while the twist is active (blocks advance()).
@@ -377,8 +379,18 @@ export interface BattleBackState {
   competitionActive: boolean
   /** Week number when the twist was decided (week the eviction happened). Null before decided. */
   weekDecided: number | null
-  /** IDs of jurors eligible to compete in the Battle Back. */
+  /** IDs of Tribunal members locked into this Battle Back session. */
   candidates: string[]
+  /** Why this Battle Back session was created. */
+  activationSource?: 'human-guarantee' | 'ai-director' | 'legacy-random' | 'forced-debug' | 'manual'
+  /** Zero-based run index. Incremented only after a rewarded replay is granted. */
+  attemptIndex?: number
+  /** Number of rewarded retries already consumed by the human this session. */
+  retryCount?: number
+  /** Persisted product cap; currently three rewarded retries. */
+  retryLimit?: number
+  /** Losing winner held while the user decides whether to spend a rewarded retry. */
+  pendingRetryWinnerId?: string | null
   /** ID of the winning juror who returns to the house; null before the competition resolves. */
   winnerId: string | null
   /** Persisted handoff marker so Continue Last can replay the return animation. */

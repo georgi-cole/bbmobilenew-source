@@ -92,6 +92,13 @@ import {
 } from '../features/twists/doubleEvictionTieUtils'
 import { buildDayStartShockSelection } from '../features/twists/dayStartShock'
 import {
+  BATTLE_BACK_RETRY_LIMIT,
+  getBattleBackEligiblePlayers,
+  getStoredBattleBackCandidates,
+  sanitizeBattleBackCandidateIds,
+  type BattleBackActivationSource,
+} from '../features/twists/battleBackRules'
+import {
   areDistinctCupidPairs,
   createCupidArrowPairs,
   CUPID_ARROW_BREAK_AFTER_PAIRS,
@@ -709,6 +716,7 @@ export function createInitialGameState(options?: {
     seasonDirectorPlan,
     seasonDirectorLastSpotlightDay: null,
     seasonDirectorHumanReturnUsed: false,
+    seasonDirectorAiBattleBackUsed: false,
     lohId: null,
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
@@ -6540,23 +6548,39 @@ const gameSlice = createSlice({
      */
     activateBattleBack(
       state,
-      action: PayloadAction<{ candidates: string[]; week: number; humanReturn?: boolean }>
+      action: PayloadAction<{
+        candidates: string[]
+        week: number
+        humanReturn?: boolean
+        source?: BattleBackActivationSource
+      }>
     ) {
       if (isVoxPopuliTwistLocked(state)) return
-      const candidates = action.payload.candidates.filter((id) => id !== BELLA_ID)
+      const candidates = sanitizeBattleBackCandidateIds(state.players, action.payload.candidates)
       if (candidates.length === 0) return
+      const activationSource =
+        action.payload.source ?? (action.payload.humanReturn ? 'human-guarantee' : 'manual')
       const bb: BattleBackState = {
         used: false,
         active: true,
         competitionActive: false,
         weekDecided: action.payload.week,
         candidates,
+        activationSource,
+        attemptIndex: 0,
+        retryCount: 0,
+        retryLimit: BATTLE_BACK_RETRY_LIMIT,
+        pendingRetryWinnerId: null,
         winnerId: null,
         returnAnimationPending: false,
       }
       state.battleBack = bb
       state.twistActive = true
-      if (action.payload.humanReturn) state.seasonDirectorHumanReturnUsed = true
+      state.twistActivatedThisWeek = true
+      if (action.payload.humanReturn || activationSource === 'human-guarantee') {
+        state.seasonDirectorHumanReturnUsed = true
+      }
+      if (activationSource === 'ai-director') state.seasonDirectorAiBattleBackUsed = true
       if (state.seasonDirectorPlan) state.seasonDirectorLastSpotlightDay = state.week
       // Push event WITH major: 'battle_back' so TvZone shows the TvAnnouncementOverlay.
       pushEvent(
@@ -6569,13 +6593,38 @@ const gameSlice = createSlice({
 
     /**
      * Open the full-screen Battle Back competition overlay.
-     * Called by GameScreen ~5 s after `activateBattleBack`, once the TV
-     * filler announcement has had time to be seen.
+     * Called by GameScreen after the TV announcement has been acknowledged.
      */
     openBattleBackCompetition(state) {
       if (state.battleBack && state.battleBack.active) {
         state.battleBack.competitionActive = true
       }
+    },
+
+    offerBattleBackRetry(state, action: PayloadAction<string>) {
+      const bb = state.battleBack
+      if (!bb?.active) return
+      const winnerId = action.payload
+      if (!bb.candidates.includes(winnerId)) return
+      const retryCount = bb.retryCount ?? 0
+      const retryLimit = bb.retryLimit ?? BATTLE_BACK_RETRY_LIMIT
+      if (retryCount >= retryLimit) return
+      bb.pendingRetryWinnerId = winnerId
+    },
+
+    acceptBattleBackRetry(state) {
+      const bb = state.battleBack
+      if (!bb?.active || !bb.pendingRetryWinnerId) return
+      const retryCount = bb.retryCount ?? 0
+      const retryLimit = bb.retryLimit ?? BATTLE_BACK_RETRY_LIMIT
+      if (retryCount >= retryLimit) return
+      bb.retryCount = retryCount + 1
+      bb.attemptIndex = (bb.attemptIndex ?? 0) + 1
+      bb.pendingRetryWinnerId = null
+    },
+
+    clearBattleBackRetryOffer(state) {
+      if (state.battleBack) state.battleBack.pendingRetryWinnerId = null
     },
 
     /**
@@ -6592,21 +6641,23 @@ const gameSlice = createSlice({
         return
       }
 
-      if (winnerId === BELLA_ID) return
-      const isCandidate = bb.candidates.includes(winnerId)
-      const winner = state.players.find((p) => p.id === winnerId)
+      const winner = getStoredBattleBackCandidates(state.players, bb.candidates).find(
+        (player) => player.id === winnerId
+      )
+      if (!winner) return
 
-      // Require the winner to be an exited stored candidate. Older/edge flows can
-      // carry a valid Battle Back candidate as 'evicted' instead of 'jury'.
-      if (!isCandidate || !winner || (winner.status !== 'jury' && winner.status !== 'evicted')) {
-        return
+      // Preserve the first exit as history, but clear the canonical placement so
+      // a second eviction after re-entry can stamp the contestant's true finish.
+      if (winner.firstEvictedAtWeek == null && winner.evictedAtWeek != null) {
+        winner.firstEvictedAtWeek = winner.evictedAtWeek
       }
-
+      if (winner.firstExitPlacement == null && winner.seasonPlacement != null) {
+        winner.firstExitPlacement = winner.seasonPlacement
+      }
       winner.status = 'active'
-      ensurePlayerStats(winner).battleBackWins = (winner.stats!.battleBackWins ?? 0) + 1
-      // Clear evictedAtWeek so if this player is evicted again, assignSeasonPlacementOnExit
-      // will stamp the correct week of their second eviction.
       winner.evictedAtWeek = undefined
+      winner.seasonPlacement = undefined
+      ensurePlayerStats(winner).battleBackWins = (winner.stats!.battleBackWins ?? 0) + 1
       pushEvent(
         state,
         `🔥 ${winner.name} has survived Back 2 the Game and RETURNS to The Big Eye house! 🏠✨`,
@@ -6616,6 +6667,7 @@ const gameSlice = createSlice({
       bb.active = false
       bb.used = true
       bb.winnerId = winnerId
+      bb.pendingRetryWinnerId = null
       bb.returnAnimationPending = true
       state.twistActive = false
     },
@@ -6634,6 +6686,7 @@ const gameSlice = createSlice({
       if (state.battleBack) {
         state.battleBack.active = false
         state.battleBack.used = true
+        state.battleBack.pendingRetryWinnerId = null
         state.battleBack.returnAnimationPending = false
       }
       state.twistActive = false
@@ -11022,6 +11075,9 @@ export const {
   consumeBattleBackReturn,
   dismissBattleBack,
   openBattleBackCompetition,
+  offerBattleBackRetry,
+  acceptBattleBackRetry,
+  clearBattleBackRetryOffer,
   activateDoubleEviction,
   activateSpecialVeto,
   setCupidArrowSchedule,
@@ -12362,11 +12418,9 @@ export const tryActivateBattleBack =
       const active = game.players.filter(
         (player) => player.status !== 'evicted' && player.status !== 'jury'
       )
-      const jurors = game.players.filter(
-        (player) => player.status === 'jury' && player.id !== BELLA_ID
-      )
+      const jurors = getBattleBackEligiblePlayers(game.players)
       const human = game.players.find((player) => player.isUser)
-      const humanIsJuror = human?.status === 'jury'
+      const humanIsJuror = human ? jurors.some((player) => player.id === human.id) : false
       const humanWasPreTribunalEvicted = human?.status === 'evicted'
 
       // A pre-Tribunal human elimination ends the playable season. Do not
@@ -12380,6 +12434,7 @@ export const tryActivateBattleBack =
       if (
         humanIsJuror &&
         policy.human.guaranteedOpportunityAfterEviction &&
+        policy.human.maxGuaranteedOpportunitiesPerSeason > 0 &&
         game.seasonDirectorHumanReturnUsed !== true &&
         active.length >= policy.human.minimumActivePlayersAfterEviction &&
         jurors.length >= policy.human.minimumCandidates
@@ -12389,6 +12444,7 @@ export const tryActivateBattleBack =
             candidates: jurors.map((player) => player.id),
             week: game.week,
             humanReturn: true,
+            source: 'human-guarantee',
           })
         )
         return true
@@ -12397,7 +12453,19 @@ export const tryActivateBattleBack =
       // If the human is already in the Tribunal pool but their guaranteed
       // window is not viable yet, do not spend the one AI-only Battle Back.
       if (humanIsJuror) return false
-      if (game.battleBack?.used) return false
+      // Optional AI-only B2G never stacks onto another major shock from this
+      // game day. The human guarantee above is the deliberate retention exception.
+      if (game.twistActivatedThisWeek) return false
+      // An AI-only return can happen before the human guarantee, but never after
+      // the human opportunity has already been consumed.
+      if (
+        game.battleBack?.used ||
+        game.seasonDirectorAiBattleBackUsed === true ||
+        game.seasonDirectorHumanReturnUsed === true
+      ) {
+        return false
+      }
+      if (policy.aiOnly.maxPerSeason <= 0) return false
       if (!plan.selections.aiBattleBack) return false
       if (
         !isWithinDirectorWindow(active.length, policy.aiOnly, plan.policy.pacing.finaleLockPlayers)
@@ -12408,14 +12476,19 @@ export const tryActivateBattleBack =
       if (!hasDirectorSpotlightRoom(game)) return false
 
       dispatch(
-        activateBattleBack({ candidates: jurors.map((player) => player.id), week: game.week })
+        activateBattleBack({
+          candidates: jurors.map((player) => player.id),
+          week: game.week,
+          source: 'ai-director',
+        })
       )
       return true
     }
 
     if (game.battleBack?.used) return false
+    if (game.twistActivatedThisWeek) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
+    const jurors = getBattleBackEligiblePlayers(game.players)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
@@ -12428,7 +12501,7 @@ export const tryActivateBattleBack =
     if (roll >= chance) return false
 
     const candidates = jurors.map((p) => p.id)
-    dispatch(activateBattleBack({ candidates, week: game.week }))
+    dispatch(activateBattleBack({ candidates, week: game.week, source: 'legacy-random' }))
     return true
   }
 
@@ -12444,13 +12517,19 @@ export const tryActivatePendingForcedBattleBack =
     if (game.battleBack?.used) return false
     if (game.twistActivatedThisWeek) return false
 
-    const jurors = game.players.filter((p) => p.status === 'jury' && p.id !== BELLA_ID)
+    const jurors = getBattleBackEligiblePlayers(game.players)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
     if (jurors.length < 3) return false
     if (active.length < 5) return false
 
-    dispatch(activateBattleBack({ candidates: jurors.map((p) => p.id), week: game.week }))
+    dispatch(
+      activateBattleBack({
+        candidates: jurors.map((p) => p.id),
+        week: game.week,
+        source: 'forced-debug',
+      })
+    )
     dispatch(consumeForcedShock())
     return true
   }
