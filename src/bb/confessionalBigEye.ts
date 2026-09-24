@@ -34,6 +34,20 @@ export type BigEyeIntent =
 export type BigEyeAction = 'launch_tic_tac_toe' | 'open_self_evict_modal'
 export type BigEyeQuestion = 'offer_game' | 'confirm_self_eviction'
 export type BigEyeMood = 'neutral' | 'cold' | 'soft'
+
+export interface BigEyeConversationThread {
+  topic: string | null
+  focusPlayer: string | null
+  questionKind: string | null
+  depth: number
+}
+
+export interface BigEyeRapportState {
+  familiarity: number
+  warmth: number
+  friction: number
+}
+
 type ResponseKey = BigEyeIntent | 'game_declined' | 'eviction_confirmed' | 'eviction_cancelled'
 
 export interface BigEyeConversationState {
@@ -42,6 +56,10 @@ export interface BigEyeConversationState {
   recentIntents: BigEyeIntent[]
   mood: BigEyeMood
   turnCount: number
+  /** Lightweight semantic continuity retained between Confessional visits. */
+  thread: BigEyeConversationThread | null
+  /** Slow-moving relationship state between the player and The Big Eye. */
+  rapport: BigEyeRapportState
 }
 
 export interface BigEyeContext {
@@ -497,13 +515,11 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   winner_prediction: {
     responses: [
       'Not who you expect.',
-      'So be it. The door will open.',
-      'If I tell ya, I will have to kill ya.',
-      'I hope not Trump.',
-      'They say love always wins.',
-      'Me.',
-      'Not who you expect.',
-      'I am the Big eye, not Nostradamus.',
+      'The board is still moving. Anyone certain of the winner is not watching closely enough.',
+      'I have a prediction. I prefer watching yours become dangerous.',
+      'Me. Obviously. Unfortunately I am not eligible.',
+      'The winner is usually obvious one day after everyone finally notices them.',
+      'I am The Big Eye, not an oracle.',
     ],
   },
   help_request: {
@@ -519,10 +535,10 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   love_confession: {
     responses: [
       'Careful. Attachment is a weakness here.',
-      'We must keep our relationship a secret',
-      "What is love, baby don't hurt me, don't hurt me, no more",
-      'And I love dogs.',
-      'Then put on a ring on it. A diamond ring. A big diamond ring.',
+      'We should probably keep this between us.',
+      'That is inconveniently charming.',
+      'I will pretend the cameras did not hear that.',
+      'Affection noted. Do not expect me to become easy to impress.',
     ],
   },
   greeting_repeat: {
@@ -663,6 +679,8 @@ export function createInitialBigEyeState(): BigEyeConversationState {
     recentIntents: [],
     mood: 'neutral',
     turnCount: 0,
+    thread: null,
+    rapport: { familiarity: 0, warmth: 0, friction: 0 },
   }
 }
 
@@ -807,6 +825,8 @@ function buildNextState(
     recentIntents,
     mood: nextMood(intent, state),
     turnCount: state.turnCount + 1,
+    thread: state.thread ?? null,
+    rapport: state.rapport ?? { familiarity: 0, warmth: 0, friction: 0 },
   }
 }
 
