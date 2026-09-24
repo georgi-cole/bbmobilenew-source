@@ -187,6 +187,45 @@ describe('generateDirectionsForCycle', () => {
     expect(afterRepair.some((candidate) => candidate.type === 'break_alliance')).toBe(false)
   })
 
+  it('prefers contestants who have received fewer audience requests', () => {
+    const veteranRequests: PublicDirection[] = Array.from({ length: 4 }, (_, index) => ({
+      id: `old-${index}`,
+      type: 'win_competition',
+      playerId: 'test',
+      description: 'Old request',
+      status: 'completed',
+      createdWeek: index + 1,
+      completedWeek: index + 1,
+      expiresAtWeek: index + 2,
+      approvalDelta: 3,
+    }))
+
+    const directions = generateDirectionsForCycle({
+      players: [player('test', true), player('nova'), player('blue')],
+      week: 8,
+      seed: 18,
+      count: 2,
+      prioritizeHuman: false,
+      existingDirections: veteranRequests,
+      relationships: {
+        test: {
+          nova: { affinity: 0, tags: [] },
+          blue: { affinity: 0, tags: [] },
+        },
+        nova: {
+          test: { affinity: 0, tags: [] },
+          blue: { affinity: 0, tags: [] },
+        },
+        blue: {
+          test: { affinity: 0, tags: [] },
+          nova: { affinity: 0, tags: [] },
+        },
+      },
+    })
+
+    expect(directions.map((direction) => direction.playerId).sort()).toEqual(['blue', 'nova'])
+  })
+
   it('does not issue a second live request to a player already carrying one', () => {
     const directions = generateDirectionsForCycle({
       players: [player('test', true), player('nova')],
