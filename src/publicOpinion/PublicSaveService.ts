@@ -63,7 +63,10 @@ function unitNoise(key: string): number {
  * Charisma, Gameplay and Integrity matter differently from week to week without
  * changing after a reload.
  */
-export function getPublicSaveAudienceMix(seed = 0, week = 1): {
+export function getPublicSaveAudienceMix(
+  seed = 0,
+  week = 1
+): {
   charisma: number
   gameplay: number
   integrity: number
@@ -112,7 +115,10 @@ function storylineScore(
   return clamp(50 + clamp(visibleImpact, -12, 12) * 2.5, 0, 100)
 }
 
-function underdogScore(playerId: string, nominationCounts: Record<string, number> | undefined): number {
+function underdogScore(
+  playerId: string,
+  nominationCounts: Record<string, number> | undefined
+): number {
   const count = nominationCounts?.[playerId] ?? 0
   return clamp(50 + Math.max(0, count - 1) * 6, 0, 70)
 }

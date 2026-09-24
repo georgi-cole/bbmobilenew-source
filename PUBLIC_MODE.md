@@ -102,7 +102,6 @@ npm test
 
 The focused coverage currently includes request eligibility, alliance-aware generation, exact action mapping, Public Mode gating, request progress, and invalidation behavior.
 
-
 ## Audience story simulation
 
 Public opinion reacts to the same recorded game events for human and AI contestants. Competition placement, social actions, nominations, saves and evictions are evaluated without checking whether the actor is the user.

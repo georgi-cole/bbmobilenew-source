@@ -778,7 +778,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
               publicOpinionConfig.directionCoverage.maxPerCycle,
               Math.max(
                 publicOpinionConfig.directionCoverage.minPerCycle,
-                Math.ceil(activePlayers.length * publicOpinionConfig.directionCoverage.activeCastRatio)
+                Math.ceil(
+                  activePlayers.length * publicOpinionConfig.directionCoverage.activeCastRatio
+                )
               )
             ),
             relationships: nextState.social?.relationships,

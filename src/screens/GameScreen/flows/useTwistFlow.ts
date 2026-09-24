@@ -303,8 +303,7 @@ export function useTwistFlow({
     pairAdjustedPublicProfiles,
     publicOpinionFeed,
   ])
-  const publicSaveApprovals =
-    publicSaveResolution?.voteShareByPlayerId ?? publicSaveBaseApprovals
+  const publicSaveApprovals = publicSaveResolution?.voteShareByPlayerId ?? publicSaveBaseApprovals
   const publicSaveWinnerId = publicSaveResolution?.savedId || null
 
   const publicSaveResultAnnouncement = useMemo<Announcement | null>(() => {

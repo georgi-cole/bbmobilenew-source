@@ -907,7 +907,9 @@ export default function PublicMeter() {
                   <div key={metric} className={`audience-metric audience-metric--${metric}`}>
                     <div className="audience-metric__heading">
                       <span>{audienceMetricLabels[metric]}</span>
-                      <strong>{selectedPlayer?.isUser ? value : getAudienceMetricSignal(value)}</strong>
+                      <strong>
+                        {selectedPlayer?.isUser ? value : getAudienceMetricSignal(value)}
+                      </strong>
                     </div>
                     <div className="audience-metric__track" aria-hidden="true">
                       <span style={{ width: `${value}%` }} />

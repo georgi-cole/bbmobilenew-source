@@ -169,7 +169,9 @@ export function applyAudienceApprovalDelta(
   const next: AudienceBreakdown = {
     charisma: round(clamp(current.charisma + effectiveDelta * METRICS.length * weights.charisma)),
     gameplay: round(clamp(current.gameplay + effectiveDelta * METRICS.length * weights.gameplay)),
-    integrity: round(clamp(current.integrity + effectiveDelta * METRICS.length * weights.integrity)),
+    integrity: round(
+      clamp(current.integrity + effectiveDelta * METRICS.length * weights.integrity)
+    ),
     recentChanges: [...current.recentChanges],
   }
   const approval = getAudienceApproval(next)

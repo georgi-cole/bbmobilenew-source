@@ -107,10 +107,7 @@ function pressureAgainst(
   }
 }
 
-function pushUnique(
-  reactions: AudienceStoryReaction[],
-  reaction: AudienceStoryReaction
-): void {
+function pushUnique(reactions: AudienceStoryReaction[], reaction: AudienceStoryReaction): void {
   const existing = reactions.find(
     (candidate) =>
       candidate.playerId === reaction.playerId &&
@@ -141,14 +138,7 @@ export function computeSocialAudienceStoryReactions(params: {
   dramaArcs?: readonly DramaArc[]
   week: number
 }): AudienceStoryReaction[] {
-  const {
-    entry,
-    profiles,
-    actionHistory = [],
-    relationships,
-    dramaArcs,
-    week,
-  } = params
+  const { entry, profiles, actionHistory = [], relationships, dramaArcs, week } = params
 
   if (!entry.actorId || !entry.targetId) return []
 
@@ -162,7 +152,11 @@ export function computeSocialAudienceStoryReactions(params: {
   const score = typeof entry.score === 'number' ? entry.score : 0
 
   // Shared Human/AI social-performance signal. This replaces the old manual-human-only bonus.
-  if (!isConflict && successful && (WARM_ACTIONS.has(entry.actionId) || score >= 0.3 || entry.delta >= 4)) {
+  if (
+    !isConflict &&
+    successful &&
+    (WARM_ACTIONS.has(entry.actionId) || score >= 0.3 || entry.delta >= 4)
+  ) {
     pushUnique(reactions, {
       playerId: entry.actorId,
       delta: 1,
@@ -189,7 +183,13 @@ export function computeSocialAudienceStoryReactions(params: {
   if (
     successful &&
     romanceIsPublic &&
-    pairBeatCount(history, entry.actorId, entry.targetId, new Set([...ROMANCE_ACTIONS, ...PRIVATE_ROMANCE_ACTIONS]), week) <= 2
+    pairBeatCount(
+      history,
+      entry.actorId,
+      entry.targetId,
+      new Set([...ROMANCE_ACTIONS, ...PRIVATE_ROMANCE_ACTIONS]),
+      week
+    ) <= 2
   ) {
     for (const playerId of [entry.actorId, entry.targetId]) {
       pushUnique(reactions, {

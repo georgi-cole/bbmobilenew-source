@@ -51,12 +51,18 @@ describe('AudienceStoryService', () => {
 
     expect(
       reactions.some(
-        (reaction) => reaction.playerId === 'aggressor' && reaction.reason === 'fan_favorite_backlash' && reaction.delta < 0
+        (reaction) =>
+          reaction.playerId === 'aggressor' &&
+          reaction.reason === 'fan_favorite_backlash' &&
+          reaction.delta < 0
       )
     ).toBe(true)
     expect(
       reactions.some(
-        (reaction) => reaction.playerId === 'favorite' && reaction.reason === 'fan_favorite_sympathy' && reaction.delta > 0
+        (reaction) =>
+          reaction.playerId === 'favorite' &&
+          reaction.reason === 'fan_favorite_sympathy' &&
+          reaction.delta > 0
       )
     ).toBe(true)
   })
@@ -81,7 +87,8 @@ describe('AudienceStoryService', () => {
 
     expect(
       reactions.some(
-        (reaction) => reaction.playerId === 'target' && reaction.reason === 'audience_underdog_rally'
+        (reaction) =>
+          reaction.playerId === 'target' && reaction.reason === 'audience_underdog_rally'
       )
     ).toBe(true)
     expect(
