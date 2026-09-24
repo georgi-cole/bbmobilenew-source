@@ -92,6 +92,7 @@ export default function ConfessionalLab() {
 
   const game = useAppSelector((state) => state.game)
   const relationships = useAppSelector((state) => state.social.relationships)
+  const realityDomain = useAppSelector((state) => state.social.reality)
   const remoteConfessionalRevision = useAppSelector(
     (state) => state.remoteConfig.config?.confessional?.revision
   )
@@ -111,6 +112,57 @@ export default function ConfessionalLab() {
       .sort((left, right) => Math.abs(right.affinity) - Math.abs(left.affinity))
       .slice(0, 6)
 
+    const formalAlliances = Object.values(realityDomain.alliances ?? {})
+      .filter(
+        (alliance) =>
+          alliance.memberIds.includes(playerId) &&
+          alliance.status !== 'DISSOLVED'
+      )
+      .map((alliance) => ({
+        id: alliance.id,
+        name: alliance.name?.trim() || null,
+        memberNames: alliance.memberIds.map((id) => nameFor(id) ?? id),
+        status: alliance.status,
+      }))
+    const legacyAllianceNames =
+      formalAlliances.length === 0
+        ? relationshipRows
+            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
+            .map((row) => row.name)
+        : []
+    const alliances =
+      formalAlliances.length > 0
+        ? formalAlliances
+        : legacyAllianceNames.length
+          ? [
+              {
+                id: 'relationship-allies',
+                name: null,
+                memberNames: [playerName, ...legacyAllianceNames],
+                status: 'ACTIVE',
+              },
+            ]
+          : []
+
+    const publicFeed = game.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
+    const recentEvictedNames: string[] = []
+    const pendingEvictee = nameFor(game.pendingEviction?.evicteeId)
+    if (pendingEvictee) recentEvictedNames.push(pendingEvictee)
+    for (const eventText of [...publicFeed].reverse()) {
+      const normalized = eventText.toLowerCase()
+      if (
+        !normalized.includes('evicted') &&
+        !normalized.includes('eliminated') &&
+        !normalized.includes('went home') &&
+        !normalized.includes('left the house')
+      ) {
+        continue
+      }
+      const matched = game.players.find((player) => normalized.includes(player.name.toLowerCase()))
+      if (matched && !recentEvictedNames.includes(matched.name)) recentEvictedNames.push(matched.name)
+      if (recentEvictedNames.length >= 2) break
+    }
+
     return {
       season: game.season,
       week: game.week,
@@ -128,9 +180,11 @@ export default function ConfessionalLab() {
         timesNominated: userPlayer?.stats?.timesNominated ?? 0,
       },
       closestRelationships: relationshipRows,
-      recentPublicEvents: game.tvFeed.slice(-8).map((event) => event.text.slice(0, 280)),
+      alliances,
+      recentEvictedNames,
+      recentPublicEvents: publicFeed.slice(-8),
     }
-  }, [game, playerId, relationships, userPlayer])
+  }, [game, playerId, playerName, realityDomain.alliances, relationships, userPlayer])
 
   const [tab, setTab] = useState<LabTab>('workbench')
   const [contextMode, setContextMode] = useState<ContextMode>('synthetic')
