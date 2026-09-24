@@ -473,6 +473,7 @@ interface ChatBubblesProps {
   endRef: React.RefObject<HTMLDivElement | null>
   activeDecisionKey?: string | null
   activeDecisionPanel?: React.ReactNode
+  visualEyeReactions?: boolean
 }
 
 /** Renders the status indicator for a user message. */
@@ -500,6 +501,7 @@ function ChatBubbles({
   endRef,
   activeDecisionKey,
   activeDecisionPanel,
+  visualEyeReactions = true,
 }: ChatBubblesProps) {
   return (
     <div className="diary-room__chat" aria-live="polite" aria-label="Confessional chat">
@@ -519,9 +521,9 @@ function ChatBubbles({
               key={msg.id}
               className={`diary-room__bubble diary-room__bubble--${msg.role}${isActiveDecision ? ' diary-room__bubble--decision' : ''}${msg.performance ? ` diary-room__bubble--${msg.performance.delivery}` : ''}`}
               data-emotion={msg.performance?.emotion}
-              data-eye-state={msg.performance?.eyeState}
+              data-eye-state={visualEyeReactions ? msg.performance?.eyeState : undefined}
               style={
-                msg.performance
+                visualEyeReactions && msg.performance
                   ? ({
                       '--big-eye-intensity': msg.performance.intensity,
                     } as CSSProperties)
@@ -572,6 +574,10 @@ export default function DiaryRoom() {
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const confessionalLocked = userPlayer?.status === 'evicted' || userPlayer?.status === 'jury'
   const voxPopuliActive = gameState.voxPopuli?.status === 'active'
+  const visualEyeReactions =
+    useAppSelector(
+      (s) => s.remoteConfig?.config?.confessional?.features?.visualEyeReactions
+    ) !== false
 
   const handleRenameAlliance = useCallback(
     (allianceId: string, name: string) => {
@@ -1998,6 +2004,7 @@ export default function DiaryRoom() {
                 playerName={playerName}
                 endRef={confessEndRef}
                 activeDecisionKey={activeDecisionPresentation?.key}
+                visualEyeReactions={visualEyeReactions}
                 activeDecisionPanel={
                   activeConfessionalDecision && (
                     <ConfessionalDecisionPanel
