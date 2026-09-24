@@ -11,7 +11,6 @@ import {
 import {
   CONFESSIONAL_CALIBRATION_SCENARIOS,
   CONFESSIONAL_LAB_WORLD,
-  runConfessionalCalibrationScenario,
   runConfessionalCalibrationSuite,
   type ConfessionalCalibrationCategory,
   type ConfessionalCalibrationScenarioResult,
@@ -93,6 +92,9 @@ export default function ConfessionalLab() {
 
   const game = useAppSelector((state) => state.game)
   const relationships = useAppSelector((state) => state.social.relationships)
+  const remoteConfessionalRevision = useAppSelector(
+    (state) => state.remoteConfig.config?.confessional?.revision
+  )
   const userPlayer = game.players.find((player) => player.isUser)
   const playerId = userPlayer?.id ?? 'user'
   const playerName = userPlayer?.name ?? 'Housemate'
@@ -156,7 +158,10 @@ export default function ConfessionalLab() {
   const world = contextMode === 'current' ? currentWorld : scenarioWorld
   const effectivePlayerName = contextMode === 'current' ? playerName : 'Alex'
 
-  const suiteResults = useMemo(() => runConfessionalCalibrationSuite(), [])
+  const suiteResults = useMemo(
+    () => runConfessionalCalibrationSuite(),
+    [remoteConfessionalRevision]
+  )
   const visibleSuiteResults = useMemo(
     () =>
       suiteCategory === 'all'
