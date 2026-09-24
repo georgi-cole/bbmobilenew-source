@@ -2,6 +2,10 @@ import { StrictMode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import QuickTapSeasons from './QuickTapSeasons'
+import {
+  buildSeasonSchedule,
+  rerollSeason,
+} from '../../experiments/quickTapSeasons/quickTapSeasons'
 
 describe('QuickTapSeasons', () => {
   beforeEach(() => {
@@ -49,6 +53,33 @@ describe('QuickTapSeasons', () => {
     fireEvent.pointerDown(screen.getByRole('button', { name: /TAP/ }))
 
     expect(screen.getByText('39.5s')).toBeTruthy()
+  })
+
+  it('gives a mystery-box season a full window before the next automatic change', () => {
+    const seed = Array.from({ length: 100 }, (_, index) => index + 1).find((candidate) => {
+      const schedule = buildSeasonSchedule(candidate)
+      return rerollSeason(candidate, 0, schedule[0].season) !== schedule[1].season
+    })
+    expect(seed).toBeDefined()
+
+    const { container } = render(<QuickTapSeasons seed={seed} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start 40s race' }))
+    act(() => {
+      vi.advanceTimersByTime(7_000)
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /change season/i }))
+    const seasonLabel = container.querySelector('.qts__hud > div:nth-child(2) strong')?.textContent
+    expect(seasonLabel).toBeTruthy()
+
+    act(() => {
+      vi.advanceTimersByTime(1_000)
+    })
+
+    expect(container.querySelector('.qts__hud > div:nth-child(2) strong')?.textContent).toBe(
+      seasonLabel
+    )
+    expect(screen.getByText('32.0s')).toBeTruthy()
   })
 
   it('keeps the hosted auto-start timer running in Strict Mode', () => {
