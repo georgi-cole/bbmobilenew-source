@@ -923,8 +923,28 @@ export default function DiaryRoom() {
       return
     }
 
-    const nextConversationState = loadConversationState(gameState.gameId, playerId)
+    const loadedConversationState = loadConversationState(gameState.gameId, playerId)
+    const entryObservation = getSalientConfessionalObservation({
+      previous: loadWorldSnapshot(gameState.gameId, playerId),
+      current: bigEyeWorldRef.current,
+      playerName: playerNameRef.current,
+    })
+    const nextConversationState = entryObservation
+      ? {
+          ...loadedConversationState,
+          thread: {
+            topic: `entry:${entryObservation.event}`,
+            focusPlayer: null,
+            questionKind: 'entry_observation',
+            depth: 1,
+            lastEyeQuestion: null,
+            lastEyeStatement: entryObservation.text,
+            contextReason: entryObservation.text,
+          },
+        }
+      : loadedConversationState
     setConversationState(nextConversationState)
+    saveConversationState(gameState.gameId, playerId, nextConversationState)
     if (confessionalDecisionPendingRef.current) {
       setMessages([])
       saveChat(playerId, [])
@@ -942,11 +962,7 @@ export default function DiaryRoom() {
                 playerNameRef.current,
                 seedRef.current ?? 0,
                 recordConfessionalVisit(playerId),
-                getSalientConfessionalObservation({
-                  previous: loadWorldSnapshot(gameState.gameId, playerId),
-                  current: bigEyeWorldRef.current,
-                  playerName: playerNameRef.current,
-                })?.text
+                entryObservation?.text
               ),
             ]
       const shouldTeachRevealPhrase =
