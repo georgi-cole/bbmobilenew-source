@@ -1,0 +1,53 @@
+name: Temp Eyeolean Calibration Verify
+
+on:
+  push:
+    branches:
+      - feature/eyeolean-economy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check formatting
+        run: >
+          npx prettier --check
+          src/economy/eyeoleans.ts
+          src/economy/eyeoleans.test.ts
+          src/economy/eyeoleanCalibration.ts
+          src/economy/eyeoleanCalibration.test.ts
+          e2e/playwright/season-sim/economyCalibration.ts
+          e2e/playwright/season-sim/types.ts
+          e2e/playwright/season-sim/auditor.ts
+          e2e/playwright/eyeolean-calibration.spec.ts
+          scripts/run-eyeolean-calibration.mjs
+          scripts/summarize-eyeolean-calibration.mjs
+          docs/EYEOLEAN_ECONOMY.md
+          package.json
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Targeted Eyeolean tests
+        run: >
+          npx vitest run
+          src/economy/eyeoleans.test.ts
+          src/economy/eyeoleanCalibration.test.ts
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/profilesSlice.forecastReward.test.ts
+          tests/unit/publicFavoriteOverlay.test.tsx
+          tests/gameOver.screen.test.tsx
+      - name: Smoke calibration report script
+        run: node scripts/summarize-eyeolean-calibration.mjs test-results
