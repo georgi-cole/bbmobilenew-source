@@ -609,7 +609,7 @@ describe('DiaryRoom — confessional decision panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm save target' }))
 
     expect(store.getState().game.awaitingPovSaveTarget).toBe(false)
-    expect(screen.getByText(/Decision confirmed\. Return to the House/i)).toBeTruthy()
+    expect(screen.getByText(/Return to the House to continue the ceremony/i)).toBeTruthy()
     expect(screen.queryByTestId('required-confessional-decision')).toBeNull()
     expect(screen.queryByText('Select a pair')).toBeNull()
   })
