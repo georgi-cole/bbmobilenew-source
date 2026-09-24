@@ -74,6 +74,7 @@ jobs:
           --workers=1
           --retries=0
           --reporter=line
+          --fully-parallel
           --shard=${{ matrix.shard }}/10
       - name: Upload compact calibration samples
         if: always()
