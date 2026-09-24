@@ -1,0 +1,122 @@
+name: Temp Eyeolean 500 Season Calibration
+
+on:
+  push:
+    branches:
+      - feature/eyeolean-economy
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check calibration formatting
+        run: >
+          npx prettier --check
+          e2e/playwright/season-sim/types.ts
+          e2e/playwright/season-sim/runner.ts
+          e2e/playwright/season-sim/auditor.ts
+          e2e/playwright/season-sim/economyCalibration.ts
+          e2e/playwright/eyeolean-calibration.spec.ts
+          src/economy/eyeoleanCalibration.ts
+          src/economy/eyeoleanCalibration.test.ts
+          src/economy/eyeoleans.ts
+          src/economy/eyeoleans.test.ts
+          scripts/summarize-eyeolean-calibration.mjs
+          scripts/run-eyeolean-calibration.mjs
+          docs/EYEOLEAN_ECONOMY.md
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Economy unit tests
+        run: >
+          npx vitest run
+          src/economy/eyeoleans.test.ts
+          src/economy/eyeoleanCalibration.test.ts
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/profilesSlice.forecastReward.test.ts
+
+  calibrate:
+    if: github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    env:
+      EYEOLEAN_CALIBRATION_COUNT: '500'
+      SEASON_SIM_SKIP_UNLOAD_AUTOSAVE: '1'
+      VISUAL_AUDIT_WRITE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run calibration shard
+        continue-on-error: true
+        run: >-
+          npx playwright test e2e/playwright/eyeolean-calibration.spec.ts
+          --project=iphone-17-chromium
+          --workers=1
+          --retries=0
+          --reporter=line
+          --shard=${{ matrix.shard }}/10
+      - name: Upload compact calibration samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyeolean-calibration-shard-${{ matrix.shard }}
+          path: |
+            test-results/**/*.json
+            test-results/**/*.md
+          if-no-files-found: warn
+          retention-days: 14
+
+  aggregate:
+    if: always() && github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
+    needs: calibrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eyeolean-calibration-shard-*
+          path: calibration-results
+          merge-multiple: true
+      - name: Aggregate valid completed seasons
+        run: >-
+          node scripts/summarize-eyeolean-calibration.mjs
+          calibration-results
+          --out=eyeolean-calibration-summary.json
+          | tee eyeolean-calibration-summary.md
+      - name: Upload economy calibration summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyeolean-calibration-summary
+          path: |
+            eyeolean-calibration-summary.json
+            eyeolean-calibration-summary.md
+          retention-days: 30
