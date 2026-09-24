@@ -763,8 +763,7 @@ export default function MinigameHost({
       const CapitalizationComp = reactComponents.Capitalization
       const capitalizationContext =
         gameOptions.capitalizationContext === 'battleBack' ? 'battleBack' : 'loh'
-      const capitalizationSeed =
-        typeof gameOptions.seed === 'number' ? gameOptions.seed : undefined
+      const capitalizationSeed = typeof gameOptions.seed === 'number' ? gameOptions.seed : undefined
 
       return (
         <CapitalizationComp
