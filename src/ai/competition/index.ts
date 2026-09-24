@@ -5,6 +5,7 @@ import {
 } from '../../experiments/findYourTwinHumanAi/findYourTwinHumanAi'
 import { DEFAULT_TAPRACE_OPTIONS } from '../../store/minigame'
 import { mulberry32 } from '../../store/rng'
+import { simulateSeasonsAiScore as simulateSeasonsAiScore_ } from '../../experiments/quickTapSeasons/quickTapSeasons'
 import { minigameAiRegistry } from './minigameAiRegistry'
 import { simulateQuickTapAiScore as simulateQuickTapAiScore_ } from './quickTapSimulation'
 import { simulateSnakeAiScore as simulateSnakeAiScore_ } from './snakeAiSimulator'
@@ -864,6 +865,23 @@ export function simulateMinigameAiScore({
         participantIndex,
         profile,
         timeLimitSeconds: timeLimit,
+      }),
+      gameKey,
+      seed,
+      playerId,
+      aiGameIdentity,
+      identityMode,
+      minigameModel
+    )
+  }
+
+  if (gameKey === 'quickTapSeasons') {
+    return applyIdentityToScore(
+      simulateSeasonsAiScore_({
+        seed,
+        playerId,
+        participantIndex,
+        profile,
       }),
       gameKey,
       seed,

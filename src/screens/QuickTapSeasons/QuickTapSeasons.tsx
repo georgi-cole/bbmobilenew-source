@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   SEASON_BOX_TIMES,
+  SEASON_LENGTH,
   SEASONS,
   SEASONS_DURATION,
   buildSeasonSchedule,
@@ -35,6 +36,7 @@ export default function QuickTapSeasons({
   const startAt = useRef(0)
   const timer = useRef<ReturnType<typeof window.setInterval> | null>(null)
   const seasonIndex = useRef(1)
+  const nextSeasonAt = useRef(SEASON_LENGTH)
   const usedBoxes = useRef(new Set<number>())
   const leafId = useRef(0)
   const scoreRef = useRef(0)
@@ -65,8 +67,9 @@ export default function QuickTapSeasons({
       const elapsed = (now - startAt.current) / 1000
       if (elapsed >= SEASONS_DURATION) return finish()
       setTimeLeft(SEASONS_DURATION - elapsed)
-      while (seasonIndex.current < schedule.length && schedule[seasonIndex.current].at <= elapsed) {
+      while (seasonIndex.current < schedule.length && nextSeasonAt.current <= elapsed) {
         changeSeason(schedule[seasonIndex.current++].season)
+        nextSeasonAt.current += SEASON_LENGTH
       }
       const nextBox = SEASON_BOX_TIMES.findIndex(
         (at, index) => !usedBoxes.current.has(index) && elapsed >= at && elapsed < at + 4
@@ -88,6 +91,7 @@ export default function QuickTapSeasons({
     }
     phaseRef.current = 'playing'
     seasonIndex.current = 1
+    nextSeasonAt.current = SEASON_LENGTH
     usedBoxes.current = new Set()
     changeSeason(schedule[0].season)
     setRawTaps(0)
@@ -156,6 +160,11 @@ export default function QuickTapSeasons({
     if (visibleBox === null) return
     usedBoxes.current.add(visibleBox)
     changeSeason(rerollSeason(seed, visibleBox, seasonRef.current))
+    // A mystery box starts a fresh season. Keep the 40-second race clock
+    // intact, but postpone the next automatic transition for a full season
+    // so a manual change cannot be immediately overwritten by the old schedule.
+    const elapsed = (Date.now() - startAt.current) / 1000
+    nextSeasonAt.current = Math.min(SEASONS_DURATION, elapsed + SEASON_LENGTH)
     setVisibleBox(null)
   }
 

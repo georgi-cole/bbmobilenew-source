@@ -30,6 +30,11 @@ describe('Quick Tap Race 2: Seasons', () => {
     expect(simulateSeasonsAiField(7)).toEqual(simulateSeasonsAiField(7))
     expect(simulateSeasonsAiField(7)).toHaveLength(3)
   })
+  it('models both deliberate season changes and occasional accidental taps', () => {
+    const runs = Array.from({ length: 20 }, (_, index) => simulateSeasonsAiField(index + 1)).flat()
+    expect(runs.some((run) => run.manualSeasonChanges > 0)).toBe(true)
+    expect(runs.some((run) => run.accidentalTaps > 0)).toBe(true)
+  })
   it('keeps hidden timing and reroll mechanics out of player-facing rules', () => {
     const rules = getGame('quickTapSeasons')?.instructions.join(' ').toLowerCase() ?? ''
     expect(rules).not.toContain('8 seconds')
