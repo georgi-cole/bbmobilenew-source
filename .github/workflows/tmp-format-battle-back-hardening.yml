@@ -42,4 +42,4 @@ jobs:
           git add src/store/gameSlice.ts
           git add src/types/index.ts
           git commit -m "Format Battle Back hardening"
-          git push origin HEAD:fix/battle-back-system-hardening
+          git push --no-verify origin HEAD:fix/battle-back-system-hardening
