@@ -147,10 +147,20 @@ export function applyAudienceApprovalDelta(
 ): { breakdown: AudienceBreakdown; approval: number; appliedDelta: number } {
   const current = getAudienceBreakdown(profile)
   const weights = getWeights(input.reason, input.eventType)
+  const damping = publicOpinionConfig.positiveApprovalDamping
+  const positiveMultiplier =
+    profile.approval >= damping.belovedThreshold
+      ? damping.belovedMultiplier
+      : profile.approval >= damping.strongThreshold
+        ? damping.strongMultiplier
+        : profile.approval >= damping.likedThreshold
+          ? damping.likedMultiplier
+          : 1
+  const effectiveDelta = input.delta > 0 ? input.delta * positiveMultiplier : input.delta
   const next: AudienceBreakdown = {
-    charisma: round(clamp(current.charisma + input.delta * METRICS.length * weights.charisma)),
-    gameplay: round(clamp(current.gameplay + input.delta * METRICS.length * weights.gameplay)),
-    integrity: round(clamp(current.integrity + input.delta * METRICS.length * weights.integrity)),
+    charisma: round(clamp(current.charisma + effectiveDelta * METRICS.length * weights.charisma)),
+    gameplay: round(clamp(current.gameplay + effectiveDelta * METRICS.length * weights.gameplay)),
+    integrity: round(clamp(current.integrity + effectiveDelta * METRICS.length * weights.integrity)),
     recentChanges: [...current.recentChanges],
   }
   const approval = getAudienceApproval(next)
