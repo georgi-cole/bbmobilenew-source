@@ -17,7 +17,7 @@ An alliance-breaking request is eligible only when a real active alliance exists
 
 ## Request generation
 
-`PublicDirectionService` chooses only from currently eligible directions. The default cycle creates two requests, with the human player prioritized when Public Mode is active. Each request carries a rationale, an action hint, a completion label, and (when needed) an invalidation reason so the UI can explain what the audience wants and how to respond.
+`PublicDirectionService` chooses only from currently eligible directions. The cycle creates a cast-size-aware number of requests and distributes them toward houseguests who have received fewer audience asks so the human and AI cast share the opportunity instead of the human receiving a guaranteed request. Each request carries a rationale, an action hint, a completion label, and (when needed) an invalidation reason so the UI can explain what the audience wants and how to respond.
 
 Classic and Cupid can receive relationship, loyalty, betrayal, confrontation, competition, veto, and influence requests, subject to the current game state. Vox Populi uses audience-facing wording and avoids requests that do not fit its rules, such as asking the player to influence the Head of Household. Its practical request set emphasizes public approval, visible loyalty, repairing or changing relationships, competition performance, and veto use while also avoiding nomination risk.
 
@@ -60,7 +60,7 @@ Opening profiles receive a small, balanced lean from the AI contestant identity 
 
 The Public Meter's **Audience Dossier** opens by tapping any cast card. It shows the three ratings, a dynamic audience archetype, and any active public request. The player-facing **What changed** area tells the selected player's recent audience story, while the main Public Feed tells the rest of the house's story so the same event is not repeated across the screen. Those moments use the houseguest's name and a reality-show voice; approval values remain internal and the UI shows only directional signals. Legacy saves without a breakdown gracefully render as an even split until the next public event writes their first receipt.
 
-Ordinary public reactions also receive a small seeded audience-mood adjustment. It may soften or amplify a result but cannot reverse the direction of the underlying action. It is deterministic for the saved season, so reloads remain stable. Explicit Public Request rewards and penalties stay exact: completing an advertised request is never a hidden gamble.
+Ordinary public reactions also receive a small seeded audience-mood adjustment. It may soften or amplify a result but cannot reverse the direction of the underlying action. It is deterministic for the saved season, so reloads remain stable. Public Request outcomes are deterministic, but the reward is deliberately smaller than before and positive approval gains dampen once a contestant is already highly rated. Missing a still-valid request carries a small penalty; requests invalidated by a changing game state still expire neutrally.
 
 Primary UI references:
 
@@ -101,3 +101,19 @@ npm test
 ```
 
 The focused coverage currently includes request eligibility, alliance-aware generation, exact action mapping, Public Mode gating, request progress, and invalidation behavior.
+
+
+## Audience story simulation
+
+Public opinion reacts to the same recorded game events for human and AI contestants. Competition placement, social actions, nominations, saves and evictions are evaluated without checking whether the actor is the user.
+
+The story layer adds contextual reactions rather than arbitrary random scandals:
+
+- repeatedly targeting a liked or beloved houseguest can increase sympathy for the target and create backlash for the aggressor;
+- repeated nominations and repeated survival can create an underdog arc;
+- a multi-person pile-on can stop reading as entertaining conflict and start reading as bullying, while challenging a genuinely disliked player can still be popular;
+- visible romance and bromance beats can create bounded audience goodwill, with repetition limits to prevent farming;
+- confrontation and drama can be entertaining until the target is a fan favourite or the conflict becomes repetitive;
+- betrayal can be strategically compelling while still carrying an integrity cost.
+
+Normal Public Save is a seeded audience ballot rather than a sort of the visible approval meter. The ballot combines the three audience ratings with a week-specific audience mix, recent momentum, visible storyline impact, repeated-nomination underdog support and small bounded polling uncertainty. Large popularity leads remain robust; close races can move in a believable way. AI exact percentages and metric values are intentionally hidden from the Public Meter while the user's own rating remains exact.
