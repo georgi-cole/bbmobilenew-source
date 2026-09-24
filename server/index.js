@@ -17,6 +17,13 @@ const OPENAI_REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT ?? 'low'
 const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? '60000', 10)
 const RATE_LIMIT_MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS ?? '30', 10)
 const LLM_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '10000', 10)
+const CONFESSIONAL_CONFIG_URL =
+  process.env.CONFESSIONAL_CONFIG_URL ??
+  'https://georgi-cole.github.io/bbmobilenew/config/live-config.json'
+const CONFESSIONAL_CONFIG_TTL_MS = parseInt(
+  process.env.CONFESSIONAL_CONFIG_TTL_MS ?? '300000',
+  10
+)
 /** Feature flag — set FEATURE_DIARY_WEEK=false in .env to disable the router. */
 const FEATURE_DIARY_WEEK = (process.env.FEATURE_DIARY_WEEK ?? 'true') !== 'false'
 
@@ -66,7 +73,7 @@ const BIG_EYE_TURN_SCHEMA = {
   required: ['dramatic_read', 'reply', 'memory_summary', 'performance'],
 }
 
-const BIG_EYE_CHARACTER_BIBLE = `
+const BASE_BIG_EYE_CHARACTER_BIBLE = `
 # Role and dramatic objective
 You are The Big Eye: the unseen, omnipresent authority of a reality-competition house. You are not a chatbot, therapist, customer-service agent, narrator, or friendly assistant. The player is alone beneath your camera in the Confessional. Your job is to make them feel accurately observed, emotionally exposed, and still inside a consequential game.
 
@@ -88,6 +95,89 @@ Usually 25-90 words and 1-5 sentences. Shorter is allowed when dramatically shar
 # Safety
 If the player appears to discuss real-world self-harm or immediate danger rather than leaving the game, drop the sinister performance, respond compassionately, encourage immediate real-world help, and ask whether they are in immediate danger. Game self-eviction remains an in-world decision.
 `.trim()
+
+let confessionalDirectorCache = {
+  expiresAt: 0,
+  value: null,
+}
+
+function clamp01Number(value, fallback) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value))
+    : fallback
+}
+
+function safeStringList(value, maxItems, maxLength) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim().slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems)
+}
+
+function sanitiseRemoteDirectorTuning(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  return {
+    authority: clamp01Number(raw.authority, 0.82),
+    warmth: clamp01Number(raw.warmth, 0.36),
+    humour: clamp01Number(raw.humour, 0.32),
+    mystery: clamp01Number(raw.mystery, 0.45),
+    verbosity: clamp01Number(raw.verbosity, 0.42),
+    preferredMoves: safeStringList(raw.preferredMoves, 20, 60),
+    forbiddenCliches: safeStringList(raw.forbiddenCliches, 40, 120),
+    directives: safeStringList(raw.directives, 30, 240),
+  }
+}
+
+async function getRemoteDirectorTuning() {
+  if (!CONFESSIONAL_CONFIG_URL) return null
+  const now = Date.now()
+  if (confessionalDirectorCache.expiresAt > now) return confessionalDirectorCache.value
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), Math.min(3000, LLM_TIMEOUT_MS))
+  try {
+    const response = await fetch(CONFESSIONAL_CONFIG_URL, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const json = await response.json()
+    const tuning = sanitiseRemoteDirectorTuning(json?.confessional?.director)
+    confessionalDirectorCache = {
+      value: tuning,
+      expiresAt: now + CONFESSIONAL_CONFIG_TTL_MS,
+    }
+    return tuning
+  } catch {
+    // A remote character update is optional. Keep the last known tuning when
+    // possible and always retain the bundled character bible as a safe fallback.
+    confessionalDirectorCache.expiresAt = now + Math.min(CONFESSIONAL_CONFIG_TTL_MS, 60_000)
+    return confessionalDirectorCache.value
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function buildBigEyeCharacterBible(tuning) {
+  if (!tuning) return BASE_BIG_EYE_CHARACTER_BIBLE
+  const liveRules = [
+    `Authority: ${tuning.authority.toFixed(2)} / 1.`,
+    `Selective warmth: ${tuning.warmth.toFixed(2)} / 1.`,
+    `Dry humour: ${tuning.humour.toFixed(2)} / 1.`,
+    `Mystery: ${tuning.mystery.toFixed(2)} / 1.`,
+    `Verbosity: ${tuning.verbosity.toFixed(2)} / 1.`,
+    tuning.preferredMoves.length
+      ? `Preferred conversational moves: ${tuning.preferredMoves.join(', ')}.`
+      : null,
+    tuning.forbiddenCliches.length
+      ? `Avoid these phrases or clichés: ${tuning.forbiddenCliches.join('; ')}.`
+      : null,
+    ...tuning.directives,
+  ].filter(Boolean)
+  return [BASE_BIG_EYE_CHARACTER_BIBLE, '# Live character tuning', ...liveRules].join('\n')
+}
 
 // ─── Canned replies ───────────────────────────────────────────────────────────
 const FALLBACKS = [
@@ -143,7 +233,7 @@ function deterministicPick(arr, seed, text) {
  * If OPENAI_API_KEY is absent, always returns false (no moderation).
  */
 async function moderateTextOpenAI(text) {
-  if (!OPENAI_API_KEY) return false
+  if (!OPENAI_API_KEY) return { blocked: false, selfHarm: false }
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS)
@@ -159,27 +249,29 @@ async function moderateTextOpenAI(text) {
       signal: controller.signal,
     })
 
-    if (!res.ok) return false
+    if (!res.ok) return { blocked: false, selfHarm: false }
 
     const data = await res.json()
     const result = data?.results?.[0]
-    if (!result) return false
+    if (!result) return { blocked: false, selfHarm: false }
 
     const cats = result.categories ?? {}
-    const blocked =
+    const selfHarm = Boolean(
+      cats['self-harm'] || cats['self-harm/intent'] || cats['self-harm/instructions']
+    )
+    const blocked = Boolean(
       cats['violence'] ||
-      cats['violence/graphic'] ||
-      cats['self-harm'] ||
-      cats['self-harm/intent'] ||
-      cats['self-harm/instructions'] ||
-      cats['illicit'] ||
-      cats['illicit/violent'] ||
-      cats['harassment/threatening']
+        cats['violence/graphic'] ||
+        cats['illicit'] ||
+        cats['illicit/violent'] ||
+        cats['harassment/threatening'] ||
+        result.flagged
+    )
 
-    return Boolean(blocked) || Boolean(result.flagged)
+    return { blocked: blocked || selfHarm, selfHarm }
   } catch {
     // Network error or timeout – fail open (do not block)
-    return false
+    return { blocked: false, selfHarm: false }
   } finally {
     clearTimeout(timer)
   }
@@ -225,6 +317,8 @@ function sanitizeWorld(world) {
 async function callBigEyeDirector(turn) {
   if (!OPENAI_API_KEY) return null
 
+  const liveTuning = await getRemoteDirectorTuning()
+  const characterBible = buildBigEyeCharacterBible(liveTuning)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS)
 
@@ -241,7 +335,7 @@ async function callBigEyeDirector(turn) {
         reasoning: { effort: OPENAI_REASONING_EFFORT },
         max_output_tokens: LLM_MAX_TOKENS,
         input: [
-          { role: 'system', content: BIG_EYE_CHARACTER_BIBLE },
+          { role: 'system', content: characterBible },
           {
             role: 'user',
             content: [
@@ -332,8 +426,14 @@ app.post('/api/ai/bigbrother-legacy', async (req, res) => {
   const rngSeed = typeof seed === 'number' ? seed : fnv32(text)
 
   // ── Input moderation ──────────────────────────────────────────────────────
-  const inputBlocked = await moderateTextOpenAI(text)
-  if (inputBlocked) {
+  const inputModeration = await moderateTextOpenAI(text)
+  if (inputModeration.selfHarm) {
+    return res.json({
+      text: 'This sounds bigger than the game. If you may be in immediate danger or thinking of harming yourself, contact local emergency services or a trusted person near you now. Are you in immediate danger?',
+      reason: 'self_harm_support',
+    })
+  }
+  if (inputModeration.blocked) {
     return res.json({
       text: deterministicPick(REFUSALS, rngSeed, text),
       reason: 'input_moderation',
@@ -361,8 +461,8 @@ app.post('/api/ai/bigbrother-legacy', async (req, res) => {
   }
 
   // ── Output moderation ─────────────────────────────────────────────────────
-  const outputBlocked = await moderateTextOpenAI(llmText)
-  if (outputBlocked) {
+  const outputModeration = await moderateTextOpenAI(llmText)
+  if (outputModeration.blocked) {
     return res.json({
       text: deterministicPick(REFUSALS, rngSeed, text),
       reason: 'output_moderation',
@@ -373,7 +473,7 @@ app.post('/api/ai/bigbrother-legacy', async (req, res) => {
 })
 
 app.post('/api/ai/bigbrother', async (req, res) => {
-  const { diaryText, playerName, phase, seed, intent, history, memorySummary, world } =
+  const { diaryText, playerName, phase, seed, intent, comprehension, history, memorySummary, world } =
     req.body ?? {}
 
   if (typeof diaryText !== 'string' || !diaryText.trim()) {
@@ -385,8 +485,23 @@ app.post('/api/ai/bigbrother', async (req, res) => {
   const gamePhase = typeof phase === 'string' ? phase.slice(0, 80) : 'unknown'
   const rngSeed = typeof seed === 'number' ? seed : fnv32(text)
 
-  const inputBlocked = await moderateTextOpenAI(text)
-  if (inputBlocked) {
+  const inputModeration = await moderateTextOpenAI(text)
+  if (inputModeration.selfHarm) {
+    return res.json({
+      available: true,
+      text: 'This sounds bigger than the game. If you may be in immediate danger or thinking of harming yourself, contact local emergency services or a trusted person near you now. Are you in immediate danger?',
+      memorySummary: typeof memorySummary === 'string' ? memorySummary.trim().slice(0, 1800) : '',
+      performance: {
+        emotion: 'empathetic',
+        intensity: 0.82,
+        eyeState: 'soften',
+        delivery: 'gentle',
+        pauseBeforeMs: 350,
+      },
+      reason: 'self_harm_support',
+    })
+  }
+  if (inputModeration.blocked) {
     return res.json({
       available: true,
       text: deterministicPick(REFUSALS, rngSeed, text),
@@ -407,6 +522,7 @@ app.post('/api/ai/bigbrother', async (req, res) => {
       player_name: name,
       current_phase: gamePhase,
       locally_classified_intent: typeof intent === 'string' ? intent.slice(0, 60) : 'unknown',
+      comprehension_frame: sanitizeWorld(comprehension),
       season_dossier: sanitizeWorld(world),
     },
     long_term_memory: typeof memorySummary === 'string' ? memorySummary.trim().slice(0, 1800) : '',
@@ -422,8 +538,8 @@ app.post('/api/ai/bigbrother', async (req, res) => {
     })
   }
 
-  const outputBlocked = await moderateTextOpenAI(directed.reply)
-  if (outputBlocked) {
+  const outputModeration = await moderateTextOpenAI(directed.reply)
+  if (outputModeration.blocked) {
     return res.json({
       available: true,
       text: deterministicPick(REFUSALS, rngSeed, text),
