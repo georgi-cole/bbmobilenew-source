@@ -208,7 +208,9 @@ function isClarification(text: string): boolean {
 
 function isTargetDeclaration(text: string): boolean {
   return (
-    /\bi (?:really )?(?:want|need) (?:him|her|them|[a-z0-9]+) (?:out|gone)\b/.test(text) ||
+    /\bi (?:really )?(?:want|need) (?:him|her|them|[a-z0-9]+) (?:out|gone|evicted|eliminated)\b/.test(
+      text
+    ) ||
     /\b(?:i|we) (?:want to |plan to |need to |am going to |are going to |will )?(?:target|vote out|evict|get rid of|take out)\b/.test(
       text
     ) ||
