@@ -56,6 +56,8 @@ export interface EyeoleanCalibrationReport {
   }
   rewardSources: EyeoleanRewardSourceStats[]
   pressure: {
+    /** Distribution of non-finalist payout coming from non-anchor rewards only. */
+    nonFinalistSecondary: EyeoleanDistributionStats
     /** How often a non-finalist reaches the 50k runner-up anchor through secondary rewards. */
     nonFinalistAtOrAboveRunnerUp: EyeoleanThresholdMetric
     /** How often a non-finalist reaches the 25k Public Favorite anchor. */
@@ -228,6 +230,7 @@ export function buildEyeoleanCalibrationReport(
     },
     rewardSources,
     pressure: {
+      nonFinalistSecondary: distribution(nonFinalistSecondaryTotals),
       nonFinalistAtOrAboveRunnerUp: thresholdMetric(
         nonFinalistSecondaryTotals,
         EYEOLEAN_REWARD_AMOUNTS.runnerUp
