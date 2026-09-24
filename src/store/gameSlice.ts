@@ -10885,7 +10885,9 @@ const gameSlice = createSlice({
       if (!state.votes) state.votes = {}
 
       const bellaWill = state.bellaWill
+      const usesStoreExtraVote = state.storeExtraVoteChoiceActive === true
       const usesBellaExtraVote =
+        !usesStoreExtraVote &&
         bellaWill?.extraVoteChoiceActive === true &&
         bellaWill.extraVotePending &&
         bellaWill.heirId === humanPlayer.id
@@ -10893,12 +10895,17 @@ const gameSlice = createSlice({
       // Primary vote is always the human's normal legal ballot.
       state.votes[humanPlayer.id] = target1
       // The second ballot keeps its source identity so stacking and audit logic
-      // can distinguish an inherited Bella vote from another Double Vote power.
-      state.votes[usesBellaExtraVote ? `${humanPlayer.id}__bellaWill` : `${humanPlayer.id}__dv2`] =
-        target2
+      // can distinguish purchased, inherited, and mission-granted ballots.
+      const secondVoteKey = usesStoreExtraVote
+        ? `${humanPlayer.id}__storeExtraVote`
+        : usesBellaExtraVote
+          ? `${humanPlayer.id}__bellaWill`
+          : `${humanPlayer.id}__dv2`
+      state.votes[secondVoteKey] = target2
 
       state.awaitingHumanVote = false
       state.humanDoubleVoteActive = false
+      state.storeExtraVoteChoiceActive = false
 
       if (usesBellaExtraVote && bellaWill) {
         bellaWill.extraVotePending = false
@@ -10908,13 +10915,32 @@ const gameSlice = createSlice({
           `Bella's Will grants ${humanPlayer.name} a separate extra ballot in tonight's elimination.`,
           'vote'
         )
-      } else {
+      } else if (!usesStoreExtraVote) {
         const sm = state.secretMission
         if (sm?.reward && sm.reward.type === 'doubleVote') {
           sm.reward.consumed = true
           sm.reward.eligible = false
         }
       }
+    },
+
+    /**
+     * Activate a previously armed Store Extra Vote for the current live vote.
+     * Eligibility and conflict priority are checked by the Eyeolean power middleware.
+     */
+    activateStoreExtraVote(state) {
+      if (!state.awaitingHumanVote || state.humanDoubleVoteActive) return
+      state.humanDoubleVoteActive = true
+      state.storeExtraVoteChoiceActive = true
+    },
+
+    /**
+     * Apply a previously armed Store Remove a Vote after the canonical house
+     * tally exists. The middleware consumes the reservation only if this changes
+     * the human player's effective tally.
+     */
+    applyStoreVoteRemoval(state) {
+      applyOneVoteDeductionToHuman(state)
     },
 
     // ── PR 3: voteDeduction activation reducers ───────────────────────────
@@ -10933,79 +10959,8 @@ const gameSlice = createSlice({
       state.awaitingVoteDeductionPrompt = false
       const sm = state.secretMission
       if (!sm?.reward || sm.reward.type !== 'voteDeduction' || !sm.reward.eligible) return
-      if (!state.voteResults) return
+      if (!applyOneVoteDeductionToHuman(state)) return
 
-      const humanPlayer = state.players.find((p) => p.isUser)
-      if (!humanPlayer) return
-      if (!(humanPlayer.id in state.voteResults)) return
-
-      // Apply the deduction (floor at 0 to be safe)
-      state.voteResults[humanPlayer.id] = Math.max(0, (state.voteResults[humanPlayer.id] ?? 0) - 1)
-      if (state.pendingExitContext) {
-        state.pendingExitContext.voteCounts = { ...state.voteResults }
-      }
-
-      // Recompute the evictee based on the updated tallies
-      let maxVotes = -1
-      for (const id of state.nomineeIds) {
-        const count = state.voteResults[id] ?? 0
-        if (count > maxVotes) maxVotes = count
-      }
-      const topNominees = state.nomineeIds.filter(
-        (id) => (state.voteResults![id] ?? 0) === maxVotes
-      )
-
-      if (topNominees.length === 1) {
-        const newEvictee = state.players.find((p) => p.id === topNominees[0])
-        if (newEvictee) {
-          state.awaitingTieBreak = false
-          state.awaitingPosTieBreak = false
-          state.tiedNomineeIds = null
-          state.pendingEviction = {
-            evicteeId: newEvictee.id,
-            evictionMessage: `${newEvictee.name}, you have been eliminated from The Big Eye house. 🚪`,
-          }
-        }
-      } else {
-        state.pendingEviction = null
-        const isCoLohDay = Array.isArray(state.coLohIds) && state.coLohIds.length >= 2
-        const tieBreakerPlayerId = getClassicEvictionTieBreakerId(state)
-        const tieBreakerPlayer = state.players.find((player) => player.id === tieBreakerPlayerId)
-        const usesPosTieBreaker =
-          isCoLohDay ||
-          (tieBreakerPlayerId != null &&
-            tieBreakerPlayerId === state.posWinnerId &&
-            tieBreakerPlayerId !== state.lohId)
-        const tiedNames = topNominees
-          .map((id) => state.players.find((player) => player.id === id)?.name ?? id)
-          .join(' and ')
-
-        state.tiedNomineeIds = topNominees
-        if (tieBreakerPlayer?.isUser) {
-          state.awaitingTieBreak = true
-          state.awaitingPosTieBreak = usesPosTieBreaker
-          const roleLabel = usesPosTieBreaker ? 'as POS holder' : 'as LOH'
-          pushEvent(
-            state,
-            `It's a tie between ${tiedNames}! ${tieBreakerPlayer.name}, ${roleLabel}, you must break the tie. 🗳️`,
-            'game'
-          )
-        } else {
-          state.awaitingTieBreak = false
-          state.awaitingPosTieBreak = false
-          const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
-          const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
-          const evicted = state.players.find((player) => player.id === evicteeId)
-          if (evicted) {
-            const evictionMessage = tieBreakerPlayer
-              ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from The Big Eye house. 🗳️`
-              : `${evicted.name} has been eliminated from The Big Eye house. 🚪`
-            state.pendingEviction = { evicteeId: evicted.id, evictionMessage }
-          }
-        }
-      }
-
-      // Consume the reward
       sm.reward.consumed = true
       sm.reward.eligible = false
     },
@@ -11062,6 +11017,8 @@ export const {
   submitPovDecision,
   submitPovSaveTarget,
   submitHumanVote,
+  activateStoreExtraVote,
+  applyStoreVoteRemoval,
   submitTieBreak,
   submitDoubleEvictionTieBreak,
   selectVoxFinalThreeAppeal,
