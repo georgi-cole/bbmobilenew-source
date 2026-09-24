@@ -5,6 +5,9 @@ on:
     branches:
       - feature/eyeolean-economy
 
+permissions:
+  contents: read
+
 jobs:
   eyeolean-integration:
     runs-on: ubuntu-latest
