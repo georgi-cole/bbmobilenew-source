@@ -228,6 +228,7 @@ function creditEyeoleans(
   profile: StoredProfile,
   transaction: Omit<EyeoleanTransaction, 'amount'> & { amount: number }
 ): number {
+  if (!Number.isFinite(transaction.amount)) return 0
   const requested = Math.max(0, Math.floor(transaction.amount))
   if (requested <= 0) return 0
 
@@ -534,9 +535,16 @@ const profilesSlice = createSlice({
     ) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       const transactionId = action.payload.transactionId.trim()
-      const amount = Math.max(0, Math.floor(action.payload.amount))
       const label = action.payload.label.trim()
-      if (!profile || !transactionId || !label || amount <= 0) return
+      if (
+        !profile ||
+        !transactionId ||
+        !label ||
+        !Number.isFinite(action.payload.amount)
+      )
+        return
+      const amount = Math.max(0, Math.floor(action.payload.amount))
+      if (amount <= 0) return
 
       const processedIds =
         profile.processedEyeoleanTransactionIds ??
