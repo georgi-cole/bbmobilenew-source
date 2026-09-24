@@ -67,6 +67,8 @@
     "test:season-sim": "node scripts/run-season-simulation.mjs",
     "test:season-sim:watch": "node scripts/watch-season-simulation.mjs",
     "test:season-sim:full": "node scripts/run-season-simulation.mjs --full",
+    "test:eyeolean-calibration": "node scripts/run-eyeolean-calibration.mjs",
+    "report:eyeolean-calibration": "node scripts/summarize-eyeolean-calibration.mjs test-results",
     "audit:visual": "node scripts/run-visual-audit.mjs",
     "audit:minigames": "npm run test:minigames && npm run audit:visual && npx playwright test --grep @minigame --project=desktop-chromium --project=mobile-chromium --project=narrow-chromium",
     "test:release-full": "npm run format:check && npm run lint:ci && npm run typecheck && npm run test:guard && npm run test:minigames && npm run test && npm run audit:release && npm run test:coverage && npm run coverage:check && npm run test:e2e && npm run build && npm run build:capacitor",
