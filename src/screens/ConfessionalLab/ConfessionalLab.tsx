@@ -110,7 +110,7 @@ export default function ConfessionalLab() {
         tags: [...(relationship.tags ?? [])],
       }))
       .sort((left, right) => Math.abs(right.affinity) - Math.abs(left.affinity))
-      .slice(0, 6)
+      .slice(0, 20)
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
       .filter(
