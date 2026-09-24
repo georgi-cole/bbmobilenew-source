@@ -1,23 +1,24 @@
 import type { PlayerSeasonSummary } from '../store/seasonArchive'
 
 export const EYEOLEAN_REWARD_AMOUNTS = {
-  lohWin: 10_000,
-  posWin: 8_000,
-  tribunalMember: 5_000,
-  battleBackWin: 8_000,
-  survivedDoubleEviction: 7_000,
-  survivedTripleEviction: 10_000,
+  lohWin: 5_000,
+  posWin: 4_000,
+  tribunalMember: 2_000,
+  battleBackWin: 6_000,
+  survivedDoubleEviction: 3_000,
+  survivedTripleEviction: 5_000,
   publicFavorite: 25_000,
-  finalLohWin: 15_000,
+  finalLohWin: 10_000,
   seasonWinner: 100_000,
   runnerUp: 50_000,
 } as const
 
 /**
  * Forecasting the Public Favorite correctly is a smaller meta-game reward.
- * It deliberately remains well below the 25k Public Favorite prize itself.
+ * It is deliberately meaningful because the prediction is difficult, while still
+ * remaining well below the 25k Public Favorite prize itself.
  */
-export const PUBLIC_FAVORITE_FORECAST_EYEOLEANS = 2_500
+export const PUBLIC_FAVORITE_FORECAST_EYEOLEANS = 5_000
 
 export type EyeoleanRewardCode =
   | 'season_winner'
