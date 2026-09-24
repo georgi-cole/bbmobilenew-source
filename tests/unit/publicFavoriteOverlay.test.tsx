@@ -176,7 +176,7 @@ describe('PublicFavoriteOverlay', () => {
     fireEvent.click(within(board).getByRole('button', { name: /Taylor, rank 1, 44%/i }))
     expect(screen.getByText(/This does not change the official result/i)).toBeInTheDocument()
 
-    const cta = screen.getByRole('button', { name: /Watch to Spotlight Taylor/i })
+    const cta = screen.getByRole('button', { name: /Watch to boost Taylor/i })
     await act(async () => {
       fireEvent.click(cta)
       fireEvent.click(cta)
