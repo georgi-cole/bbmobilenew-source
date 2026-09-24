@@ -261,6 +261,9 @@ function inferContradiction(
   memorySummary: string | undefined
 ): string | null {
   if (!focusPlayer || !memorySummary) return null
+  if (/^(?:can|could|should|would|do|does|did|is|are|what|who|why|how)\b/.test(text)) {
+    return null
+  }
   const memory = normalizeInput(memorySummary)
   const focus = normalizeInput(focusPlayer)
   const trustsNow =
@@ -349,8 +352,11 @@ export function buildBigEyeComprehensionFrame(input: {
   ) {
     primaryIntent = 'strategy'
   }
-  if (speechAct === 'target_declaration' && !relationshipStances.includes('target')) {
-    relationshipStances.push('target')
+  if (speechAct === 'target_declaration') {
+    if (!relationshipStances.includes('target')) relationshipStances.push('target')
+  } else {
+    const targetIndex = relationshipStances.indexOf('target')
+    if (targetIndex >= 0) relationshipStances.splice(targetIndex, 1)
   }
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
