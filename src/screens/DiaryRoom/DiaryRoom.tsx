@@ -39,6 +39,7 @@ import {
 } from '../../store/gameSlice'
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
+import ConfessionalWallet from './ConfessionalWallet'
 import { getConfessionalDecisionPresentation } from './confessionalDecisionPresentation'
 import { getSecretMissionEasterEggByIntent } from '../../bb/secretMissionEasterEggs'
 import {
@@ -536,6 +537,7 @@ export default function DiaryRoom() {
   const navigationBlockerState = navigationBlocker.state
   const resetNavigationBlocker = navigationBlocker.reset
 
+  const [activeView, setActiveView] = useState<'confess' | 'wallet'>('confess')
   const [entry, setEntry] = useState('')
   const [loading, setLoading] = useState(false)
   const [bbTyping, setBbTyping] = useState(false)
@@ -745,6 +747,12 @@ export default function DiaryRoom() {
       setShowSelfEvictConfirm(false)
     }
   }, [confessionalDecisionPending, showSelfEvictConfirm])
+
+  useEffect(() => {
+    if (confessionalDecisionPending && activeView !== 'confess') {
+      setActiveView('confess')
+    }
+  }, [activeView, confessionalDecisionPending])
 
   // Stable refs for summary calculation (avoid stale closure on unmount)
   const playerNameRef = useRef(playerName)
@@ -1415,7 +1423,37 @@ export default function DiaryRoom() {
               </p>
             </section>
           ) : (
-            <div className="diary-room__confess">
+            <>
+              <div className="diary-room__view-tabs" role="tablist" aria-label="Confessional views">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'confess'}
+                  className={activeView === 'confess' ? 'diary-room__view-tab diary-room__view-tab--active' : 'diary-room__view-tab'}
+                  onClick={() => setActiveView('confess')}
+                >
+                  Confess
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'wallet'}
+                  className={activeView === 'wallet' ? 'diary-room__view-tab diary-room__view-tab--active' : 'diary-room__view-tab'}
+                  disabled={confessionalDecisionPending}
+                  title={
+                    confessionalDecisionPending
+                      ? 'Complete the current Confessional decision before opening your Wallet.'
+                      : undefined
+                  }
+                  onClick={() => setActiveView('wallet')}
+                >
+                  Wallet
+                </button>
+              </div>
+              {activeView === 'wallet' ? (
+                <ConfessionalWallet />
+              ) : (
+                <div className="diary-room__confess">
               <p className="diary-room__prompt">
                 "You are now in the Confessional. No one can hear you. Speak freely."
               </p>
@@ -1952,7 +1990,9 @@ export default function DiaryRoom() {
                   </p>
                 )}
               </form>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
