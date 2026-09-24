@@ -1,5 +1,5 @@
 import type { Player } from '../types'
-import { mulberry32, seededPick, seededPickN } from '../store/rng'
+import { mulberry32, seededPick } from '../store/rng'
 import { publicOpinionConfig } from './publicOpinionConfig'
 import type { PublicDirection, DirectionType } from './types'
 import type { RelationshipsMap } from '../social/types'
@@ -133,7 +133,25 @@ export function generateDirectionsForCycle(params: {
   const rng = mulberry32((seed ^ (week * 0x9e3779b9)) >>> 0)
   const directions: PublicDirection[] = []
 
-  const selectedPlayers = seededPickN(rng, activePlayers, Math.min(count, activePlayers.length))
+  const requestCounts = new Map<string, number>()
+  for (const direction of existingDirections) {
+    requestCounts.set(direction.playerId, (requestCounts.get(direction.playerId) ?? 0) + 1)
+  }
+  const selectedPlayers = activePlayers
+    .map((player) => ({
+      player,
+      previousRequests: requestCounts.get(player.id) ?? 0,
+      seededTieBreak: rng(),
+    }))
+    .sort(
+      (left, right) =>
+        left.previousRequests - right.previousRequests ||
+        left.seededTieBreak - right.seededTieBreak ||
+        left.player.id.localeCompare(right.player.id)
+    )
+    .slice(0, Math.min(count, activePlayers.length))
+    .map(({ player }) => player)
+
   const humanPlayer =
     prioritizeHuman || voxPopuliActive ? activePlayers.find((player) => player.isUser) : undefined
   if (humanPlayer && !selectedPlayers.some((player) => player.id === humanPlayer.id)) {
