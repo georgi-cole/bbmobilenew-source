@@ -106,6 +106,11 @@ export const publicOpinionConfig = {
    * be the highest reachable total for an otherwise satisfied direction.
    */
   missionCompletionTailTolerance: 2,
+  /**
+   * A contradictory request action at or below this weight is not just a setback:
+   * it is treated as deliberately acting against the audience request.
+   */
+  missionCounterWeightThreshold: -45,
   /** Progress weight awarded when a direct action satisfies a mission trigger. */
   missionDirectProgressWeight: 70,
   /** Progress weight awarded for an indirect / social action toward a mission. */
