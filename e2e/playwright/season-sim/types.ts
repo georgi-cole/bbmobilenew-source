@@ -1,6 +1,8 @@
 import type { Page, TestInfo } from '@playwright/test'
 
 import type { RootState } from '../../../src/store/store'
+import type { EyeoleanRewardLine } from '../../../src/economy/eyeoleans'
+import type { PlayerSeasonSummary } from '../../../src/store/seasonArchive'
 
 export const SEASON_SIMULATION_MODES = ['classic', 'voxPopuli', 'cupidArrow', 'survival'] as const
 export type SeasonSimulationMode = (typeof SEASON_SIMULATION_MODES)[number]
@@ -93,6 +95,17 @@ export interface ObjectiveResult {
   evidence?: string
 }
 
+
+export interface SimulationEyeoleanSample {
+  source: 'archive' | 'season-complete'
+  season: number
+  seasonId?: string
+  playerId: string
+  summary: PlayerSeasonSummary
+  rewards: EyeoleanRewardLine[]
+  total: number
+}
+
 export interface SimulationReport {
   schemaVersion: 1
   config: SimulationRunConfig
@@ -103,6 +116,7 @@ export interface SimulationReport {
   findings: SimulationFinding[]
   objectives: ObjectiveResult[]
   checkpoints: Array<{ name: string; phase: string; day: number }>
+  economySample?: SimulationEyeoleanSample
   finalState: Pick<RootState, 'game' | 'challenge' | 'social' | 'vip'>
 }
 
