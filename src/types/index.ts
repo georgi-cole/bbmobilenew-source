@@ -382,12 +382,7 @@ export interface BattleBackState {
   /** IDs of Tribunal members locked into this Battle Back session. */
   candidates: string[]
   /** Why this Battle Back session was created. */
-  activationSource?:
-    | 'human-guarantee'
-    | 'ai-director'
-    | 'legacy-random'
-    | 'forced-debug'
-    | 'manual'
+  activationSource?: 'human-guarantee' | 'ai-director' | 'legacy-random' | 'forced-debug' | 'manual'
   /** Zero-based run index. Incremented only after a rewarded replay is granted. */
   attemptIndex?: number
   /** Number of rewarded retries already consumed by the human this session. */

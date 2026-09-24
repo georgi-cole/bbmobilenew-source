@@ -31,11 +31,7 @@
     "weeklyMode": "single-game",
     "weeklyGameKey": "quickTapRace",
     "_comment3": "weeklyGameKeys is used when weeklyMode is user-selection",
-    "weeklyGameKeys": [
-      "quickTapRace",
-      "bullseyeBlitz",
-      "colorMatch"
-    ]
+    "weeklyGameKeys": ["quickTapRace", "bullseyeBlitz", "colorMatch"]
   },
   "social": {
     "_comment": "Pure-data Social and Drama overrides. Algorithms and executable rules remain bundled in the app.",
@@ -79,9 +75,7 @@
     "content": {
       "_comment": "These examples can be edited without rebuilding the app. Unknown IDs are harmless.",
       "scenarioLines": {
-        "week_start_ally_check_in": [
-          "Fresh week. I wanted to make sure you and I are still solid."
-        ]
+        "week_start_ally_check_in": ["Fresh week. I wanted to make sure you and I are still solid."]
       },
       "actionPresentation": {
         "compliment": {

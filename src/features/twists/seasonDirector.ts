@@ -481,7 +481,9 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
           remote.battleBack?.aiOnly?.minimumCandidates ??
           defaults.battleBack.aiOnly.minimumCandidates,
         maxPerSeason:
-          (remote.battleBack?.aiOnly?.maxPerSeason ?? remote.battleBack?.maxPerSeason) === 0 ? 0 : 1,
+          (remote.battleBack?.aiOnly?.maxPerSeason ?? remote.battleBack?.maxPerSeason) === 0
+            ? 0
+            : 1,
       },
     },
     lifetimeSpecials: {

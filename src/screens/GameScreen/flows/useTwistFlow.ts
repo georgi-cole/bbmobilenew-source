@@ -478,10 +478,7 @@ export function useTwistFlow({
       battleBackCandidates.map((player) => ({
         id: player.id,
         profile: player.competitionProfile ?? getDefaultCompetitionProfile(),
-        seasonState: getCompetitionSeasonState(
-          game.competitionSeasonStateByPlayerId,
-          player.id
-        ),
+        seasonState: getCompetitionSeasonState(game.competitionSeasonStateByPlayerId, player.id),
       })),
       battleBackAttemptSeed
     )

@@ -12501,9 +12501,7 @@ export const tryActivateBattleBack =
     if (roll >= chance) return false
 
     const candidates = jurors.map((p) => p.id)
-    dispatch(
-      activateBattleBack({ candidates, week: game.week, source: 'legacy-random' })
-    )
+    dispatch(activateBattleBack({ candidates, week: game.week, source: 'legacy-random' }))
     return true
   }
 
