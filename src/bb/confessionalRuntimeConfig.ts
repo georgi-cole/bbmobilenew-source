@@ -79,6 +79,8 @@ export interface RemoteConfessionalConfig {
     slang?: Partial<Record<BigEyeIntent, string[]>>
   }
   responses?: {
+    /** Optional authored pools that replace the bundled pool for a matching intent. */
+    intents?: Partial<Record<BigEyeIntent, string[]>>
     moves?: Partial<Record<ConfessionalResponseMove, string[]>>
     challengePrompts?: string[]
   }
@@ -114,6 +116,7 @@ export interface ResolvedConfessionalConfig {
     slang: Partial<Record<BigEyeIntent, string[]>>
   }
   responses: {
+    intents: Partial<Record<BigEyeIntent, string[]>>
     moves: Partial<Record<ConfessionalResponseMove, string[]>>
     challengePrompts: string[]
   }
@@ -189,6 +192,7 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
     } as Partial<Record<BigEyeIntent, string[]>>,
   },
   responses: {
+    intents: {},
     moves: {
       brief: ['Noted.', 'Go on.', 'I noticed.', 'That sounded certain.'],
       playful: [
@@ -325,6 +329,40 @@ const MOVES: readonly ConfessionalResponseMove[] = [
   'redirect',
 ]
 
+const REMOTE_INTENTS: readonly BigEyeIntent[] = [
+  'greeting',
+  'farewell',
+  'boredom',
+  'self_eviction',
+  'frustration',
+  'strategy',
+  'alliance',
+  'betrayal',
+  'fear',
+  'curiosity',
+  'compliment',
+  'insult',
+  'game_request',
+  'yes',
+  'no',
+  'realness',
+  'winner_prediction',
+  'help_request',
+  'advice_request',
+  'love_confession',
+  'greeting_repeat',
+  'wellbeing_question',
+  'overwhelmed',
+  'repetition_complaint',
+  'confusion',
+  'hesitation',
+  'gratitude',
+  'sadness',
+  'positive_emotion',
+  'apology',
+  'unknown',
+]
+
 const SALIENCE_EVENTS: readonly ConfessionalSalienceEvent[] = [
   'returned',
   'newly_nominated',
@@ -405,6 +443,7 @@ export function sanitiseRemoteConfessionalConfig(raw: unknown): RemoteConfession
   if (value.responses && typeof value.responses === 'object' && !Array.isArray(value.responses)) {
     const source = value.responses as Record<string, unknown>
     const responses: NonNullable<RemoteConfessionalConfig['responses']> = {}
+    responses.intents = sanitiseStringMap(source.intents, REMOTE_INTENTS, 80, 320)
     responses.moves = sanitiseStringMap(source.moves, MOVES, 60, 280)
     responses.challengePrompts = safeStrings(source.challengePrompts, 30, 280)
     if (Object.values(responses).some(Boolean)) result.responses = responses
@@ -497,6 +536,7 @@ export function getConfessionalRuntimeConfig(): ResolvedConfessionalConfig {
       },
     },
     responses: {
+      intents: { ...DEFAULT_CONFESSIONAL_CONFIG.responses.intents, ...remote.responses?.intents },
       moves: { ...DEFAULT_CONFESSIONAL_CONFIG.responses.moves, ...remote.responses?.moves },
       challengePrompts:
         remote.responses?.challengePrompts ?? DEFAULT_CONFESSIONAL_CONFIG.responses.challengePrompts,
