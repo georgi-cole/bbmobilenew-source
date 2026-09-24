@@ -12453,6 +12453,9 @@ export const tryActivateBattleBack =
       // If the human is already in the Tribunal pool but their guaranteed
       // window is not viable yet, do not spend the one AI-only Battle Back.
       if (humanIsJuror) return false
+      // Optional AI-only B2G never stacks onto another major shock from this
+      // game day. The human guarantee above is the deliberate retention exception.
+      if (game.twistActivatedThisWeek) return false
       // An AI-only return can happen before the human guarantee, but never after
       // the human opportunity has already been consumed.
       if (
@@ -12483,6 +12486,7 @@ export const tryActivateBattleBack =
     }
 
     if (game.battleBack?.used) return false
+    if (game.twistActivatedThisWeek) return false
 
     const jurors = getBattleBackEligiblePlayers(game.players)
     const active = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
