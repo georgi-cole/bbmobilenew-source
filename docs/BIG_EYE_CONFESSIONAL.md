@@ -22,6 +22,19 @@ Remote configuration is pure data. It may change what the Eye recognizes, says, 
 
 Both the Express/OpenAI director and the Cloudflare VIP director independently fetch the trusted published character tuning and cache it briefly. The client never supplies arbitrary prompt instructions to those backends.
 
+## Confessional Calibration Lab
+
+Debug/admin builds now include a gated **Confessional Calibration Lab** at `#/confessional-lab?debug=1`. The QA Control Center links to it directly.
+
+The lab has two surfaces:
+
+- **Workbench** — enter any player message, seed compact memory/thread/rapport state, choose the reproducible lab world or the current live season, and inspect the production comprehension frame, route, local baseline reply, memory write, and next state. Generative requests are opt-in; local analysis never spends inference.
+- **Scenario Suite** — runs a bundled matrix of 40+ reproducible scenarios across understanding, deterministic knowledge, continuity, authored flows, character, and between-visit salience. Contract scenarios are expected to remain green. Calibration scenarios may be intentionally softer and are surfaced as tuning flags rather than gameplay failures.
+
+The lab calls the same pure routing analysis used by `generateBigBrotherReply`, so QA diagnostics cannot silently drift from production routing logic. It does not mutate game state, award rewards, change relationships, or consume VIP credits.
+
+The JSON report button copies the active config revision plus contract/calibration failures, which makes it practical to compare behavior before and after a remote databank update.
+
 ## Why this architecture
 
 The previous implementation classified a small set of intents and selected a short template. It could recognize a topic, but it did not receive the season situation, relationship graph, recent dialogue, or any durable memory. The result was relevant but stateless and often aphoristic.

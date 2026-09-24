@@ -91,6 +91,27 @@ export interface BigBrotherResponse {
 export type { BigEyeConversationState, BigEyeAction, BigEyeIntent }
 export { createInitialBigEyeState }
 
+export type BigEyeTurnRoute = 'authored' | 'deterministic' | 'generative'
+
+export interface BigEyeTurnAnalysis {
+  detectedIntent: BigEyeIntent
+  semanticIntent: BigEyeIntent
+  frame: BigEyeComprehensionFrame
+  route: BigEyeTurnRoute
+  authoredFlow: boolean
+  deterministicIntelligence: boolean
+  directorEligible: boolean
+  wouldRequestDirector: boolean
+  vipEligible: boolean
+  hasEasterEgg: boolean
+  action?: BigEyeAction
+  delayMs: number
+  baseNextState: BigEyeConversationState
+  localText: string
+  localMemorySummary: string
+  nextLocalState: BigEyeConversationState
+}
+
 const DIRECTOR_TIMEOUT_MS = 22000
 
 function clamp(value: number, min: number, max: number): number {
@@ -222,12 +243,8 @@ async function requestDirectorReply(
   }
 }
 
-export async function generateBigBrotherReply(
-  payload: BigBrotherPayload
-): Promise<BigBrotherResponse> {
+export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysis {
   const state = payload.state ?? createInitialBigEyeState()
-  // Local classification owns game actions. The generative director may improve
-  // open conversation, but it never owns or rewrites deterministic game flows.
   const reply = resolveBigEyeTurn(payload.diaryText, payload, state)
   const frame = buildBigEyeComprehensionFrame({
     text: payload.diaryText,
@@ -238,24 +255,24 @@ export async function generateBigBrotherReply(
   })
   const semanticIntent = frame.primaryIntent
   const discoveredEgg = getSecretMissionEasterEggByIntent(reply.intent)
-  const preserveAuthoredFlow = Boolean(
+  const authoredFlow = Boolean(
     reply.action || state.lastQuestion || reply.nextState.lastQuestion || discoveredEgg
   )
-  const preserveDeterministicIntelligence = Boolean(
+  const deterministicIntelligence = Boolean(
     frame.knowledgeQuery ||
     frame.contradiction ||
     frame.speechAct === 'challenge_request' ||
     frame.speechAct === 'prediction' ||
     frame.speechAct === 'answer'
   )
-  const shouldUseDirector =
-    !payload.skipDirector && !preserveAuthoredFlow && !preserveDeterministicIntelligence
-  const directed = shouldUseDirector
-    ? await requestDirectorReply(payload, semanticIntent, frame)
-    : null
-  const directedText = typeof directed?.text === 'string' ? directed.text.trim() : ''
+  const directorEligible = !authoredFlow && !deterministicIntelligence
+  const route: BigEyeTurnRoute = authoredFlow
+    ? 'authored'
+    : deterministicIntelligence
+      ? 'deterministic'
+      : 'generative'
 
-  const localDirectedText = preserveAuthoredFlow
+  const localText = authoredFlow
     ? reply.text
     : directLocalBigEyeReply({
         diaryText: payload.diaryText,
@@ -269,8 +286,7 @@ export async function generateBigBrotherReply(
         frame,
       }) || reply.text
 
-  const spokenText = directedText || localDirectedText
-  const localMemory = updateLocalBigEyeMemory({
+  const localMemorySummary = updateLocalBigEyeMemory({
     diaryText: payload.diaryText,
     playerName: payload.playerName,
     seed: payload.seed,
@@ -281,12 +297,43 @@ export async function generateBigBrotherReply(
     world: payload.world,
     frame,
   })
+  const nextLocalState = updateConversationStateFromFrame(reply.nextState, frame, localText)
+
+  return {
+    detectedIntent: reply.intent,
+    semanticIntent,
+    frame,
+    route,
+    authoredFlow,
+    deterministicIntelligence,
+    directorEligible,
+    wouldRequestDirector: directorEligible && !payload.skipDirector,
+    vipEligible: directorEligible,
+    hasEasterEgg: Boolean(discoveredEgg),
+    action: reply.action,
+    delayMs: reply.delayMs,
+    baseNextState: reply.nextState,
+    localText,
+    localMemorySummary,
+    nextLocalState,
+  }
+}
+
+export async function generateBigBrotherReply(
+  payload: BigBrotherPayload
+): Promise<BigBrotherResponse> {
+  const analysis = analyzeBigEyeTurn(payload)
+  const directed = analysis.wouldRequestDirector
+    ? await requestDirectorReply(payload, analysis.semanticIntent, analysis.frame)
+    : null
+  const directedText = typeof directed?.text === 'string' ? directed.text.trim() : ''
+  const spokenText = directedText || analysis.localText
   const directedMemory =
     typeof directed?.memorySummary === 'string' ? directed.memorySummary.trim().slice(0, 900) : ''
   const memorySummary = directedMemory
     ? [
         directedMemory,
-        ...localMemory
+        ...analysis.localMemorySummary
           .split('\n')
           .filter((line) => /^(Belief|Intent|Dependency|Prediction|Concern|Topic) — /.test(line)),
       ]
@@ -294,27 +341,30 @@ export async function generateBigBrotherReply(
         .slice(-12)
         .join('\n')
         .slice(0, 1800)
-    : localMemory
+    : analysis.localMemorySummary
 
-  const nextState = updateConversationStateFromFrame(reply.nextState, frame, spokenText)
+  const nextState =
+    directedText.length > 0
+      ? updateConversationStateFromFrame(analysis.baseNextState, analysis.frame, spokenText)
+      : analysis.nextLocalState
   const performance = isPerformance(directed?.performance)
     ? {
         ...directed.performance,
         intensity: clamp(directed.performance.intensity, 0, 1),
         pauseBeforeMs: clamp(Math.round(directed.performance.pauseBeforeMs), 250, 2400),
       }
-    : offlinePerformance(semanticIntent, nextState.mood)
+    : offlinePerformance(analysis.semanticIntent, nextState.mood)
 
   return {
     text: spokenText,
-    reason: semanticIntent,
-    intent: semanticIntent,
+    reason: analysis.semanticIntent,
+    intent: analysis.semanticIntent,
     nextState,
-    delayMs: reply.delayMs,
-    action: reply.action,
+    delayMs: analysis.delayMs,
+    action: analysis.action,
     memorySummary,
     performance,
     source: directedText ? 'ai' : 'offline',
-    vipEligible: !preserveAuthoredFlow && !preserveDeterministicIntelligence,
+    vipEligible: analysis.vipEligible,
   }
 }
