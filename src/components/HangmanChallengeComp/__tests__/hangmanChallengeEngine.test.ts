@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest'
 import {
   buildDisplayTokens,
   calculateRoundScore,
@@ -6,31 +6,45 @@ import {
   pickRoundWords,
   shouldAttemptMysterySpawn,
   shouldForceSecondMysteryBox,
-} from '../hangmanChallengeEngine';
+} from '../hangmanChallengeEngine'
 
 describe('hangmanChallengeEngine', () => {
   it('uses a safe expanded word bank and supports multi-word phrases', () => {
-    const words = getWordBank().map((entry) => entry.text);
-    expect(words).toContain('leader of house');
-    expect(words).toContain('power of safety');
-    expect(words).not.toContain('veto');
-    expect(words).not.toContain('backdoor');
-  });
+    const words = getWordBank().map((entry) => entry.text)
+    expect(words).toContain('leader of house')
+    expect(words).toContain('power of safety')
+    expect(words).not.toContain('veto')
+    expect(words).not.toContain('backdoor')
+  })
 
   it('builds a 5-round progression with unique ascending difficulties', () => {
-    const rounds = pickRoundWords(42);
-    expect(rounds).toHaveLength(5);
-    expect(new Set(rounds.map((entry) => entry.text)).size).toBe(5);
-    expect(rounds.map((entry) => entry.difficulty)).toEqual([1, 2, 3, 4, 5]);
-  });
+    const rounds = pickRoundWords(42)
+    expect(rounds).toHaveLength(5)
+    expect(new Set(rounds.map((entry) => entry.text)).size).toBe(5)
+    expect(rounds.map((entry) => entry.difficulty)).toEqual([1, 2, 3, 4, 5])
+  })
 
   it('preserves spaces while masking unrevealed letters', () => {
     expect(buildDisplayTokens('power of safety', ['P', 'O'], ['S'])).toEqual([
-      'P', 'O', '•', '•', '•', ' ', 'O', '•', ' ', 'S', '•', '•', '•', '•', '•',
-    ]);
-  });
+      'P',
+      'O',
+      '•',
+      '•',
+      '•',
+      ' ',
+      'O',
+      '•',
+      ' ',
+      'S',
+      '•',
+      '•',
+      '•',
+      '•',
+      '•',
+    ])
+  })
 
-  it('calculates solved-round bonuses and gives failed rounds zero points', () => {
+  it('calculates solved-round bonuses and preserves Mystery Box score changes on failed rounds', () => {
     const solvedBreakdown = calculateRoundScore({
       solved: true,
       errors: 0,
@@ -41,8 +55,8 @@ describe('hangmanChallengeEngine', () => {
       revealedRatio: 1,
       mysteryAdjustments: [],
       bonusTokenPoints: 0,
-    });
-    expect(solvedBreakdown.finalRoundScore).toBe(1512);
+    })
+    expect(solvedBreakdown.finalRoundScore).toBe(1512)
 
     const failedBreakdown = calculateRoundScore({
       solved: false,
@@ -54,16 +68,51 @@ describe('hangmanChallengeEngine', () => {
       revealedRatio: 0.51,
       mysteryAdjustments: [{ label: 'Hidden risk', value: -80 }],
       bonusTokenPoints: 0,
-    });
-    expect(failedBreakdown.finalRoundScore).toBe(0);
-  });
+    })
+    expect(failedBreakdown.mysteryAdjustments).toEqual([{ label: 'Hidden risk', value: -80 }])
+    expect(failedBreakdown.finalRoundScore).toBe(-80)
+
+    const failedTokenBreakdown = calculateRoundScore({
+      solved: false,
+      errors: 7,
+      elapsedSeconds: 44,
+      timePenaltyPoints: 176,
+      boxesOpened: 1,
+      perfectEligible: false,
+      revealedRatio: 0.4,
+      mysteryAdjustments: [],
+      bonusTokenPoints: 75,
+    })
+    expect(failedTokenBreakdown.finalRoundScore).toBe(75)
+  })
+
+  it('keeps the perfect bonus available after normal boxes, unless an effect removes eligibility', () => {
+    const commonParams = {
+      solved: true,
+      errors: 0,
+      elapsedSeconds: 12,
+      timePenaltyPoints: 48,
+      boxesOpened: 1,
+      revealedRatio: 1,
+      mysteryAdjustments: [],
+      bonusTokenPoints: 0,
+    }
+
+    expect(calculateRoundScore({ ...commonParams, perfectEligible: true }).bonuses).toContainEqual({
+      label: 'Perfect round bonus',
+      value: 250,
+    })
+    expect(
+      calculateRoundScore({ ...commonParams, perfectEligible: false }).bonuses
+    ).not.toContainEqual({ label: 'Perfect round bonus', value: 250 })
+  })
 
   it('uses the required mystery box spawn schedule', () => {
-    expect(shouldAttemptMysterySpawn(9)).toBe(true);
-    expect(shouldAttemptMysterySpawn(19)).toBe(true);
-    expect(shouldAttemptMysterySpawn(29)).toBe(true);
-    expect(shouldAttemptMysterySpawn(30)).toBe(false);
-    expect(shouldForceSecondMysteryBox(30, 1)).toBe(true);
-    expect(shouldForceSecondMysteryBox(30, 2)).toBe(false);
-  });
-});
+    expect(shouldAttemptMysterySpawn(9)).toBe(true)
+    expect(shouldAttemptMysterySpawn(19)).toBe(true)
+    expect(shouldAttemptMysterySpawn(29)).toBe(true)
+    expect(shouldAttemptMysterySpawn(30)).toBe(false)
+    expect(shouldForceSecondMysteryBox(30, 1)).toBe(true)
+    expect(shouldForceSecondMysteryBox(30, 2)).toBe(false)
+  })
+})
