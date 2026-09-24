@@ -96,7 +96,7 @@ const SOCIAL_RESOURCES: Tile[] = [
   {
     kicker: 'APPROVAL',
     title: 'Approval',
-    copy: 'The public approval meter that matters when public mode is active and can decide who gets saved.',
+    copy: 'The public approval meter matters in Public Mode, but the live save also reacts to momentum, audience mix and the current story.',
   },
 ]
 
