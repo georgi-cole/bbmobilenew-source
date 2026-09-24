@@ -325,7 +325,6 @@ export async function generateBigBrotherReply(
   payload: BigBrotherPayload
 ): Promise<BigBrotherResponse> {
   const analysis = analyzeBigEyeTurn(payload)
-  const state = payload.state ?? createInitialBigEyeState()
   const directed = analysis.wouldRequestDirector
     ? await requestDirectorReply(payload, analysis.semanticIntent, analysis.frame)
     : null
