@@ -14,6 +14,11 @@ export type ConfessionalSpeechAct =
   | 'factual_question'
   | 'advice_request'
   | 'answer'
+  | 'agreement'
+  | 'disagreement'
+  | 'clarification'
+  | 'target_declaration'
+  | 'relationship_read'
   | 'vent'
   | 'confession'
   | 'prediction'
@@ -26,6 +31,10 @@ export type ConfessionalKnowledgeQuery =
   | 'nominees'
   | 'remaining'
   | 'closest_relationship'
+  | 'alliances'
+  | 'recent_eviction'
+  | 'eviction_outlook'
+  | 'person_read'
   | 'stats'
   | 'recent_events'
   | 'phase'
@@ -51,6 +60,13 @@ export interface ConfessionalWorldContext {
     affinity: number
     tags: string[]
   }>
+  alliances?: Array<{
+    id: string
+    name: string | null
+    memberNames: string[]
+    status: string
+  }>
+  recentEvictedNames?: string[]
   recentPublicEvents?: string[]
 }
 
@@ -67,6 +83,8 @@ export interface BigEyeComprehensionFrame {
   responseMoves: ConfessionalResponseMove[]
   knowledgeQuery: ConfessionalKnowledgeQuery | null
   predictedWinner: string | null
+  /** True when the active player was inherited from a pronoun/short continuation. */
+  coreferenceUsed: boolean
 }
 
 function containsAny(text: string, values: string[]): boolean {
