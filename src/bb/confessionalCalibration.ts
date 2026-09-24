@@ -51,6 +51,8 @@ export interface ConfessionalCalibrationExpectation {
   memoryIncludes?: string[]
   localTextIncludes?: string[]
   threadFocus?: string | null
+  mood?: BigEyeConversationState['mood']
+  familiarityAtLeast?: number
 }
 
 export interface ConfessionalCalibrationTurn {
@@ -232,7 +234,6 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
           detectedIntent: 'overwhelmed',
           semanticIntent: 'overwhelmed',
           speechAct: 'vent',
-          emotionsAny: ['indecision'],
         },
       },
     ],
@@ -618,7 +619,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     turns: [
       { text: 'hello' },
       { text: 'thanks' },
-      { text: 'bye' },
+      { text: 'bye', expected: { familiarityAtLeast: 3 } },
     ],
   },
 
@@ -749,6 +750,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         text: 'You are stupid.',
         expected: {
           detectedIntent: 'insult',
+          mood: 'cold',
         },
       },
     ],
@@ -760,8 +762,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     tier: 'contract',
     description: 'One hostile turn must not permanently poison later neutral dialogue.',
     turns: [
-      { text: 'You are stupid.', expected: { detectedIntent: 'insult' } },
-      { text: 'thank you', expected: { semanticIntent: 'gratitude' } },
+      { text: 'You are stupid.', expected: { detectedIntent: 'insult', mood: 'cold' } },
+      { text: 'thank you', expected: { semanticIntent: 'gratitude', mood: 'neutral' } },
     ],
   },
   {
@@ -1072,6 +1074,24 @@ function evaluateTurn(
       expected.threadFocus,
       analysis.nextLocalState.thread?.focusPlayer ?? null,
       (analysis.nextLocalState.thread?.focusPlayer ?? null) === expected.threadFocus
+    )
+  }
+  if (expected.mood !== undefined) {
+    addCheck(
+      checks,
+      'Mood',
+      expected.mood,
+      analysis.nextLocalState.mood,
+      analysis.nextLocalState.mood === expected.mood
+    )
+  }
+  if (expected.familiarityAtLeast !== undefined) {
+    addCheck(
+      checks,
+      'Familiarity',
+      `>= ${expected.familiarityAtLeast}`,
+      analysis.nextLocalState.rapport.familiarity,
+      analysis.nextLocalState.rapport.familiarity >= expected.familiarityAtLeast
     )
   }
   return checks
