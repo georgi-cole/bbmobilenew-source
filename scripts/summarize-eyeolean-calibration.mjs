@@ -148,13 +148,17 @@ function buildReport(reports) {
     Number(entry.sample.summary?.lohWins ?? 0) + Number(entry.sample.summary?.posWins ?? 0)
 
   const nonFinalistEntries = entries.filter((entry) => rank(entry) !== 1 && rank(entry) !== 2)
-  const nonFinalistTotals = nonFinalistEntries.map((entry) => entry.sample.total)
-  const threshold = (amount) => {
-    if (nonFinalistTotals.length === 0) return { count: 0, share: 0 }
-    const count = nonFinalistTotals.filter((value) => value >= amount).length
-    return { count, share: count / nonFinalistTotals.length }
-  }
   const anchorCodes = new Set(['season_winner', 'runner_up', 'public_favorite'])
+  const secondaryTotal = (entry) =>
+    (entry.sample.rewards ?? [])
+      .filter((reward) => !anchorCodes.has(reward.code))
+      .reduce((sum, reward) => sum + Number(reward.amount ?? 0), 0)
+  const nonFinalistSecondaryTotals = nonFinalistEntries.map(secondaryTotal)
+  const threshold = (amount) => {
+    if (nonFinalistSecondaryTotals.length === 0) return { count: 0, share: 0 }
+    const count = nonFinalistSecondaryTotals.filter((value) => value >= amount).length
+    return { count, share: count / nonFinalistSecondaryTotals.length }
+  }
   const secondaryMinted = sourceMix
     .filter((source) => !anchorCodes.has(source.code))
     .reduce((sum, source) => sum + source.total, 0)
@@ -230,12 +234,12 @@ function markdown(report) {
     '',
     '## Balance pressure',
     '',
-    '- Non-finalists at or above 50,000 runner-up anchor: ' +
+    '- Non-finalist secondary rewards at or above 50,000 runner-up anchor: ' +
       report.pressure.nonFinalistAtOrAboveRunnerUp.count +
       ' (' +
       (report.pressure.nonFinalistAtOrAboveRunnerUp.share * 100).toFixed(1) +
       '%)',
-    '- Non-finalists at or above 25,000 Public Favorite anchor: ' +
+    '- Non-finalist secondary rewards at or above 25,000 Public Favorite anchor: ' +
       report.pressure.nonFinalistAtOrAbovePublicFavorite.count +
       ' (' +
       (report.pressure.nonFinalistAtOrAbovePublicFavorite.share * 100).toFixed(1) +
