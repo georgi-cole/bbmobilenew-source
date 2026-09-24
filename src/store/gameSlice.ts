@@ -716,6 +716,7 @@ export function createInitialGameState(options?: {
     seasonDirectorPlan,
     seasonDirectorLastSpotlightDay: null,
     seasonDirectorHumanReturnUsed: false,
+    seasonDirectorAiBattleBackUsed: false,
     lohId: null,
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
