@@ -1,8 +1,5 @@
 import type { Middleware } from '@reduxjs/toolkit'
-import {
-  buildEyeoleanSeasonSettlementId,
-  computeSeasonEyeoleanRewards,
-} from '../economy/eyeoleans'
+import { buildEyeoleanSeasonSettlementId, computeSeasonEyeoleanRewards } from '../economy/eyeoleans'
 import { computeLeaderboardScore } from '../scoring/computeLeaderboard'
 import { DEFAULT_WEIGHTS } from '../scoring/weights'
 import type { GameState, Player } from '../types'

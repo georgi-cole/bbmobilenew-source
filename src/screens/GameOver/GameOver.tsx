@@ -213,14 +213,7 @@ export default function GameOver() {
         rewards: seasonRewards,
       })
     )
-  }, [
-    activeProfileId,
-    dispatch,
-    isGuest,
-    seasonRewards,
-    seasonSettlementId,
-    userSummary,
-  ])
+  }, [activeProfileId, dispatch, isGuest, seasonRewards, seasonSettlementId, userSummary])
 
   useEffect(() => {
     if (panel !== 'aftermath') return

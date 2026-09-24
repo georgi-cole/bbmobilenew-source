@@ -6,19 +6,19 @@ Eyeoleans are the persistent soft currency for the player profile. They replace 
 
 Eyeoleans reward **authoritative season outcomes**, not raw click volume or arbitrary minigame score.
 
-| Result | Eyeoleans |
-|---|---:|
-| Season winner | 100,000 |
-| Runner-up | 50,000 |
-| Public Favorite | 25,000 by default; uses the admin-configured award |
-| Final LOH | 15,000 |
-| LOH win | 10,000 each |
-| Safety win | 8,000 each |
-| Back 2 the Game win | 8,000 each |
-| Tribunal member | 5,000 |
-| Survive double eviction | 7,000 |
-| Survive triple eviction | 10,000 |
-| Correct Public Favorite forecast | 2,500 |
+| Result                           |                                          Eyeoleans |
+| -------------------------------- | -------------------------------------------------: |
+| Season winner                    |                                            100,000 |
+| Runner-up                        |                                             50,000 |
+| Public Favorite                  | 25,000 by default; uses the admin-configured award |
+| Final LOH                        |                                             15,000 |
+| LOH win                          |                                        10,000 each |
+| Safety win                       |                                         8,000 each |
+| Back 2 the Game win              |                                         8,000 each |
+| Tribunal member                  |                                              5,000 |
+| Survive double eviction          |                                              7,000 |
+| Survive triple eviction          |                                             10,000 |
+| Correct Public Favorite forecast |                                              2,500 |
 
 The starting values deliberately preserve the relative shape of the former season score model at 1 point = 1,000 Eyeoleans, while removing the old special-case rule that reduced the combined reward when one player won both the season and Public Favorite. Currency rewards are additive.
 

@@ -12,10 +12,7 @@
 //    creating circular Redux dependencies.
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import {
-  PUBLIC_FAVORITE_FORECAST_EYEOLEANS,
-  type EyeoleanRewardLine,
-} from '../economy/eyeoleans'
+import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../economy/eyeoleans'
 import type { RootState } from './store'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -277,7 +274,9 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
       : [],
     settledEyeoleanSeasonIds: Array.isArray(r.settledEyeoleanSeasonIds)
       ? r.settledEyeoleanSeasonIds
-          .filter((seasonId): seasonId is string => typeof seasonId === 'string' && seasonId.length > 0)
+          .filter(
+            (seasonId): seasonId is string => typeof seasonId === 'string' && seasonId.length > 0
+          )
           .slice(-MAX_SETTLED_EYEOLEAN_SEASONS)
       : [],
     achievements: Array.isArray(r.achievements)
@@ -491,18 +490,13 @@ const profilesSlice = createSlice({
           id: `${seasonId}:${reward.code}`,
           amount,
           source: 'season_reward',
-          label:
-            reward.quantity > 1
-              ? `${reward.label} ×${reward.quantity}`
-              : reward.label,
+          label: reward.quantity > 1 ? `${reward.label} ×${reward.quantity}` : reward.label,
           createdAt,
           seasonId,
         })
       })
 
-      profile.settledEyeoleanSeasonIds = [...settled, seasonId].slice(
-        -MAX_SETTLED_EYEOLEAN_SEASONS
-      )
+      profile.settledEyeoleanSeasonIds = [...settled, seasonId].slice(-MAX_SETTLED_EYEOLEAN_SEASONS)
     },
 
     /**
@@ -618,6 +612,7 @@ export const selectCurrentProfile = (state: RootState): StoredProfile | null => 
   return profiles.find((p) => p.id === activeProfileId) ?? null
 }
 
-export const selectEyeoleanBalance = (state: RootState) => selectCurrentProfile(state)?.eyeoleans ?? 0
+export const selectEyeoleanBalance = (state: RootState) =>
+  selectCurrentProfile(state)?.eyeoleans ?? 0
 
 export default profilesSlice.reducer
