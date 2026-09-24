@@ -31,7 +31,11 @@
     "weeklyMode": "single-game",
     "weeklyGameKey": "quickTapRace",
     "_comment3": "weeklyGameKeys is used when weeklyMode is user-selection",
-    "weeklyGameKeys": ["quickTapRace", "bullseyeBlitz", "colorMatch"]
+    "weeklyGameKeys": [
+      "quickTapRace",
+      "bullseyeBlitz",
+      "colorMatch"
+    ]
   },
   "social": {
     "_comment": "Pure-data Social and Drama overrides. Algorithms and executable rules remain bundled in the app.",
@@ -75,7 +79,9 @@
     "content": {
       "_comment": "These examples can be edited without rebuilding the app. Unknown IDs are harmless.",
       "scenarioLines": {
-        "week_start_ally_check_in": ["Fresh week. I wanted to make sure you and I are still solid."]
+        "week_start_ally_check_in": [
+          "Fresh week. I wanted to make sure you and I are still solid."
+        ]
       },
       "actionPresentation": {
         "compliment": {
@@ -179,17 +185,18 @@
     },
     "battleBack": {
       "enabled": true,
-      "maxPerSeason": 1,
       "human": {
         "guaranteedOpportunityAfterEviction": true,
         "minimumActivePlayersAfterEviction": 5,
-        "minimumCandidates": 2
+        "minimumCandidates": 2,
+        "maxGuaranteedOpportunitiesPerSeason": 1
       },
       "aiOnly": {
         "seasonChance": 35,
         "maxPlayers": 9,
         "minPlayers": 6,
-        "minimumCandidates": 3
+        "minimumCandidates": 3,
+        "maxPerSeason": 1
       }
     },
     "lifetimeSpecials": {
