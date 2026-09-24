@@ -8,7 +8,7 @@ import './PublicSaveReveal.css'
 
 export interface PublicSaveRevealProps {
   nominees: Player[]
-  /** Raw approval values are converted to save-vote shares totalling exactly 100%. */
+  /** Audience ballot scores or precomputed vote shares, normalised to exactly 100%. */
   approvals: Record<string, number>
   savedId: string
   /** Active Cupid pairs are rendered as one compact, shared-vote TV unit. */
