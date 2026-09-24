@@ -51,6 +51,8 @@ export interface NominationReactionInput {
   lohId: string | null;
   /** Current approval map: playerId → approval (0–100). */
   approvals: Record<string, number>;
+  /** Current season nomination counts, including the nomination being resolved when available. */
+  nominationCounts?: Record<string, number>;
   week: number;
 }
 
@@ -64,7 +66,7 @@ export interface NominationReactionInput {
  *   representing audience outrage at their nomination.
  */
 export function computeNominationReactions(input: NominationReactionInput): ReactionDelta[] {
-  const { nomineeIds, lohId, approvals, week } = input;
+  const { nomineeIds, lohId, approvals, nominationCounts = {}, week } = input;
   const { nominationReactions, maxDeltaPerEvent } = publicOpinionConfig;
   const cap = maxDeltaPerEvent.nomination_reaction;
   const results: ReactionDelta[] = [];
@@ -72,27 +74,40 @@ export function computeNominationReactions(input: NominationReactionInput): Reac
   for (const nomineeId of nomineeIds) {
     const approval = approvals[nomineeId] ?? publicOpinionConfig.DEFAULT_APPROVAL;
     const band = getApprovalBand(approval);
+    const nominationCount = nominationCounts[nomineeId] ?? 1;
+    const repeatTarget = nominationCount >= 2;
+    const chronicTarget = nominationCount >= 3;
 
-    // ── LOH backlash ──────────────────────────────────────────────────────
+    // ── LOH reaction ──────────────────────────────────────────────────────
     if (lohId && lohId !== nomineeId) {
       let hohDelta = 0;
       if (band === 'beloved') {
         hohDelta = nominationReactions.hohBelovedNomineePenalty;
       } else if (band === 'liked') {
         hohDelta = nominationReactions.hohLikedNomineePenalty;
+      } else if (band === 'hated') {
+        hohDelta = 2;
+      } else if (band === 'disliked') {
+        hohDelta = 1;
       }
+
+      // Repeatedly targeting somebody viewers already like reads increasingly
+      // personal and strengthens the backlash.
+      if (repeatTarget && approval >= 60) hohDelta -= 1;
+      if (chronicTarget && approval >= 70) hohDelta -= 1;
+
       if (hohDelta !== 0) {
         results.push({
           playerId: lohId,
           delta: clampDelta(hohDelta, cap),
-          reason: 'hoh_nomination_backlash',
+          reason: hohDelta > 0 ? 'hoh_popular_targeting' : 'hoh_nomination_backlash',
           eventType: 'nomination',
           attributedToId: nomineeId,
         });
       }
     }
 
-    // ── Nominee sympathy ──────────────────────────────────────────────────
+    // ── Nominee sympathy / underdog reaction ──────────────────────────────
     let sympathy = 0;
     if (band === 'beloved') {
       sympathy = nominationReactions.nomineeSympathyBeloved;
@@ -101,19 +116,23 @@ export function computeNominationReactions(input: NominationReactionInput): Reac
     } else {
       sympathy = nominationReactions.nomineeSympathyMixed;
     }
+
+    // Being repeatedly put in danger can manufacture an underdog even when the
+    // nominee did not begin the season as a favourite.
+    if (repeatTarget && approval >= 40) sympathy += 1;
+    if (chronicTarget && approval >= 55) sympathy += 1;
+
     if (sympathy !== 0) {
       results.push({
         playerId: nomineeId,
         delta: clampDelta(sympathy, cap),
-        reason: 'nomination_sympathy',
+        reason: repeatTarget ? 'nomination_underdog_sympathy' : 'nomination_sympathy',
         eventType: 'nomination',
         attributedToId: lohId ?? undefined,
       });
     }
   }
 
-  // Suppress unused week to satisfy lint rules — it is passed for future use
-  // (e.g., logging or context-sensitive rules) but not needed by current logic.
   void week;
 
   return results;
@@ -205,6 +224,37 @@ export function computeEvictionReactions(input: EvictionReactionInput): Reaction
   }
 
   void week;
+
+  return results;
+}
+
+// ── Block survival / underdog reactions ───────────────────────────────────────
+
+export function computeBlockSurvivalReactions(input: {
+  nomineeIds: string[];
+  evicteeId: string;
+  approvals: Record<string, number>;
+  nominationCounts?: Record<string, number>;
+}): ReactionDelta[] {
+  const { nomineeIds, evicteeId, approvals, nominationCounts = {} } = input;
+  const results: ReactionDelta[] = [];
+
+  for (const nomineeId of nomineeIds) {
+    if (nomineeId === evicteeId) continue;
+    const approval = approvals[nomineeId] ?? publicOpinionConfig.DEFAULT_APPROVAL;
+    const nominationCount = nominationCounts[nomineeId] ?? 0;
+    if (nominationCount < 2) continue;
+
+    let delta = 1;
+    if (nominationCount >= 3 && approval >= 55) delta += 1;
+
+    results.push({
+      playerId: nomineeId,
+      delta: clampDelta(delta, publicOpinionConfig.maxDeltaPerEvent.eviction_reaction),
+      reason: 'survived_repeated_targeting',
+      eventType: 'eviction',
+    });
+  }
 
   return results;
 }
