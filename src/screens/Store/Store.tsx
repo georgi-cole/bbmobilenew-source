@@ -215,17 +215,18 @@ export default function Store() {
 
       {activeShelf === 'powers' && (
         <section className="vip-store__standalone" aria-labelledby="eyeolean-items-title">
-          <div className="vip-store__section-heading vip-store__powers-heading">
-            <div>
-              <p className="vip-store__eyebrow">Spend what you earn</p>
-              <h2 id="eyeolean-items-title">Power Market</h2>
-              <p>Repeatable powers for a future eligible eviction.</p>
-            </div>
-            <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
-              <span>Wallet</span>
-              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-              <small>Eyeoleans</small>
-            </div>
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Use your balance</p>
+            <h2 id="eyeolean-items-title">Power Market</h2>
+            <p>Repeatable powers for a future eligible eviction.</p>
+          </div>
+          <div
+            className="vip-store__wallet vip-store__wallet-row"
+            aria-label="Eyeolean wallet balance"
+          >
+            <span>Wallet</span>
+            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+            <small>Eyeoleans</small>
           </div>
 
           <div className="vip-store__product-grid vip-store__product-grid--powers">
