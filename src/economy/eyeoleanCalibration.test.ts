@@ -81,6 +81,27 @@ describe('Eyeolean economy calibration', () => {
     })
   })
 
+  it('does not treat Public Favorite itself as secondary reward inflation', () => {
+    const report = buildEyeoleanCalibrationReport([
+      {
+        summary: summary({
+          finalPlacement: 5,
+          wonPublicFavorite: true,
+        }),
+      },
+    ])
+
+    expect(report.overall.median).toBe(25_000)
+    expect(report.pressure.nonFinalistAtOrAbovePublicFavorite).toEqual({
+      count: 0,
+      share: 0,
+    })
+    expect(report.pressure.nonFinalistAtOrAboveRunnerUp).toEqual({
+      count: 0,
+      share: 0,
+    })
+  })
+
   it('extracts only the requested player from authoritative season archives', () => {
     const archives: SeasonArchive[] = [
       {
