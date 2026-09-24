@@ -66,6 +66,8 @@ test.describe('Eyeolean economy calibration @eyeolean-calibration', () => {
           maxActions: 1200,
           maxDays: 60,
           competitionSkill: skillForPersona(personaId, index),
+          captureFinalScreenshot: false,
+          compactEconomyReport: true,
         })
 
         await runSeasonSimulation(page, testInfo, config)
