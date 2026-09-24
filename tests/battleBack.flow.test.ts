@@ -17,6 +17,9 @@ import gameReducer, {
   activateBattleBack,
   completeBattleBack,
   dismissBattleBack,
+  offerBattleBackRetry,
+  acceptBattleBackRetry,
+  selfEvict,
   queueForcedShock,
   tryActivateBattleBack,
   tryActivatePendingForcedBattleBack,
@@ -91,7 +94,11 @@ function makeStore(
 
 describe('activateBattleBack', () => {
   it('sets active=true, competitionActive=false, and stores candidates', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    players[2].status = 'jury'
+    players[3].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1', 'p2', 'p3'], week: 4 }))
     const bb = store.getState().game.battleBack
     expect(bb).toBeDefined()
@@ -106,13 +113,18 @@ describe('activateBattleBack', () => {
   it('filters Bella out of direct Battle Back candidate lists', () => {
     const players = makePlayers(10)
     players[1] = { ...players[1], id: 'bella', name: 'Bella', status: 'jury' }
+    players[2].status = 'jury'
+    players[3].status = 'jury'
+    players[4].status = 'jury'
     const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['bella', 'p2', 'p3', 'p4'], week: 4 }))
     expect(store.getState().game.battleBack?.candidates).toEqual(['p2', 'p3', 'p4'])
   })
 
   it('pushes a twist TV event with major:battle_back', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     const events = store.getState().game.tvFeed
     const battleBackEvent = events.find(
@@ -124,7 +136,9 @@ describe('activateBattleBack', () => {
 })
 describe('openBattleBackCompetition', () => {
   it('sets competitionActive=true when battleBack is active', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     expect(store.getState().game.battleBack!.competitionActive).toBe(false)
     store.dispatch(openBattleBackCompetition())
@@ -166,7 +180,9 @@ describe('completeBattleBack', () => {
 
   it('is a no-op when the winner is not a juror', () => {
     // p1 is 'active' (not jury) — validation should reject
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     store.dispatch(completeBattleBack('p1'))
     const bb = store.getState().game.battleBack
@@ -240,7 +256,9 @@ describe('completeBattleBack', () => {
 
 describe('dismissBattleBack', () => {
   it('marks used=true and active=false without a winner', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     store.dispatch(dismissBattleBack())
     const bb = store.getState().game.battleBack
@@ -252,7 +270,9 @@ describe('dismissBattleBack', () => {
 
 describe('advance() blocked while battleBack.active', () => {
   it('does not change phase when battleBack is active', () => {
-    const store = makeStore({ phase: 'week_end' })
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ phase: 'week_end', players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     // Now battleBack.active = true → advance() should be a no-op
     const phaseBefore = store.getState().game.phase
@@ -486,51 +506,123 @@ describe('forced battle back queue', () => {
   })
 })
 
+describe('persisted Battle Back retries and return placement', () => {
+  it('persists each rewarded retry and hard-stops at the three-retry product cap', () => {
+    const players = makePlayers(10)
+    players[0].status = 'jury'
+    players[1].status = 'jury'
+    const store = makeStore({ players })
+
+    store.dispatch(
+      activateBattleBack({
+        candidates: ['p0', 'p1'],
+        week: 4,
+        humanReturn: true,
+        source: 'human-guarantee',
+      })
+    )
+
+    for (let retry = 1; retry <= 3; retry += 1) {
+      store.dispatch(offerBattleBackRetry('p1'))
+      expect(store.getState().game.battleBack?.pendingRetryWinnerId).toBe('p1')
+      store.dispatch(acceptBattleBackRetry())
+      expect(store.getState().game.battleBack?.retryCount).toBe(retry)
+      expect(store.getState().game.battleBack?.attemptIndex).toBe(retry)
+      expect(store.getState().game.battleBack?.pendingRetryWinnerId).toBeNull()
+    }
+
+    store.dispatch(offerBattleBackRetry('p1'))
+    expect(store.getState().game.battleBack?.pendingRetryWinnerId).toBeNull()
+    expect(store.getState().game.battleBack?.retryCount).toBe(3)
+  })
+
+  it('preserves the first exit but clears canonical placement so a later exit gets the true finish', () => {
+    const players = makePlayers(10)
+    players[1] = {
+      ...players[1],
+      status: 'jury',
+      evictedAtWeek: 4,
+      seasonPlacement: 8,
+    }
+    const store = makeStore({ players })
+
+    store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
+    store.dispatch(completeBattleBack('p1'))
+
+    let returned = store.getState().game.players.find((player) => player.id === 'p1')
+    expect(returned?.firstEvictedAtWeek).toBe(4)
+    expect(returned?.firstExitPlacement).toBe(8)
+    expect(returned?.evictedAtWeek).toBeUndefined()
+    expect(returned?.seasonPlacement).toBeUndefined()
+
+    store.dispatch(selfEvict('p1'))
+    returned = store.getState().game.players.find((player) => player.id === 'p1')
+    expect(returned?.seasonPlacement).toBeDefined()
+    expect(returned?.seasonPlacement).not.toBe(8)
+    expect(returned?.firstExitPlacement).toBe(8)
+  })
+})
+
 // ── battleBackCompetition ────────────────────────────────────────────────────
 
 describe('simulateBattleBackCompetition', () => {
-  it('returns a winner from the candidate list', () => {
+  it('returns a winner and compressed spectator challenge from the candidate list', () => {
     const candidates = ['p1', 'p2', 'p3', 'p4']
     const result = simulateBattleBackCompetition(candidates, 42)
     expect(candidates).toContain(result.winnerId)
+    expect(['holdwall', 'trivia', 'maze']).toContain(result.variant)
+    expect(result.placements).toHaveLength(candidates.length)
+    expect(Object.keys(result.scores)).toHaveLength(candidates.length)
   })
 
-  it('is deterministic — same seed always same winner', () => {
+  it('is deterministic — the same seed produces the same challenge, scores and winner', () => {
     const candidates = ['p1', 'p2', 'p3']
     const r1 = simulateBattleBackCompetition(candidates, 99)
     const r2 = simulateBattleBackCompetition(candidates, 99)
-    expect(r1.winnerId).toBe(r2.winnerId)
-    expect(r1.rounds).toEqual(r2.rounds)
+    expect(r1).toEqual(r2)
   })
 
-  it('differs with different seeds', () => {
-    const candidates = ['p1', 'p2', 'p3', 'p4', 'p5']
-    const winners = new Set(
-      [1, 2, 3, 4, 5, 6, 7, 8].map((s) => simulateBattleBackCompetition(candidates, s).winnerId)
-    )
-    // Different seeds should produce at least 2 different winners across 8 runs.
-    expect(winners.size).toBeGreaterThan(1)
+  it('uses competition profiles rather than choosing the winner uniformly at random', () => {
+    const elite = {
+      overall: 100,
+      physical: 100,
+      mental: 100,
+      precision: 100,
+      nerve: 100,
+      consistency: 100,
+      clutch: 100,
+      chokeRisk: 0,
+      luck: 100,
+    }
+    const weak = {
+      overall: 0,
+      physical: 0,
+      mental: 0,
+      precision: 0,
+      nerve: 0,
+      consistency: 0,
+      clutch: 0,
+      chokeRisk: 100,
+      luck: 0,
+    }
+
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+      const result = simulateBattleBackCompetition(
+        [
+          { id: 'elite', profile: elite },
+          { id: 'weak', profile: weak },
+        ],
+        seed
+      )
+      expect(result.winnerId).toBe('elite')
+    }
   })
 
-  it('returns at most 3 rounds', () => {
-    const candidates = ['p1', 'p2', 'p3']
-    const result = simulateBattleBackCompetition(candidates, 7)
-    expect(result.rounds.length).toBeLessThanOrEqual(3)
-  })
-
-  it('winner has the most round wins', () => {
-    const candidates = ['p1', 'p2', 'p3']
-    const result = simulateBattleBackCompetition(candidates, 12)
-    const winnerWins = result.roundWins[result.winnerId]
-    Object.values(result.roundWins).forEach((w) => {
-      expect(winnerWins).toBeGreaterThanOrEqual(w)
-    })
-  })
-
-  it('handles a single candidate (no rounds played)', () => {
+  it('handles a single candidate without inventing extra competitors', () => {
     const result = simulateBattleBackCompetition(['p1'], 42)
     expect(result.winnerId).toBe('p1')
-    expect(result.rounds).toHaveLength(0)
+    expect(result.placements).toEqual(['p1'])
+    expect(result.scores.p1).toBeTypeOf('number')
   })
 })
 
@@ -538,7 +630,9 @@ describe('simulateBattleBackCompetition', () => {
 
 describe('clearBlockingFlags does not bypass Battle Back gate', () => {
   it('does not clear battleBack.active', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     expect(store.getState().game.battleBack?.active).toBe(true)
 
@@ -549,7 +643,9 @@ describe('clearBlockingFlags does not bypass Battle Back gate', () => {
   })
 
   it('does not clear twistActive', () => {
-    const store = makeStore()
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
     expect(store.getState().game.twistActive).toBe(true)
 
@@ -559,7 +655,9 @@ describe('clearBlockingFlags does not bypass Battle Back gate', () => {
   })
 
   it('advance() is still blocked after clearBlockingFlags when battleBack is active', () => {
-    const store = makeStore({ phase: 'week_end' })
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ phase: 'week_end', players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
 
     const phaseBefore = store.getState().game.phase
@@ -571,7 +669,9 @@ describe('clearBlockingFlags does not bypass Battle Back gate', () => {
   })
 
   it('advance() is unblocked after explicit dismissBattleBack following clearBlockingFlags', () => {
-    const store = makeStore({ phase: 'eviction_results' })
+    const players = makePlayers(10)
+    players[1].status = 'jury'
+    const store = makeStore({ phase: 'eviction_results', players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
 
     store.dispatch(clearBlockingFlags())
