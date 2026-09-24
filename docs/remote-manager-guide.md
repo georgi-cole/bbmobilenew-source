@@ -64,6 +64,15 @@ Frequency, weight, and roster-window changes are **snapshotted when a new season
 
 To tune the Director, edit the `director` object in **Advanced JSON**, validate it, then publish through a review PR or directly to main. Released clients refresh the live configuration on the normal five-minute cadence.
 
+
+### Tune The Big Eye Confessional
+
+Use Advanced JSON to manage the versioned confessional databank. Increment confessional.revision whenever you change character/content tuning so QA can identify the exact bank used by a report.
+
+The remotely tunable groups are: features (memory callbacks, proactive observations, deterministic knowledge, visual reactions, predictions and Challenge Me); persona; comprehension vocabulary/slang; responses.intents and challenge prompts; salience weights/templates; and director character tuning used by the generative backends.
+
+Validate and apply JSON before publishing. Unknown or invalid fields are removed, known values are merged over bundled defaults, and no remote field can execute game logic. Character/content changes can therefore ship through the normal live-config deployment without a mobile-store release.
+
 ### Tune Social/Drama energy
 
 1. Open **Social**.
@@ -80,4 +89,4 @@ Publishing is not instant: wait for the Pages workflow to finish, then allow up 
 
 ## Advanced JSON
 
-The Advanced JSON tab supports the complete validated remote schema, including detailed music assignments, social text/policies, themes, player presentation overrides, and rollout controls. **Validate and apply JSON** removes unknown or unsafe fields before publishing. No remote field is executed as code.
+The Advanced JSON tab supports the complete validated remote schema, including detailed music assignments, social text/policies, Confessional character/comprehension data, themes, player presentation overrides, and rollout controls. **Validate and apply JSON** removes unknown or unsafe fields before publishing. No remote field is executed as code.
