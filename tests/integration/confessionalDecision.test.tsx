@@ -669,6 +669,10 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     }
   }
 
+  function expandSecretMission(): void {
+    fireEvent.click(screen.getByRole('button', { name: /secret mission/i }))
+  }
+
   it('shows a stored future power without keeping the completed mission checklist', () => {
     const secretMission = buildMission({
       status: 'rewardClaimed',
@@ -744,6 +748,7 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     })
     const store = makeStore({ players, secretMission })
     renderDiaryRoom(store)
+    expandSecretMission()
     // Should show the real name instead of the generic "your marked target"
     expect(screen.getByText(/Get Player 2 nominated before Day 8/i)).toBeTruthy()
     expect(screen.queryByText(/your marked target/i)).toBeNull()
@@ -769,6 +774,7 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     })
     const store = makeStore({ players, secretMission })
     renderDiaryRoom(store)
+    expandSecretMission()
     expect(screen.getByText(/your marked target/i)).toBeTruthy()
   })
 
@@ -794,6 +800,7 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     })
     const store = makeStore({ players, secretMission })
     renderDiaryRoom(store)
+    expandSecretMission()
     // Should show the real name instead of the generic "your marked target"
     expect(screen.getByText(/Form an alliance with Player 3 before Day 8/i)).toBeTruthy()
     expect(screen.queryByText(/your marked target/i)).toBeNull()
@@ -820,6 +827,7 @@ describe('DiaryRoom — secret mission checklist target_nominated', () => {
     })
     const store = makeStore({ players, secretMission })
     renderDiaryRoom(store)
+    expandSecretMission()
     expect(screen.getByText(/your marked target/i)).toBeTruthy()
   })
 })
