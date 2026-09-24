@@ -26,10 +26,32 @@ export const publicOpinionConfig = {
     lostComp: -1,
   },
   directionRewards: {
-    success: 5,
-    partial: 2,
-    fail: -2,
-    counter: -4,
+    success: 3,
+    partial: 1,
+    fail: -1,
+    counter: -3,
+  },
+  /**
+   * Public requests are opportunities, not a guaranteed approval escalator.
+   * Coverage is spread across the active cast and grows modestly with cast size.
+   */
+  directionCoverage: {
+    minPerCycle: 2,
+    maxPerCycle: 4,
+    activeCastRatio: 0.4,
+  },
+  /**
+   * Approval becomes harder to increase once a contestant is already strongly
+   * liked. Negative events still land normally, preventing the 80+ band from
+   * becoming a one-way ratchet.
+   */
+  positiveApprovalDamping: {
+    likedThreshold: 65,
+    likedMultiplier: 0.85,
+    strongThreshold: 75,
+    strongMultiplier: 0.7,
+    belovedThreshold: 85,
+    belovedMultiplier: 0.5,
   },
   approvalBands: [
     { min: 0, max: 19, label: 'hated' },
@@ -191,7 +213,7 @@ export const publicOpinionConfig = {
     saveLikedPlayerBoost: 3,
     /** Penalty for the POS holder when they save a disliked/hated player. */
     saveDislikedPlayerPenalty: -2,
-    /** Boost for the saved player when POS or public-save is used. */
-    savedPlayerBoost: 2,
+    /** Base boost for the saved player when POS or public-save is used. */
+    savedPlayerBoost: 1,
   },
 } as const
