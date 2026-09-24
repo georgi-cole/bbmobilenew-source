@@ -123,6 +123,10 @@ export interface BigEyeTurnAnalysis {
 
 const DIRECTOR_TIMEOUT_MS = 22000
 
+export function isBigEyeGenerativeDirectorEnabled(): boolean {
+  return import.meta.env.MODE !== 'test' && import.meta.env.VITE_BIG_EYE_AI_ENABLED === 'true'
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -218,9 +222,7 @@ async function requestDirectorReply(
   intent: BigEyeIntent,
   comprehension: BigEyeComprehensionFrame
 ): Promise<DirectorResponse | null> {
-  if (import.meta.env.MODE === 'test' || import.meta.env.VITE_BIG_EYE_AI_ENABLED !== 'true') {
-    return null
-  }
+  if (!isBigEyeGenerativeDirectorEnabled()) return null
 
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), DIRECTOR_TIMEOUT_MS)
@@ -316,7 +318,8 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
     authoredFlow,
     deterministicIntelligence,
     directorEligible,
-    wouldRequestDirector: directorEligible && !payload.skipDirector,
+    wouldRequestDirector:
+      directorEligible && !payload.skipDirector && isBigEyeGenerativeDirectorEnabled(),
     vipEligible: directorEligible,
     hasEasterEgg: Boolean(discoveredEgg),
     action: reply.action,
