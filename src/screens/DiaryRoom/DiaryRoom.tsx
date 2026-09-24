@@ -557,6 +557,9 @@ export default function DiaryRoom() {
   const [vipStatus, setVipStatus] = useState<BigEyeVipStatus | null>(null)
   const [vipSelected, setVipSelected] = useState(false)
   const [vipNotice, setVipNotice] = useState<string | null>(null)
+  const [missionExpanded, setMissionExpanded] = useState(
+    secretMission?.status === 'rewardPending'
+  )
   const {
     active: ticTacToeActive,
     launchTicTacToe,
@@ -720,6 +723,22 @@ export default function DiaryRoom() {
   const rewardMissionKey = secretMission
     ? `${secretMission.missionNumber ?? 1}:${secretMission.triggeredDay}`
     : 'none'
+  const completedMissionTasks = secretMission?.tasks.filter((task) => task.completed).length ?? 0
+  const totalMissionTasks = secretMission?.tasks.length ?? 0
+  const missionDeadlineDay =
+    secretMission?.targetDeadlineDay ?? secretMission?.endDay ?? secretMission?.survivalWindowEndDay
+  const missionProgressLabel =
+    secretMission?.status === 'rewardPending'
+      ? 'Complete — reward ready'
+      : totalMissionTasks > 0
+        ? `${completedMissionTasks}/${totalMissionTasks} objectives complete`
+        : 'In progress'
+
+  useEffect(() => {
+    if (secretMission?.status === 'rewardPending') {
+      setMissionExpanded(true)
+    }
+  }, [rewardMissionKey, secretMission?.status])
 
   const dispatchRef = useRef(dispatch)
   useEffect(() => {
@@ -1675,6 +1694,7 @@ export default function DiaryRoom() {
                     type="button"
                     onClick={() => {
                       dispatch(acceptSecretMission())
+                      setMissionExpanded(true)
                       const acceptMsg: ChatMessage = {
                         id: crypto.randomUUID(),
                         role: 'bb',
@@ -1713,118 +1733,139 @@ export default function DiaryRoom() {
                 </div>
               )}
 
-              {/* ── Secret mission checklist (active) ─────────────────────── */}
+              {/* ── Secret mission status card (active) ───────────────────── */}
               {secretMission &&
                 (secretMission.status === 'accepted' ||
                   secretMission.status === 'rewardPending') && (
-                  <div
-                    className="diary-room__mission-checklist"
+                  <section
+                    className={`diary-room__mission-checklist${missionExpanded ? ' diary-room__mission-checklist--expanded' : ''}`}
                     aria-label="Secret mission checklist"
                   >
-                    <p className="diary-room__mission-title">
-                      🕵️ Secret Mission
-                      {secretMission.status === 'rewardPending' ? ' — Complete!' : ''}
-                    </p>
-                    {secretMission.tasks.map((task) => {
-                      const targetName = task.targetPlayerId
-                        ? playerNameById.get(task.targetPlayerId)
-                        : undefined
-                      const displayDesc = targetName
-                        ? task.description.replace('your marked target', targetName)
-                        : task.description
-                      return (
-                        <div
-                          key={task.id}
-                          className={`diary-room__mission-task${task.completed ? ' diary-room__mission-task--done' : ''}`}
-                        >
-                          <span className="diary-room__mission-task-icon">
-                            {task.completed ? '✅' : '⬜'}
-                          </span>
-                          <span className="diary-room__mission-task-desc">{displayDesc}</span>
-                          {!task.completed && (
-                            <span className="diary-room__mission-task-progress">
-                              {task.current}/{task.target}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
+                    <button
+                      className="diary-room__mission-summary"
+                      type="button"
+                      aria-expanded={missionExpanded}
+                      aria-controls="secret-mission-details"
+                      onClick={() => setMissionExpanded((expanded) => !expanded)}
+                    >
+                      <span className="diary-room__mission-summary-copy">
+                        <span className="diary-room__mission-title">🕵️ Secret Mission</span>
+                        <span className="diary-room__mission-meta">
+                          {missionProgressLabel}
+                          {typeof missionDeadlineDay === 'number'
+                            ? ` · Ends Day ${missionDeadlineDay}`
+                            : ''}
+                        </span>
+                      </span>
+                      <span className="diary-room__mission-chevron" aria-hidden="true">
+                        {missionExpanded ? '⌃' : '⌄'}
+                      </span>
+                    </button>
 
-                    {/* ── Immunity reward claim (rewardPending) ───────────── */}
-                    {secretMission.status === 'rewardPending' && (
-                      <div
-                        className="diary-room__mystery-boxes"
-                        aria-label="Secret mission reward boxes"
-                      >
-                        <p className="diary-room__mystery-boxes-prompt">
-                          🎁 Choose one mystery box:
-                        </p>
-                        <div className="diary-room__mystery-boxes-grid">
-                          {assignedRewardBoxes.map((_, index) => (
-                            <button
-                              key={`${rewardMissionKey}:${index}`}
-                              className="diary-room__mystery-box-btn"
-                              type="button"
-                              aria-label={`Open Mystery Box ${index + 1}`}
-                              onClick={() => {
-                                const rewardType = assignedRewardBoxes[index]
-                                if (!rewardType) return
-                                if (rewardType === 'immunity') {
-                                  const durationDays = pickMissionImmunityDuration(
-                                    secretMission.triggeredDay,
-                                    secretMission.templateId
-                                  )
-                                  dispatch(
-                                    claimMissionReward({
-                                      claimDay: currentWeekForMission,
-                                      durationDays,
-                                    })
-                                  )
-                                  const revealMsg: ChatMessage = {
-                                    id: crypto.randomUUID(),
-                                    role: 'bb',
-                                    text: REWARD_REVEAL_COPY[rewardType](
-                                      currentWeekForMission,
-                                      durationDays
-                                    ),
-                                    timestamp: Date.now(),
-                                  }
-                                  setMessages((prev) => {
-                                    const updated = [...prev, revealMsg]
-                                    saveChat(playerIdRef.current, updated)
-                                    return updated
-                                  })
-                                  return
-                                }
-                                if (rewardType === 'plus1000Influence') {
-                                  dispatch(
-                                    applyInfluenceDelta({
-                                      playerId: playerIdRef.current,
-                                      delta: 1000,
-                                    })
-                                  )
-                                }
-                                dispatch(claimMissionReward(rewardType))
-                                const revealMsg: ChatMessage = {
-                                  id: crypto.randomUUID(),
-                                  role: 'bb',
-                                  text: REWARD_REVEAL_COPY[rewardType](currentWeekForMission),
-                                  timestamp: Date.now(),
-                                }
-                                setMessages((prev) => {
-                                  const updated = [...prev, revealMsg]
-                                  saveChat(playerIdRef.current, updated)
-                                  return updated
-                                })
-                              }}
+                    {missionExpanded && (
+                      <div id="secret-mission-details" className="diary-room__mission-details">
+                        {secretMission.tasks.map((task) => {
+                          const targetName = task.targetPlayerId
+                            ? playerNameById.get(task.targetPlayerId)
+                            : undefined
+                          const displayDesc = targetName
+                            ? task.description.replace('your marked target', targetName)
+                            : task.description
+                          return (
+                            <div
+                              key={task.id}
+                              className={`diary-room__mission-task${task.completed ? ' diary-room__mission-task--done' : ''}`}
                             >
-                              🎁 Mystery Box {index + 1}
-                            </button>
-                          ))}
-                        </div>
+                              <span className="diary-room__mission-task-icon">
+                                {task.completed ? '✅' : '⬜'}
+                              </span>
+                              <span className="diary-room__mission-task-desc">{displayDesc}</span>
+                              {!task.completed && (
+                                <span className="diary-room__mission-task-progress">
+                                  {task.current}/{task.target}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
+
+                        {/* ── Reward claim remains prominent when actionable ─── */}
+                        {secretMission.status === 'rewardPending' && (
+                          <div
+                            className="diary-room__mystery-boxes"
+                            aria-label="Secret mission reward boxes"
+                          >
+                            <p className="diary-room__mystery-boxes-prompt">
+                              🎁 Choose one mystery box:
+                            </p>
+                            <div className="diary-room__mystery-boxes-grid">
+                              {assignedRewardBoxes.map((_, index) => (
+                                <button
+                                  key={`${rewardMissionKey}:${index}`}
+                                  className="diary-room__mystery-box-btn"
+                                  type="button"
+                                  aria-label={`Open Mystery Box ${index + 1}`}
+                                  onClick={() => {
+                                    const rewardType = assignedRewardBoxes[index]
+                                    if (!rewardType) return
+                                    if (rewardType === 'immunity') {
+                                      const durationDays = pickMissionImmunityDuration(
+                                        secretMission.triggeredDay,
+                                        secretMission.templateId
+                                      )
+                                      dispatch(
+                                        claimMissionReward({
+                                          claimDay: currentWeekForMission,
+                                          durationDays,
+                                        })
+                                      )
+                                      const revealMsg: ChatMessage = {
+                                        id: crypto.randomUUID(),
+                                        role: 'bb',
+                                        text: REWARD_REVEAL_COPY[rewardType](
+                                          currentWeekForMission,
+                                          durationDays
+                                        ),
+                                        timestamp: Date.now(),
+                                      }
+                                      setMessages((prev) => {
+                                        const updated = [...prev, revealMsg]
+                                        saveChat(playerIdRef.current, updated)
+                                        return updated
+                                      })
+                                      return
+                                    }
+                                    if (rewardType === 'plus1000Influence') {
+                                      dispatch(
+                                        applyInfluenceDelta({
+                                          playerId: playerIdRef.current,
+                                          delta: 1000,
+                                        })
+                                      )
+                                    }
+                                    dispatch(claimMissionReward(rewardType))
+                                    const revealMsg: ChatMessage = {
+                                      id: crypto.randomUUID(),
+                                      role: 'bb',
+                                      text: REWARD_REVEAL_COPY[rewardType](currentWeekForMission),
+                                      timestamp: Date.now(),
+                                    }
+                                    setMessages((prev) => {
+                                      const updated = [...prev, revealMsg]
+                                      saveChat(playerIdRef.current, updated)
+                                      return updated
+                                    })
+                                  }}
+                                >
+                                  🎁 Mystery Box {index + 1}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
+                  </section>
                 )}
 
               {/* A completed mission is history; only an actually actionable stored
