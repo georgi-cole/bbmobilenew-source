@@ -58,6 +58,15 @@ export interface BigEyeWorldContext {
     affinity: number
     tags: string[]
   }>
+  /** Formal alliances the human player is actually a member of. */
+  alliances?: Array<{
+    id: string
+    name: string | null
+    memberNames: string[]
+    status: string
+  }>
+  /** Grounded recent eviction names from the current game/feed when available. */
+  recentEvictedNames?: string[]
   recentPublicEvents: string[]
 }
 
@@ -113,6 +122,10 @@ export interface BigEyeTurnAnalysis {
 }
 
 const DIRECTOR_TIMEOUT_MS = 22000
+
+export function isBigEyeGenerativeDirectorEnabled(): boolean {
+  return import.meta.env.MODE !== 'test' && import.meta.env.VITE_BIG_EYE_AI_ENABLED === 'true'
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
@@ -209,9 +222,7 @@ async function requestDirectorReply(
   intent: BigEyeIntent,
   comprehension: BigEyeComprehensionFrame
 ): Promise<DirectorResponse | null> {
-  if (import.meta.env.MODE === 'test' || import.meta.env.VITE_BIG_EYE_AI_ENABLED !== 'true') {
-    return null
-  }
+  if (!isBigEyeGenerativeDirectorEnabled()) return null
 
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), DIRECTOR_TIMEOUT_MS)
@@ -263,7 +274,11 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
     frame.contradiction ||
     frame.speechAct === 'challenge_request' ||
     frame.speechAct === 'prediction' ||
-    frame.speechAct === 'answer'
+    frame.speechAct === 'answer' ||
+    frame.speechAct === 'agreement' ||
+    frame.speechAct === 'disagreement' ||
+    frame.speechAct === 'clarification' ||
+    frame.speechAct === 'target_declaration'
   )
   const directorEligible = !authoredFlow && !deterministicIntelligence
   const route: BigEyeTurnRoute = authoredFlow
@@ -307,7 +322,8 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
     authoredFlow,
     deterministicIntelligence,
     directorEligible,
-    wouldRequestDirector: directorEligible && !payload.skipDirector,
+    wouldRequestDirector:
+      directorEligible && !payload.skipDirector && isBigEyeGenerativeDirectorEnabled(),
     vipEligible: directorEligible,
     hasEasterEgg: Boolean(discoveredEgg),
     action: reply.action,

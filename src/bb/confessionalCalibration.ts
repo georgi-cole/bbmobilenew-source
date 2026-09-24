@@ -103,7 +103,7 @@ export const CONFESSIONAL_LAB_WORLD: BigEyeWorldContext = {
   leaderName: 'Kian',
   nomineeNames: ['Alex', 'Lia'],
   safetyWinnerName: 'Jax',
-  remainingHousemates: ['Alex', 'Maya', 'Kian', 'Lia', 'Jax', 'Ruben', 'Nora'],
+  remainingHousemates: ['Alex', 'Maya', 'Kian', 'Lia', 'Jax', 'Ruben', 'Nora', 'Nico', 'Finn'],
   playerStats: {
     leaderWins: 1,
     safetyWins: 2,
@@ -114,7 +114,18 @@ export const CONFESSIONAL_LAB_WORLD: BigEyeWorldContext = {
     { name: 'Kian', affinity: 63, tags: ['working_relationship'] },
     { name: 'Jax', affinity: 48, tags: ['volatile'] },
     { name: 'Lia', affinity: -31, tags: ['rival'] },
+    { name: 'Nico', affinity: 28, tags: ['alliance'] },
+    { name: 'Finn', affinity: -8, tags: [] },
   ],
+  alliances: [
+    {
+      id: 'night-shift',
+      name: 'Night Shift',
+      memberNames: ['Alex', 'Maya', 'Nico'],
+      status: 'ACTIVE',
+    },
+  ],
+  recentEvictedNames: ['Rhea'],
   recentPublicEvents: [
     'Kian won Leader of the House.',
     'Alex and Lia were nominated.',
@@ -809,6 +820,160 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         text: 'How are you doing?',
         expected: {
           detectedIntent: 'wellbeing_question',
+        },
+      },
+    ],
+  },
+
+  {
+    id: 'regression-recent-nico-conversation',
+    title: 'Reported Nico conversation',
+    category: 'continuity',
+    tier: 'contract',
+    description:
+      'The recent real transcript must keep eviction language, alliance knowledge and Nico targeting separate.',
+    world: withWorld({
+      nomineeNames: ['Bea', 'Ivy'],
+      remainingHousemates: ['Alex', 'Bea', 'Ivy', 'Nico', 'Maya', 'Finn'],
+      closestRelationships: [
+        { name: 'Maya', affinity: 71, tags: ['ally'] },
+        { name: 'Nico', affinity: 26, tags: ['alliance'] },
+        { name: 'Finn', affinity: -8, tags: [] },
+      ],
+      alliances: [
+        {
+          id: 'night-shift',
+          name: 'Night Shift',
+          memberNames: ['Alex', 'Maya', 'Nico'],
+          status: 'ACTIVE',
+        },
+      ],
+      recentEvictedNames: ['Rhea'],
+    }),
+    turns: [
+      {
+        text: 'Hey, who is nominated today?',
+        expected: {
+          route: 'deterministic',
+          knowledgeQuery: 'nominees',
+          localTextIncludes: ['Bea', 'Ivy'],
+        },
+      },
+      {
+        text: 'Who do you think is going to leave?',
+        expected: {
+          route: 'deterministic',
+          knowledgeQuery: 'eviction_outlook',
+          action: null,
+          localTextIncludes: ['Bea', 'Ivy', 'will not pretend'],
+        },
+      },
+      {
+        text: "I don't",
+        expected: {
+          action: null,
+        },
+      },
+      {
+        text: 'who are my allies?',
+        expected: {
+          route: 'deterministic',
+          knowledgeQuery: 'alliances',
+          localTextIncludes: ['Night Shift', 'Maya', 'Nico'],
+        },
+      },
+      {
+        text: "I don't trust Nico, I want him out",
+        expected: {
+          semanticIntent: 'strategy',
+          speechAct: 'target_declaration',
+          focusPlayer: 'Nico',
+          stancesAll: ['distrust', 'target'],
+          localTextIncludes: ['Nico', 'target'],
+          memoryIncludes: ['Intent — targeting Nico'],
+        },
+      },
+      {
+        text: 'No, they are out to get me',
+        expected: {
+          speechAct: 'disagreement',
+          focusPlayer: 'Nico',
+          stancesAll: ['distrust'],
+          action: null,
+          localTextIncludes: ['Nico', 'working against you'],
+        },
+      },
+      {
+        text: 'I want Nico gone!',
+        expected: {
+          semanticIntent: 'strategy',
+          speechAct: 'target_declaration',
+          focusPlayer: 'Nico',
+          stancesAll: ['target'],
+          action: null,
+          localTextIncludes: ['Nico is your target'],
+          memoryIncludes: ['Intent — targeting Nico'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'regression-pronoun-keeps-nico',
+    title: 'Pronoun keeps active player',
+    category: 'continuity',
+    tier: 'contract',
+    description: 'He/she/they follow-ups must not silently jump to the closest relationship.',
+    turns: [
+      {
+        text: "I don't trust Nico, but I need him in my alliance to protect me.",
+        expected: {
+          focusPlayer: 'Nico',
+          stancesAll: ['distrust', 'depend'],
+          localTextIncludes: ['Nico', 'leverage'],
+        },
+      },
+      {
+        text: 'I think he is playing his own game',
+        expected: {
+          focusPlayer: 'Nico',
+          localTextIncludes: ['Nico', 'interests overlap'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'regression-grounded-finn-read',
+    title: 'Grounded Finn read',
+    category: 'knowledge',
+    tier: 'contract',
+    description:
+      'Person reads describe actual relationship state and never fabricate observed behavior.',
+    turns: [
+      {
+        text: 'What do you think about Finn?',
+        expected: {
+          route: 'deterministic',
+          knowledgeQuery: 'person_read',
+          focusPlayer: 'Finn',
+          localTextIncludes: ['Finn', 'cannot tell you their secret plan'],
+        },
+      },
+    ],
+  },
+  {
+    id: 'knowledge-recent-eviction',
+    title: 'Recent eviction',
+    category: 'knowledge',
+    tier: 'contract',
+    description: 'Eviction history questions are grounded and never trigger self-eviction.',
+    turns: [
+      {
+        text: 'Who got evicted today?',
+        expected: {
+          route: 'deterministic',
+          knowledgeQuery: 'recent_eviction',
+          action: null,
+          localTextIncludes: ['Rhea', 'confirmed eviction'],
         },
       },
     ],

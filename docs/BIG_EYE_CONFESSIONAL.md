@@ -22,6 +22,25 @@ Remote configuration is pure data. It may change what the Eye recognizes, says, 
 
 Both the Express/OpenAI director and the Cloudflare VIP director independently fetch the trusted published character tuning and cache it briefly. The client never supplies arbitrary prompt instructions to those backends.
 
+## Confessional 2.1 — grounded dialogue
+
+V2.1 changes the local conversational hierarchy substantially. The richer comprehension frame now owns high-confidence conversational meaning before the legacy intent response pools are considered.
+
+The core rules are:
+
+- **Explicit game actions require explicit language.** Self-eviction is first-person and intentional; ordinary uses of "leave", "evicted" or "quit" cannot trigger it.
+- **Named entities are sticky.** A named housemate owns the active thread until the player clearly changes subject. Pronouns and short continuations can resolve back to that active person.
+- **Do not substitute a different housemate.** If a named player cannot be grounded, The Big Eye says that rather than silently using the player's closest relationship.
+- **Propositions matter more than yes/no tokens.** "No, they are out to get me" is a disagreement plus a relationship claim, not a bare "no". "Yeah, you are right" is agreement, not a generic yes response.
+- **Semantic synthesis comes before intent pools.** Target declarations, distrust/dependency combinations, agreement/disagreement, clarification and grounded person reads receive purpose-built responses before generic alliance/strategy/curiosity copy.
+- **Questions are not beliefs.** "Can I trust Nico?" does not store "trusts Nico", and "Why was Nico evicted?" does not store a targeting intention.
+- **Grounded knowledge stays grounded.** Alliance membership comes from actual formal/legacy alliance state; recent eviction comes from game state/feed; person reads use the player's real relationship state. The Eye does not invent secret plans or private votes.
+- **Entry observations carry their reason.** If The Eye opens with a nomination, power or return observation, a follow-up "Why?" or "What do you mean?" can refer back to that concrete event.
+- **Grounded semantic turns are protected.** High-confidence local meaning cannot be overwritten by a generative reply.
+- **Remote vocabulary remains tunable.** Trust, distrust, targeting and dependency language is published under Confessional databank revision `confessional-2.1.0`.
+
+The old intent response pools remain useful as fallback voice texture, but they are no longer the primary reasoning surface.
+
 ## Confessional Calibration Lab
 
 Debug/admin builds now include a gated **Confessional Calibration Lab** at `#/confessional-lab?debug=1`. The QA Control Center links to it directly.

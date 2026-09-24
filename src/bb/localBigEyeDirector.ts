@@ -28,6 +28,13 @@ export interface LocalBigEyeWorld {
     affinity: number
     tags: string[]
   }>
+  alliances?: Array<{
+    id: string
+    name: string | null
+    memberNames: string[]
+    status: string
+  }>
+  recentEvictedNames?: string[]
   playerStats?: {
     leaderWins: number
     safetyWins: number
@@ -140,6 +147,7 @@ function getSceneFacts(input: LocalBigEyeDirectorInput): SceneFacts {
   const normalizedMessage = normalizeInput(input.diaryText)
   const name = input.playerName?.trim() || 'Houseguest'
   const mentionedHousemate =
+    input.frame?.focusPlayer ??
     world?.closestRelationships.find((relationship) =>
       normalizedMessage.includes(normalizeInput(relationship.name))
     )?.name ??
@@ -178,7 +186,7 @@ function shortAnswerToQuestion(input: LocalBigEyeDirectorInput): boolean {
 function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: SceneFacts): string[] {
   const week = facts.week === null ? 'this week' : `Week ${facts.week}`
   const opponent = facts.nomineeOpponent ? ` beside ${facts.nomineeOpponent}` : ''
-  const relationship = facts.mentionedHousemate ?? facts.ally
+  const relationship = facts.mentionedHousemate
 
   switch (input.intent) {
     case 'wellbeing_question':
@@ -254,8 +262,8 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
             facts.leader
               ? `Start with ${facts.leader}. Do not ask whether you are safe; ask what outcome makes their week easiest, then listen to the names they avoid.`
               : `My advice: find the relationship that changed most this week. Listen before you pitch, verify one promise, and keep one option private.`,
-            relationship
-              ? `A useful hint: test ${relationship} with a small piece of information, not your whole plan. Trust should be measured before it is spent.`
+            relationship || facts.ally
+              ? `A useful hint: test ${relationship ?? facts.ally} with a small piece of information, not your whole plan. Trust should be measured before it is spent.`
               : `Do the smallest useful thing next: repair one relationship, verify one promise, and do not announce the move before it works.`,
             `Watch who answers a simple question with too much detail. In this house, overexplaining often marks the place where the truth was edited.`,
           ]
@@ -322,7 +330,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
     case 'curiosity':
       return [
         facts.mentionedHousemate
-          ? `You are asking about ${facts.mentionedHousemate}. I have noticed that you watch them most closely when you are uncertain. What changed?`
+          ? `You are asking about ${facts.mentionedHousemate}. I can give you a read from the relationship and game information I actually have, but I will not invent what they are secretly thinking.`
           : `Ask me directly. If it is about the game, a housemate, or something I have observed, I will answer what I can.`,
         facts.leader
           ? `${facts.leader} has power during ${facts.phase}. If your question is really about safety, ask it honestly.`
@@ -387,6 +395,60 @@ function resolveKnowledgeReply(
       if (!closest) return 'I do not have a strong enough relationship signal to name one.'
       return `${closest.name} is the connection currently reading strongest from the information available to me. That is not a promise of loyalty.`
     }
+    case 'alliances': {
+      const alliances = (world.alliances ?? []).filter((alliance) => alliance.status !== 'DISSOLVED')
+      if (alliances.length === 0) {
+        return 'You do not currently have a formal active alliance recorded. A close relationship is not automatically an alliance.'
+      }
+      const descriptions = alliances.map((alliance) => {
+        const others = alliance.memberNames.filter(
+          (name) => normalizeInput(name) !== normalizeInput(facts.name)
+        )
+        const label = alliance.name?.trim() || 'an unnamed alliance'
+        const status =
+          alliance.status === 'ACTIVE'
+            ? ''
+            : ` It is currently ${alliance.status.toLowerCase()}.`
+        return `${label}: ${formatNames(others)}.${status}`
+      })
+      return `Your formal alliance${alliances.length === 1 ? '' : 's'}: ${descriptions.join(' ')}`
+    }
+    case 'recent_eviction': {
+      const names = world.recentEvictedNames ?? []
+      return names.length
+        ? `${names[0]} is the most recent confirmed eviction I can see.`
+        : 'I do not have a confirmed recent eviction in the current game record, so I will not invent one.'
+    }
+    case 'eviction_outlook':
+      if (world.nomineeNames.length === 0) {
+        return 'Nobody is currently on the block, so there is no honest eviction read to give you.'
+      }
+      return `${formatNames(world.nomineeNames)} ${world.nomineeNames.length === 1 ? 'is' : 'are'} currently in danger. I do not have a legitimate view of every private vote, so I will not pretend I know who is leaving.`
+    case 'person_read': {
+      const focus = input.frame?.focusPlayer
+      if (!focus) return 'Name the housemate and I will tell you what I can actually see.'
+      const relationship = world.closestRelationships.find(
+        (row) => normalizeInput(row.name) === normalizeInput(focus)
+      )
+      if (!relationship) {
+        return `I know you are asking about ${focus}, but I do not have enough grounded relationship data to give you a useful read without making something up.`
+      }
+      const tone =
+        relationship.affinity >= 55
+          ? 'one of your stronger connections'
+          : relationship.affinity >= 20
+            ? 'a positive connection'
+            : relationship.affinity > -20
+              ? 'a mixed or neutral connection'
+              : relationship.affinity > -55
+                ? 'a strained connection'
+                : 'one of your most hostile connections'
+      const meaningfulTags = relationship.tags
+        .filter((tag) => ['alliance', 'ally', 'friend', 'rivalry', 'betrayal', 'romance', 'bromance'].includes(tag))
+        .slice(0, 3)
+      const tags = meaningfulTags.length ? ` The relationship is marked by ${meaningfulTags.join(', ')}.` : ''
+      return `${focus} currently reads as ${tone} from your side.${tags} I can describe the relationship; I cannot tell you their secret plan unless the game has actually revealed it.`
+    }
     case 'stats':
       if (!world.playerStats) {
         return 'Your competition record is not available in this view.'
@@ -415,6 +477,117 @@ function resolveKnowledgeReply(
       return `I remember the shape of things: ${readable}. I do not keep a verbatim transcript.`
     }
   }
+}
+
+function groundedSemanticReply(
+  input: LocalBigEyeDirectorInput,
+  frame: BigEyeComprehensionFrame,
+  facts: SceneFacts
+): string | null {
+  const focus = frame.focusPlayer
+  const text = normalizeInput(input.diaryText)
+  const targetStatement = frame.relationshipStatements.find((statement) =>
+    statement.stances.includes('target')
+  )
+  const focusedStatement = frame.relationshipStatements.find(
+    (statement) => statement.player === focus
+  )
+
+  if (frame.speechAct === 'clarification') {
+    const reason = input.state.thread?.contextReason
+    if (reason) return `Plainly: ${reason}`
+    const lastStatement = input.state.thread?.lastEyeStatement
+    if (lastStatement) {
+      return `Fair question. I meant: “${lastStatement}” I am talking about ${focus ?? 'your game'}, not claiming a hidden fact.`
+    }
+    return 'Fair question. I was being more theatrical than useful. Ask me what you want explained, and I will answer it plainly.'
+  }
+
+  if (['i dont', 'dont', 'i do not', 'do not'].includes(text)) {
+    return "You don't what? Finish the thought."
+  }
+
+  if (
+    focus &&
+    frame.speechAct === 'factual_question' &&
+    (frame.topics.includes('trust') || frame.topics.includes('alliance'))
+  ) {
+    return resolveKnowledgeReply('person_read', input, facts)
+  }
+
+  if (frame.speechAct === 'target_declaration' && targetStatement) {
+    const target = targetStatement.player
+    const distrust = targetStatement.stances.includes('distrust')
+    const depend = targetStatement.stances.includes('depend')
+    const otherNamedPlayer = frame.relationshipStatements.find(
+      (statement) => statement.player !== target && statement.stances.length > 0
+    )?.player
+    if (distrust && depend) {
+      return `You do not trust ${target}, you still need them, and you want them gone. Then this is a timing problem, not a loyalty problem. Use the protection while it is useful; do not strike before you can survive losing it.`
+    }
+    return distrust
+      ? `Then ${target} is not merely someone you distrust; ${target} is your target. Clear. Keep the difference between wanting them gone and having the votes to make it happen.`
+      : `${otherNamedPlayer ? `${otherNamedPlayer} is a separate relationship. ` : ''}${target} is your target. Clear. Wanting someone gone is the easy part; making the move without exposing yourself is the game.`
+  }
+
+  if (
+    focus &&
+    /playing (?:his|her|their) own game|playing for (?:himself|herself|themselves)/.test(text)
+  ) {
+    return `Then you see ${focus} as aligned with you only while your interests overlap. That is not automatically betrayal; it is a reason to stop treating the alliance as unconditional.`
+  }
+
+  if (
+    focus &&
+    focusedStatement?.stances.includes('distrust') &&
+    focusedStatement.stances.includes('depend')
+  ) {
+    return `You do not trust ${focus}, but you still need them. That is leverage, not loyalty. Use the relationship if it protects you; do not confuse usefulness with safety.`
+  }
+
+  if (focus && focusedStatement?.stances.includes('distrust')) {
+    if (/out to get me|against me|coming for me/.test(text)) {
+      return `Then your read is that ${focus} is working against you. Treat that as a risk to test, not a secret fact I can confirm. What have they actually done that convinced you?`
+    }
+    return `Your position on ${focus} is clear: you do not trust them. What changed your read—something they did, something they said, or what they refused to do?`
+  }
+
+  if (focus && focusedStatement?.stances.includes('trust')) {
+    return `You trust ${focus}. Good. Now separate the feeling from the evidence: what have they risked for your game that proves it?`
+  }
+
+  if (frame.speechAct === 'agreement') {
+    return focus
+      ? `Good. Then keep the conclusion about ${focus}; you did not need permission, you needed to hear it aloud.`
+      : 'Good. Then keep the conclusion and act on it. Agreement is useful only if it changes what you do next.'
+  }
+
+  if (frame.speechAct === 'disagreement') {
+    if (focus) {
+      return `Then do not let my last question put words in your mouth. We are still talking about ${focus}; tell me the part I have wrong.`
+    }
+    return 'Then disagree with me properly. Which part do you think I have wrong?'
+  }
+
+  if (/my alliance/.test(text) && /betray|turn on|backstab|loyal/.test(text)) {
+    const alliances = (input.world?.alliances ?? []).filter((alliance) => alliance.status !== 'DISSOLVED')
+    if (alliances.length === 0) {
+      return 'You do not currently have a formal active alliance recorded, so I would rather correct the premise than invent a betrayal risk.'
+    }
+    return `I can confirm who is in your alliance; I cannot see a private future betrayal that the game has not revealed. Membership is evidence of a deal, not proof of loyalty. Which member has given you a reason to doubt them?`
+  }
+
+  if (
+    frame.speechAct === 'answer' &&
+    focus &&
+    (input.intent === 'yes' || input.intent === 'no')
+  ) {
+    return input.intent === 'yes'
+      ? `Then we are still talking about ${focus}. Good. What exactly are you agreeing with—the read, the risk, or the move?`
+      : `Then we are still talking about ${focus}. Tell me what part of the read you reject.`
+  }
+
+  return null
 }
 
 function pickConfiguredChallenge(input: LocalBigEyeDirectorInput): string {
@@ -454,8 +627,11 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
   const config = getConfessionalRuntimeConfig()
 
   if (config.features.deterministicKnowledge && frame.knowledgeQuery) {
-    return resolveKnowledgeReply(frame.knowledgeQuery, input, facts)
+    return resolveKnowledgeReply(frame.knowledgeQuery, { ...input, frame }, facts)
   }
+
+  const semanticReply = groundedSemanticReply(input, frame, facts)
+  if (semanticReply) return semanticReply
 
   if (config.features.challengeMe && frame.speechAct === 'challenge_request') {
     return `Very well. ${pickConfiguredChallenge(input)} Come back and tell me what happened.`
@@ -469,21 +645,17 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
     return `${frame.predictedWinner}. Noted. I will remember that prediction when the board looks different.`
   }
 
-  if (
-    frame.speechAct === 'answer' &&
-    frame.focusPlayer &&
-    (input.intent === 'yes' || input.intent === 'no')
-  ) {
-    return input.intent === 'yes'
-      ? `Then we are still talking about ${frame.focusPlayer}. Certainty is useful only if you know what it is built on.`
-      : `Then ${frame.focusPlayer} is not the answer. Who is?`
-  }
-
   const rapportLine = buildRapportLine(input)
   if (rapportLine) return rapportLine
 
-  if (shortAnswerToQuestion(input) && input.intent === 'unknown') {
-    return `That is enough for now. You can answer the question, change the subject, or simply say you do not know.`
+  if (
+    shortAnswerToQuestion(input) &&
+    input.intent === 'unknown' &&
+    !frame.focusPlayer &&
+    frame.relationshipStances.length === 0 &&
+    frame.topics.length === 0
+  ) {
+    return 'I am not going to force meaning into that. Say a little more, or change the subject.'
   }
 
   const candidates = buildContextualCandidates(input, facts)
@@ -524,19 +696,35 @@ export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string
   const additions: string[] = []
   const details = [
     facts.week === null ? null : `Day ${facts.week}`,
-    `topic: ${(frame.topics[0] ?? input.intent).replaceAll('_', ' ')}`,
+    `topic: ${(input.intent === 'unknown' ? (frame.topics[0] ?? input.intent) : input.intent).replaceAll('_', ' ')}`,
     frame.focusPlayer ? `mentioned ${frame.focusPlayer}` : null,
     facts.isNominated ? 'player is nominated' : null,
   ].filter(Boolean)
   additions.push(`Topic — ${details.join('; ')}`)
 
-  if (frame.focusPlayer) {
-    for (const stance of frame.relationshipStances) {
-      if (stance === 'trust') additions.push(`Belief — trusts ${frame.focusPlayer}`)
-      if (stance === 'distrust') additions.push(`Belief — distrusts ${frame.focusPlayer}`)
-      if (stance === 'target') additions.push(`Intent — targeting ${frame.focusPlayer}`)
-      if (stance === 'protect') additions.push(`Intent — protecting ${frame.focusPlayer}`)
-      if (stance === 'depend') additions.push(`Dependency — needs ${frame.focusPlayer}`)
+  const durableRelationshipStatement = ![
+    'factual_question',
+    'relationship_read',
+    'clarification',
+    'memory_query',
+  ].includes(frame.speechAct)
+
+  const durableStatements = frame.relationshipStatements.length
+    ? frame.relationshipStatements
+    : frame.focusPlayer
+      ? [{ player: frame.focusPlayer, stances: frame.relationshipStances }]
+      : []
+  if (durableRelationshipStatement) {
+    for (const statement of durableStatements) {
+      for (const stance of statement.stances) {
+        if (stance === 'trust') additions.push(`Belief — trusts ${statement.player}`)
+        if (stance === 'distrust') additions.push(`Belief — distrusts ${statement.player}`)
+        if (stance === 'target' && frame.speechAct === 'target_declaration') {
+          additions.push(`Intent — targeting ${statement.player}`)
+        }
+        if (stance === 'protect') additions.push(`Intent — protecting ${statement.player}`)
+        if (stance === 'depend') additions.push(`Dependency — needs ${statement.player}`)
+      }
     }
   }
   if (frame.predictedWinner) additions.push(`Prediction — winner: ${frame.predictedWinner}`)

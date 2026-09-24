@@ -347,7 +347,7 @@
   },
   "confessional": {
     "schemaVersion": 1,
-    "revision": "confessional-2.0.0",
+    "revision": "confessional-2.1.0",
     "features": {
       "memoryCallbacks": true,
       "proactiveObservations": true,
@@ -371,7 +371,52 @@
       },
       "slang": {
         "overwhelmed": ["im cooked", "i am cooked", "this is cooked"]
-      }
+      },
+      "trustTerms": [
+        "i trust",
+        "i believe them",
+        "i believe him",
+        "i believe her",
+        "loyal to me",
+        "has my back"
+      ],
+      "distrustTerms": [
+        "dont trust",
+        "do not trust",
+        "lying",
+        "liar",
+        "sketchy",
+        "shady",
+        "snake",
+        "out to get me",
+        "against me",
+        "coming for me"
+      ],
+      "targetTerms": [
+        "target",
+        "vote out",
+        "evict",
+        "get rid of",
+        "take out",
+        "want him out",
+        "want her out",
+        "want them out",
+        "want him gone",
+        "want her gone",
+        "want them gone",
+        "send him home",
+        "send her home",
+        "send them home"
+      ],
+      "dependencyTerms": [
+        "need their vote",
+        "need his vote",
+        "need her vote",
+        "depend on",
+        "need them",
+        "need him",
+        "need her"
+      ]
     },
     "responses": {
       "challengePrompts": [
@@ -381,9 +426,10 @@
       ],
       "intents": {
         "greeting": [
-          "Welcome back. I was already watching.",
-          "You return. Interesting timing.",
-          "The Big Eye is listening. What brought you in?"
+          "Back again. What changed?",
+          "You again. Sit down.",
+          "The Big Eye is listening. Be specific.",
+          "The door is closed. Your turn."
         ],
         "farewell": [
           "Go then. I will keep score.",

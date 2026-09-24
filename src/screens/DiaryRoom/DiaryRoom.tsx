@@ -138,13 +138,13 @@ const SUMMARY_POOL = [
 ]
 
 const FIRST_VISIT_GREETING =
-  'Hello, {name}! Welcome to the confessional. Here your thoughts may be echoed off the walls but your secrets will never leave the safe space. Share away.'
+  'Hello, {name}. Welcome to the Confessional. What you say here stays here. I know what happened in the House; I want to know what it meant to you.'
 
 const RETURNING_VISIT_GREETINGS = [
-  'Welcome back. I am all eyes.',
-  'I have been expecting you.',
-  'Ah, you return.',
-  'Something tells me you are uneasy.',
+  'Back again. What changed?',
+  'You again. Sit down.',
+  'I was wondering when you would come back.',
+  'The door is closed. Your turn.',
 ]
 
 // ─── Secret immunity reward messages ──────────────────────────────────────────
@@ -675,8 +675,60 @@ export default function DiaryRoom() {
         tags: [...(relationship.tags ?? [])],
       }))
       .sort((left, right) => Math.abs(right.affinity) - Math.abs(left.affinity))
-      .slice(0, 6)
+      .slice(0, 20)
     const nameFor = (id: string | null | undefined) => (id ? (playerNameById.get(id) ?? id) : null)
+
+    const formalAlliances = Object.values(realityDomain.alliances ?? {})
+      .filter(
+        (alliance) => alliance.memberIds.includes(playerId) && alliance.status !== 'DISSOLVED'
+      )
+      .map((alliance) => ({
+        id: alliance.id,
+        name: alliance.name?.trim() || null,
+        memberNames: alliance.memberIds.map((id) => nameFor(id) ?? id),
+        status: alliance.status,
+      }))
+
+    const legacyAllianceNames =
+      formalAlliances.length === 0
+        ? relationshipRows
+            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
+            .map((row) => row.name)
+        : []
+
+    const alliances =
+      formalAlliances.length > 0
+        ? formalAlliances
+        : legacyAllianceNames.length > 0
+          ? [
+              {
+                id: 'relationship-allies',
+                name: null,
+                memberNames: [playerName, ...legacyAllianceNames],
+                status: 'ACTIVE',
+              },
+            ]
+          : []
+
+    const publicFeed = gameState.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
+    const recentEvictedNames: string[] = []
+    const pendingEvicteeName = nameFor(gameState.pendingEviction?.evicteeId)
+    if (pendingEvicteeName) recentEvictedNames.push(pendingEvicteeName)
+    for (const eventText of [...publicFeed].reverse()) {
+      const normalized = eventText.toLowerCase()
+      if (
+        !normalized.includes('evicted') &&
+        !normalized.includes('eliminated') &&
+        !normalized.includes('went home') &&
+        !normalized.includes('left the house')
+      ) {
+        continue
+      }
+      const matched = players.find((player) => normalized.includes(player.name.toLowerCase()))
+      if (matched && !recentEvictedNames.includes(matched.name))
+        recentEvictedNames.push(matched.name)
+      if (recentEvictedNames.length >= 2) break
+    }
 
     return {
       season: gameState.season,
@@ -695,19 +747,24 @@ export default function DiaryRoom() {
         timesNominated: userPlayer?.stats?.timesNominated ?? 0,
       },
       closestRelationships: relationshipRows,
-      recentPublicEvents: gameState.tvFeed.slice(-8).map((event) => event.text.slice(0, 280)),
+      alliances,
+      recentEvictedNames,
+      recentPublicEvents: publicFeed.slice(-8),
     }
   }, [
     gameState.lohId,
     gameState.nomineeIds,
+    gameState.pendingEviction,
     gameState.phase,
     gameState.posWinnerId,
     gameState.season,
     gameState.tvFeed,
     gameState.week,
     playerId,
+    playerName,
     playerNameById,
     players,
+    realityDomain.alliances,
     socialRelationships,
     userPlayer,
   ])
@@ -865,8 +922,28 @@ export default function DiaryRoom() {
       return
     }
 
-    const nextConversationState = loadConversationState(gameState.gameId, playerId)
+    const loadedConversationState = loadConversationState(gameState.gameId, playerId)
+    const entryObservation = getSalientConfessionalObservation({
+      previous: loadWorldSnapshot(gameState.gameId, playerId),
+      current: bigEyeWorldRef.current,
+      playerName: playerNameRef.current,
+    })
+    const nextConversationState = entryObservation
+      ? {
+          ...loadedConversationState,
+          thread: {
+            topic: `entry:${entryObservation.event}`,
+            focusPlayer: null,
+            questionKind: 'entry_observation',
+            depth: 1,
+            lastEyeQuestion: null,
+            lastEyeStatement: entryObservation.text,
+            contextReason: entryObservation.text,
+          },
+        }
+      : loadedConversationState
     setConversationState(nextConversationState)
+    saveConversationState(gameState.gameId, playerId, nextConversationState)
     if (confessionalDecisionPendingRef.current) {
       setMessages([])
       saveChat(playerId, [])
@@ -884,11 +961,7 @@ export default function DiaryRoom() {
                 playerNameRef.current,
                 seedRef.current ?? 0,
                 recordConfessionalVisit(playerId),
-                getSalientConfessionalObservation({
-                  previous: loadWorldSnapshot(gameState.gameId, playerId),
-                  current: bigEyeWorldRef.current,
-                  playerName: playerNameRef.current,
-                })?.text
+                entryObservation?.text
               ),
             ]
       const shouldTeachRevealPhrase =
