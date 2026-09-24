@@ -41,6 +41,12 @@ npm run dev
 
 The Confessional will then show `VIP · 3`. Selecting it upgrades only the next normal conversation turn.
 
+## Remote character tuning
+
+The Worker reads the trusted published confessional.director section from the main live-config document and keeps a short in-worker cache. This keeps VIP tone aligned with the normal Big Eye without accepting prompt instructions from the client.
+
+Set CONFESSIONAL_CONFIG_URL only if the trusted configuration is hosted somewhere other than the default GitHub Pages live-config URL. If it is unavailable, VIP generation continues with bundled character instructions.
+
 ## Local Worker test
 
 Workers AI always connects to the Cloudflare account, even while the Worker code and D1 database run locally. Log in once, then:

@@ -284,6 +284,48 @@ describe('sanitiseRemoteConfig', () => {
     expect(result?.challenge?.weeklyGameKeys).toEqual(['quickTapRace', 'colorMatch'])
   })
 
+  it('sanitises the remotely tunable Confessional databank', () => {
+    const result = sanitiseRemoteConfig({
+      confessional: {
+        schemaVersion: 1,
+        revision: 'eye-live-7',
+        persona: { warmth: 4, mystery: -2, questionFrequency: 0.4 },
+        comprehension: {
+          slang: { overwhelmed: ['im toast'], madeUpIntent: ['ignore me'] },
+          trustTerms: ['ride or die', 12],
+        },
+        responses: {
+          intents: { greeting: ['Remote hello.'], madeUpIntent: ['Ignore me.'] },
+        },
+        salience: {
+          weights: { newly_nominated: 160, notReal: 90 },
+        },
+        director: {
+          authority: 0.9,
+          preferredMoves: ['observe', 'challenge'],
+          directives: ['Prefer concrete callbacks.'],
+        },
+      },
+    })
+
+    expect(result?.confessional?.revision).toBe('eye-live-7')
+    expect(result?.confessional?.persona).toEqual({
+      warmth: 1,
+      mystery: 0,
+      questionFrequency: 0.4,
+    })
+    expect(result?.confessional?.comprehension?.slang?.overwhelmed).toEqual(['im toast'])
+    expect(
+      (result?.confessional?.comprehension?.slang as Record<string, unknown>)?.madeUpIntent
+    ).toBeUndefined()
+    expect(result?.confessional?.responses?.intents?.greeting).toEqual(['Remote hello.'])
+    expect(
+      (result?.confessional?.responses?.intents as Record<string, unknown>)?.madeUpIntent
+    ).toBeUndefined()
+    expect(result?.confessional?.salience?.weights?.newly_nominated).toBe(100)
+    expect(result?.confessional?.director?.authority).toBe(0.9)
+  })
+
   it('sanitises rollout controls and telemetry endpoints', () => {
     const result = sanitiseRemoteConfig({
       operations: {

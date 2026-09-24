@@ -6,6 +6,11 @@ import {
   type BigEyeIntent,
 } from '../bb/confessionalBigEye'
 import { directLocalBigEyeReply, updateLocalBigEyeMemory } from '../bb/localBigEyeDirector'
+import {
+  buildBigEyeComprehensionFrame,
+  updateConversationStateFromFrame,
+  type BigEyeComprehensionFrame,
+} from '../bb/confessionalComprehension'
 import { getSecretMissionEasterEggByIntent } from '../bb/secretMissionEasterEggs'
 import { apiUrl } from '../utils/apiBase'
 
@@ -65,6 +70,8 @@ export interface BigBrotherPayload {
   history?: BigEyeHistoryTurn[]
   memorySummary?: string
   world?: BigEyeWorldContext
+  /** Skip the ordinary generative director when another reply path (for example VIP) owns this turn. */
+  skipDirector?: boolean
 }
 
 export interface BigBrotherResponse {
@@ -77,6 +84,8 @@ export interface BigBrotherResponse {
   memorySummary: string
   performance: BigEyePerformance
   source: 'ai' | 'offline'
+  /** False when a deterministic authored/knowledge turn should not consume a VIP credit. */
+  vipEligible: boolean
 }
 
 export type { BigEyeConversationState, BigEyeAction, BigEyeIntent }
@@ -176,7 +185,8 @@ interface DirectorResponse {
 
 async function requestDirectorReply(
   payload: BigBrotherPayload,
-  intent: BigEyeIntent
+  intent: BigEyeIntent,
+  comprehension: BigEyeComprehensionFrame
 ): Promise<DirectorResponse | null> {
   if (import.meta.env.MODE === 'test' || import.meta.env.VITE_BIG_EYE_AI_ENABLED !== 'true') {
     return null
@@ -194,6 +204,7 @@ async function requestDirectorReply(
         phase: payload.phase,
         seed: payload.seed,
         intent,
+        comprehension,
         history: payload.history?.slice(-12),
         memorySummary: payload.memorySummary?.slice(0, 1800) ?? '',
         world: payload.world,
@@ -215,56 +226,95 @@ export async function generateBigBrotherReply(
   payload: BigBrotherPayload
 ): Promise<BigBrotherResponse> {
   const state = payload.state ?? createInitialBigEyeState()
-  // Local classification owns game actions. The generative director is only
-  // allowed to improve dialogue and performance, never mutate the game.
+  // Local classification owns game actions. The generative director may improve
+  // open conversation, but it never owns or rewrites deterministic game flows.
   const reply = resolveBigEyeTurn(payload.diaryText, payload, state)
-  const directed = await requestDirectorReply(payload, reply.intent)
-  const directedText = typeof directed?.text === 'string' ? directed.text.trim() : ''
+  const frame = buildBigEyeComprehensionFrame({
+    text: payload.diaryText,
+    intent: reply.intent,
+    state,
+    world: payload.world,
+    memorySummary: payload.memorySummary,
+  })
+  const semanticIntent = frame.primaryIntent
+  const discoveredEgg = getSecretMissionEasterEggByIntent(reply.intent)
   const preserveAuthoredFlow = Boolean(
-    reply.action || state.lastQuestion || getSecretMissionEasterEggByIntent(reply.intent)
+    reply.action || state.lastQuestion || reply.nextState.lastQuestion || discoveredEgg
   )
+  const preserveDeterministicIntelligence = Boolean(
+    frame.knowledgeQuery ||
+    frame.contradiction ||
+    frame.speechAct === 'challenge_request' ||
+    frame.speechAct === 'prediction' ||
+    frame.speechAct === 'answer'
+  )
+  const shouldUseDirector =
+    !payload.skipDirector && !preserveAuthoredFlow && !preserveDeterministicIntelligence
+  const directed = shouldUseDirector
+    ? await requestDirectorReply(payload, semanticIntent, frame)
+    : null
+  const directedText = typeof directed?.text === 'string' ? directed.text.trim() : ''
+
   const localDirectedText = preserveAuthoredFlow
     ? reply.text
     : directLocalBigEyeReply({
         diaryText: payload.diaryText,
         playerName: payload.playerName,
         seed: payload.seed,
-        intent: reply.intent,
+        intent: semanticIntent,
         state,
         history: payload.history,
         memorySummary: payload.memorySummary,
         world: payload.world,
+        frame,
       }) || reply.text
+
+  const spokenText = directedText || localDirectedText
+  const localMemory = updateLocalBigEyeMemory({
+    diaryText: payload.diaryText,
+    playerName: payload.playerName,
+    seed: payload.seed,
+    intent: semanticIntent,
+    state,
+    history: payload.history,
+    memorySummary: payload.memorySummary,
+    world: payload.world,
+    frame,
+  })
   const directedMemory =
-    typeof directed?.memorySummary === 'string'
-      ? directed.memorySummary.trim().slice(0, 1800)
-      : updateLocalBigEyeMemory({
-          diaryText: payload.diaryText,
-          playerName: payload.playerName,
-          seed: payload.seed,
-          intent: reply.intent,
-          state,
-          history: payload.history,
-          memorySummary: payload.memorySummary,
-          world: payload.world,
-        })
+    typeof directed?.memorySummary === 'string' ? directed.memorySummary.trim().slice(0, 900) : ''
+  const memorySummary = directedMemory
+    ? [
+        directedMemory,
+        ...localMemory
+          .split('\n')
+          .filter((line) => /^(Belief|Intent|Dependency|Prediction|Concern|Topic) — /.test(line)),
+      ]
+        .filter(Boolean)
+        .slice(-12)
+        .join('\n')
+        .slice(0, 1800)
+    : localMemory
+
+  const nextState = updateConversationStateFromFrame(reply.nextState, frame, spokenText)
   const performance = isPerformance(directed?.performance)
     ? {
         ...directed.performance,
         intensity: clamp(directed.performance.intensity, 0, 1),
         pauseBeforeMs: clamp(Math.round(directed.performance.pauseBeforeMs), 250, 2400),
       }
-    : offlinePerformance(reply.intent, reply.nextState.mood)
+    : offlinePerformance(semanticIntent, nextState.mood)
 
   return {
-    text: directedText || localDirectedText,
-    reason: reply.intent,
-    intent: reply.intent,
-    nextState: reply.nextState,
+    text: spokenText,
+    reason: semanticIntent,
+    intent: semanticIntent,
+    nextState,
     delayMs: reply.delayMs,
     action: reply.action,
-    memorySummary: directedMemory,
+    memorySummary,
     performance,
     source: directedText ? 'ai' : 'offline',
+    vipEligible: !preserveAuthoredFlow && !preserveDeterministicIntelligence,
   }
 }

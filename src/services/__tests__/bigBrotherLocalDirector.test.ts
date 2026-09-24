@@ -117,4 +117,66 @@ describe('free local Big Eye conversation', () => {
       expect(response.text).toBe(authored.text)
     }
   })
+
+  it('answers factual game questions deterministically without spending VIP', async () => {
+    const response = await generateBigBrotherReply({
+      diaryText: 'Who is the leader right now?',
+      playerName: 'Alex',
+      seed: 9,
+      state: createInitialBigEyeState(),
+      history: [],
+      memorySummary: '',
+      world,
+      skipDirector: true,
+    })
+
+    expect(response.text).toContain('Jordan')
+    expect(response.vipEligible).toBe(false)
+    expect(response.source).toBe('offline')
+  })
+
+  it('keeps authored follow-up flows deterministic', async () => {
+    const response = await generateBigBrotherReply({
+      diaryText: 'I am bored',
+      playerName: 'Alex',
+      seed: 7,
+      state: createInitialBigEyeState(),
+      history: [],
+      memorySummary: '',
+      world,
+    })
+
+    expect(response.nextState.lastQuestion).toBe('offer_game')
+    expect(response.text).toMatch(/game|tic tac toe|board/i)
+    expect(response.vipEligible).toBe(false)
+  })
+
+  it('carries named conversation focus into a short yes response', async () => {
+    const first = await generateBigBrotherReply({
+      diaryText: 'I do not know if I trust Maya',
+      playerName: 'Alex',
+      seed: 7,
+      state: createInitialBigEyeState(),
+      history: [],
+      memorySummary: '',
+      world,
+      skipDirector: true,
+    })
+    const second = await generateBigBrotherReply({
+      diaryText: 'yes',
+      playerName: 'Alex',
+      seed: 8,
+      state: first.nextState,
+      history: [
+        { role: 'user', text: 'I do not know if I trust Maya' },
+        { role: 'bb', text: first.text },
+      ],
+      memorySummary: first.memorySummary,
+      world,
+      skipDirector: true,
+    })
+
+    expect(second.text).toContain('Maya')
+    expect(second.nextState.thread?.focusPlayer).toBe('Maya')
+  })
 })

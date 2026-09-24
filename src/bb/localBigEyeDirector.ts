@@ -3,6 +3,12 @@ import {
   type BigEyeConversationState,
   type BigEyeIntent,
 } from './confessionalBigEye'
+import {
+  buildBigEyeComprehensionFrame,
+  type BigEyeComprehensionFrame,
+  type ConfessionalKnowledgeQuery,
+} from './confessionalComprehension'
+import { getConfessionalRuntimeConfig } from './confessionalRuntimeConfig'
 
 export interface LocalBigEyeHistoryTurn {
   role: 'user' | 'bb'
@@ -22,6 +28,12 @@ export interface LocalBigEyeWorld {
     affinity: number
     tags: string[]
   }>
+  playerStats?: {
+    leaderWins: number
+    safetyWins: number
+    timesNominated: number
+  }
+  recentPublicEvents?: string[]
 }
 
 export interface LocalBigEyeDirectorInput {
@@ -33,6 +45,7 @@ export interface LocalBigEyeDirectorInput {
   history?: LocalBigEyeHistoryTurn[]
   memorySummary?: string
   world?: LocalBigEyeWorld
+  frame?: BigEyeComprehensionFrame
 }
 
 interface SceneFacts {
@@ -332,8 +345,142 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
   }
 }
 
+function formatNames(names: string[]): string {
+  if (names.length === 0) return 'nobody'
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+function resolveKnowledgeReply(
+  query: ConfessionalKnowledgeQuery,
+  input: LocalBigEyeDirectorInput,
+  facts: SceneFacts
+): string {
+  const world = input.world
+  if (!world) return 'I do not have enough of the board in view to answer that cleanly.'
+
+  switch (query) {
+    case 'leader':
+      return world.leaderName
+        ? world.leaderName === facts.name
+          ? 'You are the Leader right now. Try not to look surprised.'
+          : `${world.leaderName} is the current Leader.`
+        : 'There is no current Leader recorded in the board I can see.'
+    case 'nominees':
+      if (world.nomineeNames.length === 0) return 'Nobody is currently recorded on the block.'
+      return world.nomineeNames.some(
+        (name) => normalizeInput(name) === normalizeInput(facts.name)
+      )
+        ? `You are on the block with ${formatNames(
+            world.nomineeNames.filter(
+              (name) => normalizeInput(name) !== normalizeInput(facts.name)
+            )
+          )}.`
+        : `The current nominees are ${formatNames(world.nomineeNames)}.`
+    case 'remaining':
+      return `${world.remainingHousemates.length} housemates remain: ${formatNames(
+        world.remainingHousemates
+      )}.`
+    case 'closest_relationship': {
+      const closest = world.closestRelationships[0]
+      if (!closest) return 'I do not have a strong enough relationship signal to name one.'
+      return `${closest.name} is the connection currently reading strongest from the information available to me. That is not a promise of loyalty.`
+    }
+    case 'stats':
+      if (!world.playerStats) {
+        return 'Your competition record is not available in this view.'
+      }
+      return `Your record: ${world.playerStats.leaderWins} Leader win${world.playerStats.leaderWins === 1 ? '' : 's'}, ${world.playerStats.safetyWins} Safety win${world.playerStats.safetyWins === 1 ? '' : 's'}, and ${world.playerStats.timesNominated} nomination${world.playerStats.timesNominated === 1 ? '' : 's'}.`
+    case 'recent_events': {
+      const events = world.recentPublicEvents?.slice(-2) ?? []
+      return events.length
+        ? `Most recently: ${events.join(' ')}`
+        : 'Nothing recent is recorded strongly enough for me to recap.'
+    }
+    case 'phase':
+      return `You are on Day ${world.week}, during ${world.phase.replaceAll('_', ' ')}.`
+    case 'memory': {
+      const notes = (input.memorySummary ?? '')
+        .split('\n')
+        .map((note) => note.trim())
+        .filter(Boolean)
+        .slice(-5)
+      if (notes.length === 0) {
+        return 'Not much yet. I remember patterns, promises, concerns and predictions—not a verbatim transcript.'
+      }
+      const readable = notes
+        .map((note) => note.replace(/^(Local note|Topic|Belief|Intent|Dependency|Prediction|Concern) — /, ''))
+        .join('; ')
+      return `I remember the shape of things: ${readable}. I do not keep a verbatim transcript.`
+    }
+  }
+}
+
+function pickConfiguredChallenge(input: LocalBigEyeDirectorInput): string {
+  const prompts = getConfessionalRuntimeConfig().responses.challengePrompts
+  return choose(prompts, input)
+}
+
+function buildRapportLine(input: LocalBigEyeDirectorInput): string | null {
+  const config = getConfessionalRuntimeConfig()
+  const familiarity = input.state.rapport?.familiarity ?? 0
+  const familiarThreshold = 4 + Math.round((1 - config.persona.warmth) * 3)
+  const closeThreshold = familiarThreshold + 6
+  if (familiarity < familiarThreshold) return null
+  if (input.intent === 'greeting') {
+    if (familiarity >= closeThreshold) {
+      return 'You again. I was wondering when you would come back.'
+    }
+    return 'Back already. Sit down.'
+  }
+  if (input.intent === 'farewell' && familiarity >= familiarThreshold + 3) {
+    return 'Go on, then. I will still be here when the next thought becomes too loud.'
+  }
+  return null
+}
+
 export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string | null {
   const facts = getSceneFacts(input)
+  const frame =
+    input.frame ??
+    buildBigEyeComprehensionFrame({
+      text: input.diaryText,
+      intent: input.intent,
+      state: input.state,
+      world: input.world,
+      memorySummary: input.memorySummary,
+    })
+  const config = getConfessionalRuntimeConfig()
+
+  if (config.features.deterministicKnowledge && frame.knowledgeQuery) {
+    return resolveKnowledgeReply(frame.knowledgeQuery, input, facts)
+  }
+
+  if (config.features.challengeMe && frame.speechAct === 'challenge_request') {
+    return `Very well. ${pickConfiguredChallenge(input)} Come back and tell me what happened.`
+  }
+
+  if (frame.contradiction && config.features.memoryCallbacks) {
+    return `${frame.contradiction} What changed?`
+  }
+
+  if (frame.speechAct === 'prediction' && frame.predictedWinner) {
+    return `${frame.predictedWinner}. Noted. I will remember that prediction when the board looks different.`
+  }
+
+  if (
+    frame.speechAct === 'answer' &&
+    frame.focusPlayer &&
+    (input.intent === 'yes' || input.intent === 'no')
+  ) {
+    return input.intent === 'yes'
+      ? `Then we are still talking about ${frame.focusPlayer}. Certainty is useful only if you know what it is built on.`
+      : `Then ${frame.focusPlayer} is not the answer. Who is?`
+  }
+
+  const rapportLine = buildRapportLine(input)
+  if (rapportLine) return rapportLine
 
   if (shortAnswerToQuestion(input) && input.intent === 'unknown') {
     return `That is enough for now. You can answer the question, change the subject, or simply say you do not know.`
@@ -360,17 +507,55 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
 
 export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string {
   const facts = getSceneFacts(input)
+  const frame =
+    input.frame ??
+    buildBigEyeComprehensionFrame({
+      text: input.diaryText,
+      intent: input.intent,
+      state: input.state,
+      world: input.world,
+      memorySummary: input.memorySummary,
+    })
   const existingNotes = (input.memorySummary ?? '')
     .split('\n')
     .map((note) => note.trim())
     .filter(Boolean)
+
+  const additions: string[] = []
   const details = [
-    facts.week === null ? null : `Week ${facts.week}`,
-    `topic: ${input.intent.replaceAll('_', ' ')}`,
-    facts.mentionedHousemate ? `mentioned ${facts.mentionedHousemate}` : null,
+    facts.week === null ? null : `Day ${facts.week}`,
+    `topic: ${(frame.topics[0] ?? input.intent).replaceAll('_', ' ')}`,
+    frame.focusPlayer ? `mentioned ${frame.focusPlayer}` : null,
     facts.isNominated ? 'player is nominated' : null,
   ].filter(Boolean)
-  const newNote = `Local note — ${details.join('; ')}`
-  const notes = [...existingNotes.filter((note) => note !== newNote), newNote].slice(-8)
-  return notes.join('\n').slice(0, 1800)
+  additions.push(`Topic — ${details.join('; ')}`)
+
+  if (frame.focusPlayer) {
+    for (const stance of frame.relationshipStances) {
+      if (stance === 'trust') additions.push(`Belief — trusts ${frame.focusPlayer}`)
+      if (stance === 'distrust') additions.push(`Belief — distrusts ${frame.focusPlayer}`)
+      if (stance === 'target') additions.push(`Intent — targeting ${frame.focusPlayer}`)
+      if (stance === 'protect') additions.push(`Intent — protecting ${frame.focusPlayer}`)
+      if (stance === 'depend') additions.push(`Dependency — needs ${frame.focusPlayer}`)
+    }
+  }
+  if (frame.predictedWinner) additions.push(`Prediction — winner: ${frame.predictedWinner}`)
+  if (frame.emotions[0] && frame.emotions[0].score >= 0.65) {
+    additions.push(
+      `Concern — ${frame.emotions[0].type}${frame.focusPlayer ? ` involving ${frame.focusPlayer}` : ''}`
+    )
+  }
+
+  let notes = [...existingNotes]
+  for (const addition of additions) {
+    const prefix = addition.split(' — ')[0]
+    const subject = frame.focusPlayer ? normalizeInput(frame.focusPlayer) : ''
+    notes = notes.filter((note) => {
+      if (note === addition) return false
+      if (!subject) return true
+      return !(note.startsWith(`${prefix} — `) && normalizeInput(note).includes(subject))
+    })
+    notes.push(addition)
+  }
+  return notes.slice(-12).join('\n').slice(0, 1800)
 }

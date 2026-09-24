@@ -5,6 +5,8 @@ interface Env {
   VIP_DB: D1Database
   ALLOWED_ORIGINS?: string
   ADMIN_SECRET?: string
+  /** Trusted published Big Eye config. Never supplied by the client request. */
+  CONFESSIONAL_CONFIG_URL?: string
 }
 
 type Plan = 'free' | 'subscriber'
@@ -45,6 +47,91 @@ const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast'
 const FREE_SEASON_LIMIT = 3
 const SUBSCRIBER_DAILY_LIMIT = 5
 const MAX_REPLY_CHARS = 1_200
+const DEFAULT_CONFESSIONAL_CONFIG_URL =
+  'https://georgi-cole.github.io/bbmobilenew/config/live-config.json'
+const DIRECTOR_CONFIG_TTL_MS = 5 * 60 * 1000
+
+interface RemoteDirectorTuning {
+  authority?: number
+  warmth?: number
+  humour?: number
+  mystery?: number
+  verbosity?: number
+  preferredMoves?: string[]
+  forbiddenCliches?: string[]
+  directives?: string[]
+}
+
+let cachedDirectorTuning: { expiresAt: number; value: RemoteDirectorTuning | null } = {
+  expiresAt: 0,
+  value: null,
+}
+
+function safeDirectorStrings(value: unknown, maxItems: number, maxLength: number): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim().slice(0, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems)
+}
+
+function safeDirectorNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.max(0, Math.min(1, value))
+}
+
+function sanitiseDirectorTuning(value: unknown): RemoteDirectorTuning | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const raw = value as Record<string, unknown>
+  return {
+    authority: safeDirectorNumber(raw.authority),
+    warmth: safeDirectorNumber(raw.warmth),
+    humour: safeDirectorNumber(raw.humour),
+    mystery: safeDirectorNumber(raw.mystery),
+    verbosity: safeDirectorNumber(raw.verbosity),
+    preferredMoves: safeDirectorStrings(raw.preferredMoves, 20, 60),
+    forbiddenCliches: safeDirectorStrings(raw.forbiddenCliches, 40, 120),
+    directives: safeDirectorStrings(raw.directives, 30, 240),
+  }
+}
+
+async function getDirectorTuning(env: Env): Promise<RemoteDirectorTuning | null> {
+  const now = Date.now()
+  if (cachedDirectorTuning.expiresAt > now) return cachedDirectorTuning.value
+
+  const url = env.CONFESSIONAL_CONFIG_URL?.trim() || DEFAULT_CONFESSIONAL_CONFIG_URL
+  try {
+    const response = await fetch(url, { headers: { Accept: 'application/json' } })
+    if (!response.ok) throw new Error('config unavailable')
+    const json = (await response.json()) as { confessional?: { director?: unknown } }
+    const value = sanitiseDirectorTuning(json.confessional?.director)
+    cachedDirectorTuning = { value, expiresAt: now + DIRECTOR_CONFIG_TTL_MS }
+    return value
+  } catch {
+    cachedDirectorTuning.expiresAt = now + 60_000
+    return cachedDirectorTuning.value
+  }
+}
+
+function directorTuningText(tuning: RemoteDirectorTuning | null): string {
+  if (!tuning) return ''
+  const lines = [
+    tuning.authority !== undefined ? `Authority: ${tuning.authority.toFixed(2)}/1.` : '',
+    tuning.warmth !== undefined ? `Selective warmth: ${tuning.warmth.toFixed(2)}/1.` : '',
+    tuning.humour !== undefined ? `Dry humour: ${tuning.humour.toFixed(2)}/1.` : '',
+    tuning.mystery !== undefined ? `Mystery: ${tuning.mystery.toFixed(2)}/1.` : '',
+    tuning.verbosity !== undefined ? `Verbosity: ${tuning.verbosity.toFixed(2)}/1.` : '',
+    tuning.preferredMoves?.length
+      ? `Prefer these conversational moves: ${tuning.preferredMoves.join(', ')}.`
+      : '',
+    tuning.forbiddenCliches?.length
+      ? `Avoid these clichés: ${tuning.forbiddenCliches.join('; ')}.`
+      : '',
+    ...(tuning.directives ?? []),
+  ].filter(Boolean)
+  return lines.length ? `\nLive character tuning:\n${lines.join('\n')}` : ''
+}
 
 function allowedOrigins(env: Env): Set<string> {
   return new Set(
@@ -284,7 +371,8 @@ function compact(value: unknown, maxChars: number): string {
 }
 
 function buildMessages(
-  payload: ReplyPayload
+  payload: ReplyPayload,
+  directorTuning: RemoteDirectorTuning | null = null
 ): Array<{ role: 'system' | 'user' | 'assistant'; content: string }> {
   const playerName = compact(payload.playerName, 80) || 'Housemate'
   const current = compact(payload.diaryText, 600)
@@ -314,7 +402,7 @@ Make the housemate feel accurately heard:
 Housemate: ${playerName}
 Detected intent: ${compact(payload.intent, 80)}
 Private memory: ${compact(payload.memorySummary, 1800) || 'None yet.'}
-Current game context: ${compact(payload.world, 3600) || 'Unavailable.'}`
+Current game context: ${compact(payload.world, 3600) || 'Unavailable.'}${directorTuningText(directorTuning)}`
 
   return [{ role: 'system', content: system }, ...history, { role: 'user', content: current }]
 }
@@ -434,8 +522,9 @@ async function handleReply(request: Request, env: Env): Promise<Response> {
   }
 
   try {
+    const directorTuning = await getDirectorTuning(env)
     const result = await env.AI.run(MODEL, {
-      messages: buildMessages({ ...payload, diaryText }),
+      messages: buildMessages({ ...payload, diaryText }, directorTuning),
       max_tokens: 180,
       temperature: 0.78,
       top_p: 0.92,

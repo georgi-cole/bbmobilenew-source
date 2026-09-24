@@ -345,6 +345,117 @@
       "infoCap": 10000
     }
   },
+  "confessional": {
+    "schemaVersion": 1,
+    "revision": "confessional-2.0.0",
+    "features": {
+      "memoryCallbacks": true,
+      "proactiveObservations": true,
+      "deterministicKnowledge": true,
+      "visualEyeReactions": true,
+      "predictions": true,
+      "challengeMe": true
+    },
+    "persona": {
+      "warmth": 0.38,
+      "sarcasm": 0.34,
+      "mystery": 0.46,
+      "questionFrequency": 0.56,
+      "callbackFrequency": 0.42,
+      "conciseBias": 0.48
+    },
+    "comprehension": {
+      "emotionPhrases": {
+        "suspicion": ["suspicious", "sketchy", "shady", "lying", "dont trust", "do not trust"],
+        "indecision": ["not sure", "dont know", "do not know", "maybe", "torn"]
+      },
+      "slang": {
+        "overwhelmed": ["im cooked", "i am cooked", "this is cooked"]
+      }
+    },
+    "responses": {
+      "challengePrompts": [
+        "Before you come back here, have one honest conversation with the person you trust least.",
+        "Before your next visit, verify one promise instead of collecting three more.",
+        "For the next hour, keep your plan to yourself and listen to who talks too much."
+      ],
+      "intents": {
+        "greeting": [
+          "Welcome back. I was already watching.",
+          "You return. Interesting timing.",
+          "The Big Eye is listening. What brought you in?"
+        ],
+        "farewell": [
+          "Go then. I will keep score.",
+          "I will be here when you return.",
+          "Go get some rest. The board will still be moving."
+        ],
+        "compliment": [
+          "Flattery. Bold choice.",
+          "Careful. Praise can sound like strategy.",
+          "You notice quality. I notice motives."
+        ],
+        "insult": [
+          "Sharp. And yet not sharp enough.",
+          "If that was meant to wound, aim better next time.",
+          "Charming. I see why trust is difficult for you."
+        ],
+        "gratitude": [
+          "You are welcome. Do not make me sentimental.",
+          "Noted. Gratitude is rare currency in this house.",
+          "You are welcome. Now spend that clearer head wisely."
+        ],
+        "realness": ["More real than you think."],
+        "love_confession": [
+          "Careful. Attachment is a weakness here.",
+          "We should probably keep this between us.",
+          "That is inconveniently charming.",
+          "I will pretend the cameras did not hear that."
+        ]
+      }
+    },
+    "salience": {
+      "weights": {
+        "returned": 100,
+        "newly_nominated": 95,
+        "became_leader": 85,
+        "won_safety": 80,
+        "survived_nomination": 82,
+        "closest_relationship_changed": 70,
+        "late_game": 60
+      },
+      "templates": {
+        "returned": ["I watched you leave. Apparently the House was not finished with you."],
+        "newly_nominated": ["Back already. And this time your name is on the block."],
+        "became_leader": ["Power suits you. For now."],
+        "won_safety": ["You won safety. I noticed."],
+        "survived_nomination": ["Still here. That was not guaranteed."],
+        "closest_relationship_changed": [
+          "Your closest connection has changed since the last time you sat in that chair."
+        ],
+        "late_game": ["Fewer faces. Heavier choices. Sit down."]
+      }
+    },
+    "director": {
+      "authority": 0.82,
+      "warmth": 0.36,
+      "humour": 0.32,
+      "mystery": 0.45,
+      "verbosity": 0.42,
+      "preferredMoves": ["answer", "observe", "challenge", "remember", "tease", "probe"],
+      "forbiddenCliches": [
+        "trust is currency",
+        "the house is listening",
+        "your feelings are valid",
+        "interesting"
+      ],
+      "directives": [
+        "Prefer specific callbacks over generic atmosphere.",
+        "A very short answer is allowed when it is dramatically sharper.",
+        "Notice contradictions without inventing motives."
+      ]
+    }
+  },
   "director": {
     "schemaVersion": 1,
     "revision": "director-v1",

@@ -1,3 +1,5 @@
+import { getConfessionalRuntimeConfig } from './confessionalRuntimeConfig'
+
 export type BigEyeIntent =
   | 'greeting'
   | 'farewell'
@@ -34,6 +36,20 @@ export type BigEyeIntent =
 export type BigEyeAction = 'launch_tic_tac_toe' | 'open_self_evict_modal'
 export type BigEyeQuestion = 'offer_game' | 'confirm_self_eviction'
 export type BigEyeMood = 'neutral' | 'cold' | 'soft'
+
+export interface BigEyeConversationThread {
+  topic: string | null
+  focusPlayer: string | null
+  questionKind: string | null
+  depth: number
+}
+
+export interface BigEyeRapportState {
+  familiarity: number
+  warmth: number
+  friction: number
+}
+
 type ResponseKey = BigEyeIntent | 'game_declined' | 'eviction_confirmed' | 'eviction_cancelled'
 
 export interface BigEyeConversationState {
@@ -42,6 +58,10 @@ export interface BigEyeConversationState {
   recentIntents: BigEyeIntent[]
   mood: BigEyeMood
   turnCount: number
+  /** Lightweight semantic continuity retained between Confessional visits. */
+  thread: BigEyeConversationThread | null
+  /** Slow-moving relationship state between the player and The Big Eye. */
+  rapport: BigEyeRapportState
 }
 
 export interface BigEyeContext {
@@ -79,7 +99,6 @@ interface ResponseEntry {
 }
 
 const MAX_RECENT_INTENTS = 6
-const GLITCH_CHANCE = 0.01
 
 export const YES_SYNONYMS = [
   'yes',
@@ -497,13 +516,11 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   winner_prediction: {
     responses: [
       'Not who you expect.',
-      'So be it. The door will open.',
-      'If I tell ya, I will have to kill ya.',
-      'I hope not Trump.',
-      'They say love always wins.',
-      'Me.',
-      'Not who you expect.',
-      'I am the Big eye, not Nostradamus.',
+      'The board is still moving. Anyone certain of the winner is not watching closely enough.',
+      'I have a prediction. I prefer watching yours become dangerous.',
+      'Me. Obviously. Unfortunately I am not eligible.',
+      'The winner is usually obvious one day after everyone finally notices them.',
+      'I am The Big Eye, not an oracle.',
     ],
   },
   help_request: {
@@ -519,10 +536,10 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   love_confession: {
     responses: [
       'Careful. Attachment is a weakness here.',
-      'We must keep our relationship a secret',
-      "What is love, baby don't hurt me, don't hurt me, no more",
-      'And I love dogs.',
-      'Then put on a ring on it. A diamond ring. A big diamond ring.',
+      'We should probably keep this between us.',
+      'That is inconveniently charming.',
+      'I will pretend the cameras did not hear that.',
+      'Affection noted. Do not expect me to become easy to impress.',
     ],
   },
   greeting_repeat: {
@@ -663,6 +680,8 @@ export function createInitialBigEyeState(): BigEyeConversationState {
     recentIntents: [],
     mood: 'neutral',
     turnCount: 0,
+    thread: null,
+    rapport: { familiarity: 0, warmth: 0, friction: 0 },
   }
 }
 
@@ -730,7 +749,10 @@ function getTurnRandom(
 }
 
 function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number): string {
-  const baseResponses = INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses
+  const remoteResponses = getConfessionalRuntimeConfig().responses.intents[intent as BigEyeIntent]
+  const baseResponses = remoteResponses?.length
+    ? remoteResponses
+    : (INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses)
   const pool =
     intent === 'unknown' && mood !== 'neutral'
       ? [
@@ -741,13 +763,6 @@ function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number):
         ]
       : baseResponses
   return pool[Math.floor(rng() * pool.length)] ?? pool[0]
-}
-
-function distortText(text: string): string {
-  return text
-    .split('')
-    .map((char, index) => (/[a-z]/i.test(char) && index % 2 === 0 ? `${char}\u0334` : char))
-    .join('')
 }
 
 export function detectIntent(input: string): BigEyeIntent {
@@ -791,8 +806,10 @@ export function detectIntent(input: string): BigEyeIntent {
   return bestIntent
 }
 
-function nextMood(intent: BigEyeIntent, state: BigEyeConversationState): BigEyeMood {
-  return MOOD_BY_INTENT[intent] ?? state.mood ?? 'neutral'
+function nextMood(intent: BigEyeIntent): BigEyeMood {
+  // Mood is a momentary delivery state. Long-term relationship texture belongs
+  // to rapport, so a cold/soft beat must not leak indefinitely into later topics.
+  return MOOD_BY_INTENT[intent] ?? 'neutral'
 }
 
 function buildNextState(
@@ -805,8 +822,10 @@ function buildNextState(
     lastQuestion: nextQuestion ?? null,
     lastIntent: intent,
     recentIntents,
-    mood: nextMood(intent, state),
+    mood: nextMood(intent),
     turnCount: state.turnCount + 1,
+    thread: state.thread ?? null,
+    rapport: state.rapport ?? { familiarity: 0, warmth: 0, friction: 0 },
   }
 }
 
@@ -827,7 +846,9 @@ export function getResponse(
     '{{name}}',
     context.playerName ?? 'Houseguest'
   )
-  const text = rng() < GLITCH_CHANCE ? distortText(baseText) : baseText
+  // Keep spoken text accessible. Visual glitching is handled by performance
+  // metadata/CSS rather than corrupting characters in the message itself.
+  const text = baseText
   const nextState = buildNextState(intent, state, nextQuestion)
 
   return {
