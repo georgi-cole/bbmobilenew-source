@@ -159,8 +159,8 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
       {
         text: "Maya is sketchy and lying to me, but I need her vote and I am scared she'll put me up.",
         expected: {
-          detectedIntent: 'strategy',
-          semanticIntent: 'strategy',
+          detectedIntent: 'fear',
+          semanticIntent: 'fear',
           route: 'generative',
           focusPlayer: 'Maya',
           topicsAll: ['strategy', 'nomination'],
