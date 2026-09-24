@@ -676,7 +676,7 @@ export interface FavoritePlayerState {
   votes: Record<string, number>
   /** ID of the winner once voting completes; null while in progress. */
   winnerId: string | null
-  /** Cash award amount for the winner (dollars). */
+  /** Eyeolean award amount for the Public Favorite winner. */
   awardAmount: number
 }
 
