@@ -4,6 +4,7 @@ import {
   computeSeasonEyeoleanRewards,
   EYEOLEAN_REWARD_AMOUNTS,
   totalEyeoleanRewards,
+  PUBLIC_FAVORITE_FORECAST_EYEOLEANS,
 } from './eyeoleans'
 
 function summary(overrides: Partial<PlayerSeasonSummary> = {}): PlayerSeasonSummary {
@@ -30,7 +31,7 @@ describe('Eyeolean season economy', () => {
       })
     )
 
-    expect(totalEyeoleanRewards(rewards)).toBe(193_000)
+    expect(totalEyeoleanRewards(rewards)).toBe(163_000)
     expect(rewards.map((reward) => reward.code)).toEqual(
       expect.arrayContaining([
         'season_winner',
@@ -72,5 +73,6 @@ describe('Eyeolean season economy', () => {
 
     expect(rewards).toEqual([])
     expect(EYEOLEAN_REWARD_AMOUNTS.publicFavorite).toBe(25_000)
+    expect(PUBLIC_FAVORITE_FORECAST_EYEOLEANS).toBe(5_000)
   })
 })
