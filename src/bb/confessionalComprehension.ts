@@ -338,6 +338,15 @@ export function buildBigEyeComprehensionFrame(input: {
     knowledgeQuery,
     predictedWinner
   )
+  if (
+    speechAct === 'target_declaration' &&
+    (primaryIntent === 'unknown' || primaryIntent === 'curiosity' || primaryIntent === 'alliance')
+  ) {
+    primaryIntent = 'strategy'
+  }
+  if (speechAct === 'target_declaration' && !relationshipStances.includes('target')) {
+    relationshipStances.push('target')
+  }
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
     input.state.thread &&
