@@ -32,6 +32,7 @@ import type { BroadcastOverride, CustomBroadcastMessage, Phase, TvEvent } from '
 import { ALL_BROADCAST_PHASES, BROADCAST_CAMPAIGNS } from '../broadcasting/broadcastTemplateCatalog'
 import { sanitiseSocialActionOverrides } from '../social/socialActionManager'
 import { sanitiseRemoteSeasonDirectorConfig } from '../features/twists/seasonDirector'
+import { sanitiseRemoteConfessionalConfig } from '../bb/confessionalRuntimeConfig'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -370,6 +371,9 @@ export function sanitiseRemoteConfig(raw: unknown): RemoteConfig | null {
 
   const r = raw as Record<string, unknown>
   const config: RemoteConfig = {}
+
+  const confessional = sanitiseRemoteConfessionalConfig(r.confessional)
+  if (confessional) config.confessional = confessional
 
   const director = sanitiseRemoteSeasonDirectorConfig(r.director)
   if (director) config.director = director
