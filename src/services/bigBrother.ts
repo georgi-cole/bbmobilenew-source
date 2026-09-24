@@ -243,10 +243,10 @@ export async function generateBigBrotherReply(
   )
   const preserveDeterministicIntelligence = Boolean(
     frame.knowledgeQuery ||
-      frame.contradiction ||
-      frame.speechAct === 'challenge_request' ||
-      frame.speechAct === 'prediction' ||
-      frame.speechAct === 'answer'
+    frame.contradiction ||
+    frame.speechAct === 'challenge_request' ||
+    frame.speechAct === 'prediction' ||
+    frame.speechAct === 'answer'
   )
   const shouldUseDirector =
     !payload.skipDirector && !preserveAuthoredFlow && !preserveDeterministicIntelligence
@@ -255,20 +255,19 @@ export async function generateBigBrotherReply(
     : null
   const directedText = typeof directed?.text === 'string' ? directed.text.trim() : ''
 
-  const localDirectedText =
-    preserveAuthoredFlow
-      ? reply.text
-      : directLocalBigEyeReply({
-          diaryText: payload.diaryText,
-          playerName: payload.playerName,
-          seed: payload.seed,
-          intent: semanticIntent,
-          state,
-          history: payload.history,
-          memorySummary: payload.memorySummary,
-          world: payload.world,
-          frame,
-        }) || reply.text
+  const localDirectedText = preserveAuthoredFlow
+    ? reply.text
+    : directLocalBigEyeReply({
+        diaryText: payload.diaryText,
+        playerName: payload.playerName,
+        seed: payload.seed,
+        intent: semanticIntent,
+        state,
+        history: payload.history,
+        memorySummary: payload.memorySummary,
+        world: payload.world,
+        frame,
+      }) || reply.text
 
   const spokenText = directedText || localDirectedText
   const localMemory = updateLocalBigEyeMemory({
@@ -285,7 +284,12 @@ export async function generateBigBrotherReply(
   const directedMemory =
     typeof directed?.memorySummary === 'string' ? directed.memorySummary.trim().slice(0, 900) : ''
   const memorySummary = directedMemory
-    ? [directedMemory, ...localMemory.split('\n').filter((line) => /^(Belief|Intent|Dependency|Prediction|Concern|Topic) — /.test(line))]
+    ? [
+        directedMemory,
+        ...localMemory
+          .split('\n')
+          .filter((line) => /^(Belief|Intent|Dependency|Prediction|Concern|Topic) — /.test(line)),
+      ]
         .filter(Boolean)
         .slice(-12)
         .join('\n')
@@ -314,4 +318,3 @@ export async function generateBigBrotherReply(
     vipEligible: !preserveAuthoredFlow && !preserveDeterministicIntelligence,
   }
 }
-

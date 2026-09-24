@@ -179,5 +179,4 @@ describe('free local Big Eye conversation', () => {
     expect(second.text).toContain('Maya')
     expect(second.nextState.thread?.focusPlayer).toBe('Maya')
   })
-
 })

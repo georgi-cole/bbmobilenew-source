@@ -55,15 +55,17 @@ export function getSalientConfessionalObservation(input: {
       const text = event.toLowerCase()
       return (
         text.includes(normalizedPlayer) &&
-        (text.includes('return') || text.includes('back in the game') || text.includes('back to the game'))
+        (text.includes('return') ||
+          text.includes('back in the game') ||
+          text.includes('back to the game'))
       )
     }) ?? false
 
   if (
     publicReturnSeen ||
     (previous.playerStatus === 'evicted' &&
-    current.playerStatus !== 'evicted' &&
-    current.playerStatus !== 'jury')
+      current.playerStatus !== 'evicted' &&
+      current.playerStatus !== 'jury')
   ) {
     candidates.push({ event: 'returned' })
   }
@@ -82,11 +84,7 @@ export function getSalientConfessionalObservation(input: {
   if (playerWasNominated && !playerIsNominated && current.playerStatus !== 'evicted') {
     candidates.push({ event: 'survived_nomination' })
   }
-  if (
-    previous.closestName &&
-    current.closestName &&
-    previous.closestName !== current.closestName
-  ) {
+  if (previous.closestName && current.closestName && previous.closestName !== current.closestName) {
     candidates.push({
       event: 'closest_relationship_changed',
       detail: `${previous.closestName} → ${current.closestName}`,

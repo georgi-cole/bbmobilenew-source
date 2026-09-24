@@ -1,4 +1,8 @@
-import { normalizeInput, type BigEyeConversationState, type BigEyeIntent } from './confessionalBigEye'
+import {
+  normalizeInput,
+  type BigEyeConversationState,
+  type BigEyeIntent,
+} from './confessionalBigEye'
 import {
   getConfessionalRuntimeConfig,
   type ConfessionalEmotion,
@@ -91,7 +95,9 @@ function detectKnowledgeQuery(text: string): ConfessionalKnowledgeQuery | null {
   if (/how many (?:people|players|housemates).*(?:left|remain)|who is left/.test(text)) {
     return 'remaining'
   }
-  if (/who am i closest to|who do i have the best relationship with|closest relationship/.test(text)) {
+  if (
+    /who am i closest to|who do i have the best relationship with|closest relationship/.test(text)
+  ) {
     return 'closest_relationship'
   }
   if (
@@ -151,7 +157,10 @@ function inferSpeechAct(
   ) {
     return 'vent'
   }
-  if (/\?$/.test(text) || /^(who|what|when|where|why|how|can|could|should|would|do|does|is|are)\b/.test(text)) {
+  if (
+    /\?$/.test(text) ||
+    /^(who|what|when|where|why|how|can|could|should|would|do|does|is|are)\b/.test(text)
+  ) {
     return 'factual_question'
   }
   if (intent === 'unknown') return 'statement'
@@ -166,10 +175,14 @@ function inferContradiction(
   if (!focusPlayer || !memorySummary) return null
   const memory = normalizeInput(memorySummary)
   const focus = normalizeInput(focusPlayer)
-  const trustsNow = /\b(?:trust|loyal|believe)\b/.test(text) && !/\b(?:dont|do not|not)\b.*\btrust\b/.test(text)
+  const trustsNow =
+    /\b(?:trust|loyal|believe)\b/.test(text) && !/\b(?:dont|do not|not)\b.*\btrust\b/.test(text)
   const distrustsNow = /\b(?:dont trust|do not trust|lying|liar|sketchy|shady|snake)\b/.test(text)
 
-  if (trustsNow && (memory.includes(`distrusts ${focus}`) || memory.includes(`targeting ${focus}`))) {
+  if (
+    trustsNow &&
+    (memory.includes(`distrusts ${focus}`) || memory.includes(`targeting ${focus}`))
+  ) {
     return `You previously described ${focusPlayer} as someone you did not trust.`
   }
   if (distrustsNow && memory.includes(`trusts ${focus}`)) {
@@ -201,15 +214,15 @@ export function buildBigEyeComprehensionFrame(input: {
   const entities = findEntities(text, input.world)
   const focusPlayer = entities[0] ?? input.state.thread?.focusPlayer ?? null
 
-  const topics = (Object.entries(config.comprehension.topicPhrases) as Array<
-    [ConfessionalTopic, string[]]
-  >)
+  const topics = (
+    Object.entries(config.comprehension.topicPhrases) as Array<[ConfessionalTopic, string[]]>
+  )
     .filter(([, phrases]) => containsAny(text, phrases))
     .map(([topic]) => topic)
 
-  const emotions = (Object.entries(config.comprehension.emotionPhrases) as Array<
-    [ConfessionalEmotion, string[]]
-  >)
+  const emotions = (
+    Object.entries(config.comprehension.emotionPhrases) as Array<[ConfessionalEmotion, string[]]>
+  )
     .flatMap(([type, phrases]) => {
       const matches = phrases.filter((phrase) => text.includes(normalizeInput(phrase))).length
       return matches > 0 ? [{ type, score: Math.min(1, 0.55 + matches * 0.15) }] : []
@@ -225,14 +238,20 @@ export function buildBigEyeComprehensionFrame(input: {
 
   const knowledgeQuery = detectKnowledgeQuery(text)
   const predictedWinner = config.features.predictions ? detectPrediction(text, input.world) : null
-  const speechAct = inferSpeechAct(text, primaryIntent, input.state, knowledgeQuery, predictedWinner)
+  const speechAct = inferSpeechAct(
+    text,
+    primaryIntent,
+    input.state,
+    knowledgeQuery,
+    predictedWinner
+  )
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
     input.state.thread &&
-      (primaryIntent === 'yes' ||
-        primaryIntent === 'no' ||
-        entities.some((entity) => entity === input.state.thread?.focusPlayer) ||
-        (topics[0] && topics[0] === input.state.thread.topic))
+    (primaryIntent === 'yes' ||
+      primaryIntent === 'no' ||
+      entities.some((entity) => entity === input.state.thread?.focusPlayer) ||
+      (topics[0] && topics[0] === input.state.thread.topic))
   )
 
   const responseMoves: ConfessionalResponseMove[] = []
@@ -297,8 +316,8 @@ export function updateConversationStateFromFrame(
             topic,
             focusPlayer: frame.focusPlayer ?? state.thread?.focusPlayer ?? null,
             questionKind: responseAsksQuestion
-              ? frame.knowledgeQuery ?? frame.speechAct
-              : state.thread?.questionKind ?? null,
+              ? (frame.knowledgeQuery ?? frame.speechAct)
+              : (state.thread?.questionKind ?? null),
             depth: frame.continuation ? Math.min(6, (state.thread?.depth ?? 0) + 1) : 1,
           }
         : null,

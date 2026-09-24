@@ -2,7 +2,6 @@
 
 The Confessional is local-first. A deterministic authored director owns game actions, contextual dialogue, topic-level memory, and response timing without any per-message inference cost. A premium generative director can be enabled as an optional enhancement.
 
-
 ## Confessional 2.0 intelligence layer
 
 The local-first pipeline now builds a multi-signal comprehension frame before choosing dialogue. A turn may simultaneously contain several topics and emotions, a named housemate, trust/distrust/target/protection/dependency stance, a speech act, a factual query, a prediction, a continuation of the previous thread, and a contradiction with compact season memory.

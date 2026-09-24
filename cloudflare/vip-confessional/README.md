@@ -41,7 +41,6 @@ npm run dev
 
 The Confessional will then show `VIP · 3`. Selecting it upgrades only the next normal conversation turn.
 
-
 ## Remote character tuning
 
 The Worker reads the trusted published confessional.director section from the main live-config document and keeps a short in-worker cache. This keeps VIP tone aligned with the normal Big Eye without accepting prompt instructions from the client.

@@ -64,7 +64,6 @@ Frequency, weight, and roster-window changes are **snapshotted when a new season
 
 To tune the Director, edit the `director` object in **Advanced JSON**, validate it, then publish through a review PR or directly to main. Released clients refresh the live configuration on the normal five-minute cadence.
 
-
 ### Tune The Big Eye Confessional
 
 Use Advanced JSON to manage the versioned confessional databank. Increment confessional.revision whenever you change character/content tuning so QA can identify the exact bank used by a report.

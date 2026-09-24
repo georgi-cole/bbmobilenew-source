@@ -186,7 +186,13 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
     distrustTerms: ['dont trust', 'do not trust', 'lying', 'liar', 'sketchy', 'shady', 'snake'],
     targetTerms: ['target', 'vote out', 'evict', 'get rid of', 'take out'],
     protectTerms: ['protect', 'save', 'keep safe', 'never vote'],
-    dependencyTerms: ['need their vote', 'need his vote', 'need her vote', 'depend on', 'need them'],
+    dependencyTerms: [
+      'need their vote',
+      'need his vote',
+      'need her vote',
+      'depend on',
+      'need them',
+    ],
     slang: {
       overwhelmed: ['im cooked', 'i am cooked', 'this is cooked'],
     } as Partial<Record<BigEyeIntent, string[]>>,
@@ -373,7 +379,9 @@ const SALIENCE_EVENTS: readonly ConfessionalSalienceEvent[] = [
   'late_game',
 ]
 
-export function sanitiseRemoteConfessionalConfig(raw: unknown): RemoteConfessionalConfig | undefined {
+export function sanitiseRemoteConfessionalConfig(
+  raw: unknown
+): RemoteConfessionalConfig | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
   const value = raw as Record<string, unknown>
   const result: RemoteConfessionalConfig = { schemaVersion: 1 }
@@ -497,7 +505,7 @@ function mergeStringMap<T extends string>(
 }
 
 export function setRemoteConfessionalConfig(config: RemoteConfessionalConfig | null): void {
-  remoteConfessionalConfig = config ? sanitiseRemoteConfessionalConfig(config) ?? null : null
+  remoteConfessionalConfig = config ? (sanitiseRemoteConfessionalConfig(config) ?? null) : null
 }
 
 export function getConfessionalRuntimeConfig(): ResolvedConfessionalConfig {
@@ -540,7 +548,8 @@ export function getConfessionalRuntimeConfig(): ResolvedConfessionalConfig {
       intents: { ...DEFAULT_CONFESSIONAL_CONFIG.responses.intents, ...remote.responses?.intents },
       moves: { ...DEFAULT_CONFESSIONAL_CONFIG.responses.moves, ...remote.responses?.moves },
       challengePrompts:
-        remote.responses?.challengePrompts ?? DEFAULT_CONFESSIONAL_CONFIG.responses.challengePrompts,
+        remote.responses?.challengePrompts ??
+        DEFAULT_CONFESSIONAL_CONFIG.responses.challengePrompts,
     },
     salience: {
       weights: { ...DEFAULT_CONFESSIONAL_CONFIG.salience.weights, ...remote.salience?.weights },

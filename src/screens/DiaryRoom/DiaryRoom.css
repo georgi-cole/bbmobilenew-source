@@ -860,8 +860,7 @@
 /* The director already returns an eye-state and intensity. Keep the reaction
    deliberately subtle so personality is felt without adding a heavy animation layer. */
 .diary-room__bubble--bb[data-eye-state='soften'] {
-  box-shadow: 0 0 calc(8px + 10px * var(--big-eye-intensity, 0.4))
-    rgba(125, 211, 252, 0.08);
+  box-shadow: 0 0 calc(8px + 10px * var(--big-eye-intensity, 0.4)) rgba(125, 211, 252, 0.08);
 }
 
 .diary-room__bubble--bb[data-eye-state='narrow'] {
@@ -869,8 +868,7 @@
 }
 
 .diary-room__bubble--bb[data-eye-state='pulse'] {
-  box-shadow: 0 0 calc(8px + 12px * var(--big-eye-intensity, 0.4))
-    rgba(139, 92, 246, 0.14);
+  box-shadow: 0 0 calc(8px + 12px * var(--big-eye-intensity, 0.4)) rgba(139, 92, 246, 0.14);
   animation:
     bubble-enter 0.22s ease-out both,
     big-eye-reaction-pulse 1.8s ease-in-out 1;

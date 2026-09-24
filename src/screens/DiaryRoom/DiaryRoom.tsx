@@ -575,9 +575,8 @@ export default function DiaryRoom() {
   const confessionalLocked = userPlayer?.status === 'evicted' || userPlayer?.status === 'jury'
   const voxPopuliActive = gameState.voxPopuli?.status === 'active'
   const visualEyeReactions =
-    useAppSelector(
-      (s) => s.remoteConfig?.config?.confessional?.features?.visualEyeReactions
-    ) !== false
+    useAppSelector((s) => s.remoteConfig?.config?.confessional?.features?.visualEyeReactions) !==
+    false
 
   const handleRenameAlliance = useCallback(
     (allianceId: string, name: string) => {

@@ -20,10 +20,7 @@ const LLM_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? '10000', 10)
 const CONFESSIONAL_CONFIG_URL =
   process.env.CONFESSIONAL_CONFIG_URL ??
   'https://georgi-cole.github.io/bbmobilenew/config/live-config.json'
-const CONFESSIONAL_CONFIG_TTL_MS = parseInt(
-  process.env.CONFESSIONAL_CONFIG_TTL_MS ?? '300000',
-  10
-)
+const CONFESSIONAL_CONFIG_TTL_MS = parseInt(process.env.CONFESSIONAL_CONFIG_TTL_MS ?? '300000', 10)
 /** Feature flag — set FEATURE_DIARY_WEEK=false in .env to disable the router. */
 const FEATURE_DIARY_WEEK = (process.env.FEATURE_DIARY_WEEK ?? 'true') !== 'false'
 
@@ -261,11 +258,11 @@ async function moderateTextOpenAI(text) {
     )
     const blocked = Boolean(
       cats['violence'] ||
-        cats['violence/graphic'] ||
-        cats['illicit'] ||
-        cats['illicit/violent'] ||
-        cats['harassment/threatening'] ||
-        result.flagged
+      cats['violence/graphic'] ||
+      cats['illicit'] ||
+      cats['illicit/violent'] ||
+      cats['harassment/threatening'] ||
+      result.flagged
     )
 
     return { blocked: blocked || selfHarm, selfHarm }
@@ -473,8 +470,17 @@ app.post('/api/ai/bigbrother-legacy', async (req, res) => {
 })
 
 app.post('/api/ai/bigbrother', async (req, res) => {
-  const { diaryText, playerName, phase, seed, intent, comprehension, history, memorySummary, world } =
-    req.body ?? {}
+  const {
+    diaryText,
+    playerName,
+    phase,
+    seed,
+    intent,
+    comprehension,
+    history,
+    memorySummary,
+    world,
+  } = req.body ?? {}
 
   if (typeof diaryText !== 'string' || !diaryText.trim()) {
     return res.status(400).json({ error: 'diaryText is required.' })

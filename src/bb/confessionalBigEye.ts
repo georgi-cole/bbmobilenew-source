@@ -750,10 +750,9 @@ function getTurnRandom(
 
 function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number): string {
   const remoteResponses = getConfessionalRuntimeConfig().responses.intents[intent as BigEyeIntent]
-  const baseResponses =
-    remoteResponses?.length
-      ? remoteResponses
-      : INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses
+  const baseResponses = remoteResponses?.length
+    ? remoteResponses
+    : (INTENT_RESPONSES[intent]?.responses ?? INTENT_RESPONSES.unknown.responses)
   const pool =
     intent === 'unknown' && mood !== 'neutral'
       ? [

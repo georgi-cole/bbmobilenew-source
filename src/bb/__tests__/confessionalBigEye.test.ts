@@ -111,11 +111,7 @@ describe('confessionalBigEye', () => {
       responses: { intents: { greeting: ['Remote hello.'] } },
     })
 
-    const reply = resolveBigEyeTurn(
-      'hello',
-      { random: () => 0.4 },
-      createInitialBigEyeState()
-    )
+    const reply = resolveBigEyeTurn('hello', { random: () => 0.4 }, createInitialBigEyeState())
 
     expect(reply.text).toBe('Remote hello.')
   })
@@ -131,5 +127,4 @@ describe('confessionalBigEye', () => {
     const reset = resolveBigEyeTurn('thank you', { random: () => 0.4 }, cold.nextState)
     expect(reset.nextState.mood).toBe('neutral')
   })
-
 })
