@@ -824,7 +824,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .diary-room__bubble {
+  .diary-room__bubble,
+  .diary-room__bubble--bb[data-eye-state='pulse'],
+  .diary-room__bubble--bb[data-eye-state='glitch'] {
     animation: none;
   }
 }
@@ -853,6 +855,54 @@
 .diary-room__bubble--clipped,
 .diary-room__bubble--severe {
   border-color: rgba(244, 114, 182, 0.28);
+}
+
+/* The director already returns an eye-state and intensity. Keep the reaction
+   deliberately subtle so personality is felt without adding a heavy animation layer. */
+.diary-room__bubble--bb[data-eye-state='soften'] {
+  box-shadow: 0 0 calc(8px + 10px * var(--big-eye-intensity, 0.4))
+    rgba(125, 211, 252, 0.08);
+}
+
+.diary-room__bubble--bb[data-eye-state='narrow'] {
+  border-left-color: rgba(244, 114, 182, 0.52);
+}
+
+.diary-room__bubble--bb[data-eye-state='pulse'] {
+  box-shadow: 0 0 calc(8px + 12px * var(--big-eye-intensity, 0.4))
+    rgba(139, 92, 246, 0.14);
+  animation:
+    bubble-enter 0.22s ease-out both,
+    big-eye-reaction-pulse 1.8s ease-in-out 1;
+}
+
+.diary-room__bubble--bb[data-eye-state='glitch'] {
+  animation:
+    bubble-enter 0.22s ease-out both,
+    big-eye-reaction-glitch 0.22s steps(2, end) 1;
+}
+
+@keyframes big-eye-reaction-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  45% {
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes big-eye-reaction-glitch {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-1px);
+  }
+  70% {
+    transform: translateX(1px);
+  }
 }
 
 .diary-room__bubble--decision {
