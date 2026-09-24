@@ -712,7 +712,9 @@ export const selectCurrentProfile = (state: RootState): StoredProfile | null => 
 export const selectEyeoleanBalance = (state: RootState) =>
   selectCurrentProfile(state)?.eyeoleans ?? 0
 
+const EMPTY_EYEOLEAN_INVENTORY: Partial<Record<EyeoleanStoreProductKey, number>> = {}
+
 export const selectEyeoleanInventory = (state: RootState) =>
-  selectCurrentProfile(state)?.eyeoleanInventory ?? {}
+  selectCurrentProfile(state)?.eyeoleanInventory ?? EMPTY_EYEOLEAN_INVENTORY
 
 export default profilesSlice.reducer
