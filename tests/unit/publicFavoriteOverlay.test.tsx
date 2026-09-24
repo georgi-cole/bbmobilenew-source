@@ -43,6 +43,15 @@ vi.mock('framer-motion', async () => {
     MotionConfig: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
     motion,
+    useMotionValue: (value: number) => ({
+      get: () => value,
+      set: vi.fn(),
+    }),
+    useSpring: (value: { get: () => number }) => value,
+    useTransform: (
+      value: { get: () => number },
+      transform: (current: number) => string
+    ) => transform(value.get()),
     useReducedMotion: () => false,
   }
 })
