@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type FormEvent,
 } from 'react'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
@@ -27,9 +28,12 @@ import {
 } from './hangmanChallengeEngine'
 import './HangmanChallengeComp.css'
 import { sanitizeVerdictBoardLetterInput } from './verdictBoardInput'
+import pressureBackdropAsset from '../../assets/verdict-board-backdrop.png'
+import pressureWindowAsset from '../../assets/verdict-board-window.png'
+import pressureCrackAsset from '../../assets/verdict-board-cracks.png'
 
 const TOTAL_ROUNDS = 5
-const MAX_ERRORS = 7
+const MAX_ERRORS = 10
 const TIMER_STEP_MS = 250
 const BOX_LOCK_MS = 12_000
 const DISTORT_MS = 7_000
@@ -42,7 +46,6 @@ const TIME_PENALTY_SURGE_MS = 10_000
 const SCORE_CUT_MULTIPLIER = 0.88
 const MEDALS = ['🥇', '🥈', '🥉']
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-const PRESSURE_CRACK_INDICES = Array.from({ length: MAX_ERRORS }, (_, index) => index)
 
 const participantFallbacks: Array<
   Pick<MinigameParticipant, 'id' | 'name' | 'isHuman' | 'precomputedScore' | 'previousPR'>
@@ -68,6 +71,10 @@ interface ActiveTimedEffect {
   id: TimedEffectKind
   label: string
   remainingMs: number
+}
+
+function isTimerSpeedEffect(effect: ActiveTimedEffect): boolean {
+  return effect.id === 'freeze_timer' || effect.id === 'slow_timer' || effect.id === 'double_speed'
 }
 
 interface VisibleMysteryBox {
@@ -322,20 +329,19 @@ export default function HangmanChallengeComp({
     [currentWord.text, roundState.guessedLetters, roundState.revealedLetters]
   )
   const boxesLocked = roundState.activeTimedEffects.some((effect) => effect.id === 'lock_boxes')
+  const mysteryBoxIsOpen = mysteryBoxDialog !== null || roundState.visibleBox !== null
   const keyboardDistorted = roundState.activeTimedEffects.some(
     (effect) => effect.id === 'distort_used'
   )
   const pressureRatio = roundState.wrongCount / MAX_ERRORS
-  const pressureFill =
+  const pressureStage =
     roundState.wrongCount >= MAX_ERRORS
-      ? 'linear-gradient(180deg, rgba(255, 112, 112, 0.96), rgba(120, 18, 36, 0.94))'
-      : roundState.wrongCount >= MAX_ERRORS - 1
-        ? 'linear-gradient(180deg, rgba(255, 134, 98, 0.96), rgba(172, 42, 56, 0.94))'
-        : roundState.wrongCount >= 4
-          ? 'linear-gradient(180deg, rgba(255, 177, 96, 0.96), rgba(208, 86, 52, 0.92))'
-          : roundState.wrongCount >= 2
-            ? 'linear-gradient(180deg, rgba(255, 214, 120, 0.96), rgba(227, 128, 70, 0.92))'
-            : 'linear-gradient(180deg, rgba(111, 220, 255, 0.94), rgba(53, 135, 224, 0.9))'
+      ? 'Window breach'
+      : roundState.wrongCount >= 8
+        ? 'Critical pressure'
+        : roundState.wrongCount >= 5
+          ? 'Stress rising'
+          : 'Clear skies'
   const normalizedInput = sanitizeVerdictBoardLetterInput(letterInput)
   const inputIsUsed =
     normalizedInput.length > 0 &&
@@ -374,7 +380,9 @@ export default function HangmanChallengeComp({
   }, [])
 
   useEffect(() => {
-    if (phase !== 'playing') return undefined
+    // Opening a case is a deliberate decision point. Freeze the entire round
+    // (including temporary modifier durations) until the player acknowledges it.
+    if (phase !== 'playing' || mysteryBoxIsOpen) return undefined
     const interval = setInterval(() => {
       setRoundState((prev) => {
         const nextEffects = prev.activeTimedEffects
@@ -404,7 +412,7 @@ export default function HangmanChallengeComp({
       })
     }, TIMER_STEP_MS)
     return () => clearInterval(interval)
-  }, [phase])
+  }, [mysteryBoxIsOpen, phase])
 
   useEffect(() => {
     if (phase !== 'playing') return
@@ -455,8 +463,7 @@ export default function HangmanChallengeComp({
     const categoryRoll = rngRef.current()
     const targetCategory =
       categoryRoll < 0.5 ? 'positive' : categoryRoll < 0.8 ? 'tradeoff' : 'cripple'
-    let eligible = MYSTERY_BOX_POOL.filter((effect) => effect.category === targetCategory)
-    eligible = eligible.filter((effect) => {
+    const eligible = MYSTERY_BOX_POOL.filter((effect) => {
       if (effect.id === 'double_speed' && activeKinds.has('double_speed')) return false
       if (
         effect.id === 'freeze_timer' &&
@@ -473,11 +480,14 @@ export default function HangmanChallengeComp({
       if (effect.id === 'lock_boxes' && activeKinds.has('lock_boxes')) return false
       if (effect.id === 'distort_used' && activeKinds.has('distort_used')) return false
       if (effect.id === 'disable_keyboard' && activeKinds.has('disable_keyboard')) return false
+      if (effect.id === 'remove_one_error' && roundState.wrongCount < 1) return false
+      if (effect.id === 'remove_two_errors_minus_100' && roundState.wrongCount < 2) return false
       return true
     })
-    const pool = eligible.length > 0 ? eligible : MYSTERY_BOX_POOL
+    const categoryEligible = eligible.filter((effect) => effect.category === targetCategory)
+    const pool = categoryEligible.length > 0 ? categoryEligible : eligible
     return pool[Math.floor(rngRef.current() * pool.length)]
-  }, [roundState.activeTimedEffects])
+  }, [roundState.activeTimedEffects, roundState.wrongCount])
 
   const openMysteryBox = useCallback(() => {
     if (!roundState.visibleBox || phase !== 'playing' || boxesLocked) return
@@ -500,9 +510,11 @@ export default function HangmanChallengeComp({
       }
       const adjustments = [...prev.scoreAdjustments]
       const effectLabels = [...prev.boxLog]
-      const penaltyProtected = prev.waiveNextPenalty
+      let waiveNextPenalty = prev.waiveNextPenalty
       const pushAdjustment = (label: string, value: number) => {
-        adjustments.push({ label, value: penaltyProtected && value < 0 ? 0 : value })
+        const isScorePenalty = value < 0
+        adjustments.push({ label, value: waiveNextPenalty && isScorePenalty ? 0 : value })
+        if (waiveNextPenalty && isScorePenalty) waiveNextPenalty = false
       }
       const revealed = [...prev.revealedLetters]
       const log = (message: string) => effectLabels.unshift(message)
@@ -528,7 +540,7 @@ export default function HangmanChallengeComp({
         }
         case 'freeze_timer': {
           nextState.activeTimedEffects = [
-            ...prev.activeTimedEffects.filter((entry) => entry.id !== 'freeze_timer'),
+            ...prev.activeTimedEffects.filter((entry) => !isTimerSpeedEffect(entry)),
             { id: 'freeze_timer', label: 'Timer frozen', remainingMs: FREEZE_MS },
           ]
           log('Mystery Box: timer frozen for 8s')
@@ -574,14 +586,14 @@ export default function HangmanChallengeComp({
         }
         case 'slow_timer': {
           nextState.activeTimedEffects = [
-            ...prev.activeTimedEffects.filter((entry) => entry.id !== 'slow_timer'),
+            ...prev.activeTimedEffects.filter((entry) => !isTimerSpeedEffect(entry)),
             { id: 'slow_timer', label: 'Clock slowed', remainingMs: SLOW_MS },
           ]
           log('Mystery Box: timer slowed for 12s')
           break
         }
         case 'waive_penalty': {
-          nextState.waiveNextPenalty = true
+          waiveNextPenalty = true
           log('Mystery Box: next score penalty waived')
           break
         }
@@ -602,14 +614,15 @@ export default function HangmanChallengeComp({
         }
         case 'double_reveal_score_cut': {
           revealed.push(...hiddenLetters())
-          nextState.scoreMultiplier = penaltyProtected
+          nextState.scoreMultiplier = waiveNextPenalty
             ? prev.scoreMultiplier
             : prev.scoreMultiplier * SCORE_CUT_MULTIPLIER
           log(
-            penaltyProtected
+            waiveNextPenalty
               ? 'Mystery Box: score cut neutralized'
               : 'Mystery Box: 12% score cut applied'
           )
+          if (waiveNextPenalty) waiveNextPenalty = false
           break
         }
         case 'strong_clue_double_wrong': {
@@ -620,7 +633,7 @@ export default function HangmanChallengeComp({
         }
         case 'freeze_breaks_perfect': {
           nextState.activeTimedEffects = [
-            ...prev.activeTimedEffects.filter((entry) => entry.id !== 'freeze_timer'),
+            ...prev.activeTimedEffects.filter((entry) => !isTimerSpeedEffect(entry)),
             { id: 'freeze_timer', label: 'Cold pause', remainingMs: FREEZE_TRADEOFF_MS },
           ]
           nextState.perfectEligible = false
@@ -646,7 +659,7 @@ export default function HangmanChallengeComp({
         }
         case 'double_speed': {
           nextState.activeTimedEffects = [
-            ...prev.activeTimedEffects.filter((entry) => entry.id !== 'double_speed'),
+            ...prev.activeTimedEffects.filter((entry) => !isTimerSpeedEffect(entry)),
             { id: 'double_speed', label: 'Clock doubled', remainingMs: DOUBLE_MS },
           ]
           log('Mystery Box: timer speed doubled')
@@ -717,7 +730,7 @@ export default function HangmanChallengeComp({
         ...nextState,
         revealedLetters: Array.from(new Set(revealed)),
         scoreAdjustments: adjustments,
-        waiveNextPenalty: effect.id === 'waive_penalty',
+        waiveNextPenalty,
         boardFlash: 'spawn',
         boxLog: effectLabels.slice(0, 4),
       }
@@ -739,7 +752,7 @@ export default function HangmanChallengeComp({
 
   const guessLetter = useCallback(
     (letter: string) => {
-      if (phase !== 'playing') return
+      if (phase !== 'playing' || mysteryBoxIsOpen) return
       if (
         roundState.guessedLetters.includes(letter) ||
         roundState.wrongLetters.includes(letter) ||
@@ -778,6 +791,7 @@ export default function HangmanChallengeComp({
     },
     [
       currentWord.text,
+      mysteryBoxIsOpen,
       phase,
       roundState.disabledLetters,
       roundState.guessedLetters,
@@ -1036,6 +1050,13 @@ export default function HangmanChallengeComp({
   return (
     <div
       className={`hangman-challenge${roundState.boardFlash ? ` hangman-challenge--${roundState.boardFlash}` : ''}`}
+      style={
+        {
+          '--pressure-backdrop-image': `url(${pressureBackdropAsset})`,
+          '--pressure-window-image': `url(${pressureWindowAsset})`,
+          '--pressure-crack-image': `url(${pressureCrackAsset})`,
+        } as CSSProperties
+      }
     >
       <div className="hangman-challenge__bg" aria-hidden="true" />
       <header className="hangman-challenge__header">
@@ -1061,24 +1082,32 @@ export default function HangmanChallengeComp({
           <section className="hangman-challenge__status-grid">
             <div className="hangman-challenge__pressure-card">
               <div className="hangman-challenge__pressure-head">
-                <span>Pressure</span>
+                <div>
+                  <span>Pressure window</span>
+                  <strong>
+                    {roundState.wrongCount}/{MAX_ERRORS} misses
+                  </strong>
+                </div>
+                <em
+                  className={`hangman-challenge__pressure-stage${roundState.wrongCount >= MAX_ERRORS ? ' is-critical' : ''}`}
+                >
+                  {pressureStage}
+                </em>
               </div>
               <div
                 className={`hangman-challenge__pressure-glass${roundState.wrongCount >= MAX_ERRORS ? ' is-shattered' : ''}`}
-                aria-hidden="true"
+                aria-label={`Pressure window: ${roundState.wrongCount} of ${MAX_ERRORS} misses`}
+                role="img"
               >
                 <div
-                  className="hangman-challenge__pressure-glass-fill"
-                  style={{ height: `${pressureRatio * 100}%`, background: pressureFill }}
+                  className="hangman-challenge__crack-overlay"
+                  style={{ opacity: pressureRatio }}
+                  aria-hidden="true"
                 />
-                {PRESSURE_CRACK_INDICES.map((index) => (
-                  <span
-                    key={index}
-                    className={`hangman-challenge__pressure-crack hangman-challenge__pressure-crack--${(index % 4) + 1}${index < roundState.wrongCount ? ' is-visible' : ''}`}
-                  />
-                ))}
                 {roundState.wrongCount >= MAX_ERRORS && (
-                  <div className="hangman-challenge__shatter-burst">
+                  <div className="hangman-challenge__shatter-burst" aria-hidden="true">
+                    <span className="hangman-challenge__pressure-shockwave" />
+                    <span className="hangman-challenge__pressure-explosion" />
                     {Array.from({ length: 7 }, (_, index) => (
                       <span
                         key={index}
@@ -1092,6 +1121,12 @@ export default function HangmanChallengeComp({
           </section>
 
           <section className="hangman-challenge__playfield">
+            {roundState.clueMessage && (
+              <aside className="hangman-challenge__clue-card" aria-live="polite">
+                <span className="hangman-challenge__clue-kicker">Case intelligence</span>
+                <strong>{roundState.clueMessage}</strong>
+              </aside>
+            )}
             <section className="hangman-challenge__board" aria-label="Solution board">
               <div className="hangman-challenge__fracture-layer" aria-hidden="true" />
               <div className="hangman-challenge__tiles">
@@ -1217,6 +1252,9 @@ export default function HangmanChallengeComp({
                 <p className="hangman-challenge__eyebrow">Case effect applied</p>
                 <h3>{mysteryBoxDialogView.effect.label}</h3>
                 <p>{mysteryBoxDialogView.effect.description}</p>
+                <p className="hangman-challenge__mystery-paused-note">
+                  The round is paused until you continue.
+                </p>
                 <button
                   type="button"
                   className="hangman-challenge__cta hangman-challenge__cta--box"
