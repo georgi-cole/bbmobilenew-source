@@ -16,49 +16,6 @@ const world = {
 
 afterEach(() => {
   setRemoteConfessionalConfig(null)
-
-  it('answers safe factual game questions locally', () => {
-    const text = directLocalBigEyeReply({
-      diaryText: 'Who is the leader right now?',
-      playerName: 'Alex',
-      intent: 'curiosity',
-      state: createInitialBigEyeState(),
-      world: {
-        ...world,
-        playerStats: { leaderWins: 0, safetyWins: 1, timesNominated: 2 },
-        recentPublicEvents: ['Alex and Sam were nominated.'],
-      },
-    })
-
-    expect(text).toContain('Jordan')
-  })
-
-  it('uses remotely configurable lightweight challenge prompts', () => {
-    setRemoteConfessionalConfig({
-      responses: { challengePrompts: ['Say less and listen more before you return.'] },
-    })
-    const text = directLocalBigEyeReply({
-      diaryText: 'challenge me',
-      playerName: 'Alex',
-      intent: 'unknown',
-      state: createInitialBigEyeState(),
-      world,
-    })
-
-    expect(text).toContain('Say less and listen more')
-  })
-
-  it('stores structured trust beliefs for later contradiction callbacks', () => {
-    const memory = updateLocalBigEyeMemory({
-      diaryText: 'I do not trust Maya anymore',
-      playerName: 'Alex',
-      intent: 'alliance',
-      state: createInitialBigEyeState(),
-      world,
-    })
-
-    expect(memory).toContain('Belief — distrusts Maya')
-  })
 })
 
 describe('localBigEyeDirector', () => {
@@ -113,5 +70,48 @@ describe('localBigEyeDirector', () => {
     expect(memory).toContain('topic: alliance')
     expect(memory).toContain('mentioned Maya')
     expect(memory).not.toContain('secretly promised')
+  })
+
+  it('answers safe factual game questions locally', () => {
+    const text = directLocalBigEyeReply({
+      diaryText: 'Who is the leader right now?',
+      playerName: 'Alex',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world: {
+        ...world,
+        playerStats: { leaderWins: 0, safetyWins: 1, timesNominated: 2 },
+        recentPublicEvents: ['Alex and Sam were nominated.'],
+      },
+    })
+
+    expect(text).toContain('Jordan')
+  })
+
+  it('uses remotely configurable lightweight challenge prompts', () => {
+    setRemoteConfessionalConfig({
+      responses: { challengePrompts: ['Say less and listen more before you return.'] },
+    })
+    const text = directLocalBigEyeReply({
+      diaryText: 'challenge me',
+      playerName: 'Alex',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(text).toContain('Say less and listen more')
+  })
+
+  it('stores structured trust beliefs for later contradiction callbacks', () => {
+    const memory = updateLocalBigEyeMemory({
+      diaryText: 'I do not trust Maya anymore',
+      playerName: 'Alex',
+      intent: 'alliance',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(memory).toContain('Belief — distrusts Maya')
   })
 })
