@@ -13,6 +13,11 @@
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../economy/eyeoleans'
+import {
+  EYEOLEAN_STORE_PRODUCT_KEYS,
+  getEyeoleanStoreProduct,
+  type EyeoleanStoreProductKey,
+} from '../economy/storeCatalog'
 import type { RootState } from './store'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -114,6 +119,8 @@ export interface StoredProfile {
   eyeoleans?: number
   /** Recent wallet ledger entries for auditability and future Store UI. */
   eyeoleanTransactions?: EyeoleanTransaction[]
+  /** Persistent quantities of soft-currency consumables bought from the Store. */
+  eyeoleanInventory?: Partial<Record<EyeoleanStoreProductKey, number>>
   /**
    * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
    * an old purchase callback cannot become payable again after enough transactions.
@@ -209,6 +216,21 @@ function coerceEyeoleanTransaction(raw: unknown): EyeoleanTransaction | null {
   }
 }
 
+function coerceEyeoleanInventory(
+  raw: unknown
+): Partial<Record<EyeoleanStoreProductKey, number>> {
+  if (!raw || typeof raw !== 'object') return {}
+  const source = raw as Record<string, unknown>
+  const inventory: Partial<Record<EyeoleanStoreProductKey, number>> = {}
+  EYEOLEAN_STORE_PRODUCT_KEYS.forEach((key) => {
+    const quantity = source[key]
+    if (typeof quantity === 'number' && Number.isFinite(quantity) && quantity > 0) {
+      inventory[key] = Math.min(Number.MAX_SAFE_INTEGER, Math.floor(quantity))
+    }
+  })
+  return inventory
+}
+
 function appendEyeoleanTransaction(
   profile: StoredProfile,
   transaction: EyeoleanTransaction
@@ -278,6 +300,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
         ? Math.max(0, Math.floor(r.lifetimeXp))
         : 0,
     eyeoleans: migratedForecastBalance,
+    eyeoleanInventory: coerceEyeoleanInventory(r.eyeoleanInventory),
     eyeoleanTransactions: Array.isArray(r.eyeoleanTransactions)
       ? r.eyeoleanTransactions
           .map(coerceEyeoleanTransaction)
@@ -422,6 +445,7 @@ const profilesSlice = createSlice({
         createdAt: new Date().toISOString(),
         eyeoleans: 0,
         eyeoleanTransactions: [],
+        eyeoleanInventory: {},
         processedEyeoleanTransactionIds: [],
         settledEyeoleanSeasonIds: [],
       }
@@ -562,6 +586,48 @@ const profilesSlice = createSlice({
       }
     },
 
+    /**
+     * Purchase one soft-currency consumable from the canonical Eyeolean catalog.
+     * The reducer resolves the price internally so callers cannot spoof a cheaper amount.
+     */
+    purchaseEyeoleanStoreProduct(
+      state,
+      action: PayloadAction<{ transactionId: string; productKey: EyeoleanStoreProductKey }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      const transactionId = action.payload.transactionId.trim()
+      if (!profile || !transactionId) return
+
+      const product = getEyeoleanStoreProduct(action.payload.productKey)
+      const processedIds =
+        profile.processedEyeoleanTransactionIds ??
+        (profile.eyeoleanTransactions ?? []).map((entry) => entry.id)
+      if (processedIds.includes(transactionId)) return
+
+      const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
+      if (balance < product.price) return
+
+      if (
+        !appendEyeoleanTransaction(profile, {
+          id: transactionId,
+          amount: -product.price,
+          source: 'store_purchase',
+          label: product.title,
+          createdAt: new Date().toISOString(),
+        })
+      ) {
+        return
+      }
+
+      profile.eyeoleans = balance - product.price
+      const inventory = profile.eyeoleanInventory ?? {}
+      const currentQuantity = Math.max(0, Math.floor(inventory[product.key] ?? 0))
+      profile.eyeoleanInventory = {
+        ...inventory,
+        [product.key]: Math.min(Number.MAX_SAFE_INTEGER, currentQuantity + 1),
+      }
+    },
+
     /** Award a correct Public Favorite forecast once per season event. */
     awardPublicFavoriteForecast(state, action: PayloadAction<{ eventId: string }>) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
@@ -623,6 +689,7 @@ export const {
   recordBellaCompatibleClassicCompleted,
   settleSeasonEyeoleans,
   spendEyeoleans,
+  purchaseEyeoleanStoreProduct,
   awardPublicFavoriteForecast,
   deleteProfile,
   enterGuestMode,
@@ -644,5 +711,8 @@ export const selectCurrentProfile = (state: RootState): StoredProfile | null => 
 
 export const selectEyeoleanBalance = (state: RootState) =>
   selectCurrentProfile(state)?.eyeoleans ?? 0
+
+export const selectEyeoleanInventory = (state: RootState) =>
+  selectCurrentProfile(state)?.eyeoleanInventory ?? {}
 
 export default profilesSlice.reducer
