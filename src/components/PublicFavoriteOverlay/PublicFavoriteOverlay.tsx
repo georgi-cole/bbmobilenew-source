@@ -607,6 +607,9 @@ function ViewerSpotlightPanel({
               ? `${selectedPlayer.name} is receiving a temporary +5-point audience surge.`
               : 'Choose any remaining housemate, then watch to give them a temporary +5-point audience surge.'}
           </p>
+          <p className="pf-overlay__surge-description">
+            This does not change the official result.
+          </p>
         </div>
         <button
           type="button"
