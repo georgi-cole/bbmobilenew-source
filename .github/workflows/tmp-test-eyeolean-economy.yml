@@ -1,0 +1,25 @@
+name: Temporary Eyeolean Economy Tests
+
+on:
+  push:
+    branches:
+      - feature/eyeolean-economy
+
+jobs:
+  eyeolean-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-economy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run Eyeolean tests
+        run: >-
+          npx vitest run
+          src/economy/eyeoleans.test.ts
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/profilesSlice.forecastReward.test.ts
