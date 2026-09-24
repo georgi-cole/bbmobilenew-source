@@ -98,6 +98,8 @@ function applyDirectionCompletionRewards(
   if (state.feed.length > 50) {
     state.feed = state.feed.slice(0, 50)
   }
+}
+
 function applyDirectionFailurePenalty(
   state: PublicOpinionState,
   direction: PublicDirection,
@@ -139,8 +141,6 @@ function applyDirectionFailurePenalty(
   if (state.feed.length > 50) {
     state.feed = state.feed.slice(0, 50)
   }
-}
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
