@@ -42,7 +42,10 @@ function reservationFor(
   return activeReservations(state)[productKey]
 }
 
-function reservationMatchesGame(state: PowerMiddlewareState, productKey: EyeoleanStoreProductKey): boolean {
+function reservationMatchesGame(
+  state: PowerMiddlewareState,
+  productKey: EyeoleanStoreProductKey
+): boolean {
   return reservationFor(state, productKey)?.gameId === state.game.gameId
 }
 
