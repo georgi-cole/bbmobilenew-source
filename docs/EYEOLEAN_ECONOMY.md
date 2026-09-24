@@ -68,7 +68,6 @@ Before real money is enabled:
 
 That boundary prevents a modified client or edited localStorage value from minting paid currency.
 
-
 ## Calibration layer
 
 Reward values are not considered permanently balanced just because the arithmetic is correct. The repository now has a calibration layer that measures the distribution produced by real or simulated completed-season summaries before Store prices are locked.

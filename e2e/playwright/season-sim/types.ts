@@ -95,7 +95,6 @@ export interface ObjectiveResult {
   evidence?: string
 }
 
-
 export interface SimulationEyeoleanSample {
   source: 'archive' | 'season-complete'
   season: number

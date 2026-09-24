@@ -25,9 +25,7 @@ function calibrationCount(): number {
   if (!raw) return PERSONA_IDS.length
   const parsed = Number.parseInt(raw, 10)
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5000) {
-    throw new Error(
-      'EYEOLEAN_CALIBRATION_COUNT must be an integer from 1 to 5000; received ' + raw
-    )
+    throw new Error('EYEOLEAN_CALIBRATION_COUNT must be an integer from 1 to 5000; received ' + raw)
   }
   return parsed
 }
@@ -57,22 +55,25 @@ test.describe('Eyeolean economy calibration @eyeolean-calibration', () => {
       actor: mixSeed(index, 0x7a11ce42),
     }
 
-    test('completed season sample ' + (index + 1) + ' · ' + personaId, async ({ page }, testInfo) => {
-      test.setTimeout(60 * 60_000)
-      const config = defaultSimulationConfig({
-        id: 'eyeolean-calibration-' + String(index + 1).padStart(4, '0') + '-' + personaId,
-        personaId,
-        seeds,
-        maxActions: 1200,
-        maxDays: 60,
-        competitionSkill: skillForPersona(personaId, index),
-      })
+    test(
+      'completed season sample ' + (index + 1) + ' · ' + personaId,
+      async ({ page }, testInfo) => {
+        test.setTimeout(60 * 60_000)
+        const config = defaultSimulationConfig({
+          id: 'eyeolean-calibration-' + String(index + 1).padStart(4, '0') + '-' + personaId,
+          personaId,
+          seeds,
+          maxActions: 1200,
+          maxDays: 60,
+          competitionSkill: skillForPersona(personaId, index),
+        })
 
-      await runSeasonSimulation(page, testInfo, config)
-      // Economy calibration intentionally keeps completed samples even when the
-      // generic simulator reports a non-fatal finding. The JSON report carries
-      // those findings and the aggregator excludes samples with error severity.
-      await page.goto('about:blank')
-    })
+        await runSeasonSimulation(page, testInfo, config)
+        // Economy calibration intentionally keeps completed samples even when the
+        // generic simulator reports a non-fatal finding. The JSON report carries
+        // those findings and the aggregator excludes samples with error severity.
+        await page.goto('about:blank')
+      }
+    )
   }
 })

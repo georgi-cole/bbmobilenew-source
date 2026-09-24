@@ -71,16 +71,10 @@ interface EvaluatedSample {
   total: number
 }
 
-const ANCHOR_CODES = new Set<EyeoleanRewardCode>([
-  'season_winner',
-  'runner_up',
-  'public_favorite',
-])
+const ANCHOR_CODES = new Set<EyeoleanRewardCode>(['season_winner', 'runner_up', 'public_favorite'])
 
 function finitePositiveInt(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.floor(value))
-    : 0
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
 }
 
 function percentile(sorted: readonly number[], fraction: number): number | null {
@@ -178,10 +172,7 @@ export function buildEyeoleanCalibrationReport(
     const rank = placement(sample.input.summary)
     return rank !== 1 && rank !== 2
   })
-  const rewardSourceMap = new Map<
-    EyeoleanRewardCode,
-    { awards: number; total: number }
-  >()
+  const rewardSourceMap = new Map<EyeoleanRewardCode, { awards: number; total: number }>()
 
   let secondaryMinted = 0
   for (const sample of evaluated) {
@@ -196,12 +187,14 @@ export function buildEyeoleanCalibrationReport(
 
   const totalMinted = allTotals.reduce((sum, value) => sum + value, 0)
   const rewardSources = [...rewardSourceMap.entries()]
-    .map(([code, value]): EyeoleanRewardSourceStats => ({
-      code,
-      awards: value.awards,
-      total: value.total,
-      shareOfMinted: totalMinted > 0 ? value.total / totalMinted : 0,
-    }))
+    .map(
+      ([code, value]): EyeoleanRewardSourceStats => ({
+        code,
+        awards: value.awards,
+        total: value.total,
+        shareOfMinted: totalMinted > 0 ? value.total / totalMinted : 0,
+      })
+    )
     .sort((left, right) => right.total - left.total || left.code.localeCompare(right.code))
 
   const nonFinalistTotals = nonFinalists.map((sample) => sample.total)
@@ -226,9 +219,7 @@ export function buildEyeoleanCalibrationReport(
         evaluated,
         (sample) => finitePositiveInt(sample.input.summary.battleBackWins) > 0
       ),
-      competitionHeavy: segment(evaluated, (sample) =>
-        isCompetitionHeavy(sample.input.summary)
-      ),
+      competitionHeavy: segment(evaluated, (sample) => isCompetitionHeavy(sample.input.summary)),
     },
     rewardSources,
     pressure: {

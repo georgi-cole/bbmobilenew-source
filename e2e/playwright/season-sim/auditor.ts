@@ -110,7 +110,12 @@ export class SeasonAuditor {
       `Terminal: ${terminal}`,
       `Seed: roster=${this.context.config.seeds.roster}, season=${this.context.config.seeds.season}, actor=${this.context.config.seeds.actor}`,
       ...(economySample
-        ? ['', '## Eyeolean economy', `- payout: ${economySample.total.toLocaleString('en-US')}`, `- source: ${economySample.source}`]
+        ? [
+            '',
+            '## Eyeolean economy',
+            `- payout: ${economySample.total.toLocaleString('en-US')}`,
+            `- source: ${economySample.source}`,
+          ]
         : []),
       '',
       '## Objectives',

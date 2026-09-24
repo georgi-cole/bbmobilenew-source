@@ -43,9 +43,7 @@ function rewardSummaryFromLiveGame(game: GameState): PlayerSeasonSummary | null 
  * eliminated-season middleware. Finale simulations can fall back to live final state
  * after the season-complete phase. Partial/action-budget runs are deliberately excluded.
  */
-export function buildSimulationEyeoleanSample(
-  game: GameState
-): SimulationEyeoleanSample | null {
+export function buildSimulationEyeoleanSample(game: GameState): SimulationEyeoleanSample | null {
   const user = game.players.find((player) => player.isUser)
   if (!user) return null
 
@@ -58,9 +56,7 @@ export function buildSimulationEyeoleanSample(
     (summary) => summary.playerId === user.id
   )
 
-  const source: SimulationEyeoleanSample['source'] = archivedSummary
-    ? 'archive'
-    : 'season-complete'
+  const source: SimulationEyeoleanSample['source'] = archivedSummary ? 'archive' : 'season-complete'
   const summary =
     archivedSummary ??
     (game.seasonFinale?.phase === 'seasonComplete' ? rewardSummaryFromLiveGame(game) : null)
