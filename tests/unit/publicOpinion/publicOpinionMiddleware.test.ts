@@ -263,6 +263,74 @@ describe('publicOpinionMiddleware', () => {
     expect(state.feed).toHaveLength(0)
   })
 
+  it('evaluates AI competition performance instead of only the human participant', () => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        publicOpinion: publicOpinionReducer,
+      },
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
+      preloadedState: {
+        game: makeGameState({
+          players: [makePlayer('p1', 'Aria'), makePlayer('p2', 'Kian')],
+          week: 2,
+        }),
+      },
+    })
+
+    store.dispatch(initializeProfiles(['p1', 'p2']))
+    store.dispatch({
+      type: 'challenge/recordRun',
+      payload: {
+        participants: ['p1', 'p2'],
+        ranking: ['p1', 'p2'],
+        canonicalScores: { p1: 100, p2: 50 },
+      },
+    })
+
+    const { profiles } = store.getState().publicOpinion
+    expect(profiles.p1.approval).toBeGreaterThan(50)
+    expect(profiles.p2.approval).toBeLessThan(50)
+  })
+
+  it('evaluates simulated AI social actions through the same audience story layer', () => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        publicOpinion: publicOpinionReducer,
+      },
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(publicOpinionMiddleware),
+      preloadedState: {
+        game: makeGameState({
+          players: [makePlayer('p1', 'Aria'), makePlayer('p2', 'Kian')],
+          week: 2,
+        }),
+      },
+    })
+
+    store.dispatch(initializeProfiles(['p1', 'p2']))
+    store.dispatch({
+      type: 'social/recordSocialAction',
+      payload: {
+        entry: {
+          actionId: 'compliment',
+          actorId: 'p1',
+          targetId: 'p2',
+          cost: 1,
+          delta: 5,
+          outcome: 'success',
+          newEnergy: 5,
+          timestamp: 1,
+          week: 2,
+          score: 0.6,
+          source: 'system',
+        },
+      },
+    })
+
+    expect(store.getState().publicOpinion.profiles.p1.approval).toBeGreaterThan(50)
+  })
+
   it('provides a small visible recovery path when approval is critically low', () => {
     const store = configureStore({
       reducer: {
@@ -316,7 +384,7 @@ describe('publicOpinionMiddleware', () => {
     const expiredDirection = store
       .getState()
       .publicOpinion.directions.find((direction) => direction.id === 'dir-1')
-    expect(expiredDirection?.status).toBe('expired')
+    expect(expiredDirection?.status).toBe('failed')
   })
 
   it('initializes a public profile for a newly added late entrant without resetting existing approvals', () => {
