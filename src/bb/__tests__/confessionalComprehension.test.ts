@@ -231,4 +231,25 @@ describe('Big Eye comprehension frame', () => {
     expect(next.thread?.lastEyeQuestion).toContain('Do you have the votes?')
   })
 
+
+  it('does not turn relationship questions into declared trust or target stances', () => {
+    const trustQuestion = buildBigEyeComprehensionFrame({
+      text: 'Can I trust Nico?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+      memorySummary: 'Belief — distrusts Nico',
+    })
+    const evictionQuestion = buildBigEyeComprehensionFrame({
+      text: 'Why was Nico evicted?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world: { ...world, recentEvictedNames: ['Nico'] },
+    })
+
+    expect(trustQuestion.relationshipStances).not.toContain('trust')
+    expect(trustQuestion.contradiction).toBeNull()
+    expect(evictionQuestion.relationshipStances).not.toContain('target')
+  })
+
 })
