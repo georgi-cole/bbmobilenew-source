@@ -131,7 +131,7 @@ import { useEndgameFlow } from './flows/useEndgameFlow'
 import { useEvictionFlow } from './flows/useEvictionFlow'
 import { useLohFlow } from './flows/useLohFlow'
 import { useSafetyFlow } from './flows/useSafetyFlow'
-import { BATTLE_BACK_RETRY_LIMIT, useTwistFlow } from './flows/useTwistFlow'
+import { useTwistFlow } from './flows/useTwistFlow'
 import {
   expandCupidIds,
   getCupidPartnerId,
@@ -857,6 +857,7 @@ export default function GameScreen() {
     battleBackVariant,
     useBattleBackMinigame,
     battleBackRetryCount,
+    battleBackRetryLimit,
     battleBackRetryOfferWinnerId,
     battleBackRetryOfferWinner,
     showBattleBackReturn,
@@ -2579,7 +2580,7 @@ export default function GameScreen() {
           <AdPrompt
             icon="⚡"
             title="Second Chance?"
-            description={`Watch a short ad to rerun Back 2 the Game before ${battleBackRetryOfferWinner?.name ?? 'the winner'} returns. Retries left: ${BATTLE_BACK_RETRY_LIMIT - battleBackRetryCount}.`}
+            description={`Watch a short ad to rerun Back 2 the Game before ${battleBackRetryOfferWinner?.name ?? 'the winner'} returns. Retries left: ${battleBackRetryLimit - battleBackRetryCount}.`}
             watchLabel="Watch Ad to Replay Back 2 the Game"
             skipLabel="Continue"
             onWatch={() => {
