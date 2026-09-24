@@ -675,7 +675,7 @@ export default function DiaryRoom() {
         tags: [...(relationship.tags ?? [])],
       }))
       .sort((left, right) => Math.abs(right.affinity) - Math.abs(left.affinity))
-      .slice(0, 6)
+      .slice(0, 20)
     const nameFor = (id: string | null | undefined) => (id ? (playerNameById.get(id) ?? id) : null)
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
