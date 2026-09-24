@@ -186,6 +186,7 @@ function buildReport(reports) {
     },
     rewardSources: sourceMix,
     pressure: {
+      nonFinalistSecondary: distribution(nonFinalistSecondaryTotals),
       nonFinalistAtOrAboveRunnerUp: threshold(50_000),
       nonFinalistAtOrAbovePublicFavorite: threshold(25_000),
       secondaryRewardShareOfMinted: totalMinted > 0 ? secondaryMinted / totalMinted : 0,
@@ -234,6 +235,7 @@ function markdown(report) {
     '',
     '## Balance pressure',
     '',
+    '- Non-finalist secondary payout P90: ' + money(report.pressure.nonFinalistSecondary.p90),
     '- Non-finalist secondary rewards at or above 50,000 runner-up anchor: ' +
       report.pressure.nonFinalistAtOrAboveRunnerUp.count +
       ' (' +
