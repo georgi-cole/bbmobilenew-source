@@ -103,7 +103,8 @@ function applyDirectionCompletionRewards(
 function applyDirectionFailurePenalty(
   state: PublicOpinionState,
   direction: PublicDirection,
-  week: number
+  week: number,
+  counter = false
 ): void {
   if (direction.status === 'failed') return
   direction.status = 'failed'
@@ -111,10 +112,13 @@ function applyDirectionFailurePenalty(
   const profile = state.profiles[direction.playerId]
   if (!profile) return
 
-  const delta = publicOpinionConfig.directionRewards.fail
+  const delta = counter
+    ? publicOpinionConfig.directionRewards.counter
+    : publicOpinionConfig.directionRewards.fail
+  const reason = counter ? 'direction_counter' : 'direction_failed'
   const applied = applyAudienceApprovalDelta(profile, {
     delta,
-    reason: 'direction_failed',
+    reason,
     week,
   })
   profile.previousApproval = profile.approval
@@ -127,7 +131,7 @@ function applyDirectionFailurePenalty(
     id: `${direction.playerId}-${week}-${Date.now()}-dir-failed`,
     playerId: direction.playerId,
     text: createPublicNarrative({
-      reason: 'direction_failed',
+      reason,
       playerId: direction.playerId,
       delta: applied.appliedDelta,
       week,
@@ -135,7 +139,7 @@ function applyDirectionFailurePenalty(
     delta: applied.appliedDelta,
     week,
     timestamp: Date.now(),
-    reason: 'direction_failed',
+    reason,
   }
   state.feed.unshift(feedEntry)
   if (state.feed.length > 50) {
@@ -326,6 +330,7 @@ const publicOpinionSlice = createSlice({
         directionId: string
         status: 'completed' | 'failed' | 'expired'
         week: number
+        counter?: boolean
       }>
     ) {
       const { directionId, status, week } = action.payload
@@ -340,7 +345,7 @@ const publicOpinionSlice = createSlice({
       }
 
       if (status === 'failed') {
-        applyDirectionFailurePenalty(state, direction, week)
+        applyDirectionFailurePenalty(state, direction, week, action.payload.counter === true)
         return
       }
 
