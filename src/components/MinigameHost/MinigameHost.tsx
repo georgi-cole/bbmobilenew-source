@@ -769,7 +769,9 @@ export default function MinigameHost({
 
     if (game.implementation === 'react' && game.reactComponentKey === 'Capitalization') {
       const CapitalizationComp = reactComponents.Capitalization as ComponentType<
-        GenericMinigameProps & { context?: 'loh' | 'battleBack' }
+        GenericMinigameProps & {
+          context?: 'loh' | 'battleBack'
+        }
       >
       const capitalizationContext =
         gameOptions.capitalizationContext === 'battleBack' ? 'battleBack' : 'loh'
