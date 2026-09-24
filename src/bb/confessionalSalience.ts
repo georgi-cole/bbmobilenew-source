@@ -49,11 +49,21 @@ export function getSalientConfessionalObservation(input: {
   const playerIsNominated = current.nomineeNames.includes(input.playerName)
 
   const candidates: Array<{ event: ConfessionalSalienceEvent; detail?: string }> = []
+  const normalizedPlayer = input.playerName.toLowerCase()
+  const publicReturnSeen =
+    input.current.recentPublicEvents?.some((event) => {
+      const text = event.toLowerCase()
+      return (
+        text.includes(normalizedPlayer) &&
+        (text.includes('return') || text.includes('back in the game') || text.includes('back to the game'))
+      )
+    }) ?? false
 
   if (
-    previous.playerStatus === 'evicted' &&
+    publicReturnSeen ||
+    (previous.playerStatus === 'evicted' &&
     current.playerStatus !== 'evicted' &&
-    current.playerStatus !== 'jury'
+    current.playerStatus !== 'jury')
   ) {
     candidates.push({ event: 'returned' })
   }
