@@ -5,6 +5,7 @@ import {
   chooseDramaAIMove,
   createInitialDramaSocialNetwork,
 } from '../dramaModeEngine'
+import { DRAMA_DIALOGUE_BANK } from '../dramaModeConfig'
 import type { DramaSocialNetwork, RelationshipsMap } from '../types'
 
 const players = [
@@ -38,6 +39,16 @@ const relationships: RelationshipsMap = {
 }
 
 describe('Drama Mode story network', () => {
+  it('keeps backup-plan language reserved for the canonical nomination system', () => {
+    const nonCanonicalTargetingCopy = [
+      ...DRAMA_DIALOGUE_BANK.rumour.targeting,
+      ...DRAMA_DIALOGUE_BANK.exposure.targeting,
+      ...DRAMA_DIALOGUE_BANK.arc.bromance.strained,
+    ]
+
+    expect(nonCanonicalTargetingCopy.join(' ')).not.toMatch(/backup plan/i)
+  })
+
   it('stores named false rumours and listener beliefs', () => {
     const network = applyDramaActionEffect(createInitialDramaSocialNetwork(), {
       actionId: 'plant_lie',

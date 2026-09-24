@@ -14,7 +14,7 @@ import { initializeVip, purchaseStoreItem, restoreVip, selectVip } from '../../s
 import { setGameUX } from '../../store/settingsSlice'
 import {
   EXPANSION_PRODUCT_KEYS,
-  FEATURE_PRODUCT_KEYS,
+  GAME_MODE_PRODUCT_KEYS,
   STANDALONE_PRODUCT_KEYS,
   getStoreProductDefinition,
   type StoreProductKey,
@@ -40,6 +40,25 @@ function CheckIcon() {
   )
 }
 
+const STORE_SHELVES = [
+  { id: 'all-access', label: 'VIP' },
+  { id: 'game-modes', label: 'Game Modes' },
+  { id: 'season-expansions', label: 'Expansion' },
+  { id: 'powers', label: 'Powers' },
+] as const
+
+type StoreShelfId = (typeof STORE_SHELVES)[number]['id']
+
+const VIP_BENEFIT_HIGHLIGHTS: Record<string, string> = {
+  'Public Mode controls': 'Put the viewers in the game.',
+  'Surveyeval Mode': 'Outlast every replacement.',
+  'Reality Mode': 'Turn the social game all the way up.',
+  "Cupid's Arrow expansion": 'Shared fates. Doubled consequences.',
+  'Vox Populi expansion': 'The audience gets the final say.',
+  'VIP themes': 'Give every season a premium finish.',
+  'Premium Challenges remasters': 'Two fan-favourite rescues, rebuilt.',
+}
+
 export default function Store() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -53,6 +72,7 @@ export default function Store() {
   const [eyeoleanError, setEyeoleanError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [selectedProductKey, setSelectedProductKey] = useState<StoreProductKey | null>(null)
+  const [activeShelf, setActiveShelf] = useState<StoreShelfId>('all-access')
   const purchaseLockRef = useRef(false)
   const busy =
     storeState.status === 'loading' ||
@@ -180,266 +200,304 @@ export default function Store() {
         <GameBackButton className="vip-store__back" onClick={goBack} />
       </header>
 
-      <section
-        className="vip-store__standalone vip-store__eyeolean-market"
-        aria-labelledby="eyeolean-items-title"
-      >
-        <div className="vip-store__eyeolean-heading">
-          <div>
-            <p className="vip-store__eyebrow">Experimental soft-currency items</p>
-            <h2 id="eyeolean-items-title">Eyeolean Store</h2>
-          </div>
-          <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
-            <span>Wallet</span>
-            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-            <small>Eyeoleans</small>
-          </div>
-        </div>
-
-        <p className="vip-store__eyeolean-note">
-          Test catalog. These are repeatable consumables, so prices and behavior can be tuned later.
-        </p>
-
-        <div className="vip-store__eyeolean-grid">
-          {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
-            const product = getEyeoleanStoreProduct(productKey)
-            const owned = eyeoleanInventory[productKey] ?? 0
-            const canBuy = Boolean(currentProfile) && eyeoleanBalance >= product.price
-            return (
-              <article className="vip-store__eyeolean-product" key={productKey}>
-                <div
-                  className="vip-store__eyeolean-product-icon"
-                  data-product={productKey}
-                  aria-hidden="true"
-                >
-                  {productKey === 'extra_vote' ? '2×' : '−1'}
-                </div>
-                <div className="vip-store__eyeolean-product-copy">
-                  <div className="vip-store__eyeolean-product-title-row">
-                    <h3>{product.title}</h3>
-                    <span>Owned {owned}</span>
-                  </div>
-                  <p>{product.shortDescription}</p>
-                </div>
-                <div className="vip-store__eyeolean-product-footer">
-                  <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
-                  <button
-                    type="button"
-                    onClick={() => purchaseEyeoleanItem(productKey)}
-                    disabled={!canBuy}
-                    aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
-                  >
-                    {currentProfile ? (canBuy ? 'Buy' : 'Not enough') : 'Profile required'}
-                  </button>
-                </div>
-              </article>
-            )
-          })}
-        </div>
-
-        {(eyeoleanNotice || eyeoleanError) && (
-          <p
-            className={
-              eyeoleanError ? 'vip-store__notice vip-store__notice--error' : 'vip-store__notice'
-            }
-            role="status"
-            aria-live="polite"
+      <nav className="vip-store__shelf-nav" aria-label="Store categories">
+        {STORE_SHELVES.map((shelf) => (
+          <button
+            type="button"
+            key={shelf.id}
+            aria-pressed={activeShelf === shelf.id}
+            onClick={() => setActiveShelf(shelf.id)}
           >
-            {eyeoleanError || eyeoleanNotice}
-          </p>
-        )}
-      </section>
+            {shelf.label}
+          </button>
+        ))}
+      </nav>
 
-      {developerAccess && (
-        <section className="vip-store__restore-panel" role="status">
-          <p className="vip-store__availability">
-            Developer monetisation mode is active. Paid features and rewarded-ad rewards are
-            available without contacting the App Store.
+      {activeShelf === 'powers' && (
+        <section
+          className="vip-store__standalone vip-store__eyeolean-market"
+          aria-labelledby="eyeolean-items-title"
+        >
+          <div className="vip-store__eyeolean-heading">
+            <div>
+              <p className="vip-store__eyebrow">Spend what you earn</p>
+              <h2 id="eyeolean-items-title">Power Market</h2>
+            </div>
+            <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
+              <span>Wallet</span>
+              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+              <small>Eyeoleans</small>
+            </div>
+          </div>
+
+          <p className="vip-store__eyeolean-note">
+            Repeatable powers for a future eligible eviction.
           </p>
+
+          <div className="vip-store__eyeolean-grid">
+            {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
+              const product = getEyeoleanStoreProduct(productKey)
+              const owned = eyeoleanInventory[productKey] ?? 0
+              const canBuy = Boolean(currentProfile) && eyeoleanBalance >= product.price
+              return (
+                <article className="vip-store__eyeolean-product" key={productKey}>
+                  <div
+                    className="vip-store__eyeolean-product-icon"
+                    data-product={productKey}
+                    aria-hidden="true"
+                  >
+                    {productKey === 'extra_vote' ? '2×' : '−1'}
+                  </div>
+                  <div className="vip-store__eyeolean-product-copy">
+                    <div className="vip-store__eyeolean-product-title-row">
+                      <h3>{product.title}</h3>
+                      <span>Owned {owned}</span>
+                    </div>
+                    <p>{product.shortDescription}</p>
+                  </div>
+                  <div className="vip-store__eyeolean-product-footer">
+                    <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
+                    <button
+                      type="button"
+                      onClick={() => purchaseEyeoleanItem(productKey)}
+                      disabled={!canBuy}
+                      aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
+                    >
+                      {currentProfile ? (canBuy ? 'Buy' : 'Not enough') : 'Profile required'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+
+          {(eyeoleanNotice || eyeoleanError) && (
+            <p
+              className={
+                eyeoleanError ? 'vip-store__notice vip-store__notice--error' : 'vip-store__notice'
+              }
+              role="status"
+              aria-live="polite"
+            >
+              {eyeoleanError || eyeoleanNotice}
+            </p>
+          )}
         </section>
       )}
 
-      <section className="vip-store__card" aria-labelledby="vip-plan-title">
-        <div className="vip-store__glow" aria-hidden="true" />
-        <div className="vip-store__bundle-heading">
-          <span className="vip-store__bundle-icon" aria-hidden="true">
-            <StoreProductIcon name={vipDefinition.icon} />
-          </span>
-          <div>
-            <p className="vip-store__kicker">Best value - permanent</p>
-            <h2 id="vip-plan-title">{vipProduct?.title || vipDefinition.title}</h2>
-          </div>
-        </div>
-        <p className="vip-store__description">
-          {vipProduct?.description || vipDefinition.description}
-        </p>
-
-        <ul className="vip-store__benefits">
-          {vipDefinition.benefits.map((benefit) => (
-            <li key={benefit}>
-              <CheckIcon />
-              {benefit}
-            </li>
-          ))}
-        </ul>
-
-        <div className="vip-store__bundle-purchase">
-          <div className="vip-store__price" aria-label={vipProduct?.price || 'Price unavailable'}>
-            <strong className={vipProduct ? undefined : 'vip-store__price-unavailable'}>
-              {developerAccess
-                ? 'Developer access'
-                : vipProduct?.price ||
-                  (storeState.billingAvailable
-                    ? 'Product unavailable'
-                    : 'Available on iOS and Android')}
-            </strong>
-            {vipProduct && !developerAccess && <span>one time</span>}
+      {activeShelf === 'all-access' && (
+        <section
+          className="vip-store__card vip-store__vip-showcase"
+          aria-labelledby="vip-plan-title"
+        >
+          <div className="vip-store__glow" aria-hidden="true" />
+          <div className="vip-store__vip-intro">
+            <div className="vip-store__bundle-heading">
+              <span className="vip-store__bundle-icon" aria-hidden="true">
+                <StoreProductIcon name={vipDefinition.icon} />
+              </span>
+              <div>
+                <p className="vip-store__kicker">VIP membership · permanent</p>
+                <h2 id="vip-plan-title">{vipProduct?.title || vipDefinition.title}</h2>
+              </div>
+            </div>
+            <p className="vip-store__description">
+              {vipProduct?.description || vipDefinition.description}
+            </p>
           </div>
 
+          <div className="vip-store__vip-collection">
+            <div className="vip-store__vip-collection-heading">
+              <span>Your complete collection</span>
+              <strong>{vipDefinition.benefits.length} unlocks</strong>
+            </div>
+            <ul className="vip-store__benefits">
+              {vipDefinition.benefits.map((benefit) => (
+                <li key={benefit}>
+                  <CheckIcon />
+                  <span>
+                    <strong>{benefit}</strong>
+                    <small>
+                      {VIP_BENEFIT_HIGHLIGHTS[benefit] || 'Permanently included with VIP.'}
+                    </small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="vip-store__bundle-purchase">
+            <div className="vip-store__price" aria-label={vipProduct?.price || 'Price unavailable'}>
+              <strong className={vipProduct ? undefined : 'vip-store__price-unavailable'}>
+                {developerAccess
+                  ? 'Developer access'
+                  : vipProduct?.price ||
+                    (storeState.billingAvailable
+                      ? 'Product unavailable'
+                      : 'Available on iOS and Android')}
+              </strong>
+              {vipProduct && !developerAccess && <span>one time</span>}
+            </div>
+
+            <button
+              type="button"
+              className="vip-store__primary"
+              onClick={() => selectProduct('vip')}
+              disabled={busy}
+            >
+              {effectiveVipActive ? 'View VIP access' : 'Explore VIP'}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {activeShelf === 'game-modes' && (
+        <section className="vip-store__standalone" aria-labelledby="game-modes-title">
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Pick your format</p>
+            <h2 id="game-modes-title">Play a different game</h2>
+            <p>Three distinct ways to change how the season plays.</p>
+          </div>
+
+          <div className="vip-store__product-grid">
+            {GAME_MODE_PRODUCT_KEYS.map((productKey) => {
+              const definition = getStoreProductDefinition(productKey)
+              const product = storeState.products[productKey]
+              const owned = ownsProduct(productKey)
+              const includedWithVip =
+                !developerAccess && storeState.isActive && !storeState.entitlements[productKey]
+              return (
+                <button
+                  type="button"
+                  className="vip-store__product"
+                  data-theme={definition.visualTheme}
+                  key={productKey}
+                  onClick={() => selectProduct(productKey)}
+                  disabled={busy}
+                  aria-label={`Open ${definition.title}`}
+                >
+                  <span className="vip-store__product-icon" aria-hidden="true">
+                    <StoreProductIcon name={definition.icon} />
+                  </span>
+                  <span className="vip-store__product-copy">
+                    <span className="vip-store__product-title">
+                      {product?.title || definition.title}
+                    </span>
+                    <span className="vip-store__product-description">
+                      {definition.shortTagline}
+                    </span>
+                  </span>
+                  <span className="vip-store__product-footer">
+                    <strong>
+                      {developerAccess
+                        ? 'Developer access'
+                        : includedWithVip
+                          ? 'Included with VIP'
+                          : owned
+                            ? 'Owned'
+                            : product?.price || 'Price unavailable'}
+                    </strong>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {activeShelf === 'season-expansions' && (
+        <section className="vip-store__standalone" aria-labelledby="season-expansions-title">
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Add another layer</p>
+            <h2 id="season-expansions-title">Expand the house</h2>
+            <p>Audience pressure or a sharper social game, whenever you want it.</p>
+          </div>
+
+          <div className="vip-store__product-grid">
+            {EXPANSION_PRODUCT_KEYS.map((productKey) => {
+              const definition = getStoreProductDefinition(productKey)
+              const product = storeState.products[productKey]
+              const owned = ownsProduct(productKey)
+              const includedWithVip =
+                !developerAccess && storeState.isActive && !storeState.entitlements[productKey]
+              return (
+                <button
+                  type="button"
+                  className="vip-store__product"
+                  data-theme={definition.visualTheme}
+                  key={productKey}
+                  onClick={() => selectProduct(productKey)}
+                  disabled={busy}
+                  aria-label={`Open ${definition.title}`}
+                >
+                  <span className="vip-store__product-icon" aria-hidden="true">
+                    <StoreProductIcon name={definition.icon} />
+                  </span>
+                  <span className="vip-store__product-copy">
+                    <span className="vip-store__product-title">{definition.title}</span>
+                    <span className="vip-store__product-description">
+                      {definition.shortTagline}
+                    </span>
+                  </span>
+                  <span className="vip-store__product-footer">
+                    <strong>
+                      {developerAccess
+                        ? 'Developer access'
+                        : includedWithVip
+                          ? 'Included with VIP'
+                          : owned
+                            ? 'Owned'
+                            : product?.price || 'Price unavailable'}
+                    </strong>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {activeShelf === 'all-access' && (
+        <section className="vip-store__restore-panel">
           <button
             type="button"
-            className="vip-store__primary"
-            onClick={() => selectProduct('vip')}
-            disabled={busy}
+            className="vip-store__restore"
+            onClick={() => void handleRestore()}
+            disabled={busy || !storeState.billingAvailable || developerAccess}
           >
-            {effectiveVipActive ? 'View VIP access' : 'Explore VIP'}
+            {storeState.status === 'restoring' ? 'Restoring...' : 'Restore Purchases'}
           </button>
-        </div>
-      </section>
 
-      <section className="vip-store__standalone" aria-labelledby="individual-products-title">
-        <div className="vip-store__section-heading">
-          <p className="vip-store__eyebrow">Buy separately</p>
-          <h2 id="individual-products-title">Choose only what you want</h2>
-          <p>Tap any item for details. Every unlock is a permanent one-time purchase.</p>
-        </div>
+          {!developerAccess && !storeState.billingAvailable && storeState.status !== 'loading' && (
+            <p className="vip-store__availability">
+              Purchases appear here when the app is installed from Apple App Store or Google Play.
+            </p>
+          )}
+          {(notice || (selectedProductKey == null && storeState.error)) && (
+            <p
+              className={
+                storeState.error
+                  ? 'vip-store__notice vip-store__notice--error'
+                  : 'vip-store__notice'
+              }
+              role="status"
+              aria-live="polite"
+            >
+              {notice || storeState.error}
+            </p>
+          )}
+        </section>
+      )}
 
-        <div className="vip-store__product-grid">
-          {FEATURE_PRODUCT_KEYS.map((productKey) => {
-            const definition = getStoreProductDefinition(productKey)
-            const product = storeState.products[productKey]
-            const owned = ownsProduct(productKey)
-            const includedWithVip =
-              !developerAccess && storeState.isActive && !storeState.entitlements[productKey]
-            return (
-              <button
-                type="button"
-                className="vip-store__product"
-                data-theme={definition.visualTheme}
-                key={productKey}
-                onClick={() => selectProduct(productKey)}
-                disabled={busy}
-                aria-label={`Open ${definition.title}`}
-              >
-                <span className="vip-store__product-icon" aria-hidden="true">
-                  <StoreProductIcon name={definition.icon} />
-                </span>
-                <span className="vip-store__product-copy">
-                  <span className="vip-store__product-title">
-                    {product?.title || definition.title}
-                  </span>
-                  <span className="vip-store__product-description">{definition.shortTagline}</span>
-                </span>
-                <span className="vip-store__product-footer">
-                  <strong>
-                    {developerAccess
-                      ? 'Developer access'
-                      : includedWithVip
-                        ? 'Included with VIP'
-                        : owned
-                          ? 'Owned'
-                          : product?.price || 'Price unavailable'}
-                  </strong>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="vip-store__standalone" aria-labelledby="season-expansions-title">
-        <div className="vip-store__section-heading">
-          <p className="vip-store__eyebrow">Season expansions</p>
-          <h2 id="season-expansions-title">Change the rules of the house</h2>
-          <p>Complete seasonal formats with their own ceremonies, strategy, and finale journey.</p>
-        </div>
-
-        <div className="vip-store__product-grid">
-          {EXPANSION_PRODUCT_KEYS.map((productKey) => {
-            const definition = getStoreProductDefinition(productKey)
-            const product = storeState.products[productKey]
-            const owned = ownsProduct(productKey)
-            const includedWithVip =
-              !developerAccess && storeState.isActive && !storeState.entitlements[productKey]
-            return (
-              <button
-                type="button"
-                className="vip-store__product"
-                data-theme={definition.visualTheme}
-                key={productKey}
-                onClick={() => selectProduct(productKey)}
-                disabled={busy}
-                aria-label={`Open ${definition.title}`}
-              >
-                <span className="vip-store__product-icon" aria-hidden="true">
-                  <StoreProductIcon name={definition.icon} />
-                </span>
-                <span className="vip-store__product-copy">
-                  <span className="vip-store__product-title">{definition.title}</span>
-                  <span className="vip-store__product-description">{definition.shortTagline}</span>
-                </span>
-                <span className="vip-store__product-footer">
-                  <strong>
-                    {developerAccess
-                      ? 'Developer access'
-                      : includedWithVip
-                        ? 'Included with VIP'
-                        : owned
-                          ? 'Owned'
-                          : product?.price || 'Price unavailable'}
-                  </strong>
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="vip-store__restore-panel">
-        <button
-          type="button"
-          className="vip-store__restore"
-          onClick={() => void handleRestore()}
-          disabled={busy || !storeState.billingAvailable || developerAccess}
-        >
-          {storeState.status === 'restoring' ? 'Restoring...' : 'Restore Purchases'}
-        </button>
-
-        {!developerAccess && !storeState.billingAvailable && storeState.status !== 'loading' && (
-          <p className="vip-store__availability">
-            Purchases appear here when the app is installed from Apple App Store or Google Play.
-          </p>
-        )}
-        {(notice || (selectedProductKey == null && storeState.error)) && (
-          <p
-            className={
-              storeState.error ? 'vip-store__notice vip-store__notice--error' : 'vip-store__notice'
-            }
-            role="status"
-            aria-live="polite"
-          >
-            {notice || storeState.error}
-          </p>
-        )}
-      </section>
-
-      <p className="vip-store__terms">
-        These are one-time, non-consumable purchases charged to your Apple or Google account. Use
-        Restore Purchases after reinstalling or moving to another device.{' '}
-        <button type="button" onClick={() => navigate('/legal')}>
-          Privacy and terms
-        </button>
-      </p>
+      {activeShelf === 'all-access' && (
+        <p className="vip-store__terms">
+          These are one-time, non-consumable purchases charged to your Apple or Google account. Use
+          Restore Purchases after reinstalling or moving to another device.{' '}
+          <button type="button" onClick={() => navigate('/legal')}>
+            Privacy and terms
+          </button>
+        </p>
+      )}
 
       {selectedDefinition && selectedProductKey && (
         <StoreProductModal

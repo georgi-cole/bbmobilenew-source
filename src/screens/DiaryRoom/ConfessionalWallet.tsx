@@ -27,8 +27,8 @@ const EARNED_POWER_LABELS: Record<string, string> = {
 
 function powerDetail(productKey: EyeoleanStoreProductKey): string {
   return productKey === 'extra_vote'
-    ? 'Triggers only when you can legally cast a standard house vote. If another extra-ballot power has priority, this one waits.'
-    : 'Triggers only when you are nominated and receive at least one legal vote. It reduces the effective tally by one while preserving the raw ballots.'
+    ? 'One extra ballot at an eligible eviction.'
+    : 'Cancel one vote against you at an eligible eviction.'
 }
 
 export default function ConfessionalWallet() {
@@ -118,29 +118,28 @@ export default function ConfessionalWallet() {
   return (
     <section className="diary-room__wallet" aria-label="Eyeolean wallet and powers">
       <div className="diary-room__wallet-balance-card">
-        <div>
-          <span className="diary-room__wallet-eyebrow">Eyeolean wallet</span>
-          <strong>{balance.toLocaleString('en-US')}</strong>
-          <small>Eyeoleans</small>
+        <div className="diary-room__wallet-balance-copy">
+          <span className="diary-room__wallet-coin" aria-hidden="true" />
+          <div className="diary-room__wallet-balance-meta">
+            <small>Eyeoleans</small>
+            <strong>{balance.toLocaleString('en-US')}</strong>
+          </div>
         </div>
         <button
           type="button"
           className="diary-room__wallet-store-btn"
           onClick={() => navigate('/store', { state: { returnTo: '/diary-room' } })}
         >
-          Open Store
+          Store
         </button>
       </div>
 
       <div className="diary-room__wallet-section-heading">
         <div>
-          <span className="diary-room__wallet-eyebrow">Purchased powers</span>
-          <h2>Your inventory</h2>
+          <span className="diary-room__wallet-eyebrow">Powers</span>
+          <h2>Inventory</h2>
         </div>
-        <p>
-          Arm a power here. It is consumed only when its effect actually applies. Unused armed
-          powers return to inventory at Final 4, elimination, or season reset.
-        </p>
+        <p>Arm a power for the next eligible eviction.</p>
       </div>
 
       <div className="diary-room__wallet-power-list">
@@ -179,12 +178,9 @@ export default function ConfessionalWallet() {
                 <div className="diary-room__wallet-power-title">
                   <h3>{product.title}</h3>
                   <span data-status={armed ? 'armed' : 'idle'}>{status}</span>
+                  <span className="diary-room__wallet-owned">×{totalOwned}</span>
                 </div>
                 <p>{powerDetail(productKey)}</p>
-                <small>
-                  Owned {totalOwned}
-                  {armed ? ` · armed on Day ${reservation?.armedWeek ?? game.week}` : ''}
-                </small>
               </div>
               <div className="diary-room__wallet-power-action">
                 {armed ? (
@@ -203,7 +199,7 @@ export default function ConfessionalWallet() {
                     disabled={!canArm}
                     onClick={() => handleArm(productKey)}
                   >
-                    Use next eligible eviction
+                    Arm
                   </button>
                 ) : (
                   <button
@@ -211,7 +207,7 @@ export default function ConfessionalWallet() {
                     className="diary-room__wallet-secondary-btn"
                     onClick={() => navigate('/store', { state: { returnTo: '/diary-room' } })}
                   >
-                    Get in Store
+                    Get
                   </button>
                 )}
                 {!armed && inventoryCount > 0 && !availability.available && (

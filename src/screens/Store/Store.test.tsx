@@ -7,6 +7,7 @@ import { STORE_PRODUCT_CATALOG } from '../../vip/vipConfig'
 import { createEmptyStoreEntitlements } from '../../vip/vipStorage'
 import { hasStoreProductIcon } from '../../components/StoreProductModal/storeProductIconUtils'
 import vipReducer, { type VipState } from '../../store/vipSlice'
+import profilesReducer from '../../store/profilesSlice'
 import Store from './Store'
 
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
@@ -20,6 +21,15 @@ vi.mock('../../vip/vipPurchaseService', async (importOriginal) => {
     loadVipStoreSnapshot: loadVipStoreSnapshotMock,
   }
 })
+
+vi.mock('../../vip/effectiveEntitlements', () => ({
+  TEMPORARY_STORE_UNLOCKS_ENABLED: false,
+  isEffectiveVipActive: (vip: { isActive?: boolean } | undefined) => vip?.isActive === true,
+  hasEffectiveStoreEntitlement: (
+    vip: { isActive?: boolean; entitlements?: Record<string, boolean> } | undefined,
+    entitlement: string
+  ) => vip?.isActive === true || vip?.entitlements?.[entitlement] === true,
+}))
 
 function makeVipState(options?: {
   owned?: string[]
@@ -70,7 +80,7 @@ function snapshotFrom(state: VipState) {
 
 function renderStore(initialVip = makeVipState()) {
   const store = configureStore({
-    reducer: { vip: vipReducer },
+    reducer: { vip: vipReducer, profiles: profilesReducer },
     preloadedState: { vip: initialVip },
   })
 
@@ -90,6 +100,7 @@ function renderStore(initialVip = makeVipState()) {
 }
 
 function openDramaMode() {
+  fireEvent.click(screen.getByRole('button', { name: 'Expansion' }))
   fireEvent.click(screen.getByRole('button', { name: 'Open Reality Mode' }))
 }
 
@@ -107,10 +118,23 @@ describe('Store product presentation', () => {
 
   it('presents Cupid and Vox as dedicated season expansions', () => {
     renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Game Modes' }))
 
-    expect(screen.getByRole('heading', { name: 'Change the rules of the house' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Play a different game' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: "Open Cupid's Arrow" })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open Vox Populi' })).toBeInTheDocument()
+  })
+
+  it('switches store categories in place instead of navigating away from the store', () => {
+    renderStore()
+
+    expect(screen.getByRole('heading', { name: 'The Big Eye VIP' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Power Market' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Powers' }))
+
+    expect(screen.getByRole('heading', { name: 'Power Market' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'The Big Eye VIP' })).not.toBeInTheDocument()
   })
 
   it('opens the unowned product presentation with live price and real benefits', () => {
