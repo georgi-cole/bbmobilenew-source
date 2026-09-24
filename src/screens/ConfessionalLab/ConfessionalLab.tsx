@@ -158,10 +158,14 @@ export default function ConfessionalLab() {
   const world = contextMode === 'current' ? currentWorld : scenarioWorld
   const effectivePlayerName = contextMode === 'current' ? playerName : 'Alex'
 
-  const suiteResults = useMemo(
-    () => runConfessionalCalibrationSuite(),
-    [remoteConfessionalRevision]
+  const suiteSnapshot = useMemo(
+    () => ({
+      revision: remoteConfessionalRevision ?? runtimeConfig.revision,
+      results: runConfessionalCalibrationSuite(),
+    }),
+    [remoteConfessionalRevision, runtimeConfig.revision]
   )
+  const suiteResults = suiteSnapshot.results
   const visibleSuiteResults = useMemo(
     () =>
       suiteCategory === 'all'
@@ -236,7 +240,7 @@ export default function ConfessionalLab() {
   const copyReport = async () => {
     const report = {
       generatedAt: new Date().toISOString(),
-      configRevision: runtimeConfig.revision,
+      configRevision: suiteSnapshot.revision,
       summary: {
         scenarios: suiteResults.length,
         contractScenarios: contractResults.length,
