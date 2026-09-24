@@ -1,4 +1,4 @@
-name: Temp Eyeolean 500 Season Calibration
+name: Eyeolean 500 Season Calibration
 
 on:
   push:
@@ -10,13 +10,10 @@ permissions:
 
 jobs:
   verify:
-    if: github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/eyeolean-economy
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -48,7 +45,6 @@ jobs:
           src/store/profilesSlice.forecastReward.test.ts
 
   calibrate:
-    if: github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 300
@@ -63,8 +59,6 @@ jobs:
       VISUAL_AUDIT_WRITE: '1'
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/eyeolean-economy
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -93,14 +87,11 @@ jobs:
           retention-days: 14
 
   aggregate:
-    if: always() && github.event.head_commit.message == 'chore: run Eyeolean calibration batch'
     needs: calibrate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/eyeolean-economy
       - uses: actions/download-artifact@v4
         with:
           pattern: eyeolean-calibration-shard-*
