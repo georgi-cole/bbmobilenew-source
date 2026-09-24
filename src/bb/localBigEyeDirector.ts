@@ -688,7 +688,14 @@ export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string
   ].filter(Boolean)
   additions.push(`Topic — ${details.join('; ')}`)
 
-  if (frame.focusPlayer) {
+  const durableRelationshipStatement = ![
+    'factual_question',
+    'relationship_read',
+    'clarification',
+    'memory_query',
+  ].includes(frame.speechAct)
+
+  if (frame.focusPlayer && durableRelationshipStatement) {
     for (const stance of frame.relationshipStances) {
       if (stance === 'trust') additions.push(`Belief — trusts ${frame.focusPlayer}`)
       if (stance === 'distrust') additions.push(`Belief — distrusts ${frame.focusPlayer}`)
