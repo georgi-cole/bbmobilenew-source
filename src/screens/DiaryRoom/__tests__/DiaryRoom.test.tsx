@@ -342,10 +342,12 @@ describe('DiaryRoom', () => {
     ).toBeTruthy()
   })
 
-  it('shows only the confessional view without log or daily tabs', () => {
+  it('shows the confessional and wallet views without log or daily tabs', () => {
     renderDiaryRoom()
 
-    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.getByRole('tablist', { name: /confessional views/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /confess/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /wallet/i })).toBeTruthy()
     expect(screen.queryByRole('tab', { name: /log/i })).toBeNull()
     expect(screen.queryByRole('tab', { name: /daily/i })).toBeNull()
     expect(screen.getByLabelText(/confessional chat/i)).toBeTruthy()

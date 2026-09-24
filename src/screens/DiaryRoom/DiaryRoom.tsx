@@ -39,6 +39,7 @@ import {
 } from '../../store/gameSlice'
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
+import ConfessionalWallet from './ConfessionalWallet'
 import { getConfessionalDecisionPresentation } from './confessionalDecisionPresentation'
 import { getSecretMissionEasterEggByIntent } from '../../bb/secretMissionEasterEggs'
 import {
@@ -536,6 +537,7 @@ export default function DiaryRoom() {
   const navigationBlockerState = navigationBlocker.state
   const resetNavigationBlocker = navigationBlocker.reset
 
+  const [activeView, setActiveView] = useState<'confess' | 'wallet'>('confess')
   const [entry, setEntry] = useState('')
   const [loading, setLoading] = useState(false)
   const [bbTyping, setBbTyping] = useState(false)
@@ -762,6 +764,12 @@ export default function DiaryRoom() {
       setShowSelfEvictConfirm(false)
     }
   }, [confessionalDecisionPending, showSelfEvictConfirm])
+
+  useEffect(() => {
+    if (confessionalDecisionPending && activeView !== 'confess') {
+      setActiveView('confess')
+    }
+  }, [activeView, confessionalDecisionPending])
 
   // Stable refs for summary calculation (avoid stale closure on unmount)
   const playerNameRef = useRef(playerName)
@@ -1432,110 +1440,166 @@ export default function DiaryRoom() {
               </p>
             </section>
           ) : (
-            <div className="diary-room__confess">
-              <p className="diary-room__prompt">
-                "You are now in the Confessional. No one can hear you. Speak freely."
-              </p>
-              {twinShockResponseRequired && activeDecisionPresentation && (
-                <section
-                  className="diary-room__twin-shock-prompt"
-                  aria-label="Required response from The Big Eye"
-                  data-testid="twin-shock-required-response"
+            <>
+              <div className="diary-room__tabs" role="tablist" aria-label="Confessional views">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'confess'}
+                  className={
+                    activeView === 'confess'
+                      ? 'diary-room__tab diary-room__tab--active'
+                      : 'diary-room__tab'
+                  }
+                  onClick={() => setActiveView('confess')}
                 >
-                  <span className="diary-room__twin-shock-eyebrow">📺 Response required</span>
-                  <p className="diary-room__twin-shock-question">
-                    {activeDecisionPresentation.prompt}
-                  </p>
-                  <p className="diary-room__twin-shock-hint">
-                    Reply below with your best guess. On the final call, you can also say &ldquo;I
-                    give up&rdquo; to continue the game.
-                  </p>
-                </section>
-              )}
-              {userPlayer && realityReadEnabled && (
-                <details className="diary-room__reality-recap">
-                  <summary>Your private game read</summary>
-                  <RealityLedger
-                    reality={realityDomain}
-                    players={players}
-                    humanId={userPlayer.id}
-                    relationships={socialRelationships}
-                    onRenameAlliance={handleRenameAlliance}
-                  />
-                </details>
-              )}
-              {userPlayer && !realityReadEnabled && (
-                <section
-                  className="diary-room__reality-recap diary-room__reality-recap--locked"
-                  aria-label="Private game read locked"
+                  Confess
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeView === 'wallet'}
+                  className={
+                    activeView === 'wallet'
+                      ? 'diary-room__tab diary-room__tab--active'
+                      : 'diary-room__tab'
+                  }
+                  disabled={confessionalDecisionPending}
+                  title={
+                    confessionalDecisionPending
+                      ? 'Complete the current Confessional decision before opening your Wallet.'
+                      : undefined
+                  }
+                  onClick={() => setActiveView('wallet')}
                 >
-                  <span
-                    className="diary-room__reality-recap-badge"
-                    aria-label="Reality Mode required"
-                  >
-                    <StoreProductIcon name="vip" />
-                  </span>
-                  <div>
-                    <strong>Your private game read</strong>
-                    <small>Unlock Reality Mode to see what is really shifting around you.</small>
-                  </div>
-                  <button type="button" onClick={() => navigate('/store')}>
-                    Unlock
-                  </button>
-                </section>
-              )}
-              {ticTacToeActive && (
-                <div className="diary-room__mini-game-card" role="status" aria-live="polite">
-                  <div className="diary-room__mini-game-copy">
-                    <div className="diary-room__mini-game-header">
+                  Wallet
+                </button>
+              </div>
+              {activeView === 'wallet' ? (
+                <ConfessionalWallet />
+              ) : (
+                <div className="diary-room__confess">
+                  <p className="diary-room__prompt">
+                    "You are now in the Confessional. No one can hear you. Speak freely."
+                  </p>
+                  {twinShockResponseRequired && activeDecisionPresentation && (
+                    <section
+                      className="diary-room__twin-shock-prompt"
+                      aria-label="Required response from The Big Eye"
+                      data-testid="twin-shock-required-response"
+                    >
+                      <span className="diary-room__twin-shock-eyebrow">📺 Response required</span>
+                      <p className="diary-room__twin-shock-question">
+                        {activeDecisionPresentation.prompt}
+                      </p>
+                      <p className="diary-room__twin-shock-hint">
+                        Reply below with your best guess. On the final call, you can also say
+                        &ldquo;I give up&rdquo; to continue the game.
+                      </p>
+                    </section>
+                  )}
+                  {userPlayer && realityReadEnabled && (
+                    <details className="diary-room__reality-recap">
+                      <summary>Your private game read</summary>
+                      <RealityLedger
+                        reality={realityDomain}
+                        players={players}
+                        humanId={userPlayer.id}
+                        relationships={socialRelationships}
+                        onRenameAlliance={handleRenameAlliance}
+                      />
+                    </details>
+                  )}
+                  {userPlayer && !realityReadEnabled && (
+                    <section
+                      className="diary-room__reality-recap diary-room__reality-recap--locked"
+                      aria-label="Private game read locked"
+                    >
+                      <span
+                        className="diary-room__reality-recap-badge"
+                        aria-label="Reality Mode required"
+                      >
+                        <StoreProductIcon name="vip" />
+                      </span>
                       <div>
-                        <strong>The Big Eye opened a game.</strong>
-                        <div className="diary-room__mini-game-subtitle">
-                          Tic Tac Toe is awake. Keep your nerve.
+                        <strong>Your private game read</strong>
+                        <small>
+                          Unlock Reality Mode to see what is really shifting around you.
+                        </small>
+                      </div>
+                      <button type="button" onClick={() => navigate('/store')}>
+                        Unlock
+                      </button>
+                    </section>
+                  )}
+                  {ticTacToeActive && (
+                    <div className="diary-room__mini-game-card" role="status" aria-live="polite">
+                      <div className="diary-room__mini-game-copy">
+                        <div className="diary-room__mini-game-header">
+                          <div>
+                            <strong>The Big Eye opened a game.</strong>
+                            <div className="diary-room__mini-game-subtitle">
+                              Tic Tac Toe is awake. Keep your nerve.
+                            </div>
+                          </div>
+                          <div
+                            className="diary-room__mini-game-status"
+                            aria-label="Tic tac toe status"
+                          >
+                            {ticTacToeWinner === 'X'
+                              ? 'You win.'
+                              : ticTacToeWinner === 'O'
+                                ? 'The Big Eye wins.'
+                                : ticTacToeDraw
+                                  ? "It's a draw."
+                                  : ticTacToeThinking
+                                    ? 'The Big Eye is thinking…'
+                                    : 'Your turn.'}
+                          </div>
+                        </div>
+                        <div
+                          className="diary-room__tic-tac-toe-board"
+                          role="group"
+                          aria-label="Tic Tac Toe board"
+                        >
+                          {ticTacToeBoard.map((cell, index) => (
+                            <button
+                              key={index}
+                              className={`diary-room__tic-tac-toe-cell${cell ? ' diary-room__tic-tac-toe-cell--filled' : ''}`}
+                              type="button"
+                              aria-label={`Tic tac toe square ${index + 1}${cell ? `, ${cell}` : ''}`}
+                              disabled={
+                                cell !== null ||
+                                ticTacToeNextTurn !== 'X' ||
+                                ticTacToeThinking ||
+                                ticTacToeWinner !== null ||
+                                ticTacToeDraw
+                              }
+                              onClick={() => {
+                                const nextBoard = [...ticTacToeBoard]
+                                nextBoard[index] = 'X'
+                                setTicTacToeBoard(nextBoard)
+                                setTicTacToeNextTurn('O')
+                              }}
+                            >
+                              {cell ?? ''}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="diary-room__mini-game-actions">
+                          <button
+                            className="diary-room__mini-game-btn"
+                            type="button"
+                            onClick={() => {
+                              setTicTacToeBoard(createEmptyTicTacToeBoard())
+                              setTicTacToeNextTurn('X')
+                              setTicTacToeThinking(false)
+                            }}
+                          >
+                            Reset
+                          </button>
                         </div>
                       </div>
-                      <div className="diary-room__mini-game-status" aria-label="Tic tac toe status">
-                        {ticTacToeWinner === 'X'
-                          ? 'You win.'
-                          : ticTacToeWinner === 'O'
-                            ? 'The Big Eye wins.'
-                            : ticTacToeDraw
-                              ? "It's a draw."
-                              : ticTacToeThinking
-                                ? 'The Big Eye is thinking…'
-                                : 'Your turn.'}
-                      </div>
-                    </div>
-                    <div
-                      className="diary-room__tic-tac-toe-board"
-                      role="group"
-                      aria-label="Tic Tac Toe board"
-                    >
-                      {ticTacToeBoard.map((cell, index) => (
-                        <button
-                          key={index}
-                          className={`diary-room__tic-tac-toe-cell${cell ? ' diary-room__tic-tac-toe-cell--filled' : ''}`}
-                          type="button"
-                          aria-label={`Tic tac toe square ${index + 1}${cell ? `, ${cell}` : ''}`}
-                          disabled={
-                            cell !== null ||
-                            ticTacToeNextTurn !== 'X' ||
-                            ticTacToeThinking ||
-                            ticTacToeWinner !== null ||
-                            ticTacToeDraw
-                          }
-                          onClick={() => {
-                            const nextBoard = [...ticTacToeBoard]
-                            nextBoard[index] = 'X'
-                            setTicTacToeBoard(nextBoard)
-                            setTicTacToeNextTurn('O')
-                          }}
-                        >
-                          {cell ?? ''}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="diary-room__mini-game-actions">
                       <button
                         className="diary-room__mini-game-btn"
                         type="button"
@@ -1543,457 +1607,458 @@ export default function DiaryRoom() {
                           setTicTacToeBoard(createEmptyTicTacToeBoard())
                           setTicTacToeNextTurn('X')
                           setTicTacToeThinking(false)
+                          dismissTicTacToe()
                         }}
                       >
-                        Reset
+                        Close
                       </button>
                     </div>
-                  </div>
-                  <button
-                    className="diary-room__mini-game-btn"
-                    type="button"
-                    onClick={() => {
-                      setTicTacToeBoard(createEmptyTicTacToeBoard())
-                      setTicTacToeNextTurn('X')
-                      setTicTacToeThinking(false)
-                      dismissTicTacToe()
-                    }}
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-              {activeVoteBreakdown?.status === 'available' && (
-                <div className="diary-room__vote-reveal-card" aria-label="Vote reveal offer">
-                  <span className="diary-room__vote-reveal-eyebrow">📺 The Big Eye</span>
-                  <p className="diary-room__vote-reveal-copy">
-                    Are you ready to peek behind the curtain?
-                  </p>
-                  <div className="diary-room__vote-reveal-actions">
-                    <button
-                      className="diary-room__mission-btn diary-room__mission-btn--accept"
-                      type="button"
-                      onClick={() => {
-                        setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('revealed'))
-                        const reminder = [...gameState.tvFeed]
-                          .reverse()
-                          .find(
-                            (event) =>
-                              event.meta?.confessionalVoteBreakdown === true &&
-                              event.meta?.week === activeVoteBreakdown.week &&
-                              event.meta?.broadcastConsumed !== true
-                          )
-                        if (reminder) dispatch(consumeBroadcastEvent(reminder.id))
-                        pushBigEyeMessage('Then look closely. The curtain is lifting now.')
-                      }}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      className="diary-room__mission-btn diary-room__mission-btn--decline"
-                      type="button"
-                      onClick={() => {
-                        setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('declined'))
-                        dispatch(
-                          addTvEvent({
-                            text: VOTE_BREAKDOWN_DECLINED_TV_MESSAGE,
-                            type: 'game',
-                          })
-                        )
-                        pushBigEyeMessage(
-                          'The house secret is safe with me. You can leave the Confessional.'
-                        )
-                      }}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
-              )}
-              {activeVoteBreakdown?.status === 'revealed' && (
-                <section className="diary-room__vote-chart" aria-label="Eviction vote breakdown">
-                  <div className="diary-room__vote-chart-header">
-                    <span className="diary-room__vote-reveal-eyebrow">Vote Breakdown</span>
-                    <strong>Who voted for whom</strong>
-                  </div>
-                  <div
-                    className="diary-room__vote-chart-table"
-                    role="table"
-                    aria-label="Eviction vote chart"
-                  >
-                    {voteBreakdownRows.map((row) => (
-                      <div key={row.voterKey} className="diary-room__vote-chart-row" role="row">
-                        <span className="diary-room__vote-chart-cell" role="cell">
-                          {row.voterName}
-                        </span>
-                        <span className="diary-room__vote-chart-arrow" aria-hidden="true">
-                          →
-                        </span>
-                        <span
-                          className="diary-room__vote-chart-cell diary-room__vote-chart-cell--target"
-                          role="cell"
+                  )}
+                  {activeVoteBreakdown?.status === 'available' && (
+                    <div className="diary-room__vote-reveal-card" aria-label="Vote reveal offer">
+                      <span className="diary-room__vote-reveal-eyebrow">📺 The Big Eye</span>
+                      <p className="diary-room__vote-reveal-copy">
+                        Are you ready to peek behind the curtain?
+                      </p>
+                      <div className="diary-room__vote-reveal-actions">
+                        <button
+                          className="diary-room__mission-btn diary-room__mission-btn--accept"
+                          type="button"
+                          onClick={() => {
+                            setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('revealed'))
+                            const reminder = [...gameState.tvFeed]
+                              .reverse()
+                              .find(
+                                (event) =>
+                                  event.meta?.confessionalVoteBreakdown === true &&
+                                  event.meta?.week === activeVoteBreakdown.week &&
+                                  event.meta?.broadcastConsumed !== true
+                              )
+                            if (reminder) dispatch(consumeBroadcastEvent(reminder.id))
+                            pushBigEyeMessage('Then look closely. The curtain is lifting now.')
+                          }}
                         >
-                          {row.targetName}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-              {activeVoxNominationReveal?.status === 'revealed' && (
-                <section
-                  className="diary-room__vote-chart"
-                  aria-label="Secret nomination breakdown"
-                >
-                  <div className="diary-room__vote-chart-header">
-                    <span className="diary-room__vote-reveal-eyebrow">Secret Nomination Trail</span>
-                    <strong>Who nominated whom</strong>
-                  </div>
-                  <div
-                    className="diary-room__vote-chart-table"
-                    role="table"
-                    aria-label="Secret nomination chart"
-                  >
-                    {voxNominationRows.map((row) => (
-                      <div key={row.voterId} className="diary-room__vote-chart-row" role="row">
-                        <span className="diary-room__vote-chart-cell" role="cell">
-                          {row.voterName}
-                        </span>
-                        <span className="diary-room__vote-chart-arrow" aria-hidden="true">
-                          →
-                        </span>
-                        <span
-                          className="diary-room__vote-chart-cell diary-room__vote-chart-cell--target"
-                          role="cell"
+                          Yes
+                        </button>
+                        <button
+                          className="diary-room__mission-btn diary-room__mission-btn--decline"
+                          type="button"
+                          onClick={() => {
+                            setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('declined'))
+                            dispatch(
+                              addTvEvent({
+                                text: VOTE_BREAKDOWN_DECLINED_TV_MESSAGE,
+                                type: 'game',
+                              })
+                            )
+                            pushBigEyeMessage(
+                              'The house secret is safe with me. You can leave the Confessional.'
+                            )
+                          }}
                         >
-                          {row.targetNames.join(' and ')}
-                        </span>
+                          No
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-              {bbTyping && (
-                <div className="diary-room__bb-typing" aria-live="polite" aria-atomic="true">
-                  <span className="diary-room__bb-typing-label">
-                    The Big Eye is forming a response
-                  </span>
-                  <span className="diary-room__typing-dot" />
-                  <span className="diary-room__typing-dot" />
-                  <span className="diary-room__typing-dot" />
-                </div>
-              )}
-
-              {/* ── Secret mission offer buttons ───────────────────────────── */}
-              {secretMission?.status === 'offered' && (
-                <div className="diary-room__mission-offer" aria-label="Secret mission offer">
-                  <button
-                    className="diary-room__mission-btn diary-room__mission-btn--accept"
-                    type="button"
-                    onClick={() => {
-                      dispatch(acceptSecretMission())
-                      setMissionExpanded(true)
-                      const acceptMsg: ChatMessage = {
-                        id: crypto.randomUUID(),
-                        role: 'bb',
-                        text: `Complete this private checklist, and the Big Eye will reward you. But choose carefully — not every gift comes without a price.`,
-                        timestamp: Date.now(),
-                      }
-                      setMessages((prev) => {
-                        const updated = [...prev, acceptMsg]
-                        saveChat(playerId, updated)
-                        return updated
-                      })
-                    }}
-                  >
-                    ✅ Accept the mission
-                  </button>
-                  <button
-                    className="diary-room__mission-btn diary-room__mission-btn--decline"
-                    type="button"
-                    onClick={() => {
-                      dispatch(declineSecretMission(currentWeekForMission))
-                      const declineMsg: ChatMessage = {
-                        id: crypto.randomUUID(),
-                        role: 'bb',
-                        text: `Very well. The Big Eye respects your caution. Return if you change your mind. Take too much and you may run out of luck.`,
-                        timestamp: Date.now(),
-                      }
-                      setMessages((prev) => {
-                        const updated = [...prev, declineMsg]
-                        saveChat(playerId, updated)
-                        return updated
-                      })
-                    }}
-                  >
-                    ❌ Decline
-                  </button>
-                </div>
-              )}
-
-              {/* ── Secret mission status card (active) ───────────────────── */}
-              {secretMission &&
-                (secretMission.status === 'accepted' ||
-                  secretMission.status === 'rewardPending') && (
-                  <section
-                    className={`diary-room__mission-checklist${
-                      missionExpanded ? ' diary-room__mission-checklist--expanded' : ''
-                    }`}
-                    aria-label="Secret mission checklist"
-                  >
-                    <button
-                      className="diary-room__mission-summary"
-                      type="button"
-                      aria-expanded={missionExpanded}
-                      aria-controls="secret-mission-details"
-                      onClick={() => setMissionExpanded((expanded) => !expanded)}
+                    </div>
+                  )}
+                  {activeVoteBreakdown?.status === 'revealed' && (
+                    <section
+                      className="diary-room__vote-chart"
+                      aria-label="Eviction vote breakdown"
                     >
-                      <span className="diary-room__mission-summary-copy">
-                        <span className="diary-room__mission-title">🕵️ Secret Mission</span>
-                        <span className="diary-room__mission-meta">
-                          {missionProgressLabel}
-                          {typeof missionDeadlineDay === 'number'
-                            ? ` · Ends Day ${missionDeadlineDay}`
-                            : ''}
-                        </span>
-                      </span>
-                      <span className="diary-room__mission-chevron" aria-hidden="true">
-                        {missionExpanded ? '⌃' : '⌄'}
-                      </span>
-                    </button>
-
-                    {missionExpanded && (
-                      <div id="secret-mission-details" className="diary-room__mission-details">
-                        {secretMission.tasks.map((task) => {
-                          const targetName = task.targetPlayerId
-                            ? playerNameById.get(task.targetPlayerId)
-                            : undefined
-                          const displayDesc = targetName
-                            ? task.description.replace('your marked target', targetName)
-                            : task.description
-                          return (
-                            <div
-                              key={task.id}
-                              className={`diary-room__mission-task${task.completed ? ' diary-room__mission-task--done' : ''}`}
+                      <div className="diary-room__vote-chart-header">
+                        <span className="diary-room__vote-reveal-eyebrow">Vote Breakdown</span>
+                        <strong>Who voted for whom</strong>
+                      </div>
+                      <div
+                        className="diary-room__vote-chart-table"
+                        role="table"
+                        aria-label="Eviction vote chart"
+                      >
+                        {voteBreakdownRows.map((row) => (
+                          <div key={row.voterKey} className="diary-room__vote-chart-row" role="row">
+                            <span className="diary-room__vote-chart-cell" role="cell">
+                              {row.voterName}
+                            </span>
+                            <span className="diary-room__vote-chart-arrow" aria-hidden="true">
+                              →
+                            </span>
+                            <span
+                              className="diary-room__vote-chart-cell diary-room__vote-chart-cell--target"
+                              role="cell"
                             >
-                              <span className="diary-room__mission-task-icon">
-                                {task.completed ? '✅' : '⬜'}
-                              </span>
-                              <span className="diary-room__mission-task-desc">{displayDesc}</span>
-                              {!task.completed && (
-                                <span className="diary-room__mission-task-progress">
-                                  {task.current}/{task.target}
-                                </span>
-                              )}
-                            </div>
-                          )
-                        })}
+                              {row.targetName}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {activeVoxNominationReveal?.status === 'revealed' && (
+                    <section
+                      className="diary-room__vote-chart"
+                      aria-label="Secret nomination breakdown"
+                    >
+                      <div className="diary-room__vote-chart-header">
+                        <span className="diary-room__vote-reveal-eyebrow">
+                          Secret Nomination Trail
+                        </span>
+                        <strong>Who nominated whom</strong>
+                      </div>
+                      <div
+                        className="diary-room__vote-chart-table"
+                        role="table"
+                        aria-label="Secret nomination chart"
+                      >
+                        {voxNominationRows.map((row) => (
+                          <div key={row.voterId} className="diary-room__vote-chart-row" role="row">
+                            <span className="diary-room__vote-chart-cell" role="cell">
+                              {row.voterName}
+                            </span>
+                            <span className="diary-room__vote-chart-arrow" aria-hidden="true">
+                              →
+                            </span>
+                            <span
+                              className="diary-room__vote-chart-cell diary-room__vote-chart-cell--target"
+                              role="cell"
+                            >
+                              {row.targetNames.join(' and ')}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {bbTyping && (
+                    <div className="diary-room__bb-typing" aria-live="polite" aria-atomic="true">
+                      <span className="diary-room__bb-typing-label">
+                        The Big Eye is forming a response
+                      </span>
+                      <span className="diary-room__typing-dot" />
+                      <span className="diary-room__typing-dot" />
+                      <span className="diary-room__typing-dot" />
+                    </div>
+                  )}
 
-                        {/* ── Reward claim remains prominent when actionable ─── */}
-                        {secretMission.status === 'rewardPending' && (
-                          <div
-                            className="diary-room__mystery-boxes"
-                            aria-label="Secret mission reward boxes"
-                          >
-                            <p className="diary-room__mystery-boxes-prompt">
-                              🎁 Choose one mystery box:
-                            </p>
-                            <div className="diary-room__mystery-boxes-grid">
-                              {assignedRewardBoxes.map((_, index) => (
-                                <button
-                                  key={`${rewardMissionKey}:${index}`}
-                                  className="diary-room__mystery-box-btn"
-                                  type="button"
-                                  aria-label={`Open Mystery Box ${index + 1}`}
-                                  onClick={() => {
-                                    const rewardType = assignedRewardBoxes[index]
-                                    if (!rewardType) return
-                                    if (rewardType === 'immunity') {
-                                      const durationDays = pickMissionImmunityDuration(
-                                        secretMission.triggeredDay,
-                                        secretMission.templateId
-                                      )
-                                      dispatch(
-                                        claimMissionReward({
-                                          claimDay: currentWeekForMission,
-                                          durationDays,
-                                        })
-                                      )
-                                      const revealMsg: ChatMessage = {
-                                        id: crypto.randomUUID(),
-                                        role: 'bb',
-                                        text: REWARD_REVEAL_COPY[rewardType](
-                                          currentWeekForMission,
-                                          durationDays
-                                        ),
-                                        timestamp: Date.now(),
-                                      }
-                                      setMessages((prev) => {
-                                        const updated = [...prev, revealMsg]
-                                        saveChat(playerIdRef.current, updated)
-                                        return updated
-                                      })
-                                      return
-                                    }
-                                    if (rewardType === 'plus1000Influence') {
-                                      dispatch(
-                                        applyInfluenceDelta({
-                                          playerId: playerIdRef.current,
-                                          delta: 1000,
-                                        })
-                                      )
-                                    }
-                                    dispatch(claimMissionReward(rewardType))
-                                    const revealMsg: ChatMessage = {
-                                      id: crypto.randomUUID(),
-                                      role: 'bb',
-                                      text: REWARD_REVEAL_COPY[rewardType](currentWeekForMission),
-                                      timestamp: Date.now(),
-                                    }
-                                    setMessages((prev) => {
-                                      const updated = [...prev, revealMsg]
-                                      saveChat(playerIdRef.current, updated)
-                                      return updated
-                                    })
-                                  }}
+                  {/* ── Secret mission offer buttons ───────────────────────────── */}
+                  {secretMission?.status === 'offered' && (
+                    <div className="diary-room__mission-offer" aria-label="Secret mission offer">
+                      <button
+                        className="diary-room__mission-btn diary-room__mission-btn--accept"
+                        type="button"
+                        onClick={() => {
+                          dispatch(acceptSecretMission())
+                          setMissionExpanded(true)
+                          const acceptMsg: ChatMessage = {
+                            id: crypto.randomUUID(),
+                            role: 'bb',
+                            text: `Complete this private checklist, and the Big Eye will reward you. But choose carefully — not every gift comes without a price.`,
+                            timestamp: Date.now(),
+                          }
+                          setMessages((prev) => {
+                            const updated = [...prev, acceptMsg]
+                            saveChat(playerId, updated)
+                            return updated
+                          })
+                        }}
+                      >
+                        ✅ Accept the mission
+                      </button>
+                      <button
+                        className="diary-room__mission-btn diary-room__mission-btn--decline"
+                        type="button"
+                        onClick={() => {
+                          dispatch(declineSecretMission(currentWeekForMission))
+                          const declineMsg: ChatMessage = {
+                            id: crypto.randomUUID(),
+                            role: 'bb',
+                            text: `Very well. The Big Eye respects your caution. Return if you change your mind. Take too much and you may run out of luck.`,
+                            timestamp: Date.now(),
+                          }
+                          setMessages((prev) => {
+                            const updated = [...prev, declineMsg]
+                            saveChat(playerId, updated)
+                            return updated
+                          })
+                        }}
+                      >
+                        ❌ Decline
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Secret mission status card (active) ───────────────────── */}
+                  {secretMission &&
+                    (secretMission.status === 'accepted' ||
+                      secretMission.status === 'rewardPending') && (
+                      <section
+                        className={`diary-room__mission-checklist${
+                          missionExpanded ? ' diary-room__mission-checklist--expanded' : ''
+                        }`}
+                        aria-label="Secret mission checklist"
+                      >
+                        <button
+                          className="diary-room__mission-summary"
+                          type="button"
+                          aria-expanded={missionExpanded}
+                          aria-controls="secret-mission-details"
+                          onClick={() => setMissionExpanded((expanded) => !expanded)}
+                        >
+                          <span className="diary-room__mission-summary-copy">
+                            <span className="diary-room__mission-title">🕵️ Secret Mission</span>
+                            <span className="diary-room__mission-meta">
+                              {missionProgressLabel}
+                              {typeof missionDeadlineDay === 'number'
+                                ? ` · Ends Day ${missionDeadlineDay}`
+                                : ''}
+                            </span>
+                          </span>
+                          <span className="diary-room__mission-chevron" aria-hidden="true">
+                            {missionExpanded ? '⌃' : '⌄'}
+                          </span>
+                        </button>
+
+                        {missionExpanded && (
+                          <div id="secret-mission-details" className="diary-room__mission-details">
+                            {secretMission.tasks.map((task) => {
+                              const targetName = task.targetPlayerId
+                                ? playerNameById.get(task.targetPlayerId)
+                                : undefined
+                              const displayDesc = targetName
+                                ? task.description.replace('your marked target', targetName)
+                                : task.description
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={`diary-room__mission-task${task.completed ? ' diary-room__mission-task--done' : ''}`}
                                 >
-                                  🎁 Mystery Box {index + 1}
-                                </button>
-                              ))}
-                            </div>
+                                  <span className="diary-room__mission-task-icon">
+                                    {task.completed ? '✅' : '⬜'}
+                                  </span>
+                                  <span className="diary-room__mission-task-desc">
+                                    {displayDesc}
+                                  </span>
+                                  {!task.completed && (
+                                    <span className="diary-room__mission-task-progress">
+                                      {task.current}/{task.target}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+
+                            {/* ── Reward claim remains prominent when actionable ─── */}
+                            {secretMission.status === 'rewardPending' && (
+                              <div
+                                className="diary-room__mystery-boxes"
+                                aria-label="Secret mission reward boxes"
+                              >
+                                <p className="diary-room__mystery-boxes-prompt">
+                                  🎁 Choose one mystery box:
+                                </p>
+                                <div className="diary-room__mystery-boxes-grid">
+                                  {assignedRewardBoxes.map((_, index) => (
+                                    <button
+                                      key={`${rewardMissionKey}:${index}`}
+                                      className="diary-room__mystery-box-btn"
+                                      type="button"
+                                      aria-label={`Open Mystery Box ${index + 1}`}
+                                      onClick={() => {
+                                        const rewardType = assignedRewardBoxes[index]
+                                        if (!rewardType) return
+                                        if (rewardType === 'immunity') {
+                                          const durationDays = pickMissionImmunityDuration(
+                                            secretMission.triggeredDay,
+                                            secretMission.templateId
+                                          )
+                                          dispatch(
+                                            claimMissionReward({
+                                              claimDay: currentWeekForMission,
+                                              durationDays,
+                                            })
+                                          )
+                                          const revealMsg: ChatMessage = {
+                                            id: crypto.randomUUID(),
+                                            role: 'bb',
+                                            text: REWARD_REVEAL_COPY[rewardType](
+                                              currentWeekForMission,
+                                              durationDays
+                                            ),
+                                            timestamp: Date.now(),
+                                          }
+                                          setMessages((prev) => {
+                                            const updated = [...prev, revealMsg]
+                                            saveChat(playerIdRef.current, updated)
+                                            return updated
+                                          })
+                                          return
+                                        }
+                                        if (rewardType === 'plus1000Influence') {
+                                          dispatch(
+                                            applyInfluenceDelta({
+                                              playerId: playerIdRef.current,
+                                              delta: 1000,
+                                            })
+                                          )
+                                        }
+                                        dispatch(claimMissionReward(rewardType))
+                                        const revealMsg: ChatMessage = {
+                                          id: crypto.randomUUID(),
+                                          role: 'bb',
+                                          text: REWARD_REVEAL_COPY[rewardType](
+                                            currentWeekForMission
+                                          ),
+                                          timestamp: Date.now(),
+                                        }
+                                        setMessages((prev) => {
+                                          const updated = [...prev, revealMsg]
+                                          saveChat(playerIdRef.current, updated)
+                                          return updated
+                                        })
+                                      }}
+                                    >
+                                      🎁 Mystery Box {index + 1}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
+                      </section>
+                    )}
+
+                  {/* A completed mission is history; only an actually actionable stored
+                  power remains visible here, as a separate compact status card. */}
+                  {secretMission?.status === 'rewardClaimed' &&
+                    secretMission.reward?.eligible &&
+                    !secretMission.reward.consumed &&
+                    !secretMission.reward.expired &&
+                    secretMission.reward.type !== 'plus1000Influence' &&
+                    secretMission.reward.type !== 'emptyBox' && (
+                      <div className="diary-room__reward-claimed" aria-label="Stored secret power">
+                        <p className="diary-room__reward-claimed-active">
+                          🔮 Secret power stored:{' '}
+                          <strong>
+                            {REWARD_LABELS[secretMission.reward.type] ?? secretMission.reward.type}
+                          </strong>
+                          {secretMission.reward.type === 'immunity' &&
+                          secretMission.reward.durationDays
+                            ? ` — ${secretMission.reward.durationDays} day${secretMission.reward.durationDays === 1 ? '' : 's'}`
+                            : ''}
+                        </p>
+                        {secretMission.reward.type === 'immunity' && (
+                          <p className="diary-room__reward-active-hint">
+                            Use it during the Safety Ceremony while nominated. Expires after Day{' '}
+                            {secretMission.reward.activeUntilDay ?? currentWeekForMission}.
+                          </p>
+                        )}
+                        {secretMission.reward.type === 'doubleVote' && (
+                          <p className="diary-room__reward-active-hint">
+                            It will be offered automatically at your next eligible live vote.
+                          </p>
+                        )}
+                        {secretMission.reward.type === 'voteDeduction' && (
+                          <p className="diary-room__reward-active-hint">
+                            If you are on the block at an eligible eviction, you may remove one vote
+                            from your total.
+                          </p>
+                        )}
+                        {secretMission.reward.type === 'immunity' &&
+                          activeConfessionalDecision?.type === 'mission_immunity_offer' && (
+                            <p className="diary-room__reward-active-hint">
+                              📺 The Big Eye is ready to ask whether you want to spend it right now.
+                            </p>
+                          )}
                       </div>
                     )}
-                  </section>
-                )}
-
-              {/* A completed mission is history; only an actually actionable stored
-                  power remains visible here, as a separate compact status card. */}
-              {secretMission?.status === 'rewardClaimed' &&
-                secretMission.reward?.eligible &&
-                !secretMission.reward.consumed &&
-                !secretMission.reward.expired &&
-                secretMission.reward.type !== 'plus1000Influence' &&
-                secretMission.reward.type !== 'emptyBox' && (
-                  <div className="diary-room__reward-claimed" aria-label="Stored secret power">
-                    <p className="diary-room__reward-claimed-active">
-                      🔮 Secret power stored:{' '}
-                      <strong>
-                        {REWARD_LABELS[secretMission.reward.type] ?? secretMission.reward.type}
-                      </strong>
-                      {secretMission.reward.type === 'immunity' && secretMission.reward.durationDays
-                        ? ` — ${secretMission.reward.durationDays} day${secretMission.reward.durationDays === 1 ? '' : 's'}`
-                        : ''}
-                    </p>
-                    {secretMission.reward.type === 'immunity' && (
-                      <p className="diary-room__reward-active-hint">
-                        Use it during the Safety Ceremony while nominated. Expires after Day{' '}
-                        {secretMission.reward.activeUntilDay ?? currentWeekForMission}.
-                      </p>
-                    )}
-                    {secretMission.reward.type === 'doubleVote' && (
-                      <p className="diary-room__reward-active-hint">
-                        It will be offered automatically at your next eligible live vote.
-                      </p>
-                    )}
-                    {secretMission.reward.type === 'voteDeduction' && (
-                      <p className="diary-room__reward-active-hint">
-                        If you are on the block at an eligible eviction, you may remove one vote
-                        from your total.
-                      </p>
-                    )}
-                    {secretMission.reward.type === 'immunity' &&
-                      activeConfessionalDecision?.type === 'mission_immunity_offer' && (
-                        <p className="diary-room__reward-active-hint">
-                          📺 The Big Eye is ready to ask whether you want to spend it right now.
-                        </p>
-                      )}
-                  </div>
-                )}
-              <ChatBubbles
-                msgs={messages}
-                playerName={playerName}
-                endRef={confessEndRef}
-                activeDecisionKey={activeDecisionPresentation?.key}
-                activeDecisionPanel={
-                  activeConfessionalDecision && (
-                    <ConfessionalDecisionPanel
-                      decision={activeConfessionalDecision}
-                      onDecisionCommitted={handleDecisionCommitted}
-                    />
-                  )
-                }
-              />
-              <form className="diary-room__confess-form" onSubmit={handleSubmit}>
-                <textarea
-                  className="diary-room__textarea"
-                  value={entry}
-                  onChange={(e) => setEntry(e.target.value)}
-                  placeholder={
-                    twinShockResponseRequired
-                      ? 'Reply to The Big Eye to continue…'
-                      : 'What are you thinking?'
-                  }
-                  rows={2}
-                  maxLength={280}
-                  aria-label={
-                    twinShockResponseRequired ? 'Required response to The Big Eye' : 'Diary entry'
-                  }
-                />
-                <div className="diary-room__footer">
-                  <span className="diary-room__charcount">{entry.length}/280</span>
-                  <div className="diary-room__footer-actions">
-                    <button
-                      className={`diary-room__vip-toggle${vipSelected ? ' diary-room__vip-toggle--selected' : ''}`}
-                      type="button"
-                      aria-pressed={vipSelected}
+                  <ChatBubbles
+                    msgs={messages}
+                    playerName={playerName}
+                    endRef={confessEndRef}
+                    activeDecisionKey={activeDecisionPresentation?.key}
+                    activeDecisionPanel={
+                      activeConfessionalDecision && (
+                        <ConfessionalDecisionPanel
+                          decision={activeConfessionalDecision}
+                          onDecisionCommitted={handleDecisionCommitted}
+                        />
+                      )
+                    }
+                  />
+                  <form className="diary-room__confess-form" onSubmit={handleSubmit}>
+                    <textarea
+                      className="diary-room__textarea"
+                      value={entry}
+                      onChange={(e) => setEntry(e.target.value)}
+                      placeholder={
+                        twinShockResponseRequired
+                          ? 'Reply to The Big Eye to continue…'
+                          : 'What are you thinking?'
+                      }
+                      rows={2}
+                      maxLength={280}
                       aria-label={
-                        !vipConfigured
-                          ? 'VIP replies are not connected'
-                          : vipStatus
-                            ? `Use VIP reply, ${vipStatus.remaining} remaining`
-                            : 'VIP replies are unavailable'
+                        twinShockResponseRequired
+                          ? 'Required response to The Big Eye'
+                          : 'Diary entry'
                       }
-                      title={
-                        !vipConfigured
-                          ? 'Connect the Cloudflare VIP worker to enable this.'
-                          : undefined
-                      }
-                      disabled={
-                        loading ||
-                        !vipConfigured ||
-                        !vipStatus?.available ||
-                        vipStatus.remaining < 1
-                      }
-                      onClick={() => setVipSelected((selected) => !selected)}
-                    >
-                      <span aria-hidden="true">✦</span>
-                      <span>
-                        {vipSelected
-                          ? 'VIP next'
-                          : vipStatus
-                            ? `VIP · ${vipStatus.remaining}`
-                            : 'VIP'}
-                      </span>
-                    </button>
-                    <button
-                      className="diary-room__submit"
-                      type="submit"
-                      disabled={!entry.trim() || loading}
-                      aria-label="Send message"
-                    >
-                      {loading ? '⏳ Waiting…' : '📣 Send'}
-                    </button>
-                  </div>
+                    />
+                    <div className="diary-room__footer">
+                      <span className="diary-room__charcount">{entry.length}/280</span>
+                      <div className="diary-room__footer-actions">
+                        <button
+                          className={`diary-room__vip-toggle${vipSelected ? ' diary-room__vip-toggle--selected' : ''}`}
+                          type="button"
+                          aria-pressed={vipSelected}
+                          aria-label={
+                            !vipConfigured
+                              ? 'VIP replies are not connected'
+                              : vipStatus
+                                ? `Use VIP reply, ${vipStatus.remaining} remaining`
+                                : 'VIP replies are unavailable'
+                          }
+                          title={
+                            !vipConfigured
+                              ? 'Connect the Cloudflare VIP worker to enable this.'
+                              : undefined
+                          }
+                          disabled={
+                            loading ||
+                            !vipConfigured ||
+                            !vipStatus?.available ||
+                            vipStatus.remaining < 1
+                          }
+                          onClick={() => setVipSelected((selected) => !selected)}
+                        >
+                          <span aria-hidden="true">✦</span>
+                          <span>
+                            {vipSelected
+                              ? 'VIP next'
+                              : vipStatus
+                                ? `VIP · ${vipStatus.remaining}`
+                                : 'VIP'}
+                          </span>
+                        </button>
+                        <button
+                          className="diary-room__submit"
+                          type="submit"
+                          disabled={!entry.trim() || loading}
+                          aria-label="Send message"
+                        >
+                          {loading ? '⏳ Waiting…' : '📣 Send'}
+                        </button>
+                      </div>
+                    </div>
+                    {vipNotice && (
+                      <p className="diary-room__vip-notice" role="status">
+                        {vipNotice}
+                      </p>
+                    )}
+                  </form>
                 </div>
-                {vipNotice && (
-                  <p className="diary-room__vip-notice" role="status">
-                    {vipNotice}
-                  </p>
-                )}
-              </form>
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
