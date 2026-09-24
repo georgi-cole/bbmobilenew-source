@@ -19,6 +19,7 @@ import { getConfessionalRuntimeConfig } from '../../bb/confessionalRuntimeConfig
 import {
   analyzeBigEyeTurn,
   generateBigBrotherReply,
+  isBigEyeGenerativeDirectorEnabled,
   type BigBrotherResponse,
   type BigEyeTurnAnalysis,
   type BigEyeWorldContext,
@@ -209,6 +210,7 @@ export default function ConfessionalLab() {
   )
 
   const runtimeConfig = getConfessionalRuntimeConfig()
+  const standardAiEnabled = isBigEyeGenerativeDirectorEnabled()
   const world = contextMode === 'current' ? currentWorld : scenarioWorld
   const effectivePlayerName = contextMode === 'current' ? playerName : 'Alex'
 
@@ -329,6 +331,8 @@ export default function ConfessionalLab() {
         <div className="clab__revision">
           <span>Databank</span>
           <strong>{runtimeConfig.revision}</strong>
+          <span>Standard AI</span>
+          <strong>{standardAiEnabled ? 'ENABLED' : 'LOCAL ONLY'}</strong>
         </div>
       </header>
 
