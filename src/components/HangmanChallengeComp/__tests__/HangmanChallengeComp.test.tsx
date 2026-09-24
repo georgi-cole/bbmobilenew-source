@@ -9,6 +9,11 @@ const participants = [
   { id: 'ai-1', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
 ]
 
+function startRoundIfNeeded() {
+  const enterRoundButton = screen.queryByRole('button', { name: /enter round/i })
+  if (enterRoundButton) fireEvent.click(enterRoundButton)
+}
+
 describe('HangmanChallengeComp', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -18,25 +23,21 @@ describe('HangmanChallengeComp', () => {
     vi.useRealTimers()
   })
 
-  it('waits for the CTA before leaving the intro screen', () => {
+  it('renders the active board when a round begins', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
     act(() => {
       vi.advanceTimersByTime(2_000)
     })
 
-    expect(screen.getByRole('button', { name: /enter round/i })).toBeInTheDocument()
-    expect(screen.queryByLabelText(/solution board/i)).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
-
     expect(screen.getByLabelText(/solution board/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /enter round/i })).toBeNull()
   })
 
   it('renders the compact playfield without the removed intel and wrong-letter panels', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+    startRoundIfNeeded()
 
     expect(screen.queryByText('Intel')).toBeNull()
     expect(screen.queryByText('Wrong letters')).toBeNull()
@@ -58,7 +59,7 @@ describe('HangmanChallengeComp', () => {
   it('offers a mystery box in a compact dialog and shows its effect in that same dialog', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+    startRoundIfNeeded()
     act(() => {
       vi.advanceTimersByTime(9_000)
     })
@@ -72,10 +73,43 @@ describe('HangmanChallengeComp', () => {
     expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument()
   })
 
+  it('pauses both the timer and active round effects until the Mystery Box result is acknowledged', () => {
+    render(<HangmanChallengeComp participants={participants} seed={42} />)
+
+    startRoundIfNeeded()
+    act(() => {
+      vi.advanceTimersByTime(9_000)
+    })
+
+    expect(screen.getByText('0:09')).toBeInTheDocument()
+    expect(screen.getByLabelText(/mystery box available/i)).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+    expect(screen.getByText('0:09')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /open mystery box/i }))
+    expect(screen.getByLabelText(/mystery box effect applied/i)).toBeInTheDocument()
+    expect(screen.getByText('Cold pause 6s')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+    expect(screen.getByText('0:09')).toBeInTheDocument()
+    expect(screen.getByText('Cold pause 6s')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }))
+    act(() => {
+      vi.advanceTimersByTime(1_000)
+    })
+    expect(screen.getByText('Cold pause 5s')).toBeInTheDocument()
+  })
+
   it('uses native text entry and records attempted letters', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+    startRoundIfNeeded()
 
     const entryPanel = screen.getByLabelText(/letter entry/i)
     const input = within(entryPanel).getByLabelText(/guess a letter/i)
@@ -101,16 +135,16 @@ describe('HangmanChallengeComp', () => {
   it('shows the shatter burst briefly before leaving a failed round', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+    startRoundIfNeeded()
 
     const entryPanel = screen.getByLabelText(/letter entry/i)
     const input = within(entryPanel).getByLabelText(/guess a letter/i)
     const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
     const solutionLetters = new Set(getSolutionLetters(pickRoundWords(42)[0].text))
-    const wrongLetters = 'ZXQJKVBMNP'
+    const wrongLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
       .split('')
       .filter((letter) => !solutionLetters.has(letter))
-      .slice(0, 7)
+      .slice(0, 10)
 
     for (const letter of wrongLetters) {
       fireEvent.change(input, { target: { value: letter } })
@@ -130,7 +164,7 @@ describe('HangmanChallengeComp', () => {
   it('renders each player as one compact scoreboard row', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+    startRoundIfNeeded()
     const entryPanel = screen.getByLabelText(/letter entry/i)
     const input = within(entryPanel).getByLabelText(/guess a letter/i)
     const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
@@ -167,7 +201,7 @@ describe('HangmanChallengeComp', () => {
     const words = pickRoundWords(42)
 
     for (let round = 0; round < 5; round += 1) {
-      fireEvent.click(screen.getByRole('button', { name: /enter round/i }))
+      startRoundIfNeeded()
       const entryPanel = screen.getByLabelText(/letter entry/i)
       const input = within(entryPanel).getByLabelText(/guess a letter/i)
       const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })

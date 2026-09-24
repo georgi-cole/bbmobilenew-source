@@ -1,0 +1,146 @@
+[
+  {
+    "id": "reveal_one",
+    "label": "Reveal 1 Letter",
+    "description": "One hidden letter is exposed.",
+    "category": "positive"
+  },
+  {
+    "id": "reveal_two",
+    "label": "Reveal 2 Letters",
+    "description": "Two hidden letters are exposed.",
+    "category": "positive"
+  },
+  {
+    "id": "freeze_timer",
+    "label": "Timer Freeze",
+    "description": "The timer freezes for 8 seconds.",
+    "category": "positive"
+  },
+  {
+    "id": "remove_one_error",
+    "label": "Pressure Relief",
+    "description": "One previous wrong guess is erased.",
+    "category": "positive"
+  },
+  {
+    "id": "shield_wrong",
+    "label": "Fault Shield",
+    "description": "The next wrong guess will not add pressure.",
+    "category": "positive"
+  },
+  {
+    "id": "vague_clue",
+    "label": "Category Trace",
+    "description": "A vague clue is revealed.",
+    "category": "positive"
+  },
+  {
+    "id": "vowel_scan",
+    "label": "Vowel Scan",
+    "description": "Learn whether hidden vowels remain.",
+    "category": "positive"
+  },
+  {
+    "id": "bonus_token",
+    "label": "Score Token",
+    "description": "Bank +75 bonus points for the round.",
+    "category": "positive"
+  },
+  {
+    "id": "slow_timer",
+    "label": "Slow Clock",
+    "description": "Timer speed drops to 0.75x for 12 seconds.",
+    "category": "positive"
+  },
+  {
+    "id": "waive_penalty",
+    "label": "Soft Landing",
+    "description": "The next box can ignore its score penalty.",
+    "category": "positive"
+  },
+  {
+    "id": "reveal_plus_time",
+    "label": "Letter for Time",
+    "description": "Reveal 1 letter, but add 10 seconds.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "double_reveal_score_cut",
+    "label": "Deep Cut",
+    "description": "Reveal 2 letters, but reduce the round score by 12%.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "strong_clue_double_wrong",
+    "label": "Sharper Clue",
+    "description": "Get a clearer clue, but the next wrong guess counts double.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "freeze_breaks_perfect",
+    "label": "Cold Pause",
+    "description": "Freeze the timer, but lose perfect-round eligibility.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "remove_two_errors_minus_100",
+    "label": "Heavy Bargain",
+    "description": "Remove 2 wrong guesses, but deduct 100 points.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "family_clue_plus_time",
+    "label": "Family File",
+    "description": "Reveal the word family, but add 5 seconds.",
+    "category": "tradeoff"
+  },
+  {
+    "id": "double_speed",
+    "label": "Panic Clock",
+    "description": "Timer speed doubles for 8 seconds.",
+    "category": "cripple"
+  },
+  {
+    "id": "disable_keyboard",
+    "label": "Signal Jam",
+    "description": "Three unused letters are disabled briefly.",
+    "category": "cripple"
+  },
+  {
+    "id": "distort_used",
+    "label": "Static Wash",
+    "description": "Used-letter history distorts for 7 seconds.",
+    "category": "cripple"
+  },
+  {
+    "id": "higher_time_penalty",
+    "label": "Penalty Surge",
+    "description": "Time penalty increases to -6/sec for 10 seconds.",
+    "category": "cripple"
+  },
+  {
+    "id": "lock_boxes",
+    "label": "Lockdown",
+    "description": "Mystery boxes lock for 12 seconds.",
+    "category": "cripple"
+  },
+  {
+    "id": "broad_clue",
+    "label": "Wide Signal",
+    "description": "Get a clue that is true but not very helpful.",
+    "category": "cripple"
+  },
+  {
+    "id": "next_wrong_minus_40",
+    "label": "Risk Marker",
+    "description": "The next wrong guess triggers an extra -40 penalty.",
+    "category": "cripple"
+  },
+  {
+    "id": "hidden_risk",
+    "label": "Hidden Risk",
+    "description": "If the round is failed, take an extra -80 penalty.",
+    "category": "cripple"
+  }
+]
