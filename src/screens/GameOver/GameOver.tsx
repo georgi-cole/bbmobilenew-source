@@ -222,6 +222,15 @@ export default function GameOver() {
   }, [aftermathStories, panel, storyIndex])
 
   function archiveCompletedSeason() {
+    if (!isGuest && activeProfileId && userSummary) {
+      dispatch(
+        settleSeasonEyeoleans({
+          seasonId: seasonSettlementId,
+          rewards: seasonRewards,
+        })
+      )
+    }
+
     if (!archivedRef.current) {
       archivedRef.current = true
       if (!cupidArrowActivated && !voxPopuliActivated) {
