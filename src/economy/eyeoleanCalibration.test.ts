@@ -64,6 +64,7 @@ describe('Eyeolean economy calibration', () => {
     expect(report.segments.publicFavorite.count).toBe(1)
     expect(report.segments.comeback.median).toBe(9_000)
     expect(report.segments.competitionHeavy.count).toBe(2)
+    expect(report.pressure.nonFinalistSecondary.p90).toBe(43_200)
     expect(report.pressure.nonFinalistAtOrAboveRunnerUp).toEqual({
       count: 1,
       share: 1 / 3,
@@ -92,6 +93,7 @@ describe('Eyeolean economy calibration', () => {
     ])
 
     expect(report.overall.median).toBe(25_000)
+    expect(report.pressure.nonFinalistSecondary.median).toBe(0)
     expect(report.pressure.nonFinalistAtOrAbovePublicFavorite).toEqual({
       count: 0,
       share: 0,
