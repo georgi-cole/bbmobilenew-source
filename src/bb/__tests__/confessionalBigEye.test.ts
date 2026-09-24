@@ -127,4 +127,32 @@ describe('confessionalBigEye', () => {
     const reset = resolveBigEyeTurn('thank you', { random: () => 0.4 }, cold.nextState)
     expect(reset.nextState.mood).toBe('neutral')
   })
+
+  it('does not confuse ordinary eviction language with self-eviction', () => {
+    expect(detectIntent('Who got evicted today?')).not.toBe('self_eviction')
+    expect(detectIntent('Who do you think is going to leave?')).not.toBe('self_eviction')
+    expect(detectIntent('I want Nico evicted')).not.toBe('self_eviction')
+    expect(detectIntent('Why did Maya leave?')).not.toBe('self_eviction')
+  })
+
+  it('requires explicit first-person language for self-eviction', () => {
+    expect(detectIntent('I want to leave')).toBe('self_eviction')
+    expect(detectIntent('I quit the game')).toBe('self_eviction')
+    expect(detectIntent('I want out')).toBe('self_eviction')
+  })
+
+  it('does not flatten elaborated disagreement into a bare no', () => {
+    expect(detectIntent('No, they are out to get me')).not.toBe('no')
+    expect(detectIntent('Yeah, you are right')).not.toBe('yes')
+  })
+
+  it('accepts an incomplete negation only when a formal authored question is pending', () => {
+    const state = createInitialBigEyeState()
+    state.lastQuestion = 'confirm_self_eviction'
+
+    const reply = resolveBigEyeTurn("I don't", { random: () => 0.4 }, state)
+    expect(reply.intent).toBe('no')
+    expect(reply.nextState.lastQuestion).toBeNull()
+  })
+
 })
