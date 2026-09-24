@@ -480,6 +480,8 @@ export interface MissionProgressSignal {
   newProgress: number
   /** True when progress has reached the completion threshold. */
   isComplete: boolean
+  /** True when the player deliberately acted strongly against the request. */
+  isCounter: boolean
   /** The triggering event type for logging / UI. */
   triggeredBy: MissionGameEventType
   /** Signed amount applied by this event after repeat damping. */
@@ -547,7 +549,8 @@ export function resolveEventMissionProgress(
     const requestedDelta = Math.round(match.weight * multiplier)
     const newProgress = Math.min(100, Math.max(0, currentProgress + requestedDelta))
     const progressDelta = newProgress - currentProgress
-    if (progressDelta === 0) continue
+    const isCounter = match.weight <= publicOpinionConfig.missionCounterWeightThreshold
+    if (progressDelta === 0 && !isCounter) continue
     const isComplete =
       newProgress >= threshold ||
       newProgress >= threshold - publicOpinionConfig.missionCompletionTailTolerance
@@ -556,6 +559,7 @@ export function resolveEventMissionProgress(
       directionId: direction.id,
       newProgress,
       isComplete,
+      isCounter,
       triggeredBy: event.type,
       progressDelta,
       progressKey,
