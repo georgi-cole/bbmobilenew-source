@@ -186,7 +186,6 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
     dependencyTerms: ['need their vote', 'need his vote', 'need her vote', 'depend on', 'need them'],
     slang: {
       overwhelmed: ['im cooked', 'i am cooked', 'this is cooked'],
-      suspicion: [],
     } as Partial<Record<BigEyeIntent, string[]>>,
   },
   responses: {
