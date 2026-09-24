@@ -208,6 +208,18 @@ function dispatchMissionProgress(
 
   const signals = resolveEventMissionProgress(event, activeDirections)
   for (const signal of signals) {
+    if (signal.isCounter) {
+      store.dispatch(
+        resolveDirection({
+          directionId: signal.directionId,
+          status: 'failed',
+          week: event.week,
+          counter: true,
+        })
+      )
+      continue
+    }
+
     // updateMissionProgress handles progress accumulation AND auto-completion at 100%.
     // Do NOT also dispatch resolveDirection here — that would double-apply the success
     // reward (delta, counter, feed entry) for the same completion event.
