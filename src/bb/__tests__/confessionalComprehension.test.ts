@@ -14,9 +14,22 @@ const world: ConfessionalWorldContext = {
   leaderName: 'Jordan',
   nomineeNames: ['Alex', 'Sam'],
   safetyWinnerName: 'Maya',
-  remainingHousemates: ['Alex', 'Sam', 'Jordan', 'Maya'],
+  remainingHousemates: ['Alex', 'Sam', 'Jordan', 'Maya', 'Nico', 'Finn'],
   playerStats: { leaderWins: 1, safetyWins: 1, timesNominated: 3 },
-  closestRelationships: [{ name: 'Maya', affinity: 82, tags: ['ally'] }],
+  closestRelationships: [
+    { name: 'Maya', affinity: 82, tags: ['ally'] },
+    { name: 'Nico', affinity: 34, tags: ['alliance'] },
+    { name: 'Finn', affinity: -12, tags: [] },
+  ],
+  alliances: [
+    {
+      id: 'alliance-1',
+      name: 'Night Shift',
+      memberNames: ['Alex', 'Maya', 'Nico'],
+      status: 'ACTIVE',
+    },
+  ],
+  recentEvictedNames: ['Lia'],
   recentPublicEvents: ['Alex and Sam were nominated.'],
 }
 
@@ -120,4 +133,102 @@ describe('Big Eye comprehension frame', () => {
     expect(next.thread?.focusPlayer).toBe('Maya')
     expect(next.thread?.questionKind).toBeTruthy()
   })
+
+  it('resolves pronouns to the active player thread without changing the named entity', () => {
+    const state = createInitialBigEyeState()
+    state.thread = {
+      topic: 'alliance',
+      focusPlayer: 'Nico',
+      questionKind: 'alliance',
+      depth: 2,
+    }
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'I think he is playing his own game',
+      intent: 'unknown',
+      state,
+      world,
+    })
+
+    expect(frame.focusPlayer).toBe('Nico')
+    expect(frame.coreferenceUsed).toBe(true)
+  })
+
+  it('treats a named removal statement as a strategic target declaration', () => {
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'I want Nico gone!',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(frame.focusPlayer).toBe('Nico')
+    expect(frame.speechAct).toBe('target_declaration')
+    expect(frame.primaryIntent).toBe('strategy')
+    expect(frame.relationshipStances).toContain('target')
+  })
+
+  it('distinguishes elaborated disagreement from a bare no', () => {
+    const state = createInitialBigEyeState()
+    state.thread = {
+      topic: 'alliance',
+      focusPlayer: 'Nico',
+      questionKind: 'alliance',
+      depth: 2,
+    }
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'No, they are out to get me',
+      intent: 'unknown',
+      state,
+      world,
+    })
+
+    expect(frame.speechAct).toBe('disagreement')
+    expect(frame.focusPlayer).toBe('Nico')
+    expect(frame.relationshipStances).toContain('distrust')
+  })
+
+  it('recognizes alliance, eviction and person-read knowledge questions', () => {
+    const alliance = buildBigEyeComprehensionFrame({
+      text: 'Who are my allies?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+    })
+    const outlook = buildBigEyeComprehensionFrame({
+      text: 'Who do you think is going to leave?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+    })
+    const person = buildBigEyeComprehensionFrame({
+      text: 'What do you think about Finn?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(alliance.knowledgeQuery).toBe('alliances')
+    expect(outlook.knowledgeQuery).toBe('eviction_outlook')
+    expect(person.knowledgeQuery).toBe('person_read')
+    expect(person.focusPlayer).toBe('Finn')
+  })
+
+  it('stores the exact Eye question and statement in the semantic thread', () => {
+    const state = createInitialBigEyeState()
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'I want Nico gone',
+      intent: 'strategy',
+      state,
+      world,
+    })
+    const next = updateConversationStateFromFrame(
+      state,
+      frame,
+      'Then Nico is your target. Do you have the votes?'
+    )
+
+    expect(next.thread?.focusPlayer).toBe('Nico')
+    expect(next.thread?.lastEyeQuestion).toContain('Do you have the votes?')
+  })
+
 })
