@@ -42,6 +42,12 @@ export interface BigEyeConversationThread {
   focusPlayer: string | null
   questionKind: string | null
   depth: number
+  /** Last substantive Eye question, used to interpret short follow-ups. */
+  lastEyeQuestion?: string | null
+  /** Last grounded statement the Eye made about the active subject. */
+  lastEyeStatement?: string | null
+  /** Optional concrete reason behind an entry observation or statement. */
+  contextReason?: string | null
 }
 
 export interface BigEyeRapportState {
@@ -157,13 +163,16 @@ export const BOREDOM_SYNONYMS = [
 export const SELF_EVICT_SYNONYMS = [
   'i want to leave',
   'i wanna leave',
-  'self evict',
-  'leave the house',
-  'quit',
+  'i want to leave the house',
+  'i am leaving the game',
+  'im leaving the game',
+  'i want to self evict',
+  'i want to self evict myself',
+  'self evict me',
+  'i quit',
+  'i quit the game',
   'i want out',
-  'i need to get out',
-  'i cant stand it',
-  'i want out',
+  'i need to get out of the game',
 ]
 export const FRUSTRATION_SYNONYMS = [
   'im annoyed',
@@ -264,7 +273,7 @@ const INTENT_DICTIONARY: Record<
   greeting: { phrases: GREETING_SYNONYMS },
   farewell: { phrases: FAREWELL_SYNONYMS },
   boredom: { phrases: BOREDOM_SYNONYMS, partials: ['bore'] },
-  self_eviction: { phrases: SELF_EVICT_SYNONYMS, partials: ['evict', 'quit', 'leave'] },
+  self_eviction: { phrases: SELF_EVICT_SYNONYMS },
   frustration: { phrases: FRUSTRATION_SYNONYMS, partials: ['frustrat', 'annoy', 'mad'] },
   strategy: { phrases: STRATEGY_SYNONYMS, partials: ['strategy', 'plan', 'vote', 'target'] },
   alliance: { phrases: ALLIANCE_SYNONYMS, partials: ['alliance', 'ally', 'trust'] },
@@ -708,6 +717,21 @@ function hasPartialMatch(text: string, partial: string): boolean {
   return text.split(' ').some((token) => token.startsWith(partial))
 }
 
+function isBareAffirmation(text: string): boolean {
+  return YES_SYNONYMS.some((phrase) => text === normalizeInput(phrase))
+}
+
+function isBareNegation(text: string): boolean {
+  return NO_SYNONYMS.some((phrase) => text === normalizeInput(phrase))
+}
+
+function isExplicitSelfEviction(text: string): boolean {
+  if (SELF_EVICT_SYNONYMS.some((phrase) => text === normalizeInput(phrase))) return true
+  return /^(?:i|im|i am)\s+(?:really\s+)?(?:want|wanna|need)\s+(?:to\s+)?(?:quit|leave|self evict|get out)(?:\s+(?:the|this)\s+(?:game|house))?$/.test(
+    text
+  )
+}
+
 function isRepeatedGreeting(text: string): boolean {
   const tokens = text.split(' ').filter(Boolean)
   return (
@@ -768,6 +792,8 @@ function pickResponse(intent: ResponseKey, mood: BigEyeMood, rng: () => number):
 export function detectIntent(input: string): BigEyeIntent {
   const normalized = normalizeInput(input)
   if (!normalized) return 'unknown'
+  if (isExplicitSelfEviction(normalized)) return 'self_eviction'
+
   const specialPhrase = Object.entries(SPECIAL_PHRASE_MAP).find(
     ([phrase]) => normalized === phrase || hasWholePhrase(normalized, phrase)
   )
@@ -778,6 +804,10 @@ export function detectIntent(input: string): BigEyeIntent {
   let bestScore = 0
 
   for (const intent of INTENT_PRIORITY) {
+    if (intent === 'self_eviction') continue
+    if (intent === 'yes' && !isBareAffirmation(normalized)) continue
+    if (intent === 'no' && !isBareNegation(normalized)) continue
+
     const dictionary = INTENT_DICTIONARY[intent as keyof typeof INTENT_DICTIONARY]
     if (!dictionary) continue
 
@@ -866,6 +896,8 @@ export function resolveBigEyeTurn(
   state: BigEyeConversationState
 ): BigEyeReply {
   const normalizedInput = normalizeInput(input)
-  const intent = detectIntent(normalizedInput)
+  const formalNegation =
+    state.lastQuestion && ['i dont', 'dont', 'i do not', 'do not'].includes(normalizedInput)
+  const intent = formalNegation ? 'no' : detectIntent(normalizedInput)
   return getResponse(intent, context, state, normalizedInput)
 }
