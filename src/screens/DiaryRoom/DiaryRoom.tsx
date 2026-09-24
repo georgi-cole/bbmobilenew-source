@@ -1241,7 +1241,7 @@ export default function DiaryRoom() {
       let vipReplyUsed = false
       const discoveredEgg = getSecretMissionEasterEggByIntent(resp.intent)
 
-      if (requestVipForThisTurn && !resp.action && !discoveredEgg) {
+      if (requestVipForThisTurn && resp.vipEligible && !resp.action && !discoveredEgg) {
         try {
           const vipReply = await requestBigEyeVipReply({
             seasonId: vipSeasonId,
@@ -1280,6 +1280,8 @@ export default function DiaryRoom() {
         setVipNotice('You found an authored Easter egg, so your VIP credit was kept.')
       } else if (requestVipForThisTurn && resp.action) {
         setVipNotice('That was a game action, so your VIP credit was kept.')
+      } else if (requestVipForThisTurn && !resp.vipEligible) {
+        setVipNotice('The Eye could answer that directly, so your VIP credit was kept.')
       }
 
       setConversationState(resp.nextState)
