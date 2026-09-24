@@ -4,6 +4,12 @@ import StoreProductIcon from '../../components/StoreProductModal/StoreProductIco
 import StoreProductModal from '../../components/StoreProductModal/StoreProductModal'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import {
+  purchaseEyeoleanStoreProduct,
+  selectCurrentProfile,
+  selectEyeoleanBalance,
+  selectEyeoleanInventory,
+} from '../../store/profilesSlice'
 import { initializeVip, purchaseStoreItem, restoreVip, selectVip } from '../../store/vipSlice'
 import { setGameUX } from '../../store/settingsSlice'
 import {
@@ -13,6 +19,11 @@ import {
   getStoreProductDefinition,
   type StoreProductKey,
 } from '../../vip/vipConfig'
+import {
+  EYEOLEAN_STORE_PRODUCT_KEYS,
+  getEyeoleanStoreProduct,
+  type EyeoleanStoreProductKey,
+} from '../../economy/storeCatalog'
 import {
   hasEffectiveStoreEntitlement,
   isEffectiveVipActive,
@@ -34,7 +45,12 @@ export default function Store() {
   const location = useLocation()
   const dispatch = useAppDispatch()
   const storeState = useAppSelector(selectVip)
+  const currentProfile = useAppSelector(selectCurrentProfile)
+  const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
+  const eyeoleanInventory = useAppSelector(selectEyeoleanInventory)
   const [notice, setNotice] = useState<string | null>(null)
+  const [eyeoleanNotice, setEyeoleanNotice] = useState<string | null>(null)
+  const [eyeoleanError, setEyeoleanError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [selectedProductKey, setSelectedProductKey] = useState<StoreProductKey | null>(null)
   const purchaseLockRef = useRef(false)
@@ -94,6 +110,35 @@ export default function Store() {
     }
   }
 
+  function purchaseEyeoleanItem(productKey: EyeoleanStoreProductKey) {
+    const product = getEyeoleanStoreProduct(productKey)
+    setEyeoleanNotice(null)
+    setEyeoleanError(null)
+
+    if (!currentProfile) {
+      setEyeoleanError('Choose a profile to use the Eyeolean Store.')
+      return
+    }
+    if (eyeoleanBalance < product.price) {
+      setEyeoleanError(
+        `You need ${(product.price - eyeoleanBalance).toLocaleString('en-US')} more Eyeoleans.`
+      )
+      return
+    }
+
+    const randomId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
+    dispatch(
+      purchaseEyeoleanStoreProduct({
+        productKey,
+        transactionId: `store:${productKey}:${randomId}`,
+      })
+    )
+    setEyeoleanNotice(`${product.title} added to your inventory.`)
+  }
+
   async function handleRestore() {
     if (busy || developerAccess) return
     setNotice(null)
@@ -134,6 +179,77 @@ export default function Store() {
         )}
         <GameBackButton className="vip-store__back" onClick={goBack} />
       </header>
+
+      <section className="vip-store__standalone vip-store__eyeolean-market" aria-labelledby="eyeolean-items-title">
+        <div className="vip-store__eyeolean-heading">
+          <div>
+            <p className="vip-store__eyebrow">Experimental soft-currency items</p>
+            <h2 id="eyeolean-items-title">Eyeolean Store</h2>
+          </div>
+          <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
+            <span>Wallet</span>
+            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+            <small>Eyeoleans</small>
+          </div>
+        </div>
+
+        <p className="vip-store__eyeolean-note">
+          Test catalog. These are repeatable consumables, so prices and behavior can be tuned later.
+        </p>
+
+        <div className="vip-store__eyeolean-grid">
+          {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
+            const product = getEyeoleanStoreProduct(productKey)
+            const owned = eyeoleanInventory[productKey] ?? 0
+            const canBuy = Boolean(currentProfile) && eyeoleanBalance >= product.price
+            return (
+              <article className="vip-store__eyeolean-product" key={productKey}>
+                <div
+                  className="vip-store__eyeolean-product-icon"
+                  data-product={productKey}
+                  aria-hidden="true"
+                >
+                  {productKey === 'extra_vote' ? '2×' : '−1'}
+                </div>
+                <div className="vip-store__eyeolean-product-copy">
+                  <div className="vip-store__eyeolean-product-title-row">
+                    <h3>{product.title}</h3>
+                    <span>Owned {owned}</span>
+                  </div>
+                  <p>{product.shortDescription}</p>
+                </div>
+                <div className="vip-store__eyeolean-product-footer">
+                  <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
+                  <button
+                    type="button"
+                    onClick={() => purchaseEyeoleanItem(productKey)}
+                    disabled={!canBuy}
+                    aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
+                  >
+                    {currentProfile
+                      ? canBuy
+                        ? 'Buy'
+                        : 'Not enough'
+                      : 'Profile required'}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+
+        {(eyeoleanNotice || eyeoleanError) && (
+          <p
+            className={
+              eyeoleanError ? 'vip-store__notice vip-store__notice--error' : 'vip-store__notice'
+            }
+            role="status"
+            aria-live="polite"
+          >
+            {eyeoleanError || eyeoleanNotice}
+          </p>
+        )}
+      </section>
 
       {developerAccess && (
         <section className="vip-store__restore-panel" role="status">
