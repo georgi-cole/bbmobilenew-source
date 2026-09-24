@@ -48,15 +48,16 @@ export interface SeasonDirectorPolicy {
   }
   battleBack: {
     enabled: boolean
-    maxPerSeason: 1
     human: {
       guaranteedOpportunityAfterEviction: boolean
+      maxGuaranteedOpportunitiesPerSeason: 1
       minimumActivePlayersAfterEviction: number
       minimumCandidates: number
     }
     aiOnly: SeasonDirectorWindow & {
       seasonChance: number
       minimumCandidates: number
+      maxPerSeason: 1
     }
   }
   lifetimeSpecials: {
@@ -96,6 +97,8 @@ declare module '../../types' {
     seasonDirectorLastSpotlightDay?: number | null
     /** True after the human has received their one guaranteed return opportunity. */
     seasonDirectorHumanReturnUsed?: boolean
+    /** True after the optional AI-only Battle Back has been consumed. */
+    seasonDirectorAiBattleBackUsed?: boolean
   }
 }
 
@@ -151,9 +154,9 @@ export const DEFAULT_SEASON_DIRECTOR_POLICY: SeasonDirectorPolicy = {
   },
   battleBack: {
     enabled: true,
-    maxPerSeason: 1,
     human: {
       guaranteedOpportunityAfterEviction: true,
+      maxGuaranteedOpportunitiesPerSeason: 1,
       minimumActivePlayersAfterEviction: 5,
       minimumCandidates: 2,
     },
@@ -162,6 +165,7 @@ export const DEFAULT_SEASON_DIRECTOR_POLICY: SeasonDirectorPolicy = {
       maxPlayers: 9,
       minPlayers: 6,
       minimumCandidates: 3,
+      maxPerSeason: 1,
     },
   },
   lifetimeSpecials: {
@@ -305,14 +309,22 @@ export function sanitiseRemoteSeasonDirectorConfig(
   if (isRecord(raw.battleBack)) {
     const battleBack: NonNullable<RemoteSeasonDirectorConfig['battleBack']> = {}
     if (typeof raw.battleBack.enabled === 'boolean') battleBack.enabled = raw.battleBack.enabled
-    const maxPerSeason = integerInRange(raw.battleBack.maxPerSeason, 0, 1)
-    if (maxPerSeason !== undefined) battleBack.maxPerSeason = maxPerSeason
+    const legacyAiMaxPerSeason = integerInRange(raw.battleBack.maxPerSeason, 0, 1)
+    if (legacyAiMaxPerSeason !== undefined) battleBack.maxPerSeason = legacyAiMaxPerSeason
 
     if (isRecord(raw.battleBack.human)) {
       const human: NonNullable<NonNullable<RemoteSeasonDirectorConfig['battleBack']>['human']> = {}
       if (typeof raw.battleBack.human.guaranteedOpportunityAfterEviction === 'boolean') {
         human.guaranteedOpportunityAfterEviction =
           raw.battleBack.human.guaranteedOpportunityAfterEviction
+      }
+      const maxGuaranteedOpportunitiesPerSeason = integerInRange(
+        raw.battleBack.human.maxGuaranteedOpportunitiesPerSeason,
+        0,
+        1
+      )
+      if (maxGuaranteedOpportunitiesPerSeason !== undefined) {
+        human.maxGuaranteedOpportunitiesPerSeason = maxGuaranteedOpportunitiesPerSeason
       }
       const minimumActivePlayersAfterEviction = integerInRange(
         raw.battleBack.human.minimumActivePlayersAfterEviction,
@@ -331,7 +343,14 @@ export function sanitiseRemoteSeasonDirectorConfig(
       chanceKey: 'seasonChance',
       includeCandidates: true,
     })
-    if (aiOnly) battleBack.aiOnly = aiOnly
+    if (aiOnly) {
+      if (aiOnly.maxPerSeason === undefined && legacyAiMaxPerSeason !== undefined) {
+        aiOnly.maxPerSeason = legacyAiMaxPerSeason
+      }
+      battleBack.aiOnly = aiOnly
+    } else if (legacyAiMaxPerSeason !== undefined) {
+      battleBack.aiOnly = { maxPerSeason: legacyAiMaxPerSeason }
+    }
     if (Object.keys(battleBack).length > 0) result.battleBack = battleBack
   }
 
@@ -441,11 +460,11 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
     },
     battleBack: {
       enabled: remote.battleBack?.enabled ?? defaults.battleBack.enabled,
-      maxPerSeason: 1,
       human: {
         guaranteedOpportunityAfterEviction:
           remote.battleBack?.human?.guaranteedOpportunityAfterEviction ??
           defaults.battleBack.human.guaranteedOpportunityAfterEviction,
+        maxGuaranteedOpportunitiesPerSeason: 1,
         minimumActivePlayersAfterEviction:
           remote.battleBack?.human?.minimumActivePlayersAfterEviction ??
           defaults.battleBack.human.minimumActivePlayersAfterEviction,
@@ -460,6 +479,7 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
         minimumCandidates:
           remote.battleBack?.aiOnly?.minimumCandidates ??
           defaults.battleBack.aiOnly.minimumCandidates,
+        maxPerSeason: 1,
       },
     },
     lifetimeSpecials: {
