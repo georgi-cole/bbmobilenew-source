@@ -422,7 +422,7 @@ export function useTwistFlow({
       battleBack?.active
         ? getStoredBattleBackCandidates(game.players, battleBack.candidates ?? [])
         : [],
-    [battleBack?.active, battleBack?.candidates, game.players]
+    [battleBack, game.players]
   )
   const battleBackCandidateIds = useMemo(
     () => battleBackCandidates.map((player) => player.id),
