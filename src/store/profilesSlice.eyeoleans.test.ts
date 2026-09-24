@@ -42,6 +42,29 @@ describe('Eyeolean profile wallet', () => {
     expect(profile.settledEyeoleanSeasonIds).toEqual(['eyeoleans:season:1:game-a'])
   })
 
+  it('keeps purchase idempotency even when an old transaction is no longer in the display ledger', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    state = profilesReducer(
+      state,
+      settleSeasonEyeoleans({ seasonId: 'eyeoleans:season:1:game-a', rewards: REWARDS })
+    )
+
+    const profileId = state.activeProfileId
+    const profile = state.profiles.find((entry) => entry.id === profileId)
+    if (!profile) throw new Error('profile missing in test setup')
+
+    profile.eyeoleanTransactions = []
+    profile.processedEyeoleanTransactionIds = ['store:old-skin']
+
+    state = profilesReducer(
+      state,
+      spendEyeoleans({ transactionId: 'store:old-skin', amount: 20_000, label: 'Old Skin' })
+    )
+
+    expect(state.profiles[0]?.eyeoleans).toBe(120_000)
+    expect(state.profiles[0]?.eyeoleanTransactions).toHaveLength(0)
+  })
+
   it('spends atomically and never permits duplicate or overdrawn purchases', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
     state = profilesReducer(
