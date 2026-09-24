@@ -90,6 +90,11 @@ const NARRATIVE_VARIANTS = {
     'A very watchable opportunity slipped quietly into the void.',
     'The viewers were waiting for a splash and got a polite ripple.',
   ],
+  direction_counter: [
+    'The audience asked for one thing and watched the exact opposite happen.',
+    'That was not a missed request — it was a direct rejection of what viewers wanted.',
+    'The public noticed the deliberate turn away from its request, and the reaction was sharper.',
+  ],
   headline_positive: [
     'Social media lit up practically overnight — the fan base is growing fast.',
     'A viral clip dropped and the crowd reaction has been overwhelmingly warm.',
@@ -271,6 +276,7 @@ const REASON_ALIASES: Record<string, NarrativeKey> = {
   public_save: 'public_save',
   direction_completed: 'direction_completed',
   direction_failed: 'direction_failed',
+  direction_counter: 'direction_counter',
   headline_positive: 'headline_positive',
   headline_negative: 'headline_negative',
   headline_drama: 'headline_drama',
