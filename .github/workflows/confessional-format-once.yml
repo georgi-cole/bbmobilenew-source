@@ -1,0 +1,50 @@
+name: Confessional Format Once
+
+on:
+  push:
+    branches:
+      - feature/confessional-2-intelligence
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/confessional-2-intelligence
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format changed Confessional files
+        run: |
+          npx prettier --write \
+            cloudflare/vip-confessional/README.md \
+            docs/BIG_EYE_CONFESSIONAL.md \
+            docs/remote-manager-guide.md \
+            public/config/live-config.json \
+            server/index.js \
+            server/live-config.example.json \
+            src/bb/__tests__/confessionalBigEye.test.ts \
+            src/bb/confessionalBigEye.ts \
+            src/bb/confessionalComprehension.ts \
+            src/bb/confessionalRuntimeConfig.ts \
+            src/bb/confessionalSalience.ts \
+            src/screens/DiaryRoom/DiaryRoom.css \
+            src/screens/DiaryRoom/DiaryRoom.tsx \
+            src/services/__tests__/bigBrotherLocalDirector.test.ts \
+            src/services/bigBrother.ts
+      - name: Commit formatter result
+        run: |
+          rm .github/workflows/confessional-format-once.yml
+          printf 'remove me after formatter commit\n' > .confessional-format-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Format Confessional 2.0 changes"
+          git push origin HEAD:feature/confessional-2-intelligence
