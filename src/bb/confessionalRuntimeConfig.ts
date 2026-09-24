@@ -432,6 +432,7 @@ export function sanitiseRemoteConfessionalConfig(raw: unknown): RemoteConfession
     if (source.slang && typeof source.slang === 'object' && !Array.isArray(source.slang)) {
       const slang: Partial<Record<BigEyeIntent, string[]>> = {}
       for (const [key, terms] of Object.entries(source.slang)) {
+        if (!REMOTE_INTENTS.includes(key as BigEyeIntent)) continue
         const items = safeStrings(terms, 50, 100)
         if (items) slang[key as BigEyeIntent] = items
       }
