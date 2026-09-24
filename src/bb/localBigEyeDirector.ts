@@ -511,6 +511,10 @@ function groundedSemanticReply(
 
   if (frame.speechAct === 'target_declaration' && focus) {
     const distrust = frame.relationshipStances.includes('distrust')
+    const depend = frame.relationshipStances.includes('depend')
+    if (distrust && depend) {
+      return `You do not trust ${focus}, you still need them, and you want them gone. Then this is a timing problem, not a loyalty problem. Use the protection while it is useful; do not strike before you can survive losing it.`
+    }
     return distrust
       ? `Then ${focus} is not merely someone you distrust; ${focus} is your target. Clear. Keep the difference between wanting them gone and having the votes to make it happen.`
       : `Then ${focus} is your target. Clear. Wanting someone gone is the easy part; making the move without exposing yourself is the game.`
