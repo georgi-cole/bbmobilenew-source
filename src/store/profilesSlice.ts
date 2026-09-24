@@ -86,6 +86,14 @@ export type EyeoleanTransactionSource =
   | 'purchase_credit'
   | 'adjustment'
 
+export interface EyeoleanPowerReservation {
+  productKey: EyeoleanStoreProductKey
+  gameId: string
+  season: number
+  armedWeek: number
+  armedAt: string
+}
+
 export interface EyeoleanTransaction {
   /** Stable idempotency key. Duplicate IDs are never applied twice. */
   id: string
@@ -121,6 +129,8 @@ export interface StoredProfile {
   eyeoleanTransactions?: EyeoleanTransaction[]
   /** Persistent quantities of soft-currency consumables bought from the Store. */
   eyeoleanInventory?: Partial<Record<EyeoleanStoreProductKey, number>>
+  /** One reserved unit per power, bound to the active season until used or returned. */
+  eyeoleanPowerReservations?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>>
   /**
    * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
    * an old purchase callback cannot become payable again after enough transactions.
@@ -229,6 +239,40 @@ function coerceEyeoleanInventory(raw: unknown): Partial<Record<EyeoleanStoreProd
   return inventory
 }
 
+function coerceEyeoleanPowerReservations(
+  raw: unknown
+): Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>> {
+  if (!raw || typeof raw !== 'object') return {}
+  const source = raw as Record<string, unknown>
+  const reservations: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>> = {}
+  EYEOLEAN_STORE_PRODUCT_KEYS.forEach((key) => {
+    const value = source[key]
+    if (!value || typeof value !== 'object') return
+    const reservation = value as Partial<EyeoleanPowerReservation>
+    if (
+      reservation.productKey !== key ||
+      typeof reservation.gameId !== 'string' ||
+      !reservation.gameId ||
+      typeof reservation.season !== 'number' ||
+      !Number.isFinite(reservation.season) ||
+      typeof reservation.armedWeek !== 'number' ||
+      !Number.isFinite(reservation.armedWeek) ||
+      typeof reservation.armedAt !== 'string' ||
+      !reservation.armedAt
+    ) {
+      return
+    }
+    reservations[key] = {
+      productKey: key,
+      gameId: reservation.gameId,
+      season: Math.max(1, Math.floor(reservation.season)),
+      armedWeek: Math.max(1, Math.floor(reservation.armedWeek)),
+      armedAt: reservation.armedAt,
+    }
+  })
+  return reservations
+}
+
 function appendEyeoleanTransaction(
   profile: StoredProfile,
   transaction: EyeoleanTransaction
@@ -299,6 +343,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
         : 0,
     eyeoleans: migratedForecastBalance,
     eyeoleanInventory: coerceEyeoleanInventory(r.eyeoleanInventory),
+    eyeoleanPowerReservations: coerceEyeoleanPowerReservations(r.eyeoleanPowerReservations),
     eyeoleanTransactions: Array.isArray(r.eyeoleanTransactions)
       ? r.eyeoleanTransactions
           .map(coerceEyeoleanTransaction)
@@ -444,6 +489,7 @@ const profilesSlice = createSlice({
         eyeoleans: 0,
         eyeoleanTransactions: [],
         eyeoleanInventory: {},
+        eyeoleanPowerReservations: {},
         processedEyeoleanTransactionIds: [],
         settledEyeoleanSeasonIds: [],
       }
@@ -626,6 +672,86 @@ const profilesSlice = createSlice({
       }
     },
 
+    /**
+     * Reserve one purchased consumable for this season. The unit leaves ordinary
+     * inventory immediately, but is returned if it never reaches a valid trigger.
+     */
+    armEyeoleanStorePower(
+      state,
+      action: PayloadAction<{
+        productKey: EyeoleanStoreProductKey
+        gameId: string
+        season: number
+        week: number
+      }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile || state.isGuest) return
+      const { productKey } = action.payload
+      const gameId = action.payload.gameId.trim()
+      if (!gameId || !Number.isFinite(action.payload.season) || !Number.isFinite(action.payload.week)) {
+        return
+      }
+
+      const reservations = profile.eyeoleanPowerReservations ?? {}
+      if (reservations[productKey]) return
+
+      const inventory = profile.eyeoleanInventory ?? {}
+      const quantity = Math.max(0, Math.floor(inventory[productKey] ?? 0))
+      if (quantity <= 0) return
+
+      profile.eyeoleanInventory = {
+        ...inventory,
+        [productKey]: quantity - 1,
+      }
+      profile.eyeoleanPowerReservations = {
+        ...reservations,
+        [productKey]: {
+          productKey,
+          gameId,
+          season: Math.max(1, Math.floor(action.payload.season)),
+          armedWeek: Math.max(1, Math.floor(action.payload.week)),
+          armedAt: new Date().toISOString(),
+        },
+      }
+    },
+
+    /** Return a reserved power to inventory without consuming it. */
+    returnEyeoleanStorePower(
+      state,
+      action: PayloadAction<{ productKey: EyeoleanStoreProductKey; gameId?: string }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile) return
+      const reservation = profile.eyeoleanPowerReservations?.[action.payload.productKey]
+      if (!reservation) return
+      if (action.payload.gameId && reservation.gameId !== action.payload.gameId) return
+
+      const inventory = profile.eyeoleanInventory ?? {}
+      const current = Math.max(0, Math.floor(inventory[action.payload.productKey] ?? 0))
+      profile.eyeoleanInventory = {
+        ...inventory,
+        [action.payload.productKey]: Math.min(Number.MAX_SAFE_INTEGER, current + 1),
+      }
+      const nextReservations = { ...(profile.eyeoleanPowerReservations ?? {}) }
+      delete nextReservations[action.payload.productKey]
+      profile.eyeoleanPowerReservations = nextReservations
+    },
+
+    /** Consume a reservation after its gameplay effect has actually been applied. */
+    consumeEyeoleanStorePower(
+      state,
+      action: PayloadAction<{ productKey: EyeoleanStoreProductKey; gameId: string }>
+    ) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      if (!profile) return
+      const reservation = profile.eyeoleanPowerReservations?.[action.payload.productKey]
+      if (!reservation || reservation.gameId !== action.payload.gameId) return
+      const nextReservations = { ...(profile.eyeoleanPowerReservations ?? {}) }
+      delete nextReservations[action.payload.productKey]
+      profile.eyeoleanPowerReservations = nextReservations
+    },
+
     /** Award a correct Public Favorite forecast once per season event. */
     awardPublicFavoriteForecast(state, action: PayloadAction<{ eventId: string }>) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
@@ -688,6 +814,9 @@ export const {
   settleSeasonEyeoleans,
   spendEyeoleans,
   purchaseEyeoleanStoreProduct,
+  armEyeoleanStorePower,
+  returnEyeoleanStorePower,
+  consumeEyeoleanStorePower,
   awardPublicFavoriteForecast,
   deleteProfile,
   enterGuestMode,
@@ -711,8 +840,14 @@ export const selectEyeoleanBalance = (state: RootState) =>
   selectCurrentProfile(state)?.eyeoleans ?? 0
 
 const EMPTY_EYEOLEAN_INVENTORY: Partial<Record<EyeoleanStoreProductKey, number>> = {}
+const EMPTY_EYEOLEAN_POWER_RESERVATIONS: Partial<
+  Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>
+> = {}
 
 export const selectEyeoleanInventory = (state: RootState) =>
   selectCurrentProfile(state)?.eyeoleanInventory ?? EMPTY_EYEOLEAN_INVENTORY
+
+export const selectEyeoleanPowerReservations = (state: RootState) =>
+  selectCurrentProfile(state)?.eyeoleanPowerReservations ?? EMPTY_EYEOLEAN_POWER_RESERVATIONS
 
 export default profilesSlice.reducer
