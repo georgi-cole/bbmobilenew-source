@@ -223,6 +223,8 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
       'need their vote',
       'need his vote',
       'need her vote',
+      'need him',
+      'need her',
       'depend on',
       'need them',
     ],

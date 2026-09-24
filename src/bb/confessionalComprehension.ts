@@ -42,6 +42,12 @@ export type ConfessionalKnowledgeQuery =
 
 export type RelationshipStance = 'trust' | 'distrust' | 'target' | 'protect' | 'depend'
 
+/** A player claim attached to one housemate, never inferred from another name in the same turn. */
+export interface ConfessionalRelationshipStatement {
+  player: string
+  stances: RelationshipStance[]
+}
+
 export interface ConfessionalWorldContext {
   week: number
   phase: string
@@ -78,6 +84,7 @@ export interface BigEyeComprehensionFrame {
   entities: string[]
   focusPlayer: string | null
   relationshipStances: RelationshipStance[]
+  relationshipStatements: ConfessionalRelationshipStatement[]
   continuation: boolean
   contradiction: string | null
   responseMoves: ConfessionalResponseMove[]
@@ -144,7 +151,7 @@ function detectKnowledgeQuery(
   }
   if (
     focusPlayer &&
-    /what do you think (?:about|of)|what do you make of|how do you see|whats your read on|what is your read on/.test(
+    /can i trust|should i trust|do you trust|what do you think (?:about|of)|what do you make of|how do you see|whats your read on|what is your read on/.test(
       text
     )
   ) {
@@ -183,6 +190,73 @@ function findEntities(text: string, world?: ConfessionalWorldContext): string[] 
     ...(world.safetyWinnerName ? [world.safetyWinnerName] : []),
   ])
   return candidates.filter((name) => text.includes(normalizeInput(name)))
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function hasNamedRelationshipStance(
+  text: string,
+  name: string,
+  stance: RelationshipStance
+): boolean {
+  const subject = escapeRegExp(normalizeInput(name))
+  const namesAfter = `(?:\\s+\\w+){0,3}\\s+${subject}\\b`
+  const nameBefore = `\\b${subject}\\b(?:\\s+\\w+){0,5}`
+  switch (stance) {
+    case 'distrust':
+      return (
+        new RegExp(`\\b(?:dont trust|do not trust|distrust|suspect|think)${namesAfter}`).test(
+          text
+        ) ||
+        new RegExp(
+          `${nameBefore}(?:\\s+is)?\\s+(?:lying|sketchy|shady|a snake|untrustworthy)`
+        ).test(text)
+      )
+    case 'trust':
+      return (
+        new RegExp(`\\b(?:trust|believe in|feel safe with)${namesAfter}`).test(text) ||
+        new RegExp(`${nameBefore}(?:\\s+is)?\\s+(?:loyal|trustworthy|solid)`).test(text)
+      )
+    case 'target':
+      return (
+        new RegExp(
+          `\\b(?:want|need|plan|hope)(?:\\s+to)?${namesAfter}\\s+(?:out|gone|evicted|eliminated)`
+        ).test(text) ||
+        new RegExp(`\\b(?:target|vote out|evict|get rid of|take out)${namesAfter}`).test(text) ||
+        new RegExp(`${nameBefore}(?:\\s+is)?\\s+my\\s+target`).test(text)
+      )
+    case 'protect':
+      return new RegExp(`\\b(?:protect|save|keep safe)${namesAfter}`).test(text)
+    case 'depend':
+      return new RegExp(`\\b(?:need|rely on|depend on)${namesAfter}`).test(text)
+  }
+}
+
+function buildRelationshipStatements(
+  text: string,
+  entities: string[],
+  fallbackStances: RelationshipStance[],
+  focusPlayer: string | null
+): ConfessionalRelationshipStatement[] {
+  const statements = entities
+    .map((player) => ({
+      player,
+      stances: (
+        ['trust', 'distrust', 'target', 'protect', 'depend'] as RelationshipStance[]
+      ).filter((stance) => hasNamedRelationshipStance(text, player, stance)),
+    }))
+    .filter((statement) => statement.stances.length > 0)
+
+  // Pronoun continuations have one unambiguous subject; preserve the existing useful signal.
+  if (statements.length === 0 && focusPlayer && fallbackStances.length > 0) {
+    statements.push({ player: focusPlayer, stances: fallbackStances })
+  }
+  if (entities.length === 1 && statements.length === 1) {
+    statements[0].stances = unique([...statements[0].stances, ...fallbackStances])
+  }
+  return statements
 }
 
 function hasCoreferencePronoun(text: string): boolean {
@@ -234,9 +308,9 @@ function inferSpeechAct(
   if (/\bchallenge me\b|\bgive me a challenge\b|\bdare me\b/.test(text)) return 'challenge_request'
   if (predictedWinner) return 'prediction'
   if (isTargetDeclaration(text)) return 'target_declaration'
+  if (state.thread && (intent === 'yes' || intent === 'no')) return 'answer'
   if (isAgreement(text)) return 'agreement'
   if (isDisagreement(text)) return 'disagreement'
-  if (state.thread && (intent === 'yes' || intent === 'no')) return 'answer'
   if (intent === 'advice_request' || intent === 'strategy') return 'advice_request'
   if (
     intent === 'fear' ||
@@ -348,6 +422,7 @@ export function buildBigEyeComprehensionFrame(input: {
     knowledgeQuery,
     predictedWinner
   )
+  if (knowledgeQuery) relationshipStances.length = 0
   if (
     speechAct === 'target_declaration' &&
     (primaryIntent === 'unknown' || primaryIntent === 'curiosity' || primaryIntent === 'alliance')
@@ -360,6 +435,12 @@ export function buildBigEyeComprehensionFrame(input: {
     const targetIndex = relationshipStances.indexOf('target')
     if (targetIndex >= 0) relationshipStances.splice(targetIndex, 1)
   }
+  const relationshipStatements = buildRelationshipStatements(
+    text,
+    entities,
+    relationshipStances,
+    focusPlayer
+  )
   const contradiction = inferContradiction(text, focusPlayer, input.memorySummary)
   const continuation = Boolean(
     input.state.thread &&
@@ -392,6 +473,7 @@ export function buildBigEyeComprehensionFrame(input: {
     entities,
     focusPlayer,
     relationshipStances: unique(relationshipStances),
+    relationshipStatements,
     continuation,
     contradiction,
     responseMoves: unique(responseMoves),

@@ -167,6 +167,22 @@ describe('Big Eye comprehension frame', () => {
     expect(frame.relationshipStances).toContain('target')
   })
 
+  it('keeps relationship claims attached to the housemate named in each clause', () => {
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'I trust Maya, but I want Nico out.',
+      intent: 'strategy',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(frame.relationshipStatements).toEqual(
+      expect.arrayContaining([
+        { player: 'Maya', stances: ['trust'] },
+        { player: 'Nico', stances: ['target'] },
+      ])
+    )
+  })
+
   it('distinguishes elaborated disagreement from a bare no', () => {
     const state = createInitialBigEyeState()
     state.thread = {

@@ -486,13 +486,19 @@ function groundedSemanticReply(
 ): string | null {
   const focus = frame.focusPlayer
   const text = normalizeInput(input.diaryText)
+  const targetStatement = frame.relationshipStatements.find((statement) =>
+    statement.stances.includes('target')
+  )
+  const focusedStatement = frame.relationshipStatements.find(
+    (statement) => statement.player === focus
+  )
 
   if (frame.speechAct === 'clarification') {
     const reason = input.state.thread?.contextReason
-    if (reason) return reason
+    if (reason) return `Plainly: ${reason}`
     const lastStatement = input.state.thread?.lastEyeStatement
     if (lastStatement) {
-      return `Fair question. I meant the point I just made about ${focus ?? 'your game'}, not something hidden behind it. If that sounded more certain than the evidence allows, let me be precise.`
+      return `Fair question. I meant: “${lastStatement}” I am talking about ${focus ?? 'your game'}, not claiming a hidden fact.`
     }
     return 'Fair question. I was being more theatrical than useful. Ask me what you want explained, and I will answer it plainly.'
   }
@@ -509,15 +515,19 @@ function groundedSemanticReply(
     return resolveKnowledgeReply('person_read', input, facts)
   }
 
-  if (frame.speechAct === 'target_declaration' && focus) {
-    const distrust = frame.relationshipStances.includes('distrust')
-    const depend = frame.relationshipStances.includes('depend')
+  if (frame.speechAct === 'target_declaration' && targetStatement) {
+    const target = targetStatement.player
+    const distrust = targetStatement.stances.includes('distrust')
+    const depend = targetStatement.stances.includes('depend')
+    const otherNamedPlayer = frame.relationshipStatements.find(
+      (statement) => statement.player !== target && statement.stances.length > 0
+    )?.player
     if (distrust && depend) {
-      return `You do not trust ${focus}, you still need them, and you want them gone. Then this is a timing problem, not a loyalty problem. Use the protection while it is useful; do not strike before you can survive losing it.`
+      return `You do not trust ${target}, you still need them, and you want them gone. Then this is a timing problem, not a loyalty problem. Use the protection while it is useful; do not strike before you can survive losing it.`
     }
     return distrust
-      ? `Then ${focus} is not merely someone you distrust; ${focus} is your target. Clear. Keep the difference between wanting them gone and having the votes to make it happen.`
-      : `Then ${focus} is your target. Clear. Wanting someone gone is the easy part; making the move without exposing yourself is the game.`
+      ? `Then ${target} is not merely someone you distrust; ${target} is your target. Clear. Keep the difference between wanting them gone and having the votes to make it happen.`
+      : `${otherNamedPlayer ? `${otherNamedPlayer} is a separate relationship. ` : ''}${target} is your target. Clear. Wanting someone gone is the easy part; making the move without exposing yourself is the game.`
   }
 
   if (
@@ -527,18 +537,22 @@ function groundedSemanticReply(
     return `Then you see ${focus} as aligned with you only while your interests overlap. That is not automatically betrayal; it is a reason to stop treating the alliance as unconditional.`
   }
 
-  if (focus && frame.relationshipStances.includes('distrust') && frame.relationshipStances.includes('depend')) {
+  if (
+    focus &&
+    focusedStatement?.stances.includes('distrust') &&
+    focusedStatement.stances.includes('depend')
+  ) {
     return `You do not trust ${focus}, but you still need them. That is leverage, not loyalty. Use the relationship if it protects you; do not confuse usefulness with safety.`
   }
 
-  if (focus && frame.relationshipStances.includes('distrust')) {
+  if (focus && focusedStatement?.stances.includes('distrust')) {
     if (/out to get me|against me|coming for me/.test(text)) {
       return `Then your read is that ${focus} is working against you. Treat that as a risk to test, not a secret fact I can confirm. What have they actually done that convinced you?`
     }
     return `Your position on ${focus} is clear: you do not trust them. What changed your read—something they did, something they said, or what they refused to do?`
   }
 
-  if (focus && frame.relationshipStances.includes('trust')) {
+  if (focus && focusedStatement?.stances.includes('trust')) {
     return `You trust ${focus}. Good. Now separate the feeling from the evidence: what have they risked for your game that proves it?`
   }
 
@@ -613,7 +627,7 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
   const config = getConfessionalRuntimeConfig()
 
   if (config.features.deterministicKnowledge && frame.knowledgeQuery) {
-    return resolveKnowledgeReply(frame.knowledgeQuery, input, facts)
+    return resolveKnowledgeReply(frame.knowledgeQuery, { ...input, frame }, facts)
   }
 
   const semanticReply = groundedSemanticReply(input, frame, facts)
@@ -682,7 +696,7 @@ export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string
   const additions: string[] = []
   const details = [
     facts.week === null ? null : `Day ${facts.week}`,
-    `topic: ${(frame.topics[0] ?? input.intent).replaceAll('_', ' ')}`,
+    `topic: ${(input.intent === 'unknown' ? (frame.topics[0] ?? input.intent) : input.intent).replaceAll('_', ' ')}`,
     frame.focusPlayer ? `mentioned ${frame.focusPlayer}` : null,
     facts.isNominated ? 'player is nominated' : null,
   ].filter(Boolean)
@@ -695,15 +709,22 @@ export function updateLocalBigEyeMemory(input: LocalBigEyeDirectorInput): string
     'memory_query',
   ].includes(frame.speechAct)
 
-  if (frame.focusPlayer && durableRelationshipStatement) {
-    for (const stance of frame.relationshipStances) {
-      if (stance === 'trust') additions.push(`Belief — trusts ${frame.focusPlayer}`)
-      if (stance === 'distrust') additions.push(`Belief — distrusts ${frame.focusPlayer}`)
-      if (stance === 'target' && frame.speechAct === 'target_declaration') {
-        additions.push(`Intent — targeting ${frame.focusPlayer}`)
+  const durableStatements = frame.relationshipStatements.length
+    ? frame.relationshipStatements
+    : frame.focusPlayer
+      ? [{ player: frame.focusPlayer, stances: frame.relationshipStances }]
+      : []
+  if (durableRelationshipStatement) {
+    for (const statement of durableStatements) {
+      for (const stance of statement.stances) {
+        if (stance === 'trust') additions.push(`Belief — trusts ${statement.player}`)
+        if (stance === 'distrust') additions.push(`Belief — distrusts ${statement.player}`)
+        if (stance === 'target' && frame.speechAct === 'target_declaration') {
+          additions.push(`Intent — targeting ${statement.player}`)
+        }
+        if (stance === 'protect') additions.push(`Intent — protecting ${statement.player}`)
+        if (stance === 'depend') additions.push(`Dependency — needs ${statement.player}`)
       }
-      if (stance === 'protect') additions.push(`Intent — protecting ${frame.focusPlayer}`)
-      if (stance === 'depend') additions.push(`Dependency — needs ${frame.focusPlayer}`)
     }
   }
   if (frame.predictedWinner) additions.push(`Prediction — winner: ${frame.predictedWinner}`)

@@ -220,6 +220,45 @@ describe('localBigEyeDirector', () => {
     expect(memory).toContain('Intent — targeting Nico')
   })
 
+  it('does not attach a target to the first name when the player discusses two housemates', () => {
+    const input = {
+      diaryText: 'I trust Maya, but I want Nico out.',
+      playerName: 'Alex',
+      intent: 'strategy' as const,
+      state: createInitialBigEyeState(),
+      world,
+    }
+    const text = directLocalBigEyeReply(input)
+    const memory = updateLocalBigEyeMemory(input)
+
+    expect(text).toContain('Nico is your target')
+    expect(text).toContain('Maya is a separate relationship')
+    expect(memory).toContain('Belief — trusts Maya')
+    expect(memory).toContain('Intent — targeting Nico')
+    expect(memory).not.toContain('Intent — targeting Maya')
+  })
+
+  it('answers a clarification using the Eye’s prior statement', () => {
+    const state = createInitialBigEyeState()
+    state.thread = {
+      topic: 'alliance',
+      focusPlayer: 'Nico',
+      questionKind: 'alliance',
+      depth: 2,
+      lastEyeStatement: 'Nico is your target. Do you have the votes?',
+    }
+    const text = directLocalBigEyeReply({
+      diaryText: 'What do you mean?',
+      playerName: 'Alex',
+      intent: 'unknown',
+      state,
+      world,
+    })
+
+    expect(text).toContain('Nico is your target')
+    expect(text).toContain('not claiming a hidden fact')
+  })
+
   it('uses elaborated disagreement rather than a generic no response', () => {
     const state = createInitialBigEyeState()
     state.thread = {
