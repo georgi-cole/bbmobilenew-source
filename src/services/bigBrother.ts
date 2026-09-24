@@ -105,6 +105,8 @@ export interface BigEyeTurnAnalysis {
   vipEligible: boolean
   hasEasterEgg: boolean
   action?: BigEyeAction
+  delayMs: number
+  baseNextState: BigEyeConversationState
   localText: string
   localMemorySummary: string
   nextLocalState: BigEyeConversationState
@@ -311,6 +313,8 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
     vipEligible: directorEligible,
     hasEasterEgg: Boolean(discoveredEgg),
     action: reply.action,
+    delayMs: reply.delayMs,
+    baseNextState: reply.nextState,
     localText,
     localMemorySummary,
     nextLocalState,
@@ -344,11 +348,7 @@ export async function generateBigBrotherReply(
 
   const nextState =
     directedText.length > 0
-      ? updateConversationStateFromFrame(
-          resolveBigEyeTurn(payload.diaryText, payload, state).nextState,
-          analysis.frame,
-          spokenText
-        )
+      ? updateConversationStateFromFrame(analysis.baseNextState, analysis.frame, spokenText)
       : analysis.nextLocalState
   const performance = isPerformance(directed?.performance)
     ? {
@@ -363,7 +363,7 @@ export async function generateBigBrotherReply(
     reason: analysis.semanticIntent,
     intent: analysis.semanticIntent,
     nextState,
-    delayMs: resolveBigEyeTurn(payload.diaryText, payload, state).delayMs,
+    delayMs: analysis.delayMs,
     action: analysis.action,
     memorySummary,
     performance,
