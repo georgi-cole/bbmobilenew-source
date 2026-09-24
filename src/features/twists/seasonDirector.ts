@@ -50,14 +50,14 @@ export interface SeasonDirectorPolicy {
     enabled: boolean
     human: {
       guaranteedOpportunityAfterEviction: boolean
-      maxGuaranteedOpportunitiesPerSeason: 1
+      maxGuaranteedOpportunitiesPerSeason: 0 | 1
       minimumActivePlayersAfterEviction: number
       minimumCandidates: number
     }
     aiOnly: SeasonDirectorWindow & {
       seasonChance: number
       minimumCandidates: number
-      maxPerSeason: 1
+      maxPerSeason: 0 | 1
     }
   }
   lifetimeSpecials: {
@@ -464,7 +464,8 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
         guaranteedOpportunityAfterEviction:
           remote.battleBack?.human?.guaranteedOpportunityAfterEviction ??
           defaults.battleBack.human.guaranteedOpportunityAfterEviction,
-        maxGuaranteedOpportunitiesPerSeason: 1,
+        maxGuaranteedOpportunitiesPerSeason:
+          remote.battleBack?.human?.maxGuaranteedOpportunitiesPerSeason === 0 ? 0 : 1,
         minimumActivePlayersAfterEviction:
           remote.battleBack?.human?.minimumActivePlayersAfterEviction ??
           defaults.battleBack.human.minimumActivePlayersAfterEviction,
@@ -479,7 +480,8 @@ function resolvePolicy(remote: RemoteSeasonDirectorConfig): SeasonDirectorPolicy
         minimumCandidates:
           remote.battleBack?.aiOnly?.minimumCandidates ??
           defaults.battleBack.aiOnly.minimumCandidates,
-        maxPerSeason: 1,
+        maxPerSeason:
+          (remote.battleBack?.aiOnly?.maxPerSeason ?? remote.battleBack?.maxPerSeason) === 0 ? 0 : 1,
       },
     },
     lifetimeSpecials: {
