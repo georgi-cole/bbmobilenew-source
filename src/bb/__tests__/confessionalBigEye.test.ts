@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   createInitialBigEyeState,
   detectIntent,
@@ -6,6 +6,11 @@ import {
   normalizeInput,
   resolveBigEyeTurn,
 } from '../confessionalBigEye'
+import { setRemoteConfessionalConfig } from '../confessionalRuntimeConfig'
+
+afterEach(() => {
+  setRemoteConfessionalConfig(null)
+})
 
 describe('confessionalBigEye', () => {
   it('normalizes free text consistently', () => {
@@ -100,4 +105,31 @@ describe('confessionalBigEye', () => {
       delayMs: second.delayMs,
     })
   })
+
+  it('uses remotely published authored response pools when present', () => {
+    setRemoteConfessionalConfig({
+      responses: { intents: { greeting: ['Remote hello.'] } },
+    })
+
+    const reply = resolveBigEyeTurn(
+      'hello',
+      { random: () => 0.4 },
+      createInitialBigEyeState()
+    )
+
+    expect(reply.text).toBe('Remote hello.')
+  })
+
+  it('does not let a cold moment leak indefinitely into unrelated turns', () => {
+    const cold = resolveBigEyeTurn(
+      'you are stupid',
+      { random: () => 0.4 },
+      createInitialBigEyeState()
+    )
+    expect(cold.nextState.mood).toBe('cold')
+
+    const reset = resolveBigEyeTurn('thank you', { random: () => 0.4 }, cold.nextState)
+    expect(reset.nextState.mood).toBe('neutral')
+  })
+
 })
