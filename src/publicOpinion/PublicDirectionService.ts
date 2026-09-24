@@ -1,7 +1,7 @@
 import type { Player } from '../types'
-import { mulberry32, seededPick } from '../store/rng'
+import { mulberry32 } from '../store/rng'
 import { publicOpinionConfig } from './publicOpinionConfig'
-import type { PublicDirection, DirectionType } from './types'
+import type { PublicDirection, DirectionType, PlayerPublicProfile } from './types'
 import type { RelationshipsMap } from '../social/types'
 import type { DramaAlliance } from '../social/types'
 import type { RealityAlliance } from '../social/reality/types'
@@ -20,6 +20,68 @@ const DEVELOPING_STORY_TYPES = new Set<DirectionType>([
 
 function requestDuration(type: DirectionType): number {
   return DEVELOPING_STORY_TYPES.has(type) ? 2 : 1
+}
+
+const SUPPORTIVE_DIRECTION_TYPES = new Set<DirectionType>([
+  'protect_player',
+  'get_closer',
+  'align_with',
+  'show_loyalty',
+  'reinforce_alliance',
+  'repair_relationship',
+])
+
+const PRESSURE_DIRECTION_TYPES = new Set<DirectionType>([
+  'target_player',
+  'confront_player',
+  'expose_player',
+  'start_drama',
+  'break_alliance',
+])
+
+function audienceCandidateWeight(
+  candidate: DirectionCandidate,
+  profiles: Record<string, PlayerPublicProfile> | undefined
+): number {
+  const relatedId = candidate.relatedPlayer?.id
+  if (!relatedId) {
+    return candidate.type === 'create_chaos' || candidate.type === 'make_bold_move' ? 1.15 : 1
+  }
+
+  const approval = profiles?.[relatedId]?.approval ?? 50
+  if (SUPPORTIVE_DIRECTION_TYPES.has(candidate.type)) {
+    if (approval >= 80) return 3
+    if (approval >= 65) return 2
+    if (approval < 30) return 0.65
+  }
+
+  if (PRESSURE_DIRECTION_TYPES.has(candidate.type)) {
+    if (approval >= 80) return 0.2
+    if (approval >= 65) return 0.45
+    if (approval < 25) return 2.4
+    if (approval < 40) return 1.7
+  }
+
+  return 1
+}
+
+function weightedCandidatePick(
+  rng: () => number,
+  candidates: DirectionCandidate[],
+  profiles: Record<string, PlayerPublicProfile> | undefined
+): DirectionCandidate {
+  if (candidates.length === 1) return candidates[0]
+  const weighted = candidates.map((candidate) => ({
+    candidate,
+    weight: Math.max(0.05, audienceCandidateWeight(candidate, profiles)),
+  }))
+  const total = weighted.reduce((sum, entry) => sum + entry.weight, 0)
+  let roll = rng() * total
+  for (const entry of weighted) {
+    roll -= entry.weight
+    if (roll <= 0) return entry.candidate
+  }
+  return weighted[weighted.length - 1].candidate
 }
 
 function buildDescription(
@@ -102,6 +164,8 @@ export function generateDirectionsForCycle(params: {
   /** Public Mode gives the human a primary request whenever they are still active. */
   prioritizeHuman?: boolean
   dramaMode?: boolean
+  /** Current public standings bias which legal audience story the crowd asks for. */
+  publicProfiles?: Record<string, PlayerPublicProfile>
   /** Players who already have a live request should not receive a second one */
   excludePlayerIds?: readonly string[]
   /** Existing directions prevent contradictory audience story arcs. */
@@ -119,6 +183,7 @@ export function generateDirectionsForCycle(params: {
     voxPopuliActive = false,
     prioritizeHuman = false,
     dramaMode = false,
+    publicProfiles,
     excludePlayerIds = [],
     existingDirections = [],
   } = params
@@ -173,7 +238,7 @@ export function generateDirectionsForCycle(params: {
     })
     // The solo competition route is intentionally retained as the final safe
     // fallback, but every selected candidate has a concrete completion path.
-    const candidate: DirectionCandidate = seededPick(rng, eligible)
+    const candidate: DirectionCandidate = weightedCandidatePick(rng, eligible, publicProfiles)
     const dirType: DirectionType = candidate.type
     const relatedPlayerId = candidate.relatedPlayer?.id
     const relatedName = candidate.relatedPlayer?.name
