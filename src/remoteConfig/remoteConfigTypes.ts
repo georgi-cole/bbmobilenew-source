@@ -17,6 +17,7 @@ import type { MusicTrackAssetOverride } from '../services/sound/musicCatalog'
 import type { GameManagerConfig } from '../gameManager/gameManager'
 import type { BroadcastOverride, CustomBroadcastMessage } from '../types'
 import type { SocialActionOverrides } from '../social/socialActionManager'
+import type { RemoteConfessionalConfig } from '../bb/confessionalRuntimeConfig'
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 
@@ -246,6 +247,8 @@ export interface RemoteSeasonDirectorConfig {
 // ── Root config ───────────────────────────────────────────────────────────────
 
 export interface RemoteConfig {
+  /** Versioned Big Eye language, comprehension and character tuning. */
+  confessional?: RemoteConfessionalConfig
   /** Remote orchestration policy snapshotted when a new season starts. */
   director?: RemoteSeasonDirectorConfig
   season?: {
