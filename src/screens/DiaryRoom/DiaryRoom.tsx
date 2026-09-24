@@ -1424,12 +1424,12 @@ export default function DiaryRoom() {
             </section>
           ) : (
             <>
-              <div className="diary-room__view-tabs" role="tablist" aria-label="Confessional views">
+              <div className="diary-room__tabs" role="tablist" aria-label="Confessional views">
                 <button
                   type="button"
                   role="tab"
                   aria-selected={activeView === 'confess'}
-                  className={activeView === 'confess' ? 'diary-room__view-tab diary-room__view-tab--active' : 'diary-room__view-tab'}
+                  className={activeView === 'confess' ? 'diary-room__tab diary-room__tab--active' : 'diary-room__tab'}
                   onClick={() => setActiveView('confess')}
                 >
                   Confess
@@ -1438,7 +1438,7 @@ export default function DiaryRoom() {
                   type="button"
                   role="tab"
                   aria-selected={activeView === 'wallet'}
-                  className={activeView === 'wallet' ? 'diary-room__view-tab diary-room__view-tab--active' : 'diary-room__view-tab'}
+                  className={activeView === 'wallet' ? 'diary-room__tab diary-room__tab--active' : 'diary-room__tab'}
                   disabled={confessionalDecisionPending}
                   title={
                     confessionalDecisionPending
