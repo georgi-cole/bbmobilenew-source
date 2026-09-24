@@ -227,7 +227,8 @@ export type Phase =
   | 'nomination_results'
   /**
    * Pre-veto public save phase (normal weeks only).
-   * The nominee with the highest public approval is automatically saved,
+   * The public saves one nominee through a contextual audience ballot informed
+   * by approval, audience profile, momentum and the current season story,
    * reducing the block from 3 back down to 2 before the veto competition.
    * Skipped transparently during Double Eviction weeks.
    */
