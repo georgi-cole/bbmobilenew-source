@@ -307,7 +307,9 @@ export async function runSeasonSimulation(
   }
 
   await auditor.checkpoint('final')
-  await page.screenshot({ path: testInfo.outputPath(`${config.id}-final.png`), fullPage: true })
+  if (config.captureFinalScreenshot !== false) {
+    await page.screenshot({ path: testInfo.outputPath(`${config.id}-final.png`), fullPage: true })
+  }
   await auditor.attachReport(config.id, terminal)
   return auditor
 }
