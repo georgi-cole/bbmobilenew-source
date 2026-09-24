@@ -46,6 +46,19 @@ function getApprovalBand(approval: number): string {
   return 'mixed'
 }
 
+function getApprovalBandLabel(approval: number): string {
+  const band = getApprovalBand(approval)
+  return band.charAt(0).toUpperCase() + band.slice(1)
+}
+
+function getAudienceMetricSignal(value: number): string {
+  if (value >= 80) return 'Exceptional'
+  if (value >= 65) return 'Strong'
+  if (value >= 50) return 'Steady'
+  if (value >= 35) return 'Weak'
+  return 'Very weak'
+}
+
 function isInactivePlayer(player?: Player): boolean {
   return player?.status === 'evicted' || player?.status === 'jury'
 }
@@ -681,7 +694,9 @@ export default function PublicMeter() {
                       </span>
                     )}
                   </div>
-                  <span className="ranking-row__approval">{profile.approval}%</span>
+                  <span className="ranking-row__approval">
+                    {isUser ? `${profile.approval}%` : getApprovalBandLabel(profile.approval)}
+                  </span>
                   <span className={`ranking-row__trend ${trend.className}`}>{trend.symbol}</span>
                 </button>
               )
@@ -877,7 +892,10 @@ export default function PublicMeter() {
                 </span>
               </div>
               <strong className="audience-dossier__overall" aria-label="Overall audience rating">
-                {selectedProfile.approval}%<small>overall</small>
+                {selectedPlayer?.isUser
+                  ? `${selectedProfile.approval}%`
+                  : getApprovalBandLabel(selectedProfile.approval)}
+                <small>{selectedPlayer?.isUser ? 'overall' : 'public read'}</small>
               </strong>
             </div>
 
@@ -889,7 +907,9 @@ export default function PublicMeter() {
                   <div key={metric} className={`audience-metric audience-metric--${metric}`}>
                     <div className="audience-metric__heading">
                       <span>{audienceMetricLabels[metric]}</span>
-                      <strong>{value}</strong>
+                      <strong>
+                        {selectedPlayer?.isUser ? value : getAudienceMetricSignal(value)}
+                      </strong>
                     </div>
                     <div className="audience-metric__track" aria-hidden="true">
                       <span style={{ width: `${value}%` }} />

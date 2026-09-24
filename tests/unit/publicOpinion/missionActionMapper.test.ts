@@ -124,6 +124,20 @@ describe('resolveEventMissionProgress', () => {
     expect(signals[0].newProgress).toBe(publicOpinionConfig.missionIndirectProgressWeight)
   })
 
+  it('protect_player: betraying the protected player is an explicit counter', () => {
+    const direction = makeDirection({ type: 'protect_player', relatedPlayerId: 'echo' })
+    const event: MissionGameEvent = {
+      type: 'betrayal',
+      actorId: 'actor',
+      targetId: 'echo',
+      week: 2,
+    }
+    const signals = resolveEventMissionProgress(event, [direction])
+    expect(signals).toHaveLength(1)
+    expect(signals[0].newProgress).toBe(0)
+    expect(signals[0].isCounter).toBe(true)
+  })
+
   // ── get_closer ─────────────────────────────────────────────────────────────
 
   it('get_closer: positive_social with related player advances mission', () => {

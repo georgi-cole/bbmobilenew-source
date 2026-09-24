@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useStore } from 'react-redux'
+import { useSelector, useStore } from 'react-redux'
 import {
   advance,
   awardFavoritePrize,
   commitPublicSave,
   completeBattleBack,
+  acceptBattleBackRetry,
+  clearBattleBackRetryOffer,
+  offerBattleBackRetry,
   completeTwinShockRevealAnimation,
   confirmDayStartShock,
   dismissBattleBack,
@@ -29,19 +32,21 @@ import {
 } from '../../../store/gameSlice'
 import type { AppDispatch, RootState } from '../../../store/store'
 import type { Announcement } from '../../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
-import type { SpectatorVariant } from '../../../components/ui/SpectatorView'
 import type { Player } from '../../../types'
 import type { PlayerPublicProfile } from '../../../publicOpinion/types'
 import { resolvePublicSaveNominee } from '../../../publicOpinion/PublicSaveService'
 import { isPublicModeEnabled } from '../../../modes/gameModes'
 import { simulateBattleBackCompetition } from '../../../features/twists/battleBackCompetition'
 import {
+  BATTLE_BACK_RETRY_LIMIT,
+  getStoredBattleBackCandidates,
+} from '../../../features/twists/battleBackRules'
+import {
   getCompetitionSeasonState,
   getDefaultCompetitionProfile,
   getMinigameAiModel,
   simulateMinigameAiScore,
 } from '../../../ai/competition'
-import { mulberry32 } from '../../../store/rng'
 import {
   expandCupidIds,
   getCupidPartnerId,
@@ -53,7 +58,7 @@ import { awardPublicFavoriteForecast } from '../../../store/profilesSlice'
 
 const PUBLIC_SAVE_RESULT_DELAY_MS = 5000
 const EMPTY_PLAYER_IDS: string[] = []
-export const BATTLE_BACK_RETRY_LIMIT = 3
+export { BATTLE_BACK_RETRY_LIMIT } from '../../../features/twists/battleBackRules'
 
 function formatPlayerNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? ''
@@ -243,7 +248,9 @@ export function useTwistFlow({
     game.nomineeIds.length === (isCupidArrowActive(game) ? 6 : 3) &&
     !pendingPublicSaveResult
 
-  const publicSaveApprovals = useMemo(() => {
+  const publicOpinionFeed = useSelector((state: RootState) => state.publicOpinion.feed)
+
+  const publicSaveBaseApprovals = useMemo(() => {
     const out: Record<string, number> = {}
     game.nomineeIds.forEach((id) => {
       const partnerId = getCupidPartnerId(game, id)
@@ -263,23 +270,40 @@ export function useTwistFlow({
       const base = publicOpinionProfiles[id]
       adjusted[id] = {
         playerId: id,
-        approval: publicSaveApprovals[id] ?? 50,
-        previousApproval: base?.previousApproval ?? publicSaveApprovals[id] ?? 50,
+        approval: publicSaveBaseApprovals[id] ?? 50,
+        previousApproval: base?.previousApproval ?? publicSaveBaseApprovals[id] ?? 50,
         seasonApprovals: base?.seasonApprovals ?? [],
         completedDirectionCount: base?.completedDirectionCount ?? 0,
         cumulativePositiveDelta: base?.cumulativePositiveDelta ?? 0,
       }
     })
     return adjusted
-  }, [game, publicOpinionProfiles, publicSaveApprovals])
+  }, [game, publicOpinionProfiles, publicSaveBaseApprovals])
 
   const publicSaveResolution = useMemo(() => {
     if (!showPublicSaveReveal) return null
     return resolvePublicSaveNominee({
       nomineeIds: game.nomineeIds,
       profiles: pairAdjustedPublicProfiles,
+      context: {
+        seed: game.seed ?? 0,
+        week: game.week,
+        feed: publicOpinionFeed,
+        nominationCounts: Object.fromEntries(
+          game.players.map((player) => [player.id, player.stats?.timesNominated ?? 0])
+        ),
+      },
     })
-  }, [showPublicSaveReveal, game.nomineeIds, pairAdjustedPublicProfiles])
+  }, [
+    showPublicSaveReveal,
+    game.nomineeIds,
+    game.players,
+    game.seed,
+    game.week,
+    pairAdjustedPublicProfiles,
+    publicOpinionFeed,
+  ])
+  const publicSaveApprovals = publicSaveResolution?.voteShareByPlayerId ?? publicSaveBaseApprovals
   const publicSaveWinnerId = publicSaveResolution?.savedId || null
 
   const publicSaveResultAnnouncement = useMemo<Announcement | null>(() => {
@@ -397,58 +421,15 @@ export function useTwistFlow({
   const battleBackActive = battleBack?.active === true
   const battleBackCompetitionActive = battleBack?.competitionActive === true
   const battleBackConfiguredCandidateIds = battleBack?.candidates ?? EMPTY_PLAYER_IDS
-  const battleBackSessionKey = battleBackActive
-    ? `${game.gameId}:${battleBack?.weekDecided ?? game.week}:${battleBackConfiguredCandidateIds.join(',')}`
-    : 'inactive'
   const [battleBackReturnId, setBattleBackReturnId] = useState<string | null>(null)
   const [battleBackReturnAnnouncement, setBattleBackReturnAnnouncement] =
     useState<Announcement | null>(null)
-  const [storedBattleBackUi, setStoredBattleBackUi] = useState<{
-    sessionKey: string
-    attemptIndex: number
-    retryCount: number
-    retryOfferWinnerId: string | null
-  }>(() => ({
-    sessionKey: battleBackSessionKey,
-    attemptIndex: 0,
-    retryCount: 0,
-    retryOfferWinnerId: null,
-  }))
-  const defaultBattleBackUi = useMemo(
-    () => ({
-      sessionKey: battleBackSessionKey,
-      attemptIndex: 0,
-      retryCount: 0,
-      retryOfferWinnerId: null as string | null,
-    }),
-    [battleBackSessionKey]
-  )
-  const battleBackUi =
-    storedBattleBackUi.sessionKey === battleBackSessionKey
-      ? storedBattleBackUi
-      : defaultBattleBackUi
-  const updateBattleBackUi = useCallback(
-    (
-      update: (current: {
-        attemptIndex: number
-        retryCount: number
-        retryOfferWinnerId: string | null
-      }) => {
-        attemptIndex: number
-        retryCount: number
-        retryOfferWinnerId: string | null
-      }
-    ) => {
-      setStoredBattleBackUi((stored) => {
-        const current = stored.sessionKey === battleBackSessionKey ? stored : defaultBattleBackUi
-        return { sessionKey: battleBackSessionKey, ...update(current) }
-      })
-    },
-    [battleBackSessionKey, defaultBattleBackUi]
-  )
-  const battleBackAttemptIndex = battleBackUi.attemptIndex
-  const battleBackRetryCount = battleBackUi.retryCount
-  const battleBackRetryOfferWinnerId = battleBackUi.retryOfferWinnerId
+  // Retry state is authoritative Redux state so reload/remount cannot silently
+  // reset a consumed rewarded attempt.
+  const battleBackAttemptIndex = battleBack?.attemptIndex ?? 0
+  const battleBackRetryCount = battleBack?.retryCount ?? 0
+  const battleBackRetryLimit = battleBack?.retryLimit ?? BATTLE_BACK_RETRY_LIMIT
+  const battleBackRetryOfferWinnerId = battleBack?.pendingRetryWinnerId ?? null
 
   const showBattleBack = battleBackActive && battleBackCompetitionActive
   const battleBackAttemptSeed = useMemo(
@@ -458,14 +439,9 @@ export function useTwistFlow({
   const battleBackCandidates = useMemo(
     () =>
       battleBack?.active
-        ? game.players.filter(
-            (player) =>
-              (battleBack?.candidates ?? []).includes(player.id) &&
-              player.status === 'jury' &&
-              player.tribunalEligible !== false
-          )
+        ? getStoredBattleBackCandidates(game.players, battleBack.candidates ?? [])
         : [],
-    [battleBack?.active, battleBack?.candidates, game.players]
+    [battleBack, game.players]
   )
   const battleBackCandidateIds = useMemo(
     () => battleBackCandidates.map((player) => player.id),
@@ -513,18 +489,26 @@ export function useTwistFlow({
   const showBattleBackOverlay =
     showBattleBack && battleBackCandidates.length > 0 && !battleBackRetryOfferWinnerId
 
-  const battleBackWinnerId = useMemo(() => {
+  const battleBackSpectatorResult = useMemo(() => {
     if (!showBattleBackOverlay || useBattleBackMinigame || battleBackCandidates.length === 0) {
-      return undefined
+      return null
     }
-    return simulateBattleBackCompetition(battleBackCandidateIds, battleBackAttemptSeed).winnerId
+    return simulateBattleBackCompetition(
+      battleBackCandidates.map((player) => ({
+        id: player.id,
+        profile: player.competitionProfile ?? getDefaultCompetitionProfile(),
+        seasonState: getCompetitionSeasonState(game.competitionSeasonStateByPlayerId, player.id),
+      })),
+      battleBackAttemptSeed
+    )
   }, [
     battleBackAttemptSeed,
-    battleBackCandidateIds,
-    battleBackCandidates.length,
+    battleBackCandidates,
+    game.competitionSeasonStateByPlayerId,
     showBattleBackOverlay,
     useBattleBackMinigame,
   ])
+  const battleBackWinnerId = battleBackSpectatorResult?.winnerId
 
   const battleBackRetryOfferWinner = useMemo(
     () =>
@@ -539,11 +523,7 @@ export function useTwistFlow({
       ? battleBack.winnerId
       : null)
   const showBattleBackReturn = battleBackReturnDisplayId !== null
-  const battleBackVariant = useMemo((): SpectatorVariant => {
-    const variants: SpectatorVariant[] = ['holdwall', 'trivia', 'maze']
-    const rng = mulberry32((battleBackAttemptSeed ^ 0xdeadbeef) >>> 0)
-    return variants[Math.floor(rng() * variants.length)]
-  }, [battleBackAttemptSeed])
+  const battleBackVariant = battleBackSpectatorResult?.variant ?? 'holdwall'
 
   const handleBattleBackAnnouncementPlay = useCallback(() => {
     if (!battleBackActive || battleBackCompetitionActive) return
@@ -596,10 +576,10 @@ export function useTwistFlow({
         humanPlayer?.id ?? null,
         battleBackConfiguredCandidateIds,
         battleBackRetryCount,
-        BATTLE_BACK_RETRY_LIMIT
+        battleBackRetryLimit
       )
       if (canReplayBattleBack) {
-        updateBattleBackUi((current) => ({ ...current, retryOfferWinnerId: resolvedWinnerId }))
+        dispatch(offerBattleBackRetry(resolvedWinnerId))
         return
       }
       finalizeBattleBackOutcome(resolvedWinnerId)
@@ -607,26 +587,23 @@ export function useTwistFlow({
     [
       battleBackConfiguredCandidateIds,
       battleBackRetryCount,
+      battleBackRetryLimit,
       battleBackWinnerId,
+      dispatch,
       finalizeBattleBackOutcome,
       humanPlayer,
-      updateBattleBackUi,
     ]
   )
 
   const handleBattleBackRetryGranted = useCallback(() => {
-    updateBattleBackUi((current) => ({
-      attemptIndex: current.attemptIndex + 1,
-      retryCount: current.retryCount + 1,
-      retryOfferWinnerId: null,
-    }))
-  }, [updateBattleBackUi])
+    dispatch(acceptBattleBackRetry())
+  }, [dispatch])
 
   const handleBattleBackRetryDeclined = useCallback(() => {
     const winnerId = battleBackRetryOfferWinnerId
-    updateBattleBackUi((current) => ({ ...current, retryOfferWinnerId: null }))
+    dispatch(clearBattleBackRetryOffer())
     finalizeBattleBackOutcome(winnerId)
-  }, [battleBackRetryOfferWinnerId, finalizeBattleBackOutcome, updateBattleBackUi])
+  }, [battleBackRetryOfferWinnerId, dispatch, finalizeBattleBackOutcome])
 
   const handleBattleBackReturnDone = useCallback(() => {
     const returningPlayer = game.players.find((player) => player.id === battleBackReturnDisplayId)
@@ -719,6 +696,7 @@ export function useTwistFlow({
     battleBackVariant,
     useBattleBackMinigame,
     battleBackRetryCount,
+    battleBackRetryLimit,
     battleBackRetryOfferWinnerId,
     battleBackRetryOfferWinner,
     showBattleBackReturn,

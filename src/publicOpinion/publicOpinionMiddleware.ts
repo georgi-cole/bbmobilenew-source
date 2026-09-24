@@ -16,10 +16,12 @@ import {
   computeNominationReactions,
   computeEvictionReactions,
   computePovSaveReactions,
+  computeBlockSurvivalReactions,
   type ReactionDelta,
 } from './EventDrivenReactionService'
-import type { PublicDirection } from './types'
-import { computeAudiencePulse } from './AudiencePulseService'
+import type { PlayerPublicProfile, PublicDirection } from './types'
+import { computeSocialAudienceStoryReactions } from './AudienceStoryService'
+import type { SocialActionLogEntry } from '../social/types'
 import { isDirectionStillValid } from './publicDirectionContracts'
 import { addTvEvent } from '../store/gameSlice'
 
@@ -88,7 +90,7 @@ function dispatchReactionDeltas(
 interface StateWithGame {
   game: GameState
   publicOpinion?: {
-    profiles: Record<string, unknown>
+    profiles: Record<string, PlayerPublicProfile>
     directions: PublicDirection[]
   }
   social?: {
@@ -206,6 +208,18 @@ function dispatchMissionProgress(
 
   const signals = resolveEventMissionProgress(event, activeDirections)
   for (const signal of signals) {
+    if (signal.isCounter) {
+      store.dispatch(
+        resolveDirection({
+          directionId: signal.directionId,
+          status: 'failed',
+          week: event.week,
+          counter: true,
+        })
+      )
+      continue
+    }
+
     // updateMissionProgress handles progress accumulation AND auto-completion at 100%.
     // Do NOT also dispatch resolveDirection here — that would double-apply the success
     // reward (delta, counter, feed entry) for the same completion event.
@@ -357,6 +371,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
         nomineeIds: nominees,
         lohId,
         approvals,
+        nominationCounts: Object.fromEntries(
+          (game.players ?? []).map((player) => [player.id, player.stats?.timesNominated ?? 0])
+        ),
         week,
       })
       dispatchReactionDeltas(store, reactions, week)
@@ -467,106 +484,68 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
           partial?: boolean
         }
       | undefined
-    const human = game.players?.find((player) => player.isUser)
-    if (!human || !run?.participants?.includes(human.id)) return result
+    if (!run?.participants?.length) return result
     ensureProfiles(store, game)
 
-    let delta = 0
-    let reason = 'competition_performance'
-    if (run.partial) {
-      delta = publicOpinionConfig.competitionImpact.quitEarly
-      reason = 'challenge_quit_early'
-    } else {
-      const ranked =
-        run.ranking?.filter((playerId) => run.participants?.includes(playerId)) ??
-        [...run.participants].sort(
-          (a, b) => (run.canonicalScores?.[b] ?? 0) - (run.canonicalScores?.[a] ?? 0)
-        )
-      const placement = ranked.indexOf(human.id) + 1
-      if (placement === 1) {
-        delta = publicOpinionConfig.competitionImpact.strongPerformance
-        reason = 'strong_competition_performance'
-      } else if (placement === ranked.length) {
-        delta = publicOpinionConfig.competitionImpact.lastPlace
-        reason = 'last_place_competition'
-      } else if (placement > Math.ceil(ranked.length / 2)) {
-        delta = publicOpinionConfig.competitionImpact.weakPerformance
-        reason = 'weak_competition_performance'
-      }
-    }
-    if (delta !== 0) {
-      store.dispatch(
-        updateApproval({
-          playerId: human.id,
-          delta,
-          reason,
-          week: game.week ?? 1,
-          addToFeed: true,
-        })
+    const ranked =
+      run.ranking?.filter((playerId) => run.participants?.includes(playerId)) ??
+      [...run.participants].sort(
+        (a, b) => (run.canonicalScores?.[b] ?? 0) - (run.canonicalScores?.[a] ?? 0)
       )
+    const human = game.players?.find((player) => player.isUser)
+
+    for (const participantId of ranked) {
+      let delta = 0
+      let reason = 'competition_performance'
+
+      if (run.partial && participantId === human?.id) {
+        delta = publicOpinionConfig.competitionImpact.quitEarly
+        reason = 'challenge_quit_early'
+      } else if (!run.partial) {
+        const placement = ranked.indexOf(participantId) + 1
+        if (placement === 1) {
+          delta = publicOpinionConfig.competitionImpact.strongPerformance
+          reason = 'strong_competition_performance'
+        } else if (placement === ranked.length) {
+          delta = publicOpinionConfig.competitionImpact.lastPlace
+          reason = 'last_place_competition'
+        } else if (placement > Math.ceil(ranked.length / 2)) {
+          delta = publicOpinionConfig.competitionImpact.weakPerformance
+          reason = 'weak_competition_performance'
+        }
+      }
+
+      if (delta !== 0) {
+        store.dispatch(
+          updateApproval({
+            playerId: participantId,
+            delta,
+            reason,
+            week: game.week ?? 1,
+            addToFeed: true,
+          })
+        )
+      }
     }
     return result
   }
 
   if (actionType === 'social/recordSocialAction') {
-    // Payload: { entry: SocialActionLogEntry }
-    // entry has actorId, targetId, actionId ('ally'|'protect'|'betray'|'nominate'),
-    // outcome ('success'|'failure'), and delta.
-    const payload = actionPayload as
-      | {
-          entry?: {
-            actorId?: string
-            targetId?: string
-            actionId?: string
-            outcome?: string
-            delta?: number
-            score?: number
-            source?: 'manual' | 'system'
-          }
-        }
-      | undefined
+    const payload = actionPayload as { entry?: SocialActionLogEntry } | undefined
     const entry = payload?.entry
     if (entry?.actorId) {
       const week = game.week ?? 1
+      const storyReactions = computeSocialAudienceStoryReactions({
+        entry,
+        profiles: nextState.publicOpinion?.profiles ?? {},
+        actionHistory: nextState.social?.actionHistory ?? [entry],
+        relationships: nextState.social?.relationships,
+        dramaArcs: nextState.social?.dramaNetwork?.arcs,
+        week,
+      })
+      dispatchReactionDeltas(store, storyReactions, week)
+
       const { actorId, targetId, actionId = '', outcome = '', delta = 0 } = entry
-
-      const human = game.players?.find((player) => player.isUser)
-      if (human?.id === actorId && entry.source === 'manual') {
-        const score = typeof entry.score === 'number' ? entry.score : 0
-        const closerMission = store
-          .getState()
-          .publicOpinion?.directions?.find(
-            (direction: {
-              playerId: string
-              type: string
-              relatedPlayerId?: string
-              status: string
-            }) =>
-              direction.playerId === actorId &&
-              direction.type === 'get_closer' &&
-              direction.status === 'active' &&
-              direction.relatedPlayerId === targetId
-          )
-        const approvalDelta =
-          outcome === 'success' && (closerMission || score >= 0.25 || delta >= 4)
-            ? publicOpinionConfig.socialImpact.highQualityInteraction
-            : outcome === 'failure' && (score <= -0.3 || delta < 0)
-              ? publicOpinionConfig.socialImpact.poorInteraction
-              : 0
-        if (approvalDelta !== 0) {
-          store.dispatch(
-            updateApproval({
-              playerId: actorId,
-              delta: approvalDelta,
-              reason: approvalDelta > 0 ? 'high_quality_social_play' : 'poor_social_play',
-              week,
-              addToFeed: true,
-              attributedToId: targetId,
-            })
-          )
-        }
-      }
-
       let missionEventType: MissionGameEvent['type'] | null = null
       if (
         ['apologize', 'repair_bond', 'clear_the_air'].includes(actionId) &&
@@ -656,7 +635,7 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
         // Human vote is already handled via submitHumanVote; to avoid double-counting,
         // we skip any votes cast by human players here.
         const humanVoterIds = (game.players ?? [])
-          .filter((player: Player & { isHuman?: boolean }) => player.isHuman)
+          .filter((player) => player.isUser)
           .map((player) => player.id)
 
         for (const [voterId, nomineeId] of Object.entries(game.votes ?? {})) {
@@ -692,6 +671,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
             nomineeIds,
             lohId: game.lohId,
             approvals,
+            nominationCounts: Object.fromEntries(
+              (game.players ?? []).map((player) => [player.id, player.stats?.timesNominated ?? 0])
+            ),
             week,
           })
           dispatchReactionDeltas(store, reactions, week)
@@ -750,23 +732,6 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
       if (newPhase === 'week_start') {
         store.dispatch(resetDailyFeedBudget({ week }))
 
-        const audiencePulse = computeAudiencePulse({
-          players: game.players ?? [],
-          actionHistory: nextState.social?.actionHistory ?? [],
-          week: Math.max(1, week - 1),
-        })
-        for (const reaction of audiencePulse) {
-          store.dispatch(
-            updateApproval({
-              playerId: reaction.playerId,
-              delta: reaction.delta,
-              reason: reaction.reason,
-              week,
-              addToFeed: true,
-            })
-          )
-        }
-
         // Approval now moves through recorded game events. At very low levels a
         // small, visible audience-reconsideration beat prevents a save from being
         // trapped at zero with no path back.
@@ -809,7 +774,15 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
             players: activePlayers,
             week: week + 1,
             seed: game.seed ?? 0,
-            count: publicOpinionConfig.directionsPerCycle,
+            count: Math.min(
+              publicOpinionConfig.directionCoverage.maxPerCycle,
+              Math.max(
+                publicOpinionConfig.directionCoverage.minPerCycle,
+                Math.ceil(
+                  activePlayers.length * publicOpinionConfig.directionCoverage.activeCastRatio
+                )
+              )
+            ),
             relationships: nextState.social?.relationships,
             realityAlliances: nextState.social?.reality?.alliances,
             dramaAlliances: nextState.social?.dramaNetwork?.alliances,
@@ -822,8 +795,9 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
               )
             ),
             voxPopuliActive: game.voxPopuli?.status === 'active',
-            prioritizeHuman: true,
+            prioritizeHuman: false,
             dramaMode: game.dramaSocialMode === true,
+            publicProfiles: nextState.publicOpinion?.profiles,
             excludePlayerIds: (nextState.publicOpinion?.directions ?? [])
               .filter((direction) => direction.status === 'active')
               .map((direction) => direction.playerId),
@@ -872,6 +846,19 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
         week,
       })
       dispatchReactionDeltas(store, reactions, week)
+
+      const survivalReactions = computeBlockSurvivalReactions({
+        nomineeIds: prevState.game?.nomineeIds ?? [],
+        evicteeId,
+        approvals,
+        nominationCounts: Object.fromEntries(
+          (prevState.game?.players ?? []).map((player) => [
+            player.id,
+            player.stats?.timesNominated ?? 0,
+          ])
+        ),
+      })
+      dispatchReactionDeltas(store, survivalReactions, week)
     }
   }
 

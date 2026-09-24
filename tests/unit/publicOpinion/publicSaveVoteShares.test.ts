@@ -59,6 +59,61 @@ describe('public save vote shares', () => {
     expect(Object.values(shares).reduce((sum, value) => sum + value, 0)).toBe(100)
   })
 
+  it('lets audience mix and momentum upset a close visible approval lead', () => {
+    const profiles = {
+      a: {
+        ...profile('a', 62, 62),
+        audienceBreakdown: {
+          charisma: 62,
+          gameplay: 62,
+          integrity: 62,
+          recentChanges: [],
+        },
+      },
+      b: {
+        ...profile('b', 59, 49),
+        audienceBreakdown: {
+          charisma: 45,
+          gameplay: 90,
+          integrity: 42,
+          recentChanges: [],
+        },
+      },
+      c: profile('c', 42, 42),
+    }
+
+    const result = resolvePublicSaveNominee({
+      nomineeIds: ['a', 'b', 'c'],
+      profiles,
+      context: {
+        seed: 3,
+        week: 4,
+        nominationCounts: { a: 1, b: 2, c: 1 },
+      },
+    })
+
+    expect(result.savedId).toBe('b')
+    expect(result.scoreByPlayerId.b).toBeGreaterThan(result.scoreByPlayerId.a)
+    expect(result.decisiveReason).not.toBe('tiebreak')
+  })
+
+  it('does not let bounded polling uncertainty erase a large audience lead', () => {
+    const profiles = {
+      a: profile('a', 82, 82),
+      b: profile('b', 45, 45),
+      c: profile('c', 38, 38),
+    }
+
+    for (let seed = 0; seed < 20; seed += 1) {
+      const result = resolvePublicSaveNominee({
+        nomineeIds: ['a', 'b', 'c'],
+        profiles,
+        context: { seed, week: 5 },
+      })
+      expect(result.savedId).toBe('a')
+    }
+  })
+
   it('lets visible momentum and storyline change a close Drama Mode ballot', () => {
     const profiles = {
       a: profile('a', 60, 60),

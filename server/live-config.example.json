@@ -179,17 +179,18 @@
     },
     "battleBack": {
       "enabled": true,
-      "maxPerSeason": 1,
       "human": {
         "guaranteedOpportunityAfterEviction": true,
         "minimumActivePlayersAfterEviction": 5,
-        "minimumCandidates": 2
+        "minimumCandidates": 2,
+        "maxGuaranteedOpportunitiesPerSeason": 1
       },
       "aiOnly": {
         "seasonChance": 35,
         "maxPlayers": 9,
         "minPlayers": 6,
-        "minimumCandidates": 3
+        "minimumCandidates": 3,
+        "maxPerSeason": 1
       }
     },
     "lifetimeSpecials": {

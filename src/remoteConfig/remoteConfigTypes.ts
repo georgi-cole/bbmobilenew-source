@@ -214,9 +214,15 @@ export interface RemoteSeasonDirectorConfig {
   morningShock?: RemoteDirectorWindow
   battleBack?: {
     enabled?: boolean
+    /**
+     * Legacy alias retained for older remote payloads. New configs should put
+     * the AI-only cap on battleBack.aiOnly.maxPerSeason.
+     */
     maxPerSeason?: number
     human?: {
       guaranteedOpportunityAfterEviction?: boolean
+      /** Separate from the optional AI-only return; currently clamped to 0 or 1. */
+      maxGuaranteedOpportunitiesPerSeason?: number
       minimumActivePlayersAfterEviction?: number
       minimumCandidates?: number
     }
