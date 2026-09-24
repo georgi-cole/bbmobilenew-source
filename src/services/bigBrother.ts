@@ -59,14 +59,14 @@ export interface BigEyeWorldContext {
     tags: string[]
   }>
   /** Formal alliances the human player is actually a member of. */
-  alliances: Array<{
+  alliances?: Array<{
     id: string
     name: string | null
     memberNames: string[]
     status: string
   }>
   /** Grounded recent eviction names from the current game/feed when available. */
-  recentEvictedNames: string[]
+  recentEvictedNames?: string[]
   recentPublicEvents: string[]
 }
 
