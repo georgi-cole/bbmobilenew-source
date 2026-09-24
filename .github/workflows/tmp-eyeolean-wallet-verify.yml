@@ -1,0 +1,48 @@
+name: Temp Eyeolean Wallet Verify
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/eyeolean-wallet-powers
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Formatting
+        run: >
+          npx prettier --check
+          src/economy/eyeoleanPowerRules.ts
+          src/economy/eyeoleanPowerLifecycle.ts
+          src/store/eyeoleanPowerMiddleware.ts
+          src/store/profilesSlice.ts
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/gameSlice.ts
+          src/store/store.ts
+          src/store/criticalGameRules.ts
+          src/store/__tests__/criticalShockRuleMatrix.test.ts
+          src/store/eyeoleanPowerFlow.test.ts
+          src/types/index.ts
+          src/screens/DiaryRoom/ConfessionalWallet.tsx
+          src/screens/DiaryRoom/DiaryRoom.tsx
+          src/screens/DiaryRoom/DiaryRoom.css
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Targeted tests
+        run: >
+          npx vitest run
+          src/store/profilesSlice.eyeoleans.test.ts
+          src/store/eyeoleanPowerFlow.test.ts
+          src/store/__tests__/criticalShockRuleMatrix.test.ts
+          tests/unit/bellasWill.voteEffects.test.ts
+          tests/unit/secretMission/secretMission.activation.test.ts
