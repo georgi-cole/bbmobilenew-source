@@ -178,23 +178,39 @@ describe('completeBattleBack', () => {
     expect(bb!.winnerId).toBe('p1')
   })
 
-  it('is a no-op when the winner is not a juror', () => {
-    // p1 is 'active' (not jury) — validation should reject
+  it('is a no-op when a stored winner is no longer an exited Tribunal candidate', () => {
     const players = makePlayers(10)
-    players[1].status = 'jury'
-    const store = makeStore({ players })
-    store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
+    const store = makeStore({
+      players,
+      battleBack: {
+        used: false,
+        active: true,
+        competitionActive: true,
+        weekDecided: 4,
+        candidates: ['p1'],
+        winnerId: null,
+      },
+    })
     store.dispatch(completeBattleBack('p1'))
     const bb = store.getState().game.battleBack
-    expect(bb!.used).toBe(false) // validation rejected — twist still pending
+    expect(bb!.used).toBe(false)
     expect(bb!.active).toBe(true)
   })
 
-  it('allows a stored candidate marked evicted to return', () => {
+  it('allows a legacy stored candidate marked evicted to return', () => {
     const players = makePlayers(10)
     players[1].status = 'evicted'
-    const store = makeStore({ players })
-    store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 }))
+    const store = makeStore({
+      players,
+      battleBack: {
+        used: false,
+        active: true,
+        competitionActive: true,
+        weekDecided: 4,
+        candidates: ['p1'],
+        winnerId: null,
+      },
+    })
     store.dispatch(completeBattleBack('p1'))
 
     const p1 = store.getState().game.players.find((p) => p.id === 'p1')
@@ -207,6 +223,7 @@ describe('completeBattleBack', () => {
 
   it('is a no-op when winnerId is not in candidates', () => {
     const players = makePlayers(10)
+    players[1].status = 'jury'
     players[2].status = 'jury'
     const store = makeStore({ players })
     store.dispatch(activateBattleBack({ candidates: ['p1'], week: 4 })) // p2 not in candidates
