@@ -19,7 +19,7 @@ import {
   computeBlockSurvivalReactions,
   type ReactionDelta,
 } from './EventDrivenReactionService'
-import type { PublicDirection } from './types'
+import type { PlayerPublicProfile, PublicDirection } from './types'
 import { computeSocialAudienceStoryReactions } from './AudienceStoryService'
 import type { SocialActionLogEntry } from '../social/types'
 import { isDirectionStillValid } from './publicDirectionContracts'
@@ -90,7 +90,7 @@ function dispatchReactionDeltas(
 interface StateWithGame {
   game: GameState
   publicOpinion?: {
-    profiles: Record<string, unknown>
+    profiles: Record<string, PlayerPublicProfile>
     directions: PublicDirection[]
   }
   social?: {
@@ -537,10 +537,7 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
       const week = game.week ?? 1
       const storyReactions = computeSocialAudienceStoryReactions({
         entry,
-        profiles: (nextState.publicOpinion?.profiles ?? {}) as Record<
-          string,
-          import('./types').PlayerPublicProfile
-        >,
+        profiles: nextState.publicOpinion?.profiles ?? {},
         actionHistory: nextState.social?.actionHistory ?? [entry],
         relationships: nextState.social?.relationships,
         dramaArcs: nextState.social?.dramaNetwork?.arcs,
@@ -798,6 +795,7 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
             voxPopuliActive: game.voxPopuli?.status === 'active',
             prioritizeHuman: false,
             dramaMode: game.dramaSocialMode === true,
+            publicProfiles: nextState.publicOpinion?.profiles,
             excludePlayerIds: (nextState.publicOpinion?.directions ?? [])
               .filter((direction) => direction.status === 'active')
               .map((direction) => direction.playerId),
