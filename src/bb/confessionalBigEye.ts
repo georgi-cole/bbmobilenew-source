@@ -400,26 +400,20 @@ const INTENT_PRIORITY: BigEyeIntent[] = [
 const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   greeting: {
     responses: [
-      'Welcome back. I was already watching.',
-      'You return. Interesting timing.',
-      'Hello... {{name}}.',
-      'Honestly I was expecting you',
-      'The Big eye is listening',
-      'What can I do for you today?',
-      'It looks like an interesting day, whats on your mind?',
+      'Back again. What changed?',
+      'You again. Sit down.',
+      'Hello, {{name}}. Be specific.',
+      'The Big Eye is listening.',
+      'The door is closed. Your turn.',
     ],
   },
   farewell: {
     responses: [
       'Go then. I will keep score.',
-      'Leave if you must. The walls still remember.',
-      'Farewell. Brief exits change very little.',
-      'Bu-Bye now.',
-      'I will be awaiting your return',
-      'Please do not forget your water glass on the way out.',
-      'Go get some rest now.',
-      'See you soon. Very very soon.',
-      'Hasta la vista baby.',
+      'That will do. Back to the House.',
+      'Go. I will still be watching.',
+      'Enough for now. Use what you learned.',
+      'The door is open. For now.',
     ],
   },
   boredom: {
@@ -633,10 +627,10 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   },
   unknown: {
     responses: [
-      'I see more than you say.',
-      'Not everything needs an answer.',
-      'The house is listening.',
-      'Truth makes strange shadows in here.',
+      'Say a little more.',
+      'I heard the words. I am not going to invent the meaning.',
+      'Be specific. Who or what are we talking about?',
+      'That could mean several things. Give me the part that matters.',
     ],
   },
 }
