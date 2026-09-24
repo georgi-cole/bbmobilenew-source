@@ -161,14 +161,18 @@ describe('publicOpinionSlice', () => {
     expect(profiles['p1'].approval).toBe(publicOpinionConfig.DEFAULT_APPROVAL)
   })
 
-  it('pruneExpiredDirections marks active directions whose expiresAtWeek <= week as expired', () => {
+  it('pruneExpiredDirections marks a still-valid missed request as failed', () => {
     const store = makeStore()
+    store.dispatch(initializeProfiles(['p1']))
     store.dispatch(addDirection(makeDirection({ id: 'dir-1', expiresAtWeek: 3 })))
     store.dispatch(addDirection(makeDirection({ id: 'dir-2', expiresAtWeek: 5 })))
     store.dispatch(pruneExpiredDirections({ week: 3 }))
-    const { directions } = store.getState().publicOpinion
-    expect(directions.find((d) => d.id === 'dir-1')?.status).toBe('expired')
+    const { directions, profiles } = store.getState().publicOpinion
+    expect(directions.find((d) => d.id === 'dir-1')?.status).toBe('failed')
     expect(directions.find((d) => d.id === 'dir-2')?.status).toBe('active')
+    expect(profiles.p1.approval).toBe(
+      publicOpinionConfig.DEFAULT_APPROVAL + publicOpinionConfig.directionRewards.fail
+    )
   })
 
   it('resets on game/resetGame', () => {
