@@ -121,6 +121,11 @@ export interface PendingChallenge {
   forcedWinnerId?: string
   /** Hidden intention chosen before scores are simulated. */
   competitionIntents?: Record<string, CompetitionIntent>
+  /**
+   * True once this exact challenge has consumed its single rewarded Reverse Time.
+   * Persisted with the pending challenge so reload/resume cannot reset the allowance.
+   */
+  reverseTimeUsed?: boolean
 }
 
 const initialState: ChallengeState = {
@@ -153,6 +158,12 @@ const challengeSlice = createSlice({
 
     setPendingMusicVariant(state, action: PayloadAction<MusicMinigameVariant>) {
       if (state.pending) state.pending.musicVariant = action.payload
+    },
+
+    markPendingChallengeReverseTimeUsed(state, action: PayloadAction<string>) {
+      if (state.pending?.id === action.payload) {
+        state.pending.reverseTimeUsed = true
+      }
     },
 
     incrementNonce(state) {
@@ -197,6 +208,7 @@ export const {
   setPendingChallenge,
   setPendingPhase,
   setPendingMusicVariant,
+  markPendingChallengeReverseTimeUsed,
   incrementNonce,
   recordRun,
   setDebugOverrides,
@@ -677,6 +689,7 @@ export const startChallenge =
       prizeType: opts.prizeType,
       forcedWinnerId,
       competitionIntents,
+      reverseTimeUsed: false,
     }
 
     dispatch(setPendingChallenge(pending))
