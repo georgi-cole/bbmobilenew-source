@@ -8,16 +8,15 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: 'pages'
+  group: public-pages-deploy
   cancel-in-progress: true
 
 jobs:
   release-quality:
     name: Required release-quality checks
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip-public-deploy]')
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -55,24 +54,45 @@ jobs:
       - name: Build
         env:
           VITE_BUILD_ID: ${{ github.sha }}
+          VITE_VIP_DEV_ENTITLEMENT: 'false'
           VITE_BASE_PATH: '/bbmobilenew/'
         run: npm run build
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Preserve production build
+        run: mv dist dist-production
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
+      - name: Build QA site with developer access
+        env:
+          VITE_BUILD_ID: ${{ github.sha }}-qa
+          VITE_VIP_DEV_ENTITLEMENT: 'true'
+          VITE_BASE_PATH: '/bbmobilenew/qa/'
+        run: npm run build
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Combine production and QA sites
+        run: |
+          mv dist dist-qa
+          mkdir -p dist/qa
+          cp -R dist-production/. dist/
+          cp -R dist-qa/. dist/qa/
+
+      - name: Check out the public deployment repository
+        env:
+          PAGES_DEPLOY_TOKEN: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+        run: |
+          git clone --depth=1 "https://x-access-token:${PAGES_DEPLOY_TOKEN}@github.com/${{ github.repository_owner }}/bbmobilenew.git" deployment
+
+      - name: Replace the public files with this build
+        run: rsync -a --delete --exclude .git dist/ deployment/
+
+      - name: Publish the public build
+        working-directory: deployment
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "No public-file changes to publish."
+            exit 0
+          fi
+          git commit -m "Deploy source build ${{ github.sha }}"
+          git push origin main

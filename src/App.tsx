@@ -34,6 +34,8 @@ import './styles/gameCopyPolish.css'
 import './styles/performanceOverrides.css'
 import './styles/majorityRulesFinalDuel.css'
 
+const IS_PUBLIC_QA_BUILD = import.meta.env.VITE_VIP_DEV_ENTITLEMENT === 'true'
+
 if (import.meta.env.DEV) {
   console.log(
     '[router] bundle:',
@@ -54,6 +56,15 @@ export default function App() {
     () => getAudioRouteHash(router.state.location),
     () => '#/'
   )
+
+  useEffect(() => {
+    if (!IS_PUBLIC_QA_BUILD) return undefined
+    const meta = document.createElement('meta')
+    meta.name = 'robots'
+    meta.content = 'noindex, nofollow, noarchive'
+    document.head.appendChild(meta)
+    return () => meta.remove()
+  }, [])
 
   useEffect(() => {
     installGameDiagnostics()
@@ -78,6 +89,11 @@ export default function App() {
   return (
     <Provider store={store}>
       <I18nProvider>
+        {IS_PUBLIC_QA_BUILD && (
+          <div className="public-qa-banner" role="status">
+            QA
+          </div>
+        )}
         <LiveOpsController />
         <FauxTvProgrammingController />
         <WeatherController />
