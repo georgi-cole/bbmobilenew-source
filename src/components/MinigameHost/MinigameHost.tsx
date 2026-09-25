@@ -196,6 +196,9 @@ export default function MinigameHost({
   const rankingOnly = isPlacementRankingGame(launchedGame)
   const competitionRetryEnabled = competitionRetry?.enabled ?? false
   const reverseTimeUsed = competitionRetry?.used === true
+  // attempt > 0 is an immediate in-host latch; the persisted prop keeps the
+  // one-shot rule intact across reload/resume.
+  const reverseTimeConsumed = reverseTimeUsed || attempt > 0
   const rulesGame = useMemo(
     () =>
       (() => {
@@ -442,11 +445,11 @@ export default function MinigameHost({
   const humanLastPlaceEntry = leaderboard?.[leaderboard.length - 1] ?? null
   const humanFinishedLast = !!humanLastPlaceEntry?.isHuman
   const showCompetitionRetry =
-    competitionRetryEnabled && !reverseTimeUsed && humanFinishedLast
+    competitionRetryEnabled && !reverseTimeConsumed && humanFinishedLast
   const activeCompetitionRetry = showCompetitionRetry && competitionRetry ? competitionRetry : null
   const showOrganicLastPlace = showCompetitionRetry && !wasPartial
   const showTimeMachineResults = showCompetitionRetry && (wasPartial || showOrganicLastPlace)
-  const showLockedExitResult = reverseTimeUsed && wasPartial
+  const showLockedExitResult = reverseTimeConsumed && wasPartial
 
   const handleRetryRestart = useCallback(() => {
     // A retry is a fresh run of the same selected game. Reset both the host's
@@ -965,7 +968,7 @@ export default function MinigameHost({
               <p className="minigame-exit-confirm__eyebrow">Emergency exit</p>
               <h2 className="minigame-exit-confirm__title">Leave this competition?</h2>
               <p className="minigame-exit-confirm__copy">
-                {reverseTimeUsed
+                {reverseTimeConsumed
                   ? 'Reverse Time has already been used for this competition. Leaving now will lock you into last place with a score of 0.'
                   : 'Your score will be recorded as 0. If that puts you last, you may use your one Reverse Time for this competition before the result is locked.'}
               </p>
@@ -983,7 +986,7 @@ export default function MinigameHost({
                   className="minigame-exit-confirm__button minigame-exit-confirm__button--exit"
                   onClick={handleConfirmEarlyExit}
                 >
-                  {reverseTimeUsed ? 'Leave — Lock Last Place' : 'Exit with 0'}
+                  {reverseTimeConsumed ? 'Leave — Lock Last Place' : 'Exit with 0'}
                 </button>
               </div>
             </div>
