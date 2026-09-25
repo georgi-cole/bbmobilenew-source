@@ -175,4 +175,3 @@ export function isVipBillingProductId(productId: string): boolean {
     productId === VIP_PRODUCT_ID || VIP_UPGRADE_TIERS.some((tier) => tier.productId === productId)
   )
 }
-
