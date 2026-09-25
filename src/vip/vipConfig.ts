@@ -110,7 +110,8 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
       'Your included modes and controls are available from the Home screen and Settings.',
     accessRoute: '/settings',
     accessLabel: 'Manage VIP features',
-    legalNote: 'A permanent, non-consumable purchase.',
+    legalNote:
+      'A permanent, non-consumable purchase. Existing eligible standalone purchases receive 75% credit toward the nearest supported VIP upgrade tier, with a minimum upgrade price.',
     availableInRelease: true,
   },
   {
