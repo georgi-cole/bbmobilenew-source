@@ -144,7 +144,9 @@ describe('Store product presentation', () => {
     expect(
       screen.getByText(/optional rewarded opportunities remain available by choice/i)
     ).toBeInTheDocument()
-    expect(screen.getByText(/75% of this purchase counts toward a future VIP upgrade/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/75% of this purchase counts toward a future VIP upgrade/i)
+    ).toBeInTheDocument()
   })
 
   it('marks VIP as an upgrade when qualifying standalone ownership exists', () => {
