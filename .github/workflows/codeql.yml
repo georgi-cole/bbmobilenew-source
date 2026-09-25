@@ -81,3 +81,10 @@ jobs:
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
+        with:
+          # This private repository currently has GitHub Code Scanning disabled.
+          # Keep the local analysis/check active without failing on the unsupported
+          # SARIF/database upload. Switch upload back to 'always' once Code Scanning
+          # is enabled for the repository.
+          upload: never
+          upload-database: false
