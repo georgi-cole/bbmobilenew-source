@@ -30,7 +30,7 @@ jobs:
           printf '%s\n' "$changed_files"
 
           browser=false
-          if grep -Eq '^(src/|public/|scripts/|e2e/playwright/|index\.html$|package(-lock)?\.json$|playwright\.config\.[^/]+$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|\.github/workflows/e2e-playwright\.yml$)' <<< "$changed_files"; then
+          if grep -Eq '^(src/|public/|e2e/playwright/|index\.html$|package(-lock)?\.json$|playwright\.config\.[^/]+$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest)\.mjs|check-production-debug-globals\.mjs)$|\.github/workflows/e2e-playwright\.yml$)' <<< "$changed_files"; then
             browser=true
           fi
 
