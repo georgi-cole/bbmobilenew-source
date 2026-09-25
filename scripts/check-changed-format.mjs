@@ -102,6 +102,37 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
+
+  for (const file of violations) {
+    const fileInfo = await prettier.getFileInfo(file, { ignorePath: '.prettierignore' })
+    const config = (await prettier.resolveConfig(file)) ?? {}
+    const source = await readFile(file, 'utf8')
+    const formatted = await prettier.format(source, {
+      ...config,
+      filepath: file,
+      parser: fileInfo.inferredParser ?? undefined,
+    })
+    let firstDiff = -1
+    for (let index = 0; index < Math.max(source.length, formatted.length); index += 1) {
+      if (source[index] !== formatted[index]) {
+        firstDiff = index
+        break
+      }
+    }
+    console.error(
+      JSON.stringify({
+        file,
+        sourceLength: source.length,
+        formattedLength: formatted.length,
+        firstDiff,
+        before:
+          firstDiff < 0 ? '' : source.slice(Math.max(0, firstDiff - 140), firstDiff + 240),
+        after:
+          firstDiff < 0 ? '' : formatted.slice(Math.max(0, firstDiff - 140), firstDiff + 240),
+      })
+    )
+  }
+
   process.exit(1)
 }
 
