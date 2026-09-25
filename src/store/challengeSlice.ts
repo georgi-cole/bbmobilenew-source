@@ -737,8 +737,7 @@ export const completeChallenge =
         : computeScores(game.scoringAdapter, rawResults, game.scoringParams ?? {})
 
     const explicitLastPlaceId =
-      options?.authoritativeLastPlaceId &&
-      participants.includes(options.authoritativeLastPlaceId)
+      options?.authoritativeLastPlaceId && participants.includes(options.authoritativeLastPlaceId)
         ? options.authoritativeLastPlaceId
         : null
     const ranked = explicitLastPlaceId
@@ -753,9 +752,7 @@ export const completeChallenge =
 
     // Guard: prefer a winner with a positive canonical score. If all scored <= 0,
     // fall back to the first ranked entry, then the first participant.
-    const positiveWinner = ranked.find(
-      (r) => r.playerId !== explicitLastPlaceId && r.score > 0
-    )
+    const positiveWinner = ranked.find((r) => r.playerId !== explicitLastPlaceId && r.score > 0)
     const winner =
       positiveWinner ??
       ranked.find((result) => result.playerId !== explicitLastPlaceId) ??
