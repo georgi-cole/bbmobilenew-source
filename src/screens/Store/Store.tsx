@@ -214,48 +214,38 @@ export default function Store() {
       </nav>
 
       {activeShelf === 'powers' && (
-        <section
-          className="vip-store__standalone vip-store__eyeolean-market"
-          aria-labelledby="eyeolean-items-title"
-        >
-          <div className="vip-store__eyeolean-heading">
-            <div>
-              <p className="vip-store__eyebrow">Spend what you earn</p>
-              <h2 id="eyeolean-items-title">Power Market</h2>
-            </div>
-            <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
-              <span>Wallet</span>
-              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-              <small>Eyeoleans</small>
-            </div>
+        <section className="vip-store__standalone" aria-labelledby="eyeolean-items-title">
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Use your balance</p>
+            <h2 id="eyeolean-items-title">Power Market</h2>
+            <p>Repeatable powers for a future eligible eviction.</p>
+          </div>
+          <div
+            className="vip-store__wallet vip-store__wallet-row"
+            aria-label="Eyeolean wallet balance"
+          >
+            <span>Wallet</span>
+            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+            <small>Eyeoleans</small>
           </div>
 
-          <p className="vip-store__eyeolean-note">
-            Repeatable powers for a future eligible eviction.
-          </p>
-
-          <div className="vip-store__eyeolean-grid">
+          <div className="vip-store__product-grid vip-store__product-grid--powers">
             {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
               const product = getEyeoleanStoreProduct(productKey)
               const owned = eyeoleanInventory[productKey] ?? 0
               const canBuy = Boolean(currentProfile) && eyeoleanBalance >= product.price
               return (
-                <article className="vip-store__eyeolean-product" key={productKey}>
-                  <div
-                    className="vip-store__eyeolean-product-icon"
-                    data-product={productKey}
-                    aria-hidden="true"
-                  >
+                <article className="vip-store__product vip-store__product--power" key={productKey}>
+                  <span className="vip-store__product-icon" aria-hidden="true">
                     {productKey === 'extra_vote' ? '2×' : '−1'}
-                  </div>
-                  <div className="vip-store__eyeolean-product-copy">
-                    <div className="vip-store__eyeolean-product-title-row">
-                      <h3>{product.title}</h3>
-                      <span>Owned {owned}</span>
-                    </div>
-                    <p>{product.shortDescription}</p>
-                  </div>
-                  <div className="vip-store__eyeolean-product-footer">
+                  </span>
+                  <span className="vip-store__product-copy">
+                    <span className="vip-store__product-title">{product.title}</span>
+                    <span className="vip-store__product-description">
+                      {product.shortDescription} · Owned {owned}
+                    </span>
+                  </span>
+                  <span className="vip-store__product-footer">
                     <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
                     <button
                       type="button"
@@ -265,7 +255,7 @@ export default function Store() {
                     >
                       {currentProfile ? (canBuy ? 'Buy' : 'Not enough') : 'Profile required'}
                     </button>
-                  </div>
+                  </span>
                 </article>
               )
             })}
