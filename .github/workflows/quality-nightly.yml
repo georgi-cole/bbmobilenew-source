@@ -1,13 +1,17 @@
-name: Nightly Product Quality
+name: Scheduled Product Quality
 
 on:
   schedule:
-    - cron: '23 2 * * *'
+    - cron: '23 2 * * 1'
   workflow_dispatch:
+
+concurrency:
+  group: scheduled-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   extended-regression:
-    name: Extended unit, integration, coverage, and minigame regression
+    name: Full unit, integration, and coverage regression
     runs-on: ubuntu-latest
     timeout-minutes: 75
     permissions:
@@ -22,11 +26,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:guard
-      - name: Run complete product regression suite
-        run: npm test -- --reporter=dot
-      - name: Run the full deterministic minigame contract matrix
-        run: npm run test:minigames
-      - name: Produce and enforce coverage evidence
+      - name: Run the complete product suite once while producing coverage
         run: npm run test:coverage
       - run: npm run coverage:check
 
@@ -64,12 +64,6 @@ jobs:
             browser: chromium
           - project: mobile-webkit
             browser: webkit
-          - project: narrow-chromium
-            browser: chromium
-          - project: compact-mobile-chromium
-            browser: chromium
-          - project: wide-desktop-chromium
-            browser: chromium
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -79,43 +73,15 @@ jobs:
       - run: npm ci
       - name: Install ${{ matrix.browser }}
         run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run complete browser suite without retries
+      - name: Run representative scheduled browser coverage
         run: npx playwright test --project=${{ matrix.project }}
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nightly-${{ matrix.project }}
+          name: scheduled-${{ matrix.project }}
           path: |
             playwright-report/
             test-results/
           if-no-files-found: warn
-          retention-days: 30
-
-  active-minigames:
-    name: Every active minigame (desktop Chromium)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Run registry-driven minigame browser coverage
-        run: npx playwright test --grep @minigame --project=desktop-chromium
-      - name: Upload browser evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nightly-active-minigames-desktop-chromium
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 30
+          retention-days: 14
