@@ -444,8 +444,7 @@ export default function MinigameHost({
 
   const humanLastPlaceEntry = leaderboard?.[leaderboard.length - 1] ?? null
   const humanFinishedLast = !!humanLastPlaceEntry?.isHuman
-  const showCompetitionRetry =
-    competitionRetryEnabled && !reverseTimeConsumed && humanFinishedLast
+  const showCompetitionRetry = competitionRetryEnabled && !reverseTimeConsumed && humanFinishedLast
   const activeCompetitionRetry = showCompetitionRetry && competitionRetry ? competitionRetry : null
   const showOrganicLastPlace = showCompetitionRetry && !wasPartial
   const showTimeMachineResults = showCompetitionRetry && (wasPartial || showOrganicLastPlace)
