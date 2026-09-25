@@ -74,8 +74,7 @@ export function getAutomaticAdBreak(context: AutomaticAdContext): AutomaticAdBre
     return {
       placement,
       breakKey: breakKey(context, placement),
-      subtitle:
-        'Part 2 is complete. The final battle begins right after this short break.',
+      subtitle: 'Part 2 is complete. The final battle begins right after this short break.',
     }
   }
 
