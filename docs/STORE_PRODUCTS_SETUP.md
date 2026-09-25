@@ -29,7 +29,7 @@ Use the same IDs on both platforms:
 | Cupid's Arrow      | `com.georgicole.thebigeye.cupidarrow`        | Cupid's Arrow seasonal expansion              |
 | Vox Populi         | `com.georgicole.thebigeye.voxpopuli`         | Vox Populi seasonal expansion                 |
 | Premium Challenges | `com.georgicole.thebigeye.premiumchallenges` | Remastered Find Your Twin 1 & 2               |
-| No Ads              | `com.georgicole.thebigeye.noads`             | Removes automatic commercial breaks            |
+| No Ads             | `com.georgicole.thebigeye.noads`             | Removes automatic commercial breaks           |
 
 The IDs can be overridden with the matching `VITE_*_PRODUCT_ID` values in the
 platform environment files. The app always displays the localized title and
@@ -42,16 +42,16 @@ VIP is a permanent bundle, not a subscription.
 
 The launch pricing model used by the app's upgrade resolver is:
 
-| Product | Nominal price |
-| --- | ---: |
-| Premium Challenges | 1.99 |
-| Public Mode | 2.99 |
-| No Ads | 2.99 |
-| Surveyeval Mode | 3.99 |
-| Cupid's Arrow | 3.99 |
-| Vox Populi | 3.99 |
-| Reality Mode | 4.99 |
-| The Big Eye VIP | 14.99 |
+| Product            | Nominal price |
+| ------------------ | ------------: |
+| Premium Challenges |          1.99 |
+| Public Mode        |          2.99 |
+| No Ads             |          2.99 |
+| Surveyeval Mode    |          3.99 |
+| Cupid's Arrow      |          3.99 |
+| Vox Populi         |          3.99 |
+| Reality Mode       |          4.99 |
+| The Big Eye VIP    |         14.99 |
 
 Qualifying standalone ownership earns **75% credit** toward a later VIP purchase. Credit stacks,
 but never grants VIP automatically. The calculated target is mapped to the nearest configured
@@ -59,18 +59,18 @@ store tier and the upgrade cannot fall below 4.99.
 
 Configure these additional non-consumable VIP upgrade products on both platforms:
 
-| Nominal tier | Product ID |
-| ---: | --- |
-| 13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
-| 12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
-| 11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
-| 10.99 | `com.georgicole.thebigeye.vip.upgrade1099` |
-| 9.99 | `com.georgicole.thebigeye.vip.upgrade999` |
-| 8.99 | `com.georgicole.thebigeye.vip.upgrade899` |
-| 7.99 | `com.georgicole.thebigeye.vip.upgrade799` |
-| 6.99 | `com.georgicole.thebigeye.vip.upgrade699` |
-| 5.99 | `com.georgicole.thebigeye.vip.upgrade599` |
-| 4.99 | `com.georgicole.thebigeye.vip.upgrade499` |
+| Nominal tier | Product ID                                      |
+| -----------: | ----------------------------------------------- |
+|        13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
+|        12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
+|        11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
+|        10.99 | `com.georgicole.thebigeye.vip.upgrade1099` |
+|         9.99 | `com.georgicole.thebigeye.vip.upgrade999`  |
+|         8.99 | `com.georgicole.thebigeye.vip.upgrade899`  |
+|         7.99 | `com.georgicole.thebigeye.vip.upgrade799`  |
+|         6.99 | `com.georgicole.thebigeye.vip.upgrade699`  |
+|         5.99 | `com.georgicole.thebigeye.vip.upgrade599`  |
+|         4.99 | `com.georgicole.thebigeye.vip.upgrade499`  |
 
 Each upgrade SKU grants the same permanent VIP entitlement as the normal VIP SKU. The client
 selects the correct SKU from currently owned standalone entitlements immediately before purchase,
@@ -96,7 +96,8 @@ https://developer.apple.com/help/app-store-connect/manage-in-app-purchases/creat
 ## Google Play Console
 
 1. Complete the payments profile.
-2. Under Monetize > Products > In-app products, create all eight released IDs plus the VIP upgrade IDs.
+2. Under Monetize > Products > In-app products, create all eight released IDs plus the VIP
+   upgrade IDs.
 3. Make each product active and assign its one-time price.
 4. Upload a signed build to an internal test track.
 5. Add license testers and test purchase, pending payment, refund, reinstall,
@@ -140,8 +141,10 @@ Apple StoreKit receipt/JWS needed by that backend.
   purchase screen before review.
 - Test purchase, restore, pending payment, refund, reinstall, account switching,
   and offline launch on physical iOS and Android devices.
-- Confirm VIP grants every released standalone entitlement, including No Ads, and VIP-only themes.
-- Confirm No Ads suppresses automatic interstitials while leaving optional rewarded ads available.
+- Confirm VIP grants every released standalone entitlement, including No Ads, and VIP-only
+  themes.
+- Confirm No Ads suppresses automatic interstitials while leaving optional rewarded ads
+  available.
 - Confirm each standalone purchase grants only its advertised feature.
 - Verify the 75% VIP-credit resolver selects the expected native upgrade SKU for single and
   multi-product ownership and never selects a tier below 4.99.
