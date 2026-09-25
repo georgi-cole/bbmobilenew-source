@@ -102,30 +102,6 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
-
-  for (const file of violations) {
-    if (
-      ![
-        'docs/STORE_PRODUCTS_SETUP.md',
-        'src/screens/Store/Store.test.tsx',
-        'src/vip/vipUpgrade.ts',
-      ].includes(file)
-    ) {
-      continue
-    }
-    const fileInfo = await prettier.getFileInfo(file, { ignorePath: '.prettierignore' })
-    const config = (await prettier.resolveConfig(file)) ?? {}
-    const source = await readFile(file, 'utf8')
-    const formatted = await prettier.format(source, {
-      ...config,
-      filepath: file,
-      parser: fileInfo.inferredParser ?? undefined,
-    })
-    console.error(`--- PRETTIER OUTPUT: ${file} ---`)
-    console.error(formatted)
-    console.error(`--- END PRETTIER OUTPUT: ${file} ---`)
-  }
-
   process.exit(1)
 }
 
