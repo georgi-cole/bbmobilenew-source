@@ -6,7 +6,9 @@ on:
     paths:
       - 'src/**'
       - 'public/**'
-      - 'scripts/**'
+      - 'scripts/generate-after-the-eye-config.mjs'
+      - 'scripts/generate-audio-manifest.mjs'
+      - 'scripts/check-production-debug-globals.mjs'
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
