@@ -1,8 +1,6 @@
 name: Pull Request Quality
 
 on:
-  push:
-    branches: [main]
   pull_request:
 
 concurrency:
@@ -10,6 +8,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect CI impact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      runtime: ${{ steps.impact.outputs.runtime }}
+      dependencies: ${{ steps.impact.outputs.dependencies }}
+      android: ${{ steps.impact.outputs.android }}
+      ios: ${{ steps.impact.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: impact
+        name: Classify changed files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          printf '%s\n' "$changed_files"
+
+          runtime=false
+          dependencies=false
+          android=false
+          ios=false
+
+          if grep -Eq '^(src/|public/|scripts/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            runtime=true
+          fi
+
+          if grep -Eq '^package(-lock)?\.json$' <<< "$changed_files"; then
+            dependencies=true
+          fi
+
+          if grep -Eq '^(android/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            android=true
+          fi
+
+          if grep -Eq '^(ios/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+            ios=true
+          fi
+
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+          echo "dependencies=$dependencies" >> "$GITHUB_OUTPUT"
+          echo "android=$android" >> "$GITHUB_OUTPUT"
+          echo "ios=$ios" >> "$GITHUB_OUTPUT"
+
   static-quality:
     name: ${{ matrix.label }}
     runs-on: ubuntu-latest
@@ -44,49 +92,29 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Run ${{ matrix.label }}
-        env:
-          FORMAT_BASE_REF: ${{ github.event_name == 'push' && 'HEAD^' || '' }}
         run: ${{ matrix.command }}
 
   dependency-security:
     name: Dependency security
+    needs: changes
+    if: needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Detect dependency changes
-        id: dependency_changes
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")"
-          else
-            base="HEAD^"
-          fi
-
-          if git diff --name-only "$base" HEAD -- package.json package-lock.json | grep -q .; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Dependency manifests changed; production audit is required."
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No dependency manifest changes; PR dependency audit is skipped."
-          fi
       - uses: actions/setup-node@v4
-        if: steps.dependency_changes.outputs.changed == 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-        if: steps.dependency_changes.outputs.changed == 'true'
       - name: Audit production dependencies
-        if: steps.dependency_changes.outputs.changed == 'true'
         run: npm audit --omit=dev --audit-level=high
 
   production-builds:
     name: ${{ matrix.label }}
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,6 +137,8 @@ jobs:
 
   android-native:
     name: Android native lint and debug build
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -131,6 +161,8 @@ jobs:
 
   ios-native:
     name: iOS simulator build
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
     runs-on: macos-15
     permissions:
       contents: read
