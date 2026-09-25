@@ -3,10 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { isOwnedStoreTransaction } from './vipPurchaseService'
 import { VIP_UPGRADE_TIERS } from './vipUpgrade'
 
-function transaction(
-  productIdentifier: string,
-  overrides: Partial<Transaction> = {}
-): Transaction {
+function transaction(productIdentifier: string, overrides: Partial<Transaction> = {}): Transaction {
   return {
     productIdentifier,
     isActive: true,
@@ -37,11 +34,7 @@ describe('VIP billing transaction recognition', () => {
 
   it('does not let a standalone product masquerade as VIP', () => {
     expect(
-      isOwnedStoreTransaction(
-        transaction('com.georgicole.thebigeye.survival'),
-        'vip',
-        'ios'
-      )
+      isOwnedStoreTransaction(transaction('com.georgicole.thebigeye.survival'), 'vip', 'ios')
     ).toBe(false)
   })
 })
