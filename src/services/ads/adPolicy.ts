@@ -29,9 +29,7 @@ function breakKey(context: AutomaticAdContext, placement: AdPlacement): string {
  * - Three deliberate Final 3 breaks, one between each decisive beat.
  * - No post-eviction or finale-recap interstitials.
  */
-export function getAutomaticAdBreak(
-  context: AutomaticAdContext
-): AutomaticAdBreak | null {
+export function getAutomaticAdBreak(context: AutomaticAdContext): AutomaticAdBreak | null {
   if (context.currentPhase === context.previousPhase) return null
 
   if (
