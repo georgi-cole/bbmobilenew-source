@@ -45,11 +45,11 @@ jobs:
             dependencies=true
           fi
 
-          if grep -Eq '^(android/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+          if grep -Eq '^(android/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/)' <<< "$changed_files"; then
             android=true
           fi
 
-          if grep -Eq '^(ios/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+          if grep -Eq '^(ios/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/)' <<< "$changed_files"; then
             ios=true
           fi
 
