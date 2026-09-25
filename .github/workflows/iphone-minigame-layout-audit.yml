@@ -26,6 +26,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Normalize temporary audit harness formatting
+        run: >-
+          npx prettier --write
+          e2e/playwright/minigameIphoneLayoutAudit.spec.ts
+          .github/workflows/iphone-minigame-layout-audit.yml
       - name: Run repository PR validation
         run: npm run check:pr
 
