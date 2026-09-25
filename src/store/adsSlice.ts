@@ -65,10 +65,7 @@ export function loadAdsState(): AdsState {
 
 export function saveAdsState(state: AdsState): void {
   try {
-    const persistedState: Pick<
-      AdsState,
-      'hasNoAdsPack' | 'dailyUsage' | 'automaticBreaks'
-    > = {
+    const persistedState: Pick<AdsState, 'hasNoAdsPack' | 'dailyUsage' | 'automaticBreaks'> = {
       hasNoAdsPack: state.hasNoAdsPack,
       dailyUsage: state.dailyUsage,
       automaticBreaks: state.automaticBreaks,
