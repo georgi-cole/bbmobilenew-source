@@ -4,9 +4,12 @@ import {
   E2E_NEW_SEASON_FIXTURE,
   expect,
   readAppState,
+  readDurableItem,
+  removeDurableItem,
   test,
   type Locator,
   type Page,
+  writeDurableItem,
 } from './support/test'
 
 const JOURNEY_TIMEOUT_MS = 90_000
@@ -41,8 +44,24 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   await expect(page.getByRole('heading', { name: /Profiles/ })).toBeVisible()
 
   await page.getByRole('button', { name: /Create New Profile/ }).click()
-  await page.getByPlaceholder('Enter display name').fill(playerName)
+  const nameField = page.getByPlaceholder('Enter display name')
+  const fieldMetrics = await nameField.evaluate((element) => ({
+    coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+    fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+  }))
+  if (fieldMetrics.coarsePointer) expect(fieldMetrics.fontSize).toBeGreaterThanOrEqual(16)
+  await nameField.fill(playerName)
+
+  // Reproduce the persistent-container failure: the long picker is scrolled
+  // when profile creation replaces it with the Profile screen.
+  await page.locator('.app-shell__main').evaluate((element) => {
+    element.scrollTop = element.scrollHeight
+  })
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible()
+  await expect
+    .poll(() => page.locator('.app-shell__main').evaluate((element) => element.scrollTop))
+    .toBe(0)
 
   await expect
     .poll(async () => {
@@ -739,6 +758,13 @@ test.describe('Real player core journeys', () => {
 
     const socialDialog = page.getByRole('dialog', { name: 'Social Phase' })
     await expect(socialDialog).toBeVisible()
+
+    const socialTutorialPrompt = page.getByTestId('reality-social-tutorial-prompt')
+    if (await socialTutorialPrompt.isVisible()) {
+      await socialTutorialPrompt.getByRole('button', { name: 'Skip' }).click()
+      await expect(socialTutorialPrompt).toBeHidden()
+    }
+
     const energyChip = socialDialog.getByLabel(/^Energy: \d+$/)
     const initialEnergyLabel = await energyChip.getAttribute('aria-label')
     const initialEnergy = Number(initialEnergyLabel?.match(/\d+/)?.[0])
@@ -789,46 +815,33 @@ test.describe('Real player core journeys', () => {
     await savedDialog.getByRole('button', { name: 'OK' }).click()
     await saveAndReturnHome(page)
 
-    const fixture = await page.evaluate(
-      ({ runsPrefix, slotPrefix, statePrefix }) => {
-        const profilesRaw = localStorage.getItem('bbmobilenew:profiles:v1')
-        if (!profilesRaw) throw new Error('active profiles record is missing')
-        const profiles = JSON.parse(profilesRaw) as { activeProfileId?: string | null }
-        const profileId = profiles.activeProfileId
-        if (!profileId) throw new Error('active profile id is missing')
+    const profilesRaw = await page.evaluate(() => localStorage.getItem('bbmobilenew:profiles:v1'))
+    if (!profilesRaw) throw new Error('active profiles record is missing')
+    const profiles = JSON.parse(profilesRaw) as { activeProfileId?: string | null }
+    const profileId = profiles.activeProfileId
+    if (!profileId) throw new Error('active profile id is missing')
 
-        const encodedProfileId = encodeURIComponent(profileId)
-        const runsKey = `${runsPrefix}${encodedProfileId}`
-        const slotKey = `${slotPrefix}${encodedProfileId}:classic`
-        const legacyKey = `${statePrefix}${encodedProfileId}`
-        const savedRunsRaw = localStorage.getItem(runsKey)
-        if (!savedRunsRaw) throw new Error('current saved-run profile is missing')
-        const savedRunSlotRaw = localStorage.getItem(slotKey)
-        if (!savedRunSlotRaw) throw new Error('current Classic snapshot is missing')
-        const classic = JSON.parse(savedRunSlotRaw) as {
-          game?: { phase?: string; runId?: string; gameId?: string }
-        }
+    const encodedProfileId = encodeURIComponent(profileId)
+    const runsKey = `${SAVED_RUNS_KEY_PREFIX}${encodedProfileId}`
+    const classicRunKey = `${SAVED_RUN_SLOT_KEY_PREFIX}${encodedProfileId}:classic`
+    const legacyKey = `${SAVED_STATE_KEY_PREFIX}${encodedProfileId}`
+    const classicRaw = await readDurableItem(page, classicRunKey)
+    if (!classicRaw) throw new Error('current Classic snapshot is missing')
+    const classic = JSON.parse(classicRaw) as {
+      game?: { phase?: string; runId?: string; gameId?: string }
+    }
 
-        // Recreate the pre-v2 single-slot format so reload must migrate it back
-        // into split metadata + per-mode run-slot storage.
-        localStorage.setItem(legacyKey, JSON.stringify(classic))
-        localStorage.removeItem(runsKey)
-        localStorage.removeItem(slotKey)
+    await writeDurableItem(page, legacyKey, classicRaw)
+    await removeDurableItem(page, runsKey)
+    await removeDurableItem(page, classicRunKey)
 
-        return {
-          legacyKey,
-          phase: classic.game?.phase ?? null,
-          runIdentity: classic.game?.runId ?? classic.game?.gameId ?? null,
-          runsKey,
-          slotKey,
-        }
-      },
-      {
-        runsPrefix: SAVED_RUNS_KEY_PREFIX,
-        slotPrefix: SAVED_RUN_SLOT_KEY_PREFIX,
-        statePrefix: SAVED_STATE_KEY_PREFIX,
-      }
-    )
+    const fixture = {
+      classicRunKey,
+      legacyKey,
+      phase: classic.game?.phase ?? null,
+      runIdentity: classic.game?.runId ?? classic.game?.gameId ?? null,
+      runsKey,
+    }
 
     expect(fixture.phase).toBe('loh_comp_announcement')
     expect(fixture.runIdentity).toBeTruthy()
@@ -839,24 +852,24 @@ test.describe('Real player core journeys', () => {
     await expect(page.getByRole('button', { name: playerName, exact: true })).toBeVisible()
 
     await expect
-      .poll(() =>
-        page.evaluate(
-          ({ runsKey, slotKey }) => {
-            const metadataRaw = localStorage.getItem(runsKey)
-            const slotRaw = localStorage.getItem(slotKey)
-            if (!metadataRaw || !slotRaw) return null
-            const metadata = JSON.parse(metadataRaw) as { version?: number }
-            const classic = JSON.parse(slotRaw) as {
-              game?: { phase?: string; runId?: string; gameId?: string }
-            }
-            return {
-              phase: classic.game?.phase ?? null,
-              runIdentity: classic.game?.runId ?? classic.game?.gameId ?? null,
-              version: metadata.version ?? null,
-            }
-          },
-          { runsKey: fixture.runsKey, slotKey: fixture.slotKey }
-        )
+      .poll(
+        async () => {
+          const [metadataRaw, migratedClassicRaw] = await Promise.all([
+            readDurableItem(page, fixture.runsKey),
+            readDurableItem(page, fixture.classicRunKey),
+          ])
+          if (!metadataRaw || !migratedClassicRaw) return null
+          const metadata = JSON.parse(metadataRaw) as { version?: number }
+          const migratedClassic = JSON.parse(migratedClassicRaw) as {
+            game?: { phase?: string; runId?: string; gameId?: string }
+          }
+          return {
+            phase: migratedClassic.game?.phase ?? null,
+            runIdentity: migratedClassic.game?.runId ?? migratedClassic.game?.gameId ?? null,
+            version: metadata.version ?? null,
+          }
+        },
+        { timeout: SCREEN_TIMEOUT_MS }
       )
       .toEqual({ phase: 'loh_comp', runIdentity: fixture.runIdentity, version: 2 })
 
@@ -868,24 +881,13 @@ test.describe('Real player core journeys', () => {
       activeRunId: null,
       lastPlayedRunId: null,
       profileId: 'unrelated-preservation-fixture',
-      runs: {},
       savedAt: '2026-07-21T00:00:00.000Z',
       stats: { maxSurvivorDaysSurvived: 0, survivorAchievementsUnlocked: {} },
       version: 2,
     })
 
-    await page.evaluate(
-      ({ damaged, runsKey, sentinelKey, sentinelValue }) => {
-        localStorage.setItem(sentinelKey, sentinelValue)
-        localStorage.setItem(runsKey, damaged)
-      },
-      {
-        damaged: corruptRaw,
-        runsKey: fixture.runsKey,
-        sentinelKey: unrelatedKey,
-        sentinelValue: unrelatedRaw,
-      }
-    )
+    await writeDurableItem(page, unrelatedKey, unrelatedRaw)
+    await writeDurableItem(page, fixture.runsKey, corruptRaw)
 
     await page.reload()
     await page.waitForLoadState('networkidle')
@@ -895,19 +897,17 @@ test.describe('Real player core journeys', () => {
     await expect(recoveryNotice).toContainText('Save recovered safely')
     await expect(recoveryNotice).toContainText('A damaged save was set aside.')
 
-    const recoveryState = await page.evaluate(
-      ({ recoveryKey, runsKey, sentinelKey }) => ({
-        current: localStorage.getItem(runsKey),
-        quarantined: sessionStorage.getItem(recoveryKey),
-        unrelated: localStorage.getItem(sentinelKey),
-      }),
-      {
-        recoveryKey: CORRUPT_SAVE_RECOVERY_KEY,
-        runsKey: fixture.runsKey,
-        sentinelKey: unrelatedKey,
-      }
-    )
-    expect(recoveryState).toEqual({
+    await expect
+      .poll(() => readDurableItem(page, fixture.runsKey), { timeout: SCREEN_TIMEOUT_MS })
+      .toBeNull()
+    const [unrelated, quarantined] = await Promise.all([
+      readDurableItem(page, unrelatedKey),
+      page.evaluate(
+        (recoveryKey) => sessionStorage.getItem(recoveryKey),
+        CORRUPT_SAVE_RECOVERY_KEY
+      ),
+    ])
+    expect({ current: null, quarantined, unrelated }).toEqual({
       current: null,
       quarantined: corruptRaw,
       unrelated: unrelatedRaw,
