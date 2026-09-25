@@ -23,27 +23,31 @@ The repository-side release blockers have been addressed. The game is still **no
   - `npm run verify:store-env:ios`
 - Enter the published privacy and support URLs in both store consoles.
 
-## 4. Configure the four released purchases
+## 4. Configure released purchases and VIP upgrade tiers
 
-Create these as one-time, non-consumable products on both stores:
-
-- `com.georgicole.thebigeye.vip`
-- `com.georgicole.thebigeye.survival`
-- `com.georgicole.thebigeye.publicmode`
-- `com.georgicole.thebigeye.dramamode`
+Create the eight user-facing products documented in `docs/STORE_PRODUCTS_SETUP.md` as one-time,
+non-consumable products on both stores, together with the VIP upgrade SKUs used by the 75% credit
+resolver.
 
 Then:
 
 - Complete paid-app agreements, banking, and tax setup.
 - Add localized names, descriptions, prices, and review screenshots.
-- Keep Tribunal Mode and No Ads inactive; they are intentionally hidden in 1.0.
-- Test purchase, cancel, pending payment, restore, refund/revocation, reinstall, account switching, and offline launch.
+- Keep Tribunal Mode inactive; it remains intentionally unreleased.
+- Configure No Ads now, but do not activate it for sale until the signed binary also contains the
+  native advertising integration that gives the entitlement real value.
+- Test direct VIP and every VIP-upgrade tier for purchase, cancel, pending payment,
+  restore, refund/revocation, reinstall, account switching, and offline launch.
 
 ## 5. Complete the store compliance forms
 
 - Apple: privacy nutrition label, age rating, export-compliance answers, territories, category, pricing, review contact, and IAP review submission.
-- Google: Data safety, target audience, content rating, app access, ads declaration (“No” for this binary), financial features, government apps, health, and any other required policy declarations.
-- Disclose optional precise location for weather personalization, store purchases, no tracking, and no advertising SDK.
+- Google: Data safety, target audience, content rating, app access, the ads declaration matching the
+  exact signed binary, financial features, government apps, health, and any other required policy
+  declarations.
+- Disclose optional precise location for weather personalization and store purchases. If the native
+  advertising SDK is added before release, update both stores' advertising/privacy answers before
+  submission.
 - Rate simulated chance/casino-like mechanics honestly; no real-money gambling was found.
 
 ## 6. Produce and test signed native builds
@@ -69,7 +73,8 @@ Do not set `VITE_BIG_EYE_AI_ENABLED=true` or a VIP Diary Room endpoint for this 
 - Android and iOS now share the permanent bundle ID and version.
 - Native location permissions, user-facing rationale, and iOS privacy declaration are aligned.
 - Capacitor placeholder icons and splashes were replaced with the approved store artwork.
-- Unfinished Tribunal and No Ads products are hidden from sale.
+- Tribunal remains hidden; No Ads and VIP-upgrade entitlement plumbing are implemented and ready
+  for store-console configuration.
 - Privacy, terms, and support information is reachable in-app.
 - Release environment validation and Android signing templates are present.
 - Pull requests now compile Android and iOS native projects; Swift CodeQL receives synced native assets.

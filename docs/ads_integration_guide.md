@@ -107,19 +107,16 @@ After passing guards, `recordAdShown(placement)` is dispatched to persist the da
 
 ---
 
-## No Ads Pack
+## No Ads
 
-The No Ads Pack flag lives in Redux:
+No Ads is a permanent Store entitlement. It is available as a standalone product and is also
+included effectively with VIP. `canShowAd()` checks the Store entitlement for automatic
+interstitials, so purchase and restore reconciliation in the VIP/store layer immediately suppresses
+those placements.
 
-```ts
-import { setNoAdsPack } from '../store/adsSlice';
-dispatch(setNoAdsPack(true));  // user purchased pack
-dispatch(setNoAdsPack(false)); // restore (e.g. refund)
-```
-
-It is persisted to `localStorage` under the key `bbmobilenew_ads_v1` so it survives page reloads.
-
-Connect this to your in-game store purchase flow to set `hasNoAdsPack = true` after a successful purchase.
+The legacy `ads.hasNoAdsPack` flag remains readable for older local saves, but new purchases should
+not mutate it directly. Optional rewarded ads deliberately remain available to No Ads and VIP
+owners.
 
 ---
 

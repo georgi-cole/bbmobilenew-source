@@ -23,4 +23,8 @@ If a later build enables the online service, update the policy and store forms b
 
 The 1.0 release includes native, one-time store purchases. Apple or Google processes payment and the app reads product and entitlement status to unlock and restore purchases. The developer does not receive payment-card details.
 
-The binary contains no advertising SDK. Tribunal Mode and No Ads products are hidden from sale. Mark Google Play as not containing ads for this binary. Apple tracking remains false because the build contains no cross-app tracking behavior.
+The current native binary contains no advertising SDK, although the game layer now includes a No Ads
+entitlement and optional/automatic ad hooks. Do not activate the No Ads product for a binary that
+cannot actually show ads. If the native advertising integration is added before release, update this
+document and both store compliance forms against that exact signed build. Apple tracking may remain
+false only if the chosen advertising configuration does not introduce cross-app tracking behavior.
