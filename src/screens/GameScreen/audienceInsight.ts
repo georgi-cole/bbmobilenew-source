@@ -88,7 +88,9 @@ function explainReason(
   if (/(social_misfire|negative_social|poor_social|rumor|confront|conflict)/.test(signal)) {
     return 'Recent social conflict is making you look harsher than the audience currently wants.'
   }
-  if (/(strong_competition|hoh_win|loh_win|pov_win|pos_win|immunity_win|won_competition)/.test(signal)) {
+  if (
+    /(strong_competition|hoh_win|loh_win|pov_win|pos_win|immunity_win|won_competition)/.test(signal)
+  ) {
     return 'Strong competition results are improving the audience view of your game.'
   }
   if (/(weak_competition|last_place|quit_early)/.test(signal)) {
