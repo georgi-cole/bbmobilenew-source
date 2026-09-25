@@ -150,4 +150,3 @@ Apple StoreKit receipt/JWS needed by that backend.
   multi-product ownership and never selects a tier below 4.99.
 - Test restoring every VIP upgrade SKU and confirm it restores full VIP ownership.
 - Remove `VITE_VIP_DEV_ENTITLEMENT=true` from every release environment.
-
