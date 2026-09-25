@@ -1,0 +1,72 @@
+name: Temporary iPhone Minigame Layout Audit
+
+on:
+  push:
+    branches:
+      - audit/iphone-layout-20260925
+  workflow_dispatch:
+
+concurrency:
+  group: iphone-minigame-layout-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate audit harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run repository PR validation
+        run: npm run check:pr
+
+  audit:
+    name: Audit ${{ matrix.device }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - iphone-7
+          - iphone-x
+          - iphone-standard
+          - iphone-pro
+          - iphone-pro-max
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+      - name: Run iPhone minigame layout audit
+        env:
+          IPHONE_AUDIT_DEVICE: ${{ matrix.device }}
+        run: >-
+          npx playwright test e2e/playwright/minigameIphoneLayoutAudit.spec.ts
+          --project=mobile-webkit --workers=1 --retries=0
+      - name: Upload iPhone layout evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iphone-minigame-layout-${{ matrix.device }}
+          path: |
+            test-results/iphone-layout-audit/${{ matrix.device }}/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 7
