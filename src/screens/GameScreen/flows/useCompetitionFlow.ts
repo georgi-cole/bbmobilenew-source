@@ -399,9 +399,7 @@ export function useCompetitionFlow({
         )
       const missionRanked = forcedQuitLastPlaceId
         ? [
-            ...computedMissionRanked.filter(
-              (result) => result.playerId !== forcedQuitLastPlaceId
-            ),
+            ...computedMissionRanked.filter((result) => result.playerId !== forcedQuitLastPlaceId),
             ...computedMissionRanked.filter((result) => result.playerId === forcedQuitLastPlaceId),
           ]
         : computedMissionRanked
