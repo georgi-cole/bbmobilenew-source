@@ -161,7 +161,7 @@ function playerCountFor(game: GameRegistryEntry): number {
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&')
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 async function closeDebugPanelIfPresent(page: Page): Promise<void> {
