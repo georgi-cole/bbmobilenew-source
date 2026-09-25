@@ -139,7 +139,9 @@ describe('MinigameHost competition retry', () => {
     exitMinigame()
 
     expect(
-      screen.getByText('Watch a short ad to restart this competition. Reverse Time is available once per competition.')
+      screen.getByText(
+        'Watch a short ad to restart this competition. Reverse Time is available once per competition.'
+      )
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'See full ranking' })).toBeNull()
 
