@@ -269,4 +269,3 @@ describe('Store product presentation', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
-
