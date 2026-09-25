@@ -20,8 +20,9 @@ Every accepted minigame completion must satisfy all of these rules:
 8. Higher score wins unless the registry adapter or the per-game matrix says lower, survival, elimination, bracket, placement, or custom.
 9. An equal canonical score uses the documented per-game tie policy. Where the shared scorer is responsible, a lower supplied tiebreaker wins; absent a tiebreaker, stable participant order is the deterministic final fallback.
 10. Exit before completion is visibly marked partial and requires an explicit Continue before the parent accepts it. Closing after acceptance cannot erase the result.
-11. Retry resets only the current attempt. State from a previous game cannot leak into the next competition.
-12. Animation, audio, cinematic timing, and reduced-motion settings never decide game correctness.
+11. Rewarded Reverse Time is available at most once for a competition instance. First-attempt last place or deliberate exit may offer it; after it is consumed, the second attempt is final and another deliberate exit locks the human to last place with a zero-equivalent result.
+12. Retry resets only the current attempt. State from a previous game cannot leak into the next competition, and stale completion callbacks from an abandoned attempt cannot overwrite the active attempt.
+13. Animation, audio, cinematic timing, and reduced-motion settings never decide game correctness.
 
 ## Player-understanding contract
 
