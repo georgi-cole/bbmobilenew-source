@@ -102,6 +102,56 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
+
+  for (const file of violations) {
+    if (
+      ![
+        'docs/STORE_PRODUCTS_SETUP.md',
+        'src/screens/Store/Store.test.tsx',
+        'src/vip/vipUpgrade.ts',
+      ].includes(file)
+    ) {
+      continue
+    }
+    const fileInfo = await prettier.getFileInfo(file, { ignorePath: '.prettierignore' })
+    const config = (await prettier.resolveConfig(file)) ?? {}
+    const source = await readFile(file, 'utf8')
+    const formatted = await prettier.format(source, {
+      ...config,
+      filepath: file,
+      parser: fileInfo.inferredParser ?? undefined,
+    })
+    let firstDiff = -1
+    const limit = Math.max(source.length, formatted.length)
+    for (let index = 0; index < limit; index += 1) {
+      if (source[index] !== formatted[index]) {
+        firstDiff = index
+        break
+      }
+    }
+    const before = firstDiff < 0 ? '' : source.slice(Math.max(0, firstDiff - 120), firstDiff + 180)
+    const after =
+      firstDiff < 0 ? '' : formatted.slice(Math.max(0, firstDiff - 120), firstDiff + 180)
+    console.error(
+      JSON.stringify({
+        file,
+        sourceLength: source.length,
+        formattedLength: formatted.length,
+        firstDiff,
+        sourceCodes:
+          firstDiff < 0
+            ? []
+            : [...source.slice(firstDiff, firstDiff + 8)].map((char) => char.charCodeAt(0)),
+        formattedCodes:
+          firstDiff < 0
+            ? []
+            : [...formatted.slice(firstDiff, firstDiff + 8)].map((char) => char.charCodeAt(0)),
+        before,
+        after,
+      })
+    )
+  }
+
   process.exit(1)
 }
 
