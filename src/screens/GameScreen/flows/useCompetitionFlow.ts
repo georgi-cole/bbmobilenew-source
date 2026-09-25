@@ -402,9 +402,7 @@ export function useCompetitionFlow({
             ...computedMissionRanked.filter(
               (result) => result.playerId !== forcedQuitLastPlaceId
             ),
-            ...computedMissionRanked.filter(
-              (result) => result.playerId === forcedQuitLastPlaceId
-            ),
+            ...computedMissionRanked.filter((result) => result.playerId === forcedQuitLastPlaceId),
           ]
         : computedMissionRanked
       const missionScores = Object.fromEntries(
