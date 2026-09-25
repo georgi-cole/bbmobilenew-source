@@ -59,8 +59,8 @@ store tier and the upgrade cannot fall below 4.99.
 
 Configure these additional non-consumable VIP upgrade products on both platforms:
 
-| Nominal tier | Product ID                                      |
-| -----------: | ----------------------------------------------- |
+| Nominal tier | Product ID                                 |
+| -----------: | ------------------------------------------ |
 |        13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
 |        12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
 |        11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
@@ -150,3 +150,4 @@ Apple StoreKit receipt/JWS needed by that backend.
   multi-product ownership and never selects a tier below 4.99.
 - Test restoring every VIP upgrade SKU and confirm it restores full VIP ownership.
 - Remove `VITE_VIP_DEV_ENTITLEMENT=true` from every release environment.
+
