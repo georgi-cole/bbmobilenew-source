@@ -6,3 +6,21 @@
 .tv-zone__now::first-letter {
   text-transform: uppercase;
 }
+.public-qa-banner {
+  position: fixed;
+  z-index: 10000;
+  top: max(0.25rem, env(safe-area-inset-top));
+  right: 0.35rem;
+  max-width: min(16rem, calc(100vw - 0.7rem));
+  padding: 0.2rem 0.4rem;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 0.25rem;
+  color: #fff;
+  background: rgb(139 30 63 / 88%);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-align: center;
+  text-transform: uppercase;
+}
