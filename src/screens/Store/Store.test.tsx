@@ -131,9 +131,7 @@ describe('Store product presentation', () => {
 
     expect(screen.getByRole('heading', { name: 'Extras' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open No Ads' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'Open Premium Challenges Pack' })
-    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open Premium Challenges Pack' })).toBeInTheDocument()
   })
 
   it('explains that No Ads keeps optional rewarded opportunities', () => {
@@ -271,3 +269,4 @@ describe('Store product presentation', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
