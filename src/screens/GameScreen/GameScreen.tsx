@@ -1030,8 +1030,9 @@ export default function GameScreen() {
     const state = store.getState()
     return canShowAd('competition_retry', state, { isFinal3Week })
   }, [pendingChallenge, game.phase, isFinal3Week, store])
-  const [lastAudienceInsightPromptDate, setLastAudienceInsightPromptDate] =
-    usePersistedPromptDate('public_meter_audience_insight')
+  const [lastAudienceInsightPromptDate, setLastAudienceInsightPromptDate] = usePersistedPromptDate(
+    'public_meter_audience_insight'
+  )
   useEffect(() => {
     if (!adsState?.lastCompLastPlaceType) return
     if (import.meta.env.DEV) {
@@ -1086,7 +1087,7 @@ export default function GameScreen() {
       week: game.week,
       previousPhase,
       currentPhase,
-      mode: game.mode,
+      mode: game.mode ?? 'classic',
       voxPopuliActive: game.voxPopuli?.status === 'active',
       posHolderName,
     })
