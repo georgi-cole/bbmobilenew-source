@@ -16,6 +16,7 @@ function makeState(
     ads: {
       hasNoAdsPack: false,
       dailyUsage: {},
+      automaticBreaks: {},
       lastCompLastPlaceType: null,
       ...overrides,
     },
@@ -44,7 +45,7 @@ describe('adsService bridge guards', () => {
   it('does not record usage for interstitials when the native bridge is missing', () => {
     const dispatch = vi.fn()
 
-    expect(showInterstitial('eviction_auto', makeState(), dispatch)).toBe(false)
+    expect(showInterstitial('live_vote_auto', makeState(), dispatch)).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
   })
 
@@ -71,6 +72,25 @@ describe('adsService bridge guards', () => {
       })
     )
     expect(showRewardedBridge).toHaveBeenCalledWith('social_energy_recharge')
+  })
+
+  it('grants the centralized +6 social-energy reward after completion', () => {
+    const dispatch = vi.fn()
+    window.GameAds = {
+      showInterstitial: vi.fn(),
+      showRewarded: vi.fn(),
+    }
+    initAdBridge()
+
+    expect(showRewarded('social_energy_recharge', makeState(), dispatch, vi.fn())).toBe(true)
+    window.onAdRewardGranted?.('social_energy_recharge')
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'social/setEnergyBankEntry',
+        payload: expect.objectContaining({ value: 6 }),
+      })
+    )
   })
 
   it('removes the reward handler before invoking it so re-entrant callbacks cannot grant twice', () => {
@@ -132,20 +152,20 @@ describe('adsService bridge guards', () => {
       showRewarded: vi.fn(),
     }
 
-    expect(showInterstitial('eviction_auto', makeState(), dispatch)).toBe(false)
+    expect(showInterstitial('live_vote_auto', makeState(), dispatch)).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
   })
 })
 
 describe('canShowAd guard logic', () => {
   it('blocks automatic interstitials when the legacy No Ads Pack is owned', () => {
-    expect(canShowAd('eviction_auto', makeState({ hasNoAdsPack: true }))).toBe(false)
+    expect(canShowAd('live_vote_auto', makeState({ hasNoAdsPack: true }))).toBe(false)
   })
 
   it('blocks automatic interstitials for standalone No Ads owners', () => {
     expect(
       canShowAd(
-        'eviction_auto',
+        'live_vote_auto',
         makeState(undefined, {
           entitlements: {
             survivalMode: false,
@@ -163,12 +183,19 @@ describe('canShowAd guard logic', () => {
   })
 
   it('blocks automatic interstitials for VIP owners', () => {
-    expect(canShowAd('eviction_auto', makeState(undefined, { isActive: true }))).toBe(false)
+    expect(canShowAd('live_vote_auto', makeState(undefined, { isActive: true }))).toBe(false)
   })
 
-  it('does not block rewarded ads when No Ads Pack is owned', () => {
+  it('does not block voluntary rewarded ads when No Ads Pack is owned', () => {
     expect(canShowAd('social_energy_recharge', makeState({ hasNoAdsPack: true }))).toBe(true)
+    expect(canShowAd('public_meter_audience_insight', makeState({ hasNoAdsPack: true }))).toBe(true)
     expect(canShowAd('competition_retry', makeState({ hasNoAdsPack: true }))).toBe(true)
+  })
+
+  it('does not block voluntary rewarded ads for VIP owners', () => {
+    expect(
+      canShowAd('public_meter_audience_insight', makeState(undefined, { isActive: true }))
+    ).toBe(true)
   })
 
   it('blocks competition_retry during the final-3 week', () => {

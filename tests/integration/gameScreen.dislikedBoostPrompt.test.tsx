@@ -76,7 +76,7 @@ function renderWithStore(store: ReturnType<typeof makeStore>) {
   )
 }
 
-describe('GameScreen disliked approval prompt gating', () => {
+describe('GameScreen audience insight prompt gating', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.useFakeTimers()
@@ -89,35 +89,35 @@ describe('GameScreen disliked approval prompt gating', () => {
     localStorage.clear()
   })
 
-  it('shows the disliked approval prompt only once per day across GameScreen remounts', async () => {
+  it('shows the audience insight prompt only once per day across GameScreen remounts', async () => {
     const store = makeStore()
     const firstRender = renderWithStore(store)
 
     await act(async () => {})
 
-    expect(screen.getByRole('dialog', { name: /your approval is slipping/i })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: /audience focus group/i })).toBeTruthy()
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /no thanks/i }))
     })
 
-    expect(screen.queryByRole('dialog', { name: /your approval is slipping/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /audience focus group/i })).toBeNull()
 
     firstRender.unmount()
 
     renderWithStore(store)
     await act(async () => {})
 
-    expect(screen.queryByRole('dialog', { name: /your approval is slipping/i })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: /audience focus group/i })).toBeNull()
   })
 
-  it('allows the disliked approval prompt to show again on a later day', async () => {
+  it('allows the audience insight prompt to show again on a later day', async () => {
     const store = makeStore()
     const firstRender = renderWithStore(store)
 
     await act(async () => {})
 
-    expect(screen.getByRole('dialog', { name: /your approval is slipping/i })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: /audience focus group/i })).toBeTruthy()
 
     firstRender.unmount()
 
@@ -126,6 +126,6 @@ describe('GameScreen disliked approval prompt gating', () => {
     renderWithStore(store)
     await act(async () => {})
 
-    expect(screen.getByRole('dialog', { name: /your approval is slipping/i })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: /audience focus group/i })).toBeTruthy()
   })
 })

@@ -1995,9 +1995,9 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     renderTvZone(store, {
       externalAnnouncement: {
-        key: 'ad_break_eviction_auto',
+        key: 'ad_break_live_vote_auto',
         title: 'SHORT BREAK',
-        subtitle: "Don't change the channel a new Day is about to begin right after a short break.",
+        subtitle: 'The house is about to vote. The result unfolds right after this short break.',
         isLive: true,
         autoDismissMs: null,
       },
@@ -2005,7 +2005,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: SHORT BREAK/i })).toBeDefined()
-    expect(screen.getByText(/new Day is about to begin right after a short break/i)).toBeTruthy()
+    expect(screen.getByText(/house is about to vote/i)).toBeTruthy()
 
     act(() => {
       window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))

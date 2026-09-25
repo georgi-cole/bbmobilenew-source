@@ -48,7 +48,7 @@ window.GameAds?.showRewarded(placement)
 ```js
 // Called by the native wrapper when the user finishes a rewarded ad.
 // placement  — matches the placement string passed to showRewarded()
-// payload    — optional extra data (e.g. { percent: 7 } for disliked boost)
+// payload    — optional extra data supplied by the native bridge when a placement needs it
 window.onAdRewardGranted(placement, payload)
 ```
 
@@ -66,11 +66,15 @@ These fire without any user action.
 
 | Placement | Trigger |
 |---|---|
-| `eviction_auto` | After each eviction (phase → `eviction_results`) |
-| `pos_decision_auto` | Every other week (even week numbers) just before the POS holder announces (phase → `pos_ceremony_results`) |
-| `final_safety_decision_auto` | Before the Final-4 safety holder (POS winner) announces their decision (phase → `final4_eviction`) |
-| `final_loh_decision_auto` | Before the Final LOH (Final-3 Part-3 winner) announces their eviction (phase → `final3_decision`) |
-| `finale_recap_auto` | After the finale season recap cinematic completes (inside FinalFaceoff) |
+| `live_vote_auto` | Before each normal house vote when the game enters `live_vote` |
+| `safety_decision_auto` | Every second applicable Safety day, just before the POS decision presentation (`pos_ceremony_results`) |
+| `final3_part1_break` | After Final 3 Part 1, before Part 2 begins (`final3_comp2`) |
+| `final3_part2_break` | After Final 3 Part 2, before Part 3 begins (`final3_comp3`) |
+| `final3_part3_break` | After Final 3 Part 3, before the final decision/ceremony (`final3_decision`) |
+
+Every automatic placement is preceded by the in-game **SHORT BREAK** announcement. The game records a stable season/day/phase break key when the break is queued, so a reload or re-render cannot stack the same automatic commercial twice.
+
+Advertising V2 intentionally has **no post-eviction interstitial and no finale-recap interstitial**.
 
 ### Optional Rewarded Ads
 
@@ -81,7 +85,7 @@ These are opt-in; the user must tap "Watch Ad" to proceed.
 |---|---|---|---|
 | `competition_retry` | User finishes last in a LOH or POS competition (except during the Final-3 week) | Re-enter the competition (native wrapper controls re-entry UX) | No daily limit (suppressed automatically during Final-3 week) |
 | `social_energy_recharge` | User's social energy drops to 0 **and** week ≠ 1 **and** not Final-3 week **and** current phase is `social_1` or `social_2` | +6 social energy | Once per day |
-| `public_meter_disliked_boost` | User's public approval drops below 40% | Random +4% to +10% approval (native can pass `{ percent: N }` in the reward payload; otherwise a random value 4–10 is used) | Once per day |
+| `public_meter_audience_insight` | User's public approval is below 40% in Public Mode | One qualitative Focus Group insight drawn from the player's real audience-model history; **does not change approval** | Once per day |
 
 ---
 
@@ -89,9 +93,10 @@ These are opt-in; the user must tap "Watch Ad" to proceed.
 
 All ad requests pass through `canShowAd(placement, state, options)` in `adsService.ts`:
 
-1. **No Ads Pack** — if `state.ads.hasNoAdsPack === true` and the placement is an automatic interstitial, the call is a no-op.
+1. **No Ads / VIP** — effective No Ads ownership suppresses automatic interstitials but never voluntary rewarded placements.
 2. **Daily limit** — if `state.ads.dailyUsage[placement]` equals today's ISO date string (`YYYY-MM-DD`), the call is a no-op.
 3. **Final-3 week guard** — `competition_retry` is suppressed when `options.isFinal3Week === true` (≤ 3 players alive).
+4. **Automatic break ledger** — each phase-driven commercial beat has a stable key persisted in `ads.automaticBreaks`; once handled, the same beat is not queued again after reload/re-render.
 
 ### `social_energy_recharge` additional guards (enforced in GameScreen)
 
@@ -104,6 +109,20 @@ The `social_energy_recharge` prompt is only shown when **all** of the following 
 - Daily limit not already reached
 
 After passing guards, `recordAdShown(placement)` is dispatched to persist the daily-limit date.
+
+### `public_meter_audience_insight` behavior
+
+The old approval-boost reward has been removed. Watching this ad cannot add approval points. Instead the game chooses one useful qualitative signal from the player's actual Public Mode receipts, such as:
+
+- backlash for targeting an established favourite;
+- sympathy or underdog momentum after repeated targeting/survival;
+- visible romance or bromance response;
+- entertaining conflict versus excessive pile-on behavior;
+- social warmth or social misfires;
+- competition-performance perception;
+- loyalty, betrayal, or integrity concerns.
+
+If no recent receipt exists, the insight falls back to the weakest current audience dimension (Charisma, Game, or Integrity).
 
 ---
 
@@ -161,9 +180,9 @@ window.onAdRewardGranted('competition_retry');
 // social_energy_recharge — no extra payload needed (game adds +6 energy)
 window.onAdRewardGranted('social_energy_recharge');
 
-// public_meter_disliked_boost — optionally provide a percent value
-window.onAdRewardGranted('public_meter_disliked_boost', { percent: 7 });
-// If percent is not provided the game picks a random value 4–10.
+// public_meter_audience_insight — no payload needed.
+// The game selects one grounded Focus Group insight from current Public Mode data.
+window.onAdRewardGranted('public_meter_audience_insight');
 ```
 
 **Important:** only call `window.onAdRewardGranted` when the user actually *completed* the ad.  If they skip or the ad fails, do not call it — the game will not grant the reward.

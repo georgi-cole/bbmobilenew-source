@@ -32,7 +32,6 @@ import {
   type PendingChallenge,
 } from '../../store/challengeSlice'
 import { selectLastSocialReport } from '../../social/socialSlice'
-import { setEnergyBankEntry } from '../../social/socialSlice'
 import { useNavigate, useSearchParams } from 'react-router'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
 import {
@@ -88,12 +87,16 @@ import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/Public
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
-import { updateApproval } from '../../publicOpinion/publicOpinionSlice'
 import type { PlayerPublicProfile } from '../../publicOpinion/types'
 import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
-import { selectAdsState, clearLastCompLastPlace, recordAdShown } from '../../store/adsSlice'
+import {
+  selectAdsState,
+  clearLastCompLastPlace,
+  recordAdShown,
+  recordAutomaticBreakHandled,
+} from '../../store/adsSlice'
 import AdPrompt from '../../components/AdPrompt/AdPrompt'
 import type { Announcement } from '../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
 import {
@@ -107,11 +110,13 @@ import {
   canShowAd,
   type AdPlacement,
 } from '../../services/ads/adsService'
+import { getAutomaticAdBreak } from '../../services/ads/adPolicy'
 import {
-  DISLIKED_BOOST_PROMPT_DESCRIPTION,
+  AUDIENCE_INSIGHT_PROMPT_DESCRIPTION,
   DISLIKED_MAX_APPROVAL,
-  shouldShowDislikedBoostPrompt,
-} from './dislikedBoostPrompt'
+  buildAudienceInsight,
+  shouldShowAudienceInsightPrompt,
+} from './audienceInsight'
 import { usePersistedPromptDate } from './gameScreenPersistence'
 import { requestFavoriteAudienceSurge } from './favoriteAudienceSurgeRequest'
 import { useResponsiveGameLayout } from './useResponsiveGameLayout'
@@ -247,7 +252,7 @@ export default function GameScreen() {
 
   // ── Ad prompt visibility state ─────────────────────────────────────────
   const [showEnergyRechargePrompt, setShowEnergyRechargePrompt] = useState(false)
-  const [showDislikedBoostPrompt, setShowDislikedBoostPrompt] = useState(false)
+  const [showAudienceInsightPrompt, setShowAudienceInsightPrompt] = useState(false)
   const [showVoxNominationRevealPrompt, setShowVoxNominationRevealPrompt] = useState(false)
   const [showVoxAudiencePreviewPrompt, setShowVoxAudiencePreviewPrompt] = useState(false)
   const [showVoxAudiencePreviewReveal, setShowVoxAudiencePreviewReveal] = useState(false)
@@ -256,6 +261,8 @@ export default function GameScreen() {
   // Tracks whether a rewarded ad request has been sent (prevents double-tap).
   const [adPending, setAdPending] = useState(false)
   const [preAdAnnouncement, setPreAdAnnouncement] = useState<Announcement | null>(null)
+  const [audienceInsightAnnouncement, setAudienceInsightAnnouncement] =
+    useState<Announcement | null>(null)
   const [socialModuleUnavailableAnnouncement, setSocialModuleUnavailableAnnouncement] =
     useState<Announcement | null>(null)
   useEffect(() => {
@@ -1023,8 +1030,8 @@ export default function GameScreen() {
     const state = store.getState()
     return canShowAd('competition_retry', state, { isFinal3Week })
   }, [pendingChallenge, game.phase, isFinal3Week, store])
-  const [lastDislikedPromptDate, setLastDislikedPromptDate] = usePersistedPromptDate(
-    'public_meter_disliked_boost'
+  const [lastAudienceInsightPromptDate, setLastAudienceInsightPromptDate] = usePersistedPromptDate(
+    'public_meter_audience_insight'
   )
   useEffect(() => {
     if (!adsState?.lastCompLastPlaceType) return
@@ -1038,18 +1045,25 @@ export default function GameScreen() {
   }, [adsState?.lastCompLastPlaceType, game.phase, isFinal3Week, dispatch])
 
   // ── Ad hook: automatic interstitials (phase-based) ────────────────────────
-  // Each useEffect fires once per phase transition to the relevant phase.
+  // Advertising V2 centralizes the cadence by game-phase transition. The
+  // persistent break key prevents the same beat from stacking after a reload.
   const prevPhaseRef = useRef<string>('')
-  const queuePreAdAnnouncement = useCallback((placement: AdPlacement, subtitle: string) => {
-    pendingPreAdPlacementRef.current = placement
-    setPreAdAnnouncement({
-      key: `ad_break_${placement}`,
-      title: 'SHORT BREAK',
-      subtitle,
-      isLive: true,
-      autoDismissMs: 3200,
-    })
-  }, [])
+  const queuePreAdAnnouncement = useCallback(
+    (placement: AdPlacement, breakKey: string, subtitle: string) => {
+      if (pendingPreAdPlacementRef.current) return false
+      pendingPreAdPlacementRef.current = placement
+      dispatch(recordAutomaticBreakHandled(breakKey))
+      setPreAdAnnouncement({
+        key: `ad_break_${placement}`,
+        title: 'SHORT BREAK',
+        subtitle,
+        isLive: true,
+        autoDismissMs: 3200,
+      })
+      return true
+    },
+    [dispatch]
+  )
   const handlePreAdAnnouncementDismiss = useCallback(() => {
     const placement = pendingPreAdPlacementRef.current
     pendingPreAdPlacementRef.current = null
@@ -1061,35 +1075,46 @@ export default function GameScreen() {
 
   /* eslint-disable react-hooks/set-state-in-effect -- Preserve established synchronous ad-prompt timing during the orchestration extraction. */
   useEffect(() => {
-    const prevPhase = prevPhaseRef.current
+    const previousPhase = prevPhaseRef.current
     const currentPhase = game.phase
-    if (currentPhase === prevPhase) return
+    if (currentPhase === previousPhase) return
     prevPhaseRef.current = currentPhase
 
+    const posHolderName =
+      game.players.find((player) => player.id === game.posWinnerId)?.name ?? null
+    const automaticBreak = getAutomaticAdBreak({
+      gameId: game.gameId ?? `season-${game.season}-${game.seed}`,
+      week: game.week,
+      previousPhase,
+      currentPhase,
+      mode: game.mode ?? 'classic',
+      voxPopuliActive: game.voxPopuli?.status === 'active',
+      posHolderName,
+    })
+    if (!automaticBreak) return
+
     const state = storeRef.current.getState()
+    if (state.ads?.automaticBreaks?.[automaticBreak.breakKey]) return
+    if (!canShowAd(automaticBreak.placement, state)) return
+    if (!window.GameAds?.showInterstitial) return
 
-    // pos_decision_auto — every other week just before POS holder announces
-    // week is 1-indexed; even weeks = weeks 2, 4, 6, ...
-    if (
-      currentPhase === 'pos_ceremony_results' &&
-      game.week % 2 === 0 &&
-      canShowAd('pos_decision_auto', state) &&
-      window.GameAds?.showInterstitial
-    ) {
-      const posHolderName =
-        game.players.find((player) => player.id === game.posWinnerId)?.name ??
-        'the Power of Safety holder'
-      queuePreAdAnnouncement(
-        'pos_decision_auto',
-        `Is ${posHolderName} going to use the Power of safety to change the course of the game? Find out right after this short break!`
-      )
-      return
-    }
-
-    // The decisive sequence is uninterrupted.  Ads can still appear at the
-    // ordinary eviction/POS placements, but never between Final Three results,
-    // the final safety decision, or the final LOH decision.
-  }, [game.phase, game.week, game.players, game.posWinnerId, dispatch, queuePreAdAnnouncement])
+    queuePreAdAnnouncement(
+      automaticBreak.placement,
+      automaticBreak.breakKey,
+      automaticBreak.subtitle
+    )
+  }, [
+    game.gameId,
+    game.mode,
+    game.phase,
+    game.players,
+    game.posWinnerId,
+    game.season,
+    game.seed,
+    game.voxPopuli?.status,
+    game.week,
+    queuePreAdAnnouncement,
+  ])
 
   // ── Ad hook: social_energy_recharge ──────────────────────────────────────
   // Show a rewarded prompt when the user's social energy hits 0 (once per day).
@@ -1148,42 +1173,39 @@ export default function GameScreen() {
     isFinal3Week,
   ])
 
-  // ── Ad hook: public_meter_disliked_boost ──────────────────────────────────
-  // Show a rewarded prompt when the user's approval drops below 40%
-  // (disliked or worse), at most once per day.
-  const userApproval = useAppSelector((s: RootState) =>
-    humanPlayer ? (s.publicOpinion?.profiles?.[humanPlayer.id]?.approval ?? 100) : 100
+  // ── Ad hook: public_meter_audience_insight ────────────────────────────────
+  // When approval is disliked or worse, offer one real audience-model insight
+  // at most once per day. The reward explains the model; it never changes approval.
+  const userApproval = useAppSelector((state: RootState) =>
+    humanPlayer ? (state.publicOpinion?.profiles?.[humanPlayer.id]?.approval ?? 100) : 100
   )
   useEffect(() => {
     if (!humanPlayer || game.mode === 'survival' || game.publicModeEnabled !== true) {
-      setShowDislikedBoostPrompt(false)
+      setShowAudienceInsightPrompt(false)
       return
     }
     const todayIsoDate = new Date().toISOString().slice(0, 10)
     if (
       !humanPlayerEliminated &&
-      shouldShowDislikedBoostPrompt(userApproval, lastDislikedPromptDate, todayIsoDate)
+      shouldShowAudienceInsightPrompt(userApproval, lastAudienceInsightPromptDate, todayIsoDate)
     ) {
       const state = storeRef.current.getState()
-      if (canShowAd('public_meter_disliked_boost', state)) {
-        setLastDislikedPromptDate(todayIsoDate)
-        setShowDislikedBoostPrompt(true)
+      if (canShowAd('public_meter_audience_insight', state)) {
+        setLastAudienceInsightPromptDate(todayIsoDate)
+        setShowAudienceInsightPrompt(true)
       }
     }
-    // Auto-dismiss if approval recovered above disliked threshold.
-    // Keep the last shown date so the prompt does not reappear again the same day
-    // if approval dips back into the disliked band.
     if (userApproval > DISLIKED_MAX_APPROVAL) {
-      setShowDislikedBoostPrompt(false)
+      setShowAudienceInsightPrompt(false)
     }
   }, [
-    adsState?.dailyUsage?.public_meter_disliked_boost,
+    adsState?.dailyUsage?.public_meter_audience_insight,
     humanPlayer,
     humanPlayerEliminated,
     game.mode,
     game.publicModeEnabled,
-    lastDislikedPromptDate,
-    setLastDislikedPromptDate,
+    lastAudienceInsightPromptDate,
+    setLastAudienceInsightPromptDate,
     userApproval,
   ])
 
@@ -1355,7 +1377,8 @@ export default function GameScreen() {
       presentation: {
         blocksControls: [
           showEnergyRechargePrompt,
-          showDislikedBoostPrompt,
+          showAudienceInsightPrompt,
+          audienceInsightAnnouncement !== null,
           preAdAnnouncement !== null,
           socialModuleUnavailableAnnouncement !== null,
           socialSummaryOpen,
@@ -1444,11 +1467,17 @@ export default function GameScreen() {
             onPublicSaveDone={handlePublicSaveDone}
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
-            externalAnnouncement={socialModuleUnavailableAnnouncement ?? preAdAnnouncement}
+            externalAnnouncement={
+              socialModuleUnavailableAnnouncement ??
+              audienceInsightAnnouncement ??
+              preAdAnnouncement
+            }
             onExternalAnnouncementDismiss={
               socialModuleUnavailableAnnouncement
                 ? () => setSocialModuleUnavailableAnnouncement(null)
-                : handlePreAdAnnouncementDismiss
+                : audienceInsightAnnouncement
+                  ? () => setAudienceInsightAnnouncement(null)
+                  : handlePreAdAnnouncementDismiss
             }
             mainLogMaxVisible={gameTvLogRows}
             houseFeedEnabled={settings.gameUX.houseFeed}
@@ -1473,11 +1502,17 @@ export default function GameScreen() {
             }}
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
-            externalAnnouncement={socialModuleUnavailableAnnouncement ?? preAdAnnouncement}
+            externalAnnouncement={
+              socialModuleUnavailableAnnouncement ??
+              audienceInsightAnnouncement ??
+              preAdAnnouncement
+            }
             onExternalAnnouncementDismiss={
               socialModuleUnavailableAnnouncement
                 ? () => setSocialModuleUnavailableAnnouncement(null)
-                : handlePreAdAnnouncementDismiss
+                : audienceInsightAnnouncement
+                  ? () => setAudienceInsightAnnouncement(null)
+                  : handlePreAdAnnouncementDismiss
             }
             mainLogMaxVisible={gameTvLogRows}
             houseFeedEnabled={settings.gameUX.houseFeed}
@@ -1505,11 +1540,17 @@ export default function GameScreen() {
             }}
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
-            externalAnnouncement={socialModuleUnavailableAnnouncement ?? preAdAnnouncement}
+            externalAnnouncement={
+              socialModuleUnavailableAnnouncement ??
+              audienceInsightAnnouncement ??
+              preAdAnnouncement
+            }
             onExternalAnnouncementDismiss={
               socialModuleUnavailableAnnouncement
                 ? () => setSocialModuleUnavailableAnnouncement(null)
-                : handlePreAdAnnouncementDismiss
+                : audienceInsightAnnouncement
+                  ? () => setAudienceInsightAnnouncement(null)
+                  : handlePreAdAnnouncementDismiss
             }
             mainLogMaxVisible={gameTvLogRows}
             houseFeedEnabled={settings.gameUX.houseFeed}
@@ -1538,6 +1579,7 @@ export default function GameScreen() {
               aiTiebreakAnnouncement ??
               postVoteAnnouncement ??
               publicSaveResultAnnouncement ??
+              audienceInsightAnnouncement ??
               preAdAnnouncement
             }
             onExternalAnnouncementDismiss={
@@ -1551,7 +1593,9 @@ export default function GameScreen() {
                       ? handlePostVoteAnnouncementDismiss
                       : publicSaveResultAnnouncement
                         ? handlePublicSaveResultDismiss
-                        : handlePreAdAnnouncementDismiss
+                        : audienceInsightAnnouncement
+                          ? () => setAudienceInsightAnnouncement(null)
+                          : handlePreAdAnnouncementDismiss
             }
             mainLogMaxVisible={gameTvLogRows}
             houseFeedEnabled={settings.gameUX.houseFeed}
@@ -2514,15 +2558,13 @@ export default function GameScreen() {
           <AdPrompt
             icon="⚡"
             title="Out of Energy!"
-            description="Watch a short ad to recharge +3 social energy and keep playing."
-            watchLabel="Watch Ad for +3 Energy"
+            description="Watch a short ad to recharge +6 social energy and keep playing."
+            watchLabel="Watch Ad for +6 Energy"
             onWatch={() => {
               if (adPending) return
               setAdPending(true)
               const state = storeRef.current.getState()
               const requested = showRewarded('social_energy_recharge', state, dispatch, () => {
-                // Reward: +3 social energy
-                dispatch(setEnergyBankEntry({ playerId: humanPlayer.id, value: 3 }))
                 setShowEnergyRechargePrompt(false)
                 setAdPending(false)
               })
@@ -2535,37 +2577,42 @@ export default function GameScreen() {
           />
         )}
 
-        {/* public_meter_disliked_boost: rewarded prompt when approval drops to Disliked */}
-        {!deferConditionPromptsForPresentation && showDislikedBoostPrompt && humanPlayer && (
+        {/* public_meter_audience_insight: insight only; never changes approval */}
+        {!deferConditionPromptsForPresentation && showAudienceInsightPrompt && humanPlayer && (
           <AdPrompt
             icon="📊"
-            title="Your Approval Is Slipping"
-            description={DISLIKED_BOOST_PROMPT_DESCRIPTION}
-            watchLabel="Watch Ad for Approval Boost"
+            title="Audience Focus Group"
+            description={AUDIENCE_INSIGHT_PROMPT_DESCRIPTION}
+            watchLabel="Watch Ad for Audience Insight"
             onWatch={() => {
               if (adPending) return
               setAdPending(true)
               const state = storeRef.current.getState()
               const requested = showRewarded(
-                'public_meter_disliked_boost',
+                'public_meter_audience_insight',
                 state,
                 dispatch,
-                (payload) => {
-                  // Reward: +4 to +10% approval (random, or native-provided)
-                  const boostPct =
-                    typeof payload?.percent === 'number'
-                      ? Math.round(payload.percent)
-                      : 4 + Math.floor(Math.random() * 7) // 4–10
-                  dispatch(
-                    updateApproval({
-                      playerId: humanPlayer.id,
-                      delta: boostPct,
-                      reason: 'Ad boost — disliked recovery',
-                      week: game.week,
-                      eventType: 'ad_boost',
+                () => {
+                  const latestState = storeRef.current.getState()
+                  const profile = latestState.publicOpinion?.profiles?.[humanPlayer.id]
+                  if (profile) {
+                    const playerNames = Object.fromEntries(
+                      latestState.game.players.map((player) => [player.id, player.name])
+                    )
+                    setAudienceInsightAnnouncement({
+                      key: `audience_focus_group_${game.week}_${Date.now()}`,
+                      title: 'FOCUS GROUP',
+                      subtitle: buildAudienceInsight({
+                        profile,
+                        feed: latestState.publicOpinion?.feed ?? [],
+                        playerId: humanPlayer.id,
+                        playerNames,
+                      }),
+                      isLive: false,
+                      autoDismissMs: 6500,
                     })
-                  )
-                  setShowDislikedBoostPrompt(false)
+                  }
+                  setShowAudienceInsightPrompt(false)
                   setAdPending(false)
                 }
               )
@@ -2573,7 +2620,7 @@ export default function GameScreen() {
                 setAdPending(false)
               }
             }}
-            onSkip={() => setShowDislikedBoostPrompt(false)}
+            onSkip={() => setShowAudienceInsightPrompt(false)}
             pending={adPending}
           />
         )}
