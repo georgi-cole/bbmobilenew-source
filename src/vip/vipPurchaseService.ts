@@ -44,8 +44,9 @@ function toStoreProduct(
   return {
     key: definition.key,
     productId,
-    title: product.title || definition.title,
-    description: product.description || definition.description,
+    title: definition.key === 'vip' ? definition.title : product.title || definition.title,
+    description:
+      definition.key === 'vip' ? definition.description : product.description || definition.description,
     price: product.priceString,
   }
 }
