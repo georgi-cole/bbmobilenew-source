@@ -475,9 +475,10 @@ describe('release readiness metadata', () => {
       'dramaMode',
       'cupidArrow',
       'voxPopuli',
+      'noAds',
     ])
     expect(VIP_BENEFITS).not.toContain('Tribunal Mode when released')
-    expect(VIP_BENEFITS).not.toContain('Ad-free play')
+    expect(VIP_BENEFITS).toContain('No automatic ads')
   })
 
   it('does not keep the broken auth-error skin placeholders in public assets', () => {
