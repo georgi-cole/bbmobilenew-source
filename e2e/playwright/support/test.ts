@@ -255,8 +255,12 @@ export async function closeDebugPanelIfOpen(page: Page): Promise<void> {
   const toggle = page.getByRole('button', { name: 'Toggle Debug Panel' })
   await expect(toggle).toBeVisible({ timeout: 10_000 })
 
-  const panel = page.getByRole('complementary', { name: 'Debug Panel' })
-  if (!(await panel.isVisible())) return
+  // This panel is optional. On mobile WebKit, resolving an absent complementary
+  // role through the accessibility tree can occasionally stall until the test
+  // timeout. A direct DOM locator makes the absence check immediate while the
+  // close action still uses the accessible button name when the panel exists.
+  const panel = page.locator('aside.dbg-panel[aria-label="Debug Panel"]')
+  if ((await panel.count()) === 0) return
 
   await panel
     .getByRole('button', { name: 'Close Debug Panel' })
