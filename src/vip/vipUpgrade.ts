@@ -172,7 +172,7 @@ export function getVipBillingProductId(entitlements: Partial<StoreEntitlements>)
 
 export function isVipBillingProductId(productId: string): boolean {
   return (
-    productId === VIP_PRODUCT_ID ||
-    VIP_UPGRADE_TIERS.some((tier) => tier.productId === productId)
+    productId === VIP_PRODUCT_ID || VIP_UPGRADE_TIERS.some((tier) => tier.productId === productId)
   )
 }
+
