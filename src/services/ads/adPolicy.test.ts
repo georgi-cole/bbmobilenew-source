@@ -47,14 +47,12 @@ describe('Advertising V2 automatic cadence', () => {
 
   it('places one break after each Final 3 competition beat', () => {
     expect(
-      getAutomaticAdBreak(
-        context({ previousPhase: 'final3_comp1', currentPhase: 'final3_comp2' })
-      )?.placement
+      getAutomaticAdBreak(context({ previousPhase: 'final3_comp1', currentPhase: 'final3_comp2' }))
+        ?.placement
     ).toBe('final3_part1_break')
     expect(
-      getAutomaticAdBreak(
-        context({ previousPhase: 'final3_comp2', currentPhase: 'final3_comp3' })
-      )?.placement
+      getAutomaticAdBreak(context({ previousPhase: 'final3_comp2', currentPhase: 'final3_comp3' }))
+        ?.placement
     ).toBe('final3_part2_break')
     expect(
       getAutomaticAdBreak(
