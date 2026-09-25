@@ -37,7 +37,7 @@ jobs:
           android=false
           ios=false
 
-          if grep -Eq '^(src/|public/|scripts/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
+          if grep -Eq '^(src/|public/|index\.html$|package(-lock)?\.json$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|capacitor\.config\.[^/]+$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest|native-brand-assets)\.(mjs|py)|check-production-debug-globals\.mjs|validate-after-the-eye-config\.mjs)$|\.github/workflows/ci\.yml$)' <<< "$changed_files"; then
             runtime=true
           fi
 
@@ -45,11 +45,11 @@ jobs:
             dependencies=true
           fi
 
-          if grep -Eq '^(android/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/)' <<< "$changed_files"; then
+          if grep -Eq '^(android/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/(generate-native-brand-assets\.py|validate-store-release-env\.mjs)$)' <<< "$changed_files"; then
             android=true
           fi
 
-          if grep -Eq '^(ios/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/)' <<< "$changed_files"; then
+          if grep -Eq '^(ios/|package(-lock)?\.json$|capacitor\.config\.[^/]+$|scripts/(build-ios-dev\.mjs|generate-native-brand-assets\.py|normalize-capacitor-swift-path\.mjs|validate-store-release-env\.mjs)$)' <<< "$changed_files"; then
             ios=true
           fi
 
