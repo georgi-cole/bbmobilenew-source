@@ -76,14 +76,18 @@ export const PREMIUM_CHALLENGES_PRODUCT_ID =
   import.meta.env.VITE_PREMIUM_CHALLENGES_PRODUCT_ID?.trim() ||
   'com.georgicole.thebigeye.premiumchallenges'
 
+export const VIP_UPGRADE_CREDIT_NOTE =
+  '75% of this purchase counts toward a future VIP upgrade. The final upgrade price is rounded to the nearest supported store tier.'
+
 export const VIP_BENEFITS = [
   'Public Mode controls',
   'Surveyeval Mode',
   'Reality Mode',
   "Cupid's Arrow expansion",
   'Vox Populi expansion',
-  'VIP themes',
   'Premium Challenges remasters',
+  'No automatic ads',
+  'VIP themes',
 ] as const
 
 export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
@@ -130,6 +134,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     category: 'game-mode',
     badge: '2 VIP games',
     accessInstructions: 'The remastered games launch automatically in competitions.',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -155,6 +160,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     accessInstructions: 'Choose Surveyeval from the Home screen.',
     accessRoute: '/',
     accessLabel: 'Go to Home',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -180,6 +186,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     accessInstructions: 'Turn Public Mode on or off in Settings before starting a season.',
     accessRoute: '/settings',
     accessLabel: 'Open Settings',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -231,6 +238,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     accessInstructions: 'Choose how real you want the season to feel in Settings.',
     accessRoute: '/settings',
     accessLabel: 'Open Settings',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -257,6 +265,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
       "Cupid's Arrow enters eligible new seasons automatically once the expansion is active.",
     accessRoute: '/',
     accessLabel: 'Go to Home',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -283,6 +292,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
       'Vox Populi enters eligible new seasons automatically once the expansion is active.',
     accessRoute: '/',
     accessLabel: 'Go to Home',
+    legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
   {
@@ -306,7 +316,9 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     badge: 'Permanent unlock',
     accessInstructions:
       'No setup is needed. Automatic ads are removed as soon as this unlock is active.',
-    availableInRelease: false,
+    legalNote:
+      'Optional rewarded opportunities remain available by choice. ' + VIP_UPGRADE_CREDIT_NOTE,
+    availableInRelease: true,
   },
 ]
 
@@ -326,6 +338,11 @@ export const GAME_MODE_PRODUCT_KEYS = [
 export const EXPANSION_PRODUCT_KEYS = [
   'publicMode',
   'dramaMode',
+] as const satisfies readonly StoreEntitlementKey[]
+
+export const UTILITY_PRODUCT_KEYS = [
+  'premiumChallenges',
+  'noAds',
 ] as const satisfies readonly StoreEntitlementKey[]
 
 export function getStoreProductDefinition(key: StoreProductKey): StoreProductDefinition {
