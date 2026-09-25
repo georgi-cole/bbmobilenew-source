@@ -139,7 +139,9 @@ describe('MinigameHost competition retry', () => {
     exitMinigame()
 
     expect(
-      screen.getByText('Watch a short ad to retry before this result is locked in.')
+      screen.getByText(
+        'Watch a short ad to restart this competition. Reverse Time is available once per competition.'
+      )
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'See full ranking' })).toBeNull()
 
@@ -149,6 +151,71 @@ describe('MinigameHost competition retry', () => {
     expect(screen.getByRole('button', { name: 'Open minigame menu' })).toBeInTheDocument()
     expect(screen.queryByText('🚪 Exited Early')).toBeNull()
     expect(onContinueWithoutRetry).not.toHaveBeenCalled()
+  })
+
+  it('locks a second deliberate exit after Reverse Time has been consumed', () => {
+    const onDone = vi.fn()
+
+    render(
+      <MinigameHost
+        game={baseGame}
+        onDone={onDone}
+        skipRules
+        skipCountdown
+        participants={makeParticipants(0, 50)}
+        competitionRetry={{
+          enabled: true,
+          onWatch: (onReward) => onReward(),
+        }}
+      />
+    )
+
+    act(() => {
+      vi.runAllTimers()
+    })
+
+    exitMinigame()
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse time' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open minigame menu' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /Leave competition/i }))
+
+    expect(screen.getByText(/Reverse Time has already been used/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Leave — Lock Last Place' }))
+
+    expect(screen.queryByRole('button', { name: 'Reverse time' })).toBeNull()
+    expect(screen.getByText('Result locked')).toBeInTheDocument()
+    expect(screen.getByText(/placement is locked to last/i)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue ▶' }))
+    expect(onDone).toHaveBeenCalledWith(0, true)
+  })
+
+  it('does not offer Reverse Time again for an organically last second attempt', () => {
+    render(
+      <MinigameHost
+        game={baseGame}
+        onDone={vi.fn()}
+        skipRules
+        skipCountdown
+        participants={makeParticipants(0, 50)}
+        competitionRetry={{
+          enabled: true,
+          used: true,
+          onWatch: vi.fn(),
+        }}
+      />
+    )
+
+    act(() => {
+      vi.runAllTimers()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finish Test Game' }))
+
+    expect(screen.queryByRole('button', { name: 'Reverse time' })).toBeNull()
+    expect(screen.queryByText('Alternative universe')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Continue ▶' })).toBeInTheDocument()
   })
 
   it('does not offer retry when the human did not finish last', () => {

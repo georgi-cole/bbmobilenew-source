@@ -27,6 +27,7 @@ import {
 } from '../../store/gameSlice'
 import {
   completeChallenge,
+  markPendingChallengeReverseTimeUsed,
   setPendingMusicVariant,
   setPendingPhase,
   type PendingChallenge,
@@ -1994,17 +1995,28 @@ export default function GameScreen() {
             onMusicVariantChange={handleMinigameMusicVariantChange}
             competitionRetry={{
               enabled: competitionRetryInResultsEnabled,
+              used: pendingChallenge.reverseTimeUsed === true,
               pending: adPending,
               onWatch: (onReward) => {
-                if (adPending) return
+                if (adPending || pendingChallenge.reverseTimeUsed === true) return
                 setAdPending(true)
-                const state = storeRef.current.getState()
-                // The browser/dev build has no native rewarded-ad bridge yet.
-                // Keep the retry usable now; the native path below will gate the
-                // same reward behind a completed ad once the bridge is connected.
-                if (!window.GameAds?.showRewarded) {
+                const challengeId = pendingChallenge.id
+                const consumeReverseTime = () => {
+                  const livePending = storeRef.current.getState().challenge.pending
+                  if (livePending?.id !== challengeId || livePending.reverseTimeUsed === true) {
+                    setAdPending(false)
+                    return
+                  }
+                  dispatch(markPendingChallengeReverseTimeUsed(challengeId))
                   onReward()
                   setAdPending(false)
+                }
+                const state = storeRef.current.getState()
+                // The browser/dev build has no native rewarded-ad bridge yet.
+                // Keep the retry usable now; native builds grant the same one-shot
+                // rewind only after the rewarded ad completes.
+                if (!window.GameAds?.showRewarded) {
+                  consumeReverseTime()
                   return
                 }
                 const requested = showRewarded(
@@ -2013,10 +2025,11 @@ export default function GameScreen() {
                   dispatch,
                   () => {
                     if (import.meta.env.DEV) {
-                      console.log('[ads] competition_retry reward granted in minigame results')
+                      console.log('[ads] competition_retry reward granted in minigame results', {
+                        challengeId,
+                      })
                     }
-                    onReward()
-                    setAdPending(false)
+                    consumeReverseTime()
                   },
                   { isFinal3Week }
                 )

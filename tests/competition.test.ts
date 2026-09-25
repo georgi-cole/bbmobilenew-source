@@ -252,6 +252,34 @@ describe('completeChallenge — positive-score winner preference', () => {
     expect(['p0', 'p1', 'p2']).toContain(winnerId);
   });
 
+  it('never lets an authoritative last-place player win, even with the best raw score', () => {
+    const players = makePlayers(3);
+    const store = makeStore({ players, phase: 'loh_comp' });
+
+    store.dispatch(
+      startChallenge(77, ['p0', 'p1', 'p2'], { forceGameKey: 'quickTap' }),
+    );
+
+    const winnerId = store.dispatch(
+      completeChallenge(
+        [
+          { playerId: 'p0', rawValue: 999 },
+          { playerId: 'p1', rawValue: 80 },
+          { playerId: 'p2', rawValue: 40 },
+        ],
+        {
+          authoritativeLastPlaceId: 'p0',
+          partial: true,
+        },
+      ),
+    );
+
+    expect(winnerId).toBe('p1');
+    expect(store.getState().challenge.history[0]?.ranking.at(-1)).toBe('p0');
+    expect(store.getState().challenge.history[0]?.winnerId).not.toBe('p0');
+    expect(store.getState().challenge.history[0]?.partial).toBe(true);
+  });
+
   it('uses an authoritative winner override when a React minigame reports one', () => {
     const players = makePlayers(3);
     const store = makeStore({ players, phase: 'loh_comp' });

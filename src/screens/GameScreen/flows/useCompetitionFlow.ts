@@ -273,6 +273,10 @@ export function useCompetitionFlow({
       const explicitWinnerId = pressurePlankRanking?.[0]?.playerId ?? reportedWinnerId
       const explicitLastPlaceId =
         pressurePlankRanking?.[pressurePlankRanking.length - 1]?.playerId ?? reportedLastPlaceId
+      const forcedQuitLastPlaceId =
+        partial && humanPlayer?.id && capturedParticipants.includes(humanPlayer.id)
+          ? humanPlayer.id
+          : null
       // An abandoned placement competition has no component-owned completion
       // payload because the game was unmounted. The pre-ranked partial results
       // are authoritative for that exit: the human is last and the best
@@ -301,6 +305,7 @@ export function useCompetitionFlow({
       const scoreWinnerId = dispatch(
         completeChallenge(rawResults, {
           authoritativeWinnerId: scheduledWinnerId ?? authoritativeWinnerId,
+          authoritativeLastPlaceId: forcedQuitLastPlaceId,
           partial: partial === true,
         })
       ) as string | null
@@ -385,13 +390,19 @@ export function useCompetitionFlow({
           ? featureAppliedWinner
           : (scoreWinnerId ?? capturedParticipants[0]))
 
-      const missionRanked =
+      const computedMissionRanked =
         pressurePlankRanking ??
         computeScores(
           pendingChallenge.game.scoringAdapter,
           rawResults,
           pendingChallenge.game.scoringParams ?? {}
         )
+      const missionRanked = forcedQuitLastPlaceId
+        ? [
+            ...computedMissionRanked.filter((result) => result.playerId !== forcedQuitLastPlaceId),
+            ...computedMissionRanked.filter((result) => result.playerId === forcedQuitLastPlaceId),
+          ]
+        : computedMissionRanked
       const missionScores = Object.fromEntries(
         missionRanked.map((result) => [
           result.playerId,
@@ -435,15 +446,15 @@ export function useCompetitionFlow({
       // the feature thunk has already called applyMinigameWinner with its own lastPlaceId,
       // so the idempotency guard will skip this call.
       const compLastPlaceId = (() => {
-        if (partial && humanPlayer?.id && capturedParticipants.includes(humanPlayer.id)) {
+        if (forcedQuitLastPlaceId) {
           if (import.meta.env.DEV) {
             console.log('[ads] competition_retry last place forced to human due to early exit', {
-              humanId: humanPlayer.id,
+              humanId: forcedQuitLastPlaceId,
               capturedGameKey,
               capturedPrizeType,
             })
           }
-          return humanPlayer.id
+          return forcedQuitLastPlaceId
         }
         if (explicitLastPlaceId) return explicitLastPlaceId
         // ranked is sorted best → worst (highest canonical score first).

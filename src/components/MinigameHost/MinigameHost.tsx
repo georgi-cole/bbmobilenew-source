@@ -108,6 +108,8 @@ interface Props {
   participants?: MinigameParticipant[]
   competitionRetry?: {
     enabled: boolean
+    /** True once this competition instance has consumed its one Reverse Time. */
+    used?: boolean
     pending?: boolean
     onWatch: (onReward: () => void) => void
     onContinueWithoutRetry?: () => void
@@ -193,6 +195,10 @@ export default function MinigameHost({
 
   const rankingOnly = isPlacementRankingGame(launchedGame)
   const competitionRetryEnabled = competitionRetry?.enabled ?? false
+  const reverseTimeUsed = competitionRetry?.used === true
+  // attempt > 0 is an immediate in-host latch; the persisted prop keeps the
+  // one-shot rule intact across reload/resume.
+  const reverseTimeConsumed = reverseTimeUsed || attempt > 0
   const rulesGame = useMemo(
     () =>
       (() => {
@@ -437,10 +443,12 @@ export default function MinigameHost({
   ])
 
   const humanLastPlaceEntry = leaderboard?.[leaderboard.length - 1] ?? null
-  const showCompetitionRetry = competitionRetryEnabled && !!humanLastPlaceEntry?.isHuman
+  const humanFinishedLast = !!humanLastPlaceEntry?.isHuman
+  const showCompetitionRetry = competitionRetryEnabled && !reverseTimeConsumed && humanFinishedLast
   const activeCompetitionRetry = showCompetitionRetry && competitionRetry ? competitionRetry : null
   const showOrganicLastPlace = showCompetitionRetry && !wasPartial
-  const showTimeMachineResults = wasPartial || showOrganicLastPlace
+  const showTimeMachineResults = showCompetitionRetry && (wasPartial || showOrganicLastPlace)
+  const showLockedExitResult = reverseTimeConsumed && wasPartial
 
   const handleRetryRestart = useCallback(() => {
     // A retry is a fresh run of the same selected game. Reset both the host's
@@ -959,8 +967,9 @@ export default function MinigameHost({
               <p className="minigame-exit-confirm__eyebrow">Emergency exit</p>
               <h2 className="minigame-exit-confirm__title">Leave this competition?</h2>
               <p className="minigame-exit-confirm__copy">
-                Your score will be recorded as 0. The remaining results will be simulated so the
-                season can continue and a winner can still be selected.
+                {reverseTimeConsumed
+                  ? 'Reverse Time has already been used for this competition. Leaving now will lock you into last place with a score of 0.'
+                  : 'Your score will be recorded as 0. If that puts you last, you may use your one Reverse Time for this competition before the result is locked.'}
               </p>
               <div className="minigame-exit-confirm__actions">
                 <button
@@ -976,7 +985,7 @@ export default function MinigameHost({
                   className="minigame-exit-confirm__button minigame-exit-confirm__button--exit"
                   onClick={handleConfirmEarlyExit}
                 >
-                  Exit with 0
+                  {reverseTimeConsumed ? 'Leave — Lock Last Place' : 'Exit with 0'}
                 </button>
               </div>
             </div>
@@ -1010,12 +1019,24 @@ export default function MinigameHost({
             </p>
           )}
           <h2 className="minigame-host-results-title">
-            {showOrganicLastPlace ? 'Is this real?' : wasPartial ? 'Exited early' : '🏁 Finished!'}
+            {showLockedExitResult
+              ? 'Result locked'
+              : showOrganicLastPlace
+                ? 'Is this real?'
+                : wasPartial
+                  ? 'Exited early'
+                  : '🏁 Finished!'}
           </h2>
-          {showTimeMachineResults && (
+          {(showTimeMachineResults || showLockedExitResult) && (
             <div className="minigame-host-results-divider" aria-hidden="true">
               <span />
             </div>
+          )}
+          {showLockedExitResult && (
+            <p className="minigame-host-results-alternate-timeline">
+              Reverse Time was already used. This exit is final and your placement is locked to
+              last.
+            </p>
           )}
 
           {leaderboard ? (
@@ -1114,7 +1135,8 @@ export default function MinigameHost({
                   )}
                 </button>
                 <p className="minigame-host-results-retry-copy">
-                  Watch a short ad to retry before this result is locked in.
+                  Watch a short ad to restart this competition. Reverse Time is available once per
+                  competition.
                 </p>
               </div>
             )}
