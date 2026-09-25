@@ -22,7 +22,7 @@ Minigame Certification remains change-aware and runs its expensive audit only wh
 
 ## Security analysis
 
-CodeQL is scheduled weekly and can be run manually. It is not run on every pull request.
+CodeQL is not run on every pull request. Linux analysis for Actions, JavaScript/TypeScript, and Java/Kotlin is scheduled weekly and can also be run manually. Swift CodeQL is manual-only because its macOS runner cost is disproportionately high.
 
 The repository currently has GitHub Code Scanning disabled, so CodeQL uses `upload: never`. Running four CodeQL languages on every PR—especially Swift on macOS—spent substantial Actions minutes without creating repository Code Scanning alerts.
 
