@@ -1187,11 +1187,7 @@ export default function GameScreen() {
     const todayIsoDate = new Date().toISOString().slice(0, 10)
     if (
       !humanPlayerEliminated &&
-      shouldShowAudienceInsightPrompt(
-        userApproval,
-        lastAudienceInsightPromptDate,
-        todayIsoDate
-      )
+      shouldShowAudienceInsightPrompt(userApproval, lastAudienceInsightPromptDate, todayIsoDate)
     ) {
       const state = storeRef.current.getState()
       if (canShowAd('public_meter_audience_insight', state)) {
