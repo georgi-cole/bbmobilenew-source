@@ -125,6 +125,37 @@ describe('Store product presentation', () => {
     expect(screen.getByRole('button', { name: 'Open Vox Populi' })).toBeInTheDocument()
   })
 
+  it('surfaces No Ads and Premium Challenges under Extras', () => {
+    renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Extras' }))
+
+    expect(screen.getByRole('heading', { name: 'Extras' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open No Ads' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Open Premium Challenges Pack' })
+    ).toBeInTheDocument()
+  })
+
+  it('explains that No Ads keeps optional rewarded opportunities', () => {
+    renderStore()
+    fireEvent.click(screen.getByRole('button', { name: 'Extras' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open No Ads' }))
+
+    expect(
+      screen.getByText(/optional rewarded opportunities remain available by choice/i)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/75% of this purchase counts toward a future VIP upgrade/i)).toBeInTheDocument()
+  })
+
+  it('marks VIP as an upgrade when qualifying standalone ownership exists', () => {
+    renderStore(makeVipState({ owned: ['survivalMode'] }))
+
+    expect(screen.getByText('VIP upgrade · permanent')).toBeInTheDocument()
+    expect(screen.getByText(/75% of their configured value is credited/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Explore VIP upgrade' })).toBeInTheDocument()
+    expect(screen.getByText('No automatic ads')).toBeInTheDocument()
+  })
+
   it('switches store categories in place instead of navigating away from the store', () => {
     renderStore()
 
