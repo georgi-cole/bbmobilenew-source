@@ -143,9 +143,7 @@ export function buildAudienceInsight(input: AudienceInsightInput): string {
   const candidates: InsightCandidate[] = []
   const seen = new Set<string>()
 
-  const recentFeed = input.feed
-    .filter((entry) => entry.playerId === input.playerId)
-    .slice(0, 8)
+  const recentFeed = input.feed.filter((entry) => entry.playerId === input.playerId).slice(0, 8)
   for (const entry of recentFeed) {
     const key = `feed:${entry.reason ?? entry.eventType ?? entry.id}`
     if (seen.has(key)) continue
