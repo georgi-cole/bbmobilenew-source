@@ -12,6 +12,7 @@ import {
   type BigEyeComprehensionFrame,
 } from '../bb/confessionalComprehension'
 import { getSecretMissionEasterEggByIntent } from '../bb/secretMissionEasterEggs'
+import { assessLocalConfessionalInput } from '../bb/localConfessionalSafety'
 import { apiUrl } from '../utils/apiBase'
 
 export type BigEyeEmotion =
@@ -124,7 +125,10 @@ export interface BigEyeTurnAnalysis {
 const DIRECTOR_TIMEOUT_MS = 22000
 
 export function isBigEyeGenerativeDirectorEnabled(): boolean {
-  return import.meta.env.MODE !== 'test' && import.meta.env.VITE_BIG_EYE_AI_ENABLED === 'true'
+  // The standard Confessional is intentionally local-only. Character tuning is
+  // published as GitHub-hosted data, but player dialogue never requires a model
+  // request, token allowance, account, or backend database.
+  return false
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -338,6 +342,24 @@ export function analyzeBigEyeTurn(payload: BigBrotherPayload): BigEyeTurnAnalysi
 export async function generateBigBrotherReply(
   payload: BigBrotherPayload
 ): Promise<BigBrotherResponse> {
+  const localSafety = assessLocalConfessionalInput({
+    diaryText: payload.diaryText,
+    history: payload.history,
+  })
+  if (localSafety) {
+    const state = payload.state ?? createInitialBigEyeState()
+    return {
+      text: localSafety.text,
+      reason: localSafety.intent,
+      intent: localSafety.intent,
+      nextState: state,
+      delayMs: 420,
+      memorySummary: payload.memorySummary ?? '',
+      performance: offlinePerformance(localSafety.intent, state.mood),
+      source: 'offline',
+      vipEligible: false,
+    }
+  }
   const analysis = analyzeBigEyeTurn(payload)
   const directed = analysis.wouldRequestDirector
     ? await requestDirectorReply(payload, analysis.semanticIntent, analysis.frame)
