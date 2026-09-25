@@ -13,10 +13,7 @@ import {
   type StoreProductKey,
 } from './vipConfig'
 import { createEmptyStoreEntitlements, type StoreEntitlements } from './vipStorage'
-import {
-  getVipBillingProductId,
-  isVipBillingProductId,
-} from './vipUpgrade'
+import { getVipBillingProductId, isVipBillingProductId } from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
 
@@ -46,7 +43,9 @@ function toStoreProduct(
     productId,
     title: definition.key === 'vip' ? definition.title : product.title || definition.title,
     description:
-      definition.key === 'vip' ? definition.description : product.description || definition.description,
+      definition.key === 'vip'
+        ? definition.description
+        : product.description || definition.description,
     price: product.priceString,
   }
 }
