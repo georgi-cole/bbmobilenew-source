@@ -1,12 +1,13 @@
 name: CodeQL
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   schedule:
     - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   actions: read
@@ -82,9 +83,8 @@ jobs:
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
         with:
-          # This private repository currently has GitHub Code Scanning disabled.
-          # Keep the local analysis/check active without failing on the unsupported
-          # SARIF/database upload. Switch upload back to 'always' once Code Scanning
-          # is enabled for the repository.
+          # Code Scanning is currently disabled for this private repository.
+          # Keep the scheduled/manual analysis available without attempting
+          # unsupported SARIF/database uploads.
           upload: never
           upload-database: false
