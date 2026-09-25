@@ -13,6 +13,10 @@ import {
   type StoreProductKey,
 } from './vipConfig'
 import { createEmptyStoreEntitlements, type StoreEntitlements } from './vipStorage'
+import {
+  getVipBillingProductId,
+  isVipBillingProductId,
+} from './vipUpgrade'
 import { TEMPORARY_STORE_UNLOCKS_ENABLED } from './effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
 
@@ -32,20 +36,22 @@ export interface VipStoreSnapshot {
   verifiedAt: string
 }
 
-function toStoreProduct(product: Product, definition: StoreProductDefinition): StoreProduct {
+function toStoreProduct(
+  product: Product,
+  definition: StoreProductDefinition,
+  productId = definition.productId
+): StoreProduct {
   return {
     key: definition.key,
-    productId: definition.productId,
+    productId,
     title: product.title || definition.title,
     description: product.description || definition.description,
     price: product.priceString,
   }
 }
 
-function productMatchesDefinition(product: Product, definition: StoreProductDefinition): boolean {
-  return (
-    product.identifier === definition.productId || product.planIdentifier === definition.productId
-  )
+function productMatchesIdentifier(product: Product, productId: string): boolean {
+  return product.identifier === productId || product.planIdentifier === productId
 }
 
 export function isOwnedStoreTransaction(
@@ -54,7 +60,13 @@ export function isOwnedStoreTransaction(
   platform: string = Capacitor.getPlatform()
 ): boolean {
   const definition = getStoreProductDefinition(productKey)
-  if (transaction.productIdentifier !== definition.productId) return false
+  if (
+    productKey === 'vip'
+      ? !isVipBillingProductId(transaction.productIdentifier)
+      : transaction.productIdentifier !== definition.productId
+  ) {
+    return false
+  }
 
   if (platform === 'android') {
     const isCompleted =
@@ -82,18 +94,25 @@ function isNativeBillingPlatform(): boolean {
   )
 }
 
-async function loadProducts(): Promise<Partial<Record<StoreProductKey, StoreProduct>>> {
+async function loadProducts(
+  entitlements: StoreEntitlements
+): Promise<Partial<Record<StoreProductKey, StoreProduct>>> {
   const releasedProducts = STORE_PRODUCT_CATALOG.filter(
     (definition) => definition.availableInRelease
   )
+  const vipBillingProductId = getVipBillingProductId(entitlements)
+  const requestedProductIds = releasedProducts.map((definition) =>
+    definition.key === 'vip' ? vipBillingProductId : definition.productId
+  )
   const { products } = await NativePurchases.getProducts({
-    productIdentifiers: releasedProducts.map((definition) => definition.productId),
+    productIdentifiers: requestedProductIds,
     productType: PURCHASE_TYPE.INAPP,
   })
   const catalog: Partial<Record<StoreProductKey, StoreProduct>> = {}
   for (const definition of releasedProducts) {
-    const product = products.find((candidate) => productMatchesDefinition(candidate, definition))
-    if (product) catalog[definition.key] = toStoreProduct(product, definition)
+    const productId = definition.key === 'vip' ? vipBillingProductId : definition.productId
+    const product = products.find((candidate) => productMatchesIdentifier(candidate, productId))
+    if (product) catalog[definition.key] = toStoreProduct(product, definition, productId)
   }
   return catalog
 }
@@ -168,8 +187,8 @@ export async function loadVipStoreSnapshot(options?: {
   }
 
   if (options?.restore) await NativePurchases.restorePurchases()
-  const products = await loadProducts()
   const ownership = await loadOwnership()
+  const products = await loadProducts(ownership.entitlements)
   return {
     billingAvailable: true,
     ...ownership,
@@ -190,15 +209,22 @@ export async function purchaseStoreProduct(productKey: StoreProductKey): Promise
   if (!definition.availableInRelease) {
     throw new Error('This product is not available in the current release.')
   }
+  const billingProductId =
+    productKey === 'vip'
+      ? getVipBillingProductId((await loadOwnership()).entitlements)
+      : definition.productId
   const transaction = await NativePurchases.purchaseProduct({
-    productIdentifier: definition.productId,
+    productIdentifier: billingProductId,
     productType: PURCHASE_TYPE.INAPP,
     isConsumable: false,
     // The plugin finishes StoreKit transactions and acknowledges Play purchases.
     autoAcknowledgePurchases: true,
   })
 
-  if (!isOwnedStoreTransaction(transaction, productKey)) {
+  if (
+    transaction.productIdentifier !== billingProductId ||
+    !isOwnedStoreTransaction(transaction, productKey)
+  ) {
     throw new Error(
       transaction.purchaseState === '0'
         ? 'Your purchase is pending. It will unlock after the store confirms payment.'
