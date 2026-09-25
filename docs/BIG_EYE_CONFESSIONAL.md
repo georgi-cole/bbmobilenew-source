@@ -100,7 +100,9 @@ The character bible explicitly prevents the failure modes that made the old Eye 
 
 ## Configuration
 
-No configuration is required for the default local director. It is instant, offline-capable, unlimited, and has no inference bill.
+No configuration is required for the default local director. It is instant, offline-capable, unlimited, and has no inference bill. It also applies local-only input guardrails for repeated messages, floods, prompt tricks, and credible harm threats; these turns are neither stored nor sent anywhere.
+
+The normal Confessional never enables the legacy generative-director request, even when a stale `VITE_BIG_EYE_AI_ENABLED` value is present. GitHub-hosted configuration remains data-only: it can tune vocabulary and reply pools, but cannot run code or send player dialogue off-device.
 
 The recommended upgrade is the Cloudflare Worker in `cloudflare/vip-confessional`: 3 complimentary VIP replies per season, or 5 per UTC day for a server-verified subscriber. Set `VITE_BIG_EYE_VIP_API_URL` to its URL. The Worker uses a Workers AI binding and D1, so no AI credential is shipped to the browser. See its README for local and deployment setup.
 
