@@ -21,7 +21,7 @@ function pendingChallenge(id = 'challenge-reverse-time'): PendingChallenge {
     aiScores: { 'ai-1': 50 },
     prizeType: 'LOH',
     reverseTimeUsed: false,
-  } as PendingChallenge
+  } as unknown as PendingChallenge
 }
 
 describe('challenge Reverse Time persistence', () => {
@@ -31,10 +31,7 @@ describe('challenge Reverse Time persistence', () => {
     state = challengeReducer(state, markPendingChallengeReverseTimeUsed('different-challenge'))
     expect(state.pending?.reverseTimeUsed).toBe(false)
 
-    state = challengeReducer(
-      state,
-      markPendingChallengeReverseTimeUsed('challenge-reverse-time')
-    )
+    state = challengeReducer(state, markPendingChallengeReverseTimeUsed('challenge-reverse-time'))
     expect(state.pending?.reverseTimeUsed).toBe(true)
   })
 
