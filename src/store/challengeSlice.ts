@@ -707,6 +707,7 @@ export const completeChallenge =
     rawResults: RawResult[],
     options?: {
       authoritativeWinnerId?: string | null
+      authoritativeLastPlaceId?: string | null
       partial?: boolean
     }
   ) =>
@@ -717,7 +718,7 @@ export const completeChallenge =
 
     const { game, seed, participants } = pending
 
-    const ranked =
+    const computedRanked =
       game.key === 'pressurePlank'
         ? rankPressurePlankResults(
             participants,
@@ -735,21 +736,41 @@ export const completeChallenge =
           }))
         : computeScores(game.scoringAdapter, rawResults, game.scoringParams ?? {})
 
+    const explicitLastPlaceId =
+      options?.authoritativeLastPlaceId &&
+      participants.includes(options.authoritativeLastPlaceId)
+        ? options.authoritativeLastPlaceId
+        : null
+    const ranked = explicitLastPlaceId
+      ? [
+          ...computedRanked.filter((result) => result.playerId !== explicitLastPlaceId),
+          ...computedRanked.filter((result) => result.playerId === explicitLastPlaceId),
+        ]
+      : computedRanked
+
     const canonicalScores: Record<string, number> = {}
     for (const r of ranked) canonicalScores[r.playerId] = r.score
 
     // Guard: prefer a winner with a positive canonical score. If all scored <= 0,
     // fall back to the first ranked entry, then the first participant.
-    const positiveWinner = ranked.find((r) => r.score > 0)
-    const winner = positiveWinner ?? ranked[0]
+    const positiveWinner = ranked.find(
+      (r) => r.playerId !== explicitLastPlaceId && r.score > 0
+    )
+    const winner =
+      positiveWinner ??
+      ranked.find((result) => result.playerId !== explicitLastPlaceId) ??
+      ranked[0]
     const explicitWinnerId =
       game.key !== 'pressurePlank' &&
       options?.authoritativeWinnerId &&
-      participants.includes(options.authoritativeWinnerId)
+      participants.includes(options.authoritativeWinnerId) &&
+      options.authoritativeWinnerId !== explicitLastPlaceId
         ? options.authoritativeWinnerId
         : null
     const scheduledWinnerId =
-      pending.forcedWinnerId && participants.includes(pending.forcedWinnerId)
+      pending.forcedWinnerId &&
+      participants.includes(pending.forcedWinnerId) &&
+      pending.forcedWinnerId !== explicitLastPlaceId
         ? pending.forcedWinnerId
         : null
     const winnerId =
@@ -769,13 +790,14 @@ export const completeChallenge =
         game.key === 'pressurePlank' ||
         scheduledWinnerId !== null ||
         explicitWinnerId !== null ||
+        explicitLastPlaceId !== null ||
         winner?.authoritativeWinner === true,
       partial: options?.partial === true,
       competitionIntents: pending.competitionIntents,
     }
 
     dispatch(recordRun(run))
-    if (scheduledWinnerId || explicitWinnerId) {
+    if (scheduledWinnerId || explicitWinnerId || explicitLastPlaceId) {
       // An authoritative React minigame winner may not align with the generic
       // challenge-score ranking, so apply only the winner boost here and avoid
       // placement bonuses based on fallback scores.
