@@ -206,6 +206,9 @@ describe('Social premium hardening', () => {
       newEnergy: 4,
       source: 'manual' as const,
     }
+    const createIncomingLog = (_: unknown, index: number) => ({
+      id: `legacy-log-${index}`,
+    })
 
     const legacy = {
       ...SOCIAL_INITIAL_STATE,
@@ -219,20 +222,19 @@ describe('Social premium hardening', () => {
       })),
       incomingInteractionLogs: Array.from(
         { length: incomingLogLimit + 25 },
-        (_, index) => ({ id: `legacy-log-${index}` })
-      ) as unknown as SocialState['incomingInteractionLogs'],
-    } as SocialState
+        createIncomingLog
+      ),
+    } as unknown as SocialState
 
     const migrated = migrateSocialState(legacy)
+    const firstIncomingLog = migrated.incomingInteractionLogs[0] as unknown as { id: string }
 
     expect(migrated.sessionLogs).toHaveLength(historyLimit)
     expect(migrated.sessionLogs[0]?.timestamp).toBe(25)
     expect(migrated.actionHistory).toHaveLength(historyLimit)
     expect(migrated.actionHistory?.[0]?.timestamp).toBe(25)
     expect(migrated.incomingInteractionLogs).toHaveLength(incomingLogLimit)
-    expect(
-      (migrated.incomingInteractionLogs[0] as unknown as { id: string }).id
-    ).toBe('legacy-log-25')
+    expect(firstIncomingLog.id).toBe('legacy-log-25')
   })
 
   it('keeps all three strategic resources active and allows Reality pricing overrides', () => {
