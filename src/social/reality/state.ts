@@ -1,4 +1,5 @@
 import type { RelationshipsMap } from '../types'
+import { MAX_REALITY_MEMORIES_PER_ACTOR } from './memory'
 import type {
   DirectedRelationship,
   RealityContestantState,
@@ -173,6 +174,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function retainRealityMemories(value: unknown): RealityDomainState['memoriesByOwner'] {
+  if (!isRecord(value)) return {}
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([ownerId, memories]) =>
+      Array.isArray(memories) ? [[ownerId, memories.slice(-MAX_REALITY_MEMORIES_PER_ACTOR)]] : []
+    )
+  ) as RealityDomainState['memoriesByOwner']
+}
+
 /** Keep active conversations intact while bounding resolved interaction history. */
 export const REALITY_RESOLVED_INTERACTION_LIMIT = 240
 
@@ -225,8 +235,7 @@ export function normalizeRealityDomainState(
     version: 1,
     nextSequence: Math.max(0, Math.round(Number(input.nextSequence) || 0)),
     relationships,
-    memoriesByOwner:
-      input.memoriesByOwner && isRecord(input.memoriesByOwner) ? input.memoriesByOwner : {},
+    memoriesByOwner: retainRealityMemories(input.memoriesByOwner),
     beliefsByOwner:
       input.beliefsByOwner && isRecord(input.beliefsByOwner) ? input.beliefsByOwner : {},
     facts: input.facts && isRecord(input.facts) ? input.facts : {},

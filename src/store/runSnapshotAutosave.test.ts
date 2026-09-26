@@ -66,6 +66,44 @@ describe('runSnapshotAutosave', () => {
     expect(controller.pendingCount()).toBe(0)
   })
 
+  it('defers lazy snapshot construction and keeps only the newest factory', () => {
+    vi.useFakeTimers()
+    const save = createSaveSpy()
+    const controller = createRunSnapshotAutosaveController(save)
+    const firstFactory = vi.fn(() => snapshot('classic-run', 2))
+    const latestFactory = vi.fn(() => snapshot('classic-run', 4))
+
+    controller.scheduleLazy('profile-1', 'classic', 'classic-run', firstFactory)
+    controller.scheduleLazy('profile-1', 'classic', 'classic-run', latestFactory)
+
+    expect(firstFactory).not.toHaveBeenCalled()
+    expect(latestFactory).not.toHaveBeenCalled()
+    expect(controller.pendingCount()).toBe(1)
+
+    vi.advanceTimersByTime(RUN_SNAPSHOT_AUTOSAVE_DELAY_MS)
+
+    expect(firstFactory).not.toHaveBeenCalled()
+    expect(latestFactory).toHaveBeenCalledTimes(1)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save.mock.calls[0]![1].game.week).toBe(4)
+  })
+
+  it('drops a stale lazy save before constructing its snapshot', () => {
+    vi.useFakeTimers()
+    setRunIdentity('classic-run', 'classic-run')
+    const save = createSaveSpy()
+    const controller = createRunSnapshotAutosaveController(save)
+    const factory = vi.fn(() => snapshot('classic-run', 7))
+
+    controller.scheduleLazy('profile-1', 'classic', 'classic-run', factory)
+    setRunIdentity(null, null)
+    vi.advanceTimersByTime(RUN_SNAPSHOT_AUTOSAVE_DELAY_MS)
+
+    expect(factory).not.toHaveBeenCalled()
+    expect(save).not.toHaveBeenCalled()
+    expect(controller.pendingCount()).toBe(0)
+  })
+
   it('keeps different run slots independent inside the same save window', () => {
     vi.useFakeTimers()
     const save = createSaveSpy()
