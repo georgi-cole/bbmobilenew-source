@@ -178,9 +178,7 @@ function retainRealityMemories(value: unknown): RealityDomainState['memoriesByOw
   if (!isRecord(value)) return {}
   return Object.fromEntries(
     Object.entries(value).flatMap(([ownerId, memories]) =>
-      Array.isArray(memories)
-        ? [[ownerId, memories.slice(-MAX_REALITY_MEMORIES_PER_ACTOR)]]
-        : []
+      Array.isArray(memories) ? [[ownerId, memories.slice(-MAX_REALITY_MEMORIES_PER_ACTOR)]] : []
     )
   ) as RealityDomainState['memoriesByOwner']
 }
