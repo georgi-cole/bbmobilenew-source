@@ -230,9 +230,9 @@ describe('Social premium hardening', () => {
     expect(migrated.actionHistory).toHaveLength(historyLimit)
     expect(migrated.actionHistory?.[0]?.timestamp).toBe(25)
     expect(migrated.incomingInteractionLogs).toHaveLength(incomingLogLimit)
-    expect(
-      (migrated.incomingInteractionLogs[0] as unknown as { id: string }).id
-    ).toBe('legacy-log-25')
+    expect((migrated.incomingInteractionLogs[0] as unknown as { id: string }).id).toBe(
+      'legacy-log-25'
+    )
   })
 
   it('keeps all three strategic resources active and allows Reality pricing overrides', () => {
