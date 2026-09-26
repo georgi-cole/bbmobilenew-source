@@ -90,6 +90,20 @@ const strategicGameReducer = withImmediateVoxPublicMode(
   withLohNominationPlanning(gameReducer, getNominationTargetScore)
 )
 
+// These collections are intentionally bounded/compacted by their owning
+// subsystems. Re-walking every nested historical record after every dispatch in
+// development adds substantial cost to long gameplay sessions without improving
+// mutation/serializability coverage for the live decision state.
+const DEV_INVARIANT_IGNORED_PATHS = [
+  'game.tvFeed',
+  'game.history',
+  'social.reality',
+  'social.realitySimulation.trace',
+  'social.actionHistory',
+  'social.sessionLogs',
+  'social.incomingInteractionLogs',
+]
+
 export const store = configureStore({
   reducer: {
     game: strategicGameReducer,
@@ -127,7 +141,14 @@ export const store = configureStore({
     vip: loadVipState(),
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(
+    getDefaultMiddleware({
+      immutableCheck: {
+        ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
+      },
+      serializableCheck: {
+        ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
+      },
+    }).concat(
       survivorMiddleware,
       bellaProgressMiddleware,
       eliminatedSeasonResolutionMiddleware,
@@ -150,6 +171,10 @@ export const store = configureStore({
       minigameSessionMiddleware,
       gameDiagnosticsMiddleware
     ),
+  // A long season can dispatch thousands of actions with a large state tree.
+  // Bound Redux DevTools retention in development so gameplay QA does not turn
+  // the extension itself into a progressive memory/performance tax.
+  devTools: import.meta.env.DEV ? { maxAge: 50, trace: false } : false,
 })
 
 // Repair saves created by the old Vox behavior where Settings could persist
@@ -255,9 +280,22 @@ function hasMeaningfulGameProgress(game: ReturnType<typeof store.getState>['game
 }
 
 // Autosaves are coalesced so a single Play transition can update several Redux
-// slices without repeatedly serializing/writing the campaign on the same input
-// turn. Lifecycle boundaries drain the snapshot queue and start a durable flush below.
+// slices without repeatedly projecting/serializing/writing the campaign on the
+// same input turn. Snapshot construction itself is deferred until the trailing
+// save window flushes. Lifecycle boundaries still flush immediately.
 const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
+
+function scheduleCurrentRunSnapshot(
+  profileId: string,
+  current: ReturnType<typeof store.getState>
+): void {
+  runSnapshotAutosave.scheduleLazy(
+    profileId,
+    getSavedRunSlot(current.game),
+    current.game.runId ?? current.game.gameId ?? null,
+    () => createSavedSeasonSnapshot(profileId, current)
+  )
+}
 
 // Persist settings to localStorage whenever they change
 let prevSettings = store.getState().settings
@@ -381,10 +419,7 @@ store.subscribe(() => {
       activeProfileId &&
       hasMeaningfulGameProgress(current.game)
     ) {
-      runSnapshotAutosave.schedule(
-        activeProfileId,
-        createSavedSeasonSnapshot(activeProfileId, current)
-      )
+      scheduleCurrentRunSnapshot(activeProfileId, current)
       // Finale transitions are user-visible checkpoints. Flush these immediately
       // so a reload between the transition and the trailing autosave cannot lose
       // awards or restore an earlier finale phase.
@@ -443,10 +478,7 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
       activeProfileId &&
       hasMeaningfulGameProgress(current.game)
     ) {
-      runSnapshotAutosave.schedule(
-        activeProfileId,
-        createSavedSeasonSnapshot(activeProfileId, current)
-      )
+      scheduleCurrentRunSnapshot(activeProfileId, current)
     }
     runSnapshotAutosave.flush()
     void flushSavePersistence()
