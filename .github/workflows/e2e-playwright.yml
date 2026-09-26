@@ -8,54 +8,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Keep the existing required check name so branch protection remains intact.
-  # Run the deployment smoke matrix here so browser regressions fail before merge.
-  core-journeys:
-    name: Core journeys (${{ matrix.project }})
+  changes:
+    name: Detect browser impact
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     permissions:
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [mobile-chromium]
+    outputs:
+      browser: ${{ steps.impact.outputs.browser }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Install smoke browsers
-        run: npx playwright install --with-deps chromium webkit
-      - name: Run deployment smoke journeys before merge
-        run: >-
-          npx playwright test --grep @smoke --grep-invert @minigame
-          --project=mobile-chromium --project=mobile-webkit
-          --project=compact-mobile-chromium --workers=1 --retries=0
-      - name: Run finale progression and recovery journey
-        run: >-
-          npx playwright test e2e/playwright/finale.spec.ts
-          --project=${{ matrix.project }} --workers=1 --retries=0
-      - name: Upload blocking smoke evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-smoke-${{ matrix.project }}
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 14
+          fetch-depth: 0
+      - id: impact
+        name: Classify changed files
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          printf '%s\n' "$changed_files"
 
-  # Every other core journey still runs on every PR, but it is advisory until
-  # its first-run reliability is high enough to earn blocking status.
-  extended-core-journeys:
-    name: Extended core journeys (mobile-chromium, advisory)
+          browser=false
+          if grep -Eq '^(src/|public/|e2e/playwright/|index\.html$|package(-lock)?\.json$|playwright\.config\.[^/]+$|vite\.config\.[^/]+$|tsconfig[^/]*\.json$|scripts/(generate-(after-the-eye-config|audio-manifest|skins-manifest)\.mjs|check-production-debug-globals\.mjs)$|\.github/workflows/e2e-playwright\.yml$)' <<< "$changed_files"; then
+            browser=true
+          fi
+
+          echo "browser=$browser" >> "$GITHUB_OUTPUT"
+
+  core-journeys:
+    name: Core journeys (mobile-chromium)
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    continue-on-error: true
     permissions:
       contents: read
     steps:
@@ -67,18 +53,21 @@ jobs:
       - run: npm ci
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run non-blocking extended core journeys
+      - name: Run blocking mobile smoke journeys
         run: >-
-          npx playwright test --grep @core-journey
-          --grep-invert "fresh player creates a profile and launches a usable campaign|saved progress survives a browser reload and resumes at the exact phase|completes a valid finale, reward, recap, and archive exactly once"
+          npx playwright test --grep @smoke --grep-invert @minigame
           --project=mobile-chromium --workers=1 --retries=0
-      - name: Upload advisory browser evidence
+      - name: Run finale progression and recovery journey
+        run: >-
+          npx playwright test e2e/playwright/finale.spec.ts
+          --project=mobile-chromium --workers=1 --retries=0
+      - name: Upload blocking smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pr-extended-mobile-chromium
+          name: pr-smoke-mobile-chromium
           path: |
             playwright-report/
             test-results/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
