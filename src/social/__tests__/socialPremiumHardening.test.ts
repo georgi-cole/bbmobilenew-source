@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { SOCIAL_INITIAL_STATE } from '../constants'
+import { socialConfig } from '../socialConfig'
 import { createIncomingInteraction } from '../incomingInteractionFactory'
 import { getEffectiveSocialMode, getInteractionSocialMode } from '../socialMode'
 import {
@@ -190,6 +191,48 @@ describe('Social premium hardening', () => {
     expect(migrated.infoBank.user).toBe(0)
     expect(migrated.actionHistory).toHaveLength(1)
     expect(migrated.sessionLogs).toHaveLength(1)
+  })
+
+  it('bounds oversized legacy logs while hydrating a long-running season', () => {
+    const historyLimit = getSocialRuntimeConfig().history.maxActionHistory
+    const incomingLogLimit = socialConfig.incomingInteractionDebugConfig.maxLogEntries
+    const socialAction = {
+      actionId: 'compliment',
+      actorId: 'user',
+      targetId: 'finn',
+      cost: 1,
+      delta: 5,
+      outcome: 'success' as const,
+      newEnergy: 4,
+      source: 'manual' as const,
+    }
+
+    const legacy = {
+      ...SOCIAL_INITIAL_STATE,
+      sessionLogs: Array.from({ length: historyLimit + 25 }, (_, index) => ({
+        ...socialAction,
+        timestamp: index,
+      })),
+      actionHistory: Array.from({ length: historyLimit + 25 }, (_, index) => ({
+        ...socialAction,
+        timestamp: index,
+      })),
+      incomingInteractionLogs: Array.from(
+        { length: incomingLogLimit + 25 },
+        (_, index) => ({ id: `legacy-log-${index}` })
+      ) as unknown as SocialState['incomingInteractionLogs'],
+    } as SocialState
+
+    const migrated = migrateSocialState(legacy)
+
+    expect(migrated.sessionLogs).toHaveLength(historyLimit)
+    expect(migrated.sessionLogs[0]?.timestamp).toBe(25)
+    expect(migrated.actionHistory).toHaveLength(historyLimit)
+    expect(migrated.actionHistory?.[0]?.timestamp).toBe(25)
+    expect(migrated.incomingInteractionLogs).toHaveLength(incomingLogLimit)
+    expect(
+      (migrated.incomingInteractionLogs[0] as unknown as { id: string }).id
+    ).toBe('legacy-log-25')
   })
 
   it('keeps all three strategic resources active and allows Reality pricing overrides', () => {
