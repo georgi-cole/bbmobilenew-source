@@ -206,9 +206,7 @@ describe('Social premium hardening', () => {
       newEnergy: 4,
       source: 'manual' as const,
     }
-    const createIncomingLog = (_: unknown, index: number) => ({
-      id: `legacy-log-${index}`,
-    })
+    const createIncomingLog = (_: unknown, index: number) => ({ id: `legacy-log-${index}` })
 
     const legacy = {
       ...SOCIAL_INITIAL_STATE,
@@ -220,10 +218,7 @@ describe('Social premium hardening', () => {
         ...socialAction,
         timestamp: index,
       })),
-      incomingInteractionLogs: Array.from(
-        { length: incomingLogLimit + 25 },
-        createIncomingLog
-      ),
+      incomingInteractionLogs: Array.from({ length: incomingLogLimit + 25 }, createIncomingLog),
     } as unknown as SocialState
 
     const migrated = migrateSocialState(legacy)
