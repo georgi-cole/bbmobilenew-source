@@ -90,7 +90,9 @@ export default function App() {
     <Provider store={store}>
       <I18nProvider>
         {IS_PUBLIC_QA_BUILD && (
-          <div className="public-qa-banner" role="status">QA</div>
+          <div className="public-qa-banner" role="status">
+            QA
+          </div>
         )}
         <LiveOpsController />
         <FauxTvProgrammingController />

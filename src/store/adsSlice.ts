@@ -20,6 +20,12 @@ export interface AdsState {
    */
   dailyUsage: Record<string, string>
   /**
+   * Automatic commercial beats already handled for this installation.
+   * Keys include the game id + in-game day + placement so reloads and
+   * re-renders cannot stack the same interstitial.
+   */
+  automaticBreaks: Record<string, true>
+  /**
    * Tracks the last competition where the user finished in last place.
    * Set by the adsMiddleware as a transient marker. Retry UI now lives in the
    * competition scoreboard/results flow, and GameScreen clears this legacy flag.
@@ -30,6 +36,7 @@ export interface AdsState {
 const DEFAULT_ADS_STATE: AdsState = {
   hasNoAdsPack: false,
   dailyUsage: {},
+  automaticBreaks: {},
   lastCompLastPlaceType: null,
 }
 
@@ -44,6 +51,10 @@ export function loadAdsState(): AdsState {
       hasNoAdsPack: typeof parsed.hasNoAdsPack === 'boolean' ? parsed.hasNoAdsPack : false,
       dailyUsage:
         parsed.dailyUsage && typeof parsed.dailyUsage === 'object' ? parsed.dailyUsage : {},
+      automaticBreaks:
+        parsed.automaticBreaks && typeof parsed.automaticBreaks === 'object'
+          ? (parsed.automaticBreaks as Record<string, true>)
+          : {},
       // lastCompLastPlaceType is transient — never persist across page reloads.
       lastCompLastPlaceType: null,
     }
@@ -54,9 +65,10 @@ export function loadAdsState(): AdsState {
 
 export function saveAdsState(state: AdsState): void {
   try {
-    const persistedState: Pick<AdsState, 'hasNoAdsPack' | 'dailyUsage'> = {
+    const persistedState: Pick<AdsState, 'hasNoAdsPack' | 'dailyUsage' | 'automaticBreaks'> = {
       hasNoAdsPack: state.hasNoAdsPack,
       dailyUsage: state.dailyUsage,
+      automaticBreaks: state.automaticBreaks,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState))
   } catch {
@@ -93,6 +105,20 @@ const adsSlice = createSlice({
       state.dailyUsage = {}
     },
 
+    /**
+     * Mark one automatic commercial beat as handled. The bounded ledger
+     * prevents reload/re-render duplicates without growing forever.
+     */
+    recordAutomaticBreakHandled(state, action: PayloadAction<string>) {
+      state.automaticBreaks[action.payload] = true
+      const keys = Object.keys(state.automaticBreaks)
+      if (keys.length > 160) {
+        for (const key of keys.slice(0, keys.length - 160)) {
+          delete state.automaticBreaks[key]
+        }
+      }
+    },
+
     /** Record that the user finished last in a competition (LOH or POS). */
     recordLastCompLastPlace(state, action: PayloadAction<'loh' | 'pos'>) {
       state.lastCompLastPlaceType = action.payload
@@ -109,6 +135,7 @@ export const {
   setNoAdsPack,
   recordAdShown,
   resetDailyUsage,
+  recordAutomaticBreakHandled,
   recordLastCompLastPlace,
   clearLastCompLastPlace,
 } = adsSlice.actions

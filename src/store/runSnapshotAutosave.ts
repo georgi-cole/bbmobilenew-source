@@ -14,12 +14,19 @@ type SaveRunSnapshot = (profileId: string, snapshot: SavedSeasonSnapshot) => boo
 type PendingSave = {
   profileId: string
   slot: SavedRunSlot
-  snapshot: SavedSeasonSnapshot
+  runId: string | null
+  createSnapshot: () => SavedSeasonSnapshot
   persistenceRevision: string | null | undefined
 }
 
 export interface RunSnapshotAutosaveController {
   schedule(profileId: string, snapshot: SavedSeasonSnapshot): void
+  scheduleLazy(
+    profileId: string,
+    slot: SavedRunSlot,
+    runId: string | null,
+    createSnapshot: () => SavedSeasonSnapshot
+  ): void
   flush(): void
   discard(profileId: string, slot: SavedRunSlot): void
   pendingCount(): number
@@ -103,19 +110,27 @@ export function createRunSnapshotAutosaveController(
       ) {
         continue
       }
-      saveRunSnapshot(save.profileId, save.snapshot)
+      // Materialize the large campaign projection only after the debounce and
+      // stale-run checks have passed. During normal Redux churn the controller
+      // retains only the latest factory for this run slot.
+      saveRunSnapshot(save.profileId, save.createSnapshot())
     }
   }
 
-  const schedule = (profileId: string, snapshot: SavedSeasonSnapshot) => {
-    const slot = getSavedRunSlot(snapshot.game)
+  const schedulePending = (
+    profileId: string,
+    slot: SavedRunSlot,
+    runId: string | null,
+    createSnapshot: () => SavedSeasonSnapshot
+  ) => {
     const key = pendingKey(profileId, slot)
     const existing = pending.get(key)
-    const sameRun = existing && snapshotRunId(existing.snapshot) === snapshotRunId(snapshot)
+    const sameRun = existing?.runId === runId
     pending.set(key, {
       profileId,
       slot,
-      snapshot,
+      runId,
+      createSnapshot,
       // Rapid Redux updates from one physical Play press reuse the same tiny
       // revision lookup. A genuinely new run re-reads it so a fresh season can
       // save normally after an explicit clear in the same JavaScript task.
@@ -125,6 +140,24 @@ export function createRunSnapshotAutosaveController(
     })
     if (timer !== null) return
     timer = setTimeout(flush, Math.max(0, delayMs))
+  }
+
+  const schedule = (profileId: string, snapshot: SavedSeasonSnapshot) => {
+    schedulePending(
+      profileId,
+      getSavedRunSlot(snapshot.game),
+      snapshotRunId(snapshot),
+      () => snapshot
+    )
+  }
+
+  const scheduleLazy = (
+    profileId: string,
+    slot: SavedRunSlot,
+    runId: string | null,
+    createSnapshot: () => SavedSeasonSnapshot
+  ) => {
+    schedulePending(profileId, slot, runId, createSnapshot)
   }
 
   const discard = (profileId: string, slot: SavedRunSlot) => {
@@ -137,6 +170,7 @@ export function createRunSnapshotAutosaveController(
 
   return {
     schedule,
+    scheduleLazy,
     flush,
     discard,
     pendingCount: () => pending.size,

@@ -1,4 +1,5 @@
 import { SOCIAL_INITIAL_STATE } from './constants'
+import { socialConfig } from './socialConfig'
 import { normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { normalizeRelationshipsForTags } from './socialAlliance'
 import { SOCIAL_STATE_VERSION, type SocialStateWithHistory } from './socialHistory'
@@ -71,6 +72,7 @@ export function migrateSocialState(raw: SocialState): SocialState {
   const input = (raw ?? {}) as SocialStateWithHistory
   const base = cloneInitialState()
   const historyLimit = getSocialRuntimeConfig().history.maxActionHistory
+  const incomingInteractionLogLimit = socialConfig.incomingInteractionDebugConfig.maxLogEntries
   const legacyHistory = Array.isArray(input.actionHistory)
     ? input.actionHistory
     : Array.isArray(input.sessionLogs)
@@ -86,8 +88,12 @@ export function migrateSocialState(raw: SocialState): SocialState {
     influenceBank: sanitiseBank(input.influenceBank, 'influence'),
     infoBank: sanitiseBank(input.infoBank, 'info'),
     relationships: normalizeRelationshipsForTags(input.relationships ?? {}),
-    sessionLogs: Array.isArray(input.sessionLogs) ? input.sessionLogs : [],
-    actionHistory: (legacyHistory as SocialActionLogEntry[]).slice(-historyLimit),
+    sessionLogs:
+      historyLimit > 0 && Array.isArray(input.sessionLogs)
+        ? input.sessionLogs.slice(-historyLimit)
+        : [],
+    actionHistory:
+      historyLimit > 0 ? (legacyHistory as SocialActionLogEntry[]).slice(-historyLimit) : [],
     intelligenceDeliveries: Array.isArray(input.intelligenceDeliveries)
       ? input.intelligenceDeliveries.slice(-120)
       : [],
@@ -96,9 +102,10 @@ export function migrateSocialState(raw: SocialState): SocialState {
           normalizeIncomingInteractionContract(interaction)
         )
       : [],
-    incomingInteractionLogs: Array.isArray(input.incomingInteractionLogs)
-      ? input.incomingInteractionLogs
-      : [],
+    incomingInteractionLogs:
+      incomingInteractionLogLimit > 0 && Array.isArray(input.incomingInteractionLogs)
+        ? input.incomingInteractionLogs.slice(-incomingInteractionLogLimit)
+        : [],
     scheduledIncomingInteractions: Array.isArray(input.scheduledIncomingInteractions)
       ? input.scheduledIncomingInteractions.map((scheduled) => ({
           ...scheduled,

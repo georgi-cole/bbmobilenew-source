@@ -16,6 +16,7 @@ import {
   EXPANSION_PRODUCT_KEYS,
   GAME_MODE_PRODUCT_KEYS,
   STANDALONE_PRODUCT_KEYS,
+  UTILITY_PRODUCT_KEYS,
   getStoreProductDefinition,
   type StoreProductKey,
 } from '../../vip/vipConfig'
@@ -30,6 +31,7 @@ import {
   isEffectiveVipActive,
   TEMPORARY_STORE_UNLOCKS_ENABLED,
 } from '../../vip/effectiveEntitlements'
+import { resolveVipUpgradeOffer } from '../../vip/vipUpgrade'
 import './Store.css'
 import './StoreProductList.css'
 
@@ -45,6 +47,7 @@ const STORE_SHELVES = [
   { id: 'all-access', label: 'VIP' },
   { id: 'game-modes', label: 'Game Modes' },
   { id: 'season-expansions', label: 'Expansion' },
+  { id: 'extras', label: 'Extras' },
   { id: 'powers', label: 'Powers' },
 ] as const
 
@@ -58,6 +61,7 @@ const VIP_BENEFIT_HIGHLIGHTS: Record<string, string> = {
   'Vox Populi expansion': 'The audience gets the final say.',
   'VIP themes': 'Give every season a premium finish.',
   'Premium Challenges remasters': 'Two fan-favourite rescues, rebuilt.',
+  'No automatic ads': 'Keep the broadcast moving without forced commercial breaks.',
 }
 
 export default function Store() {
@@ -83,6 +87,10 @@ export default function Store() {
   const vipProduct = storeState.products.vip
   const vipDefinition = getStoreProductDefinition('vip')
   const effectiveVipActive = isEffectiveVipActive(storeState)
+  const vipUpgradeOffer =
+    !effectiveVipActive && !TEMPORARY_STORE_UNLOCKS_ENABLED
+      ? resolveVipUpgradeOffer(storeState.entitlements)
+      : null
   const developerAccess = TEMPORARY_STORE_UNLOCKS_ENABLED
   const returnTo = (location.state as { returnTo?: unknown } | null)?.returnTo
   const hasReturnDestination = typeof returnTo === 'string' && returnTo.startsWith('/')
@@ -216,27 +224,22 @@ export default function Store() {
       </nav>
 
       {activeShelf === 'powers' && (
-        <section
-          className="vip-store__standalone vip-store__eyeolean-market"
-          aria-labelledby="eyeolean-items-title"
-        >
-          <div className="vip-store__eyeolean-heading">
-            <div>
-              <p className="vip-store__eyebrow">Spend what you earn</p>
-              <h2 id="eyeolean-items-title">Power Market</h2>
-            </div>
-            <div className="vip-store__wallet" aria-label="Eyeolean wallet balance">
-              <span>Wallet</span>
-              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-              <small>Eyeoleans</small>
-            </div>
+        <section className="vip-store__standalone" aria-labelledby="eyeolean-items-title">
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Use your balance</p>
+            <h2 id="eyeolean-items-title">Power Market</h2>
+            <p>Repeatable powers for a future eligible eviction.</p>
+          </div>
+          <div
+            className="vip-store__wallet vip-store__wallet-row"
+            aria-label="Eyeolean wallet balance"
+          >
+            <span>Wallet</span>
+            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+            <small>Eyeoleans</small>
           </div>
 
-          <p className="vip-store__eyeolean-note">
-            Repeatable powers adapt to the active season’s voting rules.
-          </p>
-
-          <div className="vip-store__eyeolean-grid">
+          <div className="vip-store__product-grid vip-store__product-grid--powers">
             {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
               const product = getEyeoleanStoreProduct(productKey)
               const modeResolution = getEyeoleanPowerModeResolution(game, productKey)
@@ -247,12 +250,8 @@ export default function Store() {
                 eyeoleanBalance >= product.price &&
                 modeRule?.available === true
               return (
-                <article className="vip-store__eyeolean-product" key={productKey}>
-                  <div
-                    className="vip-store__eyeolean-product-icon"
-                    data-product={productKey}
-                    aria-hidden="true"
-                  >
+                <article className="vip-store__product vip-store__product--power" key={productKey}>
+                  <span className="vip-store__product-icon" aria-hidden="true">
                     {productKey === 'extra_vote'
                       ? '2×'
                       : productKey === 'remove_vote'
@@ -260,15 +259,16 @@ export default function Store() {
                         : productKey === 'immunity'
                           ? '✦'
                           : '🛡️'}
-                  </div>
-                  <div className="vip-store__eyeolean-product-copy">
-                    <div className="vip-store__eyeolean-product-title-row">
-                      <h3>{modeRule?.available ? modeRule.title : product.title}</h3>
-                      <span>Owned {owned}</span>
-                    </div>
-                    <p>{product.shortDescription}</p>
-                  </div>
-                  <div className="vip-store__eyeolean-product-footer">
+                  </span>
+                  <span className="vip-store__product-copy">
+                    <span className="vip-store__product-title">
+                      {modeRule?.available ? modeRule.title : product.title}
+                    </span>
+                    <span className="vip-store__product-description">
+                      {product.shortDescription} · Owned {owned}
+                    </span>
+                  </span>
+                  <span className="vip-store__product-footer">
                     <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
                     <button
                       type="button"
@@ -287,7 +287,7 @@ export default function Store() {
                     {!modeRule?.available && modeResolution.unavailableReason && (
                       <small>{modeResolution.unavailableReason}</small>
                     )}
-                  </div>
+                  </span>
                 </article>
               )
             })}
@@ -319,13 +319,21 @@ export default function Store() {
                 <StoreProductIcon name={vipDefinition.icon} />
               </span>
               <div>
-                <p className="vip-store__kicker">VIP membership · permanent</p>
+                <p className="vip-store__kicker">
+                  {vipUpgradeOffer ? 'VIP upgrade · permanent' : 'VIP membership · permanent'}
+                </p>
                 <h2 id="vip-plan-title">{vipProduct?.title || vipDefinition.title}</h2>
               </div>
             </div>
             <p className="vip-store__description">
               {vipProduct?.description || vipDefinition.description}
             </p>
+            {vipUpgradeOffer && (
+              <p className="vip-store__description">
+                Your owned standalone features qualify for VIP upgrade pricing. 75% of their
+                configured value is credited, rounded to the nearest supported store tier.
+              </p>
+            )}
           </div>
 
           <div className="vip-store__vip-collection">
@@ -358,7 +366,9 @@ export default function Store() {
                       ? 'Product unavailable'
                       : 'Available on iOS and Android')}
               </strong>
-              {vipProduct && !developerAccess && <span>one time</span>}
+              {vipProduct && !developerAccess && (
+                <span>{vipUpgradeOffer ? 'VIP upgrade · 75% credit applied' : 'one time'}</span>
+              )}
             </div>
 
             <button
@@ -367,7 +377,11 @@ export default function Store() {
               onClick={() => selectProduct('vip')}
               disabled={busy}
             >
-              {effectiveVipActive ? 'View VIP access' : 'Explore VIP'}
+              {effectiveVipActive
+                ? 'View VIP access'
+                : vipUpgradeOffer
+                  ? 'Explore VIP upgrade'
+                  : 'Explore VIP'}
             </button>
           </div>
         </section>
@@ -437,6 +451,58 @@ export default function Store() {
 
           <div className="vip-store__product-grid">
             {EXPANSION_PRODUCT_KEYS.map((productKey) => {
+              const definition = getStoreProductDefinition(productKey)
+              const product = storeState.products[productKey]
+              const owned = ownsProduct(productKey)
+              const includedWithVip =
+                !developerAccess && storeState.isActive && !storeState.entitlements[productKey]
+              return (
+                <button
+                  type="button"
+                  className="vip-store__product"
+                  data-theme={definition.visualTheme}
+                  key={productKey}
+                  onClick={() => selectProduct(productKey)}
+                  disabled={busy}
+                  aria-label={`Open ${definition.title}`}
+                >
+                  <span className="vip-store__product-icon" aria-hidden="true">
+                    <StoreProductIcon name={definition.icon} />
+                  </span>
+                  <span className="vip-store__product-copy">
+                    <span className="vip-store__product-title">{definition.title}</span>
+                    <span className="vip-store__product-description">
+                      {definition.shortTagline}
+                    </span>
+                  </span>
+                  <span className="vip-store__product-footer">
+                    <strong>
+                      {developerAccess
+                        ? 'Developer access'
+                        : includedWithVip
+                          ? 'Included with VIP'
+                          : owned
+                            ? 'Owned'
+                            : product?.price || 'Price unavailable'}
+                    </strong>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {activeShelf === 'extras' && (
+        <section className="vip-store__standalone" aria-labelledby="extras-title">
+          <div className="vip-store__section-heading">
+            <p className="vip-store__eyebrow">Finish your setup</p>
+            <h2 id="extras-title">Extras</h2>
+            <p>Premium challenge remasters and a permanent ad-free broadcast option.</p>
+          </div>
+
+          <div className="vip-store__product-grid">
+            {UTILITY_PRODUCT_KEYS.map((productKey) => {
               const definition = getStoreProductDefinition(productKey)
               const product = storeState.products[productKey]
               const owned = ownsProduct(productKey)

@@ -15,6 +15,7 @@ function makeState(): RootState {
     ads: {
       hasNoAdsPack: false,
       dailyUsage: {},
+      automaticBreaks: {},
       lastCompLastPlaceType: null,
     },
     vip: {

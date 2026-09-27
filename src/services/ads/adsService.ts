@@ -20,29 +20,29 @@ export const SOCIAL_ENERGY_RECHARGE_REWARD = 6
 
 export type AdPlacement =
   | 'competition_retry'
-  | 'eviction_auto'
-  | 'pos_decision_auto'
-  | 'final_safety_decision_auto'
-  | 'final_loh_decision_auto'
-  | 'finale_recap_auto'
+  | 'live_vote_auto'
+  | 'safety_decision_auto'
+  | 'final3_part1_break'
+  | 'final3_part2_break'
+  | 'final3_part3_break'
   | 'social_energy_recharge'
-  | 'public_meter_disliked_boost'
+  | 'public_meter_audience_insight'
   | 'eviction_vote_breakdown'
   | 'vox_nomination_breakdown'
   | 'vox_audience_preview'
   | 'favorite_player_audience_surge'
 
 export const INTERSTITIAL_PLACEMENTS = new Set<AdPlacement>([
-  'eviction_auto',
-  'pos_decision_auto',
-  'final_safety_decision_auto',
-  'final_loh_decision_auto',
-  'finale_recap_auto',
+  'live_vote_auto',
+  'safety_decision_auto',
+  'final3_part1_break',
+  'final3_part2_break',
+  'final3_part3_break',
 ])
 
 export const DAILY_LIMITED_PLACEMENTS = new Set<AdPlacement>([
   'social_energy_recharge',
-  'public_meter_disliked_boost',
+  'public_meter_audience_insight',
 ])
 
 declare global {

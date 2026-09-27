@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   createInitialRealityDomainState,
+  MAX_REALITY_MEMORIES_PER_ACTOR,
   normalizeRealityDomainState,
   REALITY_RESOLVED_INTERACTION_LIMIT,
 } from '../reality'
-import type { RealityInteraction } from '../reality'
+import type { RealityInteraction, RealityMemory } from '../reality'
 
 function interaction(
   id: string,
@@ -39,7 +40,20 @@ function interaction(
   }
 }
 
-describe('Reality interaction retention', () => {
+describe('Reality state retention', () => {
+  it('caps oversized hydrated memory collections per actor', () => {
+    const domain = createInitialRealityDomainState()
+    domain.memoriesByOwner.actor = Array.from(
+      { length: MAX_REALITY_MEMORIES_PER_ACTOR + 5 },
+      (_, index) => ({ id: `memory-${index}` }) as RealityMemory
+    )
+
+    const normalized = normalizeRealityDomainState(domain)
+
+    expect(normalized.memoriesByOwner.actor).toHaveLength(MAX_REALITY_MEMORIES_PER_ACTOR)
+    expect(normalized.memoriesByOwner.actor?.[0]?.id).toBe('memory-5')
+  })
+
   it('keeps active conversations and only the newest resolved records', () => {
     const domain = createInitialRealityDomainState()
     for (let sequence = 0; sequence < REALITY_RESOLVED_INTERACTION_LIMIT + 5; sequence += 1) {

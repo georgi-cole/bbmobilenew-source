@@ -129,29 +129,35 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     shockDetail:
       'The audience votes to eliminate one of the other two housemates. Once the Final 2 is formed, the audience votes again—this time to crown the season winner. There is no Tribunal and no sole housemate vote.',
   },
-  ad_break_eviction_auto: {
+  ad_break_live_vote_auto: {
     icon: '📺',
     label: 'SHORT BREAK',
     category: 'Broadcast',
-    body: "Don't change the channel, a new Day is about to begin right after a short break.",
+    body: 'The house is about to vote. The result unfolds right after this short break.',
   },
-  ad_break_pos_decision_auto: {
+  ad_break_safety_decision_auto: {
     icon: '📺',
     label: 'SHORT BREAK',
     category: 'Broadcast',
-    body: 'Is the Power of Safety holder going to use the power to change the course of the game? Find out right after this short break!',
+    body: 'The Power of Safety decision is next. Stay with us through this short break.',
   },
-  ad_break_final_safety_decision_auto: {
+  ad_break_final3_part1_break: {
     icon: '📺',
     label: 'SHORT BREAK',
     category: 'Broadcast',
-    body: 'The final safety winner now has the deciding vote to evict. Find out who is going to be eliminated just a step before the finale. Stay with us.',
+    body: 'Part 1 is complete. Part 2 of the Final Power Battle begins right after this short break.',
   },
-  ad_break_final_loh_decision_auto: {
+  ad_break_final3_part2_break: {
     icon: '📺',
     label: 'SHORT BREAK',
     category: 'Broadcast',
-    body: 'The final leader of the house has to make a very important decision that might cost them the victory. Who will they choose? Find out right after the break.',
+    body: 'Part 2 is complete. The final battle begins right after this short break.',
+  },
+  ad_break_final3_part3_break: {
+    icon: '📺',
+    label: 'SHORT BREAK',
+    category: 'Broadcast',
+    body: 'The Final Power Battle is over. The last decision follows right after this short break.',
   },
   jury: {
     icon: '⚖️',

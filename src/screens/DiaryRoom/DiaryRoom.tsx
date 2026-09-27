@@ -902,6 +902,12 @@ export default function DiaryRoom() {
     }
   }, [confessionalDecisionPending, showSelfEvictConfirm])
 
+  useEffect(() => {
+    if (confessionalDecisionPending && activeView !== 'confess') {
+      setActiveView('confess')
+    }
+  }, [activeView, confessionalDecisionPending])
+
   // Stable refs for summary calculation (avoid stale closure on unmount)
   const playerNameRef = useRef(playerName)
   useEffect(() => {

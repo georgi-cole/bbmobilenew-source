@@ -19,6 +19,7 @@ describe('adsSlice persistence', () => {
       JSON.stringify({
         hasNoAdsPack: true,
         dailyUsage: { social_energy_recharge: '2026-04-05' },
+        automaticBreaks: { 'season-1:4:live_vote:live_vote_auto': true },
         lastCompLastPlaceType: 'loh',
       }),
     );
@@ -26,21 +27,36 @@ describe('adsSlice persistence', () => {
     expect(loadAdsState()).toEqual<AdsState>({
       hasNoAdsPack: true,
       dailyUsage: { social_energy_recharge: '2026-04-05' },
+      automaticBreaks: { 'season-1:4:live_vote:live_vote_auto': true },
       lastCompLastPlaceType: null,
     });
+  });
+
+  it('loads legacy persisted ad state without an automatic-break ledger', () => {
+    localStorage.setItem(
+      ADS_STORAGE_KEY,
+      JSON.stringify({
+        hasNoAdsPack: false,
+        dailyUsage: {},
+      }),
+    );
+
+    expect(loadAdsState().automaticBreaks).toEqual({});
   });
 
   it('saveAdsState omits transient competition state from localStorage', () => {
     saveAdsState({
       hasNoAdsPack: true,
-      dailyUsage: { public_meter_disliked_boost: '2026-04-05' },
+      dailyUsage: { public_meter_audience_insight: '2026-04-05' },
+      automaticBreaks: { 'season-1:4:live_vote:live_vote_auto': true },
       lastCompLastPlaceType: 'pos',
     });
 
     expect(localStorage.getItem(ADS_STORAGE_KEY)).toBe(
       JSON.stringify({
         hasNoAdsPack: true,
-        dailyUsage: { public_meter_disliked_boost: '2026-04-05' },
+        dailyUsage: { public_meter_audience_insight: '2026-04-05' },
+        automaticBreaks: { 'season-1:4:live_vote:live_vote_auto': true },
       }),
     );
   });
