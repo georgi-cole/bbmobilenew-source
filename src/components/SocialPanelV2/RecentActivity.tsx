@@ -56,6 +56,7 @@ export default function RecentActivity({
   onExpandedChange,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
+  const game = useAppSelector((state) => state.game)
   const [clearedBefore, setClearedBefore] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set())
@@ -66,13 +67,22 @@ export default function RecentActivity({
     () => new Map(players?.map((player) => [player.id, player]) ?? []),
     [players]
   )
-  const visibleLogs = useMemo(
-    () =>
-      sessionLogs
-        .filter((entry) => entry.timestamp > clearedBefore && entry.source !== 'system')
-        .slice(-maxEntries),
-    [sessionLogs, clearedBefore, maxEntries]
-  )
+  const visibleLogs = useMemo(() => {
+    const entries = sessionLogs.filter(
+      (entry) => entry.timestamp > clearedBefore && entry.source !== 'system'
+    )
+    return entries
+      .filter(
+        (entry, index) =>
+          entry.actionId !== 'ask_loh_target' ||
+          !entries
+            .slice(index + 1)
+            .some(
+              (later) => later.actionId === 'ask_loh_target' && later.targetId === entry.targetId
+            )
+      )
+      .slice(-maxEntries)
+  }, [sessionLogs, clearedBefore, maxEntries])
   const displayedLogs = compact && !expanded ? visibleLogs.slice(-1) : visibleLogs
 
   function toggleHistory() {
@@ -119,7 +129,7 @@ export default function RecentActivity({
     <div className="ra-container" aria-label="Recent Activity">
       {visibleLogs.length > 0 && (
         <div className="ra-header">
-          <span className="ra-title">House wire</span>
+          <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
             {compact && visibleLogs.length > 1 && (
               <button className="ra-history-btn" type="button" onClick={toggleHistory}>
@@ -185,6 +195,13 @@ export default function RecentActivity({
                 ? ''
                 : ` · current ${currentRelationship > 0 ? '+' : ''}${currentRelationship}`
             const narrative =
+              (entry.actionId === 'ask_loh_target' &&
+              game.lohId === entry.targetId &&
+              game.lohSocialPlan?.week === game.week &&
+              game.lohSocialPlan.lohId === game.lohId &&
+              game.lohSocialPlan.disclosureOutcomeByPlayerId?.[entry.actorId] === 'vague'
+                ? `${targetName} kept the replacement plan vague.`
+                : undefined) ??
               entry.narrative ??
               (entry.actionId === 'ask_loh_target' && subjectName
                 ? entry.context?.lohPlanType === 'backup_plan'

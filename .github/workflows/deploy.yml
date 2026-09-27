@@ -24,9 +24,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  release-quality:
+    name: Required release-quality checks
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip-public-deploy]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run test:guard
+      - run: npm run lint:ci
+      - run: npm run typecheck
+      - run: npm run build:mobile
+      - run: npm audit --omit=dev --audit-level=high
+
   build-and-deploy:
     name: Build and publish public site
     if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip-public-deploy]')
+    needs: [release-quality]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

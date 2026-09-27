@@ -120,6 +120,7 @@ function fallbackScenarioOutcome(
     post_veto_gratitude: `${fromName} says the Safety decision bought them time they will remember.`,
     post_veto_campaign: `${fromName} says the new block has reopened votes they thought were settled.`,
     live_vote_pitch: `${fromName} says they need one honest answer before the vote locks.`,
+    tie_break_campaign: `${fromName} makes a direct case for your deciding vote, offering support if you keep them.`,
     survivor_gratitude: `${fromName} says surviving showed them who actually came through.`,
     betrayal_warning: `${fromName} says the same suspicious pattern has come up too often to ignore.`,
     ignored_warning: `${fromName} says the distance between you is starting to affect their choices.`,

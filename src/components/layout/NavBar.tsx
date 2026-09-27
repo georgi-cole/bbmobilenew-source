@@ -169,7 +169,7 @@ export default function NavBar() {
       onSettingsClick={() => navigate('/settings')}
       onLeaderboardClick={() => navigate('/leaderboard')}
       onProfileClick={() => navigate('/profile', { state: { from: '/game' } })}
-      onStoreClick={() => navigate('/', { state: { openHubUtility: 'store' } })}
+      onStoreClick={() => navigate('/store', { state: { returnTo: '/game' } })}
     >
       <ConfirmExitModal
         open={confirmOpen}

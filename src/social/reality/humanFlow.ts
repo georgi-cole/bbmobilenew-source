@@ -665,6 +665,18 @@ function buildLohConsultationSummary(
         ? plan.currentTargetId
         : null) ?? nominees[0]
     const lockedTarget = playerName(state, lockedTargetId)
+    const replacementId =
+      plan.backupTargetId &&
+      plan.backupTargetId !== lockedTargetId &&
+      nominees.includes(plan.backupTargetId)
+        ? plan.backupTargetId
+        : null
+    if (replacementId) {
+      return `The block is locked. ${lockedTarget} is my main target; ${playerName(
+        state,
+        replacementId
+      )} is on the block as the replacement.`
+    }
     return `The block is locked. ${lockedTarget} is my main target, and that is who I want eliminated.`
   }
 
@@ -712,7 +724,10 @@ function buildLohConsultationSummary(
     return `${disclosedName} is my current target. That is who I want the pressure on.`
   }
   if (plan.backupTargetId === disclosedTargetId && disclosedTargetId !== plan.currentTargetId) {
-    return `${disclosedName} is my backup plan if Safety opens the block.`
+    const mainTarget = plan.currentTargetId
+      ? playerName(state, plan.currentTargetId)
+      : 'the current nominee'
+    return `${disclosedName} is the replacement nominee if Safety opens the block. ${mainTarget} remains my main target.`
   }
   return `Right now, ${disclosedName} is the person I am watching most closely.`
 }

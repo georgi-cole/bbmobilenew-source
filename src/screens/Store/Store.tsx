@@ -25,6 +25,7 @@ import {
   getEyeoleanStoreProduct,
   type EyeoleanStoreProductKey,
 } from '../../economy/storeCatalog'
+import { getEyeoleanPowerModeResolution } from '../../economy/eyeoleanPowerRules'
 import {
   hasEffectiveStoreEntitlement,
   isEffectiveVipActive,
@@ -69,6 +70,7 @@ export default function Store() {
   const dispatch = useAppDispatch()
   const storeState = useAppSelector(selectVip)
   const currentProfile = useAppSelector(selectCurrentProfile)
+  const game = useAppSelector((state) => state.game)
   const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
   const eyeoleanInventory = useAppSelector(selectEyeoleanInventory)
   const [notice, setNotice] = useState<string | null>(null)
@@ -240,15 +242,28 @@ export default function Store() {
           <div className="vip-store__product-grid vip-store__product-grid--powers">
             {EYEOLEAN_STORE_PRODUCT_KEYS.map((productKey) => {
               const product = getEyeoleanStoreProduct(productKey)
+              const modeResolution = getEyeoleanPowerModeResolution(game, productKey)
+              const modeRule = modeResolution.rule
               const owned = eyeoleanInventory[productKey] ?? 0
-              const canBuy = Boolean(currentProfile) && eyeoleanBalance >= product.price
+              const canBuy =
+                Boolean(currentProfile) &&
+                eyeoleanBalance >= product.price &&
+                modeRule?.available === true
               return (
                 <article className="vip-store__product vip-store__product--power" key={productKey}>
                   <span className="vip-store__product-icon" aria-hidden="true">
-                    {productKey === 'extra_vote' ? '2×' : '−1'}
+                    {productKey === 'extra_vote'
+                      ? '2×'
+                      : productKey === 'remove_vote'
+                        ? '−1'
+                        : productKey === 'immunity'
+                          ? '✦'
+                          : '🛡️'}
                   </span>
                   <span className="vip-store__product-copy">
-                    <span className="vip-store__product-title">{product.title}</span>
+                    <span className="vip-store__product-title">
+                      {modeRule?.available ? modeRule.title : product.title}
+                    </span>
                     <span className="vip-store__product-description">
                       {product.shortDescription} · Owned {owned}
                     </span>
@@ -261,8 +276,17 @@ export default function Store() {
                       disabled={!canBuy}
                       aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
                     >
-                      {currentProfile ? (canBuy ? 'Buy' : 'Not enough') : 'Profile required'}
+                      {!currentProfile
+                        ? 'Profile required'
+                        : !modeRule?.available
+                          ? 'Unavailable'
+                          : canBuy
+                            ? 'Buy'
+                            : 'Not enough'}
                     </button>
+                    {!modeRule?.available && modeResolution.unavailableReason && (
+                      <small>{modeResolution.unavailableReason}</small>
+                    )}
                   </span>
                 </article>
               )

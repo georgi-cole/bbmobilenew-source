@@ -2244,6 +2244,64 @@ function getVoxBallotSize(state: GameState): number {
   return isVoxFinalFour(state) ? 1 : 2
 }
 
+/** A purchased Vox Extra Vote adds one distinct target to the human's secret ballot. */
+function getVoxHumanBallotSize(state: GameState, eligibleCount: number): number {
+  const bonus = state.storeVoxExtraNominationChoiceActive === true ? 1 : 0
+  return Math.min(getVoxBallotSize(state) + bonus, eligibleCount)
+}
+
+function resolveCurrentVoxNominations(state: GameState) {
+  const alive = getAlivePlayers(state)
+  return resolveVoxNominations({
+    activeIds: alive.map((player) => player.id),
+    immunityWinnerId: getVoxNominationImmunityId(state),
+    autoNomineeId: state.voxPopuli?.autoNomineeId ?? state.lastHohCompFinisherId ?? null,
+    ballots: state.voxPopuli?.nominationBallots ?? {},
+    ballotNomineeCount: getVoxBallotSize(state),
+    seed: state.seed,
+  })
+}
+
+/**
+ * Reconcile a completed Vox ballot after a rules-valid tally adjustment. This
+ * keeps the visible block, player statuses, and authoritative tally together.
+ */
+function applyVoxNominationResolution(
+  state: GameState,
+  resolution: ReturnType<typeof resolveCurrentVoxNominations>
+) {
+  const priorNomineeIds = new Set(state.nomineeIds)
+  const nextNomineeIds = new Set(resolution.nomineeIds)
+  state.voxPopuli!.nominationVoteCounts = resolution.voteCounts
+  state.nomineeIds = resolution.nomineeIds
+  state.voxPopuli!.nominationDaysByPlayerId ??= {}
+
+  priorNomineeIds.forEach((id) => {
+    if (nextNomineeIds.has(id)) return
+    const days = state.voxPopuli!.nominationDaysByPlayerId![id] ?? []
+    state.voxPopuli!.nominationDaysByPlayerId![id] = days.filter((day) => day !== state.week)
+    const player = state.players.find((candidate) => candidate.id === id)
+    if (player?.status === 'nominated') player.status = 'active'
+    else if (player?.status === 'nominated+pos') player.status = 'pos'
+    if (player) {
+      ensurePlayerStats(player).timesNominated = Math.max(0, player.stats!.timesNominated - 1)
+    }
+  })
+
+  resolution.nomineeIds.forEach((id) => {
+    const days = state.voxPopuli!.nominationDaysByPlayerId![id] ?? []
+    if (!days.includes(state.week)) days.push(state.week)
+    state.voxPopuli!.nominationDaysByPlayerId![id] = days.slice(-6)
+  })
+  state.players.forEach((player) => {
+    if (!nextNomineeIds.has(player.id)) return
+    if (player.status !== 'nominated' && player.status !== 'nominated+pos') {
+      player.status = 'nominated'
+      if (!priorNomineeIds.has(player.id)) incrementTimesNominated(state, player.id)
+    }
+  })
+}
+
 export function getEligibleNominationTargets(state: GameState, actorId: string): Player[] {
   const alive = getAlivePlayers(state)
 
@@ -2312,31 +2370,8 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
 
 function finalizeVoxNominations(state: GameState) {
   if (!state.voxPopuli) return
-  const alive = getAlivePlayers(state)
-  const resolution = resolveVoxNominations({
-    activeIds: alive.map((player) => player.id),
-    immunityWinnerId: getVoxNominationImmunityId(state),
-    autoNomineeId: state.voxPopuli.autoNomineeId ?? state.lastHohCompFinisherId ?? null,
-    ballots: state.voxPopuli.nominationBallots,
-    ballotNomineeCount: getVoxBallotSize(state),
-    seed: state.seed,
-  })
-
-  state.voxPopuli.nominationVoteCounts = resolution.voteCounts
-  state.nomineeIds = resolution.nomineeIds
-  state.voxPopuli.nominationDaysByPlayerId ??= {}
-  resolution.nomineeIds.forEach((id) => {
-    const days = state.voxPopuli!.nominationDaysByPlayerId![id] ?? []
-    if (!days.includes(state.week)) days.push(state.week)
-    state.voxPopuli!.nominationDaysByPlayerId![id] = days.slice(-6)
-  })
-  state.players.forEach((player) => {
-    if (!state.nomineeIds.includes(player.id)) return
-    if (player.status !== 'nominated' && player.status !== 'nominated+pos') {
-      player.status = 'nominated'
-      incrementTimesNominated(state, player.id)
-    }
-  })
+  const resolution = resolveCurrentVoxNominations(state)
+  applyVoxNominationResolution(state, resolution)
   state.awaitingNominations = false
   state.pendingNominee1Id = null
   state.nominationContext = null
@@ -2388,6 +2423,28 @@ function finalizeVoxNominations(state: GameState) {
           ballotNominees.length === 1 ? 'is' : 'are'
         } nominated for the audience vote.`
       : 'The secret ballot is complete.'
+  state.history ??= []
+  if (
+    !state.history.some(
+      (event) => event.type === 'voxNominationResult' && event.week === state.week
+    )
+  ) {
+    state.history.push({
+      type: 'voxNominationResult',
+      week: state.week,
+      data: {
+        mode: 'vox_populi',
+        nomineeIds: [...resolution.nomineeIds],
+        voteCounts: { ...resolution.voteCounts },
+        automaticNomineeId,
+        playerNamesById: Object.fromEntries(
+          state.players.map((player) => [player.id, player.name])
+        ),
+        visibility: 'public_result',
+      },
+      timestamp: Date.now(),
+    })
+  }
   pushEvent(state, resultCopy, 'game', {
     broadcastTemplateId: automaticNominee
       ? ballotNominees.length > 0
@@ -3176,6 +3233,14 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
       week: state.week,
       data: {
         playerId,
+        mode: isVoxPopuliActive(state)
+          ? 'vox_populi'
+          : isCupidArrowActive(state)
+            ? 'cupid'
+            : 'classic',
+        playerNamesById: Object.fromEntries(
+          state.players.map((player) => [player.id, player.name])
+        ),
         leaderIds,
         nomineeIds: roundSnapshot?.nomineeIds ?? [...state.nomineeIds],
         votesByVoterId: roundSnapshot?.votesByVoterId ?? { ...(state.votes ?? {}) },
@@ -3338,9 +3403,52 @@ function canPlayerTargetPlayer(
 function canPlayerNominatePlayer(
   state: GameState,
   actorId: string | null | undefined,
+  targetId: string,
+  ignoreStoreProtection = false
+): boolean {
+  const isProtected =
+    !ignoreStoreProtection &&
+    state.storeNominationProtections?.some(
+      (protection) => protection.week === state.week && protection.targetId === targetId
+    )
+  return (
+    !isProtected &&
+    canPlayerTargetPlayer(state, actorId, targetId) &&
+    !isBellaHeirImmune(state, targetId)
+  )
+}
+
+/** True only when a Store nomination shield can actually remove this player from a ballot. */
+export function canStoreNominationProtectionAffectPlayer(
+  state: GameState,
   targetId: string
 ): boolean {
-  return canPlayerTargetPlayer(state, actorId, targetId) && !isBellaHeirImmune(state, targetId)
+  const target = state.players.find(
+    (player) => player.id === targetId && player.status !== 'evicted' && player.status !== 'jury'
+  )
+  if (!target || isBellaHeirImmune(state, targetId)) return false
+
+  const alive = getAlivePlayers(state)
+  if (isVoxPopuliActive(state)) {
+    const autoNomineeId = state.voxPopuli?.autoNomineeId ?? state.lastHohCompFinisherId
+    const immuneId = getVoxNominationImmunityId(state)
+    if (targetId === autoNomineeId || targetId === immuneId) return false
+    return alive.some(
+      (actor) => actor.id !== targetId && canPlayerNominatePlayer(state, actor.id, targetId, true)
+    )
+  }
+
+  const publicAutoNominee =
+    state.publicModeEnabled === true &&
+    state.doubleEviction?.weekActive !== true &&
+    state.lastHohCompFinisherId === targetId
+  if (publicAutoNominee) return false
+  const leaderIds = new Set(
+    state.coLohIds?.length ? state.coLohIds : state.lohId ? [state.lohId] : []
+  )
+  if (leaderIds.has(targetId)) return false
+  if (leaderIds.size === 0) return true
+  return [...leaderIds].some((leaderId) => canPlayerNominatePlayer(state, leaderId, targetId, true))
 }
 
 function usesPluralPlayerGrammar(
@@ -5427,7 +5535,7 @@ const gameSlice = createSlice({
             candidate.id !== autoNomineeId &&
             canPlayerNominatePlayer(state, human.id, candidate.id)
         )
-        const expectedCount = Math.min(getVoxBallotSize(state), eligible.length)
+        const expectedCount = getVoxHumanBallotSize(state, eligible.length)
         const ids = [...new Set(action.payload)]
         if (
           ids.length !== expectedCount ||
@@ -5436,6 +5544,7 @@ const gameSlice = createSlice({
           return
         }
         state.voxPopuli.nominationBallots[human.id] = ids
+        state.storeVoxExtraNominationChoiceActive = false
         finalizeVoxNominations(state)
         return
       }
@@ -6191,6 +6300,23 @@ const gameSlice = createSlice({
         votesByVoterId: {},
         voteCounts: { ...action.payload.percentages },
       }
+      state.history ??= []
+      state.history.push({
+        type: 'voxAudienceVoteResult',
+        week: state.week,
+        data: {
+          mode: 'vox_populi',
+          context: action.payload.context,
+          nomineeIds: [...state.nomineeIds],
+          rankedIds: [...rankedIds],
+          percentages: { ...action.payload.percentages },
+          playerNamesById: Object.fromEntries(
+            state.players.map((player) => [player.id, player.name])
+          ),
+          visibility: 'public_result',
+        },
+        timestamp: Date.now(),
+      })
 
       const firstId = rankedIds[0]
       const first = state.players.find((player) => player.id === firstId)
@@ -7305,7 +7431,16 @@ const gameSlice = createSlice({
       state.history.push({
         type: 'favoritePlayer:winner',
         week: state.week,
-        data: { winnerId: action.payload, awardAmount: fp.awardAmount },
+        data: {
+          winnerId: action.payload,
+          awardAmount: fp.awardAmount,
+          votes: { ...fp.votes },
+          candidates: [...fp.candidates],
+          playerNamesById: Object.fromEntries(
+            state.players.map((player) => [player.id, player.name])
+          ),
+          visibility: 'public_result',
+        },
         timestamp: Date.now(),
       })
     },
@@ -9353,7 +9488,7 @@ const gameSlice = createSlice({
             if (human && humanCanVote && humanEligibleTargets.length > 0) {
               state.awaitingNominations = true
               state.pendingNominee1Id = null
-              const requiredVotes = Math.min(getVoxBallotSize(state), humanEligibleTargets.length)
+              const requiredVotes = getVoxHumanBallotSize(state, humanEligibleTargets.length)
               pushEvent(
                 state,
                 `${human.name}, cast ${
@@ -10373,6 +10508,37 @@ const gameSlice = createSlice({
             votesByVoterId: { ...validVotesByVoterId },
             voteCounts: { ...voteCounts },
           }
+          state.history ??= []
+          const voteMode = isVoxPopuliActive(state)
+            ? 'vox_populi'
+            : isCupidArrowActive(state)
+              ? 'cupid'
+              : 'classic'
+          const voteRecordPhase = String(nextPhase)
+          if (
+            !state.history.some(
+              (event) =>
+                event.type === 'houseVoteResult' &&
+                event.week === state.week &&
+                event.data.phase === voteRecordPhase
+            )
+          ) {
+            state.history.push({
+              type: 'houseVoteResult',
+              week: state.week,
+              data: {
+                mode: voteMode,
+                phase: voteRecordPhase,
+                nomineeIds: [...state.nomineeIds],
+                voteCounts: { ...voteCounts },
+                playerNamesById: Object.fromEntries(
+                  state.players.map((player) => [player.id, player.name])
+                ),
+                visibility: 'public_result',
+              },
+              timestamp: Date.now(),
+            })
+          }
           // ── Double Eviction: evict top 2 nominees ─────────────────────────
           if (state.doubleEviction?.weekActive && nominees.length >= 2) {
             // Precompute deterministic tie-break ranks for the current nominee
@@ -10986,12 +11152,107 @@ const gameSlice = createSlice({
     },
 
     /**
+     * Vox adapts the Store Extra Vote to its secret-nomination rules: the human
+     * may name one additional, distinct target on the current ballot.
+     */
+    activateStoreVoxExtraVote(state) {
+      if (!isVoxPopuliActive(state) || state.phase !== 'nomination_results') return
+      if (!state.awaitingNominations || state.storeVoxExtraNominationChoiceActive) return
+      state.storeVoxExtraNominationChoiceActive = true
+      const human = state.players.find((player) => player.isUser)
+      const ballotPrompt = state.tvFeed.find(
+        (event) =>
+          event.meta?.week === state.week &&
+          event.meta?.broadcastTemplateId === 'nominations.vox-ballot' &&
+          event.meta?.broadcastConsumed !== true
+      )
+      if (human && ballotPrompt) {
+        const voteCount = getVoxBallotSize(state) + 1
+        ballotPrompt.text = `${human.name}, cast your ${voteCount} secret nomination votes in the Confessional.`
+      }
+    },
+
+    /** Apply the selected Store shield to the next nomination round only. */
+    activateStoreNominationProtection(
+      state,
+      action: PayloadAction<{
+        productKey: 'immunity' | 'protection'
+        targetId: string
+        week: number
+      }>
+    ) {
+      const { productKey, targetId, week } = action.payload
+      if (!targetId || week !== state.week || getAlivePlayers(state).length <= 4) return
+      if (state.phase === 'nomination_results' || state.phase === 'eviction_results') return
+      if (!canStoreNominationProtectionAffectPlayer(state, targetId)) return
+      const protections = (state.storeNominationProtections ?? []).filter(
+        (protection) => protection.productKey !== productKey
+      )
+      state.storeNominationProtections = [...protections, { productKey, targetId, week }]
+    },
+
+    clearStoreNominationProtection(state, action: PayloadAction<'immunity' | 'protection'>) {
+      state.storeNominationProtections = (state.storeNominationProtections ?? []).filter(
+        (protection) => protection.productKey !== action.payload
+      )
+    },
+
+    /**
      * Apply a previously armed Store Remove a Vote after the canonical house
      * tally exists. The middleware consumes the reservation only if this changes
      * the human player's effective tally.
      */
     applyStoreVoteRemoval(state) {
       applyOneVoteDeductionToHuman(state)
+    },
+
+    /**
+     * Vox has no house eviction tally. Its matching defensive effect removes
+     * one secret nomination against the human, then rebuilds the official
+     * nomination result from the adjusted ballot ledger.
+     */
+    applyStoreVoxVoteRemoval(state) {
+      if (!isVoxPopuliActive(state) || !state.voxPopuli) return
+      if (state.phase !== 'nomination_results' || state.awaitingNominations) return
+      const human = state.players.find((player) => player.isUser)
+      if (!human || !state.nomineeIds.includes(human.id)) return
+
+      const eligibleVoters = Object.entries(state.voxPopuli.nominationBallots)
+        .filter(([, ballot]) => ballot.includes(human.id))
+        .map(([voterId]) => voterId)
+        .sort((left, right) => {
+          const leftRank = hashString(`store-vox-remove:${state.week}:${left}:${human.id}`)
+          const rightRank = hashString(`store-vox-remove:${state.week}:${right}:${human.id}`)
+          return leftRank - rightRank || left.localeCompare(right)
+        })
+      const voterId = eligibleVoters[0]
+      if (!voterId) return
+
+      state.voxPopuli.nominationBallots[voterId] = state.voxPopuli.nominationBallots[
+        voterId
+      ]!.filter((targetId) => targetId !== human.id)
+      const resolution = resolveCurrentVoxNominations(state)
+      applyVoxNominationResolution(state, resolution)
+
+      const remainingNames = state.nomineeIds.map(
+        (id) => state.players.find((player) => player.id === id)?.name ?? id
+      )
+      const priorResult = state.tvFeed.find((event) => {
+        const templateId = event.meta?.broadcastTemplateId
+        return (
+          event.meta?.week === state.week &&
+          typeof templateId === 'string' &&
+          [
+            'nominations.vox-result-with-auto',
+            'nominations.vox-auto-remains',
+            'nominations.vox-result',
+            'nominations.vox-ballot-complete',
+          ].includes(templateId)
+        )
+      })
+      const correction = `One secret nomination against ${human.name} has been removed. The final block is ${formatNameList(remainingNames)}.`
+      if (priorResult) priorResult.text = correction
+      else pushEvent(state, correction, 'game')
     },
 
     // ── PR 3: voteDeduction activation reducers ───────────────────────────
@@ -11069,7 +11330,11 @@ export const {
   submitPovSaveTarget,
   submitHumanVote,
   activateStoreExtraVote,
+  activateStoreVoxExtraVote,
+  activateStoreNominationProtection,
+  clearStoreNominationProtection,
   applyStoreVoteRemoval,
+  applyStoreVoxVoteRemoval,
   submitTieBreak,
   submitDoubleEvictionTieBreak,
   selectVoxFinalThreeAppeal,

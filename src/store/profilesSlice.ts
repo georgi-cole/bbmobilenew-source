@@ -92,6 +92,8 @@ export interface EyeoleanPowerReservation {
   season: number
   armedWeek: number
   armedAt: string
+  /** Optional selected recipient for a targeted Protection power. */
+  targetId?: string
 }
 
 export interface EyeoleanTransaction {
@@ -268,6 +270,9 @@ function coerceEyeoleanPowerReservations(
       season: Math.max(1, Math.floor(reservation.season)),
       armedWeek: Math.max(1, Math.floor(reservation.armedWeek)),
       armedAt: reservation.armedAt,
+      ...(typeof reservation.targetId === 'string' && reservation.targetId
+        ? { targetId: reservation.targetId }
+        : {}),
     }
   })
   return reservations
@@ -630,6 +635,22 @@ const profilesSlice = createSlice({
       }
     },
 
+    /** Debug-panel grant for QA wallet testing; never shown in player-facing UI. */
+    debugGrantEyeoleans(state, action: PayloadAction<{ grantId: string; amount: number }>) {
+      const profile = state.profiles.find((p) => p.id === state.activeProfileId)
+      const grantId = action.payload.grantId.trim()
+      if (!profile || !grantId || !Number.isFinite(action.payload.amount)) return
+      const amount = Math.min(Number.MAX_SAFE_INTEGER, Math.floor(action.payload.amount))
+      if (amount <= 0) return
+      creditEyeoleans(profile, {
+        id: `qa-grant:${grantId}`,
+        amount,
+        source: 'adjustment',
+        label: 'QA wallet grant',
+        createdAt: new Date().toISOString(),
+      })
+    },
+
     /**
      * Purchase one soft-currency consumable from the canonical Eyeolean catalog.
      * The reducer resolves the price internally so callers cannot spoof a cheaper amount.
@@ -683,6 +704,7 @@ const profilesSlice = createSlice({
         gameId: string
         season: number
         week: number
+        targetId?: string
       }>
     ) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
@@ -716,6 +738,9 @@ const profilesSlice = createSlice({
           season: Math.max(1, Math.floor(action.payload.season)),
           armedWeek: Math.max(1, Math.floor(action.payload.week)),
           armedAt: new Date().toISOString(),
+          ...(typeof action.payload.targetId === 'string' && action.payload.targetId
+            ? { targetId: action.payload.targetId }
+            : {}),
         },
       }
     },
@@ -817,6 +842,7 @@ export const {
   recordBellaCompatibleClassicCompleted,
   settleSeasonEyeoleans,
   spendEyeoleans,
+  debugGrantEyeoleans,
   purchaseEyeoleanStoreProduct,
   armEyeoleanStorePower,
   returnEyeoleanStorePower,

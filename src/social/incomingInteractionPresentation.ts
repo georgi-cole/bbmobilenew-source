@@ -224,6 +224,12 @@ const SCENARIO_RESPONSE_OPTIONS: Record<string, ResponseBlueprint> = {
     { label: 'Stand firm', responseType: 'negative' },
     { label: 'End talk', responseType: 'dismiss' },
   ],
+  tie_break_campaign: [
+    { label: 'Promise your deciding vote', responseType: 'accept' },
+    { label: 'Hear their case', responseType: 'neutral' },
+    { label: 'Choose the other nominee', responseType: 'decline' },
+    { label: 'End the conversation', responseType: 'dismiss' },
+  ],
 }
 
 const CHECK_IN_OPTIONS_BY_TONE: Partial<Record<IncomingInteractionTone, ResponseBlueprint>> = {
@@ -499,7 +505,9 @@ function getCommitmentResponsePresentation(
         ? 'Promise safety'
         : kind === 'use_safety_on_player'
           ? 'Promise the power'
-          : 'Promise your vote'
+          : kind === 'tie_break_keep'
+            ? 'Promise your deciding vote'
+            : 'Promise your vote'
     return {
       label,
       description: `Creates a promise: ${getSocialCommitmentLabel(kind)}. ${getSocialCommitmentDueCopy(kind)}.`,

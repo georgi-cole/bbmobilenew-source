@@ -8,6 +8,7 @@ import { createEmptyStoreEntitlements } from '../../vip/vipStorage'
 import { hasStoreProductIcon } from '../../components/StoreProductModal/storeProductIconUtils'
 import vipReducer, { type VipState } from '../../store/vipSlice'
 import profilesReducer from '../../store/profilesSlice'
+import gameReducer, { createInitialGameState } from '../../store/gameSlice'
 import Store from './Store'
 
 const purchaseStoreProductMock = vi.hoisted(() => vi.fn())
@@ -80,8 +81,8 @@ function snapshotFrom(state: VipState) {
 
 function renderStore(initialVip = makeVipState()) {
   const store = configureStore({
-    reducer: { vip: vipReducer, profiles: profilesReducer },
-    preloadedState: { vip: initialVip },
+    reducer: { vip: vipReducer, profiles: profilesReducer, game: gameReducer },
+    preloadedState: { vip: initialVip, game: createInitialGameState({ seed: 1905 }) },
   })
 
   render(

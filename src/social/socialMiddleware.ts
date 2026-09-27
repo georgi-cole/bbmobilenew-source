@@ -80,6 +80,8 @@ import { deriveRealitySimulationSeed, type RealitySimulationState } from './real
 import { getRealityModeAdapter, type RealityCeremonyKind } from './reality'
 import { createIncomingInteraction } from './incomingInteractionFactory'
 import { BELLA_ID } from '../features/twists/bellasWill'
+import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
+import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
 const SOCIAL_PHASES = new Set<string>(['social_1', 'social_2'])
 
@@ -114,6 +116,9 @@ interface GameState {
   awaitingPovSaveTarget?: boolean
   votes?: Record<string, string>
   pendingEviction?: { evicteeId: string; evictionMessage: string } | null
+  awaitingTieBreak?: boolean
+  awaitingPosTieBreak?: boolean
+  tiedNomineeIds?: string[] | null
   doubleEviction?: { weekActive?: boolean }
   specialVeto?: { activeType?: string | null }
   cupidArrow?: {
@@ -803,6 +808,59 @@ function syncInvalidIncomingInteractions(api: MiddlewareAPI): void {
   )
 }
 
+function queueTieBreakerCampaigns(api: MiddlewareAPI): void {
+  const state = api.getState() as StateWithGame
+  const game = state.game
+  if (!game?.awaitingTieBreak || game.phase !== 'eviction_results') return
+  const human = game.players.find((player) => player.isUser)
+  if (!human || getClassicEvictionTieBreakerId(game as never) !== human.id) return
+  const tiedIds = [...new Set(game.tiedNomineeIds ?? game.nomineeIds)]
+  const tiedNominees = tiedIds
+    .map((id) => game.players.find((player) => player.id === id))
+    .filter((player): player is NonNullable<typeof player> => Boolean(player))
+  if (tiedNominees.length < 2) return
+
+  for (const nominee of tiedNominees) {
+    const interactionId = `tie-break-campaign:${game.gameId}:${game.week}:${nominee.id}:${human.id}`
+    const alreadyQueued = [
+      ...(state.social?.incomingInteractions ?? []),
+      ...(state.social?.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
+    ].some((interaction) => interaction.id === interactionId)
+    if (alreadyQueued) continue
+
+    const pitch = buildTieBreakerCampaignPitch({
+      decisionMakerId: human.id,
+      nominee: { id: nominee.id, name: nominee.name ?? nominee.id },
+      relationships: state.social?.relationships ?? {},
+      reality: state.social?.reality,
+      week: game.week,
+    })
+    api.dispatch(
+      pushIncomingInteraction(
+        createIncomingInteraction({
+          id: interactionId,
+          fromId: nominee.id,
+          type: 'deal_offer',
+          text: pitch.text,
+          week: game.week,
+          phase: game.phase,
+          expiresAtWeek: game.week,
+          deadlinePhase: game.phase,
+          mode: getEffectiveSocialMode(state),
+          responsePolicy: 'required',
+          payload: {
+            scenarioKey: 'tie_break_campaign',
+            campaignOffer: pitch.offer,
+            subjectId: nominee.id,
+            tieBreakerId: human.id,
+            nominationBlockIds: tiedIds,
+          },
+        })
+      )
+    )
+  }
+}
+
 function activeRealityWitnessIds(state: StateWithGame): string[] {
   return state.game.players
     .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
@@ -1255,6 +1313,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
     const afterState = api.getState() as StateWithGame
     const newPhase = afterState.game?.phase
+    if (!prevState.game.awaitingTieBreak && afterState.game?.awaitingTieBreak) {
+      queueTieBreakerCampaigns(api as unknown as MiddlewareAPI)
+    }
     if (
       prevState.game.cupidArrow?.status !== 'active' &&
       afterState.game.cupidArrow?.status === 'active'
@@ -1344,6 +1405,24 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       api.dispatch(settleSecretMissionDay({ day: afterState.game?.week ?? 1 }) as never)
     }
 
+    return result
+  }
+
+  if (
+    type === 'game/submitTieBreak' ||
+    type === 'game/submitPosTieBreak' ||
+    type === 'game/submitDoubleEvictionTieBreak'
+  ) {
+    const result = next(action)
+    const afterState = api.getState() as StateWithGame
+    if (!afterState.game.awaitingTieBreak) {
+      evaluateSocialCommitmentsForAction(
+        api as unknown as CommitmentStore,
+        type,
+        (action as unknown as { payload?: unknown }).payload
+      )
+      syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
+    }
     return result
   }
 

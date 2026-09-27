@@ -1263,6 +1263,17 @@ export interface GameState {
    */
   storeExtraVoteChoiceActive?: boolean
   /**
+   * True while a purchased Extra Vote adds one target to the human's current
+   * Vox Populi secret nomination ballot. Cleared after a valid ballot commits.
+   */
+  storeVoxExtraNominationChoiceActive?: boolean
+  /** Active, season-reserved Store protection applied only to nomination eligibility. */
+  storeNominationProtections?: Array<{
+    productKey: 'immunity' | 'protection'
+    targetId: string
+    week: number
+  }>
+  /**
    * PR 3 — voteDeduction activation: set by advance() during eviction_results
    * when the human player is a nominee with votes against them, has an eligible
    * voteDeduction reward, and no conflicting twist is active.

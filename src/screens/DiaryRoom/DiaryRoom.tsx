@@ -42,6 +42,7 @@ import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
 import ConfessionalWallet from './ConfessionalWallet'
 import { getConfessionalDecisionPresentation } from './confessionalDecisionPresentation'
 import { getSecretMissionEasterEggByIntent } from '../../bb/secretMissionEasterEggs'
+import { retrieveHistoricalFacts } from '../../bb/confessionalHistory'
 import {
   SECRET_MISSION_BOX_REWARDS,
   getSecretMissionBoxRewards,
@@ -629,6 +630,10 @@ export default function DiaryRoom() {
   const [vipSelected, setVipSelected] = useState(false)
   const [vipNotice, setVipNotice] = useState<string | null>(null)
   const [missionExpanded, setMissionExpanded] = useState(secretMission?.status === 'rewardPending')
+
+  useEffect(() => {
+    if (confessionalDecisionPending && activeView !== 'confess') setActiveView('confess')
+  }, [activeView, confessionalDecisionPending])
   const {
     active: ticTacToeActive,
     launchTicTacToe,
@@ -1312,6 +1317,17 @@ export default function DiaryRoom() {
     try {
       const requestStartedAt = Date.now()
       setBbTyping(true)
+      const historicalWorld: BigEyeWorldContext = {
+        ...bigEyeWorld,
+        historicalFacts: retrieveHistoricalFacts({
+          question: text,
+          playerId,
+          playerName,
+          history: gameState.history,
+          tvFeed: gameState.tvFeed,
+          currentNames: Object.fromEntries(playerNameById),
+        }),
+      }
       const resp = await generateBigBrotherReply({
         diaryText: text,
         playerName,
@@ -1320,7 +1336,7 @@ export default function DiaryRoom() {
         state: conversationState,
         history: messages.slice(-12).map((message) => ({ role: message.role, text: message.text })),
         memorySummary,
-        world: bigEyeWorld,
+        world: historicalWorld,
         skipDirector: requestVipForThisTurn,
       })
       let replyText = resp.text
@@ -1338,7 +1354,7 @@ export default function DiaryRoom() {
               .slice(-12)
               .map((message) => ({ role: message.role, text: message.text })),
             memorySummary,
-            world: bigEyeWorld,
+            world: historicalWorld,
           })
           replyText = vipReply.text
           vipReplyUsed = true

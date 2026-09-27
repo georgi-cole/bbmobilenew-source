@@ -7,6 +7,8 @@
 
 import { useState, type CSSProperties } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { useStore } from 'react-redux'
+import type { RootState } from '../../store/store'
 import {
   commitNominees,
   submitHumanVote,
@@ -160,6 +162,7 @@ function DecisionUnitRow({
 
 function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const dispatch = useAppDispatch()
+  const store = useStore<RootState>()
   const game = useAppSelector((s) => s.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const isDoubleEviction = Boolean(game.doubleEviction?.weekActive)
@@ -170,10 +173,20 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const voxAutoNomineeId = isVoxPopuli
     ? (game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId)
     : null
+  const forcedAutoNomineeId = isVoxPopuli
+    ? voxAutoNomineeId
+    : game.publicModeEnabled && !isDoubleEviction
+      ? game.lastHohCompFinisherId
+      : null
   const options = alivePlayers.filter(
     (player) =>
       !lohIds.has(player.id) &&
       !isBellaHeirImmune(game, player.id) &&
+      !(
+        game.storeNominationProtections?.some(
+          (protection) => protection.week === game.week && protection.targetId === player.id
+        ) && player.id !== forcedAutoNomineeId
+      ) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
@@ -190,7 +203,15 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
           })),
         })
       : {}
-  const required = isVoxPopuli ? Math.min(2, optionUnits.length) : isDoubleEviction ? 3 : 2
+  const voxBallotSize = alivePlayers.length === 4 ? 1 : 2
+  const required = isVoxPopuli
+    ? Math.min(
+        voxBallotSize + (game.storeVoxExtraNominationChoiceActive ? 1 : 0),
+        optionUnits.length
+      )
+    : isDoubleEviction
+      ? 3
+      : 2
   const canUsePublicNomineeRule =
     !isVoxPopuli && (game.publicModeEnabled ?? false) && !isDoubleEviction
   const autoNomineeId =
@@ -224,12 +245,21 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
       ? (optionUnits.find((unit) => unit.memberIds.includes(autoNomineeId))?.label ?? null)
       : null
     const nominationSummary = isVoxPopuli
-      ? `I cast my secret nomination votes for ${formatNameList(selectedNames)}.`
+      ? `I cast my ${required === 1 ? 'secret nomination vote' : `${required} secret nomination votes`} for ${formatNameList(selectedNames)}.`
       : autoNomineeName
         ? `I nominate ${formatNameList(selectedNames)}. ${autoNomineeName} is already the last-place nominee.`
         : `I nominate ${formatNameList(selectedNames)}.`
-    onDecisionCommitted?.(nominationSummary)
     dispatch(commitNominees(selected))
+    const committedGame = store.getState().game
+    const ballotCommitted = isVoxPopuli
+      ? committedGame.voxPopuli?.nominationBallots[humanId ?? '']?.length === selected.length &&
+        committedGame.awaitingNominations === false
+      : committedGame.awaitingNominations === false
+    if (!ballotCommitted) {
+      setSubmitting(false)
+      return
+    }
+    onDecisionCommitted?.(nominationSummary)
   }
 
   return (

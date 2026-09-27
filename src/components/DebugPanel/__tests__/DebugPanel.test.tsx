@@ -8,6 +8,7 @@ import DebugPanel from '../DebugPanel';
 import gameReducer from '../../../store/gameSlice';
 import socialReducer from '../../../social/socialSlice';
 import settingsReducer from '../../../store/settingsSlice';
+import profilesReducer from '../../../store/profilesSlice';
 
 vi.mock('../FinaleControls.debug', () => ({
   default: () => null,
@@ -31,6 +32,7 @@ function makeStore() {
       game: gameReducer,
       social: socialReducer,
       settings: settingsReducer,
+      profiles: profilesReducer,
     },
   });
 }

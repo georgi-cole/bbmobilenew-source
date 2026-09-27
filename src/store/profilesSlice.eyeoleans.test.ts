@@ -4,6 +4,7 @@ import profilesReducer, {
   armEyeoleanStorePower,
   consumeEyeoleanStorePower,
   createProfile,
+  debugGrantEyeoleans,
   purchaseEyeoleanStoreProduct,
   returnEyeoleanStorePower,
   settleSeasonEyeoleans,
@@ -28,6 +29,22 @@ const REWARDS: EyeoleanRewardLine[] = [
 ]
 
 describe('Eyeolean profile wallet', () => {
+  it('supports an idempotent QA-only wallet grant', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    const grant = debugGrantEyeoleans({ grantId: 'wallet-test', amount: 5_000_000 })
+    state = profilesReducer(state, grant)
+    state = profilesReducer(state, grant)
+
+    expect(state.profiles[0]?.eyeoleans).toBe(5_000_000)
+    expect(state.profiles[0]?.eyeoleanTransactions).toHaveLength(1)
+    expect(state.profiles[0]?.eyeoleanTransactions?.[0]).toMatchObject({
+      id: 'qa-grant:wallet-test',
+      amount: 5_000_000,
+      source: 'adjustment',
+      label: 'QA wallet grant',
+    })
+  })
+
   it('settles a season once even when the finale is reopened', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
 
@@ -159,13 +176,13 @@ describe('Eyeolean profile wallet', () => {
     )
 
     const profile = state.profiles[0]
-    expect(profile.eyeoleans).toBe(109_000)
+    expect(profile.eyeoleans).toBe(85_000)
     expect(profile.eyeoleanInventory).toEqual({
       extra_vote: 2,
       remove_vote: 1,
     })
     expect(profile.eyeoleanTransactions?.slice(-3).map((entry) => entry.amount)).toEqual([
-      -3_000, -3_000, -5_000,
+      -10_000, -10_000, -15_000,
     ])
   })
 
@@ -184,7 +201,7 @@ describe('Eyeolean profile wallet', () => {
     state = profilesReducer(state, purchase)
 
     const profile = state.profiles[0]
-    expect(profile.eyeoleans).toBe(115_000)
+    expect(profile.eyeoleans).toBe(105_000)
     expect(profile.eyeoleanInventory?.remove_vote).toBe(1)
   })
 
@@ -273,6 +290,6 @@ describe('Eyeolean profile wallet', () => {
 
     expect(state.profiles[0]?.eyeoleanInventory?.remove_vote).toBe(0)
     expect(state.profiles[0]?.eyeoleanPowerReservations?.remove_vote).toBeUndefined()
-    expect(state.profiles[0]?.eyeoleans).toBe(115_000)
+    expect(state.profiles[0]?.eyeoleans).toBe(105_000)
   })
 })

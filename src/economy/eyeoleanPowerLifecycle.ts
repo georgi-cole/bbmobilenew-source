@@ -1,18 +1,27 @@
 import type { AppDispatch, RootState } from '../store/store'
 import {
+  activateStoreNominationProtection,
+  canStoreNominationProtectionAffectPlayer,
+  clearStoreNominationProtection,
+} from '../store/gameSlice'
+import {
   armEyeoleanStorePower,
   returnEyeoleanStorePower,
   selectCurrentProfile,
 } from '../store/profilesSlice'
 import type { EyeoleanStoreProductKey } from './storeCatalog'
-import { getEyeoleanPowerArmAvailability, isEyeoleanPowerDisarmLocked } from './eyeoleanPowerRules'
+import {
+  getEyeoleanPowerArmAvailability,
+  getEyeoleanPowerModeResolution,
+  isEyeoleanPowerDisarmLocked,
+} from './eyeoleanPowerRules'
 
 export interface EyeoleanPowerCommandResult {
   ok: boolean
   message: string
 }
 
-export function armEyeoleanPower(productKey: EyeoleanStoreProductKey) {
+export function armEyeoleanPower(productKey: EyeoleanStoreProductKey, selectedTargetId?: string) {
   return (dispatch: AppDispatch, getState: () => RootState): EyeoleanPowerCommandResult => {
     const state = getState()
     const profile = selectCurrentProfile(state)
@@ -35,27 +44,56 @@ export function armEyeoleanPower(productKey: EyeoleanStoreProductKey) {
       return { ok: false, message: availability.reason }
     }
 
+    const targetId =
+      productKey === 'immunity'
+        ? state.game.players.find((player) => player.isUser)?.id
+        : productKey === 'protection'
+          ? selectedTargetId
+          : undefined
+    if (
+      productKey === 'protection' &&
+      (!targetId || targetId === state.game.players.find((p) => p.isUser)?.id)
+    ) {
+      return { ok: false, message: 'Protection must be assigned to another active player.' }
+    }
+    if (
+      (productKey === 'immunity' || productKey === 'protection') &&
+      (!targetId || !canStoreNominationProtectionAffectPlayer(state.game, targetId))
+    ) {
+      return {
+        ok: false,
+        message:
+          'That player is not eligible to be nominated in this ceremony, so the power would have no effect.',
+      }
+    }
+
     dispatch(
       armEyeoleanStorePower({
         productKey,
         gameId: state.game.gameId,
         season: state.game.season,
         week: state.game.week,
+        ...(targetId ? { targetId } : {}),
       })
     )
+
+    if (productKey === 'immunity' || productKey === 'protection') {
+      dispatch(
+        activateStoreNominationProtection({
+          productKey,
+          targetId: targetId!,
+          week: state.game.week,
+        })
+      )
+    }
 
     const reservation = selectCurrentProfile(getState())?.eyeoleanPowerReservations?.[productKey]
     if (!reservation || reservation.gameId !== state.game.gameId) {
       return { ok: false, message: 'The power could not be armed.' }
     }
 
-    return {
-      ok: true,
-      message:
-        productKey === 'extra_vote'
-          ? 'Extra Vote armed for your next eligible standard eviction.'
-          : 'Remove a Vote armed for the next eligible eviction where you are nominated.',
-    }
+    const rule = getEyeoleanPowerModeResolution(state.game, productKey).rule
+    return { ok: true, message: rule?.available ? rule.armMessage : 'Power armed.' }
   }
 }
 
@@ -70,7 +108,10 @@ export function disarmEyeoleanPower(productKey: EyeoleanStoreProductKey) {
     if (isEyeoleanPowerDisarmLocked(state.game)) {
       return {
         ok: false,
-        message: 'Tonight’s vote is locked. This power cannot be disarmed until it resolves.',
+        message:
+          getEyeoleanPowerModeResolution(state.game, productKey).mode === 'vox'
+            ? 'Today’s nomination is locked. This power cannot be disarmed until it resolves.'
+            : 'Tonight’s vote is locked. This power cannot be disarmed until it resolves.',
       }
     }
 
@@ -80,6 +121,9 @@ export function disarmEyeoleanPower(productKey: EyeoleanStoreProductKey) {
         gameId: reservation.gameId,
       })
     )
+    if (productKey === 'immunity' || productKey === 'protection') {
+      dispatch(clearStoreNominationProtection(productKey))
+    }
 
     return {
       ok: true,

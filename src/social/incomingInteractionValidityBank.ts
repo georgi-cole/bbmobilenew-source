@@ -7,6 +7,7 @@ export interface IncomingInteractionValidityRule {
   humanMustHoldSafety?: boolean
   humanMustBeOffBlock?: boolean
   humanMustBeEligibleVoter?: boolean
+  humanMustBreakTie?: boolean
   subjectMustBeInHouse?: boolean
   allowedPhases?: readonly string[]
   invalidPhases?: readonly string[]
@@ -46,6 +47,11 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
     humanMustBeOffBlock: true,
     humanMustBeEligibleVoter: true,
     allowedPhases: ['live_vote'],
+  },
+  tie_break_campaign: {
+    senderMustBeNominee: true,
+    humanMustBreakTie: true,
+    allowedPhases: ['eviction_results'],
   },
   post_veto_gratitude: {
     invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],

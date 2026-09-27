@@ -428,6 +428,13 @@ describe('Vox Populi rules', () => {
     expect(state.pendingEviction?.evicteeId).toBe(nominees[0].id)
     expect(state.pendingExitContext?.leaderIds).toEqual([])
     expect(state.pendingExitContext?.votesByVoterId).toEqual({})
+    const audienceResult = state.history?.find((event) => event.type === 'voxAudienceVoteResult')
+    expect(audienceResult?.data.percentages).toEqual({
+      [nominees[0].id]: 51.2,
+      [nominees[1].id]: 30.3,
+      [nominees[2].id]: 18.5,
+    })
+    expect(audienceResult?.data).not.toHaveProperty('votesByVoterId')
     nominees.forEach((nominee) => {
       expect(state.voxPopuli?.audienceVoteDaysByPlayerId?.[nominee.id]).toEqual([state.week])
     })

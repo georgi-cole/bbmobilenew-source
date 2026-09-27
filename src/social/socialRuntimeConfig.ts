@@ -145,6 +145,7 @@ export const DEFAULT_SOCIAL_RUNTIME_CONFIG: SocialRuntimeConfig = {
       nominee_hoh_plea: 'required',
       nominee_veto_pitch: 'required',
       live_vote_pitch: 'required',
+      tie_break_campaign: 'required',
       hoh_safety_request: 'required',
       nomination_aftershock: 'optional',
       post_veto_gratitude: 'optional',

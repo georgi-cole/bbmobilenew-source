@@ -83,6 +83,8 @@ import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
+import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
+import { getImmediateAutoNomineeId } from './autoNomineeBadge'
 import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
@@ -494,10 +496,16 @@ export default function GameScreen() {
   }, [activeProfileId, game, isGuest])
   const handleStartNewSeason = useCallback(() => {
     clearEliminatedRun()
-    dispatch(resetGame())
+    const continueVoxPopuli =
+      game.voxPopuli?.status === 'active' || game.expansionMode === 'voxPopuli'
+    if (continueVoxPopuli) {
+      startNewVoxPopuliSeason(dispatch)
+    } else {
+      dispatch(resetGame())
+    }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
     navigate('/', { replace: true, state: { autoStartGame: true } })
-  }, [clearEliminatedRun, dispatch, navigate])
+  }, [clearEliminatedRun, dispatch, game.expansionMode, game.voxPopuli?.status, navigate])
   const handlePreJuryReturnHome = useCallback(() => {
     clearEliminatedRun()
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
@@ -550,6 +558,7 @@ export default function GameScreen() {
     handleAiNomAnimDone,
     nominationLabels,
     canUsePublicNomineeRule,
+    publicAutoNomineeId,
     isDebugMode,
     isQaMode,
     handleDevPlayNomAnim,
@@ -649,6 +658,17 @@ export default function GameScreen() {
     }
     if (game.posWinnerId === p.id || p.status.includes('pos')) parts.push('pos')
     if (povProtectedIds.has(p.id)) parts.push('veto_safe')
+    // The last-place auto-nominee is already determined when competition
+    // results are committed, even though the full nominee list is not finalized
+    // until nominations. Reflect that rule immediately on the results screen.
+    const earlyAutoNomineeId = getImmediateAutoNomineeId({
+      phase: game.phase,
+      isVoxPopuli,
+      publicAutoNomineeId,
+      voxAutoNomineeId: game.voxPopuli?.autoNomineeId,
+      lastHohCompFinisherId: game.lastHohCompFinisherId,
+    })
+    const isEarlyAutoNominee = !isEvicted && earlyAutoNomineeId === p.id
     // Suppress permanent nomination badge while the nomination animation is
     // playing — otherwise AI-LOH nominees (already in game.nomineeIds) would
     // show the permanent ❓ badge before the animated badge lands.
@@ -679,6 +699,7 @@ export default function GameScreen() {
     ) {
       parts.push('nominated')
     }
+    if (isEarlyAutoNominee && !parts.includes('nominated')) parts.push('nominated')
     if (p.status === 'jury') parts.push('jury')
     // When suppressing the nominated badge, also guard the p.status fallback so
     // that players whose p.status is already 'nominated' (AI-committed nominees)

@@ -64,7 +64,10 @@ export function getRequiredConfessionalPresentation(
           player.status !== 'evicted' && player.status !== 'jury' && !voxExcludedIds.has(player.id)
       ).length
       const required = isVoxPopuli
-        ? Math.min(isVoxFinalFour ? 1 : 2, voxEligibleCount)
+        ? Math.min(
+            (isVoxFinalFour ? 1 : 2) + (game.storeVoxExtraNominationChoiceActive ? 1 : 0),
+            voxEligibleCount
+          )
         : game.doubleEviction?.weekActive
           ? 3
           : 2
@@ -79,7 +82,7 @@ export function getRequiredConfessionalPresentation(
         prompt: isVoxPopuli
           ? isVoxFinalFour
             ? 'Cast one secret nomination vote. Last place is already on the block, and nobody has immunity today.'
-            : `Privately choose ${required === 1 ? 'the eligible housemate' : 'two housemates'} to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
+            : `Privately choose ${required} housemates to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
           : survival
             ? `Select ${required} contestants for elimination consideration.`
             : `As Leader, you must nominate ${required} housemates. Your choices remain private until you return to the house.`,

@@ -250,6 +250,7 @@ export type SocialCommitmentKind =
   | 'protect_from_nomination'
   | 'use_safety_on_player'
   | 'vote_to_keep'
+  | 'tie_break_keep'
 
 export type SocialCommitmentStatus = 'pending' | 'kept' | 'broken' | 'void'
 

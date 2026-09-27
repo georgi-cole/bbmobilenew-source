@@ -53,18 +53,21 @@ const KIND_LABELS: Record<SocialCommitmentKind, string> = {
   protect_from_nomination: 'Keep them off the block',
   use_safety_on_player: 'Use safety on them',
   vote_to_keep: 'Vote to keep them',
+  tie_break_keep: 'Keep them in the tie-break',
 }
 
 const KIND_DUE_COPY: Record<SocialCommitmentKind, string> = {
   protect_from_nomination: 'Checked when nominations lock',
   use_safety_on_player: 'Checked when the safety decision locks',
   vote_to_keep: 'Checked when your eviction vote locks',
+  tie_break_keep: 'Checked when your deciding vote locks',
 }
 
 const BROKEN_PROMISE_REACTION_KEYS: Record<SocialCommitmentKind, TranslationKey> = {
   protect_from_nomination: 'social.commitment.reaction.nomination',
   use_safety_on_player: 'social.commitment.reaction.safety',
   vote_to_keep: 'social.commitment.reaction.vote',
+  tie_break_keep: 'social.commitment.reaction.vote',
 }
 
 function scenarioKey(interaction: IncomingInteraction): string {
@@ -85,6 +88,9 @@ export function getCommitmentKindForInteraction(
   }
   if (interaction.type === 'deal_offer' && scenario === 'live_vote_pitch') {
     return 'vote_to_keep'
+  }
+  if (interaction.type === 'deal_offer' && scenario === 'tie_break_campaign') {
+    return 'tie_break_keep'
   }
   return null
 }
@@ -369,6 +375,26 @@ export function evaluateSocialCommitmentsForAction(
         kept ? 'double_vote_kept_them_safe' : 'double_vote_targeted_them',
         { privateVote: true }
       )
+    }
+    return
+  }
+
+  if (
+    (actionType === 'game/submitTieBreak' || actionType === 'game/submitPosTieBreak') &&
+    typeof payload === 'string'
+  ) {
+    for (const commitment of pendingForAction(state, 'tie_break_keep')) {
+      const kept = payload !== commitment.beneficiaryId
+      resolvePromise(store, commitment, kept, kept ? 'voted_to_keep' : 'voted_against_promise')
+    }
+    return
+  }
+
+  if (actionType === 'game/submitDoubleEvictionTieBreak' && Array.isArray(payload)) {
+    const evictedIds = new Set(payload.filter((id): id is string => typeof id === 'string'))
+    for (const commitment of pendingForAction(state, 'tie_break_keep')) {
+      const kept = !evictedIds.has(commitment.beneficiaryId)
+      resolvePromise(store, commitment, kept, kept ? 'voted_to_keep' : 'voted_against_promise')
     }
   }
 }

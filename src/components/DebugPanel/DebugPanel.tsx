@@ -51,6 +51,7 @@ import MinigameDebugControls from './MinigameDebugControls'
 import SurvivorDebugControls from './SurvivorDebugControls'
 import DebugDiagnostics from './DebugDiagnostics'
 import SimulationDebugControls from './SimulationDebugControls'
+import WalletDebugControls from './WalletDebugControls'
 import { isDebugAccessGranted, persistDebugAccess } from '../../utils/debugMode'
 import type { ForcedShockType, Phase } from '../../types'
 import type { IncomingInteraction, IncomingInteractionType } from '../../social/types'
@@ -408,6 +409,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               ['dbg-overview', 'Overview'],
               ['dbg-season', 'Season'],
               ['dbg-social', 'Social'],
+              ['dbg-wallet', 'Wallet'],
               ['dbg-minigames', 'Games'],
               ['dbg-finale', 'Finale'],
               ['dbg-tools', 'Tools'],
@@ -1139,6 +1141,8 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
             </section>
 
             <SimulationDebugControls />
+
+            <WalletDebugControls />
 
             {/* ── Incoming Interaction Debugging ── */}
             <section className="dbg-section" id="dbg-social">

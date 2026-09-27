@@ -94,6 +94,14 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Promise your vote', 'Ask for their case', 'Tell them no', 'Avoid an answer'],
     ['Commit to keep them', 'Keep your options open', 'Choose the other side', 'End the pitch'],
   ],
+  tie_break_campaign: [
+    [
+      'I will use my deciding vote to keep you',
+      'Make your case',
+      'I am voting you out',
+      'End the pitch',
+    ],
+  ],
   survivor_gratitude: [
     ['Share the moment', 'Accept the thanks', 'Remind them who helped', 'Move on'],
     ['Strengthen the bond', 'Keep it modest', 'Call in a favor', 'Change the subject'],
