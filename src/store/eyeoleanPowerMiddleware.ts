@@ -81,7 +81,6 @@ function reconcileReservations(api: PowerMiddlewareApi) {
       )
     }
   })
-
   ;(['immunity', 'protection'] as const).forEach((productKey) => {
     const reservation = reservationFor(state, productKey)
     if (!reservation) {
@@ -117,10 +116,14 @@ function syncNominationProtection(api: PowerMiddlewareApi) {
     if (!reservation || reservation.gameId !== state.game.gameId) return
     const targetId = reservation.targetId ?? (productKey === 'immunity' ? human?.id : undefined)
     if (!targetId) return
-    if (state.game.storeNominationProtections?.some(
-      (protection) => protection.productKey === productKey &&
-        protection.targetId === targetId && protection.week === state.game.week
-    )) {
+    if (
+      state.game.storeNominationProtections?.some(
+        (protection) =>
+          protection.productKey === productKey &&
+          protection.targetId === targetId &&
+          protection.week === state.game.week
+      )
+    ) {
       return
     }
     api.dispatch(

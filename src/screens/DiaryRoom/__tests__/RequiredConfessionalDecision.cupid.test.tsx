@@ -109,14 +109,16 @@ describe('RequiredConfessionalDecision Vox ballot', () => {
     )
 
     expect(screen.getByText(/choose 3 more/i)).toBeInTheDocument()
-    const choices = game.players.filter(
-      (player) =>
-        player.status !== 'evicted' &&
-        player.status !== 'jury' &&
-        player.id !== human.id &&
-        player.id !== immunityWinnerId &&
-        player.id !== autoNomineeId
-    ).slice(0, 3)
+    const choices = game.players
+      .filter(
+        (player) =>
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          player.id !== human.id &&
+          player.id !== immunityWinnerId &&
+          player.id !== autoNomineeId
+      )
+      .slice(0, 3)
     for (const player of choices) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(player.name, 'i') }))
     }

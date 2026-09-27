@@ -82,7 +82,8 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
         votingMoment: 'eviction',
         title: 'Remove a Vote',
         detail: 'Cancel one vote against you at an eligible elimination vote.',
-        armMessage: 'Remove a Vote armed for the next eligible elimination vote where you are nominated.',
+        armMessage:
+          'Remove a Vote armed for the next eligible elimination vote where you are nominated.',
       },
       vox: {
         available: true,
@@ -98,7 +99,8 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
     key: 'immunity',
     title: 'Immunity',
     price: 100_000,
-    shortDescription: 'Protects you from nomination once. Public Mode auto-nominations still apply.',
+    shortDescription:
+      'Protects you from nomination once. Public Mode auto-nominations still apply.',
     inventoryLabel: 'Immunity',
     modeRules: {
       classic: {
@@ -121,7 +123,8 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
     key: 'protection',
     title: 'Protection',
     price: 50_000,
-    shortDescription: 'Protects one other player from nomination. Public Mode auto-nominations still apply.',
+    shortDescription:
+      'Protects one other player from nomination. Public Mode auto-nominations still apply.',
     inventoryLabel: 'Protection',
     modeRules: {
       classic: {

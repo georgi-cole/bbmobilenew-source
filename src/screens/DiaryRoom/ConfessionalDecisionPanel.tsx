@@ -185,8 +185,7 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
       !(
         game.storeNominationProtections?.some(
           (protection) => protection.week === game.week && protection.targetId === player.id
-        ) &&
-        player.id !== forcedAutoNomineeId
+        ) && player.id !== forcedAutoNomineeId
       ) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )

@@ -6,7 +6,10 @@ import { startNewVoxPopuliSeason } from './seasonContinuation'
 describe('startNewVoxPopuliSeason', () => {
   it('resets into a newly active Vox Populi season instead of Classic', () => {
     const initial = createInitialGameState({ seed: 41026 })
-    const store = configureStore({ reducer: { game: gameReducer }, preloadedState: { game: initial } })
+    const store = configureStore({
+      reducer: { game: gameReducer },
+      preloadedState: { game: initial },
+    })
 
     startNewVoxPopuliSeason(store.dispatch)
 

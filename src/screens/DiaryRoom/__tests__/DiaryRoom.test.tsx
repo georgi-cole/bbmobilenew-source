@@ -167,7 +167,9 @@ describe('DiaryRoom', () => {
       },
     })
 
-    expect(screen.queryByRole('region', { name: 'Eyeolean wallet and powers' })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Eyeolean wallet and powers' })
+    ).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Wallet' }))
     expect(screen.getByRole('region', { name: 'Eyeolean wallet and powers' })).toBeInTheDocument()
     expect(screen.getByText('Extra Vote')).toBeInTheDocument()

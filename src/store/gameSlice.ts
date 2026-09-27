@@ -3434,8 +3434,7 @@ export function canStoreNominationProtectionAffectPlayer(
     const immuneId = getVoxNominationImmunityId(state)
     if (targetId === autoNomineeId || targetId === immuneId) return false
     return alive.some(
-      (actor) =>
-        actor.id !== targetId && canPlayerNominatePlayer(state, actor.id, targetId, true)
+      (actor) => actor.id !== targetId && canPlayerNominatePlayer(state, actor.id, targetId, true)
     )
   }
 
@@ -3444,12 +3443,12 @@ export function canStoreNominationProtectionAffectPlayer(
     state.doubleEviction?.weekActive !== true &&
     state.lastHohCompFinisherId === targetId
   if (publicAutoNominee) return false
-  const leaderIds = new Set(state.coLohIds?.length ? state.coLohIds : state.lohId ? [state.lohId] : [])
+  const leaderIds = new Set(
+    state.coLohIds?.length ? state.coLohIds : state.lohId ? [state.lohId] : []
+  )
   if (leaderIds.has(targetId)) return false
   if (leaderIds.size === 0) return true
-  return [...leaderIds].some((leaderId) =>
-    canPlayerNominatePlayer(state, leaderId, targetId, true)
-  )
+  return [...leaderIds].some((leaderId) => canPlayerNominatePlayer(state, leaderId, targetId, true))
 }
 
 function usesPluralPlayerGrammar(
@@ -11176,7 +11175,11 @@ const gameSlice = createSlice({
     /** Apply the selected Store shield to the next nomination round only. */
     activateStoreNominationProtection(
       state,
-      action: PayloadAction<{ productKey: 'immunity' | 'protection'; targetId: string; week: number }>
+      action: PayloadAction<{
+        productKey: 'immunity' | 'protection'
+        targetId: string
+        week: number
+      }>
     ) {
       const { productKey, targetId, week } = action.payload
       if (!targetId || week !== state.week || getAlivePlayers(state).length <= 4) return
@@ -11188,10 +11191,7 @@ const gameSlice = createSlice({
       state.storeNominationProtections = [...protections, { productKey, targetId, week }]
     },
 
-    clearStoreNominationProtection(
-      state,
-      action: PayloadAction<'immunity' | 'protection'>
-    ) {
+    clearStoreNominationProtection(state, action: PayloadAction<'immunity' | 'protection'>) {
       state.storeNominationProtections = (state.storeNominationProtections ?? []).filter(
         (protection) => protection.productKey !== action.payload
       )

@@ -180,52 +180,54 @@ function HomeHubAssetLayer({
             className="home-hub__buttons"
             aria-label={playSelectionOpen ? 'Play menu' : 'Main menu'}
           >
-            {playSelectionOpen
-              ? playSelectionButtons.map(
-                  ({ key, label, icon, badge, className, variant, onClick }) => (
-                    <GameButton
-                      key={key}
-                      label={label}
-                      icon={icon}
-                      badge={badge}
-                      className={className}
-                      variant={variant}
-                      onClick={onClick}
-                    />
-                  )
+            {playSelectionOpen ? (
+              playSelectionButtons.map(
+                ({ key, label, icon, badge, className, variant, onClick }) => (
+                  <GameButton
+                    key={key}
+                    label={label}
+                    icon={icon}
+                    badge={badge}
+                    className={className}
+                    variant={variant}
+                    onClick={onClick}
+                  />
                 )
-              : <>
-                  {HUB_BUTTONS.map(({ to, label, icon, variant }) => (
-                    <GameButton
-                      key={to}
-                      label={label}
-                      icon={icon ? <HomeHubButtonIcon name={icon} /> : undefined}
-                      variant={variant}
-                      onClick={
-                        to === '/game'
-                          ? onPlay
-                          : to === '/housemates'
-                            ? onOpenHousemates
-                            : to === '/credits'
-                              ? () => {
-                                  SoundManager.unlockFromGesture()
-                                  void startCreditsSoundtrackFromGesture().catch(() => {
-                                    // The muted video still starts immediately if a browser rejects
-                                    // soundtrack playback during route navigation.
-                                  })
-                                  onNavigate(to)
-                                }
-                              : to === '/store'
-                                ? () => onNavigate(to, { state: { returnTo: '/' } })
-                                : () =>
-                                    onNavigate(
-                                      to,
-                                      to === '/profile' ? { state: { from: '/' } } : undefined
-                                    )
-                      }
-                    />
-                  ))}
-                </>}
+              )
+            ) : (
+              <>
+                {HUB_BUTTONS.map(({ to, label, icon, variant }) => (
+                  <GameButton
+                    key={to}
+                    label={label}
+                    icon={icon ? <HomeHubButtonIcon name={icon} /> : undefined}
+                    variant={variant}
+                    onClick={
+                      to === '/game'
+                        ? onPlay
+                        : to === '/housemates'
+                          ? onOpenHousemates
+                          : to === '/credits'
+                            ? () => {
+                                SoundManager.unlockFromGesture()
+                                void startCreditsSoundtrackFromGesture().catch(() => {
+                                  // The muted video still starts immediately if a browser rejects
+                                  // soundtrack playback during route navigation.
+                                })
+                                onNavigate(to)
+                              }
+                            : to === '/store'
+                              ? () => onNavigate(to, { state: { returnTo: '/' } })
+                              : () =>
+                                  onNavigate(
+                                    to,
+                                    to === '/profile' ? { state: { from: '/' } } : undefined
+                                  )
+                    }
+                  />
+                ))}
+              </>
+            )}
           </nav>
         )}
       </div>

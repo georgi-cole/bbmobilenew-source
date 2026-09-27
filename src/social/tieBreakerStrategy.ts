@@ -33,9 +33,10 @@ interface TieBreakerStrategyInput {
 
 function affinity(relationships: RelationshipsMap, leftId: string, rightId: string): number {
   return (
-    (relationships[leftId]?.[rightId]?.affinity ?? 0) +
-    (relationships[rightId]?.[leftId]?.affinity ?? 0)
-  ) / 2
+    ((relationships[leftId]?.[rightId]?.affinity ?? 0) +
+      (relationships[rightId]?.[leftId]?.affinity ?? 0)) /
+    2
+  )
 }
 
 function tags(relationships: RelationshipsMap, leftId: string, rightId: string): Set<string> {
@@ -45,11 +46,7 @@ function tags(relationships: RelationshipsMap, leftId: string, rightId: string):
   ])
 }
 
-function sharesAlliance(
-  input: TieBreakerStrategyInput,
-  leftId: string,
-  rightId: string
-): boolean {
+function sharesAlliance(input: TieBreakerStrategyInput, leftId: string, rightId: string): boolean {
   return (
     Object.values(input.reality?.alliances ?? {}).some(
       (alliance) =>
@@ -183,12 +180,13 @@ export function buildTieBreakerCampaignPitch({
   week: number
 }): TieBreakerCampaignPitch {
   const relationshipTags = tags(relationships, decisionMakerId, nominee.id)
-  const sharedAlliance = Object.values(reality?.alliances ?? {}).some(
-    (alliance) =>
-      ['ACTIVE', 'PROBATIONARY'].includes(alliance.status) &&
-      alliance.memberIds.includes(decisionMakerId) &&
-      alliance.memberIds.includes(nominee.id)
-  ) || relationshipTags.has('alliance')
+  const sharedAlliance =
+    Object.values(reality?.alliances ?? {}).some(
+      (alliance) =>
+        ['ACTIVE', 'PROBATIONARY'].includes(alliance.status) &&
+        alliance.memberIds.includes(decisionMakerId) &&
+        alliance.memberIds.includes(nominee.id)
+    ) || relationshipTags.has('alliance')
 
   if (relationshipTags.has('romance')) {
     return {
@@ -235,5 +233,7 @@ export function buildTieBreakerCampaignPitch({
         : `Before you cast the deciding vote: keep me and I will tell you the names being whispered around this house. You will not be blindsided by the next move.`,
     },
   ]
-  return pitches[stableHash(`${week}:${decisionMakerId}:${nominee.id}:tie-break-campaign`) % pitches.length]
+  return pitches[
+    stableHash(`${week}:${decisionMakerId}:${nominee.id}:tie-break-campaign`) % pitches.length
+  ]
 }

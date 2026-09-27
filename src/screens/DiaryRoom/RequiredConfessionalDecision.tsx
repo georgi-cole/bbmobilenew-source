@@ -226,8 +226,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       !(
         game.storeNominationProtections?.some(
           (protection) => protection.week === game.week && protection.targetId === player.id
-        ) &&
-        player.id !== forcedAutoNomineeId
+        ) && player.id !== forcedAutoNomineeId
       ) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
@@ -846,7 +845,10 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
           )}
           {allianceAdvice.length > 0 && (
             <details className="rcd-tiebreak-advice__alliance">
-              <summary>Consult alliance · {allianceAdvice.length} read{allianceAdvice.length === 1 ? '' : 's'}</summary>
+              <summary>
+                Consult alliance · {allianceAdvice.length} read
+                {allianceAdvice.length === 1 ? '' : 's'}
+              </summary>
               {allianceAdvice.map((advice) => (
                 <article key={advice.advisorId}>
                   <p>

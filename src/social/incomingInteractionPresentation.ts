@@ -507,7 +507,7 @@ function getCommitmentResponsePresentation(
           ? 'Promise the power'
           : kind === 'tie_break_keep'
             ? 'Promise your deciding vote'
-          : 'Promise your vote'
+            : 'Promise your vote'
     return {
       label,
       description: `Creates a promise: ${getSocialCommitmentLabel(kind)}. ${getSocialCommitmentDueCopy(kind)}.`,

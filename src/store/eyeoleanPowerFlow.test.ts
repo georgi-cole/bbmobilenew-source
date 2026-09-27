@@ -144,8 +144,7 @@ describe('Eyeolean Store voting powers', () => {
 
     const store = configureStore({
       reducer: { game: gameReducer, profiles: profilesReducer },
-      middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
     })
     store.dispatch(createProfile({ name: 'QA Power Test', avatar: '🧪' }))
     store.dispatch(debugGrantEyeoleans({ grantId: 'qa-powers', amount: 30_000 }))

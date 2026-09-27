@@ -10,7 +10,10 @@ describe('WalletDebugControls', () => {
   it('grants a custom amount to the active QA profile', async () => {
     const user = userEvent.setup()
     const profiles = profilesReducer(undefined, createProfile({ name: 'QA', avatar: '🧪' }))
-    const store = configureStore({ reducer: { profiles: profilesReducer }, preloadedState: { profiles } })
+    const store = configureStore({
+      reducer: { profiles: profilesReducer },
+      preloadedState: { profiles },
+    })
 
     render(
       <Provider store={store}>

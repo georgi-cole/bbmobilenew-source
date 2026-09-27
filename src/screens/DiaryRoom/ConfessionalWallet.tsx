@@ -53,8 +53,7 @@ export default function ConfessionalWallet() {
   const protectionTargets = useMemo(
     () =>
       game.players.filter(
-        (player) =>
-          !player.isUser && canStoreNominationProtectionAffectPlayer(game, player.id)
+        (player) => !player.isUser && canStoreNominationProtectionAffectPlayer(game, player.id)
       ),
     [game]
   )
@@ -92,14 +91,16 @@ export default function ConfessionalWallet() {
       return {
         source: "Bella's Will",
         title: 'Inherited Extra Vote',
-        detail: 'Automatic. It has priority over a purchased Extra Vote for the same elimination vote.',
+        detail:
+          'Automatic. It has priority over a purchased Extra Vote for the same elimination vote.',
       }
     }
     if (will.reward === 'remove_vote' && will.voteRemovalPending) {
       return {
         source: "Bella's Will",
         title: 'Inherited Vote Removal',
-        detail: 'Automatic. It has priority over a purchased Remove a Vote for the same elimination vote.',
+        detail:
+          'Automatic. It has priority over a purchased Remove a Vote for the same elimination vote.',
       }
     }
     if (will.reward === 'immunity_2_days' && will.immunityDaysRemaining > 0) {
@@ -173,7 +174,11 @@ export default function ConfessionalWallet() {
             productKey !== 'protection' ||
             protectionTargets.some((player) => player.id === selectedProtectionTarget)
           const canArm =
-            Boolean(profile) && inventoryCount > 0 && availability.available && !armed && targetSelected
+            Boolean(profile) &&
+            inventoryCount > 0 &&
+            availability.available &&
+            !armed &&
+            targetSelected
           const canDisarm = armed && !disarmLocked
           const status = armed
             ? disarmLocked
