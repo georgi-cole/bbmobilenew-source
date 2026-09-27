@@ -37,6 +37,7 @@ export type ConfessionalKnowledgeQuery =
   | 'person_read'
   | 'stats'
   | 'recent_events'
+  | 'historical_events'
   | 'phase'
   | 'memory'
 
@@ -74,6 +75,7 @@ export interface ConfessionalWorldContext {
   }>
   recentEvictedNames?: string[]
   recentPublicEvents?: string[]
+  historicalFacts?: string[]
 }
 
 export interface BigEyeComprehensionFrame {
@@ -109,6 +111,20 @@ function detectKnowledgeQuery(
   text: string,
   focusPlayer: string | null
 ): ConfessionalKnowledgeQuery | null {
+  if (
+    /\b(?:day|week|round)\s*\d+\b/.test(text) &&
+    /\b(?:how much|what happened|what was|who received|who got|how many|what were|tell me about)\b/.test(
+      text
+    ) &&
+    /\b(?:vote|votes|voted|nomination|nominated|nominee|evict|eliminat|public|audience|result|competition|comp)\b/.test(
+      text
+    )
+  ) {
+    return 'historical_events'
+  }
+  if (/\bwhat happened (?:on )?(?:day|week|round)\s*\d+\b/.test(text)) {
+    return 'historical_events'
+  }
   if (/what (?:do|did) you remember|what do you know about me|remember about me/.test(text)) {
     return 'memory'
   }

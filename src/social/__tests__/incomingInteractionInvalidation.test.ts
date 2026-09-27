@@ -157,6 +157,31 @@ describe('incoming interaction invalidation', () => {
     ).toBe(true)
   })
 
+  it('invalidates a campaign tied to a previous nomination block', () => {
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    human.status = 'active'
+    nominee.status = 'nominated'
+    otherNominee.status = 'nominated'
+    game.nomineeIds = [nominee.id, otherNominee.id]
+
+    expect(
+      isIncomingInteractionInvalidated(
+        makeInteraction({
+          fromId: nominee.id,
+          type: 'deal_offer',
+          payload: {
+            scenarioKey: 'live_vote_pitch',
+            phase: 'live_vote',
+            nominationBlockIds: [nominee.id, loh.id],
+          },
+        }),
+        game
+      )
+    ).toBe(true)
+  })
+
   it('invalidates an alliance nomination pitch once the nomination window has passed', () => {
     const { game, human, nominee, otherNominee } = buildGameState()
     game.phase = 'nomination_results'

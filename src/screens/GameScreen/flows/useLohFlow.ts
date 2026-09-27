@@ -187,7 +187,18 @@ export function useLohFlow({
   const nomineeOptions = (() => {
     const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
     const candidates = alivePlayers.filter(
-      (player) => !lohIds.has(player.id) && !isBellaHeirImmune(game, player.id)
+      (player) =>
+        !lohIds.has(player.id) &&
+        !isBellaHeirImmune(game, player.id) &&
+        !(
+          game.storeNominationProtections?.some(
+            (protection) => protection.week === game.week && protection.targetId === player.id
+          ) &&
+          !(
+            canUsePublicNomineeRule &&
+            game.lastHohCompFinisherId === player.id
+          )
+        )
     )
     if (!isCupidArrowActive(game)) return candidates
     const seenPairs = new Set<string>()
@@ -341,6 +352,7 @@ export function useLohFlow({
     handleAiNomAnimDone,
     nominationLabels,
     canUsePublicNomineeRule,
+    publicAutoNomineeId,
     isDebugMode,
     isQaMode,
     handleDevPlayNomAnim,

@@ -63,6 +63,7 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
   post_veto_gratitude: { topic: 'the Safety decision', stakes: 'meaningful', kind: 'celebration' },
   post_veto_campaign: { topic: 'the new block after Safety', stakes: 'high', kind: 'pressure' },
   live_vote_pitch: { topic: 'the live vote', stakes: 'high', kind: 'pressure' },
+  tie_break_campaign: { topic: 'your deciding tie-break vote', stakes: 'high', kind: 'pressure' },
   survivor_gratitude: { topic: 'surviving the vote', stakes: 'meaningful', kind: 'celebration' },
   betrayal_warning: { topic: 'a possible betrayal', stakes: 'high', kind: 'intel' },
   ignored_warning: { topic: 'the distance between you', stakes: 'meaningful', kind: 'bond' },

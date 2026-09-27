@@ -84,6 +84,17 @@ describe('Big Eye comprehension frame', () => {
     expect(frame.responseMoves[0]).toBe('answer')
   })
 
+  it('recognizes a specific past-day vote-result question', () => {
+    const frame = buildBigEyeComprehensionFrame({
+      text: 'How much of the public vote did I get in day 1?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(frame.knowledgeQuery).toBe('historical_events')
+  })
+
   it('keeps short yes/no replies attached to the active conversation thread', () => {
     const state = createInitialBigEyeState()
     state.thread = {

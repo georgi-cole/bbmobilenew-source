@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react'
+import { useStore } from 'react-redux'
 import {
   activateDoubleVoteReward,
   activateMissionImmunityReward,
@@ -21,6 +22,7 @@ import {
 } from '../../store/gameSlice'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import type { RootState } from '../../store/store'
 import { calculateRequiredDoubleEvictionSlots } from '../../features/twists/doubleEvictionTieUtils'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
@@ -29,6 +31,10 @@ import { expandCupidIds, isCupidArrowActive } from '../../features/twists/cupidA
 import { isBellaHeirImmune } from '../../features/twists/bellasWill'
 import { buildConfessionalDecisionUnits, type ConfessionalDecisionUnit } from './cupidDecisionUnits'
 import { buildVoxFirstImpressions, type VoxFirstImpression } from './voxFirstImpression'
+import {
+  getTieBreakerAllianceAdvice,
+  getTieBreakerRecommendation,
+} from '../../social/tieBreakerStrategy'
 
 interface Props {
   decision: ActiveConfessionalDecision
@@ -193,6 +199,7 @@ function formatNameList(names: string[]): string {
 
 function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
+  const store = useStore<RootState>()
   const game = useAppSelector((state) => state.game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const isDoubleEviction = game.doubleEviction?.weekActive === true
@@ -204,6 +211,11 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
   const voxAutoNomineeId = isVoxPopuli
     ? (game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId)
     : null
+  const forcedAutoNomineeId = isVoxPopuli
+    ? voxAutoNomineeId
+    : game.publicModeEnabled && !isDoubleEviction
+      ? game.lastHohCompFinisherId
+      : null
   const voxImmunityWinnerId =
     isVoxPopuli && !isVoxFinalFour ? (game.voxPopuli?.immunityWinnerId ?? game.lohId) : null
   const options = alivePlayers.filter(
@@ -211,6 +223,12 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       (!isVoxPopuli || !voxImmunityWinnerId || player.id !== voxImmunityWinnerId) &&
       (isVoxPopuli || !lohIds.has(player.id)) &&
       !isBellaHeirImmune(game, player.id) &&
+      !(
+        game.storeNominationProtections?.some(
+          (protection) => protection.week === game.week && protection.targetId === player.id
+        ) &&
+        player.id !== forcedAutoNomineeId
+      ) &&
       (!isVoxPopuli || (player.id !== humanId && player.id !== voxAutoNomineeId))
   )
   const optionUnits = buildConfessionalDecisionUnits(game, options)
@@ -228,7 +246,10 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
         })
       : {}
   const required = isVoxPopuli
-    ? Math.min(isVoxFinalFour ? 1 : 2, optionUnits.length)
+    ? Math.min(
+        (isVoxFinalFour ? 1 : 2) + (game.storeVoxExtraNominationChoiceActive ? 1 : 0),
+        optionUnits.length
+      )
     : isDoubleEviction
       ? 3
       : 2
@@ -278,6 +299,15 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
     if (!ready || committing) return
     setCommitting(true)
     dispatch(commitNominees(selectedIds))
+    const committedGame = store.getState().game
+    const ballotCommitted = isVoxPopuli
+      ? committedGame.voxPopuli?.nominationBallots[humanId ?? '']?.length === selectedIds.length &&
+        committedGame.awaitingNominations === false
+      : committedGame.awaitingNominations === false
+    if (!ballotCommitted) {
+      setCommitting(false)
+      return
+    }
     onDecisionCommitted(
       isVoxPopuli
         ? `Secret votes cast for ${formatNameList(selectedNames)}.`
@@ -738,6 +768,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
 function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
+  const social = useAppSelector((state) => state.social)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const tiedIds = game.tiedNomineeIds ?? game.nomineeIds
   const options = alivePlayers.filter((player) => tiedIds.includes(player.id))
@@ -753,6 +784,29 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
     .map((id) => units.find((unit) => unit.id === id))
     .filter((unit): unit is ConfessionalDecisionUnit => Boolean(unit))
   const ready = selectedUnits.length === required
+  const decisionMakerId = game.players.find((player) => player.isUser)?.id
+  const strategyInput = {
+    decisionMakerId: decisionMakerId ?? '',
+    tiedNominees: options,
+    players: alivePlayers,
+    relationships: social.relationships,
+    reality: social.reality,
+    week: game.week,
+  }
+  const recommendation = decisionMakerId ? getTieBreakerRecommendation(strategyInput) : null
+  const allianceAdvice = decisionMakerId ? getTieBreakerAllianceAdvice(strategyInput) : []
+
+  function selectNominee(nomineeId: string) {
+    const unit = units.find((entry) => entry.memberIds.includes(nomineeId))
+    if (!unit || committing) return
+    setSelectedIds((current) =>
+      current.includes(unit.id)
+        ? current
+        : required === 1
+          ? [unit.id]
+          : [...current.filter((id) => id !== unit.id), unit.id].slice(-required)
+    )
+  }
 
   function toggle(id: string) {
     if (committing) return
@@ -776,6 +830,38 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
 
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
+      {(recommendation || allianceAdvice.length > 0) && (
+        <section className="rcd-tiebreak-advice" aria-label="Tie-break advice">
+          {recommendation && (
+            <div className="rcd-tiebreak-advice__recommendation">
+              <div>
+                <span className="rcd-tiebreak-advice__eyebrow">Strategic read</span>
+                <strong>Consider voting to eliminate {recommendation.nomineeName}</strong>
+                <p>{recommendation.reason}</p>
+              </div>
+              <button type="button" onClick={() => selectNominee(recommendation.nomineeId)}>
+                Use suggestion
+              </button>
+            </div>
+          )}
+          {allianceAdvice.length > 0 && (
+            <details className="rcd-tiebreak-advice__alliance">
+              <summary>Consult alliance · {allianceAdvice.length} read{allianceAdvice.length === 1 ? '' : 's'}</summary>
+              {allianceAdvice.map((advice) => (
+                <article key={advice.advisorId}>
+                  <p>
+                    <strong>{advice.advisorName}</strong> recommends eliminating{' '}
+                    <strong>{advice.nomineeName}</strong>. {advice.reason}
+                  </p>
+                  <button type="button" onClick={() => selectNominee(advice.nomineeId)}>
+                    Follow their read
+                  </button>
+                </article>
+              ))}
+            </details>
+          )}
+        </section>
+      )}
       <div className="rcd-grid" role="group" aria-label="Tie-break choices">
         {units.map((unit) => (
           <DecisionUnitCard

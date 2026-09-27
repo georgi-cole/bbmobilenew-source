@@ -145,6 +145,24 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   nominee_campaign: CAMPAIGN_BEATS,
   post_veto_campaign: CAMPAIGN_BEATS,
   live_vote_pitch: CAMPAIGN_BEATS,
+  tie_break_campaign: {
+    positive: [
+      '"Then I will remember that you chose me when the whole game came down to one vote. I will make that loyalty count."',
+      '"If you keep me, you have my word: I will protect your game, share what I know, and stand with you at the next decision."',
+    ],
+    neutral: [
+      '"I understand. You are not promising me anything, so I will make my case on the game and accept that the choice is yours."',
+      '"Then hear the one thing I can offer: a real vote beside you next week. Decide whether that is worth more than keeping them."',
+    ],
+    negative: [
+      '"I hear you. If you send me out, at least I will know exactly where I stood with you."',
+      '"Then I will stop asking. I hope the person you keep gives you more than I could have."',
+    ],
+    dismiss: [
+      '"The vote is yours, but the clock is running. I will find one last person willing to hear me out."',
+      '"All right. I will not chase you for an answer while you hold the deciding vote."',
+    ],
+  },
   week_start_alliance_lock: ALLIANCE_BEATS,
   alliance_reassurance: ALLIANCE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,

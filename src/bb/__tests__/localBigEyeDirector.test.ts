@@ -101,6 +101,26 @@ describe('localBigEyeDirector', () => {
     expect(text).toContain('Jordan')
   })
 
+  it('answers historical questions from retrieved facts and admits when a fact is missing', () => {
+    const recorded = directLocalBigEyeReply({
+      diaryText: 'How much of the public vote did I get in day 1?',
+      playerName: 'Alex',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world: { ...world, historicalFacts: ['Day 1 public audience vote: Alex received 43.7%.'] },
+    })
+    const missing = directLocalBigEyeReply({
+      diaryText: 'How much of the public vote did I get in day 1?',
+      playerName: 'Alex',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world: { ...world, historicalFacts: [] },
+    })
+
+    expect(recorded).toContain('43.7%')
+    expect(missing).toMatch(/do not have that past result recorded/i)
+  })
+
   it('uses remotely configurable lightweight challenge prompts', () => {
     setRemoteConfessionalConfig({
       responses: { challengePrompts: ['Say less and listen more before you return.'] },

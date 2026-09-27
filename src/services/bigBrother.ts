@@ -69,6 +69,8 @@ export interface BigEyeWorldContext {
   /** Grounded recent eviction names from the current game/feed when available. */
   recentEvictedNames?: string[]
   recentPublicEvents: string[]
+  /** Per-question retrieved facts; the full history is intentionally not sent. */
+  historicalFacts?: string[]
 }
 
 export interface BigBrotherPayload {

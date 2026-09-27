@@ -591,6 +591,76 @@
   font-size: 0.82rem;
 }
 
+.rcd-tiebreak-advice {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(190, 151, 255, 0.3);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(91, 49, 145, 0.24), rgba(21, 17, 32, 0.82));
+}
+
+.rcd-tiebreak-advice__recommendation,
+.rcd-tiebreak-advice__alliance article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rcd-tiebreak-advice__recommendation strong,
+.rcd-tiebreak-advice__alliance article strong {
+  color: #f3eaff;
+}
+
+.rcd-tiebreak-advice__eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #c9a9ff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rcd-tiebreak-advice p {
+  margin: 4px 0 0;
+  color: rgba(235, 225, 247, 0.76);
+  font-size: 0.86rem;
+}
+
+.rcd-tiebreak-advice button {
+  flex: 0 0 auto;
+  border: 1px solid rgba(207, 173, 255, 0.45);
+  border-radius: 10px;
+  padding: 8px 11px;
+  background: rgba(111, 64, 173, 0.45);
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rcd-tiebreak-advice__alliance summary {
+  color: #dfc9ff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.rcd-tiebreak-advice__alliance article {
+  padding-top: 10px;
+}
+
+@media (max-width: 520px) {
+  .rcd-tiebreak-advice__recommendation,
+  .rcd-tiebreak-advice__alliance article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 420px) {
   .required-confessional__header-spacer {
     width: 34px;

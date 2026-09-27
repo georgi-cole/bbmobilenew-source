@@ -41,6 +41,7 @@ export interface LocalBigEyeWorld {
     timesNominated: number
   }
   recentPublicEvents?: string[]
+  historicalFacts?: string[]
 }
 
 export interface LocalBigEyeDirectorInput {
@@ -131,9 +132,7 @@ const RESPONSE_SIMILARITY_STOPWORDS = new Set([
 function responseSimilarity(left: string, right: string): number {
   const wordsFor = (value: string) =>
     new Set(
-      value
-        .split(' ')
-        .filter((word) => word.length > 2 && !RESPONSE_SIMILARITY_STOPWORDS.has(word))
+      value.split(' ').filter((word) => word.length > 2 && !RESPONSE_SIMILARITY_STOPWORDS.has(word))
     )
   const leftWords = wordsFor(left)
   const rightWords = wordsFor(right)
@@ -369,6 +368,12 @@ function resolveKnowledgeReply(
   if (!world) return 'I do not have enough of the board in view to answer that cleanly.'
 
   switch (query) {
+    case 'historical_events': {
+      const facts = world.historicalFacts ?? []
+      return facts.length
+        ? facts.join(' ')
+        : 'I do not have that past result recorded, so I will not guess. I can only answer from events that were saved in the season record.'
+    }
     case 'leader':
       return world.leaderName
         ? world.leaderName === facts.name
@@ -377,13 +382,9 @@ function resolveKnowledgeReply(
         : 'There is no current Leader recorded in the board I can see.'
     case 'nominees':
       if (world.nomineeNames.length === 0) return 'Nobody is currently recorded on the block.'
-      return world.nomineeNames.some(
-        (name) => normalizeInput(name) === normalizeInput(facts.name)
-      )
+      return world.nomineeNames.some((name) => normalizeInput(name) === normalizeInput(facts.name))
         ? `You are on the block with ${formatNames(
-            world.nomineeNames.filter(
-              (name) => normalizeInput(name) !== normalizeInput(facts.name)
-            )
+            world.nomineeNames.filter((name) => normalizeInput(name) !== normalizeInput(facts.name))
           )}.`
         : `The current nominees are ${formatNames(world.nomineeNames)}.`
     case 'remaining':
@@ -396,7 +397,9 @@ function resolveKnowledgeReply(
       return `${closest.name} is the connection currently reading strongest from the information available to me. That is not a promise of loyalty.`
     }
     case 'alliances': {
-      const alliances = (world.alliances ?? []).filter((alliance) => alliance.status !== 'DISSOLVED')
+      const alliances = (world.alliances ?? []).filter(
+        (alliance) => alliance.status !== 'DISSOLVED'
+      )
       if (alliances.length === 0) {
         return 'You do not currently have a formal active alliance recorded. A close relationship is not automatically an alliance.'
       }
@@ -406,9 +409,7 @@ function resolveKnowledgeReply(
         )
         const label = alliance.name?.trim() || 'an unnamed alliance'
         const status =
-          alliance.status === 'ACTIVE'
-            ? ''
-            : ` It is currently ${alliance.status.toLowerCase()}.`
+          alliance.status === 'ACTIVE' ? '' : ` It is currently ${alliance.status.toLowerCase()}.`
         return `${label}: ${formatNames(others)}.${status}`
       })
       return `Your formal alliance${alliances.length === 1 ? '' : 's'}: ${descriptions.join(' ')}`
@@ -444,9 +445,13 @@ function resolveKnowledgeReply(
                 ? 'a strained connection'
                 : 'one of your most hostile connections'
       const meaningfulTags = relationship.tags
-        .filter((tag) => ['alliance', 'ally', 'friend', 'rivalry', 'betrayal', 'romance', 'bromance'].includes(tag))
+        .filter((tag) =>
+          ['alliance', 'ally', 'friend', 'rivalry', 'betrayal', 'romance', 'bromance'].includes(tag)
+        )
         .slice(0, 3)
-      const tags = meaningfulTags.length ? ` The relationship is marked by ${meaningfulTags.join(', ')}.` : ''
+      const tags = meaningfulTags.length
+        ? ` The relationship is marked by ${meaningfulTags.join(', ')}.`
+        : ''
       return `${focus} currently reads as ${tone} from your side.${tags} I can describe the relationship; I cannot tell you their secret plan unless the game has actually revealed it.`
     }
     case 'stats':
@@ -472,7 +477,9 @@ function resolveKnowledgeReply(
         return 'Not much yet. I remember patterns, promises, concerns and predictions—not a verbatim transcript.'
       }
       const readable = notes
-        .map((note) => note.replace(/^(Local note|Topic|Belief|Intent|Dependency|Prediction|Concern) — /, ''))
+        .map((note) =>
+          note.replace(/^(Local note|Topic|Belief|Intent|Dependency|Prediction|Concern) — /, '')
+        )
         .join('; ')
       return `I remember the shape of things: ${readable}. I do not keep a verbatim transcript.`
     }
@@ -570,18 +577,16 @@ function groundedSemanticReply(
   }
 
   if (/my alliance/.test(text) && /betray|turn on|backstab|loyal/.test(text)) {
-    const alliances = (input.world?.alliances ?? []).filter((alliance) => alliance.status !== 'DISSOLVED')
+    const alliances = (input.world?.alliances ?? []).filter(
+      (alliance) => alliance.status !== 'DISSOLVED'
+    )
     if (alliances.length === 0) {
       return 'You do not currently have a formal active alliance recorded, so I would rather correct the premise than invent a betrayal risk.'
     }
     return `I can confirm who is in your alliance; I cannot see a private future betrayal that the game has not revealed. Membership is evidence of a deal, not proof of loyalty. Which member has given you a reason to doubt them?`
   }
 
-  if (
-    frame.speechAct === 'answer' &&
-    focus &&
-    (input.intent === 'yes' || input.intent === 'no')
-  ) {
+  if (frame.speechAct === 'answer' && focus && (input.intent === 'yes' || input.intent === 'no')) {
     return input.intent === 'yes'
       ? `Then we are still talking about ${focus}. Good. What exactly are you agreeing with—the read, the risk, or the move?`
       : `Then we are still talking about ${focus}. Tell me what part of the read you reject.`

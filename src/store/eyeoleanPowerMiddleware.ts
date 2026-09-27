@@ -1,12 +1,20 @@
 import type { Dispatch, Middleware, MiddlewareAPI, UnknownAction } from '@reduxjs/toolkit'
 import {
   activateStoreExtraVote,
+  activateStoreVoxExtraVote,
   advance,
   applyStoreVoteRemoval,
+  applyStoreVoxVoteRemoval,
+  commitNominees,
+  activateStoreNominationProtection,
+  clearStoreNominationProtection,
   declineDoubleVoteReward,
   declineVoteDeduction,
+  finalizeNominations,
   hydrateGame,
   submitHumanDoubleVote,
+  submitCoLohNomination,
+  canStoreNominationProtectionAffectPlayer,
 } from './gameSlice'
 import {
   consumeEyeoleanStorePower,
@@ -17,6 +25,8 @@ import {
 import {
   canTriggerStoreExtraVote,
   canTriggerStoreVoteRemoval,
+  canTriggerStoreVoxExtraVote,
+  canTriggerStoreVoxVoteRemoval,
   getActiveHousemateCount,
 } from '../economy/eyeoleanPowerRules'
 import type { EyeoleanStoreProductKey } from '../economy/storeCatalog'
@@ -71,21 +81,122 @@ function reconcileReservations(api: PowerMiddlewareApi) {
       )
     }
   })
+
+  ;(['immunity', 'protection'] as const).forEach((productKey) => {
+    const reservation = reservationFor(state, productKey)
+    if (!reservation) {
+      if (state.game.storeNominationProtections?.some((item) => item.productKey === productKey)) {
+        api.dispatch(clearStoreNominationProtection(productKey))
+      }
+      return
+    }
+    const target = state.game.players.find((player) => player.id === reservation.targetId)
+    if (
+      shouldReturn ||
+      reservation.gameId !== state.game.gameId ||
+      !target ||
+      target.status === 'evicted' ||
+      target.status === 'jury'
+    ) {
+      api.dispatch(
+        returnEyeoleanStorePower({
+          productKey,
+          gameId: reservation.gameId,
+        })
+      )
+      api.dispatch(clearStoreNominationProtection(productKey))
+    }
+  })
+}
+
+function syncNominationProtection(api: PowerMiddlewareApi) {
+  const state = api.getState()
+  const human = state.game.players.find((player) => player.isUser)
+  ;(['immunity', 'protection'] as const).forEach((productKey) => {
+    const reservation = reservationFor(state, productKey)
+    if (!reservation || reservation.gameId !== state.game.gameId) return
+    const targetId = reservation.targetId ?? (productKey === 'immunity' ? human?.id : undefined)
+    if (!targetId) return
+    if (state.game.storeNominationProtections?.some(
+      (protection) => protection.productKey === productKey &&
+        protection.targetId === targetId && protection.week === state.game.week
+    )) {
+      return
+    }
+    api.dispatch(
+      activateStoreNominationProtection({
+        productKey,
+        targetId,
+        week: state.game.week,
+      })
+    )
+  })
+}
+
+function resolveNominationProtection(api: PowerMiddlewareApi, before: PowerMiddlewareState) {
+  const after = api.getState()
+  const wasWaitingForNomination =
+    before.game.phase === 'nomination_results' && before.game.awaitingNominations === true
+  const nominationsResolved =
+    after.game.phase === 'nomination_results' &&
+    after.game.awaitingNominations !== true &&
+    (wasWaitingForNomination || before.game.phase !== 'nomination_results')
+  if (!nominationsResolved) return
+
+  for (const protection of after.game.storeNominationProtections ?? []) {
+    if (protection.week !== after.game.week) continue
+    const reservation = reservationFor(after, protection.productKey)
+    if (!reservationMatchesGame(after, protection.productKey)) {
+      api.dispatch(clearStoreNominationProtection(protection.productKey))
+      continue
+    }
+
+    if (canStoreNominationProtectionAffectPlayer(after.game, protection.targetId)) {
+      api.dispatch(
+        consumeEyeoleanStorePower({
+          productKey: protection.productKey,
+          gameId: reservation!.gameId,
+        })
+      )
+    }
+    // If the target was already immune or auto-nominated, keep the reservation.
+    api.dispatch(clearStoreNominationProtection(protection.productKey))
+  }
 }
 
 function tryActivateExtraVote(api: PowerMiddlewareApi) {
   const state = api.getState()
   if (!reservationMatchesGame(state, 'extra_vote')) return
-  if (!canTriggerStoreExtraVote(state.game)) return
-  api.dispatch(activateStoreExtraVote())
+  if (canTriggerStoreExtraVote(state.game)) {
+    api.dispatch(activateStoreExtraVote())
+    return
+  }
+  if (canTriggerStoreVoxExtraVote(state.game)) api.dispatch(activateStoreVoxExtraVote())
 }
 
 function tryApplyVoteRemoval(api: PowerMiddlewareApi) {
   const before = api.getState()
   if (!reservationMatchesGame(before, 'remove_vote')) return
-  if (!canTriggerStoreVoteRemoval(before.game)) return
   const human = before.game.players.find((player) => player.isUser)
   if (!human) return
+
+  if (canTriggerStoreVoxVoteRemoval(before.game)) {
+    const beforeCount = before.game.voxPopuli?.nominationVoteCounts[human.id] ?? 0
+    api.dispatch(applyStoreVoxVoteRemoval())
+    const after = api.getState()
+    const afterCount = after.game.voxPopuli?.nominationVoteCounts[human.id] ?? beforeCount
+    if (afterCount === beforeCount - 1) {
+      api.dispatch(
+        consumeEyeoleanStorePower({
+          productKey: 'remove_vote',
+          gameId: before.game.gameId,
+        })
+      )
+    }
+    return
+  }
+
+  if (!canTriggerStoreVoteRemoval(before.game)) return
   const beforeCount = before.game.voteResults?.[human.id] ?? 0
 
   api.dispatch(applyStoreVoteRemoval())
@@ -106,12 +217,25 @@ export const eyeoleanPowerMiddleware: Middleware = (api) => {
   const typedApi = api as unknown as PowerMiddlewareApi
   return (next) => (action) => {
     const before = typedApi.getState()
+    if (advance.match(action)) syncNominationProtection(typedApi)
     const storeExtraWasActive = before.game.storeExtraVoteChoiceActive === true
+    const storeVoxExtraWasActive = before.game.storeVoxExtraNominationChoiceActive === true
     const result = next(action)
 
     reconcileReservations(typedApi)
 
     const afterReconcile = typedApi.getState()
+    if (advance.match(action) || hydrateGame.match(action)) {
+      syncNominationProtection(typedApi)
+    }
+    if (
+      advance.match(action) ||
+      commitNominees.match(action) ||
+      finalizeNominations.match(action) ||
+      submitCoLohNomination.match(action)
+    ) {
+      resolveNominationProtection(typedApi, before)
+    }
     if (
       submitHumanDoubleVote.match(action) &&
       storeExtraWasActive &&
@@ -133,6 +257,20 @@ export const eyeoleanPowerMiddleware: Middleware = (api) => {
     }
 
     if (
+      commitNominees.match(action) &&
+      storeVoxExtraWasActive &&
+      afterReconcile.game.storeVoxExtraNominationChoiceActive !== true &&
+      reservationMatchesGame(afterReconcile, 'extra_vote')
+    ) {
+      typedApi.dispatch(
+        consumeEyeoleanStorePower({
+          productKey: 'extra_vote',
+          gameId: afterReconcile.game.gameId,
+        })
+      )
+    }
+
+    if (
       advance.match(action) ||
       declineDoubleVoteReward.match(action) ||
       hydrateGame.match(action)
@@ -140,7 +278,12 @@ export const eyeoleanPowerMiddleware: Middleware = (api) => {
       tryActivateExtraVote(typedApi)
     }
 
-    if (advance.match(action) || declineVoteDeduction.match(action) || hydrateGame.match(action)) {
+    if (
+      advance.match(action) ||
+      commitNominees.match(action) ||
+      declineVoteDeduction.match(action) ||
+      hydrateGame.match(action)
+    ) {
       tryApplyVoteRemoval(typedApi)
     }
 

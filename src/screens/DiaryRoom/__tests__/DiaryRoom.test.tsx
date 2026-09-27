@@ -13,9 +13,15 @@ import gameReducer, {
   claimMissionReward,
   hydrateGame,
   addTvEvent,
+  activateVoxPopuliNow,
 } from '../../../store/gameSlice'
 import settingsReducer from '../../../store/settingsSlice'
 import socialReducer from '../../../social/socialSlice'
+import profilesReducer, {
+  createProfile,
+  purchaseEyeoleanStoreProduct,
+  settleSeasonEyeoleans,
+} from '../../../store/profilesSlice'
 import type { RootState } from '../../../store/store'
 import { getSecretMissionBoxRewards } from '../../../bb/secretMission'
 import {
@@ -32,6 +38,7 @@ function renderDiaryRoom(
       game: gameReducer,
       settings: settingsReducer,
       social: socialReducer,
+      profiles: profilesReducer,
     },
   })
 
@@ -81,6 +88,7 @@ function renderDiaryRoomWithEscapeRoute(
       game: gameReducer,
       settings: settingsReducer,
       social: socialReducer,
+      profiles: profilesReducer,
     },
   })
 
@@ -132,6 +140,38 @@ describe('DiaryRoom', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('keeps the wallet in its own tab and shows purchased mode-adapted Vox powers there', () => {
+    renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (store) => {
+        store.dispatch(createProfile({ name: 'QA Player', avatar: '🧪' }))
+        store.dispatch(
+          settleSeasonEyeoleans({
+            seasonId: 'qa-wallet-test',
+            rewards: [
+              {
+                code: 'runner_up',
+                label: 'QA grant',
+                quantity: 1,
+                unitAmount: 10_000,
+                amount: 10_000,
+              },
+            ],
+          })
+        )
+        store.dispatch(
+          purchaseEyeoleanStoreProduct({ transactionId: 'qa-extra-vote', productKey: 'extra_vote' })
+        )
+        store.dispatch(activateVoxPopuliNow())
+      },
+    })
+
+    expect(screen.queryByRole('region', { name: 'Eyeolean wallet and powers' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Wallet' }))
+    expect(screen.getByRole('region', { name: 'Eyeolean wallet and powers' })).toBeInTheDocument()
+    expect(screen.getByText('Extra Vote')).toBeInTheDocument()
+    expect(screen.getByText('×1')).toBeInTheDocument()
   })
 
   it('offers and triggers tic tac toe when the player accepts after boredom', async () => {

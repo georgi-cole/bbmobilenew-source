@@ -73,8 +73,14 @@ vi.mock('../../../hooks/useLoadIntroHub', async () => {
           return () => {};
         }
 
-        const chip = document.createElement('div');
+        const chip = document.createElement('button');
         chip.className = 'hub-chip';
+        chip.dataset.hubId = 'store';
+        chip.setAttribute('aria-label', 'Store');
+        const icon = document.createElement('span');
+        icon.className = 'hub-chip__icon hub-chip__icon--shop';
+        chip.appendChild(icon);
+        chip.addEventListener('click', () => mockNavigate('/store'));
         container.appendChild(chip);
 
         return () => {
@@ -134,13 +140,15 @@ vi.mock('../../../components/GameButton/GameButton', () => ({
   default: ({
     label,
     icon,
+    variant,
     onClick,
   }: {
     label: string;
     icon?: React.ReactNode;
+    variant: string;
     onClick: () => void;
   }) => (
-    <button data-has-icon={Boolean(icon)} onClick={onClick} type="button">
+    <button className={`game-btn--${variant}`} data-has-icon={Boolean(icon)} onClick={onClick} type="button">
       {icon}
       {label}
     </button>
@@ -441,6 +449,33 @@ describe('HomeHub', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Return to IntroHub' }));
     expect(screen.queryByTestId('housemates-bio-cinematic')).toBeNull();
     expect(screen.getByRole('button', { name: 'Hubmates' })).toBeInTheDocument();
+  });
+
+  it('promotes Market to a menu button and keeps Hall of Fame in the utility-chip slot', async () => {
+    renderHomeHub();
+    fireEvent.click(screen.getByTestId('kolequant-splash'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Market' })).toBeInTheDocument();
+    });
+
+    const store = screen.getByRole('button', { name: 'Market' });
+    const hallOfFame = screen.getByRole('button', { name: 'Hall of Fame' });
+    expect(store).toHaveClass('game-btn--secondary_wide');
+    expect(store.querySelector('img')).toHaveAttribute('src', expect.stringContaining('/market.svg'));
+    expect(hallOfFame).toHaveAttribute('data-hub-id', 'leaderboard');
+    expect(hallOfFame.querySelector('.hub-chip__icon')).toHaveClass('hub-chip__icon--hall_of_fame');
+    expect(hallOfFame.querySelector<HTMLElement>('.hub-chip__icon')?.style.backgroundImage)
+      .toContain('/assets/side_utilities_button/hall_of_fame_v2.svg');
+    expect(hallOfFame.closest('#intro-hub')).not.toBeNull();
+    expect(document.querySelector('[data-hub-id="store"]')).toBeNull();
+
+    fireEvent.click(store);
+    expect(mockNavigate).toHaveBeenCalledWith('/store', { state: { returnTo: '/' } });
+
+    mockNavigate.mockClear();
+    fireEvent.click(hallOfFame);
+    expect(mockNavigate).toHaveBeenCalledExactlyOnceWith('/leaderboard');
   });
 
   it('mirrors the current Redux game state onto window.game for the intro hub', async () => {

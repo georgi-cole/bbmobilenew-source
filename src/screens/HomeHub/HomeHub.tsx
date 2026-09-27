@@ -79,6 +79,7 @@ type HomeHubIconName =
   | 'rules'
   | 'profile'
   | 'hall_of_fame'
+  | 'market'
   | 'credits'
   | 'campaign'
   | 'survival'
@@ -101,12 +102,12 @@ const HUB_BUTTONS = [
   { to: '/rules', label: 'Rules', icon: 'rules', variant: 'secondary_medium' },
   { to: '/profile', label: 'Profile', icon: 'profile', variant: 'secondary_medium' },
   { to: '/housemates', label: 'Hubmates', icon: 'housemates', variant: 'secondary_wide' },
-  { to: '/leaderboard', label: 'Hall of Fame', icon: 'hall_of_fame', variant: 'secondary_wide' },
+  { to: '/store', label: 'Market', icon: 'market', variant: 'secondary_wide' },
   { to: '/credits', label: 'Credits', icon: 'credits', variant: 'secondary_small' },
 ] as const satisfies ReadonlyArray<{
   to: string
   label: string
-  icon: HomeHubIconName
+  icon?: HomeHubIconName
   variant: GameButtonVariant
 }>
 
@@ -193,34 +194,38 @@ function HomeHubAssetLayer({
                     />
                   )
                 )
-              : HUB_BUTTONS.map(({ to, label, icon, variant }) => (
-                  <GameButton
-                    key={to}
-                    label={label}
-                    icon={<HomeHubButtonIcon name={icon} />}
-                    variant={variant}
-                    onClick={
-                      to === '/game'
-                        ? onPlay
-                        : to === '/housemates'
-                          ? onOpenHousemates
-                          : to === '/credits'
-                            ? () => {
-                                SoundManager.unlockFromGesture()
-                                void startCreditsSoundtrackFromGesture().catch(() => {
-                                  // The muted video still starts immediately if a browser rejects
-                                  // soundtrack playback during route navigation.
-                                })
-                                onNavigate(to)
-                              }
-                            : () =>
-                                onNavigate(
-                                  to,
-                                  to === '/profile' ? { state: { from: '/' } } : undefined
-                                )
-                    }
-                  />
-                ))}
+              : <>
+                  {HUB_BUTTONS.map(({ to, label, icon, variant }) => (
+                    <GameButton
+                      key={to}
+                      label={label}
+                      icon={icon ? <HomeHubButtonIcon name={icon} /> : undefined}
+                      variant={variant}
+                      onClick={
+                        to === '/game'
+                          ? onPlay
+                          : to === '/housemates'
+                            ? onOpenHousemates
+                            : to === '/credits'
+                              ? () => {
+                                  SoundManager.unlockFromGesture()
+                                  void startCreditsSoundtrackFromGesture().catch(() => {
+                                    // The muted video still starts immediately if a browser rejects
+                                    // soundtrack playback during route navigation.
+                                  })
+                                  onNavigate(to)
+                                }
+                              : to === '/store'
+                                ? () => onNavigate(to, { state: { returnTo: '/' } })
+                                : () =>
+                                    onNavigate(
+                                      to,
+                                      to === '/profile' ? { state: { from: '/' } } : undefined
+                                    )
+                      }
+                    />
+                  ))}
+                </>}
           </nav>
         )}
       </div>
@@ -232,10 +237,8 @@ export default function HomeHub() {
   const location = useLocation()
   const routeState = location.state as {
     autoStartGame?: boolean
-    openHubUtility?: string
   } | null
   const autoStartGame = routeState?.autoStartGame === true
-  const requestedHubUtility = routeState?.openHubUtility ?? null
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const gameId = useAppSelector((state) => state.game.gameId)
@@ -399,23 +402,43 @@ export default function HomeHub() {
   }, [splashDone])
 
   useEffect(() => {
-    if (!splashDone || !requestedHubUtility) return undefined
-    let attempts = 0
-    const openRequestedUtility = window.setInterval(() => {
-      attempts += 1
-      const button = document.querySelector<HTMLButtonElement>(
-        `[data-hub-id="${requestedHubUtility}"]`
+    if (!splashDone) return undefined
+    const container = document.getElementById('intro-hub')
+    if (!container) return undefined
+
+    let replacement: HTMLButtonElement | null = null
+    const replaceStoreUtility = (): boolean => {
+      const current = container.querySelector<HTMLButtonElement>(
+        '[data-hub-id="store"], [data-hub-id="leaderboard"]'
       )
-      if (button) {
-        window.clearInterval(openRequestedUtility)
-        button.click()
-        navigate('/', { replace: true })
-      } else if (attempts >= 40) {
-        window.clearInterval(openRequestedUtility)
+      if (!current || current === replacement) return Boolean(replacement)
+
+      const chip = current.cloneNode(true) as HTMLButtonElement
+      chip.dataset.hubId = 'leaderboard'
+      chip.setAttribute('aria-label', 'Hall of Fame')
+      chip.setAttribute('title', 'Hall of Fame')
+      const icon = chip.querySelector<HTMLElement>('.hub-chip__icon')
+      if (icon) {
+        icon.className = icon.className
+          .split(/\s+/)
+          .filter((className) => className && !className.startsWith('hub-chip__icon--'))
+          .join(' ')
+        icon.classList.add('hub-chip__icon--hall_of_fame')
+        icon.style.backgroundImage = `url("${BASE}/assets/side_utilities_button/hall_of_fame_v2.svg")`
       }
-    }, 50)
-    return () => window.clearInterval(openRequestedUtility)
-  }, [navigate, requestedHubUtility, splashDone])
+      chip.addEventListener('click', () => navigate('/leaderboard'))
+      current.replaceWith(chip)
+      replacement = chip
+      return true
+    }
+
+    if (replaceStoreUtility()) return undefined
+    const observer = new MutationObserver(() => {
+      if (replaceStoreUtility()) observer.disconnect()
+    })
+    observer.observe(container, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [navigate, splashDone])
 
   function hydrateSnapshot(snapshot: SavedSeasonSnapshot) {
     if (isSurvivorRunTerminal(snapshot.game)) {

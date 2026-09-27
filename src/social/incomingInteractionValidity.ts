@@ -14,6 +14,9 @@ export interface InteractionValidityGameState {
   lohId?: string | null
   posWinnerId?: string | null
   nomineeIds?: string[]
+  tiedNomineeIds?: string[] | null
+  awaitingTieBreak?: boolean
+  awaitingPosTieBreak?: boolean
   replacementNomineeIds?: string[]
   awaitingPovDecision?: boolean
   awaitingPovSaveTarget?: boolean
@@ -39,6 +42,33 @@ const ALLIANCE_STRATEGY_SCENARIOS = new Set([
   'alliance_power_nomination_huddle',
   'alliance_power_safety_huddle',
 ])
+
+const NOMINATION_BLOCK_BOUND_SCENARIOS = new Set([
+  'nominee_campaign',
+  'post_veto_campaign',
+  'live_vote_pitch',
+  'alliance_vote_pitch',
+])
+
+function violatesNominationBlockContext(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState
+): boolean {
+  const scenarioKey = getScenarioKey(interaction)
+  if (!scenarioKey) return false
+  const snapshot = interaction.payload?.nominationBlockIds ?? interaction.payload?.nomineeIds
+  const changed =
+    Array.isArray(snapshot) &&
+    snapshot.every((id): id is string => typeof id === 'string') &&
+    (snapshot.length !== (game.nomineeIds ?? []).length ||
+      snapshot.some((id) => !(game.nomineeIds ?? []).includes(id)))
+  if (NOMINATION_BLOCK_BOUND_SCENARIOS.has(scenarioKey) && changed) return true
+  if (scenarioKey === 'alliance_vote_pitch') {
+    const subjectId = interaction.payload?.subjectId
+    return typeof subjectId !== 'string' || !(game.nomineeIds ?? []).includes(subjectId)
+  }
+  return false
+}
 
 function isAllianceProtectedGameUnit(
   game: InteractionValidityGameState,
@@ -197,6 +227,20 @@ function violatesDeclarativeRule(
       return true
     }
   }
+  if (rule.humanMustBreakTie) {
+    const human = humanPlayer(game)
+    const tiedIds = game.tiedNomineeIds ?? []
+    if (
+      !human ||
+      !game.awaitingTieBreak ||
+      !tiedIds.includes(interaction.fromId) ||
+      (game.awaitingPosTieBreak
+        ? game.posWinnerId !== human.id
+        : game.lohId !== human.id && !human.status.includes('loh'))
+    ) {
+      return true
+    }
+  }
 
   if (rule.subjectMustBeInHouse) {
     const subjectId = interaction.payload?.subjectId
@@ -235,6 +279,7 @@ export function isIncomingInteractionInvalidated(
 
   return (
     violatesDeclarativeRule(interaction, game) ||
+    violatesNominationBlockContext(interaction, game) ||
     violatesRealityAllianceContext(interaction, game, reality)
   )
 }

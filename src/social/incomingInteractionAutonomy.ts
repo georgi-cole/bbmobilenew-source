@@ -2059,6 +2059,7 @@ export function scheduleIncomingInteractionsForPhase(
               truth: 'uncertain',
             }
           : {}),
+        nominationBlockIds: [...(context.nomineeIds ?? [])].sort(),
         nomineeIds: context.nomineeIds ?? [],
         nomineeNames: (context.nomineeIds ?? []).map((nomineeId) =>
           getPlayerName(context, nomineeId, nomineeId)

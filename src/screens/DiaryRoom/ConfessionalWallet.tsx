@@ -15,9 +15,11 @@ import {
 import { armEyeoleanPower, disarmEyeoleanPower } from '../../economy/eyeoleanPowerLifecycle'
 import {
   getEyeoleanPowerArmAvailability,
+  getEyeoleanPowerModeResolution,
   isEyeoleanPowerDisarmLocked,
   isEyeoleanPowerEndgameLocked,
 } from '../../economy/eyeoleanPowerRules'
+import { canStoreNominationProtectionAffectPlayer } from '../../store/gameSlice'
 
 const EARNED_POWER_LABELS: Record<string, string> = {
   doubleVote: 'Double Vote',
@@ -25,10 +27,12 @@ const EARNED_POWER_LABELS: Record<string, string> = {
   immunity: 'Secret Immunity',
 }
 
-function powerDetail(productKey: EyeoleanStoreProductKey): string {
-  return productKey === 'extra_vote'
-    ? 'One extra ballot at an eligible eviction.'
-    : 'Cancel one vote against you at an eligible eviction.'
+function powerDetail(
+  game: Parameters<typeof getEyeoleanPowerModeResolution>[0],
+  productKey: EyeoleanStoreProductKey
+): string {
+  const rule = getEyeoleanPowerModeResolution(game, productKey).rule
+  return rule?.available ? rule.detail : 'Unavailable in this season format.'
 }
 
 export default function ConfessionalWallet() {
@@ -41,10 +45,19 @@ export default function ConfessionalWallet() {
   const reservations = useAppSelector(selectEyeoleanPowerReservations)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedProtectionTarget, setSelectedProtectionTarget] = useState('')
 
   const human = game.players.find((player) => player.isUser)
   const endgameLocked = isEyeoleanPowerEndgameLocked(game)
   const disarmLocked = isEyeoleanPowerDisarmLocked(game)
+  const protectionTargets = useMemo(
+    () =>
+      game.players.filter(
+        (player) =>
+          !player.isUser && canStoreNominationProtectionAffectPlayer(game, player.id)
+      ),
+    [game]
+  )
 
   const activeEarnedPower = useMemo(() => {
     const reward = game.secretMission?.reward
@@ -63,7 +76,7 @@ export default function ConfessionalWallet() {
           reward.type === 'doubleVote'
             ? 'Offered automatically at the next eligible live vote.'
             : reward.type === 'voteDeduction'
-              ? 'Can reduce one vote when you are nominated at an eligible eviction.'
+              ? 'Can reduce one vote when you are nominated at an eligible elimination vote.'
               : `Temporary protection for ${reward.durationDays ?? 1} day${(reward.durationDays ?? 1) === 1 ? '' : 's'}.`,
       }
     }
@@ -79,14 +92,14 @@ export default function ConfessionalWallet() {
       return {
         source: "Bella's Will",
         title: 'Inherited Extra Vote',
-        detail: 'Automatic. It has priority over a purchased Extra Vote for the same eviction.',
+        detail: 'Automatic. It has priority over a purchased Extra Vote for the same elimination vote.',
       }
     }
     if (will.reward === 'remove_vote' && will.voteRemovalPending) {
       return {
         source: "Bella's Will",
         title: 'Inherited Vote Removal',
-        detail: 'Automatic. It has priority over a purchased Remove a Vote for the same eviction.',
+        detail: 'Automatic. It has priority over a purchased Remove a Vote for the same elimination vote.',
       }
     }
     if (will.reward === 'immunity_2_days' && will.immunityDaysRemaining > 0) {
@@ -102,7 +115,12 @@ export default function ConfessionalWallet() {
   function handleArm(productKey: EyeoleanStoreProductKey) {
     setNotice(null)
     setError(null)
-    const result = dispatch(armEyeoleanPower(productKey))
+    const result = dispatch(
+      armEyeoleanPower(
+        productKey,
+        productKey === 'protection' ? selectedProtectionTarget : undefined
+      )
+    )
     if (result.ok) setNotice(result.message)
     else setError(result.message)
   }
@@ -139,7 +157,7 @@ export default function ConfessionalWallet() {
           <span className="diary-room__wallet-eyebrow">Powers</span>
           <h2>Inventory</h2>
         </div>
-        <p>Arm a power for the next eligible eviction.</p>
+        <p>Arm powers for their next eligible round in this season format.</p>
       </div>
 
       <div className="diary-room__wallet-power-list">
@@ -150,7 +168,12 @@ export default function ConfessionalWallet() {
           const inventoryCount = Math.max(0, Math.floor(inventory[productKey] ?? 0))
           const totalOwned = inventoryCount + (armed ? 1 : 0)
           const availability = getEyeoleanPowerArmAvailability(game, productKey)
-          const canArm = Boolean(profile) && inventoryCount > 0 && availability.available && !armed
+          const modeRule = getEyeoleanPowerModeResolution(game, productKey).rule
+          const targetSelected =
+            productKey !== 'protection' ||
+            protectionTargets.some((player) => player.id === selectedProtectionTarget)
+          const canArm =
+            Boolean(profile) && inventoryCount > 0 && availability.available && !armed && targetSelected
           const canDisarm = armed && !disarmLocked
           const status = armed
             ? disarmLocked
@@ -172,17 +195,41 @@ export default function ConfessionalWallet() {
                 data-product={productKey}
                 aria-hidden="true"
               >
-                {productKey === 'extra_vote' ? '2×' : '−1'}
+                {productKey === 'extra_vote'
+                  ? '2×'
+                  : productKey === 'remove_vote'
+                    ? '−1'
+                    : productKey === 'immunity'
+                      ? '✦'
+                      : '🛡️'}
               </div>
               <div className="diary-room__wallet-power-copy">
                 <div className="diary-room__wallet-power-title">
-                  <h3>{product.title}</h3>
+                  <h3>{modeRule?.available ? modeRule.title : product.title}</h3>
                   <span data-status={armed ? 'armed' : 'idle'}>{status}</span>
                   <span className="diary-room__wallet-owned">×{totalOwned}</span>
                 </div>
-                <p>{powerDetail(productKey)}</p>
+                <p>{powerDetail(game, productKey)}</p>
               </div>
               <div className="diary-room__wallet-power-action">
+                {productKey === 'protection' && !armed && (
+                  <label className="diary-room__wallet-target">
+                    <span>Protect another player</span>
+                    <select
+                      aria-label="Choose a player for Protection"
+                      value={selectedProtectionTarget}
+                      onChange={(event) => setSelectedProtectionTarget(event.target.value)}
+                      disabled={!availability.available || inventoryCount <= 0}
+                    >
+                      <option value="">Choose a player</option>
+                      {protectionTargets.map((player) => (
+                        <option value={player.id} key={player.id}>
+                          {player.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 {armed ? (
                   <button
                     type="button"
