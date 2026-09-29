@@ -163,9 +163,9 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     host: 'tests/unit/house-of-cards/minigameHostHouseOfCardsSeed.test.tsx',
   },
   hangman: {
-    input: 'keyboard or on-screen letter selection',
-    scoring: 'higher',
-    tie: 'Higher authoritative round score; then deterministic engine order.',
+    input: 'modal full-word entry plus paid single-position reveals and hints',
+    scoring: 'placement',
+    tie: 'Solved boards first; then round score, wrong guesses, time, and prior cumulative score.',
     logic: 'src/components/HangmanChallengeComp/__tests__/hangmanChallengeEngine.test.ts',
     component: 'src/components/HangmanChallengeComp/__tests__/HangmanChallengeComp.test.tsx',
     host: 'tests/minigameHost.hangman.test.tsx',
