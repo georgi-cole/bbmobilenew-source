@@ -616,9 +616,17 @@ export default function HangmanChallengeComp({
         .map((char, index) => ({ char, index }))
         .filter(({ char, index }) => char !== ' ' && !state.revealedPositions.includes(index))
       if (hidden.length === 0) return state
-      finalRngCounter.current += 1
-      const pick =
-        hidden[Math.floor(seededFraction(seed ^ 0x9183 ^ finalRngCounter.current) * hidden.length)]
+      const emergencySeed =
+        seed ^
+        0x9183 ^
+        hashString(
+          (state.turnId ?? 'none') +
+            '-' +
+            state.wrongGuesses +
+            '-' +
+            state.revealedPositions.join(',')
+        )
+      const pick = hidden[Math.floor(seededFraction(emergencySeed) * hidden.length)]
       return {
         ...state,
         revealedPositions: [...state.revealedPositions, pick.index].sort((a, b) => a - b),
@@ -695,43 +703,50 @@ export default function HangmanChallengeComp({
 
   useEffect(() => {
     if (phase !== 'finalPlaying' || !finalTurnPlayer || finalTurnPlayer.isHuman) return undefined
-    const timer = window.setTimeout(() => {
-      setFinalState((previous) => {
-        if (previous.turnId !== finalTurnPlayer.id || previous.winnerId) return previous
-        const currentPlayer = players.find((player) => player.id === finalTurnPlayer.id)
-        if (!currentPlayer) return previous
-        const revealRatioNow = computeRevealRatio(finalWord.text, previous.revealedPositions)
-        const skill = 0.45 + (hashString(finalTurnPlayer.id) % 40) / 100
-        const confidence =
-          revealRatioNow + previous.hintsUsed * 0.08 + skill * 0.24 + (previous.emergency ? 0.2 : 0)
-        const random = seededFraction(
-          seed ^
-            hashString(
-              finalTurnPlayer.id +
-                '-' +
-                previous.revealedPositions.length +
-                '-' +
-                previous.wrongGuesses
-            )
-        )
 
-        if (confidence >= 0.9 || currentPlayer.budget < VOWEL_COST || previous.emergency) {
-          const correct = random < Math.min(0.96, 0.34 + confidence * 0.62)
-          if (correct) {
-            window.setTimeout(() => finishFinal(finalTurnPlayer.id), 0)
-            return {
-              ...previous,
-              revealedPositions: revealAllMatchingPositions(
-                finalWord.text,
-                previous.revealedPositions,
-                finalWord.text
-              ),
-              eventLog: [...previous.eventLog, finalTurnPlayer.name + ' solved the final board.'],
-              winnerId: finalTurnPlayer.id,
-            }
-          }
-          const nextWrong = previous.wrongGuesses + 1
-          return switchFinalTurn({
+    const timer = window.setTimeout(() => {
+      const previous = finalState
+      if (previous.turnId !== finalTurnPlayer.id || previous.winnerId) return
+
+      const currentPlayer = players.find((player) => player.id === finalTurnPlayer.id)
+      if (!currentPlayer) return
+
+      const revealRatioNow = computeRevealRatio(finalWord.text, previous.revealedPositions)
+      const skill = 0.45 + (hashString(finalTurnPlayer.id) % 40) / 100
+      const confidence =
+        revealRatioNow + previous.hintsUsed * 0.08 + skill * 0.24 + (previous.emergency ? 0.2 : 0)
+      const random = seededFraction(
+        seed ^
+          hashString(
+            finalTurnPlayer.id +
+              '-' +
+              previous.revealedPositions.length +
+              '-' +
+              previous.wrongGuesses
+          )
+      )
+
+      if (confidence >= 0.9 || currentPlayer.budget < VOWEL_COST || previous.emergency) {
+        const correct = random < Math.min(0.96, 0.34 + confidence * 0.62)
+        if (correct) {
+          setFinalState({
+            ...previous,
+            revealedPositions: revealAllMatchingPositions(
+              finalWord.text,
+              previous.revealedPositions,
+              finalWord.text
+            ),
+            eventLog: [...previous.eventLog, finalTurnPlayer.name + ' solved the final board.'],
+            winnerId: finalTurnPlayer.id,
+          })
+          setCompetitionWinnerId(finalTurnPlayer.id)
+          setPhase('finalResult')
+          return
+        }
+
+        const nextWrong = previous.wrongGuesses + 1
+        setFinalState(
+          switchFinalTurn({
             ...previous,
             wrongGuesses: nextWrong,
             emergency: previous.emergency || nextWrong >= MAX_WRONG_GUESSES,
@@ -742,71 +757,79 @@ export default function HangmanChallengeComp({
                 : finalTurnPlayer.name + ' guessed the word incorrectly.',
             ],
           })
-        }
+        )
+        return
+      }
 
-        const hintCost = getHintCost(previous.hintsUsed)
-        if (
-          hintCost != null &&
-          currentPlayer.budget >= hintCost &&
-          finalWord.difficulty >= 4 &&
-          random < 0.18
-        ) {
-          setPlayers((all) =>
-            all.map((player) =>
-              player.id === currentPlayer.id
-                ? { ...player, budget: player.budget - hintCost }
-                : player
-            )
+      const hintCost = getHintCost(previous.hintsUsed)
+      if (
+        hintCost != null &&
+        currentPlayer.budget >= hintCost &&
+        finalWord.difficulty >= 4 &&
+        random < 0.18
+      ) {
+        setPlayers((all) =>
+          all.map((player) =>
+            player.id === currentPlayer.id
+              ? { ...player, budget: player.budget - hintCost }
+              : player
           )
-          return switchFinalTurn({
+        )
+        setFinalState(
+          switchFinalTurn({
             ...previous,
             hintsUsed: previous.hintsUsed + 1,
             eventLog: [...previous.eventLog, finalTurnPlayer.name + ' bought a hint.'],
           })
-        }
+        )
+        return
+      }
 
-        const vowelOptions = getAvailableRevealPositions(
-          finalWord.text,
-          previous.revealedPositions,
-          'vowel'
+      const vowelOptions = getAvailableRevealPositions(
+        finalWord.text,
+        previous.revealedPositions,
+        'vowel'
+      )
+      const consonantOptions = getAvailableRevealPositions(
+        finalWord.text,
+        previous.revealedPositions,
+        'consonant'
+      )
+      let kind: RevealKind = random < 0.44 ? 'vowel' : 'consonant'
+      if (
+        (kind === 'vowel' && (vowelOptions.length === 0 || currentPlayer.budget < VOWEL_COST)) ||
+        (kind === 'consonant' &&
+          (consonantOptions.length === 0 || currentPlayer.budget < CONSONANT_COST))
+      ) {
+        kind = kind === 'vowel' ? 'consonant' : 'vowel'
+      }
+
+      const cost = getRevealCost(kind)
+      const position = pickRevealPosition(
+        finalWord.text,
+        previous.revealedPositions,
+        kind,
+        seededFraction(seed ^ finalRngCounter.current++ ^ hashString(finalTurnPlayer.id))
+      )
+      if (position == null || currentPlayer.budget < cost) {
+        setFinalState(switchFinalTurn(previous))
+        return
+      }
+
+      setPlayers((all) =>
+        all.map((player) =>
+          player.id === currentPlayer.id ? { ...player, budget: player.budget - cost } : player
         )
-        const consonantOptions = getAvailableRevealPositions(
-          finalWord.text,
-          previous.revealedPositions,
-          'consonant'
-        )
-        let kind: RevealKind = random < 0.44 ? 'vowel' : 'consonant'
-        if (
-          (kind === 'vowel' && (vowelOptions.length === 0 || currentPlayer.budget < VOWEL_COST)) ||
-          (kind === 'consonant' &&
-            (consonantOptions.length === 0 || currentPlayer.budget < CONSONANT_COST))
-        ) {
-          kind = kind === 'vowel' ? 'consonant' : 'vowel'
-        }
-        const cost = getRevealCost(kind)
-        const position = pickRevealPosition(
-          finalWord.text,
-          previous.revealedPositions,
-          kind,
-          seededFraction(seed ^ finalRngCounter.current++ ^ hashString(finalTurnPlayer.id))
-        )
-        if (position == null || currentPlayer.budget < cost) {
-          return switchFinalTurn(previous)
-        }
-        setPlayers((all) =>
-          all.map((player) =>
-            player.id === currentPlayer.id ? { ...player, budget: player.budget - cost } : player
-          )
-        )
-        return {
-          ...previous,
-          revealedPositions: [...previous.revealedPositions, position].sort((a, b) => a - b),
-          eventLog: [...previous.eventLog, finalTurnPlayer.name + ' revealed a ' + kind + '.'],
-        }
+      )
+      setFinalState({
+        ...previous,
+        revealedPositions: [...previous.revealedPositions, position].sort((a, b) => a - b),
+        eventLog: [...previous.eventLog, finalTurnPlayer.name + ' revealed a ' + kind + '.'],
       })
     }, 720)
+
     return () => window.clearTimeout(timer)
-  }, [finalTurnPlayer, finalWord, finishFinal, phase, players, seed, switchFinalTurn])
+  }, [finalState, finalTurnPlayer, finalWord, phase, players, seed, switchFinalTurn])
 
   const finalHuman = players.find((player) => player.id === human.id) ?? humanState
   const currentBudget = phase === 'finalPlaying' ? finalHuman.budget : humanState.budget
