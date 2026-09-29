@@ -190,6 +190,10 @@ export default function HangmanChallengeComp({
   const finalRngCounter = useRef(0)
 
   const activePlayers = useMemo(() => players.filter((player) => player.active), [players])
+  const postRoundBudgets = useMemo(
+    () => Object.fromEntries(players.map((player) => [player.id, player.budget])),
+    [players]
+  )
   const human = useMemo(() => getHuman(players), [players])
   const humanState = players.find((player) => player.id === human.id) ?? human
   const currentWord = tournamentWords.qualifying[roundIndex] ?? tournamentWords.final
@@ -1238,9 +1242,7 @@ export default function HangmanChallengeComp({
                   <i>{initialAvatar(entry.participantName)}</i>
                   <b>{entry.participantName}</b>
                   <small>{entry.solved ? entry.roundScore + ' pts' : 'FAILED'}</small>
-                  <em>
-                    ◉ {players.find((player) => player.id === entry.participantId)?.budget ?? entry.budgetRemaining}
-                  </em>
+                  <em>◉ {postRoundBudgets[entry.participantId] ?? entry.budgetRemaining}</em>
                 </div>
               ))}
             </div>
