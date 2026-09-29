@@ -873,7 +873,7 @@ export function simulateAiRound(params: {
       wrongGuesses,
       elapsedSeconds,
       hintsUsed,
-      revealedRatio,
+      revealedRatio: revealRatio,
       roundScore: breakdown.roundScore,
       cumulativeBefore: cumulativeScore,
       cumulativeAfter: cumulativeScore + breakdown.cumulativeDelta,
