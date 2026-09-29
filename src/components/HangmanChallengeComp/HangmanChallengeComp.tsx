@@ -186,6 +186,7 @@ export default function HangmanChallengeComp({
   const [roundResolution, setRoundResolution] = useState<RoundResolution | null>(null)
   const [lastEliminatedIds, setLastEliminatedIds] = useState<string[]>([])
   const [competitionWinnerId, setCompetitionWinnerId] = useState<string | null>(null)
+  const [competitionLastPlaceId, setCompetitionLastPlaceId] = useState<string | null>(null)
   const finalRngCounter = useRef(0)
 
   const activePlayers = useMemo(() => players.filter((player) => player.active), [players])
@@ -362,6 +363,9 @@ export default function HangmanChallengeComp({
       const eliminateCount = eliminationPlan[roundIndex] ?? 0
       const eliminatedIds = ranked.slice(-eliminateCount).map((result) => result.participantId)
       const eliminatedSet = new Set(eliminatedIds)
+      setCompetitionLastPlaceId(
+        (previous) => previous ?? ranked[ranked.length - 1]?.participantId ?? null
+      )
 
       const nextPlayers = players.map((player) => {
         const result = results.find((entry) => entry.participantId === player.id)
@@ -822,12 +826,25 @@ export default function HangmanChallengeComp({
     const rawResults = Object.fromEntries(
       players.map((player) => [player.id, player.cumulativeScore])
     )
+    const authoritativeLastPlaceId =
+      competitionLastPlaceId ??
+      finalState.finalists.find((id) => id !== competitionWinnerId) ??
+      [...players].sort(winnerSort).at(-1)?.id ??
+      null
     onFinish(rawResults[human.id] ?? 0, undefined, {
       authoritativeWinnerId: competitionWinnerId,
+      authoritativeLastPlaceId,
       rawValue: rawResults[human.id] ?? 0,
       rawResults,
     })
-  }, [competitionWinnerId, human.id, onFinish, players])
+  }, [
+    competitionLastPlaceId,
+    competitionWinnerId,
+    finalState.finalists,
+    human.id,
+    onFinish,
+    players,
+  ])
 
   const boardStyle = {
     '--pressure-backdrop-image': 'url(' + pressureBackdropAsset + ')',
