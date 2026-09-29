@@ -576,7 +576,6 @@ export default function HangmanChallengeComp({
 
   const finalWord = tournamentWords.final
   const finalDisplayTokens = buildDisplayTokens(finalWord.text, finalState.revealedPositions)
-  const finalRevealRatio = computeRevealRatio(finalWord.text, finalState.revealedPositions)
   const finalTurnPlayer = players.find((player) => player.id === finalState.turnId)
   const humanFinalTurn = phase === 'finalPlaying' && finalState.turnId === human.id
 
