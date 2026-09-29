@@ -544,35 +544,30 @@ export default function HangmanChallengeComp({
   )
 
   useEffect(() => {
-    if (phase !== 'finalChoice') return
-    const active = players.filter((player) => player.active).sort(winnerSort).slice(0, 2)
-    if (active.length < 2) return
-    const chooser = active[0]
-    const other = active[1]
-    setFinalState((previous) => ({
-      ...previous,
-      finalists: [chooser.id, other.id],
-      chooserId: chooser.id,
-    }))
-    if (chooser.id !== human.id) {
-      const aiStarts = chooser.budget >= other.budget
-      const starterId = aiStarts ? chooser.id : other.id
-      const timer = window.setTimeout(() => {
-        setFinalState((previous) => ({
-          ...previous,
-          starterId,
-          turnId: starterId,
-          eventLog: [
-            ...previous.eventLog,
-            chooser.name + (aiStarts ? ' chose to start.' : ' chose to play second.'),
-          ],
-        }))
-        setPhase('finalPlaying')
-      }, 700)
-      return () => window.clearTimeout(timer)
-    }
-    return undefined
-  }, [human.id, phase, players])
+    if (phase !== 'finalChoice' || finalState.chooserId === human.id) return undefined
+
+    const chooser = players.find((player) => player.id === finalState.chooserId)
+    const otherId = finalState.finalists.find((id) => id !== finalState.chooserId)
+    const other = players.find((player) => player.id === otherId)
+    if (!chooser || !other) return undefined
+
+    const aiStarts = chooser.budget >= other.budget
+    const starterId = aiStarts ? chooser.id : other.id
+    const timer = window.setTimeout(() => {
+      setFinalState((previous) => ({
+        ...previous,
+        starterId,
+        turnId: starterId,
+        eventLog: [
+          ...previous.eventLog,
+          chooser.name + (aiStarts ? ' chose to start.' : ' chose to play second.'),
+        ],
+      }))
+      setPhase('finalPlaying')
+    }, 700)
+
+    return () => window.clearTimeout(timer)
+  }, [finalState.chooserId, finalState.finalists, human.id, phase, players])
 
   const finalWord = tournamentWords.final
   const finalDisplayTokens = buildDisplayTokens(finalWord.text, finalState.revealedPositions)
