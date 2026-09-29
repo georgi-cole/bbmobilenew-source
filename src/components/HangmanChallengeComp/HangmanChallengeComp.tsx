@@ -235,22 +235,6 @@ export default function HangmanChallengeComp({
     setRoundResolution(null)
   }, [])
 
-  const finishCompetition = useCallback(
-    (winnerId: string, finalPlayers: PlayerState[]) => {
-      setCompetitionWinnerId(winnerId)
-      const rawResults = Object.fromEntries(
-        finalPlayers.map((player) => [player.id, player.cumulativeScore])
-      )
-      const humanScore = rawResults[human.id] ?? humanState.cumulativeScore
-      setPhase(humanState.active ? 'finalResult' : 'eliminated')
-      return {
-        humanScore,
-        rawResults,
-      }
-    },
-    [human.id, humanState.active, humanState.cumulativeScore]
-  )
-
   const simulateAiOnlyFinish = useCallback(
     (sourcePlayers: PlayerState[], nextRoundIndex: number): { winnerId: string; players: PlayerState[] } => {
       let simPlayers = sourcePlayers.map((player) => ({ ...player }))
