@@ -191,7 +191,6 @@ export default function HangmanChallengeComp({
   const humanState = players.find((player) => player.id === human.id) ?? human
   const currentWord = tournamentWords.qualifying[roundIndex] ?? tournamentWords.final
   const displayTokens = buildDisplayTokens(currentWord.text, revealedPositions)
-  const revealRatio = computeRevealRatio(currentWord.text, revealedPositions)
   const remainingSeconds = Math.max(0, ROUND_TIME_LIMIT_SECONDS - elapsedSeconds)
   const hiddenVowels = getAvailableRevealPositions(currentWord.text, revealedPositions, 'vowel').length
   const hiddenConsonants = getAvailableRevealPositions(
