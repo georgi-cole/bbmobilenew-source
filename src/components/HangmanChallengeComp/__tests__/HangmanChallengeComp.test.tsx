@@ -160,6 +160,7 @@ describe('HangmanChallengeComp V2', () => {
 
     expect(screen.getByRole('button', { name: /guess word/i })).toBeDisabled()
   })
+
   it('reports both authoritative winner and last place to the host retry contract', () => {
     const onFinish = vi.fn()
     const finalists = [
@@ -186,5 +187,4 @@ describe('HangmanChallengeComp V2', () => {
       authoritativeLastPlaceId: 'z-ai',
     })
   })
-
 })
