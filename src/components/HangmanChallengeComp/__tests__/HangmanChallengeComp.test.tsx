@@ -160,4 +160,31 @@ describe('HangmanChallengeComp V2', () => {
 
     expect(screen.getByRole('button', { name: /guess word/i })).toBeDisabled()
   })
+  it('reports both authoritative winner and last place to the host retry contract', () => {
+    const onFinish = vi.fn()
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={99} onFinish={onFinish} />)
+
+    const choice = screen.getByRole('dialog', { name: /choose final order/i })
+    fireEvent.click(within(choice).getByRole('button', { name: /start first/i }))
+
+    const answer = pickTournamentWords(99, 0).final.text
+    const dialog = openGuess()
+    const input = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(input, { target: { value: answer } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
+
+    const results = screen.getByRole('dialog', { name: /final results/i })
+    fireEvent.click(within(results).getByRole('button', { name: /finish competition/i }))
+
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish.mock.calls[0]?.[2]).toMatchObject({
+      authoritativeWinnerId: 'a-human',
+      authoritativeLastPlaceId: 'z-ai',
+    })
+  })
+
 })
