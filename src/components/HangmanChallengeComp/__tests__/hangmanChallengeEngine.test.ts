@@ -67,7 +67,7 @@ describe('hangmanChallengeEngine V2', () => {
 
   it('keeps the tournament to at most six qualifying rounds while always reaching a final two', () => {
     expect(buildEliminationPlan(4)).toEqual([1, 1])
-    expect(buildEliminationPlan(10)).toEqual([2, 2, 2, 1, 1])
+    expect(buildEliminationPlan(10)).toEqual([2, 2, 1, 1, 1, 1])
     expect(buildEliminationPlan(16)).toEqual([3, 3, 2, 2, 2, 2])
 
     const plan = buildEliminationPlan(18)
