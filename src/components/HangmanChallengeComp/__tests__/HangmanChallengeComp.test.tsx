@@ -106,10 +106,23 @@ describe('HangmanChallengeComp V2', () => {
   it('shatters the window on the tenth wrong full-word guess and ends the human run', () => {
     const { container } = render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    for (let index = 0; index < 10; index += 1) {
+    const wrongAnswers = [
+      'alpha wrong',
+      'bravo wrong',
+      'charlie wrong',
+      'delta wrong',
+      'echo wrong',
+      'foxtrot wrong',
+      'golf wrong',
+      'hotel wrong',
+      'india wrong',
+      'juliet wrong',
+    ]
+
+    for (const answer of wrongAnswers) {
       const dialog = openGuess()
       const input = within(dialog).getByLabelText(/full word guess/i)
-      fireEvent.change(input, { target: { value: 'wrong answer ' + index } })
+      fireEvent.change(input, { target: { value: answer } })
       fireEvent.submit(input.closest('form') as HTMLFormElement)
     }
 
