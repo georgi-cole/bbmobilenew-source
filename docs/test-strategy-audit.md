@@ -718,7 +718,6 @@ The following index is exhaustive for the 371 files included in the run. A path 
 - tests/unit/ui/hold-the-wall/Hourglass.test.tsx — component; 9 tests; behavioral
 - tests/unit/ui/playerAvatar.badges.test.tsx — component; 2 tests; behavioral
 - tests/unit/ui/TvZone.twist.test.tsx — component; 5 tests; mixed
-- tests/unit/verdictBoard.input.test.ts — unit; 1 test; behavioral
 - tests/unit/wildcard-western/helpers.test.ts — unit; 11 tests; behavioral
 - tests/unit/wildcard-western/slice.test.ts — unit; 18 tests; behavioral
 - tests/unit/wildcard-western/useWildcardWesternAudio.test.ts — unit; 5 tests; behavioral
