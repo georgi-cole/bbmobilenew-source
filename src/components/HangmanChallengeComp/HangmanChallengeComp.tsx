@@ -1238,7 +1238,9 @@ export default function HangmanChallengeComp({
                   <i>{initialAvatar(entry.participantName)}</i>
                   <b>{entry.participantName}</b>
                   <small>{entry.solved ? entry.roundScore + ' pts' : 'FAILED'}</small>
-                  <em>◉ {entry.budgetRemaining}</em>
+                  <em>
+                    ◉ {players.find((player) => player.id === entry.participantId)?.budget ?? entry.budgetRemaining}
+                  </em>
                 </div>
               ))}
             </div>
@@ -1255,8 +1257,8 @@ export default function HangmanChallengeComp({
             <p className="verdict-v2__eyebrow">Final advantage</p>
             <h2>You choose the order</h2>
             <p>
-              Your cumulative score is higher. The final uses one shared board and both finalists
-              keep their remaining Eyeoleans.
+              You hold the top final seed. The final uses one shared board and both finalists keep
+              their remaining Eyeoleans.
             </p>
             <div className="verdict-v2__choice-grid">
               <button type="button" onClick={() => chooseFinalOrder(true)}>
@@ -1281,7 +1283,7 @@ export default function HangmanChallengeComp({
           <div className="verdict-v2__result-card">
             <p className="verdict-v2__eyebrow">Final advantage</p>
             <h2>Opponent is choosing</h2>
-            <p>The higher cumulative scorer decides who acts first.</p>
+            <p>The top final seed decides who acts first.</p>
           </div>
         </div>
       )}
