@@ -1,0 +1,44 @@
+name: Verdict Board Format
+
+on:
+  push:
+    branches:
+      - feat/verdict-board-v2
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/verdict-board-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format Verdict Board V2 files
+        run: |
+          npx prettier --write \
+            src/components/HangmanChallengeComp/HangmanChallengeComp.css \
+            src/components/HangmanChallengeComp/HangmanChallengeComp.tsx \
+            src/components/HangmanChallengeComp/__tests__/HangmanChallengeComp.test.tsx \
+            src/components/HangmanChallengeComp/hangmanChallengeEngine.ts
+      - name: Commit formatting if needed
+        run: |
+          if git diff --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/HangmanChallengeComp/HangmanChallengeComp.css \
+            src/components/HangmanChallengeComp/HangmanChallengeComp.tsx \
+            src/components/HangmanChallengeComp/__tests__/HangmanChallengeComp.test.tsx \
+            src/components/HangmanChallengeComp/hangmanChallengeEngine.ts
+          git commit -m "style(verdict-board): apply Prettier"
+          git push origin HEAD:feat/verdict-board-v2
