@@ -133,7 +133,9 @@ describe('HangmanChallengeComp V2', () => {
       vi.advanceTimersByTime(600)
     })
 
-    expect(screen.getByRole('dialog', { name: /eliminated from verdict board/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: /eliminated from verdict board/i })
+    ).toBeInTheDocument()
   })
 
   it('uses the cumulative leader choice and keeps the turn after a successful final reveal', () => {

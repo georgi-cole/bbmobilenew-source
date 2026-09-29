@@ -13,18 +13,22 @@
   box-sizing: border-box;
   overflow: hidden;
   color: #f8fbff;
-  padding:
-    max(10px, env(safe-area-inset-top))
-    max(10px, env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom))
-    max(10px, env(safe-area-inset-left));
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   background:
     radial-gradient(circle at 15% 15%, rgba(146, 21, 48, 0.25), transparent 30%),
     radial-gradient(circle at 85% 70%, rgba(40, 115, 187, 0.22), transparent 35%),
     linear-gradient(180deg, rgba(2, 6, 12, 0.64), rgba(1, 4, 9, 0.94)),
     var(--pressure-backdrop-image) center / cover no-repeat,
     #03060b;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
 }
 
 .verdict-v2 *,
@@ -132,8 +136,7 @@
   border-radius: clamp(24px, 7vw, 40px);
   border: 1px solid rgba(255, 221, 166, 0.22);
   background:
-    linear-gradient(180deg, rgba(4, 9, 16, 0.18), rgba(3, 6, 12, 0.7)),
-    rgba(4, 8, 15, 0.88);
+    linear-gradient(180deg, rgba(4, 9, 16, 0.18), rgba(3, 6, 12, 0.7)), rgba(4, 8, 15, 0.88);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.055),
     inset 0 0 52px rgba(9, 28, 49, 0.55),
@@ -141,7 +144,7 @@
 }
 
 .verdict-v2__window::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 9px;
   border-radius: inherit;
@@ -234,8 +237,7 @@
   border-radius: 9px 9px 6px 6px;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-bottom-color: rgba(255, 215, 142, 0.56);
-  background:
-    linear-gradient(180deg, rgba(23, 31, 43, 0.92), rgba(6, 10, 17, 0.94));
+  background: linear-gradient(180deg, rgba(23, 31, 43, 0.92), rgba(6, 10, 17, 0.94));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.09),
     0 9px 18px rgba(0, 0, 0, 0.23);
@@ -316,8 +318,7 @@
   min-height: clamp(48px, 8vh, 62px);
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 15px;
-  background:
-    linear-gradient(180deg, rgba(28, 35, 47, 0.94), rgba(8, 12, 20, 0.96));
+  background: linear-gradient(180deg, rgba(28, 35, 47, 0.94), rgba(8, 12, 20, 0.96));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 9px 24px rgba(0, 0, 0, 0.25);
@@ -363,11 +364,8 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding:
-    max(10px, env(safe-area-inset-top))
-    max(10px, env(safe-area-inset-right))
-    max(10px, env(safe-area-inset-bottom))
-    max(10px, env(safe-area-inset-left));
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   background: rgba(1, 4, 9, 0.72);
   backdrop-filter: blur(10px);
 }
@@ -385,8 +383,7 @@
   overscroll-behavior: contain;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(20, 26, 36, 0.98), rgba(6, 10, 17, 0.99));
+  background: linear-gradient(180deg, rgba(20, 26, 36, 0.98), rgba(6, 10, 17, 0.99));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.07),
     0 28px 70px rgba(0, 0, 0, 0.54);
@@ -702,19 +699,27 @@
 }
 
 @keyframes verdictV2Shatter {
-  0% { transform: scale(1); filter: brightness(1); }
-  28% { transform: scale(1.012) rotate(-0.12deg); filter: brightness(1.45); }
-  55% { transform: scale(0.998) rotate(0.15deg); }
-  100% { transform: scale(1); filter: brightness(1); }
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  28% {
+    transform: scale(1.012) rotate(-0.12deg);
+    filter: brightness(1.45);
+  }
+  55% {
+    transform: scale(0.998) rotate(0.15deg);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }
 
 @media (max-width: 640px) {
   .verdict-v2 {
-    padding:
-      max(7px, env(safe-area-inset-top))
-      max(7px, env(safe-area-inset-right))
-      max(7px, env(safe-area-inset-bottom))
-      max(7px, env(safe-area-inset-left));
+    padding: max(7px, env(safe-area-inset-top)) max(7px, env(safe-area-inset-right))
+      max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left));
   }
 
   .verdict-v2__hud {

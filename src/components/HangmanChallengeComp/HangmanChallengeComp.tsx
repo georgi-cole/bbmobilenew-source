@@ -172,7 +172,9 @@ export default function HangmanChallengeComp({
     }))
   )
 
-  const [phase, setPhase] = useState<Phase>(eliminationPlan.length === 0 ? 'finalChoice' : 'playing')
+  const [phase, setPhase] = useState<Phase>(
+    eliminationPlan.length === 0 ? 'finalChoice' : 'playing'
+  )
   const [panel, setPanel] = useState<Panel>(null)
   const [roundIndex, setRoundIndex] = useState(0)
   const [revealedPositions, setRevealedPositions] = useState<number[]>([])
@@ -192,34 +194,38 @@ export default function HangmanChallengeComp({
   const currentWord = tournamentWords.qualifying[roundIndex] ?? tournamentWords.final
   const displayTokens = buildDisplayTokens(currentWord.text, revealedPositions)
   const remainingSeconds = Math.max(0, ROUND_TIME_LIMIT_SECONDS - elapsedSeconds)
-  const hiddenVowels = getAvailableRevealPositions(currentWord.text, revealedPositions, 'vowel').length
+  const hiddenVowels = getAvailableRevealPositions(
+    currentWord.text,
+    revealedPositions,
+    'vowel'
+  ).length
   const hiddenConsonants = getAvailableRevealPositions(
     currentWord.text,
     revealedPositions,
     'consonant'
   ).length
 
-  const buildInitialFinalState = useCallback(
-    (sourcePlayers: PlayerState[]): FinalState => {
-      const finalists = sourcePlayers.filter((player) => player.active).sort(winnerSort).slice(0, 2)
-      const first = finalists[0] ?? sourcePlayers[0]
-      const second = finalists[1] ?? sourcePlayers[1] ?? first
-      return {
-        finalists: [first.id, second.id],
-        chooserId: first.id,
-        starterId: null,
-        turnId: null,
-        revealedPositions: [],
-        hintsUsed: 0,
-        wrongGuesses: 0,
-        attemptedWords: [],
-        eventLog: [],
-        emergency: false,
-        winnerId: null,
-      }
-    },
-    []
-  )
+  const buildInitialFinalState = useCallback((sourcePlayers: PlayerState[]): FinalState => {
+    const finalists = sourcePlayers
+      .filter((player) => player.active)
+      .sort(winnerSort)
+      .slice(0, 2)
+    const first = finalists[0] ?? sourcePlayers[0]
+    const second = finalists[1] ?? sourcePlayers[1] ?? first
+    return {
+      finalists: [first.id, second.id],
+      chooserId: first.id,
+      starterId: null,
+      turnId: null,
+      revealedPositions: [],
+      hintsUsed: 0,
+      wrongGuesses: 0,
+      attemptedWords: [],
+      eventLog: [],
+      emergency: false,
+      winnerId: null,
+    }
+  }, [])
 
   const [finalState, setFinalState] = useState<FinalState>(() => buildInitialFinalState(players))
 
@@ -235,25 +241,31 @@ export default function HangmanChallengeComp({
   }, [])
 
   const simulateAiOnlyFinish = useCallback(
-    (sourcePlayers: PlayerState[], nextRoundIndex: number): { winnerId: string; players: PlayerState[] } => {
+    (
+      sourcePlayers: PlayerState[],
+      nextRoundIndex: number
+    ): { winnerId: string; players: PlayerState[] } => {
       let simPlayers = sourcePlayers.map((player) => ({ ...player }))
       for (let index = nextRoundIndex; index < eliminationPlan.length; index += 1) {
         const word = tournamentWords.qualifying[index]
         const live = simPlayers.filter((player) => player.active)
-        const results = live.map((player) =>
-          simulateAiRound({
-            participantId: player.id,
-            participantName: player.name,
-            word,
-            budget: player.budget,
-            cumulativeScore: player.cumulativeScore,
-            seed,
-            roundIndex: index,
-          }).result
+        const results = live.map(
+          (player) =>
+            simulateAiRound({
+              participantId: player.id,
+              participantName: player.name,
+              word,
+              budget: player.budget,
+              cumulativeScore: player.cumulativeScore,
+              seed,
+              roundIndex: index,
+            }).result
         )
         const ranked = rankRoundResults(results)
         const eliminateCount = eliminationPlan[index] ?? 0
-        const eliminatedIds = new Set(ranked.slice(-eliminateCount).map((result) => result.participantId))
+        const eliminatedIds = new Set(
+          ranked.slice(-eliminateCount).map((result) => result.participantId)
+        )
         simPlayers = simPlayers.map((player) => {
           const result = results.find((entry) => entry.participantId === player.id)
           if (!result) return player
@@ -269,24 +281,30 @@ export default function HangmanChallengeComp({
         })
       }
 
-      const finalists = simPlayers.filter((player) => player.active).sort(winnerSort).slice(0, 2)
+      const finalists = simPlayers
+        .filter((player) => player.active)
+        .sort(winnerSort)
+        .slice(0, 2)
       const finalWord = tournamentWords.final
-      const finalResults = finalists.map((player, index) =>
-        simulateAiRound({
-          participantId: player.id,
-          participantName: player.name,
-          word: finalWord,
-          budget: player.budget,
-          cumulativeScore: player.cumulativeScore,
-          seed: seed ^ 0x73e41 ^ index,
-          roundIndex: eliminationPlan.length + 1,
-        }).result
+      const finalResults = finalists.map(
+        (player, index) =>
+          simulateAiRound({
+            participantId: player.id,
+            participantName: player.name,
+            word: finalWord,
+            budget: player.budget,
+            cumulativeScore: player.cumulativeScore,
+            seed: seed ^ 0x73e41 ^ index,
+            roundIndex: eliminationPlan.length + 1,
+          }).result
       )
       const rankedFinal = rankRoundResults(finalResults)
       const winnerId = rankedFinal[0]?.participantId ?? finalists[0]?.id ?? human.id
       simPlayers = simPlayers.map((player) => {
         const result = finalResults.find((entry) => entry.participantId === player.id)
-        return result ? { ...player, budget: result.budgetRemaining, cumulativeScore: result.cumulativeAfter } : player
+        return result
+          ? { ...player, budget: result.budgetRemaining, cumulativeScore: result.cumulativeAfter }
+          : player
       })
       return { winnerId, players: simPlayers }
     },
@@ -327,16 +345,17 @@ export default function HangmanChallengeComp({
 
       const aiResults = active
         .filter((player) => player.id !== human.id)
-        .map((player) =>
-          simulateAiRound({
-            participantId: player.id,
-            participantName: player.name,
-            word: currentWord,
-            budget: player.budget,
-            cumulativeScore: player.cumulativeScore,
-            seed,
-            roundIndex,
-          }).result
+        .map(
+          (player) =>
+            simulateAiRound({
+              participantId: player.id,
+              participantName: player.name,
+              word: currentWord,
+              budget: player.budget,
+              cumulativeScore: player.cumulativeScore,
+              seed,
+              roundIndex,
+            }).result
         )
       const results = [humanResult, ...aiResults]
       const ranked = rankRoundResults(results)
@@ -415,7 +434,9 @@ export default function HangmanChallengeComp({
       if (!liveHuman || liveHuman.budget < cost) return
 
       finalRngCounter.current += 1
-      const random = seededFraction(seed ^ hashString(word.text + '-' + kind + '-' + finalRngCounter.current))
+      const random = seededFraction(
+        seed ^ hashString(word.text + '-' + kind + '-' + finalRngCounter.current)
+      )
       const position = pickRevealPosition(word.text, positions, kind, random)
       if (position == null) return
 
@@ -435,7 +456,15 @@ export default function HangmanChallengeComp({
         setRevealedPositions((previous) => [...previous, position].sort((a, b) => a - b))
       }
     },
-    [currentWord, finalState.revealedPositions, human.id, players, revealedPositions, seed, tournamentWords.final]
+    [
+      currentWord,
+      finalState.revealedPositions,
+      human.id,
+      players,
+      revealedPositions,
+      seed,
+      tournamentWords.final,
+    ]
   )
 
   const buyHint = useCallback(
@@ -457,7 +486,10 @@ export default function HangmanChallengeComp({
           ...previous,
           hintsUsed: previous.hintsUsed + 1,
           turnId: other,
-          eventLog: [...previous.eventLog, 'You bought Hint ' + (previous.hintsUsed + 1) + '. Turn passed.'],
+          eventLog: [
+            ...previous.eventLog,
+            'You bought Hint ' + (previous.hintsUsed + 1) + '. Turn passed.',
+          ],
         }))
         setPanel(null)
       } else {
@@ -516,13 +548,7 @@ export default function HangmanChallengeComp({
     resetRoundState()
     setRoundIndex((previous) => previous + 1)
     setPhase('playing')
-  }, [
-    buildInitialFinalState,
-    eliminationPlan.length,
-    players,
-    resetRoundState,
-    roundIndex,
-  ])
+  }, [buildInitialFinalState, eliminationPlan.length, players, resetRoundState, roundIndex])
 
   const chooseFinalOrder = useCallback(
     (humanStarts: boolean) => {
@@ -535,7 +561,7 @@ export default function HangmanChallengeComp({
         turnId: starterId,
         eventLog: [
           ...previous.eventLog,
-          (humanStarts ? 'You chose to start.' : 'You chose to play second.'),
+          humanStarts ? 'You chose to start.' : 'You chose to play second.',
         ],
       }))
       setPhase('finalPlaying')
@@ -583,11 +609,8 @@ export default function HangmanChallengeComp({
         .filter(({ char, index }) => char !== ' ' && !state.revealedPositions.includes(index))
       if (hidden.length === 0) return state
       finalRngCounter.current += 1
-      const pick = hidden[
-        Math.floor(
-          seededFraction(seed ^ 0x9183 ^ finalRngCounter.current) * hidden.length
-        )
-      ]
+      const pick =
+        hidden[Math.floor(seededFraction(seed ^ 0x9183 ^ finalRngCounter.current) * hidden.length)]
       return {
         ...state,
         revealedPositions: [...state.revealedPositions, pick.index].sort((a, b) => a - b),
@@ -605,14 +628,11 @@ export default function HangmanChallengeComp({
     [revealEmergencyTile]
   )
 
-  const finishFinal = useCallback(
-    (winnerId: string) => {
-      setFinalState((previous) => ({ ...previous, winnerId }))
-      setCompetitionWinnerId(winnerId)
-      setPhase('finalResult')
-    },
-    []
-  )
+  const finishFinal = useCallback((winnerId: string) => {
+    setFinalState((previous) => ({ ...previous, winnerId }))
+    setCompetitionWinnerId(winnerId)
+    setPhase('finalResult')
+  }, [])
 
   const submitFinalGuess = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
@@ -625,7 +645,11 @@ export default function HangmanChallengeComp({
       if (guess === normalizeGuess(finalWord.text)) {
         setFinalState((previous) => ({
           ...previous,
-          revealedPositions: revealAllMatchingPositions(finalWord.text, previous.revealedPositions, guess),
+          revealedPositions: revealAllMatchingPositions(
+            finalWord.text,
+            previous.revealedPositions,
+            guess
+          ),
           attemptedWords: [...previous.attemptedWords, guess],
           eventLog: [...previous.eventLog, 'You solved the final board.'],
         }))
@@ -673,7 +697,14 @@ export default function HangmanChallengeComp({
         const confidence =
           revealRatioNow + previous.hintsUsed * 0.08 + skill * 0.24 + (previous.emergency ? 0.2 : 0)
         const random = seededFraction(
-          seed ^ hashString(finalTurnPlayer.id + '-' + previous.revealedPositions.length + '-' + previous.wrongGuesses)
+          seed ^
+            hashString(
+              finalTurnPlayer.id +
+                '-' +
+                previous.revealedPositions.length +
+                '-' +
+                previous.wrongGuesses
+            )
         )
 
         if (confidence >= 0.9 || currentPlayer.budget < VOWEL_COST || previous.emergency) {
@@ -726,7 +757,11 @@ export default function HangmanChallengeComp({
           })
         }
 
-        const vowelOptions = getAvailableRevealPositions(finalWord.text, previous.revealedPositions, 'vowel')
+        const vowelOptions = getAvailableRevealPositions(
+          finalWord.text,
+          previous.revealedPositions,
+          'vowel'
+        )
         const consonantOptions = getAvailableRevealPositions(
           finalWord.text,
           previous.revealedPositions,
@@ -763,15 +798,7 @@ export default function HangmanChallengeComp({
       })
     }, 720)
     return () => window.clearTimeout(timer)
-  }, [
-    finalTurnPlayer,
-    finalWord,
-    finishFinal,
-    phase,
-    players,
-    seed,
-    switchFinalTurn,
-  ])
+  }, [finalTurnPlayer, finalWord, finishFinal, phase, players, seed, switchFinalTurn])
 
   const finalHuman = players.find((player) => player.id === human.id) ?? humanState
   const currentBudget = phase === 'finalPlaying' ? finalHuman.budget : humanState.budget
@@ -786,12 +813,15 @@ export default function HangmanChallengeComp({
       : hiddenVowels
   const activeHiddenConsonants =
     phase === 'finalPlaying'
-      ? getAvailableRevealPositions(finalWord.text, finalState.revealedPositions, 'consonant').length
+      ? getAvailableRevealPositions(finalWord.text, finalState.revealedPositions, 'consonant')
+          .length
       : hiddenConsonants
 
   const finishToHost = useCallback(() => {
     if (!onFinish || !competitionWinnerId) return
-    const rawResults = Object.fromEntries(players.map((player) => [player.id, player.cumulativeScore]))
+    const rawResults = Object.fromEntries(
+      players.map((player) => [player.id, player.cumulativeScore])
+    )
     onFinish(rawResults[human.id] ?? 0, undefined, {
       authoritativeWinnerId: competitionWinnerId,
       rawValue: rawResults[human.id] ?? 0,
@@ -844,7 +874,9 @@ export default function HangmanChallengeComp({
           </span>
           <span>
             <small>WINDOW</small>
-            <b>{currentWrong}/{MAX_WRONG_GUESSES}</b>
+            <b>
+              {currentWrong}/{MAX_WRONG_GUESSES}
+            </b>
           </span>
           {!isFinal && (
             <span>
@@ -872,8 +904,11 @@ export default function HangmanChallengeComp({
                 {isFinal
                   ? finalState.emergency
                     ? 'EMERGENCY VERDICT'
-                    : finalTurnPlayer?.name + '\'s turn'
-                  : activePlayers.length + ' remain · ' + (eliminationPlan[roundIndex] ?? 0) + ' out'}
+                    : finalTurnPlayer?.name + "'s turn"
+                  : activePlayers.length +
+                    ' remain · ' +
+                    (eliminationPlan[roundIndex] ?? 0) +
+                    ' out'}
               </span>
             </div>
             {renderWord(activeTokens)}
@@ -913,7 +948,12 @@ export default function HangmanChallengeComp({
           <span>HINT</span>
           <small>{activeHintsUsed < 3 ? String(HINT_COSTS[activeHintsUsed]) + ' ◉' : 'USED'}</small>
         </button>
-        <button type="button" className="is-primary" disabled={!canAct} onClick={() => setPanel('guess')}>
+        <button
+          type="button"
+          className="is-primary"
+          disabled={!canAct}
+          onClick={() => setPanel('guess')}
+        >
           <span>GUESS WORD</span>
           <small>{MAX_WRONG_GUESSES - currentWrong} chances</small>
         </button>
@@ -950,9 +990,7 @@ export default function HangmanChallengeComp({
               </button>
               <button
                 type="button"
-                disabled={
-                  activeHiddenConsonants === 0 || currentBudget < CONSONANT_COST || !canAct
-                }
+                disabled={activeHiddenConsonants === 0 || currentBudget < CONSONANT_COST || !canAct}
                 onClick={() => {
                   spendForReveal('consonant', isFinal)
                   setPanel(null)
@@ -984,15 +1022,18 @@ export default function HangmanChallengeComp({
                 const purchased = index < activeHintsUsed
                 const next = index === activeHintsUsed
                 return (
-                  <div
-                    key={hint}
-                    className={'verdict-v2__hint' + (purchased ? ' is-open' : '')}
-                  >
+                  <div key={hint} className={'verdict-v2__hint' + (purchased ? ' is-open' : '')}>
                     <div>
                       <b>HINT {index + 1}</b>
                       <span>{HINT_COSTS[index]} ◉</span>
                     </div>
-                    <p>{purchased ? hint : next ? 'Ready to reveal.' : 'Unlock the previous hint first.'}</p>
+                    <p>
+                      {purchased
+                        ? hint
+                        : next
+                          ? 'Ready to reveal.'
+                          : 'Unlock the previous hint first.'}
+                    </p>
                     {next && activeHintsUsed < 3 && (
                       <button
                         type="button"
@@ -1012,7 +1053,10 @@ export default function HangmanChallengeComp({
 
       {panel === 'guess' && (
         <div className="verdict-v2__modal" role="dialog" aria-label="Guess the word">
-          <form className="verdict-v2__sheet verdict-v2__guess-sheet" onSubmit={isFinal ? submitFinalGuess : submitRoundGuess}>
+          <form
+            className="verdict-v2__sheet verdict-v2__guess-sheet"
+            onSubmit={isFinal ? submitFinalGuess : submitRoundGuess}
+          >
             <div className="verdict-v2__sheet-head">
               <div>
                 <p className="verdict-v2__eyebrow">Commit your read</p>
@@ -1086,12 +1130,27 @@ export default function HangmanChallengeComp({
               </button>
             </div>
             <ul className="verdict-v2__rules">
-              <li>You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.</li>
-              <li>Reveal one vowel position for {VOWEL_COST} or one consonant position for {CONSONANT_COST}.</li>
-              <li>Hints cost {HINT_COSTS.join(' / ')} Eyeoleans and become progressively clearer.</li>
-              <li>The 10th wrong full-word guess shatters the window: 0 round points and {FAILURE_PENALTY} cumulative points.</li>
-              <li>Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}.</li>
-              <li>In the final two, the higher cumulative scorer chooses first or second. Correct reveals keep the turn; a hint or wrong word passes it.</li>
+              <li>
+                You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.
+              </li>
+              <li>
+                Reveal one vowel position for {VOWEL_COST} or one consonant position for{' '}
+                {CONSONANT_COST}.
+              </li>
+              <li>
+                Hints cost {HINT_COSTS.join(' / ')} Eyeoleans and become progressively clearer.
+              </li>
+              <li>
+                The 10th wrong full-word guess shatters the window: 0 round points and{' '}
+                {FAILURE_PENALTY} cumulative points.
+              </li>
+              <li>
+                Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}.
+              </li>
+              <li>
+                In the final two, the higher cumulative scorer chooses first or second. Correct
+                reveals keep the turn; a hint or wrong word passes it.
+              </li>
             </ul>
           </div>
         </div>
@@ -1105,15 +1164,27 @@ export default function HangmanChallengeComp({
             </p>
             <h2>{roundResolution.breakdown.roundScore} points</h2>
             <div className="verdict-v2__breakdown">
-              <span><b>Wallet</b><em>+{roundResolution.breakdown.budgetScore}</em></span>
+              <span>
+                <b>Wallet</b>
+                <em>+{roundResolution.breakdown.budgetScore}</em>
+              </span>
               {roundResolution.breakdown.bonuses.map((bonus) => (
-                <span key={bonus.label}><b>{bonus.label}</b><em>+{bonus.value}</em></span>
+                <span key={bonus.label}>
+                  <b>{bonus.label}</b>
+                  <em>+{bonus.value}</em>
+                </span>
               ))}
               {roundResolution.breakdown.pressurePenalty !== 0 && (
-                <span><b>Pressure</b><em>{roundResolution.breakdown.pressurePenalty}</em></span>
+                <span>
+                  <b>Pressure</b>
+                  <em>{roundResolution.breakdown.pressurePenalty}</em>
+                </span>
               )}
               {!roundResolution.humanResult.solved && (
-                <span className="is-danger"><b>Failure penalty</b><em>{FAILURE_PENALTY}</em></span>
+                <span className="is-danger">
+                  <b>Failure penalty</b>
+                  <em>{FAILURE_PENALTY}</em>
+                </span>
               )}
             </div>
             <p>
@@ -1121,7 +1192,9 @@ export default function HangmanChallengeComp({
                 ? '+' + SURVIVAL_BONUS + ' Eyeoleans if you survive the cut.'
                 : 'Wallet retained. No survival refill.'}
             </p>
-            <button type="button" onClick={proceedFromRoundResult}>Continue to scoreboard</button>
+            <button type="button" onClick={proceedFromRoundResult}>
+              Continue to scoreboard
+            </button>
           </div>
         </div>
       )}
@@ -1152,7 +1225,9 @@ export default function HangmanChallengeComp({
                 </div>
               ))}
             </div>
-            <button type="button" onClick={proceedFromScoreboard}>Continue</button>
+            <button type="button" onClick={proceedFromScoreboard}>
+              Continue
+            </button>
           </div>
         </div>
       )}
@@ -1181,7 +1256,11 @@ export default function HangmanChallengeComp({
       )}
 
       {phase === 'finalChoice' && finalState.chooserId !== human.id && (
-        <div className="verdict-v2__overlay" role="status" aria-label="Opponent choosing final order">
+        <div
+          className="verdict-v2__overlay"
+          role="status"
+          aria-label="Opponent choosing final order"
+        >
           <div className="verdict-v2__result-card">
             <p className="verdict-v2__eyebrow">Final advantage</p>
             <h2>Opponent is choosing</h2>
@@ -1196,21 +1275,31 @@ export default function HangmanChallengeComp({
             <p className="verdict-v2__eyebrow">Final verdict</p>
             <h2>{players.find((player) => player.id === competitionWinnerId)?.name ?? 'Winner'}</h2>
             <p>solved the decisive board and wins Verdict Board.</p>
-            <button type="button" onClick={finishToHost}>Finish competition</button>
+            <button type="button" onClick={finishToHost}>
+              Finish competition
+            </button>
           </div>
         </div>
       )}
 
       {phase === 'eliminated' && competitionWinnerId && (
-        <div className="verdict-v2__overlay" role="dialog" aria-label="Eliminated from Verdict Board">
+        <div
+          className="verdict-v2__overlay"
+          role="dialog"
+          aria-label="Eliminated from Verdict Board"
+        >
           <div className="verdict-v2__result-card">
             <p className="verdict-v2__eyebrow">Eliminated</p>
             <h2>Your verdict is final.</h2>
             <p>
               The remaining tournament was resolved under the same wallet and scoring rules.
-              {players.find((player) => player.id === competitionWinnerId)?.name ?? 'A contestant'} won.
+              {players.find((player) => player.id === competitionWinnerId)?.name ??
+                'A contestant'}{' '}
+              won.
             </p>
-            <button type="button" onClick={finishToHost}>Continue</button>
+            <button type="button" onClick={finishToHost}>
+              Continue
+            </button>
           </div>
         </div>
       )}

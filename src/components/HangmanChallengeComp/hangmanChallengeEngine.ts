@@ -188,7 +188,7 @@ const WORD_BANK: WordEntry[] = [
     parSeconds: 42,
     hints: [
       'Something most contestants would rather not receive.',
-      'It is assigned during one of the game\'s formal ceremonies.',
+      "It is assigned during one of the game's formal ceremonies.",
       'The Leader of House uses their power to place contestants in danger.',
     ],
   },
@@ -198,7 +198,7 @@ const WORD_BANK: WordEntry[] = [
     difficulty: 3,
     parSeconds: 42,
     hints: [
-      'It ends somebody\'s current run.',
+      "It ends somebody's current run.",
       'The game field becomes smaller after this happens.',
       'A contestant is removed from the competition.',
     ],
@@ -375,7 +375,7 @@ const WORD_BANK: WordEntry[] = [
     parSeconds: 58,
     finalEligible: true,
     hints: [
-      'Someone\'s place in the house is at risk.',
+      "Someone's place in the house is at risk.",
       'Votes and nominations reach their consequence during this event.',
       'The ceremony or episode in which a contestant is removed from the house.',
     ],
@@ -461,7 +461,7 @@ const WORD_BANK: WordEntry[] = [
     hints: [
       'Belonging is the problem.',
       'The person is isolated from the group rather than integrated into it.',
-      'A contestant pushed to the edge of the house\'s social network.',
+      "A contestant pushed to the edge of the house's social network.",
     ],
   },
   {
@@ -629,14 +629,7 @@ export function calculateRoundScore(params: {
   parSeconds: number
   hintsUsed: number
 }): RoundScoreBreakdown {
-  const {
-    solved,
-    budgetRemaining,
-    wrongGuesses,
-    elapsedSeconds,
-    parSeconds,
-    hintsUsed,
-  } = params
+  const { solved, budgetRemaining, wrongGuesses, elapsedSeconds, parSeconds, hintsUsed } = params
 
   if (!solved) {
     return {
@@ -665,9 +658,7 @@ export function calculateRoundScore(params: {
   const roundScore = Math.max(
     0,
     Math.round(
-      budgetRemaining +
-        bonuses.reduce((sum, item) => sum + item.value, 0) -
-        pressurePenalty
+      budgetRemaining + bonuses.reduce((sum, item) => sum + item.value, 0) - pressurePenalty
     )
   )
 
@@ -737,7 +728,10 @@ function difficultyForRound(index: number, total: number): WordDifficulty {
   return 5
 }
 
-export function pickTournamentWords(seed: number, qualifyingRounds: number): {
+export function pickTournamentWords(
+  seed: number,
+  qualifyingRounds: number
+): {
   qualifying: WordEntry[]
   final: WordEntry
 } {
@@ -835,17 +829,15 @@ export function simulateAiRound(params: {
 
   const revealRatio = computeRevealRatio(word.text, revealed)
   const solveChance = clamp(
-    0.18 +
-      skill * 0.58 +
-      revealRatio * 0.52 +
-      hintsUsed * 0.08 -
-      word.difficulty * 0.065,
+    0.18 + skill * 0.58 + revealRatio * 0.52 + hintsUsed * 0.08 - word.difficulty * 0.065,
     0.12,
     0.96
   )
   const solved = rng() < solveChance
   const wrongGuesses = solved
-    ? Math.round(clamp((1 - skill) * 3.2 + word.difficulty * 0.45 + rng() * 2 - revealRatio * 2, 0, 7))
+    ? Math.round(
+        clamp((1 - skill) * 3.2 + word.difficulty * 0.45 + rng() * 2 - revealRatio * 2, 0, 7)
+      )
     : MAX_WRONG_GUESSES
   const elapsedSeconds = Math.round(
     clamp(
