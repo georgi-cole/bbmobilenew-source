@@ -32,6 +32,7 @@ import {
   MIN_ALLIANCE_AFFINITY,
   hasAllianceBetween,
 } from './socialAlliance'
+import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
@@ -680,7 +681,9 @@ export function getAvailableActions(
       targetId &&
       action.id === 'proposeAlliance' &&
       socialState &&
-      hasAllianceBetween(socialState.relationships, actorId, targetId)
+      (socialState.reality
+        ? hasCanonicalLiveAlliance(socialState.reality, actorId, targetId)
+        : hasAllianceBetween(socialState.relationships, actorId, targetId))
     ) {
       return false
     }
@@ -861,7 +864,9 @@ export function executeAction(
 
   if (
     actionId === 'proposeAlliance' &&
-    hasAllianceBetween(state.social.relationships, actorId, targetId)
+    (state.social.reality
+      ? hasCanonicalLiveAlliance(state.social.reality, actorId, targetId)
+      : hasAllianceBetween(state.social.relationships, actorId, targetId))
   ) {
     return {
       success: false,
