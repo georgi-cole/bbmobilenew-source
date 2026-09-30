@@ -194,8 +194,6 @@ describe('Reality pregnancy lifecycle', () => {
     const aiPlayers = generated.players.filter((player) => !player.isUser)
     expect(aiPlayers.length).toBeGreaterThan(0)
     expect(aiPlayers.every((player) => Number.isFinite(player.age))).toBe(true)
-    expect(aiPlayers.every((player) => player.sex === 'Male' || player.sex === 'Female')).toBe(
-      true
-    )
+    expect(aiPlayers.every((player) => player.sex === 'Male' || player.sex === 'Female')).toBe(true)
   })
 })
