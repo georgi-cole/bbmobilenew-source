@@ -384,7 +384,7 @@ function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda: 'nominations',
-      summary: `Alliance huddle — ${read.summary}`,
+      summary: `Nomination huddle — ${read.summary}`,
       excusedAbsentIds,
       memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
     }
@@ -475,7 +475,7 @@ function buildAllianceConsultationPlan(
       fallbackTargetIds,
       planIds,
       agenda: 'safety',
-      summary: `Alliance huddle — ${read.summary} ${replacementRead.summary}`,
+      summary: `Safety huddle — ${read.summary} ${replacementRead.summary}`,
       excusedAbsentIds,
       memberPlanBeliefs,
     }
@@ -511,7 +511,7 @@ function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda,
-      summary: `Alliance huddle — ${read.summary}`,
+      summary: `${agenda === 'eviction_vote' ? 'Eviction huddle' : 'Block strategy'} — ${read.summary}`,
       excusedAbsentIds,
       memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
     }
@@ -554,7 +554,7 @@ function buildAllianceConsultationPlan(
       ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
     ],
     agenda: 'strategy',
-    summary: `Alliance huddle — ${read.summary}`,
+    summary: `Strategy huddle — ${read.summary}`,
     excusedAbsentIds,
     memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
   }
@@ -681,6 +681,13 @@ function buildLohConsultationSummary(
   }
 
   if (safetyDecisionOpen && nominees.length > 0) {
+    if (nominees.includes(input.actorId)) {
+      const backupId =
+        plan.backupTargetId && !nominees.includes(plan.backupTargetId) ? plan.backupTargetId : null
+      return backupId
+        ? `Obviously save yourself. I am leaning toward ${playerName(state, backupId)} as the replacement.`
+        : 'Obviously save yourself. I am keeping the replacement to myself for now.'
+    }
     const currentTargetId =
       (plan.currentTargetId && nominees.includes(plan.currentTargetId)
         ? plan.currentTargetId

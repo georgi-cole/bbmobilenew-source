@@ -80,7 +80,7 @@ describe('MYSTERY_BOX_POOL', () => {
 describe('SECRET_MISSION_BOX_REWARDS', () => {
   it('contains the 4 live reward-box outcomes with immunity replacing emptyBox', () => {
     expect(SECRET_MISSION_BOX_REWARDS).toEqual([
-      'plus1000Influence',
+      'resourceCache',
       'doubleVote',
       'voteDeduction',
       'immunity',

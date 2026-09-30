@@ -84,7 +84,7 @@ import {
   pickMissionImmunityDuration,
   repairLegacyMissionTasks,
   type MissionTask,
-  type LegacyMissionRewardType,
+  type CurrentMissionRewardType,
 } from '../bb/secretMission'
 import {
   buildDoubleEvictionTieResolutionMessage,
@@ -721,6 +721,7 @@ export function createInitialGameState(options?: {
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
     lastWeekNominationRecord: null,
+    nominationDecisionReasons: {},
     lohSafetyAdvice: null,
     prevHohId: null,
     nomineeIds: [],
@@ -1227,12 +1228,34 @@ function pushDetoxEvent(state: GameState, text: string) {
   pushEvent(state, text, 'game', { sequence: 'detox_safety' })
 }
 
-function refreshSecretMissionCompletion(secretMission: GameState['secretMission']) {
+function refreshSecretMissionCompletion(
+  secretMission: GameState['secretMission'],
+  currentDay: number
+) {
   if (!secretMission || secretMission.status !== 'accepted') return
   const allDone = isSecretMissionSuccessful(secretMission.tasks)
-  if (allDone) {
+  // A completed mission is deliberately held until the strategic checkpoint
+  // at the beginning of its reward day. This prevents an objective completed
+  // by nominations from surfacing a reward after nominations have already run.
+  if (allDone && currentDay >= secretMission.endDay) {
     secretMission.status = 'rewardPending'
   }
+}
+
+function settleSecretMissionArrival(state: GameState): void {
+  const mission = state.secretMission
+  if (mission?.status !== 'accepted') return
+  // “Survive until Day N” resolves on reaching Day N, before that day's
+  // nomination window can make the reward strategically late.
+  for (const task of mission.tasks) {
+    if (task.type !== 'survive_days' || state.week < (task.targetDay ?? mission.endDay)) continue
+    task.current = task.target
+    task.completed = true
+    task.lastProgressDay = state.week
+    task.firstSatisfiedDay ??= state.week
+    task.auditLog = [...(task.auditLog ?? []), `Reached Day ${state.week}`].slice(-12)
+  }
+  refreshSecretMissionCompletion(mission, state.week)
 }
 
 const MIN_SECRET_MISSION_DAY_SPAN = Math.min(
@@ -1246,7 +1269,11 @@ function canReplaceSecretMissionSlot(secretMission: GameState['secretMission']):
   const reward = secretMission.reward
   if (!reward) return true
   return (
-    reward.consumed || reward.expired || !reward.eligible || reward.type === 'plus1000Influence'
+    reward.consumed ||
+    reward.expired ||
+    !reward.eligible ||
+    reward.type === 'plus1000Influence' ||
+    reward.type === 'resourceCache'
   )
 }
 
@@ -2120,6 +2147,52 @@ export function getStrategicReplacementNomineeBreakdown(
   return { total, factors }
 }
 
+function recordNominationDecisionReason(
+  state: GameState,
+  lohId: string,
+  nominee: Player,
+  stage: 'INITIAL' | 'REPLACEMENT',
+  selected: { total: number; factors: Record<string, AiDecisionFactor> },
+  candidates: Array<{ player: Player; total: number; factors: Record<string, AiDecisionFactor> }>
+): void {
+  const factors = selected.factors
+  const score = (key: string) => (typeof factors[key] === 'number' ? (factors[key] as number) : 0)
+  const primaryReason =
+    score('betrayal') > 0
+      ? 'BETRAYAL'
+      : score('hiddenAmbushPressure') > 0 || score('canonicalBackupPressure') > 0
+        ? 'BACKDOOR_PLAN'
+        : score('target') > 0 || score('realityAlliancePlanPressure') > 0
+          ? 'ALLIANCE_TARGET'
+          : score('threatContribution') >= Math.max(score('suspicion'), score('rivalry'))
+            ? 'COMPETITION_THREAT'
+            : score('affinityPenalty') > 0
+              ? 'LOW_TRUST'
+              : 'STRATEGIC_BUFFER'
+  const strongerProtectedIds = candidates
+    .filter(
+      (candidate) =>
+        candidate.player.id !== nominee.id &&
+        (Number(candidate.factors.alliance ?? 0) < 0 || Number(candidate.factors.romance ?? 0) < 0)
+    )
+    .map((candidate) => candidate.player.id)
+  state.nominationDecisionReasons ??= {}
+  state.nominationDecisionReasons[`${state.week}:${lohId}:${stage}:${nominee.id}`] = {
+    week: state.week,
+    lohId,
+    nomineeId: nominee.id,
+    stage,
+    primaryReason,
+    factors: { ...factors },
+    targetScoreAtDecision: selected.total,
+    eligibleAlternativeIds: candidates
+      .filter((candidate) => candidate.player.id !== nominee.id)
+      .map((candidate) => candidate.player.id),
+    strongerProtectedIds,
+    forcedChoice: candidates.length <= 1 || strongerProtectedIds.length >= candidates.length - 1,
+  }
+}
+
 export function pickStrategicReplacementNominee(
   state: GameState,
   decisionMakerId: string | null | undefined,
@@ -2158,6 +2231,17 @@ export function pickStrategicReplacementNominee(
       factors: { ...entry.factors, selected: entry.player.id === chosen?.id },
     })),
   })
+  if (chosen) {
+    const chosenEntry = scored.find((entry) => entry.player.id === chosen.id)!
+    recordNominationDecisionReason(
+      state,
+      decisionMakerId,
+      chosen,
+      'REPLACEMENT',
+      chosenEntry,
+      scored
+    )
+  }
   return chosen
 }
 
@@ -2228,6 +2312,21 @@ function pickStrategicNominationTargets(
       factors: entry.factors,
     })),
   })
+  for (const selectedPlayer of selected) {
+    const selectedEntry = scored.find((entry) => entry.player.id === selectedPlayer.id)!
+    recordNominationDecisionReason(
+      state,
+      lohId,
+      selectedPlayer,
+      'INITIAL',
+      { total: selectedEntry.score, factors: selectedEntry.factors },
+      scored.map((entry) => ({
+        player: entry.player,
+        total: entry.score,
+        factors: entry.factors,
+      }))
+    )
+  }
   return selected
 }
 
@@ -4411,6 +4510,7 @@ const gameSlice = createSlice({
     advanceWeek(state) {
       state.week += 1
       state.phase = 'week_start'
+      settleSecretMissionArrival(state)
     },
     updatePlayer(state, action: PayloadAction<Player>) {
       const idx = state.players.findIndex((p) => p.id === action.payload.id)
@@ -5899,31 +5999,17 @@ const gameSlice = createSlice({
         }
         pushEvent(state, `${lohPlayer.name} must now name a backup nominee. 🎯`, 'game')
       } else {
-        // AI LOH: deterministically pick replacement
-        const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
-        const eligible = getReplacementEligiblePlayers(state, alive)
-        if (eligible.length > 0) {
-          const rng = mulberry32(state.seed)
-          const replacement = pickStrategicReplacementNominee(state, lohPlayer?.id, eligible, rng, {
-            reason: 'selected standard LOH replacement from the canonical strategic resolver',
-          })
-          if (!replacement) return
-          state.nomineeIds.push(replacement.id)
-          const rp = state.players.find((pl) => pl.id === replacement.id)
-          if (rp) rp.status = 'nominated'
-          incrementTimesNominated(state, replacement.id)
-          // Keep povSavedId set so the UI can detect "veto was used" and show
-          // the AI replacement animation. Cleared at week_start.
-          pushEvent(
-            state,
-            `${lohPlayer?.name ?? 'The LOH'} named ${replacement.name} as the backup nominee. 🎯`,
-            'game'
-          )
-          // VIP: after AI LOH replacement is done inline, stage is immediately 2
-          if (state.specialVeto?.activeType === 'vip') {
-            state.specialVeto.vipUseStage = 2
-          }
-        }
+        // The changed block is a meaningful strategic checkpoint.  Leave the
+        // replacement unresolved until the next Continue so social actions can
+        // alter the LOH's current read without granting a new energy refresh.
+        state.aiReplacementStep = 1
+        state.aiReplacementWaiting = false
+        if (state.specialVeto?.activeType === 'vip') state.specialVeto.vipUseStage = 1
+        pushEvent(
+          state,
+          `${lohPlayer?.name ?? 'The LOH'} has time to reconsider the replacement after the Safety result. 🎯`,
+          'game'
+        )
       }
     },
 
@@ -9246,7 +9332,9 @@ const gameSlice = createSlice({
             state.lastWeekNominationRecord = state.currentWeekNominationRecord ?? null
             state.week += 1
           }
+          settleSecretMissionArrival(state)
           state.currentWeekNominationRecord = null
+          state.nominationDecisionReasons = {}
           state.lohId = null
           state.lohSocialPlan = null
           state.nomineeIds = []
@@ -9645,6 +9733,25 @@ const gameSlice = createSlice({
             }
           }
           state.nomineeIds = nominees.map((n) => n.id)
+          if (canUsePlannedBlock) {
+            const decisionCandidates = aiPool.map((candidate) => ({
+              player: candidate,
+              ...getNominationTargetBreakdown(state, state.lohId!, candidate),
+            }))
+            for (const nominee of nominees) {
+              const selected = decisionCandidates.find((entry) => entry.player.id === nominee.id)
+              if (selected) {
+                recordNominationDecisionReason(
+                  state,
+                  state.lohId!,
+                  nominee,
+                  'INITIAL',
+                  selected,
+                  decisionCandidates
+                )
+              }
+            }
+          }
           nominees.forEach((n) => {
             const p = state.players.find((pl) => pl.id === n.id)
             if (p) p.status = 'nominated'
@@ -10829,7 +10936,7 @@ const gameSlice = createSlice({
       if (action.payload.auditEntry) {
         task.auditLog = [...(task.auditLog ?? []), action.payload.auditEntry].slice(-12)
       }
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     /**
@@ -10856,7 +10963,7 @@ const gameSlice = createSlice({
       task.uniqueDays.push(action.payload.day)
       task.current = Math.max(previousCurrent, task.uniqueDays.length)
       task.completed = task.current >= task.target
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     /**
@@ -10884,7 +10991,7 @@ const gameSlice = createSlice({
       if (!task) return
       Object.assign(task, action.payload.updates)
       task.completed = task.current >= task.target || task.completed === true
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     setMissionTaskBaselineApproval(
@@ -10911,7 +11018,7 @@ const gameSlice = createSlice({
               } before Day ${task.endDay ?? state.week}`
         task.completed = achievableDelta === 0
         if (task.completed) task.firstSatisfiedDay = state.week
-        refreshSecretMissionCompletion(sm)
+        refreshSecretMissionCompletion(sm, state.week)
       }
     },
 
@@ -10942,7 +11049,7 @@ const gameSlice = createSlice({
         task.firstSatisfiedDay = action.payload.day
       }
       task.auditLog = [...(task.auditLog ?? []), `Discovered ${action.payload.eggId}`].slice(-12)
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     expireSecretMission(state) {
@@ -10962,7 +11069,8 @@ const gameSlice = createSlice({
     claimMissionReward(
       state,
       action: PayloadAction<
-        LegacyMissionRewardType | { claimDay: number; durationDays?: 1 | 2 | 3 }
+        | Exclude<CurrentMissionRewardType, 'immunity'>
+        | { claimDay: number; durationDays?: 1 | 2 | 3 }
       >
     ) {
       const sm = state.secretMission

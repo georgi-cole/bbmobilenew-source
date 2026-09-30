@@ -156,8 +156,10 @@ function isEvictedOrGone(player: InteractionValidityPlayer | null): boolean {
 }
 
 function isNominee(game: InteractionValidityGameState, playerId: string): boolean {
-  const player = getPlayer(game, playerId)
-  return (game.nomineeIds ?? []).includes(playerId) || player?.status.includes('nominated') === true
+  // Status is a presentation/history field and can legitimately lag the live
+  // block (for example, a former nominee who won Safety). Strategic dialogue
+  // must only use the canonical ceremony result.
+  return (game.nomineeIds ?? []).includes(playerId)
 }
 
 function holdsSafety(game: InteractionValidityGameState, playerId: string): boolean {
@@ -215,6 +217,10 @@ function violatesDeclarativeRule(
   if (rule.humanMustBeOffBlock) {
     const human = humanPlayer(game)
     if (!human || isNominee(game, human.id)) return true
+  }
+  if (rule.humanMustBeNominee) {
+    const human = humanPlayer(game)
+    if (!human || !isNominee(game, human.id)) return true
   }
   if (rule.humanMustBeEligibleVoter) {
     const human = humanPlayer(game)

@@ -153,8 +153,7 @@ const RETURNING_VISIT_GREETINGS = [
 
 const REWARD_PENDING_MSG =
   `Well done. You fulfilled the mission — the Big Eye is impressed. ` +
-  `Four reward boxes await. Choose one to reveal a prize such as Secret Immunity, ` +
-  `1,000 Influence, Double Vote, or Vote Deduction before the window closes. 🎁`
+  `Four reward boxes await. Choose one to reveal your prize before the window closes. 🎁`
 
 const VOTE_BREAKDOWN_DECLINED_TV_MESSAGE = "It's getting quiet in the house. Sandman on the way?"
 
@@ -228,6 +227,8 @@ const REWARD_REVEAL_COPY: Record<
   (week: number, durationDays?: number) => string
 > = {
   plus1000Influence: () => 'The Big Eye grants you 1,000 Influence. Spend it wisely.',
+  resourceCache: () =>
+    'The Big Eye has stocked your arsenal: +25 Social Energy, +500 Influence and +1,000 Information. Use them wisely.',
   doubleVote: () =>
     'The Big Eye grants you a Double Vote. It will be offered automatically at your next eligible live vote.',
   voteDeduction: () =>
@@ -2069,7 +2070,11 @@ export default function DiaryRoom() {
                                           })
                                           return
                                         }
+                                        // Legacy rewards keep their original identifier and
+                                        // payout so old saves never reinterpret a claimed box.
                                         if (rewardType === 'plus1000Influence') {
+                                          // This branch is only reachable from migrated reward
+                                          // state; newly generated boxes use resourceCache.
                                           dispatch(
                                             applyInfluenceDelta({
                                               playerId: playerIdRef.current,
@@ -2111,6 +2116,7 @@ export default function DiaryRoom() {
                     !secretMission.reward.consumed &&
                     !secretMission.reward.expired &&
                     secretMission.reward.type !== 'plus1000Influence' &&
+                    secretMission.reward.type !== 'resourceCache' &&
                     secretMission.reward.type !== 'emptyBox' && (
                       <div className="diary-room__reward-claimed" aria-label="Stored secret power">
                         <p className="diary-room__reward-claimed-active">

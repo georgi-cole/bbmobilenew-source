@@ -111,19 +111,13 @@ function projectRealityTags(
 ): string[] {
   const tags = existingTags.filter((tag) => !REALITY_PROJECTED_TAGS.has(tag))
   const edge = reality.relationships[sourceId]?.[targetId]
-  if (!edge) return tags
   const formalPairAlliances = Object.values(reality.alliances).filter(
     (alliance) => alliance.memberIds.includes(sourceId) && alliance.memberIds.includes(targetId)
   )
   const hasLiveFormalAlliance = formalPairAlliances.some(
     (alliance) => alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
   )
-  const hasFormalAllianceHistory = formalPairAlliances.length > 0
-  if (
-    hasLiveFormalAlliance ||
-    (!hasFormalAllianceHistory &&
-      (edge.perceivedLabel === 'ALLY' || edge.perceivedLabel === 'CORE_ALLY'))
-  ) {
+  if (hasLiveFormalAlliance) {
     tags.push('alliance')
   }
   const exitedSharedAlliance = reality.events.some(
@@ -146,16 +140,16 @@ function projectRealityTags(
         romance.participantIds.includes(sourceId) &&
         romance.participantIds.includes(targetId)
     ) ||
-    edge.perceivedLabel === 'ROMANCE' ||
-    edge.perceivedLabel === 'POWER_PAIR'
+    edge?.perceivedLabel === 'ROMANCE' ||
+    edge?.perceivedLabel === 'POWER_PAIR'
   ) {
     tags.push('romance')
   }
-  if (edge.perceivedLabel === 'RIVAL') tags.push('rivalry')
-  if (edge.suspicion >= 55) tags.push('suspicious')
-  if (edge.reliability <= -35) tags.push('unreliable')
+  if (edge?.perceivedLabel === 'RIVAL') tags.push('rivalry')
+  if ((edge?.suspicion ?? 0) >= 55) tags.push('suspicious')
+  if ((edge?.reliability ?? 0) <= -35) tags.push('unreliable')
   if (
-    edge.perceivedLabel === 'ENEMY' ||
+    edge?.perceivedLabel === 'ENEMY' ||
     Object.values(reality.grievances).some(
       (grievance) =>
         grievance.holderId === sourceId &&
@@ -206,11 +200,11 @@ function projectRealityEdgeIntoLegacy(
   targetId: string
 ): void {
   const edge = reality.relationships[sourceId]?.[targetId]
-  if (!edge || sourceId === targetId) return
+  if (sourceId === targetId) return
   relationships[sourceId] ??= {}
   const existing = relationships[sourceId][targetId]
   relationships[sourceId][targetId] = {
-    affinity: projectRealityAffinity(edge),
+    affinity: edge ? projectRealityAffinity(edge) : (existing?.affinity ?? 0),
     tags: projectRealityTags(reality, sourceId, targetId, existing?.tags ?? []),
   }
 }
@@ -296,6 +290,19 @@ const socialSlice = createSlice({
         current + action.payload.delta,
         'info'
       )
+    },
+    /** A Secret Mission box grants its three resources as one reducer update. */
+    grantSecretMissionResourceCache(state, action: PayloadAction<{ playerId: string }>) {
+      const { playerId } = action.payload
+      state.energyBank[playerId] = clampSocialResource(
+        (state.energyBank[playerId] ?? 0) + 25,
+        'energy'
+      )
+      state.influenceBank[playerId] = clampSocialResource(
+        (state.influenceBank[playerId] ?? 0) + 500,
+        'influence'
+      )
+      state.infoBank[playerId] = clampSocialResource((state.infoBank[playerId] ?? 0) + 1000, 'info')
     },
     /**
      * Append to the current panel session and to a bounded persistent history.
@@ -1030,6 +1037,7 @@ export const {
   applyInfluenceDelta,
   setInfoBankEntry,
   applyInfoDelta,
+  grantSecretMissionResourceCache,
   recordSocialAction,
   initializeRealitySimulation,
   replaceRealitySimulation,

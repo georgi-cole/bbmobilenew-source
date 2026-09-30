@@ -41,6 +41,7 @@ import type { PublicDirection } from '../../publicOpinion/types'
 import { getPublicRequestProgressStage } from '../../publicOpinion/publicRequestProgress'
 import IntelLeads from './IntelLeads'
 import { getRelationshipLabel } from './relationshipUtils'
+import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import RealitySocialTutorialTour, {
   RealitySocialTutorialPrompt,
 } from '../../onboarding/RealitySocialTutorialTour'
@@ -76,6 +77,7 @@ const RELATIONSHIP_TAG_LABELS: Record<string, string> = {
   betrayal: 'Betrayed',
   broken_promise: 'Broken promise',
   broken_alliance: 'Broken alliance',
+  strained_alliance: 'Strained alliance',
   ex: 'Exes',
   broken_romance: 'Broken romance',
 }
@@ -944,6 +946,14 @@ export default function SocialPanelV2() {
   const focusedInward = focusedPlayer
     ? relationships?.[focusedPlayer.id]?.[humanPlayer.id]
     : undefined
+  const focusedCanonical = focusedPlayer
+    ? selectCanonicalRelationshipView({
+        relationships,
+        reality: socialState.reality,
+        actorId: humanPlayer.id,
+        targetId: focusedPlayer.id,
+      })
+    : null
   const focusedAffinity = dramaMode
     ? focusedOutward?.affinity
     : focusedOutward?.affinity !== undefined || focusedInward?.affinity !== undefined
@@ -953,7 +963,7 @@ export default function SocialPanelV2() {
     focusedAffinity === undefined ? null : getRelationshipLabel(focusedAffinity)
   const focusedTags = focusedPlayer
     ? (dramaMode
-        ? [...(focusedOutward?.tags ?? [])]
+        ? [...(focusedCanonical?.visibleTags ?? [])]
         : Array.from(new Set([...(focusedOutward?.tags ?? []), ...(focusedInward?.tags ?? [])]))
       ).filter((tag) => tag in RELATIONSHIP_TAG_LABELS)
     : []
@@ -1159,6 +1169,7 @@ export default function SocialPanelV2() {
               multiSelect={usesMultipleTargets}
               cupidPartners={cupidPartners}
               playerLimitedRead={dramaMode}
+              reality={socialState.reality}
             />
           </section>
 

@@ -69,6 +69,24 @@ function buildSocialState(interactions: IncomingInteraction[] = []): SocialState
 }
 
 describe('incoming interaction invalidation', () => {
+  it('does not treat a stale nominated+pos status as a current nomination', () => {
+    const { game, human, nominee } = buildGameState()
+    game.phase = 'pos_results'
+    human.status = 'nominated+pos'
+    game.posWinnerId = human.id
+    game.nomineeIds = [nominee.id]
+
+    expect(
+      isIncomingInteractionInvalidated(
+        makeInteraction({
+          fromId: nominee.id,
+          payload: { scenarioKey: 'player_nominated_support', phase: 'pos_results' },
+        }),
+        game
+      )
+    ).toBe(true)
+  })
+
   it('rejects a replacement-nominee reaction from an original nominee', () => {
     const { game, human, nominee, otherNominee } = buildGameState()
     game.phase = 'pos_ceremony_results'

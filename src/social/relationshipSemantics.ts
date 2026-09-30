@@ -32,6 +32,57 @@ export function hasCanonicalLiveAlliance(
 }
 
 /**
+ * The single relationship read intended for presentation as well as action
+ * contracts.  Legacy tags are a compatibility projection; formal Reality
+ * records are the authority for alliance identity and lifecycle.
+ */
+export function selectCanonicalRelationshipView(input: {
+  relationships?: RelationshipsMap
+  reality?: RealityDomainState
+  actorId: string
+  targetId: string
+}): {
+  affinity?: number
+  visibleTags: Set<string>
+  alliance: { id: string; status: string; operational: boolean } | null
+} {
+  const outward = input.relationships?.[input.actorId]?.[input.targetId]
+  const inward = input.relationships?.[input.targetId]?.[input.actorId]
+  const formalAlliance = input.reality
+    ? Object.values(input.reality.alliances).find(
+        (alliance) =>
+          alliance.memberIds.includes(input.actorId) && alliance.memberIds.includes(input.targetId)
+      )
+    : undefined
+  const visibleTags = getCanonicalRelationshipTags(input)
+
+  if (formalAlliance?.status === 'PROBATIONARY') visibleTags.add('strained_alliance')
+  if (formalAlliance?.status === 'FRACTURED') {
+    visibleTags.delete('alliance')
+    visibleTags.add('broken_alliance')
+  }
+  if (formalAlliance?.status === 'DISSOLVED') {
+    visibleTags.delete('alliance')
+    visibleTags.add('broken_alliance')
+  }
+
+  return {
+    affinity:
+      outward?.affinity !== undefined || inward?.affinity !== undefined
+        ? Math.round(((outward?.affinity ?? 0) + (inward?.affinity ?? 0)) / 2)
+        : undefined,
+    visibleTags,
+    alliance: formalAlliance
+      ? {
+          id: formalAlliance.id,
+          status: formalAlliance.status,
+          operational: LIVE_ALLIANCE_STATUSES.has(formalAlliance.status),
+        }
+      : null,
+  }
+}
+
+/**
  * Returns the relationship truth used by action availability. Once a Reality
  * domain exists, a formal alliance is the only source for the alliance tag;
  * a stale projected legacy tag must never advertise a non-executable huddle.

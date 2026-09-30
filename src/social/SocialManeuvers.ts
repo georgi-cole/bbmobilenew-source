@@ -94,6 +94,19 @@ interface ManeuverGameState {
     disclosedTargetByPlayerId?: Record<string, string>
     disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
   } | null
+  nominationDecisionReasons?: Record<
+    string,
+    {
+      week: number
+      lohId: string
+      nomineeId: string
+      stage: 'INITIAL' | 'REPLACEMENT'
+      primaryReason: string
+      eligibleAlternativeIds: string[]
+      strongerProtectedIds: string[]
+      forcedChoice: boolean
+    }
+  >
 }
 
 interface StateForManeuvers {
@@ -443,10 +456,12 @@ function getContextualActionSummary({
   subjectId?: string
   recipientTrust: number
   game?: {
+    week?: number
     players?: Array<{ id: string; name?: string; status: string }>
     nomineeIds?: string[]
     lohId?: string | null
     nominationContext?: { autoNomineeId: string | null } | null
+    nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
   }
   relationships: SocialState['relationships']
 }): string | null {
@@ -457,11 +472,46 @@ function getContextualActionSummary({
     if (game?.nominationContext?.autoNomineeId === actorId) {
       return `${lohName} explained that you entered danger automatically after the competition, not as their personal nominee.`
     }
-    if (recipientTrust >= 30)
-      return `${lohName} said they respect you, but your competition potential made you too dangerous to leave comfortable.`
-    if (recipientTrust < 0)
-      return `${lohName} admitted they do not trust your position and wanted to force you to show your hand.`
-    return `${lohName} said they needed options and believed you were connected enough to survive without becoming an immediate enemy.`
+    const reasons = Object.values(game?.nominationDecisionReasons ?? {}).filter(
+      (reason) =>
+        reason.week === game?.week && reason.lohId === targetId && reason.nomineeId === actorId
+    )
+    const reason = reasons.find((entry) => entry.stage === 'REPLACEMENT') ?? reasons[0]
+    if (!reason) {
+      return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
+    }
+    const relationshipTags = new Set([
+      ...(relationships[actorId]?.[targetId]?.tags ?? []),
+      ...(relationships[targetId]?.[actorId]?.tags ?? []),
+    ])
+    const relationshipPrefix =
+      relationshipTags.has('romance') || relationshipTags.has('bromance')
+        ? 'They acknowledged how personal that makes the decision. '
+        : relationshipTags.has('alliance')
+          ? 'They acknowledged that it puts your alliance under real strain. '
+          : ''
+    if (recipientTrust < 10) {
+      return `${lohName} said the block needed to stay flexible after the ceremony, without naming every part of their calculation.`
+    }
+    if (reason.forcedChoice) {
+      return `${relationshipPrefix}${lohName} said there was no clean non-allied option left and they had to choose among people they were connected to.`
+    }
+    if (reason.primaryReason === 'BETRAYAL') {
+      return `${relationshipPrefix}${lohName} said the trust between you had already broken down, and putting you up was the strategic consequence.`
+    }
+    if (reason.primaryReason === 'BACKDOOR_PLAN') {
+      return `${relationshipPrefix}${lohName} said the original block was built to keep another option open after Safety changed the board.`
+    }
+    if (reason.primaryReason === 'COMPETITION_THREAT') {
+      return `${relationshipPrefix}${lohName} said your competition potential made you too dangerous to leave comfortable.`
+    }
+    if (reason.primaryReason === 'ALLIANCE_TARGET') {
+      return `${relationshipPrefix}${lohName} said your position conflicted with their alliance's target plan.`
+    }
+    const protectedNames = reason.strongerProtectedIds.map(name)
+    return protectedNames.length > 0
+      ? `${relationshipPrefix}${lohName} said they had stronger reasons to protect ${protectedNames.join(' and ')} over you.`
+      : `${relationshipPrefix}${lohName} said they did not trust your position enough to leave you off the block.`
   }
   if (actionId === 'ask_safety_plan') {
     const holderName = name(targetId)
@@ -852,6 +902,7 @@ export function executeAction(
       }>
       nomineeIds?: string[]
       nominationContext?: { autoNomineeId: string | null } | null
+      nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
       lohSocialPlan?: {
         week: number
         lohId: string
@@ -1078,6 +1129,18 @@ export function executeAction(
         disclosureOutcomeByPlayerId: {
           ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
           [actorId]: lohDisclosure.outcome,
+        },
+      },
+    })
+  }
+  if (actionId === 'ask_why_nominated' && lohPlanState) {
+    _store.dispatch({
+      type: 'game/setLohSocialPlan',
+      payload: {
+        ...lohPlanState,
+        disclosureOutcomeByPlayerId: {
+          ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
+          [actorId]: recipientTrust >= 10 ? 'truthful' : 'vague',
         },
       },
     })

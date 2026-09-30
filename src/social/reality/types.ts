@@ -530,6 +530,20 @@ export interface RealityVoteIntent {
   day: number
 }
 
+/** A consensual strategic nominee agreement, scoped to one ceremony only. */
+export interface RealityFacadeAgreement {
+  id: string
+  day: number
+  lohId: RealityActorId
+  facadeId: RealityActorId
+  intendedEvicteeId?: RealityActorId
+  stage: 'INITIAL_NOMINATION' | 'REPLACEMENT'
+  status: 'PROPOSED' | 'ACCEPTED' | 'DECLINED' | 'FULFILLED' | 'FAILED' | 'BROKEN' | 'EXPIRED'
+  voluntary: boolean
+  sourceInteractionId?: string
+  allianceId?: string
+}
+
 export interface RealityPerception {
   authenticity: number
   entertainment: number
@@ -578,6 +592,7 @@ export interface RealityDomainState {
   events: RealitySocialEvent[]
   cooldowns: Record<RealityActorId, Record<string, RealityClock>>
   voteIntents: Record<RealityActorId, RealityVoteIntent>
+  facadeAgreements: Record<string, RealityFacadeAgreement>
   publicPerception: Record<RealityActorId, RealityPerception>
   juryEvaluations: RealityJuryEvaluation[]
   /** Captured at eviction and consumed when a Battle Back winner returns. */

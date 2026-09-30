@@ -804,6 +804,28 @@ export interface GameState {
     lohId: string
     nomineeIds: string[]
   } | null
+  /** Immutable-at-decision receipts used to explain an AI nomination later. */
+  nominationDecisionReasons?: Record<
+    string,
+    {
+      week: number
+      lohId: string
+      nomineeId: string
+      stage: 'INITIAL' | 'REPLACEMENT'
+      primaryReason:
+        | 'BETRAYAL'
+        | 'COMPETITION_THREAT'
+        | 'ALLIANCE_TARGET'
+        | 'LOW_TRUST'
+        | 'BACKDOOR_PLAN'
+        | 'STRATEGIC_BUFFER'
+      factors: Record<string, number | string | boolean | null>
+      targetScoreAtDecision: number
+      eligibleAlternativeIds: string[]
+      strongerProtectedIds: string[]
+      forcedChoice: boolean
+    }
+  >
   /**
    * Advice delivered to the current Safety holder before the ceremony. A human
    * LOH can set this through social play; an AI LOH can pitch an active Ambush.

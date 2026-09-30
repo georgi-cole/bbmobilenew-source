@@ -87,8 +87,9 @@ export type LegacyMissionRewardType =
   | 'emptyBox'
 
 export type MissionRewardType = LegacyMissionRewardType | 'immunity'
+export type CurrentMissionRewardType = MissionRewardType | 'resourceCache'
 export type MissionRewardDuration = 1 | 2 | 3
-export type SecretMissionBoxRewardType = Exclude<MissionRewardType, 'emptyBox'>
+export type SecretMissionBoxRewardType = Exclude<CurrentMissionRewardType, 'emptyBox'>
 
 export const MYSTERY_BOX_POOL: readonly LegacyMissionRewardType[] = [
   'plus1000Influence',
@@ -98,7 +99,7 @@ export const MYSTERY_BOX_POOL: readonly LegacyMissionRewardType[] = [
 ] as const
 
 export const SECRET_MISSION_BOX_REWARDS: readonly SecretMissionBoxRewardType[] = [
-  'plus1000Influence',
+  'resourceCache',
   'doubleVote',
   'voteDeduction',
   'immunity',
@@ -123,7 +124,7 @@ export function getSecretMissionBoxRewards(
 }
 
 export interface SecretMissionReward {
-  type: MissionRewardType
+  type: CurrentMissionRewardType
   consumed: boolean
   expired: boolean
   eligible: boolean
@@ -134,12 +135,16 @@ export interface SecretMissionReward {
   usedDay?: number | null
 }
 
-export function createMissionReward(type: LegacyMissionRewardType): SecretMissionReward {
+export function createMissionReward(
+  type: Exclude<CurrentMissionRewardType, 'immunity'>
+): SecretMissionReward {
   return {
     type,
-    consumed: false,
+    // A resource cache is awarded immediately and has no later activation
+    // window. Legacy +1000 Influence remains readable for old saves.
+    consumed: type === 'resourceCache',
     expired: false,
-    eligible: type !== 'emptyBox',
+    eligible: type !== 'emptyBox' && type !== 'resourceCache',
   }
 }
 
@@ -470,6 +475,8 @@ function buildRequirementTask(
       return {
         id: `target_nominated_${context.templateId}`,
         type,
+        // The reward becomes available at the start of endDay, so a target
+        // nomination on that day is too late to satisfy this objective.
         description: `Get your marked target nominated before Day ${endDay}`,
         target: 1,
         startDay,
