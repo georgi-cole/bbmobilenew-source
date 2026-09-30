@@ -132,7 +132,12 @@ function seededFraction(seed: number): number {
   return ((state ^ (state >>> 14)) >>> 0) / 4294967296
 }
 
-function finalAiBuzzDelayMs(seed: number, playerId: string, revealCycle: number, skill: number): number {
+function finalAiBuzzDelayMs(
+  seed: number,
+  playerId: string,
+  revealCycle: number,
+  skill: number
+): number {
   const jitter = seededFraction(seed ^ hashString('final-ai-delay-' + playerId + '-' + revealCycle))
   const skillAdjustment = Math.round((1 - skill) * 700)
   return Math.min(
@@ -581,12 +586,13 @@ export default function HangmanChallengeComp({
   const revealNextFinalLetter = useCallback(
     (state: FinalState): FinalState => {
       const normalizedWord = normalizeGuess(finalWord.text)
-      const hiddenLetters = [...new Set(normalizedWord.split('').filter((char) => /^[A-Z]$/.test(char)))]
-        .filter((letter) =>
-          normalizedWord
-            .split('')
-            .some((char, index) => char === letter && !state.revealedPositions.includes(index))
-        )
+      const hiddenLetters = [
+        ...new Set(normalizedWord.split('').filter((char) => /^[A-Z]$/.test(char))),
+      ].filter((letter) =>
+        normalizedWord
+          .split('')
+          .some((char, index) => char === letter && !state.revealedPositions.includes(index))
+      )
 
       if (hiddenLetters.length === 0) {
         const keepTimedLock =
@@ -603,7 +609,8 @@ export default function HangmanChallengeComp({
       }
 
       const pickIndex = Math.floor(
-        seededFraction(seed ^ hashString('final-reveal-' + state.revealCycle)) * hiddenLetters.length
+        seededFraction(seed ^ hashString('final-reveal-' + state.revealCycle)) *
+          hiddenLetters.length
       )
       const letter = hiddenLetters[pickIndex]
       const matchingPositions = normalizedWord
@@ -647,7 +654,11 @@ export default function HangmanChallengeComp({
       if (guess === normalizeGuess(finalWord.text)) {
         setFinalState((previous) => ({
           ...previous,
-          revealedPositions: revealAllMatchingPositions(finalWord.text, previous.revealedPositions, guess),
+          revealedPositions: revealAllMatchingPositions(
+            finalWord.text,
+            previous.revealedPositions,
+            guess
+          ),
           attemptedWords: [...previous.attemptedWords, guess],
           eventLog: [...previous.eventLog, 'You buzzed and solved the final board.'],
         }))
@@ -661,7 +672,10 @@ export default function HangmanChallengeComp({
         lockedPlayerId: human.id,
         lockMode: 'reveal',
         lockedUntilMs: null,
-        eventLog: [...previous.eventLog, 'You buzzed incorrectly and are locked until the next reveal.'],
+        eventLog: [
+          ...previous.eventLog,
+          'You buzzed incorrectly and are locked until the next reveal.',
+        ],
       }))
     },
     [finalState.attemptedWords, finalWord.text, finishFinal, guessInput, human.id, humanCanBuzz]
@@ -694,8 +708,18 @@ export default function HangmanChallengeComp({
       const cost = power === 'forceReveal' ? FINAL_FORCE_REVEAL_COST : FINAL_LOCK_COST
       const used = finalState.usedPowers[human.id]?.[power]
       const cooldownUntil = finalState.forceRevealCooldownUntilMs[human.id] ?? 0
-      if (!humanPlayer || !opponent || (power === 'lockOpponent' && used) || humanPlayer.budget < cost) return
-      if (power === 'forceReveal' && computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1) return
+      if (
+        !humanPlayer ||
+        !opponent ||
+        (power === 'lockOpponent' && used) ||
+        humanPlayer.budget < cost
+      )
+        return
+      if (
+        power === 'forceReveal' &&
+        computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1
+      )
+        return
       if (power === 'forceReveal' && cooldownUntil > Date.now()) return
 
       const lockExpiresAt = Date.now() + FINAL_LOCK_DURATION_MS
@@ -759,24 +783,27 @@ export default function HangmanChallengeComp({
 
     const lockedPlayerId = finalState.lockedPlayerId
     const lockedUntilMs = finalState.lockedUntilMs
-    const timer = window.setTimeout(() => {
-      setFinalState((previous) => {
-        if (
-          previous.lockMode !== 'timed' ||
-          previous.lockedPlayerId !== lockedPlayerId ||
-          previous.lockedUntilMs !== lockedUntilMs
-        ) {
-          return previous
-        }
-        return {
-          ...previous,
-          lockedPlayerId: null,
-          lockMode: null,
-          lockedUntilMs: null,
-          eventLog: [...previous.eventLog, 'The 5-second opponent lock expired.'],
-        }
-      })
-    }, Math.max(0, lockedUntilMs - Date.now()))
+    const timer = window.setTimeout(
+      () => {
+        setFinalState((previous) => {
+          if (
+            previous.lockMode !== 'timed' ||
+            previous.lockedPlayerId !== lockedPlayerId ||
+            previous.lockedUntilMs !== lockedUntilMs
+          ) {
+            return previous
+          }
+          return {
+            ...previous,
+            lockedPlayerId: null,
+            lockMode: null,
+            lockedUntilMs: null,
+            eventLog: [...previous.eventLog, 'The 5-second opponent lock expired.'],
+          }
+        })
+      },
+      Math.max(0, lockedUntilMs - Date.now())
+    )
 
     return () => window.clearTimeout(timer)
   }, [finalState.lockMode, finalState.lockedPlayerId, finalState.lockedUntilMs, phase])
@@ -796,7 +823,15 @@ export default function HangmanChallengeComp({
       }
     }, 1000)
     return () => window.clearTimeout(timer)
-  }, [finalCountdown, finalState.revealedPositions, finalWord.text, panel, phase, resolveFinalTiebreaker, revealNextFinalLetter])
+  }, [
+    finalCountdown,
+    finalState.revealedPositions,
+    finalWord.text,
+    panel,
+    phase,
+    resolveFinalTiebreaker,
+    revealNextFinalLetter,
+  ])
 
   useEffect(() => {
     if (phase !== 'finalPlaying' || panel !== null || finalState.winnerId) return undefined
@@ -819,16 +854,12 @@ export default function HangmanChallengeComp({
         !humanIsLocked &&
         !aiPowerState.lockOpponent &&
         ai.budget >= FINAL_LOCK_COST
-      const lockRoll = seededFraction(
-        seed ^ hashString(ai.id + '-lock-' + previous.revealCycle)
-      )
+      const lockRoll = seededFraction(seed ^ hashString(ai.id + '-lock-' + previous.revealCycle))
       if (aiCanLock && lockRoll < 0.28) {
         const lockExpiresAt = Date.now() + FINAL_LOCK_DURATION_MS
         setPlayers((all) =>
           all.map((player) =>
-            player.id === ai.id
-              ? { ...player, budget: player.budget - FINAL_LOCK_COST }
-              : player
+            player.id === ai.id ? { ...player, budget: player.budget - FINAL_LOCK_COST } : player
           )
         )
         setFinalState({
@@ -860,18 +891,26 @@ export default function HangmanChallengeComp({
       const confidence = revealRatioNow + skill * 0.24
       const buzzChance = Math.min(0.7, 0.15 + Math.max(0, confidence - 0.35) * 0.55)
       const buzzRoll = seededFraction(
-        seed ^ hashString(ai.id + '-buzz-' + previous.revealCycle + '-' + previous.attemptedWords.length)
+        seed ^
+          hashString(ai.id + '-buzz-' + previous.revealCycle + '-' + previous.attemptedWords.length)
       )
       if (buzzRoll >= buzzChance) return
 
       const solveRoll = seededFraction(
-        seed ^ hashString(ai.id + '-solve-' + previous.revealCycle + '-' + previous.attemptedWords.length)
+        seed ^
+          hashString(
+            ai.id + '-solve-' + previous.revealCycle + '-' + previous.attemptedWords.length
+          )
       )
       const correct = solveRoll < Math.min(0.86, 0.28 + confidence * 0.58)
       if (correct) {
         setFinalState({
           ...previous,
-          revealedPositions: revealAllMatchingPositions(finalWord.text, previous.revealedPositions, finalWord.text),
+          revealedPositions: revealAllMatchingPositions(
+            finalWord.text,
+            previous.revealedPositions,
+            finalWord.text
+          ),
           eventLog: [...previous.eventLog, ai.name + ' buzzed and solved the final board.'],
           winnerId: ai.id,
         })
@@ -886,7 +925,10 @@ export default function HangmanChallengeComp({
         lockMode: 'reveal',
         lockedUntilMs: null,
         attemptedWords: [...previous.attemptedWords, '[AI wrong buzz]'],
-        eventLog: [...previous.eventLog, ai.name + ' buzzed incorrectly and is locked until the next reveal.'],
+        eventLog: [
+          ...previous.eventLog,
+          ai.name + ' buzzed incorrectly and is locked until the next reveal.',
+        ],
       })
     }, buzzDelay)
 
@@ -894,8 +936,8 @@ export default function HangmanChallengeComp({
   }, [finalState, finalWord, human.id, panel, phase, players, seed])
 
   const finalHuman = players.find((player) => player.id === human.id) ?? humanState
-  const finalOpponent = players.find((player) =>
-    finalState.finalists.includes(player.id) && player.id !== human.id
+  const finalOpponent = players.find(
+    (player) => finalState.finalists.includes(player.id) && player.id !== human.id
   )
   const currentBudget = phase === 'finalPlaying' ? finalHuman.budget : humanState.budget
   const currentWrong = wrongGuesses
@@ -1076,7 +1118,9 @@ export default function HangmanChallengeComp({
             </button>
             <button type="button" disabled={!canAct} onClick={() => setPanel('hint')}>
               <span>HINT</span>
-              <small>{activeHintsUsed < 3 ? String(HINT_COSTS[activeHintsUsed]) + ' ◉' : 'VIEW'}</small>
+              <small>
+                {activeHintsUsed < 3 ? String(HINT_COSTS[activeHintsUsed]) + ' ◉' : 'VIEW'}
+              </small>
             </button>
           </>
         ) : (
@@ -1098,15 +1142,28 @@ export default function HangmanChallengeComp({
             </button>
             <button
               type="button"
-              disabled={!canAct || forceRevealOnCooldown || currentBudget < FINAL_FORCE_REVEAL_COST || computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1}
+              disabled={
+                !canAct ||
+                forceRevealOnCooldown ||
+                currentBudget < FINAL_FORCE_REVEAL_COST ||
+                computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1
+              }
               onClick={() => useFinalPower('forceReveal')}
             >
               <span>REVEAL NOW</span>
-              <small>{forceRevealOnCooldown ? forceRevealCooldownSeconds + 's cooldown' : FINAL_FORCE_REVEAL_COST + ' ◉'}</small>
+              <small>
+                {forceRevealOnCooldown
+                  ? forceRevealCooldownSeconds + 's cooldown'
+                  : FINAL_FORCE_REVEAL_COST + ' ◉'}
+              </small>
             </button>
             <button
               type="button"
-              disabled={!canAct || finalState.usedPowers[human.id]?.lockOpponent || currentBudget < FINAL_LOCK_COST}
+              disabled={
+                !canAct ||
+                finalState.usedPowers[human.id]?.lockOpponent ||
+                currentBudget < FINAL_LOCK_COST
+              }
               onClick={() => useFinalPower('lockOpponent')}
             >
               <span>LOCK OPP</span>
@@ -1114,16 +1171,17 @@ export default function HangmanChallengeComp({
             </button>
           </>
         )}
-        {!isFinal && <button
-          type="button"
-          className="is-primary"
-          disabled={!canAct}
-          onClick={() => setPanel('guess')}
-        >
-          <span>GUESS WORD</span>
-          <small>{MAX_WRONG_GUESSES - currentWrong + ' chances'}</small>
-        </button>
-        }
+        {!isFinal && (
+          <button
+            type="button"
+            className="is-primary"
+            disabled={!canAct}
+            onClick={() => setPanel('guess')}
+          >
+            <span>GUESS WORD</span>
+            <small>{MAX_WRONG_GUESSES - currentWrong + ' chances'}</small>
+          </button>
+        )}
       </footer>
 
       {panel === 'reveal' && (
@@ -1304,16 +1362,30 @@ export default function HangmanChallengeComp({
                   <li>A new letter reveals every {FINAL_REVEAL_INTERVAL_SECONDS} seconds.</li>
                   <li>Both finalists can buzz; the first correct guess wins the shared board.</li>
                   <li>A wrong buzz locks that player until the next reveal.</li>
-                  <li>Spend {FINAL_FORCE_REVEAL_COST} Eyeoleans to force a reveal every 3 seconds, or {FINAL_LOCK_COST} to lock your opponent for 5 seconds.</li>
+                  <li>
+                    Spend {FINAL_FORCE_REVEAL_COST} Eyeoleans to force a reveal every 3 seconds, or{' '}
+                    {FINAL_LOCK_COST} to lock your opponent for 5 seconds.
+                  </li>
                   <li>Remaining Eyeoleans decide the tiebreaker if nobody solves the board.</li>
                 </>
               ) : (
                 <>
-                  <li>You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.</li>
-                  <li>Reveal one vowel position for {VOWEL_COST} or one consonant position for {CONSONANT_COST}.</li>
+                  <li>
+                    You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.
+                  </li>
+                  <li>
+                    Reveal one vowel position for {VOWEL_COST} or one consonant position for{' '}
+                    {CONSONANT_COST}.
+                  </li>
                   <li>Hints cost {HINT_COSTS.join(' / ')} Eyeoleans and remain re-accessible.</li>
-                  <li>You have {MAX_WRONG_GUESSES} wrong full-word attempts before the window shatters.</li>
-                  <li>Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}.</li>
+                  <li>
+                    You have {MAX_WRONG_GUESSES} wrong full-word attempts before the window
+                    shatters.
+                  </li>
+                  <li>
+                    Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}
+                    .
+                  </li>
                 </>
               )}
             </ul>

@@ -212,7 +212,6 @@ describe('HangmanChallengeComp V2', () => {
 
     expect(screen.getByText(/you are locked until the next reveal/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /buzz/i })).toBeDisabled()
-
   })
 
   it('reports both authoritative winner and last place to the host retry contract', () => {
