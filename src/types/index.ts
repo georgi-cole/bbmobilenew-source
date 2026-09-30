@@ -824,6 +824,17 @@ export interface GameState {
       eligibleAlternativeIds: string[]
       strongerProtectedIds: string[]
       forcedChoice: boolean
+      relationshipTier?:
+        | 'RIDE_OR_DIE'
+        | 'ROMANCE'
+        | 'PRIMARY_ALLIANCE'
+        | 'ALLIANCE'
+        | 'BROMANCE'
+        | 'ORDINARY'
+      relationshipTagsAtDecision?: string[]
+      trustAtDecision?: number
+      lohArchetype?: string
+      lohTemperament?: string
     }
   >
   /**

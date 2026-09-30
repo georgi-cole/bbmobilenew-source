@@ -2156,6 +2156,21 @@ function recordNominationDecisionReason(
   candidates: Array<{ player: Player; total: number; factors: Record<string, AiDecisionFactor> }>
 ): void {
   const factors = selected.factors
+  const relationshipTags = String(factors.tags ?? '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+  const relationshipTier = relationshipTags.includes('ride_or_die')
+    ? 'RIDE_OR_DIE'
+    : relationshipTags.includes('romance')
+      ? 'ROMANCE'
+      : relationshipTags.includes('primary_alliance')
+        ? 'PRIMARY_ALLIANCE'
+        : relationshipTags.includes('alliance')
+          ? 'ALLIANCE'
+          : relationshipTags.includes('bromance')
+            ? 'BROMANCE'
+            : 'ORDINARY'
   const score = (key: string) => (typeof factors[key] === 'number' ? (factors[key] as number) : 0)
   const primaryReason =
     score('betrayal') > 0
@@ -2190,6 +2205,12 @@ function recordNominationDecisionReason(
       .map((candidate) => candidate.player.id),
     strongerProtectedIds,
     forcedChoice: candidates.length <= 1 || strongerProtectedIds.length >= candidates.length - 1,
+    relationshipTier,
+    relationshipTagsAtDecision: relationshipTags,
+    trustAtDecision: typeof factors.affinity === 'number' ? factors.affinity : undefined,
+    lohArchetype: state.players.find((player) => player.id === lohId)?.aiGameIdentity?.archetype,
+    lohTemperament: state.players.find((player) => player.id === lohId)?.aiGameIdentity
+      ?.temperament,
   }
 }
 

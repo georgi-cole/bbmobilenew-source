@@ -105,6 +105,11 @@ interface ManeuverGameState {
       eligibleAlternativeIds: string[]
       strongerProtectedIds: string[]
       forcedChoice: boolean
+      relationshipTier?: string
+      relationshipTagsAtDecision?: string[]
+      trustAtDecision?: number
+      lohArchetype?: string
+      lohTemperament?: string
     }
   >
 }
@@ -480,18 +485,61 @@ function getContextualActionSummary({
     if (!reason) {
       return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
     }
-    const relationshipTags = new Set([
-      ...(relationships[actorId]?.[targetId]?.tags ?? []),
-      ...(relationships[targetId]?.[actorId]?.tags ?? []),
-    ])
-    const relationshipPrefix =
-      relationshipTags.has('romance') || relationshipTags.has('bromance')
-        ? 'They acknowledged how personal that makes the decision. '
-        : relationshipTags.has('alliance')
-          ? 'They acknowledged that it puts your alliance under real strain. '
-          : ''
-    if (recipientTrust < 10) {
-      return `${lohName} said the block needed to stay flexible after the ceremony, without naming every part of their calculation.`
+    const tier = reason.relationshipTier ?? 'ORDINARY'
+    const trustAtDecision = reason.trustAtDecision ?? recipientTrust
+    const secrecyPressure =
+      reason.primaryReason === 'BACKDOOR_PLAN' || reason.primaryReason === 'ALLIANCE_TARGET'
+    const closeBond = [
+      'RIDE_OR_DIE',
+      'ROMANCE',
+      'PRIMARY_ALLIANCE',
+      'ALLIANCE',
+      'BROMANCE',
+    ].includes(tier)
+    const honestArchetypes = [
+      'loyal_anchor',
+      'jury_artisan',
+      'social_butterfly',
+      'romantic_loyalist',
+      'audience_darling',
+    ]
+    const deceptiveArchetypes = [
+      'double_agent',
+      'puppet_master',
+      'opportunist',
+      'chaos_agent',
+      'secretive',
+    ]
+    const honestTemperaments = ['calm', 'emotional']
+    const deceptiveTemperaments = ['secretive', 'paranoid', 'impulsive']
+    const honesty =
+      (honestArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) +
+      (honestTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0) -
+      (deceptiveArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) -
+      (deceptiveTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0)
+    const disclosure: 'truthful' | 'partial' | 'vague' | 'false' = reason.forcedChoice
+      ? 'truthful'
+      : closeBond && trustAtDecision >= 20 && honesty >= 0
+        ? secrecyPressure
+          ? 'partial'
+          : 'truthful'
+        : trustAtDecision < -25 && honesty <= -1
+          ? 'false'
+          : secrecyPressure
+            ? honesty <= -1
+              ? 'vague'
+              : 'partial'
+            : trustAtDecision < 0
+              ? 'vague'
+              : 'truthful'
+    const relationshipPrefix = closeBond
+      ? `They acknowledged that you were their ${tier.toLowerCase().replaceAll('_', ' ')}. `
+      : ''
+    if (disclosure === 'vague') {
+      return `${lohName} said they needed options and the board was complicated, without naming the real calculation.`
+    }
+    if (disclosure === 'false') {
+      return `${relationshipPrefix}${lohName} said you were becoming too dangerous in competitions and they could not leave you comfortable.`
     }
     if (reason.forcedChoice) {
       return `${relationshipPrefix}${lohName} said there was no clean non-allied option left and they had to choose among people they were connected to.`
@@ -499,8 +547,11 @@ function getContextualActionSummary({
     if (reason.primaryReason === 'BETRAYAL') {
       return `${relationshipPrefix}${lohName} said the trust between you had already broken down, and putting you up was the strategic consequence.`
     }
+    if (reason.primaryReason === 'BACKDOOR_PLAN' && disclosure === 'partial') {
+      return `${relationshipPrefix}${lohName} said they needed flexibility after Safety and believed you could survive the block.`
+    }
     if (reason.primaryReason === 'BACKDOOR_PLAN') {
-      return `${relationshipPrefix}${lohName} said the original block was built to keep another option open after Safety changed the board.`
+      return `${relationshipPrefix}${lohName} said you were part of the original block because they needed the option to backdoor someone else.`
     }
     if (reason.primaryReason === 'COMPETITION_THREAT') {
       return `${relationshipPrefix}${lohName} said your competition potential made you too dangerous to leave comfortable.`
