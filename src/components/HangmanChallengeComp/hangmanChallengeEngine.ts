@@ -46,13 +46,13 @@ export interface AiRoundResult {
   purchases: Array<{ kind: RevealKind | 'hint'; cost: number }>
 }
 
-export const STARTING_BUDGET = 100
+export const STARTING_BUDGET = 50
 export const BUDGET_CAP = 110
 export const SURVIVAL_BONUS = 10
 export const VOWEL_COST = 4
 export const CONSONANT_COST = 6
 export const HINT_COSTS = [5, 6, 7] as const
-export const MAX_WRONG_GUESSES = 10
+export const MAX_WRONG_GUESSES = 5
 export const FAILURE_PENALTY = -25
 export const MAX_QUALIFYING_ROUNDS = 6
 export const ROUND_TIME_LIMIT_SECONDS = 95

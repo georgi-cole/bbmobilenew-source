@@ -26,7 +26,9 @@ import {
   getAvailableRevealPositions,
   getHintCost,
   getRevealCost,
+  isLetter,
   normalizeGuess,
+  normalizeWord,
   pickRevealPosition,
   pickTournamentWords,
   rankRoundResults,
@@ -45,7 +47,6 @@ type Phase =
   | 'playing'
   | 'roundResult'
   | 'scoreboard'
-  | 'finalChoice'
   | 'finalPlaying'
   | 'finalResult'
   | 'eliminated'
@@ -70,15 +71,15 @@ interface RoundResolution {
 
 interface FinalState {
   finalists: [string, string]
-  chooserId: string
-  starterId: string | null
-  turnId: string | null
   revealedPositions: number[]
-  hintsUsed: number
-  wrongGuesses: number
   attemptedWords: string[]
+  revealCycle: number
+  lockedPlayerId: string | null
+  lockMode: 'reveal' | 'timed' | null
+  lockedUntilMs: number | null
+  forceRevealCooldownUntilMs: Record<string, number>
+  usedPowers: Record<string, { forceReveal: boolean; lockOpponent: boolean }>
   eventLog: string[]
-  emergency: boolean
   winnerId: string | null
 }
 
@@ -96,6 +97,14 @@ const FALLBACK_PARTICIPANTS: MinigameParticipant[] = [
   { id: 'specter', name: 'Specter', isHuman: false, precomputedScore: 0, previousPR: null },
   { id: 'oracle', name: 'Oracle', isHuman: false, precomputedScore: 0, previousPR: null },
 ]
+
+const FINAL_REVEAL_INTERVAL_SECONDS = 5
+const FINAL_FORCE_REVEAL_COST = 10
+const FINAL_FORCE_REVEAL_COOLDOWN_MS = 3000
+const FINAL_LOCK_COST = 15
+const FINAL_LOCK_DURATION_MS = 5000
+const FINAL_AI_MIN_BUZZ_DELAY_MS = 2400
+const FINAL_AI_MAX_BUZZ_DELAY_MS = 4200
 
 function initialAvatar(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || '?'
@@ -121,6 +130,23 @@ function seededFraction(seed: number): number {
   state ^= state >>> 15
   state = Math.imul(state | 1, state ^ (state >>> 7)) >>> 0
   return ((state ^ (state >>> 14)) >>> 0) / 4294967296
+}
+
+function finalAiBuzzDelayMs(seed: number, playerId: string, revealCycle: number, skill: number): number {
+  const jitter = seededFraction(seed ^ hashString('final-ai-delay-' + playerId + '-' + revealCycle))
+  const skillAdjustment = Math.round((1 - skill) * 700)
+  return Math.min(
+    FINAL_AI_MAX_BUZZ_DELAY_MS,
+    FINAL_AI_MIN_BUZZ_DELAY_MS + skillAdjustment + Math.floor(jitter * 900)
+  )
+}
+
+function isFinalLockActive(state: FinalState, playerId: string): boolean {
+  if (state.lockedPlayerId !== playerId) return false
+  if (state.lockMode === 'timed' && state.lockedUntilMs !== null) {
+    return state.lockedUntilMs > Date.now()
+  }
+  return true
 }
 
 function getHuman(players: PlayerState[]): PlayerState {
@@ -173,7 +199,7 @@ export default function HangmanChallengeComp({
   )
 
   const [phase, setPhase] = useState<Phase>(
-    eliminationPlan.length === 0 ? 'finalChoice' : 'playing'
+    eliminationPlan.length === 0 ? 'finalPlaying' : 'playing'
   )
   const [panel, setPanel] = useState<Panel>(null)
   const [roundIndex, setRoundIndex] = useState(0)
@@ -219,15 +245,18 @@ export default function HangmanChallengeComp({
     const second = finalists[1] ?? sourcePlayers[1] ?? first
     return {
       finalists: [first.id, second.id],
-      chooserId: first.id,
-      starterId: null,
-      turnId: null,
       revealedPositions: [],
-      hintsUsed: 0,
-      wrongGuesses: 0,
       attemptedWords: [],
+      revealCycle: 0,
+      lockedPlayerId: null,
+      lockMode: null,
+      lockedUntilMs: null,
+      forceRevealCooldownUntilMs: {},
+      usedPowers: {
+        [first.id]: { forceReveal: false, lockOpponent: false },
+        [second.id]: { forceReveal: false, lockOpponent: false },
+      },
       eventLog: [],
-      emergency: false,
       winnerId: null,
     }
   }, [])
@@ -431,7 +460,7 @@ export default function HangmanChallengeComp({
       })
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [phase, resolveHumanRound])
+  }, [panel, phase, resolveHumanRound])
 
   const spendForReveal = useCallback(
     (kind: RevealKind, isFinal = false) => {
@@ -477,7 +506,8 @@ export default function HangmanChallengeComp({
 
   const buyHint = useCallback(
     (isFinal = false) => {
-      const used = isFinal ? finalState.hintsUsed : hintsUsed
+      if (isFinal) return
+      const used = hintsUsed
       const cost = getHintCost(used)
       const liveHuman = players.find((player) => player.id === human.id)
       if (cost == null || !liveHuman || liveHuman.budget < cost) return
@@ -488,23 +518,9 @@ export default function HangmanChallengeComp({
         )
       )
 
-      if (isFinal) {
-        const other = finalState.finalists.find((id) => id !== human.id) ?? human.id
-        setFinalState((previous) => ({
-          ...previous,
-          hintsUsed: previous.hintsUsed + 1,
-          turnId: other,
-          eventLog: [
-            ...previous.eventLog,
-            'You bought Hint ' + (previous.hintsUsed + 1) + '. Turn passed.',
-          ],
-        }))
-        setPanel(null)
-      } else {
-        setHintsUsed((previous) => Math.min(3, previous + 1))
-      }
+      setHintsUsed((previous) => Math.min(3, previous + 1))
     },
-    [finalState.finalists, finalState.hintsUsed, hintsUsed, human.id, players]
+    [hintsUsed, human.id, players]
   )
 
   const submitRoundGuess = useCallback(
@@ -550,7 +566,7 @@ export default function HangmanChallengeComp({
       const nextFinal = buildInitialFinalState(players)
       setFinalState(nextFinal)
       resetRoundState()
-      setPhase('finalChoice')
+      setPhase('finalPlaying')
       return
     }
     resetRoundState()
@@ -558,90 +574,60 @@ export default function HangmanChallengeComp({
     setPhase('playing')
   }, [buildInitialFinalState, eliminationPlan.length, players, resetRoundState, roundIndex])
 
-  const chooseFinalOrder = useCallback(
-    (humanStarts: boolean) => {
-      const finalists = finalState.finalists
-      const other = finalists.find((id) => id !== human.id) ?? finalists[0]
-      const starterId = humanStarts ? human.id : other
-      setFinalState((previous) => ({
-        ...previous,
-        starterId,
-        turnId: starterId,
-        eventLog: [
-          ...previous.eventLog,
-          humanStarts ? 'You chose to start.' : 'You chose to play second.',
-        ],
-      }))
-      setPhase('finalPlaying')
-    },
-    [finalState.finalists, human.id]
-  )
-
-  useEffect(() => {
-    if (phase !== 'finalChoice' || finalState.chooserId === human.id) return undefined
-
-    const chooser = players.find((player) => player.id === finalState.chooserId)
-    const otherId = finalState.finalists.find((id) => id !== finalState.chooserId)
-    const other = players.find((player) => player.id === otherId)
-    if (!chooser || !other) return undefined
-
-    const aiStarts = chooser.budget >= other.budget
-    const starterId = aiStarts ? chooser.id : other.id
-    const timer = window.setTimeout(() => {
-      setFinalState((previous) => ({
-        ...previous,
-        starterId,
-        turnId: starterId,
-        eventLog: [
-          ...previous.eventLog,
-          chooser.name + (aiStarts ? ' chose to start.' : ' chose to play second.'),
-        ],
-      }))
-      setPhase('finalPlaying')
-    }, 700)
-
-    return () => window.clearTimeout(timer)
-  }, [finalState.chooserId, finalState.finalists, human.id, phase, players])
-
   const finalWord = tournamentWords.final
   const finalDisplayTokens = buildDisplayTokens(finalWord.text, finalState.revealedPositions)
-  const finalTurnPlayer = players.find((player) => player.id === finalState.turnId)
-  const humanFinalTurn = phase === 'finalPlaying' && finalState.turnId === human.id
+  const humanCanBuzz = phase === 'finalPlaying' && !isFinalLockActive(finalState, human.id)
 
-  const revealEmergencyTile = useCallback(
+  const revealNextFinalLetter = useCallback(
     (state: FinalState): FinalState => {
-      if (!state.emergency) return state
-      const hidden = normalizeGuess(finalWord.text)
-        .split('')
-        .map((char, index) => ({ char, index }))
-        .filter(({ char, index }) => char !== ' ' && !state.revealedPositions.includes(index))
-      if (hidden.length === 0) return state
-      const emergencySeed =
-        seed ^
-        0x9183 ^
-        hashString(
-          (state.turnId ?? 'none') +
-            '-' +
-            state.wrongGuesses +
-            '-' +
-            state.revealedPositions.join(',')
+      const normalizedWord = normalizeGuess(finalWord.text)
+      const hiddenLetters = [...new Set(normalizedWord.split('').filter((char) => /^[A-Z]$/.test(char)))]
+        .filter((letter) =>
+          normalizedWord
+            .split('')
+            .some((char, index) => char === letter && !state.revealedPositions.includes(index))
         )
-      const pick = hidden[Math.floor(seededFraction(emergencySeed) * hidden.length)]
+
+      if (hiddenLetters.length === 0) {
+        const keepTimedLock =
+          state.lockMode === 'timed' &&
+          state.lockedPlayerId !== null &&
+          isFinalLockActive(state, state.lockedPlayerId)
+        return {
+          ...state,
+          revealCycle: state.revealCycle + 1,
+          lockedPlayerId: keepTimedLock ? state.lockedPlayerId : null,
+          lockMode: keepTimedLock ? state.lockMode : null,
+          lockedUntilMs: keepTimedLock ? state.lockedUntilMs : null,
+        }
+      }
+
+      const pickIndex = Math.floor(
+        seededFraction(seed ^ hashString('final-reveal-' + state.revealCycle)) * hiddenLetters.length
+      )
+      const letter = hiddenLetters[pickIndex]
+      const matchingPositions = normalizedWord
+        .split('')
+        .flatMap((char, index) => (char === letter ? [index] : []))
+
+      const keepTimedLock =
+        state.lockMode === 'timed' &&
+        state.lockedPlayerId !== null &&
+        isFinalLockActive(state, state.lockedPlayerId)
+
       return {
         ...state,
-        revealedPositions: [...state.revealedPositions, pick.index].sort((a, b) => a - b),
-        eventLog: [...state.eventLog, 'Emergency Verdict exposed one tile.'],
+        revealCycle: state.revealCycle + 1,
+        revealedPositions: [...new Set([...state.revealedPositions, ...matchingPositions])].sort(
+          (a, b) => a - b
+        ),
+        lockedPlayerId: keepTimedLock ? state.lockedPlayerId : null,
+        lockMode: keepTimedLock ? state.lockMode : null,
+        lockedUntilMs: keepTimedLock ? state.lockedUntilMs : null,
+        eventLog: [...state.eventLog, 'The board revealed the letter ' + letter + '.'],
       }
     },
     [finalWord.text, seed]
-  )
-
-  const switchFinalTurn = useCallback(
-    (state: FinalState): FinalState => {
-      const next = state.finalists.find((id) => id !== state.turnId) ?? state.finalists[0]
-      return revealEmergencyTile({ ...state, turnId: next })
-    },
-    [revealEmergencyTile]
   )
 
   const finishFinal = useCallback((winnerId: string) => {
@@ -653,7 +639,7 @@ export default function HangmanChallengeComp({
   const submitFinalGuess = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
-      if (!humanFinalTurn) return
+      if (!humanCanBuzz) return
       const guess = normalizeGuess(guessInput)
       if (!guess || finalState.attemptedWords.includes(guess)) return
       setGuessInput('')
@@ -661,192 +647,264 @@ export default function HangmanChallengeComp({
       if (guess === normalizeGuess(finalWord.text)) {
         setFinalState((previous) => ({
           ...previous,
-          revealedPositions: revealAllMatchingPositions(
-            finalWord.text,
-            previous.revealedPositions,
-            guess
-          ),
+          revealedPositions: revealAllMatchingPositions(finalWord.text, previous.revealedPositions, guess),
           attemptedWords: [...previous.attemptedWords, guess],
-          eventLog: [...previous.eventLog, 'You solved the final board.'],
+          eventLog: [...previous.eventLog, 'You buzzed and solved the final board.'],
         }))
         finishFinal(human.id)
         return
       }
 
+      setFinalState((previous) => ({
+        ...previous,
+        attemptedWords: [...previous.attemptedWords, guess],
+        lockedPlayerId: human.id,
+        lockMode: 'reveal',
+        lockedUntilMs: null,
+        eventLog: [...previous.eventLog, 'You buzzed incorrectly and are locked until the next reveal.'],
+      }))
+    },
+    [finalState.attemptedWords, finalWord.text, finishFinal, guessInput, human.id, humanCanBuzz]
+  )
+
+  const [finalCountdown, setFinalCountdown] = useState(FINAL_REVEAL_INTERVAL_SECONDS)
+
+  const resolveFinalTiebreaker = useCallback(() => {
+    const finalists = players.filter((player) => finalState.finalists.includes(player.id))
+    const winner =
+      [...finalists].sort(
+        (a, b) => b.budget - a.budget || b.cumulativeScore - a.cumulativeScore
+      )[0] ?? players[0]
+    if (!winner) return
+    setFinalState((previous) => ({
+      ...previous,
+      winnerId: winner.id,
+      eventLog: [...previous.eventLog, winner.name + ' won the wallet tiebreaker.'],
+    }))
+    setCompetitionWinnerId(winner.id)
+    setPhase('finalResult')
+  }, [finalState.finalists, players])
+
+  const useFinalPower = useCallback(
+    (power: 'forceReveal' | 'lockOpponent') => {
+      if (phase !== 'finalPlaying' || !humanCanBuzz) return
+      const humanPlayer = players.find((player) => player.id === human.id)
+      const opponentId = finalState.finalists.find((id) => id !== human.id)
+      const opponent = players.find((player) => player.id === opponentId)
+      const cost = power === 'forceReveal' ? FINAL_FORCE_REVEAL_COST : FINAL_LOCK_COST
+      const used = finalState.usedPowers[human.id]?.[power]
+      const cooldownUntil = finalState.forceRevealCooldownUntilMs[human.id] ?? 0
+      if (!humanPlayer || !opponent || (power === 'lockOpponent' && used) || humanPlayer.budget < cost) return
+      if (power === 'forceReveal' && computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1) return
+      if (power === 'forceReveal' && cooldownUntil > Date.now()) return
+
+      const lockExpiresAt = Date.now() + FINAL_LOCK_DURATION_MS
+      const nextForceRevealCooldown = Date.now() + FINAL_FORCE_REVEAL_COOLDOWN_MS
+      setPlayers((all) =>
+        all.map((player) =>
+          player.id === human.id ? { ...player, budget: player.budget - cost } : player
+        )
+      )
       setFinalState((previous) => {
-        const nextWrong = previous.wrongGuesses + 1
         const next = {
           ...previous,
-          wrongGuesses: nextWrong,
-          attemptedWords: [...previous.attemptedWords, guess],
-          emergency: previous.emergency || nextWrong >= MAX_WRONG_GUESSES,
+          usedPowers: {
+            ...previous.usedPowers,
+            [human.id]: { ...previous.usedPowers[human.id], [power]: true },
+          },
+          forceRevealCooldownUntilMs:
+            power === 'forceReveal'
+              ? { ...previous.forceRevealCooldownUntilMs, [human.id]: nextForceRevealCooldown }
+              : previous.forceRevealCooldownUntilMs,
           eventLog: [
             ...previous.eventLog,
-            nextWrong >= MAX_WRONG_GUESSES && !previous.emergency
-              ? 'The window shattered. Emergency Verdict activated.'
-              : 'Your full-word guess was wrong.',
+            power === 'forceReveal'
+              ? 'You forced the next letter reveal.'
+              : 'You locked ' + opponent.name + ' for 5 seconds.',
           ],
         }
-        return switchFinalTurn(next)
+        return power === 'forceReveal'
+          ? revealNextFinalLetter(next)
+          : {
+              ...next,
+              lockedPlayerId: opponent.id,
+              lockMode: 'timed',
+              lockedUntilMs: lockExpiresAt,
+            }
       })
+      if (power === 'forceReveal') setFinalCountdown(FINAL_REVEAL_INTERVAL_SECONDS)
     },
     [
-      finalState.attemptedWords,
+      finalState.finalists,
+      finalState.revealedPositions,
+      finalState.usedPowers,
       finalWord.text,
-      finishFinal,
-      guessInput,
       human.id,
-      humanFinalTurn,
-      switchFinalTurn,
+      humanCanBuzz,
+      phase,
+      players,
+      revealNextFinalLetter,
     ]
   )
 
   useEffect(() => {
-    if (phase !== 'finalPlaying' || !finalTurnPlayer || finalTurnPlayer.isHuman) return undefined
+    if (
+      phase !== 'finalPlaying' ||
+      finalState.lockMode !== 'timed' ||
+      finalState.lockedPlayerId === null ||
+      finalState.lockedUntilMs === null
+    ) {
+      return undefined
+    }
+
+    const lockedPlayerId = finalState.lockedPlayerId
+    const lockedUntilMs = finalState.lockedUntilMs
+    const timer = window.setTimeout(() => {
+      setFinalState((previous) => {
+        if (
+          previous.lockMode !== 'timed' ||
+          previous.lockedPlayerId !== lockedPlayerId ||
+          previous.lockedUntilMs !== lockedUntilMs
+        ) {
+          return previous
+        }
+        return {
+          ...previous,
+          lockedPlayerId: null,
+          lockMode: null,
+          lockedUntilMs: null,
+          eventLog: [...previous.eventLog, 'The 5-second opponent lock expired.'],
+        }
+      })
+    }, Math.max(0, lockedUntilMs - Date.now()))
+
+    return () => window.clearTimeout(timer)
+  }, [finalState.lockMode, finalState.lockedPlayerId, finalState.lockedUntilMs, phase])
+
+  useEffect(() => {
+    if (phase !== 'finalPlaying' || panel !== null) return undefined
+    const timer = window.setTimeout(() => {
+      if (finalCountdown <= 1) {
+        if (computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1) {
+          resolveFinalTiebreaker()
+        } else {
+          setFinalState((state) => revealNextFinalLetter(state))
+        }
+        setFinalCountdown(FINAL_REVEAL_INTERVAL_SECONDS)
+      } else {
+        setFinalCountdown((previous) => previous - 1)
+      }
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [finalCountdown, finalState.revealedPositions, finalWord.text, panel, phase, resolveFinalTiebreaker, revealNextFinalLetter])
+
+  useEffect(() => {
+    if (phase !== 'finalPlaying' || panel !== null || finalState.winnerId) return undefined
+    if (finalState.revealCycle < 1) return undefined
+    const ai = players.find(
+      (player) => player.id !== human.id && finalState.finalists.includes(player.id)
+    )
+    if (!ai || isFinalLockActive(finalState, ai.id)) return undefined
+
+    const skill = 0.45 + (hashString(ai.id) % 40) / 100
+    const buzzDelay = finalAiBuzzDelayMs(seed, ai.id, finalState.revealCycle, skill)
 
     const timer = window.setTimeout(() => {
       const previous = finalState
-      if (previous.turnId !== finalTurnPlayer.id || previous.winnerId) return
-
-      const currentPlayer = players.find((player) => player.id === finalTurnPlayer.id)
-      if (!currentPlayer) return
-
-      const revealRatioNow = computeRevealRatio(finalWord.text, previous.revealedPositions)
-      const skill = 0.45 + (hashString(finalTurnPlayer.id) % 40) / 100
-      const confidence =
-        revealRatioNow + previous.hintsUsed * 0.08 + skill * 0.24 + (previous.emergency ? 0.2 : 0)
-      const random = seededFraction(
-        seed ^
-          hashString(
-            finalTurnPlayer.id +
-              '-' +
-              previous.revealedPositions.length +
-              '-' +
-              previous.wrongGuesses
-          )
+      if (previous.winnerId || isFinalLockActive(previous, ai.id)) return
+      const humanIsLocked = isFinalLockActive(previous, human.id)
+      const aiPowerState = previous.usedPowers[ai.id] ?? { forceReveal: false, lockOpponent: false }
+      const aiCanLock =
+        previous.revealCycle >= 2 &&
+        !humanIsLocked &&
+        !aiPowerState.lockOpponent &&
+        ai.budget >= FINAL_LOCK_COST
+      const lockRoll = seededFraction(
+        seed ^ hashString(ai.id + '-lock-' + previous.revealCycle)
       )
-
-      if (confidence >= 0.9 || currentPlayer.budget < VOWEL_COST || previous.emergency) {
-        const correct = random < Math.min(0.96, 0.34 + confidence * 0.62)
-        if (correct) {
-          setFinalState({
-            ...previous,
-            revealedPositions: revealAllMatchingPositions(
-              finalWord.text,
-              previous.revealedPositions,
-              finalWord.text
-            ),
-            eventLog: [...previous.eventLog, finalTurnPlayer.name + ' solved the final board.'],
-            winnerId: finalTurnPlayer.id,
-          })
-          setCompetitionWinnerId(finalTurnPlayer.id)
-          setPhase('finalResult')
-          return
-        }
-
-        const nextWrong = previous.wrongGuesses + 1
-        setFinalState(
-          switchFinalTurn({
-            ...previous,
-            wrongGuesses: nextWrong,
-            emergency: previous.emergency || nextWrong >= MAX_WRONG_GUESSES,
-            eventLog: [
-              ...previous.eventLog,
-              nextWrong >= MAX_WRONG_GUESSES && !previous.emergency
-                ? finalTurnPlayer.name + ' broke the window. Emergency Verdict activated.'
-                : finalTurnPlayer.name + ' guessed the word incorrectly.',
-            ],
-          })
-        )
-        return
-      }
-
-      const hintCost = getHintCost(previous.hintsUsed)
-      if (
-        hintCost != null &&
-        currentPlayer.budget >= hintCost &&
-        finalWord.difficulty >= 4 &&
-        random < 0.18
-      ) {
+      if (aiCanLock && lockRoll < 0.28) {
+        const lockExpiresAt = Date.now() + FINAL_LOCK_DURATION_MS
         setPlayers((all) =>
           all.map((player) =>
-            player.id === currentPlayer.id
-              ? { ...player, budget: player.budget - hintCost }
+            player.id === ai.id
+              ? { ...player, budget: player.budget - FINAL_LOCK_COST }
               : player
           )
         )
-        setFinalState(
-          switchFinalTurn({
-            ...previous,
-            hintsUsed: previous.hintsUsed + 1,
-            eventLog: [...previous.eventLog, finalTurnPlayer.name + ' bought a hint.'],
-          })
-        )
+        setFinalState({
+          ...previous,
+          lockedPlayerId: human.id,
+          lockMode: 'timed',
+          lockedUntilMs: lockExpiresAt,
+          usedPowers: {
+            ...previous.usedPowers,
+            [ai.id]: { ...aiPowerState, lockOpponent: true },
+          },
+          eventLog: [...previous.eventLog, ai.name + ' locked you for 5 seconds.'],
+        })
+        return
+      }
+      const revealRatioNow = computeRevealRatio(finalWord.text, previous.revealedPositions)
+      const normalizedFinalWord = normalizeWord(finalWord.text)
+      const revealed = new Set(previous.revealedPositions)
+      const letterPositions = normalizedFinalWord
+        .split('')
+        .flatMap((character, index) => (isLetter(character) ? [index] : []))
+      const revealedLetterCount = letterPositions.filter((index) => revealed.has(index)).length
+      const minimumVisibleLetters = Math.min(
+        letterPositions.length,
+        Math.max(3, Math.ceil(letterPositions.length * 0.4))
+      )
+      if (revealedLetterCount < minimumVisibleLetters) return
+
+      const confidence = revealRatioNow + skill * 0.24
+      const buzzChance = Math.min(0.7, 0.15 + Math.max(0, confidence - 0.35) * 0.55)
+      const buzzRoll = seededFraction(
+        seed ^ hashString(ai.id + '-buzz-' + previous.revealCycle + '-' + previous.attemptedWords.length)
+      )
+      if (buzzRoll >= buzzChance) return
+
+      const solveRoll = seededFraction(
+        seed ^ hashString(ai.id + '-solve-' + previous.revealCycle + '-' + previous.attemptedWords.length)
+      )
+      const correct = solveRoll < Math.min(0.86, 0.28 + confidence * 0.58)
+      if (correct) {
+        setFinalState({
+          ...previous,
+          revealedPositions: revealAllMatchingPositions(finalWord.text, previous.revealedPositions, finalWord.text),
+          eventLog: [...previous.eventLog, ai.name + ' buzzed and solved the final board.'],
+          winnerId: ai.id,
+        })
+        setCompetitionWinnerId(ai.id)
+        setPhase('finalResult')
         return
       }
 
-      const vowelOptions = getAvailableRevealPositions(
-        finalWord.text,
-        previous.revealedPositions,
-        'vowel'
-      )
-      const consonantOptions = getAvailableRevealPositions(
-        finalWord.text,
-        previous.revealedPositions,
-        'consonant'
-      )
-      let kind: RevealKind = random < 0.44 ? 'vowel' : 'consonant'
-      if (
-        (kind === 'vowel' && (vowelOptions.length === 0 || currentPlayer.budget < VOWEL_COST)) ||
-        (kind === 'consonant' &&
-          (consonantOptions.length === 0 || currentPlayer.budget < CONSONANT_COST))
-      ) {
-        kind = kind === 'vowel' ? 'consonant' : 'vowel'
-      }
-
-      const cost = getRevealCost(kind)
-      const position = pickRevealPosition(
-        finalWord.text,
-        previous.revealedPositions,
-        kind,
-        seededFraction(seed ^ finalRngCounter.current++ ^ hashString(finalTurnPlayer.id))
-      )
-      if (position == null || currentPlayer.budget < cost) {
-        setFinalState(switchFinalTurn(previous))
-        return
-      }
-
-      setPlayers((all) =>
-        all.map((player) =>
-          player.id === currentPlayer.id ? { ...player, budget: player.budget - cost } : player
-        )
-      )
       setFinalState({
         ...previous,
-        revealedPositions: [...previous.revealedPositions, position].sort((a, b) => a - b),
-        eventLog: [...previous.eventLog, finalTurnPlayer.name + ' revealed a ' + kind + '.'],
+        lockedPlayerId: ai.id,
+        lockMode: 'reveal',
+        lockedUntilMs: null,
+        attemptedWords: [...previous.attemptedWords, '[AI wrong buzz]'],
+        eventLog: [...previous.eventLog, ai.name + ' buzzed incorrectly and is locked until the next reveal.'],
       })
-    }, 720)
+    }, buzzDelay)
 
     return () => window.clearTimeout(timer)
-  }, [finalState, finalTurnPlayer, finalWord, phase, players, seed, switchFinalTurn])
+  }, [finalState, finalWord, human.id, panel, phase, players, seed])
 
   const finalHuman = players.find((player) => player.id === human.id) ?? humanState
+  const finalOpponent = players.find((player) =>
+    finalState.finalists.includes(player.id) && player.id !== human.id
+  )
   const currentBudget = phase === 'finalPlaying' ? finalHuman.budget : humanState.budget
-  const currentWrong = phase === 'finalPlaying' ? finalState.wrongGuesses : wrongGuesses
+  const currentWrong = wrongGuesses
   const crackRatio = Math.min(1, currentWrong / MAX_WRONG_GUESSES)
   const activeWord = phase === 'finalPlaying' ? finalWord : currentWord
   const activeTokens = phase === 'finalPlaying' ? finalDisplayTokens : displayTokens
-  const activeHintsUsed = phase === 'finalPlaying' ? finalState.hintsUsed : hintsUsed
-  const activeHiddenVowels =
-    phase === 'finalPlaying'
-      ? getAvailableRevealPositions(finalWord.text, finalState.revealedPositions, 'vowel').length
-      : hiddenVowels
-  const activeHiddenConsonants =
-    phase === 'finalPlaying'
-      ? getAvailableRevealPositions(finalWord.text, finalState.revealedPositions, 'consonant')
-          .length
-      : hiddenConsonants
+  const activeHintsUsed = hintsUsed
+  const activeHiddenVowels = hiddenVowels
+  const activeHiddenConsonants = hiddenConsonants
 
   const finishToHost = useCallback(() => {
     if (!onFinish || !competitionWinnerId) return
@@ -898,7 +956,13 @@ export default function HangmanChallengeComp({
   )
 
   const isFinal = phase === 'finalPlaying'
-  const canAct = !isFinal || humanFinalTurn
+  const canAct = !isFinal || humanCanBuzz
+  const humanIsFinalLocked = isFinal && isFinalLockActive(finalState, human.id)
+  const forceRevealCooldownUntil = finalState.forceRevealCooldownUntilMs[human.id] ?? 0
+  const forceRevealOnCooldown = forceRevealCooldownUntil > Date.now()
+  const forceRevealCooldownSeconds = forceRevealOnCooldown
+    ? Math.ceil((forceRevealCooldownUntil - Date.now()) / 1000)
+    : 0
 
   return (
     <section className="verdict-v2" style={boardStyle}>
@@ -916,12 +980,23 @@ export default function HangmanChallengeComp({
             <small>◉</small>
             <b>{currentBudget}</b>
           </span>
-          <span>
-            <small>WINDOW</small>
-            <b>
-              {currentWrong}/{MAX_WRONG_GUESSES}
-            </b>
-          </span>
+          {isFinal ? (
+            <>
+              <span>
+                <small>OPPONENT</small>
+                <b>{finalOpponent?.budget ?? 0}</b>
+              </span>
+              <span>
+                <small>REVEAL IN</small>
+                <b>{finalCountdown}s</b>
+              </span>
+            </>
+          ) : (
+            <span>
+              <small>WINDOW</small>
+              <b>{currentWrong + '/' + MAX_WRONG_GUESSES}</b>
+            </span>
+          )}
           {!isFinal && (
             <span>
               <small>TIME</small>
@@ -935,8 +1010,7 @@ export default function HangmanChallengeComp({
         <div
           className={
             'verdict-v2__window' +
-            (currentWrong >= MAX_WRONG_GUESSES ? ' is-shattered' : '') +
-            (finalState.emergency && isFinal ? ' is-emergency' : '')
+            (!isFinal && currentWrong >= MAX_WRONG_GUESSES ? ' is-shattered' : '')
           }
         >
           <div className="verdict-v2__window-image" aria-hidden="true" />
@@ -946,9 +1020,15 @@ export default function HangmanChallengeComp({
               <span>{activeWord.category}</span>
               <span>
                 {isFinal
-                  ? finalState.emergency
-                    ? 'EMERGENCY VERDICT'
-                    : finalTurnPlayer?.name + "'s turn"
+                  ? isFinalLockActive(finalState, human.id)
+                    ? finalState.lockMode === 'timed'
+                      ? 'You are locked for 5 seconds'
+                      : 'You are locked until the next reveal'
+                    : finalOpponent && isFinalLockActive(finalState, finalOpponent.id)
+                      ? finalState.lockMode === 'timed'
+                        ? finalOpponent.name + ' is locked for 5 seconds · race is live'
+                        : finalOpponent.name + ' is locked until the next reveal · race is live'
+                      : 'Race is live · first correct buzz wins'
                   : activePlayers.length +
                     ' remain · ' +
                     (eliminationPlan[roundIndex] ?? 0) +
@@ -956,11 +1036,13 @@ export default function HangmanChallengeComp({
               </span>
             </div>
             {renderWord(activeTokens)}
-            <div className="verdict-v2__attempt-dots" aria-label="Window integrity">
-              {Array.from({ length: MAX_WRONG_GUESSES }, (_, index) => (
-                <i key={index} className={index < currentWrong ? 'is-broken' : ''} />
-              ))}
-            </div>
+            {!isFinal && (
+              <div className="verdict-v2__attempt-dots" aria-label="Window integrity">
+                {Array.from({ length: MAX_WRONG_GUESSES }, (_, index) => (
+                  <i key={index} className={index < currentWrong ? 'is-broken' : ''} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -969,10 +1051,16 @@ export default function HangmanChallengeComp({
             History
             <b>{isFinal ? finalState.eventLog.length : attemptedWords.length}</b>
           </button>
-          <button type="button" onClick={() => setPanel('hint')}>
-            Hints
-            <b>{activeHintsUsed}/3</b>
-          </button>
+          {!isFinal && (
+            <button
+              type="button"
+              aria-label="View hints and hint costs"
+              onClick={() => setPanel('hint')}
+            >
+              Hints
+              <b>{activeHintsUsed}/3</b>
+            </button>
+          )}
           <button type="button" onClick={() => setPanel('rules')}>
             Rules
           </button>
@@ -980,27 +1068,62 @@ export default function HangmanChallengeComp({
       </main>
 
       <footer className="verdict-v2__actions">
-        <button type="button" disabled={!canAct} onClick={() => setPanel('reveal')}>
-          <span>REVEAL</span>
-          <small>4–6 ◉</small>
-        </button>
-        <button
-          type="button"
-          disabled={!canAct || activeHintsUsed >= 3}
-          onClick={() => setPanel('hint')}
-        >
-          <span>HINT</span>
-          <small>{activeHintsUsed < 3 ? String(HINT_COSTS[activeHintsUsed]) + ' ◉' : 'USED'}</small>
-        </button>
-        <button
+        {!isFinal ? (
+          <>
+            <button type="button" disabled={!canAct} onClick={() => setPanel('reveal')}>
+              <span>REVEAL</span>
+              <small>4–6 ◉</small>
+            </button>
+            <button type="button" disabled={!canAct} onClick={() => setPanel('hint')}>
+              <span>HINT</span>
+              <small>{activeHintsUsed < 3 ? String(HINT_COSTS[activeHintsUsed]) + ' ◉' : 'VIEW'}</small>
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="is-primary"
+              disabled={!canAct}
+              onClick={() => setPanel('guess')}
+            >
+              <span>{humanIsFinalLocked ? '🔒 BUZZ' : 'BUZZ'}</span>
+              <small>
+                {humanCanBuzz
+                  ? 'BUZZ IS LIVE'
+                  : finalState.lockMode === 'timed'
+                    ? 'LOCKED FOR 5s'
+                    : 'LOCKED UNTIL REVEAL'}
+              </small>
+            </button>
+            <button
+              type="button"
+              disabled={!canAct || forceRevealOnCooldown || currentBudget < FINAL_FORCE_REVEAL_COST || computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1}
+              onClick={() => useFinalPower('forceReveal')}
+            >
+              <span>REVEAL NOW</span>
+              <small>{forceRevealOnCooldown ? forceRevealCooldownSeconds + 's cooldown' : FINAL_FORCE_REVEAL_COST + ' ◉'}</small>
+            </button>
+            <button
+              type="button"
+              disabled={!canAct || finalState.usedPowers[human.id]?.lockOpponent || currentBudget < FINAL_LOCK_COST}
+              onClick={() => useFinalPower('lockOpponent')}
+            >
+              <span>LOCK OPP</span>
+              <small>{FINAL_LOCK_COST} ◉</small>
+            </button>
+          </>
+        )}
+        {!isFinal && <button
           type="button"
           className="is-primary"
           disabled={!canAct}
           onClick={() => setPanel('guess')}
         >
           <span>GUESS WORD</span>
-          <small>{MAX_WRONG_GUESSES - currentWrong} chances</small>
+          <small>{MAX_WRONG_GUESSES - currentWrong + ' chances'}</small>
         </button>
+        }
       </footer>
 
       {panel === 'reveal' && (
@@ -1118,7 +1241,9 @@ export default function HangmanChallengeComp({
               aria-label="Full word guess"
             />
             <p className="verdict-v2__sheet-copy">
-              A wrong full-word guess cracks the window. Duplicate guesses are blocked.
+              {isFinal
+                ? 'Both finalists can buzz as the shared board reveals. A correct guess wins; a wrong buzz locks that player until the next reveal.'
+                : 'A wrong full-word guess passes the turn. Duplicate guesses are blocked.'}
             </p>
             <button
               type="submit"
@@ -1174,27 +1299,23 @@ export default function HangmanChallengeComp({
               </button>
             </div>
             <ul className="verdict-v2__rules">
-              <li>
-                You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.
-              </li>
-              <li>
-                Reveal one vowel position for {VOWEL_COST} or one consonant position for{' '}
-                {CONSONANT_COST}.
-              </li>
-              <li>
-                Hints cost {HINT_COSTS.join(' / ')} Eyeoleans and become progressively clearer.
-              </li>
-              <li>
-                The 10th wrong full-word guess shatters the window: 0 round points and{' '}
-                {FAILURE_PENALTY} cumulative points.
-              </li>
-              <li>
-                Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}.
-              </li>
-              <li>
-                In the final two, the higher cumulative scorer chooses first or second. Correct
-                reveals keep the turn; a hint or wrong word passes it.
-              </li>
+              {isFinal ? (
+                <>
+                  <li>A new letter reveals every {FINAL_REVEAL_INTERVAL_SECONDS} seconds.</li>
+                  <li>Both finalists can buzz; the first correct guess wins the shared board.</li>
+                  <li>A wrong buzz locks that player until the next reveal.</li>
+                  <li>Spend {FINAL_FORCE_REVEAL_COST} Eyeoleans to force a reveal every 3 seconds, or {FINAL_LOCK_COST} to lock your opponent for 5 seconds.</li>
+                  <li>Remaining Eyeoleans decide the tiebreaker if nobody solves the board.</li>
+                </>
+              ) : (
+                <>
+                  <li>You begin with {STARTING_BUDGET} Eyeoleans and keep your wallet between rounds.</li>
+                  <li>Reveal one vowel position for {VOWEL_COST} or one consonant position for {CONSONANT_COST}.</li>
+                  <li>Hints cost {HINT_COSTS.join(' / ')} Eyeoleans and remain re-accessible.</li>
+                  <li>You have {MAX_WRONG_GUESSES} wrong full-word attempts before the window shatters.</li>
+                  <li>Successful survivors receive +{SURVIVAL_BONUS} Eyeoleans, capped at {BUDGET_CAP}.</li>
+                </>
+              )}
             </ul>
           </div>
         </div>
@@ -1272,43 +1393,6 @@ export default function HangmanChallengeComp({
             <button type="button" onClick={proceedFromScoreboard}>
               Continue
             </button>
-          </div>
-        </div>
-      )}
-
-      {phase === 'finalChoice' && finalState.chooserId === human.id && (
-        <div className="verdict-v2__overlay" role="dialog" aria-label="Choose final order">
-          <div className="verdict-v2__result-card">
-            <p className="verdict-v2__eyebrow">Final advantage</p>
-            <h2>You choose the order</h2>
-            <p>
-              You hold the top final seed. The final uses one shared board and both finalists keep
-              their remaining Eyeoleans.
-            </p>
-            <div className="verdict-v2__choice-grid">
-              <button type="button" onClick={() => chooseFinalOrder(true)}>
-                START FIRST
-                <small>Take the first action and keep control after successful reveals.</small>
-              </button>
-              <button type="button" onClick={() => chooseFinalOrder(false)}>
-                PLAY SECOND
-                <small>Let your opponent spend first and inherit any shared information.</small>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {phase === 'finalChoice' && finalState.chooserId !== human.id && (
-        <div
-          className="verdict-v2__overlay"
-          role="status"
-          aria-label="Opponent choosing final order"
-        >
-          <div className="verdict-v2__result-card">
-            <p className="verdict-v2__eyebrow">Final advantage</p>
-            <h2>Opponent is choosing</h2>
-            <p>The top final seed decides who acts first.</p>
           </div>
         </div>
       )}
