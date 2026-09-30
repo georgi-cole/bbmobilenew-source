@@ -1,8 +1,47 @@
 import type { RelationshipsMap } from './types'
-import type { RealityDomainState } from './reality/types'
+import type { RealityAlliance, RealityAllianceStatus, RealityDomainState } from './reality/types'
 
 const LIVE_ALLIANCE_STATUSES = new Set(['ACTIVE', 'PROBATIONARY'])
 const REPAIRABLE_LEGACY_TAGS = new Set(['betrayal', 'broken_alliance', 'rivalry', 'strained'])
+const ALLIANCE_STATUS_PRIORITY: Record<RealityAllianceStatus, number> = {
+  ACTIVE: 4,
+  PROBATIONARY: 3,
+  FRACTURED: 2,
+  DISSOLVED: 1,
+  DORMANT: 0,
+}
+
+/**
+ * Return every formal alliance shared by a pair, ordered independently of
+ * object insertion order. A pair can retain historical/fractured records
+ * while a newer operational alliance is active, so callers must not use the
+ * first matching Object.values() entry as the relationship truth.
+ */
+export function getSharedFormalAlliances(
+  reality: RealityDomainState | undefined,
+  actorId: string,
+  targetId: string
+): RealityAlliance[] {
+  if (!reality || actorId === targetId) return []
+  return Object.values(reality.alliances)
+    .filter(
+      (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
+    )
+    .sort(
+      (left, right) =>
+        (ALLIANCE_STATUS_PRIORITY[right.status] ?? -1) -
+          (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) || left.id.localeCompare(right.id)
+    )
+}
+
+/** The canonical display record is the highest-priority shared record. */
+export function selectCanonicalAlliance(
+  reality: RealityDomainState | undefined,
+  actorId: string,
+  targetId: string
+): RealityAlliance | null {
+  return getSharedFormalAlliances(reality, actorId, targetId)[0] ?? null
+}
 
 function pairLegacyTags(
   relationships: RelationshipsMap | undefined,
@@ -22,11 +61,8 @@ export function hasCanonicalLiveAlliance(
 ): boolean {
   return Boolean(
     reality &&
-    Object.values(reality.alliances).some(
-      (alliance) =>
-        LIVE_ALLIANCE_STATUSES.has(alliance.status) &&
-        alliance.memberIds.includes(actorId) &&
-        alliance.memberIds.includes(targetId)
+    getSharedFormalAlliances(reality, actorId, targetId).some((alliance) =>
+      LIVE_ALLIANCE_STATUSES.has(alliance.status)
     )
   )
 }
@@ -48,12 +84,7 @@ export function selectCanonicalRelationshipView(input: {
 } {
   const outward = input.relationships?.[input.actorId]?.[input.targetId]
   const inward = input.relationships?.[input.targetId]?.[input.actorId]
-  const formalAlliance = input.reality
-    ? Object.values(input.reality.alliances).find(
-        (alliance) =>
-          alliance.memberIds.includes(input.actorId) && alliance.memberIds.includes(input.targetId)
-      )
-    : undefined
+  const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
 
   if (formalAlliance?.status === 'PROBATIONARY') visibleTags.add('strained_alliance')
