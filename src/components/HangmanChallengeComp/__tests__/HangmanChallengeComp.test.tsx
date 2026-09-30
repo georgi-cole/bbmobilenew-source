@@ -2,19 +2,21 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import HangmanChallengeComp from '../HangmanChallengeComp'
-import { getSolutionLetters, pickRoundWords } from '../hangmanChallengeEngine'
+import { buildEliminationPlan, pickTournamentWords } from '../hangmanChallengeEngine'
 
 const participants = [
   { id: 'human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
   { id: 'ai-1', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'ai-2', name: 'Specter', isHuman: false, precomputedScore: 0, previousPR: null },
+  { id: 'ai-3', name: 'Oracle', isHuman: false, precomputedScore: 0, previousPR: null },
 ]
 
-function startRoundIfNeeded() {
-  const enterRoundButton = screen.queryByRole('button', { name: /enter round/i })
-  if (enterRoundButton) fireEvent.click(enterRoundButton)
+function openGuess() {
+  fireEvent.click(screen.getByRole('button', { name: /guess word/i }))
+  return screen.getByRole('dialog', { name: /guess the word/i })
 }
 
-describe('HangmanChallengeComp', () => {
+describe('HangmanChallengeComp V2', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -23,208 +25,217 @@ describe('HangmanChallengeComp', () => {
     vi.useRealTimers()
   })
 
-  it('renders the active board when a round begins', () => {
+  it('renders a viewport-first board with only the three primary gameplay actions', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
-
-    act(() => {
-      vi.advanceTimersByTime(2_000)
-    })
 
     expect(screen.getByLabelText(/solution board/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /enter round/i })).toBeNull()
-  })
-
-  it('renders the compact playfield without the removed intel and wrong-letter panels', () => {
-    render(<HangmanChallengeComp participants={participants} seed={42} />)
-
-    startRoundIfNeeded()
-
-    expect(screen.queryByText('Intel')).toBeNull()
-    expect(screen.queryByText('Wrong letters')).toBeNull()
-    expect(screen.queryByText('0/7')).toBeNull()
-    expect(screen.queryByText(/clean reads left before it shatters/i)).toBeNull()
-
-    const board = screen.getByLabelText(/solution board/i)
-    const letterBoard = screen.getByLabelText(/letter entry/i)
-    const playfield = board.closest('.hangman-challenge__playfield')
-
-    expect(playfield).toBeTruthy()
-    expect(playfield?.children[0]).toBe(board)
-    expect(playfield?.children[1]).toBe(letterBoard)
-    expect(screen.queryByLabelText(/mystery box available/i)).toBeNull()
-    expect(screen.getByText('Timer').closest('.hangman-challenge__header')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^reveal/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^hint/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /guess word/i })).toBeInTheDocument()
+    expect(screen.queryByText(/mystery box/i)).toBeNull()
     expect(screen.queryByLabelText(/letter keyboard/i)).toBeNull()
+    expect(document.querySelector('.verdict-v2')).toBeTruthy()
   })
 
-  it('offers a mystery box in a compact dialog and shows its effect in that same dialog', () => {
-    render(<HangmanChallengeComp participants={participants} seed={42} />)
+  it('spends four Eyeoleans to reveal exactly one vowel position', () => {
+    const { container } = render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    startRoundIfNeeded()
-    act(() => {
-      vi.advanceTimersByTime(9_000)
-    })
+    expect(container.querySelectorAll('.verdict-v2__tile.is-revealed')).toHaveLength(0)
 
-    expect(screen.getByLabelText(/mystery box available/i)).toBeInTheDocument()
-    expect(screen.queryByText(/no mystery box is live right now/i)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /^reveal/i }))
+    const revealDialog = screen.getByRole('dialog', { name: /reveal a letter/i })
+    fireEvent.click(within(revealDialog).getByRole('button', { name: /vowel/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /open mystery box/i }))
-
-    expect(screen.getByLabelText(/mystery box effect applied/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument()
+    expect(container.querySelectorAll('.verdict-v2__tile.is-revealed')).toHaveLength(1)
+    expect(screen.getByText('46')).toBeInTheDocument()
   })
 
-  it('pauses both the timer and active round effects until the Mystery Box result is acknowledged', () => {
+  it('keeps purchased hints re-accessible and charges the progressive hint price', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    startRoundIfNeeded()
-    act(() => {
-      vi.advanceTimersByTime(9_000)
-    })
+    fireEvent.click(screen.getByRole('button', { name: /^hint/i }))
+    const hints = screen.getByRole('dialog', { name: /^hints$/i })
+    fireEvent.click(within(hints).getByRole('button', { name: /reveal hint/i }))
 
-    expect(screen.getByText('0:09')).toBeInTheDocument()
-    expect(screen.getByLabelText(/mystery box available/i)).toBeInTheDocument()
+    expect(screen.getByText('45')).toBeInTheDocument()
+    expect(within(hints).getByText(/hint 1/i)).toBeInTheDocument()
+    expect(within(hints).getByText(/hint 2/i)).toBeInTheDocument()
 
-    act(() => {
-      vi.advanceTimersByTime(5_000)
-    })
-    expect(screen.getByText('0:09')).toBeInTheDocument()
+    expect(within(hints).getByText(/ready to reveal/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /open mystery box/i }))
-    expect(screen.getByLabelText(/mystery box effect applied/i)).toBeInTheDocument()
-    expect(screen.getByText('Cold pause 6s')).toBeInTheDocument()
-
-    act(() => {
-      vi.advanceTimersByTime(5_000)
-    })
-    expect(screen.getByText('0:09')).toBeInTheDocument()
-    expect(screen.getByText('Cold pause 6s')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'OK' }))
-    act(() => {
-      vi.advanceTimersByTime(1_000)
-    })
-    expect(screen.getByText('Cold pause 5s')).toBeInTheDocument()
+    fireEvent.click(within(hints).getByRole('button', { name: /reveal hint/i }))
+    expect(within(hints).getByText(/hint 3/i)).toBeInTheDocument()
+    expect(within(hints).getByText(/ready to reveal/i)).toBeInTheDocument()
   })
 
-  it('uses native text entry and records attempted letters', () => {
+  it('blocks duplicate word guesses so they cannot consume extra window integrity', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
-    startRoundIfNeeded()
+    let dialog = openGuess()
+    const input = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(input, { target: { value: 'definitely wrong' } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
 
-    const entryPanel = screen.getByLabelText(/letter entry/i)
-    const input = within(entryPanel).getByLabelText(/guess a letter/i)
-    const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
-    const attempts = within(entryPanel).getByLabelText(/attempted letters/i)
-    const wordLetters = getSolutionLetters(pickRoundWords(42)[0].text)
-    const correctLetter = wordLetters[0]
-    const wrongLetter = 'Z' === correctLetter ? 'Q' : 'Z'
+    expect(screen.getByText('1/5')).toBeInTheDocument()
 
-    fireEvent.change(input, { target: { value: correctLetter.toLowerCase() } })
-    fireEvent.click(guessButton)
+    dialog = openGuess()
+    const repeated = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(repeated, { target: { value: 'definitely wrong' } })
 
-    expect(within(attempts).getByText(correctLetter)).toBeInTheDocument()
-    expect(input).toHaveValue('')
-
-    fireEvent.change(input, { target: { value: wrongLetter.toLowerCase() } })
-    fireEvent.click(guessButton)
-
-    expect(within(attempts).getByText(wrongLetter)).toBeInTheDocument()
-    expect(within(entryPanel).getByText(/2 tried/i)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: /lock verdict/i })).toBeDisabled()
+    expect(screen.getByText('1/5')).toBeInTheDocument()
   })
 
-  it('shows the shatter burst briefly before leaving a failed round', () => {
+  it('solves by full-word guess and produces a transparent score breakdown', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
+    const rounds = buildEliminationPlan(participants.length)
+    const answer = pickTournamentWords(42, rounds.length).qualifying[0].text
 
-    startRoundIfNeeded()
+    const dialog = openGuess()
+    const input = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(input, { target: { value: answer } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
 
-    const entryPanel = screen.getByLabelText(/letter entry/i)
-    const input = within(entryPanel).getByLabelText(/guess a letter/i)
-    const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
-    const solutionLetters = new Set(getSolutionLetters(pickRoundWords(42)[0].text))
-    const wrongLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-      .split('')
-      .filter((letter) => !solutionLetters.has(letter))
-      .slice(0, 10)
+    expect(screen.getByRole('dialog', { name: /round breakdown/i })).toBeInTheDocument()
+    expect(screen.getByText(/board cleared/i)).toBeInTheDocument()
+    expect(screen.getByText(/wallet/i)).toBeInTheDocument()
+    expect(screen.getByText(/no-hint bonus/i)).toBeInTheDocument()
+  })
 
-    for (const letter of wrongLetters) {
-      fireEvent.change(input, { target: { value: letter } })
-      fireEvent.click(guessButton)
+  it('shatters the window on the fifth wrong full-word guess and ends the human run', () => {
+    const { container } = render(<HangmanChallengeComp participants={participants} seed={42} />)
+
+    const wrongAnswers = [
+      'alpha wrong',
+      'bravo wrong',
+      'charlie wrong',
+      'delta wrong',
+      'echo wrong',
+    ]
+
+    for (const answer of wrongAnswers) {
+      const dialog = openGuess()
+      const input = within(dialog).getByLabelText(/full word guess/i)
+      fireEvent.change(input, { target: { value: answer } })
+      fireEvent.submit(input.closest('form') as HTMLFormElement)
     }
 
-    expect(document.querySelector('.hangman-challenge__shatter-burst')).toBeTruthy()
-    expect(screen.queryByLabelText(/round breakdown/i)).toBeNull()
+    expect(screen.getByText('5/5')).toBeInTheDocument()
+    expect(container.querySelector('.verdict-v2__window.is-shattered')).toBeTruthy()
 
     act(() => {
-      vi.advanceTimersByTime(650)
+      vi.advanceTimersByTime(600)
     })
 
-    expect(screen.getByLabelText(/round breakdown/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: /eliminated from verdict board/i })
+    ).toBeInTheDocument()
   })
 
-  it('renders each player as one compact scoreboard row', () => {
-    render(<HangmanChallengeComp participants={participants} seed={42} />)
+  it('starts both finalists together and spends final powers on the shared board', () => {
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={42} />)
 
-    startRoundIfNeeded()
-    const entryPanel = screen.getByLabelText(/letter entry/i)
-    const input = within(entryPanel).getByLabelText(/guess a letter/i)
-    const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
+    fireEvent.click(screen.getByRole('button', { name: /reveal now/i }))
+    expect(screen.getByText('40')).toBeInTheDocument()
 
-    for (const letter of getSolutionLetters(pickRoundWords(42)[0].text)) {
-      fireEvent.change(input, { target: { value: letter } })
-      fireEvent.click(guessButton)
-    }
+    fireEvent.click(screen.getByRole('button', { name: /lock opp/i }))
+    expect(screen.getByText(/locked for 5 seconds/i)).toBeInTheDocument()
 
     act(() => {
-      vi.runOnlyPendingTimers()
+      vi.advanceTimersByTime(5000)
     })
+    expect(screen.getByText(/race is live/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /continue to scoreboard/i }))
-
-    const scoreboard = screen.getByLabelText(/round scoreboard/i)
-    const firstRow = scoreboard.querySelector<HTMLElement>('.hangman-challenge__score-row')
-
-    expect(firstRow).not.toBeNull()
-    if (!firstRow) {
-      throw new Error('Expected a score row to be rendered')
-    }
-
-    expect(firstRow.children).toHaveLength(6)
-    expect(firstRow.querySelector('.hangman-challenge__score-primary-row')).toBeNull()
-    expect(firstRow.querySelector('.hangman-challenge__score-secondary-row')).toBeNull()
-    expect(within(firstRow).getByText(/total/i)).toBeInTheDocument()
-    expect(within(firstRow).getByText(/\+\d+/)).toBeInTheDocument()
-    expect(firstRow.querySelector('.hangman-challenge__score-status')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /buzz/i })).not.toBeDisabled()
+    expect(screen.queryByRole('button', { name: /^hint/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /buy letter/i })).toBeNull()
   })
 
-  it('opens the final verdict directly after round five', () => {
-    render(<HangmanChallengeComp participants={participants} seed={42} />)
-    const words = pickRoundWords(42)
+  it('does not let the AI solve the final before the first timed reveal', () => {
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={42} />)
 
-    for (let round = 0; round < 5; round += 1) {
-      startRoundIfNeeded()
-      const entryPanel = screen.getByLabelText(/letter entry/i)
-      const input = within(entryPanel).getByLabelText(/guess a letter/i)
-      const guessButton = within(entryPanel).getByRole('button', { name: /guess/i })
+    act(() => {
+      vi.advanceTimersByTime(1200)
+    })
 
-      for (const letter of getSolutionLetters(words[round].text)) {
-        fireEvent.change(input, { target: { value: letter } })
-        fireEvent.click(guessButton)
-      }
+    expect(screen.queryByRole('dialog', { name: /final results/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /buzz/i })).toBeInTheDocument()
+  })
 
+  it('gives the human a reaction window after each reveal before the AI can buzz', () => {
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={42} />)
+
+    for (let second = 0; second < 5; second += 1) {
       act(() => {
-        vi.advanceTimersByTime(1)
+        vi.advanceTimersByTime(1000)
       })
-
-      if (round < 4) {
-        fireEvent.click(screen.getByRole('button', { name: /continue to scoreboard/i }))
-        expect(screen.getByLabelText(/round scoreboard/i)).toBeInTheDocument()
-        fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-      }
     }
 
-    expect(screen.getByLabelText(/final results/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/round breakdown/i)).toBeNull()
-    expect(screen.queryByLabelText(/round scoreboard/i)).toBeNull()
-    expect(screen.getByText(/^final verdict$/i)).toBeInTheDocument()
+    act(() => {
+      vi.advanceTimersByTime(1500)
+    })
+
+    expect(screen.queryByRole('dialog', { name: /final results/i })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /history/i }))
+    const history = screen.getByRole('dialog', { name: /attempt history/i })
+    expect(within(history).getByText(/board revealed/i)).toBeInTheDocument()
+    expect(within(history).queryByText(/buzzed/i)).toBeNull()
+  })
+
+  it('locks only a finalist who buzzes incorrectly until the next reveal', () => {
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={42} />)
+
+    expect(screen.getByText(/race is live/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /buzz/i })).not.toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: /buzz/i }))
+    const dialog = screen.getByRole('dialog', { name: /guess the word/i })
+    const input = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(input, { target: { value: 'definitely wrong' } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
+
+    expect(screen.getByText(/you are locked until the next reveal/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /buzz/i })).toBeDisabled()
+  })
+
+  it('reports both authoritative winner and last place to the host retry contract', () => {
+    const onFinish = vi.fn()
+    const finalists = [
+      { id: 'a-human', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+      { id: 'z-ai', name: 'Warden', isHuman: false, precomputedScore: 0, previousPR: null },
+    ]
+    render(<HangmanChallengeComp participants={finalists} seed={99} onFinish={onFinish} />)
+
+    const answer = pickTournamentWords(99, 0).final.text
+    fireEvent.click(screen.getByRole('button', { name: /buzz/i }))
+    const dialog = screen.getByRole('dialog', { name: /guess the word/i })
+    const input = within(dialog).getByLabelText(/full word guess/i)
+    fireEvent.change(input, { target: { value: answer } })
+    fireEvent.submit(input.closest('form') as HTMLFormElement)
+
+    const results = screen.getByRole('dialog', { name: /final results/i })
+    fireEvent.click(within(results).getByRole('button', { name: /finish competition/i }))
+
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish.mock.calls[0]?.[2]).toMatchObject({
+      authoritativeWinnerId: 'a-human',
+      authoritativeLastPlaceId: 'z-ai',
+    })
   })
 })
