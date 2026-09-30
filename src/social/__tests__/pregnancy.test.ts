@@ -99,17 +99,29 @@ describe('Reality pregnancy lifecycle', () => {
     expect(attempt.positiveChance).toBe(0.5)
     expect(attempt.pregnant).toBe(attempt.roll < attempt.positiveChance)
 
-    const highCompatibility = startPregnancyAttempt(createInitialPregnancyStoryState(), {
+    const olderCarrier = startPregnancyAttempt(createInitialPregnancyStoryState(), {
       actor,
-      target,
+      target: { ...target, age: 50 },
       currentDay: 4,
       story: createInitialPregnancyStoryState(),
       romanceActive: true,
-      relationshipScore: 50,
+      relationshipScore: 1,
       seed: 42,
       accepted: true,
     })
-    expect(highCompatibility.attempt?.positiveChance).toBe(0.01)
+    expect(olderCarrier.attempt?.positiveChance).toBe(0.01)
+
+    const youngerCarrier = startPregnancyAttempt(createInitialPregnancyStoryState(), {
+      actor,
+      target: { ...target, age: 49 },
+      currentDay: 4,
+      story: createInitialPregnancyStoryState(),
+      romanceActive: true,
+      relationshipScore: 99,
+      seed: 42,
+      accepted: true,
+    })
+    expect(youngerCarrier.attempt?.positiveChance).toBe(0.5)
 
     const tooEarly = revealPregnancyTest(started.story, {
       attemptId: attempt.attemptId,
@@ -153,5 +165,37 @@ describe('Reality pregnancy lifecycle', () => {
       currentDay: 9,
     })
     expect(resolved.result.attempt?.resultKnown).toBe(true)
+  })
+
+  it('requires a canonical male/female pairing and rejects unknown or same-sex roles', () => {
+    expect(
+      getPregnancyEligibility({
+        actor: { ...actor, sex: 'Unknown' },
+        target,
+        currentDay: 1,
+        story: createInitialPregnancyStoryState(),
+        romanceActive: true,
+      }).eligible
+    ).toBe(false)
+    expect(
+      getPregnancyEligibility({
+        actor,
+        target: { ...target, sex: 'Male' },
+        currentDay: 1,
+        story: createInitialPregnancyStoryState(),
+        romanceActive: true,
+      }).eligible
+    ).toBe(false)
+  })
+
+  it('keeps ages and sex on a generated production roster', async () => {
+    const { createInitialGameState } = await import('../../store/gameSlice')
+    const generated = createInitialGameState({ seed: 9081 })
+    const aiPlayers = generated.players.filter((player) => !player.isUser)
+    expect(aiPlayers.length).toBeGreaterThan(0)
+    expect(aiPlayers.every((player) => Number.isFinite(player.age))).toBe(true)
+    expect(aiPlayers.every((player) => player.sex === 'Male' || player.sex === 'Female')).toBe(
+      true
+    )
   })
 })

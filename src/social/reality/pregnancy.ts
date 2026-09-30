@@ -84,32 +84,20 @@ function ageOf(player: PlayerLike): number {
   return Number.isFinite(player.age) ? Number(player.age) : 0
 }
 
-function inferredReproductiveProfile(
-  player: PlayerLike
-): Required<NonNullable<PlayerLike['reproductiveProfile']>> {
-  if (player.reproductiveProfile) {
-    return {
-      canBecomePregnant: player.reproductiveProfile.canBecomePregnant === true,
-      canCausePregnancy: player.reproductiveProfile.canCausePregnancy === true,
-    }
-  }
-  const sex = (player.sex ?? '').toLowerCase()
-  if (sex.includes('female') || sex.includes('woman')) {
-    return { canBecomePregnant: true, canCausePregnancy: false }
-  }
-  if (sex.includes('male') || sex.includes('man')) {
-    return { canBecomePregnant: false, canCausePregnancy: true }
-  }
-  // Older saves do not have reproductive metadata. Keep the feature available
-  // for those saves while allowing an explicit profile to opt out.
-  return { canBecomePregnant: true, canCausePregnancy: true }
-}
-
 export function getPregnancyCarrier(actor: PlayerLike, target: PlayerLike): string | null {
-  const actorProfile = inferredReproductiveProfile(actor)
-  const targetProfile = inferredReproductiveProfile(target)
-  if (actorProfile.canCausePregnancy && targetProfile.canBecomePregnant) return target.id
-  if (targetProfile.canCausePregnancy && actorProfile.canBecomePregnant) return actor.id
+  // Reality's 18+ storyline is intentionally restricted to a male/female
+  // pairing.  Do not infer reproductive roles from an absent/legacy profile:
+  // unknown sex must not make both contestants eligible by default.
+  const role = (player: PlayerLike): 'male' | 'female' | null => {
+    const sex = (player.sex ?? '').trim().toLowerCase()
+    if (sex === 'female' || sex === 'woman' || sex.includes('female')) return 'female'
+    if (sex === 'male' || sex === 'man' || sex.includes('male')) return 'male'
+    return null
+  }
+  const actorRole = role(actor)
+  const targetRole = role(target)
+  if (actorRole === 'male' && targetRole === 'female') return target.id
+  if (actorRole === 'female' && targetRole === 'male') return actor.id
   return null
 }
 
@@ -245,8 +233,10 @@ export function startPregnancyAttempt(
   const attemptId =
     input.attemptId ??
     `pregnancy-${attemptDay}-${input.actor.id}-${input.target.id}-${story.attempts.length + 1}`
-  const relationshipScore = input.relationshipScore ?? 0
-  const positiveChance = relationshipScore < 50 ? 0.5 : 0.01
+  const carrier = input.actor.id === eligibility.carrierId ? input.actor : input.target
+  // Deliberately counterintuitive design rule: the carrier's age, not the
+  // relationship score, determines the chance of pregnancy.
+  const positiveChance = ageOf(carrier) < 50 ? 0.5 : 0.01
   const roll = rollForAttempt([input.seed, attemptId, input.actor.id, input.target.id, attemptDay])
   const attempt: PregnancyAttempt = {
     attemptId,

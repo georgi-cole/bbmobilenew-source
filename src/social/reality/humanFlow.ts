@@ -366,7 +366,7 @@ function executePregnancyFlow(
   return result(
     true,
     revealed.pregnant
-      ? `Positive. ${target.name} is pregnant.`
+      ? `Positive. ${state.game.players.find((player) => player.id === revealed.carrierId)?.name ?? target.name} is pregnant.`
       : 'Negative. The result is attached to this attempt and will not change.',
     state.social.energyBank[input.actorId] ?? 0,
     revealed.pregnant ? 10 : 3,

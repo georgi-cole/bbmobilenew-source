@@ -354,6 +354,7 @@ const HOUSEGUEST_POOL = HOUSEGUESTS.map((hg) => ({
   id: hg.id,
   name: hg.name,
   avatar: hg.sex === 'Female' ? '👩' : '🧑',
+  age: hg.age,
   sex: hg.sex,
 }))
 
@@ -376,6 +377,8 @@ const TWIN_SHOCK_LIA_POOL_ENTRY = {
   id: TWIN_SHOCK_LIA_ID,
   name: 'Lia',
   avatar: TWIN_SHOCK_LIA_AVATAR,
+  age: 25,
+  sex: 'Female',
 }
 
 function buildSecretMissionTargetCandidates(state: GameState): string[] {
@@ -414,16 +417,39 @@ const GAME_ROSTER_SIZE = DEFAULT_ROSTER_SIZE
  * The avatar resolver finds avatars/You.png via the name-based candidate
  * capitalize('You') = 'You' → avatars/You.png.
  */
+export function resolveProfileAge(value?: string): number | undefined {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return undefined
+  const exact = Number(normalized)
+  if (Number.isFinite(exact)) return exact
+  const range = normalized.match(/\b(early|mid|late)[ -]?(\d{2})s\b/)
+  if (range) {
+    const decade = Number(range[2])
+    const offset = range[1] === 'early' ? 2 : range[1] === 'late' ? 8 : 5
+    return decade + offset
+  }
+  const decade = normalized.match(/\b(\d{2})s\b/)
+  return decade ? Number(decade[1]) + 5 : undefined
+}
+
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
-  const parsedAge = Number.parseInt(profile.bio?.age ?? '', 10)
+  const parsedAge = resolveProfileAge(profile.bio?.age)
+  const profileSex = profile.bio?.sex?.trim()
+  const reproductiveSex =
+    !profileSex && profile.bio?.reproductiveProfile?.canCausePregnancy === true
+      ? 'Male'
+      : !profileSex && profile.bio?.reproductiveProfile?.canBecomePregnant === true
+        ? 'Female'
+        : undefined
   return {
     id: 'user',
     name: profile.name,
     avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
     status: 'active',
     isUser: true,
-    ...(Number.isFinite(parsedAge) ? { age: parsedAge } : {}),
+    ...(parsedAge !== undefined ? { age: parsedAge } : {}),
+    ...(profileSex || reproductiveSex ? { sex: profileSex || reproductiveSex } : {}),
     ...(profile.bio?.reproductiveProfile
       ? { reproductiveProfile: profile.bio.reproductiveProfile }
       : {}),
@@ -461,6 +487,8 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
   const roster = !twinShockConsumed && lia ? [lia, ...picked] : picked
   return roster.map((hg) => ({
     ...hg,
+    age: hg.age,
+    sex: hg.sex,
     status: 'active' as const,
   }))
 }

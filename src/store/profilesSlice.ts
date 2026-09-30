@@ -36,6 +36,8 @@ export interface ProfileBio {
   profession?: string
   /** Age or age range (stored as string so user can write "25" or "mid-20s"). */
   age?: string
+  /** Canonical sex used by sex-specific Reality story eligibility. */
+  sex?: string
   /** Optional explicit adult-story reproductive capabilities. */
   reproductiveProfile?: {
     canBecomePregnant?: boolean
