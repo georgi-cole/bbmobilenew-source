@@ -786,8 +786,8 @@ export interface GameState {
     askCountsByPlayerId: Record<string, number>
     /** Last target name actually disclosed to each asker this week. */
     disclosedTargetByPlayerId?: Record<string, string>
-    /** Whether an LOH answer was candid, deliberately noncommittal, or a decoy. */
-    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
+    /** Whether an LOH answer was candid, partial, deliberately noncommittal, or a decoy. */
+    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
   } | null
   /**
    * The original nomination ceremony is remembered separately from the live

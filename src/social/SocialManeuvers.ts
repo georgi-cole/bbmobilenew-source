@@ -93,7 +93,7 @@ interface ManeuverGameState {
     backupTargetId: string | null
     askCountsByPlayerId: Record<string, number>
     disclosedTargetByPlayerId?: Record<string, string>
-    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
+    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
   } | null
   nominationDecisionReasons?: Record<
     string,
@@ -447,6 +447,76 @@ function getLohTargetPlan(
   }
 }
 
+type NominationDisclosure = {
+  outcome: 'truthful' | 'partial' | 'vague' | 'false'
+  closeBond: boolean
+  tier: string
+  reason: NonNullable<ManeuverGameState['nominationDecisionReasons']>[string] | null
+}
+
+export function resolveNominationDisclosure(
+  game: {
+    week?: number
+    nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
+  } | undefined,
+  actorId: string,
+  targetId: string,
+  recipientTrust: number
+): NominationDisclosure {
+  const reasons = Object.values(game?.nominationDecisionReasons ?? {}).filter(
+    (entry) => entry.week === game?.week && entry.lohId === targetId && entry.nomineeId === actorId
+  )
+  const reason = reasons.find((entry) => entry.stage === 'REPLACEMENT') ?? reasons[0] ?? null
+  const tier = reason?.relationshipTier ?? 'ORDINARY'
+  const closeBond = [
+    'RIDE_OR_DIE',
+    'ROMANCE',
+    'PRIMARY_ALLIANCE',
+    'ALLIANCE',
+    'BROMANCE',
+  ].includes(tier)
+  if (!reason) return { outcome: 'vague', closeBond, tier, reason }
+  const secrecyPressure =
+    reason.primaryReason === 'BACKDOOR_PLAN' || reason.primaryReason === 'ALLIANCE_TARGET'
+  const honestArchetypes = [
+    'loyal_anchor',
+    'jury_artisan',
+    'social_butterfly',
+    'romantic_loyalist',
+    'audience_darling',
+  ]
+  const deceptiveArchetypes = [
+    'double_agent',
+    'puppet_master',
+    'opportunist',
+    'chaos_agent',
+    'secretive',
+  ]
+  const honestTemperaments = ['calm', 'emotional']
+  const deceptiveTemperaments = ['secretive', 'paranoid', 'impulsive']
+  const honesty =
+    (honestArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) +
+    (honestTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0) -
+    (deceptiveArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) -
+    (deceptiveTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0)
+  const outcome = reason.forcedChoice
+    ? 'truthful'
+    : closeBond && (reason.trustAtDecision ?? recipientTrust) >= 20 && honesty >= 0
+      ? secrecyPressure
+        ? 'partial'
+        : 'truthful'
+      : (reason.trustAtDecision ?? recipientTrust) < -25 && honesty <= -1
+        ? 'false'
+        : secrecyPressure
+          ? honesty <= -1
+            ? 'vague'
+            : 'partial'
+          : (reason.trustAtDecision ?? recipientTrust) < 0
+            ? 'vague'
+            : 'truthful'
+  return { outcome, closeBond, tier, reason }
+}
+
 function getContextualActionSummary({
   actionId,
   actorId,
@@ -478,68 +548,18 @@ function getContextualActionSummary({
     if (game?.nominationContext?.autoNomineeId === actorId) {
       return `${lohName} explained that you entered danger automatically after the competition, not as their personal nominee.`
     }
-    const reasons = Object.values(game?.nominationDecisionReasons ?? {}).filter(
-      (reason) =>
-        reason.week === game?.week && reason.lohId === targetId && reason.nomineeId === actorId
-    )
-    const reason = reasons.find((entry) => entry.stage === 'REPLACEMENT') ?? reasons[0]
+    const disclosure = resolveNominationDisclosure(game, actorId, targetId, recipientTrust)
+    const reason = disclosure.reason
     if (!reason) {
       return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
     }
-    const tier = reason.relationshipTier ?? 'ORDINARY'
-    const trustAtDecision = reason.trustAtDecision ?? recipientTrust
-    const secrecyPressure =
-      reason.primaryReason === 'BACKDOOR_PLAN' || reason.primaryReason === 'ALLIANCE_TARGET'
-    const closeBond = [
-      'RIDE_OR_DIE',
-      'ROMANCE',
-      'PRIMARY_ALLIANCE',
-      'ALLIANCE',
-      'BROMANCE',
-    ].includes(tier)
-    const honestArchetypes = [
-      'loyal_anchor',
-      'jury_artisan',
-      'social_butterfly',
-      'romantic_loyalist',
-      'audience_darling',
-    ]
-    const deceptiveArchetypes = [
-      'double_agent',
-      'puppet_master',
-      'opportunist',
-      'chaos_agent',
-      'secretive',
-    ]
-    const honestTemperaments = ['calm', 'emotional']
-    const deceptiveTemperaments = ['secretive', 'paranoid', 'impulsive']
-    const honesty =
-      (honestArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) +
-      (honestTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0) -
-      (deceptiveArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) -
-      (deceptiveTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0)
-    const disclosure: 'truthful' | 'partial' | 'vague' | 'false' = reason.forcedChoice
-      ? 'truthful'
-      : closeBond && trustAtDecision >= 20 && honesty >= 0
-        ? secrecyPressure
-          ? 'partial'
-          : 'truthful'
-        : trustAtDecision < -25 && honesty <= -1
-          ? 'false'
-          : secrecyPressure
-            ? honesty <= -1
-              ? 'vague'
-              : 'partial'
-            : trustAtDecision < 0
-              ? 'vague'
-              : 'truthful'
-    const relationshipPrefix = closeBond
-      ? `They acknowledged that you were their ${tier.toLowerCase().replaceAll('_', ' ')}. `
+    const relationshipPrefix = disclosure.closeBond
+      ? `They acknowledged that you were their ${disclosure.tier.toLowerCase().replaceAll('_', ' ')}. `
       : ''
-    if (disclosure === 'vague') {
-      return `${lohName} said they needed options and the board was complicated, without naming the real calculation.`
+    if (disclosure.outcome === 'vague') {
+      return `${relationshipPrefix}${lohName} said they needed options and the board was complicated, without naming the real calculation.`
     }
-    if (disclosure === 'false') {
+    if (disclosure.outcome === 'false') {
       return `${relationshipPrefix}${lohName} said you were becoming too dangerous in competitions and they could not leave you comfortable.`
     }
     if (reason.forcedChoice) {
@@ -548,7 +568,7 @@ function getContextualActionSummary({
     if (reason.primaryReason === 'BETRAYAL') {
       return `${relationshipPrefix}${lohName} said the trust between you had already broken down, and putting you up was the strategic consequence.`
     }
-    if (reason.primaryReason === 'BACKDOOR_PLAN' && disclosure === 'partial') {
+    if (reason.primaryReason === 'BACKDOOR_PLAN' && disclosure.outcome === 'partial') {
       return `${relationshipPrefix}${lohName} said they needed flexibility after Safety and believed you could survive the block.`
     }
     if (reason.primaryReason === 'BACKDOOR_PLAN') {
@@ -966,7 +986,7 @@ export function executeAction(
         backupTargetId: string | null
         askCountsByPlayerId: Record<string, number>
         disclosedTargetByPlayerId?: Record<string, string>
-        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
+        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
       } | null
     }
   }
@@ -1190,13 +1210,19 @@ export function executeAction(
     })
   }
   if (actionId === 'ask_why_nominated' && lohPlanState) {
+    const nominationDisclosure = resolveNominationDisclosure(
+      rootState.game,
+      actorId,
+      targetId,
+      recipientTrust
+    )
     _store.dispatch({
       type: 'game/setLohSocialPlan',
       payload: {
         ...lohPlanState,
         disclosureOutcomeByPlayerId: {
           ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
-          [actorId]: recipientTrust >= 10 ? 'truthful' : 'vague',
+          [actorId]: nominationDisclosure.outcome,
         },
       },
     })
