@@ -7,6 +7,7 @@ import {
   startPregnancyAttempt,
   type PlayerLike,
 } from '../reality/pregnancy'
+import { resolveProfileAge } from '../../store/gameSlice'
 import { evaluateSocialActionEligibility } from '../socialActionEligibility'
 import { SOCIAL_ACTIONS } from '../socialActions'
 import { createInitialDramaSocialNetwork } from '../dramaModeEngine'
@@ -195,5 +196,10 @@ describe('Reality pregnancy lifecycle', () => {
     expect(aiPlayers.length).toBeGreaterThan(0)
     expect(aiPlayers.every((player) => Number.isFinite(player.age))).toBe(true)
     expect(aiPlayers.every((player) => player.sex === 'Male' || player.sex === 'Female')).toBe(true)
+  })
+
+  it('resolves numeric ages from profile age ranges', () => {
+    expect(resolveProfileAge('mid-20s')).toBe(25)
+    expect(resolveProfileAge('52')).toBe(52)
   })
 })
