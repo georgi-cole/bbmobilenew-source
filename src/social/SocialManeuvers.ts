@@ -455,10 +455,12 @@ type NominationDisclosure = {
 }
 
 export function resolveNominationDisclosure(
-  game: {
-    week?: number
-    nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
-  } | undefined,
+  game:
+    | {
+        week?: number
+        nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
+      }
+    | undefined,
   actorId: string,
   targetId: string,
   recipientTrust: number
@@ -468,13 +470,9 @@ export function resolveNominationDisclosure(
   )
   const reason = reasons.find((entry) => entry.stage === 'REPLACEMENT') ?? reasons[0] ?? null
   const tier = reason?.relationshipTier ?? 'ORDINARY'
-  const closeBond = [
-    'RIDE_OR_DIE',
-    'ROMANCE',
-    'PRIMARY_ALLIANCE',
-    'ALLIANCE',
-    'BROMANCE',
-  ].includes(tier)
+  const closeBond = ['RIDE_OR_DIE', 'ROMANCE', 'PRIMARY_ALLIANCE', 'ALLIANCE', 'BROMANCE'].includes(
+    tier
+  )
   if (!reason) return { outcome: 'vague', closeBond, tier, reason }
   const secrecyPressure =
     reason.primaryReason === 'BACKDOOR_PLAN' || reason.primaryReason === 'ALLIANCE_TARGET'
