@@ -1334,7 +1334,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     category: 'logic',
     retired: false,
     minPlayers: 2,
-    maxPlayers: 4,
+    maxPlayers: 5,
   },
 
   bigSpender: {

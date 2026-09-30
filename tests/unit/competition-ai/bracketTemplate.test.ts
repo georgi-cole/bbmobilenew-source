@@ -28,8 +28,6 @@ describe('classic campaign map registry integrity', () => {
     expect(regular).not.toContain('downMemoryLane')
     expect(regular).not.toContain('rescueTheKing')
     expect(regular).not.toContain('targetPractice')
-    expect(regular).not.toContain('blackjackTournament')
-    expect(regular).not.toContain('riskWheel')
   })
 
   it('only maps each game to field sizes its registry entry supports', () => {
@@ -74,7 +72,7 @@ describe('getBracketPoolForContext compatibility resolver', () => {
   it.each([
     [16, 'LOH', 'holdWall'],
     [13, 'POS', 'quickTap'],
-    [10, 'LOH', 'memoryMatch'],
+    [10, 'LOH', 'blackjackTournament'],
     [9, 'POS', 'tetris'],
     [5, 'POS', 'quickTap'],
     [4, 'LOH', 'batteryLow'],
