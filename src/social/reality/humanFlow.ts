@@ -1,7 +1,14 @@
 import type { AppDispatch, RootState } from '../../store/store'
 import type { ExecuteActionResult } from '../SocialManeuvers'
 import { executeAction, executeGroupAction, getActionById } from '../SocialManeuvers'
-import { replaceRealityDomain, replaceRealitySimulation, updateRelationship } from '../socialSlice'
+import {
+  applyEnergyDelta,
+  applyInfoDelta,
+  applyInfluenceDelta,
+  replaceRealityDomain,
+  replaceRealitySimulation,
+  updateRelationship,
+} from '../socialSlice'
 import { ALLIANCE_TAG } from '../socialAlliance'
 import { getEffectiveSocialMode } from '../socialMode'
 import { resolveActionTargetMode } from '../socialActions'
@@ -30,6 +37,20 @@ import {
 } from '../../store/gameSlice'
 import { shouldDepressionShockRefuseConversation } from '../../features/twists/depressionShock'
 import { validateSocialExecution } from '../socialExecutionGuard'
+import {
+  createInitialPregnancyStoryState,
+  getLatestAttempt,
+  getPregnancyEligibility,
+  revealPregnancyTest,
+  shouldAcceptPregnancyAttempt,
+  startPregnancyAttempt,
+} from './pregnancy'
+import {
+  addTvEvent,
+  markPregnancyReactions,
+  revealPregnancyTest as revealPregnancyTestAction,
+  startPregnancyAttempt as startPregnancyAttemptAction,
+} from '../../store/gameSlice'
 
 export interface HumanRealityActionInput {
   actorId: string
@@ -148,6 +169,209 @@ function result(
   score = 0
 ): ExecuteActionResult {
   return { success, summary, newEnergy, delta, label, score }
+}
+
+function activeRomanceForPregnancy(state: RootState, actorId: string, targetId: string): boolean {
+  const dramaArc = state.social.dramaNetwork.arcs.some(
+    (arc) =>
+      arc.status === 'active' &&
+      arc.type === 'romance' &&
+      ['established', 'climax'].includes(arc.stage) &&
+      arc.participantIds.includes(actorId) &&
+      arc.participantIds.includes(targetId)
+  )
+  const realityRomance = Object.values(state.social.reality.romances ?? {}).some(
+    (romance) =>
+      (romance.status === 'MUTUAL' ||
+        romance.status === 'ACTIVE' ||
+        romance.status === 'STRAINED') &&
+      romance.participantIds.includes(actorId) &&
+      romance.participantIds.includes(targetId)
+  )
+  return dramaArc || realityRomance
+}
+
+function executePregnancyFlow(
+  state: RootState,
+  input: HumanRealityActionInput,
+  dispatch: AppDispatch,
+  costs: { energy: number; influence: number; info: number }
+): ExecuteActionResult | null {
+  if (input.actionId !== 'try_for_baby' && input.actionId !== 'pregnancy_test') return null
+  const actor = state.game.players.find((player) => player.id === input.actorId)
+  const target = state.game.players.find((player) => player.id === input.targetId)
+  if (!actor || !target)
+    return result(
+      false,
+      'Choose a housemate for this story.',
+      state.social.energyBank[input.actorId] ?? 0
+    )
+  const relationshipScore =
+    state.social.relationships[input.actorId]?.[input.targetId]?.affinity ?? 0
+  const pregnancyStory = state.game.pregnancyStory ?? createInitialPregnancyStoryState()
+  const action = input.actionId === 'pregnancy_test' ? 'PREGNANCY_TEST' : 'TRY_FOR_A_BABY'
+  const eligibility = getPregnancyEligibility({
+    actor,
+    target,
+    currentDay: state.game.week,
+    story: pregnancyStory,
+    reality: state.social.reality,
+    romanceActive: activeRomanceForPregnancy(state, input.actorId, input.targetId),
+    relationshipScore,
+    action,
+  })
+  if (!eligibility.eligible) {
+    return result(false, eligibility.reason, state.social.energyBank[input.actorId] ?? 0)
+  }
+  if (action === 'TRY_FOR_A_BABY') {
+    const accepted = shouldAcceptPregnancyAttempt({
+      target,
+      relationshipScore,
+      seed: state.game.seed,
+      day: state.game.week,
+    })
+    if (!accepted) {
+      return result(
+        false,
+        `${target.name} declined. This has to be a mutual decision.`,
+        state.social.energyBank[input.actorId] ?? 0,
+        0,
+        'Declined'
+      )
+    }
+    const started = startPregnancyAttempt(pregnancyStory, {
+      actor,
+      target,
+      currentDay: state.game.week,
+      story: pregnancyStory,
+      reality: state.social.reality,
+      romanceActive: true,
+      relationshipScore,
+      seed: state.game.seed,
+      accepted: true,
+    })
+    if (!started.attempt)
+      return result(false, started.reason, state.social.energyBank[input.actorId] ?? 0)
+    dispatch(
+      startPregnancyAttemptAction({
+        actor,
+        target,
+        currentDay: state.game.week,
+        story: pregnancyStory,
+        reality: state.social.reality,
+        romanceActive: true,
+        relationshipScore,
+        seed: state.game.seed,
+        accepted: true,
+        attemptId: started.attempt.attemptId,
+      })
+    )
+    dispatch(applyEnergyDelta({ playerId: input.actorId, delta: -costs.energy }))
+    if (costs.influence)
+      dispatch(applyInfluenceDelta({ playerId: input.actorId, delta: -costs.influence }))
+    if (costs.info) dispatch(applyInfoDelta({ playerId: input.actorId, delta: -costs.info }))
+    dispatch(
+      updateRelationship({
+        source: actor.id,
+        target: target.id,
+        delta: 5,
+        tags: ['romance'],
+        actionSource: 'manual',
+      })
+    )
+    dispatch(
+      updateRelationship({
+        source: target.id,
+        target: actor.id,
+        delta: 5,
+        tags: ['romance'],
+        actionSource: 'system',
+      })
+    )
+    return result(
+      true,
+      `${target.name} agreed. The result will be available after Day ${started.attempt.resultAvailableDay}.`,
+      (state.social.energyBank[input.actorId] ?? 0) - costs.energy,
+      5,
+      'Accepted'
+    )
+  }
+
+  const attempt = getLatestAttempt(pregnancyStory, input.actorId, input.targetId)
+  if (!attempt)
+    return result(
+      false,
+      'There is no saved pregnancy attempt to test.',
+      state.social.energyBank[input.actorId] ?? 0
+    )
+  const resolved = revealPregnancyTest(pregnancyStory, {
+    attemptId: attempt.attemptId,
+    currentDay: state.game.week,
+  })
+  if (resolved.result.tooEarly) {
+    return result(
+      false,
+      `It is too early. The test will be ready after Day ${resolved.result.availableDay}.`,
+      state.social.energyBank[input.actorId] ?? 0,
+      0,
+      'Too early'
+    )
+  }
+  dispatch(revealPregnancyTestAction({ attemptId: attempt.attemptId, currentDay: state.game.week }))
+  const revealed = resolved.result.attempt
+  if (!revealed)
+    return result(
+      false,
+      'That pregnancy attempt is no longer available.',
+      state.social.energyBank[input.actorId] ?? 0
+    )
+  if (resolved.result.changed) {
+    dispatch(
+      updateRelationship({
+        source: actor.id,
+        target: target.id,
+        delta: revealed.pregnant ? 10 : 3,
+        actionSource: 'manual',
+      })
+    )
+    dispatch(
+      updateRelationship({
+        source: target.id,
+        target: actor.id,
+        delta: revealed.pregnant ? 10 : 3,
+        actionSource: 'system',
+      })
+    )
+  }
+  if (revealed.pregnant && !revealed.announcementEmitted) {
+    dispatch(
+      addTvEvent({
+        text: `Faux TV: ${actor.name} and ${target.name} are expecting. The House has a new story to follow.`,
+        type: 'social',
+        major: 'pregnancy_positive',
+        source: 'system',
+        channels: ['tv', 'dr'],
+        meta: {
+          pregnancyAttemptId: revealed.attemptId,
+          forceOnTv: true,
+          broadcastPriority: 'critical',
+        },
+      })
+    )
+    dispatch(markPregnancyReactions({ attemptId: revealed.attemptId, kind: 'announcement' }))
+  }
+  if (!revealed.reactionsTriggered) {
+    dispatch(markPregnancyReactions({ attemptId: revealed.attemptId, kind: 'reactions' }))
+  }
+  return result(
+    true,
+    revealed.pregnant
+      ? `Positive. ${target.name} is pregnant.`
+      : 'Negative. The result is attached to this attempt and will not change.',
+    state.social.energyBank[input.actorId] ?? 0,
+    revealed.pregnant ? 10 : 3,
+    revealed.pregnant ? 'Positive' : 'Negative'
+  )
 }
 
 function playerName(state: RootState, playerId: string | null | undefined): string {
@@ -985,6 +1209,9 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     ) {
       return result(false, 'Insufficient resources. Nothing was spent.', energy, 0, 'Unavailable')
     }
+
+    const pregnancyResult = executePregnancyFlow(state, input, dispatch, executionCosts)
+    if (pregnancyResult) return pregnancyResult
 
     const direction =
       executionTargetIds.length === 0

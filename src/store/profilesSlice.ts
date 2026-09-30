@@ -36,6 +36,11 @@ export interface ProfileBio {
   profession?: string
   /** Age or age range (stored as string so user can write "25" or "mid-20s"). */
   age?: string
+  /** Optional explicit adult-story reproductive capabilities. */
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
   /** Personal motto. */
   motto?: string
   funFact?: string
@@ -422,11 +427,23 @@ export function saveProfilesState(state: ProfilesState): void {
  * Return the active profile's name and avatar (for use in gameSlice.buildUserPlayer).
  * Falls back through the legacy userProfile storage, then to the hardcoded default.
  */
-export function loadActiveProfile(): { name: string; avatar: string; photoId?: string } {
+export function loadActiveProfile(): {
+  name: string
+  avatar: string
+  photoId?: string
+  bio?: ProfileBio
+} {
   const state = loadProfilesState()
   if (!state.isGuest && state.activeProfileId) {
     const profile = state.profiles.find((p) => p.id === state.activeProfileId)
-    if (profile) return { name: profile.name, avatar: profile.avatar, photoId: profile.photoId }
+    if (profile) {
+      return {
+        name: profile.name,
+        avatar: profile.avatar,
+        photoId: profile.photoId,
+        bio: profile.bio,
+      }
+    }
   }
   // Legacy fallback: read from old userProfile storage key.
   try {

@@ -8,6 +8,7 @@ import type { SocialState } from '../social/types'
 import type { ActivityChannel, ActivitySource } from '../services/activityService'
 import type { SeasonArchive } from '../store/seasonArchive'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
+import type { PregnancyStoryState } from '../social/reality/pregnancy'
 
 export type PlayerStatus =
   | 'active'
@@ -26,6 +27,13 @@ export interface Player {
   avatar: string
   /** Optional cast metadata used by twists that prefer mixed-gender pairings. */
   sex?: string
+  /** Canonical age used by adult-only Reality relationship actions. */
+  age?: number
+  /** Optional explicit reproductive capabilities for inclusive pregnancy rules. */
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
   status: PlayerStatus
   /** False when the player left outside a standard eviction and cannot join the Tribunal. */
   tribunalEligible?: boolean
@@ -753,6 +761,8 @@ export interface GameState {
   week: number
   phase: Phase
   players: Player[]
+  /** Persisted Reality pregnancy attempts and resolved pregnancies. */
+  pregnancyStory?: PregnancyStoryState
   /**
    * Temporary per-season competition modifiers keyed by player ID.
    * Uses neutral defaults when missing to keep simulations safe.

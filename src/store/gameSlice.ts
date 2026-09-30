@@ -55,6 +55,14 @@ import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
+import {
+  createInitialPregnancyStoryState,
+  normalizePregnancyStoryState,
+  revealPregnancyTest as resolvePregnancyTest,
+  startPregnancyAttempt as createPregnancyAttempt,
+  markPregnancyReactions as markPregnancyStoryReactions,
+  type PregnancyAttemptStartInput,
+} from '../social/reality/pregnancy'
 import { resolvePublicModeRuntimeEnabled } from '../publicOpinion/publicModeAccess'
 import {
   addDirection,
@@ -408,12 +416,17 @@ const GAME_ROSTER_SIZE = DEFAULT_ROSTER_SIZE
  */
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
+  const parsedAge = Number.parseInt(profile.bio?.age ?? '', 10)
   return {
     id: 'user',
     name: profile.name,
     avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
     status: 'active',
     isUser: true,
+    ...(Number.isFinite(parsedAge) ? { age: parsedAge } : {}),
+    ...(profile.bio?.reproductiveProfile
+      ? { reproductiveProfile: profile.bio.reproductiveProfile }
+      : {}),
   }
 }
 
@@ -722,6 +735,7 @@ export function createInitialGameState(options?: {
     currentWeekNominationRecord: null,
     lastWeekNominationRecord: null,
     nominationDecisionReasons: {},
+    pregnancyStory: createInitialPregnancyStoryState(),
     lohSafetyAdvice: null,
     prevHohId: null,
     nomineeIds: [],
@@ -4635,6 +4649,29 @@ const gameSlice = createSlice({
         event.source = action.payload.source
       }
     },
+    startPregnancyAttempt(state, action: PayloadAction<PregnancyAttemptStartInput>) {
+      const result = createPregnancyAttempt(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      )
+      if (result.attempt) state.pregnancyStory = result.story
+    },
+    revealPregnancyTest(state, action: PayloadAction<{ attemptId: string; currentDay: number }>) {
+      state.pregnancyStory = resolvePregnancyTest(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      ).story
+    },
+    markPregnancyReactions(
+      state,
+      action: PayloadAction<{ attemptId: string; kind: 'reactions' | 'announcement' }>
+    ) {
+      state.pregnancyStory = markPregnancyStoryReactions(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.attemptId,
+        action.payload.kind
+      )
+    },
     /** Update one existing broadcast without replacing its identity or position in the timeline. */
     updateTvEvent(
       state,
@@ -8379,6 +8416,7 @@ const gameSlice = createSlice({
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
+        pregnancyStory: normalizePregnancyStoryState(action.payload.pregnancyStory),
         lohSafetyAdvice: action.payload.lohSafetyAdvice ?? null,
         currentWeekNominationRecord: action.payload.currentWeekNominationRecord ?? null,
         lastWeekNominationRecord: action.payload.lastWeekNominationRecord ?? null,
@@ -11424,6 +11462,9 @@ export const {
   syncStrategicAlliances,
   setLohSocialPlan,
   addTvEvent,
+  startPregnancyAttempt,
+  revealPregnancyTest,
+  markPregnancyReactions,
   updateTvEvent,
   removeTvEvent,
   setBroadcastOverride,

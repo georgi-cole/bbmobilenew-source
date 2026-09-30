@@ -5,13 +5,26 @@ import { getEffectiveSocialMode } from './socialMode'
 import type { DramaSocialNetwork, RelationshipsMap } from './types'
 import type { RealityDomainState } from './reality/types'
 import { isActionAllowedForRealityPreset } from './socialActionManager'
+import type { PregnancyStoryState } from './reality/pregnancy'
 
 interface SocialExecutionState {
   game?: {
     phase?: string
     week?: number
     dramaSocialMode?: boolean
-    players?: Array<{ id: string; status: string; isUser?: boolean }>
+    players?: Array<{
+      id: string
+      status: string
+      isUser?: boolean
+      age?: number
+      sex?: string
+      reproductiveProfile?: {
+        canBecomePregnant?: boolean
+        canCausePregnancy?: boolean
+      }
+      aiGameIdentity?: import('../ai/aiGameIdentity').AiGameIdentity
+    }>
+    pregnancyStory?: PregnancyStoryState
     voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
   }
   settings?: { gameUX?: { dramaMode?: boolean; realityModePreset?: string } }
@@ -75,6 +88,7 @@ export function validateSocialExecution(
     relationships: state.social?.relationships,
     dramaNetwork: state.social?.dramaNetwork,
     reality: state.social?.reality,
+    pregnancyStory: state.game?.pregnancyStory,
     dramaMode,
     requireCompleteSelection: selection.requireCompleteSelection ?? true,
     allowAIOnly: selection.allowAIOnly ?? false,

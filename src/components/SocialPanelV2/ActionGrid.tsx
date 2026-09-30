@@ -155,6 +155,7 @@ export default function ActionGrid({
         relationships,
         dramaNetwork,
         reality,
+        pregnancyStory: game.pregnancyStory,
         dramaMode,
       }).eligible
     )
@@ -178,6 +179,7 @@ export default function ActionGrid({
         relationships,
         dramaNetwork,
         reality,
+        pregnancyStory: game.pregnancyStory,
         dramaMode: false,
         ignoreRealityModeGate: true,
       }).eligible
