@@ -267,6 +267,15 @@ export default function HangmanChallengeComp({
   }, [])
 
   const [finalState, setFinalState] = useState<FinalState>(() => buildInitialFinalState(players))
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (phase !== 'finalPlaying') return undefined
+    const updateClock = () => setCurrentTimeMs(Date.now())
+    updateClock()
+    const timer = window.setInterval(updateClock, 250)
+    return () => window.clearInterval(timer)
+  }, [phase])
 
   const resetRoundState = useCallback(() => {
     setPanel(null)
@@ -699,7 +708,7 @@ export default function HangmanChallengeComp({
     setPhase('finalResult')
   }, [finalState.finalists, players])
 
-  const useFinalPower = useCallback(
+  const spendFinalPower = useCallback(
     (power: 'forceReveal' | 'lockOpponent') => {
       if (phase !== 'finalPlaying' || !humanCanBuzz) return
       const humanPlayer = players.find((player) => player.id === human.id)
@@ -761,6 +770,7 @@ export default function HangmanChallengeComp({
     [
       finalState.finalists,
       finalState.revealedPositions,
+      finalState.forceRevealCooldownUntilMs,
       finalState.usedPowers,
       finalWord.text,
       human.id,
@@ -1001,9 +1011,9 @@ export default function HangmanChallengeComp({
   const canAct = !isFinal || humanCanBuzz
   const humanIsFinalLocked = isFinal && isFinalLockActive(finalState, human.id)
   const forceRevealCooldownUntil = finalState.forceRevealCooldownUntilMs[human.id] ?? 0
-  const forceRevealOnCooldown = forceRevealCooldownUntil > Date.now()
+  const forceRevealOnCooldown = forceRevealCooldownUntil > currentTimeMs
   const forceRevealCooldownSeconds = forceRevealOnCooldown
-    ? Math.ceil((forceRevealCooldownUntil - Date.now()) / 1000)
+    ? Math.ceil((forceRevealCooldownUntil - currentTimeMs) / 1000)
     : 0
 
   return (
@@ -1148,7 +1158,7 @@ export default function HangmanChallengeComp({
                 currentBudget < FINAL_FORCE_REVEAL_COST ||
                 computeRevealRatio(finalWord.text, finalState.revealedPositions) >= 1
               }
-              onClick={() => useFinalPower('forceReveal')}
+              onClick={() => spendFinalPower('forceReveal')}
             >
               <span>REVEAL NOW</span>
               <small>
@@ -1164,7 +1174,7 @@ export default function HangmanChallengeComp({
                 finalState.usedPowers[human.id]?.lockOpponent ||
                 currentBudget < FINAL_LOCK_COST
               }
-              onClick={() => useFinalPower('lockOpponent')}
+              onClick={() => spendFinalPower('lockOpponent')}
             >
               <span>LOCK OPP</span>
               <small>{FINAL_LOCK_COST} ◉</small>

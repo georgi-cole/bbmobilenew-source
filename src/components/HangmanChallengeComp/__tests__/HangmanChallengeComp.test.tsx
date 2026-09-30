@@ -54,7 +54,7 @@ describe('HangmanChallengeComp V2', () => {
     render(<HangmanChallengeComp participants={participants} seed={42} />)
 
     fireEvent.click(screen.getByRole('button', { name: /^hint/i }))
-    let hints = screen.getByRole('dialog', { name: /^hints$/i })
+    const hints = screen.getByRole('dialog', { name: /^hints$/i })
     fireEvent.click(within(hints).getByRole('button', { name: /reveal hint/i }))
 
     expect(screen.getByText('45')).toBeInTheDocument()
