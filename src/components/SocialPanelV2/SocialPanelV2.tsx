@@ -178,6 +178,10 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
+  const weekendActive = game.weekendInterlude?.active === true
+  const socialEligibilityGame = weekendActive
+    ? { ...game, phase: 'social_2' as const }
+    : game
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
@@ -186,12 +190,12 @@ export default function SocialPanelV2() {
   }, [dramaMode, humanPlayer, socialState.reality?.alliances])
   const activePublicDirection = useMemo(
     () =>
-      game.publicModeEnabled && humanPlayer
+      game.publicModeEnabled && !weekendActive && humanPlayer
         ? publicDirections.find(
             (direction) => direction.playerId === humanPlayer.id && direction.status === 'active'
           )
         : undefined,
-    [game.publicModeEnabled, humanPlayer, publicDirections]
+    [game.publicModeEnabled, humanPlayer, publicDirections, weekendActive]
   )
   const cupidPartners = useMemo(() => {
     if (!isCupidArrowActive(game) || !humanPlayer) return {}
@@ -435,9 +439,15 @@ export default function SocialPanelV2() {
     usesMultipleTargets,
   ])
 
-  const energy = energyBank?.[humanPlayer?.id ?? ''] ?? 0
-  const influence = influenceBank?.[humanPlayer?.id ?? ''] ?? 0
-  const info = infoBank?.[humanPlayer?.id ?? ''] ?? 0
+  const energy = weekendActive
+    ? (game.weekendInterlude?.wallet.energy ?? 0)
+    : (energyBank?.[humanPlayer?.id ?? ''] ?? 0)
+  const influence = weekendActive
+    ? (game.weekendInterlude?.wallet.influence ?? 0)
+    : (influenceBank?.[humanPlayer?.id ?? ''] ?? 0)
+  const info = weekendActive
+    ? (game.weekendInterlude?.wallet.info ?? 0)
+    : (infoBank?.[humanPlayer?.id ?? ''] ?? 0)
   const hasExecutableSelection =
     Boolean(selectedActionId) && hasRequiredTargets && (!needsSubject || selectedSubjectId !== null)
 
@@ -457,7 +467,7 @@ export default function SocialPanelV2() {
     if (usesMultipleTargets && targetMode !== 'multi') {
       for (const targetId of targetIds) {
         const result = validateSocialExecution(
-          { game, settings, vip, social: socialState },
+          { game: socialEligibilityGame, settings, vip, social: socialState },
           {
             action: selectedAction,
             actorId: humanPlayer.id,
@@ -472,7 +482,7 @@ export default function SocialPanelV2() {
     }
 
     return validateSocialExecution(
-      { game, settings, vip, social: socialState },
+      { game: socialEligibilityGame, settings, vip, social: socialState },
       {
         action: selectedAction,
         actorId: humanPlayer.id,
@@ -484,6 +494,7 @@ export default function SocialPanelV2() {
   }, [
     effectivePrimaryTargetId,
     game,
+    socialEligibilityGame,
     hasExecutableSelection,
     humanPlayer,
     selectedAction,
@@ -597,6 +608,22 @@ export default function SocialPanelV2() {
     } else if (!humanIsLoh) {
       hidden.add('ask_hold_safety')
     }
+    if (weekendActive) {
+      ;[
+        'pitch_target',
+        'suggest_replacement',
+        'ask_use_safety',
+        'ask_safety_plan',
+        'ask_hold_safety',
+        'ask_loh_target',
+        'rally_votes_against',
+        'vote_rally',
+        'nominate',
+        'try_for_baby',
+        'pregnancy_test_self',
+        'paternity_test_self',
+      ].forEach((actionId) => hidden.add(actionId))
+    }
     return hidden
   }, [
     game.lohId,
@@ -612,6 +639,7 @@ export default function SocialPanelV2() {
     primaryTargetId,
     actionHistory,
     socialActions,
+    weekendActive,
   ])
 
   const handleActionClick = useCallback(
@@ -1046,14 +1074,22 @@ export default function SocialPanelV2() {
       <a className="sp2-skip-link" href="#sp2-body">
         Skip to actions
       </a>
-      <div className={`sp2-modal${dramaMode ? ' sp2-modal--drama' : ' sp2-modal--normal'}`}>
+      <div
+        className={`sp2-modal${dramaMode ? ' sp2-modal--drama' : ' sp2-modal--normal'}${weekendActive ? ' sp2-modal--weekend' : ''}`}
+      >
         <header className="sp2-header" data-reality-tutorial="social-header">
           <span className="sp2-header__identity">
-            <span className="sp2-header__title">{dramaMode ? 'Reality Mode' : 'Social Phase'}</span>
-            <span className="sp2-header__subtitle">House relationships</span>
+            <span className="sp2-header__title">
+              {weekendActive ? 'Weekend Social' : dramaMode ? 'Reality Mode' : 'Social Phase'}
+            </span>
+            <span className="sp2-header__subtitle">
+              {weekendActive
+                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · credits expire after the weekend`
+                : 'House relationships'}
+            </span>
           </span>
           <div
-            className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}`}
+            className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}${weekendActive ? ' sp2-header__resources--weekend' : ''}`}
             data-reality-tutorial="resources"
           >
             <span className="sp2-energy-chip" aria-live="polite" aria-label={`Energy: ${energy}`}>
@@ -1304,7 +1340,7 @@ export default function SocialPanelV2() {
                   : null
               }
               dramaMode={dramaMode}
-              currentPhase={game.phase}
+              currentPhase={weekendActive ? 'social_2' : game.phase}
               dramaNetwork={dramaNetwork}
               hiddenActionIds={hiddenContextualActionIds}
               energyCostOverrides={
