@@ -24,16 +24,15 @@ export default function WeekendInterludeOverlay() {
   const game = useAppSelector((state) => state.game)
   const social = useAppSelector((state) => state.social)
   const weekend = game.weekendInterlude
-  const [seasonFactIndex, setSeasonFactIndex] = useState(0)
+  const [seasonFactNavigation, setSeasonFactNavigation] = useState({ key: '', index: 0 })
+  const seasonFactKey = weekend ? `${weekend.afterDay}:${weekend.episode}` : ''
+  const seasonFactIndex =
+    seasonFactNavigation.key === seasonFactKey ? seasonFactNavigation.index : 0
 
   const activePlayers = game.players.filter(
     (player) => player.status !== 'evicted' && player.status !== 'jury'
   )
   const human = activePlayers.find((player) => player.isUser)
-
-  useEffect(() => {
-    setSeasonFactIndex(0)
-  }, [weekend?.afterDay, weekend?.episode])
 
   useEffect(() => {
     if (
@@ -296,7 +295,12 @@ export default function WeekendInterludeOverlay() {
                 <button
                   type="button"
                   className="weekend-interlude__primary"
-                  onClick={() => setSeasonFactIndex((index) => index + 1)}
+                  onClick={() =>
+                    setSeasonFactNavigation({
+                      key: seasonFactKey,
+                      index: seasonFactIndex + 1,
+                    })
+                  }
                 >
                   Next Housemate
                 </button>
