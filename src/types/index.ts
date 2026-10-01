@@ -324,6 +324,12 @@ export interface CustomBroadcastMessage {
   /** Human-readable authoring key shown in the manager and emitted metadata. */
   key?: string
   phase: Phase
+  /** Weekend interludes are opt-in per season so legacy saves keep their original schedule. */
+  weekendsEnabledForSeason?: boolean
+  /** Numbered days whose weekend interlude has already been completed. */
+  completedWeekendDays?: number[]
+  /** Active non-numbered weekend interlude layered over week_end. */
+  weekendInterlude?: WeekendInterludeState | null
   /** Limit this authored message to one campaign. Omit it to use the message everywhere. */
   campaign?: BroadcastCampaign
   text: string
@@ -752,6 +758,37 @@ export interface StrategicAllianceSnapshot {
   memberPerceivedStatus: Record<string, 'CORE' | 'REGULAR' | 'PERIPHERAL'>
   memberPlanBeliefs: Record<string, string[]>
   infiltratorIds: string[]
+}
+
+export type WeekendEpisode = 'hub_says' | 'party' | 'season_so_far'
+
+export interface WeekendResourceWallet {
+  energy: number
+  influence: number
+  info: number
+}
+
+export interface HubSaysQuestionResult {
+  questionId: string
+  humanVoteTargetId: string
+  winnerId: string
+  voteCounts: Record<string, number>
+}
+
+export interface WeekendInterludeState {
+  active: true
+  /** Numbered gameplay day that has already completed. The weekend never increments this value. */
+  afterDay: 5 | 10 | 15
+  /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
+  weekendDay: 1 | 2
+  episode: WeekendEpisode
+  stage: 'hub_says' | 'social'
+  wallet: WeekendResourceWallet
+  hubSays?: {
+    questionIds: string[]
+    currentQuestionIndex: number
+    results: HubSaysQuestionResult[]
+  }
 }
 
 export interface GameState {
