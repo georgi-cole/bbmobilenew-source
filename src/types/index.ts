@@ -769,6 +769,44 @@ export interface HubSaysQuestionResult {
   voteCounts: Record<string, number>
 }
 
+export type WeekendPartyBeatKind =
+  | 'secret_spill'
+  | 'opinion_spill'
+  | 'romance_moment'
+  | 'bromance_moment'
+  | 'rivalry_moment'
+  | 'betrayal_moment'
+  | 'alliance_huddle'
+
+export interface WeekendPartyBeat {
+  id: string
+  weekendDay: 1 | 2
+  kind: WeekendPartyBeatKind
+  text: string
+  visibility: 'private' | 'house'
+  speakerId?: string
+  subjectIds: string[]
+  /** Grounding pointers used when a private spill teaches the human real information. */
+  secretId?: string
+  factId?: string
+}
+
+export interface WeekendSeasonFact {
+  playerId: string
+  kind:
+    | 'battle_back'
+    | 'double_eviction'
+    | 'hub_says'
+    | 'nomination_survivor'
+    | 'loh_record'
+    | 'pos_record'
+    | 'power_record'
+    | 'never_nominated'
+    | 'late_entrant'
+    | 'still_here'
+  text: string
+}
+
 export interface WeekendInterludeState {
   active: true
   /** Numbered gameplay day that has already completed. The weekend never increments this value. */
@@ -776,12 +814,18 @@ export interface WeekendInterludeState {
   /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
   weekendDay: 1 | 2
   episode: WeekendEpisode
-  stage: 'hub_says' | 'social'
+  stage: 'hub_says' | 'party' | 'season_so_far' | 'social'
   wallet: WeekendResourceWallet
   hubSays?: {
     questionIds: string[]
     currentQuestionIndex: number
     results: HubSaysQuestionResult[]
+  }
+  party?: {
+    beats: WeekendPartyBeat[]
+  }
+  seasonSoFar?: {
+    facts: WeekendSeasonFact[]
   }
 }
 
