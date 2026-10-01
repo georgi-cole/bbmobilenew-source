@@ -129,6 +129,7 @@ import {
   type TwinShockTurnResult,
 } from '../bb/twinShock'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../constants/tvEvents'
+import { buildHubSaysQuestionIds, resolveHubSaysQuestion } from '../features/weekend/hubSays'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -756,6 +757,9 @@ export function createInitialGameState(options?: {
     season,
     week: 1,
     phase: 'season_start',
+    weekendsEnabledForSeason: true,
+    completedWeekendDays: [],
+    weekendInterlude: null,
     seed,
     seasonDirectorPlan,
     seasonDirectorLastSpotlightDay: null,
@@ -8444,6 +8448,10 @@ const gameSlice = createSlice({
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
+        // Saves created before weekends existed keep the original uninterrupted calendar.
+        weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
+        completedWeekendDays: action.payload.completedWeekendDays ?? [],
+        weekendInterlude: action.payload.weekendInterlude ?? null,
         // Season archives are persisted independently from in-progress runs.
         // New snapshots omit them to stay small, so retain the active profile's
         // already-loaded archive history while hydrating a campaign.
@@ -8587,6 +8595,98 @@ const gameSlice = createSlice({
       state.hasSeenConfessionalSpotlight = action.payload
     },
 
+    /** Resolve one Weekend 1 house-poll question. Only the winner is player-facing. */
+    submitHubSaysVote(
+      state,
+      action: PayloadAction<{ questionId: string; targetId: string }>
+    ) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub) return
+      const expectedQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (!expectedQuestionId || expectedQuestionId !== action.payload.questionId) return
+      if (hub.results.some((result) => result.questionId === expectedQuestionId)) return
+      const resolved = resolveHubSaysQuestion(state, expectedQuestionId, action.payload.targetId)
+      if (!resolved) return
+      hub.results.push({
+        questionId: expectedQuestionId,
+        humanVoteTargetId: action.payload.targetId,
+        winnerId: resolved.winnerId,
+        voteCounts: resolved.voteCounts,
+      })
+    },
+
+    continueHubSays(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub) return
+      const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (!currentQuestionId || !hub.results.some((result) => result.questionId === currentQuestionId)) return
+      if (hub.currentQuestionIndex >= hub.questionIds.length - 1) {
+        weekend.stage = 'social'
+        return
+      }
+      hub.currentQuestionIndex += 1
+    },
+
+    advanceWeekendDay(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 1) return
+      weekend.weekendDay = 2
+    },
+
+    spendWeekendSocialResources(
+      state,
+      action: PayloadAction<{ energy: number; influence: number; info: number }>
+    ) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      const costs = {
+        energy: Math.max(0, action.payload.energy),
+        influence: Math.max(0, action.payload.influence),
+        info: Math.max(0, action.payload.info),
+      }
+      if (
+        weekend.wallet.energy < costs.energy ||
+        weekend.wallet.influence < costs.influence ||
+        weekend.wallet.info < costs.info
+      ) return
+      weekend.wallet.energy -= costs.energy
+      weekend.wallet.influence -= costs.influence
+      weekend.wallet.info -= costs.info
+    },
+
+    adjustWeekendSocialResources(
+      state,
+      action: PayloadAction<{ influence?: number; info?: number; energy?: number }>
+    ) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      weekend.wallet.energy = Math.max(
+        0,
+        Math.min(30, weekend.wallet.energy + (action.payload.energy ?? 0))
+      )
+      weekend.wallet.influence = Math.max(
+        0,
+        Math.min(999, weekend.wallet.influence + (action.payload.influence ?? 0))
+      )
+      weekend.wallet.info = Math.max(
+        0,
+        Math.min(999, weekend.wallet.info + (action.payload.info ?? 0))
+      )
+    },
+
+    completeWeekendInterlude(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
+      state.completedWeekendDays = Array.from(
+        new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+      ).sort((left, right) => left - right)
+      state.weekendInterlude = null
+    },
+
     /** Generate a new random RNG seed (debug only). */
     rerollSeed(state) {
       // Mix Math.random() with the low 32 bits of Date.now() via XOR to derive a 32-bit seed.
@@ -8600,6 +8700,7 @@ const gameSlice = createSlice({
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
       if (
+        state.weekendInterlude?.active ||
         state.replacementNeeded ||
         state.awaitingNominations ||
         (state.awaitingPublicSave &&
@@ -8657,6 +8758,39 @@ const gameSlice = createSlice({
         state.phase === 'final3_comp2_minigame' ||
         state.phase === 'final3_comp3_minigame'
       ) {
+        return
+      }
+
+      // Weekend interludes are layered over week_end without incrementing game.week.
+      // Weekend 1 is intentionally the only implemented interlude in this increment;
+      // Day 10/15 continue through the legacy path until their episodes are added.
+      if (
+        state.phase === 'week_end' &&
+        state.weekendsEnabledForSeason === true &&
+        state.week === 5 &&
+        !(state.completedWeekendDays ?? []).includes(state.week) &&
+        state.mode !== 'survival' &&
+        activeHousemateCount(state) > 3 &&
+        !state.finalThree
+      ) {
+        state.weekendInterlude = {
+          active: true,
+          afterDay: 5,
+          weekendDay: 1,
+          episode: 'hub_says',
+          stage: 'hub_says',
+          wallet: { energy: 30, influence: 999, info: 999 },
+          hubSays: {
+            questionIds: buildHubSaysQuestionIds(state.gameId, state.season, 5, 5),
+            currentQuestionIndex: 0,
+            results: [],
+          },
+        }
+        pushEvent(state, 'The weekend has begun. No competitions. No nominations. The Hub has other plans.', 'game', {
+          major: 'weekend_1',
+          weekendDay: 1,
+          forceOnTv: true,
+        })
         return
       }
 
@@ -11683,6 +11817,12 @@ export const {
   rerollSeed,
   hydrateGame,
   setHasSeenConfessionalSpotlight,
+  submitHubSaysVote,
+  continueHubSays,
+  advanceWeekendDay,
+  spendWeekendSocialResources,
+  adjustWeekendSocialResources,
+  completeWeekendInterlude,
   submitTwinShockAnswer,
   completeTwinShockRevealAnimation,
   triggerSecretMission,
