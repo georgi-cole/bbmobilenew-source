@@ -7,6 +7,7 @@ import type {
   GameState,
   Player,
   StrategicAllianceSnapshot,
+  WeekendPartyBeat,
   Phase,
   TvEvent,
   MinigameResult,
@@ -135,6 +136,7 @@ import {
   getHubSaysQuestion,
   resolveHubSaysQuestion,
 } from '../features/weekend/hubSays'
+import { buildSeasonSoFarFacts } from '../features/weekend/seasonSoFar'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -8662,6 +8664,55 @@ const gameSlice = createSlice({
       hub.currentQuestionIndex += 1
     },
 
+    continueWeekendFeature(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      if (
+        (weekend.episode === 'party' && weekend.stage === 'party') ||
+        (weekend.episode === 'season_so_far' && weekend.stage === 'season_so_far')
+      ) {
+        weekend.stage = 'social'
+      }
+    },
+
+    recordWeekendPartyBeat(state, action: PayloadAction<WeekendPartyBeat>) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        weekend.episode !== 'party' ||
+        weekend.stage !== 'social' ||
+        !weekend.party ||
+        action.payload.weekendDay !== weekend.weekendDay ||
+        weekend.party.beats.some((beat) => beat.weekendDay === action.payload.weekendDay)
+      ) {
+        return
+      }
+      weekend.party.beats.push(action.payload)
+      pushEvent(state, `THE HUB PARTY — ${action.payload.text}`, 'social', {
+        weekend: true,
+        weekendDay: action.payload.weekendDay,
+        weekendEpisode: 'party',
+        partyBeatKind: action.payload.kind,
+        partyBeatVisibility: action.payload.visibility,
+        suppressTv: true,
+      })
+      state.history = [
+        ...(state.history ?? []),
+        {
+          type: 'weekend_party_beat',
+          week: state.week,
+          data: {
+            beatId: action.payload.id,
+            kind: action.payload.kind,
+            visibility: action.payload.visibility,
+            speakerId: action.payload.speakerId ?? null,
+            subjectIds: action.payload.subjectIds,
+          },
+          timestamp: Date.now(),
+        },
+      ].slice(-MAX_GAME_HISTORY_EVENTS)
+    },
+
     advanceWeekendDay(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 1) return
@@ -8800,42 +8851,73 @@ const gameSlice = createSlice({
       }
 
       // Weekend interludes are layered over week_end without incrementing game.week.
-      // Weekend 1 is intentionally the only implemented interlude in this increment;
-      // Day 10/15 continue through the legacy path until their episodes are added.
+      // Every episode reuses the same pause/resume wrapper; only its presentation content differs.
+      const weekendMilestone =
+        state.week === 5 ? 5 : state.week === 10 ? 10 : state.week === 15 ? 15 : null
       if (
         state.phase === 'week_end' &&
         state.weekendsEnabledForSeason === true &&
-        state.week === 5 &&
-        !(state.completedWeekendDays ?? []).includes(state.week) &&
+        weekendMilestone != null &&
+        !(state.completedWeekendDays ?? []).includes(weekendMilestone) &&
         state.mode !== 'survival' &&
         activeHousemateCount(state) > 3 &&
         Boolean(getHumanPlayer(state)) &&
         isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
         !state.finalThree
       ) {
-        state.weekendInterlude = {
-          active: true,
-          afterDay: 5,
-          weekendDay: 1,
-          episode: 'hub_says',
-          stage: 'hub_says',
-          wallet: { energy: 30, influence: 999, info: 999 },
-          hubSays: {
-            questionIds: buildHubSaysQuestionIds(state.gameId, state.season, 5, 5),
-            currentQuestionIndex: 0,
-            results: [],
-          },
-        }
-        pushEvent(
-          state,
-          'The weekend has begun. No competitions. No nominations. The Hub has other plans.',
-          'game',
-          {
-            major: 'weekend_1',
+        if (weekendMilestone === 5) {
+          state.weekendInterlude = {
+            active: true,
+            afterDay: 5,
             weekendDay: 1,
-            forceOnTv: true,
+            episode: 'hub_says',
+            stage: 'hub_says',
+            wallet: { energy: 30, influence: 999, info: 999 },
+            hubSays: {
+              questionIds: buildHubSaysQuestionIds(state.gameId, state.season, 5, 5),
+              currentQuestionIndex: 0,
+              results: [],
+            },
           }
-        )
+        } else if (weekendMilestone === 10) {
+          state.weekendInterlude = {
+            active: true,
+            afterDay: 10,
+            weekendDay: 1,
+            episode: 'party',
+            stage: 'party',
+            wallet: { energy: 30, influence: 999, info: 999 },
+            party: { beats: [] },
+          }
+        } else {
+          state.weekendInterlude = {
+            active: true,
+            afterDay: 15,
+            weekendDay: 1,
+            episode: 'season_so_far',
+            stage: 'season_so_far',
+            wallet: { energy: 30, influence: 999, info: 999 },
+            seasonSoFar: { facts: buildSeasonSoFarFacts(state) },
+          }
+        }
+
+        const intro =
+          weekendMilestone === 5
+            ? 'The weekend has begun. No competitions. No nominations. The Hub has other plans.'
+            : weekendMilestone === 10
+              ? 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
+              : 'The season is slowing down for one weekend. The Big Eye is looking back at how everyone still here got this far.'
+        pushEvent(state, intro, 'game', {
+          major: `weekend_${weekendMilestone === 5 ? 1 : weekendMilestone === 10 ? 2 : 3}`,
+          weekendDay: 1,
+          weekendEpisode:
+            weekendMilestone === 5
+              ? 'hub_says'
+              : weekendMilestone === 10
+                ? 'party'
+                : 'season_so_far',
+          forceOnTv: true,
+        })
         return
       }
 
@@ -11864,6 +11946,8 @@ export const {
   setHasSeenConfessionalSpotlight,
   submitHubSaysVote,
   continueHubSays,
+  continueWeekendFeature,
+  recordWeekendPartyBeat,
   advanceWeekendDay,
   spendWeekendSocialResources,
   adjustWeekendSocialResources,
