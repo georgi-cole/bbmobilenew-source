@@ -156,7 +156,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
   )
 }
 
-export function buildSeasonSoFarFacts(state: GameState): WeekendSeasonFact[] {
+// Prefer distinctive, season-earned facts before falling back to simple survival context.\nexport function buildSeasonSoFarFacts(state: GameState): WeekendSeasonFact[] {
   const players = activePlayers(state)
   const usedKeys = new Set<string>()
   const facts: WeekendSeasonFact[] = []
