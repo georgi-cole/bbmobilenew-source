@@ -14,7 +14,7 @@ import {
   selectWeekStartRelSnapshot,
   renameRealityAllianceRecord,
 } from '../../social/socialSlice'
-import { addTvEvent } from '../../store/gameSlice'
+import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
 import { SocialManeuvers } from '../../social/SocialManeuvers'
 import { getSocialNarrative } from './socialNarratives'
 import { buildDrSessionSummary } from '../../services/activityService'
@@ -243,6 +243,7 @@ export default function SocialPanelV2() {
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
+  const [pregnancyRolePromptOpen, setPregnancyRolePromptOpen] = useState(false)
   const [socialTutorialVariant, setSocialTutorialVariant] = useState<SocialTutorialVariant | null>(
     () =>
       socialPanelOpen ? resolveSocialTutorialVariant(activeProfileId, isGuest, dramaMode) : null
@@ -499,7 +500,9 @@ export default function SocialPanelV2() {
     hasExecutableSelection && (executionEligibility.eligible || !executionEligibility.reason)
 
   const selectedScopeLabel = selectedAction
-    ? selectedActionId === 'idle'
+    ? selectedActionId === 'idle' ||
+      selectedActionId === 'pregnancy_test_self' ||
+      selectedActionId === 'paternity_test_self'
       ? 'You'
       : selectedActionId === 'consult_alliance'
         ? 'Alliance'
@@ -686,6 +689,17 @@ export default function SocialPanelV2() {
     ) {
       return
     }
+
+    if (
+      selectedActionId === 'try_for_baby' &&
+      !humanPlayer.sex &&
+      game.pregnancyStory?.humanRoleChoice === undefined
+    ) {
+      setPregnancyRolePromptOpen(true)
+      setFeedbackMsg(null)
+      return
+    }
+
     isExecutingRef.current = true
     setExecuting(true)
     setFeedbackMsg(null)
@@ -833,7 +847,9 @@ export default function SocialPanelV2() {
       const persistentText =
         selectedActionId === 'group_chat'
           ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
-          : selectedActionId === 'ask_loh_target'
+          : selectedActionId === 'ask_loh_target' ||
+              selectedActionId === 'pregnancy_test_self' ||
+              selectedActionId === 'paternity_test_self'
             ? firstResult.summary
             : subjectName
               ? `You used ${actionTitle} with ${targetNames[0]} about ${subjectName}.`
@@ -881,6 +897,7 @@ export default function SocialPanelV2() {
     energy,
     executionEligibility,
     game.players,
+    game.pregnancyStory,
     hasExecutableSelection,
     humanPlayer,
     info,
@@ -1384,6 +1401,64 @@ export default function SocialPanelV2() {
           </button>
         </footer>
       </div>
+      {pregnancyRolePromptOpen && (
+        <div className="sp2-story-role-overlay" role="presentation">
+          <section
+            className="sp2-story-role-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sp2-story-role-title"
+          >
+            <span className="sp2-story-role-eyebrow">Pregnancy storyline</span>
+            <h2 id="sp2-story-role-title">How should this storyline apply to you?</h2>
+            <p>
+              This one-time choice is stored only for the current season. It does not change your
+              public profile.
+            </p>
+            <div className="sp2-story-role-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setHumanPregnancyRole('Male'))
+                  setPregnancyRolePromptOpen(false)
+                  setFeedbackMsg('Story role set for this season. Tap Execute again.')
+                }}
+              >
+                Male
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(setHumanPregnancyRole('Female'))
+                  setPregnancyRolePromptOpen(false)
+                  setFeedbackMsg('Story role set for this season. Tap Execute again.')
+                }}
+              >
+                Female
+              </button>
+              <button
+                type="button"
+                className="sp2-story-role-actions__secondary"
+                onClick={() => {
+                  dispatch(setHumanPregnancyRole('disabled'))
+                  setPregnancyRolePromptOpen(false)
+                  setSelectedActionId(null)
+                  setFeedbackMsg('Pregnancy storyline disabled for this season.')
+                }}
+              >
+                Don&apos;t use this storyline
+              </button>
+            </div>
+            <button
+              type="button"
+              className="sp2-story-role-cancel"
+              onClick={() => setPregnancyRolePromptOpen(false)}
+            >
+              Not now
+            </button>
+          </section>
+        </div>
+      )}
       {showSocialTutorialPrompt && socialTutorialVariant && (
         <RealitySocialTutorialPrompt
           variant={socialTutorialVariant}

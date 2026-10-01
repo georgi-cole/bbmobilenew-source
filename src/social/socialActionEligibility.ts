@@ -5,10 +5,19 @@ import { isRealityExclusiveAction, resolveActionTargetMode } from './socialActio
 import type { DramaSocialNetwork, RelationshipsMap } from './types'
 import type { RealityDomainState } from './reality/types'
 import { hasCanonicalRelationshipTag, isRepairableRelationship } from './relationshipSemantics'
+import { getPregnancyEligibility, type PregnancyStoryState } from './reality/pregnancy'
 
 export interface ActionEligibilityPlayer {
   id: string
   status: PlayerStatus | string
+  isUser?: boolean
+  age?: number
+  sex?: string
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
+  aiGameIdentity?: { archetype?: string; temperament?: string }
 }
 
 export interface SocialActionEligibilityContext {
@@ -24,6 +33,7 @@ export interface SocialActionEligibilityContext {
   relationships?: RelationshipsMap
   dramaNetwork?: DramaSocialNetwork
   reality?: RealityDomainState
+  pregnancyStory?: PregnancyStoryState
   dramaMode?: boolean
   /** Used by Classic upgrade previews to test relevance without unlocking execution. */
   ignoreRealityModeGate?: boolean
@@ -104,6 +114,7 @@ export function evaluateSocialActionEligibility({
   relationships,
   dramaNetwork,
   reality,
+  pregnancyStory,
   dramaMode = false,
   ignoreRealityModeGate = false,
   requireCompleteSelection = false,
@@ -155,7 +166,9 @@ export function evaluateSocialActionEligibility({
     requireCompleteSelection &&
     players.length > 0 &&
     targetMode !== 'none' &&
-    targets.some((targetId) => !isInHouse(playerById.get(targetId)?.status))
+    targets.some(
+      (targetId) => action.id !== 'pregnancy_test' && !isInHouse(playerById.get(targetId)?.status)
+    )
   ) {
     return unavailable('That housemate is no longer available')
   }
@@ -296,6 +309,53 @@ export function evaluateSocialActionEligibility({
         )
       }
     }
+  }
+
+  if (action.id === 'pregnancy_test_self' || action.id === 'paternity_test_self') {
+    if (!actorId || !pregnancyStory) return unavailable('This story is not available yet')
+    const actor = playerById.get(actorId)
+    if (!actor) return unavailable('The player profile is unavailable')
+    const pregnancyEligibility = getPregnancyEligibility({
+      actor,
+      target: actor,
+      currentDay: week ?? 0,
+      story: pregnancyStory,
+      reality,
+      action: action.id === 'paternity_test_self' ? 'PATERNITY_TEST_SELF' : 'PREGNANCY_TEST_SELF',
+    })
+    if (!pregnancyEligibility.eligible) return unavailable(pregnancyEligibility.reason)
+  }
+
+  if (action.id === 'try_for_baby' || action.id === 'pregnancy_test') {
+    if (!actorId || targets.length !== 1 || !pregnancyStory) {
+      return unavailable(
+        action.id === 'pregnancy_test'
+          ? 'Select the pregnancy carrier'
+          : 'Select a romantic partner'
+      )
+    }
+    const actor = playerById.get(actorId)
+    const target = playerById.get(targets[0])
+    if (!actor || !target) return unavailable('Select a compatible relationship')
+    const pairArcs = (dramaNetwork?.arcs ?? []).filter(
+      (arc) =>
+        arc.status === 'active' &&
+        arc.type === 'romance' &&
+        arc.participantIds.includes(actorId) &&
+        arc.participantIds.includes(target.id)
+    )
+    const romanceActive = pairArcs.some((arc) => ['established', 'climax'].includes(arc.stage))
+    const pregnancyEligibility = getPregnancyEligibility({
+      actor,
+      target,
+      currentDay: week ?? 0,
+      story: pregnancyStory,
+      reality,
+      romanceActive,
+      relationshipScore: relationships?.[actorId]?.[target.id]?.affinity ?? 0,
+      action: action.id === 'pregnancy_test' ? 'PREGNANCY_TEST' : 'TRY_FOR_A_BABY',
+    })
+    if (!pregnancyEligibility.eligible) return unavailable(pregnancyEligibility.reason)
   }
 
   if (action.requiresKnownSecret) {

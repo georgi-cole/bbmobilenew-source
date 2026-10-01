@@ -72,6 +72,12 @@ interface ManeuverPlayer {
   name?: string
   status: string
   isUser?: boolean
+  age?: number
+  sex?: string
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
   aiGameIdentity?: {
     archetype?: string
     temperament?: string
@@ -84,6 +90,7 @@ interface ManeuverGameState {
   phase?: string
   lohId?: string | null
   nomineeIds?: string[]
+  pregnancyStory?: import('./reality/pregnancy').PregnancyStoryState
   dramaSocialMode?: boolean
   depressionShock?: { activeDay?: number }
   lohSocialPlan?: {
@@ -906,6 +913,7 @@ export function executeAction(
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,
+    pregnancyStory: state.game?.pregnancyStory,
     dramaMode,
     requireCompleteSelection: true,
     allowAIOnly: true,
@@ -1590,6 +1598,7 @@ export function executeGroupAction(
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,
+    pregnancyStory: state.game?.pregnancyStory,
     dramaMode,
     requireCompleteSelection: true,
     allowAIOnly: true,

@@ -62,12 +62,16 @@ export const BELLA_WILL_REWARD_LABELS: Record<BellaWillReward, string> = {
   remove_vote: 'Remove 1 vote next time the heir is nominated',
 }
 
-export function buildBellaPoolEntry(): Pick<Player, 'id' | 'name' | 'avatar' | 'status' | 'sex'> {
+export function buildBellaPoolEntry(): Pick<
+  Player,
+  'id' | 'name' | 'avatar' | 'status' | 'sex' | 'age'
+> {
   return {
     id: BELLA_ID,
     name: BELLA_NAME,
     avatar: BELLA_AVATAR,
     sex: 'female',
+    age: 25,
     status: 'active',
   }
 }

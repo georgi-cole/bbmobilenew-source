@@ -55,6 +55,17 @@ import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
+import {
+  createInitialPregnancyStoryState,
+  normalizePregnancyStoryState,
+  processPregnancyStoryDay,
+  revealPaternityResult as resolvePaternityResult,
+  revealPregnancyTest as resolvePregnancyTest,
+  startPregnancyAttempt as createPregnancyAttempt,
+  markPregnancyReactions as markPregnancyStoryReactions,
+  type HumanPregnancyRoleChoice,
+  type PregnancyAttemptStartInput,
+} from '../social/reality/pregnancy'
 import { resolvePublicModeRuntimeEnabled } from '../publicOpinion/publicModeAccess'
 import {
   addDirection,
@@ -346,6 +357,7 @@ const HOUSEGUEST_POOL = HOUSEGUESTS.map((hg) => ({
   id: hg.id,
   name: hg.name,
   avatar: hg.sex === 'Female' ? '👩' : '🧑',
+  age: hg.age,
   sex: hg.sex,
 }))
 
@@ -368,6 +380,8 @@ const TWIN_SHOCK_LIA_POOL_ENTRY = {
   id: TWIN_SHOCK_LIA_ID,
   name: 'Lia',
   avatar: TWIN_SHOCK_LIA_AVATAR,
+  age: 25,
+  sex: 'Female',
 }
 
 function buildSecretMissionTargetCandidates(state: GameState): string[] {
@@ -406,14 +420,42 @@ const GAME_ROSTER_SIZE = DEFAULT_ROSTER_SIZE
  * The avatar resolver finds avatars/You.png via the name-based candidate
  * capitalize('You') = 'You' → avatars/You.png.
  */
+export function resolveProfileAge(value?: string): number | undefined {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return undefined
+  const exact = Number(normalized)
+  if (Number.isFinite(exact)) return exact
+  const range = normalized.match(/\b(early|mid|late)[ -]?(\d{2})s\b/)
+  if (range) {
+    const decade = Number(range[2])
+    const offset = range[1] === 'early' ? 2 : range[1] === 'late' ? 8 : 5
+    return decade + offset
+  }
+  const decade = normalized.match(/\b(\d{2})s\b/)
+  return decade ? Number(decade[1]) + 5 : undefined
+}
+
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
+  const parsedAge = resolveProfileAge(profile.bio?.age)
+  const profileSex = profile.bio?.sex?.trim()
+  const reproductiveSex =
+    !profileSex && profile.bio?.reproductiveProfile?.canCausePregnancy === true
+      ? 'Male'
+      : !profileSex && profile.bio?.reproductiveProfile?.canBecomePregnant === true
+        ? 'Female'
+        : undefined
   return {
     id: 'user',
     name: profile.name,
     avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
     status: 'active',
     isUser: true,
+    ...(parsedAge !== undefined ? { age: parsedAge } : {}),
+    ...(profileSex || reproductiveSex ? { sex: profileSex || reproductiveSex } : {}),
+    ...(profile.bio?.reproductiveProfile
+      ? { reproductiveProfile: profile.bio.reproductiveProfile }
+      : {}),
   }
 }
 
@@ -448,6 +490,8 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
   const roster = !twinShockConsumed && lia ? [lia, ...picked] : picked
   return roster.map((hg) => ({
     ...hg,
+    age: hg.age,
+    sex: hg.sex,
     status: 'active' as const,
   }))
 }
@@ -722,6 +766,7 @@ export function createInitialGameState(options?: {
     currentWeekNominationRecord: null,
     lastWeekNominationRecord: null,
     nominationDecisionReasons: {},
+    pregnancyStory: createInitialPregnancyStoryState(),
     lohSafetyAdvice: null,
     prevHohId: null,
     nomineeIds: [],
@@ -4635,6 +4680,41 @@ const gameSlice = createSlice({
         event.source = action.payload.source
       }
     },
+    setHumanPregnancyRole(state, action: PayloadAction<HumanPregnancyRoleChoice>) {
+      state.pregnancyStory = {
+        ...(state.pregnancyStory ?? createInitialPregnancyStoryState()),
+        humanRoleChoice: action.payload,
+      }
+    },
+    startPregnancyAttempt(state, action: PayloadAction<PregnancyAttemptStartInput>) {
+      const result = createPregnancyAttempt(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      )
+      if (result.attempt) state.pregnancyStory = result.story
+    },
+    revealPregnancyTest(state, action: PayloadAction<{ attemptId: string; currentDay: number }>) {
+      state.pregnancyStory = resolvePregnancyTest(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      ).story
+    },
+    revealPaternityResult(state, action: PayloadAction<{ carrierId: string }>) {
+      state.pregnancyStory = resolvePaternityResult(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.carrierId
+      ).story
+    },
+    markPregnancyReactions(
+      state,
+      action: PayloadAction<{ attemptId: string; kind: 'reactions' | 'announcement' }>
+    ) {
+      state.pregnancyStory = markPregnancyStoryReactions(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.attemptId,
+        action.payload.kind
+      )
+    },
     /** Update one existing broadcast without replacing its identity or position in the timeline. */
     updateTvEvent(
       state,
@@ -8379,6 +8459,7 @@ const gameSlice = createSlice({
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
+        pregnancyStory: normalizePregnancyStoryState(action.payload.pregnancyStory),
         lohSafetyAdvice: action.payload.lohSafetyAdvice ?? null,
         currentWeekNominationRecord: action.payload.currentWeekNominationRecord ?? null,
         lastWeekNominationRecord: action.payload.lastWeekNominationRecord ?? null,
@@ -8577,6 +8658,45 @@ const gameSlice = createSlice({
         state.phase === 'final3_comp3_minigame'
       ) {
         return
+      }
+
+      // Pregnancy and paternity drama is strictly pre-Final-3. Positive tests are
+      // private first; due public reveals are emitted here on the next gameplay
+      // continuation so they cannot interrupt Final 3 competition/decision flow.
+      if (!state.phase.startsWith('final3') && state.pregnancyStory) {
+        const processed = processPregnancyStoryDay(state.pregnancyStory, state.week)
+        state.pregnancyStory = processed.story
+        for (const storyEvent of processed.events) {
+          const carrierName =
+            state.players.find((player) => player.id === storyEvent.carrierId)?.name ??
+            storyEvent.carrierId
+          const fatherName =
+            storyEvent.fatherId == null
+              ? null
+              : (state.players.find((player) => player.id === storyEvent.fatherId)?.name ??
+                storyEvent.fatherId)
+          const plausibleNames = storyEvent.plausibleFatherIds.map(
+            (id) => state.players.find((player) => player.id === id)?.name ?? id
+          )
+          const text =
+            storyEvent.kind === 'PATERNITY_PUBLIC'
+              ? `Faux TV: Paternity confirmed — ${fatherName ?? 'the biological father'} is the father of ${carrierName}'s pregnancy.`
+              : fatherName
+                ? `Faux TV: ${carrierName} is pregnant — and ${fatherName} is the father. The House has a new story to follow.`
+                : `Faux TV: ${carrierName} is pregnant. Paternity is uncertain${plausibleNames.length > 1 ? ` between ${formatNameList(plausibleNames)}` : ''}.`
+
+          const tvEvent = pushEvent(state, text, 'social', {
+            major:
+              storyEvent.kind === 'PATERNITY_PUBLIC' ? 'pregnancy_paternity' : 'pregnancy_positive',
+            pregnancyAttemptId: storyEvent.attemptId,
+            forceOnTv: true,
+            broadcastPriority: 'critical',
+          })
+          if (tvEvent) {
+            tvEvent.channels = ['tv', 'dr']
+            tvEvent.source = 'system'
+          }
+        }
       }
 
       // Bella's Will is never allowed to bleed into the Final 4 / Final 3 / Final 2.
@@ -11424,6 +11544,11 @@ export const {
   syncStrategicAlliances,
   setLohSocialPlan,
   addTvEvent,
+  setHumanPregnancyRole,
+  startPregnancyAttempt,
+  revealPregnancyTest,
+  revealPaternityResult,
+  markPregnancyReactions,
   updateTvEvent,
   removeTvEvent,
   setBroadcastOverride,
