@@ -1071,7 +1071,12 @@ export default function SocialPanelV2() {
   }
 
   return (
-    <div className="sp2-backdrop" role="dialog" aria-modal="true" aria-label="Social Phase">
+    <div
+      className={`sp2-backdrop${weekendActive ? ' sp2-backdrop--weekend' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={weekendActive ? 'Weekend Social' : 'Social Phase'}
+    >
       <a className="sp2-skip-link" href="#sp2-body">
         Skip to actions
       </a>
