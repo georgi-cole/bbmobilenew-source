@@ -1409,6 +1409,7 @@ export default function GameScreen() {
     },
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
+  const weekendInterludeActive = game.weekendInterlude?.active === true
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -1438,7 +1439,7 @@ export default function GameScreen() {
   }
 
   const responsiveGameLayout = useResponsiveGameLayout(gameScreenRef, {
-    hasDock: showGameControlDock,
+    hasDock: showGameControlDock && !weekendInterludeActive,
     unifiedActionRail: true,
     playerCount: game.players.length,
     userCompactRoster: settings.gameUX.compactRoster,
@@ -2745,7 +2746,7 @@ export default function GameScreen() {
         )}
 
         {/* ── QA: trigger nomination animation (enabled with qa=1) ─────────── */}
-        {isQaMode && !awaitingHumanDecision && (
+        {isQaMode && !awaitingHumanDecision && !weekendInterludeActive && (
           <button
             className="dev-nom-anim-btn"
             onClick={handleDevPlayNomAnim}
@@ -2757,7 +2758,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
-        {showGameControlDock && (
+        {showGameControlDock && !weekendInterludeActive && (
           <FloatingActionBar
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
