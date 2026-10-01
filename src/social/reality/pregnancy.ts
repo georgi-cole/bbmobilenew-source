@@ -422,13 +422,8 @@ export function hasPublicPregnancyWithOtherPartner(
   return Object.values(story.activePregnancies).some((attemptId) => {
     const attempt = story.attempts.find((entry) => entry.attemptId === attemptId)
     if (!attempt?.pregnancyPublicRevealed) return false
-    // The carrier's pregnancy is public immediately at the pregnancy reveal.
-    // A biological father only becomes socially knowable after paternity is
-    // itself public (or was obvious and revealed with the pregnancy).
+    if (attempt.biologicalFatherId === playerId) return attempt.carrierId !== prospectivePartnerId
     if (attempt.carrierId === playerId) return attempt.biologicalFatherId !== prospectivePartnerId
-    if (attempt.biologicalFatherId === playerId && attempt.paternityPublicRevealed) {
-      return attempt.carrierId !== prospectivePartnerId
-    }
     return false
   })
 }
@@ -492,7 +487,7 @@ export function shouldAcceptPregnancyAttempt(input: {
       archetype === 'opportunist' ||
       temperament === 'impulsive'
     const loyal = archetype === 'romantic_loyalist' || archetype === 'loyal_anchor'
-    chance *= loyal ? 0.05 : highDrama ? 0.3 : 0.18
+    chance *= loyal ? 0.05 : highDrama ? 0.45 : 0.18
   }
 
   chance = Math.max(0.01, Math.min(0.97, chance))
@@ -754,7 +749,7 @@ export function processPregnancyStoryDay(
   currentDay: number
 ): { story: PregnancyStoryState; events: PregnancyStoryPublicEvent[] } {
   const day = finiteDay(currentDay)
-  let attempts = story.attempts.map((attempt) => ({ ...attempt }))
+  const attempts = story.attempts.map((attempt) => ({ ...attempt }))
   const events: PregnancyStoryPublicEvent[] = []
 
   for (const attemptId of Object.values(story.activePregnancies)) {
@@ -869,9 +864,10 @@ export function normalizePregnancyStoryState(raw: unknown): PregnancyStoryState 
       ...attempt,
       participantIds,
       biologicalFatherId,
-      resultAvailableDay: Number.isFinite(attempt.resultAvailableDay)
-        ? Number(attempt.resultAvailableDay)
-        : null,
+      resultAvailableDay:
+        attempt.resultAvailableDay == null || Number.isFinite(attempt.resultAvailableDay)
+          ? attempt.resultAvailableDay
+          : null,
       pregnancyPublicRevealed:
         attempt.pregnancyPublicRevealed ?? attempt.announcementEmitted ?? false,
       paternityResultKnown: attempt.paternityResultKnown ?? false,
