@@ -58,8 +58,8 @@ export default function WeekendInterludeOverlay() {
             <div className="weekend-interlude__eyebrow">The Big Eye · Weekend</div>
             <h1>Weekend Day {weekend.weekendDay}</h1>
             <p>
-              Day {weekend.afterDay} is complete. The numbered game is paused until this
-              two-day interlude ends.
+              Day {weekend.afterDay} is complete. The numbered game is paused until this two-day
+              interlude ends.
             </p>
           </div>
           <div className="weekend-interlude__wallet" aria-label="Weekend social credits">
@@ -87,7 +87,11 @@ export default function WeekendInterludeOverlay() {
                 <p className="weekend-interlude__instruction">
                   Everyone answers anonymously. Pick the housemate you think fits best.
                 </p>
-                <div className="weekend-interlude__roster" role="group" aria-label="Choose housemate">
+                <div
+                  className="weekend-interlude__roster"
+                  role="group"
+                  aria-label="Choose housemate"
+                >
                   {selectablePlayers.map((player) => (
                     <button
                       key={player.id}
