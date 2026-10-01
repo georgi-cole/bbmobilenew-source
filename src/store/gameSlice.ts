@@ -8600,10 +8600,7 @@ const gameSlice = createSlice({
     },
 
     /** Resolve one Weekend 1 house-poll question. Only the winner is player-facing. */
-    submitHubSaysVote(
-      state,
-      action: PayloadAction<{ questionId: string; targetId: string }>
-    ) {
+    submitHubSaysVote(state, action: PayloadAction<{ questionId: string; targetId: string }>) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
       const hub = weekend.hubSays
@@ -8657,7 +8654,11 @@ const gameSlice = createSlice({
       const hub = weekend.hubSays
       if (!hub) return
       const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
-      if (!currentQuestionId || !hub.results.some((result) => result.questionId === currentQuestionId)) return
+      if (
+        !currentQuestionId ||
+        !hub.results.some((result) => result.questionId === currentQuestionId)
+      )
+        return
       if (hub.currentQuestionIndex >= hub.questionIds.length - 1) {
         weekend.stage = 'social'
         return
@@ -8822,11 +8823,16 @@ const gameSlice = createSlice({
             results: [],
           },
         }
-        pushEvent(state, 'The weekend has begun. No competitions. No nominations. The Hub has other plans.', 'game', {
-          major: 'weekend_1',
-          weekendDay: 1,
-          forceOnTv: true,
-        })
+        pushEvent(
+          state,
+          'The weekend has begun. No competitions. No nominations. The Hub has other plans.',
+          'game',
+          {
+            major: 'weekend_1',
+            weekendDay: 1,
+            forceOnTv: true,
+          }
+        )
         return
       }
 
