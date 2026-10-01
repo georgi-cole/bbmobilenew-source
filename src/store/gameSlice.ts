@@ -59,6 +59,7 @@ import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
   processPregnancyStoryDay,
+  advancePregnancyWeekendDay as advancePregnancyStoryWeekendDay,
   revealPaternityResult as resolvePaternityResult,
   revealPregnancyTest as resolvePregnancyTest,
   startPregnancyAttempt as createPregnancyAttempt,
@@ -8664,6 +8665,9 @@ const gameSlice = createSlice({
     advanceWeekendDay(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 1) return
+      if (state.pregnancyStory) {
+        state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
+      }
       weekend.weekendDay = 2
     },
 
@@ -8712,6 +8716,9 @@ const gameSlice = createSlice({
     completeWeekendInterlude(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
+      if (state.pregnancyStory) {
+        state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
+      }
       state.completedWeekendDays = Array.from(
         new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
       ).sort((left, right) => left - right)
