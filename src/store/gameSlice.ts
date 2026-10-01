@@ -129,7 +129,11 @@ import {
   type TwinShockTurnResult,
 } from '../bb/twinShock'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../constants/tvEvents'
-import { buildHubSaysQuestionIds, resolveHubSaysQuestion } from '../features/weekend/hubSays'
+import {
+  buildHubSaysQuestionIds,
+  getHubSaysQuestion,
+  resolveHubSaysQuestion,
+} from '../features/weekend/hubSays'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -8615,6 +8619,36 @@ const gameSlice = createSlice({
         winnerId: resolved.winnerId,
         voteCounts: resolved.voteCounts,
       })
+      const question = getHubSaysQuestion(expectedQuestionId)
+      const winner = state.players.find((player) => player.id === resolved.winnerId)
+      if (question && winner) {
+        pushEvent(
+          state,
+          `THE HUB SAYS… ${question.prompt} — ${winner.name}`,
+          'social',
+          {
+            weekend: true,
+            weekendDay: weekend.weekendDay,
+            weekendEpisode: 'hub_says',
+            questionId: expectedQuestionId,
+            winnerId: resolved.winnerId,
+            suppressTv: true,
+          }
+        )
+        state.history = [
+          ...(state.history ?? []),
+          {
+            type: 'hub_says_result',
+            week: state.week,
+            data: {
+              questionId: expectedQuestionId,
+              prompt: question.prompt,
+              winnerId: resolved.winnerId,
+            },
+            timestamp: Date.now(),
+          },
+        ].slice(-MAX_GAME_HISTORY_EVENTS)
+      }
     },
 
     continueHubSays(state) {
