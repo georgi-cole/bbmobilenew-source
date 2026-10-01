@@ -138,6 +138,7 @@ export default function WeekendInterludeOverlay() {
 
   const rootClassName = [
     'weekend-interlude',
+    weekend.episode === 'hub_says' ? 'weekend-interlude--hub-says' : '',
     weekend.episode === 'party' ? 'weekend-interlude--party' : '',
     weekend.episode === 'season_so_far' ? 'weekend-interlude--season' : '',
   ]
