@@ -329,7 +329,9 @@ export function evaluateSocialActionEligibility({
   if (action.id === 'try_for_baby' || action.id === 'pregnancy_test') {
     if (!actorId || targets.length !== 1 || !pregnancyStory) {
       return unavailable(
-        action.id === 'pregnancy_test' ? 'Select the pregnancy carrier' : 'Select a romantic partner'
+        action.id === 'pregnancy_test'
+          ? 'Select the pregnancy carrier'
+          : 'Select a romantic partner'
       )
     }
     const actor = playerById.get(actorId)

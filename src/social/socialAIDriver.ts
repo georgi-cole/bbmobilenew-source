@@ -206,11 +206,7 @@ function executeRealityCandidate(
       const activeCount = state.game.players.filter(
         (entry) => entry.status !== 'evicted' && entry.status !== 'jury'
       ).length
-      const finalThreeDay = estimateFinalThreeDay(
-        state.game.week,
-        activeCount,
-        state.game.phase
-      )
+      const finalThreeDay = estimateFinalThreeDay(state.game.week, activeCount, state.game.phase)
       const started = startPregnancyAttempt(state.game.pregnancyStory, {
         actor: player,
         target,

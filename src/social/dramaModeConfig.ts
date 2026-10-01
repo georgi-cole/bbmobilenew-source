@@ -183,8 +183,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'paternity_test_self',
     title: 'Take Paternity Test',
     icon: '🧬',
-    description:
-      'Privately establish paternity after an ambiguous pregnancy becomes public.',
+    description: 'Privately establish paternity after an ambiguous pregnancy becomes public.',
     category: 'friendly',
     kind: 'rapport',
     baseCost: { energy: 0 },

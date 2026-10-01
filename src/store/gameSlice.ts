@@ -8687,9 +8687,7 @@ const gameSlice = createSlice({
 
           const tvEvent = pushEvent(state, text, 'social', {
             major:
-              storyEvent.kind === 'PATERNITY_PUBLIC'
-                ? 'pregnancy_paternity'
-                : 'pregnancy_positive',
+              storyEvent.kind === 'PATERNITY_PUBLIC' ? 'pregnancy_paternity' : 'pregnancy_positive',
             pregnancyAttemptId: storyEvent.attemptId,
             forceOnTv: true,
             broadcastPriority: 'critical',

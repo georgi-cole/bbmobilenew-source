@@ -81,7 +81,13 @@ for (const file of files) {
 
   if (baseSource == null) {
     checked.push(file)
-    if (!currentClean) violations.push(file)
+    if (!currentClean) {
+      violations.push(file)
+      const formatted = await prettier.format(currentSource, options)
+      console.log(`__CHATGPT_FORMAT_START__${file}`)
+      console.log(Buffer.from(formatted, 'utf8').toString('base64'))
+      console.log(`__CHATGPT_FORMAT_END__${file}`)
+    }
     continue
   }
 

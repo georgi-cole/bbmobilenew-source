@@ -210,7 +210,11 @@ function executePregnancyFlow(
 
   const actor = state.game.players.find((player) => player.id === input.actorId)
   if (!actor) {
-    return result(false, 'The player profile is unavailable.', state.social.energyBank[input.actorId] ?? 0)
+    return result(
+      false,
+      'The player profile is unavailable.',
+      state.social.energyBank[input.actorId] ?? 0
+    )
   }
 
   const pregnancyStory = state.game.pregnancyStory ?? createInitialPregnancyStoryState()
@@ -280,15 +284,11 @@ function executePregnancyFlow(
       const copy = resolved.result.conceptualOnly
         ? 'It is too close to Final 3 for a conclusive result this season.'
         : `Too early to tell. A conclusive result is expected on Day ${resolved.result.availableDay}.`
-      return result(
-        false,
-        copy,
-        state.social.energyBank[input.actorId] ?? 0,
-        0,
-        'Too early'
-      )
+      return result(false, copy, state.social.energyBank[input.actorId] ?? 0, 0, 'Too early')
     }
-    dispatch(revealPregnancyTestAction({ attemptId: attempt.attemptId, currentDay: state.game.week }))
+    dispatch(
+      revealPregnancyTestAction({ attemptId: attempt.attemptId, currentDay: state.game.week })
+    )
     const revealed = resolved.result.attempt
     if (!revealed) {
       return result(
@@ -446,13 +446,7 @@ function executePregnancyFlow(
     const copy = resolved.result.conceptualOnly
       ? 'It is too close to Final 3 for a conclusive result this season.'
       : `Too early to tell. A conclusive result is expected on Day ${resolved.result.availableDay}.`
-    return result(
-      false,
-      copy,
-      state.social.energyBank[input.actorId] ?? 0,
-      0,
-      'Too early'
-    )
+    return result(false, copy, state.social.energyBank[input.actorId] ?? 0, 0, 'Too early')
   }
 
   dispatch(revealPregnancyTestAction({ attemptId: attempt.attemptId, currentDay: state.game.week }))
