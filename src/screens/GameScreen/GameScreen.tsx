@@ -2428,10 +2428,14 @@ export default function GameScreen() {
         {game.weekendInterlude?.active && <WeekendInterludeOverlay />}
 
         {/* ── Social Phase Panel V2 (modal overlay skeleton) ───────────────── */}
-        {isSocialModeEnabled(game.mode) && <SocialPanelV2 />}
+        {isSocialModeEnabled(game.mode) && game.weekendInterlude?.stage !== 'hub_says' && (
+          <SocialPanelV2 />
+        )}
 
         {/* ── Incoming interactions inbox ─────────────────────────────────── */}
-        {isSocialModeEnabled(game.mode) && <IncomingInteractionsInbox />}
+        {isSocialModeEnabled(game.mode) && game.weekendInterlude?.stage !== 'hub_says' && (
+          <IncomingInteractionsInbox />
+        )}
 
         {/* ── Social Summary Popup (shown after social phase ends) ─────────── */}
         {isSocialModeEnabled(game.mode) && socialSummaryOpen && <SocialSummaryPopup />}
