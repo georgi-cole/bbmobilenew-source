@@ -502,6 +502,7 @@ export default function SocialPanelV2() {
     targetMode,
     usesMultipleTargets,
     vip,
+    weekendActive,
   ])
 
   const canExecute =
