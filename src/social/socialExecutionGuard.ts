@@ -26,6 +26,7 @@ interface SocialExecutionState {
     }>
     pregnancyStory?: PregnancyStoryState
     voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
+    weekendInterlude?: { active: true; weekendDay: 1 | 2 } | null
   }
   settings?: { gameUX?: { dramaMode?: boolean; realityModePreset?: string } }
   vip?: {
@@ -80,7 +81,7 @@ export function validateSocialExecution(
     actorId: selection.actorId,
     targetIds,
     subjectId: selection.subjectId,
-    phase: state.game?.phase,
+    phase: state.game?.weekendInterlude?.active ? 'social_2' : state.game?.phase,
     week: state.game?.week,
     players,
     actorStatus,
