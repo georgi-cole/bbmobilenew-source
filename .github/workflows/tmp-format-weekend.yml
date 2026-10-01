@@ -1,0 +1,43 @@
+name: Temporary Weekend Formatter
+
+on:
+  push:
+    branches:
+      - codex/weekend-foundation-hub-says
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/weekend-foundation-hub-says
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format weekend changes
+        run: >-
+          npx prettier --write
+          src/components/WeekendInterludeOverlay/WeekendInterludeOverlay.tsx
+          src/features/weekend/__tests__/weekendEpisodes.test.ts
+          src/features/weekend/hubParty.ts
+          src/features/weekend/seasonSoFar.ts
+          src/social/reality/pregnancy.ts
+      - name: Commit formatting and remove temporary workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/tmp-format-weekend.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/WeekendInterludeOverlay/WeekendInterludeOverlay.tsx
+          git add src/features/weekend/__tests__/weekendEpisodes.test.ts
+          git add src/features/weekend/hubParty.ts
+          git add src/features/weekend/seasonSoFar.ts
+          git add src/social/reality/pregnancy.ts
+          git commit -m "Format weekend implementation"
+          git push origin HEAD:codex/weekend-foundation-hub-says
