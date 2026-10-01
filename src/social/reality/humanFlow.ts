@@ -67,6 +67,23 @@ export interface HumanRealityActionInput {
 const PHASE_REPETITION_SUCCESS_CHANCES = [0.8, 0.5, 0.25] as const
 const INFORMATION_REPETITION_SUCCESS_CHANCES = [1, 0.75, 0.3] as const
 
+function getEffectiveHumanResources(state: RootState, actorId: string) {
+  const actor = state.game.players.find((player) => player.id === actorId)
+  const weekend = state.game.weekendInterlude
+  if (weekend?.active && actor?.isUser) return weekend.wallet
+  return {
+    energy: state.social.energyBank[actorId] ?? 0,
+    influence: state.social.influenceBank[actorId] ?? 0,
+    info: state.social.infoBank[actorId] ?? 0,
+  }
+}
+
+function getWeekendActivityPhase(state: RootState): string {
+  return state.game.weekendInterlude?.active
+    ? `weekend_day_${state.game.weekendInterlude.weekendDay}`
+    : state.game.phase
+}
+
 function getHumanRepetitionSuccessChances(actionId: string): readonly number[] | null {
   const legacyAction = getActionById(actionId)
   if (legacyAction?.kind === 'intel_gain' && legacyAction.targetMode !== 'none') {
@@ -95,7 +112,7 @@ function getPhaseRepetitionChance(
       entry.targetId === input.targetId &&
       entry.actionId === input.actionId &&
       entry.week === state.game.week &&
-      entry.phase === state.game.phase
+      entry.phase === getWeekendActivityPhase(state)
   ).length
   return successChances[priorAttempts] ?? 0.02
 }
@@ -1088,7 +1105,8 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
   return (dispatch: AppDispatch, getState: () => RootState): ExecuteActionResult => {
     const state = getState()
     const action = getActionById(input.actionId)
-    const energy = state.social.energyBank[input.actorId] ?? 0
+    const effectiveResources = getEffectiveHumanResources(state, input.actorId)
+    const energy = effectiveResources.energy
     if (!action) return result(false, 'Unknown action', energy)
 
     const dramaMode = getEffectiveSocialMode(state) === 'drama'
@@ -1321,8 +1339,8 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     // Otherwise a large group action could create memories/relationship effects
     // and only discover afterward that the player could not afford it.
     const executionCosts = requestedExecutionCosts
-    const influence = state.social.influenceBank[input.actorId] ?? 0
-    const info = state.social.infoBank[input.actorId] ?? 0
+    const influence = effectiveResources.influence
+    const info = effectiveResources.info
     if (
       energy < executionCosts.energy ||
       influence < executionCosts.influence ||
