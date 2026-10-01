@@ -1,7 +1,7 @@
 .weekend-interlude {
   position: fixed;
   inset: 0;
-  z-index: 150;
+  z-index: 20000;
   display: grid;
   place-items: center;
   padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
