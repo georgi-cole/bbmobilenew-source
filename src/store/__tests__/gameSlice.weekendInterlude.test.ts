@@ -50,8 +50,7 @@ describe('Weekend 1 interlude', () => {
     let state = gameReducer(dayFiveEnd(), advance())
     const humanId = state.players.find((player) => player.isUser)?.id
     const firstTargetId = state.players.find(
-      (player) =>
-        !player.isUser && player.status !== 'evicted' && player.status !== 'jury'
+      (player) => !player.isUser && player.status !== 'evicted' && player.status !== 'jury'
     )?.id
 
     expect(humanId).toBeTruthy()
