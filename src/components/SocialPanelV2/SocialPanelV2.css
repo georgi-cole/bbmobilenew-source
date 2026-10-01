@@ -69,6 +69,19 @@
   box-shadow: 0 -16px 54px rgba(71, 40, 57, 0.3);
 }
 
+.sp2-modal--weekend {
+  border-top-color: rgba(96, 165, 250, 0.62);
+  box-shadow: 0 -16px 58px rgba(30, 64, 175, 0.24);
+}
+
+.sp2-modal--weekend .sp2-header {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(59, 130, 246, 0.24), transparent 45%),
+    radial-gradient(circle at 90% 0%, rgba(14, 165, 233, 0.13), transparent 42%),
+    linear-gradient(135deg, #071426 0%, #0d2340 100%);
+  border-bottom-color: rgba(96, 165, 250, 0.24);
+}
+
 .sp2-header {
   min-width: 0;
   flex: 0 0 auto;
@@ -250,6 +263,14 @@
   color: #93c5fd;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.sp2-header__resources--weekend .sp2-energy-chip,
+.sp2-header__resources--weekend .sp2-resource-chip {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(96, 165, 250, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(147, 197, 253, 0.04), 0 0 12px rgba(37, 99, 235, 0.12);
 }
 
 .sp2-header__close {
