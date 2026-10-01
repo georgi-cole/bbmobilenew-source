@@ -25,22 +25,74 @@ export interface HubSaysQuestion {
 }
 
 export const HUB_SAYS_QUESTIONS: readonly HubSaysQuestion[] = [
-  { id: 'betray_first', prompt: 'Who would throw their closest ally under the bus first?', kind: 'betray' },
-  { id: 'leak_secret', prompt: 'Who would leak a secret five minutes after promising not to?', kind: 'leak' },
+  {
+    id: 'betray_first',
+    prompt: 'Who would throw their closest ally under the bus first?',
+    kind: 'betray',
+  },
+  {
+    id: 'leak_secret',
+    prompt: 'Who would leak a secret five minutes after promising not to?',
+    kind: 'leak',
+  },
   { id: 'jealous_fast', prompt: 'Who gets jealous the fastest?', kind: 'jealous' },
-  { id: 'night_out_fight', prompt: 'Who is most likely to start a huge fight on a night out?', kind: 'fight' },
-  { id: 'calculating', prompt: 'Who is secretly way more calculating than they pretend to be?', kind: 'calculating' },
-  { id: 'fake_friendship', prompt: 'Who could fake a friendship all the way to the finale?', kind: 'fake_friend' },
-  { id: 'hidden_crush', prompt: 'Who is most likely to have a crush they are desperately pretending not to have?', kind: 'crush' },
-  { id: 'worst_date', prompt: 'Who would be the worst person in this house to date?', kind: 'worst_date' },
-  { id: 'imaginary_boss', prompt: "Who thinks they're running the house when absolutely nobody else thinks they are?", kind: 'delusional_power' },
-  { id: 'flirt_enemy', prompt: 'Who would flirt with their biggest enemy if it bought them one more day?', kind: 'flirt_enemy' },
-  { id: 'snoop', prompt: "Who would snoop through somebody else's things and then act innocent?", kind: 'snoop' },
-  { id: 'cry_betray', prompt: 'Who would betray you, then cry because you were upset about it?', kind: 'cry_after_betrayal' },
-  { id: 'chaos_button', prompt: 'Who would press the chaos button just to see what happens?', kind: 'chaos' },
+  {
+    id: 'night_out_fight',
+    prompt: 'Who is most likely to start a huge fight on a night out?',
+    kind: 'fight',
+  },
+  {
+    id: 'calculating',
+    prompt: 'Who is secretly way more calculating than they pretend to be?',
+    kind: 'calculating',
+  },
+  {
+    id: 'fake_friendship',
+    prompt: 'Who could fake a friendship all the way to the finale?',
+    kind: 'fake_friend',
+  },
+  {
+    id: 'hidden_crush',
+    prompt: 'Who is most likely to have a crush they are desperately pretending not to have?',
+    kind: 'crush',
+  },
+  {
+    id: 'worst_date',
+    prompt: 'Who would be the worst person in this house to date?',
+    kind: 'worst_date',
+  },
+  {
+    id: 'imaginary_boss',
+    prompt: "Who thinks they're running the house when absolutely nobody else thinks they are?",
+    kind: 'delusional_power',
+  },
+  {
+    id: 'flirt_enemy',
+    prompt: 'Who would flirt with their biggest enemy if it bought them one more day?',
+    kind: 'flirt_enemy',
+  },
+  {
+    id: 'snoop',
+    prompt: "Who would snoop through somebody else's things and then act innocent?",
+    kind: 'snoop',
+  },
+  {
+    id: 'cry_betray',
+    prompt: 'Who would betray you, then cry because you were upset about it?',
+    kind: 'cry_after_betrayal',
+  },
+  {
+    id: 'chaos_button',
+    prompt: 'Who would press the chaos button just to see what happens?',
+    kind: 'chaos',
+  },
   { id: 'two_faced', prompt: 'Whose “I swear” means absolutely nothing?', kind: 'two_faced' },
   { id: 'overshare', prompt: 'Who would reveal way too much after one drink?', kind: 'overshare' },
-  { id: 'grudge', prompt: 'Who would remember one tiny insult for the rest of the season?', kind: 'grudge' },
+  {
+    id: 'grudge',
+    prompt: 'Who would remember one tiny insult for the rest of the season?',
+    kind: 'grudge',
+  },
 ] as const
 
 export function getHubSaysQuestion(questionId: string): HubSaysQuestion | undefined {
@@ -116,7 +168,9 @@ function questionScore(
       score += negativeBond * 0.18
       break
     case 'calculating':
-      score += identitySignal(candidate, ['puppet_master', 'double_agent', 'strategist', 'opportunist']) * 25
+      score +=
+        identitySignal(candidate, ['puppet_master', 'double_agent', 'strategist', 'opportunist']) *
+        25
       score += (stats?.lohWins ?? 0) * 4 + (stats?.posWins ?? 0) * 3
       break
     case 'fake_friend':
@@ -130,11 +184,13 @@ function questionScore(
       score += positiveBond * 0.08
       break
     case 'worst_date':
-      score += identitySignal(candidate, ['chaos_agent', 'impulsive', 'secretive', 'opportunist']) * 18
+      score +=
+        identitySignal(candidate, ['chaos_agent', 'impulsive', 'secretive', 'opportunist']) * 18
       score += negativeBond * 0.22
       break
     case 'delusional_power':
-      score += identitySignal(candidate, ['puppet_master', 'aggressive_competitor', 'opportunist']) * 18
+      score +=
+        identitySignal(candidate, ['puppet_master', 'aggressive_competitor', 'opportunist']) * 18
       score += (stats?.lohWins ?? 0) * 5
       score += negativeBond * 0.12
       break
@@ -155,7 +211,9 @@ function questionScore(
       break
   }
 
-  return score + noise(`${state.gameId}|${state.season}|${question.id}|${voter.id}|${candidate.id}`, 24)
+  return (
+    score + noise(`${state.gameId}|${state.season}|${question.id}|${voter.id}|${candidate.id}`, 24)
+  )
 }
 
 export function resolveHubSaysQuestion(
@@ -180,8 +238,10 @@ export function resolveHubSaysQuestion(
     const candidates = activePlayers.filter((candidate) => candidate.id !== voter.id)
     const selected = candidates
       .map((candidate) => ({ candidate, score: questionScore(state, question, voter, candidate) }))
-      .sort((left, right) => right.score - left.score || left.candidate.id.localeCompare(right.candidate.id))[0]
-      ?.candidate
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.candidate.id.localeCompare(right.candidate.id)
+      )[0]?.candidate
     if (selected) voteCounts[selected.id] = (voteCounts[selected.id] ?? 0) + 1
   }
 
