@@ -4,7 +4,9 @@ import gameReducer, {
   advanceWeekendDay,
   completeWeekendInterlude,
   continueHubSays,
+  continueWeekendFeature,
   createInitialGameState,
+  recordWeekendPartyBeat,
   hydrateGame,
   submitHubSaysVote,
 } from '../gameSlice'
@@ -89,6 +91,131 @@ describe('Weekend 1 interlude', () => {
     state = gameReducer(state, advance())
     expect(state.week).toBe(6)
     expect(state.phase).toBe('week_start')
+  })
+
+  it('starts Weekend 2 after Day 10 as a two-day Hub Party and resumes Day 11', () => {
+    let state = {
+      ...createInitialGameState({ seed: 1010 }),
+      week: 10,
+      phase: 'week_end' as const,
+      weekendsEnabledForSeason: true,
+      completedWeekendDays: [5],
+      weekendInterlude: null,
+      finalThree: null,
+    }
+
+    state = gameReducer(state, advance())
+    expect(state.week).toBe(10)
+    expect(state.weekendInterlude).toMatchObject({
+      afterDay: 10,
+      weekendDay: 1,
+      episode: 'party',
+      stage: 'party',
+    })
+    expect(state.weekendInterlude?.party?.beats).toEqual([])
+
+    state = gameReducer(state, continueWeekendFeature())
+    expect(state.weekendInterlude?.stage).toBe('social')
+
+    const firstBeat = {
+      id: 'party-test-day-1',
+      weekendDay: 1 as const,
+      kind: 'opinion_spill' as const,
+      text: 'A grounded party opinion.',
+      visibility: 'private' as const,
+      speakerId: 'ai-a',
+      subjectIds: ['ai-b'],
+    }
+    state = gameReducer(state, recordWeekendPartyBeat(firstBeat))
+    state = gameReducer(state, recordWeekendPartyBeat({ ...firstBeat, id: 'duplicate' }))
+    expect(state.weekendInterlude?.party?.beats).toHaveLength(1)
+
+    state = gameReducer(state, advanceWeekendDay())
+    expect(state.weekendInterlude?.weekendDay).toBe(2)
+
+    state = gameReducer(
+      state,
+      recordWeekendPartyBeat({
+        id: 'party-test-day-2',
+        weekendDay: 2,
+        kind: 'rivalry_moment',
+        text: 'A grounded house moment.',
+        visibility: 'house',
+        subjectIds: ['ai-a', 'ai-b'],
+      })
+    )
+    expect(state.weekendInterlude?.party?.beats).toHaveLength(2)
+
+    state = gameReducer(state, completeWeekendInterlude())
+    expect(state.weekendInterlude).toBeNull()
+    expect(state.completedWeekendDays).toContain(10)
+
+    state = gameReducer(state, advance())
+    expect(state.week).toBe(11)
+    expect(state.phase).toBe('week_start')
+  })
+
+  it('starts Weekend 3 after Day 15 with one grounded season fact per remaining player', () => {
+    let state = {
+      ...createInitialGameState({ seed: 1515 }),
+      week: 15,
+      phase: 'week_end' as const,
+      weekendsEnabledForSeason: true,
+      completedWeekendDays: [5, 10],
+      weekendInterlude: null,
+      finalThree: null,
+    }
+    const activeCount = state.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    ).length
+
+    state = gameReducer(state, advance())
+    expect(state.weekendInterlude).toMatchObject({
+      afterDay: 15,
+      weekendDay: 1,
+      episode: 'season_so_far',
+      stage: 'season_so_far',
+    })
+    expect(state.weekendInterlude?.seasonSoFar?.facts).toHaveLength(activeCount)
+    expect(
+      new Set(state.weekendInterlude?.seasonSoFar?.facts.map((fact) => fact.playerId)).size
+    ).toBe(activeCount)
+
+    state = gameReducer(state, continueWeekendFeature())
+    expect(state.weekendInterlude?.stage).toBe('social')
+    state = gameReducer(state, advanceWeekendDay())
+    state = gameReducer(state, completeWeekendInterlude())
+    state = gameReducer(state, advance())
+
+    expect(state.week).toBe(16)
+    expect(state.phase).toBe('week_start')
+  })
+
+  it('does not start the late weekend when only three housemates remain', () => {
+    const initial = createInitialGameState({ seed: 1516 })
+    let kept = 0
+    const players = initial.players.map((player) => {
+      if (kept < 3) {
+        kept += 1
+        return { ...player, status: 'active' as const }
+      }
+      return { ...player, status: 'evicted' as const }
+    })
+    const state = gameReducer(
+      {
+        ...initial,
+        players,
+        week: 15,
+        phase: 'week_end' as const,
+        weekendsEnabledForSeason: true,
+        completedWeekendDays: [5, 10],
+        weekendInterlude: null,
+        finalThree: null,
+      },
+      advance()
+    )
+
+    expect(state.weekendInterlude).toBeNull()
   })
 
   it('does not retroactively enable weekends for a legacy saved season', () => {
