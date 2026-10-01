@@ -94,17 +94,18 @@ describe('Weekend 1 interlude', () => {
   })
 
   it('starts Weekend 2 after Day 10 as a two-day Hub Party and resumes Day 11', () => {
-    let state = {
-      ...createInitialGameState({ seed: 1010 }),
-      week: 10,
-      phase: 'week_end' as const,
-      weekendsEnabledForSeason: true,
-      completedWeekendDays: [5],
-      weekendInterlude: null,
-      finalThree: null,
-    }
-
-    state = gameReducer(state, advance())
+    let state = gameReducer(
+      {
+        ...createInitialGameState({ seed: 1010 }),
+        week: 10,
+        phase: 'week_end' as const,
+        weekendsEnabledForSeason: true,
+        completedWeekendDays: [5],
+        weekendInterlude: null,
+        finalThree: null,
+      },
+      advance()
+    )
     expect(state.week).toBe(10)
     expect(state.weekendInterlude).toMatchObject({
       afterDay: 10,
@@ -156,7 +157,7 @@ describe('Weekend 1 interlude', () => {
   })
 
   it('starts Weekend 3 after Day 15 with one grounded season fact per remaining player', () => {
-    let state = {
+    const initial = {
       ...createInitialGameState({ seed: 1515 }),
       week: 15,
       phase: 'week_end' as const,
@@ -165,11 +166,11 @@ describe('Weekend 1 interlude', () => {
       weekendInterlude: null,
       finalThree: null,
     }
-    const activeCount = state.players.filter(
+    const activeCount = initial.players.filter(
       (player) => player.status !== 'evicted' && player.status !== 'jury'
     ).length
 
-    state = gameReducer(state, advance())
+    let state = gameReducer(initial, advance())
     expect(state.weekendInterlude).toMatchObject({
       afterDay: 15,
       weekendDay: 1,
