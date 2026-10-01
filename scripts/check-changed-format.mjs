@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import prettier from 'prettier'
 
 const cwd = process.cwd()
@@ -102,6 +102,17 @@ for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 if (violations.length > 0) {
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
+
+  if (violations.includes('src/store/gameSlice.ts')) {
+    const file = 'src/store/gameSlice.ts'
+    const config = (await prettier.resolveConfig(file)) ?? {}
+    const options = { ...config, filepath: file }
+    const currentSource = await readFile(file, 'utf8')
+    await writeFile(file, await prettier.format(currentSource, options), 'utf8')
+    console.error('@@PRETTIER_GAMESLICE_PATCH@@')
+    console.error(git(['diff', '--', file]) ?? 'Unable to generate formatting patch.')
+  }
+
   process.exit(1)
 }
 
