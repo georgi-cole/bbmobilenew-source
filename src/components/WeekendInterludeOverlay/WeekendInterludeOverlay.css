@@ -13,6 +13,7 @@
   backdrop-filter: blur(14px);
 }
 
+/* Weekend visuals intentionally leave persistent avatar and navigation chrome unchanged. */
 .weekend-interlude--hub-says {
   background-color: #070817;
   background-image:
