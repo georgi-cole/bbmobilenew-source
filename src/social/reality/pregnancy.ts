@@ -143,10 +143,7 @@ function explicitRole(player: PlayerLike): 'male' | 'female' | null {
   return null
 }
 
-function roleOf(
-  player: PlayerLike,
-  story?: PregnancyStoryState
-): 'male' | 'female' | null {
+function roleOf(player: PlayerLike, story?: PregnancyStoryState): 'male' | 'female' | null {
   const explicit = explicitRole(player)
   if (explicit) return explicit
   if (!player.isUser) return null
@@ -169,11 +166,7 @@ export function getPregnancyCarrier(
   return null
 }
 
-function getFatherId(
-  actor: PlayerLike,
-  target: PlayerLike,
-  carrierId: string
-): string {
+function getFatherId(actor: PlayerLike, target: PlayerLike, carrierId: string): string {
   return actor.id === carrierId ? target.id : actor.id
 }
 
@@ -238,7 +231,9 @@ export function getActivePregnancyAttempt(
   carrierId: string
 ): PregnancyAttempt | null {
   const attemptId = story.activePregnancies[carrierId]
-  return attemptId ? (story.attempts.find((attempt) => attempt.attemptId === attemptId) ?? null) : null
+  return attemptId
+    ? (story.attempts.find((attempt) => attempt.attemptId === attemptId) ?? null)
+    : null
 }
 
 /**
@@ -268,9 +263,7 @@ export function resolvePregnancyResultDay(
 ): number | null {
   const day = finiteDay(attemptDay)
   const finaleDay =
-    finalThreeDay == null || !Number.isFinite(finalThreeDay)
-      ? null
-      : finiteDay(finalThreeDay)
+    finalThreeDay == null || !Number.isFinite(finalThreeDay) ? null : finiteDay(finalThreeDay)
   for (const offset of [5, 4, 3, 2]) {
     const candidate = day + offset
     if (finaleDay == null || candidate < finaleDay) return candidate
@@ -335,7 +328,8 @@ export function getPregnancyEligibility(input: PregnancyEligibilityInput): {
     if (!pregnancy.pregnancyPublicRevealed) {
       return { eligible: false, reason: 'Paternity testing opens after the pregnancy is public.' }
     }
-    const opens = (pregnancy.pregnancyPublicRevealDay ?? pregnancy.resultRevealedDay ?? input.currentDay) + 1
+    const opens =
+      (pregnancy.pregnancyPublicRevealDay ?? pregnancy.resultRevealedDay ?? input.currentDay) + 1
     if (finiteDay(input.currentDay) < opens) {
       return { eligible: false, reason: 'The paternity test becomes available tomorrow.' }
     }
@@ -472,20 +466,14 @@ export function shouldAcceptPregnancyAttempt(input: {
     input.publicOtherPregnancy === true ||
     Boolean(
       input.story &&
-        input.proposer &&
-        input.prospectivePartnerId &&
-        hasPublicPregnancyWithOtherPartner(
-          input.story,
-          input.proposer.id,
-          input.prospectivePartnerId
-        )
+      input.proposer &&
+      input.prospectivePartnerId &&
+      hasPublicPregnancyWithOtherPartner(input.story, input.proposer.id, input.prospectivePartnerId)
     )
 
   if (publicOtherPregnancy) {
     const highDrama =
-      archetype === 'chaos_agent' ||
-      archetype === 'opportunist' ||
-      temperament === 'impulsive'
+      archetype === 'chaos_agent' || archetype === 'opportunist' || temperament === 'impulsive'
     const loyal = archetype === 'romantic_loyalist' || archetype === 'loyal_anchor'
     chance *= loyal ? 0.05 : highDrama ? 0.45 : 0.18
   }
@@ -540,8 +528,7 @@ export function startPregnancyAttempt(
   const roll = rollForAttempt([input.seed, attemptId, input.actor.id, input.target.id, attemptDay])
   const existingConceptionId = story.activePregnancies[eligibility.carrierId]
   const pregnant = !existingConceptionId && roll < positiveChance
-  const finalThreeDay =
-    input.finalThreeDay == null ? null : finiteDay(input.finalThreeDay)
+  const finalThreeDay = input.finalThreeDay == null ? null : finiteDay(input.finalThreeDay)
   const resultAvailableDay = resolvePregnancyResultDay(attemptDay, finalThreeDay)
 
   const attempt: PregnancyAttempt = {
@@ -613,9 +600,7 @@ function clampPublicRevealDay(
   finalThreeDay?: number | null
 ): number | null {
   const finale =
-    finalThreeDay == null || !Number.isFinite(finalThreeDay)
-      ? null
-      : finiteDay(finalThreeDay)
+    finalThreeDay == null || !Number.isFinite(finalThreeDay) ? null : finiteDay(finalThreeDay)
   if (finale == null) return Math.max(earliestDay, preferredDay)
   const latest = finale - 1
   if (latest < earliestDay) return null
@@ -758,10 +743,9 @@ export function processPregnancyStoryDay(
     let pregnancy = attempts[index]
     if (!pregnancy.resultKnown || pregnancy.status !== 'POSITIVE') continue
 
-    const plausibleFatherIds =
-      pregnancy.plausibleFatherIds?.length
-        ? [...pregnancy.plausibleFatherIds]
-        : [pregnancy.biologicalFatherId]
+    const plausibleFatherIds = pregnancy.plausibleFatherIds?.length
+      ? [...pregnancy.plausibleFatherIds]
+      : [pregnancy.biologicalFatherId]
     const ambiguous = plausibleFatherIds.length > 1
 
     if (
@@ -859,7 +843,7 @@ export function normalizePregnancyStoryState(raw: unknown): PregnancyStoryState 
     const biologicalFatherId =
       typeof attempt.biologicalFatherId === 'string'
         ? attempt.biologicalFatherId
-        : participantIds.find((id) => id !== attempt.carrierId) ?? attempt.partnerId
+        : (participantIds.find((id) => id !== attempt.carrierId) ?? attempt.partnerId)
     return {
       ...attempt,
       participantIds,
@@ -887,7 +871,8 @@ export function normalizePregnancyStoryState(raw: unknown): PregnancyStoryState 
   // Legacy saves did not lock conception until the test was revealed. Recover
   // the earliest successful attempt per carrier so paternity remains stable.
   for (const attempt of [...attempts].sort(
-    (left, right) => left.attemptDay - right.attemptDay || left.attemptId.localeCompare(right.attemptId)
+    (left, right) =>
+      left.attemptDay - right.attemptDay || left.attemptId.localeCompare(right.attemptId)
   )) {
     if (attempt.pregnant && !activePregnancies[attempt.carrierId]) {
       activePregnancies[attempt.carrierId] = attempt.attemptId
