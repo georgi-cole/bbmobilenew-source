@@ -74,10 +74,7 @@ export function validateSocialExecution(
   state: SocialExecutionState,
   selection: SocialExecutionSelection
 ) {
-  if (
-    state.game?.weekendInterlude?.active &&
-    WEEKEND_BLOCKED_ACTION_IDS.has(selection.action.id)
-  ) {
+  if (state.game?.weekendInterlude?.active && WEEKEND_BLOCKED_ACTION_IDS.has(selection.action.id)) {
     return {
       eligible: false,
       reason: 'Weekend free time does not support ceremony-specific or timed pregnancy actions.',
