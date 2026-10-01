@@ -8805,6 +8805,8 @@ const gameSlice = createSlice({
         !(state.completedWeekendDays ?? []).includes(state.week) &&
         state.mode !== 'survival' &&
         activeHousemateCount(state) > 3 &&
+        Boolean(getHumanPlayer(state)) &&
+        isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
         !state.finalThree
       ) {
         state.weekendInterlude = {
