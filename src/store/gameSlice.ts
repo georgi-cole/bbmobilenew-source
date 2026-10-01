@@ -8619,19 +8619,14 @@ const gameSlice = createSlice({
       const question = getHubSaysQuestion(expectedQuestionId)
       const winner = state.players.find((player) => player.id === resolved.winnerId)
       if (question && winner) {
-        pushEvent(
-          state,
-          `THE HUB SAYS… ${question.prompt} — ${winner.name}`,
-          'social',
-          {
-            weekend: true,
-            weekendDay: weekend.weekendDay,
-            weekendEpisode: 'hub_says',
-            questionId: expectedQuestionId,
-            winnerId: resolved.winnerId,
-            suppressTv: true,
-          }
-        )
+        pushEvent(state, `THE HUB SAYS… ${question.prompt} — ${winner.name}`, 'social', {
+          weekend: true,
+          weekendDay: weekend.weekendDay,
+          weekendEpisode: 'hub_says',
+          questionId: expectedQuestionId,
+          winnerId: resolved.winnerId,
+          suppressTv: true,
+        })
         state.history = [
           ...(state.history ?? []),
           {
@@ -8687,7 +8682,8 @@ const gameSlice = createSlice({
         weekend.wallet.energy < costs.energy ||
         weekend.wallet.influence < costs.influence ||
         weekend.wallet.info < costs.info
-      ) return
+      )
+        return
       weekend.wallet.energy -= costs.energy
       weekend.wallet.influence -= costs.influence
       weekend.wallet.info -= costs.info
