@@ -32,6 +32,7 @@ import {
   MIN_ALLIANCE_AFFINITY,
   hasAllianceBetween,
 } from './socialAlliance'
+import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
@@ -71,6 +72,12 @@ interface ManeuverPlayer {
   name?: string
   status: string
   isUser?: boolean
+  age?: number
+  sex?: string
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
   aiGameIdentity?: {
     archetype?: string
     temperament?: string
@@ -83,6 +90,7 @@ interface ManeuverGameState {
   phase?: string
   lohId?: string | null
   nomineeIds?: string[]
+  pregnancyStory?: import('./reality/pregnancy').PregnancyStoryState
   dramaSocialMode?: boolean
   depressionShock?: { activeDay?: number }
   lohSocialPlan?: {
@@ -92,8 +100,26 @@ interface ManeuverGameState {
     backupTargetId: string | null
     askCountsByPlayerId: Record<string, number>
     disclosedTargetByPlayerId?: Record<string, string>
-    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
+    disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
   } | null
+  nominationDecisionReasons?: Record<
+    string,
+    {
+      week: number
+      lohId: string
+      nomineeId: string
+      stage: 'INITIAL' | 'REPLACEMENT'
+      primaryReason: string
+      eligibleAlternativeIds: string[]
+      strongerProtectedIds: string[]
+      forcedChoice: boolean
+      relationshipTier?: string
+      relationshipTagsAtDecision?: string[]
+      trustAtDecision?: number
+      lohArchetype?: string
+      lohTemperament?: string
+    }
+  >
 }
 
 interface StateForManeuvers {
@@ -428,6 +454,74 @@ function getLohTargetPlan(
   }
 }
 
+type NominationDisclosure = {
+  outcome: 'truthful' | 'partial' | 'vague' | 'false'
+  closeBond: boolean
+  tier: string
+  reason: NonNullable<ManeuverGameState['nominationDecisionReasons']>[string] | null
+}
+
+export function resolveNominationDisclosure(
+  game:
+    | {
+        week?: number
+        nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
+      }
+    | undefined,
+  actorId: string,
+  targetId: string,
+  recipientTrust: number
+): NominationDisclosure {
+  const reasons = Object.values(game?.nominationDecisionReasons ?? {}).filter(
+    (entry) => entry.week === game?.week && entry.lohId === targetId && entry.nomineeId === actorId
+  )
+  const reason = reasons.find((entry) => entry.stage === 'REPLACEMENT') ?? reasons[0] ?? null
+  const tier = reason?.relationshipTier ?? 'ORDINARY'
+  const closeBond = ['RIDE_OR_DIE', 'ROMANCE', 'PRIMARY_ALLIANCE', 'ALLIANCE', 'BROMANCE'].includes(
+    tier
+  )
+  if (!reason) return { outcome: 'vague', closeBond, tier, reason }
+  const secrecyPressure =
+    reason.primaryReason === 'BACKDOOR_PLAN' || reason.primaryReason === 'ALLIANCE_TARGET'
+  const honestArchetypes = [
+    'loyal_anchor',
+    'jury_artisan',
+    'social_butterfly',
+    'romantic_loyalist',
+    'audience_darling',
+  ]
+  const deceptiveArchetypes = [
+    'double_agent',
+    'puppet_master',
+    'opportunist',
+    'chaos_agent',
+    'secretive',
+  ]
+  const honestTemperaments = ['calm', 'emotional']
+  const deceptiveTemperaments = ['secretive', 'paranoid', 'impulsive']
+  const honesty =
+    (honestArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) +
+    (honestTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0) -
+    (deceptiveArchetypes.includes(reason.lohArchetype ?? '') ? 2 : 0) -
+    (deceptiveTemperaments.includes(reason.lohTemperament ?? '') ? 1 : 0)
+  const outcome = reason.forcedChoice
+    ? 'truthful'
+    : closeBond && (reason.trustAtDecision ?? recipientTrust) >= 20 && honesty >= 0
+      ? secrecyPressure
+        ? 'partial'
+        : 'truthful'
+      : (reason.trustAtDecision ?? recipientTrust) < -25 && honesty <= -1
+        ? 'false'
+        : secrecyPressure
+          ? honesty <= -1
+            ? 'vague'
+            : 'partial'
+          : (reason.trustAtDecision ?? recipientTrust) < 0
+            ? 'vague'
+            : 'truthful'
+  return { outcome, closeBond, tier, reason }
+}
+
 function getContextualActionSummary({
   actionId,
   actorId,
@@ -443,10 +537,12 @@ function getContextualActionSummary({
   subjectId?: string
   recipientTrust: number
   game?: {
+    week?: number
     players?: Array<{ id: string; name?: string; status: string }>
     nomineeIds?: string[]
     lohId?: string | null
     nominationContext?: { autoNomineeId: string | null } | null
+    nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
   }
   relationships: SocialState['relationships']
 }): string | null {
@@ -457,11 +553,42 @@ function getContextualActionSummary({
     if (game?.nominationContext?.autoNomineeId === actorId) {
       return `${lohName} explained that you entered danger automatically after the competition, not as their personal nominee.`
     }
-    if (recipientTrust >= 30)
-      return `${lohName} said they respect you, but your competition potential made you too dangerous to leave comfortable.`
-    if (recipientTrust < 0)
-      return `${lohName} admitted they do not trust your position and wanted to force you to show your hand.`
-    return `${lohName} said they needed options and believed you were connected enough to survive without becoming an immediate enemy.`
+    const disclosure = resolveNominationDisclosure(game, actorId, targetId, recipientTrust)
+    const reason = disclosure.reason
+    if (!reason) {
+      return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
+    }
+    const relationshipPrefix = disclosure.closeBond
+      ? `They acknowledged that you were their ${disclosure.tier.toLowerCase().replaceAll('_', ' ')}. `
+      : ''
+    if (disclosure.outcome === 'vague') {
+      return `${relationshipPrefix}${lohName} said they needed options and the board was complicated, without naming the real calculation.`
+    }
+    if (disclosure.outcome === 'false') {
+      return `${relationshipPrefix}${lohName} said you were becoming too dangerous in competitions and they could not leave you comfortable.`
+    }
+    if (reason.forcedChoice) {
+      return `${relationshipPrefix}${lohName} said there was no clean non-allied option left and they had to choose among people they were connected to.`
+    }
+    if (reason.primaryReason === 'BETRAYAL') {
+      return `${relationshipPrefix}${lohName} said the trust between you had already broken down, and putting you up was the strategic consequence.`
+    }
+    if (reason.primaryReason === 'BACKDOOR_PLAN' && disclosure.outcome === 'partial') {
+      return `${relationshipPrefix}${lohName} said they needed flexibility after Safety and believed you could survive the block.`
+    }
+    if (reason.primaryReason === 'BACKDOOR_PLAN') {
+      return `${relationshipPrefix}${lohName} said you were part of the original block because they needed the option to backdoor someone else.`
+    }
+    if (reason.primaryReason === 'COMPETITION_THREAT') {
+      return `${relationshipPrefix}${lohName} said your competition potential made you too dangerous to leave comfortable.`
+    }
+    if (reason.primaryReason === 'ALLIANCE_TARGET') {
+      return `${relationshipPrefix}${lohName} said your position conflicted with their alliance's target plan.`
+    }
+    const protectedNames = reason.strongerProtectedIds.map(name)
+    return protectedNames.length > 0
+      ? `${relationshipPrefix}${lohName} said they had stronger reasons to protect ${protectedNames.join(' and ')} over you.`
+      : `${relationshipPrefix}${lohName} said they did not trust your position enough to leave you off the block.`
   }
   if (actionId === 'ask_safety_plan') {
     const holderName = name(targetId)
@@ -579,7 +706,9 @@ export function getAvailableActions(
       targetId &&
       action.id === 'proposeAlliance' &&
       socialState &&
-      hasAllianceBetween(socialState.relationships, actorId, targetId)
+      (socialState.reality
+        ? hasCanonicalLiveAlliance(socialState.reality, actorId, targetId)
+        : hasAllianceBetween(socialState.relationships, actorId, targetId))
     ) {
       return false
     }
@@ -760,7 +889,9 @@ export function executeAction(
 
   if (
     actionId === 'proposeAlliance' &&
-    hasAllianceBetween(state.social.relationships, actorId, targetId)
+    (state.social.reality
+      ? hasCanonicalLiveAlliance(state.social.reality, actorId, targetId)
+      : hasAllianceBetween(state.social.relationships, actorId, targetId))
   ) {
     return {
       success: false,
@@ -782,6 +913,7 @@ export function executeAction(
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,
+    pregnancyStory: state.game?.pregnancyStory,
     dramaMode,
     requireCompleteSelection: true,
     allowAIOnly: true,
@@ -852,6 +984,7 @@ export function executeAction(
       }>
       nomineeIds?: string[]
       nominationContext?: { autoNomineeId: string | null } | null
+      nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
       lohSocialPlan?: {
         week: number
         lohId: string
@@ -859,7 +992,7 @@ export function executeAction(
         backupTargetId: string | null
         askCountsByPlayerId: Record<string, number>
         disclosedTargetByPlayerId?: Record<string, string>
-        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'vague' | 'false'>
+        disclosureOutcomeByPlayerId?: Record<string, 'truthful' | 'partial' | 'vague' | 'false'>
       } | null
     }
   }
@@ -1078,6 +1211,24 @@ export function executeAction(
         disclosureOutcomeByPlayerId: {
           ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
           [actorId]: lohDisclosure.outcome,
+        },
+      },
+    })
+  }
+  if (actionId === 'ask_why_nominated' && lohPlanState) {
+    const nominationDisclosure = resolveNominationDisclosure(
+      rootState.game,
+      actorId,
+      targetId,
+      recipientTrust
+    )
+    _store.dispatch({
+      type: 'game/setLohSocialPlan',
+      payload: {
+        ...lohPlanState,
+        disclosureOutcomeByPlayerId: {
+          ...(lohPlanState.disclosureOutcomeByPlayerId ?? {}),
+          [actorId]: nominationDisclosure.outcome,
         },
       },
     })
@@ -1447,6 +1598,7 @@ export function executeGroupAction(
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,
+    pregnancyStory: state.game?.pregnancyStory,
     dramaMode,
     requireCompleteSelection: true,
     allowAIOnly: true,

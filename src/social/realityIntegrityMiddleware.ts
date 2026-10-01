@@ -3,6 +3,9 @@ import { resolveLanguagePreference, translate } from '../i18n'
 import { applyDramaAction, recordRealityAllianceBetrayal, updateRelationship } from './socialSlice'
 import { getEffectiveSocialMode } from './socialMode'
 import type { RelationshipsMap } from './types'
+import { evaluateRelationshipViolation } from './relationshipViolation'
+import { getActiveFacadeAgreement } from './reality/facadeAgreements'
+import type { RealityDomainState } from './reality/types'
 
 interface IntegrityPlayer {
   id: string
@@ -22,6 +25,7 @@ export interface NominationBetrayalState {
   }
   social: {
     relationships?: RelationshipsMap
+    reality?: RealityDomainState
   }
   settings?: {
     localization?: {
@@ -108,7 +112,53 @@ export function applyNominationBetrayalConsequences(
   const lohId = after.game.lohId
   for (const nomineeId of nomineeIds) {
     const tags = combinedTags(before.social.relationships, lohId, nomineeId)
-    if (!tags.some((tag) => POSITIVE_BOND_TAGS.has(tag)) || tags.includes('betrayal')) continue
+    if (tags.includes('betrayal')) continue
+    const eligibleAlternatives = after.game.players
+      .filter(
+        (player) =>
+          player.id !== lohId &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          !after.game.nomineeIds.includes(player.id)
+      )
+      .map((player) => ({
+        id: player.id,
+        relationshipTags: combinedTags(before.social.relationships, lohId, player.id),
+      }))
+    const violation = evaluateRelationshipViolation({
+      actorId: lohId,
+      targetId: nomineeId,
+      actionType: 'NOMINATION',
+      relationshipTags: tags,
+      eligibleAlternatives,
+      facadeAgreement: after.social.reality
+        ? getActiveFacadeAgreement(
+            after.social.reality,
+            lohId,
+            nomineeId,
+            after.game.week,
+            source === 'replacement' ? 'REPLACEMENT' : 'INITIAL_NOMINATION'
+          )
+        : null,
+    })
+    if (violation.classification !== 'BETRAYAL') {
+      if (
+        violation.classification === 'RELATIONSHIP_HURT' &&
+        tags.some((tag) => POSITIVE_BOND_TAGS.has(tag))
+      ) {
+        api.dispatch(
+          updateRelationship({
+            source: nomineeId,
+            target: lohId,
+            delta: -Math.round(8 + violation.severity * 20),
+            tags: ['strained'],
+            actionSource: 'system',
+            skipRealityProjection: true,
+          })
+        )
+      }
+      continue
+    }
 
     const lohName = after.game.players.find((player) => player.id === lohId)?.name ?? lohId
     const nomineeName =
@@ -224,7 +274,6 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
   if (
     getEffectiveSocialMode(after) !== 'drama' ||
     after.game.voxPopuli?.status === 'active' ||
-    after.game.phase !== 'pos_ceremony_results' ||
     !after.game.lohId
   ) {
     return result
@@ -235,7 +284,13 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
   )
   if (newlyAddedNominees.length === 0) return result
 
-  applyNominationBetrayalConsequences(api, before, after, newlyAddedNominees, 'replacement')
+  applyNominationBetrayalConsequences(
+    api,
+    before,
+    after,
+    newlyAddedNominees,
+    after.game.phase === 'pos_ceremony_results' ? 'replacement' : 'initial'
+  )
 
   return result
 }

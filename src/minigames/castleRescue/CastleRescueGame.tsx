@@ -2072,12 +2072,23 @@ export default function CastleRescueGame({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const stateRef = useRef<GameState | null>(null)
   const keysRef = useRef(new Set<string>())
+  const activeTouchPointersRef = useRef(new Map<number, string>())
   const rafRef = useRef(0)
   const onFinishRef = useRef(onFinish)
   onFinishRef.current = onFinish
   const experimentalRef = useRef(experimental)
   experimentalRef.current = experimental
   const finishedRef = useRef(false)
+
+  /**
+   * Mobile browsers are allowed to cancel a pointer without ever delivering
+   * pointerup to its original button. Keep the release path central so a
+   * cancelled gesture can never leave a direction pressed in the game loop.
+   */
+  const releaseAllMovementInputs = useCallback(() => {
+    keysRef.current.clear()
+    activeTouchPointersRef.current.clear()
+  }, [])
 
   const [phase, setPhase] = useState<Phase>('idle')
   const [endStats, setEndStats] = useState<{
@@ -2094,22 +2105,46 @@ export default function CastleRescueGame({
 
   useEffect(() => {
     let rafId = 0
+    let stableFrames = 0
+    let lastViewport = ''
+    const readViewport = () => {
+      const viewport = window.visualViewport
+      return {
+        width: Math.round(viewport?.width ?? window.innerWidth),
+        height: Math.round(viewport?.height ?? window.innerHeight),
+      }
+    }
     const update = () => {
-      setLayout(computeLayout(window.innerWidth, window.innerHeight))
+      const { width, height } = readViewport()
+      const viewport = `${width}x${height}`
+      stableFrames = viewport === lastViewport ? stableFrames + 1 : 0
+      lastViewport = viewport
+      // iOS reports transitional viewport sizes while rotating. Commit after
+      // two stable animation frames so the stage does not chase every value.
+      if (stableFrames >= 2) setLayout(computeLayout(width, height))
+      else rafId = requestAnimationFrame(update)
     }
     const onResize = () => {
       cancelAnimationFrame(rafId)
+      stableFrames = 0
       rafId = requestAnimationFrame(update)
     }
+    const onOrientationChange = () => {
+      releaseAllMovementInputs()
+      onResize()
+      window.scrollTo(0, 0)
+    }
     window.addEventListener('resize', onResize)
-    window.addEventListener('orientationchange', onResize)
-    update()
+    window.visualViewport?.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onOrientationChange)
+    onResize()
     return () => {
       window.removeEventListener('resize', onResize)
-      window.removeEventListener('orientationchange', onResize)
+      window.visualViewport?.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onOrientationChange)
       cancelAnimationFrame(rafId)
     }
-  }, [])
+  }, [releaseAllMovementInputs])
 
   const initState = useCallback(
     (runSeed: number): GameState => {
@@ -2170,11 +2205,12 @@ export default function CastleRescueGame({
     // Follow the minigame-host convention: seed=0 means "no explicit seed",
     // so hosted replays get a fresh run layout unless a non-zero seed is set.
     const runSeed = resolveCastleRescueRunSeed(seed)
+    releaseAllMovementInputs()
     finishedRef.current = false
     stateRef.current = initState(runSeed)
     setPhase('playing')
     setEndStats(null)
-  }, [seed, initState])
+  }, [seed, initState, releaseAllMovementInputs])
 
   // Keyboard input
   useEffect(() => {
@@ -2202,13 +2238,29 @@ export default function CastleRescueGame({
       if (canvasHasFocus) e.preventDefault()
     }
     const onUp = (e: KeyboardEvent) => keysRef.current.delete(e.code)
+    const onPointerReleased = () => releaseAllMovementInputs()
+    const onBlur = () => releaseAllMovementInputs()
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') releaseAllMovementInputs()
+    }
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
+    window.addEventListener('pointerup', onPointerReleased)
+    window.addEventListener('pointercancel', onPointerReleased)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('pagehide', onBlur)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
+      window.removeEventListener('pointerup', onPointerReleased)
+      window.removeEventListener('pointercancel', onPointerReleased)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pagehide', onBlur)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      releaseAllMovementInputs()
     }
-  }, [])
+  }, [releaseAllMovementInputs])
 
   // Game loop
   useEffect(() => {
@@ -2260,6 +2312,7 @@ export default function CastleRescueGame({
       if (gs.phase === 'complete') {
         if (!finishedRef.current) {
           finishedRef.current = true
+          releaseAllMovementInputs()
           setPhase('complete')
           setEndStats({ score: gs.finalScore, endReason: gs.endReason })
           if (import.meta.env.DEV && experimentalRef.current) {
@@ -2298,7 +2351,7 @@ export default function CastleRescueGame({
 
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [remastered, timeLimitMs, variant])
+  }, [remastered, timeLimitMs, variant, releaseAllMovementInputs])
 
   // Auto-start
   useEffect(() => {
@@ -2326,8 +2379,14 @@ export default function CastleRescueGame({
   }, [startGame, endStats])
 
   // Touch / on-screen control helpers
-  const touchPress = useCallback((code: string) => keysRef.current.add(code), [])
-  const touchRelease = useCallback((code: string) => keysRef.current.delete(code), [])
+  const touchPress = useCallback((code: string, pointerId: number) => {
+    activeTouchPointersRef.current.set(pointerId, code)
+    keysRef.current.add(code)
+  }, [])
+  const touchRelease = useCallback((code: string, pointerId?: number) => {
+    if (pointerId !== undefined) activeTouchPointersRef.current.delete(pointerId)
+    if (![...activeTouchPointersRef.current.values()].includes(code)) keysRef.current.delete(code)
+  }, [])
 
   const { scale, landscape } = layout
 
@@ -2370,10 +2429,27 @@ export default function CastleRescueGame({
 
   return (
     <div
+      onContextMenu={(event) => event.preventDefault()}
+      onDragStart={(event) => event.preventDefault()}
       style={
         variant === 'benny-lenny'
-          ? { ...outerStyle, position: 'fixed', inset: 0, zIndex: 9000 }
-          : outerStyle
+          ? {
+              ...outerStyle,
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9000,
+              touchAction: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+            }
+          : {
+              ...outerStyle,
+              touchAction: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              WebkitTouchCallout: 'none',
+            }
       }
     >
       {/* Landscape: LEFT/RIGHT buttons anchored to bottom-left of viewport */}
@@ -2598,8 +2674,8 @@ interface TouchBtnProps {
   ariaLabel: string
   color?: string
   size?: number
-  onPress: (code: string) => void
-  onRelease: (code: string) => void
+  onPress: (code: string, pointerId: number) => void
+  onRelease: (code: string, pointerId?: number) => void
 }
 function TouchBtn({
   code,
@@ -2620,12 +2696,12 @@ function TouchBtn({
       onPointerDown={(e) => {
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
-        onPress(code)
+        onPress(code, e.pointerId)
       }}
-      onPointerUp={() => onRelease(code)}
-      onPointerCancel={() => onRelease(code)}
-      onLostPointerCapture={() => onRelease(code)}
-      onPointerLeave={() => onRelease(code)}
+      onPointerUp={(e) => onRelease(code, e.pointerId)}
+      onPointerCancel={(e) => onRelease(code, e.pointerId)}
+      onLostPointerCapture={(e) => onRelease(code, e.pointerId)}
+      onPointerLeave={(e) => onRelease(code, e.pointerId)}
     >
       {label}
     </button>

@@ -55,6 +55,17 @@ import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
+import {
+  createInitialPregnancyStoryState,
+  normalizePregnancyStoryState,
+  processPregnancyStoryDay,
+  revealPaternityResult as resolvePaternityResult,
+  revealPregnancyTest as resolvePregnancyTest,
+  startPregnancyAttempt as createPregnancyAttempt,
+  markPregnancyReactions as markPregnancyStoryReactions,
+  type HumanPregnancyRoleChoice,
+  type PregnancyAttemptStartInput,
+} from '../social/reality/pregnancy'
 import { resolvePublicModeRuntimeEnabled } from '../publicOpinion/publicModeAccess'
 import {
   addDirection,
@@ -84,7 +95,7 @@ import {
   pickMissionImmunityDuration,
   repairLegacyMissionTasks,
   type MissionTask,
-  type LegacyMissionRewardType,
+  type CurrentMissionRewardType,
 } from '../bb/secretMission'
 import {
   buildDoubleEvictionTieResolutionMessage,
@@ -346,6 +357,7 @@ const HOUSEGUEST_POOL = HOUSEGUESTS.map((hg) => ({
   id: hg.id,
   name: hg.name,
   avatar: hg.sex === 'Female' ? '👩' : '🧑',
+  age: hg.age,
   sex: hg.sex,
 }))
 
@@ -368,6 +380,8 @@ const TWIN_SHOCK_LIA_POOL_ENTRY = {
   id: TWIN_SHOCK_LIA_ID,
   name: 'Lia',
   avatar: TWIN_SHOCK_LIA_AVATAR,
+  age: 25,
+  sex: 'Female',
 }
 
 function buildSecretMissionTargetCandidates(state: GameState): string[] {
@@ -406,14 +420,42 @@ const GAME_ROSTER_SIZE = DEFAULT_ROSTER_SIZE
  * The avatar resolver finds avatars/You.png via the name-based candidate
  * capitalize('You') = 'You' → avatars/You.png.
  */
+export function resolveProfileAge(value?: string): number | undefined {
+  const normalized = value?.trim().toLowerCase()
+  if (!normalized) return undefined
+  const exact = Number(normalized)
+  if (Number.isFinite(exact)) return exact
+  const range = normalized.match(/\b(early|mid|late)[ -]?(\d{2})s\b/)
+  if (range) {
+    const decade = Number(range[2])
+    const offset = range[1] === 'early' ? 2 : range[1] === 'late' ? 8 : 5
+    return decade + offset
+  }
+  const decade = normalized.match(/\b(\d{2})s\b/)
+  return decade ? Number(decade[1]) + 5 : undefined
+}
+
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
+  const parsedAge = resolveProfileAge(profile.bio?.age)
+  const profileSex = profile.bio?.sex?.trim()
+  const reproductiveSex =
+    !profileSex && profile.bio?.reproductiveProfile?.canCausePregnancy === true
+      ? 'Male'
+      : !profileSex && profile.bio?.reproductiveProfile?.canBecomePregnant === true
+        ? 'Female'
+        : undefined
   return {
     id: 'user',
     name: profile.name,
     avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
     status: 'active',
     isUser: true,
+    ...(parsedAge !== undefined ? { age: parsedAge } : {}),
+    ...(profileSex || reproductiveSex ? { sex: profileSex || reproductiveSex } : {}),
+    ...(profile.bio?.reproductiveProfile
+      ? { reproductiveProfile: profile.bio.reproductiveProfile }
+      : {}),
   }
 }
 
@@ -448,6 +490,8 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
   const roster = !twinShockConsumed && lia ? [lia, ...picked] : picked
   return roster.map((hg) => ({
     ...hg,
+    age: hg.age,
+    sex: hg.sex,
     status: 'active' as const,
   }))
 }
@@ -721,6 +765,8 @@ export function createInitialGameState(options?: {
     lohSocialPlan: null,
     currentWeekNominationRecord: null,
     lastWeekNominationRecord: null,
+    nominationDecisionReasons: {},
+    pregnancyStory: createInitialPregnancyStoryState(),
     lohSafetyAdvice: null,
     prevHohId: null,
     nomineeIds: [],
@@ -1227,12 +1273,34 @@ function pushDetoxEvent(state: GameState, text: string) {
   pushEvent(state, text, 'game', { sequence: 'detox_safety' })
 }
 
-function refreshSecretMissionCompletion(secretMission: GameState['secretMission']) {
+function refreshSecretMissionCompletion(
+  secretMission: GameState['secretMission'],
+  currentDay: number
+) {
   if (!secretMission || secretMission.status !== 'accepted') return
   const allDone = isSecretMissionSuccessful(secretMission.tasks)
-  if (allDone) {
+  // A completed mission is deliberately held until the strategic checkpoint
+  // at the beginning of its reward day. This prevents an objective completed
+  // by nominations from surfacing a reward after nominations have already run.
+  if (allDone && currentDay >= secretMission.endDay) {
     secretMission.status = 'rewardPending'
   }
+}
+
+function settleSecretMissionArrival(state: GameState): void {
+  const mission = state.secretMission
+  if (mission?.status !== 'accepted') return
+  // “Survive until Day N” resolves on reaching Day N, before that day's
+  // nomination window can make the reward strategically late.
+  for (const task of mission.tasks) {
+    if (task.type !== 'survive_days' || state.week < (task.targetDay ?? mission.endDay)) continue
+    task.current = task.target
+    task.completed = true
+    task.lastProgressDay = state.week
+    task.firstSatisfiedDay ??= state.week
+    task.auditLog = [...(task.auditLog ?? []), `Reached Day ${state.week}`].slice(-12)
+  }
+  refreshSecretMissionCompletion(mission, state.week)
 }
 
 const MIN_SECRET_MISSION_DAY_SPAN = Math.min(
@@ -1246,7 +1314,11 @@ function canReplaceSecretMissionSlot(secretMission: GameState['secretMission']):
   const reward = secretMission.reward
   if (!reward) return true
   return (
-    reward.consumed || reward.expired || !reward.eligible || reward.type === 'plus1000Influence'
+    reward.consumed ||
+    reward.expired ||
+    !reward.eligible ||
+    reward.type === 'plus1000Influence' ||
+    reward.type === 'resourceCache'
   )
 }
 
@@ -2120,6 +2192,73 @@ export function getStrategicReplacementNomineeBreakdown(
   return { total, factors }
 }
 
+function recordNominationDecisionReason(
+  state: GameState,
+  lohId: string,
+  nominee: Player,
+  stage: 'INITIAL' | 'REPLACEMENT',
+  selected: { total: number; factors: Record<string, AiDecisionFactor> },
+  candidates: Array<{ player: Player; total: number; factors: Record<string, AiDecisionFactor> }>
+): void {
+  const factors = selected.factors
+  const relationshipTags = String(factors.tags ?? '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+  const relationshipTier = relationshipTags.includes('ride_or_die')
+    ? 'RIDE_OR_DIE'
+    : relationshipTags.includes('romance')
+      ? 'ROMANCE'
+      : relationshipTags.includes('primary_alliance')
+        ? 'PRIMARY_ALLIANCE'
+        : relationshipTags.includes('alliance')
+          ? 'ALLIANCE'
+          : relationshipTags.includes('bromance')
+            ? 'BROMANCE'
+            : 'ORDINARY'
+  const score = (key: string) => (typeof factors[key] === 'number' ? (factors[key] as number) : 0)
+  const primaryReason =
+    score('betrayal') > 0
+      ? 'BETRAYAL'
+      : score('hiddenAmbushPressure') > 0 || score('canonicalBackupPressure') > 0
+        ? 'BACKDOOR_PLAN'
+        : score('target') > 0 || score('realityAlliancePlanPressure') > 0
+          ? 'ALLIANCE_TARGET'
+          : score('threatContribution') >= Math.max(score('suspicion'), score('rivalry'))
+            ? 'COMPETITION_THREAT'
+            : score('affinityPenalty') > 0
+              ? 'LOW_TRUST'
+              : 'STRATEGIC_BUFFER'
+  const strongerProtectedIds = candidates
+    .filter(
+      (candidate) =>
+        candidate.player.id !== nominee.id &&
+        (Number(candidate.factors.alliance ?? 0) < 0 || Number(candidate.factors.romance ?? 0) < 0)
+    )
+    .map((candidate) => candidate.player.id)
+  state.nominationDecisionReasons ??= {}
+  state.nominationDecisionReasons[`${state.week}:${lohId}:${stage}:${nominee.id}`] = {
+    week: state.week,
+    lohId,
+    nomineeId: nominee.id,
+    stage,
+    primaryReason,
+    factors: { ...factors },
+    targetScoreAtDecision: selected.total,
+    eligibleAlternativeIds: candidates
+      .filter((candidate) => candidate.player.id !== nominee.id)
+      .map((candidate) => candidate.player.id),
+    strongerProtectedIds,
+    forcedChoice: candidates.length <= 1 || strongerProtectedIds.length >= candidates.length - 1,
+    relationshipTier,
+    relationshipTagsAtDecision: relationshipTags,
+    trustAtDecision: typeof factors.affinity === 'number' ? factors.affinity : undefined,
+    lohArchetype: state.players.find((player) => player.id === lohId)?.aiGameIdentity?.archetype,
+    lohTemperament: state.players.find((player) => player.id === lohId)?.aiGameIdentity
+      ?.temperament,
+  }
+}
+
 export function pickStrategicReplacementNominee(
   state: GameState,
   decisionMakerId: string | null | undefined,
@@ -2158,6 +2297,17 @@ export function pickStrategicReplacementNominee(
       factors: { ...entry.factors, selected: entry.player.id === chosen?.id },
     })),
   })
+  if (chosen) {
+    const chosenEntry = scored.find((entry) => entry.player.id === chosen.id)!
+    recordNominationDecisionReason(
+      state,
+      decisionMakerId,
+      chosen,
+      'REPLACEMENT',
+      chosenEntry,
+      scored
+    )
+  }
   return chosen
 }
 
@@ -2228,6 +2378,21 @@ function pickStrategicNominationTargets(
       factors: entry.factors,
     })),
   })
+  for (const selectedPlayer of selected) {
+    const selectedEntry = scored.find((entry) => entry.player.id === selectedPlayer.id)!
+    recordNominationDecisionReason(
+      state,
+      lohId,
+      selectedPlayer,
+      'INITIAL',
+      { total: selectedEntry.score, factors: selectedEntry.factors },
+      scored.map((entry) => ({
+        player: entry.player,
+        total: entry.score,
+        factors: entry.factors,
+      }))
+    )
+  }
   return selected
 }
 
@@ -4411,6 +4576,7 @@ const gameSlice = createSlice({
     advanceWeek(state) {
       state.week += 1
       state.phase = 'week_start'
+      settleSecretMissionArrival(state)
     },
     updatePlayer(state, action: PayloadAction<Player>) {
       const idx = state.players.findIndex((p) => p.id === action.payload.id)
@@ -4513,6 +4679,41 @@ const gameSlice = createSlice({
         event.channels = action.payload.channels
         event.source = action.payload.source
       }
+    },
+    setHumanPregnancyRole(state, action: PayloadAction<HumanPregnancyRoleChoice>) {
+      state.pregnancyStory = {
+        ...(state.pregnancyStory ?? createInitialPregnancyStoryState()),
+        humanRoleChoice: action.payload,
+      }
+    },
+    startPregnancyAttempt(state, action: PayloadAction<PregnancyAttemptStartInput>) {
+      const result = createPregnancyAttempt(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      )
+      if (result.attempt) state.pregnancyStory = result.story
+    },
+    revealPregnancyTest(state, action: PayloadAction<{ attemptId: string; currentDay: number }>) {
+      state.pregnancyStory = resolvePregnancyTest(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload
+      ).story
+    },
+    revealPaternityResult(state, action: PayloadAction<{ carrierId: string }>) {
+      state.pregnancyStory = resolvePaternityResult(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.carrierId
+      ).story
+    },
+    markPregnancyReactions(
+      state,
+      action: PayloadAction<{ attemptId: string; kind: 'reactions' | 'announcement' }>
+    ) {
+      state.pregnancyStory = markPregnancyStoryReactions(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.attemptId,
+        action.payload.kind
+      )
     },
     /** Update one existing broadcast without replacing its identity or position in the timeline. */
     updateTvEvent(
@@ -5899,31 +6100,17 @@ const gameSlice = createSlice({
         }
         pushEvent(state, `${lohPlayer.name} must now name a backup nominee. 🎯`, 'game')
       } else {
-        // AI LOH: deterministically pick replacement
-        const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
-        const eligible = getReplacementEligiblePlayers(state, alive)
-        if (eligible.length > 0) {
-          const rng = mulberry32(state.seed)
-          const replacement = pickStrategicReplacementNominee(state, lohPlayer?.id, eligible, rng, {
-            reason: 'selected standard LOH replacement from the canonical strategic resolver',
-          })
-          if (!replacement) return
-          state.nomineeIds.push(replacement.id)
-          const rp = state.players.find((pl) => pl.id === replacement.id)
-          if (rp) rp.status = 'nominated'
-          incrementTimesNominated(state, replacement.id)
-          // Keep povSavedId set so the UI can detect "veto was used" and show
-          // the AI replacement animation. Cleared at week_start.
-          pushEvent(
-            state,
-            `${lohPlayer?.name ?? 'The LOH'} named ${replacement.name} as the backup nominee. 🎯`,
-            'game'
-          )
-          // VIP: after AI LOH replacement is done inline, stage is immediately 2
-          if (state.specialVeto?.activeType === 'vip') {
-            state.specialVeto.vipUseStage = 2
-          }
-        }
+        // The changed block is a meaningful strategic checkpoint.  Leave the
+        // replacement unresolved until the next Continue so social actions can
+        // alter the LOH's current read without granting a new energy refresh.
+        state.aiReplacementStep = 1
+        state.aiReplacementWaiting = false
+        if (state.specialVeto?.activeType === 'vip') state.specialVeto.vipUseStage = 1
+        pushEvent(
+          state,
+          `${lohPlayer?.name ?? 'The LOH'} has time to reconsider the replacement after the Safety result. 🎯`,
+          'game'
+        )
       }
     },
 
@@ -8272,6 +8459,7 @@ const gameSlice = createSlice({
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
+        pregnancyStory: normalizePregnancyStoryState(action.payload.pregnancyStory),
         lohSafetyAdvice: action.payload.lohSafetyAdvice ?? null,
         currentWeekNominationRecord: action.payload.currentWeekNominationRecord ?? null,
         lastWeekNominationRecord: action.payload.lastWeekNominationRecord ?? null,
@@ -8470,6 +8658,45 @@ const gameSlice = createSlice({
         state.phase === 'final3_comp3_minigame'
       ) {
         return
+      }
+
+      // Pregnancy and paternity drama is strictly pre-Final-3. Positive tests are
+      // private first; due public reveals are emitted here on the next gameplay
+      // continuation so they cannot interrupt Final 3 competition/decision flow.
+      if (!state.phase.startsWith('final3') && state.pregnancyStory) {
+        const processed = processPregnancyStoryDay(state.pregnancyStory, state.week)
+        state.pregnancyStory = processed.story
+        for (const storyEvent of processed.events) {
+          const carrierName =
+            state.players.find((player) => player.id === storyEvent.carrierId)?.name ??
+            storyEvent.carrierId
+          const fatherName =
+            storyEvent.fatherId == null
+              ? null
+              : (state.players.find((player) => player.id === storyEvent.fatherId)?.name ??
+                storyEvent.fatherId)
+          const plausibleNames = storyEvent.plausibleFatherIds.map(
+            (id) => state.players.find((player) => player.id === id)?.name ?? id
+          )
+          const text =
+            storyEvent.kind === 'PATERNITY_PUBLIC'
+              ? `Faux TV: Paternity confirmed — ${fatherName ?? 'the biological father'} is the father of ${carrierName}'s pregnancy.`
+              : fatherName
+                ? `Faux TV: ${carrierName} is pregnant — and ${fatherName} is the father. The House has a new story to follow.`
+                : `Faux TV: ${carrierName} is pregnant. Paternity is uncertain${plausibleNames.length > 1 ? ` between ${formatNameList(plausibleNames)}` : ''}.`
+
+          const tvEvent = pushEvent(state, text, 'social', {
+            major:
+              storyEvent.kind === 'PATERNITY_PUBLIC' ? 'pregnancy_paternity' : 'pregnancy_positive',
+            pregnancyAttemptId: storyEvent.attemptId,
+            forceOnTv: true,
+            broadcastPriority: 'critical',
+          })
+          if (tvEvent) {
+            tvEvent.channels = ['tv', 'dr']
+            tvEvent.source = 'system'
+          }
+        }
       }
 
       // Bella's Will is never allowed to bleed into the Final 4 / Final 3 / Final 2.
@@ -9246,7 +9473,9 @@ const gameSlice = createSlice({
             state.lastWeekNominationRecord = state.currentWeekNominationRecord ?? null
             state.week += 1
           }
+          settleSecretMissionArrival(state)
           state.currentWeekNominationRecord = null
+          state.nominationDecisionReasons = {}
           state.lohId = null
           state.lohSocialPlan = null
           state.nomineeIds = []
@@ -9645,6 +9874,25 @@ const gameSlice = createSlice({
             }
           }
           state.nomineeIds = nominees.map((n) => n.id)
+          if (canUsePlannedBlock) {
+            const decisionCandidates = aiPool.map((candidate) => ({
+              player: candidate,
+              ...getNominationTargetBreakdown(state, state.lohId!, candidate),
+            }))
+            for (const nominee of nominees) {
+              const selected = decisionCandidates.find((entry) => entry.player.id === nominee.id)
+              if (selected) {
+                recordNominationDecisionReason(
+                  state,
+                  state.lohId!,
+                  nominee,
+                  'INITIAL',
+                  selected,
+                  decisionCandidates
+                )
+              }
+            }
+          }
           nominees.forEach((n) => {
             const p = state.players.find((pl) => pl.id === n.id)
             if (p) p.status = 'nominated'
@@ -10829,7 +11077,7 @@ const gameSlice = createSlice({
       if (action.payload.auditEntry) {
         task.auditLog = [...(task.auditLog ?? []), action.payload.auditEntry].slice(-12)
       }
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     /**
@@ -10856,7 +11104,7 @@ const gameSlice = createSlice({
       task.uniqueDays.push(action.payload.day)
       task.current = Math.max(previousCurrent, task.uniqueDays.length)
       task.completed = task.current >= task.target
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     /**
@@ -10884,7 +11132,7 @@ const gameSlice = createSlice({
       if (!task) return
       Object.assign(task, action.payload.updates)
       task.completed = task.current >= task.target || task.completed === true
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     setMissionTaskBaselineApproval(
@@ -10911,7 +11159,7 @@ const gameSlice = createSlice({
               } before Day ${task.endDay ?? state.week}`
         task.completed = achievableDelta === 0
         if (task.completed) task.firstSatisfiedDay = state.week
-        refreshSecretMissionCompletion(sm)
+        refreshSecretMissionCompletion(sm, state.week)
       }
     },
 
@@ -10942,7 +11190,7 @@ const gameSlice = createSlice({
         task.firstSatisfiedDay = action.payload.day
       }
       task.auditLog = [...(task.auditLog ?? []), `Discovered ${action.payload.eggId}`].slice(-12)
-      refreshSecretMissionCompletion(sm)
+      refreshSecretMissionCompletion(sm, state.week)
     },
 
     expireSecretMission(state) {
@@ -10962,7 +11210,8 @@ const gameSlice = createSlice({
     claimMissionReward(
       state,
       action: PayloadAction<
-        LegacyMissionRewardType | { claimDay: number; durationDays?: 1 | 2 | 3 }
+        | Exclude<CurrentMissionRewardType, 'immunity'>
+        | { claimDay: number; durationDays?: 1 | 2 | 3 }
       >
     ) {
       const sm = state.secretMission
@@ -11295,6 +11544,11 @@ export const {
   syncStrategicAlliances,
   setLohSocialPlan,
   addTvEvent,
+  setHumanPregnancyRole,
+  startPregnancyAttempt,
+  revealPregnancyTest,
+  revealPaternityResult,
+  markPregnancyReactions,
   updateTvEvent,
   removeTvEvent,
   setBroadcastOverride,

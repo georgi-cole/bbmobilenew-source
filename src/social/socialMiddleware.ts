@@ -41,6 +41,7 @@ import {
   reconcileRealityBattleBackReturn,
   setEnergyBankEntry,
   pushIncomingInteraction,
+  scheduleIncomingInteraction,
   removeRelationshipTags,
   updateRelationship,
   initializeRealitySimulation,
@@ -70,6 +71,7 @@ import { DEFAULT_ENERGY, HUMAN_SOCIAL_ALLOWANCE } from './constants'
 import { getProfileRealityAgeEligibility, resolveRealityModePreset } from '../modes/realityMode'
 import { BETRAYAL_TAG, hasAllianceBetween } from './socialAlliance'
 import { getEffectiveSocialMode } from './socialMode'
+import { evaluateRelationshipViolation } from './relationshipViolation'
 import { getFamilyGroupId } from './socialRuntimeConfig'
 import {
   evaluateSocialCommitmentsForAction,
@@ -557,18 +559,17 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
 }
 
 /** A personal save merits a personal reaction before the house moves on. */
-function triggerVoxSafetyThankYou(
+function scheduleSafetyThankYou(
   api: MiddlewareAPI,
   savedId: string,
   safetyHolderId: string | null
 ): void {
   const state = api.getState() as StateWithGame
-  if (state.game?.voxPopuli?.status !== 'active') return
   const human = state.game.players.find((player) => player.isUser)
   const saved = state.game.players.find((player) => player.id === savedId)
   if (!human || !saved || safetyHolderId !== human.id || savedId === human.id) return
 
-  const interactionId = `vox-safety-thanks:${state.game.week}:${savedId}`
+  const interactionId = `safety-thanks:${state.game.week}:${safetyHolderId}:${savedId}`
   const alreadyQueued = [
     ...(state.social?.incomingInteractions ?? []),
     ...(state.social?.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
@@ -576,8 +577,8 @@ function triggerVoxSafetyThankYou(
   if (alreadyQueued) return
 
   api.dispatch(
-    pushIncomingInteraction(
-      createIncomingInteraction({
+    scheduleIncomingInteraction({
+      interaction: createIncomingInteraction({
         id: interactionId,
         fromId: savedId,
         type: 'compliment',
@@ -585,9 +586,18 @@ function triggerVoxSafetyThankYou(
         week: state.game.week,
         phase: state.game.phase,
         mode: 'drama',
-        payload: { scenarioKey: 'post_veto_gratitude', savedById: safetyHolderId },
-      })
-    )
+        payload: {
+          scenarioKey: 'post_veto_gratitude',
+          savedById: safetyHolderId,
+          canonicalSafetyReceipt: interactionId,
+        },
+      }),
+      scheduledForWeek: state.game.week,
+      scheduledForPhase: 'social_2',
+      scheduledAt: Date.now(),
+      priority: 'high',
+      deliveryReason: 'canonical_safety_gratitude',
+    })
   )
 }
 
@@ -671,31 +681,51 @@ function applySafetyRelationshipConsequences(
   nomineesBefore: string[]
 ): void {
   if (!holderId || !isDramaModeEnabled(api)) return
-  if (savedId && savedId !== holderId) {
-    api.dispatch(
-      updateRelationship({
-        source: savedId,
-        target: holderId,
-        delta: 15,
-        tags: ['protection'],
-        actionSource: 'system',
-      })
-    )
-    api.dispatch(
-      updateRelationship({
-        source: holderId,
-        target: savedId,
-        delta: 8,
-        tags: ['protection'],
-        actionSource: 'system',
-      })
-    )
-  }
+  // SAFETY_USED is the sole positive relationship consequence.  Its Reality
+  // aftermath is projected once into legacy compatibility state; never feed a
+  // second legacy boost back into Reality here.
+  if (savedId) return
   const state = api.getState() as StateWithGame
   const relationships = state.social?.relationships ?? {}
   for (const nomineeId of nomineesBefore) {
     if (nomineeId === holderId || nomineeId === savedId) continue
-    if (!hasAllianceBetween(relationships, holderId, nomineeId)) continue
+    const relationshipTags = [
+      ...(relationships[holderId]?.[nomineeId]?.tags ?? []),
+      ...(relationships[nomineeId]?.[holderId]?.tags ?? []),
+    ]
+    const violation = evaluateRelationshipViolation({
+      actorId: holderId,
+      targetId: nomineeId,
+      actionType: 'SAFETY_ABANDON',
+      relationshipTags,
+      eligibleAlternatives: nomineesBefore
+        .filter((id) => id !== holderId)
+        .map((id) => ({
+          id,
+          relationshipTags: [
+            ...(relationships[holderId]?.[id]?.tags ?? []),
+            ...(relationships[id]?.[holderId]?.tags ?? []),
+          ],
+        })),
+    })
+    if (violation.classification !== 'BETRAYAL') {
+      if (
+        violation.classification === 'RELATIONSHIP_HURT' &&
+        hasAllianceBetween(relationships, holderId, nomineeId)
+      ) {
+        api.dispatch(
+          updateRelationship({
+            source: nomineeId,
+            target: holderId,
+            delta: -Math.round(5 + violation.severity * 20),
+            tags: ['strained'],
+            actionSource: 'system',
+            skipRealityProjection: true,
+          })
+        )
+      }
+      continue
+    }
     api.dispatch(
       recordRealityAllianceBetrayal({
         actorId: holderId,
@@ -887,6 +917,18 @@ function recordCeremony(
       phase: state.game.phase,
       actorId: input.actorId ?? undefined,
       targetIds: input.targetIds ?? [],
+      eligibleAlternativeIds:
+        kind === 'NOMINATIONS_LOCKED' && input.actorId
+          ? state.game.players
+              .filter(
+                (player) =>
+                  player.id !== input.actorId &&
+                  player.status !== 'evicted' &&
+                  player.status !== 'jury' &&
+                  !(input.targetIds ?? []).includes(player.id)
+              )
+              .map((player) => player.id)
+          : undefined,
       witnessIds: activeRealityWitnessIds(state),
       reason: input.reason,
       tags: input.tags,
@@ -1190,16 +1232,16 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         saveId,
         prevNominees
       )
-      triggerVoxSafetyThankYou(
-        api as unknown as MiddlewareAPI,
-        saveId,
-        prevState.game?.posWinnerId ?? null
-      )
       recordCeremony(api as unknown as MiddlewareAPI, 'SAFETY_USED', {
         actorId: prevState.game?.posWinnerId ?? null,
         targetIds: [saveId],
         reason: 'The Power of Safety changed the nominations.',
       })
+      scheduleSafetyThankYou(
+        api as unknown as MiddlewareAPI,
+        saveId,
+        prevState.game?.posWinnerId ?? null
+      )
       const replacementIds = afterNominees.filter((id) => !prevNominees.includes(id))
       applyReplacementNomineeConsequences(
         api as unknown as MiddlewareAPI,

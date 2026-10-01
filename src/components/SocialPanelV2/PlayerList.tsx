@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import type { Player } from '../../types'
 import type { RelationshipsMap } from '../../social/types'
+import type { RealityDomainState } from '../../social/reality/types'
+import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import PlayerCard from './PlayerCard'
 
 interface PlayerListProps {
@@ -38,6 +40,7 @@ interface PlayerListProps {
   cupidPartners?: Record<string, { name: string; color: string; isYourPartner: boolean }>
   /** Reality Mode hides the reverse housemate→human edge as private information. */
   playerLimitedRead?: boolean
+  reality?: RealityDomainState
 }
 
 /**
@@ -65,6 +68,7 @@ export default function PlayerList({
   multiSelect = false,
   cupidPartners,
   playerLimitedRead = false,
+  reality,
 }: PlayerListProps) {
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set())
   const lastFocusedIndexRef = useRef<number>(-1)
@@ -162,6 +166,16 @@ export default function PlayerList({
             relationshipTags = Array.from(
               new Set([...(outward?.tags ?? []), ...(inward?.tags ?? [])])
             )
+          }
+          if (reality) {
+            const view = selectCanonicalRelationshipView({
+              relationships,
+              reality,
+              actorId: humanPlayerId,
+              targetId: player.id,
+            })
+            affinity = playerLimitedRead ? outward?.affinity : view.affinity
+            relationshipTags = [...view.visibleTags]
           }
         }
 

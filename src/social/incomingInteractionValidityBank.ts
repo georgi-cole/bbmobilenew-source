@@ -6,6 +6,8 @@ export interface IncomingInteractionValidityRule {
   humanMustBeHoh?: boolean
   humanMustHoldSafety?: boolean
   humanMustBeOffBlock?: boolean
+  /** Current-block guard; intentionally never derives from a stale status tag. */
+  humanMustBeNominee?: boolean
   humanMustBeEligibleVoter?: boolean
   humanMustBreakTie?: boolean
   subjectMustBeInHouse?: boolean
@@ -119,6 +121,14 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
   },
   betrayal_warning: {
     subjectMustBeInHouse: true,
+  },
+  player_nominated_support: {
+    humanMustBeNominee: true,
+    invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],
+  },
+  player_nominated_tension: {
+    humanMustBeNominee: true,
+    invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],
   },
   generic_gossip: {
     subjectMustBeInHouse: true,

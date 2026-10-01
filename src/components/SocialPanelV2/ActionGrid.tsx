@@ -150,11 +150,13 @@ export default function ActionGrid({
         actorId,
         targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
         phase: currentPhase,
-        players,
+        week: game.week,
+        players: game.players.length > 0 ? game.players : players,
         primaryTargetStatus,
         relationships,
         dramaNetwork,
         reality,
+        pregnancyStory: game.pregnancyStory,
         dramaMode,
       }).eligible
     )
@@ -173,11 +175,13 @@ export default function ActionGrid({
         actorId,
         targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
         phase: currentPhase,
-        players,
+        week: game.week,
+        players: game.players.length > 0 ? game.players : players,
         primaryTargetStatus,
         relationships,
         dramaNetwork,
         reality,
+        pregnancyStory: game.pregnancyStory,
         dramaMode: false,
         ignoreRealityModeGate: true,
       }).eligible
@@ -192,7 +196,11 @@ export default function ActionGrid({
     (game.posWinnerId === actorId || getCupidPartnerId(game, game.posWinnerId) === actorId)
   )
   const safetyConsultationOpen =
-    actorHasSafety && (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
+    actorHasSafety &&
+    Boolean(game.lohId) &&
+    game.lohId !== actorId &&
+    game.nomineeIds.length > 0 &&
+    (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
   const replacementConsultationOpen =
     !actorHasSafety && (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
 

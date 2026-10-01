@@ -5,6 +5,7 @@ import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
 import { createRealityContestantState, createRealityPerception } from './state'
 import { reconcileNemesisWithVoluntarySafety } from './relationshipAutonomy'
+import { evaluateRelationshipViolation } from '../relationshipViolation'
 import {
   adjustRealityAllianceCommitment,
   captureRealityReentryProfile,
@@ -44,6 +45,8 @@ export interface RealityCeremonyInput extends RealityClock {
   witnessIds: string[]
   reason?: string
   tags?: string[]
+  /** Complete legal alternatives at decision time, when the host has them. */
+  eligibleAlternativeIds?: string[]
   publicEligible: boolean
 }
 
@@ -327,6 +330,7 @@ function applyCeremonyAftermath(
   if (kind === 'SAFETY_USED' && actorId) {
     contestant(state, actorId).primaryGoalId = 'MANAGE_SAFETY_FALLOUT'
     for (const savedId of event.targetIds) {
+      if (savedId === actorId) continue
       const saved = contestant(state, savedId)
       saved.stress = clamp(saved.stress - 22, 0, 100)
       saved.emotions.gratitude = clamp(saved.emotions.gratitude + 25, 0, 100)
@@ -339,12 +343,24 @@ function applyCeremonyAftermath(
         eventId: event.id,
         anchor: 'positive',
         deltas: {
-          warmth: 10,
-          trust: 13,
-          loyalty: 12,
-          gratitude: 30,
-          reliability: 8,
+          // Gratitude is intentionally much stronger than the visible
+          // relationship movement: a save creates a debt, not instant best
+          // friends or an implicit alliance.
+          warmth: 5,
+          trust: 6,
+          loyalty: 5,
+          gratitude: 35,
+          reliability: 4,
         },
+      })
+      applyRealityRelationshipChange(state, {
+        sourceId: actorId,
+        targetId: savedId,
+        day: event.day,
+        phase: event.phase,
+        eventId: event.id,
+        anchor: 'positive',
+        deltas: { warmth: 3, trust: 4, loyalty: 3, reliability: 2 },
       })
     }
   }
@@ -465,7 +481,46 @@ export function recordRealityCeremonyOutcome(
   resolveCeremonyPromises(state, event, input.kind)
   applyAllianceSafetyCommitment(state, event, input.kind)
   if (input.kind === 'NOMINATIONS_LOCKED' && event.actorId) {
+    const relationshipTags = (candidateId: string): string[] => {
+      const tags: string[] = []
+      if (
+        Object.values(state.alliances).some(
+          (alliance) =>
+            alliance.status !== 'DISSOLVED' &&
+            alliance.memberIds.includes(event.actorId!) &&
+            alliance.memberIds.includes(candidateId)
+        )
+      ) {
+        tags.push('alliance')
+      }
+      if (
+        Object.values(state.romances).some(
+          (romance) =>
+            romance.status === 'ACTIVE' &&
+            romance.participantIds.includes(event.actorId!) &&
+            romance.participantIds.includes(candidateId)
+        )
+      ) {
+        tags.push('romance')
+      }
+      return tags
+    }
     for (const targetId of event.targetIds) {
+      const violation = evaluateRelationshipViolation({
+        actorId: event.actorId,
+        targetId,
+        actionType: 'NOMINATION',
+        relationshipTags: relationshipTags(targetId),
+        ...(input.eligibleAlternativeIds
+          ? {
+              eligibleAlternatives: input.eligibleAlternativeIds.map((id) => ({
+                id,
+                relationshipTags: relationshipTags(id),
+              })),
+            }
+          : {}),
+      })
+      if (violation.classification !== 'BETRAYAL') continue
       recordRealityAllianceBetrayal(state, {
         actorId: event.actorId,
         targetId,
@@ -562,13 +617,61 @@ export function finalizeRealityVote(
   intent.actualTargetId = targetId
   intent.day = at.day
   intent.reasonEventIds = [...new Set([...intent.reasonEventIds, eventId])]
-  recordRealityAllianceBetrayal(state, {
+  const relationshipTags = (candidateId: string): string[] => {
+    const tags: string[] = []
+    if (
+      Object.values(state.alliances).some(
+        (alliance) =>
+          alliance.status !== 'DISSOLVED' &&
+          alliance.memberIds.includes(actorId) &&
+          alliance.memberIds.includes(candidateId)
+      )
+    ) {
+      tags.push('alliance')
+    }
+    if (
+      Object.values(state.romances).some(
+        (romance) =>
+          romance.status === 'ACTIVE' &&
+          romance.participantIds.includes(actorId) &&
+          romance.participantIds.includes(candidateId)
+      )
+    ) {
+      tags.push('romance')
+    }
+    return tags
+  }
+  const promiseBroken = Object.values(state.promises).some(
+    (promise) =>
+      promise.promisorId === actorId &&
+      promise.beneficiaryIds.includes(targetId) &&
+      promise.kind === 'protect' &&
+      (promise.status === 'ACTIVE' || promise.status === 'PROPOSED')
+  )
+  const violation = evaluateRelationshipViolation({
     actorId,
     targetId,
-    kind: 'VOTE',
-    at,
-    sourceEventId: eventId,
+    actionType: 'VOTE',
+    relationshipTags: relationshipTags(targetId),
+    ...(eligibleTargetIds
+      ? {
+          eligibleAlternatives: eligibleTargetIds.map((id) => ({
+            id,
+            relationshipTags: relationshipTags(id),
+          })),
+        }
+      : {}),
+    promiseBroken,
   })
+  if (violation.classification === 'BETRAYAL') {
+    recordRealityAllianceBetrayal(state, {
+      actorId,
+      targetId,
+      kind: 'VOTE',
+      at,
+      sourceEventId: eventId,
+    })
+  }
   if (!alreadyRecordedSameVote) {
     recordRealityAlliancePlanDefiance(state, {
       actorId,

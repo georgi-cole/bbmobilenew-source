@@ -157,6 +157,56 @@ describe('evaluateSocialActionEligibility', () => {
     ).toBe(false)
   })
 
+  it('lets the human propose to the current LOH when Reality has no live alliance', () => {
+    const reality = createInitialRealityDomainState()
+    const relationships = {
+      user: { loh: { affinity: 80, tags: ['alliance'] } },
+      loh: { user: { affinity: 80, tags: ['alliance'] } },
+    }
+    const result = evaluateSocialActionEligibility({
+      action: action('proposeAlliance'),
+      actorId: 'user',
+      targetIds: ['loh'],
+      phase: 'social_1',
+      players,
+      relationships,
+      reality,
+      dramaMode: true,
+      requireCompleteSelection: true,
+    })
+    expect(result).toEqual({ eligible: true, reason: '' })
+  })
+
+  it('blocks duplicate LOH proposals only for ACTIVE or PROBATIONARY formal alliances', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'loh-pact',
+      founderIds: ['user', 'loh'],
+      memberIds: [],
+      purpose: 'Protection',
+      at: { day: 1, phase: 'social_1' },
+    })
+    const base = {
+      action: action('proposeAlliance'),
+      actorId: 'user',
+      targetIds: ['loh'],
+      phase: 'social_1',
+      players,
+      relationships: { user: {}, loh: {} },
+      reality,
+      dramaMode: true,
+      requireCompleteSelection: true,
+    }
+    alliance.status = 'ACTIVE'
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
+    alliance.status = 'PROBATIONARY'
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
+    alliance.status = 'FRACTURED'
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
+    alliance.status = 'DISSOLVED'
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
+  })
+
   it('enforces role and weekly window for Drama Mode political actions', () => {
     const base = {
       action: action('pitch_target'),

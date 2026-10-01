@@ -87,6 +87,45 @@ describe('Reality ceremony aftermath', () => {
       )
     )
   })
+
+  it('records a Safety save once with modest visible effects and no self-save relationship', () => {
+    const state = createInitialRealityDomainState()
+    recordRealityCeremonyOutcome(state, {
+      kind: 'SAFETY_USED',
+      day: 3,
+      phase: 'pos_ceremony_results',
+      actorId: 'holder',
+      targetIds: ['saved'],
+      witnessIds: ['holder', 'saved'],
+      publicEligible: false,
+    })
+    const savedToHolder = state.relationships.saved.holder
+    expect(savedToHolder.gratitude).toBe(35)
+    expect(savedToHolder.warmth).toBe(5)
+    expect(state.relationships.holder.saved.trust).toBe(4)
+
+    recordRealityCeremonyOutcome(state, {
+      kind: 'SAFETY_USED',
+      day: 3,
+      phase: 'pos_ceremony_results',
+      actorId: 'holder',
+      targetIds: ['saved'],
+      witnessIds: ['holder', 'saved'],
+      publicEligible: false,
+    })
+    expect(state.relationships.saved.holder.gratitude).toBe(35)
+
+    recordRealityCeremonyOutcome(state, {
+      kind: 'SAFETY_USED',
+      day: 4,
+      phase: 'pos_ceremony_results',
+      actorId: 'self',
+      targetIds: ['self'],
+      witnessIds: ['self'],
+      publicEligible: false,
+    })
+    expect(state.relationships.self?.self).toBeUndefined()
+  })
 })
 
 describe('Reality jury knowledge boundaries', () => {

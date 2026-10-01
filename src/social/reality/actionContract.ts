@@ -132,7 +132,19 @@ function filteredValues<T extends string>(
 function purposesFor(action: SocialActionDefinition): RealityActionPurpose[] {
   if (action.id === 'idle') return ['WITHDRAW']
   if (
-    ['flirt', 'private_flirt', 'late_night_talk', 'cuddle', 'kiss_under_covers'].includes(action.id)
+    [
+      'flirt',
+      'private_flirt',
+      'late_night_talk',
+      'cuddle',
+      'kiss_under_covers',
+      'pool_makeout',
+      'spend_night',
+      'try_for_baby',
+      'pregnancy_test',
+      'pregnancy_test_self',
+      'paternity_test_self',
+    ].includes(action.id)
   ) {
     return ['ROMANCE', 'BOND']
   }

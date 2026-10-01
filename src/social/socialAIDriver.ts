@@ -22,6 +22,7 @@ import {
   replaceRealityDomain,
   replaceRealitySimulation,
   scheduleIncomingInteraction,
+  updateRelationship,
 } from './socialSlice'
 import {
   assignDeliverySlot,
@@ -72,6 +73,19 @@ import { normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { chooseUtilityDramaAIMove } from './dramaAIPolicy'
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
 import { allianceIdentityBias, type AiGameIdentity } from '../ai/aiGameIdentity'
+import {
+  estimateFinalThreeDay,
+  getLatestAttempt,
+  getPregnancyEligibility,
+  revealPregnancyTest,
+  shouldAcceptPregnancyAttempt,
+  startPregnancyAttempt,
+} from './reality/pregnancy'
+import {
+  markPregnancyReactions,
+  revealPregnancyTest as revealPregnancyTestAction,
+  startPregnancyAttempt as startPregnancyAttemptAction,
+} from '../store/gameSlice'
 
 interface StoreAPI {
   dispatch: (action: unknown) => unknown
@@ -84,6 +98,12 @@ interface DriverPlayer {
   status: string
   isUser?: boolean
   aiGameIdentity?: AiGameIdentity
+  age?: number
+  sex?: string
+  reproductiveProfile?: {
+    canBecomePregnant?: boolean
+    canCausePregnancy?: boolean
+  }
 }
 
 interface DriverState {
@@ -99,6 +119,7 @@ interface DriverState {
     posWinnerId?: string | null
     nomineeIds?: string[]
     povProtectedIds?: string[]
+    pregnancyStory: import('./reality/pregnancy').PregnancyStoryState
   }
   social: {
     energyBank: Record<string, number>
@@ -174,6 +195,102 @@ function executeRealityCandidate(
   candidate: CandidateMove
 ): boolean {
   if (!_store) return false
+  if (
+    (candidate.actionId === 'try_for_baby' || candidate.actionId === 'pregnancy_test') &&
+    candidate.targetIds[0]
+  ) {
+    const target = state.game.players.find((entry) => entry.id === candidate.targetIds[0])
+    if (!target || !state.game.pregnancyStory) return false
+    const relationshipScore = state.social.relationships[player.id]?.[target.id]?.affinity ?? 0
+    if (candidate.actionId === 'try_for_baby') {
+      const activeCount = state.game.players.filter(
+        (entry) => entry.status !== 'evicted' && entry.status !== 'jury'
+      ).length
+      const finalThreeDay = estimateFinalThreeDay(state.game.week, activeCount, state.game.phase)
+      const started = startPregnancyAttempt(state.game.pregnancyStory, {
+        actor: player,
+        target,
+        currentDay: state.game.week,
+        story: state.game.pregnancyStory,
+        reality: state.social.reality,
+        romanceActive: true,
+        relationshipScore,
+        seed: state.game.seed,
+        accepted: true,
+        finalThreeDay,
+      })
+      if (!started.attempt) return false
+      _store.dispatch(
+        startPregnancyAttemptAction({
+          actor: player,
+          target,
+          currentDay: state.game.week,
+          story: state.game.pregnancyStory,
+          reality: state.social.reality,
+          romanceActive: true,
+          relationshipScore,
+          seed: state.game.seed,
+          accepted: true,
+          finalThreeDay,
+          attemptId: started.attempt.attemptId,
+        })
+      )
+      const costs = normalizeActionCosts(getActionById('try_for_baby')!, 1, true)
+      _store.dispatch(applyEnergyDelta({ playerId: player.id, delta: -costs.energy }))
+      _store.dispatch(
+        updateRelationship({
+          source: player.id,
+          target: target.id,
+          delta: 5,
+          tags: ['romance'],
+          actionSource: 'system',
+        })
+      )
+      _store.dispatch(
+        updateRelationship({
+          source: target.id,
+          target: player.id,
+          delta: 5,
+          tags: ['romance'],
+          actionSource: 'system',
+        })
+      )
+      return true
+    }
+    const latest = getLatestAttempt(state.game.pregnancyStory, player.id, target.id)
+    if (!latest) return false
+    const resolved = revealPregnancyTest(state.game.pregnancyStory, {
+      attemptId: latest.attemptId,
+      currentDay: state.game.week,
+    })
+    if (resolved.result.tooEarly || !resolved.result.attempt) return false
+    _store.dispatch(
+      revealPregnancyTestAction({ attemptId: latest.attemptId, currentDay: state.game.week })
+    )
+    const revealed = resolved.result.attempt
+    if (resolved.result.changed) {
+      _store.dispatch(
+        updateRelationship({
+          source: player.id,
+          target: target.id,
+          delta: revealed.pregnant ? 10 : 3,
+          actionSource: 'system',
+        })
+      )
+      _store.dispatch(
+        updateRelationship({
+          source: target.id,
+          target: player.id,
+          delta: revealed.pregnant ? 10 : 3,
+          actionSource: 'system',
+        })
+      )
+    }
+    if (!revealed.reactionsTriggered) {
+      _store.dispatch(markPregnancyReactions({ attemptId: revealed.attemptId, kind: 'reactions' }))
+    }
+    return true
+  }
   const contract = getRealityActionContract(candidate.actionId)
   if (!contract || !state.social.realitySimulation.rng) return false
   const action = getActionById(candidate.actionId)
@@ -723,6 +840,103 @@ function relationshipCandidateForPlayer(
   }
 }
 
+function pregnancyCandidateForPlayer(
+  state: DriverState,
+  player: DriverPlayer,
+  attempt: number
+): CandidateMove | null {
+  if (attempt !== 0 || !state.game.pregnancyStory) return null
+  const candidates = state.game.players
+    .filter(
+      (candidate) =>
+        candidate.id !== player.id &&
+        !candidate.isUser &&
+        candidate.status !== 'evicted' &&
+        candidate.status !== 'jury'
+    )
+    .map((candidate) => {
+      const arc = state.social.dramaNetwork.arcs.find(
+        (entry) =>
+          entry.status === 'active' &&
+          entry.type === 'romance' &&
+          ['established', 'climax'].includes(entry.stage) &&
+          entry.participantIds.includes(player.id) &&
+          entry.participantIds.includes(candidate.id)
+      )
+      const relationshipScore = state.social.relationships[player.id]?.[candidate.id]?.affinity ?? 0
+      const eligibility = getPregnancyEligibility({
+        actor: player,
+        target: candidate,
+        currentDay: state.game.week,
+        story: state.game.pregnancyStory,
+        reality: state.social.reality,
+        romanceActive: Boolean(arc),
+        relationshipScore,
+      })
+      return { candidate, eligibility, relationshipScore }
+    })
+    .filter((entry) => entry.eligibility.eligible)
+    .filter((entry) => {
+      if (entry.relationshipScore >= 75) return true
+      const identity = entry.candidate.aiGameIdentity
+      const highDrama =
+        identity?.archetype === 'chaos_agent' ||
+        identity?.archetype === 'opportunist' ||
+        identity?.temperament === 'impulsive'
+      return highDrama && entry.relationshipScore >= 65
+    })
+    .sort(
+      (left, right) =>
+        right.relationshipScore - left.relationshipScore ||
+        left.candidate.id.localeCompare(right.candidate.id)
+    )
+  const selected = candidates[0]
+  if (!selected) return null
+  if (
+    !shouldAcceptPregnancyAttempt({
+      target: selected.candidate,
+      proposer: player,
+      prospectivePartnerId: selected.candidate.id,
+      story: state.game.pregnancyStory,
+      relationshipScore: selected.relationshipScore,
+      seed: state.game.seed,
+      day: state.game.week,
+    })
+  ) {
+    return null
+  }
+  return {
+    actionId: 'try_for_baby',
+    targetIds: [selected.candidate.id],
+    reason: 'an established romantic relationship is ready for a life-changing choice',
+  }
+}
+
+function pregnancyTestCandidateForPlayer(
+  state: DriverState,
+  player: DriverPlayer,
+  attempt: number
+): CandidateMove | null {
+  if (attempt !== 0 || !state.game.pregnancyStory) return null
+  const pending = state.game.pregnancyStory.attempts
+    .filter(
+      (entry) =>
+        entry.status === 'PENDING' &&
+        entry.participantIds.includes(player.id) &&
+        entry.resultAvailableDay != null &&
+        state.game.week >= entry.resultAvailableDay
+    )
+    .sort((left, right) => right.attemptDay - left.attemptDay)[0]
+  if (!pending) return null
+  const targetId = pending.participantIds.find((id) => id !== player.id)
+  if (!targetId) return null
+  return {
+    actionId: 'pregnancy_test',
+    targetIds: [targetId],
+    reason: 'the result window has opened',
+  }
+}
+
 function candidateForPlayer(
   state: DriverState,
   player: DriverPlayer,
@@ -746,6 +960,10 @@ function candidateForPlayer(
   if (contactBoundary && nemesis && !strategicNemesisAction) return null
   const relationshipCandidate =
     dramaMode && attempt === 0 ? relationshipCandidateForPlayer(state, player) : null
+  const pregnancyTestCandidate = dramaMode
+    ? pregnancyTestCandidateForPlayer(state, player, attempt)
+    : null
+  const pregnancyCandidate = dramaMode ? pregnancyCandidateForPlayer(state, player, attempt) : null
   const history = getPersistentSocialHistory(state.social as SocialStateWithHistory)
   const dramaMove =
     dramaMode && attempt === 0
@@ -768,6 +986,8 @@ function candidateForPlayer(
 
   const policyActionId =
     strategicNemesisAction ??
+    pregnancyTestCandidate?.actionId ??
+    pregnancyCandidate?.actionId ??
     relationshipCandidate?.actionId ??
     dramaMove?.actionId ??
     chooseActionFor(player.id, {
@@ -785,6 +1005,8 @@ function candidateForPlayer(
   const allianceBias = allianceIdentityBias(player.aiGameIdentity)
   const actionId =
     !relationshipCandidate &&
+    !pregnancyCandidate &&
+    !pregnancyTestCandidate &&
     !dramaMove &&
     allianceBias >= 20 &&
     policyActionId !== 'proposeAlliance' &&
@@ -806,6 +1028,10 @@ function candidateForPlayer(
   } else if (strategicNemesisAction && human) {
     targetIds = [state.game.lohId!]
     subjectId = human.id
+  } else if (pregnancyTestCandidate) {
+    targetIds = pregnancyTestCandidate.targetIds
+  } else if (pregnancyCandidate) {
+    targetIds = pregnancyCandidate.targetIds
   } else if (relationshipCandidate) {
     targetIds = relationshipCandidate.targetIds
   } else if (dramaMove) {
@@ -843,6 +1069,8 @@ function candidateForPlayer(
     targetIds,
     subjectId,
     reason:
+      pregnancyTestCandidate?.reason ??
+      pregnancyCandidate?.reason ??
       relationshipCandidate?.reason ??
       dramaMove?.reason ??
       `contextual policy attempt ${attempt + 1}`,

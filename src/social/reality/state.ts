@@ -157,6 +157,7 @@ export function createInitialRealityDomainState(
     events: [],
     cooldowns: {},
     voteIntents: {},
+    facadeAgreements: {},
     publicPerception: {},
     juryEvaluations: [],
     reentryProfiles: {},
@@ -251,6 +252,8 @@ export function normalizeRealityDomainState(
     events: Array.isArray(input.events) ? input.events.slice(-500) : [],
     cooldowns: input.cooldowns && isRecord(input.cooldowns) ? input.cooldowns : {},
     voteIntents: input.voteIntents && isRecord(input.voteIntents) ? input.voteIntents : {},
+    facadeAgreements:
+      input.facadeAgreements && isRecord(input.facadeAgreements) ? input.facadeAgreements : {},
     publicPerception:
       input.publicPerception && isRecord(input.publicPerception) ? input.publicPerception : {},
     juryEvaluations: Array.isArray(input.juryEvaluations) ? input.juryEvaluations.slice(-500) : [],
