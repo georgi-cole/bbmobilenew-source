@@ -74,6 +74,7 @@ import { chooseUtilityDramaAIMove } from './dramaAIPolicy'
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
 import { allianceIdentityBias, type AiGameIdentity } from '../ai/aiGameIdentity'
 import {
+  estimateFinalThreeDay,
   getLatestAttempt,
   getPregnancyEligibility,
   revealPregnancyTest,
@@ -81,7 +82,6 @@ import {
   startPregnancyAttempt,
 } from './reality/pregnancy'
 import {
-  addTvEvent,
   markPregnancyReactions,
   revealPregnancyTest as revealPregnancyTestAction,
   startPregnancyAttempt as startPregnancyAttemptAction,
@@ -203,6 +203,14 @@ function executeRealityCandidate(
     if (!target || !state.game.pregnancyStory) return false
     const relationshipScore = state.social.relationships[player.id]?.[target.id]?.affinity ?? 0
     if (candidate.actionId === 'try_for_baby') {
+      const activeCount = state.game.players.filter(
+        (entry) => entry.status !== 'evicted' && entry.status !== 'jury'
+      ).length
+      const finalThreeDay = estimateFinalThreeDay(
+        state.game.week,
+        activeCount,
+        state.game.phase
+      )
       const started = startPregnancyAttempt(state.game.pregnancyStory, {
         actor: player,
         target,
@@ -213,6 +221,7 @@ function executeRealityCandidate(
         relationshipScore,
         seed: state.game.seed,
         accepted: true,
+        finalThreeDay,
       })
       if (!started.attempt) return false
       _store.dispatch(
@@ -226,6 +235,7 @@ function executeRealityCandidate(
           relationshipScore,
           seed: state.game.seed,
           accepted: true,
+          finalThreeDay,
           attemptId: started.attempt.attemptId,
         })
       )
@@ -278,25 +288,6 @@ function executeRealityCandidate(
           delta: revealed.pregnant ? 10 : 3,
           actionSource: 'system',
         })
-      )
-    }
-    if (revealed.pregnant && !revealed.announcementEmitted) {
-      _store.dispatch(
-        addTvEvent({
-          text: `Faux TV: ${player.name} and ${target.name} are expecting. The House has a new story to follow.`,
-          type: 'social',
-          major: 'pregnancy_positive',
-          source: 'system',
-          channels: ['tv', 'dr'],
-          meta: {
-            pregnancyAttemptId: revealed.attemptId,
-            forceOnTv: true,
-            broadcastPriority: 'critical',
-          },
-        })
-      )
-      _store.dispatch(
-        markPregnancyReactions({ attemptId: revealed.attemptId, kind: 'announcement' })
       )
     }
     if (!revealed.reactionsTriggered) {
@@ -889,11 +880,15 @@ function pregnancyCandidateForPlayer(
       return { candidate, eligibility, relationshipScore }
     })
     .filter((entry) => entry.eligibility.eligible)
-    .filter(
-      (entry) =>
-        entry.relationshipScore >= 55 ||
-        entry.candidate.aiGameIdentity?.archetype === 'romantic_loyalist'
-    )
+    .filter((entry) => {
+      if (entry.relationshipScore >= 75) return true
+      const identity = entry.candidate.aiGameIdentity
+      const highDrama =
+        identity?.archetype === 'chaos_agent' ||
+        identity?.archetype === 'opportunist' ||
+        identity?.temperament === 'impulsive'
+      return highDrama && entry.relationshipScore >= 65
+    })
     .sort(
       (left, right) =>
         right.relationshipScore - left.relationshipScore ||
@@ -904,6 +899,9 @@ function pregnancyCandidateForPlayer(
   if (
     !shouldAcceptPregnancyAttempt({
       target: selected.candidate,
+      proposer: player,
+      prospectivePartnerId: selected.candidate.id,
+      story: state.game.pregnancyStory,
       relationshipScore: selected.relationshipScore,
       seed: state.game.seed,
       day: state.game.week,
@@ -929,6 +927,7 @@ function pregnancyTestCandidateForPlayer(
       (entry) =>
         entry.status === 'PENDING' &&
         entry.participantIds.includes(player.id) &&
+        entry.resultAvailableDay != null &&
         state.game.week >= entry.resultAvailableDay
     )
     .sort((left, right) => right.attemptDay - left.attemptDay)[0]

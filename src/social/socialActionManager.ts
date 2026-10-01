@@ -91,6 +91,8 @@ const ADULT_REALITY_ACTION_IDS = new Set([
   'skinny_dip',
   'try_for_baby',
   'pregnancy_test',
+  'pregnancy_test_self',
+  'paternity_test_self',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {

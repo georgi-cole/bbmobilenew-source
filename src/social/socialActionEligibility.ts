@@ -10,6 +10,7 @@ import { getPregnancyEligibility, type PregnancyStoryState } from './reality/pre
 export interface ActionEligibilityPlayer {
   id: string
   status: PlayerStatus | string
+  isUser?: boolean
   age?: number
   sex?: string
   reproductiveProfile?: {
@@ -310,9 +311,26 @@ export function evaluateSocialActionEligibility({
     }
   }
 
+  if (action.id === 'pregnancy_test_self' || action.id === 'paternity_test_self') {
+    if (!actorId || !pregnancyStory) return unavailable('This story is not available yet')
+    const actor = playerById.get(actorId)
+    if (!actor) return unavailable('The player profile is unavailable')
+    const pregnancyEligibility = getPregnancyEligibility({
+      actor,
+      target: actor,
+      currentDay: week ?? 0,
+      story: pregnancyStory,
+      reality,
+      action: action.id === 'paternity_test_self' ? 'PATERNITY_TEST_SELF' : 'PREGNANCY_TEST_SELF',
+    })
+    if (!pregnancyEligibility.eligible) return unavailable(pregnancyEligibility.reason)
+  }
+
   if (action.id === 'try_for_baby' || action.id === 'pregnancy_test') {
     if (!actorId || targets.length !== 1 || !pregnancyStory) {
-      return unavailable('Select a romantic partner')
+      return unavailable(
+        action.id === 'pregnancy_test' ? 'Select the pregnancy carrier' : 'Select a romantic partner'
+      )
     }
     const actor = playerById.get(actorId)
     const target = playerById.get(targets[0])

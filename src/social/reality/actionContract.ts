@@ -142,6 +142,8 @@ function purposesFor(action: SocialActionDefinition): RealityActionPurpose[] {
       'spend_night',
       'try_for_baby',
       'pregnancy_test',
+      'pregnancy_test_self',
+      'paternity_test_self',
     ].includes(action.id)
   ) {
     return ['ROMANCE', 'BOND']

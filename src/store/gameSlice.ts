@@ -58,9 +58,12 @@ import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
 import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
+  processPregnancyStoryDay,
+  revealPaternityResult as resolvePaternityResult,
   revealPregnancyTest as resolvePregnancyTest,
   startPregnancyAttempt as createPregnancyAttempt,
   markPregnancyReactions as markPregnancyStoryReactions,
+  type HumanPregnancyRoleChoice,
   type PregnancyAttemptStartInput,
 } from '../social/reality/pregnancy'
 import { resolvePublicModeRuntimeEnabled } from '../publicOpinion/publicModeAccess'
@@ -4677,6 +4680,12 @@ const gameSlice = createSlice({
         event.source = action.payload.source
       }
     },
+    setHumanPregnancyRole(state, action: PayloadAction<HumanPregnancyRoleChoice>) {
+      state.pregnancyStory = {
+        ...(state.pregnancyStory ?? createInitialPregnancyStoryState()),
+        humanRoleChoice: action.payload,
+      }
+    },
     startPregnancyAttempt(state, action: PayloadAction<PregnancyAttemptStartInput>) {
       const result = createPregnancyAttempt(
         state.pregnancyStory ?? createInitialPregnancyStoryState(),
@@ -4688,6 +4697,12 @@ const gameSlice = createSlice({
       state.pregnancyStory = resolvePregnancyTest(
         state.pregnancyStory ?? createInitialPregnancyStoryState(),
         action.payload
+      ).story
+    },
+    revealPaternityResult(state, action: PayloadAction<{ carrierId: string }>) {
+      state.pregnancyStory = resolvePaternityResult(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        action.payload.carrierId
       ).story
     },
     markPregnancyReactions(
@@ -8645,6 +8660,47 @@ const gameSlice = createSlice({
         return
       }
 
+      // Pregnancy and paternity drama is strictly pre-Final-3. Positive tests are
+      // private first; due public reveals are emitted here on the next gameplay
+      // continuation so they cannot interrupt Final 3 competition/decision flow.
+      if (!state.phase.startsWith('final3') && state.pregnancyStory) {
+        const processed = processPregnancyStoryDay(state.pregnancyStory, state.week)
+        state.pregnancyStory = processed.story
+        for (const storyEvent of processed.events) {
+          const carrierName =
+            state.players.find((player) => player.id === storyEvent.carrierId)?.name ??
+            storyEvent.carrierId
+          const fatherName =
+            storyEvent.fatherId == null
+              ? null
+              : (state.players.find((player) => player.id === storyEvent.fatherId)?.name ??
+                storyEvent.fatherId)
+          const plausibleNames = storyEvent.plausibleFatherIds.map(
+            (id) => state.players.find((player) => player.id === id)?.name ?? id
+          )
+          const text =
+            storyEvent.kind === 'PATERNITY_PUBLIC'
+              ? `Faux TV: Paternity confirmed — ${fatherName ?? 'the biological father'} is the father of ${carrierName}'s pregnancy.`
+              : fatherName
+                ? `Faux TV: ${carrierName} is pregnant — and ${fatherName} is the father. The House has a new story to follow.`
+                : `Faux TV: ${carrierName} is pregnant. Paternity is uncertain${plausibleNames.length > 1 ? ` between ${formatNameList(plausibleNames)}` : ''}.`
+
+          const tvEvent = pushEvent(state, text, 'social', {
+            major:
+              storyEvent.kind === 'PATERNITY_PUBLIC'
+                ? 'pregnancy_paternity'
+                : 'pregnancy_positive',
+            pregnancyAttemptId: storyEvent.attemptId,
+            forceOnTv: true,
+            broadcastPriority: 'critical',
+          })
+          if (tvEvent) {
+            tvEvent.channels = ['tv', 'dr']
+            tvEvent.source = 'system'
+          }
+        }
+      }
+
       // Bella's Will is never allowed to bleed into the Final 4 / Final 3 / Final 2.
       expireBellaWillAtEndgame(state)
 
@@ -11490,8 +11546,10 @@ export const {
   syncStrategicAlliances,
   setLohSocialPlan,
   addTvEvent,
+  setHumanPregnancyRole,
   startPregnancyAttempt,
   revealPregnancyTest,
+  revealPaternityResult,
   markPregnancyReactions,
   updateTvEvent,
   removeTvEvent,
