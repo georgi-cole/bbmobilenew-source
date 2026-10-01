@@ -93,6 +93,11 @@ interface ManeuverGameState {
   pregnancyStory?: import('./reality/pregnancy').PregnancyStoryState
   dramaSocialMode?: boolean
   depressionShock?: { activeDay?: number }
+  weekendInterlude?: {
+    active: true
+    weekendDay: 1 | 2
+    wallet: { energy: number; influence: number; info: number }
+  } | null
   lohSocialPlan?: {
     week: number
     lohId: string
@@ -143,6 +148,25 @@ const ALLIANCE_REJECTION_DELTA = -6
 const ALLIANCE_GASLIGHT_DELTA = -10
 const ALLIANCE_BETRAYAL_DELTA = -8
 const ALLIANCE_GASLIGHT_AFFINITY_THRESHOLD = 0
+
+function getWeekendWallet(
+  state: Pick<StateForManeuvers, 'game'> | null | undefined,
+  actorId: string
+): { energy: number; influence: number; info: number } | null {
+  const weekend = state?.game?.weekendInterlude
+  const actor = state?.game?.players?.find((player) => player.id === actorId)
+  return weekend?.active && actor?.isUser ? weekend.wallet : null
+}
+
+function getWeekendEligibilityPhase(game?: ManeuverGameState): string | undefined {
+  return game?.weekendInterlude?.active ? 'social_2' : game?.phase
+}
+
+function getSocialActivityPhase(game?: ManeuverGameState): string | undefined {
+  return game?.weekendInterlude?.active
+    ? `weekend_day_${game.weekendInterlude.weekendDay}`
+    : game?.phase
+}
 
 export type LohPlanDisclosureOutcome = 'truthful' | 'vague' | 'false'
 
@@ -673,14 +697,16 @@ export function canAfford(
   let info: number
 
   if (state) {
-    energy = state.social.energyBank[actorId] ?? 0
-    influence = state.social.influenceBank?.[actorId] ?? 0
-    info = state.social.infoBank?.[actorId] ?? 0
+    const weekendWallet = getWeekendWallet(state, actorId)
+    energy = weekendWallet?.energy ?? state.social.energyBank[actorId] ?? 0
+    influence = weekendWallet?.influence ?? state.social.influenceBank?.[actorId] ?? 0
+    info = weekendWallet?.info ?? state.social.infoBank?.[actorId] ?? 0
   } else {
-    const s = _store?.getState() as { social: SocialState } | null
-    energy = s?.social.energyBank[actorId] ?? 0
-    influence = s?.social.influenceBank?.[actorId] ?? 0
-    info = s?.social.infoBank?.[actorId] ?? 0
+    const s = _store?.getState() as StateForManeuvers | null
+    const weekendWallet = getWeekendWallet(s, actorId)
+    energy = weekendWallet?.energy ?? s?.social.energyBank[actorId] ?? 0
+    influence = weekendWallet?.influence ?? s?.social.influenceBank?.[actorId] ?? 0
+    info = weekendWallet?.info ?? s?.social.infoBank?.[actorId] ?? 0
   }
 
   return energy >= costs.energy && influence >= costs.influence && info >= costs.info
@@ -846,7 +872,6 @@ export function executeAction(
     }
   }
 
-  const currentEnergy = SocialEnergyBank.get(actorId)
   const state = _store.getState() as {
     social: SocialState
     game?: ManeuverGameState
@@ -857,6 +882,8 @@ export function executeAction(
     }
   }
 
+  const weekendWallet = getWeekendWallet(state, actorId)
+  const currentEnergy = weekendWallet?.energy ?? SocialEnergyBank.get(actorId)
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const realityPreset = state.settings?.gameUX?.realityModePreset
   if (realityPreset && !isActionAllowedForRealityPreset(action, realityPreset)) {
@@ -908,7 +935,7 @@ export function executeAction(
     actorId,
     targetIds: resolveActionTargetMode(action, dramaMode) === 'none' ? [] : [targetId],
     subjectId: options?.subjectId,
-    phase: state.game?.phase,
+    phase: getWeekendEligibilityPhase(state.game),
     players: state.game?.players,
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
@@ -964,7 +991,7 @@ export function executeAction(
     targetId,
     actionId,
     state.game?.week,
-    state.game?.phase
+    getSocialActivityPhase(state.game)
   )
   const existingAffinity = state.social.relationships[actorId]?.[targetId]?.affinity ?? 0
   const recipientTrust = state.social.relationships[targetId]?.[actorId]?.affinity ?? 0
@@ -1246,19 +1273,26 @@ export function executeAction(
     })
   }
 
-  // Deduct all resources
-  const newEnergy = SocialEnergyBank.add(actorId, -costs.energy)
-  const currentInfluence = state.social.influenceBank[actorId] ?? 0
+  // Deduct all resources. Weekend credits are isolated from the permanent banks.
+  const currentInfluence = weekendWallet?.influence ?? state.social.influenceBank[actorId] ?? 0
+  const currentInfo = weekendWallet?.info ?? state.social.infoBank[actorId] ?? 0
   const influenceSpend = Math.min(costs.influence, currentInfluence)
-  const postSpendInfluenceBalance = currentInfluence - influenceSpend
-  if (influenceSpend > 0) {
-    _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: -influenceSpend }))
-  }
-  const currentInfo = state.social.infoBank[actorId] ?? 0
   const infoSpend = Math.min(costs.info, currentInfo)
+  const postSpendInfluenceBalance = currentInfluence - influenceSpend
   const postSpendInfoBalance = currentInfo - infoSpend
-  if (infoSpend > 0) {
-    _store.dispatch(applyInfoDelta({ playerId: actorId, delta: -infoSpend }))
+  if (weekendWallet) {
+    _store.dispatch({
+      type: 'game/spendWeekendSocialResources',
+      payload: { energy: costs.energy, influence: influenceSpend, info: infoSpend },
+    })
+  } else {
+    SocialEnergyBank.add(actorId, -costs.energy)
+    if (influenceSpend > 0) {
+      _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: -influenceSpend }))
+    }
+    if (infoSpend > 0) {
+      _store.dispatch(applyInfoDelta({ playerId: actorId, delta: -infoSpend }))
+    }
   }
 
   // Apply outcome-sensitive gains or losses after paying the action costs.
@@ -1284,28 +1318,41 @@ export function executeAction(
       postSpendInfluenceBalance
     )
     if (appliedInfluenceDelta !== 0) {
-      _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: appliedInfluenceDelta }))
+      if (weekendWallet) {
+        _store.dispatch({
+          type: 'game/adjustWeekendSocialResources',
+          payload: { influence: appliedInfluenceDelta },
+        })
+      } else {
+        _store.dispatch(applyInfluenceDelta({ playerId: actorId, delta: appliedInfluenceDelta }))
+      }
     }
     appliedYields.influence = appliedInfluenceDelta
   }
   if (resourceEffect.info !== 0) {
     const appliedInfoDelta = clampResourceAdjustment(resourceEffect.info, postSpendInfoBalance)
     if (appliedInfoDelta !== 0) {
-      _store.dispatch(applyInfoDelta({ playerId: actorId, delta: appliedInfoDelta }))
+      if (weekendWallet) {
+        _store.dispatch({
+          type: 'game/adjustWeekendSocialResources',
+          payload: { info: appliedInfoDelta },
+        })
+      } else {
+        _store.dispatch(applyInfoDelta({ playerId: actorId, delta: appliedInfoDelta }))
+      }
     }
     appliedYields.info = appliedInfoDelta
   }
 
   // Read balances after all mutations
-  const stateAfter = _store.getState() as {
-    social: SocialState
-    game?: { week?: number; phase?: string }
-  }
+  const stateAfter = _store.getState() as StateForManeuvers
+  const weekendWalletAfter = getWeekendWallet(stateAfter, actorId)
   const balancesAfter = {
-    energy: stateAfter.social.energyBank[actorId] ?? 0,
-    influence: stateAfter.social.influenceBank[actorId] ?? 0,
-    info: stateAfter.social.infoBank[actorId] ?? 0,
+    energy: weekendWalletAfter?.energy ?? stateAfter.social.energyBank[actorId] ?? 0,
+    influence: weekendWalletAfter?.influence ?? stateAfter.social.influenceBank?.[actorId] ?? 0,
+    info: weekendWalletAfter?.info ?? stateAfter.social.infoBank?.[actorId] ?? 0,
   }
+  const newEnergy = balancesAfter.energy
 
   const subjectId = options?.subjectId ?? lohTargetPlan?.targetId
 
@@ -1349,7 +1396,7 @@ export function executeAction(
     balancesAfter,
     timestamp: Date.now(),
     week: stateAfter.game?.week,
-    phase: stateAfter.game?.phase,
+    phase: getSocialActivityPhase(stateAfter.game),
     score: finalScore,
     label: finalLabel,
     source: options?.source ?? 'system',
