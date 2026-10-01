@@ -114,7 +114,7 @@ export default function WeekendInterludeOverlay() {
                 )}
                 <span className="weekend-interlude__winner-kicker">THE HOUSE CHOSE</span>
                 <strong>{winner?.name ?? 'A housemate'}</strong>
-                <p>No runner-up board. One answer, one winner.</p>
+                <p>The house has spoken.</p>
                 <button
                   type="button"
                   className="weekend-interlude__primary"
