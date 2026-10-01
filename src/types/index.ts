@@ -324,12 +324,6 @@ export interface CustomBroadcastMessage {
   /** Human-readable authoring key shown in the manager and emitted metadata. */
   key?: string
   phase: Phase
-  /** Weekend interludes are opt-in per season so legacy saves keep their original schedule. */
-  weekendsEnabledForSeason?: boolean
-  /** Numbered days whose weekend interlude has already been completed. */
-  completedWeekendDays?: number[]
-  /** Active non-numbered weekend interlude layered over week_end. */
-  weekendInterlude?: WeekendInterludeState | null
   /** Limit this authored message to one campaign. Omit it to use the message everywhere. */
   campaign?: BroadcastCampaign
   text: string
@@ -797,6 +791,12 @@ export interface GameState {
   season: number
   week: number
   phase: Phase
+  /** Weekend interludes are opt-in per season so legacy saves keep their original schedule. */
+  weekendsEnabledForSeason?: boolean
+  /** Numbered days whose weekend interlude has already been completed. */
+  completedWeekendDays?: number[]
+  /** Active non-numbered weekend interlude layered over week_end. */
+  weekendInterlude?: WeekendInterludeState | null
   players: Player[]
   /** Persisted Reality pregnancy attempts and resolved pregnancies. */
   pregnancyStory?: PregnancyStoryState
