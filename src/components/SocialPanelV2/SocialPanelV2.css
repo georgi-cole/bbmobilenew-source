@@ -47,6 +47,10 @@
   backdrop-filter: blur(3px);
 }
 
+.sp2-backdrop--weekend {
+  z-index: 20010;
+}
+
 .sp2-modal {
   width: 100%;
   max-height: 94dvh;
