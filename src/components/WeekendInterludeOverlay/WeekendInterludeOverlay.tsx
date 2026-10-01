@@ -33,8 +33,9 @@ export default function WeekendInterludeOverlay() {
   const winner = currentResult
     ? activePlayers.find((player) => player.id === currentResult.winnerId)
     : undefined
-  const isLastHubQuestion =
-    Boolean(hub) && hub.currentQuestionIndex >= Math.max(0, hub.questionIds.length - 1)
+  const isLastHubQuestion = hub
+    ? hub.currentQuestionIndex >= Math.max(0, hub.questionIds.length - 1)
+    : false
 
   const finishWeekend = () => {
     dispatch(completeWeekendInterlude())
