@@ -620,6 +620,7 @@ export default function SocialPanelV2() {
         'vote_rally',
         'nominate',
         'try_for_baby',
+        'pregnancy_test',
         'pregnancy_test_self',
         'paternity_test_self',
       ].forEach((actionId) => hidden.add(actionId))
