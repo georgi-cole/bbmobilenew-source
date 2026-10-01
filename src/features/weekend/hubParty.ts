@@ -65,17 +65,13 @@ function buildPrivateSpill(
   social: WeekendPartySocialState
 ): WeekendPartyBeat | null {
   const activeIds = activePlayerIds(game)
-  const human = game.players.find(
-    (player) => player.isUser && activeIds.has(player.id)
-  )
+  const human = game.players.find((player) => player.isUser && activeIds.has(player.id))
   if (!human) return null
 
   const eligible = Object.values(social.reality.secrets)
     .map((secret) => {
       const fact = social.reality.facts[secret.truthFactId]
-      const speakerIds = secret.knowerIds.filter(
-        (id) => id !== human.id && activeIds.has(id)
-      )
+      const speakerIds = secret.knowerIds.filter((id) => id !== human.id && activeIds.has(id))
       return { secret, fact, speakerIds }
     })
     .filter(
@@ -140,12 +136,8 @@ function buildOpinionSpill(
   const selected = pairs.sort(
     (left, right) =>
       Math.abs(right.affinity) - Math.abs(left.affinity) ||
-      hash32(
-        `${game.gameId}|party-opinion|${weekendDay}|${left.speaker.id}|${left.target.id}`
-      ) -
-        hash32(
-          `${game.gameId}|party-opinion|${weekendDay}|${right.speaker.id}|${right.target.id}`
-        )
+      hash32(`${game.gameId}|party-opinion|${weekendDay}|${left.speaker.id}|${left.target.id}`) -
+        hash32(`${game.gameId}|party-opinion|${weekendDay}|${right.speaker.id}|${right.target.id}`)
   )[0]
   if (!selected) return null
 
@@ -177,8 +169,7 @@ function buildContextualMoment(
   const arcs = social.dramaNetwork.arcs
     .filter(
       (arc) =>
-        arc.status === 'active' &&
-        arc.participantIds.every((playerId) => activeIds.has(playerId))
+        arc.status === 'active' && arc.participantIds.every((playerId) => activeIds.has(playerId))
     )
     .sort(
       (left, right) =>

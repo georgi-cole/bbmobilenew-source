@@ -281,10 +281,7 @@ export function getPregnancyEffectiveDay(attempt: PregnancyAttempt, currentDay: 
   return finiteDay(currentDay) + Math.max(0, finiteDay(attempt.elapsedWeekendDays ?? 0))
 }
 
-export function isPregnancyResultAvailable(
-  attempt: PregnancyAttempt,
-  currentDay: number
-): boolean {
+export function isPregnancyResultAvailable(attempt: PregnancyAttempt, currentDay: number): boolean {
   return (
     attempt.resultAvailableDay != null &&
     getPregnancyEffectiveDay(attempt, currentDay) >= attempt.resultAvailableDay

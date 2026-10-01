@@ -50,7 +50,13 @@ export default function WeekendInterludeOverlay() {
 
     dispatch(recordWeekendPartyBeat(beat))
 
-    if (beat.kind !== 'secret_spill' || !beat.factId || !beat.secretId || !beat.speakerId || !human) {
+    if (
+      beat.kind !== 'secret_spill' ||
+      !beat.factId ||
+      !beat.secretId ||
+      !beat.speakerId ||
+      !human
+    ) {
       return
     }
 
@@ -117,7 +123,7 @@ export default function WeekendInterludeOverlay() {
     weekend.episode === 'party'
       ? weekend.party?.beats.find((beat) => beat.weekendDay === weekend.weekendDay)
       : undefined
-  const seasonFacts = weekend.episode === 'season_so_far' ? weekend.seasonSoFar?.facts ?? [] : []
+  const seasonFacts = weekend.episode === 'season_so_far' ? (weekend.seasonSoFar?.facts ?? []) : []
   const currentSeasonFact = seasonFacts[seasonFactIndex]
   const currentSeasonPlayer = currentSeasonFact
     ? activePlayers.find((player) => player.id === currentSeasonFact.playerId)
@@ -243,8 +249,8 @@ export default function WeekendInterludeOverlay() {
             </div>
             <div className="weekend-interlude__party-note">
               Two grounded party moments will unfold across the weekend. A private spill only uses
-              information the speaker really knows; anything else falls back to a real opinion or
-              an existing relationship story.
+              information the speaker really knows; anything else falls back to a real opinion or an
+              existing relationship story.
             </div>
             <div className="weekend-interlude__footer">
               <button

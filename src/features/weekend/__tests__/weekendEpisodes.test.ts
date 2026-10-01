@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { SOCIAL_INITIAL_STATE } from '../../../social/constants'
-import { addRealityFact, createInitialRealityDomainState, upsertRealitySecret } from '../../../social/reality'
+import {
+  addRealityFact,
+  createInitialRealityDomainState,
+  upsertRealitySecret,
+} from '../../../social/reality'
 import type { SocialState } from '../../../social/types'
 import { createInitialGameState } from '../../../store/gameSlice'
 import { resolveWeekendPartyBeat } from '../hubParty'

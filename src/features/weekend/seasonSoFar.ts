@@ -6,9 +6,7 @@ interface FactCandidate extends WeekendSeasonFact {
 }
 
 function activePlayers(state: GameState) {
-  return state.players.filter(
-    (player) => player.status !== 'evicted' && player.status !== 'jury'
-  )
+  return state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
 }
 
 function hubSaysWins(state: GameState, playerId: string): number {
@@ -36,10 +34,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
     ...active.map((entry) => (entry.stats?.lohWins ?? 0) + (entry.stats?.posWins ?? 0)),
     0
   )
-  const maxNominations = Math.max(
-    ...active.map((entry) => entry.stats?.timesNominated ?? 0),
-    0
-  )
+  const maxNominations = Math.max(...active.map((entry) => entry.stats?.timesNominated ?? 0), 0)
   const hubWins = hubSaysWins(state, player.id)
   const candidates: FactCandidate[] = []
 
