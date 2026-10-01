@@ -179,9 +179,7 @@ export default function SocialPanelV2() {
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const weekendActive = game.weekendInterlude?.active === true
-  const socialEligibilityGame = weekendActive
-    ? { ...game, phase: 'social_2' as const }
-    : game
+  const socialEligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
@@ -493,7 +491,6 @@ export default function SocialPanelV2() {
     )
   }, [
     effectivePrimaryTargetId,
-    game,
     socialEligibilityGame,
     hasExecutableSelection,
     humanPlayer,
