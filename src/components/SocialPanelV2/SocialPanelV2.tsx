@@ -179,7 +179,6 @@ export default function SocialPanelV2() {
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const weekendActive = game.weekendInterlude?.active === true
-  const socialEligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
@@ -450,6 +449,7 @@ export default function SocialPanelV2() {
     Boolean(selectedActionId) && hasRequiredTargets && (!needsSubject || selectedSubjectId !== null)
 
   const executionEligibility = useMemo(() => {
+    const eligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
     if (!selectedAction || !humanPlayer || !hasExecutableSelection) {
       return { eligible: false, reason: '' }
     }
@@ -465,7 +465,7 @@ export default function SocialPanelV2() {
     if (usesMultipleTargets && targetMode !== 'multi') {
       for (const targetId of targetIds) {
         const result = validateSocialExecution(
-          { game: socialEligibilityGame, settings, vip, social: socialState },
+          { game: eligibilityGame, settings, vip, social: socialState },
           {
             action: selectedAction,
             actorId: humanPlayer.id,
@@ -480,7 +480,7 @@ export default function SocialPanelV2() {
     }
 
     return validateSocialExecution(
-      { game: socialEligibilityGame, settings, vip, social: socialState },
+      { game: eligibilityGame, settings, vip, social: socialState },
       {
         action: selectedAction,
         actorId: humanPlayer.id,
@@ -491,7 +491,7 @@ export default function SocialPanelV2() {
     )
   }, [
     effectivePrimaryTargetId,
-    socialEligibilityGame,
+    game,
     hasExecutableSelection,
     humanPlayer,
     selectedAction,
