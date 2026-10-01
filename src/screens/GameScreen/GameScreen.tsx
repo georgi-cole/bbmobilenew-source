@@ -68,6 +68,7 @@ import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import SocialPanel from '../../components/SocialPanel/SocialPanel'
 import SocialPanelV2 from '../../components/SocialPanelV2/SocialPanelV2'
+import WeekendInterludeOverlay from '../../components/WeekendInterludeOverlay/WeekendInterludeOverlay'
 import IncomingInteractionsInbox from '../../components/IncomingInteractionsInbox/IncomingInteractionsInbox'
 import SurvivorAchievementCelebration from '../../components/SurvivorAchievementCelebration'
 import { FEATURE_SOCIAL_V2, FEATURE_SPECTATOR_REACT } from '../../config/featureFlags'
@@ -2421,6 +2422,9 @@ export default function GameScreen() {
         {!FEATURE_SOCIAL_V2 && showSocialPanel && humanPlayer && (
           <SocialPanel actorId={humanPlayer.id} />
         )}
+
+        {/* ── Weekend interlude — non-numbered two-day break over week_end ── */}
+        {game.weekendInterlude?.active && <WeekendInterludeOverlay />}
 
         {/* ── Social Phase Panel V2 (modal overlay skeleton) ───────────────── */}
         {isSocialModeEnabled(game.mode) && <SocialPanelV2 />}
