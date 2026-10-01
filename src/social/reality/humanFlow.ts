@@ -147,11 +147,13 @@ function buildActors(state: RootState): Record<string, RealityActorSnapshot> {
           isHuman: player.isUser === true,
           active: player.status !== 'evicted' && player.status !== 'jury',
           roles,
-          resources: {
-            energy: state.social.energyBank[player.id] ?? 0,
-            influence: state.social.influenceBank[player.id] ?? 0,
-            info: state.social.infoBank[player.id] ?? 0,
-          },
+          resources: player.isUser
+            ? getEffectiveHumanResources(state, player.id)
+            : {
+                energy: state.social.energyBank[player.id] ?? 0,
+                influence: state.social.influenceBank[player.id] ?? 0,
+                info: state.social.infoBank[player.id] ?? 0,
+              },
         },
       ]
     })
@@ -163,7 +165,7 @@ function buildContext(state: RootState): RealityContext {
   const mode = getRealityModeAdapter(state.game.mode, state.game.publicModeEnabled === true)
   return {
     day: state.game.week ?? 1,
-    phase: state.game.phase,
+    phase: getWeekendActivityPhase(state),
     gameMode: mode.gameMode,
     socialIntensity: getEffectiveSocialMode(state) === 'drama' ? 'REALITY' : 'NORMAL',
     audienceMode: mode.audienceMode,
@@ -1273,7 +1275,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       const alreadyProposedThisPhase = state.social.reality.events.some(
         (event) =>
           event.day === state.game.week &&
-          event.phase === state.game.phase &&
+          event.phase === getWeekendActivityPhase(state) &&
           event.actorId === input.actorId &&
           event.actionId === 'proposeAlliance' &&
           event.targetIds.includes(input.targetId)
@@ -1304,6 +1306,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
         (event) =>
           event.type === 'ALLIANCE_STRATEGY_MEETING' &&
           event.day === state.game.week &&
+          event.phase === getWeekendActivityPhase(state) &&
           event.reason.startsWith(`strategy_meeting:${consultationAlliance.id}:${agenda}:`)
       )
       if (alreadyMet) {
