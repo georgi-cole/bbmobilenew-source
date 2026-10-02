@@ -87,7 +87,7 @@ function isNomineeStatus(status: Player['status']): boolean {
 }
 
 function formatPlayerNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? 'the house'
+  if (names.length <= 1) return names[0] ?? 'the Hub'
   if (names.length === 2) return `${names[0]} and ${names[1]}`
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
 }
@@ -516,7 +516,9 @@ export default function SocialPanelV2() {
       : selectedActionId === 'consult_alliance'
         ? 'Alliance'
         : targetMode === 'none'
-          ? 'House'
+          ? weekendActive
+            ? 'Hub'
+            : 'Hub'
           : usesMultipleTargets
             ? 'Group'
             : effectivePrimaryTargetId
@@ -854,10 +856,10 @@ export default function SocialPanelV2() {
           ? reachedTargetCount === targetIds.length
             ? `${getSocialActionPresentation(selectedAction).title} reached all ${
                 targetIds.length
-              } selected housemates.`
+              } selected Hubmates.`
             : `${getSocialActionPresentation(selectedAction).title} reached ${
                 reachedTargetCount
-              } of ${targetIds.length} selected housemates.`
+              } of ${targetIds.length} selected Hubmates.`
           : firstResult.summary
     )
     setFeedbackExpanded(false)
@@ -1088,8 +1090,8 @@ export default function SocialPanelV2() {
             </span>
             <span className="sp2-header__subtitle">
               {weekendActive
-                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · credits expire after the weekend`
-                : 'House relationships'}
+                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · make the most of the Hub time`
+                : 'Hub relationships'}
             </span>
           </span>
           <div
@@ -1518,7 +1520,7 @@ export default function SocialPanelV2() {
         <ContextualGuidePrompt
           eyebrow="ALLIANCE"
           title="You're in an alliance"
-          body="Alliances have their own cohesion and secrecy. Your choices — and your allies' choices — can strengthen or strain the group. You can review it in My Game → House."
+          body="Alliances have their own cohesion and secrecy. Your choices — and your allies' choices — can strengthen or strain the group. You can review it in My Game → Hub."
           onComplete={() => dismissContextualGuide('alliance')}
         />
       )}

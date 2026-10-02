@@ -33,7 +33,13 @@ import {
   debugSetBellaHeir,
   debugSetBellaWillReward,
   debugActivateBellaInheritance,
+  debugRestartWeekendInterlude,
+  debugSkipToWeekendDayTwo,
 } from '../../store/gameSlice'
+import {
+  finishWeekendDebugPreview,
+  startWeekendDebugPreview,
+} from '../../features/weekend/weekendDebugPreview'
 import { DEFAULT_SETTINGS, setSim } from '../../store/settingsSlice'
 import {
   clearIncomingInteractionLogs,
@@ -493,6 +499,58 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
             {/* ── Controls ── */}
             <section className="dbg-section" id="dbg-season">
               <h3 className="dbg-section__title">Controls</h3>
+
+              <div className="dbg-row dbg-row--col">
+                <span className="dbg-label">Weekend previews</span>
+                <div className="dbg-row">
+                  {([5, 10, 15] as const).map((afterDay, index) => (
+                    <button
+                      key={afterDay}
+                      className="dbg-btn dbg-btn--wide"
+                      type="button"
+                      disabled={
+                        !settings.gameUX.weekendsEnabled ||
+                        (game.weekendInterlude?.active === true &&
+                          game.weekendInterlude.debug !== true)
+                      }
+                      onClick={() => {
+                        dispatch(
+                          game.weekendInterlude?.debug
+                            ? debugRestartWeekendInterlude(afterDay)
+                            : startWeekendDebugPreview(afterDay)
+                        )
+                        setIsOpen(false)
+                      }}
+                    >
+                      {game.weekendInterlude?.debug ? 'Restart' : 'Play'} Weekend {index + 1}
+                    </button>
+                  ))}
+                </div>
+                {game.weekendInterlude?.debug && (
+                  <div className="dbg-row">
+                    <button
+                      className="dbg-btn dbg-btn--wide"
+                      type="button"
+                      onClick={() => {
+                        dispatch(debugSkipToWeekendDayTwo())
+                        setIsOpen(false)
+                      }}
+                    >
+                      Preview Day 2
+                    </button>
+                    <button
+                      className="dbg-btn dbg-btn--wide"
+                      type="button"
+                      onClick={() => {
+                        dispatch(finishWeekendDebugPreview())
+                        setIsOpen(false)
+                      }}
+                    >
+                      Exit preview
+                    </button>
+                  </div>
+                )}
+              </div>
 
               <div className="dbg-row">
                 <label className="dbg-label">Set Phase</label>

@@ -27,70 +27,70 @@ export interface HubSaysQuestion {
 export const HUB_SAYS_QUESTIONS: readonly HubSaysQuestion[] = [
   {
     id: 'betray_first',
-    prompt: 'Who would throw their closest ally under the bus first?',
+    prompt: 'Who would betray their closest ally first?',
     kind: 'betray',
   },
   {
     id: 'leak_secret',
-    prompt: 'Who would leak a secret five minutes after promising not to?',
+    prompt: 'Who can’t keep a secret?',
     kind: 'leak',
   },
-  { id: 'jealous_fast', prompt: 'Who gets jealous the fastest?', kind: 'jealous' },
+  { id: 'jealous_fast', prompt: 'Who gets jealous fastest?', kind: 'jealous' },
   {
     id: 'night_out_fight',
-    prompt: 'Who is most likely to start a huge fight on a night out?',
+    prompt: 'Who would start a fight on a night out?',
     kind: 'fight',
   },
   {
     id: 'calculating',
-    prompt: 'Who is secretly way more calculating than they pretend to be?',
+    prompt: 'Who is more strategic than they let on?',
     kind: 'calculating',
   },
   {
     id: 'fake_friendship',
-    prompt: 'Who could fake a friendship all the way to the finale?',
+    prompt: 'Who could fake a friendship to the finale?',
     kind: 'fake_friend',
   },
   {
     id: 'hidden_crush',
-    prompt: 'Who is most likely to have a crush they are desperately pretending not to have?',
+    prompt: 'Who is hiding a crush?',
     kind: 'crush',
   },
   {
     id: 'worst_date',
-    prompt: 'Who would be the worst person in this house to date?',
+    prompt: 'Who would be the worst Hubmate to date?',
     kind: 'worst_date',
   },
   {
     id: 'imaginary_boss',
-    prompt: "Who thinks they're running the house when absolutely nobody else thinks they are?",
+    prompt: "Who thinks they're running the Hub?",
     kind: 'delusional_power',
   },
   {
     id: 'flirt_enemy',
-    prompt: 'Who would flirt with their biggest enemy if it bought them one more day?',
+    prompt: 'Who would flirt with a rival to stay in the game?',
     kind: 'flirt_enemy',
   },
   {
     id: 'snoop',
-    prompt: "Who would snoop through somebody else's things and then act innocent?",
+    prompt: 'Who would snoop, then act innocent?',
     kind: 'snoop',
   },
   {
     id: 'cry_betray',
-    prompt: 'Who would betray you, then cry because you were upset about it?',
+    prompt: 'Who would betray you, then cry when you react?',
     kind: 'cry_after_betrayal',
   },
   {
     id: 'chaos_button',
-    prompt: 'Who would press the chaos button just to see what happens?',
+    prompt: 'Who would cause chaos just to see what happens?',
     kind: 'chaos',
   },
-  { id: 'two_faced', prompt: 'Whose “I swear” means absolutely nothing?', kind: 'two_faced' },
-  { id: 'overshare', prompt: 'Who would reveal way too much after one drink?', kind: 'overshare' },
+  { id: 'two_faced', prompt: 'Whose promises are hardest to trust?', kind: 'two_faced' },
+  { id: 'overshare', prompt: 'Who shares too much after one drink?', kind: 'overshare' },
   {
     id: 'grudge',
-    prompt: 'Who would remember one tiny insult for the rest of the season?',
+    prompt: 'Who holds a grudge the longest?',
     kind: 'grudge',
   },
 ] as const
@@ -254,4 +254,13 @@ export function resolveHubSaysQuestion(
     .sort((left, right) => right.votes - left.votes || left.tie - right.tie)[0]?.playerId
 
   return winnerId ? { winnerId, voteCounts } : null
+}
+
+export function getHubSaysVotePercentage(
+  voteCounts: Record<string, number>,
+  playerId: string
+): number {
+  const totalVotes = Object.values(voteCounts).reduce((total, votes) => total + votes, 0)
+  if (totalVotes <= 0) return 0
+  return Math.round(((voteCounts[playerId] ?? 0) / totalVotes) * 100)
 }

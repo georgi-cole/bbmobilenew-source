@@ -99,6 +99,36 @@ function renderSettingsAdmin(initialEntries = ['/settingsatiste']) {
 }
 
 describe('Settings screen', () => {
+  it('keeps the player settings flat, orders related controls, and leaves audio to the game icons', () => {
+    renderSettings(['/settings'], false, false, false, false, true)
+    expect(screen.queryByRole('checkbox', { name: /toggle music/i })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /toggle sound effects/i })).toBeNull()
+    const content = document.querySelector('.settings-content--flat')!
+    expect(content.querySelector('section')).toBeNull()
+    const controls = Array.from(content.querySelectorAll('input, select')).map(
+      (element) => element.getAttribute('aria-label') ?? element.id
+    )
+    expect(controls.filter((name) => name !== 'setting-language')).toEqual([
+      'Toggle House Feed',
+      'Toggle Public Mode',
+      'Toggle Reality Mode',
+      'setting-realityModePreset',
+      'Toggle Romance storylines',
+      'Toggle Weekends',
+      'setting-theme-preset',
+      'Toggle Compact mode',
+      'Toggle Replay tutorials',
+      'Toggle Animations',
+      'Toggle Reduce Motion',
+      'Toggle High Contrast',
+      'Toggle Haptic Feedback',
+    ])
+    const rows = Array.from(content.children)
+    const vip = content.querySelector('.settings-row--vip')!
+    expect(rows.indexOf(vip)).toBe(0)
+    expect(rows.at(-1)).toHaveClass('settings-row--legal')
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()

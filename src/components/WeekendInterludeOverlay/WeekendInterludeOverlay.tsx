@@ -1,44 +1,126 @@
 import { useEffect, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import {
-  advance,
-  advanceWeekendDay,
-  completeWeekendInterlude,
-  continueHubSays,
-  continueWeekendFeature,
-  recordWeekendPartyBeat,
-  submitHubSaysVote,
-} from '../../store/gameSlice'
-import {
-  learnRealityKnowledge,
-  openSocialPanel,
-  upsertRealitySecretRecord,
-} from '../../social/socialSlice'
-import { getHubSaysQuestion } from '../../features/weekend/hubSays'
+import { getHubSaysQuestion, getHubSaysVotePercentage } from '../../features/weekend/hubSays'
 import { resolveWeekendPartyBeat } from '../../features/weekend/hubParty'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { chooseHubSaysPlayer, recordWeekendPartyBeat } from '../../store/gameSlice'
+import { learnRealityKnowledge, upsertRealitySecretRecord } from '../../social/socialSlice'
+import { resolveWeatherDay } from '../../weather/weatherEngine'
+import { WeatherGlyph } from '../../weather/WeatherBulletinOverlay'
+import { getWeatherConditionLabel } from '../../weather/weatherConditionLabels'
+import { getWeatherRuntime, type WeatherConditionId } from '../../weather/weatherRuntime'
+import { formatSystemWeatherTemperature } from '../../weather/weatherTemperatureUnit'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import type { Player } from '../../types'
 import './WeekendInterludeOverlay.css'
+
+function getEpisodeTitle(afterDay: 5 | 10 | 15): string {
+  if (afterDay === 5) return 'The Hub Says'
+  if (afterDay === 10) return 'Hub Party'
+  return 'The Season So Far'
+}
+
+function getWeatherLine(condition: WeatherConditionId): string {
+  if (['sunny', 'mostly_sunny', 'clearing'].includes(condition)) {
+    return 'The last light lingers over the Hub.'
+  }
+  if (['drizzle', 'light_showers', 'sun_showers', 'rainy', 'heavy_rain'].includes(condition)) {
+    return 'A little rain settles over the Hub tonight.'
+  }
+  if (condition === 'stormy') return 'A storm rolls past while the Hub winds down.'
+  if (condition === 'snowy' || condition === 'snow_showers') {
+    return 'Snow drifts past as the Hub settles in.'
+  }
+  if (condition === 'misty' || condition === 'foggy') {
+    return 'The Hub fades into a quiet, misty night.'
+  }
+  return 'Clouds gather as the Hub settles in for the night.'
+}
+
+function WeekendHubSaysChoices({
+  players,
+  selectedPlayerId,
+  onSelect,
+}: {
+  players: Player[]
+  selectedPlayerId?: string | null
+  onSelect: (playerId: string) => void
+}) {
+  const [choicePage, setChoicePage] = useState(0)
+  const pageSize = 4
+  const pageCount = Math.max(1, Math.ceil(players.length / pageSize))
+  const visiblePlayers = players.slice(choicePage * pageSize, choicePage * pageSize + pageSize)
+
+  return (
+    <div
+      className="weekend-interlude__carousel"
+      role="group"
+      aria-label={`Choose a Hubmate, page ${choicePage + 1} of ${pageCount}`}
+    >
+      <button
+        className="weekend-interlude__carousel-arrow"
+        type="button"
+        aria-label="Previous Hubmates"
+        disabled={choicePage === 0}
+        onClick={() => setChoicePage((page) => Math.max(0, page - 1))}
+      >
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M19.5 6.5 10 16l9.5 9.5M11 16h14" />
+        </svg>
+      </button>
+      <div className="weekend-interlude__players">
+        {visiblePlayers.map((player) => {
+          const selected = selectedPlayerId === player.id
+          return (
+            <button
+              key={player.id}
+              type="button"
+              className={`weekend-interlude__player${selected ? ' weekend-interlude__player--selected' : ''}`}
+              aria-pressed={selected}
+              onClick={() => onSelect(player.id)}
+            >
+              <PlayerAvatar
+                player={player}
+                size="sm"
+                selected={selected}
+                showRelationshipOutline={false}
+                className="weekend-interlude__avatar"
+              />
+              <span>{player.name}</span>
+            </button>
+          )
+        })}
+      </div>
+      <button
+        className="weekend-interlude__carousel-arrow"
+        type="button"
+        aria-label="Next Hubmates"
+        disabled={choicePage >= pageCount - 1}
+        onClick={() => setChoicePage((page) => Math.min(pageCount - 1, page + 1))}
+      >
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path d="m12.5 6.5 9.5 9.5-9.5 9.5M21 16H7" />
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 export default function WeekendInterludeOverlay() {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
   const social = useAppSelector((state) => state.social)
   const weekend = game.weekendInterlude
-  const [seasonFactNavigation, setSeasonFactNavigation] = useState({ key: '', index: 0 })
-  const seasonFactKey = weekend ? `${weekend.afterDay}:${weekend.episode}` : ''
-  const seasonFactIndex =
-    seasonFactNavigation.key === seasonFactKey ? seasonFactNavigation.index : 0
-
   const activePlayers = game.players.filter(
     (player) => player.status !== 'evicted' && player.status !== 'jury'
   )
+  const selectablePlayers = activePlayers.filter((player) => !player.isUser)
   const human = activePlayers.find((player) => player.isUser)
 
   useEffect(() => {
     if (
       !weekend?.active ||
       weekend.episode !== 'party' ||
-      weekend.stage !== 'social' ||
+      weekend.stage !== 'party' ||
       !weekend.party ||
       weekend.party.beats.some((beat) => beat.weekendDay === weekend.weekendDay)
     ) {
@@ -47,10 +129,10 @@ export default function WeekendInterludeOverlay() {
 
     const beat = resolveWeekendPartyBeat(game, social, weekend.weekendDay)
     if (!beat) return
-
     dispatch(recordWeekendPartyBeat(beat))
 
     if (
+      weekend.debug ||
       beat.kind !== 'secret_spill' ||
       !beat.factId ||
       !beat.secretId ||
@@ -103,297 +185,231 @@ export default function WeekendInterludeOverlay() {
     )
   }, [dispatch, game, human, social, weekend])
 
+  const weather = weekend ? resolveWeatherDay(game.gameId, weekend.afterDay) : null
+
   if (!weekend?.active) return null
 
-  const selectablePlayers = activePlayers.filter((player) => !player.isUser)
   const hub = weekend.episode === 'hub_says' ? weekend.hubSays : undefined
+  const hubBeat = hub?.beat ?? 'question'
   const currentQuestionId = hub?.questionIds[hub.currentQuestionIndex]
   const currentQuestion = currentQuestionId ? getHubSaysQuestion(currentQuestionId) : undefined
-  const currentResult =
-    currentQuestionId != null
-      ? hub?.results.find((result) => result.questionId === currentQuestionId)
-      : undefined
+  const currentResult = currentQuestionId
+    ? hub?.results.find((result) => result.questionId === currentQuestionId)
+    : undefined
   const winner = currentResult
     ? activePlayers.find((player) => player.id === currentResult.winnerId)
     : undefined
-  const isLastHubQuestion = hub
-    ? hub.currentQuestionIndex >= Math.max(0, hub.questionIds.length - 1)
-    : false
-  const currentPartyBeat =
-    weekend.episode === 'party'
-      ? weekend.party?.beats.find((beat) => beat.weekendDay === weekend.weekendDay)
-      : undefined
-  const seasonFacts = weekend.episode === 'season_so_far' ? (weekend.seasonSoFar?.facts ?? []) : []
+  const winnerPercentage = currentResult
+    ? getHubSaysVotePercentage(currentResult.voteCounts, currentResult.winnerId)
+    : 0
+  const currentPartyBeat = weekend.party?.beats.find(
+    (beat) => beat.weekendDay === weekend.weekendDay
+  )
+  const seasonFacts = weekend.seasonSoFar?.facts ?? []
+  const seasonFactIndex = weekend.seasonSoFar?.currentFactIndex ?? 0
   const currentSeasonFact = seasonFacts[seasonFactIndex]
   const currentSeasonPlayer = currentSeasonFact
     ? activePlayers.find((player) => player.id === currentSeasonFact.playerId)
     : undefined
-
-  const finishWeekend = () => {
-    dispatch(completeWeekendInterlude())
-    // Redux reducers are synchronous: completion unblocks the ordinary
-    // week_end -> week_start transition for Day 6, 11 or 16.
-    dispatch(advance())
-  }
-
+  const weatherCondition = weather?.condition ?? 'partly_cloudy'
+  const weatherTemperature = weather
+    ? formatSystemWeatherTemperature(
+        weather.temperatureC,
+        getWeatherRuntime()?.config.temperature.unit ?? 'auto'
+      )
+    : ''
+  const weekendNumber = weekend.afterDay / 5
+  const welcomeCopy =
+    weekend.episode === 'hub_says'
+      ? 'Get ready for a little honesty. Let’s see what the players think of each other.'
+      : weekend.episode === 'party'
+        ? 'The lights are low and the Hub is dressed for a party. See where the night takes you.'
+        : 'Take a breath and look back at the moments that brought everyone here.'
+  const dayTwoTitle =
+    weekend.episode === 'party' ? 'One more day together.' : 'A new day to look back.'
+  const dayTwoCopy =
+    weekend.episode === 'party'
+      ? 'The music is still playing. See what unfolds.'
+      : 'Take in one last chapter before the game moves on.'
+  const instructionEyebrow =
+    weekend.episode === 'hub_says'
+      ? 'THE HUB SAYS'
+      : weekend.episode === 'party'
+        ? 'HUB PARTY'
+        : 'THE SEASON SO FAR'
+  const instructionTitle =
+    weekend.episode === 'hub_says'
+      ? 'Five questions are coming.'
+      : weekend.episode === 'party'
+        ? 'Follow the music.'
+        : 'Every Hubmate has a story.'
+  const instructionCopy =
+    weekend.episode === 'hub_says'
+      ? 'For each one, choose the Hubmate who fits best. When everyone has answered, see who the Hub picked.'
+      : weekend.episode === 'party'
+        ? 'Talk, laugh, make a move. The night has its own plans.'
+        : 'Play will take you through the moments that shaped this season, one story at a time.'
+  const isWeekendFinalDay = weekend.stage === 'social' && weekend.weekendDay === 2
+  const socialEyebrow = 'A LITTLE TIME TO CONNECT'
+  const socialTitle =
+    weekend.episode === 'hub_says'
+      ? 'That was fun, wasn’t it?'
+      : weekend.episode === 'party'
+        ? 'Keep the good company close.'
+        : 'What a season it’s been.'
+  const socialCopy = isWeekendFinalDay
+    ? weekend.episode === 'party'
+      ? 'The music’s still playing. Make the last few hours count.'
+      : weekend.episode === 'hub_says'
+        ? 'A few answers to sleep on, and a little more time to talk.'
+        : 'You’ve come a long way. Enjoy a little more time together before the game moves on.'
+    : 'The Big Eye has left you a little extra room to talk, clear the air, or make a move. Make the most of it before the weekend wraps.'
   const rootClassName = [
     'weekend-interlude',
-    weekend.episode === 'hub_says' ? 'weekend-interlude--hub-says' : '',
-    weekend.episode === 'party' ? 'weekend-interlude--party' : '',
-    weekend.episode === 'season_so_far' ? 'weekend-interlude--season' : '',
+    `weekend-interlude--${weekend.episode.replace(/_/g, '-')}`,
+    `weekend-interlude--stage-${weekend.stage.replace(/_/g, '-')}`,
   ]
     .filter(Boolean)
     .join(' ')
 
   return (
-    <div
+    <section
       className={rootClassName}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Weekend Day ${weekend.weekendDay} of 2`}
+      aria-label={`${getEpisodeTitle(weekend.afterDay)}, Weekend ${weekendNumber}, Day ${weekend.weekendDay}`}
+      data-weekend-stage={weekend.stage}
     >
-      <div className="weekend-interlude__ambient" aria-hidden="true" />
-      <main className="weekend-interlude__card">
-        <header className="weekend-interlude__header">
-          <div>
-            <div className="weekend-interlude__eyebrow">
-              {weekend.episode === 'party'
-                ? 'The Big Eye · Hub Party'
-                : weekend.episode === 'season_so_far'
-                  ? 'The Big Eye · The Season So Far'
-                  : 'The Big Eye · Weekend'}
-            </div>
-            <h1>Weekend Day {weekend.weekendDay}</h1>
-            <p>
-              Day {weekend.afterDay} is complete. The numbered game is paused until this two-day
-              interlude ends.
-            </p>
-          </div>
-          <div className="weekend-interlude__wallet" aria-label="Weekend social credits">
-            <span>⚡ {weekend.wallet.energy}</span>
-            <span>🤝 {weekend.wallet.influence}</span>
-            <span>💡 {weekend.wallet.info}</span>
-            <small>Weekend credits</small>
-          </div>
-        </header>
+      {(weekend.stage === 'intro' || weekend.stage === 'day_two_intro') && (
+        <div
+          className="weekend-interlude__beat weekend-interlude__beat--message"
+          aria-live="polite"
+        >
+          <span className="weekend-interlude__eyebrow">
+            {weekend.stage === 'intro'
+              ? 'THE WEEKEND BEGINS'
+              : weekend.episode === 'party'
+                ? 'HUB PARTY'
+                : 'THE SEASON SO FAR'}
+          </span>
+          <h2 className="weekend-interlude__stream-copy">
+            {weekend.stage === 'intro' ? 'Welcome to the weekend' : dayTwoTitle}
+          </h2>
+          <p className="weekend-interlude__stream-copy">
+            {weekend.stage === 'intro' ? welcomeCopy : dayTwoCopy}
+          </p>
+        </div>
+      )}
 
-        {weekend.stage === 'hub_says' && currentQuestion && human ? (
-          <section className="weekend-interlude__hub" aria-label="The Hub Says">
-            <div className="weekend-interlude__hub-title">
-              <span>THE HUB SAYS…</span>
-              <small>
-                {Math.min((hub?.currentQuestionIndex ?? 0) + 1, hub?.questionIds.length ?? 0)} /{' '}
-                {hub?.questionIds.length ?? 0}
-              </small>
-            </div>
+      {weekend.stage === 'instructions' && (
+        <div
+          className="weekend-interlude__beat weekend-interlude__beat--message"
+          aria-live="polite"
+        >
+          <span className="weekend-interlude__eyebrow">{instructionEyebrow}</span>
+          <h2 className="weekend-interlude__stream-copy">{instructionTitle}</h2>
+          <p className="weekend-interlude__stream-copy">{instructionCopy}</p>
+        </div>
+      )}
 
-            <h2>{currentQuestion.prompt}</h2>
+      {weekend.stage === 'hub_says' && currentQuestion && (
+        <div className="weekend-interlude__beat weekend-interlude__hub" aria-live="polite">
+          <div className="weekend-interlude__eyebrow">THE HUB SAYS</div>
 
-            {!currentResult ? (
-              <>
-                <p className="weekend-interlude__instruction">
-                  Everyone answers anonymously. Pick the housemate you think fits best.
-                </p>
-                <div
-                  className="weekend-interlude__roster"
-                  role="group"
-                  aria-label="Choose housemate"
-                >
-                  {selectablePlayers.map((player) => (
-                    <button
-                      key={player.id}
-                      type="button"
-                      className="weekend-interlude__person"
-                      onClick={() =>
-                        dispatch(
-                          submitHubSaysVote({
-                            questionId: currentQuestion.id,
-                            targetId: player.id,
-                          })
-                        )
-                      }
-                    >
-                      <PlayerAvatar player={player} size="sm" showRelationshipOutline={false} />
-                      <span>{player.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="weekend-interlude__winner" aria-live="polite">
+          {hubBeat !== 'result' && (
+            <h2 className="weekend-interlude__question weekend-interlude__stream-copy">
+              {currentQuestion.prompt}
+            </h2>
+          )}
+
+          {hubBeat !== 'result' && (
+            <WeekendHubSaysChoices
+              key={hub?.currentQuestionIndex ?? 0}
+              players={selectablePlayers}
+              selectedPlayerId={hub?.selectedPlayerId}
+              onSelect={(playerId) => dispatch(chooseHubSaysPlayer(playerId))}
+            />
+          )}
+
+          {hubBeat === 'result' && currentResult && (
+            <div className="weekend-interlude__result">
+              <div className="weekend-interlude__result-player">
                 {winner && (
-                  <PlayerAvatar player={winner} size="md" showRelationshipOutline={false} />
+                  <PlayerAvatar
+                    player={winner}
+                    size="md"
+                    showRelationshipOutline={false}
+                    className="weekend-interlude__avatar"
+                  />
                 )}
-                <span className="weekend-interlude__winner-kicker">THE HOUSE CHOSE</span>
-                <strong>{winner?.name ?? 'A housemate'}</strong>
-                <p>The house has spoken.</p>
-                <button
-                  type="button"
-                  className="weekend-interlude__primary"
-                  onClick={() => dispatch(continueHubSays())}
-                >
-                  {isLastHubQuestion ? 'Open Weekend Social' : 'Next Question'}
-                </button>
+                <strong>{winner?.name ?? 'A Hubmate'}</strong>
               </div>
-            )}
-          </section>
-        ) : weekend.stage === 'party' ? (
-          <section className="weekend-interlude__feature weekend-interlude__party">
-            <span className="weekend-interlude__section-label">WEEKEND 2 · THE HUB PARTY</span>
-            <h2>No competitions. No nominations. Music up.</h2>
-            <div className="weekend-interlude__tv-card">
-              <strong>📺 THE BIG EYE</strong>
-              <p>
-                Drinks and mocktails are out. The house has history now. Talk to whoever you want —
-                just remember that people say things at parties they normally keep to themselves.
-              </p>
+              <span className="weekend-interlude__result-percentage">{winnerPercentage}%</span>
             </div>
-            <div className="weekend-interlude__party-note">
-              Two grounded party moments will unfold across the weekend. A private spill only uses
-              information the speaker really knows; anything else falls back to a real opinion or an
-              existing relationship story.
-            </div>
-            <div className="weekend-interlude__footer">
-              <button
-                type="button"
-                className="weekend-interlude__primary"
-                onClick={() => dispatch(continueWeekendFeature())}
-              >
-                Start the Party
-              </button>
-            </div>
-          </section>
-        ) : weekend.stage === 'season_so_far' ? (
-          <section className="weekend-interlude__feature weekend-interlude__season-recap">
-            <div className="weekend-interlude__hub-title">
-              <span>THE SEASON SO FAR</span>
-              <small>
-                {seasonFacts.length === 0 ? 0 : seasonFactIndex + 1} / {seasonFacts.length}
-              </small>
-            </div>
+          )}
+        </div>
+      )}
 
-            {currentSeasonFact && currentSeasonPlayer ? (
-              <div className="weekend-interlude__fact-card" aria-live="polite">
+      {weekend.stage === 'party' && (
+        <div className="weekend-interlude__beat weekend-interlude__party-moment" aria-live="polite">
+          <span className="weekend-interlude__eyebrow">
+            {currentPartyBeat?.visibility === 'private' ? 'A QUIET WORD' : 'HUB PARTY'}
+          </span>
+          <p className="weekend-interlude__stream-copy">
+            {currentPartyBeat?.text ?? 'A few quiet conversations unfold around the Hub.'}
+          </p>
+        </div>
+      )}
+
+      {weekend.stage === 'season_so_far' && (
+        <div className="weekend-interlude__beat weekend-interlude__season-fact" aria-live="polite">
+          <span className="weekend-interlude__eyebrow">THE SEASON SO FAR</span>
+          {currentSeasonFact ? (
+            <div className="weekend-interlude__fact">
+              {currentSeasonPlayer && (
                 <PlayerAvatar
                   player={currentSeasonPlayer}
-                  size="md"
+                  size="sm"
                   showRelationshipOutline={false}
                 />
-                <span>{currentSeasonPlayer.name}</span>
-                <p>{currentSeasonFact.text}</p>
-              </div>
-            ) : (
-              <div className="weekend-interlude__fact-card">
-                <p>The house has made it a long way. There is more season behind you than ahead.</p>
-              </div>
-            )}
-
-            <div className="weekend-interlude__season-dots" aria-hidden="true">
-              {seasonFacts.map((fact, index) => (
-                <span
-                  key={fact.playerId}
-                  className={index === seasonFactIndex ? 'is-active' : undefined}
-                />
-              ))}
-            </div>
-
-            <div className="weekend-interlude__footer">
-              {seasonFactIndex < seasonFacts.length - 1 ? (
-                <button
-                  type="button"
-                  className="weekend-interlude__primary"
-                  onClick={() =>
-                    setSeasonFactNavigation({
-                      key: seasonFactKey,
-                      index: seasonFactIndex + 1,
-                    })
-                  }
-                >
-                  Next Housemate
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="weekend-interlude__primary"
-                  onClick={() => dispatch(continueWeekendFeature())}
-                >
-                  Open Weekend Social
-                </button>
               )}
+              <p className="weekend-interlude__stream-copy">{currentSeasonFact.text}</p>
             </div>
-          </section>
-        ) : (
-          <section className="weekend-interlude__social">
-            {weekend.episode === 'party' && (
-              <div className="weekend-interlude__party-beat">
-                <span className="weekend-interlude__section-label">
-                  {currentPartyBeat?.visibility === 'private' ? 'PRIVATE SPILL' : 'PARTY MOMENT'}
-                </span>
-                <p>
-                  {currentPartyBeat?.text ??
-                    'The music is up and the room is loosening. Something is about to happen.'}
-                </p>
-              </div>
-            )}
+          ) : (
+            <h2>Every Hubmate has a story.</h2>
+          )}
+        </div>
+      )}
 
-            <div className="weekend-interlude__social-copy">
-              <span className="weekend-interlude__section-label">
-                {weekend.weekendDay === 1 ? 'DAY 1 · FREE TIME' : 'DAY 2 · FREE TIME'}
-              </span>
-              <h2>
-                {weekend.episode === 'party'
-                  ? weekend.weekendDay === 1
-                    ? 'The party is in full swing.'
-                    : 'The house is still awake.'
-                  : weekend.episode === 'season_so_far'
-                    ? weekend.weekendDay === 1
-                      ? 'You have come a long way.'
-                      : 'One quiet day before the game resumes.'
-                    : weekend.weekendDay === 1
-                      ? 'React to the house.'
-                      : 'One more day without a ceremony.'}
-              </h2>
-              <p>
-                Use the blue weekend wallet to talk, repair, bond, investigate or stir things up.
-                Relationship consequences stay. Unused weekend credits disappear when the weekend
-                ends.
-              </p>
+      {weekend.stage === 'social' && (
+        <div
+          className="weekend-interlude__beat weekend-interlude__beat--message"
+          aria-live="polite"
+        >
+          {!isWeekendFinalDay && (
+            <>
+              <span className="weekend-interlude__eyebrow">{socialEyebrow}</span>
+              <h2 className="weekend-interlude__stream-copy">{socialTitle}</h2>
+            </>
+          )}
+          <p className="weekend-interlude__stream-copy">{socialCopy}</p>
+        </div>
+      )}
+
+      {weekend.stage === 'day_transition' && weather && (
+        <div className="weekend-interlude__beat weekend-interlude__weather" aria-live="polite">
+          <span className="weekend-interlude__eyebrow">A MOMENT BETWEEN DAYS</span>
+          <div className="weekend-interlude__weather-main">
+            <span className="weekend-interlude__temperature">{weatherTemperature}</span>
+            <div className="weekend-interlude__weather-condition">
+              <WeatherGlyph
+                condition={weatherCondition}
+                rainbow={weather.phenomenon === 'rainbow'}
+              />
+              <span>{getWeatherConditionLabel(weatherCondition)}</span>
             </div>
-
-            <button
-              type="button"
-              className="weekend-interlude__social-button"
-              onClick={() => dispatch(openSocialPanel())}
-            >
-              <span>Open Social</span>
-              <small>
-                ⚡ {weekend.wallet.energy} · 🤝 {weekend.wallet.influence} · 💡{' '}
-                {weekend.wallet.info}
-              </small>
-            </button>
-
-            <div className="weekend-interlude__footer">
-              {weekend.weekendDay === 1 ? (
-                <button
-                  type="button"
-                  className="weekend-interlude__primary"
-                  onClick={() => dispatch(advanceWeekendDay())}
-                >
-                  End Weekend Day 1
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="weekend-interlude__primary"
-                  onClick={finishWeekend}
-                >
-                  End Weekend · Start Day {weekend.afterDay + 1}
-                </button>
-              )}
-            </div>
-          </section>
-        )}
-      </main>
-    </div>
+          </div>
+          <p>{getWeatherLine(weatherCondition)}</p>
+        </div>
+      )}
+    </section>
   )
 }

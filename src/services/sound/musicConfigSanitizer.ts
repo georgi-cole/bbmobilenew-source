@@ -47,6 +47,9 @@ const GAME_CATEGORIES = [
 ] as const satisfies readonly GameCategory[]
 const CONTEXT_KEYS = [
   'introHub',
+  'weekend1',
+  'weekend2',
+  'weekend3',
   'spectator',
   'social',
   'seasonComplete',

@@ -59,6 +59,7 @@ import type { HostPhase, MinigameParticipant } from '../../components/MinigameHo
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
+import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShockPopup'
@@ -68,7 +69,6 @@ import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import SocialPanel from '../../components/SocialPanel/SocialPanel'
 import SocialPanelV2 from '../../components/SocialPanelV2/SocialPanelV2'
-import WeekendInterludeOverlay from '../../components/WeekendInterludeOverlay/WeekendInterludeOverlay'
 import IncomingInteractionsInbox from '../../components/IncomingInteractionsInbox/IncomingInteractionsInbox'
 import SurvivorAchievementCelebration from '../../components/SurvivorAchievementCelebration'
 import { FEATURE_SOCIAL_V2, FEATURE_SPECTATOR_REACT } from '../../config/featureFlags'
@@ -1410,6 +1410,8 @@ export default function GameScreen() {
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
   const weekendInterludeActive = game.weekendInterlude?.active === true
+  const weekendSocialAvailable =
+    !weekendInterludeActive || game.weekendInterlude?.stage === 'social'
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -1439,7 +1441,7 @@ export default function GameScreen() {
   }
 
   const responsiveGameLayout = useResponsiveGameLayout(gameScreenRef, {
-    hasDock: showGameControlDock && !weekendInterludeActive,
+    hasDock: showGameControlDock,
     unifiedActionRail: true,
     playerCount: game.players.length,
     userCompactRoster: settings.gameUX.compactRoster,
@@ -1478,6 +1480,10 @@ export default function GameScreen() {
         data-active-flow={flowCoordination.activeFlow ?? undefined}
         data-game-mode={game.mode}
       >
+        <WeekendPartyAtmosphere
+          active={weekendInterludeActive && game.weekendInterlude?.episode === 'party'}
+          animate={settings.gameUX.animations && !settings.display.reduceMotion}
+        />
         {showPublicSaveReveal && publicSaveWinnerId ? (
           <TvZone
             key={game.gameId}
@@ -2424,18 +2430,11 @@ export default function GameScreen() {
           <SocialPanel actorId={humanPlayer.id} />
         )}
 
-        {/* ── Weekend interlude — non-numbered two-day break over week_end ── */}
-        {game.weekendInterlude?.active && <WeekendInterludeOverlay />}
-
         {/* ── Social Phase Panel V2 (modal overlay skeleton) ───────────────── */}
-        {isSocialModeEnabled(game.mode) && game.weekendInterlude?.stage !== 'hub_says' && (
-          <SocialPanelV2 />
-        )}
+        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <SocialPanelV2 />}
 
         {/* ── Incoming interactions inbox ─────────────────────────────────── */}
-        {isSocialModeEnabled(game.mode) && game.weekendInterlude?.stage !== 'hub_says' && (
-          <IncomingInteractionsInbox />
-        )}
+        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <IncomingInteractionsInbox />}
 
         {/* ── Social Summary Popup (shown after social phase ends) ─────────── */}
         {isSocialModeEnabled(game.mode) && socialSummaryOpen && <SocialSummaryPopup />}
@@ -2762,7 +2761,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
-        {showGameControlDock && !weekendInterludeActive && (
+        {showGameControlDock && (
           <FloatingActionBar
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}

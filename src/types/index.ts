@@ -813,12 +813,32 @@ export interface WeekendInterludeState {
   afterDay: 5 | 10 | 15
   /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
   weekendDay: 1 | 2
+  /** A preview launched from Settings. It returns to the current game state when finished. */
+  debug?: true
+  /** Player status temporarily restored for an eliminated player's debug preview. */
+  debugOriginalHumanStatus?: PlayerStatus
   episode: WeekendEpisode
-  stage: 'hub_says' | 'party' | 'season_so_far' | 'social'
+  /**
+   * TV beats are intentionally separate from the social days so the regular
+   * dock can pace each reveal. `day_transition` is the weather-card handoff
+   * between Weekend Day 1 and Weekend Day 2.
+   */
+  stage:
+    | 'intro'
+    | 'instructions'
+    | 'day_two_intro'
+    | 'hub_says'
+    | 'party'
+    | 'season_so_far'
+    | 'social'
+    | 'day_transition'
   wallet: WeekendResourceWallet
   hubSays?: {
     questionIds: string[]
     currentQuestionIndex: number
+    /** `question` and `choice` are separate Faux TV beats; older saves default to question. */
+    beat?: 'question' | 'choice' | 'result'
+    selectedPlayerId?: string | null
     results: HubSaysQuestionResult[]
   }
   party?: {
@@ -826,6 +846,8 @@ export interface WeekendInterludeState {
   }
   seasonSoFar?: {
     facts: WeekendSeasonFact[]
+    /** Zero-based TV-card index. Older saves begin at the first fact. */
+    currentFactIndex?: number
   }
 }
 

@@ -776,7 +776,11 @@ export default function MusicManagerPanel() {
                 <article className="music-manager__row" key={`context-${context}`}>
                   <div className="music-manager__row-main">
                     <div>
-                      <strong>{titleFromKey(context)}</strong>
+                      <strong>
+                        {/^weekend[123]$/.test(context)
+                          ? `Weekend ${context.slice(-1)}`
+                          : titleFromKey(context)}
+                      </strong>
                       <code>context.{context}</code>
                     </div>
                     <SourceBadge source={local ? 'local' : remote ? 'server' : 'default'} />

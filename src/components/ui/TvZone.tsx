@@ -77,6 +77,7 @@ import DemocraciaResultsReveal from './DemocraciaResultsReveal/DemocraciaResults
 import VoxAudiencePulseReveal, {
   type VoxAudiencePulseExit,
 } from '../VoxAudiencePulseReveal/VoxAudiencePulseReveal'
+import WeekendInterludeOverlay from '../WeekendInterludeOverlay/WeekendInterludeOverlay'
 import './TvZone.css'
 import './TvZoneEnhancements.css'
 import './ShockDangerMode.css'
@@ -679,16 +680,25 @@ export default function TvZone(props: TvZoneProps) {
     weatherBulletinIsQueued || gameState.phase === 'social_2' || !displayedEvent
       ? null
       : getDailyTransitionPhase(displayedEvent)
-  const dailyAtmosphere = dailyTransitionPhase
+  const weekendDayTransitionActive =
+    gameState.weekendInterlude?.active === true &&
+    gameState.weekendInterlude.stage === 'day_transition'
+  // A weekend uses the existing Day End weather system, but never changes the
+  // numbered game day. This gives the Day 1 → Day 2 handoff a familiar beat.
+  const visualDailyTransitionPhase: Phase | null = weekendDayTransitionActive
+    ? 'week_end'
+    : dailyTransitionPhase
+  const dailyAtmosphere = visualDailyTransitionPhase
     ? getDailyAtmosphere(
         gameState.gameId,
         gameState.week,
-        dailyTransitionPhase,
+        visualDailyTransitionPhase,
         gameState.depressionShock
       )
     : null
   const presentedDailyAtmosphere =
-    depressionShockSunnyTv && (!dailyTransitionPhase || dailyTransitionPhase === 'week_start')
+    depressionShockSunnyTv &&
+    (!visualDailyTransitionPhase || visualDailyTransitionPhase === 'week_start')
       ? 'sunny'
       : dailyAtmosphere
   // Both the inline daily card and the portal-based weather bulletin cover
@@ -696,14 +706,14 @@ export default function TvZone(props: TvZoneProps) {
   // otherwise the older LOG/occupancy controls remain visible behind the
   // full weather bulletin.
   const weatherCardActive = Boolean(
-    weatherBulletinIsActive || (dailyTransitionPhase && presentedDailyAtmosphere)
+    weatherBulletinIsActive || (visualDailyTransitionPhase && presentedDailyAtmosphere)
   )
   const dailyMoonPhase = (['crescent', 'half', 'gibbous', 'full'] as const)[
     Math.max(0, gameState.week - 1) % 4
   ]
   const dailyTransitionTitle = getDailyTransitionTitle({
     atmosphere: presentedDailyAtmosphere,
-    phase: dailyTransitionPhase ?? gameState.phase,
+    phase: visualDailyTransitionPhase ?? gameState.phase,
     week: gameState.week,
   })
   const voteResultsTotal =
@@ -931,6 +941,7 @@ export default function TvZone(props: TvZoneProps) {
       : isBroadcastShockAnnouncementKey(activeAnnouncement.key))
   const audiencePreviewRevealActive = Boolean(props.audiencePreviewReveal)
   const showInlineAnnouncement =
+    !gameState.weekendInterlude?.active &&
     winnerBroadcast == null &&
     activeAnnouncement != null &&
     !(shockIntroActive && isShockAnnouncement) &&
@@ -953,6 +964,7 @@ export default function TvZone(props: TvZoneProps) {
   }, [activeAnnouncement?.key, dispatch, gameState.phase, showInlineAnnouncement])
 
   const showOccupancyChip =
+    !gameState.weekendInterlude?.active &&
     occupancyChip != null &&
     (!weatherCardActive || houseFeedEnabled) &&
     !cupidFollowUpVisible &&
@@ -968,7 +980,8 @@ export default function TvZone(props: TvZoneProps) {
       publicSaveRevealActive ||
       voteResultsRevealActive ||
       democraciaResultsRevealActive ||
-      audiencePreviewRevealActive)
+      audiencePreviewRevealActive ||
+      gameState.weekendInterlude?.active === true)
   // Existing saved seasons can still hold the former default welcome copy.
   // Normalize that exact legacy phrase until those broadcasts are regenerated.
   const displayedEventText = displayedEvent?.text
@@ -1452,13 +1465,15 @@ export default function TvZone(props: TvZoneProps) {
     }
   }, [])
 
-  const phaseLabel =
-    gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
+  const activeWeekend = gameState.weekendInterlude
+  const phaseLabel = activeWeekend?.active
+    ? 'WEEKEND'
+    : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
       ? 'Final Audience Vote'
       : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
         ? 'Final Immunity'
         : formatPhaseLabel(gameState.phase)
-  const shortPhaseLabel = compactPhaseLabel(gameState.phase)
+  const shortPhaseLabel = activeWeekend?.active ? 'WEEKEND' : compactPhaseLabel(gameState.phase)
   const headerRef = useRef<HTMLDivElement>(null)
   const headerPillsRef = useRef<HTMLUListElement>(null)
   const headerActionsRef = useRef<HTMLDivElement>(null)
@@ -1489,37 +1504,49 @@ export default function TvZone(props: TvZoneProps) {
   })
   const isAtGameStart =
     gameState.week === 1 && (gameState.phase === 'season_start' || gameState.phase === 'week_start')
-  const canSave = !isGuest && Boolean(activeProfileId) && !isAtGameStart && !hasPendingChallenge
+  const debugWeekendPreviewActive = gameState.weekendInterlude?.debug === true
+  const canSave =
+    !isGuest &&
+    Boolean(activeProfileId) &&
+    !isAtGameStart &&
+    !hasPendingChallenge &&
+    !debugWeekendPreviewActive
   const saveChipAriaLabel = isGuest
     ? 'Save (unavailable in guest mode)'
     : !activeProfileId
       ? 'Save (no active profile selected)'
       : hasPendingChallenge
         ? 'Save (unavailable during competition)'
-        : isAtGameStart
-          ? 'Save (nothing to save yet)'
-          : saveStatus === 'saved'
-            ? 'Saved!'
-            : saveStatus === 'error'
-              ? 'Save failed'
-              : 'Save game'
+        : debugWeekendPreviewActive
+          ? 'Save (weekend previews do not change your saved season)'
+          : isAtGameStart
+            ? 'Save (nothing to save yet)'
+            : saveStatus === 'saved'
+              ? 'Saved!'
+              : saveStatus === 'error'
+                ? 'Save failed'
+                : 'Save game'
   const saveChipTitle = isGuest
     ? 'Save unavailable in guest mode'
     : !activeProfileId
       ? 'No active profile selected'
       : hasPendingChallenge
         ? 'Save unavailable during competition'
-        : isAtGameStart
-          ? 'Nothing to save yet'
-          : saveStatus === 'saved'
-            ? 'Saved!'
-            : saveStatus === 'error'
-              ? 'Save failed — try again'
-              : 'Save game'
+        : debugWeekendPreviewActive
+          ? 'Weekend previews do not change your saved season'
+          : isAtGameStart
+            ? 'Nothing to save yet'
+            : saveStatus === 'saved'
+              ? 'Saved!'
+              : saveStatus === 'error'
+                ? 'Save failed — try again'
+                : 'Save game'
 
   // Distinguish the double-eviction spotlight from the live-vote focus state.
   const isDeSpotlight = deSpotlightActive
   const isCupidOutlinePulse = cupidOutlinePulseActive
+  // Mounting the Day 1 → Day 2 weather handoff starts this one-shot CSS pulse.
+  const isWeekendElectricPulse = weekendDayTransitionActive
   const isLiveVoteFocus = voteResultsRevealActive
 
   const handleSave = useCallback(async () => {
@@ -1544,8 +1571,12 @@ export default function TvZone(props: TvZoneProps) {
     <section
       className={[
         'tv-zone',
+        gameState.weekendInterlude?.active && gameState.weekendInterlude.episode === 'party'
+          ? 'tv-zone--party-led'
+          : '',
         isDeSpotlight ? 'tv-zone--de-spotlight' : '',
         isCupidOutlinePulse ? 'tv-zone--cupid-outline-pulse' : '',
+        isWeekendElectricPulse ? 'tv-zone--weekend-electric-pulse' : '',
         isLiveVoteFocus ? 'tv-zone--live-vote-focus' : '',
         detoxMessageActive ? 'tv-zone--detox-stream' : '',
       ]
@@ -1557,6 +1588,7 @@ export default function TvZone(props: TvZoneProps) {
         {
           '--de-spotlight-ms': `${DOUBLE_EVICTION_SPOTLIGHT_MS}ms`,
           '--cupid-outline-pulse-ms': `${DOUBLE_EVICTION_SPOTLIGHT_MS}ms`,
+          '--weekend-electric-pulse-ms': `${DOUBLE_EVICTION_SPOTLIGHT_MS}ms`,
         } as CSSProperties
       }
     >
@@ -1651,14 +1683,22 @@ export default function TvZone(props: TvZoneProps) {
           <li>
             <GameTopChip
               label={
-                gameState.mode === 'survival'
-                  ? formatSurveyevalCycleLabel(gameState.week)
-                  : formatCycleLabel(gameState.season, gameState.week)
+                gameState.weekendInterlude?.active
+                  ? gameState.weekendInterlude.weekendDay === 1
+                    ? 'SAT'
+                    : 'SUN'
+                  : gameState.mode === 'survival'
+                    ? formatSurveyevalCycleLabel(gameState.week)
+                    : formatCycleLabel(gameState.season, gameState.week)
               }
               ariaLabel={
-                gameState.mode === 'survival'
-                  ? `Day ${gameState.week}`
-                  : formatCycleAriaLabel(gameState.season, gameState.week)
+                gameState.weekendInterlude?.active
+                  ? gameState.weekendInterlude.weekendDay === 1
+                    ? 'Saturday'
+                    : 'Sunday'
+                  : gameState.mode === 'survival'
+                    ? `Day ${gameState.week}`
+                    : formatCycleAriaLabel(gameState.season, gameState.week)
               }
               tone="neutral"
               className="tv-zone__head-chip"
@@ -1729,15 +1769,20 @@ export default function TvZone(props: TvZoneProps) {
           <div
             className={[
               'tv-zone__viewport',
-              dailyTransitionPhase || depressionShockRainyTv || depressionShockSunnyTv
+              visualDailyTransitionPhase || depressionShockRainyTv || depressionShockSunnyTv
                 ? 'tv-zone__viewport--daily-transition'
                 : '',
-              dailyTransitionPhase && presentedDailyAtmosphere
-                ? `tv-zone__viewport--${dailyTransitionPhase === 'week_start' ? 'day-start' : 'day-end'}-${presentedDailyAtmosphere}`
+              visualDailyTransitionPhase && presentedDailyAtmosphere
+                ? `tv-zone__viewport--${visualDailyTransitionPhase === 'week_start' ? 'day-start' : 'day-end'}-${presentedDailyAtmosphere}`
                 : '',
               depressionShockRainyTv ? 'tv-zone__viewport--day-start-rainy' : '',
               depressionShockSunnyTv ? 'tv-zone__viewport--day-start-sunny' : '',
               voteResultsRevealActive ? 'tv-zone__viewport--vote-results' : '',
+              gameState.weekendInterlude?.active ? 'tv-zone__viewport--weekend' : '',
+              gameState.weekendInterlude?.episode === 'party'
+                ? 'tv-zone__viewport--weekend-party'
+                : '',
+              weekendDayTransitionActive ? 'tv-zone__viewport--weekend-day-transition' : '',
               props.voteResultsReveal?.resultMode === 'public'
                 ? 'tv-zone__viewport--public-results'
                 : '',
@@ -1749,7 +1794,8 @@ export default function TvZone(props: TvZoneProps) {
             aria-live="polite"
             aria-atomic="true"
           >
-            {((dailyTransitionPhase && presentedDailyAtmosphere) ||
+            {gameState.weekendInterlude?.active && <WeekendInterludeOverlay />}
+            {((visualDailyTransitionPhase && presentedDailyAtmosphere) ||
               depressionShockRainyTv ||
               depressionShockSunnyTv) && (
               <div
@@ -1778,7 +1824,7 @@ export default function TvZone(props: TvZoneProps) {
                   ? 'tv-zone__daily-card tv-zone__daily-card--rainy'
                   : depressionShockSunnyTv
                     ? 'tv-zone__daily-card tv-zone__daily-card--sunny'
-                    : dailyTransitionPhase && presentedDailyAtmosphere
+                    : visualDailyTransitionPhase && presentedDailyAtmosphere
                       ? `tv-zone__daily-card tv-zone__daily-card--${presentedDailyAtmosphere}`
                       : '',
               ]

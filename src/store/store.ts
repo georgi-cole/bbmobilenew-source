@@ -7,6 +7,7 @@ import gameReducer, {
 import { withLohNominationPlanning } from './lohNominationPlanning'
 import { withImmediateVoxPublicMode } from './voxPublicModeReducer'
 import { voxPublicModeSyncMiddleware } from './voxPublicModeSyncMiddleware'
+import { weekendSettingsMiddleware } from './weekendSettingsMiddleware'
 import finaleReducer from './finaleSlice'
 import challengeReducer from './challengeSlice'
 import settingsReducer, {
@@ -38,6 +39,7 @@ import { eliminatedSeasonResolutionMiddleware } from './eliminatedSeasonResoluti
 import { presentationConsistencyMiddleware } from './presentationConsistencyMiddleware'
 import { soundMiddleware } from './soundMiddleware'
 import uiReducer from './uiSlice'
+import weekendDebugPreviewReducer from './weekendDebugPreviewSlice'
 import { saveSeasonArchives, DEFAULT_ARCHIVE_KEY } from './archivePersistence'
 import {
   savedStateKeyForProfile,
@@ -132,6 +134,7 @@ export const store = configureStore({
     ads: adsReducer,
     remoteConfig: remoteConfigReducer,
     vip: vipReducer,
+    weekendDebugPreview: weekendDebugPreviewReducer,
   },
   preloadedState: {
     settings: loadSettings(),
@@ -149,6 +152,7 @@ export const store = configureStore({
         ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
       },
     }).concat(
+      weekendSettingsMiddleware,
       survivorMiddleware,
       bellaProgressMiddleware,
       eliminatedSeasonResolutionMiddleware,
@@ -404,6 +408,7 @@ store.subscribe(() => {
     current.publicOpinion !== prevPublicOpinion ||
     current.challenge !== prevChallenge
   if (resumableStateChanged) {
+    const weekendPreviewWasActive = prevGame.weekendInterlude?.debug === true
     const finalePhaseChanged = current.game.seasonFinale?.phase !== prevFinalePhase
     prevGame = current.game
     prevFinale = current.finale
@@ -412,7 +417,12 @@ store.subscribe(() => {
     prevPublicOpinion = current.publicOpinion
     prevChallenge = current.challenge
     const activeProfileId = current.profiles.activeProfileId
-    if (
+    const weekendPreviewOwnsState =
+      weekendPreviewWasActive || current.game.weekendInterlude?.debug === true
+    if (weekendPreviewOwnsState) {
+      if (activeProfileId)
+        runSnapshotAutosave.discard(activeProfileId, getSavedRunSlot(current.game))
+    } else if (
       !isRunAutosaveSuspended() &&
       !isSavePersistenceBlocked() &&
       !current.profiles.isGuest &&
@@ -471,6 +481,7 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'hidden' || isRunAutosaveSuspended()) return
     const current = store.getState()
+    if (current.game.weekendInterlude?.debug === true) return
     const activeProfileId = current.profiles.activeProfileId
     if (
       !isSavePersistenceBlocked() &&
@@ -487,6 +498,7 @@ if (typeof document !== 'undefined' && !skipUnloadAutosaveForE2E) {
 
 if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
   window.addEventListener('pagehide', () => {
+    if (store.getState().game.weekendInterlude?.debug === true) return
     runSnapshotAutosave.flush()
     void flushSavePersistence()
   })

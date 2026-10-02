@@ -13,12 +13,19 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import type { ComponentProps } from 'react'
 import { MemoryRouter, useLocation } from 'react-router'
-import gameReducer, { advance, hydrateGame, triggerSecretMission } from '../../../store/gameSlice'
+import gameReducer, {
+  advance,
+  continueWeekendFeature,
+  createInitialGameState,
+  debugActivateWeekendInterlude,
+  hydrateGame,
+  triggerSecretMission,
+} from '../../../store/gameSlice'
 import socialReducer, {
   setEnergyBankEntry,
   applyEnergyDelta,
@@ -28,6 +35,7 @@ import profilesReducer from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import publicOpinionReducer, { addDirection } from '../../../publicOpinion/publicOpinionSlice'
 import FloatingActionBar from '../FloatingActionBar'
+import WeekendInterludeOverlay from '../../WeekendInterludeOverlay/WeekendInterludeOverlay'
 import { resolveBalancedDockBottom } from '../floatingActionBarLayout'
 import type { RootState } from '../../../store/store'
 import type { PublicDirection } from '../../../publicOpinion/types'
@@ -161,6 +169,63 @@ describe('FloatingActionBar – responsive placement', () => {
         minimumGap: 8,
       })
     ).toBe(30)
+  })
+})
+
+describe('FloatingActionBar – weekend progression', () => {
+  it('enables Play when a Hub Says avatar is selected in the Faux TV', () => {
+    let preview = gameReducer(
+      createInitialGameState({ seed: 81601 }),
+      debugActivateWeekendInterlude(5)
+    )
+    preview = gameReducer(preview, continueWeekendFeature())
+    preview = gameReducer(preview, continueWeekendFeature())
+    const store = makeStore(true, { weekendInterlude: preview.weekendInterlude })
+    renderFAB(store)
+    render(
+      <Provider store={store}>
+        <WeekendInterludeOverlay />
+      </Provider>
+    )
+
+    const carousel = screen.getByRole('group', { name: /Choose a Hubmate/ })
+    const selectablePlayer = store.getState().game.players.find((player) => !player.isUser)!
+    const playerButton = within(carousel).getByRole('button', { name: selectablePlayer.name })
+    const playButton = screen.getByRole('button', { name: 'Choose a Hubmate' })
+    expect(playButton).toBeDisabled()
+
+    act(() => fireEvent.click(playerButton))
+
+    expect(playerButton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Reveal the answers' })).toBeEnabled()
+  })
+
+  it('keeps Play active through weekend beats despite paused season decisions and old vote overlays', () => {
+    let preview = gameReducer(
+      createInitialGameState({ seed: 81602 }),
+      debugActivateWeekendInterlude(10)
+    )
+    preview = gameReducer(preview, continueWeekendFeature())
+    preview = gameReducer(preview, continueWeekendFeature())
+    preview = gameReducer(preview, continueWeekendFeature())
+    const store = makeStore(true, {
+      weekendInterlude: preview.weekendInterlude,
+      awaitingHumanVote: true,
+      evictionOverlayPlayerId: 'stale-vote-overlay',
+    })
+    renderFAB(store)
+
+    const play = screen.getByRole('button', { name: 'Finish the day' })
+    expect(play).toBeEnabled()
+    act(() => play.click())
+    expect(store.getState().game.weekendInterlude?.stage).toBe('day_transition')
+
+    act(() => screen.getByRole('button', { name: 'Start Day 2' }).click())
+    expect(store.getState().game.weekendInterlude?.stage).toBe('party')
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+
+    act(() => screen.getByRole('button', { name: 'Continue' }).click())
+    expect(store.getState().game.weekendInterlude?.stage).toBe('social')
   })
 })
 

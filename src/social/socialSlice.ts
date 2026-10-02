@@ -13,6 +13,7 @@ import type {
   SocialState,
 } from './types'
 import { SOCIAL_INITIAL_STATE } from './constants'
+import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import { socialConfig } from './socialConfig'
 import {
   appendSocialMemoryEvent,
@@ -1019,10 +1020,12 @@ const socialSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addMatcher(
-      (action) => action.type === 'game/resetGame',
-      () => migrateSocialState({} as SocialState)
-    )
+    builder
+      .addCase(restoreWeekendDebugSnapshot, (_state, action) => action.payload.social)
+      .addMatcher(
+        (action) => action.type === 'game/resetGame',
+        () => migrateSocialState({} as SocialState)
+      )
   },
 })
 

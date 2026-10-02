@@ -172,8 +172,13 @@
   box-shadow: 0 1px 4px rgba(0 0 0 / 0.3);
 }
 .settings-toggle:checked {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: linear-gradient(180deg, #b37def, #7c43b8);
+  border-color: rgba(206, 164, 255, 0.5);
+  box-shadow: 0 0 18px rgba(177, 119, 235, 0.18);
+}
+.settings-toggle:focus-visible {
+  outline: 2px solid #cea4ff;
+  outline-offset: 3px;
 }
 .settings-toggle:checked::after {
   left: calc(100% - 1.25rem);
@@ -209,6 +214,37 @@
   font-size: 0.75rem;
   color: var(--color-text-muted, rgba(255, 255, 255, 0.5));
   margin-top: 4px;
+}
+
+.settings-debug-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.settings-debug-actions button {
+  min-height: 2.4rem;
+  border: 1px solid rgba(249, 115, 22, 0.6);
+  border-radius: 8px;
+  background: rgba(124, 45, 18, 0.22);
+  color: #fed7aa;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.settings-debug-actions button:hover,
+.settings-debug-actions button:focus-visible {
+  background: rgba(234, 88, 12, 0.3);
+  outline: 2px solid rgba(251, 146, 60, 0.7);
+  outline-offset: 2px;
+}
+
+@media (max-width: 420px) {
+  .settings-debug-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Theme preset grid */

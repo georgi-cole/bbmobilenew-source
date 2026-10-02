@@ -7,6 +7,7 @@ import type {
   GameState,
   Player,
   StrategicAllianceSnapshot,
+  WeekendInterludeState,
   WeekendPartyBeat,
   Phase,
   TvEvent,
@@ -23,6 +24,7 @@ import type {
   BroadcastLevel,
   CustomBroadcastMessage,
 } from '../types'
+import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
@@ -356,6 +358,51 @@ function isDepressionShockEligibleMode(state: GameState): boolean {
 function activeHousemateCount(state: GameState): number {
   return state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
     .length
+}
+
+function createWeekendInterlude(
+  state: GameState,
+  afterDay: 5 | 10 | 15,
+  debug = false
+): WeekendInterludeState {
+  const base = {
+    active: true as const,
+    afterDay,
+    weekendDay: 1 as const,
+    wallet: { energy: 30, influence: 999, info: 999 },
+    ...(debug ? { debug: true as const } : {}),
+  }
+
+  if (afterDay === 5) {
+    return {
+      ...base,
+      episode: 'hub_says',
+      stage: 'intro',
+      hubSays: {
+        questionIds: buildHubSaysQuestionIds(state.gameId, state.season, afterDay, 5),
+        currentQuestionIndex: 0,
+        beat: 'question',
+        selectedPlayerId: null,
+        results: [],
+      },
+    }
+  }
+
+  if (afterDay === 10) {
+    return {
+      ...base,
+      episode: 'party',
+      stage: 'intro',
+      party: { beats: [] },
+    }
+  }
+
+  return {
+    ...base,
+    episode: 'season_so_far',
+    stage: 'intro',
+    seasonSoFar: { facts: buildSeasonSoFarFacts(state), currentFactIndex: 0 },
+  }
 }
 
 // ─── Houseguest pool ─────────────────────────────────────────────────────────
@@ -8603,6 +8650,31 @@ const gameSlice = createSlice({
     },
 
     /** Resolve one Weekend 1 house-poll question. Only the winner is player-facing. */
+    chooseHubSaysPlayer(state, action: PayloadAction<string>) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub || !['question', 'choice'].includes(hub.beat ?? 'question')) return
+      const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (
+        !currentQuestionId ||
+        hub.results.some((result) => result.questionId === currentQuestionId)
+      )
+        return
+      const candidate = state.players.find(
+        (player) =>
+          player.id === action.payload &&
+          !player.isUser &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury'
+      )
+      if (candidate) {
+        hub.selectedPlayerId = candidate.id
+        hub.beat = 'choice'
+      }
+    },
+
+    /** Resolve one Weekend 1 Hub Says question. Only the winner is player-facing. */
     submitHubSaysVote(state, action: PayloadAction<{ questionId: string; targetId: string }>) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
@@ -8619,9 +8691,11 @@ const gameSlice = createSlice({
         winnerId: resolved.winnerId,
         voteCounts: resolved.voteCounts,
       })
+      hub.beat = 'result'
+      hub.selectedPlayerId = null
       const question = getHubSaysQuestion(expectedQuestionId)
       const winner = state.players.find((player) => player.id === resolved.winnerId)
-      if (question && winner) {
+      if (question && winner && !weekend.debug) {
         pushEvent(state, `THE HUB SAYS… ${question.prompt} — ${winner.name}`, 'social', {
           weekend: true,
           weekendDay: weekend.weekendDay,
@@ -8651,6 +8725,11 @@ const gameSlice = createSlice({
       if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
       const hub = weekend.hubSays
       if (!hub) return
+      if ((hub.beat ?? 'question') === 'question') {
+        hub.beat = 'choice'
+        return
+      }
+      if ((hub.beat ?? 'question') === 'choice') return
       const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
       if (
         !currentQuestionId ||
@@ -8662,17 +8741,55 @@ const gameSlice = createSlice({
         return
       }
       hub.currentQuestionIndex += 1
+      hub.beat = 'question'
+      hub.selectedPlayerId = null
     },
 
     continueWeekendFeature(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active) return
-      if (
-        (weekend.episode === 'party' && weekend.stage === 'party') ||
-        (weekend.episode === 'season_so_far' && weekend.stage === 'season_so_far')
-      ) {
+      if (weekend.stage === 'intro') {
+        weekend.stage = 'instructions'
+        return
+      }
+      if (weekend.stage === 'instructions') {
+        weekend.stage =
+          weekend.episode === 'hub_says'
+            ? 'hub_says'
+            : weekend.episode === 'party'
+              ? 'party'
+              : 'season_so_far'
+        return
+      }
+      if (weekend.stage === 'day_two_intro') {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+        return
+      }
+      if (weekend.episode === 'party' && weekend.stage === 'party') {
         weekend.stage = 'social'
       }
+    },
+
+    /** Reveal one player-sized Season So Far card on the Faux TV. */
+    advanceWeekendSeasonFact(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        weekend.episode !== 'season_so_far' ||
+        weekend.stage !== 'season_so_far'
+      )
+        return
+      const seasonSoFar = weekend.seasonSoFar
+      if (!seasonSoFar || seasonSoFar.facts.length === 0) {
+        weekend.stage = 'social'
+        return
+      }
+      const currentFactIndex = seasonSoFar.currentFactIndex ?? 0
+      if (currentFactIndex >= seasonSoFar.facts.length - 1) {
+        weekend.stage = 'social'
+        return
+      }
+      seasonSoFar.currentFactIndex = currentFactIndex + 1
     },
 
     recordWeekendPartyBeat(state, action: PayloadAction<WeekendPartyBeat>) {
@@ -8680,7 +8797,7 @@ const gameSlice = createSlice({
       if (
         !weekend?.active ||
         weekend.episode !== 'party' ||
-        weekend.stage !== 'social' ||
+        weekend.stage !== 'party' ||
         !weekend.party ||
         action.payload.weekendDay !== weekend.weekendDay ||
         weekend.party.beats.some((beat) => beat.weekendDay === action.payload.weekendDay)
@@ -8688,6 +8805,7 @@ const gameSlice = createSlice({
         return
       }
       weekend.party.beats.push(action.payload)
+      if (weekend.debug) return
       pushEvent(state, `THE HUB PARTY — ${action.payload.text}`, 'social', {
         weekend: true,
         weekendDay: action.payload.weekendDay,
@@ -8713,13 +8831,21 @@ const gameSlice = createSlice({
       ].slice(-MAX_GAME_HISTORY_EVENTS)
     },
 
-    advanceWeekendDay(state) {
+    /** Show the reused weather-card handoff before Weekend Day 2 begins. */
+    beginWeekendDayTransition(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 1) return
-      if (state.pregnancyStory) {
+      weekend.stage = 'day_transition'
+    },
+
+    advanceWeekendDay(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'day_transition' || weekend.weekendDay !== 1) return
+      if (state.pregnancyStory && !weekend.debug) {
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
       weekend.weekendDay = 2
+      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
     },
 
     spendWeekendSocialResources(
@@ -8767,12 +8893,79 @@ const gameSlice = createSlice({
     completeWeekendInterlude(state) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
-      if (state.pregnancyStory) {
+      if (state.pregnancyStory && !weekend.debug) {
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
-      state.completedWeekendDays = Array.from(
-        new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
-      ).sort((left, right) => left - right)
+      if (!weekend.debug) {
+        state.completedWeekendDays = Array.from(
+          new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+        ).sort((left, right) => left - right)
+      } else if (weekend.debugOriginalHumanStatus) {
+        const human = getHumanPlayer(state)
+        if (human) human.status = weekend.debugOriginalHumanStatus
+      }
+      state.weekendInterlude = null
+    },
+
+    setWeekendsEnabledForSeason(state, action: PayloadAction<boolean>) {
+      state.weekendsEnabledForSeason = action.payload
+      if (!action.payload && state.weekendInterlude?.active) {
+        const weekend = state.weekendInterlude
+        if (!weekend.debug) {
+          state.completedWeekendDays = Array.from(
+            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+          ).sort((left, right) => left - right)
+        } else if (weekend.debugOriginalHumanStatus) {
+          const human = getHumanPlayer(state)
+          if (human) human.status = weekend.debugOriginalHumanStatus
+        }
+        state.weekendInterlude = null
+      }
+    },
+
+    /** Open a self-contained weekend preview from Settings without changing the season calendar. */
+    debugActivateWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+      if (
+        state.weekendsEnabledForSeason === false ||
+        state.weekendInterlude?.active ||
+        state.mode === 'survival'
+      ) {
+        return
+      }
+
+      const afterDay = action.payload
+      state.weekendInterlude = createWeekendInterlude(state, afterDay, true)
+      const human = getHumanPlayer(state)
+      if (human && (human.status === 'evicted' || human.status === 'jury')) {
+        state.weekendInterlude.debugOriginalHumanStatus = human.status
+        human.status = 'active'
+      }
+    },
+
+    debugRestartWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      const originalHumanStatus = weekend.debugOriginalHumanStatus
+      state.weekendInterlude = createWeekendInterlude(state, action.payload, true)
+      if (originalHumanStatus) {
+        state.weekendInterlude.debugOriginalHumanStatus = originalHumanStatus
+      }
+    },
+
+    debugSkipToWeekendDayTwo(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      weekend.weekendDay = 2
+      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+    },
+
+    debugExitWeekendInterlude(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      if (weekend.debugOriginalHumanStatus) {
+        const human = getHumanPlayer(state)
+        if (human) human.status = weekend.debugOriginalHumanStatus
+      }
       state.weekendInterlude = null
     },
 
@@ -8865,41 +9058,7 @@ const gameSlice = createSlice({
         isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
         !state.finalThree
       ) {
-        if (weekendMilestone === 5) {
-          state.weekendInterlude = {
-            active: true,
-            afterDay: 5,
-            weekendDay: 1,
-            episode: 'hub_says',
-            stage: 'hub_says',
-            wallet: { energy: 30, influence: 999, info: 999 },
-            hubSays: {
-              questionIds: buildHubSaysQuestionIds(state.gameId, state.season, 5, 5),
-              currentQuestionIndex: 0,
-              results: [],
-            },
-          }
-        } else if (weekendMilestone === 10) {
-          state.weekendInterlude = {
-            active: true,
-            afterDay: 10,
-            weekendDay: 1,
-            episode: 'party',
-            stage: 'party',
-            wallet: { energy: 30, influence: 999, info: 999 },
-            party: { beats: [] },
-          }
-        } else {
-          state.weekendInterlude = {
-            active: true,
-            afterDay: 15,
-            weekendDay: 1,
-            episode: 'season_so_far',
-            stage: 'season_so_far',
-            wallet: { energy: 30, influence: 999, info: 999 },
-            seasonSoFar: { facts: buildSeasonSoFarFacts(state) },
-          }
-        }
+        state.weekendInterlude = createWeekendInterlude(state, weekendMilestone)
 
         const intro =
           weekendMilestone === 5
@@ -11795,6 +11954,9 @@ const gameSlice = createSlice({
       state.awaitingVoteDeductionPrompt = false
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase(restoreWeekendDebugSnapshot, (_state, action) => action.payload.game)
+  },
 })
 
 export const {
@@ -11945,13 +12107,21 @@ export const {
   hydrateGame,
   setHasSeenConfessionalSpotlight,
   submitHubSaysVote,
+  chooseHubSaysPlayer,
   continueHubSays,
   continueWeekendFeature,
+  advanceWeekendSeasonFact,
   recordWeekendPartyBeat,
+  beginWeekendDayTransition,
   advanceWeekendDay,
   spendWeekendSocialResources,
   adjustWeekendSocialResources,
   completeWeekendInterlude,
+  debugActivateWeekendInterlude,
+  setWeekendsEnabledForSeason,
+  debugRestartWeekendInterlude,
+  debugSkipToWeekendDayTwo,
+  debugExitWeekendInterlude,
   submitTwinShockAnswer,
   completeTwinShockRevealAnimation,
   triggerSecretMission,

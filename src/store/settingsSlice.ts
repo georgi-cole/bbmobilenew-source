@@ -58,6 +58,8 @@ export interface SettingsState {
     houseFeed: boolean
     useHaptics: boolean
     animations: boolean
+    /** Include optional two-day weekend interludes between numbered gameplay days. */
+    weekendsEnabled: boolean
     spectatorMode: boolean
     /** Enables richer, context-driven social simulation and reactions. */
     dramaMode: boolean
@@ -213,6 +215,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
     houseFeed: false,
     useHaptics: true,
     animations: true,
+    weekendsEnabled: true,
     spectatorMode: true,
     dramaMode: false,
     realityModePreset: DEFAULT_REALITY_MODE_PRESET,

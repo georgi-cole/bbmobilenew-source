@@ -128,6 +128,21 @@ interface GameState {
     pairs?: Array<{ memberIds: [string, string] }>
   }
   voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
+  weekendInterlude?: {
+    active?: boolean
+    afterDay: 5 | 10 | 15
+    weekendDay: 1 | 2
+    stage:
+      | 'intro'
+      | 'instructions'
+      | 'day_two_intro'
+      | 'hub_says'
+      | 'party'
+      | 'season_so_far'
+      | 'social'
+      | 'day_transition'
+    episode: 'hub_says' | 'party' | 'season_so_far'
+  } | null
   dramaSocialMode?: boolean
   strategicAlliances?: StrategicAllianceSnapshot[]
   tvFeed?: Array<{
@@ -231,6 +246,138 @@ const REALITY_SEEDING_ACTIONS = new Set([
   'game/forcePhase',
   'social/recordSocialAction',
 ])
+
+const WEEKEND_SOCIAL_ENTRY_ACTIONS = new Set([
+  'game/continueHubSays',
+  'game/continueWeekendFeature',
+  'game/advanceWeekendSeasonFact',
+  'game/advanceWeekendDay',
+])
+
+function isActiveWeekendPlayer(player: GameState['players'][number]): boolean {
+  return player.status !== 'evicted' && player.status !== 'jury'
+}
+
+function hasIncomingInteraction(state: StateWithGame, id: string): boolean {
+  return [
+    ...(state.social?.incomingInteractions ?? []),
+    ...(state.social?.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
+  ].some((interaction) => interaction.id === id)
+}
+
+function weekendSocialContext(state: StateWithGame) {
+  const weekend = state.game.weekendInterlude
+  if (!weekend?.active || weekend.stage !== 'social') return null
+  const human = state.game.players.find((player) => player.isUser && isActiveWeekendPlayer(player))
+  const others = state.game.players.filter(
+    (player) => !player.isUser && isActiveWeekendPlayer(player)
+  )
+  if (!human || others.length === 0) return null
+  return { weekend, human, others }
+}
+
+function queueWeekendSocialArrival(api: MiddlewareAPI): void {
+  const state = api.getState() as StateWithGame
+  const context = weekendSocialContext(state)
+  if (!context) return
+
+  const { weekend, others } = context
+  const seed = weekend.afterDay + weekend.weekendDay * 7
+  const first = others[seed % others.length]
+  const firstId = `weekend-arrival:${state.game.gameId}:${weekend.afterDay}:${weekend.weekendDay}:${first.id}`
+  if (!hasIncomingInteraction(state, firstId)) {
+    const opening =
+      weekend.episode === 'party'
+        ? 'I’m glad we got a night to relax. How are you really feeling about the week?'
+        : weekend.episode === 'season_so_far'
+          ? 'Seeing our season story laid out like that made me think. What moment has stayed with you?'
+          : weekend.weekendDay === 1
+            ? 'Those answers were more honest than I expected. Which one surprised you most?'
+            : 'I keep thinking about yesterday’s answers. Did anyone surprise you?'
+    api.dispatch(
+      pushIncomingInteraction(
+        createIncomingInteraction({
+          id: firstId,
+          fromId: first.id,
+          type: 'check_in',
+          text: opening,
+          week: state.game.week,
+          phase: 'social_2',
+          mode: getEffectiveSocialMode(state),
+          payload: { scenarioKey: 'weekend_arrival', weekendDay: weekend.weekendDay },
+          responsePolicy: 'optional',
+        })
+      )
+    )
+  }
+
+  const second = others[(seed + 3) % others.length]
+  const secondId = `weekend-buzz:${state.game.gameId}:${weekend.afterDay}:${weekend.weekendDay}:${second.id}`
+  if (second.id !== first.id && !hasIncomingInteraction(state, secondId)) {
+    api.dispatch(
+      pushIncomingInteraction(
+        createIncomingInteraction({
+          id: secondId,
+          fromId: second.id,
+          type: 'gossip',
+          text: 'I’ve been catching up with everyone tonight. The Hub feels busier than usual.',
+          week: state.game.week,
+          phase: 'social_2',
+          mode: getEffectiveSocialMode(state),
+          payload: { scenarioKey: 'weekend_buzz', weekendDay: weekend.weekendDay },
+          responsePolicy: 'optional',
+        })
+      )
+    )
+  }
+}
+
+function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEntry): void {
+  if (entry.source !== 'manual') return
+  const state = api.getState() as StateWithGame
+  const context = weekendSocialContext(state)
+  if (!context || entry.actorId !== context.human.id) return
+
+  const actionId = entry.actionId.toLowerCase()
+  // Private snooping should not summon a reply from someone who never saw it.
+  if (/investigat|snoop|spy|secret_self|gather_info/.test(actionId)) return
+  const targetId =
+    entry.targetIds?.find((id) => id !== context.human.id) ??
+    (entry.targetId !== context.human.id ? entry.targetId : undefined)
+  const responder = context.others.find((player) => player.id === targetId)
+  if (!responder) return
+
+  const interactionId = `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${entry.actionId}:${responder.id}:${entry.timestamp}`
+  if (hasIncomingInteraction(state, interactionId)) return
+  const tenseAction = /confront|fight|expose|callout|betray|break/i.test(actionId)
+  const strainedResult = entry.outcome !== 'success' || entry.delta < 0
+  const responseText = tenseAction
+    ? entry.outcome === 'success'
+      ? 'I heard what happened. Can we talk before this gets bigger?'
+      : 'That got tense. I think we should talk it through when we are both ready.'
+    : strainedResult
+      ? 'That did not go quite how I hoped. Maybe we can try again later.'
+      : 'I was glad you checked in. I will remember that.'
+  api.dispatch(
+    pushIncomingInteraction(
+      createIncomingInteraction({
+        id: interactionId,
+        fromId: responder.id,
+        type: tenseAction || strainedResult ? 'warning' : 'check_in',
+        text: responseText,
+        week: state.game.week,
+        phase: 'social_2',
+        mode: getEffectiveSocialMode(state),
+        payload: {
+          scenarioKey: 'weekend_action_reply',
+          weekendDay: context.weekend.weekendDay,
+          actionId: entry.actionId,
+        },
+        responsePolicy: 'optional',
+      })
+    )
+  )
+}
 
 function buildStrategicAllianceSnapshot(state: StateWithGame): StrategicAllianceSnapshot[] {
   const alliances = Object.values(state.social?.reality?.alliances ?? {})
@@ -1057,12 +1204,18 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     ensureRealitySimulationSeed(api as unknown as MiddlewareAPI)
   }
 
+  if (WEEKEND_SOCIAL_ENTRY_ACTIONS.has(type)) {
+    const result = next(action)
+    queueWeekendSocialArrival(api as unknown as MiddlewareAPI)
+    return result
+  }
+
   if (type === 'social/recordSocialAction') {
     const result = next(action)
     const state = api.getState() as StateWithGame
+    const entry = (action as unknown as { payload: { entry: SocialActionLogEntry } }).payload.entry
+    queueWeekendActionResponse(api as unknown as MiddlewareAPI, entry)
     if (getEffectiveSocialMode(state) === 'drama') {
-      const entry = (action as unknown as { payload: { entry: SocialActionLogEntry } }).payload
-        .entry
       const actorName =
         state.game.players.find((player) => player.id === entry.actorId)?.name ?? entry.actorId
       const targetName =

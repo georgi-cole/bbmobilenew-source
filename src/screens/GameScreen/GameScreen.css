@@ -155,6 +155,7 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
 
 /* Gameplay background shell */
 .game-screen-shell {
+  isolation: isolate;
   background-image: url('../../assets/bb-gameplay-bg.svg');
   background-size: cover;
   background-position: center top;

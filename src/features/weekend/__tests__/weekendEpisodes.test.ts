@@ -6,11 +6,46 @@ import {
   upsertRealitySecret,
 } from '../../../social/reality'
 import type { SocialState } from '../../../social/types'
-import { createInitialGameState } from '../../../store/gameSlice'
+import gameReducer, {
+  createInitialGameState,
+  debugActivateWeekendInterlude,
+} from '../../../store/gameSlice'
 import { resolveWeekendPartyBeat } from '../hubParty'
 import { buildSeasonSoFarFacts } from '../seasonSoFar'
+import { getHubSaysVotePercentage } from '../hubSays'
 
 describe('Weekend episode resolvers', () => {
+  it('does not repeat Saturday’s strongest opinion pair or dialogue on Sunday', () => {
+    const game = gameReducer(
+      createInitialGameState({ seed: 2012 }),
+      debugActivateWeekendInterlude(10)
+    )
+    const [speaker, target] = game.players.filter((player) => !player.isUser)
+    const social = {
+      relationships: {
+        [speaker.id]: { [target.id]: { affinity: 90 } },
+      } as SocialState['relationships'],
+      dramaNetwork: { ...SOCIAL_INITIAL_STATE.dramaNetwork, arcs: [] },
+      reality: createInitialRealityDomainState(),
+    }
+    const saturday = resolveWeekendPartyBeat(game, social, 1)!
+    expect(saturday.speakerId).toBe(speaker.id)
+    const sunday = resolveWeekendPartyBeat(
+      { ...game, weekendInterlude: { ...game.weekendInterlude!, party: { beats: [saturday] } } },
+      social,
+      2
+    )!
+    expect(sunday.text).not.toBe(saturday.text)
+    expect(
+      sunday.speakerId === saturday.speakerId && sunday.subjectIds[0] === saturday.subjectIds[0]
+    ).toBe(false)
+  })
+
+  it('formats the winning Hub Says result as a whole percentage of all votes', () => {
+    expect(getHubSaysVotePercentage({ aria: 7, finn: 3 }, 'aria')).toBe(70)
+    expect(getHubSaysVotePercentage({}, 'aria')).toBe(0)
+  })
+
   it('uses a real secret that the selected party speaker knows and the human does not', () => {
     const game = createInitialGameState({ seed: 2010 })
     const human = game.players.find((player) => player.isUser)!

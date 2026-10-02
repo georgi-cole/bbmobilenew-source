@@ -44,8 +44,8 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
       kind: 'battle_back',
       text:
         (stats.battleBackWins ?? 0) > 1
-          ? `${player.name} has already fought back into the house ${stats.battleBackWins} times this season.`
-          : `${player.name} has already left this house once — and fought their way back in.`,
+          ? `${player.name} has already fought back into the Hub ${stats.battleBackWins} times this season.`
+          : `${player.name} has already left this Hub once — and fought their way back in.`,
       score: 100,
       dedupeKey: 'battle_back',
     })
@@ -67,8 +67,8 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
       kind: 'hub_says',
       text:
         hubWins === 1
-          ? `${player.name} was the house's answer to one of THE HUB SAYS… questions back on Weekend 1.`
-          : `${player.name} was the house's answer to ${hubWins} different THE HUB SAYS… questions on Weekend 1.`,
+          ? `${player.name} was the Hub's answer to one of THE HUB SAYS… questions back on Weekend 1.`
+          : `${player.name} was the Hub's answer to ${hubWins} different THE HUB SAYS… questions on Weekend 1.`,
       score: 76 + Math.min(8, hubWins * 2),
       dedupeKey: 'hub_says',
     })
@@ -80,7 +80,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
       kind: 'nomination_survivor',
       text:
         timesNominated === maxNominations && maxNominations > 2
-          ? `${player.name} has survived nomination ${timesNominated} times — more than anyone else left in the house.`
+          ? `${player.name} has survived nomination ${timesNominated} times — more than anyone else left in the Hub.`
           : `${player.name} has survived nomination ${timesNominated} times and is still standing.`,
       score: 70 + Math.min(16, timesNominated * 3),
       dedupeKey: timesNominated === maxNominations ? 'nomination_record' : 'nomination_survivor',
@@ -91,7 +91,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
     candidates.push({
       playerId: player.id,
       kind: 'power_record',
-      text: `${player.name} has won ${powerWins} power competitions — the most among the housemates still here.`,
+      text: `${player.name} has won ${powerWins} power competitions — the most among the Hub players still here.`,
       score: 88,
       dedupeKey: 'power_record',
     })
@@ -103,8 +103,8 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
       kind: 'loh_record',
       text:
         lohWins === maxLoh && maxLoh > 1
-          ? `${player.name} has held the Leader of the House title ${lohWins} times — the most among the players left.`
-          : `${player.name} has already held the Leader of the House title ${lohWins} time${lohWins === 1 ? '' : 's'} this season.`,
+          ? `${player.name} has held the Leader title ${lohWins} times — the most among the Hub players left.`
+          : `${player.name} has already held the Leader title ${lohWins} time${lohWins === 1 ? '' : 's'} this season.`,
       score: 64 + Math.min(12, lohWins * 3),
       dedupeKey: lohWins === maxLoh ? 'loh_record' : 'loh_win',
     })
@@ -116,7 +116,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
       kind: 'pos_record',
       text:
         posWins === maxPos && maxPos > 1
-          ? `${player.name} has won Safety ${posWins} times — the most among the players still in the house.`
+          ? `${player.name} has won Safety ${posWins} times — the most among the players still in the Hub.`
           : `${player.name} has already won Safety ${posWins} time${posWins === 1 ? '' : 's'} this season.`,
       score: 62 + Math.min(12, posWins * 3),
       dedupeKey: posWins === maxPos ? 'pos_record' : 'pos_win',
@@ -146,7 +146,7 @@ function buildCandidates(state: GameState, playerId: string): FactCandidate[] {
   candidates.push({
     playerId: player.id,
     kind: 'still_here',
-    text: `${player.name} is still in the house after ${state.week} numbered days of this season.`,
+    text: `${player.name} is still in the Hub after ${state.week} numbered days of this season.`,
     score: 10,
     dedupeKey: `still_here:${player.id}`,
   })

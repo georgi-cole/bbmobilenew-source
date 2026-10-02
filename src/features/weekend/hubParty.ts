@@ -13,7 +13,7 @@ function hash32(value: string): number {
 }
 
 function playerName(state: GameState, playerId: string): string {
-  return state.players.find((player) => player.id === playerId)?.name ?? 'a housemate'
+  return state.players.find((player) => player.id === playerId)?.name ?? 'a Hub player'
 }
 
 function activePlayerIds(state: GameState): Set<string> {
@@ -57,7 +57,7 @@ function renderSecretSpill(
     return `${speaker}: “There is something about ${subjectNames.slice(0, 2).join(' and ')} that isn't public yet. I know enough to take it seriously.”`
   }
 
-  return `${speaker}: “I know something the rest of the house doesn't. Tonight is making it very hard to keep quiet.”`
+  return `${speaker}: “I know something the rest of the Hub doesn't. Tonight is making it very hard to keep quiet.”`
 }
 
 function buildPrivateSpill(
@@ -133,7 +133,17 @@ function buildOpinionSpill(
         return { speaker, target, affinity }
       })
   )
-  const selected = pairs.sort(
+  const previousOpinions =
+    game.weekendInterlude?.party?.beats.filter(
+      (beat) => beat.kind === 'opinion_spill' && beat.weekendDay !== weekendDay
+    ) ?? []
+  const freshPairs = pairs.filter(
+    ({ speaker, target }) =>
+      !previousOpinions.some(
+        (beat) => beat.speakerId === speaker.id && beat.subjectIds.includes(target.id)
+      )
+  )
+  const selected = (freshPairs.length > 0 ? freshPairs : pairs).sort(
     (left, right) =>
       Math.abs(right.affinity) - Math.abs(left.affinity) ||
       hash32(`${game.gameId}|party-opinion|${weekendDay}|${left.speaker.id}|${left.target.id}`) -
@@ -144,11 +154,17 @@ function buildOpinionSpill(
   const speakerName = selected.speaker.name
   const targetName = selected.target.name
   const quote =
-    selected.affinity >= 45
-      ? `${speakerName}: “Honestly? ${targetName} is one of the very few people here I genuinely feel good around.”`
-      : selected.affinity <= -30
-        ? `${speakerName}: “Fine. I've never really trusted ${targetName}. Not once.”`
-        : `${speakerName}: “I still don't really know where I stand with ${targetName}. That's the truth.”`
+    weekendDay === 2
+      ? selected.affinity >= 45
+        ? `${speakerName}: “I'm glad I got to spend more time with ${targetName}. It feels easy with them.”`
+        : selected.affinity <= -30
+          ? `${speakerName}: “I can enjoy the party and still keep my distance from ${targetName}.”`
+          : `${speakerName}: “I'd like a proper conversation with ${targetName} before this weekend ends.”`
+      : selected.affinity >= 45
+        ? `${speakerName}: “Honestly? ${targetName} is one of the very few people here I genuinely feel good around.”`
+        : selected.affinity <= -30
+          ? `${speakerName}: “Fine. I've never really trusted ${targetName}. Not once.”`
+          : `${speakerName}: “I still don't really know where I stand with ${targetName}. That's the truth.”`
 
   return {
     id: `party:${game.season}:10:${weekendDay}:opinion:${selected.speaker.id}:${selected.target.id}`,

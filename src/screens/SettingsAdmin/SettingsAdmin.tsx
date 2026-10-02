@@ -21,6 +21,7 @@ import { restartApp } from '../../utils/restartApp'
 import { APP_VERSION } from '../../appVersion'
 import { startCreditsSoundtrackFromGesture } from '../../cinematic/audio/creditsSoundtrack'
 import { SoundManager } from '../../services/sound/SoundManager'
+import { startWeekendDebugPreview } from '../../features/weekend/weekendDebugPreview'
 import {
   REALITY_MODE_PRESETS,
   getProfileRealityAgeEligibility,
@@ -91,6 +92,11 @@ export default function SettingsAdmin() {
   )
   const [castSizeInput, setCastSizeInput] = useState<string>(String(settings.gameUX.castSize))
   const [showRestartModal, setShowRestartModal] = useState(false)
+
+  function launchWeekendPreview(afterDay: 5 | 10 | 15) {
+    dispatch(startWeekendDebugPreview(afterDay))
+    navigate('/game')
+  }
 
   // Migrate values enabled by earlier Advanced Settings implementations.
   useEffect(() => {
@@ -374,6 +380,19 @@ export default function SettingsAdmin() {
 
             <div className="settings-row settings-row--col">
               <div className="settings-row settings-row--nested">
+                <label className="settings-row__label">Weekends</label>
+                <input
+                  type="checkbox"
+                  className="settings-toggle"
+                  checked={settings.gameUX.weekendsEnabled}
+                  onChange={(e) => dispatch(setGameUX({ weekendsEnabled: e.target.checked }))}
+                  aria-label="Toggle weekends"
+                />
+              </div>
+            </div>
+
+            <div className="settings-row settings-row--col">
+              <div className="settings-row settings-row--nested">
                 <label className="settings-row__label">Reality Mode</label>
                 <input
                   type="checkbox"
@@ -628,6 +647,38 @@ export default function SettingsAdmin() {
             >
               🧪 Testing / Debug
             </p>
+            <div className="settings-row settings-row--col">
+              <label className="settings-row__label" style={{ color: '#f97316' }}>
+                Weekend previews
+              </label>
+              <div className="settings-debug-actions">
+                <button
+                  type="button"
+                  disabled={!settings.gameUX.weekendsEnabled}
+                  onClick={() => launchWeekendPreview(5)}
+                >
+                  Play Weekend 1
+                </button>
+                <button
+                  type="button"
+                  disabled={!settings.gameUX.weekendsEnabled}
+                  onClick={() => launchWeekendPreview(10)}
+                >
+                  Play Weekend 2
+                </button>
+                <button
+                  type="button"
+                  disabled={!settings.gameUX.weekendsEnabled}
+                  onClick={() => launchWeekendPreview(15)}
+                >
+                  Play Weekend 3
+                </button>
+              </div>
+              <p className="settings-helper-text" style={{ color: '#f97316' }}>
+                Opens the selected episode on Faux TV, even if your player has been evicted. Finish
+                it to return to the same day and phase in your current season.
+              </p>
+            </div>
             <div className="settings-row settings-row--col">
               <label className="settings-row__label" style={{ color: '#f97316' }}>
                 Secret Mission Trigger Override —{' '}

@@ -97,6 +97,9 @@ export interface AudioEventCue {
 
 export interface MusicContextPolicy {
   introHub: MusicSelection
+  weekend1: MusicSelection
+  weekend2: MusicSelection
+  weekend3: MusicSelection
   spectator: MusicSelection
   social: MusicSelection
   seasonComplete: MusicSelection
@@ -144,6 +147,8 @@ export interface MusicResolverContext {
   finalePhase?: string | null
   spectatorActive: boolean
   socialOpen: boolean
+  weekendAfterDay?: 5 | 10 | 15 | null
+  finalThreeComplete?: boolean
   minigame?: {
     gameKey?: string | null
     category?: GameCategory | null
@@ -154,6 +159,8 @@ export interface MusicResolverContext {
 
 export type MusicResolutionSource =
   | 'scene'
+  | 'weekend'
+  | 'final-three'
   | 'finale'
   | 'route'
   | 'minigame'
@@ -194,6 +201,11 @@ export const BUILT_IN_MUSIC_CUE_IDS = {
   publicVoting: 'finale:public-voting',
   finalModal: 'finale:final-modal',
   introHub: 'route:intro-hub',
+  weekend1: 'weekend:1',
+  weekend2: 'weekend:2',
+  weekend3: 'weekend:3',
+  seasonStart: 'season:opening',
+  finalThreeWeek: 'final-three:week',
 } as const
 
 /**
@@ -201,6 +213,46 @@ export const BUILT_IN_MUSIC_CUE_IDS = {
  * ceremony seek points and transitions visible and overridable in Music Manager.
  */
 export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = {
+  [BUILT_IN_MUSIC_CUE_IDS.seasonStart]: {
+    ...createDefaultMusicCue('season_start'),
+    id: BUILT_IN_MUSIC_CUE_IDS.seasonStart,
+    displayName: 'Season Start — Player Reveal Hits',
+    fadeInMs: 900,
+    fadeOutMs: 1000,
+    crossfadeMs: 900,
+  },
+  [BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek]: {
+    ...createDefaultMusicCue('final_three_week'),
+    id: BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek,
+    displayName: 'Final 3 Week',
+    fadeInMs: 900,
+    fadeOutMs: 1000,
+    crossfadeMs: 900,
+  },
+  [BUILT_IN_MUSIC_CUE_IDS.weekend1]: {
+    ...createDefaultMusicCue('weekend_1'),
+    id: BUILT_IN_MUSIC_CUE_IDS.weekend1,
+    displayName: 'Weekend 1 — Move Into Me',
+    fadeInMs: 900,
+    fadeOutMs: 1000,
+    crossfadeMs: 900,
+  },
+  [BUILT_IN_MUSIC_CUE_IDS.weekend2]: {
+    ...createDefaultMusicCue('weekend_2'),
+    id: BUILT_IN_MUSIC_CUE_IDS.weekend2,
+    displayName: 'Weekend 2 — Hub Party',
+    fadeInMs: 900,
+    fadeOutMs: 1000,
+    crossfadeMs: 900,
+  },
+  [BUILT_IN_MUSIC_CUE_IDS.weekend3]: {
+    ...createDefaultMusicCue('weekend_3'),
+    id: BUILT_IN_MUSIC_CUE_IDS.weekend3,
+    displayName: 'Weekend 3 — The Season So Far',
+    fadeInMs: 900,
+    fadeOutMs: 1000,
+    crossfadeMs: 900,
+  },
   [BUILT_IN_MUSIC_CUE_IDS.competitionToNominations]: {
     ...createDefaultMusicCue('competition'),
     id: BUILT_IN_MUSIC_CUE_IDS.competitionToNominations,
@@ -309,7 +361,7 @@ export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = 
  * Phase now produces a TypeScript error until its music behavior is declared.
  */
 export const DEFAULT_PHASE_MUSIC_POLICY: Readonly<Record<Phase, MusicSelection>> = {
-  season_start: SILENT_MUSIC,
+  season_start: musicTrack('season_start', BUILT_IN_MUSIC_CUE_IDS.seasonStart),
   week_start: SILENT_MUSIC,
   loh_comp_announcement: SILENT_MUSIC,
   loh_comp: COMPETITION_MUSIC,
@@ -338,14 +390,14 @@ export const DEFAULT_PHASE_MUSIC_POLICY: Readonly<Record<Phase, MusicSelection>>
   ),
   week_end: musicTrack('move_into_me_instrumental_general', BUILT_IN_MUSIC_CUE_IDS.elimination),
   final4_eviction: SILENT_MUSIC,
-  final3: SILENT_MUSIC,
-  final3_comp1: SILENT_MUSIC,
-  final3_comp1_minigame: SILENT_MUSIC,
-  final3_comp2: SILENT_MUSIC,
-  final3_comp2_minigame: SILENT_MUSIC,
-  final3_comp3: SILENT_MUSIC,
-  final3_comp3_minigame: SILENT_MUSIC,
-  final3_decision: SILENT_MUSIC,
+  final3: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp1: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp1_minigame: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp2: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp2_minigame: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp3: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_comp3_minigame: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
+  final3_decision: musicTrack('final_three_week', BUILT_IN_MUSIC_CUE_IDS.finalThreeWeek),
   jury_announcement: SILENT_MUSIC,
   jury_cinematic: SILENT_MUSIC,
   jury: SILENT_MUSIC,
@@ -471,6 +523,9 @@ export const DEFAULT_MUSIC_CONFIG: MusicConfigDocument = {
   eventSounds: DEFAULT_EVENT_SOUND_POLICY,
   contextMusic: {
     introHub: musicTrack('introhub', BUILT_IN_MUSIC_CUE_IDS.introHub),
+    weekend1: musicTrack('weekend_1', BUILT_IN_MUSIC_CUE_IDS.weekend1),
+    weekend2: musicTrack('weekend_2', BUILT_IN_MUSIC_CUE_IDS.weekend2),
+    weekend3: musicTrack('weekend_3', BUILT_IN_MUSIC_CUE_IDS.weekend3),
     spectator: musicTrack('spectator'),
     social: musicTrack('social'),
     seasonComplete: musicTrack('final_modal', BUILT_IN_MUSIC_CUE_IDS.finalModal),
@@ -814,6 +869,27 @@ export function resolveMusicCue(
     }
   }
 
+  // Final Power is one continuous broadcast, including its scored battles and
+  // the bronze exit. Only the subsequent winner-voting phase releases this bed.
+  const finalThreeBroadcast =
+    context.gamePhase === 'final3' ||
+    context.gamePhase.startsWith('final3_') ||
+    (context.gamePhase === 'week_end' && context.finalThreeComplete === true)
+  if (
+    finalThreeBroadcast &&
+    !isIntroHubRoute(context) &&
+    !isGameOverHash(context.routeHash) &&
+    context.finalePhase !== 'seasonComplete' &&
+    context.weekendAfterDay == null
+  ) {
+    const finalThreeCue = resolveSelection(
+      getModePhaseSelection(context.mode, 'final3', config),
+      `phase.${context.mode}.final3`,
+      'final-three'
+    )
+    if (finalThreeCue) return finalThreeCue
+  }
+
   const sceneCue = resolveSelection(
     config.sceneMusic[context.musicScene],
     `scene.${context.musicScene}`,
@@ -838,6 +914,21 @@ export function resolveMusicCue(
   if (isIntroHubRoute(context)) {
     const routeCue = resolveSelection(config.contextMusic.introHub, 'context.intro-hub', 'route')
     if (routeCue) return routeCue
+  }
+
+  if (context.weekendAfterDay != null) {
+    const weekendKey =
+      context.weekendAfterDay === 5
+        ? 'weekend1'
+        : context.weekendAfterDay === 10
+          ? 'weekend2'
+          : 'weekend3'
+    const weekendCue = resolveSelection(
+      config.contextMusic[weekendKey],
+      `context.${weekendKey}`,
+      'weekend'
+    )
+    if (weekendCue) return weekendCue
   }
 
   const minigame = context.minigame

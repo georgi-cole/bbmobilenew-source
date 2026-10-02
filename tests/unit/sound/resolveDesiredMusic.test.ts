@@ -35,6 +35,72 @@ function makeState(overrides: Partial<RootState> = {}): RootState {
 }
 
 describe('resolveDesiredMusic', () => {
+  it('starts Player Reveal Hits when gameplay opens the season and releases it for Day 1', () => {
+    const state = makeState({ game: { phase: 'season_start' } })
+    const opening = resolveDesiredMusicCue(state, '#/game')
+    expect(opening.track).toBe('season_start')
+    expect(opening.playbackCue).toMatchObject({
+      fadeInMs: 900,
+      fadeOutMs: 1000,
+      loop: true,
+    })
+    expect(resolveDesiredMusic(state, '#/')).toBe('introhub')
+    state.game.phase = 'week_start'
+    expect(resolveDesiredMusic(state, '#/game')).toBe('none')
+  })
+
+  it('keeps the Final 3 bed continuous across its stages and Social messages', () => {
+    const state = makeState({ game: { phase: 'final3' } })
+    const opening = resolveDesiredMusicCue(state, '#/game')
+    expect(opening.track).toBe('final_three_week')
+    expect(opening.playbackCue).toMatchObject({
+      fadeInMs: 900,
+      fadeOutMs: 1000,
+      loop: true,
+      restartPolicy: 'continue',
+    })
+    for (const phase of [
+      'final3_comp1',
+      'final3_comp1_minigame',
+      'final3_comp2',
+      'final3_comp2_minigame',
+      'final3_comp3',
+      'final3_comp3_minigame',
+      'final3_decision',
+    ] as const) {
+      state.game.phase = phase
+      state.social.panelOpen = true
+      expect(resolveDesiredMusicCue(state, '#/game').playbackCue).toEqual(opening.playbackCue)
+    }
+    state.social.panelOpen = false
+    state.game.phase = 'jury'
+    expect(resolveDesiredMusic(state, '#/game')).toBe('none')
+  })
+
+  it('keeps Final 3 music through battles, detours, and the bronze exit, then releases it for voting', () => {
+    const state = makeState({
+      game: { phase: 'final3_comp1_minigame' },
+      challenge: {
+        pending: { phase: 'playing', game: { key: 'finalThreeCircuit' } },
+      } as RootState['challenge'],
+    })
+    const continuousCue = resolveDesiredMusicCue(state, '#/game').playbackCue
+    expect(resolveDesiredMusic(state, '#/game')).toBe('final_three_week')
+    expect(resolveDesiredMusicCue(state, '#/diary-room').playbackCue).toEqual(continuousCue)
+    state.challenge.pending = null
+    state.ui.musicScene = 'public_voting'
+    expect(resolveDesiredMusicCue(state, '#/game').playbackCue).toEqual(continuousCue)
+    state.game.phase = 'week_end'
+    state.game.finalThree = { stage: 'complete' } as NonNullable<RootState['game']['finalThree']>
+    expect(resolveDesiredMusicCue(state, '#/game').playbackCue).toEqual(continuousCue)
+    state.game.phase = 'jury'
+    expect(resolveDesiredMusic(state, '#/game')).toBe('public_voting')
+    state.ui.musicScene = 'none'
+    state.game.phase = 'week_end'
+    state.game.finalThree = null
+    expect(resolveDesiredMusic(state, '#/game')).not.toBe('final_three_week')
+  })
+
   it('prefers a cinematic UI scene over every other source', () => {
     const state = makeState({
       ui: { musicScene: 'season_recap' },
