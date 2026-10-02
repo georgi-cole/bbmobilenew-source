@@ -4744,6 +4744,9 @@ const gameSlice = createSlice({
         humanRoleChoice: action.payload,
       }
     },
+    resetPregnancyStoryForDebug(state) {
+      state.pregnancyStory = createInitialPregnancyStoryState()
+    },
     startPregnancyAttempt(state, action: PayloadAction<PregnancyAttemptStartInput>) {
       const result = createPregnancyAttempt(
         state.pregnancyStory ?? createInitialPregnancyStoryState(),
@@ -11968,6 +11971,7 @@ export const {
   setLohSocialPlan,
   addTvEvent,
   setHumanPregnancyRole,
+  resetPregnancyStoryForDebug,
   startPregnancyAttempt,
   revealPregnancyTest,
   revealPaternityResult,

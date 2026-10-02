@@ -168,6 +168,26 @@ describe('DebugPanel forced shock controls', () => {
     expect(store.getState().game.pendingForcedShock?.type).toBe('twinShock');
   });
 
+  it('seeds a guaranteed positive pregnancy test scenario', async () => {
+    const user = userEvent.setup();
+    const store = makeStore();
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/game?debug=1&qa=1']}>
+          <DebugPanel />
+        </MemoryRouter>
+      </Provider>
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Seed positive result' }));
+
+    const attempt = store.getState().game.pregnancyStory?.attempts[0];
+    expect(attempt?.pregnant).toBe(true);
+    expect(attempt?.status).toBe('POSITIVE');
+    expect(attempt?.resultKnown).toBe(true);
+  });
+
   it("schedules Cupid's Arrow for an exact season", async () => {
     const user = userEvent.setup();
     const store = makeStore();
