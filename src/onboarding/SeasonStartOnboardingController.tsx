@@ -230,13 +230,34 @@ export default function SeasonStartOnboardingController() {
     }
   }, [addOpeningWelcome, broadcastQueue.length, eligibleSeasonStart, welcomeExists])
 
-  // The rotating hub-settling line is the deliberate bridge between the
-  // polished welcome and the Day 1 card. It is queued only after the welcome
-  // has been acknowledged, never behind an old managed startup item.
+  const finishOpeningCinematic = useCallback(() => {
+    setOpeningCinematicState('complete')
+  }, [])
+
+  // The cast film now owns the bridge between the welcome and the first hub
+  // message. It starts only after the welcome card has been acknowledged, then
+  // materializes the familiar "settled into the hub" line when the film ends.
   useEffect(() => {
     if (!eligibleSeasonStart || !welcomeExists || flavorExists || queuedEvent) return
-    addOpeningFlavor()
-  }, [addOpeningFlavor, eligibleSeasonStart, flavorExists, queuedEvent, welcomeExists])
+
+    if (openingCinematicState === 'pending') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
+      return
+    }
+
+    if (openingCinematicState === 'complete') {
+      addOpeningFlavor()
+    }
+  }, [
+    addOpeningFlavor,
+    eligibleSeasonStart,
+    flavorExists,
+    openingCast.length,
+    openingCinematicState,
+    queuedEvent,
+    welcomeExists,
+  ])
 
   useEffect(() => {
     if (eligibleSeasonStart) return
@@ -294,7 +315,11 @@ export default function SeasonStartOnboardingController() {
       }
       if (!flavorExists) {
         event.preventDefault()
-        addOpeningFlavor()
+        if (openingCinematicState === 'complete') {
+          addOpeningFlavor()
+        } else if (openingCinematicState === 'pending') {
+          setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
+        }
         return
       }
       if (!tutorialHandled) {
