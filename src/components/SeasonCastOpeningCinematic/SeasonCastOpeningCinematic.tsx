@@ -389,23 +389,6 @@ export default function SeasonCastOpeningCinematic({
     return () => player.removeEventListener('ended', finish)
   }, [])
 
-  useEffect(() => {
-    const preloaders = orderedPlayers.map((player) => {
-      const img = document.createElement('img')
-      img.decoding = 'async'
-      img.loading = 'eager'
-      img.style.position = 'fixed'
-      img.style.width = '1px'
-      img.style.height = '1px'
-      img.style.opacity = '0'
-      img.style.pointerEvents = 'none'
-      document.body.appendChild(img)
-      return img
-    })
-
-    return () => preloaders.forEach((img) => img.remove())
-  }, [orderedPlayers])
-
   const finish = () => {
     if (completedRef.current) return
     completedRef.current = true
@@ -437,6 +420,17 @@ export default function SeasonCastOpeningCinematic({
           acknowledgeRemotionLicense
           style={{ width: '100%', height: '100%' }}
         />
+      </div>
+      <div className="season-cast-opening__preload" aria-hidden="true">
+        {orderedPlayers.map((player) => (
+          <FullSizeCutoutImage
+            key={player.id}
+            player={player}
+            attire="informal"
+            alt=""
+            loading="eager"
+          />
+        ))}
       </div>
       <button type="button" className="season-cast-opening__skip" onClick={finish}>
         Skip intro
