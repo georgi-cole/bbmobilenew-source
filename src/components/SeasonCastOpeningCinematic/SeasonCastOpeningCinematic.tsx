@@ -63,9 +63,7 @@ export function getSeasonCastOpeningDuration(playerCount: number): number {
 
 function easeInOut(value: number): number {
   const clamped = Math.max(0, Math.min(1, value))
-  return clamped < 0.5
-    ? 4 * clamped * clamped * clamped
-    : 1 - Math.pow(-2 * clamped + 2, 3) / 2
+  return clamped < 0.5 ? 4 * clamped * clamped * clamped : 1 - Math.pow(-2 * clamped + 2, 3) / 2
 }
 
 function openingOpacity(frame: number, duration: number): number {
@@ -135,7 +133,9 @@ function EyeStage({
 
 function OpeningTitle({ season }: { season: number }) {
   const frame = useCurrentFrame()
-  const titleProgress = easeInOut(interpolate(frame, [5, 27], [0, 1], { extrapolateRight: 'clamp' }))
+  const titleProgress = easeInOut(
+    interpolate(frame, [5, 27], [0, 1], { extrapolateRight: 'clamp' })
+  )
   const irisProgress = easeInOut(interpolate(frame, [0, 34], [0, 1], { extrapolateRight: 'clamp' }))
   const flash = interpolate(frame, [31, 35, 42], [0, 0.82, 0], { extrapolateRight: 'clamp' })
 
@@ -238,7 +238,9 @@ function ContestantShot({
           transform: `translate3d(${direction * -1 * (1 - enter) * 55}px, 0, 0)`,
         }}
       >
-        <span>{String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</span>
+        <span>
+          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        </span>
         <h1>{player.name}</h1>
         <p>{isUser ? 'YOUR SEASON STARTS NOW' : 'HOUSEMATE'}</p>
         {isUser && <b>YOU</b>}
