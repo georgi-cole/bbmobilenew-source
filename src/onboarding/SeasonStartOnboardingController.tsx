@@ -301,6 +301,15 @@ export default function SeasonStartOnboardingController() {
         return
       }
 
+      if (queuedEvent?.meta?.seasonOnboardingWelcome === true) {
+        // Arm the film from the same explicit Play gesture that dismisses the
+        // welcome. Besides matching the intended UX, this gives Mobile Safari
+        // the strongest possible user-gesture context for the soundtrack.
+        event.preventDefault()
+        setOpeningCinematicState(openingCast.length > 0 ? 'playing' : 'complete')
+        return
+      }
+
       // Every current season-opening card must consume this press. Otherwise
       // the last plain TV card also advances the game, bypassing the tutorial.
       if (queuedEvent) {
