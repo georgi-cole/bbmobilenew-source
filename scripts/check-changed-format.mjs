@@ -106,9 +106,7 @@ if (violations.length > 0) {
     const config = (await prettier.resolveConfig(file)) ?? {}
     const source = await readFile(file, 'utf8')
     const formatted = await prettier.format(source, { ...config, filepath: file })
-    console.log(`--- PRETTIER ${file} BEGIN ---`)
-    console.log(formatted)
-    console.log(`--- PRETTIER ${file} END ---`)
+    console.log(`PRETTIER_BASE64|${file}|${Buffer.from(formatted, 'utf8').toString('base64')}`)
   }
   process.exit(1)
 }
