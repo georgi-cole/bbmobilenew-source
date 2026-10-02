@@ -7,6 +7,7 @@ import {
   isServiceConfigurationEvent,
 } from '../services/activityService'
 import SeasonTutorialTour from './SeasonTutorialTour'
+import SeasonCastOpeningCinematic from '../components/SeasonCastOpeningCinematic/SeasonCastOpeningCinematic'
 import { selectCurrentQueuedBroadcast } from './seasonOnboardingQueue'
 import { hasHandledSeasonTutorial, markSeasonTutorialHandled } from './seasonTutorialPreference'
 import {
@@ -44,6 +45,7 @@ export default function SeasonStartOnboardingController() {
   const dispatch = useAppDispatch()
   const gameId = useAppSelector((state) => state.game.gameId)
   const season = useAppSelector((state) => state.game.season)
+  const players = useAppSelector((state) => state.game.players)
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
   const mode = useAppSelector((state) => state.game.mode)
@@ -62,10 +64,15 @@ export default function SeasonStartOnboardingController() {
   const [promptOpen, setPromptOpen] = useState(false)
   const [tourOpen, setTourOpen] = useState(false)
   const [handoffToFirstCompetition, setHandoffToFirstCompetition] = useState(false)
+  const [openingCinematicState, setOpeningCinematicState] = useState<
+    'pending' | 'playing' | 'complete'
+  >('pending')
   const welcomeTimerRef = useRef<number | null>(null)
 
   const eligibleSeasonStart =
     gameScreenMounted && phase === 'season_start' && week === 1 && mode !== 'survival'
+
+  const openingCast = useMemo(() => players.filter((player) => !player.lateEntrant), [players])
 
   const queuedEvent = useMemo(
     () => selectCurrentQueuedBroadcast(broadcastQueue, tvFeed, phase, week),
@@ -128,6 +135,7 @@ export default function SeasonStartOnboardingController() {
     setPromptOpen(false)
     setTourOpen(false)
     setHandoffToFirstCompetition(false)
+    setOpeningCinematicState('pending')
   }, [activeProfileId, gameId, isGuest])
 
   useEffect(
@@ -351,6 +359,8 @@ export default function SeasonStartOnboardingController() {
     dispatch,
     eligibleSeasonStart,
     flavorExists,
+    openingCast.length,
+    openingCinematicState,
     queuedEvent,
     tourOpen,
     tutorialHandled,
@@ -373,6 +383,14 @@ export default function SeasonStartOnboardingController() {
 
   return (
     <>
+      {openingCinematicState === 'playing' && eligibleSeasonStart && openingCast.length > 0 && (
+        <SeasonCastOpeningCinematic
+          players={openingCast}
+          season={season}
+          gameId={gameId}
+          onComplete={finishOpeningCinematic}
+        />
+      )}
       {promptOpen &&
         !tourOpen &&
         createPortal(
