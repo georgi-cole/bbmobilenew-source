@@ -26,6 +26,7 @@ interface SocialExecutionState {
     }>
     pregnancyStory?: PregnancyStoryState
     voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
+    weekendInterlude?: { active: true; weekendDay: 1 | 2 } | null
   }
   settings?: { gameUX?: { dramaMode?: boolean; realityModePreset?: string } }
   vip?: {
@@ -38,6 +39,22 @@ interface SocialExecutionState {
     reality?: RealityDomainState
   }
 }
+
+const WEEKEND_BLOCKED_ACTION_IDS = new Set([
+  'pitch_target',
+  'suggest_replacement',
+  'ask_use_safety',
+  'ask_safety_plan',
+  'ask_hold_safety',
+  'ask_loh_target',
+  'rally_votes_against',
+  'vote_rally',
+  'nominate',
+  'try_for_baby',
+  'pregnancy_test',
+  'pregnancy_test_self',
+  'paternity_test_self',
+])
 
 export interface SocialExecutionSelection {
   action: SocialActionDefinition
@@ -57,6 +74,12 @@ export function validateSocialExecution(
   state: SocialExecutionState,
   selection: SocialExecutionSelection
 ) {
+  if (state.game?.weekendInterlude?.active && WEEKEND_BLOCKED_ACTION_IDS.has(selection.action.id)) {
+    return {
+      eligible: false,
+      reason: 'Weekend free time does not support ceremony-specific or timed pregnancy actions.',
+    }
+  }
   if (state.game?.voxPopuli?.status === 'active' && selection.action.unavailableInVox) {
     return { eligible: false, reason: 'This action does not apply to Vox Populi rules.' }
   }
@@ -80,7 +103,7 @@ export function validateSocialExecution(
     actorId: selection.actorId,
     targetIds,
     subjectId: selection.subjectId,
-    phase: state.game?.phase,
+    phase: state.game?.weekendInterlude?.active ? 'social_2' : state.game?.phase,
     week: state.game?.week,
     players,
     actorStatus,

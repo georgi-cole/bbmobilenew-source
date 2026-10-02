@@ -59,6 +59,7 @@ import type { HostPhase, MinigameParticipant } from '../../components/MinigameHo
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
+import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShockPopup'
@@ -1408,6 +1409,9 @@ export default function GameScreen() {
     },
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
+  const weekendInterludeActive = game.weekendInterlude?.active === true
+  const weekendSocialAvailable =
+    !weekendInterludeActive || game.weekendInterlude?.stage === 'social'
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -1476,6 +1480,10 @@ export default function GameScreen() {
         data-active-flow={flowCoordination.activeFlow ?? undefined}
         data-game-mode={game.mode}
       >
+        <WeekendPartyAtmosphere
+          active={weekendInterludeActive && game.weekendInterlude?.episode === 'party'}
+          animate={settings.gameUX.animations && !settings.display.reduceMotion}
+        />
         {showPublicSaveReveal && publicSaveWinnerId ? (
           <TvZone
             key={game.gameId}
@@ -2423,10 +2431,10 @@ export default function GameScreen() {
         )}
 
         {/* ── Social Phase Panel V2 (modal overlay skeleton) ───────────────── */}
-        {isSocialModeEnabled(game.mode) && <SocialPanelV2 />}
+        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <SocialPanelV2 />}
 
         {/* ── Incoming interactions inbox ─────────────────────────────────── */}
-        {isSocialModeEnabled(game.mode) && <IncomingInteractionsInbox />}
+        {isSocialModeEnabled(game.mode) && weekendSocialAvailable && <IncomingInteractionsInbox />}
 
         {/* ── Social Summary Popup (shown after social phase ends) ─────────── */}
         {isSocialModeEnabled(game.mode) && socialSummaryOpen && <SocialSummaryPopup />}
@@ -2741,7 +2749,7 @@ export default function GameScreen() {
         )}
 
         {/* ── QA: trigger nomination animation (enabled with qa=1) ─────────── */}
-        {isQaMode && !awaitingHumanDecision && (
+        {isQaMode && !awaitingHumanDecision && !weekendInterludeActive && (
           <button
             className="dev-nom-anim-btn"
             onClick={handleDevPlayNomAnim}

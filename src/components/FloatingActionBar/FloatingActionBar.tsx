@@ -2,8 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { finishWeekendDebugPreview } from '../../features/weekend/weekendDebugPreview'
 import {
   advance,
+  advanceWeekendSeasonFact,
+  advanceWeekendDay,
+  beginWeekendDayTransition,
+  completeWeekendInterlude,
+  continueHubSays,
+  continueWeekendFeature,
+  submitHubSaysVote,
   continueSurvivorAfterAd,
   hydrateGame,
   revealSurvivorReplacement,
@@ -102,8 +110,19 @@ export default function FloatingActionBar({
   const activeConfessionalDecision = useAppSelector(selectActiveConfessionalDecision)
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
-  const canPersistActiveRun = !isGuest && Boolean(activeProfileId)
   const game = useAppSelector((s) => s.game)
+  const weekend = game.weekendInterlude
+  const canPersistActiveRun = !isGuest && Boolean(activeProfileId) && weekend?.debug !== true
+  const weekendSocialActive = weekend?.active === true && weekend.stage === 'social'
+  const weekendSocialSpotlightKey = weekendSocialActive
+    ? `${game.gameId ?? game.season}:${weekend.afterDay}`
+    : null
+  const hubSaysBeat = weekend?.hubSays?.beat ?? 'question'
+  const weekendPlayReady =
+    !weekend?.active ||
+    weekend.stage !== 'hub_says' ||
+    hubSaysBeat === 'result' ||
+    Boolean(weekend.hubSays?.selectedPlayerId)
   const currentRunSlot = getSavedRunSlot(game)
   const players = useAppSelector((s) => s.game.players)
   const energyBank = useAppSelector(selectEnergyBank)
@@ -115,6 +134,7 @@ export default function FloatingActionBar({
     game.specialVeto?.vipUseStage ?? 0,
     game.voxPopuli?.finalThreePacingSeen?.join(',') ?? 'no-final-three-pacing',
     isWaiting ? 'waiting-for-input' : 'ready',
+    weekend?.active ? `${weekend.afterDay}:${weekend.stage}:${weekend.weekendDay}` : 'no-weekend',
   ].join(':')
   const advancedProgressRef = useRef<string | null>(null)
   useEffect(() => {
@@ -152,8 +172,9 @@ export default function FloatingActionBar({
     () => getIncomingSocialModuleAvailability(game),
     [game]
   )
-  const socialModulesUnavailable = !canUseSocialModules
-  const incomingSocialModuleUnavailable = !canUseIncomingSocialModule
+  const socialModulesUnavailable = !canUseSocialModules || (weekend?.active && !weekendSocialActive)
+  const incomingSocialModuleUnavailable =
+    !canUseIncomingSocialModule || (weekend?.active && !weekendSocialActive)
   const survivorDay = getSurvivorCurrentDay(game)
   const bestSurvivorRecord = useMemo(
     () =>
@@ -211,7 +232,16 @@ export default function FloatingActionBar({
   >(null)
   const [showConfessionalSpotlight, setShowConfessionalSpotlight] = useState(false)
   const [showSecretMissionRewardSpotlight, setShowSecretMissionRewardSpotlight] = useState(false)
+  const [showWeekendSocialSpotlight, setShowWeekendSocialSpotlight] = useState(false)
+  const [weekendSocialBadgeFill, setWeekendSocialBadgeFill] = useState<{
+    key: string
+    count: number
+  } | null>(null)
   const confessionalIconRef = useRef<HTMLImageElement | null>(null)
+  const socialIconRef = useRef<HTMLButtonElement | null>(null)
+  const [completedWeekendSocialSpotlightKey, setCompletedWeekendSocialSpotlightKey] = useState<
+    string | null
+  >(null)
   const dockRef = useRef<HTMLDivElement | null>(null)
   const prevConfessionalCountRef = useRef(confessionalAlertCount)
   const hasPendingConfessionalDecision = !isSurvivorMode && activeConfessionalDecision !== null
@@ -224,6 +254,56 @@ export default function FloatingActionBar({
   const activeConfessionalDecisionKey = activeConfessionalDecision
     ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
     : null
+
+  useEffect(() => {
+    const key = weekendSocialSpotlightKey
+    if (key === null) {
+      const resetCompleted =
+        weekend?.active &&
+        weekend.weekendDay === 1 &&
+        ['intro', 'instructions', 'hub_says', 'party', 'season_so_far'].includes(weekend.stage)
+      const resetFrame = window.requestAnimationFrame(() => {
+        setWeekendSocialBadgeFill(null)
+        setShowWeekendSocialSpotlight(false)
+        if (resetCompleted) setCompletedWeekendSocialSpotlightKey(null)
+      })
+      return () => window.cancelAnimationFrame(resetFrame)
+    }
+    if (completedWeekendSocialSpotlightKey === key) return undefined
+
+    const startedAt = performance.now()
+    let frameId = 0
+    let previousCount = -1
+    const animateBadge = (now: number) => {
+      if (previousCount === -1) setShowWeekendSocialSpotlight(true)
+      const progress = Math.min((now - startedAt) / 1200, 1)
+      const easedProgress = 1 - (1 - progress) ** 3
+      const count = Math.round(easedProgress * 30)
+      if (count !== previousCount) {
+        previousCount = count
+        setWeekendSocialBadgeFill({ key, count })
+      }
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(animateBadge)
+      } else {
+        setCompletedWeekendSocialSpotlightKey(key)
+        setWeekendSocialBadgeFill(null)
+      }
+    }
+    frameId = window.requestAnimationFrame(animateBadge)
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [
+    weekend?.active,
+    weekend?.weekendDay,
+    weekend?.stage,
+    weekendSocialSpotlightKey,
+    completedWeekendSocialSpotlightKey,
+  ])
+
+  const completeWeekendSocialSpotlight = useCallback(() => {
+    setShowWeekendSocialSpotlight(false)
+  }, [])
   useEffect(() => {
     if (confessionalAlertCount <= prevConfessionalCountRef.current) {
       prevConfessionalCountRef.current = confessionalAlertCount
@@ -247,22 +327,26 @@ export default function FloatingActionBar({
   const confessionalPromptActivated =
     activeConfessionalDecisionKey !== null &&
     triggeredConfessionalDecisionKey === activeConfessionalDecisionKey
-  const primaryDisabled = finaleOverlayActive
-    ? !finalePlayAvailable
-    : survivorTerminalActive ||
-      survivorReplacementTransitionActive ||
-      (survivorReplacementPending
-        ? false
-        : hasPendingConfessionalDecision
-          ? confessionalPromptActivated
-          : isWaiting)
+  const primaryDisabled = weekend?.active
+    ? !weekendPlayReady
+    : finaleOverlayActive
+      ? !finalePlayAvailable
+      : survivorTerminalActive ||
+        survivorReplacementTransitionActive ||
+        (survivorReplacementPending
+          ? false
+          : hasPendingConfessionalDecision
+            ? confessionalPromptActivated
+            : isWaiting)
   const primaryPulse = finaleOverlayActive
     ? finalePlayAvailable
     : survivorTerminalActive
       ? false
-      : hasPendingConfessionalDecision
-        ? !confessionalPromptActivated
-        : survivorReplacementPending || (canAdvance && !isWaiting)
+      : weekend?.active
+        ? weekendPlayReady
+        : hasPendingConfessionalDecision
+          ? !confessionalPromptActivated
+          : survivorReplacementPending || (canAdvance && !isWaiting)
   const confessionalPersistentFlash = hasPendingConfessionalDecision && confessionalPromptActivated
   const confessionalSpotlightEligible =
     hasPendingConfessionalDecision && confessionalPromptActivated && !hasSeenConfessionalSpotlight
@@ -348,8 +432,51 @@ export default function FloatingActionBar({
   }, [])
 
   const handlePrimaryActionClick = useCallback(() => {
-    if (survivorTerminalActive) return
     setBlockedAnnouncement(null)
+    if (weekend?.active) {
+      if (weekend.stage === 'hub_says') {
+        if (hubSaysBeat !== 'result') {
+          const questionId = weekend.hubSays?.questionIds[weekend.hubSays.currentQuestionIndex]
+          const targetId = weekend.hubSays?.selectedPlayerId
+          if (questionId && targetId) dispatch(submitHubSaysVote({ questionId, targetId }))
+          return
+        }
+        dispatch(continueHubSays())
+        return
+      }
+      if (weekend.stage === 'party') {
+        dispatch(continueWeekendFeature())
+        return
+      }
+      if (weekend.stage === 'season_so_far') {
+        dispatch(advanceWeekendSeasonFact())
+        return
+      }
+      if (weekend.stage === 'day_transition') {
+        dispatch(advanceWeekendDay())
+        return
+      }
+      if (
+        weekend.stage === 'intro' ||
+        weekend.stage === 'instructions' ||
+        weekend.stage === 'day_two_intro'
+      ) {
+        dispatch(continueWeekendFeature())
+        return
+      }
+      if (weekend.weekendDay === 1) {
+        dispatch(beginWeekendDayTransition())
+        return
+      }
+      if (weekend.debug) {
+        dispatch(finishWeekendDebugPreview())
+      } else {
+        dispatch(completeWeekendInterlude())
+        dispatch(advance())
+      }
+      return
+    }
+    if (survivorTerminalActive) return
     if (survivorReplacementPending) {
       dispatch(revealSurvivorReplacement())
       return
@@ -405,6 +532,8 @@ export default function FloatingActionBar({
     survivorTerminalActive,
     voxPopuliActive,
     voxTransitionOwnsPlay,
+    weekend,
+    hubSaysBeat,
   ])
 
   const handleToolClick = useCallback(() => {
@@ -446,6 +575,11 @@ export default function FloatingActionBar({
   }, [activeProfileId, dispatch, isGuest, navigate])
 
   const handleReturnHome = useCallback(() => {
+    if (weekend?.debug) {
+      dispatch(finishWeekendDebugPreview())
+      navigate('/')
+      return
+    }
     const legacyHomeButton = document.querySelector<HTMLButtonElement>(
       '.nav-bar button[aria-label="Home"]'
     )
@@ -454,7 +588,7 @@ export default function FloatingActionBar({
       return
     }
     setHomeConfirmOpen(true)
-  }, [])
+  }, [dispatch, navigate, weekend?.debug])
 
   const returnHomeWithoutSaving = useCallback(() => {
     setHomeConfirmOpen(false)
@@ -464,6 +598,11 @@ export default function FloatingActionBar({
   }, [dispatch, navigate])
 
   const saveSeasonAndReturnHome = useCallback(async () => {
+    if (weekend?.debug) {
+      dispatch(finishWeekendDebugPreview())
+      navigate('/')
+      return
+    }
     if (!canPersistActiveRun || !activeProfileId) {
       returnHomeWithoutSaving()
       return
@@ -477,16 +616,37 @@ export default function FloatingActionBar({
     )
     if (!accepted || !(await flushSavePersistence())) return
     returnHomeWithoutSaving()
-  }, [activeProfileId, canPersistActiveRun, reduxStore, returnHomeWithoutSaving])
+  }, [
+    activeProfileId,
+    canPersistActiveRun,
+    dispatch,
+    navigate,
+    reduxStore,
+    returnHomeWithoutSaving,
+    weekend?.debug,
+  ])
 
   const abandonSeasonAndReturnHome = useCallback(async () => {
+    if (weekend?.debug) {
+      dispatch(finishWeekendDebugPreview())
+      navigate('/')
+      return
+    }
     if (canPersistActiveRun && activeProfileId) {
       clearSavedRun(activeProfileId, currentRunSlot)
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
       if (!(await flushSavePersistence())) return
     }
     returnHomeWithoutSaving()
-  }, [activeProfileId, canPersistActiveRun, currentRunSlot, returnHomeWithoutSaving])
+  }, [
+    activeProfileId,
+    canPersistActiveRun,
+    currentRunSlot,
+    dispatch,
+    navigate,
+    returnHomeWithoutSaving,
+    weekend?.debug,
+  ])
 
   const handleMoreClick = useCallback(
     (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store') => {
@@ -637,12 +797,56 @@ export default function FloatingActionBar({
         disabled={survivorTerminalActive || finaleOverlayActive}
         primaryDisabled={primaryDisabled}
         elevatedDuringOverlay={finaleDockOnTop}
-        primaryLabel={finaleOverlayActive ? 'Play finale scene' : 'Advance to next phase'}
+        primaryLabel={
+          finaleOverlayActive
+            ? 'Play finale scene'
+            : weekend?.active
+              ? weekend.stage === 'intro'
+                ? 'Continue'
+                : weekend.stage === 'instructions'
+                  ? 'Let’s go'
+                  : weekend.stage === 'day_two_intro'
+                    ? 'Continue'
+                    : weekend.stage === 'hub_says'
+                      ? hubSaysBeat === 'result'
+                        ? 'Next question'
+                        : weekend.hubSays?.selectedPlayerId
+                          ? 'Reveal the answers'
+                          : 'Choose a Hubmate'
+                      : weekend.stage === 'party'
+                        ? 'Continue'
+                        : weekend.stage === 'season_so_far'
+                          ? 'Next story'
+                          : weekend.stage === 'day_transition'
+                            ? 'Start Day 2'
+                            : weekend.weekendDay === 1
+                              ? 'Finish the day'
+                              : weekend.debug
+                                ? 'Finish preview'
+                                : `Start Day ${weekend.afterDay + 1}`
+              : 'Advance to next phase'
+        }
         socialDisabled={socialModulesUnavailable}
         incomingRequestsDisabled={incomingSocialModuleUnavailable}
         publicMeterDisabled={game.publicModeEnabled !== true}
         confessionalDisabled={isSurvivorMode}
-        chatBadgeCount={!socialModulesUnavailable && humanEnergy !== null ? humanEnergy : undefined}
+        chatBadgeCount={
+          !socialModulesUnavailable
+            ? weekendSocialActive
+              ? weekendSocialSpotlightKey &&
+                completedWeekendSocialSpotlightKey !== weekendSocialSpotlightKey
+                ? weekendSocialBadgeFill?.key === weekendSocialSpotlightKey
+                  ? weekendSocialBadgeFill.count
+                  : 0
+                : weekend?.wallet.energy
+              : (humanEnergy ?? undefined)
+            : undefined
+        }
+        showChatBadgeZero={
+          weekendSocialActive &&
+          weekendSocialSpotlightKey !== null &&
+          completedWeekendSocialSpotlightKey !== weekendSocialSpotlightKey
+        }
         chatFlash={!socialModulesUnavailable && isFlashing}
         incomingRequestsBadgeCount={
           !incomingSocialModuleUnavailable && pendingCount > 0 ? pendingCount : undefined
@@ -658,6 +862,12 @@ export default function FloatingActionBar({
         confessionalFlashTick={confessionalFlashTick}
         confessionalPersistentFlash={confessionalPersistentFlash}
         confessionalIconRef={confessionalIconRef}
+        socialIconRef={socialIconRef}
+      />
+      <ConfessionalSpotlightOverlay
+        active={showWeekendSocialSpotlight}
+        targetRef={socialIconRef}
+        onComplete={completeWeekendSocialSpotlight}
       />
       <ConfessionalSpotlightOverlay
         active={

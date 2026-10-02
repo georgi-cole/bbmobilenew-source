@@ -87,7 +87,7 @@ function isNomineeStatus(status: Player['status']): boolean {
 }
 
 function formatPlayerNames(names: string[]): string {
-  if (names.length <= 1) return names[0] ?? 'the house'
+  if (names.length <= 1) return names[0] ?? 'the Hub'
   if (names.length === 2) return `${names[0]} and ${names[1]}`
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
 }
@@ -178,6 +178,7 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
+  const weekendActive = game.weekendInterlude?.active === true
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
@@ -186,12 +187,12 @@ export default function SocialPanelV2() {
   }, [dramaMode, humanPlayer, socialState.reality?.alliances])
   const activePublicDirection = useMemo(
     () =>
-      game.publicModeEnabled && humanPlayer
+      game.publicModeEnabled && !weekendActive && humanPlayer
         ? publicDirections.find(
             (direction) => direction.playerId === humanPlayer.id && direction.status === 'active'
           )
         : undefined,
-    [game.publicModeEnabled, humanPlayer, publicDirections]
+    [game.publicModeEnabled, humanPlayer, publicDirections, weekendActive]
   )
   const cupidPartners = useMemo(() => {
     if (!isCupidArrowActive(game) || !humanPlayer) return {}
@@ -435,13 +436,20 @@ export default function SocialPanelV2() {
     usesMultipleTargets,
   ])
 
-  const energy = energyBank?.[humanPlayer?.id ?? ''] ?? 0
-  const influence = influenceBank?.[humanPlayer?.id ?? ''] ?? 0
-  const info = infoBank?.[humanPlayer?.id ?? ''] ?? 0
+  const energy = weekendActive
+    ? (game.weekendInterlude?.wallet.energy ?? 0)
+    : (energyBank?.[humanPlayer?.id ?? ''] ?? 0)
+  const influence = weekendActive
+    ? (game.weekendInterlude?.wallet.influence ?? 0)
+    : (influenceBank?.[humanPlayer?.id ?? ''] ?? 0)
+  const info = weekendActive
+    ? (game.weekendInterlude?.wallet.info ?? 0)
+    : (infoBank?.[humanPlayer?.id ?? ''] ?? 0)
   const hasExecutableSelection =
     Boolean(selectedActionId) && hasRequiredTargets && (!needsSubject || selectedSubjectId !== null)
 
   const executionEligibility = useMemo(() => {
+    const eligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
     if (!selectedAction || !humanPlayer || !hasExecutableSelection) {
       return { eligible: false, reason: '' }
     }
@@ -457,7 +465,7 @@ export default function SocialPanelV2() {
     if (usesMultipleTargets && targetMode !== 'multi') {
       for (const targetId of targetIds) {
         const result = validateSocialExecution(
-          { game, settings, vip, social: socialState },
+          { game: eligibilityGame, settings, vip, social: socialState },
           {
             action: selectedAction,
             actorId: humanPlayer.id,
@@ -472,7 +480,7 @@ export default function SocialPanelV2() {
     }
 
     return validateSocialExecution(
-      { game, settings, vip, social: socialState },
+      { game: eligibilityGame, settings, vip, social: socialState },
       {
         action: selectedAction,
         actorId: humanPlayer.id,
@@ -494,6 +502,7 @@ export default function SocialPanelV2() {
     targetMode,
     usesMultipleTargets,
     vip,
+    weekendActive,
   ])
 
   const canExecute =
@@ -507,7 +516,9 @@ export default function SocialPanelV2() {
       : selectedActionId === 'consult_alliance'
         ? 'Alliance'
         : targetMode === 'none'
-          ? 'House'
+          ? weekendActive
+            ? 'Hub'
+            : 'Hub'
           : usesMultipleTargets
             ? 'Group'
             : effectivePrimaryTargetId
@@ -597,6 +608,23 @@ export default function SocialPanelV2() {
     } else if (!humanIsLoh) {
       hidden.add('ask_hold_safety')
     }
+    if (weekendActive) {
+      ;[
+        'pitch_target',
+        'suggest_replacement',
+        'ask_use_safety',
+        'ask_safety_plan',
+        'ask_hold_safety',
+        'ask_loh_target',
+        'rally_votes_against',
+        'vote_rally',
+        'nominate',
+        'try_for_baby',
+        'pregnancy_test',
+        'pregnancy_test_self',
+        'paternity_test_self',
+      ].forEach((actionId) => hidden.add(actionId))
+    }
     return hidden
   }, [
     game.lohId,
@@ -612,6 +640,7 @@ export default function SocialPanelV2() {
     primaryTargetId,
     actionHistory,
     socialActions,
+    weekendActive,
   ])
 
   const handleActionClick = useCallback(
@@ -827,10 +856,10 @@ export default function SocialPanelV2() {
           ? reachedTargetCount === targetIds.length
             ? `${getSocialActionPresentation(selectedAction).title} reached all ${
                 targetIds.length
-              } selected housemates.`
+              } selected Hubmates.`
             : `${getSocialActionPresentation(selectedAction).title} reached ${
                 reachedTargetCount
-              } of ${targetIds.length} selected housemates.`
+              } of ${targetIds.length} selected Hubmates.`
           : firstResult.summary
     )
     setFeedbackExpanded(false)
@@ -1042,18 +1071,31 @@ export default function SocialPanelV2() {
   }
 
   return (
-    <div className="sp2-backdrop" role="dialog" aria-modal="true" aria-label="Social Phase">
+    <div
+      className={`sp2-backdrop${weekendActive ? ' sp2-backdrop--weekend' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={weekendActive ? 'Weekend Social' : 'Social Phase'}
+    >
       <a className="sp2-skip-link" href="#sp2-body">
         Skip to actions
       </a>
-      <div className={`sp2-modal${dramaMode ? ' sp2-modal--drama' : ' sp2-modal--normal'}`}>
+      <div
+        className={`sp2-modal${dramaMode ? ' sp2-modal--drama' : ' sp2-modal--normal'}${weekendActive ? ' sp2-modal--weekend' : ''}`}
+      >
         <header className="sp2-header" data-reality-tutorial="social-header">
           <span className="sp2-header__identity">
-            <span className="sp2-header__title">{dramaMode ? 'Reality Mode' : 'Social Phase'}</span>
-            <span className="sp2-header__subtitle">House relationships</span>
+            <span className="sp2-header__title">
+              {weekendActive ? 'Weekend Social' : dramaMode ? 'Reality Mode' : 'Social Phase'}
+            </span>
+            <span className="sp2-header__subtitle">
+              {weekendActive
+                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · make the most of the Hub time`
+                : 'Hub relationships'}
+            </span>
           </span>
           <div
-            className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}`}
+            className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}${weekendActive ? ' sp2-header__resources--weekend' : ''}`}
             data-reality-tutorial="resources"
           >
             <span className="sp2-energy-chip" aria-live="polite" aria-label={`Energy: ${energy}`}>
@@ -1304,7 +1346,7 @@ export default function SocialPanelV2() {
                   : null
               }
               dramaMode={dramaMode}
-              currentPhase={game.phase}
+              currentPhase={weekendActive ? 'social_2' : game.phase}
               dramaNetwork={dramaNetwork}
               hiddenActionIds={hiddenContextualActionIds}
               energyCostOverrides={
@@ -1478,7 +1520,7 @@ export default function SocialPanelV2() {
         <ContextualGuidePrompt
           eyebrow="ALLIANCE"
           title="You're in an alliance"
-          body="Alliances have their own cohesion and secrecy. Your choices — and your allies' choices — can strengthen or strain the group. You can review it in My Game → House."
+          body="Alliances have their own cohesion and secrecy. Your choices — and your allies' choices — can strengthen or strain the group. You can review it in My Game → Hub."
           onComplete={() => dismissContextualGuide('alliance')}
         />
       )}

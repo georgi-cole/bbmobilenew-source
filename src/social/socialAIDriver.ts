@@ -77,6 +77,7 @@ import {
   estimateFinalThreeDay,
   getLatestAttempt,
   getPregnancyEligibility,
+  isPregnancyResultAvailable,
   revealPregnancyTest,
   shouldAcceptPregnancyAttempt,
   startPregnancyAttempt,
@@ -923,8 +924,7 @@ function pregnancyTestCandidateForPlayer(
       (entry) =>
         entry.status === 'PENDING' &&
         entry.participantIds.includes(player.id) &&
-        entry.resultAvailableDay != null &&
-        state.game.week >= entry.resultAvailableDay
+        isPregnancyResultAvailable(entry, state.game.week)
     )
     .sort((left, right) => right.attemptDay - left.attemptDay)[0]
   if (!pending) return null

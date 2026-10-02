@@ -5,9 +5,15 @@ export type RuntimeMusicMix = 'normal' | 'ducked' | 'muted'
 export function resolveRuntimeMusicMix(
   game: Pick<
     RootState['game'],
-    'phase' | 'evictionOverlayPlayerId' | 'battleBack' | 'voteResults' | 'twinShock'
+    | 'phase'
+    | 'evictionOverlayPlayerId'
+    | 'battleBack'
+    | 'voteResults'
+    | 'twinShock'
+    | 'weekendInterlude'
   >
 ): RuntimeMusicMix {
+  if (game.weekendInterlude?.active) return 'normal'
   const evictionOverlayPlayerId = game.evictionOverlayPlayerId ?? null
   const battleBackReturnActive =
     evictionOverlayPlayerId != null &&

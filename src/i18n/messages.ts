@@ -1,6 +1,9 @@
 import type { AppLanguage } from './languages'
 
 export const EN_US_MESSAGES = {
+  'settings.weekends': 'Weekends',
+  'settings.weekendsDescription':
+    'Take a weekend break with the Hub after Days 5, 10 and 15. Turn off to keep playing straight through.',
   'chainOfGreed.round': 'Round {round}',
   'chainOfGreed.roundIntro.title': 'Build the chain.',
   'chainOfGreed.roundIntro.warning': 'Bank before it breaks.',
@@ -254,6 +257,9 @@ const FR_FR_MESSAGES = {
   'settings.theme.sunset': '🌅 Coucher de soleil',
   'settings.theme.ocean': '🌊 Océan',
   'settings.compactMode': 'Mode compact',
+  'settings.weekends': 'Week-ends',
+  'settings.weekendsDescription':
+    'Faites une pause avec le Hub après les jours 5, 10 et 15. Désactivez pour jouer sans interruption.',
   'settings.houseFeed': 'Fil de la maison',
   'settings.realityMode': 'Mode téléréalité',
   'settings.realityStyle': 'Style de téléréalité',
@@ -422,6 +428,9 @@ const IT_IT_MESSAGES = {
   'settings.theme.sunset': '🌅 Tramonto',
   'settings.theme.ocean': '🌊 Oceano',
   'settings.compactMode': 'Modalità compatta',
+  'settings.weekends': 'Fine settimana',
+  'settings.weekendsDescription':
+    'Fai una pausa con il Hub dopo i giorni 5, 10 e 15. Disattiva per continuare senza interruzioni.',
   'settings.houseFeed': 'Feed della casa',
   'settings.realityMode': 'Modalità reality',
   'settings.realityStyle': 'Stile reality',
@@ -590,6 +599,9 @@ const ES_ES_MESSAGES = {
   'settings.theme.sunset': '🌅 Atardecer',
   'settings.theme.ocean': '🌊 Océano',
   'settings.compactMode': 'Modo compacto',
+  'settings.weekends': 'Fines de semana',
+  'settings.weekendsDescription':
+    'Descansa con el Hub después de los días 5, 10 y 15. Desactiva para jugar sin interrupciones.',
   'settings.houseFeed': 'Feed de la casa',
   'settings.realityMode': 'Modo reality',
   'settings.realityStyle': 'Estilo reality',
@@ -758,6 +770,9 @@ const PT_PT_MESSAGES = {
   'settings.theme.sunset': '🌅 Pôr do sol',
   'settings.theme.ocean': '🌊 Oceano',
   'settings.compactMode': 'Modo compacto',
+  'settings.weekends': 'Fins de semana',
+  'settings.weekendsDescription':
+    'Faça uma pausa com o Hub após os dias 5, 10 e 15. Desative para jogar sem interrupções.',
   'settings.houseFeed': 'Feed da casa',
   'settings.realityMode': 'Modo reality',
   'settings.realityStyle': 'Estilo de reality show',
@@ -926,6 +941,9 @@ const DE_DE_MESSAGES = {
   'settings.theme.sunset': '🌅 Sonnenuntergang',
   'settings.theme.ocean': '🌊 Ozean',
   'settings.compactMode': 'Kompaktmodus',
+  'settings.weekends': 'Wochenenden',
+  'settings.weekendsDescription':
+    'Mach nach Tag 5, 10 und 15 eine Pause mit dem Hub. Ausschalten, um ohne Unterbrechung weiterzuspielen.',
   'settings.houseFeed': 'Haus-Feed',
   'settings.realityMode': 'Reality-Modus',
   'settings.realityStyle': 'Reality-Stil',
@@ -1085,6 +1103,8 @@ const ZH_CN_MESSAGES = {
   'settings.theme.sunset': '🌅 日落',
   'settings.theme.ocean': '🌊 海洋',
   'settings.compactMode': '紧凑模式',
+  'settings.weekends': '周末',
+  'settings.weekendsDescription': '在第5、10和15天之后，与Hub一起享受周末。关闭后可连续进行游戏。',
   'settings.houseFeed': '屋内动态',
   'settings.realityMode': '真人秀模式',
   'settings.realityStyle': '真人秀风格',
@@ -1244,6 +1264,9 @@ const BG_BG_MESSAGES = {
   'settings.theme.sunset': '🌅 Залез',
   'settings.theme.ocean': '🌊 Океан',
   'settings.compactMode': 'Компактен режим',
+  'settings.weekends': 'Уикенди',
+  'settings.weekendsDescription':
+    'Почини си с Hub след дни 5, 10 и 15. Изключи, за да продължиш без прекъсване.',
   'settings.houseFeed': 'Поток от къщата',
   'settings.realityMode': 'Риалити режим',
   'settings.realityStyle': 'Стил на риалити режима',
@@ -1410,6 +1433,9 @@ const RU_RU_MESSAGES = {
   'settings.theme.sunset': '🌅 Закат',
   'settings.theme.ocean': '🌊 Океан',
   'settings.compactMode': 'Компактный режим',
+  'settings.weekends': 'Выходные',
+  'settings.weekendsDescription':
+    'Отдохните с Hub после дней 5, 10 и 15. Отключите, чтобы играть без перерывов.',
   'settings.houseFeed': 'Лента дома',
   'settings.realityMode': 'Режим реалити',
   'settings.realityStyle': 'Стиль реалити',
@@ -1577,6 +1603,9 @@ const UK_UA_MESSAGES = {
   'settings.theme.sunset': '🌅 Захід сонця',
   'settings.theme.ocean': '🌊 Океан',
   'settings.compactMode': 'Компактний режим',
+  'settings.weekends': 'Вихідні',
+  'settings.weekendsDescription':
+    'Відпочиньте з Hub після днів 5, 10 і 15. Вимкніть, щоб грати без перерв.',
   'settings.houseFeed': 'Стрічка будинку',
   'settings.realityMode': 'Режим реаліті',
   'settings.realityStyle': 'Стиль реаліті',
@@ -1741,6 +1770,9 @@ const TR_TR_MESSAGES = {
   'settings.theme.sunset': '🌅 Gün batımı',
   'settings.theme.ocean': '🌊 Okyanus',
   'settings.compactMode': 'Kompakt mod',
+  'settings.weekends': 'Hafta sonları',
+  'settings.weekendsDescription':
+    '5, 10 ve 15. günlerden sonra Hub ile mola ver. Kesintisiz oynamak için kapat.',
   'settings.houseFeed': 'Ev akışı',
   'settings.realityMode': 'Reality Modu',
   'settings.realityStyle': 'Reality stili',

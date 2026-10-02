@@ -21,6 +21,7 @@ interface GameLike {
   phase?: Phase | null
   players?: ReadonlyArray<HumanPlayerLike>
   voxPopuli?: { status?: string } | null
+  weekendInterlude?: { active?: boolean; stage?: string } | null
 }
 
 export interface SocialModuleAvailability {
@@ -33,11 +34,11 @@ export interface SocialModuleAvailability {
 }
 
 export const SOCIAL_MODULE_BLOCKED_IN_GAME_MESSAGE =
-  'The house is in a locked ceremony, so you cannot start a new conversation right now.'
+  'The Hub is in a locked ceremony, so you cannot start a new conversation right now.'
 export const SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE =
   'Players are now being called to the confessional for the elimination. Try again later.'
 export const SOCIAL_MODULE_BLOCKED_OUT_OF_GAME_MESSAGE =
-  'You are no longer in the house. But maybe try telepathy?'
+  'You are no longer in the Hub. But maybe try telepathy?'
 export const SURVIVOR_SOCIAL_BLOCKED_MESSAGES = [
   'The AI players do not feel the need to socialize. They are only after the win.',
   'Nobody replied to you. You should improve your AI hacking skills and program some friends.',
@@ -70,7 +71,7 @@ export function getSocialModuleAvailability(
   if (humanPlayer.status === 'evicted' || humanPlayer.status === 'jury') {
     return {
       canOpen: false,
-      reason: `Human player is out of the house (status: ${humanPlayer.status}).`,
+      reason: `Human player is out of the Hub (status: ${humanPlayer.status}).`,
       phase,
       humanPlayerId: humanPlayer.id,
       humanStatus: humanPlayer.status,
@@ -82,6 +83,17 @@ export function getSocialModuleAvailability(
     return {
       canOpen: false,
       reason: SURVIVAL_SOCIAL_BLOCK_REASON,
+      phase,
+      humanPlayerId: humanPlayer.id,
+      humanStatus: humanPlayer.status,
+      moduleKind,
+    }
+  }
+
+  if (game.weekendInterlude?.active && game.weekendInterlude.stage !== 'social') {
+    return {
+      canOpen: false,
+      reason: 'The weekend Faux TV moment is still playing.',
       phase,
       humanPlayerId: humanPlayer.id,
       humanStatus: humanPlayer.status,
@@ -158,6 +170,10 @@ export function getBlockedSocialModuleAnnouncementMessage(
 
   if (availability.phase === 'live_vote') {
     return SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE
+  }
+
+  if (availability.reason === 'The weekend Faux TV moment is still playing.') {
+    return 'Finish the moment on Faux TV, then you can catch up with the Hub.'
   }
 
   return SOCIAL_MODULE_BLOCKED_IN_GAME_MESSAGE

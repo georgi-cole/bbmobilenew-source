@@ -4,33 +4,11 @@ import { useAppSelector } from '../store/hooks'
 import { getDepressionShockWeatherCondition } from './depressionShockWeather'
 import { getWeatherRuntime, type WeatherConditionId } from './weatherRuntime'
 import { formatSystemWeatherTemperature } from './weatherTemperatureUnit'
+import { isWeatherCondition, WEATHER_CONDITION_LABELS } from './weatherConditionLabels'
 import './WeatherBulletinOverlay.css'
-
-const CONDITION_LABELS: Record<WeatherConditionId, string> = {
-  sunny: 'Clear',
-  mostly_sunny: 'Mostly sunny',
-  partly_cloudy: 'Partly cloudy',
-  cloudy: 'Cloudy',
-  overcast: 'Overcast',
-  misty: 'Misty',
-  foggy: 'Foggy',
-  drizzle: 'Drizzle',
-  light_showers: 'Light showers',
-  sun_showers: 'Sun showers',
-  rainy: 'Rain',
-  heavy_rain: 'Heavy rain',
-  stormy: 'Thunderstorms',
-  snow_showers: 'Snow showers',
-  snowy: 'Snow',
-  clearing: 'Clearing',
-}
 
 const DEPRESSION_SHOCK_QUEUED_WEATHER_COPY =
   'Rain keeps pressing against the hub while the mood inside stays heavy ahead of the live elimination.'
-
-function isWeatherCondition(value: unknown): value is WeatherConditionId {
-  return typeof value === 'string' && value in CONDITION_LABELS
-}
 
 function GlossySnowflake({ x, y, scale = 1 }: { x: number; y: number; scale?: number }) {
   return (
@@ -243,7 +221,7 @@ export default function WeatherBulletinOverlay() {
     const configuredUnit = getWeatherRuntime()?.config.temperature.unit ?? 'auto'
     return {
       temperature: splitTemperature(formatSystemWeatherTemperature(temperatureC, configuredUnit)),
-      conditionLabel: CONDITION_LABELS[condition],
+      conditionLabel: WEATHER_CONDITION_LABELS[condition],
       narrative: shockCondition
         ? DEPRESSION_SHOCK_QUEUED_WEATHER_COPY
         : stripInjectedPrefix(weatherEvent.text),

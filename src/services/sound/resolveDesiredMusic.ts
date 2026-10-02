@@ -37,6 +37,11 @@ export interface MusicResolverState {
     voteResults?: RootState['game']['voteResults']
     evictionOverlayPlayerId?: RootState['game']['evictionOverlayPlayerId']
     seasonFinale?: Pick<NonNullable<RootState['game']['seasonFinale']>, 'phase'> | null
+    finalThree?: Pick<NonNullable<RootState['game']['finalThree']>, 'stage'> | null
+    weekendInterlude?: Pick<
+      NonNullable<RootState['game']['weekendInterlude']>,
+      'active' | 'afterDay'
+    > | null
   }
   challenge: {
     pending?: {
@@ -70,8 +75,12 @@ export function resolveDesiredMusicCue(
       gameActive: state.game.status === 'active',
       musicScene: state.ui.musicScene,
       finalePhase: state.game.seasonFinale?.phase ?? null,
+      finalThreeComplete: state.game.finalThree?.stage === 'complete',
       spectatorActive: Boolean(state.game.spectatorActive),
       socialOpen: state.social.panelOpen || state.social.incomingInboxOpen,
+      weekendAfterDay: state.game.weekendInterlude?.active
+        ? state.game.weekendInterlude.afterDay
+        : null,
       minigame: pendingChallenge
         ? {
             gameKey: pendingChallenge.game?.key ?? null,
@@ -85,22 +94,26 @@ export function resolveDesiredMusicCue(
   )
 
   const cue =
-    resolveSpecialMusicCue({
-      baseCue,
-      gamePhase: state.game.phase,
-      hash,
-      confessionalMusicMode: state.ui.confessionalMusicMode ?? 'normal',
-      config,
-    }) ?? baseCue
+    baseCue.source === 'weekend' || baseCue.source === 'final-three'
+      ? baseCue
+      : (resolveSpecialMusicCue({
+          baseCue,
+          gamePhase: state.game.phase,
+          hash,
+          confessionalMusicMode: state.ui.confessionalMusicMode ?? 'normal',
+          config,
+        }) ?? baseCue)
 
   // The room filter belongs to presentation surfaces only. Vote results can
   // remain in Redux after the reveal, so gate the tally effect by its ceremony
   // phases instead of treating every non-null result as active. Utility routes
   // entered from an active game own the room effect for their full route lifetime.
   const voteTallyActive =
+    !state.game.weekendInterlude?.active &&
     state.game.voteResults != null &&
     (state.game.phase === 'live_vote' || state.game.phase === 'eviction_results')
-  const eliminationAnimationActive = state.game.evictionOverlayPlayerId != null
+  const eliminationAnimationActive =
+    !state.game.weekendInterlude?.active && state.game.evictionOverlayPlayerId != null
   const houseMenuDestinationActive = state.game.status === 'active' && isHouseMenuDestination(hash)
   const roomEffectActive =
     state.ui.houseMenuOpen === true ||

@@ -66,10 +66,14 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
       gameId: root.game.gameId,
       gameMode: root.game.mode ?? 'classic',
       gameStatus: root.game.status,
+      weekendAfterDay: root.game.weekendInterlude?.active
+        ? root.game.weekendInterlude.afterDay
+        : null,
       voteResults: root.game.voteResults,
       evictionOverlayPlayerId: root.game.evictionOverlayPlayerId ?? null,
       spectatorActive: root.game.spectatorActive,
       seasonFinalePhase: root.game.seasonFinale?.phase ?? null,
+      finalThreeStage: root.game.finalThree?.stage ?? null,
       pendingChallengePhase: root.challenge.pending?.phase ?? null,
       pendingChallengeVariant: root.challenge.pending?.musicVariant ?? 'normal',
       pendingChallengeGameKey: root.challenge.pending?.game?.key ?? null,
@@ -105,11 +109,17 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
         gameId: musicState.gameId,
         mode: musicState.gameMode,
         status: musicState.gameStatus,
+        weekendInterlude:
+          musicState.weekendAfterDay != null
+            ? { active: true, afterDay: musicState.weekendAfterDay }
+            : null,
         voteResults: musicState.voteResults,
         evictionOverlayPlayerId: musicState.evictionOverlayPlayerId,
         spectatorActive: musicState.spectatorActive,
         seasonFinale:
           musicState.seasonFinalePhase != null ? { phase: musicState.seasonFinalePhase } : null,
+        finalThree:
+          musicState.finalThreeStage != null ? { stage: musicState.finalThreeStage } : null,
       },
       challenge: {
         pending:

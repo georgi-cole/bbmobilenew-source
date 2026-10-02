@@ -12,7 +12,6 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { AppDispatch } from '../../store/store'
 import {
   selectSettings,
-  setAudio,
   setDisplay,
   setGameUX,
   setLocalization,
@@ -156,26 +155,6 @@ export default function Settings() {
     : []
 
   const sections: SettingSection[] = [
-    ...localizationSections,
-    {
-      id: 'audio',
-      items: [
-        {
-          type: 'toggle',
-          id: 'music',
-          label: t('settings.music'),
-          get: (s) => s.audio.musicOn,
-          onChange: (settingsDispatch, val) => settingsDispatch(setAudio({ musicOn: val })),
-        },
-        {
-          type: 'toggle',
-          id: 'sfx',
-          label: t('settings.soundEffects'),
-          get: (s) => s.audio.sfxOn,
-          onChange: (settingsDispatch, val) => settingsDispatch(setAudio({ sfxOn: val })),
-        },
-      ],
-    },
     {
       id: 'theme',
       items: [
@@ -193,6 +172,14 @@ export default function Settings() {
     {
       id: 'gameplay',
       items: [
+        {
+          type: 'toggle',
+          id: 'weekends',
+          label: t('settings.weekends'),
+          get: (s) => s.gameUX.weekendsEnabled,
+          onChange: (settingsDispatch, val) =>
+            settingsDispatch(setGameUX({ weekendsEnabled: val })),
+        },
         {
           type: 'toggle',
           id: 'compactRoster',
@@ -297,6 +284,26 @@ export default function Settings() {
       ],
     },
   ]
+
+  // One flat player-facing list, with tutorials between core controls and comfort.
+  const settingOrder = [
+    'houseFeed',
+    'publicMode',
+    'dramaMode',
+    'realityModePreset',
+    'romanceStorylines',
+    'weekends',
+    'theme-preset',
+    'compactRoster',
+    'animations',
+    'reduceMotion',
+    'highContrast',
+    'haptics',
+    'language',
+  ]
+  const orderedItems = [...sections, ...localizationSections]
+    .flatMap((section) => section.items)
+    .sort((left, right) => settingOrder.indexOf(left.id) - settingOrder.indexOf(right.id))
 
   useEffect(() => {
     if (settings.gameUX.realityModePreset === 'adult' && realityAgeEligibility !== 'adult') {
@@ -445,11 +452,7 @@ export default function Settings() {
             {isVipActive ? t('common.owned') : t('common.view')}
           </span>
         </button>
-        {sections.map((section) => (
-          <section key={section.id} className="settings-section">
-            {section.items.map(renderItem)}
-          </section>
-        ))}
+        {orderedItems.slice(0, 8).map(renderItem)}
         <div className="settings-row settings-row--col">
           <div className="settings-row settings-row--nested">
             <label className="settings-row__label" htmlFor="setting-replay-tutorial">
@@ -470,6 +473,7 @@ export default function Settings() {
           </div>
           <p className="settings-helper-text">Turn off and on to replay the guides.</p>
         </div>
+        {orderedItems.slice(8).map(renderItem)}
         <button
           type="button"
           className="settings-row settings-row--legal"

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  advancePregnancyWeekendDay,
   createInitialPregnancyStoryState,
   getPregnancyEligibility,
   hasPublicPregnancyWithOtherPartner,
@@ -189,6 +190,35 @@ describe('Reality pregnancy lifecycle', () => {
     expect(resolvePregnancyResultDay(4, 8)).toBe(7)
     expect(resolvePregnancyResultDay(4, 7)).toBe(6)
     expect(resolvePregnancyResultDay(4, 6)).toBeNull()
+  })
+
+  it('counts weekend days toward a pending pregnancy result without changing numbered game days', () => {
+    const started = begin(42)
+    expect(started.attempt?.attemptDay).toBe(4)
+    expect(started.attempt?.resultAvailableDay).toBe(9)
+
+    const afterWeekendDay1 = advancePregnancyWeekendDay(started.story)
+    const afterWeekendDay2 = advancePregnancyWeekendDay(afterWeekendDay1)
+    const attempt = afterWeekendDay2.attempts.find(
+      (entry) => entry.attemptId === started.attempt!.attemptId
+    )
+    expect(attempt?.elapsedWeekendDays).toBe(2)
+
+    const stillEarly = revealPregnancyTest(afterWeekendDay2, {
+      attemptId: started.attempt!.attemptId,
+      currentDay: 6,
+    })
+    expect(stillEarly.result).toMatchObject({
+      tooEarly: true,
+      availableDay: 7,
+      changed: false,
+    })
+
+    const due = revealPregnancyTest(afterWeekendDay2, {
+      attemptId: started.attempt!.attemptId,
+      currentDay: 7,
+    })
+    expect(due.result.tooEarly).toBe(false)
   })
 
   it('shows the carrier self-test from Day +1 while keeping early tests inconclusive', () => {

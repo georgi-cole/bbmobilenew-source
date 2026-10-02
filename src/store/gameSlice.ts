@@ -7,6 +7,8 @@ import type {
   GameState,
   Player,
   StrategicAllianceSnapshot,
+  WeekendInterludeState,
+  WeekendPartyBeat,
   Phase,
   TvEvent,
   MinigameResult,
@@ -22,6 +24,7 @@ import type {
   BroadcastLevel,
   CustomBroadcastMessage,
 } from '../types'
+import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
@@ -59,6 +62,7 @@ import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
   processPregnancyStoryDay,
+  advancePregnancyWeekendDay as advancePregnancyStoryWeekendDay,
   revealPaternityResult as resolvePaternityResult,
   revealPregnancyTest as resolvePregnancyTest,
   startPregnancyAttempt as createPregnancyAttempt,
@@ -129,6 +133,12 @@ import {
   type TwinShockTurnResult,
 } from '../bb/twinShock'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../constants/tvEvents'
+import {
+  buildHubSaysQuestionIds,
+  getHubSaysQuestion,
+  resolveHubSaysQuestion,
+} from '../features/weekend/hubSays'
+import { buildSeasonSoFarFacts } from '../features/weekend/seasonSoFar'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -348,6 +358,51 @@ function isDepressionShockEligibleMode(state: GameState): boolean {
 function activeHousemateCount(state: GameState): number {
   return state.players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
     .length
+}
+
+function createWeekendInterlude(
+  state: GameState,
+  afterDay: 5 | 10 | 15,
+  debug = false
+): WeekendInterludeState {
+  const base = {
+    active: true as const,
+    afterDay,
+    weekendDay: 1 as const,
+    wallet: { energy: 30, influence: 999, info: 999 },
+    ...(debug ? { debug: true as const } : {}),
+  }
+
+  if (afterDay === 5) {
+    return {
+      ...base,
+      episode: 'hub_says',
+      stage: 'intro',
+      hubSays: {
+        questionIds: buildHubSaysQuestionIds(state.gameId, state.season, afterDay, 5),
+        currentQuestionIndex: 0,
+        beat: 'question',
+        selectedPlayerId: null,
+        results: [],
+      },
+    }
+  }
+
+  if (afterDay === 10) {
+    return {
+      ...base,
+      episode: 'party',
+      stage: 'intro',
+      party: { beats: [] },
+    }
+  }
+
+  return {
+    ...base,
+    episode: 'season_so_far',
+    stage: 'intro',
+    seasonSoFar: { facts: buildSeasonSoFarFacts(state), currentFactIndex: 0 },
+  }
 }
 
 // ─── Houseguest pool ─────────────────────────────────────────────────────────
@@ -756,6 +811,9 @@ export function createInitialGameState(options?: {
     season,
     week: 1,
     phase: 'season_start',
+    weekendsEnabledForSeason: true,
+    completedWeekendDays: [],
+    weekendInterlude: null,
     seed,
     seasonDirectorPlan,
     seasonDirectorLastSpotlightDay: null,
@@ -8444,6 +8502,10 @@ const gameSlice = createSlice({
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
+        // Saves created before weekends existed keep the original uninterrupted calendar.
+        weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
+        completedWeekendDays: action.payload.completedWeekendDays ?? [],
+        weekendInterlude: action.payload.weekendInterlude ?? null,
         // Season archives are persisted independently from in-progress runs.
         // New snapshots omit them to stay small, so retain the active profile's
         // already-loaded archive history while hydrating a campaign.
@@ -8587,6 +8649,326 @@ const gameSlice = createSlice({
       state.hasSeenConfessionalSpotlight = action.payload
     },
 
+    /** Resolve one Weekend 1 house-poll question. Only the winner is player-facing. */
+    chooseHubSaysPlayer(state, action: PayloadAction<string>) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub || !['question', 'choice'].includes(hub.beat ?? 'question')) return
+      const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (
+        !currentQuestionId ||
+        hub.results.some((result) => result.questionId === currentQuestionId)
+      )
+        return
+      const candidate = state.players.find(
+        (player) =>
+          player.id === action.payload &&
+          !player.isUser &&
+          player.status !== 'evicted' &&
+          player.status !== 'jury'
+      )
+      if (candidate) {
+        hub.selectedPlayerId = candidate.id
+        hub.beat = 'choice'
+      }
+    },
+
+    /** Resolve one Weekend 1 Hub Says question. Only the winner is player-facing. */
+    submitHubSaysVote(state, action: PayloadAction<{ questionId: string; targetId: string }>) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub) return
+      const expectedQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (!expectedQuestionId || expectedQuestionId !== action.payload.questionId) return
+      if (hub.results.some((result) => result.questionId === expectedQuestionId)) return
+      const resolved = resolveHubSaysQuestion(state, expectedQuestionId, action.payload.targetId)
+      if (!resolved) return
+      hub.results.push({
+        questionId: expectedQuestionId,
+        humanVoteTargetId: action.payload.targetId,
+        winnerId: resolved.winnerId,
+        voteCounts: resolved.voteCounts,
+      })
+      hub.beat = 'result'
+      hub.selectedPlayerId = null
+      const question = getHubSaysQuestion(expectedQuestionId)
+      const winner = state.players.find((player) => player.id === resolved.winnerId)
+      if (question && winner && !weekend.debug) {
+        pushEvent(state, `THE HUB SAYS… ${question.prompt} — ${winner.name}`, 'social', {
+          weekend: true,
+          weekendDay: weekend.weekendDay,
+          weekendEpisode: 'hub_says',
+          questionId: expectedQuestionId,
+          winnerId: resolved.winnerId,
+          suppressTv: true,
+        })
+        state.history = [
+          ...(state.history ?? []),
+          {
+            type: 'hub_says_result',
+            week: state.week,
+            data: {
+              questionId: expectedQuestionId,
+              prompt: question.prompt,
+              winnerId: resolved.winnerId,
+            },
+            timestamp: Date.now(),
+          },
+        ].slice(-MAX_GAME_HISTORY_EVENTS)
+      }
+    },
+
+    continueHubSays(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.episode !== 'hub_says' || weekend.stage !== 'hub_says') return
+      const hub = weekend.hubSays
+      if (!hub) return
+      if ((hub.beat ?? 'question') === 'question') {
+        hub.beat = 'choice'
+        return
+      }
+      if ((hub.beat ?? 'question') === 'choice') return
+      const currentQuestionId = hub.questionIds[hub.currentQuestionIndex]
+      if (
+        !currentQuestionId ||
+        !hub.results.some((result) => result.questionId === currentQuestionId)
+      )
+        return
+      if (hub.currentQuestionIndex >= hub.questionIds.length - 1) {
+        weekend.stage = 'social'
+        return
+      }
+      hub.currentQuestionIndex += 1
+      hub.beat = 'question'
+      hub.selectedPlayerId = null
+    },
+
+    continueWeekendFeature(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      if (weekend.stage === 'intro') {
+        weekend.stage = 'instructions'
+        return
+      }
+      if (weekend.stage === 'instructions') {
+        weekend.stage =
+          weekend.episode === 'hub_says'
+            ? 'hub_says'
+            : weekend.episode === 'party'
+              ? 'party'
+              : 'season_so_far'
+        return
+      }
+      if (weekend.stage === 'day_two_intro') {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+        return
+      }
+      if (weekend.episode === 'party' && weekend.stage === 'party') {
+        weekend.stage = 'social'
+      }
+    },
+
+    /** Reveal one player-sized Season So Far card on the Faux TV. */
+    advanceWeekendSeasonFact(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        weekend.episode !== 'season_so_far' ||
+        weekend.stage !== 'season_so_far'
+      )
+        return
+      const seasonSoFar = weekend.seasonSoFar
+      if (!seasonSoFar || seasonSoFar.facts.length === 0) {
+        weekend.stage = 'social'
+        return
+      }
+      const currentFactIndex = seasonSoFar.currentFactIndex ?? 0
+      if (currentFactIndex >= seasonSoFar.facts.length - 1) {
+        weekend.stage = 'social'
+        return
+      }
+      seasonSoFar.currentFactIndex = currentFactIndex + 1
+    },
+
+    recordWeekendPartyBeat(state, action: PayloadAction<WeekendPartyBeat>) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        weekend.episode !== 'party' ||
+        weekend.stage !== 'party' ||
+        !weekend.party ||
+        action.payload.weekendDay !== weekend.weekendDay ||
+        weekend.party.beats.some((beat) => beat.weekendDay === action.payload.weekendDay)
+      ) {
+        return
+      }
+      weekend.party.beats.push(action.payload)
+      if (weekend.debug) return
+      pushEvent(state, `THE HUB PARTY — ${action.payload.text}`, 'social', {
+        weekend: true,
+        weekendDay: action.payload.weekendDay,
+        weekendEpisode: 'party',
+        partyBeatKind: action.payload.kind,
+        partyBeatVisibility: action.payload.visibility,
+        suppressTv: true,
+      })
+      state.history = [
+        ...(state.history ?? []),
+        {
+          type: 'weekend_party_beat',
+          week: state.week,
+          data: {
+            beatId: action.payload.id,
+            kind: action.payload.kind,
+            visibility: action.payload.visibility,
+            speakerId: action.payload.speakerId ?? null,
+            subjectIds: action.payload.subjectIds,
+          },
+          timestamp: Date.now(),
+        },
+      ].slice(-MAX_GAME_HISTORY_EVENTS)
+    },
+
+    /** Show the reused weather-card handoff before Weekend Day 2 begins. */
+    beginWeekendDayTransition(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 1) return
+      weekend.stage = 'day_transition'
+    },
+
+    advanceWeekendDay(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'day_transition' || weekend.weekendDay !== 1) return
+      if (state.pregnancyStory && !weekend.debug) {
+        state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
+      }
+      weekend.weekendDay = 2
+      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+    },
+
+    spendWeekendSocialResources(
+      state,
+      action: PayloadAction<{ energy: number; influence: number; info: number }>
+    ) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      const costs = {
+        energy: Math.max(0, action.payload.energy),
+        influence: Math.max(0, action.payload.influence),
+        info: Math.max(0, action.payload.info),
+      }
+      if (
+        weekend.wallet.energy < costs.energy ||
+        weekend.wallet.influence < costs.influence ||
+        weekend.wallet.info < costs.info
+      )
+        return
+      weekend.wallet.energy -= costs.energy
+      weekend.wallet.influence -= costs.influence
+      weekend.wallet.info -= costs.info
+    },
+
+    adjustWeekendSocialResources(
+      state,
+      action: PayloadAction<{ influence?: number; info?: number; energy?: number }>
+    ) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active) return
+      weekend.wallet.energy = Math.max(
+        0,
+        Math.min(30, weekend.wallet.energy + (action.payload.energy ?? 0))
+      )
+      weekend.wallet.influence = Math.max(
+        0,
+        Math.min(999, weekend.wallet.influence + (action.payload.influence ?? 0))
+      )
+      weekend.wallet.info = Math.max(
+        0,
+        Math.min(999, weekend.wallet.info + (action.payload.info ?? 0))
+      )
+    },
+
+    completeWeekendInterlude(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
+      if (state.pregnancyStory && !weekend.debug) {
+        state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
+      }
+      if (!weekend.debug) {
+        state.completedWeekendDays = Array.from(
+          new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+        ).sort((left, right) => left - right)
+      } else if (weekend.debugOriginalHumanStatus) {
+        const human = getHumanPlayer(state)
+        if (human) human.status = weekend.debugOriginalHumanStatus
+      }
+      state.weekendInterlude = null
+    },
+
+    setWeekendsEnabledForSeason(state, action: PayloadAction<boolean>) {
+      state.weekendsEnabledForSeason = action.payload
+      if (!action.payload && state.weekendInterlude?.active) {
+        const weekend = state.weekendInterlude
+        if (!weekend.debug) {
+          state.completedWeekendDays = Array.from(
+            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+          ).sort((left, right) => left - right)
+        } else if (weekend.debugOriginalHumanStatus) {
+          const human = getHumanPlayer(state)
+          if (human) human.status = weekend.debugOriginalHumanStatus
+        }
+        state.weekendInterlude = null
+      }
+    },
+
+    /** Open a self-contained weekend preview from Settings without changing the season calendar. */
+    debugActivateWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+      if (
+        state.weekendsEnabledForSeason === false ||
+        state.weekendInterlude?.active ||
+        state.mode === 'survival'
+      ) {
+        return
+      }
+
+      const afterDay = action.payload
+      state.weekendInterlude = createWeekendInterlude(state, afterDay, true)
+      const human = getHumanPlayer(state)
+      if (human && (human.status === 'evicted' || human.status === 'jury')) {
+        state.weekendInterlude.debugOriginalHumanStatus = human.status
+        human.status = 'active'
+      }
+    },
+
+    debugRestartWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      const originalHumanStatus = weekend.debugOriginalHumanStatus
+      state.weekendInterlude = createWeekendInterlude(state, action.payload, true)
+      if (originalHumanStatus) {
+        state.weekendInterlude.debugOriginalHumanStatus = originalHumanStatus
+      }
+    },
+
+    debugSkipToWeekendDayTwo(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      weekend.weekendDay = 2
+      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+    },
+
+    debugExitWeekendInterlude(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug) return
+      if (weekend.debugOriginalHumanStatus) {
+        const human = getHumanPlayer(state)
+        if (human) human.status = weekend.debugOriginalHumanStatus
+      }
+      state.weekendInterlude = null
+    },
+
     /** Generate a new random RNG seed (debug only). */
     rerollSeed(state) {
       // Mix Math.random() with the low 32 bits of Date.now() via XOR to derive a 32-bit seed.
@@ -8600,6 +8982,7 @@ const gameSlice = createSlice({
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
       if (
+        state.weekendInterlude?.active ||
         state.replacementNeeded ||
         state.awaitingNominations ||
         (state.awaitingPublicSave &&
@@ -8657,6 +9040,43 @@ const gameSlice = createSlice({
         state.phase === 'final3_comp2_minigame' ||
         state.phase === 'final3_comp3_minigame'
       ) {
+        return
+      }
+
+      // Weekend interludes are layered over week_end without incrementing game.week.
+      // Every episode reuses the same pause/resume wrapper; only its presentation content differs.
+      const weekendMilestone =
+        state.week === 5 ? 5 : state.week === 10 ? 10 : state.week === 15 ? 15 : null
+      if (
+        state.phase === 'week_end' &&
+        state.weekendsEnabledForSeason === true &&
+        weekendMilestone != null &&
+        !(state.completedWeekendDays ?? []).includes(weekendMilestone) &&
+        state.mode !== 'survival' &&
+        activeHousemateCount(state) > 3 &&
+        Boolean(getHumanPlayer(state)) &&
+        isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
+        !state.finalThree
+      ) {
+        state.weekendInterlude = createWeekendInterlude(state, weekendMilestone)
+
+        const intro =
+          weekendMilestone === 5
+            ? 'The weekend has begun. No competitions. No nominations. The Hub has other plans.'
+            : weekendMilestone === 10
+              ? 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
+              : 'The season is slowing down for one weekend. The Big Eye is looking back at how everyone still here got this far.'
+        pushEvent(state, intro, 'game', {
+          major: `weekend_${weekendMilestone === 5 ? 1 : weekendMilestone === 10 ? 2 : 3}`,
+          weekendDay: 1,
+          weekendEpisode:
+            weekendMilestone === 5
+              ? 'hub_says'
+              : weekendMilestone === 10
+                ? 'party'
+                : 'season_so_far',
+          forceOnTv: true,
+        })
         return
       }
 
@@ -11534,6 +11954,9 @@ const gameSlice = createSlice({
       state.awaitingVoteDeductionPrompt = false
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase(restoreWeekendDebugSnapshot, (_state, action) => action.payload.game)
+  },
 })
 
 export const {
@@ -11683,6 +12106,22 @@ export const {
   rerollSeed,
   hydrateGame,
   setHasSeenConfessionalSpotlight,
+  submitHubSaysVote,
+  chooseHubSaysPlayer,
+  continueHubSays,
+  continueWeekendFeature,
+  advanceWeekendSeasonFact,
+  recordWeekendPartyBeat,
+  beginWeekendDayTransition,
+  advanceWeekendDay,
+  spendWeekendSocialResources,
+  adjustWeekendSocialResources,
+  completeWeekendInterlude,
+  debugActivateWeekendInterlude,
+  setWeekendsEnabledForSeason,
+  debugRestartWeekendInterlude,
+  debugSkipToWeekendDayTwo,
+  debugExitWeekendInterlude,
   submitTwinShockAnswer,
   completeTwinShockRevealAnimation,
   triggerSecretMission,

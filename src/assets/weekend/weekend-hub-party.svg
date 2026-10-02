@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" fill="none">
+  <defs>
+    <linearGradient id="room" x1="0" y1="0" x2="1200" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11152f"/>
+      <stop offset=".48" stop-color="#21143b"/>
+      <stop offset="1" stop-color="#090d20"/>
+    </linearGradient>
+    <radialGradient id="pink" cx="0" cy="0" r="1" gradientTransform="matrix(0 360 -460 0 905 116)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f343c1" stop-opacity=".46"/>
+      <stop offset="1" stop-color="#f343c1" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="0" cy="0" r="1" gradientTransform="matrix(0 320 -440 0 244 142)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#31c8ff" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#31c8ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beamPink" x1="905" y1="65" x2="690" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff83df" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#ff83df" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamBlue" x1="245" y1="73" x2="495" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#71e4ff" stop-opacity=".32"/>
+      <stop offset="1" stop-color="#71e4ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="600" y1="346" x2="600" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11142d" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#050812" stop-opacity=".88"/>
+    </linearGradient>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="20"/>
+    </filter>
+  </defs>
+  <path fill="url(#room)" d="M0 0h1200v620H0z"/>
+  <path fill="url(#pink)" d="M0 0h1200v620H0z"/>
+  <path fill="url(#blue)" d="M0 0h1200v620H0z"/>
+  <path fill="url(#beamPink)" d="M850 54h105l250 566H567z"/>
+  <path fill="url(#beamBlue)" d="M196 52h99l337 568H505z"/>
+  <path stroke="#a9a7ff" stroke-opacity=".12" d="M0 362h1200M0 409h1200M0 456h1200M0 503h1200M0 550h1200"/>
+  <path stroke="#a9a7ff" stroke-opacity=".12" d="m0 620 600-258 600 258M160 620l440-258 440 258M360 620l240-258 240 258M600 362v258"/>
+  <path fill="url(#floor)" d="M0 344h1200v276H0z"/>
+  <g filter="url(#glow)" opacity=".7">
+    <circle cx="258" cy="250" r="34" fill="#50d9ff"/>
+    <circle cx="929" cy="221" r="38" fill="#fa69d3"/>
+    <circle cx="609" cy="178" r="24" fill="#9e8aff"/>
+  </g>
+  <g fill="#fff" opacity=".72">
+    <circle cx="101" cy="116" r="2"/><circle cx="384" cy="92" r="2"/><circle cx="529" cy="228" r="1.5"/>
+    <circle cx="748" cy="88" r="2"/><circle cx="1094" cy="145" r="2"/><circle cx="1064" cy="329" r="1.5"/>
+    <circle cx="168" cy="302" r="1.5"/><circle cx="811" cy="282" r="1.5"/><circle cx="437" cy="157" r="1.5"/>
+  </g>
+  <g fill="#111020" opacity=".82">
+    <path d="M167 620v-82c0-24 18-43 40-43s40 19 40 43v82h-80ZM264 620v-63c0-30 22-55 50-55s50 25 50 55v63h-100ZM806 620v-82c0-24 18-43 40-43s40 19 40 43v82h-80ZM900 620v-64c0-31 23-56 51-56s51 25 51 56v64H900Z"/>
+  </g>
+  <path fill="#060914" fill-opacity=".44" d="M0 0h1200v620H0z"/>
+</svg>

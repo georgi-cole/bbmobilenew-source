@@ -200,6 +200,21 @@ export const GENERATED_AUDIO_ASSETS = [
     ]
   },
   {
+    "key": "music:final_three_week",
+    "category": "music",
+    "relativePath": "music/final_three_week.mp3",
+    "preload": false,
+    "volume": 0.5,
+    "loop": true,
+    "trackId": "final_three_week",
+    "displayName": "Final 3 Week",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "finale"
+    ]
+  },
+  {
     "key": "music:gb_main",
     "category": "music",
     "relativePath": "music/glass_bridge.mp3",
@@ -377,6 +392,21 @@ export const GENERATED_AUDIO_ASSETS = [
     ]
   },
   {
+    "key": "music:season_start",
+    "category": "music",
+    "relativePath": "music/season_start.mp3",
+    "preload": false,
+    "volume": 0.5,
+    "loop": true,
+    "trackId": "season_start",
+    "displayName": "Season Start — Player Reveal Hits",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "ceremony"
+    ]
+  },
+  {
     "key": "music:social_module",
     "category": "music",
     "relativePath": "music/social.mp3",
@@ -419,6 +449,51 @@ export const GENERATED_AUDIO_ASSETS = [
     "tags": [
       "ambient",
       "ceremony"
+    ]
+  },
+  {
+    "key": "music:weekend_1",
+    "category": "music",
+    "relativePath": "music/weekend_1.mp3",
+    "preload": false,
+    "volume": 0.5,
+    "loop": true,
+    "trackId": "weekend_1",
+    "displayName": "Weekend 1 — Move Into Me",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
+    ]
+  },
+  {
+    "key": "music:weekend_2",
+    "category": "music",
+    "relativePath": "music/weekend_2.mp3",
+    "preload": false,
+    "volume": 0.5,
+    "loop": true,
+    "trackId": "weekend_2",
+    "displayName": "Weekend 2 — Hub Party",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
+    ]
+  },
+  {
+    "key": "music:weekend_3",
+    "category": "music",
+    "relativePath": "music/weekend_3.mp3",
+    "preload": false,
+    "volume": 0.5,
+    "loop": true,
+    "trackId": "weekend_3",
+    "displayName": "Weekend 3 — The Season So Far",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
     ]
   },
   {
@@ -617,6 +692,7 @@ export const GENERATED_AUDIO_ASSETS = [
 export const GENERATED_MUSIC_TRACK_IDS = [
   "challenge_group_1",
   "final_modal",
+  "final_three_week",
   "glass_bridge",
   "competition",
   "introhub",
@@ -629,9 +705,13 @@ export const GENERATED_MUSIC_TRACK_IDS = [
   "quick_tap",
   "risk_wheel",
   "season_recap",
+  "season_start",
   "social",
   "spectator",
   "veto",
+  "weekend_1",
+  "weekend_2",
+  "weekend_3",
   "wildcard_western"
 ] as const
 
@@ -649,6 +729,15 @@ export const GENERATED_MUSIC_TRACKS = {
     "displayName": "Final Results",
     "soundKey": "music:final_modal",
     "fallbackTrack": "jury_voting",
+    "tags": [
+      "ambient",
+      "finale"
+    ]
+  },
+  "final_three_week": {
+    "displayName": "Final 3 Week",
+    "soundKey": "music:final_three_week",
+    "fallbackTrack": "none",
     "tags": [
       "ambient",
       "finale"
@@ -759,6 +848,15 @@ export const GENERATED_MUSIC_TRACKS = {
       "finale"
     ]
   },
+  "season_start": {
+    "displayName": "Season Start — Player Reveal Hits",
+    "soundKey": "music:season_start",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "ceremony"
+    ]
+  },
   "social": {
     "displayName": "Social Module",
     "soundKey": "music:social_module",
@@ -784,6 +882,33 @@ export const GENERATED_MUSIC_TRACKS = {
     "tags": [
       "ambient",
       "ceremony"
+    ]
+  },
+  "weekend_1": {
+    "displayName": "Weekend 1 — Move Into Me",
+    "soundKey": "music:weekend_1",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
+    ]
+  },
+  "weekend_2": {
+    "displayName": "Weekend 2 — Hub Party",
+    "soundKey": "music:weekend_2",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
+    ]
+  },
+  "weekend_3": {
+    "displayName": "Weekend 3 — The Season So Far",
+    "soundKey": "music:weekend_3",
+    "fallbackTrack": "none",
+    "tags": [
+      "ambient",
+      "social"
     ]
   },
   "wildcard_western": {

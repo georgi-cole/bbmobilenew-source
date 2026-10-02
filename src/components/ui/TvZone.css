@@ -24,6 +24,73 @@
     inset 0 -1px 0 rgba(120, 100, 165, 0.055);
 }
 
+.tv-zone--party-led {
+  isolation: isolate;
+  box-shadow:
+    0 0 0 1px rgba(255, 98, 199, 0.45),
+    0 0 16px rgba(255, 71, 180, 0.32),
+    0 0 38px rgba(94, 119, 255, 0.22),
+    0 10px 34px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(239, 232, 255, 0.12);
+  animation: partyTvGlow 2.6s ease-in-out infinite alternate;
+}
+
+.tv-zone--party-led::after {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  border: 2px solid transparent;
+  border-radius: inherit;
+  background: conic-gradient(
+      from var(--party-led-angle, 0deg),
+      #ff4e9b,
+      #ffad56,
+      #ffe75a,
+      #54e5a4,
+      #4edaff,
+      #7a83ff,
+      #d16bff,
+      #ff4e9b
+    )
+    border-box;
+  content: '';
+  filter: drop-shadow(0 0 5px rgba(255, 105, 213, 0.72));
+  pointer-events: none;
+  animation: partyTvLedRotate 7s linear infinite;
+  mask:
+    linear-gradient(#fff 0 0) padding-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+@keyframes partyTvLedRotate {
+  to {
+    --party-led-angle: 360deg;
+    filter: hue-rotate(360deg) drop-shadow(0 0 8px rgba(255, 105, 213, 0.9));
+  }
+}
+
+@keyframes partyTvGlow {
+  from {
+    filter: brightness(1);
+    box-shadow:
+      0 0 0 1px rgba(255, 98, 199, 0.42),
+      0 0 13px rgba(255, 71, 180, 0.25),
+      0 0 30px rgba(94, 119, 255, 0.18),
+      0 10px 34px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(239, 232, 255, 0.12);
+  }
+  to {
+    filter: brightness(1.08);
+    box-shadow:
+      0 0 0 2px rgba(96, 223, 255, 0.68),
+      0 0 20px rgba(76, 214, 255, 0.46),
+      0 0 46px rgba(229, 80, 255, 0.28),
+      0 10px 38px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(239, 232, 255, 0.12);
+  }
+}
+
 /* ── Head bar ──────────────────────────────────────────────────────────────── */
 .tv-zone__head {
   display: flex;
@@ -1795,6 +1862,11 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
     animation: none;
   }
 
+  .tv-zone--party-led,
+  .tv-zone--party-led::after {
+    animation: none;
+  }
+
   .tv-zone__now {
     animation: none;
   }
@@ -1904,6 +1976,47 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
   animation: cupidOutlinePulse var(--cupid-outline-pulse-ms, 1700ms) ease-out forwards;
 }
 
+/* Weekend Day 1 closes with the same focused-TV treatment as a big reveal,
+   recolored in electric blue so every weekend episode has its own signature. */
+.tv-zone--weekend-electric-pulse {
+  position: relative;
+  z-index: 9999;
+  animation: weekendElectricPulse var(--weekend-electric-pulse-ms, 1700ms) ease-out forwards;
+}
+
+@keyframes weekendElectricPulse {
+  0% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    transform: scale(1);
+  }
+  22% {
+    box-shadow:
+      0 0 0 3px rgba(56, 189, 248, 0.96),
+      0 0 44px rgba(14, 165, 233, 0.62),
+      0 0 96px rgba(37, 99, 235, 0.46),
+      0 12px 44px rgba(0, 0, 0, 0.76);
+    transform: scale(1.018);
+  }
+  100% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    transform: scale(1);
+  }
+}
+
+/* The party artwork belongs to the whole television surface, not only the
+   text card. This wins over the normal daily viewport wash on Weekend 2. */
+.tv-zone__viewport--weekend-party {
+  background-image:
+    linear-gradient(180deg, rgba(14, 5, 31, 0.08), rgba(4, 8, 24, 0.5)),
+    url('../../assets/weekend/weekend-hub-party.svg') !important;
+  background-position: center;
+  background-size: cover;
+}
+
 @keyframes cupidOutlinePulse {
   0% {
     box-shadow:
@@ -1935,6 +2048,9 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
     animation: none;
   }
   .tv-zone--cupid-outline-pulse {
+    animation: none;
+  }
+  .tv-zone--weekend-electric-pulse {
     animation: none;
   }
 }

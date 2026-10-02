@@ -754,12 +754,115 @@ export interface StrategicAllianceSnapshot {
   infiltratorIds: string[]
 }
 
+export type WeekendEpisode = 'hub_says' | 'party' | 'season_so_far'
+
+export interface WeekendResourceWallet {
+  energy: number
+  influence: number
+  info: number
+}
+
+export interface HubSaysQuestionResult {
+  questionId: string
+  humanVoteTargetId: string
+  winnerId: string
+  voteCounts: Record<string, number>
+}
+
+export type WeekendPartyBeatKind =
+  | 'secret_spill'
+  | 'opinion_spill'
+  | 'romance_moment'
+  | 'bromance_moment'
+  | 'rivalry_moment'
+  | 'betrayal_moment'
+  | 'alliance_huddle'
+
+export interface WeekendPartyBeat {
+  id: string
+  weekendDay: 1 | 2
+  kind: WeekendPartyBeatKind
+  text: string
+  visibility: 'private' | 'house'
+  speakerId?: string
+  subjectIds: string[]
+  /** Grounding pointers used when a private spill teaches the human real information. */
+  secretId?: string
+  factId?: string
+}
+
+export interface WeekendSeasonFact {
+  playerId: string
+  kind:
+    | 'battle_back'
+    | 'double_eviction'
+    | 'hub_says'
+    | 'nomination_survivor'
+    | 'loh_record'
+    | 'pos_record'
+    | 'power_record'
+    | 'never_nominated'
+    | 'late_entrant'
+    | 'still_here'
+  text: string
+}
+
+export interface WeekendInterludeState {
+  active: true
+  /** Numbered gameplay day that has already completed. The weekend never increments this value. */
+  afterDay: 5 | 10 | 15
+  /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
+  weekendDay: 1 | 2
+  /** A preview launched from Settings. It returns to the current game state when finished. */
+  debug?: true
+  /** Player status temporarily restored for an eliminated player's debug preview. */
+  debugOriginalHumanStatus?: PlayerStatus
+  episode: WeekendEpisode
+  /**
+   * TV beats are intentionally separate from the social days so the regular
+   * dock can pace each reveal. `day_transition` is the weather-card handoff
+   * between Weekend Day 1 and Weekend Day 2.
+   */
+  stage:
+    | 'intro'
+    | 'instructions'
+    | 'day_two_intro'
+    | 'hub_says'
+    | 'party'
+    | 'season_so_far'
+    | 'social'
+    | 'day_transition'
+  wallet: WeekendResourceWallet
+  hubSays?: {
+    questionIds: string[]
+    currentQuestionIndex: number
+    /** `question` and `choice` are separate Faux TV beats; older saves default to question. */
+    beat?: 'question' | 'choice' | 'result'
+    selectedPlayerId?: string | null
+    results: HubSaysQuestionResult[]
+  }
+  party?: {
+    beats: WeekendPartyBeat[]
+  }
+  seasonSoFar?: {
+    facts: WeekendSeasonFact[]
+    /** Zero-based TV-card index. Older saves begin at the first fact. */
+    currentFactIndex?: number
+  }
+}
+
 export interface GameState {
   /** Stable unique identifier for this game instance. */
   gameId: string
   season: number
   week: number
   phase: Phase
+  /** Weekend interludes are opt-in per season so legacy saves keep their original schedule. */
+  weekendsEnabledForSeason?: boolean
+  /** Numbered days whose weekend interlude has already been completed. */
+  completedWeekendDays?: number[]
+  /** Active non-numbered weekend interlude layered over week_end. */
+  weekendInterlude?: WeekendInterludeState | null
   players: Player[]
   /** Persisted Reality pregnancy attempts and resolved pregnancies. */
   pregnancyStory?: PregnancyStoryState

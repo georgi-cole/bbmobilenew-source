@@ -35,6 +35,12 @@ export interface PregnancyAttempt {
    * close to Final 3 to produce a result without interrupting finale gameplay.
    */
   resultAvailableDay: number | null
+  /**
+   * Real elapsed weekend days credited toward the pending result countdown.
+   * Weekend interludes do not increment the numbered game day, so this keeps
+   * pregnancy timing moving without touching the main competition calendar.
+   */
+  elapsedWeekendDays?: number
   /** Forecasted first Final 3 day used when the attempt was created. */
   finalThreeDay?: number | null
   /** True only for the attempt that actually locked conception. */
@@ -269,6 +275,30 @@ export function resolvePregnancyResultDay(
     if (finaleDay == null || candidate < finaleDay) return candidate
   }
   return null
+}
+
+export function getPregnancyEffectiveDay(attempt: PregnancyAttempt, currentDay: number): number {
+  return finiteDay(currentDay) + Math.max(0, finiteDay(attempt.elapsedWeekendDays ?? 0))
+}
+
+export function isPregnancyResultAvailable(attempt: PregnancyAttempt, currentDay: number): boolean {
+  return (
+    attempt.resultAvailableDay != null &&
+    getPregnancyEffectiveDay(attempt, currentDay) >= attempt.resultAvailableDay
+  )
+}
+
+export function advancePregnancyWeekendDay(story: PregnancyStoryState): PregnancyStoryState {
+  let changed = false
+  const attempts = story.attempts.map((attempt) => {
+    if (attempt.status !== 'PENDING' || attempt.resultAvailableDay == null) return attempt
+    changed = true
+    return {
+      ...attempt,
+      elapsedWeekendDays: Math.max(0, finiteDay(attempt.elapsedWeekendDays ?? 0)) + 1,
+    }
+  })
+  return changed ? { ...story, attempts } : story
 }
 
 function canPromptForHumanRole(
@@ -540,6 +570,7 @@ export function startPregnancyAttempt(
     biologicalFatherId,
     attemptDay,
     resultAvailableDay,
+    elapsedWeekendDays: 0,
     finalThreeDay,
     pregnant,
     resultKnown: false,
@@ -617,6 +648,7 @@ export function revealPregnancyTest(
   const locked = getActivePregnancyAttempt(story, requested.carrierId)
   const attempt = locked ?? getLatestCarrierAttempt(story, requested.carrierId) ?? requested
   const day = finiteDay(input.currentDay)
+  const effectiveDay = getPregnancyEffectiveDay(attempt, day)
 
   if (attempt.resultAvailableDay == null && !attempt.resultKnown) {
     return {
@@ -632,7 +664,7 @@ export function revealPregnancyTest(
 
   if (
     attempt.resultAvailableDay != null &&
-    day < attempt.resultAvailableDay &&
+    effectiveDay < attempt.resultAvailableDay &&
     !attempt.resultKnown
   ) {
     return {
@@ -640,7 +672,10 @@ export function revealPregnancyTest(
       result: {
         attempt,
         tooEarly: true,
-        availableDay: attempt.resultAvailableDay,
+        availableDay: Math.max(
+          day,
+          attempt.resultAvailableDay - Math.max(0, finiteDay(attempt.elapsedWeekendDays ?? 0))
+        ),
         changed: false,
       },
     }
@@ -852,6 +887,7 @@ export function normalizePregnancyStoryState(raw: unknown): PregnancyStoryState 
         attempt.resultAvailableDay == null || Number.isFinite(attempt.resultAvailableDay)
           ? attempt.resultAvailableDay
           : null,
+      elapsedWeekendDays: Math.max(0, finiteDay(attempt.elapsedWeekendDays ?? 0)),
       pregnancyPublicRevealed:
         attempt.pregnancyPublicRevealed ?? attempt.announcementEmitted ?? false,
       paternityResultKnown: attempt.paternityResultKnown ?? false,

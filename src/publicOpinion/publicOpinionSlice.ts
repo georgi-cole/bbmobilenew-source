@@ -1,6 +1,7 @@
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
 import { publicOpinionConfig } from './publicOpinionConfig'
 import { createPublicNarrative } from './publicNarratives'
+import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import { applyAudienceApprovalDelta, createAudienceBreakdown } from './audienceBreakdown'
 import type {
   PublicOpinionState,
@@ -439,10 +440,12 @@ const publicOpinionSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addMatcher(
-      (action) => action.type === 'game/resetGame',
-      () => ({ ...initialState })
-    )
+    builder
+      .addCase(restoreWeekendDebugSnapshot, (_state, action) => action.payload.publicOpinion)
+      .addMatcher(
+        (action) => action.type === 'game/resetGame',
+        () => ({ ...initialState })
+      )
   },
 })
 

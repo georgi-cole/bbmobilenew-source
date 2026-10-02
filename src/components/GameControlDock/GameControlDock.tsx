@@ -56,6 +56,9 @@ export interface GameControlDockProps {
   incomingRequestsDisabled?: boolean
   publicMeterDisabled?: boolean
   chatBadgeCount?: number
+  showChatBadgeZero?: boolean
+  /** Ref for guiding a spotlight to the Social navigation icon. */
+  socialIconRef?: Ref<HTMLButtonElement>
   /** Extra class name for the flash animation on chat node */
   chatFlash?: boolean
   /** Badge count for the incoming requests node */
@@ -94,6 +97,8 @@ export default function GameControlDock({
   incomingRequestsDisabled = false,
   publicMeterDisabled = false,
   chatBadgeCount,
+  showChatBadgeZero = false,
+  socialIconRef,
   chatFlash = false,
   incomingRequestsBadgeCount,
   publicMeterBadgeCount,
@@ -109,18 +114,23 @@ export default function GameControlDock({
 }: GameControlDockProps) {
   const dispatch = useAppDispatch()
   const [moreOpen, setMoreOpen] = useState(false)
+  const weekendActive = useAppSelector((state) => state.game.weekendInterlude?.active === true)
   const votePresentationLocked = useAppSelector(
-    (state) => Boolean(state.game.voteResults) || Boolean(state.game.evictionOverlayPlayerId)
+    (state) =>
+      !state.game.weekendInterlude?.active &&
+      (Boolean(state.game.voteResults) || Boolean(state.game.evictionOverlayPlayerId))
   )
   // During the ordinary Vox audience-vote window, Play is the one intentional
   // action: it starts the count/reveal. Lock navigation and side modules so the
   // player cannot leave/remount the game while that ceremony is pending.
   const voxAudienceVoteLocked = useAppSelector(
     (state) =>
+      !state.game.weekendInterlude?.active &&
       state.game.voxPopuli?.awaitingPublicVote === true &&
       state.game.voxPopuli.publicVoteContext === 'eviction'
   )
-  const dockDisabled = disabled || votePresentationLocked || voxAudienceVoteLocked
+  const dockDisabled =
+    (disabled && !weekendActive) || votePresentationLocked || voxAudienceVoteLocked
   // The Vox lock deliberately does NOT disable the central Play control.
   const effectivePrimaryDisabled = primaryDisabled || votePresentationLocked
   const [socialLedActive, acknowledgeSocialLed] = useNotificationLed(chatBadgeCount, {
@@ -271,8 +281,13 @@ export default function GameControlDock({
         />
         <button
           className={`dock-hit-area hit-social dock-hit-area--social${chatFlash ? ' dock-hit-area--flash dock-node--flash' : ''}${socialUnavailableClass}`}
+          ref={socialIconRef}
           type="button"
-          aria-label={`Social${chatBadgeCount ? ` (${chatBadgeCount})` : ''}`}
+          aria-label={`Social${
+            chatBadgeCount != null && (chatBadgeCount > 0 || showChatBadgeZero)
+              ? ` (${chatBadgeCount})`
+              : ''
+          }`}
           aria-disabled={socialDisabled || dockDisabled}
           disabled={dockDisabled}
           onClick={
@@ -287,11 +302,13 @@ export default function GameControlDock({
           {socialLedActive && !socialDisabled && (
             <span className="dock-hit-area__notification-led" aria-hidden="true" />
           )}
-          {chatBadgeCount != null && chatBadgeCount > 0 && !socialDisabled && (
-            <span className="dock-hit-area__badge" aria-hidden="true">
-              {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
-            </span>
-          )}
+          {chatBadgeCount != null &&
+            (chatBadgeCount > 0 || showChatBadgeZero) &&
+            !socialDisabled && (
+              <span className="dock-hit-area__badge" aria-hidden="true">
+                {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
+              </span>
+            )}
         </button>
         <button
           className={`dock-hit-area hit-requests dock-hit-area--requests${requestsUnavailableClass}`}

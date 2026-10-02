@@ -1,0 +1,134 @@
+.weekend-party-backdrop {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 22% 10%, rgba(153, 166, 185, 0.15), transparent 48%),
+    radial-gradient(ellipse at 82% 80%, rgba(94, 106, 125, 0.1), transparent 50%),
+    repeating-linear-gradient(112deg, rgba(192, 204, 222, 0.018) 0 1px, transparent 1px 4px),
+    linear-gradient(128deg, #050608 0%, #1b1f25 36%, #080a0e 61%, #151920 82%, #040508 100%);
+  transition: opacity 1400ms ease-in-out;
+}
+
+.weekend-party-backdrop--active {
+  opacity: 1;
+}
+
+.weekend-party-disco {
+  position: fixed;
+  z-index: 15;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.weekend-party-disco__flight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(48px, 9vw, 74px);
+  opacity: 0;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5))
+    drop-shadow(0 0 16px rgba(91, 215, 255, 0.6));
+}
+
+.weekend-party-disco__flight--first {
+  animation: weekendDiscoDrift 26s linear 4s infinite;
+}
+
+.weekend-party-disco__flight--second {
+  width: clamp(38px, 7vw, 60px);
+  animation: weekendDiscoReturn 33s linear 18s infinite;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5))
+    drop-shadow(0 0 16px rgba(239, 142, 255, 0.65));
+}
+
+.weekend-party-disco svg {
+  display: block;
+  width: 100%;
+  transform: rotate(-14deg);
+}
+
+.weekend-party-disco__mirrors {
+  animation: weekendDiscoSpin 1800ms linear infinite;
+}
+
+.weekend-party-disco__glint {
+  transform-origin: 29px 20px;
+  animation: weekendDiscoGlint 1400ms ease-in-out infinite alternate;
+}
+
+.weekend-party-disco__glint--secondary {
+  transform-origin: 70px 60px;
+  animation-delay: -700ms;
+}
+
+@keyframes weekendDiscoSpin {
+  to {
+    transform: translateX(-24px);
+  }
+}
+
+@keyframes weekendDiscoGlint {
+  from {
+    opacity: 0.2;
+    transform: scale(0.75);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1.15);
+  }
+}
+
+/* Each flight lasts about five seconds; the rest of the cycle stays off-screen. */
+@keyframes weekendDiscoDrift {
+  0% {
+    opacity: 0;
+    transform: translate3d(-90px, 14vh, 0) rotate(-12deg);
+  }
+  3% {
+    opacity: 0.82;
+  }
+  16% {
+    opacity: 0.82;
+  }
+  20%,
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(100vw + 90px), 47vh, 0) rotate(24deg);
+  }
+}
+
+@keyframes weekendDiscoReturn {
+  0% {
+    opacity: 0;
+    transform: translate3d(calc(100vw + 90px), 74vh, 0) rotate(18deg);
+  }
+  2% {
+    opacity: 0.72;
+  }
+  12% {
+    opacity: 0.72;
+  }
+  16%,
+  100% {
+    opacity: 0;
+    transform: translate3d(-90px, 43vh, 0) rotate(-28deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekend-party-backdrop {
+    transition: none;
+  }
+  .weekend-party-disco {
+    display: none;
+  }
+}
+
+body.no-animations .weekend-party-disco,
+body.reduce-motion .weekend-party-disco {
+  display: none;
+}
