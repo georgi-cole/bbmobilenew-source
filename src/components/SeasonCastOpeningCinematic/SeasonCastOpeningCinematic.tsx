@@ -57,7 +57,7 @@ function seededCastOrder(players: Player[], gameId: string): Player[] {
   return user ? [...others, user] : others
 }
 
-export function getSeasonCastOpeningDuration(playerCount: number): number {
+function getSeasonCastOpeningDuration(playerCount: number): number {
   return INTRO_FRAMES + Math.max(1, playerCount) * REVEAL_FRAMES + FINALE_FRAMES
 }
 
