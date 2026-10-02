@@ -274,6 +274,41 @@
   background: rgba(180 20 20 / 0.4);
 }
 
+.dbg-help {
+  margin: 0;
+  color: rgba(224, 224, 240, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.dbg-pregnancy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dbg-pregnancy-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(255 255 255 / 0.04);
+  font-size: 0.72rem;
+}
+
+.dbg-pregnancy-list li strong {
+  color: #f2ce7b;
+}
+
+.dbg-pregnancy-list li small {
+  color: rgba(224, 224, 240, 0.62);
+  font-size: 0.65rem;
+}
+
 .dbg-health {
   padding: 0.5rem 0.6rem;
   border-radius: 5px;
