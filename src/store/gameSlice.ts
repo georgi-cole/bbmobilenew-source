@@ -2974,10 +2974,13 @@ function restoreVoxNomineeMinimum(state: GameState): string[] {
   state.voxPopuli.lastReplacementNomineeIds = []
   if (state.nomineeIds.length >= requiredNomineeCount) return []
   const alive = getAlivePlayers(state)
+  const storeProtectedIds = (state.storeNominationProtections ?? [])
+    .filter((protection) => protection.week === state.week)
+    .map((protection) => protection.targetId)
   const replacements = resolveVoxReplacementNominees({
     activeIds: alive.map((player) => player.id),
     currentNomineeIds: state.nomineeIds,
-    protectedIds: getPovProtectedIds(state),
+    protectedIds: [...new Set([...getPovProtectedIds(state), ...storeProtectedIds])],
     immunityWinnerId: getVoxNominationImmunityId(state),
     nominationVoteCounts: state.voxPopuli.nominationVoteCounts,
     requiredNomineeCount,
