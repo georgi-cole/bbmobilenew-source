@@ -13,6 +13,7 @@ import holdTheWallReducer, {
   AI_DROP_MIN_MS,
   AI_DROP_MAX_MS,
   buildAiDropSchedule,
+  dropFinalDuelAi,
   dropPlayer,
   startHoldTheWall,
 } from '../src/features/holdTheWall/holdTheWallSlice';
@@ -195,7 +196,7 @@ describe('Hold the Wall audit', () => {
     );
 
     store.dispatch(dropPlayer('bob'));
-    store.dispatch(dropPlayer('carol'));
+    store.dispatch(dropFinalDuelAi('carol'));
 
     const state = store.getState().holdTheWall;
     expect(state.status).toBe('complete');
@@ -219,7 +220,7 @@ describe('Hold the Wall audit', () => {
       }),
     );
     htwStore.dispatch(dropPlayer('p1'));
-    htwStore.dispatch(dropPlayer('p2'));
+    htwStore.dispatch(dropFinalDuelAi('p2'));
     htwStore.dispatch(resolveHoldTheWallOutcome());
     htwStore.dispatch(resolveHoldTheWallOutcome());
 
