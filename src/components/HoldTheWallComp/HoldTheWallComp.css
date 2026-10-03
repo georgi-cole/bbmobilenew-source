@@ -536,3 +536,80 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .htw-root--danger .htw-wall--expanded { animation: none; } }
+
+
+/* ── Final-two safety bargain ───────────────────────────────────────────── */
+.htw-deal-card {
+  position: absolute;
+  z-index: 32;
+  top: 48%;
+  left: 50%;
+  width: min(calc(100% - 2rem), 24rem);
+  transform: translate(-50%, -50%);
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 209, 124, 0.55);
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 190, 94, 0.18), transparent 36%),
+    rgba(12, 15, 27, 0.97);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.58), 0 0 28px rgba(255, 183, 79, 0.13);
+  text-align: left;
+  backdrop-filter: blur(14px);
+}
+
+.htw-deal-card__kicker {
+  color: #ffd17c;
+  font-size: 0.63rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.htw-deal-card strong {
+  color: #fff6e7;
+  font-size: 1rem;
+}
+
+.htw-deal-card p {
+  margin: 0;
+  color: rgba(236, 240, 255, 0.76);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.htw-deal-card__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.2rem;
+}
+
+.htw-deal-card__actions button {
+  min-height: 2.75rem;
+  border: 1px solid rgba(255, 210, 126, 0.42);
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, #e6b04a, #a66a22);
+  color: #140d08;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.htw-deal-card__actions button.is-secondary {
+  border-color: rgba(174, 191, 224, 0.3);
+  background: rgba(35, 41, 58, 0.94);
+  color: #e8edfa;
+}
+
+@media (max-width: 420px) {
+  .htw-deal-card {
+    top: 50%;
+    width: calc(100% - 1.2rem);
+    padding: 0.85rem;
+  }
+
+  .htw-deal-card__actions {
+    gap: 0.4rem;
+  }
+}
