@@ -34,7 +34,12 @@
 }
 
 .season-cast-road__sky::after {
-  background: linear-gradient(105deg, transparent 34%, rgba(255, 255, 255, 0.035) 49%, transparent 62%);
+  background: linear-gradient(
+    105deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.035) 49%,
+    transparent 62%
+  );
   transform: translateX(var(--road-horizon-drift));
   filter: blur(18px);
 }
@@ -96,7 +101,21 @@
   position: absolute;
   left: -8%;
   right: -8%;
-  clip-path: polygon(0 100%, 0 68%, 8% 54%, 17% 70%, 29% 44%, 39% 63%, 48% 35%, 59% 67%, 70% 45%, 82% 71%, 92% 52%, 100% 67%, 100% 100%);
+  clip-path: polygon(
+    0 100%,
+    0 68%,
+    8% 54%,
+    17% 70%,
+    29% 44%,
+    39% 63%,
+    48% 35%,
+    59% 67%,
+    70% 45%,
+    82% 71%,
+    92% 52%,
+    100% 67%,
+    100% 100%
+  );
 }
 
 .season-cast-road__mountains--far {
@@ -140,7 +159,12 @@
   transform: translateX(-50%);
   clip-path: polygon(47.3% 0, 52.7% 0, 86% 100%, 14% 100%);
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 14% 86%, rgba(255, 255, 255, 0.03)),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03),
+      transparent 14% 86%,
+      rgba(255, 255, 255, 0.03)
+    ),
     linear-gradient(180deg, #16131b 0%, #0b0910 100%);
   box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.72);
 }
@@ -374,7 +398,11 @@
   top: 100%;
   width: 2px;
   height: 74px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--cast-accent) 80%, white), transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--cast-accent) 80%, white),
+    transparent
+  );
 }
 
 .season-cast-travel-cue__marker span {
@@ -427,7 +455,11 @@
   inset: 0;
   background:
     linear-gradient(90deg, transparent 0 24%, rgba(255, 255, 255, 0.06) 48%, transparent 72%),
-    radial-gradient(circle at 50% 62%, color-mix(in srgb, var(--cast-accent) 16%, transparent), transparent 40%);
+    radial-gradient(
+      circle at 50% 62%,
+      color-mix(in srgb, var(--cast-accent) 16%, transparent),
+      transparent 40%
+    );
   mix-blend-mode: screen;
   filter: blur(8px);
 }
@@ -444,7 +476,11 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 43%, color-mix(in srgb, var(--cast-accent) 26%, transparent), transparent 28%),
+    radial-gradient(
+      circle at 50% 43%,
+      color-mix(in srgb, var(--cast-accent) 26%, transparent),
+      transparent 28%
+    ),
     linear-gradient(180deg, #0a0610 0%, #1b0d25 47%, #050308 100%);
 }
 
@@ -546,7 +582,11 @@
   bottom: 4%;
   height: 62%;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--cast-accent) 35%, transparent), transparent 67%);
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--cast-accent) 35%, transparent),
+    transparent 67%
+  );
   filter: blur(28px);
   opacity: 0.68;
 }
@@ -608,7 +648,12 @@
   position: absolute;
   z-index: 16;
   inset: 0;
-  background: radial-gradient(circle at 50% 58%, transparent 0 26%, rgba(5, 2, 10, 0.56) 65%, rgba(3, 1, 7, 0.95) 100%);
+  background: radial-gradient(
+    circle at 50% 58%,
+    transparent 0 26%,
+    rgba(5, 2, 10, 0.56) 65%,
+    rgba(3, 1, 7, 0.95) 100%
+  );
   pointer-events: none;
 }
 
