@@ -748,6 +748,22 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
     },
   ],
 
+  co_nominee_check_in: makeScenePool(
+    'cnc',
+    [
+      'We are both on the block. Neither of us has a vote here, so I want to compare what we are hearing before the decision lands.',
+      'We are both exposed. I am not asking you for a vote you cannot give me — I want to compare reads before the room decides.',
+    ],
+    [
+      'I hate that we are both in danger. Whatever happens, I do not want fear to erase what we built.',
+      'This is a strange spot for us: both vulnerable, both trying to survive. I still want us talking honestly.',
+    ],
+    [
+      'We are both still in danger. Has your read on the vote changed since we last talked?',
+      'I am not asking for promises. I just want us to keep sharing what we hear until the decision lands.',
+    ]
+  ),
+
   nomination_aftershock: [
     {
       id: 'na_processing',
