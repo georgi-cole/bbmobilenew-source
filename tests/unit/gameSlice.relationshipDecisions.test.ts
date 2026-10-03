@@ -212,6 +212,59 @@ describe('Reality alliance strategic influence', () => {
   })
 })
 
+describe('Hold the Wall nomination bargains', () => {
+  it('strongly protects an unchanged promise and can turn damaged trust into a target', () => {
+    const loh = player('loh')
+    const human = userPlayer('human')
+    const other = player('other')
+    const initial = gameReducer(undefined, { type: 'test/init' })
+
+    let foundBetrayal = false
+    for (let seed = 1; seed <= 250 && !foundBetrayal; seed += 1) {
+      const closeState = {
+        ...initial,
+        gameId: 'hold-wall-deal-score',
+        seed,
+        week: 4,
+        lohId: loh.id,
+        players: [loh, human, other],
+        strategicRelationships: {
+          [loh.id]: {
+            [human.id]: { affinity: 80, tags: ['alliance'] },
+            [other.id]: { affinity: 0, tags: [] },
+          },
+        },
+        holdTheWallSafetyDeal: {
+          week: 4,
+          promisorId: loh.id,
+          beneficiaryId: human.id,
+          source: 'hold_the_wall' as const,
+          affinityAtDeal: 80,
+          tagsAtDeal: ['alliance'],
+        },
+      } as GameState
+      const closeScore = getNominationTargetScore(closeState, loh.id, human)
+      const otherScore = getNominationTargetScore(closeState, loh.id, other)
+      expect(closeScore).toBeLessThan(otherScore - 150)
+
+      const damagedState = {
+        ...closeState,
+        strategicRelationships: {
+          [loh.id]: {
+            [human.id]: { affinity: -50, tags: ['rivalry', 'strained'] },
+            [other.id]: { affinity: 0, tags: [] },
+          },
+        },
+      } as GameState
+      if (getNominationTargetScore(damagedState, loh.id, human) > otherScore + 150) {
+        foundBetrayal = true
+      }
+    }
+
+    expect(foundBetrayal).toBe(true)
+  })
+})
+
 describe('relationship-aware AI eviction decisions', () => {
   it('persists the Drama Mode gameplay switch', () => {
     const initial = gameReducer(undefined, { type: 'test/init' })
