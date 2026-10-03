@@ -82,10 +82,6 @@ const RELATIONSHIP_TAG_LABELS: Record<string, string> = {
   broken_romance: 'Broken romance',
 }
 
-function isNomineeStatus(status: Player['status']): boolean {
-  return status.includes('nominated')
-}
-
 function formatPlayerNames(names: string[]): string {
   if (names.length <= 1) return names[0] ?? 'the Hub'
   if (names.length === 2) return `${names[0]} and ${names[1]}`
@@ -110,6 +106,7 @@ function getSubjectCandidates(
   pool: SubjectPool,
   primaryTargetId: string,
   players: Player[],
+  nomineeIds: readonly string[],
   actorId: string,
   relationships: Record<string, Record<string, { affinity: number; tags?: string[] }>> | undefined,
   allowActorAsSubject = false
@@ -121,11 +118,12 @@ function getSubjectCandidates(
       player.status !== 'evicted' &&
       player.status !== 'jury'
   )
+  const isNominee = (player: Player) => nomineeIds.includes(player.id)
   switch (pool) {
     case 'nominees':
-      return eligible.filter((player) => isNomineeStatus(player.status))
+      return eligible.filter(isNominee)
     case 'non_nominees':
-      return eligible.filter((player) => !isNomineeStatus(player.status))
+      return eligible.filter((player) => !isNominee(player))
     case 'allies':
       return eligible.filter((player) => {
         const outward = relationships?.[actorId]?.[player.id]
@@ -140,8 +138,7 @@ function getSubjectCandidates(
       })
     case 'voters':
       return eligible.filter(
-        (player) =>
-          !isNomineeStatus(player.status) && player.status !== 'loh' && player.status !== 'loh+pos'
+        (player) => !isNominee(player) && player.status !== 'loh' && player.status !== 'loh+pos'
       )
     case 'houseguests':
     default:
@@ -558,7 +555,7 @@ export default function SocialPanelV2() {
       Boolean(game.posWinnerId) &&
       !game.povSavedId
     const humanIsLoh = game.lohId === humanPlayer?.id
-    const humanIsNominated = Boolean(humanPlayer?.status.includes('nominated'))
+    const humanIsNominated = game.nomineeIds.includes(humanPlayer?.id ?? '')
     const disclosedDangerTargetId =
       game.lohSocialPlan?.week === game.week && game.lohSocialPlan.lohId === game.lohId
         ? game.lohSocialPlan.disclosedTargetByPlayerId?.[humanPlayer?.id ?? '']
@@ -628,7 +625,7 @@ export default function SocialPanelV2() {
     return hidden
   }, [
     game.lohId,
-    game.nomineeIds.length,
+    game.nomineeIds,
     game.phase,
     game.posWinnerId,
     game.povSavedId,
@@ -636,7 +633,6 @@ export default function SocialPanelV2() {
     game.week,
     game.voxPopuli?.status,
     humanPlayer?.id,
-    humanPlayer?.status,
     primaryTargetId,
     actionHistory,
     socialActions,
@@ -973,6 +969,7 @@ export default function SocialPanelV2() {
           selectedAction.subjectPool,
           effectivePrimaryTargetId,
           selectedAction.allowActorAsSubject ? [...orderedPlayers, humanPlayer] : orderedPlayers,
+          game.nomineeIds,
           humanPlayer.id,
           relationships,
           selectedAction.allowActorAsSubject

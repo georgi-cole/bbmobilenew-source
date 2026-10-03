@@ -75,7 +75,10 @@ describe('Reality alliance ecology calibration', () => {
         const sizeKey = String(alliance.memberIds.length)
         sizeCounts[sizeKey] = (sizeCounts[sizeKey] ?? 0) + 1
 
-        expect(alliance.memberIds.length).toBeGreaterThanOrEqual(2)
+        // A dissolved alliance may retain its final member as historical state.
+        if (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') {
+          expect(alliance.memberIds.length).toBeGreaterThanOrEqual(2)
+        }
         expect(new Set(alliance.memberIds).size).toBe(alliance.memberIds.length)
         expect(alliance.cohesion).toBeGreaterThanOrEqual(0)
         expect(alliance.cohesion).toBeLessThanOrEqual(1)

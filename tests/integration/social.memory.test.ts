@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, { hydrateGame } from '../../src/store/gameSlice'
-import socialReducer, { hydrateSocial, pushIncomingInteraction } from '../../src/social/socialSlice'
+import socialReducer, {
+  hydrateSocial,
+  pushIncomingInteraction,
+  replaceRealityDomain,
+} from '../../src/social/socialSlice'
 import {
   respondToIncomingInteraction,
   autoResolveExpiredIncomingInteractionsForWeek,
@@ -189,7 +193,7 @@ describe('social memory integration for incoming interactions', () => {
     )
     expect(social.relationships[ai.id]?.[human.id]?.affinity).toBeGreaterThan(0)
     expect(social.relationships[human.id]?.[ai.id]?.affinity).toBeGreaterThan(0)
-    expect(interaction?.outcomeText).toMatch(/where the two of you stand this week/i)
+    expect(interaction?.outcomeText).toMatch(/voting groups starting to form/i)
   })
 
   it('records neglect when interactions expire at week end', () => {
@@ -297,6 +301,67 @@ describe('social memory integration for incoming interactions', () => {
     expect(sharedAlliance).toBeDefined()
     expect(store.getState().social.relationships[ai.id]?.[human.id]?.tags).toContain('alliance')
     expect(store.getState().social.relationships[human.id]?.[ai.id]?.tags).toContain('alliance')
+  })
+
+  it('keeps a Normal Mode alliance answer and its later relationship state aligned', () => {
+    const store = makeStore()
+    const { players, week } = store.getState().game
+    const human = players.find((player) => player.isUser)!
+    const ai = players.find((player) => !player.isUser)!
+    store.dispatch(
+      pushIncomingInteraction(
+        makeInteraction({
+          id: 'normal-alliance-proposal',
+          fromId: ai.id,
+          type: 'alliance_proposal',
+          payload: { scenarioKey: 'week_start_alliance_lock', modeAtCreation: 'normal' },
+          createdWeek: week,
+          expiresAtWeek: week + 1,
+        })
+      )
+    )
+    store.dispatch(
+      respondToIncomingInteraction({
+        interactionId: 'normal-alliance-proposal',
+        responseType: 'accept',
+      }) as never
+    )
+
+    expect(store.getState().social.relationships[human.id]?.[ai.id]?.tags).toContain('alliance')
+    store.dispatch(replaceRealityDomain(store.getState().social.reality))
+    expect(store.getState().social.relationships[human.id]?.[ai.id]?.tags).toContain('alliance')
+  })
+
+  it('tracks a promise made in Normal Mode until its game decision', () => {
+    const store = makeStore()
+    const { players, week } = store.getState().game
+    const ai = players.find((player) => !player.isUser)!
+    store.dispatch(
+      pushIncomingInteraction(
+        makeInteraction({
+          id: 'normal-promise',
+          fromId: ai.id,
+          type: 'nomination_plea',
+          payload: { modeAtCreation: 'normal' },
+          createdWeek: week,
+          expiresAtWeek: week + 1,
+        })
+      )
+    )
+    store.dispatch(
+      respondToIncomingInteraction({
+        interactionId: 'normal-promise',
+        responseType: 'positive',
+      }) as never
+    )
+
+    expect(store.getState().social.commitments).toContainEqual(
+      expect.objectContaining({
+        interactionId: 'normal-promise',
+        kind: 'protect_from_nomination',
+        status: 'pending',
+      })
+    )
   })
 
   it('turns an accepted AI alliance huddle into a plan only when the room has a real majority', () => {

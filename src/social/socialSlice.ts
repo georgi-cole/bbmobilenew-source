@@ -118,9 +118,6 @@ function projectRealityTags(
   const hasLiveFormalAlliance = formalPairAlliances.some(
     (alliance) => alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
   )
-  if (hasLiveFormalAlliance) {
-    tags.push('alliance')
-  }
   const exitedSharedAlliance = reality.events.some(
     (event) =>
       [
@@ -133,6 +130,14 @@ function projectRealityTags(
       event.participantIds.includes(targetId) &&
       (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
   )
+  // Normal Mode pacts use the legacy tag. Preserve it only when the Reality
+  // domain has no formal history or departure event for this pair.
+  if (
+    hasLiveFormalAlliance ||
+    (formalPairAlliances.length === 0 && !exitedSharedAlliance && existingTags.includes('alliance'))
+  ) {
+    tags.push('alliance')
+  }
   if (
     !hasLiveFormalAlliance &&
     (exitedSharedAlliance ||

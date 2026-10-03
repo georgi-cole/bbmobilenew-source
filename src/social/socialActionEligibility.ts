@@ -28,6 +28,7 @@ export interface SocialActionEligibilityContext {
   phase?: string
   week?: number
   players?: readonly ActionEligibilityPlayer[]
+  nomineeIds?: readonly string[]
   primaryTargetStatus?: PlayerStatus | null
   actorStatus?: PlayerStatus | null
   relationships?: RelationshipsMap
@@ -54,8 +55,12 @@ function isInHouse(status: string | undefined): boolean {
   return Boolean(status && status !== 'evicted' && status !== 'jury')
 }
 
-function isNominee(status: string | undefined): boolean {
-  return Boolean(status?.includes('nominated'))
+function isNominee(
+  status: string | undefined,
+  playerId: string,
+  nomineeIds?: readonly string[]
+): boolean {
+  return nomineeIds ? nomineeIds.includes(playerId) : Boolean(status?.includes('nominated'))
 }
 
 function relationshipTags(
@@ -72,6 +77,7 @@ function isValidSubject(
   actorId: string,
   primaryTargetId: string,
   players: readonly ActionEligibilityPlayer[],
+  nomineeIds: readonly string[] | undefined,
   relationships: RelationshipsMap | undefined,
   allowActorAsSubject: boolean
 ): boolean {
@@ -81,9 +87,9 @@ function isValidSubject(
 
   switch (pool) {
     case 'nominees':
-      return isNominee(subject.status)
+      return isNominee(subject.status, subject.id, nomineeIds)
     case 'non_nominees':
-      return !isNominee(subject.status)
+      return !isNominee(subject.status, subject.id, nomineeIds)
     case 'allies': {
       const tags = relationshipTags(relationships, actorId, subject.id)
       return (
@@ -94,7 +100,11 @@ function isValidSubject(
       )
     }
     case 'voters':
-      return !isNominee(subject.status) && subject.status !== 'loh' && subject.status !== 'loh+pos'
+      return (
+        !isNominee(subject.status, subject.id, nomineeIds) &&
+        subject.status !== 'loh' &&
+        subject.status !== 'loh+pos'
+      )
     case 'houseguests':
     default:
       return true
@@ -109,6 +119,7 @@ export function evaluateSocialActionEligibility({
   phase,
   week,
   players = [],
+  nomineeIds,
   primaryTargetStatus,
   actorStatus,
   relationships,
@@ -388,6 +399,7 @@ export function evaluateSocialActionEligibility({
           actorId,
           primaryTargetId,
           players,
+          nomineeIds,
           relationships,
           action.allowActorAsSubject === true
         ))

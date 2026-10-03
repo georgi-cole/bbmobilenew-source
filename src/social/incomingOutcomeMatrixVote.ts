@@ -42,14 +42,14 @@ export const VOTE_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'tell them you cannot help': says('they remove you from the path and focus on softer votes.'),
     'end the campaign': acts('stops pitching you and moves to the next voter.'),
     'offer a little hope': says('they think the changed block gives them one real opening.'),
-    'ask what changed': says('the Safety move broke an old voting plan and reopened two people.'),
+    'ask what changed': says('the Safety move may have reopened votes they thought were settled.'),
     'keep your distance': says('they understand you do not want to be seen inside their campaign.'),
     'close the talk': acts('leaves without your vote and keeps campaigning elsewhere.'),
   },
   live_vote_pitch: {
     'promise your vote': says('they lock your support into their count and stop chasing you.'),
     'ask for their case': says('keeping them gives you a vote that is still open.'),
-    'tell them no': says('they stop counting you and focus on the last undecided voter.'),
+    'tell them no': says('they stop counting you and look for another movable vote.'),
     'avoid an answer': says('they know time is running out and cannot treat you as a vote.'),
     'commit to keep them': says(
       'they believe the vote is real and will remember it if they survive.'
