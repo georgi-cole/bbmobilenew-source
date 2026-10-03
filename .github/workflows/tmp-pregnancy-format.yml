@@ -1,0 +1,40 @@
+name: Temporary pregnancy fix formatter
+
+on:
+  push:
+    branches:
+      - fix/pregnancy-profile-metadata
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/pregnancy-profile-metadata
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Format changed files
+        run: >
+          npx prettier --write
+          src/components/SocialPanelV2/ActionGrid.tsx
+          src/screens/Profile/EditProfile.tsx
+          src/social/__tests__/pregnancy.test.ts
+          src/store/gameSlice.ts
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/SocialPanelV2/ActionGrid.tsx src/screens/Profile/EditProfile.tsx src/social/__tests__/pregnancy.test.ts src/store/gameSlice.ts
+          if git diff --cached --quiet; then
+            echo "No formatting changes needed."
+          else
+            git commit -m "Format pregnancy profile fix"
+            git push origin HEAD:fix/pregnancy-profile-metadata
+          fi
