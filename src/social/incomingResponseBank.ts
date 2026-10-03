@@ -99,6 +99,11 @@ export const DRAMA_RESPONSE_BANK: Record<string, ResponseSet[]> = {
     set('Commit to keep them', 'Hear campaign', 'Choose the other side', 'End pitch'),
     set('Lock your vote', 'Keep options open', 'Tell them no', 'Avoid answer'),
   ],
+  'scenario:co_nominee_check_in': [
+    set('Compare vote reads', 'Reassure the bond', 'Protect your game', 'End check-in'),
+    set('Share what you heard', 'Keep it measured', 'Create distance', 'Leave it there'),
+    set('Stay aligned', 'Compare notes', 'Play separately', 'End the talk'),
+  ],
   'scenario:alliance_reassurance': [
     set('Reassure fully', 'Ask what changed', 'Admit your doubts', 'Avoid it'),
     set('Renew the pact', 'Compare plans', 'Set new terms', 'End check-in'),

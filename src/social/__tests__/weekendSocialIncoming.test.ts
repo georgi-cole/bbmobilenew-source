@@ -74,6 +74,93 @@ describe('weekend incoming social activity', () => {
     )
   })
 
+  it('dedupes routine weekend replies, caps the open routine queue, and still allows conflict reactions', () => {
+    const store = makeStore()
+    store.dispatch(debugActivateWeekendInterlude(10))
+    store.dispatch(continueWeekendFeature())
+    store.dispatch(continueWeekendFeature())
+    store.dispatch(continueWeekendFeature())
+
+    const state = store.getState()
+    const human = state.game.players.find((player) => player.isUser)!
+    const targets = state.game.players.filter((player) => !player.isUser).slice(0, 6)
+    expect(targets.length).toBeGreaterThanOrEqual(6)
+
+    const dispatchManual = (
+      actionId: string,
+      targetId: string,
+      timestamp: number,
+      outcome: 'success' | 'failure' = 'success',
+      delta = 3
+    ) =>
+      store.dispatch(
+        recordSocialAction({
+          entry: {
+            actionId,
+            actorId: human.id,
+            targetId,
+            cost: 1,
+            delta,
+            outcome,
+            newEnergy: 20,
+            timestamp,
+            source: 'manual',
+          },
+        })
+      )
+
+    // Two different low-stakes actions toward the same person should create
+    // only one open acknowledgement for that weekend day.
+    dispatchManual('reassure', targets[0].id, 1_000)
+    dispatchManual('compliment', targets[0].id, 1_001)
+
+    let weekendReplies = store
+      .getState()
+      .social.incomingInteractions.filter(
+        (interaction) => interaction.payload?.scenarioKey === 'weekend_action_reply'
+      )
+    expect(
+      weekendReplies.filter((interaction) => interaction.fromId === targets[0].id)
+    ).toHaveLength(1)
+
+    // Low-value replies are globally bounded so interacting with the whole
+    // cast does not turn the inbox into a wall of identical check-ins.
+    for (let index = 1; index < targets.length; index += 1) {
+      dispatchManual('reassure', targets[index].id, 1_010 + index)
+    }
+
+    weekendReplies = store
+      .getState()
+      .social.incomingInteractions.filter(
+        (interaction) => interaction.payload?.scenarioKey === 'weekend_action_reply'
+      )
+    const routineReplies = weekendReplies.filter(
+      (interaction) => interaction.payload?.weekendActionPriority !== 'high'
+    )
+    expect(routineReplies).toHaveLength(4)
+
+    // Every manual action still remains in Hub Wire/history even when its
+    // redundant inbox acknowledgement is suppressed.
+    expect(store.getState().social.sessionLogs).toHaveLength(7)
+
+    // A real confrontation remains consequential and may still open a thread
+    // even after the low-value cap has been reached.
+    dispatchManual('confront', targets[5].id, 2_000)
+
+    weekendReplies = store
+      .getState()
+      .social.incomingInteractions.filter(
+        (interaction) => interaction.payload?.scenarioKey === 'weekend_action_reply'
+      )
+    expect(
+      weekendReplies.some(
+        (interaction) =>
+          interaction.fromId === targets[5].id &&
+          interaction.payload?.weekendActionPriority === 'high'
+      )
+    ).toBe(true)
+  })
+
   it('gives a Hub Says arrival a natural, relevant check-in instead of vague question copy', () => {
     const store = makeStore()
     store.dispatch(debugActivateWeekendInterlude(5))
