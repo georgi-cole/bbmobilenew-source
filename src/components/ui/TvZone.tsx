@@ -2009,7 +2009,7 @@ export default function TvZone(props: TvZoneProps) {
            confessional prompt spotlight. The target ref is forwarded to the ℹ️
            button inside TvAnnouncementOverlay. */}
       <ConfessionalSpotlightOverlay
-        active={shockInfoSpotlightActive}
+        active={shockInfoSpotlightActive && gameState.phase !== 'democracia_vote'}
         targetRef={announcementInfoButtonRef}
         onComplete={handleShockSpotlightComplete}
       />
