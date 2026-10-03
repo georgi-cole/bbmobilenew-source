@@ -2006,7 +2006,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: SHORT BREAK/i })).toBeDefined()
-    expect(screen.getByText(/house is about to vote/i)).toBeTruthy()
+    expect(screen.getByText(/hub is about to vote/i)).toBeTruthy()
 
     act(() => {
       window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))
@@ -2077,7 +2077,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('Housemates compare notes before the next ceremony.')
+    expect(nowEl).toHaveTextContent('players compare notes before the next ceremony.')
   })
 
   it('keeps an acknowledged Major phase card as steady viewport copy', () => {
@@ -2095,7 +2095,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('The house will vote to eliminate.')
+    expect(nowEl).toHaveTextContent('The hub will vote to eliminate.')
   })
 })
 
