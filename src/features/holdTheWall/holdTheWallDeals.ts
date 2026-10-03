@@ -101,10 +101,12 @@ export function shouldAiOfferHoldTheWallDeal(input: {
   aiId: string
   humanId: string
 }): boolean {
-  return (
-    seededDecision(input.seed, `hold-wall-offer:${input.week}:${input.aiId}:${input.humanId}`) <
-    getHoldTheWallDealOfferChance(input.relationships, input.aiId, input.humanId)
+  const draw = seededDecision(
+    input.seed,
+    `hold-wall-offer:${input.week}:${input.aiId}:${input.humanId}`
   )
+  const chance = getHoldTheWallDealOfferChance(input.relationships, input.aiId, input.humanId)
+  return draw < chance
 }
 
 export function shouldAiAcceptHoldTheWallDeal(input: {
@@ -114,10 +116,12 @@ export function shouldAiAcceptHoldTheWallDeal(input: {
   aiId: string
   humanId: string
 }): boolean {
-  return (
-    seededDecision(input.seed, `hold-wall-accept:${input.week}:${input.aiId}:${input.humanId}`) <
-    getHoldTheWallDealAcceptanceChance(input.relationships, input.aiId, input.humanId)
+  const draw = seededDecision(
+    input.seed,
+    `hold-wall-accept:${input.week}:${input.aiId}:${input.humanId}`
   )
+  const chance = getHoldTheWallDealAcceptanceChance(input.relationships, input.aiId, input.humanId)
+  return draw < chance
 }
 
 export function shouldAiHonorHoldTheWallDeal(input: {
@@ -127,11 +131,14 @@ export function shouldAiHonorHoldTheWallDeal(input: {
   promisorId: string
   beneficiaryId: string
 }): boolean {
-  return (
-    seededDecision(
-      input.seed,
-      `hold-wall-honor:${input.week}:${input.promisorId}:${input.beneficiaryId}`
-    ) <
-    getHoldTheWallDealHonorChance(input.relationships, input.promisorId, input.beneficiaryId)
+  const draw = seededDecision(
+    input.seed,
+    `hold-wall-honor:${input.week}:${input.promisorId}:${input.beneficiaryId}`
   )
+  const chance = getHoldTheWallDealHonorChance(
+    input.relationships,
+    input.promisorId,
+    input.beneficiaryId
+  )
+  return draw < chance
 }
