@@ -60,6 +60,44 @@ type DecisionRead = {
   reason: string
 }
 
+function buildRelationshipRecap(affinity: number, tags: string[]): string {
+  const beats: string[] = []
+
+  if (tags.includes('romance')) {
+    beats.push('Romance — this became more than a game relationship')
+  } else if (tags.includes('bromance')) {
+    beats.push('Deep bond — you became one of each other’s closest people')
+  }
+
+  if (tags.includes('betrayal')) {
+    beats.push('Betrayal — trust between you was broken')
+  } else if (tags.includes('alliance')) {
+    beats.push('Alliance — you worked together when it mattered')
+  } else if (tags.includes('protection')) {
+    beats.push('Support — they protected or backed you in the game')
+  }
+
+  if (tags.includes('rivalry') || tags.includes('target')) {
+    beats.push('Rivalry — you spent part of the season on opposite sides')
+  } else if (
+    tags.includes('strained') ||
+    tags.includes('suspicious') ||
+    tags.includes('unreliable')
+  ) {
+    beats.push('Strained — the trust between you never fully settled')
+  }
+
+  if (beats.length === 0) {
+    if (affinity >= 55) return 'Close bond — they consistently felt like someone in your corner'
+    if (affinity >= 25) return 'Warm history — you generally trusted and supported each other'
+    if (affinity <= -45) return 'Bad blood — the relationship ended with very little trust'
+    if (affinity <= -20) return 'Tense history — there has been real friction between you'
+    return 'No defining pact or feud — this is mostly a game decision between you'
+  }
+
+  return beats.slice(0, 2).join(' · ')
+}
+
 function readDecision(
   lohId: string | null,
   nominee: Player,
@@ -75,14 +113,7 @@ function readDecision(
   const threat = lohWins * 3 + posWins * 2 + Math.min(timesNominated, 3)
   const brokeTrust =
     tags.includes('betrayal') || tags.includes('target') || tags.includes('rivalry')
-  const comparison = [
-    threat >= 5 ? `${lohWins + posWins} competition wins` : null,
-    timesNominated >= 2 ? `survived the block ${timesNominated} times` : null,
-    affinity >= 30 ? 'a strong bond with you' : null,
-    affinity <= -20 || brokeTrust ? 'unfinished business between you' : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const comparison = buildRelationshipRecap(affinity, tags)
   const reason =
     brokeTrust || affinity <= -20
       ? 'our game was never settled'
@@ -425,11 +456,23 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       {stage === 'decision' && humanIsLoh && (
         <TvDecisionModal
           title="Final Power Decision"
-          subtitle="The Final Two is one choice away. The season record is here if it helps you decide."
+          subtitle="Choose who you are evicting. The other finalist stays and faces you in the Final Two."
           options={nominees}
           optionDescriptions={optionDescriptions}
           onSelect={handleHumanDecision}
           danger
+          selectionConsequence={(selectedPlayer, options) => {
+            const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
+            return keptPlayer
+              ? `You will evict ${selectedPlayer.name}. ${keptPlayer.name} will join you in the Final Two.`
+              : `You will evict ${selectedPlayer.name}.`
+          }}
+          confirmSelectionLabel={(selectedPlayer, options) => {
+            const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
+            return keptPlayer
+              ? `Evict ${selectedPlayer.name} · Keep ${keptPlayer.name}`
+              : `Evict ${selectedPlayer.name}`
+          }}
           stingerMessage="EVICTION RECORDED"
         />
       )}
