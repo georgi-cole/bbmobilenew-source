@@ -139,6 +139,7 @@ import {
   resolveHubSaysQuestion,
 } from '../features/weekend/hubSays'
 import { buildSeasonSoFarFacts } from '../features/weekend/seasonSoFar'
+import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -2205,6 +2206,18 @@ function getNominationTargetBreakdown(
       score += mediaThreat
       factors.mediaStrategistThreat = mediaThreat
     }
+  }
+  const wallDeal = state.holdTheWallSafetyDeal
+  if (
+    wallDeal?.week === state.week &&
+    wallDeal.promisorId === lohId &&
+    wallDeal.beneficiaryId === candidate.id
+  ) {
+    const disposition = getHoldTheWallDealDisposition(state, wallDeal)
+    const dealContribution = disposition === 'honor' ? -260 : 240
+    score += dealContribution
+    factors.holdTheWallDeal = disposition
+    factors.holdTheWallDealContribution = dealContribution
   }
   const priorNominations = state.lastWeekNominationRecord
   if (priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)) {
@@ -4743,6 +4756,12 @@ const gameSlice = createSlice({
     },
     setLohSocialPlan(state, action: PayloadAction<NonNullable<GameState['lohSocialPlan']>>) {
       state.lohSocialPlan = action.payload
+    },
+    recordHoldTheWallSafetyDeal(
+      state,
+      action: PayloadAction<NonNullable<GameState['holdTheWallSafetyDeal']>>
+    ) {
+      state.holdTheWallSafetyDeal = action.payload
     },
     adoptSuggestedReplacementTarget(
       state,
@@ -9970,6 +9989,7 @@ const gameSlice = createSlice({
           state.nominationDecisionReasons = {}
           state.lohId = null
           state.lohSocialPlan = null
+          state.holdTheWallSafetyDeal = null
           state.nomineeIds = []
           state.lohSafetyAdvice = null
           state.posWinnerId = null
@@ -12038,6 +12058,7 @@ export const {
   syncStrategicRelationships,
   syncStrategicAlliances,
   setLohSocialPlan,
+  recordHoldTheWallSafetyDeal,
   addTvEvent,
   setHumanPregnancyRole,
   resetPregnancyStoryForDebug,
