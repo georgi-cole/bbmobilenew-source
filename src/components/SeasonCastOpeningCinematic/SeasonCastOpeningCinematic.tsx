@@ -1,1 +1,2 @@
-export { default } from './SeasonCastRoadOpening'\nexport type { SeasonCastOpeningCinematicProps } from './SeasonCastRoadOpening'\n
+export { default } from './SeasonCastRoadOpening'
+export type { SeasonCastOpeningCinematicProps } from './SeasonCastRoadOpening'
