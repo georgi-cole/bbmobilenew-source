@@ -943,7 +943,6 @@ function resolveIncomingInteractionPlan(
       (constraints.playerIsHoh || constraints.playerHasSafetyPower)
     ) {
       plan = { type: 'compliment', scenarioKey: 'post_veto_gratitude' }
-    }
     } else if (
       constraints.actorIsNominee &&
       (context.phase === 'pos_results' || context.phase === 'pos_ceremony_results') &&
