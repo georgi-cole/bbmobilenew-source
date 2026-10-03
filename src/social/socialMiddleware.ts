@@ -1162,10 +1162,7 @@ function recordPhaseCeremony(
       tags: voxPopuliActive ? ['secret_ballot'] : undefined,
     })
     if (!voxPopuliActive) {
-      evaluateSocialCommitmentsForAction(
-        api as unknown as CommitmentStore,
-        'game/commitNominees'
-      )
+      evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, 'game/commitNominees')
     }
   }
   if (previousPhase === 'pos_ceremony_results') {
