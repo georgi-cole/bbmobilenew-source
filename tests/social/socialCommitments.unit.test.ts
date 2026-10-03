@@ -152,4 +152,45 @@ describe('social commitments', () => {
       broken: 0,
     })
   })
+  it.each([
+    'game/submitHumanDoubleVote',
+    'game/submitTieBreak',
+    'game/submitDoubleEvictionTieBreak',
+  ])('voids an unavailable beneficiary for %s', (actionType) => {
+    const { store, social } = makeStore(['nova'])
+    store.dispatch(
+      addSocialCommitment({
+        id: 'unavailable-vote',
+        kind: actionType.includes('TieBreak') ? 'tie_break_keep' : 'vote_to_keep',
+        promisorId: 'user',
+        beneficiaryId: 'lia',
+        interactionId: 'talk',
+        createdWeek: 2,
+        dueWeek: 2,
+        status: 'pending',
+      })
+    )
+    const payload = actionType === 'game/submitTieBreak' ? 'nova' : ['nova']
+    evaluateSocialCommitmentsForAction(store, actionType, payload)
+    expect(social().commitments[0].status).toBe('void')
+    expect(social().relationships.lia?.user?.affinity ?? 0).toBe(0)
+  })
+
+  it('does not resolve an eviction promise from a Safety competition tie', () => {
+    const { store, social } = makeStore(['lia', 'nova'])
+    store.dispatch(
+      addSocialCommitment({
+        id: 'tie-promise',
+        kind: 'tie_break_keep',
+        promisorId: 'user',
+        beneficiaryId: 'lia',
+        interactionId: 'talk',
+        createdWeek: 2,
+        dueWeek: 2,
+        status: 'pending',
+      })
+    )
+    evaluateSocialCommitmentsForAction(store, 'game/submitPosTieBreak', 'lia')
+    expect(social().commitments[0].status).toBe('pending')
+  })
 })

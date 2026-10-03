@@ -32,6 +32,7 @@ function makeState() {
         { id: 'nominee-a', name: 'Echo', status: 'nominated' },
         { id: 'nominee-b', name: 'Vee', status: 'nominated' },
         { id: 'jax', name: 'Jax', status: 'jury' },
+        { id: 'spare', name: 'Spare', status: 'active' },
       ],
       dramaSocialMode: true,
       voxPopuli: { status: 'inactive' },

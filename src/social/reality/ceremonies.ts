@@ -6,6 +6,8 @@ import { applyRealityRelationshipChange, getRealityRelationship } from './relati
 import { createRealityContestantState, createRealityPerception } from './state'
 import { reconcileNemesisWithVoluntarySafety } from './relationshipAutonomy'
 import { evaluateRelationshipViolation } from '../relationshipViolation'
+import { getActiveFacadeAgreement } from './facadeAgreements'
+import { getDecisionRelationshipTags } from './decisionRelationships'
 import {
   adjustRealityAllianceCommitment,
   captureRealityReentryProfile,
@@ -47,6 +49,14 @@ export interface RealityCeremonyInput extends RealityClock {
   tags?: string[]
   /** Complete legal alternatives at decision time, when the host has them. */
   eligibleAlternativeIds?: string[]
+  automaticTargetIds?: string[]
+  nominationStage?: 'INITIAL_NOMINATION' | 'REPLACEMENT'
+  relationshipTagsByTarget?: Record<string, string[]>
+  /** Accepted dialogue promises, captured before their compatibility records resolve. */
+  acceptedPromiseTargetIds?: string[]
+  /** Nominees the holder could save at this decision, including a possible self-save. */
+  safetyEligibleTargetIds?: string[]
+  safetyDecisionComplete?: boolean
   publicEligible: boolean
 }
 
@@ -158,12 +168,11 @@ function rememberOfficialCeremony(
 function resolveCeremonyPromises(
   state: RealityDomainState,
   event: RealitySocialEvent,
-  kind: RealityCeremonyKind
+  kind: RealityCeremonyKind,
+  input: RealityCeremonyInput
 ): void {
   const activePromises = () =>
-    Object.values(state.promises).filter(
-      (promise) => promise.status === 'ACTIVE' || promise.status === 'PROPOSED'
-    )
+    Object.values(state.promises).filter((promise) => promise.status === 'ACTIVE')
 
   const resolveAndAttach = (promiseId: string, status: 'KEPT' | 'BROKEN' | 'VOID') => {
     const resolved = resolveRealityPromise(
@@ -171,7 +180,16 @@ function resolveCeremonyPromises(
       promiseId,
       status,
       { day: event.day, phase: event.phase },
-      event.id
+      event.id,
+      {
+        skipAllianceConsequence: state.events.some(
+          (candidate) =>
+            candidate.type === 'ALLIANCE_BETRAYAL' &&
+            candidate.actorId === event.actorId &&
+            candidate.reason.endsWith(`:${event.id}`) &&
+            candidate.targetIds.some((id) => state.promises[promiseId]?.beneficiaryIds.includes(id))
+        ),
+      }
     )
     if (resolved && !event.relatedPromiseIds.includes(promiseId)) {
       event.relatedPromiseIds.push(promiseId)
@@ -183,6 +201,22 @@ function resolveCeremonyPromises(
       if (promise.promisorId !== event.actorId || promise.kind !== 'protect') continue
       const beneficiaryId = promise.beneficiaryIds[0]
       if (!beneficiaryId) continue
+      if (
+        input.automaticTargetIds?.includes(beneficiaryId) ||
+        (input.eligibleAlternativeIds &&
+          !event.targetIds.includes(beneficiaryId) &&
+          !input.eligibleAlternativeIds.includes(beneficiaryId)) ||
+        getActiveFacadeAgreement(
+          state,
+          event.actorId,
+          beneficiaryId,
+          event.day,
+          input.nominationStage ?? 'INITIAL_NOMINATION'
+        )
+      ) {
+        resolveAndAttach(promise.id, 'VOID')
+        continue
+      }
       resolveAndAttach(promise.id, event.targetIds.includes(beneficiaryId) ? 'BROKEN' : 'KEPT')
     }
   }
@@ -197,6 +231,22 @@ function resolveCeremonyPromises(
 
     for (const promise of activePromises()) {
       if (promise.promisorId !== event.actorId) continue
+      if (
+        input.safetyDecisionComplete === false &&
+        !event.targetIds.some((id) => promise.beneficiaryIds.includes(id))
+      )
+        continue
+
+      const safetyBeneficiary = promise.beneficiaryIds[0]
+      if (
+        ['protect', 'use_safety_on_player'].includes(promise.kind) &&
+        safetyBeneficiary &&
+        input.safetyEligibleTargetIds &&
+        !input.safetyEligibleTargetIds.includes(safetyBeneficiary)
+      ) {
+        resolveAndAttach(promise.id, 'VOID')
+        continue
+      }
 
       if (promise.kind === 'use_safety_on_player') {
         const beneficiaryId = promise.beneficiaryIds[0]
@@ -220,7 +270,8 @@ function resolveCeremonyPromises(
           resolveAndAttach(promise.id, 'KEPT')
         } else if (
           (kind === 'SAFETY_DECLINED' && event.targetIds.includes(beneficiaryId)) ||
-          (kind === 'SAFETY_USED' && latestNomination?.targetIds.includes(beneficiaryId))
+          (kind === 'SAFETY_USED' &&
+            (input.safetyEligibleTargetIds ?? latestNomination?.targetIds)?.includes(beneficiaryId))
         ) {
           resolveAndAttach(promise.id, 'BROKEN')
         }
@@ -257,6 +308,19 @@ function applyAllianceSafetyCommitment(
   const affectedByAlliance = new Map<string, Set<string>>()
   for (const targetId of event.targetIds) {
     if (targetId === actorId) continue
+    if (event.tags.includes(`consented_safety:${targetId}`)) continue
+    if (
+      kind === 'SAFETY_USED' &&
+      state.events.some(
+        (candidate) =>
+          candidate.id !== event.id &&
+          candidate.type === 'CEREMONY_SAFETY_USED' &&
+          candidate.day === event.day &&
+          candidate.actorId === actorId &&
+          candidate.targetIds.includes(targetId)
+      )
+    )
+      continue
     for (const alliance of Object.values(state.alliances)) {
       if (
         alliance.status === 'DISSOLVED' ||
@@ -272,6 +336,16 @@ function applyAllianceSafetyCommitment(
   }
 
   for (const [allianceId, targetIds] of affectedByAlliance) {
+    if (
+      state.events.some(
+        (candidate) =>
+          candidate.type === 'ALLIANCE_BETRAYAL' &&
+          candidate.actorId === actorId &&
+          candidate.reason.endsWith(`:${event.id}`) &&
+          candidate.reason.includes(`:${allianceId}:`)
+      )
+    )
+      continue
     adjustRealityAllianceCommitment(
       state,
       allianceId,
@@ -279,6 +353,18 @@ function applyAllianceSafetyCommitment(
       kind === 'SAFETY_USED' ? 0.08 : -0.06
     )
     for (const targetId of targetIds) {
+      if (
+        kind === 'SAFETY_USED' &&
+        state.events.some(
+          (candidate) =>
+            candidate.id !== event.id &&
+            candidate.type === 'CEREMONY_SAFETY_USED' &&
+            candidate.day === event.day &&
+            candidate.actorId === actorId &&
+            candidate.targetIds.includes(targetId)
+        )
+      )
+        continue
       adjustRealityAllianceCommitment(
         state,
         allianceId,
@@ -289,10 +375,67 @@ function applyAllianceSafetyCommitment(
   }
 }
 
+function hasAcceptedProtectionPromise(
+  state: RealityDomainState,
+  actorId: string,
+  targetId: string,
+  kinds: string[]
+): boolean {
+  return Object.values(state.promises).some(
+    (promise) =>
+      promise.status === 'ACTIVE' &&
+      promise.promisorId === actorId &&
+      promise.beneficiaryIds.includes(targetId) &&
+      kinds.includes(promise.kind)
+  )
+}
+
+function applyDecisionFallout(
+  state: RealityDomainState,
+  event: Pick<RealitySocialEvent, 'id' | 'actorId' | 'day' | 'phase'>,
+  targetId: string,
+  kind: 'NOMINATION' | 'SAFETY_ABANDON' | 'VOTE',
+  violation: ReturnType<typeof evaluateRelationshipViolation>
+): void {
+  if (!event.actorId || violation.classification === 'NONE') return
+  if (violation.classification === 'BETRAYAL') {
+    const affected = recordRealityAllianceBetrayal(state, {
+      actorId: event.actorId,
+      targetId,
+      kind,
+      at: { day: event.day, phase: event.phase },
+      sourceEventId: event.id,
+    })
+    // The pact handler owns both commitment and relationship fallout. Romance
+    // and promises without a shared pact still need one relationship consequence.
+    if (affected.length > 0) return
+  }
+  const severe =
+    violation.classification === 'BETRAYAL' || violation.classification === 'BROKEN_PROMISE'
+  const scale = severe ? 1 : violation.forcedChoice ? 0.35 : 0.55
+  applyRealityRelationshipChange(state, {
+    sourceId: targetId,
+    targetId: event.actorId,
+    eventId: event.id,
+    day: event.day,
+    phase: event.phase,
+    anchor: severe ? 'negative' : undefined,
+    deltas: {
+      warmth: -8 * scale,
+      trust: -18 * scale,
+      loyalty: severe ? -20 : 0,
+      resentment: 20 * scale,
+      suspicion: 12 * scale,
+      reliability: severe ? -18 : 0,
+    },
+  })
+}
+
 function applyCeremonyAftermath(
   state: RealityDomainState,
   event: RealitySocialEvent,
-  kind: RealityCeremonyKind
+  kind: RealityCeremonyKind,
+  input: RealityCeremonyInput
 ): void {
   const actorId = event.actorId
   if (kind === 'POWER_WON' && actorId) {
@@ -302,28 +445,40 @@ function applyCeremonyAftermath(
     winner.primaryGoalId = 'USE_POWER_WITHOUT_CREATING_UNNECESSARY_ENEMIES'
   }
 
-  if (kind === 'NOMINATIONS_LOCKED' && actorId) {
-    contestant(state, actorId).primaryGoalId = 'MANAGE_NOMINATION_FALLOUT'
+  if (kind === 'NOMINATIONS_LOCKED') {
+    if (actorId) contestant(state, actorId).primaryGoalId = 'MANAGE_NOMINATION_FALLOUT'
     for (const targetId of event.targetIds) {
       const nominee = contestant(state, targetId)
       nominee.stress = clamp(nominee.stress + 24, 0, 100)
       nominee.emotions.fear = clamp(nominee.emotions.fear + 20, 0, 100)
       nominee.primaryGoalId = 'SURVIVE_THE_VOTE'
-      applyRealityRelationshipChange(state, {
-        sourceId: targetId,
-        targetId: actorId,
-        day: event.day,
-        phase: event.phase,
-        eventId: event.id,
-        anchor: event.tags.includes('betrayal') ? 'negative' : undefined,
-        deltas: {
-          warmth: -8,
-          trust: event.tags.includes('betrayal') ? -25 : -10,
-          resentment: event.tags.includes('betrayal') ? 28 : 12,
-          suspicion: 10,
-          perceivedThreat: 12,
-        },
+      if (!actorId || input.automaticTargetIds?.includes(targetId)) continue
+      const tags = (id: string) =>
+        getDecisionRelationshipTags(state, actorId, id, input.relationshipTagsByTarget?.[id])
+      const consent = getActiveFacadeAgreement(
+        state,
+        actorId,
+        targetId,
+        event.day,
+        input.nominationStage ?? 'INITIAL_NOMINATION'
+      )
+      const violation = evaluateRelationshipViolation({
+        actorId,
+        targetId,
+        actionType: 'NOMINATION',
+        relationshipTags: tags(targetId),
+        eligibleAlternatives: input.eligibleAlternativeIds?.map((id) => ({
+          id,
+          relationshipTags: tags(id),
+        })),
+        facadeAgreement: consent,
+        promiseBroken:
+          hasAcceptedProtectionPromise(state, actorId, targetId, ['protect']) ||
+          input.acceptedPromiseTargetIds?.includes(targetId),
       })
+      if (violation.consentProtected) event.tags.push(`consented_nominee:${targetId}`)
+      if (violation.forcedChoice) event.tags.push(`forced_nominee:${targetId}`)
+      applyDecisionFallout(state, event, targetId, 'NOMINATION', violation)
     }
   }
 
@@ -331,6 +486,17 @@ function applyCeremonyAftermath(
     contestant(state, actorId).primaryGoalId = 'MANAGE_SAFETY_FALLOUT'
     for (const savedId of event.targetIds) {
       if (savedId === actorId) continue
+      if (
+        state.events.some(
+          (candidate) =>
+            candidate.id !== event.id &&
+            candidate.type === 'CEREMONY_SAFETY_USED' &&
+            candidate.day === event.day &&
+            candidate.actorId === actorId &&
+            candidate.targetIds.includes(savedId)
+        )
+      )
+        continue
       const saved = contestant(state, savedId)
       saved.stress = clamp(saved.stress - 22, 0, 100)
       saved.emotions.gratitude = clamp(saved.emotions.gratitude + 25, 0, 100)
@@ -365,18 +531,42 @@ function applyCeremonyAftermath(
     }
   }
 
-  if (kind === 'SAFETY_DECLINED' && actorId) {
+  if (
+    (kind === 'SAFETY_DECLINED' || kind === 'SAFETY_USED') &&
+    actorId &&
+    input.safetyDecisionComplete !== false
+  ) {
+    const candidates =
+      input.safetyEligibleTargetIds ?? (kind === 'SAFETY_DECLINED' ? event.targetIds : [])
     contestant(state, actorId).primaryGoalId = 'DEFEND_SAFETY_DECISION'
-    for (const targetId of event.targetIds) {
+    for (const targetId of candidates) {
+      if (targetId === actorId || (kind === 'SAFETY_USED' && event.targetIds.includes(targetId)))
+        continue
       contestant(state, targetId).primaryGoalId = 'FIND_LAST_MINUTE_VOTES'
-      applyRealityRelationshipChange(state, {
-        sourceId: targetId,
-        targetId: actorId,
-        day: event.day,
-        phase: event.phase,
-        eventId: event.id,
-        deltas: { warmth: -4, trust: -7, resentment: 8 },
+      const tags = (id: string) =>
+        getDecisionRelationshipTags(state, actorId, id, input.relationshipTagsByTarget?.[id])
+      const promised =
+        hasAcceptedProtectionPromise(state, actorId, targetId, [
+          'protect',
+          'use_safety_on_player',
+        ]) || input.acceptedPromiseTargetIds?.includes(targetId)
+      const chosenIds = kind === 'SAFETY_USED' ? event.targetIds : candidates
+      const violation = evaluateRelationshipViolation({
+        actorId,
+        targetId,
+        actionType: 'SAFETY_ABANDON',
+        relationshipTags: tags(targetId),
+        eligibleAlternatives: chosenIds.map((id) => ({
+          id,
+          relationshipTags: id === actorId ? ['ride_or_die'] : tags(id),
+        })),
+        promiseBroken: promised,
+        actionConsented:
+          kind === 'SAFETY_DECLINED' &&
+          hasAcceptedProtectionPromise(state, actorId, targetId, ['hold_safety']),
       })
+      if (violation.consentProtected) event.tags.push(`consented_safety:${targetId}`)
+      applyDecisionFallout(state, event, targetId, 'SAFETY_ABANDON', violation)
     }
   }
 
@@ -432,6 +622,14 @@ export function recordRealityCeremonyOutcome(
         event.day === input.day &&
         event.type === expectedType &&
         event.actorId === input.actorId &&
+        (input.kind !== 'NOMINATIONS_LOCKED' ||
+          (event.tags.find((tag) => tag.startsWith('nomination_stage:')) ??
+            'nomination_stage:INITIAL_NOMINATION') ===
+            `nomination_stage:${input.nominationStage ?? 'INITIAL_NOMINATION'}`) &&
+        (!input.kind.startsWith('SAFETY_') ||
+          (event.tags.find((tag) => tag.startsWith('safety_decision:')) ??
+            'safety_decision:complete') ===
+            `safety_decision:${input.safetyDecisionComplete === false ? 'partial' : 'complete'}`) &&
         [...event.targetIds].sort().join('|') === targetKey
     )
   if (duplicate) return duplicate
@@ -454,7 +652,16 @@ export function recordRealityCeremonyOutcome(
     visibility: 'CEREMONY_PUBLIC',
     outcome: 'SYSTEM',
     reason: input.reason ?? input.kind.toLowerCase().replaceAll('_', ' '),
-    tags: [...(input.tags ?? []), 'ceremony', input.kind.toLowerCase()],
+    tags: [
+      ...(input.tags ?? []),
+      'ceremony',
+      input.kind.toLowerCase(),
+      ...(input.automaticTargetIds ?? []).map((id) => `automatic_nominee:${id}`),
+      ...(input.nominationStage ? [`nomination_stage:${input.nominationStage}`] : []),
+      ...(input.kind.startsWith('SAFETY_')
+        ? [`safety_decision:${input.safetyDecisionComplete === false ? 'partial' : 'complete'}`]
+        : []),
+    ],
     relatedFactIds: [factId],
     relatedPromiseIds: [],
     relatedThreadIds: [],
@@ -477,59 +684,9 @@ export function recordRealityCeremonyOutcome(
     sourceEventId: eventId,
   })
   rememberOfficialCeremony(state, event, factId)
-  applyCeremonyAftermath(state, event, input.kind)
-  resolveCeremonyPromises(state, event, input.kind)
+  applyCeremonyAftermath(state, event, input.kind, input)
+  resolveCeremonyPromises(state, event, input.kind, input)
   applyAllianceSafetyCommitment(state, event, input.kind)
-  if (input.kind === 'NOMINATIONS_LOCKED' && event.actorId) {
-    const relationshipTags = (candidateId: string): string[] => {
-      const tags: string[] = []
-      if (
-        Object.values(state.alliances).some(
-          (alliance) =>
-            alliance.status !== 'DISSOLVED' &&
-            alliance.memberIds.includes(event.actorId!) &&
-            alliance.memberIds.includes(candidateId)
-        )
-      ) {
-        tags.push('alliance')
-      }
-      if (
-        Object.values(state.romances).some(
-          (romance) =>
-            romance.status === 'ACTIVE' &&
-            romance.participantIds.includes(event.actorId!) &&
-            romance.participantIds.includes(candidateId)
-        )
-      ) {
-        tags.push('romance')
-      }
-      return tags
-    }
-    for (const targetId of event.targetIds) {
-      const violation = evaluateRelationshipViolation({
-        actorId: event.actorId,
-        targetId,
-        actionType: 'NOMINATION',
-        relationshipTags: relationshipTags(targetId),
-        ...(input.eligibleAlternativeIds
-          ? {
-              eligibleAlternatives: input.eligibleAlternativeIds.map((id) => ({
-                id,
-                relationshipTags: relationshipTags(id),
-              })),
-            }
-          : {}),
-      })
-      if (violation.classification !== 'BETRAYAL') continue
-      recordRealityAllianceBetrayal(state, {
-        actorId: event.actorId,
-        targetId,
-        kind: 'NOMINATION',
-        at: { day: event.day, phase: event.phase },
-        sourceEventId: event.id,
-      })
-    }
-  }
   if (input.kind === 'SAFETY_USED') {
     reconcileNemesisWithVoluntarySafety(state, {
       actorId: input.actorId,
@@ -610,44 +767,49 @@ export function finalizeRealityVote(
   targetId: string,
   at: RealityClock,
   eventId: string,
-  eligibleTargetIds?: string[]
+  eligibleTargetIds?: string[],
+  options: {
+    revealed?: boolean
+    relationshipTagsByTarget?: Record<string, string[]>
+    acceptedPromiseTargetIds?: string[]
+  } = {}
 ): RealityVoteIntent {
   const intent = voteIntent(state, actorId, at.day)
-  const alreadyRecordedSameVote = intent.day === at.day && intent.actualTargetId === targetId
+  const consequenceKey = `vote-consequence:${at.day}:${targetId}`
+  const alreadyRecordedSameVote = intent.reasonEventIds.includes(consequenceKey)
   intent.actualTargetId = targetId
   intent.day = at.day
   intent.reasonEventIds = [...new Set([...intent.reasonEventIds, eventId])]
-  const relationshipTags = (candidateId: string): string[] => {
-    const tags: string[] = []
-    if (
-      Object.values(state.alliances).some(
-        (alliance) =>
-          alliance.status !== 'DISSOLVED' &&
-          alliance.memberIds.includes(actorId) &&
-          alliance.memberIds.includes(candidateId)
-      )
-    ) {
-      tags.push('alliance')
-    }
-    if (
-      Object.values(state.romances).some(
-        (romance) =>
-          romance.status === 'ACTIVE' &&
-          romance.participantIds.includes(actorId) &&
-          romance.participantIds.includes(candidateId)
-      )
-    ) {
-      tags.push('romance')
-    }
-    return tags
-  }
-  const promiseBroken = Object.values(state.promises).some(
-    (promise) =>
-      promise.promisorId === actorId &&
-      promise.beneficiaryIds.includes(targetId) &&
-      promise.kind === 'protect' &&
-      (promise.status === 'ACTIVE' || promise.status === 'PROPOSED')
-  )
+  // Actual ballots are private truth. Tally announcements do not reveal who
+  // cast them; relationships and alliance knowledge wait for evidence.
+  if (options.revealed === false || alreadyRecordedSameVote) return intent
+  intent.reasonEventIds.push(consequenceKey)
+  recordRealityCeremonyOutcome(state, {
+    kind: 'VOTE_CAST',
+    actorId,
+    targetIds: [targetId],
+    day: at.day,
+    phase: at.phase,
+    witnessIds: [],
+    reason: 'An individual eviction vote was revealed.',
+    publicEligible: false,
+  })
+  const relationshipTags = (candidateId: string) =>
+    getDecisionRelationshipTags(
+      state,
+      actorId,
+      candidateId,
+      options.relationshipTagsByTarget?.[candidateId]
+    )
+  const promiseBroken =
+    options.acceptedPromiseTargetIds?.includes(targetId) ||
+    Object.values(state.promises).some(
+      (promise) =>
+        promise.promisorId === actorId &&
+        promise.beneficiaryIds.includes(targetId) &&
+        ['protect', 'vote_to_keep', 'tie_break_keep'].includes(promise.kind) &&
+        promise.status === 'ACTIVE'
+    )
   const violation = evaluateRelationshipViolation({
     actorId,
     targetId,
@@ -663,15 +825,13 @@ export function finalizeRealityVote(
       : {}),
     promiseBroken,
   })
-  if (violation.classification === 'BETRAYAL') {
-    recordRealityAllianceBetrayal(state, {
-      actorId,
-      targetId,
-      kind: 'VOTE',
-      at,
-      sourceEventId: eventId,
-    })
-  }
+  applyDecisionFallout(
+    state,
+    { id: eventId, actorId, day: at.day, phase: at.phase },
+    targetId,
+    'VOTE',
+    violation
+  )
   if (!alreadyRecordedSameVote) {
     recordRealityAlliancePlanDefiance(state, {
       actorId,
@@ -683,24 +843,26 @@ export function finalizeRealityVote(
     reinforceAllianceVotePlan(state, actorId, targetId)
   }
   for (const promise of Object.values(state.promises)) {
-    if (
-      promise.promisorId !== actorId ||
-      (promise.status !== 'ACTIVE' && promise.status !== 'PROPOSED')
-    ) {
+    if (promise.promisorId !== actorId || promise.status !== 'ACTIVE') {
       continue
     }
 
-    if (promise.kind === 'protect') {
+    if (['protect', 'vote_to_keep', 'tie_break_keep'].includes(promise.kind)) {
       const beneficiaryId = promise.beneficiaryIds[0]
-      if (beneficiaryId && eligibleTargetIds?.includes(beneficiaryId)) {
-        resolveRealityPromise(
-          state,
-          promise.id,
-          targetId === beneficiaryId ? 'BROKEN' : 'KEPT',
-          at,
-          eventId
-        )
-      }
+      if (!beneficiaryId) continue
+      const unavailable =
+        eligibleTargetIds !== undefined && !eligibleTargetIds.includes(beneficiaryId)
+      resolveRealityPromise(
+        state,
+        promise.id,
+        unavailable ? 'VOID' : targetId === beneficiaryId ? 'BROKEN' : 'KEPT',
+        at,
+        eventId,
+        {
+          skipAllianceConsequence:
+            targetId === beneficiaryId && violation.classification === 'BETRAYAL',
+        }
+      )
       continue
     }
 
@@ -829,7 +991,11 @@ function automaticGoodbyeQuality(
 
   if (
     exitWindow.some(
-      (event) => event.type === 'CEREMONY_NOMINATIONS_LOCKED' && event.targetIds.includes(jurorId)
+      (event) =>
+        event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+        event.targetIds.includes(jurorId) &&
+        !event.tags.includes(`automatic_nominee:${jurorId}`) &&
+        !event.tags.includes(`consented_nominee:${jurorId}`)
     )
   ) {
     score -= 14
@@ -860,7 +1026,13 @@ function automaticGoodbyeQuality(
   }
 
   const voteIntent = state.voteIntents[finalistId]
-  if (voteIntent?.day === eviction.day && voteIntent.actualTargetId === jurorId) {
+  if (
+    voteIntent?.day === eviction.day &&
+    voteIntent.actualTargetId === jurorId &&
+    exitWindow.some(
+      (event) => event.type === 'CEREMONY_VOTE_CAST' && event.targetIds.includes(jurorId)
+    )
+  ) {
     score -= 16
   }
 

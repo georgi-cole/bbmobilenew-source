@@ -2,6 +2,11 @@ import { resolveLanguagePreference, translate, type TranslationKey } from '../i1
 import { addTvEvent } from '../store/gameSlice'
 import { updateApproval } from '../publicOpinion/publicOpinionSlice'
 import { socialConfig } from './socialConfig'
+import { getEffectiveSocialMode } from './socialMode'
+import { getActiveFacadeAgreement } from './reality/facadeAgreements'
+import type { RealityDomainState } from './reality/types'
+import type { GameState } from '../types'
+import { expandCupidIds } from '../features/twists/cupidArrow'
 import {
   applyInfluenceDelta,
   pushIncomingInteraction,
@@ -27,6 +32,14 @@ interface CommitmentPlayer {
 interface CommitmentState {
   game: {
     week?: number
+    phase?: string
+    lohId?: string | null
+    dramaSocialMode?: boolean
+    nominationContext?: { autoNomineeId: string | null } | null
+    cupidArrow?: GameState['cupidArrow']
+    coLohIds?: string[] | null
+    coLohNomineeByCoLohId?: Record<string, string> | null
+    tiedNomineeIds?: string[] | null
     nomineeIds?: string[]
     povSavedId?: string | null
     votes?: Record<string, string>
@@ -36,8 +49,10 @@ interface CommitmentState {
     commitments?: SocialCommitment[]
     relationships?: RelationshipsMap
     influenceBank?: Record<string, number>
+    reality?: RealityDomainState
   }
   settings?: {
+    gameUX?: { dramaMode?: boolean; dramaModeAdminOverride?: boolean }
     localization?: {
       language?: unknown
     }
@@ -229,6 +244,10 @@ function resolvePromise(
       resolutionReason: reason,
     })
   )
+  // Drama ceremonies apply the coordinated relationship/commitment consequence.
+  // Compatibility records retain the promise outcome without a second penalty.
+  if (getEffectiveSocialMode(state) === 'drama' && state.social.reality && !options.privateVote)
+    return
   if (!options.privateVote) {
     store.dispatch(
       updateRelationship({
@@ -293,6 +312,17 @@ function resolvePromise(
   }
 }
 
+function voidPromise(store: CommitmentStore, commitment: SocialCommitment, reason: string): void {
+  store.dispatch(
+    resolveSocialCommitment({
+      commitmentId: commitment.id,
+      status: 'void',
+      resolvedWeek: store.getState().game.week ?? 1,
+      resolutionReason: reason,
+    })
+  )
+}
+
 function pendingForAction(state: CommitmentState, kind: SocialCommitmentKind): SocialCommitment[] {
   const week = state.game.week ?? 1
   return (state.social.commitments ?? []).filter(
@@ -304,12 +334,40 @@ function pendingForAction(state: CommitmentState, kind: SocialCommitmentKind): S
 export function evaluateSocialCommitmentsForAction(
   store: CommitmentStore,
   actionType: string,
-  payload?: unknown
+  payload?: unknown,
+  decisionContext: { eligibleTargetIds?: string[]; savedTargetIds?: string[] } = {}
 ): void {
   const state = store.getState()
   if (actionType === 'game/finalizeNominations' || actionType === 'game/commitNominees') {
     const nominees = state.game.nomineeIds ?? []
     for (const commitment of pendingForAction(state, 'protect_from_nomination')) {
+      const consent =
+        state.social.reality &&
+        getActiveFacadeAgreement(
+          state.social.reality,
+          commitment.promisorId,
+          commitment.beneficiaryId,
+          state.game.week ?? 1,
+          'INITIAL_NOMINATION'
+        )
+      const automaticIds = state.game.nominationContext?.autoNomineeId
+        ? expandCupidIds(state.game, [state.game.nominationContext.autoNomineeId])
+        : []
+      const otherOwner = Object.entries(state.game.coLohNomineeByCoLohId ?? {}).find(
+        ([, nomineeId]) =>
+          expandCupidIds(state.game, [nomineeId]).includes(commitment.beneficiaryId)
+      )?.[0]
+      if (
+        automaticIds.includes(commitment.beneficiaryId) ||
+        consent ||
+        (otherOwner && otherOwner !== commitment.promisorId) ||
+        (state.game.lohId !== undefined &&
+          state.game.lohId !== commitment.promisorId &&
+          !state.game.coLohIds?.includes(commitment.promisorId))
+      ) {
+        voidPromise(store, commitment, 'no_voluntary_nomination')
+        continue
+      }
       const kept = !nominees.includes(commitment.beneficiaryId)
       resolvePromise(
         store,
@@ -323,6 +381,13 @@ export function evaluateSocialCommitmentsForAction(
 
   if (actionType === 'game/submitPovDecision') {
     for (const commitment of pendingForAction(state, 'use_safety_on_player')) {
+      if (
+        decisionContext.eligibleTargetIds &&
+        !decisionContext.eligibleTargetIds.includes(commitment.beneficiaryId)
+      ) {
+        voidPromise(store, commitment, 'no_safety_opportunity')
+        continue
+      }
       if (payload === false) {
         resolvePromise(store, commitment, false, 'declined_to_use_safety')
       } else if (!(state.game.nomineeIds ?? []).includes(commitment.beneficiaryId)) {
@@ -335,7 +400,14 @@ export function evaluateSocialCommitmentsForAction(
   if (actionType === 'game/submitPovSaveTarget' && typeof payload === 'string') {
     if (state.game.povSavedId !== payload) return
     for (const commitment of pendingForAction(state, 'use_safety_on_player')) {
-      const kept = payload === commitment.beneficiaryId
+      if (
+        decisionContext.eligibleTargetIds &&
+        !decisionContext.eligibleTargetIds.includes(commitment.beneficiaryId)
+      ) {
+        voidPromise(store, commitment, 'no_safety_opportunity')
+        continue
+      }
+      const kept = (decisionContext.savedTargetIds ?? [payload]).includes(commitment.beneficiaryId)
       resolvePromise(store, commitment, kept, kept ? 'saved_with_safety' : 'saved_someone_else')
     }
     return
@@ -345,6 +417,10 @@ export function evaluateSocialCommitmentsForAction(
     const votePromises = pendingForAction(state, 'vote_to_keep')
     const conflicting = new Set(votePromises.map((entry) => entry.beneficiaryId)).size > 1
     for (const commitment of votePromises) {
+      if (!(state.game.nomineeIds ?? []).includes(commitment.beneficiaryId)) {
+        voidPromise(store, commitment, 'no_vote_opportunity')
+        continue
+      }
       const kept = payload !== commitment.beneficiaryId
       resolvePromise(store, commitment, kept, kept ? 'voted_to_keep' : 'voted_against_promise', {
         privateVote: true,
@@ -367,6 +443,10 @@ export function evaluateSocialCommitmentsForAction(
 
   if (actionType === 'game/submitHumanDoubleVote' && Array.isArray(payload)) {
     for (const commitment of pendingForAction(state, 'vote_to_keep')) {
+      if (!(state.game.nomineeIds ?? []).includes(commitment.beneficiaryId)) {
+        voidPromise(store, commitment, 'no_vote_opportunity')
+        continue
+      }
       const kept = !payload.includes(commitment.beneficiaryId)
       resolvePromise(
         store,
@@ -379,11 +459,19 @@ export function evaluateSocialCommitmentsForAction(
     return
   }
 
-  if (
-    (actionType === 'game/submitTieBreak' || actionType === 'game/submitPosTieBreak') &&
-    typeof payload === 'string'
-  ) {
+  if (actionType === 'game/submitTieBreak' && typeof payload === 'string') {
     for (const commitment of pendingForAction(state, 'tie_break_keep')) {
+      if (
+        !(
+          decisionContext.eligibleTargetIds ??
+          state.game.tiedNomineeIds ??
+          state.game.nomineeIds ??
+          []
+        ).includes(commitment.beneficiaryId)
+      ) {
+        voidPromise(store, commitment, 'no_tie_break_opportunity')
+        continue
+      }
       const kept = payload !== commitment.beneficiaryId
       resolvePromise(store, commitment, kept, kept ? 'voted_to_keep' : 'voted_against_promise')
     }
@@ -393,6 +481,17 @@ export function evaluateSocialCommitmentsForAction(
   if (actionType === 'game/submitDoubleEvictionTieBreak' && Array.isArray(payload)) {
     const evictedIds = new Set(payload.filter((id): id is string => typeof id === 'string'))
     for (const commitment of pendingForAction(state, 'tie_break_keep')) {
+      if (
+        !(
+          decisionContext.eligibleTargetIds ??
+          state.game.tiedNomineeIds ??
+          state.game.nomineeIds ??
+          []
+        ).includes(commitment.beneficiaryId)
+      ) {
+        voidPromise(store, commitment, 'no_tie_break_opportunity')
+        continue
+      }
       const kept = !evictedIds.has(commitment.beneficiaryId)
       resolvePromise(store, commitment, kept, kept ? 'voted_to_keep' : 'voted_against_promise')
     }

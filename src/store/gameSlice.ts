@@ -1754,12 +1754,16 @@ function getReplacementEligiblePlayers(
 
 export function getEligibleReplacementNominees(
   state: GameState,
-  actorId: string | null | undefined = state.lohId
+  actorId: string | null | undefined = state.lohId,
+  options: { allowLoh?: boolean; neededCount?: number } = {}
 ): Player[] {
   const alivePlayers = state.players.filter(
     (player) => player.status !== 'evicted' && player.status !== 'jury'
   )
-  return getReplacementEligiblePlayers(state, alivePlayers, 1, { actorId })
+  return getReplacementEligiblePlayers(state, alivePlayers, options.neededCount ?? 1, {
+    actorId,
+    allowLoh: options.allowLoh,
+  })
 }
 
 function isEligibleReplacementNominee(
@@ -2543,14 +2547,19 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
     )
   }
 
-  const lohUnitIds = new Set(expandCupidIds(state, state.lohId ? [state.lohId] : [actorId]))
+  const lohUnitIds = new Set(
+    expandCupidIds(
+      state,
+      state.coLohIds?.length ? state.coLohIds : state.lohId ? [state.lohId] : [actorId]
+    )
+  )
   let candidates = collapseCupidCandidates(
     state,
     alive.filter(
       (candidate) =>
         candidate.id !== actorId &&
         !lohUnitIds.has(candidate.id) &&
-        canPlayerNominatePlayer(state, state.lohId ?? actorId, candidate.id)
+        canPlayerNominatePlayer(state, actorId, candidate.id)
     )
   )
 

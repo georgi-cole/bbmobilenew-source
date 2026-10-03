@@ -6,6 +6,8 @@ import type { RelationshipsMap } from './types'
 import { evaluateRelationshipViolation } from './relationshipViolation'
 import { getActiveFacadeAgreement } from './reality/facadeAgreements'
 import type { RealityDomainState } from './reality/types'
+import { recordSocialCeremony } from './ceremonyRecorder'
+import type { GameState } from '../types'
 
 interface IntegrityPlayer {
   id: string
@@ -19,6 +21,9 @@ export interface NominationBetrayalState {
     phase: string
     lohId: string | null
     nomineeIds: string[]
+    nominationContext?: { autoNomineeId: string | null } | null
+    specialVeto?: { activeType?: string | null }
+    posWinnerId?: string | null
     players: IntegrityPlayer[]
     dramaSocialMode?: boolean
     voxPopuli?: { status?: string } | null
@@ -103,6 +108,8 @@ export function applyNominationBetrayalConsequences(
 ): void {
   if (
     getEffectiveSocialMode(after) !== 'drama' ||
+    // Official ceremonies own Reality consequences and their legacy projection.
+    after.social.reality ||
     after.game.voxPopuli?.status === 'active' ||
     !after.game.lohId
   ) {
@@ -111,6 +118,11 @@ export function applyNominationBetrayalConsequences(
 
   const lohId = after.game.lohId
   for (const nomineeId of nomineeIds) {
+    // Last-place nominees are placed on the block by the competition rule,
+    // not by the LOH. Their relationship with the LOH must not take nomination
+    // fallout from this automatic placement.
+    if (after.game.nominationContext?.autoNomineeId === nomineeId) continue
+
     const tags = combinedTags(before.social.relationships, lohId, nomineeId)
     if (tags.includes('betrayal')) continue
     const eligibleAlternatives = after.game.players
@@ -269,6 +281,7 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
   const result = next(action)
 
   if (!typedAction.type?.startsWith('game/')) return result
+  if (typedAction.type === 'game/hydrateGame') return result
 
   const after = api.getState() as NominationBetrayalState
   if (
@@ -284,12 +297,32 @@ export const realityIntegrityMiddleware: Middleware = (api) => (next) => (action
   )
   if (newlyAddedNominees.length === 0) return result
 
+  const replacement =
+    before.game.phase === 'pos_ceremony_results' || after.game.phase === 'pos_ceremony_results'
+  if (after.social.reality) {
+    const actorId =
+      replacement && ['diamond', 'coup'].includes(after.game.specialVeto?.activeType ?? '')
+        ? after.game.posWinnerId
+        : after.game.lohId
+    recordSocialCeremony(api, 'NOMINATIONS_LOCKED', {
+      actorId,
+      targetIds: replacement ? newlyAddedNominees : after.game.nomineeIds,
+      nominationStage: replacement ? 'REPLACEMENT' : 'INITIAL_NOMINATION',
+      reason: replacement
+        ? 'A replacement nominee was selected.'
+        : 'The nominations were made official.',
+      tags: replacement ? ['replacement_nominee'] : undefined,
+      decisionGame: before.game as GameState,
+    })
+    return result
+  }
+
   applyNominationBetrayalConsequences(
     api,
     before,
     after,
     newlyAddedNominees,
-    after.game.phase === 'pos_ceremony_results' ? 'replacement' : 'initial'
+    replacement ? 'replacement' : 'initial'
   )
 
   return result

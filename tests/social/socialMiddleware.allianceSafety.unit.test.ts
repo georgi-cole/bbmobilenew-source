@@ -3,8 +3,8 @@ import { createInitialRealityDomainState } from '../../src/social/reality'
 import { socialMiddleware } from '../../src/social/socialMiddleware'
 
 describe('socialMiddleware alliance Safety consequences', () => {
-  it('routes an abandoned ally through Reality once and keeps the legacy fallout compatibility-only', () => {
-    const state = {
+  it('routes a completed Safety decline through one canonical ceremony', () => {
+    let state = {
       game: {
         gameId: 'safety-alliance-test',
         seed: 7,
@@ -50,29 +50,25 @@ describe('socialMiddleware alliance Safety consequences', () => {
       },
     }
 
-    const invoke = socialMiddleware(api as never)((action: unknown) => action)
+    const invoke = socialMiddleware(api as never)((action: unknown) => {
+      state = { ...state, game: { ...state.game, awaitingPovDecision: false } }
+      return action
+    })
     invoke({ type: 'game/submitPovDecision', payload: false })
 
-    const abandonment = dispatched.find(
-      (action) => action.type === 'social/recordRealityAllianceBetrayal'
-    )
-    expect(abandonment?.payload).toMatchObject({
+    const ceremonies = dispatched.filter((action) => action.type === 'social/recordRealityCeremony')
+    expect(ceremonies).toHaveLength(1)
+    expect(ceremonies[0].payload).toMatchObject({
       actorId: 'holder',
-      targetId: 'ally',
-      kind: 'SAFETY_ABANDON',
+      targetIds: ['ally'],
+      kind: 'SAFETY_DECLINED',
+      safetyEligibleTargetIds: ['ally'],
       day: 4,
       phase: 'pos_ceremony_results',
     })
-
-    const legacyFallout = dispatched.find(
-      (action) =>
-        action.type === 'social/updateRelationship' &&
-        action.payload?.source === 'ally' &&
-        action.payload?.target === 'holder'
-    )
-    expect(legacyFallout?.payload).toMatchObject({
-      delta: -10,
-      skipRealityProjection: true,
-    })
+    expect(
+      dispatched.some((action) => action.type === 'social/recordRealityAllianceBetrayal')
+    ).toBe(false)
+    expect(dispatched.some((action) => action.type === 'social/updateRelationship')).toBe(false)
   })
 })
