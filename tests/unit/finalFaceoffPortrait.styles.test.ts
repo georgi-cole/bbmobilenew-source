@@ -9,10 +9,7 @@ function normalizeCss(css: string) {
 describe('Final Faceoff vote portrait styles', () => {
   it('clips current-vote portraits to a square circle and fills it with the image', () => {
     const css = normalizeCss(
-      readFileSync(
-        resolve(process.cwd(), 'src/components/FinalFaceoff/FinalFaceoff.css'),
-        'utf8'
-      )
+      readFileSync(resolve(process.cwd(), 'src/components/FinalFaceoff/FinalFaceoff.css'), 'utf8')
     )
 
     expect(css).toContain(
