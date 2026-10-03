@@ -25,4 +25,28 @@ describe('PublicFavoriteOverlay styles', () => {
     expect(css).toContain('.pf-overlay__fast-forward {');
     expect(css).toContain('width: min(100%, 9.5rem);');
   });
+
+  it('lets the live masthead grow and the final reveal extend beyond a short viewport', () => {
+    const css = normalizeCss(
+      readFileSync(
+        resolve(
+          process.cwd(),
+          'src/components/PublicFavoriteOverlay/PublicFavoriteProfessional.css',
+        ),
+        'utf8',
+      ),
+    );
+
+    expect(css).toContain(
+      '.pf-overlay__announcement-slot { height: auto; flex-basis: auto;',
+    );
+    expect(css).toContain(
+      '.pf-overlay--complete .pf-overlay__stage { height: auto; min-height: 100dvh; max-height: none;',
+    );
+    expect(css).toContain(
+      '.pf-overlay__header-copy { display: grid; grid-template-columns: minmax(0, 1fr)',
+    );
+    expect(css).toContain('@media (max-width: 420px)');
+    expect(css).toContain('.pf-overlay__status { max-width: 100%; text-align: left;');
+  });
 });
