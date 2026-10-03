@@ -107,9 +107,12 @@ function readDecision(
   const lohWins = stats?.lohWins ?? 0
   const posWins = stats?.posWins ?? 0
   const timesNominated = stats?.timesNominated ?? 0
-  const relationship = lohId ? relationships?.[lohId]?.[nominee.id] : undefined
-  const affinity = relationship?.affinity ?? 0
-  const tags = relationship?.tags ?? []
+  const outwardRelationship = lohId ? relationships?.[lohId]?.[nominee.id] : undefined
+  const inwardRelationship = lohId ? relationships?.[nominee.id]?.[lohId] : undefined
+  const affinity = outwardRelationship?.affinity ?? inwardRelationship?.affinity ?? 0
+  const tags = [
+    ...new Set([...(outwardRelationship?.tags ?? []), ...(inwardRelationship?.tags ?? [])]),
+  ]
   const threat = lohWins * 3 + posWins * 2 + Math.min(timesNominated, 3)
   const brokeTrust =
     tags.includes('betrayal') || tags.includes('target') || tags.includes('rivalry')
