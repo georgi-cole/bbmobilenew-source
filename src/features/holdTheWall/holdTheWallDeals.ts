@@ -132,10 +132,6 @@ export function shouldAiHonorHoldTheWallDeal(input: {
       input.seed,
       `hold-wall-honor:${input.week}:${input.promisorId}:${input.beneficiaryId}`
     ) <
-    getHoldTheWallDealHonorChance(
-      input.relationships,
-      input.promisorId,
-      input.beneficiaryId
-    )
+    getHoldTheWallDealHonorChance(input.relationships, input.promisorId, input.beneficiaryId)
   )
 }
