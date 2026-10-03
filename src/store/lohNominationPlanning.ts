@@ -131,8 +131,20 @@ function isTwinPartnerPair(state: GameState, firstId: string, secondId: string):
   )
 }
 
+function isStoreNominationProtected(state: GameState, playerId: string): boolean {
+  return Boolean(
+    state.storeNominationProtections?.some(
+      (protection) => protection.week === state.week && protection.targetId === playerId
+    )
+  )
+}
+
 function canPlanAgainst(state: GameState, lohId: string, candidate: Player): boolean {
-  return candidate.id !== lohId && !isTwinPartnerPair(state, lohId, candidate.id)
+  return (
+    candidate.id !== lohId &&
+    !isTwinPartnerPair(state, lohId, candidate.id) &&
+    !isStoreNominationProtected(state, candidate.id)
+  )
 }
 
 function isCanonicalSingleLohDay(state: GameState): boolean {
@@ -500,6 +512,9 @@ function reconcileInitialAiNominations(previous: GameState, state: GameState): G
   const baseNominees = [...state.nomineeIds]
   const desired = [...plan.initialNomineeIds]
   if (baseNominees.length !== desired.length || baseNominees.length === 0) return state
+  // The plan can predate a Store shield. Never let the planner rewrite the
+  // canonical nomination result back onto somebody who became protected.
+  if (desired.some((playerId) => isStoreNominationProtected(state, playerId))) return state
 
   const cloned = cloneForPlayerMutation(state)
   const baseSet = new Set(baseNominees)
@@ -533,6 +548,7 @@ function isReplacementEligible(state: GameState, playerId: string): boolean {
   if (state.nomineeIds.includes(playerId)) return false
   if (state.povSavedId === playerId) return false
   if ((state.povProtectedIds ?? []).includes(playerId)) return false
+  if (isStoreNominationProtected(state, playerId)) return false
   return true
 }
 
@@ -614,7 +630,8 @@ function reconcileBackdoorReplacement(previous: GameState, state: GameState): Ga
     cloned.lohSocialPlan = canonicalSocialPlan(cloned, cloned.lohNominationPlan)
   } else if (
     state.posWinnerId === plan.targetId ||
-    (state.povProtectedIds ?? []).includes(plan.targetId)
+    (state.povProtectedIds ?? []).includes(plan.targetId) ||
+    isStoreNominationProtected(state, plan.targetId)
   ) {
     // The hidden target earned protection. The LOH must pivot, so the backdoor
     // was genuinely foiled rather than silently rewritten into a success.
