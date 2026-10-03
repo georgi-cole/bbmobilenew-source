@@ -67,6 +67,69 @@ describe('AI LOH Ambush Safety pitch', () => {
     expect(result.lohNominationPlan?.status).toBe('initial_block_set')
   })
 
+  it('does not replace the canonical backup with a Store-protected Ambush target', () => {
+    const initial = gameReducer(undefined, { type: 'test/init' })
+    const loh = player('loh', { status: 'loh' })
+    const holder = player('holder', { status: 'pos' })
+    const target = player('target')
+    const pawnA = player('pawn-a', { status: 'nominated' })
+    const pawnB = player('pawn-b', { status: 'nominated' })
+    const fallback = player('fallback')
+    const state = {
+      ...initial,
+      week: 4,
+      phase: 'pos_results' as const,
+      lohId: loh.id,
+      posWinnerId: holder.id,
+      nomineeIds: [pawnA.id, pawnB.id],
+      replacementNomineeIds: [],
+      povSavedId: null,
+      povProtectedIds: [],
+      players: [loh, holder, target, pawnA, pawnB, fallback],
+      storeNominationProtections: [
+        { productKey: 'protection' as const, targetId: target.id, week: 4 },
+      ],
+      lohNominationPlan: {
+        week: 4,
+        lohId: loh.id,
+        targetId: target.id,
+        backupTargetId: null,
+        pawnIds: [pawnA.id, pawnB.id],
+        initialNomineeIds: [pawnA.id, pawnB.id],
+        strategy: 'backdoor' as const,
+        status: 'initial_block_set' as const,
+        selectionBasis: 'strategy' as const,
+        targetScore: 80,
+        backdoorChance: 0.5,
+      },
+    } as GameState
+    const baseReducer: Reducer<GameState, UnknownAction> = (currentState, action) => {
+      const resolvedState = currentState ?? state
+      if (action.type !== 'test/resolve-safety') return resolvedState
+      return {
+        ...resolvedState,
+        phase: 'pos_ceremony_results',
+        povSavedId: pawnA.id,
+        povProtectedIds: [pawnA.id],
+        nomineeIds: [pawnB.id, fallback.id],
+        replacementNomineeIds: [fallback.id],
+        players: resolvedState.players.map((candidate) => {
+          if (candidate.id === pawnA.id) return { ...candidate, status: 'active' }
+          if (candidate.id === fallback.id) return { ...candidate, status: 'nominated' }
+          return candidate
+        }),
+      }
+    }
+    const reducer = withLohNominationPlanning(baseReducer, getNominationTargetScore)
+
+    const result = reducer(state, { type: 'test/resolve-safety' })
+
+    expect(result.nomineeIds).toEqual([pawnB.id, fallback.id])
+    expect(result.replacementNomineeIds).toEqual([fallback.id])
+    expect(result.nomineeIds).not.toContain(target.id)
+    expect(result.lohNominationPlan?.status).toBe('compromised')
+  })
+
   it('does not pitch when the Ambush target has already won Safety', () => {
     const initial = gameReducer(undefined, { type: 'test/init' })
     const loh = player('loh', { status: 'loh' })

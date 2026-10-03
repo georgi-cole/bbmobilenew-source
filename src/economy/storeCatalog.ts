@@ -100,22 +100,24 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
     title: 'Immunity',
     price: 100_000,
     shortDescription:
-      'Protects you from nomination once. Public Mode auto-nominations still apply.',
+      'Protects you from nominations for the full day. Public Mode auto-nominations still apply.',
     inventoryLabel: 'Immunity',
     modeRules: {
       classic: {
         available: true,
         votingMoment: 'nomination',
         title: 'Immunity',
-        detail: 'Other players cannot nominate you at the next eligible nomination ceremony.',
-        armMessage: 'Immunity armed for your next eligible nomination ceremony.',
+        detail:
+          'Once triggered, other players cannot nominate you again that day, including as a backup nominee.',
+        armMessage: 'Immunity armed for the next eligible nomination day.',
       },
       vox: {
         available: true,
         votingMoment: 'nomination',
         title: 'Immunity',
-        detail: 'Other players cannot nominate you at the next eligible nomination ceremony.',
-        armMessage: 'Immunity armed for your next eligible nomination ceremony.',
+        detail:
+          'Once triggered, other players cannot nominate you again that day, including as a backup nominee.',
+        armMessage: 'Immunity armed for the next eligible nomination day.',
       },
     },
   },
@@ -131,15 +133,19 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
         available: true,
         votingMoment: 'nomination',
         title: 'Protection',
-        detail: 'Choose another player; they cannot be nominated at the next eligible ceremony.',
-        armMessage: 'Protection armed for your selected player at the next eligible ceremony.',
+        detail:
+          'Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.',
+        armMessage:
+          'Protection armed for your selected player for the next eligible nomination day.',
       },
       vox: {
         available: true,
         votingMoment: 'nomination',
         title: 'Protection',
-        detail: 'Choose another player; they cannot be nominated at the next eligible ceremony.',
-        armMessage: 'Protection armed for your selected player at the next eligible ceremony.',
+        detail:
+          'Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.',
+        armMessage:
+          'Protection armed for your selected player for the next eligible nomination day.',
       },
     },
   },
