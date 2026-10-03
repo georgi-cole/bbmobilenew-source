@@ -4,7 +4,6 @@ import {
   completeFinalThreeBlockReveal,
   completeFinalThreeOpening,
   completeSpectatorFinalPowerReveal,
-  finalizePendingEviction,
 } from '../../../store/gameSlice'
 import type { AppDispatch, RootState } from '../../../store/store'
 import type { ChatLine } from '../../../components/ChatOverlay/ChatOverlay'
@@ -18,7 +17,6 @@ interface UseEndgameFlowOptions {
   alivePlayers: Player[]
   humanPlayer: Player | undefined
   humanIsPosHolder: boolean
-  isDebugMode: boolean
   spectatorReactEnabled: boolean
   spectatorMode: boolean
   dispatch: AppDispatch
@@ -33,7 +31,6 @@ export function useEndgameFlow({
   alivePlayers,
   humanPlayer,
   humanIsPosHolder,
-  isDebugMode,
   spectatorReactEnabled,
   spectatorMode,
   dispatch,
@@ -266,9 +263,9 @@ export function useEndgameFlow({
   // Enter final4_eviction → build enriched plea lines and start the overlay.
   // For human POS: also dispatch advance() now so plea events are emitted to
   // tvFeed and awaitingPovDecision is set before the decision modal appears.
-  // In debug mode the plea cinematic is skipped; advance() is called by the FAB.
+  // This sequence must start in QA/debug sessions too: Play is blocked for the
+  // entire Final 4 phase while the presentation owns progression.
   useEffect(() => {
-    if (isDebugMode) return
     if (game.phase !== 'final4_eviction' || final4Stage !== 'idle') return
     const povHolder = alivePlayers.find((p) => p.id === game.posWinnerId)
     const nominees = alivePlayers.filter((p) => game.nomineeIds.includes(p.id))
@@ -315,7 +312,6 @@ export function useEndgameFlow({
       dispatch(advance())
     }
   }, [
-    isDebugMode,
     game.phase,
     final4Stage,
     alivePlayers,
@@ -337,17 +333,6 @@ export function useEndgameFlow({
       // Stage transitions to 'announcement' via effect below once phase === 'final3'
     }
   }, [humanIsPosHolder, dispatch])
-
-  // Debug mode: auto-commit pendingEviction when in final4_eviction phase and
-  // final4Stage is still 'idle' (plea cinematic was skipped). This replaces the
-  // eviction-splash flow and transitions the game directly to final3.
-  useEffect(() => {
-    if (!isDebugMode) return
-    if (game.phase !== 'final4_eviction') return
-    if (final4Stage !== 'idle') return
-    if (!game.pendingEviction?.evicteeId) return
-    dispatch(finalizePendingEviction(game.pendingEviction.evicteeId))
-  }, [isDebugMode, game.phase, game.pendingEviction?.evicteeId, final4Stage, dispatch])
 
   // Detect eviction: pendingEviction was set while in pleas/decision stage.
   // With the deferred-commit approach, the phase stays at final4_eviction until
@@ -428,7 +413,8 @@ export function useEndgameFlow({
     game.phase === 'final4_eviction' &&
     Boolean(game.awaitingPovDecision) &&
     Boolean(humanIsPosHolder) &&
-    ((final4Stage === 'decision' && final4DecisionReady) || (isDebugMode && final4Stage === 'idle'))
+    final4Stage === 'decision' &&
+    final4DecisionReady
   // Announcement: show during final4_eviction (pending commit) OR after final3 transition.
   const showFinal4AnnounceChat =
     (game.phase === 'final4_eviction' || game.phase === 'final3') && final4Stage === 'announcement'
