@@ -387,7 +387,9 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
   // strained replies can happen at most once per player/family/day; important
   // conflict actions remain distinct by action kind without duplicating the
   // exact same confrontation over and over.
-  const interactionId = `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${entry.actionId}:${responder.id}`
+  const interactionId = tenseAction
+    ? `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${entry.actionId}:${responder.id}`
+    : `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${responder.id}`
   if (hasIncomingInteraction(state, interactionId)) return
 
   const responseText = tenseAction
