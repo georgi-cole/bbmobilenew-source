@@ -4764,6 +4764,9 @@ const gameSlice = createSlice({
         source: 'final_two',
       }
     },
+    clearHoldTheWallSafetyDeal(state) {
+      state.holdTheWallSafetyDeal = undefined
+    },
     /**
      * Changes Public Mode for an in-progress Classic season without mutating
      * an active weekly cycle. The next Day Start is the normal safe boundary;
@@ -12113,6 +12116,7 @@ export const {
   removeCustomBroadcast,
   setDramaSocialMode,
   recordHoldTheWallSafetyDeal,
+  clearHoldTheWallSafetyDeal,
   requestPublicModeChange,
   setLohSafetyAdvice,
   addSocialSummary,
