@@ -29,16 +29,15 @@ describe('useQuickTapRaceAudio', () => {
     expect(releaseSpy).not.toHaveBeenCalled();
   });
 
-  it('exposes callbacks for tap, booster, and half-tap sounds', () => {
+  it('keeps only low-frequency booster and half-tap sounds', () => {
     const { result } = renderHook(() => useQuickTapRaceAudio(true));
 
     act(() => {
-      result.current.playTap();
       result.current.playBooster();
       result.current.playHalfTap();
     });
 
-    expect(SoundManager.play).toHaveBeenCalledWith('minigame:quicktap_tap');
+    expect(SoundManager.play).not.toHaveBeenCalledWith('minigame:quicktap_tap');
     expect(SoundManager.play).toHaveBeenCalledWith('minigame:quicktap_booster');
     expect(SoundManager.play).toHaveBeenCalledWith('minigame:quicktap_half_tap');
   });
