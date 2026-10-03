@@ -233,7 +233,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '🗳️',
     label: 'DEMOCRACIA',
     category: 'Shock',
-    body: 'Democracia has been activated. Instead of competing for power, the house will elect the next Leader of the House by secret vote.',
+    body: 'Democracia has been activated. Instead of competing for power, the hubmates will elect the next Leader of the Hub by secret vote.',
     shockDetail:
       'Every active player becomes part of the election. If there is a tie for first place, the tied candidates stay in contention and the remaining eligible houseguests revote until the result is resolved.',
   },
