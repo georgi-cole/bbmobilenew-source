@@ -10,7 +10,14 @@
  * mounts. This ensures exactly one server-driven countdown occurs and rules
  * are shown exactly once.
  */
-import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store/store';
 import {
@@ -174,29 +181,33 @@ export default function HoldTheWallComp({
   const gameWeek = useAppSelector((s: RootState) => s.game.week);
   const relationships = useAppSelector((s: RootState) => s.social?.relationships ?? {});
 
-  // Build a merged player map: Redux store data takes priority (has real avatars);
-  // fall back to prop data so the component works in GameDebug / test contexts.
-  const playerMap: Record<string, { id: string; name: string; avatar: string; isUser: boolean }> = {};
-  // Seed from props first (lowest priority)
-  if (participantsProp) {
-    for (const p of participantsProp) {
-      playerMap[p.id] = {
+  // Build a stable merged player map: Redux store data takes priority (has
+  // real avatars); props remain the GameDebug / test fallback.
+  const playerMap = useMemo(() => {
+    const merged: Record<
+      string,
+      { id: string; name: string; avatar: string; isUser: boolean }
+    > = {};
+    if (participantsProp) {
+      for (const p of participantsProp) {
+        merged[p.id] = {
+          id: p.id,
+          name: p.name,
+          avatar: getDicebear(p.name),
+          isUser: p.isHuman,
+        };
+      }
+    }
+    for (const p of storePlayers) {
+      merged[p.id] = {
         id: p.id,
         name: p.name,
-        avatar: getDicebear(p.name),
-        isUser: p.isHuman,
+        avatar: resolveAvatar(p),
+        isUser: !!p.isUser,
       };
     }
-  }
-  // Then overlay with real store data (higher priority — has proper avatars)
-  for (const p of storePlayers) {
-    playerMap[p.id] = {
-      id: p.id,
-      name: p.name,
-      avatar: resolveAvatar(p),
-      isUser: !!p.isUser,
-    };
-  }
+    return merged;
+  }, [participantsProp, storePlayers]);
 
   // Local UI state
   const [isHolding, setIsHolding] = useState(false);
