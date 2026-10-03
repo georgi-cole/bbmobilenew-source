@@ -164,61 +164,61 @@ describe('Reality pregnancy lifecycle', () => {
   it(
     'keeps Try for a Baby available with Aria after a climax romance when human sex is unset',
     () => {
-    const human: PlayerLike = {
-      id: 'user',
-      name: 'You',
-      status: 'active',
-      isUser: true,
-      age: 30,
-    }
-    const aria: PlayerLike = {
-      id: 'aria',
-      name: 'Aria',
-      status: 'active',
-      age: 23,
-      sex: 'Female',
-    }
-    const story = createInitialPregnancyStoryState()
-    const pregnancyEligibility = getPregnancyEligibility({
-      actor: human,
-      target: aria,
-      currentDay: 5,
-      story,
-      romanceActive: true,
-      relationshipScore: 92,
-    })
-    expect(pregnancyEligibility).toMatchObject({
-      eligible: true,
-      needsHumanRoleChoice: true,
-    })
-
-    const network = createInitialDramaSocialNetwork()
-    network.arcs.push({
-      id: 'romance-user-aria',
-      type: 'romance',
-      participantIds: [human.id, aria.id],
-      stage: 'climax',
-      intensity: 92,
-      startedWeek: 2,
-      lastAdvancedWeek: 5,
-      public: false,
-      status: 'active',
-    })
-    const action = SOCIAL_ACTIONS.find((entry) => entry.id === 'try_for_baby')!
-    expect(
-      evaluateSocialActionEligibility({
-        action,
-        actorId: human.id,
-        targetIds: [aria.id],
-        players: [human, aria],
-        relationships: { user: { aria: { affinity: 92, tags: [] } } },
-        dramaNetwork: network,
-        pregnancyStory: story,
-        dramaMode: true,
-        week: 5,
-        requireCompleteSelection: true,
+      const human: PlayerLike = {
+        id: 'user',
+        name: 'You',
+        status: 'active',
+        isUser: true,
+        age: 30,
+      }
+      const aria: PlayerLike = {
+        id: 'aria',
+        name: 'Aria',
+        status: 'active',
+        age: 23,
+        sex: 'Female',
+      }
+      const story = createInitialPregnancyStoryState()
+      const pregnancyEligibility = getPregnancyEligibility({
+        actor: human,
+        target: aria,
+        currentDay: 5,
+        story,
+        romanceActive: true,
+        relationshipScore: 92,
       })
-    ).toEqual({ eligible: true, reason: '' })
+      expect(pregnancyEligibility).toMatchObject({
+        eligible: true,
+        needsHumanRoleChoice: true,
+      })
+
+      const network = createInitialDramaSocialNetwork()
+      network.arcs.push({
+        id: 'romance-user-aria',
+        type: 'romance',
+        participantIds: [human.id, aria.id],
+        stage: 'climax',
+        intensity: 92,
+        startedWeek: 2,
+        lastAdvancedWeek: 5,
+        public: false,
+        status: 'active',
+      })
+      const action = SOCIAL_ACTIONS.find((entry) => entry.id === 'try_for_baby')!
+      expect(
+        evaluateSocialActionEligibility({
+          action,
+          actorId: human.id,
+          targetIds: [aria.id],
+          players: [human, aria],
+          relationships: { user: { aria: { affinity: 92, tags: [] } } },
+          dramaNetwork: network,
+          pregnancyStory: story,
+          dramaMode: true,
+          week: 5,
+          requireCompleteSelection: true,
+        })
+      ).toEqual({ eligible: true, reason: '' })
     }
   )
 
