@@ -2222,3 +2222,75 @@
     grid-column: auto;
   }
 }
+
+/* ─── Weekend resource header fit hardening ────────────────────────────────
+ * Weekend values are intentionally large (for example 999 influence/info).
+ * Give those values their own row on phones instead of clipping them inside
+ * the normal one-line Social header.
+ * ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 699px) {
+  .sp2-modal--weekend .sp2-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'identity close'
+      'resources resources';
+    align-items: center;
+    column-gap: 0.55rem;
+    row-gap: 0.36rem;
+    padding-bottom: 0.52rem;
+  }
+
+  .sp2-modal--weekend .sp2-header__identity {
+    grid-area: identity;
+    min-width: 0;
+    padding-top: 0;
+  }
+
+  .sp2-modal--weekend .sp2-header__title,
+  .sp2-modal--weekend .sp2-header__subtitle {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sp2-modal--weekend .sp2-header__resources {
+    grid-area: resources;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+    transform: none;
+    justify-content: stretch;
+    gap: 0.36rem;
+  }
+
+  .sp2-modal--weekend .sp2-energy-chip,
+  .sp2-modal--weekend .sp2-resource-chip {
+    min-width: 0;
+    flex: 1 1 0;
+    justify-content: center;
+    padding-inline: 0.4rem;
+    font-size: 0.68rem;
+  }
+
+  .sp2-modal--weekend .sp2-header__close {
+    grid-area: close;
+    transform: none;
+  }
+}
+
+@media (max-width: 359px) {
+  .sp2-modal--weekend .sp2-header {
+    row-gap: 0.3rem;
+  }
+
+  .sp2-modal--weekend .sp2-header__resources {
+    gap: 0.24rem;
+  }
+
+  .sp2-modal--weekend .sp2-energy-chip,
+  .sp2-modal--weekend .sp2-resource-chip {
+    padding-inline: 0.26rem;
+    font-size: 0.63rem;
+  }
+}

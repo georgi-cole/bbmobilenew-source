@@ -560,7 +560,6 @@ export default function GameScreen() {
     nominationLabels,
     canUsePublicNomineeRule,
     publicAutoNomineeId,
-    isDebugMode,
     isQaMode,
     handleDevPlayNomAnim,
     humanCoLohId,
@@ -843,7 +842,6 @@ export default function GameScreen() {
     alivePlayers,
     humanPlayer,
     humanIsPosHolder,
-    isDebugMode,
     spectatorReactEnabled,
     spectatorMode: settings.gameUX.spectatorMode,
     dispatch,
@@ -934,6 +932,7 @@ export default function GameScreen() {
     pendingEvictionPlayer,
     showEvictionSplash,
     handleEvictionSplashDone,
+    handleEvictionPresentationSettled,
     handlePostVoteAnnouncementDismiss,
   } = useEvictionFlow({
     game,
@@ -1886,7 +1885,7 @@ export default function GameScreen() {
         {showDemocraciaVoteModal && (
           <TvDecisionModal
             title="🗳️ Democracia — Cast Your Vote"
-            subtitle={`${humanPlayer?.name}, vote for the houseguest you want to become Leader of the House. You cannot vote for yourself.`}
+            subtitle={`${humanPlayer?.name}, vote for the hubmate you want to become Leader of the Hub. You cannot vote for yourself.`}
             options={democraciaVoteOptions}
             onSelect={(id) => dispatch(submitDemocraciaVote(id))}
             stingerMessage="VOTE CAST"
@@ -1897,7 +1896,7 @@ export default function GameScreen() {
         {showCoLohNominationModal && humanCoLohId && (
           <TvDecisionModal
             title="Co-LOH Nomination"
-            subtitle={`${humanPlayer?.name}, as co-Leader of the House, nominate one houseguest for elimination. You cannot nominate yourself or the other co-LOH.`}
+            subtitle={`${humanPlayer?.name}, as co-Leader of the Hub, nominate one hubmate for elimination. You cannot nominate yourself or the other co-LOH.`}
             options={coLohNomOptions}
             onSelect={(id) =>
               dispatch(submitCoLohNomination({ coLohId: humanCoLohId, nomineeId: id }))
@@ -2313,7 +2312,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Eviction cinematic (pendingEviction-driven, shared layout match-cut) ── */}
-        <AnimatePresence>
+        <AnimatePresence onExitComplete={handleEvictionPresentationSettled}>
           {showEvictionSplash &&
             pendingEvictionPlayer &&
             (game.mode === 'survival' ? (

@@ -251,6 +251,52 @@ describe('broadcast manager reducers', () => {
     expect(state.customBroadcasts?.map((message) => message.id)).toContain('permanent-message')
   })
 
+  it('cannot re-promote Democracia ballot receipts through local or remote manager overrides', () => {
+    let state = gameReducer(undefined, { type: 'init' })
+
+    state = gameReducer(
+      state,
+      setBroadcastOverride({
+        id: 'loh.democracia-vote-start',
+        changes: {
+          level: 'critical',
+          major: 'democracia',
+          forceOnTv: true,
+          text: 'Stale local manager override',
+        },
+      })
+    )
+
+    expect(state.broadcastOverrides?.['loh.democracia-vote-start']).toMatchObject({
+      text: 'Stale local manager override',
+      level: 'minor',
+      major: null,
+      forceOnTv: false,
+    })
+
+    state = gameReducer(
+      state,
+      replaceBroadcastConfig({
+        overrides: {
+          'card.democracia-vote': {
+            level: 'critical',
+            major: 'democracia',
+            forceOnTv: true,
+            text: 'Stale remote ballot card',
+          },
+        },
+        customMessages: [],
+      })
+    )
+
+    expect(state.broadcastOverrides?.['card.democracia-vote']).toMatchObject({
+      text: 'Stale remote ballot card',
+      level: 'minor',
+      major: null,
+      forceOnTv: false,
+    })
+  })
+
   it('applies manager changes from another tab to the active phase queue', () => {
     let state = gameReducer(undefined, { type: 'init' })
     state = gameReducer(

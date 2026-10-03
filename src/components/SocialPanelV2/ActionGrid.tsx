@@ -140,27 +140,44 @@ export default function ActionGrid({
     return energyOverride === undefined ? costs : { ...costs, energy: energyOverride }
   }
 
-  function isContextEligible(action: SocialActionDefinition): boolean {
+  function getContextEligibility(action: SocialActionDefinition) {
+    return evaluateSocialActionEligibility({
+      action,
+      actorId,
+      targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
+      phase: currentPhase,
+      week: game.week,
+      players: game.players.length > 0 ? game.players : players,
+      nomineeIds: game.nomineeIds,
+      primaryTargetStatus,
+      relationships,
+      dramaNetwork,
+      reality,
+      pregnancyStory: game.pregnancyStory,
+      dramaMode,
+    })
+  }
+
+  function hasContextVisibility(action: SocialActionDefinition): boolean {
     return (
       action.enabled !== false &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
       isHumanSocialActionVisible(action, dramaMode ? 'drama' : 'normal') &&
-      !hiddenActionIds.has(action.id) &&
-      evaluateSocialActionEligibility({
-        action,
-        actorId,
-        targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
-        phase: currentPhase,
-        week: game.week,
-        players: game.players.length > 0 ? game.players : players,
-        nomineeIds: game.nomineeIds,
-        primaryTargetStatus,
-        relationships,
-        dramaNetwork,
-        reality,
-        pregnancyStory: game.pregnancyStory,
-        dramaMode,
-      }).eligible
+      !hiddenActionIds.has(action.id)
+    )
+  }
+
+  function isContextEligible(action: SocialActionDefinition): boolean {
+    return hasContextVisibility(action) && getContextEligibility(action).eligible
+  }
+
+  function isVisiblePregnancyPrerequisite(action: SocialActionDefinition): boolean {
+    if (action.id !== 'try_for_baby' || !hasContextVisibility(action)) return false
+    const eligibility = getContextEligibility(action)
+    return (
+      !eligibility.eligible &&
+      eligibility.reason === 'Both housemates must be 18 or older.' &&
+      (selectedTargetIds?.size ?? 0) === 1
     )
   }
 
@@ -276,7 +293,12 @@ export default function ActionGrid({
 
   const explicitlyNoTargetSelected = selectedTargetIds !== undefined && selectedTargetIds.size === 0
   const orderedVisibleActions = actions
-    .filter((action) => isRealityPreview(action) || isContextEligible(action))
+    .filter(
+      (action) =>
+        isRealityPreview(action) ||
+        isContextEligible(action) ||
+        isVisiblePregnancyPrerequisite(action)
+    )
     .filter((action) => {
       if (!explicitlyNoTargetSelected) return true
       const actionMode = resolveActionTargetMode(
@@ -357,9 +379,15 @@ export default function ActionGrid({
         {visibleActions.map((action) => {
           const contextualAction = contextualizeAction(action)
           const costs = getActionCosts(action)
-          const availabilityReason = getAvailabilityReason(costs)
+          const contextEligibility = getContextEligibility(action)
+          const contextReason =
+            action.id === 'try_for_baby' && !contextEligibility.eligible
+              ? contextEligibility.reason
+              : ''
+          const availabilityReason = contextReason || getAvailabilityReason(costs)
           const premiumLocked = isRealityPreview(action)
-          const isDisabled = !premiumLocked && disabledIds.has(action.id)
+          const isDisabled =
+            !premiumLocked && (disabledIds.has(action.id) || Boolean(contextReason))
           const isAvailable = actorEnergy !== undefined && isActionAffordable(costs)
           return (
             <ActionCard

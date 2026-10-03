@@ -161,6 +161,7 @@ type InteractionScenarioKey =
   | 'nominee_hoh_plea'
   | 'nominee_veto_pitch'
   | 'nominee_campaign'
+  | 'co_nominee_check_in'
   | 'nomination_aftershock'
   | 'nominee_understands_loh'
   | 'automatic_nominee_reaction'
@@ -942,6 +943,7 @@ function resolveIncomingInteractionPlan(
       (constraints.playerIsHoh || constraints.playerHasSafetyPower)
     ) {
       plan = { type: 'compliment', scenarioKey: 'post_veto_gratitude' }
+    }
     } else if (
       constraints.actorIsNominee &&
       (context.phase === 'pos_results' || context.phase === 'pos_ceremony_results') &&
@@ -957,6 +959,16 @@ function resolveIncomingInteractionPlan(
       constraints.playerIsHoh
     ) {
       plan = { type: 'nomination_plea', scenarioKey: 'nominee_hoh_plea' }
+    } else if (
+      constraints.actorIsNominee &&
+      constraints.playerIsNominee &&
+      (context.phase === 'social_2' || context.phase === 'live_vote') &&
+      (signals.isMildAlly || signals.isAlliance)
+    ) {
+      // Two nominees cannot vote to save one another. Keep the conversation
+      // strategic, but never route it through a vote pitch or generic alliance
+      // reassurance that implies one can directly protect the other.
+      plan = { type: 'check_in', scenarioKey: 'co_nominee_check_in' }
     } else if (
       constraints.actorIsNominee &&
       constraints.playerCanVote &&
@@ -1291,6 +1303,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
     'nominee_confronts_loh',
     'replacement_nominee_reacts_to_loh',
     'nominee_campaign',
+    'co_nominee_check_in',
     'live_vote_pitch',
     'post_veto_campaign',
     'post_veto_gratitude',
@@ -1440,6 +1453,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I know I am vulnerable, but I am still fighting. I hope you will keep me in mind.',
     'I need calm numbers around me this week. I wanted to see where your head is at.',
     'Being up there changes everything. I am trying to make sure I still have people.',
+  ],
+  co_nominee_check_in: [
+    'We are both on the block. Neither of us has a vote here, so I want to compare what we are hearing before the decision lands.',
+    'We are both exposed right now. I do not want the block turning us against each other when we can still compare reads.',
+    'Neither of us can save the other with a vote, but we can make sure neither of us walks into the result blind.',
   ],
   nomination_aftershock: [
     'I am still trying to process seeing my name up there. I needed to talk to someone.',

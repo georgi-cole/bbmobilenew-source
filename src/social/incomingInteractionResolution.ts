@@ -121,6 +121,7 @@ function fallbackScenarioOutcome(
     nominee_hoh_plea: `${fromName} says staying off the block keeps one more vote within your reach.`,
     nominee_veto_pitch: `${fromName} says using Safety on them would force the house to recalculate.`,
     nominee_campaign: `${fromName} says the vote is still movable, but they need another number.`,
+    co_nominee_check_in: `${fromName} says neither of you has a vote to offer the other, so the useful move is comparing what you are hearing.`,
     nomination_aftershock: `${fromName} says the nomination changed who they think is really with them.`,
     nominee_understands_loh: `${fromName} says they understand the move, but will remember who made it.`,
     automatic_nominee_reaction: `${fromName} says finishing last put them on the block automatically, so they are not treating it as anybody's personal nomination.`,

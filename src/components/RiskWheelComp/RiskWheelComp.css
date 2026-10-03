@@ -3131,3 +3131,138 @@ body.no-animations .rw-root--vip .rw-btn--spin::after {
     height: min(690px, 91vh);
   }
 }
+
+/* ─── VIP phone viewport fit hardening ─────────────────────────────────────
+ * Keep the live wheel, primary action and contestant score rail visible at
+ * once on normal iPhone-class portrait heights. The scoreboard becomes a
+ * single horizontal rail instead of growing into multiple rows.
+ * ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 699px) and (orientation: portrait) and (max-height: 920px) {
+  .rw-root--vip .rw-header {
+    min-height: 50px;
+    padding-block: 6px;
+  }
+
+  .rw-root--vip .rw-main {
+    min-height: 0;
+    gap: 9px;
+    padding: 9px 10px max(10px, var(--safe-bottom));
+    overflow: hidden;
+  }
+
+  .rw-root--vip .rw-current-player {
+    min-width: 172px;
+    gap: 2px;
+    padding: 5px 14px 6px;
+    border-radius: 15px;
+  }
+
+  .rw-root--vip .rw-current-label {
+    font-size: 0.7rem;
+  }
+
+  .rw-root--vip .rw-score-value {
+    font-size: clamp(1.95rem, 7vw, 2.3rem);
+  }
+
+  .rw-root--vip .rw-spins-row {
+    margin-top: 1px;
+  }
+
+  .rw-root--vip .rw-wheel-outer {
+    width: clamp(250px, min(74vw, 36dvh), 314px);
+    height: clamp(250px, min(74vw, 36dvh), 314px);
+    margin-top: 2px;
+    margin-bottom: 7px;
+  }
+
+  .rw-root--vip .rw-wheel-pointer--vip {
+    top: -9px;
+    width: 37px;
+    height: 48px;
+  }
+
+  .rw-root--vip .rw-result-chip {
+    min-height: 39px;
+    margin-block: 0;
+    padding: 7px 16px 8px;
+    font-size: 0.86rem;
+  }
+
+  .rw-root--vip .rw-actions {
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .rw-root--vip .rw-btn,
+  .rw-root--vip .rw-btn--lg,
+  .rw-root--vip .rw-btn--spin,
+  .rw-root--vip .rw-btn--bank,
+  .rw-root--vip .rw-btn--primary {
+    min-height: 37px;
+    padding-block: 6px;
+  }
+
+  .rw-root--vip .rw-mini-scores {
+    width: 100%;
+    max-width: calc(100vw - 20px);
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 5px;
+    margin-top: 1px;
+    padding: 0 2px 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .rw-root--vip .rw-mini-scores::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rw-root--vip .rw-mini-score-chip {
+    min-height: 28px;
+    flex: 0 0 auto;
+    gap: 5px;
+    padding: 3px 7px 3px 4px;
+    font-size: 0.7rem;
+  }
+
+  .rw-root--vip .rw-mini-score-avatar {
+    width: 20px;
+    height: 20px;
+  }
+
+  .rw-root--vip .rw-mini-score-name {
+    max-width: 70px;
+  }
+
+  .rw-root--vip .rw-vip-showroom {
+    height: min(730px, 91vh);
+  }
+}
+
+@media (max-width: 699px) and (orientation: portrait) and (max-height: 720px) {
+  .rw-root--vip .rw-main {
+    gap: 7px;
+    padding-top: 7px;
+  }
+
+  .rw-root--vip .rw-wheel-outer {
+    width: clamp(238px, min(70vw, 34dvh), 286px);
+    height: clamp(238px, min(70vw, 34dvh), 286px);
+    margin-bottom: 5px;
+  }
+
+  .rw-root--vip .rw-current-player {
+    padding-block: 4px 5px;
+  }
+
+  .rw-root--vip .rw-result-chip {
+    min-height: 36px;
+    padding-block: 6px;
+  }
+}

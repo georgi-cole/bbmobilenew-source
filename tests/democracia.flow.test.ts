@@ -414,7 +414,7 @@ describe('Democracia twist', () => {
         .getState()
         .game.tvFeed.filter(
           (event) =>
-            event.text === 'Housemates congratulate Player 1. Alliances are already forming… 💬'
+            event.text === 'Hubmates congratulate Player 1. Alliances are already forming… 💬'
         )
       expect(congratulations).toHaveLength(1)
     })
@@ -444,6 +444,20 @@ describe('Democracia twist', () => {
       })
       return store
     }
+
+    it('uses Hub terminology throughout the Democracia ballotage result', () => {
+      const store = makeTieStore()
+      store.dispatch(advance())
+
+      const state = store.getState().game
+      const displayCopy = state.democracia?.resultDisplay?.subtitle ?? ''
+      const ballotageEvent = state.tvFeed.find((event) => /BALLOTAGE/i.test(event.text))
+
+      expect(displayCopy).toMatch(/hubmates/i)
+      expect(displayCopy).not.toMatch(/\bhouse\b|houseguest/i)
+      expect(ballotageEvent?.text).toMatch(/hubmates/i)
+      expect(ballotageEvent?.text).not.toMatch(/houseguest|\bhouse\b/i)
+    })
 
     it('advances to ballotage round when there is a tie', () => {
       const store = makeTieStore()

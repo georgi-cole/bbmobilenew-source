@@ -36,7 +36,7 @@ function makePlayers(count: number): Player[] {
   }));
 }
 
-function makeStore(twistActive: boolean) {
+function makeStore(twistActive: boolean, weekendActive = false) {
   const base: GameState = {
     season: 1,
     week: 1,
@@ -65,6 +65,16 @@ function makeStore(twistActive: boolean) {
     tvFeed: [],
     isLive: false,
     twistActive,
+    weekendInterlude: weekendActive
+      ? ({
+          active: true,
+          afterDay: 5,
+          weekendDay: 1,
+          episode: 'hub_says',
+          stage: 'intro',
+          wallet: {} as NonNullable<GameState['weekendInterlude']>['wallet'],
+        } as NonNullable<GameState['weekendInterlude']>)
+      : null,
     doubleEviction: { usedCount: 0, weekActive: false, pendingSecondEviction: null },
   };
   return configureStore({
@@ -81,8 +91,8 @@ function makeStore(twistActive: boolean) {
   });
 }
 
-function renderTvZone(twistActive: boolean) {
-  const store = makeStore(twistActive);
+function renderTvZone(twistActive: boolean, weekendActive = false) {
+  const store = makeStore(twistActive, weekendActive);
   const { container } = render(
     <Provider store={store}>
       <MemoryRouter>
@@ -132,5 +142,10 @@ describe('TvZone — twist indicator placement', () => {
     const badge = container.querySelector('.tv-zone__twist-badge');
     expect(badge).toBeTruthy();
     expect(badge!.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('does not render the SHOCK badge while a weekend interlude is active', () => {
+    const { container } = renderTvZone(true, true);
+    expect(container.querySelector('.tv-zone__twist-badge')).toBeNull();
   });
 });

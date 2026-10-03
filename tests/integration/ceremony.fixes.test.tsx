@@ -27,10 +27,7 @@ import publicOpinionReducer, {
   setProfileApprovals,
 } from '../../src/publicOpinion/publicOpinionSlice'
 import type { GameState, Player } from '../../src/types'
-import GameScreen, {
-  buildTieBreakPitch,
-  POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS,
-} from '../../src/screens/GameScreen/GameScreen'
+import GameScreen, { buildTieBreakPitch } from '../../src/screens/GameScreen/GameScreen'
 import { loadEvictionVoteBreakdownUnlock } from '../../src/features/evictionVoteBreakdownStorage'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -115,6 +112,7 @@ vi.mock('../../src/components/Eviction/SpotlightEvictionOverlay', () => ({
 let capturedOnTiebreakerRequired: ((tiedIds: string[]) => void) | null = null
 let capturedOnExternalAnnouncementDismiss: (() => void) | null = null
 let capturedEvictionSplashDone: (() => void) | null = null
+const EVICTION_PRESENTATION_SETTLE_MS = 40
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -359,7 +357,7 @@ describe('Ceremony fix: AI LOH tiebreak choreography', () => {
       capturedEvictionSplashDone?.()
     })
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
 
     expect(screen.getByRole('dialog', { name: /peek behind the curtain/i })).toBeTruthy()
@@ -665,13 +663,11 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
       capturedEvictionSplashDone?.()
     })
 
+    // onDone only commits the eviction. The offer must stay hidden until
+    // AnimatePresence reports that the shared-layout eviction overlay has exited.
     expect(screen.queryByRole('dialog', { name: /peek behind the curtain/i })).toBeNull()
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS - 1)
-    })
-    expect(screen.queryByRole('dialog', { name: /peek behind the curtain/i })).toBeNull()
-    await act(async () => {
-      vi.advanceTimersByTime(1)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
     expect(screen.getByRole('dialog', { name: /peek behind the curtain/i })).toBeTruthy()
   })
@@ -699,7 +695,7 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
       capturedEvictionSplashDone?.()
     })
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS + 1)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
 
     expect(screen.queryByRole('dialog', { name: /peek behind the curtain/i })).toBeNull()
@@ -728,7 +724,7 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
       capturedEvictionSplashDone?.()
     })
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
 
     expect(screen.getByRole('dialog', { name: /peek behind the curtain/i })).toBeTruthy()
@@ -791,7 +787,7 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
       capturedEvictionSplashDone?.()
     })
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
 
     expect(screen.queryByRole('dialog', { name: /peek behind the curtain/i })).toBeNull()
@@ -832,7 +828,7 @@ describe('Ceremony follow-up: eviction vote breakdown reward prompt', () => {
       capturedEvictionSplashDone?.()
     })
     await act(async () => {
-      vi.advanceTimersByTime(POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
+      vi.advanceTimersByTime(EVICTION_PRESENTATION_SETTLE_MS)
     })
 
     act(() => {

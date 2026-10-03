@@ -88,9 +88,7 @@ export function canAccessSpecialSettings(locationLike?: DebugLocationLike): bool
  * debug gameplay shortcuts.
  *
  * Remote QA sessions retain access to the DebugPanel and special settings,
- * but deliberately use the normal gameplay choreography. Treating a remote
- * QA session as a gameplay-debug context skipped the Final 4 plea initializer
- * and could leave the game stuck in final4_eviction with no pending action.
+ * but deliberately use the normal gameplay choreography.
  *
  * Checks (in order):
  *   1. window.__E2E__ === true - set by Playwright / test harnesses

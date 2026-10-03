@@ -490,16 +490,23 @@ export function resolveProfileAge(value?: string): number | undefined {
   return decade ? Number(decade[1]) + 5 : undefined
 }
 
+export function resolveProfileSex(
+  value?: string,
+  reproductiveProfile?: Player['reproductiveProfile']
+): string | undefined {
+  const explicit = value?.trim()
+  if (explicit) return explicit
+
+  const canCause = reproductiveProfile?.canCausePregnancy === true
+  const canBecome = reproductiveProfile?.canBecomePregnant === true
+  if (canCause === canBecome) return undefined
+  return canCause ? 'Male' : 'Female'
+}
+
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
   const parsedAge = resolveProfileAge(profile.bio?.age)
-  const profileSex = profile.bio?.sex?.trim()
-  const reproductiveSex =
-    !profileSex && profile.bio?.reproductiveProfile?.canCausePregnancy === true
-      ? 'Male'
-      : !profileSex && profile.bio?.reproductiveProfile?.canBecomePregnant === true
-        ? 'Female'
-        : undefined
+  const resolvedSex = resolveProfileSex(profile.bio?.sex, profile.bio?.reproductiveProfile)
   return {
     id: 'user',
     name: profile.name,
@@ -507,7 +514,7 @@ function buildUserPlayer(): Player {
     status: 'active',
     isUser: true,
     ...(parsedAge !== undefined ? { age: parsedAge } : {}),
-    ...(profileSex || reproductiveSex ? { sex: profileSex || reproductiveSex } : {}),
+    ...(resolvedSex ? { sex: resolvedSex } : {}),
     ...(profile.bio?.reproductiveProfile
       ? { reproductiveProfile: profile.bio.reproductiveProfile }
       : {}),
@@ -1077,6 +1084,33 @@ function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
     (left, right) => priorityFor(left) - priorityFor(right) || orderFor(left) - orderFor(right)
   )
   state.broadcastQueue = queue
+}
+
+const LOG_ONLY_BROADCAST_TEMPLATE_IDS = new Set([
+  'loh.democracia-vote-start',
+  'card.democracia-vote',
+])
+
+function sanitizeBroadcastOverride(id: string, override: BroadcastOverride): BroadcastOverride {
+  if (!LOG_ONLY_BROADCAST_TEMPLATE_IDS.has(id)) return { ...override }
+
+  // These are receipts for a Democracia flow whose activation card already
+  // owns the one fullscreen announcement. Manager/remote config may edit their
+  // copy/order or disable them, but cannot promote them back onto faux TV.
+  return {
+    ...override,
+    level: 'minor',
+    major: null,
+    forceOnTv: false,
+  }
+}
+
+function sanitizeBroadcastOverrides(
+  overrides: Record<string, BroadcastOverride>
+): Record<string, BroadcastOverride> {
+  return Object.fromEntries(
+    Object.entries(overrides).map(([id, override]) => [id, sanitizeBroadcastOverride(id, override)])
+  )
 }
 
 function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
@@ -4127,6 +4161,11 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
     if (!winner.stats) winner.stats = { lohWins: 0, posWins: 0, timesNominated: 0 }
     winner.stats.lohWins += 1
   }
+  // Democracia already publishes its election result in the vote flow. Do not
+  // append the ordinary "won Leader of the House" competition receipt on top
+  // of that result; besides duplicating the beat, it uses classic-mode copy.
+  if (source?.includes('democracia')) return
+
   const partnerId = getCupidPartnerId(state, winnerId)
   const partner = state.players.find((player) => player.id === partnerId)
   if (voxPopuliActive) {
@@ -4859,10 +4898,10 @@ const gameSlice = createSlice({
     /** Change the source definition used by future Play-driven broadcasts. */
     setBroadcastOverride(state, action: PayloadAction<{ id: string; changes: BroadcastOverride }>) {
       state.broadcastOverrides ??= {}
-      state.broadcastOverrides[action.payload.id] = {
+      state.broadcastOverrides[action.payload.id] = sanitizeBroadcastOverride(action.payload.id, {
         ...(state.broadcastOverrides[action.payload.id] ?? {}),
         ...action.payload.changes,
-      }
+      })
       state.tvFeed.forEach((event) => {
         const isLegacyVoxIntro =
           action.payload.id === 'season.vox-populi-intro' &&
@@ -4905,7 +4944,7 @@ const gameSlice = createSlice({
         customMessages: CustomBroadcastMessage[]
       }>
     ) {
-      state.broadcastOverrides = action.payload.overrides
+      state.broadcastOverrides = sanitizeBroadcastOverrides(action.payload.overrides)
       state.customBroadcasts = action.payload.customMessages
       beginPhaseBroadcastSequence(state, state.phase)
       finishPhaseBroadcastSequence(state)
@@ -8329,7 +8368,14 @@ const gameSlice = createSlice({
     },
     updateUserPlayerIdentity(
       state,
-      action: PayloadAction<{ name: string; avatar: string; photoId?: string }>
+      action: PayloadAction<{
+        name: string
+        avatar: string
+        photoId?: string
+        age?: number | null
+        sex?: string | null
+        reproductiveProfile?: Player['reproductiveProfile'] | null
+      }>
     ) {
       const human = state.players.find((player) => player.isUser)
       if (!human) return
@@ -8337,6 +8383,20 @@ const gameSlice = createSlice({
       human.avatar = action.payload.photoId
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
+
+      if ('age' in action.payload) {
+        if (action.payload.age == null) delete human.age
+        else human.age = action.payload.age
+      }
+      if ('sex' in action.payload) {
+        const sex = action.payload.sex?.trim()
+        if (!sex) delete human.sex
+        else human.sex = sex
+      }
+      if ('reproductiveProfile' in action.payload) {
+        if (!action.payload.reproductiveProfile) delete human.reproductiveProfile
+        else human.reproductiveProfile = action.payload.reproductiveProfile
+      }
     },
     debugForceBellaIntoCast(state) {
       if (state.players.some((player) => player.id === BELLA_ID)) {
@@ -9719,7 +9779,7 @@ const gameSlice = createSlice({
           )
           pushEvent(
             state,
-            `🗳️ The votes are in! ${winnerName} has been elected Leader of the House! 👑`,
+            `🗳️ The votes are in! ${winnerName} has been elected Leader of the Hub! 👑`,
             'game'
           )
           applyLohWinner(state, winnerId, '[advance/democracia_vote]')
@@ -9769,12 +9829,12 @@ const gameSlice = createSlice({
                 dVoteCounts,
                 dTopCandidates.length > 3 ? 'DEMOCRACIA TIE' : 'CO-LEADERS ELECTED',
                 dTopCandidates.length > 3
-                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the House.`
-                  : `${dTopNames} remain tied and will serve together as co-Leaders of the House.`
+                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the Hub.`
+                  : `${dTopNames} remain tied and will serve together as co-Leaders of the Hub.`
               )
               pushEvent(
                 state,
-                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the House! 👑👑`,
+                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the Hub! 👑👑`,
                 'game'
               )
               dem.active = false
@@ -9797,7 +9857,7 @@ const gameSlice = createSlice({
               'DEMOCRACIA WINNER',
               `${fallbackName} wins the tiebreak by chance after no eligible ballotage voters remained.`
             )
-            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the House! 👑`, 'game')
+            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the Hub! 👑`, 'game')
             applyLohWinner(state, fallbackId, '[advance/democracia_vote/ballotage_fallback]')
             dem.active = false
             state.phase = 'democracia_results'
@@ -9809,12 +9869,12 @@ const gameSlice = createSlice({
               dVoteCounts,
               dTopCandidates.length > 3 ? 'REVOTE REQUIRED' : 'TIED VOTE',
               dTopCandidates.length > 3
-                ? `${dTopNames} are tied. The house must revote among the tied candidates.`
-                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The house must revote.`
+                ? `${dTopNames} are tied. The hubmates must revote among the tied candidates.`
+                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The hubmates must revote.`
             )
             pushEvent(
               state,
-              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other houseguests must revote between the tied candidates. 🗳️`,
+              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other hubmates must revote between the tied candidates. 🗳️`,
               'game'
             )
             dem.round += 1
@@ -9854,7 +9914,7 @@ const gameSlice = createSlice({
             .join(' and ')
           pushEvent(
             state,
-            `${coNames} are now co-Leaders of the House! 👑👑 Alliances are already forming…`,
+            `${coNames} are now co-Leaders of the Hub! 👑👑 Alliances are already forming…`,
             'social'
           )
         } else {
@@ -9862,8 +9922,8 @@ const gameSlice = createSlice({
           pushEvent(
             state,
             isVoxPopuliActive(state)
-              ? `Housemates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
-              : `Housemates congratulate ${hohName}. Alliances are already forming… 💬`,
+              ? `Hubmates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
+              : `Hubmates congratulate ${hohName}. Alliances are already forming… 💬`,
             'social'
           )
         }
