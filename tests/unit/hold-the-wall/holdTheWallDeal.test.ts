@@ -42,7 +42,7 @@ describe('Hold the Wall final-two deal rules', () => {
           },
         },
       },
-      deal,
+      deal
     )
 
     expect(chance).toBeLessThanOrEqual(0.05)
@@ -66,7 +66,7 @@ describe('Hold the Wall final-two deal rules', () => {
           },
         },
       },
-      deal,
+      deal
     )
 
     expect(damagedChance).toBeGreaterThanOrEqual(0.55)
@@ -114,7 +114,7 @@ describe('Hold the Wall final-two deal rules', () => {
 describe('Hold the Wall final duel', () => {
   it('uses a deterministic 10% drop roll with no fixed final-opponent deadline', () => {
     const results = Array.from({ length: 1_000 }, (_, index) =>
-      shouldFinalDuelAiDrop(8123, 'ai-finalist', index + 1),
+      shouldFinalDuelAiDrop(8123, 'ai-finalist', index + 1)
     )
     const dropCount = results.filter(Boolean).length
 
@@ -122,7 +122,7 @@ describe('Hold the Wall final duel', () => {
     expect(dropCount / results.length).toBeLessThan(0.13)
     expect(FINAL_DUEL_AI_DROP_CHANCE).toBe(0.1)
     expect(shouldFinalDuelAiDrop(8123, 'ai-finalist', 37)).toBe(
-      shouldFinalDuelAiDrop(8123, 'ai-finalist', 37),
+      shouldFinalDuelAiDrop(8123, 'ai-finalist', 37)
     )
   })
 })
