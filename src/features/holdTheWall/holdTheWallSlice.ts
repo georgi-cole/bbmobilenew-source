@@ -18,11 +18,6 @@ import { mulberry32 } from '../../store/rng';
 export const AI_DROP_MIN_MS = 10_000;
 /** Latest an AI player can drop (ms after game start). */
 export const AI_DROP_MAX_MS = 120_000;
-/** Final-duel AI checks happen every five seconds in the component. */
-export const FINAL_DUEL_DROP_INTERVAL_MS = 5_000;
-/** Each final-duel check has a seeded 10% chance to make the AI drop. */
-export const FINAL_DUEL_DROP_CHANCE = 0.1;
-const FINAL_DUEL_ROLL_SEED_SALT = 0x41d7f00d;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,14 +36,6 @@ export interface HoldTheWallState {
    * Keyed by player ID; the human player has no entry here.
    */
   aiDropSchedule: Record<string, number>;
-  /**
-   * AI reserved for the uncapped final duel against the human. It is removed
-   * from aiDropSchedule and instead receives one seeded 10% drop roll every
-   * five seconds while it is the final opponent.
-   */
-  finalDuelAiId: string | null;
-  /** Number of final-duel drop rolls already resolved. */
-  finalDuelRollCount: number;
   /** IDs of players who have dropped, in drop order (first dropped = index 0). */
   droppedIds: string[];
   /** ID of the last player standing once complete, or null while active. */
@@ -68,8 +55,6 @@ const initialState: HoldTheWallState = {
   seed: 0,
   participantIds: [],
   aiDropSchedule: {},
-  finalDuelAiId: null,
-  finalDuelRollCount: 0,
   droppedIds: [],
   winnerId: null,
   outcomeResolved: false,
@@ -97,30 +82,6 @@ export function buildAiDropSchedule(
   return schedule;
 }
 
-/**
- * Deterministic final-duel endurance roll. The probability stays exactly 10%
- * per check while the result remains reproducible for a given seed/check index.
- */
-export function shouldFinalDuelAiDrop(seed: number, rollIndex: number): boolean {
-  const mixedSeed =
-    (seed ^ FINAL_DUEL_ROLL_SEED_SALT ^ Math.imul(Math.max(1, rollIndex), 0x9e3779b1)) >>> 0;
-  return mulberry32(mixedSeed)() < FINAL_DUEL_DROP_CHANCE;
-}
-
-function dropPlayerInPlace(state: HoldTheWallState, id: string): void {
-  if (state.status !== 'active' || state.droppedIds.includes(id)) return;
-
-  state.droppedIds.push(id);
-  const aliveIds = state.participantIds.filter((pid) => !state.droppedIds.includes(pid));
-  if (aliveIds.length === 1) {
-    state.status = 'complete';
-    state.winnerId = aliveIds[0];
-  } else if (aliveIds.length === 0) {
-    state.status = 'complete';
-    state.winnerId = state.droppedIds[state.droppedIds.length - 1] ?? null;
-  }
-}
-
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
 const holdTheWallSlice = createSlice({
@@ -146,16 +107,6 @@ const holdTheWallSlice = createSlice({
       state.seed = seed;
       state.participantIds = participantIds;
       state.aiDropSchedule = buildAiDropSchedule(seed, participantIds, humanId);
-      state.finalDuelAiId = null;
-      state.finalDuelRollCount = 0;
-      if (humanId) {
-        const scheduledEntries = Object.entries(state.aiDropSchedule);
-        const latest = scheduledEntries.sort((left, right) => right[1] - left[1])[0];
-        if (latest) {
-          state.finalDuelAiId = latest[0];
-          delete state.aiDropSchedule[latest[0]];
-        }
-      }
       state.droppedIds = [];
       state.winnerId = null;
       state.outcomeResolved = false;
@@ -167,27 +118,24 @@ const holdTheWallSlice = createSlice({
      * Automatically transitions to 'complete' when only one player remains.
      */
     dropPlayer(state, action: PayloadAction<string>) {
-      dropPlayerInPlace(state, action.payload);
-    },
+      const id = action.payload;
+      if (state.status !== 'active') return;
+      if (state.droppedIds.includes(id)) return; // already dropped
 
-    /**
-     * Resolve one uncapped final-duel check. The component dispatches this once
-     * every five seconds only while the human and reserved AI are the final two.
-     */
-    rollFinalDuelAiDrop(state, action: PayloadAction<{ humanId: string }>) {
-      if (state.status !== 'active' || !state.finalDuelAiId) return;
-      const aliveIds = state.participantIds.filter((id) => !state.droppedIds.includes(id));
-      if (
-        aliveIds.length !== 2 ||
-        !aliveIds.includes(action.payload.humanId) ||
-        !aliveIds.includes(state.finalDuelAiId)
-      ) {
-        return;
-      }
+      state.droppedIds.push(id);
 
-      state.finalDuelRollCount += 1;
-      if (shouldFinalDuelAiDrop(state.seed, state.finalDuelRollCount)) {
-        dropPlayerInPlace(state, state.finalDuelAiId);
+      const aliveIds = state.participantIds.filter((pid) => !state.droppedIds.includes(pid));
+      if (aliveIds.length === 1) {
+        state.status = 'complete';
+        state.winnerId = aliveIds[0];
+      } else if (aliveIds.length === 0) {
+        // Defensive: all players dropped in the same synchronous batch (e.g. in
+        // tests that dispatch multiple dropPlayer actions without yielding). In
+        // practice this cannot happen during a real game because AI timeouts fire
+        // one at a time and the human can only release once. We award the prize to
+        // the most recently added entry in droppedIds (the last one pushed).
+        state.status = 'complete';
+        state.winnerId = state.droppedIds[state.droppedIds.length - 1] ?? null;
       }
     },
 
@@ -206,7 +154,6 @@ const holdTheWallSlice = createSlice({
 export const {
   startHoldTheWall,
   dropPlayer,
-  rollFinalDuelAiDrop,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
 } = holdTheWallSlice.actions;

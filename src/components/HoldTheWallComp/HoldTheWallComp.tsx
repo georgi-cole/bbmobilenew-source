@@ -10,33 +10,15 @@
  * mounts. This ensures exactly one server-driven countdown occurs and rules
  * are shown exactly once.
  */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react';
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store/store';
 import {
   startHoldTheWall,
   dropPlayer,
-  rollFinalDuelAiDrop,
   resetHoldTheWall,
-  FINAL_DUEL_DROP_INTERVAL_MS,
 } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveHoldTheWallOutcome } from '../../features/holdTheWall/thunks';
-import {
-  clearHoldTheWallSafetyDeal,
-  recordHoldTheWallSafetyDeal,
-} from '../../store/gameSlice';
-import { addSocialCommitment } from '../../social/socialSlice';
-import {
-  shouldAiAcceptHoldTheWallDeal,
-  shouldAiOfferHoldTheWallDeal,
-} from '../../features/holdTheWall/holdTheWallDeals';
 import type { HoldTheWallState, HoldTheWallPrizeType } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveAvatar, getDicebear } from '../../utils/avatar';
 import { mulberry32 } from '../../store/rng';
@@ -79,8 +61,6 @@ interface GamePlayer {
   isUser?: boolean;
 }
 
-type FinalDealState = 'idle' | 'ai_offer' | 'user_offer' | 'declined' | 'rejected' | 'accepted';
-
 // ─── Narration lines ──────────────────────────────────────────────────────────
 
 const NARRATION = {
@@ -101,7 +81,7 @@ const NARRATION = {
     "{name} has hit the ground! That's gonna leave a mark! 💥",
     "{name} is out! Don't worry, we have ice packs! 🧊",
     "{name} couldn't hold on — the wall claims another victim! 😱",
-    "There goes {name}! Gravity: 1, Hubmate: 0! 🪂",
+    "There goes {name}! Gravity: 1, Housemate: 0! 🪂",
     "{name} drops! The competition just got tighter! 🔥",
   ],
   final_two: [
@@ -125,7 +105,7 @@ const NARRATION = {
 
 /** How long the winner screen stays visible before MinigameHost dismisses it. */
 const WINNER_SCREEN_DURATION_MS = 5000;
-const SPECTATOR_FAST_FORWARD_SPEED = 5;
+const SPECTATOR_FAST_FORWARD_SPEED = 2;
 
 /** Minimum ms between periodic "still holding" narration messages. */
 const MIN_NARRATION_INTERVAL_MS = 8000;
@@ -178,42 +158,35 @@ export default function HoldTheWallComp({
     (s: RootState) =>
       (s as RootState & { game: { players: GamePlayer[] } }).game?.players ?? [],
   );
-  const gameWeek = useAppSelector((s: RootState) => s.game.week);
-  const relationships = useAppSelector((s: RootState) => s.social?.relationships ?? {});
 
-  // Build a stable merged player map: Redux store data takes priority (has
-  // real avatars); props remain the GameDebug / test fallback.
-  const playerMap = useMemo(() => {
-    const merged: Record<
-      string,
-      { id: string; name: string; avatar: string; isUser: boolean }
-    > = {};
-    if (participantsProp) {
-      for (const p of participantsProp) {
-        merged[p.id] = {
-          id: p.id,
-          name: p.name,
-          avatar: getDicebear(p.name),
-          isUser: p.isHuman,
-        };
-      }
-    }
-    for (const p of storePlayers) {
-      merged[p.id] = {
+  // Build a merged player map: Redux store data takes priority (has real avatars);
+  // fall back to prop data so the component works in GameDebug / test contexts.
+  const playerMap: Record<string, { id: string; name: string; avatar: string; isUser: boolean }> = {};
+  // Seed from props first (lowest priority)
+  if (participantsProp) {
+    for (const p of participantsProp) {
+      playerMap[p.id] = {
         id: p.id,
         name: p.name,
-        avatar: resolveAvatar(p),
-        isUser: !!p.isUser,
+        avatar: getDicebear(p.name),
+        isUser: p.isHuman,
       };
     }
-    return merged;
-  }, [participantsProp, storePlayers]);
+  }
+  // Then overlay with real store data (higher priority — has proper avatars)
+  for (const p of storePlayers) {
+    playerMap[p.id] = {
+      id: p.id,
+      name: p.name,
+      avatar: resolveAvatar(p),
+      isUser: !!p.isUser,
+    };
+  }
 
   // Local UI state
   const [isHolding, setIsHolding] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [fastForward, setFastForward] = useState(false);
-  const [dealState, setDealState] = useState<FinalDealState>('idle');
   // Track round start for the complete screen "last player standing after Xs" message
   const [roundStartKey, setRoundStartKey] = useState(0);
   const [narrativeMsg, setNarrativeMsg] = useState('Get ready to hold on for dear life…');
@@ -270,9 +243,6 @@ export default function HoldTheWallComp({
     controllerRef.current = ctrl;
     setController(ctrl);
 
-    // A rewind/retry is a new competition outcome. Any safety deal from the
-    // abandoned attempt must not leak into the retry.
-    dispatch(clearHoldTheWallSafetyDeal());
     dispatch(
       startHoldTheWall({
         participantIds,
@@ -363,75 +333,6 @@ export default function HoldTheWallComp({
       timeouts.forEach((t) => window.clearTimeout(t));
     };
   }, [dispatch, fastForward, htw.aiDropSchedule, htw.droppedIds, htw.status, humanId, pressureTier]);
-
-  // ── Uncapped final duel: one seeded 10% AI-drop roll every five seconds ──
-  useEffect(() => {
-    if (htw.status !== 'active' || !humanId || !htw.finalDuelAiId) return;
-    if (dealState === 'ai_offer' || dealState === 'user_offer') return;
-
-    const alive = htw.participantIds.filter((id) => !htw.droppedIds.includes(id));
-    if (
-      alive.length !== 2 ||
-      !alive.includes(humanId) ||
-      !alive.includes(htw.finalDuelAiId)
-    ) {
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      dispatch(rollFinalDuelAiDrop({ humanId }));
-    }, FINAL_DUEL_DROP_INTERVAL_MS);
-    return () => window.clearInterval(interval);
-  }, [
-    dealState,
-    dispatch,
-    htw.droppedIds,
-    htw.finalDuelAiId,
-    htw.participantIds,
-    htw.status,
-    humanId,
-  ]);
-
-  // ── Final-two deal window ────────────────────────────────────────────────
-  useEffect(() => {
-    if (
-      htw.status !== 'active' ||
-      prizeType !== 'LOH' ||
-      !humanId ||
-      !htw.finalDuelAiId ||
-      dealState !== 'idle'
-    ) {
-      return;
-    }
-    const alive = htw.participantIds.filter((id) => !htw.droppedIds.includes(id));
-    if (
-      alive.length !== 2 ||
-      !alive.includes(humanId) ||
-      !alive.includes(htw.finalDuelAiId)
-    ) {
-      return;
-    }
-
-    const aiOffers = shouldAiOfferHoldTheWallDeal({
-      seed,
-      week: gameWeek,
-      relationships,
-      aiId: htw.finalDuelAiId,
-      humanId,
-    });
-    setDealState(aiOffers ? 'ai_offer' : 'user_offer');
-  }, [
-    dealState,
-    gameWeek,
-    htw.droppedIds,
-    htw.finalDuelAiId,
-    htw.participantIds,
-    htw.status,
-    humanId,
-    prizeType,
-    relationships,
-    seed,
-  ]);
 
   // ── Elapsed timer (requestAnimationFrame loop) ────────────────────────────
   useEffect(() => {
@@ -562,77 +463,6 @@ export default function HoldTheWallComp({
     e.preventDefault();
   }, []);
 
-  const recordFinalTwoDeal = useCallback(
-    (promisorId: string, beneficiaryId: string) => {
-      const interactionId = `hold-wall-final-two:${gameWeek}:${promisorId}:${beneficiaryId}`;
-      dispatch(
-        recordHoldTheWallSafetyDeal({
-          week: gameWeek,
-          promisorId,
-          beneficiaryId,
-        }),
-      );
-      dispatch(
-        addSocialCommitment({
-          id: `commitment-${interactionId}`,
-          interactionId,
-          kind: 'protect_from_nomination',
-          promisorId,
-          beneficiaryId,
-          createdWeek: gameWeek,
-          dueWeek: gameWeek,
-          status: 'pending',
-        }),
-      );
-    },
-    [dispatch, gameWeek],
-  );
-
-  const acceptAiFinalTwoDeal = useCallback(() => {
-    if (!humanId || !htw.finalDuelAiId || htw.status !== 'active') return;
-    const aiName = playerMap[htw.finalDuelAiId]?.name ?? 'Your rival';
-    recordFinalTwoDeal(htw.finalDuelAiId, humanId);
-    setDealState('accepted');
-    setNarrativeMsg(`${aiName} gets your word. You drop — and they owe you safety today. 🤝`);
-    dispatch(dropPlayer(humanId));
-  }, [dispatch, htw.finalDuelAiId, htw.status, humanId, playerMap, recordFinalTwoDeal]);
-
-  const offerAiFinalTwoDeal = useCallback(() => {
-    if (!humanId || !htw.finalDuelAiId || htw.status !== 'active') return;
-    const aiName = playerMap[htw.finalDuelAiId]?.name ?? 'Your rival';
-    const accepted = shouldAiAcceptHoldTheWallDeal({
-      seed,
-      week: gameWeek,
-      relationships,
-      aiId: htw.finalDuelAiId,
-      humanId,
-    });
-    if (!accepted) {
-      setDealState('rejected');
-      setNarrativeMsg(`${aiName} shakes their head. No deal — this ends on the wall. 🔥`);
-      return;
-    }
-    recordFinalTwoDeal(humanId, htw.finalDuelAiId);
-    setDealState('accepted');
-    setNarrativeMsg(`${aiName} takes the deal and drops. You win LOH — and you promised them safety. 🤝`);
-    dispatch(dropPlayer(htw.finalDuelAiId));
-  }, [
-    dispatch,
-    gameWeek,
-    htw.finalDuelAiId,
-    htw.status,
-    humanId,
-    playerMap,
-    recordFinalTwoDeal,
-    relationships,
-    seed,
-  ]);
-
-  const declineFinalTwoDeal = useCallback(() => {
-    setDealState('declined');
-    setNarrativeMsg('No deal. Both of you stay on the wall and let endurance decide it. 🔥');
-  }, []);
-
   // ─── Derived display data ─────────────────────────────────────────────────
 
   const aliveIds = htw.participantIds.filter((id) => !htw.droppedIds.includes(id));
@@ -672,12 +502,12 @@ export default function HoldTheWallComp({
                 className="htw-fast-forward"
                 onClick={() => setFastForward(true)}
                 disabled={fastForwardActive}
-                aria-label={fastForwardActive ? 'Fast-forward 5x active' : 'Fast-forward 5x'}
+                aria-label={fastForwardActive ? 'Fast-forward 2x active' : 'Fast-forward 2x'}
                 aria-pressed={fastForwardActive}
-                title={fastForwardActive ? '5x speed active' : 'Fast-forward 5x'}
+                title={fastForwardActive ? '2x speed active' : 'Fast-forward 2x'}
               >
                 <span aria-hidden="true">⏩</span>
-                <span>5×</span>
+                <span>2×</span>
               </button>
             )}
           </div>
@@ -731,54 +561,6 @@ export default function HoldTheWallComp({
         <span className="htw-narrative-icon">📢</span>
         <span className="htw-narrative-text">{narrativeMsg}</span>
       </div>
-
-      {htw.status === 'active' &&
-        prizeType === 'LOH' &&
-        remaining === 2 &&
-        humanId &&
-        htw.finalDuelAiId &&
-        aliveIds.includes(humanId) &&
-        aliveIds.includes(htw.finalDuelAiId) &&
-        (dealState === 'ai_offer' || dealState === 'user_offer') && (
-          <div className="htw-final-deal" data-testid="htw-final-deal">
-            <div className="htw-final-deal__eyebrow">FINAL TWO · DEAL?</div>
-            {dealState === 'ai_offer' ? (
-              <>
-                <strong>
-                  {playerMap[htw.finalDuelAiId]?.name ?? 'Your rival'} offers you safety.
-                </strong>
-                <p>
-                  “Drop now. I take LOH, and I keep you off my block today.”
-                </p>
-                <div className="htw-final-deal__actions">
-                  <button type="button" onClick={acceptAiFinalTwoDeal}>
-                    Accept &amp; Drop
-                  </button>
-                  <button type="button" className="htw-final-deal__secondary" onClick={declineFinalTwoDeal}>
-                    No Deal
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <strong>
-                  Offer {playerMap[htw.finalDuelAiId]?.name ?? 'your rival'} safety?
-                </strong>
-                <p>
-                  If they drop, you win LOH and promise not to nominate them today.
-                </p>
-                <div className="htw-final-deal__actions">
-                  <button type="button" onClick={offerAiFinalTwoDeal}>
-                    Offer Deal
-                  </button>
-                  <button type="button" className="htw-final-deal__secondary" onClick={declineFinalTwoDeal}>
-                    Keep Holding
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
 
       {/* Wall panel — expands to fill remaining space and stays visible while spectating */}
       {htw.status === 'active' && (
@@ -867,7 +649,7 @@ export default function HoldTheWallComp({
             Last player standing after {formatElapsed(elapsedMs)}
           </p>
           <p className="htw-complete-prize">
-            {prizeType === 'LOH' ? '👑 Leader of the Hub' : '🔑 Power of Safety'} awarded!
+            {prizeType === 'LOH' ? '👑 Leader of the House' : '🔑 Power of Safety'} awarded!
           </p>
         </div>
       )}
