@@ -135,7 +135,8 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
         title: 'Protection',
         detail:
           'Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.',
-        armMessage: 'Protection armed for your selected player for the next eligible nomination day.',
+        armMessage:
+          'Protection armed for your selected player for the next eligible nomination day.',
       },
       vox: {
         available: true,
@@ -143,7 +144,8 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
         title: 'Protection',
         detail:
           'Choose another player; once triggered, they cannot be nominated again that day, including as a backup nominee.',
-        armMessage: 'Protection armed for your selected player for the next eligible nomination day.',
+        armMessage:
+          'Protection armed for your selected player for the next eligible nomination day.',
       },
     },
   },
