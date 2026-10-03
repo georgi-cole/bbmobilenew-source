@@ -62,9 +62,9 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'end the check-in': acts('leaves without the reassurance they were looking for.'),
   },
   generic_gossip: {
-    'ask source': says('the story came up twice, but will not name anyone yet.'),
+    'ask source': says('they heard the story indirectly, but will not name anyone yet.'),
     'ask for the source': (context) =>
-      `${context.fromName} says the claim about ${subject(context)} came from two separate conversations.`,
+      `${context.fromName} says the claim about ${subject(context)} came through house talk they cannot verify.`,
     'listen only': (context) =>
       `${context.fromName} says ${subject(context)} is being discussed, but the story is still incomplete.`,
     'protect the target': (context) =>
@@ -73,7 +73,7 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'trade a little intel': (context) =>
       `${context.fromName} says ${subject(context)} has been testing the same idea with more than one person.`,
     'ask who else knows': (context) =>
-      `${context.fromName} says two other people have heard the same story about ${subject(context)}.`,
+      `${context.fromName} says they cannot tell how far the story about ${subject(context)} has spread.`,
     'challenge the story': (context) =>
       `${context.fromName} admits the claim about ${subject(context)} is still unverified.`,
     'change the subject': acts('drops the rumour without giving you another name.'),

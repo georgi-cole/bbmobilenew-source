@@ -12,6 +12,7 @@ interface SocialExecutionState {
     phase?: string
     week?: number
     dramaSocialMode?: boolean
+    nomineeIds?: string[]
     players?: Array<{
       id: string
       status: string
@@ -106,6 +107,7 @@ export function validateSocialExecution(
     phase: state.game?.weekendInterlude?.active ? 'social_2' : state.game?.phase,
     week: state.game?.week,
     players,
+    nomineeIds: state.game?.nomineeIds,
     actorStatus,
     primaryTargetStatus,
     relationships: state.social?.relationships,

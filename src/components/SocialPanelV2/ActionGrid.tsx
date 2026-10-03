@@ -21,6 +21,7 @@ import type { DramaSocialNetwork, RelationshipsMap } from '../../social/types'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { selectHasDramaModeAccess } from '../../store/vipSlice'
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
+import { isLohReplacementPending } from '../../social/lohReplacementWindow'
 
 export interface ActionGridProps {
   onActionClick?: (actionId: string) => void
@@ -147,6 +148,7 @@ export default function ActionGrid({
       phase: currentPhase,
       week: game.week,
       players: game.players.length > 0 ? game.players : players,
+      nomineeIds: game.nomineeIds,
       primaryTargetStatus,
       relationships,
       dramaNetwork,
@@ -194,6 +196,7 @@ export default function ActionGrid({
         phase: currentPhase,
         week: game.week,
         players: game.players.length > 0 ? game.players : players,
+        nomineeIds: game.nomineeIds,
         primaryTargetStatus,
         relationships,
         dramaNetwork,
@@ -219,7 +222,10 @@ export default function ActionGrid({
     game.nomineeIds.length > 0 &&
     (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
   const replacementConsultationOpen =
-    !actorHasSafety && (currentPhase === 'pos_results' || currentPhase === 'pos_ceremony')
+    !actorHasSafety &&
+    (currentPhase === 'pos_results' ||
+      currentPhase === 'pos_ceremony' ||
+      isLohReplacementPending(game))
 
   function contextualizeAction(action: SocialActionDefinition) {
     if (action.id !== 'ask_loh_target') return action

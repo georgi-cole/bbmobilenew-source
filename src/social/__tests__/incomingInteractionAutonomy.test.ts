@@ -425,6 +425,59 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(chooseIncomingInteractionType('ally', 'user', context)).toBe('alliance_proposal')
   })
 
+  it('recognizes a renewed live pact after an older pact dissolved', () => {
+    const reality = createInitialRealityDomainState()
+    const oldPact = createRealityAlliance(reality, {
+      id: 'old-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Old protection deal',
+      at: { day: 1, phase: 'week_start' },
+    })
+    oldPact.status = 'DISSOLVED'
+    createRealityAlliance(reality, {
+      id: 'renewed-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Renewed protection deal',
+      at: { day: 3, phase: 'week_start' },
+    })
+    const context = buildContext({
+      reality,
+      relationships: { ally: { user: { affinity: 80, tags: [] } } },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+    })
+    expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('alliance_proposal')
+  })
+
+  it('treats gratitude after a save or survival as thanks rather than an alliance offer', () => {
+    const relationships = { ally: { user: { affinity: 85, tags: [] } } }
+    const players = [
+      { id: 'user', name: 'You', status: 'loh', isUser: true },
+      { id: 'ally', name: 'Ally', status: 'nominated' },
+    ]
+    const survivor = buildContext({
+      phase: 'eviction_results',
+      relationships,
+      players,
+      nomineeIds: ['ally'],
+    })
+    const saved = buildContext({
+      phase: 'pos_ceremony_results',
+      relationships,
+      players,
+      nomineeIds: ['ally'],
+      povSavedId: 'ally',
+      lohId: 'user',
+    })
+
+    expect(chooseIncomingInteractionType('ally', 'user', survivor)).toBe('compliment')
+    expect(chooseIncomingInteractionType('ally', 'user', saved)).toBe('compliment')
+  })
+
   it('adds the new thematic phases to eligible scheduling', () => {
     expect(ELIGIBLE_PHASES.has('social_1')).toBe(true)
     expect(ELIGIBLE_PHASES.has('nomination_results')).toBe(true)

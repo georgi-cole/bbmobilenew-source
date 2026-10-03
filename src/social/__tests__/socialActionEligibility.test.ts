@@ -241,6 +241,13 @@ describe('evaluateSocialActionEligibility', () => {
     }
     expect(evaluateSocialActionEligibility({ ...base, subjectId: 'nominee' }).eligible).toBe(true)
     expect(evaluateSocialActionEligibility({ ...base, subjectId: 'ally' }).eligible).toBe(false)
+    expect(
+      evaluateSocialActionEligibility({ ...base, nomineeIds: ['ally'], subjectId: 'nominee' })
+        .eligible
+    ).toBe(false)
+    expect(
+      evaluateSocialActionEligibility({ ...base, nomineeIds: ['ally'], subjectId: 'ally' }).eligible
+    ).toBe(true)
   })
 
   it('requires a named secret known by the actor before exposure', () => {

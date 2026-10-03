@@ -134,6 +134,39 @@ describe('context-aware social conversation summaries', () => {
     expect(result.summary).not.toContain('Maya is my current target')
   })
 
+  it('lets a trusted player ask for the backup plan after Safety is used but before the LOH names it', () => {
+    const store = makeContextStore()
+    store.dispatch(
+      updateRelationship({ source: 'holder', target: 'actor', delta: 40, tags: ['alliance'] })
+    )
+    const game = store.getState().game
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        phase: 'pos_ceremony_results',
+        players: [...game.players, { id: 'replacement', name: 'Riley', status: 'active' }],
+        nomineeIds: ['nominee-1'],
+        povSavedId: 'nominee-2',
+        aiReplacementStep: 1,
+        lohSocialPlan: {
+          week: game.week,
+          lohId: 'holder',
+          currentTargetId: 'nominee-1',
+          backupTargetId: 'replacement',
+          askCountsByPlayerId: {},
+          disclosedTargetByPlayerId: {},
+        },
+      } as never)
+    )
+
+    const result = run('ask_loh_target')
+    expect(result.success).toBe(true)
+    expect(result.summary).toContain('Riley')
+    expect(result.summary).toContain('considering')
+    expect(result.summary).not.toContain('final')
+    expect(store.getState().social.sessionLogs.at(-1)?.narrative).toContain('Safety opened a seat')
+  })
+
   it('distinguishes trusted and guarded Safety requests at the rule boundary', () => {
     makeContextStore({ trust: 20, actorIsLoh: true })
     expect(run('ask_use_safety', 'nominee-1').summary).toContain(

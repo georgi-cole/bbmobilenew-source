@@ -108,6 +108,49 @@ describe('incoming interaction contextual resolution', () => {
     )
   })
 
+  it('keeps constructive automatic nominee replies constructive', () => {
+    const interaction = makeInteraction({
+      type: 'check_in',
+      payload: { scenarioKey: 'automatic_nominee_reaction' },
+    })
+    const choices = getContextualIncomingChoices(interaction) ?? []
+    const nextSteps = choices[2]
+    expect(nextSteps.label).toMatch(/next steps|safety/i)
+    expect(nextSteps.responseType).toBe('neutral')
+
+    const resolution = resolveIncomingResponse({
+      interaction,
+      responseType: nextSteps.responseType,
+      responseLabel: nextSteps.label,
+      fromName: 'Rae',
+      phase: 'nomination_results',
+      actorAffinity: 10,
+      playerAffinity: 10,
+    })
+    expect(resolution.actorDelta).toBeGreaterThanOrEqual(0)
+  })
+
+  it('uses the game context rather than an interaction timestamp for the same answer', () => {
+    const interaction = makeInteraction({
+      type: 'check_in',
+      payload: { scenarioKey: 'automatic_nominee_reaction' },
+    })
+    const answer = {
+      responseType: 'neutral' as const,
+      responseLabel: 'Talk next steps',
+      fromName: 'Rae',
+      phase: 'nomination_results',
+      actorAffinity: 10,
+      playerAffinity: 10,
+    }
+    expect(getContextualIncomingChoices({ ...interaction, id: 'later-timestamp' })).toEqual(
+      getContextualIncomingChoices(interaction)
+    )
+    expect(
+      resolveIncomingResponse({ ...answer, interaction: { ...interaction, id: 'later-timestamp' } })
+    ).toEqual(resolveIncomingResponse({ ...answer, interaction }))
+  })
+
   it('keeps a scene response short and concrete', () => {
     const resolution = resolveIncomingResponse({
       interaction: makeInteraction(),
@@ -232,7 +275,7 @@ describe('incoming interaction contextual resolution', () => {
     })
 
     expect(resolution.outcomeText).toBe(
-      'Bea says the story came up twice, but will not name anyone yet.'
+      'Bea says they heard the story indirectly, but will not name anyone yet.'
     )
   })
 

@@ -59,12 +59,21 @@ export function getContextualIncomingChoices(
   const variants = SCENE_CHOICES[scenarioKey]
   if (!variants?.length) return null
   const labels =
-    variants[hash(`${interaction.id}:${interaction.fromId}:${scenarioKey}`) % variants.length]
+    variants[
+      hash(`${interaction.fromId}:${interaction.createdWeek}:${scenarioKey}`) % variants.length
+    ]
   const responseTypes = responseTypesFor(interaction.type)
   return labels.map((label, index) => ({
     label,
-    responseType: responseTypes[index] ?? 'dismiss',
-    style: styleForResponse(responseTypes[index] ?? 'dismiss'),
+    responseType:
+      scenarioKey === 'automatic_nominee_reaction' && index === 2
+        ? 'neutral'
+        : (responseTypes[index] ?? 'dismiss'),
+    style: styleForResponse(
+      scenarioKey === 'automatic_nominee_reaction' && index === 2
+        ? 'neutral'
+        : (responseTypes[index] ?? 'dismiss')
+    ),
   }))
 }
 
@@ -169,7 +178,7 @@ export function resolveIncomingResponse(
   const stance = stanceForResponse(input.responseType)
   const personality = getSocialPersonality(input.interaction.fromId)
   const seed = hash(
-    `${input.interaction.id}:${scenarioKey ?? input.interaction.type}:${input.responseType}:${input.phase}`
+    `${input.interaction.fromId}:${scenarioKey ?? input.interaction.type}:${input.responseType}:${input.responseLabel ?? ''}:${input.phase}`
   )
   const mutualAffinity =
     (normalizeAffinity(input.actorAffinity) + normalizeAffinity(input.playerAffinity)) / 2

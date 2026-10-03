@@ -248,12 +248,14 @@ function getRealityAllianceState(
   actorId: string,
   playerId: string
 ): { present: boolean; live: boolean } {
-  const alliance = Object.values(context.reality?.alliances ?? {}).find(
+  const alliances = Object.values(context.reality?.alliances ?? {}).filter(
     (candidate) => candidate.memberIds.includes(actorId) && candidate.memberIds.includes(playerId)
   )
   return {
-    present: alliance != null,
-    live: alliance?.status === 'ACTIVE' || alliance?.status === 'PROBATIONARY',
+    present: alliances.length > 0,
+    live: alliances.some(
+      (alliance) => alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
+    ),
   }
 }
 
@@ -435,19 +437,30 @@ function buildActorConstraints(
     context.phase === 'pos_results' ||
     context.phase === 'pos_ceremony' ||
     context.phase === 'pos_ceremony_results'
-  const actorIsNominee = nomineeIds.includes(actor.id) || actor.status.includes('nominated')
+  const actorIsNominee = context.nomineeIds
+    ? nomineeIds.includes(actor.id)
+    : actor.status.includes('nominated')
   const actorIsCurrentHoh =
-    !context.voxPopuliActive && (context.lohId === actor.id || actor.status.includes('loh'))
+    !context.voxPopuliActive &&
+    (context.lohId !== undefined ? context.lohId === actor.id : actor.status.includes('loh'))
   const actorHasSafetyPower =
-    safetyIsLive && (context.posWinnerId === actor.id || actor.status.includes('pos'))
+    safetyIsLive &&
+    (context.posWinnerId !== undefined
+      ? context.posWinnerId === actor.id
+      : actor.status.includes('pos'))
   const playerIsHoh =
     !context.voxPopuliActive &&
-    (context.lohId === playerId || playerEntry?.status.includes('loh') === true)
+    (context.lohId !== undefined
+      ? context.lohId === playerId
+      : playerEntry?.status.includes('loh') === true)
   const playerHasSafetyPower =
     safetyIsLive &&
-    (context.posWinnerId === playerId || playerEntry?.status.includes('pos') === true)
-  const playerIsNominee =
-    nomineeIds.includes(playerId) || playerEntry?.status.includes('nominated') === true
+    (context.posWinnerId !== undefined
+      ? context.posWinnerId === playerId
+      : playerEntry?.status.includes('pos') === true)
+  const playerIsNominee = context.nomineeIds
+    ? nomineeIds.includes(playerId)
+    : playerEntry?.status.includes('nominated') === true
   const playerCanVote = !context.voxPopuliActive && !playerIsNominee && !playerIsHoh
   const playerFinishedLastLohComp = context.lastHohCompFinisherId === playerId
   const actorWasAutoNominee = context.autoNomineeId === actor.id
@@ -858,7 +871,6 @@ function resolveIncomingInteractionPlan(
   if (!constraints || constraints.actorIsPendingEvictee) return null
 
   const signals = buildRelationshipSignals(actorId, playerId, context)
-  const thresholds = socialConfig.incomingInteractionAutonomyTuning.scenarioThresholds
   let plan: InteractionPlan | null = resolveAllianceInteractionPlan(actorId, playerId, context)
 
   if (!plan) {
@@ -922,11 +934,6 @@ function resolveIncomingInteractionPlan(
     } else if (context.phase === 'eviction_results' && constraints.actorSurvivedCurrentVote) {
       if (signals.tags.has('betrayal')) {
         plan = { type: 'warning', scenarioKey: 'betrayal_warning' }
-      } else if (
-        !signals.isAlliance &&
-        signals.affinity >= thresholds.allianceProposalMinAffinity
-      ) {
-        plan = { type: 'alliance_proposal', scenarioKey: 'survivor_gratitude' }
       } else {
         plan = { type: 'compliment', scenarioKey: 'survivor_gratitude' }
       }
@@ -935,11 +942,7 @@ function resolveIncomingInteractionPlan(
       constraints.actorWasSaved &&
       (constraints.playerIsHoh || constraints.playerHasSafetyPower)
     ) {
-      if (!signals.isAlliance && signals.affinity >= thresholds.allianceProposalMinAffinity) {
-        plan = { type: 'alliance_proposal', scenarioKey: 'post_veto_gratitude' }
-      } else {
-        plan = { type: 'compliment', scenarioKey: 'post_veto_gratitude' }
-      }
+      plan = { type: 'compliment', scenarioKey: 'post_veto_gratitude' }
     } else if (
       constraints.actorIsNominee &&
       (context.phase === 'pos_results' || context.phase === 'pos_ceremony_results') &&

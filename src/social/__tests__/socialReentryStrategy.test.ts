@@ -261,6 +261,36 @@ describe('strategic replacement intent', () => {
 })
 
 describe('replacement-plan conversations and suggestions', () => {
+  it('keeps guarded replacement-plan decoys eligible after the Safety save', () => {
+    const answer = resolveLohPlanDisclosure({
+      game: {
+        phase: 'pos_ceremony_results',
+        replacementNeeded: true,
+        nomineeIds: ['nominee'],
+        posWinnerId: 'holder',
+        povSavedId: 'saved',
+        players: [
+          { id: 'loh', status: 'loh' },
+          { id: 'asker', status: 'active' },
+          { id: 'target', status: 'active' },
+          { id: 'decoy', status: 'active' },
+          { id: 'nominee', status: 'nominated' },
+          { id: 'holder', status: 'pos' },
+          { id: 'saved', status: 'active' },
+        ],
+      },
+      relationships: {},
+      lohId: 'loh',
+      askerId: 'asker',
+      actualTargetId: 'target',
+      priorAsks: 0,
+      ambushIntent: true,
+      random: () => 0,
+    })
+
+    expect(answer).toEqual({ outcome: 'false', statedTargetId: 'decoy' })
+  })
+
   it('distinguishes truthful, vague, and ambush-decoy replacement answers', () => {
     const game = {
       players: [
