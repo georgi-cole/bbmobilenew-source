@@ -69,9 +69,7 @@ export function getHoldTheWallRelationshipRead(
   }
 }
 
-export function getFinalTwoAiDealOfferChance(
-  relationship: HoldTheWallRelationshipRead
-): number {
+export function getFinalTwoAiDealOfferChance(relationship: HoldTheWallRelationshipRead): number {
   const tags = relationship.tags
   if (hasAnyTag(tags, HOSTILE_TAGS) || relationship.affinity <= -35) return 0.22
   if (hasAnyTag(tags, CLOSE_TAGS) || relationship.affinity >= 55) return 0.72
@@ -114,16 +112,9 @@ export function shouldAiAcceptHoldTheWallDeal(
   )
 }
 
-export function shouldFinalDuelAiDrop(
-  seed: number,
-  aiId: string,
-  rollIndex: number
-): boolean {
+export function shouldFinalDuelAiDrop(seed: number, aiId: string, rollIndex: number): boolean {
   if (rollIndex < 1) return false
-  return (
-    seededUnit(`${seed}:${aiId}:hold-wall-final-duel:${rollIndex}`) <
-    FINAL_DUEL_AI_DROP_CHANCE
-  )
+  return seededUnit(`${seed}:${aiId}:hold-wall-final-duel:${rollIndex}`) < FINAL_DUEL_AI_DROP_CHANCE
 }
 
 export function getHoldTheWallDealBetrayalChance(
@@ -133,11 +124,7 @@ export function getHoldTheWallDealBetrayalChance(
     'promisorId' | 'beneficiaryId' | 'affinityAtDeal' | 'tagsAtDeal'
   >
 ): number {
-  const current = getHoldTheWallRelationshipRead(
-    state,
-    deal.promisorId,
-    deal.beneficiaryId
-  )
+  const current = getHoldTheWallRelationshipRead(state, deal.promisorId, deal.beneficiaryId)
   const currentTags = current.tags
   const closeNow = hasAnyTag(currentTags, CLOSE_TAGS)
 
