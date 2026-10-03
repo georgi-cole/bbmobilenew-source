@@ -170,7 +170,6 @@ describe('Eyeolean Store nomination protection', () => {
     expect(next.voxPopuli?.lastReplacementNomineeIds).toEqual([legalReplacement.id])
   })
 
-
   it.each([
     ['protection', 'other'],
     ['immunity', 'human'],
