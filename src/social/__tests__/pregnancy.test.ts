@@ -161,7 +161,9 @@ describe('Reality pregnancy lifecycle', () => {
     ).toMatchObject({ eligible: true, carrierId: female.id })
   })
 
-  it('keeps Try for a Baby available with Aria after a climax romance when human sex is unset', () => {
+  it(
+    'keeps Try for a Baby available with Aria after a climax romance when human sex is unset',
+    () => {
     const human: PlayerLike = {
       id: 'user',
       name: 'You',
@@ -217,7 +219,8 @@ describe('Reality pregnancy lifecycle', () => {
         requireCompleteSelection: true,
       })
     ).toEqual({ eligible: true, reason: '' })
-  })
+    }
+  )
 
   it('reports the adult prerequisite when the live human age is missing', () => {
     const humanWithoutAge: PlayerLike = {
