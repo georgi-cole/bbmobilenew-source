@@ -21,7 +21,10 @@ import {
   FINAL_DUEL_DROP_INTERVAL_MS,
 } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveHoldTheWallOutcome } from '../../features/holdTheWall/thunks';
-import { recordHoldTheWallSafetyDeal } from '../../store/gameSlice';
+import {
+  clearHoldTheWallSafetyDeal,
+  recordHoldTheWallSafetyDeal,
+} from '../../store/gameSlice';
 import { addSocialCommitment } from '../../social/socialSlice';
 import {
   shouldAiAcceptHoldTheWallDeal,
@@ -256,6 +259,9 @@ export default function HoldTheWallComp({
     controllerRef.current = ctrl;
     setController(ctrl);
 
+    // A rewind/retry is a new competition outcome. Any safety deal from the
+    // abandoned attempt must not leak into the retry.
+    dispatch(clearHoldTheWallSafetyDeal());
     dispatch(
       startHoldTheWall({
         participantIds,
