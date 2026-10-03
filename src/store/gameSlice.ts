@@ -4164,7 +4164,7 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
   // Democracia already publishes its election result in the vote flow. Do not
   // append the ordinary "won Leader of the House" competition receipt on top
   // of that result; besides duplicating the beat, it uses classic-mode copy.
-  if (source?.includes('democracia_vote')) return
+  if (source?.includes('democracia')) return
 
   const partnerId = getCupidPartnerId(state, winnerId)
   const partner = state.players.find((player) => player.id === partnerId)
