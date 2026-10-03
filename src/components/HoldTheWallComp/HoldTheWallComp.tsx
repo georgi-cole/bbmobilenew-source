@@ -19,6 +19,7 @@ import {
   resolveFinalTwoDeal,
   skipFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   resetHoldTheWall,
 } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveHoldTheWallOutcome } from '../../features/holdTheWall/thunks';
@@ -238,14 +239,6 @@ export default function HoldTheWallComp({
     Boolean(finalTwoAiId && humanId) &&
     !htw.dealOpportunityResolved;
   const finalTwoDealWindowOpen = finalTwoDealEligible;
-  const finalTwoAiRelationship =
-    finalTwoAiId && humanId
-      ? getHoldTheWallRelationshipRead(
-          { strategicRelationships: socialRelationships },
-          finalTwoAiId,
-          humanId,
-        )
-      : { affinity: 0, tags: [] as readonly string[] };
 
   // ── Effects hook — subscribes to controller events ────────────────────────
   const { activeEffects, isAutoDropped } = useHoldTheWallEffects(
@@ -393,7 +386,7 @@ export default function HoldTheWallComp({
     const interval = window.setInterval(() => {
       finalDuelRollRef.current += 1;
       if (shouldFinalDuelAiDrop(seed, finalTwoAiId, finalDuelRollRef.current)) {
-        dispatch(dropPlayer(finalTwoAiId));
+        dispatch(dropFinalDuelAi(finalTwoAiId));
       }
     }, FINAL_DUEL_AI_DROP_INTERVAL_MS);
 
@@ -410,33 +403,30 @@ export default function HoldTheWallComp({
     ) {
       return;
     }
-    if (
-      shouldAiOfferHoldTheWallDeal(
-        seed,
-        finalTwoAiId,
-        humanId,
-        finalTwoAiRelationship,
-      )
-    ) {
+    const relationship = getHoldTheWallRelationshipRead(
+      { strategicRelationships: socialRelationships },
+      finalTwoAiId,
+      humanId,
+    );
+    if (shouldAiOfferHoldTheWallDeal(seed, finalTwoAiId, humanId, relationship)) {
       dispatch(
         offerFinalTwoDeal({
           promisorId: finalTwoAiId,
           beneficiaryId: humanId,
           offeredBy: 'ai',
-          affinityAtDeal: finalTwoAiRelationship.affinity,
-          tagsAtDeal: [...finalTwoAiRelationship.tags],
+          affinityAtDeal: relationship.affinity,
+          tagsAtDeal: [...relationship.tags],
         }),
       );
     }
   }, [
     dispatch,
     finalTwoAiId,
-    finalTwoAiRelationship.affinity,
-    finalTwoAiRelationship.tags,
     finalTwoDealEligible,
     htw.finalTwoDeal,
     humanId,
     seed,
+    socialRelationships,
   ]);
 
   // If a bargain is rejected/skipped, require the human to take the wall again.
@@ -635,7 +625,7 @@ export default function HoldTheWallComp({
       setNarrativeMsg(
         `${playerMap[finalTwoAiId]?.name ?? 'Your rival'} takes the deal and drops! 🤝`,
       );
-      dispatch(dropPlayer(finalTwoAiId));
+      dispatch(dropFinalDuelAi(finalTwoAiId));
     } else {
       setNarrativeMsg(
         `${playerMap[finalTwoAiId]?.name ?? 'Your rival'} refuses the deal. Back to endurance. 🔥`,
