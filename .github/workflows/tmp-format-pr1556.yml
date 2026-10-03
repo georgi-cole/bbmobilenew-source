@@ -1,4 +1,5 @@
 name: Temporary PR1556 Formatter
+# second push activates formatter after workflow registration
 
 on:
   push:
