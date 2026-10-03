@@ -37,6 +37,7 @@ import {
 } from '../../store/gameSlice'
 import { shouldDepressionShockRefuseConversation } from '../../features/twists/depressionShock'
 import { validateSocialExecution } from '../socialExecutionGuard'
+import { isLohReplacementPending } from '../lohReplacementWindow'
 import {
   createInitialPregnancyStoryState,
   estimateFinalThreeDay,
@@ -1014,9 +1015,10 @@ function buildLohConsultationSummary(
       (player) => player.id === id && player.status !== 'evicted' && player.status !== 'jury'
     )
   )
-  const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(
-    state.game.phase
-  )
+  const replacementPending = isLohReplacementPending(state.game)
+  const finalBlockLocked =
+    !replacementPending &&
+    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.game.phase)
   const actorHoldsSafety =
     state.game.posWinnerId === input.actorId ||
     getCupidPartnerId(state.game, state.game.posWinnerId) === input.actorId
@@ -1089,7 +1091,9 @@ function buildLohConsultationSummary(
 
   const disclosedName = playerName(state, disclosedTargetId)
   if (disclosureOutcome === 'false') {
-    return `${disclosedName} is the name I am willing to give you if Safety opens the block.`
+    return replacementPending
+      ? `${disclosedName} is the name I am willing to give you for the open replacement seat.`
+      : `${disclosedName} is the name I am willing to give you if Safety opens the block.`
   }
   if (nominees.includes(disclosedTargetId)) {
     return `${disclosedName} is my current target. That is who I want the pressure on.`
@@ -1098,7 +1102,9 @@ function buildLohConsultationSummary(
     const mainTarget = plan.currentTargetId
       ? playerName(state, plan.currentTargetId)
       : 'the current nominee'
-    return `${disclosedName} is the replacement nominee if Safety opens the block. ${mainTarget} remains my main target.`
+    return replacementPending
+      ? `Safety opened a seat. I am considering ${disclosedName} as the backup nominee. ${mainTarget} remains my main target.`
+      : `${disclosedName} is the replacement nominee if Safety opens the block. ${mainTarget} remains my main target.`
   }
   return `Right now, ${disclosedName} is the person I am watching most closely.`
 }

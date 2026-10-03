@@ -151,7 +151,7 @@ export const EN_US_MESSAGES = {
     'Ask who the LOH is considering before nominations are locked.',
   'social.action.askReplacementPlan.title': 'Ask Replacement Plan',
   'social.action.askReplacementPlan.description':
-    'Ask who the LOH would name if Safety opens a seat on the block.',
+    'Ask who the LOH is considering as the backup nominee.',
   'social.relationship.ex': '💔 Ex',
   'social.relationship.brokenAlliance': '💔 Broken alliance',
   'broadcast.shock.aria': 'Shock announcement: {title}',

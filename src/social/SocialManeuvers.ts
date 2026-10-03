@@ -36,6 +36,7 @@ import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
+import { isLohReplacementPending } from './lohReplacementWindow'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
   getRuntimeSocialActionById,
@@ -90,6 +91,8 @@ interface ManeuverGameState {
   phase?: string
   lohId?: string | null
   nomineeIds?: string[]
+  replacementNeeded?: boolean
+  aiReplacementStep?: number
   pregnancyStory?: import('./reality/pregnancy').PregnancyStoryState
   dramaSocialMode?: boolean
   depressionShock?: { activeDay?: number }
@@ -176,7 +179,16 @@ export type LohPlanDisclosureOutcome = 'truthful' | 'vague' | 'false'
  * answer, or a credible decoy when the LOH is setting an ambush.
  */
 export function resolveLohPlanDisclosure(input: {
-  game?: { players?: ManeuverPlayer[] }
+  game?: {
+    players?: ManeuverPlayer[]
+    phase?: string
+    nomineeIds?: string[]
+    posWinnerId?: string | null
+    povSavedId?: string | null
+    povProtectedIds?: string[]
+    replacementNeeded?: boolean
+    aiReplacementStep?: number
+  }
   relationships: SocialState['relationships']
   lohId: string
   askerId: string
@@ -207,13 +219,19 @@ export function resolveLohPlanDisclosure(input: {
     tags.has('ride_or_die') ||
     tags.has('protection')
   const trust = relationship?.affinity ?? 0
+  const replacementPending = game ? isLohReplacementPending(game) : false
   const decoys = (game?.players ?? [])
     .filter(
       (player) =>
         !['evicted', 'jury'].includes(player.status) &&
         player.id !== actualTargetId &&
         player.id !== askerId &&
-        player.id !== lohId
+        player.id !== lohId &&
+        (!replacementPending ||
+          (!game?.nomineeIds?.includes(player.id) &&
+            player.id !== game?.posWinnerId &&
+            player.id !== game?.povSavedId &&
+            !game?.povProtectedIds?.includes(player.id)))
     )
     .sort(
       (left, right) =>
@@ -301,11 +319,17 @@ function buildLohTargetNarrative(
   if (!disclosedPlan) {
     return `${lohName}: "I am still weighing my options. I am not giving you a name yet."`
   }
-  const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(
-    game?.phase ?? ''
-  )
+  const replacementPending = game ? isLohReplacementPending(game) : false
+  const finalBlockLocked =
+    !replacementPending &&
+    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(game?.phase ?? '')
   if (finalBlockLocked) {
     return `${lohName}: "${disclosedPlan.targetName} is who I want out now."`
+  }
+  if (replacementPending) {
+    return disclosedPlan.isBackdoor
+      ? `${lohName}: "Safety opened a seat. I am considering ${disclosedPlan.targetName} as the backup nominee."`
+      : `${lohName}: "Safety opened a seat. ${disclosedPlan.targetName} is still my main target; I am weighing the backup nominee."`
   }
   if (disclosedPlan.isBackdoor) {
     return `${lohName}: "If Safety changes my nominations, ${disclosedPlan.targetName} is the backup plan."`
@@ -1001,6 +1025,8 @@ export function executeAction(
       phase?: string
       lohId?: string | null
       posWinnerId?: string | null
+      povSavedId?: string | null
+      povProtectedIds?: string[]
       players?: Array<{
         id: string
         name?: string
@@ -1048,9 +1074,10 @@ export function executeAction(
         }
       : null)
   const priorLohAsks = lohPlanState?.askCountsByPlayerId[actorId] ?? 0
-  const finalBlockLocked = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(
-    rootState.game?.phase ?? ''
-  )
+  const replacementPending = rootState.game ? isLohReplacementPending(rootState.game) : false
+  const finalBlockLocked =
+    !replacementPending &&
+    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(rootState.game?.phase ?? '')
   const safetyAdviceOpen = ['pos_results', 'pos_ceremony'].includes(rootState.game?.phase ?? '')
   const actualLohDisclosureId = lohPlanState
     ? finalBlockLocked
@@ -1549,11 +1576,15 @@ export function executeAction(
                       )[0] ?? 'the other nominee'
                   } so ${lohTargetPlan.targetName} can become the replacement.`
                 : `${lohName} advised leaving the nominations unchanged; ${lohTargetPlan.targetName} is who they want out.`
-              : finalBlockLocked
-                ? `${lohTargetPlan.targetName} is who the LOH wants out now.`
-                : lohTargetPlan.isBackdoor
-                  ? `${lohTargetPlan.targetName} is the LOH's backup plan if the nominations change.`
-                  : `${lohTargetPlan.targetName} is the LOH's current target.`
+              : replacementPending
+                ? lohTargetPlan.isBackdoor
+                  ? `${lohName} is considering ${lohTargetPlan.targetName} as the backup nominee now that Safety opened a seat.`
+                  : `${lohName} still wants ${lohTargetPlan.targetName} out and is weighing the backup nominee.`
+                : finalBlockLocked
+                  ? `${lohTargetPlan.targetName} is who the LOH wants out now.`
+                  : lohTargetPlan.isBackdoor
+                    ? `${lohTargetPlan.targetName} is the LOH's backup plan if the nominations change.`
+                    : `${lohTargetPlan.targetName} is the LOH's current target.`
             : relationshipDelta !== 0
               ? `${action.title} ${verb}${depressionReversed ? ' — the storm turned it inside out' : ''} (${sign}${relationshipDelta} relationship)`
               : `${action.title} ${verb}`)
