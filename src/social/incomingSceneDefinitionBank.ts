@@ -39,6 +39,11 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
   nominee_hoh_plea: { topic: 'keeping them off the block', stakes: 'high', kind: 'pressure' },
   nominee_veto_pitch: { topic: 'using Safety', stakes: 'high', kind: 'pressure' },
   nominee_campaign: { topic: 'their campaign to stay', stakes: 'high', kind: 'pressure' },
+  co_nominee_check_in: {
+    topic: 'how the two of you navigate being nominated together',
+    stakes: 'high',
+    kind: 'strategy',
+  },
   nomination_aftershock: { topic: 'the nomination decision', stakes: 'high', kind: 'conflict' },
   nominee_understands_loh: {
     topic: 'why you nominated them as LOH',
