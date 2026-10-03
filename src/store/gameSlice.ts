@@ -2213,6 +2213,14 @@ function getNominationTargetBreakdown(
     score += 32
     factors.revenge = 32
   }
+  if (getHoldTheWallDealDisposition(state, lohId, candidate.id) === 'betray') {
+    // Once the stable promise roll falls below the live relationship threshold,
+    // make the betrayal strategically meaningful instead of merely making the
+    // beneficiary technically eligible. The ordinary scoring model can still
+    // outweigh this pressure in an extreme game state.
+    score += 72
+    factors.holdTheWallDealAmbush = 72
+  }
   factors.total = score
   return { total: score, factors }
 }
@@ -2315,7 +2323,7 @@ function recordNominationDecisionReason(
             : 'ORDINARY'
   const score = (key: string) => (typeof factors[key] === 'number' ? (factors[key] as number) : 0)
   const primaryReason =
-    score('betrayal') > 0
+    score('betrayal') > 0 || score('holdTheWallDealAmbush') > 0
       ? 'BETRAYAL'
       : score('hiddenAmbushPressure') > 0 || score('canonicalBackupPressure') > 0
         ? 'BACKDOOR_PLAN'
@@ -3667,6 +3675,33 @@ function canPlayerTargetPlayer(
   return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
 }
 
+function getHoldTheWallDealDisposition(
+  state: GameState,
+  actorId: string | null | undefined,
+  targetId: string
+): 'honor' | 'betray' | null {
+  if (!actorId) return null
+  const deal = state.holdTheWallSafetyDeal
+  const promisor = state.players.find((player) => player.id === actorId)
+  if (
+    promisor?.isUser === true ||
+    deal?.week !== state.week ||
+    deal.promisorId !== actorId ||
+    deal.beneficiaryId !== targetId
+  ) {
+    return null
+  }
+  return shouldAiHonorHoldTheWallDeal({
+    seed: state.seed,
+    week: state.week,
+    relationships: state.strategicRelationships,
+    promisorId: actorId,
+    beneficiaryId: targetId,
+  })
+    ? 'honor'
+    : 'betray'
+}
+
 function canPlayerNominatePlayer(
   state: GameState,
   actorId: string | null | undefined,
@@ -3678,24 +3713,10 @@ function canPlayerNominatePlayer(
     state.storeNominationProtections?.some(
       (protection) => protection.week === state.week && protection.targetId === targetId
     )
-  const deal = state.holdTheWallSafetyDeal
-  const promisor = actorId ? state.players.find((player) => player.id === actorId) : undefined
-  const isHonoredHoldTheWallDeal =
-    Boolean(actorId) &&
-    promisor?.isUser !== true &&
-    deal?.week === state.week &&
-    deal.promisorId === actorId &&
-    deal.beneficiaryId === targetId &&
-    shouldAiHonorHoldTheWallDeal({
-      seed: state.seed,
-      week: state.week,
-      relationships: state.strategicRelationships,
-      promisorId: actorId!,
-      beneficiaryId: targetId,
-    })
+  const dealDisposition = getHoldTheWallDealDisposition(state, actorId, targetId)
   return (
     !isProtected &&
-    !isHonoredHoldTheWallDeal &&
+    dealDisposition !== 'honor' &&
     canPlayerTargetPlayer(state, actorId, targetId) &&
     !isBellaHeirImmune(state, targetId)
   )
