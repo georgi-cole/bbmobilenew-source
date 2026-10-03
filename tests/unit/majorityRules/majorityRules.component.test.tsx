@@ -286,8 +286,8 @@ describe('MajorityRulesComp', () => {
     expect(state.hintInventories.user.pollHintUsed).toBe(true)
 
     expect(screen.queryByRole('dialog', { name: 'Majority Rules intel' })).not.toBeInTheDocument()
-    expect(screen.getByText('Pick a different answer.')).toBeInTheDocument()
-    expect(screen.getByText('Previous answer — unavailable')).toBeInTheDocument()
+    expect(await screen.findByText('Pick a different answer.')).toBeInTheDocument()
+    expect(await screen.findByText('Previous answer — unavailable')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Poll/i })).toBeDisabled()
 
     const blockedOption = screen.getByText(firstOption.text).closest('button')
