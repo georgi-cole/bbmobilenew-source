@@ -450,7 +450,7 @@ describe('Democracia twist', () => {
       store.dispatch(advance())
 
       const state = store.getState().game
-      const displayCopy = state.democracia?.resultDisplay?.message ?? ''
+      const displayCopy = state.democracia?.resultDisplay?.subtitle ?? ''
       const ballotageEvent = state.tvFeed.find((event) => /BALLOTAGE/i.test(event.text))
 
       expect(displayCopy).toMatch(/hubmates/i)
