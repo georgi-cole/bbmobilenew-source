@@ -482,3 +482,93 @@
     width: min(100%, 54rem);
   }
 }
+
+
+/* Keep the live masthead and final result inside their real mobile safe area. */
+.pf-overlay__announcement-slot {
+  height: auto;
+  flex-basis: auto;
+  min-height: clamp(6.2rem, 14vh, 7.7rem);
+}
+
+.pf-overlay__header-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5.5rem, auto);
+  align-items: end;
+}
+
+.pf-overlay__title {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.pf-overlay__status {
+  width: auto;
+  max-width: 8rem;
+  white-space: normal;
+}
+
+.pf-overlay--complete {
+  overflow-y: auto;
+}
+
+.pf-overlay--complete .pf-overlay__stage {
+  height: auto;
+  min-height: 100dvh;
+  max-height: none;
+}
+
+.pf-overlay--complete .pf-overlay__winner-stage {
+  width: 100%;
+  min-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px
+  );
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 420px) {
+  .pf-overlay__announcement-slot {
+    min-height: 8rem;
+    padding-right: 0;
+  }
+
+  .pf-overlay__header-topline {
+    min-height: 2.55rem;
+    padding-right: 10.2rem;
+    box-sizing: border-box;
+  }
+
+  .pf-overlay__header-copy {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+    align-items: start;
+  }
+
+  .pf-overlay__title {
+    font-size: clamp(1.45rem, 7vw, 2rem);
+    line-height: 0.96;
+  }
+
+  .pf-overlay__status {
+    max-width: 100%;
+    text-align: left;
+  }
+}
+
+@media (max-height: 760px) {
+  .pf-overlay--complete .pf-overlay__winner-stage {
+    justify-content: flex-start;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem 1.1rem;
+  }
+
+  .pf-overlay--complete .pf-overlay__winner-avatar-wrap {
+    width: min(34vw, 8.5rem);
+    height: min(34vw, 8.5rem);
+  }
+
+  .pf-overlay--complete .pf-overlay__headline {
+    font-size: clamp(2.1rem, 10vw, 3.4rem);
+  }
+}
