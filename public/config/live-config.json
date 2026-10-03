@@ -197,7 +197,7 @@
         "forceOnTv": true
       },
       "nominations.co-loh-prompt": {
-        "text": "{leader}, as co-Leader of the Hub, you must nominate one houseguest for elimination. 🎯",
+        "text": "{leader}, as co-Leader of the Hub, you must nominate one hubmate for elimination. 🎯",
         "major": null,
         "type": "game",
         "level": "minor",
