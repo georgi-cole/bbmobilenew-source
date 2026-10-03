@@ -338,6 +338,8 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
   }
 }
 
+const WEEKEND_ROUTINE_REPLY_CAP = 4
+
 function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEntry): void {
   if (entry.source !== 'manual') return
   const state = api.getState() as StateWithGame
@@ -353,10 +355,41 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
   const responder = context.others.find((player) => player.id === targetId)
   if (!responder) return
 
-  const interactionId = `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${entry.actionId}:${responder.id}:${entry.timestamp}`
-  if (hasIncomingInteraction(state, interactionId)) return
   const tenseAction = /confront|fight|expose|callout|betray|break/i.test(actionId)
   const strainedResult = entry.outcome !== 'success' || entry.delta < 0
+  const replyFamily = tenseAction ? 'conflict' : strainedResult ? 'strained' : 'routine'
+  const allIncoming = [
+    ...(state.social?.incomingInteractions ?? []),
+    ...(state.social?.scheduledIncomingInteractions ?? []).map((scheduled) => scheduled.interaction),
+  ]
+  const sameWeekendReply = (interaction: (typeof allIncoming)[number]) =>
+    interaction.payload?.scenarioKey === 'weekend_action_reply' &&
+    interaction.payload?.weekendDay === context.weekend.weekendDay &&
+    interaction.payload?.weekendAfterDay === context.weekend.afterDay
+
+  // Routine weekend acknowledgements are flavour, not a new inbox thread for
+  // every social click. Keep one unresolved low-value acknowledgement per AI
+  // and cap the whole weekend-day queue. The manual action itself is already
+  // retained in Hub Wire/history, so suppressing another inbox card loses no
+  // gameplay information.
+  if (!tenseAction) {
+    const openRoutineReplies = allIncoming.filter(
+      (interaction) =>
+        sameWeekendReply(interaction) &&
+        interaction.payload?.weekendActionPriority !== 'high' &&
+        !interaction.resolved
+    )
+    if (openRoutineReplies.some((interaction) => interaction.fromId === responder.id)) return
+    if (openRoutineReplies.length >= WEEKEND_ROUTINE_REPLY_CAP) return
+  }
+
+  // Use a stable semantic id rather than the action timestamp. Routine and
+  // strained replies can happen at most once per player/family/day; important
+  // conflict actions remain distinct by action kind without duplicating the
+  // exact same confrontation over and over.
+  const interactionId = `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${entry.actionId}:${responder.id}`
+  if (hasIncomingInteraction(state, interactionId)) return
+
   const responseText = tenseAction
     ? entry.outcome === 'success'
       ? 'I heard what happened. Can we talk before this gets bigger?'
@@ -377,6 +410,9 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
         payload: {
           scenarioKey: 'weekend_action_reply',
           weekendDay: context.weekend.weekendDay,
+          weekendAfterDay: context.weekend.afterDay,
+          weekendActionFamily: replyFamily,
+          weekendActionPriority: tenseAction ? 'high' : 'routine',
           actionId: entry.actionId,
         },
         responsePolicy: 'optional',
