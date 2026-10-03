@@ -100,15 +100,17 @@ export default function EditProfile() {
   const [profession, setProfession] = useState(profile?.bio?.profession ?? '')
   const [age, setAge] = useState(profile?.bio?.age ?? '')
   const [sex, setSex] = useState(profile?.bio?.sex ?? '')
-  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(() => {
-    const reproductiveProfile = profile?.bio?.reproductiveProfile
-    if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
-      return 'both'
+  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(
+    () => {
+      const reproductiveProfile = profile?.bio?.reproductiveProfile
+      if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
+        return 'both'
+      }
+      if (reproductiveProfile?.canBecomePregnant) return 'become'
+      if (reproductiveProfile?.canCausePregnancy) return 'cause'
+      return 'none'
     }
-    if (reproductiveProfile?.canBecomePregnant) return 'become'
-    if (reproductiveProfile?.canCausePregnancy) return 'cause'
-    return 'none'
-  })
+  )
 
   // Bio flavor
   const [motto, setMotto] = useState(profile?.bio?.motto ?? '')
