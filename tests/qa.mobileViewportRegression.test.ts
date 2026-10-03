@@ -20,7 +20,9 @@ describe('QA mobile viewport regressions', () => {
 
   it('gives Weekend Social resources a full-width row so three-digit values do not clip', () => {
     const css = source('src/components/SocialPanelV2/SocialPanelV2.css')
-    const weekendMobile = css.slice(css.lastIndexOf('/* ─── Weekend resource header fit hardening'))
+    const weekendMobile = css.slice(
+      css.lastIndexOf('/* ─── Weekend resource header fit hardening')
+    )
 
     expect(weekendMobile).toContain("'resources resources'")
     expect(weekendMobile).toMatch(
@@ -40,8 +42,6 @@ describe('QA mobile viewport regressions', () => {
     expect(vipMobile).toMatch(
       /\.rw-root--vip \.rw-mini-scores\s*\{[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto;/s
     )
-    expect(vipMobile).toMatch(
-      /\.rw-root--vip \.rw-btn--spin[\s\S]*min-height:\s*37px;/
-    )
+    expect(vipMobile).toMatch(/\.rw-root--vip \.rw-btn--spin[\s\S]*min-height:\s*37px;/)
   })
 })
