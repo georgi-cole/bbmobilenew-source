@@ -3,8 +3,10 @@ import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
   week_start_ally_check_in: {
-    'share your read': says('they also see two voting groups starting to form.'),
-    'ask what changed': says('two people who were close last week have stopped comparing notes.'),
+    'share your read': says(
+      'they sense voting groups starting to form, but cannot count them yet.'
+    ),
+    'ask what changed': says('a close pair seems quieter lately, though they do not know why.'),
     'keep your cards close': says(
       'they can tell you are holding something back and will watch your next move.'
     ),
@@ -17,7 +19,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'change the subject': acts('drops the game talk and leaves the check-in unresolved.'),
   },
   week_start_enemy_gossip: {
-    'compare notes': says('the same two names keep surfacing in separate conversations.'),
+    'compare notes': says('the same names keep surfacing in separate conversations.'),
     'hear them out': says('a loose voting group is forming, but nobody has locked it in.'),
     'call it fishing': says('they wanted to see what you already knew before naming anyone.'),
     'do not bite': acts('gets nothing from you and takes the rumour elsewhere.'),
@@ -112,7 +114,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
   },
   social_momentum_notice: {
     'compare what they saw': says(
-      'three different conversations made your name look unusually central today.'
+      'your name has come up often enough that they are watching who approaches you.'
     ),
     'listen carefully': says(
       'people are starting to connect your separate relationships into one picture.'
@@ -122,7 +124,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     ),
     'keep it private': acts('agrees not to repeat the warning to anyone else.'),
     'ask for specifics': says(
-      'your name came up in both strategy talk and personal check-ins today.'
+      'they have heard your name in different kinds of house talk, but have no firm count.'
     ),
     'play it cool': says(
       'they cannot tell whether the attention is helping you or making you a target.'

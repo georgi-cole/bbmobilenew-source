@@ -802,11 +802,9 @@ function applyIncomingChoiceConsequences({
     )
   }
 
-  // Promises are part of the premium causal simulation, not Normal Mode.
-  if (
-    source === 'player' &&
-    (dramaMode || interaction.payload?.scenarioKey === 'tie_break_campaign')
-  ) {
+  // A stated promise must be recorded in either social mode so the relevant
+  // nomination, Safety, or vote decision can resolve it later.
+  if (source === 'player') {
     const commitment = createCommitmentFromInteraction({
       interaction,
       responseType,

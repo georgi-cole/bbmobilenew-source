@@ -202,6 +202,15 @@ describe('Reality domain migration and directed relationships', () => {
     }
   })
 
+  it('preserves a Normal Mode pact across Reality relationship projection', () => {
+    const store = configureStore({ reducer: { social: socialReducer } })
+    store.dispatch(
+      updateRelationship({ source: 'human', target: 'lia', delta: 60, tags: ['alliance'] })
+    )
+    store.dispatch(replaceRealityDomain(store.getState().social.reality))
+    expect(store.getState().social.relationships.human.lia.tags).toContain('alliance')
+  })
+
   it('dual-writes legacy relationship outcomes into the Reality edge only', () => {
     const store = configureStore({ reducer: { social: socialReducer } })
     store.dispatch(updateRelationship({ source: 'human', target: 'lia', delta: 8 }))

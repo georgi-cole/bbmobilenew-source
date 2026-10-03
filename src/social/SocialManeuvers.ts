@@ -616,8 +616,7 @@ function getContextualActionSummary({
   }
   if (actionId === 'ask_safety_plan') {
     const holderName = name(targetId)
-    const holder = game?.players?.find((player) => player.id === targetId)
-    if (holder?.status.includes('nominated'))
+    if ((game?.nomineeIds ?? []).includes(targetId))
       return `${holderName} said they have no real choice: they intend to use Safety on themselves.`
     const actor = game?.players?.find((player) => player.id === actorId)
     const actorIsHoh = game?.lohId === actorId || actor?.status.includes('loh') === true
@@ -628,10 +627,8 @@ function getContextualActionSummary({
       .map((id) => ({ id, affinity: relationships[targetId]?.[id]?.affinity ?? 0 }))
       .sort((left, right) => right.affinity - left.affinity)[0]
     return nominee
-      ? actorIsHoh
-        ? `${holderName} said they are leaning toward using Safety on ${name(nominee.id)}.`
-        : `${holderName} trusted you enough to say they are leaning toward using Safety on ${name(nominee.id)}.`
-      : `${holderName} said they are currently leaning toward leaving the nominations unchanged.`
+      ? `${holderName} has not committed to a Safety choice. ${name(nominee.id)} is the nominee they seem closest to, but the ceremony will decide.`
+      : `${holderName} said they have not settled on a Safety choice.`
   }
   if (actionId === 'ask_use_safety') {
     return recipientTrust >= 20
@@ -937,6 +934,7 @@ export function executeAction(
     subjectId: options?.subjectId,
     phase: getWeekendEligibilityPhase(state.game),
     players: state.game?.players,
+    nomineeIds: state.game?.nomineeIds,
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,
@@ -1642,6 +1640,7 @@ export function executeGroupAction(
     targetIds,
     phase: state.game?.phase,
     players: state.game?.players,
+    nomineeIds: state.game?.nomineeIds,
     relationships: state.social.relationships,
     dramaNetwork: state.social.dramaNetwork,
     reality: state.social.reality,

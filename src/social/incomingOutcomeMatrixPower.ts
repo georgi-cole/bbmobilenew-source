@@ -54,7 +54,7 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
   },
   nominee_campaign: {
     'give them hope': says('they think one more firm vote could flip the numbers.'),
-    'hear the campaign': says('two votes are leaning their way and one is still open.'),
+    'hear the campaign': says('they are still testing which votes are firm and which could move.'),
     'tell them where you stand': says(
       'they appreciate the clarity and will work the undecided votes instead.'
     ),
@@ -65,6 +65,14 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'keep your options open': says('they will check back once the house numbers move again.'),
     'say you cannot help': says('they stop counting your vote and redirect the campaign.'),
     'end the chat': acts('takes the hint and spends the remaining time on other votes.'),
+  },
+  tie_break_campaign: {
+    'i will use my deciding vote to keep you': says(
+      'they will remember that you chose them when the vote was tied.'
+    ),
+    'make your case': says('they can offer support next week, but know the decision is yours.'),
+    'i am voting you out': says('they understand your decision and stop asking for your vote.'),
+    'end the pitch': acts('leaves the deciding vote in your hands without a promise.'),
   },
   nomination_aftershock: {
     'acknowledge the hurt': says(

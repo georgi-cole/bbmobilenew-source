@@ -25,7 +25,12 @@ describe('incoming outcome matrix', () => {
       }
     }
 
-    expect(outcomes).toHaveLength(248)
+    expect(outcomes).toHaveLength(
+      Object.values(SCENE_CHOICES).reduce(
+        (count, variants) => count + variants.reduce((total, labels) => total + labels.length, 0),
+        0
+      )
+    )
     expect(new Set(outcomes).size).toBe(outcomes.length)
   })
 
@@ -45,7 +50,9 @@ describe('incoming outcome matrix', () => {
       senderIsNominated: true,
     })
 
-    expect(campaign).toBe('Jax says two votes are leaning their way and one is still open.')
+    expect(campaign).toBe(
+      'Jax says they are still testing which votes are firm and which could move.'
+    )
     expect(liveVote).toBe('Rune says keeping them gives you a vote that is still open.')
     expect(campaign).not.toBe(liveVote)
   })
@@ -88,6 +95,6 @@ describe('incoming outcome matrix', () => {
         phase: 'social_2',
         senderIsNominated: false,
       })
-    ).toBe('Bea says the claim about Dex came from two separate conversations.')
+    ).toBe('Bea says the claim about Dex came through house talk they cannot verify.')
   })
 })
