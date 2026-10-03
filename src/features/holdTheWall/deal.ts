@@ -173,8 +173,14 @@ export function getHoldTheWallDealDisposition(
   deal: HoldTheWallSafetyDeal
 ): 'honor' | 'betray' {
   const chance = getHoldTheWallDealBetrayalChance(state, deal)
-  const roll = seededUnit(
-    `${state.gameId}:${state.seed}:${state.week}:${deal.promisorId}:${deal.beneficiaryId}:hold-wall-betrayal`
-  )
+  const betrayalSeed = [
+    state.gameId,
+    state.seed,
+    state.week,
+    deal.promisorId,
+    deal.beneficiaryId,
+    'hold-wall-betrayal',
+  ].join(':')
+  const roll = seededUnit(betrayalSeed)
   return roll < chance ? 'betray' : 'honor'
 }
