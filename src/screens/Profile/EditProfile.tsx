@@ -100,9 +100,7 @@ export default function EditProfile() {
   const [profession, setProfession] = useState(profile?.bio?.profession ?? '')
   const [age, setAge] = useState(profile?.bio?.age ?? '')
   const [sex, setSex] = useState(profile?.bio?.sex ?? '')
-  const [pregnancyRole, setPregnancyRole] = useState<
-    'none' | 'become' | 'cause' | 'both'
-  >(() => {
+  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(() => {
     const reproductiveProfile = profile?.bio?.reproductiveProfile
     if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
       return 'both'
@@ -552,8 +550,8 @@ export default function EditProfile() {
             <option value="both">Both</option>
           </select>
           <p className="edit-profile__sensitive-note">
-            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the
-            existing one-time in-game role choice.
+            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the existing
+            one-time in-game role choice.
           </p>
         </div>
         <div className="edit-profile__field">
