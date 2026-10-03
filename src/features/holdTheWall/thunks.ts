@@ -9,7 +9,12 @@
  * immediately without dispatching again (mirrors cwgo/thunks.ts pattern).
  */
 import type { AppDispatch, RootState } from '../../store/store';
-import { applyMinigameWinner } from '../../store/gameSlice';
+import {
+  addTvEvent,
+  applyMinigameWinner,
+  recordHoldTheWallSafetyDeal,
+} from '../../store/gameSlice';
+import { addSocialCommitment } from '../../social/socialSlice';
 import { markHoldTheWallOutcomeResolved } from './holdTheWallSlice';
 import type { HoldTheWallState } from './holdTheWallSlice';
 
@@ -59,6 +64,57 @@ export const resolveHoldTheWallOutcome =
         phase,
       );
       return;
+    }
+
+    const deal = htw.finalTwoDeal;
+    if (
+      htw.prizeType === 'LOH' &&
+      deal?.status === 'accepted' &&
+      deal.triggered &&
+      deal.promisorId === winnerId
+    ) {
+      const safetyDeal = {
+        week: s.game.week,
+        promisorId: deal.promisorId,
+        beneficiaryId: deal.beneficiaryId,
+        source: 'hold_the_wall' as const,
+        affinityAtDeal: deal.affinityAtDeal,
+        tagsAtDeal: [...deal.tagsAtDeal],
+      };
+      dispatch(recordHoldTheWallSafetyDeal(safetyDeal));
+
+      const commitmentId = `hold-wall-deal:${s.game.gameId}:${s.game.week}:${deal.promisorId}:${deal.beneficiaryId}`;
+      dispatch(
+        addSocialCommitment({
+          id: commitmentId,
+          interactionId: commitmentId,
+          kind: 'protect_from_nomination',
+          promisorId: deal.promisorId,
+          beneficiaryId: deal.beneficiaryId,
+          createdWeek: s.game.week,
+          dueWeek: s.game.week,
+          status: 'pending',
+        }),
+      );
+
+      const promisorName =
+        s.game.players.find((player) => player.id === deal.promisorId)?.name ?? 'The winner';
+      const beneficiaryName =
+        s.game.players.find((player) => player.id === deal.beneficiaryId)?.name ?? 'the runner-up';
+      dispatch(
+        addTvEvent({
+          text: `🤝 ${beneficiaryName} dropped on a deal. ${promisorName} promised not to nominate them today.`,
+          type: 'game',
+          channels: ['tv', 'mainLog'],
+          source: 'system',
+          meta: {
+            holdTheWallDeal: true,
+            promisorId: deal.promisorId,
+            beneficiaryId: deal.beneficiaryId,
+            week: s.game.week,
+          },
+        }),
+      );
     }
 
     // Mark as resolved before dispatching so any synchronous re-render
