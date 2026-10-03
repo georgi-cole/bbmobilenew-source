@@ -2,11 +2,13 @@ import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
   activateStoreExtraVote,
+  activateStoreNominationProtection,
   activateStoreVoxExtraVote,
   applyStoreVoxVoteRemoval,
   commitNominees,
   applyStoreVoteRemoval,
   createInitialGameState,
+  getEligibleReplacementNominees,
   hydrateGame,
   submitHumanDoubleVote,
 } from './gameSlice'
@@ -59,6 +61,38 @@ function prepareVoteState(): {
   return { state, human, loh, nominees }
 }
 
+function prepareStoreProtectionState(): {
+  state: GameState
+  human: Player
+  loh: Player
+  protectedOther: Player
+  nominees: [Player, Player]
+} {
+  const state = createInitialGameState({ seed: 7713 })
+  state.mode = 'classic'
+  state.phase = 'nomination_results'
+  state.awaitingNominations = true
+  state.doubleEviction = { usedCount: 0, weekActive: false, pendingSecondEviction: null }
+  if (state.voxPopuli) state.voxPopuli.status = 'inactive'
+  if (state.cupidArrow) state.cupidArrow.status = 'inactive'
+
+  const human = state.players.find((player) => player.isUser)!
+  const others = state.players.filter((player) => player.id !== human.id)
+  const loh = others[0]!
+  const protectedOther = others[1]!
+  const nominees = [others[2]!, others[3]!] as [Player, Player]
+
+  state.players.forEach((player) => {
+    if (player.id === loh.id) player.status = 'loh'
+    else player.status = 'active'
+  })
+  state.lohId = loh.id
+  state.nomineeIds = []
+  state.pendingNominee1Id = null
+
+  return { state, human, loh, protectedOther, nominees }
+}
+
 function prepareVoxNominationState(): { state: GameState; human: Player; targets: string[] } {
   const state = createInitialGameState({ seed: 7712 })
   state.mode = 'classic'
@@ -90,6 +124,80 @@ function prepareVoxNominationState(): { state: GameState; human: Player; targets
 
   return { state, human, targets }
 }
+
+describe('Eyeolean Store nomination protection', () => {
+  it.each([
+    ['protection', 'other'],
+    ['immunity', 'human'],
+  ] as const)(
+    'keeps %s active through backup-nominee windows after the Store unit is consumed',
+    (productKey, targetKind) => {
+      const { state, human, loh, protectedOther, nominees } = prepareStoreProtectionState()
+      const target = targetKind === 'human' ? human : protectedOther
+      const store = configureStore({
+        reducer: { game: gameReducer, profiles: profilesReducer },
+        middleware: (getDefaultMiddleware) =>
+          getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
+      })
+
+      store.dispatch(createProfile({ name: 'QA Protection Test', avatar: '🛡️' }))
+      store.dispatch(debugGrantEyeoleans({ grantId: `qa-${productKey}`, amount: 30_000 }))
+      store.dispatch(
+        purchaseEyeoleanStoreProduct({
+          transactionId: `qa-buy-${productKey}`,
+          productKey,
+        })
+      )
+      store.dispatch(hydrateGame(state))
+      store.dispatch(
+        armEyeoleanStorePower({
+          productKey,
+          gameId: state.gameId,
+          season: state.season,
+          week: state.week,
+          targetId: target.id,
+        })
+      )
+      store.dispatch(
+        activateStoreNominationProtection({
+          productKey,
+          targetId: target.id,
+          week: state.week,
+        })
+      )
+
+      store.dispatch(commitNominees(nominees.map((player) => player.id)))
+
+      const afterNominations = store.getState()
+      expect(
+        afterNominations.profiles.profiles[0]?.eyeoleanPowerReservations?.[productKey]
+      ).toBeUndefined()
+      expect(afterNominations.game.storeNominationProtections).toContainEqual({
+        productKey,
+        targetId: target.id,
+        week: state.week,
+      })
+      expect(
+        getEligibleReplacementNominees(afterNominations.game, loh.id).map((player) => player.id)
+      ).not.toContain(target.id)
+
+      store.dispatch(
+        hydrateGame({
+          ...afterNominations.game,
+          week: state.week + 1,
+          phase: 'week_start',
+        })
+      )
+      expect(
+        store
+          .getState()
+          .game.storeNominationProtections?.some(
+            (protection) => protection.productKey === productKey
+          )
+      ).toBe(false)
+    }
+  )
+})
 
 describe('Eyeolean Store voting powers', () => {
   it('applies Vox Remove a Nomination alongside Extra Vote after the ballot resolves', () => {
