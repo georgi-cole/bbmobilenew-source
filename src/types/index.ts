@@ -1378,6 +1378,17 @@ export interface GameState {
   secretMissionLastResolvedDay?: number | null
   /** Task-set signatures already generated this season; prevents repeat checklists. */
   secretMissionTaskSetHistory?: string[]
+  /**
+   * Accepted Final Two Hold-the-Wall safety deal. AI promises are checked
+   * dynamically against the current relationship when nomination eligibility
+   * is resolved, so later relationship damage can create a believable betrayal.
+   */
+  holdTheWallSafetyDeal?: {
+    week: number
+    promisorId: string
+    beneficiaryId: string
+    source: 'final_two'
+  }
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
   /**
