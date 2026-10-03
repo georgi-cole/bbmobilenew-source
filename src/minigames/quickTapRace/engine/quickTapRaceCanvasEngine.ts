@@ -67,7 +67,6 @@ const PARTICLE_SPEED = 0.16;
 // the feedback lively, but bounded when a player taps at a very high rate.
 const MAX_PARTICLES = 24;
 const MAX_PARTICLES_PER_TAP = 2;
-const TAP_SOUND_INTERVAL_MS = 45;
 const INPUT_UI_UPDATE_INTERVAL_MS = 60;
 const BOOSTER_PROMPT_PULSE_BASE = 0.88;
 const BOOSTER_PROMPT_PULSE_AMPLITUDE = 0.12;
@@ -191,7 +190,6 @@ export class QuickTapRaceCanvasEngine {
 
   private lastLowLatencyUiUpdateMs = 0;
 
-  private lastTapSoundMs = Number.NEGATIVE_INFINITY;
 
   private lastTimerUiUpdateMs = 0;
 
@@ -357,10 +355,6 @@ export class QuickTapRaceCanvasEngine {
       (this.pointerTypeCounts[normalizedPointerType] ?? 0) + 1;
 
     this.spawnParticles(point.x, point.y);
-    if (nowMs - this.lastTapSoundMs >= TAP_SOUND_INTERVAL_MS) {
-      this.lastTapSoundMs = nowMs;
-      this.options.onTap?.();
-    }
 
     // React owns the HUD outside the canvas. Do not make every pointer event
     // synchronously re-render that subtree; the RAF/timer path still keeps the
