@@ -59,9 +59,7 @@ describe('Hold the Wall final-two deals', () => {
     expect(seed).toBeDefined()
   })
 
-  it(
-    'keeps the beneficiary off an allied AI winner block but can expose them after the bond collapses',
-    () => {
+  it('changes AI nomination eligibility when a deal relationship collapses', () => {
     const state = createInitialGameState({ seed: 51 })
     const human = state.players.find((player) => player.isUser)
     const ai = state.players.find((player) => !player.isUser)
@@ -116,6 +114,5 @@ describe('Hold the Wall final-two deals', () => {
     expect(getEligibleNominationTargets(state, ai.id).map((player) => player.id)).toContain(
       human.id
     )
-    }
-  )
+  })
 })
