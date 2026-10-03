@@ -25,10 +25,25 @@ export type HoldTheWallStatus = 'idle' | 'active' | 'complete';
 
 export type HoldTheWallPrizeType = 'LOH' | 'POS';
 
+export type HoldTheWallDealStatus = 'offered' | 'accepted' | 'declined';
+
+export interface HoldTheWallFinalTwoDeal {
+  promisorId: string;
+  beneficiaryId: string;
+  offeredBy: 'human' | 'ai';
+  status: HoldTheWallDealStatus;
+  affinityAtDeal: number;
+  tagsAtDeal: string[];
+  /** True only when the beneficiary actually drops and gives the promisor the win. */
+  triggered: boolean;
+}
+
 export interface HoldTheWallState {
   status: HoldTheWallStatus;
   prizeType: HoldTheWallPrizeType;
   seed: number;
+  /** Human participant, retained so deal/drop reducers can validate the final two. */
+  humanId: string | null;
   /** IDs of all competition participants (human + AI). */
   participantIds: string[];
   /**
@@ -40,6 +55,10 @@ export interface HoldTheWallState {
   droppedIds: string[];
   /** ID of the last player standing once complete, or null while active. */
   winnerId: string | null;
+  /** One optional final-two safety bargain for LOH Hold the Wall. */
+  finalTwoDeal: HoldTheWallFinalTwoDeal | null;
+  /** Prevents repeatedly reopening the final-two bargaining window. */
+  dealOpportunityResolved: boolean;
   /**
    * Guard against dispatching applyMinigameWinner more than once.
    * Mirrors the outcomeResolved pattern used by cwgoCompetitionSlice.
@@ -53,10 +72,13 @@ const initialState: HoldTheWallState = {
   status: 'idle',
   prizeType: 'LOH',
   seed: 0,
+  humanId: null,
   participantIds: [],
   aiDropSchedule: {},
   droppedIds: [],
   winnerId: null,
+  finalTwoDeal: null,
+  dealOpportunityResolved: false,
   outcomeResolved: false,
 };
 
@@ -105,11 +127,58 @@ const holdTheWallSlice = createSlice({
       state.status = 'active';
       state.prizeType = prizeType;
       state.seed = seed;
+      state.humanId = humanId;
       state.participantIds = participantIds;
       state.aiDropSchedule = buildAiDropSchedule(seed, participantIds, humanId);
       state.droppedIds = [];
       state.winnerId = null;
+      state.finalTwoDeal = null;
+      state.dealOpportunityResolved = false;
       state.outcomeResolved = false;
+    },
+
+    offerFinalTwoDeal(
+      state,
+      action: PayloadAction<{
+        promisorId: string;
+        beneficiaryId: string;
+        offeredBy: 'human' | 'ai';
+        affinityAtDeal: number;
+        tagsAtDeal: string[];
+      }>,
+    ) {
+      if (state.status !== 'active' || state.prizeType !== 'LOH') return;
+      if (state.finalTwoDeal || state.dealOpportunityResolved) return;
+      const aliveIds = state.participantIds.filter((id) => !state.droppedIds.includes(id));
+      if (aliveIds.length !== 2) return;
+      const { promisorId, beneficiaryId, offeredBy, affinityAtDeal, tagsAtDeal } = action.payload;
+      if (
+        promisorId === beneficiaryId ||
+        !aliveIds.includes(promisorId) ||
+        !aliveIds.includes(beneficiaryId)
+      ) {
+        return;
+      }
+      state.finalTwoDeal = {
+        promisorId,
+        beneficiaryId,
+        offeredBy,
+        status: 'offered',
+        affinityAtDeal,
+        tagsAtDeal: [...tagsAtDeal],
+        triggered: false,
+      };
+    },
+
+    resolveFinalTwoDeal(state, action: PayloadAction<boolean>) {
+      if (state.status !== 'active' || state.finalTwoDeal?.status !== 'offered') return;
+      state.finalTwoDeal.status = action.payload ? 'accepted' : 'declined';
+      state.dealOpportunityResolved = true;
+    },
+
+    skipFinalTwoDeal(state) {
+      if (state.status !== 'active' || state.dealOpportunityResolved) return;
+      state.dealOpportunityResolved = true;
     },
 
     /**
@@ -121,6 +190,18 @@ const holdTheWallSlice = createSlice({
       const id = action.payload;
       if (state.status !== 'active') return;
       if (state.droppedIds.includes(id)) return; // already dropped
+
+      const aliveBeforeDrop = state.participantIds.filter(
+        (pid) => !state.droppedIds.includes(pid),
+      );
+      if (
+        aliveBeforeDrop.length === 2 &&
+        state.finalTwoDeal?.status === 'accepted' &&
+        state.finalTwoDeal.beneficiaryId === id &&
+        aliveBeforeDrop.includes(state.finalTwoDeal.promisorId)
+      ) {
+        state.finalTwoDeal.triggered = true;
+      }
 
       state.droppedIds.push(id);
 
@@ -153,6 +234,9 @@ const holdTheWallSlice = createSlice({
 
 export const {
   startHoldTheWall,
+  offerFinalTwoDeal,
+  resolveFinalTwoDeal,
+  skipFinalTwoDeal,
   dropPlayer,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
