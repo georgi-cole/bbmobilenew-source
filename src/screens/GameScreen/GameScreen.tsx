@@ -934,6 +934,7 @@ export default function GameScreen() {
     pendingEvictionPlayer,
     showEvictionSplash,
     handleEvictionSplashDone,
+    handleEvictionPresentationSettled,
     handlePostVoteAnnouncementDismiss,
   } = useEvictionFlow({
     game,
@@ -2313,7 +2314,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Eviction cinematic (pendingEviction-driven, shared layout match-cut) ── */}
-        <AnimatePresence>
+        <AnimatePresence onExitComplete={handleEvictionPresentationSettled}>
           {showEvictionSplash &&
             pendingEvictionPlayer &&
             (game.mode === 'survival' ? (
