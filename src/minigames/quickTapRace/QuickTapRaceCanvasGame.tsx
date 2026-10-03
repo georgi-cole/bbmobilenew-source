@@ -151,15 +151,13 @@ export default function QuickTapRaceCanvasGame({
     experimental,
   });
   const latestAudioRef = useRef({
-    playTap: () => {},
     playBooster: () => {},
     playHalfTap: () => {},
   });
 
-  // Audio — active only during the playing phase.
-  const { playTap, playBooster, playHalfTap } = useQuickTapRaceAudio(
-    snapshot.phase === 'playing',
-  );
+  // Keep only low-frequency booster cues. Per-tap audio is intentionally
+  // disabled so a fast tapping burst cannot queue hundreds of sound plays.
+  const { playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'playing');
 
   useEffect(() => {
     latestFinishContextRef.current = {
@@ -173,11 +171,10 @@ export default function QuickTapRaceCanvasGame({
 
   useEffect(() => {
     latestAudioRef.current = {
-      playTap,
       playBooster,
       playHalfTap,
     };
-  }, [playBooster, playHalfTap, playTap]);
+  }, [playBooster, playHalfTap]);
 
   // ── Finish handler ─────────────────────────────────────────────────────────
 
@@ -293,9 +290,6 @@ export default function QuickTapRaceCanvasGame({
           setSnapshot(next);
         },
         onFinish: handleEngineFinish,
-        onTap: () => {
-          latestAudioRef.current.playTap();
-        },
         onBoosterActivated: (beneficial) => {
           if (beneficial) {
             latestAudioRef.current.playBooster();

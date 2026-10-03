@@ -18,7 +18,10 @@ import { describe, it, expect } from 'vitest';
 import { configureStore } from '@reduxjs/toolkit';
 import holdTheWallReducer, {
   startHoldTheWall,
+  offerFinalTwoDeal,
+  resolveFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
   buildAiDropSchedule,
@@ -54,6 +57,19 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
       }),
     );
     expect(store.getState().holdTheWall.status).toBe('active');
+  });
+
+  it('stores the human participant for final-two deal validation', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1', 'ai2'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 42,
+      }),
+    );
+    expect(store.getState().holdTheWall.humanId).toBe('human');
   });
 
   it('stores participantIds', () => {
@@ -95,7 +111,7 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
         seed: 1,
       }),
     );
-    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropFinalDuelAi('ai1'));
     // Now restart
     store.dispatch(
       startHoldTheWall({
@@ -109,6 +125,105 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
     expect(state.droppedIds).toEqual([]);
     expect(state.winnerId).toBeNull();
     expect(state.outcomeResolved).toBe(false);
+  });
+});
+
+describe('holdTheWallSlice — final-two deal', () => {
+  it('marks an accepted bargain as triggered only when the beneficiary drops', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 11,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'ai1',
+        beneficiaryId: 'human',
+        offeredBy: 'ai',
+        affinityAtDeal: 65,
+        tagsAtDeal: ['alliance'],
+      }),
+    );
+    store.dispatch(resolveFinalTwoDeal(true));
+    store.dispatch(dropPlayer('human'));
+
+    const state = store.getState().holdTheWall;
+    expect(state.finalTwoDeal?.triggered).toBe(true);
+    expect(state.winnerId).toBe('ai1');
+  });
+
+  it('does not create a triggered bargain when the promisor drops instead', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 12,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'human',
+        beneficiaryId: 'ai1',
+        offeredBy: 'human',
+        affinityAtDeal: 20,
+        tagsAtDeal: [],
+      }),
+    );
+    store.dispatch(resolveFinalTwoDeal(true));
+    store.dispatch(dropPlayer('human'));
+
+    expect(store.getState().holdTheWall.finalTwoDeal?.triggered).toBe(false);
+  });
+
+  it('does not open nomination-safety deals in a POS competition', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'POS',
+        seed: 13,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'ai1',
+        beneficiaryId: 'human',
+        offeredBy: 'ai',
+        affinityAtDeal: 80,
+        tagsAtDeal: ['alliance'],
+      }),
+    );
+
+    expect(store.getState().holdTheWall.finalTwoDeal).toBeNull();
+  });
+});
+
+describe('holdTheWallSlice — final duel authority', () => {
+  it('ignores the old scheduled AI drop once only the human and one AI remain', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 21,
+      }),
+    );
+
+    store.dispatch(dropPlayer('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('active');
+    expect(store.getState().holdTheWall.droppedIds).toEqual([]);
+
+    store.dispatch(dropFinalDuelAi('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('human');
   });
 });
 
@@ -137,7 +252,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
         seed: 1,
       }),
     );
-    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropFinalDuelAi('ai1'));
     const state = store.getState().holdTheWall;
     expect(state.status).toBe('complete');
     expect(state.winnerId).toBe('human');
@@ -155,7 +270,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
     );
     store.dispatch(dropPlayer('ai1'));
     expect(store.getState().holdTheWall.status).toBe('active');
-    store.dispatch(dropPlayer('ai2'));
+    store.dispatch(dropFinalDuelAi('ai2'));
     expect(store.getState().holdTheWall.status).toBe('complete');
     expect(store.getState().holdTheWall.winnerId).toBe('human');
   });
@@ -195,7 +310,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
     );
     store.dispatch(dropPlayer('ai1'));
     store.dispatch(dropPlayer('ai2'));
-    store.dispatch(dropPlayer('ai3'));
+    store.dispatch(dropFinalDuelAi('ai3'));
     const state = store.getState().holdTheWall;
     expect(state.status).toBe('complete');
     expect(state.winnerId).toBe('human');

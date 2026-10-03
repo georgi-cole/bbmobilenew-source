@@ -10,15 +10,26 @@
  * mounts. This ensures exactly one server-driven countdown occurs and rules
  * are shown exactly once.
  */
-import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, type CSSProperties } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store/store';
 import {
   startHoldTheWall,
+  offerFinalTwoDeal,
+  resolveFinalTwoDeal,
+  skipFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   resetHoldTheWall,
 } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveHoldTheWallOutcome } from '../../features/holdTheWall/thunks';
+import {
+  FINAL_DUEL_AI_DROP_INTERVAL_MS,
+  getHoldTheWallRelationshipRead,
+  shouldAiAcceptHoldTheWallDeal,
+  shouldAiOfferHoldTheWallDeal,
+  shouldFinalDuelAiDrop,
+} from '../../features/holdTheWall/deal';
 import type { HoldTheWallState, HoldTheWallPrizeType } from '../../features/holdTheWall/holdTheWallSlice';
 import { resolveAvatar, getDicebear } from '../../utils/avatar';
 import { mulberry32 } from '../../store/rng';
@@ -81,7 +92,7 @@ const NARRATION = {
     "{name} has hit the ground! That's gonna leave a mark! 💥",
     "{name} is out! Don't worry, we have ice packs! 🧊",
     "{name} couldn't hold on — the wall claims another victim! 😱",
-    "There goes {name}! Gravity: 1, Housemate: 0! 🪂",
+    "There goes {name}! Gravity: 1, Hubmate: 0! 🪂",
     "{name} drops! The competition just got tighter! 🔥",
   ],
   final_two: [
@@ -105,7 +116,7 @@ const NARRATION = {
 
 /** How long the winner screen stays visible before MinigameHost dismisses it. */
 const WINNER_SCREEN_DURATION_MS = 5000;
-const SPECTATOR_FAST_FORWARD_SPEED = 2;
+const SPECTATOR_FAST_FORWARD_SPEED = 5;
 
 /** Minimum ms between periodic "still holding" narration messages. */
 const MIN_NARRATION_INTERVAL_MS = 8000;
@@ -158,30 +169,35 @@ export default function HoldTheWallComp({
     (s: RootState) =>
       (s as RootState & { game: { players: GamePlayer[] } }).game?.players ?? [],
   );
+  const gamePhase = useAppSelector((s: RootState) => s.game.phase);
+  const socialRelationships = useAppSelector((s: RootState) => s.social.relationships);
 
   // Build a merged player map: Redux store data takes priority (has real avatars);
   // fall back to prop data so the component works in GameDebug / test contexts.
-  const playerMap: Record<string, { id: string; name: string; avatar: string; isUser: boolean }> = {};
-  // Seed from props first (lowest priority)
-  if (participantsProp) {
-    for (const p of participantsProp) {
-      playerMap[p.id] = {
+  const playerMap = useMemo(() => {
+    const merged: Record<string, { id: string; name: string; avatar: string; isUser: boolean }> = {};
+    // Seed from props first (lowest priority)
+    if (participantsProp) {
+      for (const p of participantsProp) {
+        merged[p.id] = {
+          id: p.id,
+          name: p.name,
+          avatar: getDicebear(p.name),
+          isUser: p.isHuman,
+        };
+      }
+    }
+    // Then overlay with real store data (higher priority — has proper avatars)
+    for (const p of storePlayers) {
+      merged[p.id] = {
         id: p.id,
         name: p.name,
-        avatar: getDicebear(p.name),
-        isUser: p.isHuman,
+        avatar: resolveAvatar(p),
+        isUser: !!p.isUser,
       };
     }
-  }
-  // Then overlay with real store data (higher priority — has proper avatars)
-  for (const p of storePlayers) {
-    playerMap[p.id] = {
-      id: p.id,
-      name: p.name,
-      avatar: resolveAvatar(p),
-      isUser: !!p.isUser,
-    };
-  }
+    return merged;
+  }, [participantsProp, storePlayers]);
 
   // Local UI state
   const [isHolding, setIsHolding] = useState(false);
@@ -200,6 +216,7 @@ export default function HoldTheWallComp({
   // Seeded RNG for narrative — advanced per message so each pick is different
   const rngRef = useRef<(() => number) | null>(null);
   const prevDropCountRef = useRef(0);
+  const finalDuelRollRef = useRef(0);
 
   // GameController for server-authoritative effects + 2-second hold rule
   const controllerRef = useRef<HoldTheWallGameController | null>(null);
@@ -210,6 +227,21 @@ export default function HoldTheWallComp({
   // Derived helpers
   const humanPlayer = Object.values(playerMap).find((p) => p.isUser);
   const humanId: string | null = humanPlayer?.id ?? null;
+  const aliveIds = htw.participantIds.filter((id) => !htw.droppedIds.includes(id));
+  const remaining = aliveIds.length;
+  const finalTwoAiId =
+    htw.status === 'active' &&
+    humanId &&
+    aliveIds.length === 2 &&
+    aliveIds.includes(humanId)
+      ? (aliveIds.find((id) => id !== humanId) ?? null)
+      : null;
+  const finalTwoDealEligible =
+    prizeType === 'LOH' &&
+    gamePhase === 'loh_comp' &&
+    Boolean(finalTwoAiId && humanId) &&
+    !htw.dealOpportunityResolved;
+  const finalTwoDealWindowOpen = finalTwoDealEligible;
 
   // ── Effects hook — subscribes to controller events ────────────────────────
   const { activeEffects, isAutoDropped } = useHoldTheWallEffects(
@@ -322,7 +354,7 @@ export default function HoldTheWallComp({
     const pressureSpeed = pressureTier === 'critical' ? 1.38 : pressureTier === 'high' ? 1.2 : pressureTier === 'rising' ? 1.08 : 1;
 
     const timeouts = Object.entries(htw.aiDropSchedule)
-      .filter(([id]) => !htw.droppedIds.includes(id))
+      .filter(([id]) => !htw.droppedIds.includes(id) && id !== finalTwoAiId)
       .map(([id, dropAtMs]) =>
         window.setTimeout(() => {
           dispatch(dropPlayer(id));
@@ -332,7 +364,101 @@ export default function HoldTheWallComp({
     return () => {
       timeouts.forEach((t) => window.clearTimeout(t));
     };
-  }, [dispatch, fastForward, htw.aiDropSchedule, htw.droppedIds, htw.status, humanId, pressureTier]);
+  }, [
+    dispatch,
+    fastForward,
+    finalTwoAiId,
+    htw.aiDropSchedule,
+    htw.droppedIds,
+    htw.status,
+    humanId,
+    pressureTier,
+  ]);
+
+  // ── Final duel: no hard AI deadline; one 10% seeded drop roll every 5s ──
+  useEffect(() => {
+    finalDuelRollRef.current = 0;
+    if (
+      htw.status !== 'active' ||
+      !finalTwoAiId ||
+      finalTwoDealWindowOpen
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      finalDuelRollRef.current += 1;
+      if (shouldFinalDuelAiDrop(seed, finalTwoAiId, finalDuelRollRef.current)) {
+        dispatch(dropFinalDuelAi(finalTwoAiId));
+      }
+    }, FINAL_DUEL_AI_DROP_INTERVAL_MS);
+
+    return () => window.clearInterval(interval);
+  }, [dispatch, finalTwoAiId, finalTwoDealWindowOpen, htw.status, seed]);
+
+  // ── Final-two bargain window ──────────────────────────────────────────────
+  useEffect(() => {
+    if (
+      !finalTwoDealEligible ||
+      !finalTwoAiId ||
+      !humanId ||
+      htw.finalTwoDeal
+    ) {
+      return;
+    }
+    const relationship = getHoldTheWallRelationshipRead(
+      { strategicRelationships: socialRelationships },
+      finalTwoAiId,
+      humanId,
+    );
+    if (shouldAiOfferHoldTheWallDeal(seed, finalTwoAiId, humanId, relationship)) {
+      dispatch(
+        offerFinalTwoDeal({
+          promisorId: finalTwoAiId,
+          beneficiaryId: humanId,
+          offeredBy: 'ai',
+          affinityAtDeal: relationship.affinity,
+          tagsAtDeal: [...relationship.tags],
+        }),
+      );
+    }
+  }, [
+    dispatch,
+    finalTwoAiId,
+    finalTwoDealEligible,
+    htw.finalTwoDeal,
+    humanId,
+    seed,
+    socialRelationships,
+  ]);
+
+  // If a bargain is rejected/skipped, require the human to take the wall again.
+  useEffect(() => {
+    if (
+      htw.status !== 'active' ||
+      !finalTwoAiId ||
+      !humanId ||
+      !htw.dealOpportunityResolved ||
+      htw.finalTwoDeal?.status === 'accepted' ||
+      isHoldingRef.current
+    ) {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      if (!isHoldingRef.current && !humanDroppedRef.current) {
+        humanDroppedRef.current = true;
+        dispatch(dropPlayer(humanId));
+      }
+    }, 2_000);
+    return () => window.clearTimeout(timeout);
+  }, [
+    dispatch,
+    finalTwoAiId,
+    htw.dealOpportunityResolved,
+    htw.finalTwoDeal?.status,
+    htw.status,
+    humanId,
+  ]);
 
   // ── Elapsed timer (requestAnimationFrame loop) ────────────────────────────
   useEffect(() => {
@@ -451,12 +577,77 @@ export default function HoldTheWallComp({
     if (htw.status !== 'active' || humanDroppedRef.current) return;
     if (!isHoldingRef.current) return;
     isHoldingRef.current = false;
-    humanDroppedRef.current = true;
     setIsHolding(false);
+    // The final-two negotiation is a deliberate pause. Releasing the wall to
+    // use its controls must not accidentally count as accepting/dropping.
+    if (finalTwoDealWindowOpen) return;
+    humanDroppedRef.current = true;
     if (humanId) {
       dispatch(dropPlayer(humanId));
     }
-  }, [htw.status, humanId, dispatch]);
+  }, [dispatch, finalTwoDealWindowOpen, htw.status, humanId]);
+
+  const handleAcceptAiDeal = useCallback(() => {
+    if (!humanId || htw.finalTwoDeal?.offeredBy !== 'ai') return;
+    dispatch(resolveFinalTwoDeal(true));
+    humanDroppedRef.current = true;
+    isHoldingRef.current = false;
+    setIsHolding(false);
+    dispatch(dropPlayer(humanId));
+  }, [dispatch, htw.finalTwoDeal?.offeredBy, humanId]);
+
+  const handleRejectAiDeal = useCallback(() => {
+    dispatch(resolveFinalTwoDeal(false));
+    setNarrativeMsg('No deal. Final two — back on the wall. 🔥');
+  }, [dispatch]);
+
+  const handleOfferHumanDeal = useCallback(() => {
+    if (!humanId || !finalTwoAiId || htw.finalTwoDeal) return;
+    const aiRead = getHoldTheWallRelationshipRead(
+      { strategicRelationships: socialRelationships },
+      finalTwoAiId,
+      humanId,
+    );
+    const humanRead = getHoldTheWallRelationshipRead(
+      { strategicRelationships: socialRelationships },
+      humanId,
+      finalTwoAiId,
+    );
+    dispatch(
+      offerFinalTwoDeal({
+        promisorId: humanId,
+        beneficiaryId: finalTwoAiId,
+        offeredBy: 'human',
+        affinityAtDeal: humanRead.affinity,
+        tagsAtDeal: [...humanRead.tags],
+      }),
+    );
+    const accepted = shouldAiAcceptHoldTheWallDeal(seed, finalTwoAiId, humanId, aiRead);
+    dispatch(resolveFinalTwoDeal(accepted));
+    if (accepted) {
+      setNarrativeMsg(
+        `${playerMap[finalTwoAiId]?.name ?? 'Your rival'} takes the deal and drops! 🤝`,
+      );
+      dispatch(dropFinalDuelAi(finalTwoAiId));
+    } else {
+      setNarrativeMsg(
+        `${playerMap[finalTwoAiId]?.name ?? 'Your rival'} refuses the deal. Back to endurance. 🔥`,
+      );
+    }
+  }, [
+    dispatch,
+    finalTwoAiId,
+    htw.finalTwoDeal,
+    humanId,
+    playerMap,
+    seed,
+    socialRelationships,
+  ]);
+
+  const handleSkipDeal = useCallback(() => {
+    dispatch(skipFinalTwoDeal());
+    setNarrativeMsg('No deal. Final two — back on the wall. 🔥');
+  }, [dispatch]);
 
   // Prevent context menu on long press (mobile)
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -464,9 +655,6 @@ export default function HoldTheWallComp({
   }, []);
 
   // ─── Derived display data ─────────────────────────────────────────────────
-
-  const aliveIds = htw.participantIds.filter((id) => !htw.droppedIds.includes(id));
-  const remaining = aliveIds.length;
 
   const winnerPlayer = htw.winnerId ? playerMap[htw.winnerId] : null;
   const humanDropped = humanId ? htw.droppedIds.includes(humanId) : false;
@@ -502,12 +690,12 @@ export default function HoldTheWallComp({
                 className="htw-fast-forward"
                 onClick={() => setFastForward(true)}
                 disabled={fastForwardActive}
-                aria-label={fastForwardActive ? 'Fast-forward 2x active' : 'Fast-forward 2x'}
+                aria-label={fastForwardActive ? 'Fast-forward 5x active' : 'Fast-forward 5x'}
                 aria-pressed={fastForwardActive}
-                title={fastForwardActive ? '2x speed active' : 'Fast-forward 2x'}
+                title={fastForwardActive ? '5x speed active' : 'Fast-forward 5x'}
               >
                 <span aria-hidden="true">⏩</span>
-                <span>2×</span>
+                <span>5×</span>
               </button>
             )}
           </div>
@@ -561,6 +749,45 @@ export default function HoldTheWallComp({
         <span className="htw-narrative-icon">📢</span>
         <span className="htw-narrative-text">{narrativeMsg}</span>
       </div>
+
+      {finalTwoDealWindowOpen && finalTwoAiId && (
+        <div className="htw-deal-card" data-testid="htw-final-two-deal">
+          <span className="htw-deal-card__kicker">FINAL TWO DEAL</span>
+          {htw.finalTwoDeal?.offeredBy === 'ai' ? (
+            <>
+              <strong>
+                {playerMap[finalTwoAiId]?.name ?? 'Your rival'} offers you safety.
+              </strong>
+              <p>
+                Drop now and they promise not to nominate you today if they become LOH.
+              </p>
+              <div className="htw-deal-card__actions">
+                <button type="button" onClick={handleAcceptAiDeal}>
+                  Accept &amp; Drop
+                </button>
+                <button type="button" className="is-secondary" onClick={handleRejectAiDeal}>
+                  Reject
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <strong>Want to bargain for the win?</strong>
+              <p>
+                Promise {playerMap[finalTwoAiId]?.name ?? 'your rival'} safety today if they drop.
+              </p>
+              <div className="htw-deal-card__actions">
+                <button type="button" onClick={handleOfferHumanDeal}>
+                  Offer Safety
+                </button>
+                <button type="button" className="is-secondary" onClick={handleSkipDeal}>
+                  Keep Playing
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Wall panel — expands to fill remaining space and stays visible while spectating */}
       {htw.status === 'active' && (

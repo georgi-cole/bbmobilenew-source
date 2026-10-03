@@ -1161,6 +1161,9 @@ function recordPhaseCeremony(
         : 'The nominations were made official.',
       tags: voxPopuliActive ? ['secret_ballot'] : undefined,
     })
+    if (!voxPopuliActive) {
+      evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, 'game/commitNominees')
+    }
   }
   if (previousPhase === 'pos_ceremony_results') {
     const original =
@@ -1187,6 +1190,10 @@ function recordPhaseCeremony(
         state.game.povSavedId,
         { eligibleTargetIds: original, savedTargetIds: savedIds }
       )
+    evaluateSocialCommitmentsForAction(
+      api as unknown as CommitmentStore,
+      'game/finalizeHoldTheWallNominationDeal'
+    )
   }
   if (nextPhase === 'eviction_results') recordActualVotes(api)
 }

@@ -145,13 +145,10 @@ export default function LaneRacersCanvasGame({
     return buildHostedRacers(participantIds, participants);
   }, [humanId, participantIds, participants, players, session]);
 
-  const { playTap, playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'active');
+  const { playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'active');
 
   const handleProgress = useCallback((nextSnapshot: QuickTapRaceEngineSnapshot) => {
     const previous = audioSnapshotRef.current;
-    if (nextSnapshot.playerRawTaps > previous.rawTaps) {
-      playTap();
-    }
     if (nextSnapshot.playerEffectLabel !== previous.effectLabel && nextSnapshot.playerEffectLabel) {
       const ranking = nextSnapshot.rankings.find((entry) => entry.isPlayer);
       const playerLead = ranking ? nextSnapshot.rankings[0]?.id === ranking.id : false;
@@ -166,7 +163,7 @@ export default function LaneRacersCanvasGame({
       effectLabel: nextSnapshot.playerEffectLabel,
     };
     setSnapshot(nextSnapshot);
-  }, [playBooster, playHalfTap, playTap]);
+  }, [playBooster, playHalfTap]);
 
   const handleEngineFinish = useCallback((raceResult: QuickTapRaceResult) => {
     setResult(raceResult);

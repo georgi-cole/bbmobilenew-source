@@ -91,8 +91,6 @@ export interface QTREngineOptions {
     modifiers: string[],
     timing: QTRTimingDiagnostics,
   ) => void;
-  /** Audio callback: fired on every player tap. */
-  onTap?: () => void;
   /** Audio callback: fired when a booster is activated. */
   onBoosterActivated?: (beneficial: boolean) => void;
 }
