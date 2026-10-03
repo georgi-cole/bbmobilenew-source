@@ -11913,7 +11913,7 @@ const gameSlice = createSlice({
       }
     },
 
-    /** Apply the selected Store shield to the next nomination round only. */
+    /** Apply a Store shield that remains active for every nomination window this game day/week. */
     activateStoreNominationProtection(
       state,
       action: PayloadAction<{
