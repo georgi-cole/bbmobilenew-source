@@ -1897,7 +1897,7 @@ export default function GameScreen() {
         {showCoLohNominationModal && humanCoLohId && (
           <TvDecisionModal
             title="Co-LOH Nomination"
-            subtitle={`${humanPlayer?.name}, as co-Leader of the House, nominate one houseguest for elimination. You cannot nominate yourself or the other co-LOH.`}
+            subtitle={`${humanPlayer?.name}, as co-Leader of the Hub, nominate one hubmate for elimination. You cannot nominate yourself or the other co-LOH.`}
             options={coLohNomOptions}
             onSelect={(id) =>
               dispatch(submitCoLohNomination({ coLohId: humanCoLohId, nomineeId: id }))
