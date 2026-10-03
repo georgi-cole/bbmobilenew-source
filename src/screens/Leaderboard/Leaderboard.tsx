@@ -35,6 +35,11 @@ function placementLabel(placement: number | null | undefined): string {
   return `${placement}${suffix}`
 }
 
+function publicRatingLabel(value: number | null | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Not recorded'
+  return `${Math.round(Math.max(0, Math.min(100, value)))}%`
+}
+
 function seasonFormatLabel(archive: SeasonArchive): string {
   if (archive.voxPopuliActivated) return 'Vox Populi'
   if (archive.cupidArrowActivated) return "Cupid's Arrow"
@@ -168,6 +173,9 @@ export default function Leaderboard() {
                           <span className="hall-of-fame-screen__your-finish">
                             You: {placementLabel(userSummary?.finalPlacement)}
                           </span>
+                          <span className="hall-of-fame-screen__season-rating">
+                            ★ Public rating: {publicRatingLabel(userSummary?.finalPublicApproval)}
+                          </span>
                         </span>
                         <span className="hall-of-fame-screen__winner-block">
                           <span className="hall-of-fame-screen__winner-label">Winner</span>
@@ -196,6 +204,10 @@ export default function Leaderboard() {
                             <div>
                               <dt>Your finish</dt>
                               <dd>{placementLabel(userSummary?.finalPlacement)}</dd>
+                            </div>
+                            <div>
+                              <dt>Your public rating</dt>
+                              <dd>{publicRatingLabel(userSummary?.finalPublicApproval)}</dd>
                             </div>
                           </dl>
                           {userTitles.length > 0 && (
