@@ -73,8 +73,8 @@ idle ──startHoldTheWall──▶ active ──(one player remains)──▶ 
 - Tap/click and **hold** the wall panel to stay in.
 - Releasing (pointer up / pointer leave) immediately calls `dropPlayer(humanId)`.
 
-### AI houseguests
-- Each AI is assigned a personal drop time in `[AI_DROP_MIN_MS, AI_DROP_MAX_MS)` (default 10 s – 120 s) computed deterministically from the competition `seed` using the `mulberry32` PRNG.
+### AI hubmates
+- AI hubmates receive deterministic early/mid-game drop times in `[AI_DROP_MIN_MS, AI_DROP_MAX_MS)` (default 10 s – 120 s). The AI reserved for a human Final Two has no hard deadline: once only those two remain, it gets a seeded 10% drop check every five seconds until somebody drops.
 - `HoldTheWallComp` schedules one `setTimeout` per AI on mount. When the timer fires it dispatches `dropPlayer(aiId)`.
 - Because drop times are seeded, the same seed always produces the same AI behavior — useful for replaying or testing a specific game run.
 

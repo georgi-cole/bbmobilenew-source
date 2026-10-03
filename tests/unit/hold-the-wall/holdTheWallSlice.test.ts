@@ -19,11 +19,13 @@ import { configureStore } from '@reduxjs/toolkit';
 import holdTheWallReducer, {
   startHoldTheWall,
   dropPlayer,
+  rollFinalDuelAiDrop,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
   buildAiDropSchedule,
   AI_DROP_MIN_MS,
   AI_DROP_MAX_MS,
+  shouldFinalDuelAiDrop,
 } from '../../../src/features/holdTheWall/holdTheWallSlice';
 
 function makeStore() {
@@ -69,7 +71,7 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
     expect(store.getState().holdTheWall.participantIds).toEqual(['human', 'ai1', 'ai2']);
   });
 
-  it('creates aiDropSchedule for AI players only (not human)', () => {
+  it('reserves the latest AI for the uncapped final duel instead of a fixed deadline', () => {
     const store = makeStore();
     store.dispatch(
       startHoldTheWall({
@@ -79,10 +81,11 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
         seed: 42,
       }),
     );
-    const { aiDropSchedule } = store.getState().holdTheWall;
+    const { aiDropSchedule, finalDuelAiId } = store.getState().holdTheWall;
     expect('human' in aiDropSchedule).toBe(false);
-    expect('ai1' in aiDropSchedule).toBe(true);
-    expect('ai2' in aiDropSchedule).toBe(true);
+    expect(['ai1', 'ai2']).toContain(finalDuelAiId);
+    expect(Object.keys(aiDropSchedule)).toHaveLength(1);
+    expect(aiDropSchedule[finalDuelAiId!]).toBeUndefined();
   });
 
   it('resets droppedIds and winnerId', () => {
@@ -237,6 +240,53 @@ describe('holdTheWallSlice — dropPlayer', () => {
     store.dispatch(dropPlayer('ai2'));
     expect(store.getState().holdTheWall.status).toBe('complete');
     expect(store.getState().holdTheWall.winnerId).toBe('ai2');
+  });
+});
+
+describe('holdTheWallSlice — final duel endurance', () => {
+  it('uses deterministic 10% final-duel rolls', () => {
+    const firstPass = Array.from({ length: 50 }, (_, index) =>
+      shouldFinalDuelAiDrop(90210, index + 1),
+    );
+    const secondPass = Array.from({ length: 50 }, (_, index) =>
+      shouldFinalDuelAiDrop(90210, index + 1),
+    );
+    expect(firstPass).toEqual(secondPass);
+    expect(firstPass).toContain(true);
+    expect(firstPass).toContain(false);
+  });
+
+  it('does not roll the reserved AI until it is actually final two with the human', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1', 'ai2'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 77,
+      }),
+    );
+    const reserved = store.getState().holdTheWall.finalDuelAiId!;
+    const other = ['ai1', 'ai2'].find((id) => id !== reserved)!;
+
+    for (let index = 0; index < 100; index += 1) {
+      store.dispatch(rollFinalDuelAiDrop({ humanId: 'human' }));
+    }
+    expect(store.getState().holdTheWall.droppedIds).not.toContain(reserved);
+
+    store.dispatch(dropPlayer(other));
+    let guard = 0;
+    while (
+      store.getState().holdTheWall.status === 'active' &&
+      guard < 500
+    ) {
+      store.dispatch(rollFinalDuelAiDrop({ humanId: 'human' }));
+      guard += 1;
+    }
+
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('human');
+    expect(store.getState().holdTheWall.droppedIds).toContain(reserved);
   });
 });
 
