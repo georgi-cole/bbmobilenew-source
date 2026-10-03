@@ -11,6 +11,7 @@ import gameReducer, {
   getEligibleReplacementNominees,
   hydrateGame,
   submitHumanDoubleVote,
+  submitPovSaveTarget,
 } from './gameSlice'
 import profilesReducer, {
   armEyeoleanStorePower,
@@ -126,6 +127,50 @@ function prepareVoxNominationState(): { state: GameState; human: Player; targets
 }
 
 describe('Eyeolean Store nomination protection', () => {
+  it('keeps a Store-protected player out of a Vox Safety replacement', () => {
+    const state = createInitialGameState({ seed: 7714 })
+    state.mode = 'classic'
+    state.week = 5
+    state.phase = 'pos_ceremony'
+    state.awaitingPovSaveTarget = true
+    state.doubleEviction = { usedCount: 0, weekActive: false, pendingSecondEviction: null }
+    if (!state.voxPopuli) throw new Error('Expected Vox Populi state')
+    state.voxPopuli.status = 'active'
+
+    const human = state.players.find((player) => player.isUser)!
+    const others = state.players.filter((player) => player.id !== human.id)
+    const savedNominee = others[0]!
+    const remainingNominee = others[1]!
+    const protectedCandidate = others[2]!
+    const legalReplacement = others[3]!
+
+    state.players.forEach((player) => {
+      player.status = 'active'
+    })
+    human.status = 'pos'
+    savedNominee.status = 'nominated'
+    remainingNominee.status = 'nominated'
+    state.posWinnerId = human.id
+    state.nomineeIds = [savedNominee.id, remainingNominee.id]
+    state.povProtectedIds = []
+    state.storeNominationProtections = [
+      { productKey: 'protection', targetId: protectedCandidate.id, week: state.week },
+    ]
+    state.voxPopuli.immunityWinnerId = human.id
+    state.voxPopuli.nominationVoteCounts = {
+      [protectedCandidate.id]: 9,
+      [legalReplacement.id]: 8,
+    }
+
+    const next = gameReducer(state, submitPovSaveTarget(savedNominee.id))
+
+    expect(next.nomineeIds).toContain(remainingNominee.id)
+    expect(next.nomineeIds).toContain(legalReplacement.id)
+    expect(next.nomineeIds).not.toContain(protectedCandidate.id)
+    expect(next.voxPopuli?.lastReplacementNomineeIds).toEqual([legalReplacement.id])
+  })
+
+
   it.each([
     ['protection', 'other'],
     ['immunity', 'human'],
