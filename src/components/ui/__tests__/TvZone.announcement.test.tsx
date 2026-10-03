@@ -1605,6 +1605,16 @@ describe('TvZone — phase-based announcement triggers', () => {
     expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
     expect(store.getState().game.phase).toBe('loh_comp_announcement')
     expect(store.getState().game.democracia?.awaitingHumanVote).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))
+      store.dispatch(setPhase('democracia_vote'))
+      vi.advanceTimersByTime(POST_DISMISS_SETTLE_MS)
+    })
+
+    expect(screen.queryByRole('dialog', { name: /Announcement: DEMOCRACIA!/i })).toBeNull()
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
     vi.useRealTimers()
   })
 
