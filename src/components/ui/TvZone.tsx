@@ -1259,10 +1259,7 @@ export default function TvZone(props: TvZoneProps) {
   const handleShockIntroComplete = useCallback(() => {
     startTransition(() => {
       setShockIntroActive(false)
-      if (
-        activeAnnouncement?.key === 'vox_populi' ||
-        activeAnnouncement?.key === 'democracia'
-      ) {
+      if (activeAnnouncement?.key === 'vox_populi' || activeAnnouncement?.key === 'democracia') {
         // Vox has a deliberate faux-TV handoff. Democracia immediately hands
         // control to the ballot modal. Neither flow should start the generic
         // info-button spotlight after the fullscreen stinger; for Democracia

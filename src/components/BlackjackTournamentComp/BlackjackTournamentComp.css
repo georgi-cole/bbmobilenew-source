@@ -1268,7 +1268,6 @@ body.no-animations .bjt-reel-track {
   transition: none;
 }
 
-
 /* ─── Mobile duel viewport hardening ───────────────────────────────────────
  * Keep the live blackjack decision controls and score rail in one viewport.
  * The roster participates in the duel layout instead of floating over Hit /

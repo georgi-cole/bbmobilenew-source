@@ -3132,7 +3132,6 @@ body.no-animations .rw-root--vip .rw-btn--spin::after {
   }
 }
 
-
 /* ─── VIP phone viewport fit hardening ─────────────────────────────────────
  * Keep the live wheel, primary action and contestant score rail visible at
  * once on normal iPhone-class portrait heights. The scoreboard becomes a

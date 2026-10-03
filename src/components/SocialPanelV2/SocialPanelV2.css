@@ -2223,7 +2223,6 @@
   }
 }
 
-
 /* ─── Weekend resource header fit hardening ────────────────────────────────
  * Weekend values are intentionally large (for example 999 influence/info).
  * Give those values their own row on phones instead of clipping them inside

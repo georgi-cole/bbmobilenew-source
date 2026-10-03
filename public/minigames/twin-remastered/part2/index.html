@@ -1180,10 +1180,7 @@
         const key = button.dataset.k
         const release = (event) => {
           keys[key] = false
-          if (
-            event?.pointerId != null &&
-            button.hasPointerCapture?.(event.pointerId)
-          ) {
+          if (event?.pointerId != null && button.hasPointerCapture?.(event.pointerId)) {
             button.releasePointerCapture(event.pointerId)
           }
         }
@@ -1199,7 +1196,6 @@
         button.addEventListener('contextmenu', (event) => event.preventDefault())
         button.addEventListener('dragstart', (event) => event.preventDefault())
       })
-
       ;[c, document.querySelector('.controls')].forEach((surface) => {
         surface?.addEventListener('contextmenu', (event) => event.preventDefault())
         surface?.addEventListener('selectstart', (event) => event.preventDefault())

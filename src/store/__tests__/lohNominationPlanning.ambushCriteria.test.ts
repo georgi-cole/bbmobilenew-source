@@ -6,10 +6,7 @@ import {
   type LohNominationPlan,
 } from '../lohNominationPlanning'
 
-function player(
-  id: string,
-  overrides: Partial<Player> = {}
-): Player {
+function player(id: string, overrides: Partial<Player> = {}): Player {
   return {
     id,
     name: id,
@@ -88,13 +85,7 @@ describe('AI LOH Ambush criteria', () => {
   it('does not manufacture an Ambush for an ordinary low-threat target', () => {
     const loh = player('loh', { status: 'loh' })
     const target = player('target')
-    const state = stateWith([
-      loh,
-      target,
-      player('pawn-a'),
-      player('pawn-b'),
-      player('backup'),
-    ])
+    const state = stateWith([loh, target, player('pawn-a'), player('pawn-b'), player('backup')])
 
     expect(calculateLohAmbushChance(state, loh.id, target, 52, 45)).toBe(0)
   })

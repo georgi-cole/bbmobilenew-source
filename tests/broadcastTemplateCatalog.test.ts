@@ -58,9 +58,7 @@ describe('broadcast template catalog', () => {
   })
 
   it('does not let bundled live config promote the Democracia ballot into another fullscreen announcement', () => {
-    const liveConfig = JSON.parse(
-      readFileSync('public/config/live-config.json', 'utf8')
-    ) as {
+    const liveConfig = JSON.parse(readFileSync('public/config/live-config.json', 'utf8')) as {
       broadcastManager?: {
         overrides?: Record<
           string,

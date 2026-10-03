@@ -360,7 +360,9 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
   const replyFamily = tenseAction ? 'conflict' : strainedResult ? 'strained' : 'routine'
   const allIncoming = [
     ...(state.social?.incomingInteractions ?? []),
-    ...(state.social?.scheduledIncomingInteractions ?? []).map((scheduled) => scheduled.interaction),
+    ...(state.social?.scheduledIncomingInteractions ?? []).map(
+      (scheduled) => scheduled.interaction
+    ),
   ]
   const sameWeekendReply = (interaction: (typeof allIncoming)[number]) =>
     interaction.payload?.scenarioKey === 'weekend_action_reply' &&

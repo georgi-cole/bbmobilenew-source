@@ -119,9 +119,9 @@ describe('weekend incoming social activity', () => {
       .social.incomingInteractions.filter(
         (interaction) => interaction.payload?.scenarioKey === 'weekend_action_reply'
       )
-    expect(weekendReplies.filter((interaction) => interaction.fromId === targets[0].id)).toHaveLength(
-      1
-    )
+    expect(
+      weekendReplies.filter((interaction) => interaction.fromId === targets[0].id)
+    ).toHaveLength(1)
 
     // Low-value replies are globally bounded so interacting with the whole
     // cast does not turn the inbox into a wall of identical check-ins.

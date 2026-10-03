@@ -18,8 +18,8 @@ describe('Find Your Twin 2 remastered mobile shell', () => {
     expect(source).toContain("window.addEventListener('blur', resetInputState)")
     expect(source).toContain("window.addEventListener('orientationchange', resetInputState)")
     expect(source).toContain("document.addEventListener('visibilitychange'")
-    expect(source).toContain("keys.jump = false")
-    expect(source).toContain("keys.enter = false")
+    expect(source).toContain('keys.jump = false')
+    expect(source).toContain('keys.enter = false')
   })
 
   it('suppresses mobile selection, long-press callouts, and context menus on gameplay controls', () => {

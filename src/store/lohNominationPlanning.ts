@@ -41,9 +41,9 @@ export function isLohAmbushPlan(
 ): plan is LohNominationPlan {
   return Boolean(
     plan &&
-      plan.strategy === 'backdoor' &&
-      plan.targetId.length > 0 &&
-      !plan.initialNomineeIds.includes(plan.targetId)
+    plan.strategy === 'backdoor' &&
+    plan.targetId.length > 0 &&
+    !plan.initialNomineeIds.includes(plan.targetId)
   )
 }
 
@@ -275,12 +275,7 @@ export function calculateLohAmbushChance(
   // Ambush is reserved for a target the LOH has a reason to conceal. The
   // threshold is intentionally broader than before so a clearly emerging
   // threat can qualify before they have already stacked multiple wins.
-  const threatSignals = [
-    comp >= 58,
-    wins > 0,
-    hostility,
-    scoreLead >= 28,
-  ].filter(Boolean).length
+  const threatSignals = [comp >= 58, wins > 0, hostility, scoreLead >= 28].filter(Boolean).length
   if (threatSignals === 0) return 0
 
   // Eligible Ambushes should be noticeable across a season without becoming
@@ -558,11 +553,7 @@ function replaceReplacementEventCopy(state: GameState, replacementId: string): v
 
 function reconcileBackdoorReplacement(previous: GameState, state: GameState): GameState {
   const plan = state.lohNominationPlan
-  if (
-    !isLohAmbushPlan(plan) ||
-    plan.week !== state.week ||
-    plan.lohId !== state.lohId
-  ) {
+  if (!isLohAmbushPlan(plan) || plan.week !== state.week || plan.lohId !== state.lohId) {
     return state
   }
   if (plan.status === 'executed' || plan.status === 'failed' || plan.status === 'compromised') {
