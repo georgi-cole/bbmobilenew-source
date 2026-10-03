@@ -2,6 +2,7 @@ import type { Reducer, UnknownAction } from '@reduxjs/toolkit'
 import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
+import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 
 export type LohNominationStrategy = 'direct' | 'backdoor'
 export type LohNominationPlanStatus =
@@ -262,9 +263,21 @@ export function calculateLohAmbushChance(
   secondScore: number
 ): number {
   const aliveCount = alivePlayers(state).length
-  // Ambush needs a normal Safety replacement ceremony. Final 4 and Day 1 do
-  // not provide the required structure.
-  if (state.week < 2 || aliveCount <= 4) return 0
+  // An accepted wall deal can become a genuine same-day ambush if the
+  // relationship deteriorates enough for the deterministic betrayal read to flip.
+  // Final 4 still has no normal replacement structure, so it cannot be an Ambush.
+  if (aliveCount <= 4) return 0
+  const wallDeal = state.holdTheWallSafetyDeal
+  if (
+    wallDeal?.week === state.week &&
+    wallDeal.promisorId === lohId &&
+    wallDeal.beneficiaryId === target.id &&
+    getHoldTheWallDealDisposition(state, wallDeal) === 'betray'
+  ) {
+    return 1
+  }
+  // Ordinary Ambushes stay disabled on Day 1.
+  if (state.week < 2) return 0
 
   const tags = relationshipTags(state, lohId, target.id)
   const wins = (target.stats?.lohWins ?? 0) + (target.stats?.posWins ?? 0)
@@ -670,10 +683,19 @@ function maybePublishBackdoorReveal(
   }
 }
 
-function establishPlan(state: GameState, scoreFn: NominationScoreFn): GameState {
+function establishPlan(
+  state: GameState,
+  scoreFn: NominationScoreFn,
+  previous?: GameState
+): GameState {
   const planningPhase =
     state.phase === 'loh_results' || state.phase === 'social_1' || state.phase === 'nominations'
-  if (!planningPhase || planMatchesCurrentLoh(state)) return state
+  const activeWallDeal =
+    state.holdTheWallSafetyDeal?.week === state.week &&
+    state.holdTheWallSafetyDeal.promisorId === state.lohId
+  const refreshForWallDeal =
+    Boolean(activeWallDeal) && state.phase === 'nominations' && previous?.phase !== 'nominations'
+  if (!planningPhase || (planMatchesCurrentLoh(state) && !refreshForWallDeal)) return state
   const plan = buildLohNominationPlan(state, scoreFn)
   if (!plan) return state
   return {
@@ -827,7 +849,7 @@ export function withLohNominationPlanning(
       if (next.lohNominationPlan != null) next = { ...next, lohNominationPlan: null }
     }
 
-    next = establishPlan(next, scoreFn)
+    next = establishPlan(next, scoreFn, previous)
     next = reconcileInitialAiNominations(previous, next)
     next = recordSafetyField(previous, next)
     next = deliverBackdoorSafetyPitch(previous, next)
