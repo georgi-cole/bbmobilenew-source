@@ -21,6 +21,7 @@ import holdTheWallReducer, {
   offerFinalTwoDeal,
   resolveFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
   buildAiDropSchedule,
@@ -110,7 +111,7 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
         seed: 1,
       }),
     );
-    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropFinalDuelAi('ai1'));
     // Now restart
     store.dispatch(
       startHoldTheWall({
@@ -204,6 +205,28 @@ describe('holdTheWallSlice — final-two deal', () => {
   });
 });
 
+describe('holdTheWallSlice — final duel authority', () => {
+  it('ignores the old scheduled AI drop once only the human and one AI remain', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 21,
+      }),
+    );
+
+    store.dispatch(dropPlayer('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('active');
+    expect(store.getState().holdTheWall.droppedIds).toEqual([]);
+
+    store.dispatch(dropFinalDuelAi('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('human');
+  });
+});
+
 describe('holdTheWallSlice — dropPlayer', () => {
   it('adds player to droppedIds', () => {
     const store = makeStore();
@@ -229,7 +252,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
         seed: 1,
       }),
     );
-    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropFinalDuelAi('ai1'));
     const state = store.getState().holdTheWall;
     expect(state.status).toBe('complete');
     expect(state.winnerId).toBe('human');
@@ -247,7 +270,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
     );
     store.dispatch(dropPlayer('ai1'));
     expect(store.getState().holdTheWall.status).toBe('active');
-    store.dispatch(dropPlayer('ai2'));
+    store.dispatch(dropFinalDuelAi('ai2'));
     expect(store.getState().holdTheWall.status).toBe('complete');
     expect(store.getState().holdTheWall.winnerId).toBe('human');
   });
@@ -287,7 +310,7 @@ describe('holdTheWallSlice — dropPlayer', () => {
     );
     store.dispatch(dropPlayer('ai1'));
     store.dispatch(dropPlayer('ai2'));
-    store.dispatch(dropPlayer('ai3'));
+    store.dispatch(dropFinalDuelAi('ai3'));
     const state = store.getState().holdTheWall;
     expect(state.status).toBe('complete');
     expect(state.winnerId).toBe('human');
