@@ -202,7 +202,6 @@ import {
   isSeasonDirectorKillSwitched,
   isWithinDirectorWindow,
 } from '../features/twists/seasonDirector'
-import { shouldAiHonorHoldTheWallDeal } from '../features/holdTheWall/holdTheWallDeals'
 
 // ─── Canonical phase order ────────────────────────────────────────────────────
 const PHASE_ORDER: Phase[] = [
@@ -2213,14 +2212,6 @@ function getNominationTargetBreakdown(
     score += 32
     factors.revenge = 32
   }
-  if (getHoldTheWallDealDisposition(state, lohId, candidate.id) === 'betray') {
-    // Once the stable promise roll falls below the live relationship threshold,
-    // make the betrayal strategically meaningful instead of merely making the
-    // beneficiary technically eligible. The ordinary scoring model can still
-    // outweigh this pressure in an extreme game state.
-    score += 72
-    factors.holdTheWallDealAmbush = 72
-  }
   factors.total = score
   return { total: score, factors }
 }
@@ -2323,7 +2314,7 @@ function recordNominationDecisionReason(
             : 'ORDINARY'
   const score = (key: string) => (typeof factors[key] === 'number' ? (factors[key] as number) : 0)
   const primaryReason =
-    score('betrayal') > 0 || score('holdTheWallDealAmbush') > 0
+    score('betrayal') > 0
       ? 'BETRAYAL'
       : score('hiddenAmbushPressure') > 0 || score('canonicalBackupPressure') > 0
         ? 'BACKDOOR_PLAN'
@@ -3678,33 +3669,6 @@ function canPlayerTargetPlayer(
   return !isTwinAlliancePair(state, actorId, targetId) && !isSameCupidPair(state, actorId, targetId)
 }
 
-function getHoldTheWallDealDisposition(
-  state: GameState,
-  actorId: string | null | undefined,
-  targetId: string
-): 'honor' | 'betray' | null {
-  if (!actorId) return null
-  const deal = state.holdTheWallSafetyDeal
-  const promisor = state.players.find((player) => player.id === actorId)
-  if (
-    promisor?.isUser === true ||
-    deal?.week !== state.week ||
-    deal.promisorId !== actorId ||
-    deal.beneficiaryId !== targetId
-  ) {
-    return null
-  }
-  return shouldAiHonorHoldTheWallDeal({
-    seed: state.seed,
-    week: state.week,
-    relationships: state.strategicRelationships,
-    promisorId: actorId,
-    beneficiaryId: targetId,
-  })
-    ? 'honor'
-    : 'betray'
-}
-
 function canPlayerNominatePlayer(
   state: GameState,
   actorId: string | null | undefined,
@@ -3716,10 +3680,8 @@ function canPlayerNominatePlayer(
     state.storeNominationProtections?.some(
       (protection) => protection.week === state.week && protection.targetId === targetId
     )
-  const dealDisposition = getHoldTheWallDealDisposition(state, actorId, targetId)
   return (
     !isProtected &&
-    dealDisposition !== 'honor' &&
     canPlayerTargetPlayer(state, actorId, targetId) &&
     !isBellaHeirImmune(state, targetId)
   )
@@ -4750,25 +4712,6 @@ const gameSlice = createSlice({
     },
     setDramaSocialMode(state, action: PayloadAction<boolean>) {
       state.dramaSocialMode = action.payload
-    },
-    recordHoldTheWallSafetyDeal(
-      state,
-      action: PayloadAction<{ week: number; promisorId: string; beneficiaryId: string }>
-    ) {
-      if (action.payload.week !== state.week) return
-      if (action.payload.promisorId === action.payload.beneficiaryId) return
-      const promisor = state.players.find((player) => player.id === action.payload.promisorId)
-      const beneficiary = state.players.find((player) => player.id === action.payload.beneficiaryId)
-      if (!promisor || !beneficiary) return
-      state.holdTheWallSafetyDeal = {
-        week: action.payload.week,
-        promisorId: promisor.id,
-        beneficiaryId: beneficiary.id,
-        source: 'final_two',
-      }
-    },
-    clearHoldTheWallSafetyDeal(state) {
-      state.holdTheWallSafetyDeal = undefined
     },
     /**
      * Changes Public Mode for an in-progress Classic season without mutating
@@ -12118,8 +12061,6 @@ export const {
   reorderPhaseBroadcasts,
   removeCustomBroadcast,
   setDramaSocialMode,
-  recordHoldTheWallSafetyDeal,
-  clearHoldTheWallSafetyDeal,
   requestPublicModeChange,
   setLohSafetyAdvice,
   addSocialSummary,
