@@ -202,6 +202,7 @@ import {
   isSeasonDirectorKillSwitched,
   isWithinDirectorWindow,
 } from '../features/twists/seasonDirector'
+import { shouldAiHonorHoldTheWallDeal } from '../features/holdTheWall/holdTheWallDeals'
 
 // ─── Canonical phase order ────────────────────────────────────────────────────
 const PHASE_ORDER: Phase[] = [
@@ -3677,8 +3678,24 @@ function canPlayerNominatePlayer(
     state.storeNominationProtections?.some(
       (protection) => protection.week === state.week && protection.targetId === targetId
     )
+  const deal = state.holdTheWallSafetyDeal
+  const promisor = actorId ? state.players.find((player) => player.id === actorId) : undefined
+  const isHonoredHoldTheWallDeal =
+    Boolean(actorId) &&
+    promisor?.isUser !== true &&
+    deal?.week === state.week &&
+    deal.promisorId === actorId &&
+    deal.beneficiaryId === targetId &&
+    shouldAiHonorHoldTheWallDeal({
+      seed: state.seed,
+      week: state.week,
+      relationships: state.strategicRelationships,
+      promisorId: actorId!,
+      beneficiaryId: targetId,
+    })
   return (
     !isProtected &&
+    !isHonoredHoldTheWallDeal &&
     canPlayerTargetPlayer(state, actorId, targetId) &&
     !isBellaHeirImmune(state, targetId)
   )
@@ -4709,6 +4726,22 @@ const gameSlice = createSlice({
     },
     setDramaSocialMode(state, action: PayloadAction<boolean>) {
       state.dramaSocialMode = action.payload
+    },
+    recordHoldTheWallSafetyDeal(
+      state,
+      action: PayloadAction<{ week: number; promisorId: string; beneficiaryId: string }>
+    ) {
+      if (action.payload.week !== state.week) return
+      if (action.payload.promisorId === action.payload.beneficiaryId) return
+      const promisor = state.players.find((player) => player.id === action.payload.promisorId)
+      const beneficiary = state.players.find((player) => player.id === action.payload.beneficiaryId)
+      if (!promisor || !beneficiary) return
+      state.holdTheWallSafetyDeal = {
+        week: action.payload.week,
+        promisorId: promisor.id,
+        beneficiaryId: beneficiary.id,
+        source: 'final_two',
+      }
     },
     /**
      * Changes Public Mode for an in-progress Classic season without mutating
@@ -12058,6 +12091,7 @@ export const {
   reorderPhaseBroadcasts,
   removeCustomBroadcast,
   setDramaSocialMode,
+  recordHoldTheWallSafetyDeal,
   requestPublicModeChange,
   setLohSafetyAdvice,
   addSocialSummary,
