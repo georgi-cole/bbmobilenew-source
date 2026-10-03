@@ -40,7 +40,10 @@ import {
 } from '../../../features/twists/cupidArrow'
 
 export const POST_VOTE_ANNOUNCEMENT_MS = 3600
-export const POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS = 400
+// Legacy export retained for callers/tests that imported the old timeout. The
+// prompt is no longer sequenced by this delay; it waits for AnimatePresence to
+// report that the eviction presentation has fully exited.
+export const POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS = 0
 const AI_TIE_STAGE_DELAY_MS = 3000
 const AI_TIE_DECIDING_DELAY_MS = 3000
 const AI_TIE_DECISION_DELAY_MS = 3000
@@ -174,15 +177,14 @@ export function useEvictionFlow({
   const isPostEvictionConfessionalModeRef = useRef(false)
   const postEvictionVoteSnapshotRef = useRef<VoteBreakdownSnapshot | null>(null)
   const autoRevealOwnEvictionVotesRef = useRef(false)
-  const postEvictionVoteBreakdownPromptTimerRef = useRef<ReturnType<
-    typeof window.setTimeout
-  > | null>(null)
+  const postEvictionPresentationPendingRef = useRef(false)
+  const postEvictionSettleFrameRef = useRef<number | null>(null)
 
   useEffect(() => {
     return () => {
-      if (postEvictionVoteBreakdownPromptTimerRef.current != null) {
-        window.clearTimeout(postEvictionVoteBreakdownPromptTimerRef.current)
-        postEvictionVoteBreakdownPromptTimerRef.current = null
+      if (postEvictionSettleFrameRef.current != null) {
+        window.cancelAnimationFrame(postEvictionSettleFrameRef.current)
+        postEvictionSettleFrameRef.current = null
       }
     }
   }, [])
@@ -881,9 +883,35 @@ export function useEvictionFlow({
         dispatch(advance())
       }
     }
-    // Show the confessional breakdown prompt if it was flagged during vote-results
-    // dismissal (post-eviction confessional mode).
-    if (isPostEvictionConfessionalModeRef.current && !hasQueuedPartnerEviction) {
+    // Do not open any post-eviction surface from the cinematic's onDone
+    // callback. Framer Motion may still be carrying the shared-layout avatar
+    // through its exit at this point. Arm the hand-off and let the parent
+    // AnimatePresence onExitComplete callback release it only after the
+    // eviction presentation has genuinely left the DOM.
+    if (
+      isPostEvictionConfessionalModeRef.current &&
+      !hasQueuedSecondEviction &&
+      !hasQueuedPartnerEviction
+    ) {
+      postEvictionPresentationPendingRef.current = true
+    }
+  }, [dispatch, game, setFinal4Stage])
+
+  const handleEvictionPresentationSettled = useCallback(() => {
+    if (!postEvictionPresentationPendingRef.current) return
+    postEvictionPresentationPendingRef.current = false
+
+    if (postEvictionSettleFrameRef.current != null) {
+      window.cancelAnimationFrame(postEvictionSettleFrameRef.current)
+    }
+
+    // onExitComplete guarantees the overlay is gone. One additional paint
+    // boundary lets the roster commit the evictee's final state before a modal
+    // can occupy the same visual area.
+    postEvictionSettleFrameRef.current = window.requestAnimationFrame(() => {
+      postEvictionSettleFrameRef.current = null
+      if (!isMountedRef.current || !isPostEvictionConfessionalModeRef.current) return
+
       if (autoRevealOwnEvictionVotesRef.current && postEvictionVoteSnapshotRef.current) {
         setPostEvictionVoteBreakdown(postEvictionVoteSnapshotRef.current)
         postEvictionVoteSnapshotRef.current = null
@@ -891,18 +919,11 @@ export function useEvictionFlow({
         isPostEvictionConfessionalModeRef.current = false
         return
       }
-      if (postEvictionVoteBreakdownPromptTimerRef.current != null) {
-        window.clearTimeout(postEvictionVoteBreakdownPromptTimerRef.current)
-        postEvictionVoteBreakdownPromptTimerRef.current = null
-      }
-      postEvictionVoteBreakdownPromptTimerRef.current = window.setTimeout(() => {
-        postEvictionVoteBreakdownPromptTimerRef.current = null
-        if (!isMountedRef.current) return
-        setVoteBreakdownPromptIsPostEviction(true)
-        setShowVoteBreakdownPrompt(true)
-      }, POST_EVICTION_VOTE_BREAKDOWN_PROMPT_DELAY_MS)
-    }
-  }, [dispatch, game, setFinal4Stage, isMountedRef])
+
+      setVoteBreakdownPromptIsPostEviction(true)
+      setShowVoteBreakdownPrompt(true)
+    })
+  }, [isMountedRef])
 
   return {
     showVoteBreakdownPrompt,
@@ -932,6 +953,7 @@ export function useEvictionFlow({
     pendingEvictionPlayer,
     showEvictionSplash,
     handleEvictionSplashDone,
+    handleEvictionPresentationSettled,
     handlePostVoteAnnouncementDismiss,
   }
 }

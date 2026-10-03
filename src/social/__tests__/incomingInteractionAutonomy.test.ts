@@ -268,6 +268,32 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     ).toBe(false)
   })
 
+  it('routes allied co-nominees to a check-in instead of asking each other for a vote', () => {
+    const context = buildContext({
+      phase: 'live_vote',
+      nomineeIds: ['user', 'nominee'],
+      relationships: {
+        nominee: { user: { affinity: 90, tags: ['alliance'] } },
+      },
+      players: [
+        { id: 'user', name: 'You', status: 'nominated', isUser: true },
+        { id: 'nominee', name: 'Dex', status: 'nominated' },
+      ],
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('live_vote', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'nominee'
+    )?.interaction
+    expect(interaction?.type).toBe('check_in')
+    expect(interaction?.payload?.scenarioKey).toBe('co_nominee_check_in')
+    expect(interaction?.text).toMatch(/both|neither|block|danger/i)
+    expect(interaction?.text).not.toMatch(/need your vote|keep me|cast your vote/i)
+  })
+
   it('queues both nominee pitches when the human holds Safety, while delivery remains paced', () => {
     const context = buildContext({
       phase: 'pos_results',

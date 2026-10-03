@@ -2306,3 +2306,25 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
     width: 8.3rem;
   }
 }
+
+
+/* Re-vote guidance */
+.majority-rules-revote-notice {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.7rem 0.82rem;
+  border: 1px solid rgba(245, 158, 11, 0.42);
+  border-radius: 16px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+}
+
+.majority-rules-revote-notice strong {
+  font-size: 0.9rem;
+}
+
+.majority-rules-revote-notice span {
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}

@@ -451,8 +451,12 @@ const majorityRulesSlice = createSlice({
         state.blockedAnswers = { ...result.answers }
         state.draftAnswers = {}
         state.revealState = null
-        state.roundHintPollEstimate = null
-        state.roundHintPeekedAnswers = null
+        // A re-vote is a fresh ballot on the same question. Clear transient
+        // intel presentation/target state so a consumed hint cannot reopen as
+        // an empty LIVE INTEL overlay or silently carry a Follow choice into
+        // the re-vote. The per-player hint inventory intentionally remains
+        // untouched, so already-used intel stays spent.
+        clearRoundHintState(state)
         return
       }
 

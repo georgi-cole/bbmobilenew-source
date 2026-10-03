@@ -612,11 +612,22 @@ export default function MajorityRulesComp({
         </div>
 
         <div className="majority-rules-header-copy">
-          <span className="majority-rules-kicker">The house is voting</span>
+          <span className="majority-rules-kicker">
+            {game.revoteNumber > 0 ? 'Re-vote — choose again' : 'The house is voting'}
+          </span>
           <h2 className="majority-rules-question">
             {game.currentQuestion?.prompt ?? 'Loading question…'}
           </h2>
         </div>
+
+        {game.revoteNumber > 0 && (
+          <div className="majority-rules-revote-notice" role="status" aria-live="polite">
+            <strong>Pick a different answer.</strong>
+            <span>
+              Your previous choice is locked out. Any LIVE INTEL you already used stays spent.
+            </span>
+          </div>
+        )}
 
         <div className="majority-rules-options">
           {game.currentQuestion?.options.map((option, idx) => {
@@ -652,6 +663,9 @@ export default function MajorityRulesComp({
               >
                 <span className="majority-rules-option-label">{option.label}</span>
                 <strong className="majority-rules-option-title">{option.text}</strong>
+                {blocked && game.revoteNumber > 0 && (
+                  <span className="majority-rules-option-copy">Previous answer — unavailable</span>
+                )}
               </motion.button>
             )
           })}
@@ -944,7 +958,11 @@ export default function MajorityRulesComp({
           className="majority-rules-primary"
           onClick={() => dispatch(advanceReveal())}
         >
-          Continue
+          {reveal?.result.kind === 'revote'
+            ? reveal.revoteNumber >= 1
+              ? 'New question'
+              : 'Start re-vote'
+            : 'Continue'}
         </button>
       </motion.div>
     )
