@@ -62,6 +62,10 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Give them hope', 'Hear the campaign', 'Tell them where you stand', 'Leave it there'],
     ['Ask what they need', 'Keep your options open', 'Say you cannot help', 'End the chat'],
   ],
+  co_nominee_check_in: [
+    ['Compare vote reads', 'Reassure the bond', 'Protect your own game', 'End the check-in'],
+    ['Share what you heard', 'Keep it measured', 'Create some distance', 'Leave it there'],
+  ],
   nomination_aftershock: [
     ['Acknowledge the hurt', 'Explain carefully', 'Stand by the move', 'End the talk'],
     ['Offer a path back', 'Hear their anger', 'Keep it strategic', 'Walk away'],
