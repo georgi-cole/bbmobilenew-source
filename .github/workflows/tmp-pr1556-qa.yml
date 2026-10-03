@@ -1,0 +1,39 @@
+name: PR1556 Targeted QA
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run issue 1-11 regression pack
+        run: >-
+          npx vitest run
+          tests/integration/ceremony.fixes.test.tsx
+          tests/unit/majorityRules/majorityRules.component.test.tsx
+          src/store/__tests__/lohNominationPlanning.ambushCriteria.test.ts
+          src/social/__tests__/incomingInteractionAutonomy.test.ts
+          src/social/__tests__/incomingInteractionResolution.test.ts
+          src/social/__tests__/weekendSocialIncoming.test.ts
+          src/components/SocialPanelV2/__tests__/SocialPanelV2.test.tsx
+          tests/minigames.findYourTwin2.mobileShell.test.ts
+          tests/unit/blackjackTournament/BlackjackTournamentComp.styles.test.ts
+          tests/unit/riskWheel/RiskWheelComp.styles.test.ts
+          tests/broadcastManager.reducer.test.ts
+          tests/broadcastTemplateCatalog.test.ts
+          tests/democracia.flow.test.ts
+          src/components/ui/__tests__/TvZone.announcement.test.tsx
+          tests/unit/ui/TvZone.twist.test.tsx
