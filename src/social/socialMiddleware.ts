@@ -1190,6 +1190,10 @@ function recordPhaseCeremony(
         state.game.povSavedId,
         { eligibleTargetIds: original, savedTargetIds: savedIds }
       )
+    evaluateSocialCommitmentsForAction(
+      api as unknown as CommitmentStore,
+      'game/finalizeHoldTheWallNominationDeal'
+    )
   }
   if (nextPhase === 'eviction_results') recordActualVotes(api)
 }
