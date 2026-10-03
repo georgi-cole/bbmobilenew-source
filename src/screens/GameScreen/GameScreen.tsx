@@ -1886,7 +1886,7 @@ export default function GameScreen() {
         {showDemocraciaVoteModal && (
           <TvDecisionModal
             title="🗳️ Democracia — Cast Your Vote"
-            subtitle={`${humanPlayer?.name}, vote for the houseguest you want to become Leader of the House. You cannot vote for yourself.`}
+            subtitle={`${humanPlayer?.name}, vote for the hubmate you want to become Leader of the Hub. You cannot vote for yourself.`}
             options={democraciaVoteOptions}
             onSelect={(id) => dispatch(submitDemocraciaVote(id))}
             stingerMessage="VOTE CAST"
