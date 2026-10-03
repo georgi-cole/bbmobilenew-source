@@ -8,7 +8,12 @@ import {
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import { resetGame, updateUserPlayerIdentity } from '../../store/gameSlice'
+import {
+  resetGame,
+  resolveProfileAge,
+  resolveProfileSex,
+  updateUserPlayerIdentity,
+} from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
@@ -94,6 +99,16 @@ export default function EditProfile() {
   const [location, setLocation] = useState(profile?.bio?.location ?? '')
   const [profession, setProfession] = useState(profile?.bio?.profession ?? '')
   const [age, setAge] = useState(profile?.bio?.age ?? '')
+  const [sex, setSex] = useState(profile?.bio?.sex ?? '')
+  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(() => {
+    const reproductiveProfile = profile?.bio?.reproductiveProfile
+    if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
+      return 'both'
+    }
+    if (reproductiveProfile?.canBecomePregnant) return 'become'
+    if (reproductiveProfile?.canCausePregnancy) return 'cause'
+    return 'none'
+  })
 
   // Bio flavor
   const [motto, setMotto] = useState(profile?.bio?.motto ?? '')
@@ -190,11 +205,25 @@ export default function EditProfile() {
       }
     }
 
+    const reproductiveProfile: ProfileBio['reproductiveProfile'] =
+      pregnancyRole === 'become'
+        ? { canBecomePregnant: true, canCausePregnancy: false }
+        : pregnancyRole === 'cause'
+          ? { canBecomePregnant: false, canCausePregnancy: true }
+          : pregnancyRole === 'both'
+            ? { canBecomePregnant: true, canCausePregnancy: true }
+            : undefined
+    const profileSex = sex.trim() || undefined
+    const parsedAge = resolveProfileAge(age)
+    const liveSex = resolveProfileSex(profileSex, reproductiveProfile)
+
     const bio: ProfileBio = {
       story: story.trim() || undefined,
       location: location.trim() || undefined,
       profession: profession.trim() || undefined,
       age: age.trim() || undefined,
+      sex: profileSex,
+      reproductiveProfile,
       motto: motto.trim() || undefined,
       funFact: funFact.trim() || undefined,
       zodiac: zodiac.trim() || undefined,
@@ -219,6 +248,9 @@ export default function EditProfile() {
         name: name.trim() || profile.name,
         avatar,
         photoId,
+        age: parsedAge ?? null,
+        sex: liveSex ?? null,
+        reproductiveProfile: reproductiveProfile ?? null,
       })
     )
 
@@ -485,6 +517,43 @@ export default function EditProfile() {
 
       {/* Sensitive section */}
       <CollapsibleSection label="Optional / Personal" sensitive>
+        <div className="edit-profile__field">
+          <label className="edit-profile__label" htmlFor="ep-sex">
+            Sex (Reality storylines)
+          </label>
+          <select
+            id="ep-sex"
+            className="edit-profile__input"
+            value={sex}
+            onChange={(e) => setSex(e.target.value)}
+          >
+            <option value="">Not specified — ask me in-game when needed</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+        </div>
+        <div className="edit-profile__field">
+          <label className="edit-profile__label" htmlFor="ep-pregnancy-role">
+            Pregnancy role (optional)
+          </label>
+          <select
+            id="ep-pregnancy-role"
+            className="edit-profile__input"
+            value={pregnancyRole}
+            onChange={(e) =>
+              setPregnancyRole(e.target.value as 'none' | 'become' | 'cause' | 'both')
+            }
+          >
+            <option value="none">Not specified — ask me in-game when needed</option>
+            <option value="become">Can become pregnant</option>
+            <option value="cause">Can cause pregnancy</option>
+            <option value="both">Both</option>
+          </select>
+          <p className="edit-profile__sensitive-note">
+            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the
+            existing one-time in-game role choice.
+          </p>
+        </div>
         <div className="edit-profile__field">
           <label className="edit-profile__label" htmlFor="ep-religion">
             Religion
