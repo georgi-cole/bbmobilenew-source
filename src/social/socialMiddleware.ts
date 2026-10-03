@@ -23,8 +23,9 @@
  */
 
 import type { Middleware } from '@reduxjs/toolkit'
-import type { StrategicAllianceSnapshot } from '../types'
+import type { StrategicAllianceSnapshot, GameState as FullGameState } from '../types'
 import { settleSecretMissionDay } from '../store/gameSlice'
+import { getCanonicalRelationshipTags } from './relationshipSemantics'
 import { applyNominationBetrayalConsequences } from './realityIntegrityMiddleware'
 import { SocialEngine } from './SocialEngine'
 import {
@@ -37,7 +38,6 @@ import {
   replaceDramaNetwork,
   recordRealityActualVote,
   recordRealityAllianceBetrayal,
-  recordRealityCeremony,
   reconcileRealityBattleBackReturn,
   setEnergyBankEntry,
   pushIncomingInteraction,
@@ -79,7 +79,7 @@ import {
   type CommitmentStore,
 } from './socialCommitments'
 import { deriveRealitySimulationSeed, type RealitySimulationState } from './realitySimulation'
-import { getRealityModeAdapter, type RealityCeremonyKind } from './reality'
+import { recordSocialCeremony as recordCeremony } from './ceremonyRecorder'
 import { createIncomingInteraction } from './incomingInteractionFactory'
 import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
@@ -113,6 +113,8 @@ interface GameState {
   prevHohId: string | null
   posWinnerId: string | null
   povSavedId?: string | null
+  povProtectedIds?: string[]
+  currentWeekNominationRecord?: { week: number; nomineeIds: string[] } | null
   nomineeIds: string[]
   awaitingPovDecision?: boolean
   awaitingPovSaveTarget?: boolean
@@ -123,6 +125,9 @@ interface GameState {
   tiedNomineeIds?: string[] | null
   doubleEviction?: { weekActive?: boolean }
   specialVeto?: { activeType?: string | null }
+  nominationContext?: { autoNomineeId: string | null } | null
+  coLohIds?: string[] | null
+  coLohNomineeByCoLohId?: Record<string, string> | null
   cupidArrow?: {
     status?: 'inactive' | 'scheduled' | 'active' | 'broken'
     pairs?: Array<{ memberIds: [string, string] }>
@@ -172,6 +177,7 @@ interface StateWithGame {
     incomingInteractions?: IncomingInteraction[]
     scheduledIncomingInteractions?: ScheduledIncomingInteraction[]
     dramaNetwork?: DramaSocialNetwork
+    commitments?: import('./types').SocialCommitment[]
     socialMemory?: SocialMemoryMap
     realitySimulation?: RealitySimulationState
     reality?: import('./reality').RealityDomainState
@@ -828,6 +834,7 @@ function applySafetyRelationshipConsequences(
   nomineesBefore: string[]
 ): void {
   if (!holderId || !isDramaModeEnabled(api)) return
+  if ((api.getState() as StateWithGame).social?.reality) return
   // SAFETY_USED is the sole positive relationship consequence.  Its Reality
   // aftermath is projected once into legacy compatibility state; never feed a
   // second legacy boost back into Reality here.
@@ -903,16 +910,27 @@ function applyReplacementNomineeConsequences(
   holderId: string | null
 ): void {
   if (!isDramaModeEnabled(api) || replacementIds.length === 0) return
+  const state = api.getState() as StateWithGame
+  const game = state.game
+  const replacementActorId = ['diamond', 'coup'].includes(game.specialVeto?.activeType ?? '')
+    ? holderId
+    : lohId
   for (const replacementId of replacementIds) {
-    if (lohId) {
+    if (replacementActorId) {
       recordCeremony(api, 'NOMINATIONS_LOCKED', {
-        actorId: lohId,
+        actorId: replacementActorId,
         targetIds: [replacementId],
         reason: 'A replacement nominee was put on the block after Safety was used.',
         tags: ['replacement_nominee'],
+        nominationStage: 'REPLACEMENT',
       })
     }
-    if (holderId && holderId !== replacementId && holderId !== lohId) {
+    if (
+      !state.social?.reality &&
+      holderId &&
+      holderId !== replacementId &&
+      holderId !== replacementActorId
+    ) {
       api.dispatch(
         updateRelationship({
           source: replacementId,
@@ -1038,52 +1056,6 @@ function queueTieBreakerCampaigns(api: MiddlewareAPI): void {
   }
 }
 
-function activeRealityWitnessIds(state: StateWithGame): string[] {
-  return state.game.players
-    .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
-    .map((player) => player.id)
-}
-
-function recordCeremony(
-  api: MiddlewareAPI,
-  kind: RealityCeremonyKind,
-  input: {
-    actorId?: string | null
-    targetIds?: string[]
-    reason?: string
-    tags?: string[]
-  } = {}
-): void {
-  const state = api.getState() as StateWithGame
-  if (getEffectiveSocialMode(state) !== 'drama' || !state.social?.reality) return
-  const mode = getRealityModeAdapter(state.game.mode, state.game.publicModeEnabled === true)
-  api.dispatch(
-    recordRealityCeremony({
-      kind,
-      day: state.game.week ?? 1,
-      phase: state.game.phase,
-      actorId: input.actorId ?? undefined,
-      targetIds: input.targetIds ?? [],
-      eligibleAlternativeIds:
-        kind === 'NOMINATIONS_LOCKED' && input.actorId
-          ? state.game.players
-              .filter(
-                (player) =>
-                  player.id !== input.actorId &&
-                  player.status !== 'evicted' &&
-                  player.status !== 'jury' &&
-                  !(input.targetIds ?? []).includes(player.id)
-              )
-              .map((player) => player.id)
-          : undefined,
-      witnessIds: activeRealityWitnessIds(state),
-      reason: input.reason,
-      tags: input.tags,
-      publicEligible: mode.publicConsequencesEnabled,
-    })
-  )
-}
-
 function recordActualVotes(api: MiddlewareAPI): void {
   const state = api.getState() as StateWithGame
   if (getEffectiveSocialMode(state) !== 'drama') return
@@ -1109,6 +1081,7 @@ function recordActualVotes(api: MiddlewareAPI): void {
         phase: afterCeremony.game.phase,
         eventId,
         eligibleTargetIds: [...afterCeremony.game.nomineeIds],
+        revealed: false,
       })
     )
   }
@@ -1117,7 +1090,8 @@ function recordActualVotes(api: MiddlewareAPI): void {
 function recordPhaseCeremony(
   api: MiddlewareAPI,
   previousPhase: string | undefined,
-  nextPhase: string | undefined
+  nextPhase: string | undefined,
+  previousGame?: GameState
 ): void {
   if (!nextPhase || previousPhase === nextPhase) return
   const state = api.getState() as StateWithGame
@@ -1149,14 +1123,30 @@ function recordPhaseCeremony(
     })
   }
   if (previousPhase === 'pos_ceremony_results') {
-    const savedId = state.game.povSavedId ?? null
-    recordCeremony(api, savedId ? 'SAFETY_USED' : 'SAFETY_DECLINED', {
+    const original =
+      state.game.currentWeekNominationRecord?.week === state.game.week
+        ? state.game.currentWeekNominationRecord.nomineeIds
+        : (previousGame?.nomineeIds ?? state.game.nomineeIds)
+    const savedIds = original.filter(
+      (id) => id === state.game.povSavedId || state.game.povProtectedIds?.includes(id)
+    )
+    recordCeremony(api, savedIds.length > 0 ? 'SAFETY_USED' : 'SAFETY_DECLINED', {
       actorId: state.game.posWinnerId,
-      targetIds: savedId ? [savedId] : state.game.nomineeIds,
-      reason: savedId
-        ? 'The Power of Safety changed the nominations.'
-        : 'The Power of Safety was not used.',
+      targetIds: savedIds.length > 0 ? savedIds : original,
+      safetyEligibleTargetIds: original,
+      safetyDecisionComplete: true,
+      reason:
+        savedIds.length > 0
+          ? 'The Power of Safety changed the nominations.'
+          : 'The Power of Safety was not used.',
     })
+    if (savedIds.length > 0)
+      evaluateSocialCommitmentsForAction(
+        api as unknown as CommitmentStore,
+        'game/submitPovSaveTarget',
+        state.game.povSavedId,
+        { eligibleTargetIds: original, savedTargetIds: savedIds }
+      )
   }
   if (nextPhase === 'eviction_results') recordActualVotes(api)
 }
@@ -1387,7 +1377,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       )
       recordCeremony(api as unknown as MiddlewareAPI, 'SAFETY_USED', {
         actorId: prevState.game?.posWinnerId ?? null,
-        targetIds: [saveId],
+        targetIds: prevNominees.filter((id) => !afterNominees.includes(id)),
+        safetyEligibleTargetIds: prevNominees,
+        safetyDecisionComplete: prevState.game.specialVeto?.activeType !== 'vip',
         reason: 'The Power of Safety changed the nominations.',
       })
       scheduleSafetyThankYou(
@@ -1404,7 +1396,11 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       )
     }
 
-    evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, type, saveId)
+    if (prevState.game.specialVeto?.activeType !== 'vip')
+      evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, type, saveId, {
+        eligibleTargetIds: prevNominees,
+        savedTargetIds: prevNominees.filter((id) => !afterNominees.includes(id)),
+      })
 
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
 
@@ -1433,27 +1429,41 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     const prevState = api.getState() as StateWithGame
     const useSafety = (action as unknown as { payload: boolean }).payload
     const result = next(action)
-    if (!useSafety) {
+    const afterState = api.getState() as StateWithGame
+    if (!prevState.game.awaitingPovDecision || afterState.game.awaitingPovDecision) return result
+    const savedIds = prevState.game.nomineeIds.filter(
+      (id) => !afterState.game.nomineeIds.includes(id)
+    )
+    if (savedIds.length > 0) {
+      recordCeremony(api as unknown as MiddlewareAPI, 'SAFETY_USED', {
+        actorId: prevState.game.posWinnerId,
+        targetIds: savedIds,
+        safetyEligibleTargetIds: prevState.game.nomineeIds,
+        reason: 'The Power of Safety changed the nominations.',
+      })
+    } else if (!useSafety) {
       applySafetyRelationshipConsequences(
         api as unknown as MiddlewareAPI,
         prevState.game?.posWinnerId ?? null,
         null,
         prevState.game?.nomineeIds ?? []
       )
-      const afterState = api.getState() as StateWithGame
       if (!afterState.game.awaitingPovSaveTarget) {
         recordCeremony(api as unknown as MiddlewareAPI, 'SAFETY_DECLINED', {
           actorId: prevState.game?.posWinnerId ?? null,
           targetIds: prevState.game?.nomineeIds ?? [],
+          safetyEligibleTargetIds: prevState.game?.nomineeIds ?? [],
           reason: 'The Power of Safety was not used.',
         })
       }
     }
-    evaluateSocialCommitmentsForAction(
-      api as unknown as CommitmentStore,
-      type,
-      (action as unknown as { payload: boolean }).payload
-    )
+    if (!afterState.game.awaitingPovSaveTarget)
+      evaluateSocialCommitmentsForAction(
+        api as unknown as CommitmentStore,
+        type,
+        savedIds.length > 0,
+        { eligibleTargetIds: prevState.game.nomineeIds }
+      )
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     return result
   }
@@ -1462,8 +1472,14 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     const before = api.getState() as StateWithGame
     const humanId = before.game.players.find((player) => player.isUser)?.id
     const result = next(action)
+    const after = api.getState() as StateWithGame
     const targetId = (action as unknown as { payload: unknown }).payload
-    if (humanId && typeof targetId === 'string') {
+    if (
+      humanId &&
+      typeof targetId === 'string' &&
+      after.game.votes?.[humanId] === targetId &&
+      before.game.votes?.[humanId] !== targetId
+    ) {
       api.dispatch(
         recordRealityActualVote({
           actorId: humanId,
@@ -1472,14 +1488,29 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           phase: before.game.phase,
           eventId: `vote:${before.game.week}:${humanId}`,
           eligibleTargetIds: [...before.game.nomineeIds],
+          revealed: false,
+          relationshipTagsByTarget: Object.fromEntries(
+            before.game.players.map((player) => [
+              player.id,
+              [
+                ...getCanonicalRelationshipTags({
+                  reality: before.social?.reality,
+                  relationships: before.social?.relationships,
+                  actorId: humanId,
+                  targetId: player.id,
+                }),
+              ],
+            ])
+          ),
         })
       )
     }
-    evaluateSocialCommitmentsForAction(
-      api as unknown as CommitmentStore,
-      type,
-      (action as unknown as { payload: unknown }).payload
-    )
+    if (humanId && (typeof targetId !== 'string' || after.game.votes?.[humanId] === targetId))
+      evaluateSocialCommitmentsForAction(
+        api as unknown as CommitmentStore,
+        type,
+        (action as unknown as { payload: unknown }).payload
+      )
     return result
   }
 
@@ -1523,7 +1554,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     ) {
       clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
     }
-    recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase)
+    recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase, prevState.game)
 
     if (
       newPhase === 'nomination_results' &&
@@ -1608,9 +1639,52 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     type === 'game/submitPosTieBreak' ||
     type === 'game/submitDoubleEvictionTieBreak'
   ) {
+    const before = api.getState() as StateWithGame
     const result = next(action)
     const afterState = api.getState() as StateWithGame
-    if (!afterState.game.awaitingTieBreak) {
+    if (
+      before.game.awaitingTieBreak &&
+      !afterState.game.awaitingTieBreak &&
+      type !== 'game/submitPosTieBreak'
+    ) {
+      const targets = (action as unknown as { payload: string | string[] }).payload
+      const actorId = getClassicEvictionTieBreakerId(before.game as unknown as FullGameState)
+      if (actorId)
+        for (const targetId of typeof targets === 'string' ? [targets] : targets) {
+          api.dispatch(
+            recordRealityActualVote({
+              actorId,
+              targetId,
+              day: before.game.week,
+              phase: before.game.phase,
+              eventId: `public-tiebreak:${before.game.week}:${actorId}:${targetId}`,
+              revealed: true,
+              acceptedPromiseTargetIds: (before.social?.commitments ?? [])
+                .filter(
+                  (promise) =>
+                    promise.promisorId === actorId &&
+                    promise.status === 'pending' &&
+                    promise.dueWeek <= before.game.week &&
+                    ['vote_to_keep', 'tie_break_keep'].includes(promise.kind)
+                )
+                .map((promise) => promise.beneficiaryId),
+              eligibleTargetIds: before.game.tiedNomineeIds ?? before.game.nomineeIds,
+              relationshipTagsByTarget: Object.fromEntries(
+                before.game.players.map((player) => [
+                  player.id,
+                  [
+                    ...getCanonicalRelationshipTags({
+                      reality: before.social?.reality,
+                      relationships: before.social?.relationships,
+                      actorId,
+                      targetId: player.id,
+                    }),
+                  ],
+                ])
+              ),
+            })
+          )
+        }
       evaluateSocialCommitmentsForAction(
         api as unknown as CommitmentStore,
         type,
@@ -1829,9 +1903,6 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     }
     if (type === 'game/finalizeNominations' || type === 'game/commitNominees') {
       const state = api.getState() as StateWithGame
-      if (state.game.voxPopuli?.status !== 'active') {
-        evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, type)
-      }
       if (state.game.lohId && state.game.nomineeIds.length > 0) {
         const voxPopuliActive = state.game.voxPopuli?.status === 'active'
         recordCeremony(api as unknown as MiddlewareAPI, 'NOMINATIONS_LOCKED', {
@@ -1842,6 +1913,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
             : 'The nominations were made official.',
           tags: voxPopuliActive ? ['secret_ballot'] : undefined,
         })
+      }
+      if (state.game.voxPopuli?.status !== 'active') {
+        evaluateSocialCommitmentsForAction(api as unknown as CommitmentStore, type)
       }
     }
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)

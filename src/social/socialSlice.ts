@@ -133,7 +133,14 @@ function projectRealityTags(
       event.participantIds.includes(targetId) &&
       (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
   )
-  if (!hasLiveFormalAlliance && exitedSharedAlliance) tags.push('broken_alliance')
+  if (
+    !hasLiveFormalAlliance &&
+    (exitedSharedAlliance ||
+      formalPairAlliances.some(
+        (alliance) => alliance.status === 'FRACTURED' || alliance.status === 'DISSOLVED'
+      ))
+  )
+    tags.push('broken_alliance')
   if (
     Object.values(reality.romances).some(
       (romance) =>
@@ -191,7 +198,9 @@ function projectRealityTags(
   ) {
     tags.push('target', 'rivalry')
   }
-  return [...new Set(tags)]
+  return [...new Set(tags)].filter(
+    (tag) => hasLiveFormalAlliance || !['primary_alliance', 'ride_or_die'].includes(tag)
+  )
 }
 
 function projectRealityEdgeIntoLegacy(
@@ -540,6 +549,9 @@ const socialSlice = createSlice({
         phase: string
         eventId: string
         eligibleTargetIds?: string[]
+        revealed?: boolean
+        relationshipTagsByTarget?: Record<string, string[]>
+        acceptedPromiseTargetIds?: string[]
       }>
     ) {
       finalizeRealityVote(
@@ -548,7 +560,12 @@ const socialSlice = createSlice({
         action.payload.targetId,
         { day: action.payload.day, phase: action.payload.phase },
         action.payload.eventId,
-        action.payload.eligibleTargetIds
+        action.payload.eligibleTargetIds,
+        {
+          revealed: action.payload.revealed,
+          relationshipTagsByTarget: action.payload.relationshipTagsByTarget,
+          acceptedPromiseTargetIds: action.payload.acceptedPromiseTargetIds,
+        }
       )
       projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,

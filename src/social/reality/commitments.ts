@@ -53,7 +53,7 @@ function strongestSharedPromiseAlliance(
   return Object.values(state.alliances)
     .filter(
       (alliance) =>
-        alliance.status !== 'DISSOLVED' &&
+        ['ACTIVE', 'PROBATIONARY', 'FRACTURED'].includes(alliance.status) &&
         alliance.memberIds.includes(leftId) &&
         alliance.memberIds.includes(rightId)
     )
@@ -119,10 +119,15 @@ export function resolveRealityPromise(
   promiseId: string,
   status: 'KEPT' | 'BROKEN' | 'VOID',
   at: RealityClock,
-  eventId: string
+  eventId: string,
+  options: { skipAllianceConsequence?: boolean } = {}
 ): RealityPromise | null {
   const promise = state.promises[promiseId]
-  if (!promise || (promise.status !== 'ACTIVE' && promise.status !== 'PROPOSED')) return null
+  if (
+    !promise ||
+    (promise.status !== 'ACTIVE' && !(status === 'VOID' && promise.status === 'PROPOSED'))
+  )
+    return null
   promise.status = status
   promise.resolvedAt = at
   promise.resolutionEventId = eventId
@@ -130,7 +135,7 @@ export function resolveRealityPromise(
     const edge = state.relationships[promise.promisorId]?.[beneficiaryId]
     if (edge) edge.activePromiseIds = edge.activePromiseIds.filter((id) => id !== promise.id)
   }
-  applyPromiseAllianceConsequence(state, promise, status)
+  if (!options.skipAllianceConsequence) applyPromiseAllianceConsequence(state, promise, status)
   return promise
 }
 

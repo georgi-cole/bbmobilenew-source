@@ -753,6 +753,13 @@ export function recordRealityAllianceBetrayal(
   }
 ): RealityAlliance[] {
   const affected: RealityAlliance[] = []
+  let pairConsequenceRecorded = state.events.some(
+    (event) =>
+      event.type === 'ALLIANCE_BETRAYAL' &&
+      event.actorId === input.actorId &&
+      event.targetIds.includes(input.targetId) &&
+      event.reason.endsWith(`:${input.sourceEventId}`)
+  )
   const baseSeverity =
     input.kind === 'NOMINATION'
       ? 0.3
@@ -762,9 +769,28 @@ export function recordRealityAllianceBetrayal(
           ? 0.22
           : 0.12
 
-  for (const alliance of Object.values(state.alliances)) {
+  const eligibleAlliances = Object.values(state.alliances).filter(
+    (alliance) =>
+      (alliance.status === 'ACTIVE' ||
+        alliance.status === 'PROBATIONARY' ||
+        alliance.status === 'FRACTURED') &&
+      (input.allianceId === undefined || alliance.id === input.allianceId) &&
+      alliance.memberIds.includes(input.actorId) &&
+      alliance.memberIds.includes(input.targetId)
+  )
+  const severityFor = (alliance: RealityAlliance) =>
+    baseSeverity +
+    (alliance.memberPerceivedStatus[input.actorId] === 'CORE' ? 0.06 : 0) +
+    (alliance.memberPerceivedStatus[input.targetId] === 'CORE' ? 0.05 : 0) +
+    (alliance.memberIds.length === 2 ? 0.06 : 0)
+  eligibleAlliances.sort(
+    (left, right) => severityFor(right) - severityFor(left) || left.id.localeCompare(right.id)
+  )
+  for (const alliance of eligibleAlliances) {
     if (
-      alliance.status === 'DISSOLVED' ||
+      (alliance.status !== 'ACTIVE' &&
+        alliance.status !== 'PROBATIONARY' &&
+        alliance.status !== 'FRACTURED') ||
       (input.allianceId !== undefined && alliance.id !== input.allianceId) ||
       !alliance.memberIds.includes(input.actorId) ||
       !alliance.memberIds.includes(input.targetId)
@@ -773,15 +799,12 @@ export function recordRealityAllianceBetrayal(
     }
 
     const eventReason = `${input.kind.toLowerCase()}:${alliance.id}:${input.sourceEventId}`
-    const officialDecision =
-      input.kind === 'VOTE' || input.kind === 'NOMINATION' || input.kind === 'SAFETY_ABANDON'
     const duplicate = state.events.some(
       (event) =>
         event.type === 'ALLIANCE_BETRAYAL' &&
         event.actorId === input.actorId &&
         event.targetIds.includes(input.targetId) &&
-        event.reason.startsWith(`${input.kind.toLowerCase()}:${alliance.id}:`) &&
-        (officialDecision ? event.day === input.at.day : event.reason === eventReason)
+        event.reason === eventReason
     )
     if (duplicate) continue
 
@@ -825,22 +848,24 @@ export function recordRealityAllianceBetrayal(
       juryEligible: true,
     })
 
-    applyRealityRelationshipChange(state, {
-      sourceId: input.targetId,
-      targetId: input.actorId,
-      eventId: betrayalEvent.id,
-      day: input.at.day,
-      phase: input.at.phase,
-      anchor: 'negative',
-      deltas: {
-        warmth: -severity * 28,
-        trust: -severity * 55,
-        loyalty: -severity * 60,
-        resentment: severity * 65,
-        suspicion: severity * 35,
-        reliability: -severity * 45,
-      },
-    })
+    if (!pairConsequenceRecorded)
+      applyRealityRelationshipChange(state, {
+        sourceId: input.targetId,
+        targetId: input.actorId,
+        eventId: betrayalEvent.id,
+        day: input.at.day,
+        phase: input.at.phase,
+        anchor: 'negative',
+        deltas: {
+          warmth: -severity * 28,
+          trust: -severity * 55,
+          loyalty: -severity * 60,
+          resentment: severity * 65,
+          suspicion: severity * 35,
+          reliability: -severity * 45,
+        },
+      })
+    pairConsequenceRecorded = true
 
     for (const ownerId of alliance.memberIds) {
       remember(state, {
@@ -868,7 +893,7 @@ export function recordRealityAllianceBetrayal(
       })
     }
 
-    const grievanceId = `grievance:alliance:${alliance.id}:${input.sourceEventId}:${input.targetId}`
+    const grievanceId = `grievance:alliance:${input.sourceEventId}:${input.actorId}:${input.targetId}`
     if (!state.grievances[grievanceId]) {
       createRealityGrievance(state, {
         id: grievanceId,

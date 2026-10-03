@@ -27,6 +27,8 @@ export interface RelationshipViolationInput {
   promiseBroken?: boolean
   facadeAgreement?: FacadeAgreementContext | null
   explicitDefection?: boolean
+  /** The affected player explicitly agreed to this exact decision. */
+  actionConsented?: boolean
 }
 
 export interface RelationshipViolation {
@@ -61,7 +63,7 @@ export function evaluateRelationshipViolation(
     input.facadeAgreement.lohId === input.actorId &&
     input.facadeAgreement.facadeId === input.targetId &&
     input.actionType === 'NOMINATION'
-  if (acceptedFacade) {
+  if (acceptedFacade || input.actionConsented) {
     return {
       classification: 'NONE',
       severity: 0,
