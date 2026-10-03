@@ -104,6 +104,51 @@ export function buildAiDropSchedule(
   return schedule;
 }
 
+function applyPlayerDrop(
+  state: HoldTheWallState,
+  id: string,
+  allowFinalDuelAiDrop: boolean,
+): void {
+  if (state.status !== 'active') return;
+  if (state.droppedIds.includes(id)) return;
+
+  const aliveBeforeDrop = state.participantIds.filter(
+    (participantId) => !state.droppedIds.includes(participantId),
+  );
+  const isProtectedFinalDuelAi =
+    aliveBeforeDrop.length === 2 &&
+    state.humanId !== null &&
+    aliveBeforeDrop.includes(state.humanId) &&
+    id !== state.humanId;
+
+  // Once the human and one AI are the final two, the old precomputed deadline
+  // is no longer authoritative. Only a final-duel roll or an accepted deal can
+  // make that AI drop.
+  if (isProtectedFinalDuelAi && !allowFinalDuelAiDrop) return;
+
+  if (
+    aliveBeforeDrop.length === 2 &&
+    state.finalTwoDeal?.status === 'accepted' &&
+    state.finalTwoDeal.beneficiaryId === id &&
+    aliveBeforeDrop.includes(state.finalTwoDeal.promisorId)
+  ) {
+    state.finalTwoDeal.triggered = true;
+  }
+
+  state.droppedIds.push(id);
+
+  const aliveIds = state.participantIds.filter(
+    (participantId) => !state.droppedIds.includes(participantId),
+  );
+  if (aliveIds.length === 1) {
+    state.status = 'complete';
+    state.winnerId = aliveIds[0];
+  } else if (aliveIds.length === 0) {
+    state.status = 'complete';
+    state.winnerId = state.droppedIds[state.droppedIds.length - 1] ?? null;
+  }
+}
+
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
 const holdTheWallSlice = createSlice({
@@ -187,37 +232,12 @@ const holdTheWallSlice = createSlice({
      * Automatically transitions to 'complete' when only one player remains.
      */
     dropPlayer(state, action: PayloadAction<string>) {
-      const id = action.payload;
-      if (state.status !== 'active') return;
-      if (state.droppedIds.includes(id)) return; // already dropped
+      applyPlayerDrop(state, action.payload, false);
+    },
 
-      const aliveBeforeDrop = state.participantIds.filter(
-        (pid) => !state.droppedIds.includes(pid),
-      );
-      if (
-        aliveBeforeDrop.length === 2 &&
-        state.finalTwoDeal?.status === 'accepted' &&
-        state.finalTwoDeal.beneficiaryId === id &&
-        aliveBeforeDrop.includes(state.finalTwoDeal.promisorId)
-      ) {
-        state.finalTwoDeal.triggered = true;
-      }
-
-      state.droppedIds.push(id);
-
-      const aliveIds = state.participantIds.filter((pid) => !state.droppedIds.includes(pid));
-      if (aliveIds.length === 1) {
-        state.status = 'complete';
-        state.winnerId = aliveIds[0];
-      } else if (aliveIds.length === 0) {
-        // Defensive: all players dropped in the same synchronous batch (e.g. in
-        // tests that dispatch multiple dropPlayer actions without yielding). In
-        // practice this cannot happen during a real game because AI timeouts fire
-        // one at a time and the human can only release once. We award the prize to
-        // the most recently added entry in droppedIds (the last one pushed).
-        state.status = 'complete';
-        state.winnerId = state.droppedIds[state.droppedIds.length - 1] ?? null;
-      }
+    /** Authoritative final-two AI fall: either the 10% roll or an accepted bargain. */
+    dropFinalDuelAi(state, action: PayloadAction<string>) {
+      applyPlayerDrop(state, action.payload, true);
     },
 
     /** Idempotency guard: prevent the outcome thunk from firing twice. */
@@ -238,6 +258,7 @@ export const {
   resolveFinalTwoDeal,
   skipFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
 } = holdTheWallSlice.actions;
