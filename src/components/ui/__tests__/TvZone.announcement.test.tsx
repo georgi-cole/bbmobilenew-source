@@ -1602,6 +1602,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: DEMOCRACIA!/i })).toBeDefined()
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
     expect(store.getState().game.phase).toBe('loh_comp_announcement')
     expect(store.getState().game.democracia?.awaitingHumanVote).toBe(false)
     vi.useRealTimers()
