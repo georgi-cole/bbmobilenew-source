@@ -1086,6 +1086,33 @@ function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
   state.broadcastQueue = queue
 }
 
+const LOG_ONLY_BROADCAST_TEMPLATE_IDS = new Set([
+  'loh.democracia-vote-start',
+  'card.democracia-vote',
+])
+
+function sanitizeBroadcastOverride(id: string, override: BroadcastOverride): BroadcastOverride {
+  if (!LOG_ONLY_BROADCAST_TEMPLATE_IDS.has(id)) return { ...override }
+
+  // These are receipts for a Democracia flow whose activation card already
+  // owns the one fullscreen announcement. Manager/remote config may edit their
+  // copy/order or disable them, but cannot promote them back onto faux TV.
+  return {
+    ...override,
+    level: 'minor',
+    major: null,
+    forceOnTv: false,
+  }
+}
+
+function sanitizeBroadcastOverrides(
+  overrides: Record<string, BroadcastOverride>
+): Record<string, BroadcastOverride> {
+  return Object.fromEntries(
+    Object.entries(overrides).map(([id, override]) => [id, sanitizeBroadcastOverride(id, override)])
+  )
+}
+
 function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
   const retainedPlainEvent = state.lastPlainBroadcastEventId
     ? state.tvFeed.find((event) => event.id === state.lastPlainBroadcastEventId)
@@ -4866,10 +4893,10 @@ const gameSlice = createSlice({
     /** Change the source definition used by future Play-driven broadcasts. */
     setBroadcastOverride(state, action: PayloadAction<{ id: string; changes: BroadcastOverride }>) {
       state.broadcastOverrides ??= {}
-      state.broadcastOverrides[action.payload.id] = {
+      state.broadcastOverrides[action.payload.id] = sanitizeBroadcastOverride(action.payload.id, {
         ...(state.broadcastOverrides[action.payload.id] ?? {}),
         ...action.payload.changes,
-      }
+      })
       state.tvFeed.forEach((event) => {
         const isLegacyVoxIntro =
           action.payload.id === 'season.vox-populi-intro' &&
@@ -4912,7 +4939,7 @@ const gameSlice = createSlice({
         customMessages: CustomBroadcastMessage[]
       }>
     ) {
-      state.broadcastOverrides = action.payload.overrides
+      state.broadcastOverrides = sanitizeBroadcastOverrides(action.payload.overrides)
       state.customBroadcasts = action.payload.customMessages
       beginPhaseBroadcastSequence(state, state.phase)
       finishPhaseBroadcastSequence(state)
