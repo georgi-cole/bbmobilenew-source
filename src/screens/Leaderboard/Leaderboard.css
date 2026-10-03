@@ -105,6 +105,12 @@
 }
 
 .hall-of-fame-screen__season-copy,
+.hall-of-fame-screen__season-rating {
+  margin-top: 3px;
+  color: rgba(199, 181, 255, 0.84);
+  font-variant-numeric: tabular-nums;
+}
+
 .hall-of-fame-screen__winner-block {
   min-width: 0;
   display: flex;
@@ -119,6 +125,7 @@
 
 .hall-of-fame-screen__season-meta,
 .hall-of-fame-screen__your-finish,
+.hall-of-fame-screen__season-rating,
 .hall-of-fame-screen__winner-label {
   color: var(--hof-muted);
   font-size: 0.73rem;
