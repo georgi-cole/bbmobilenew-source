@@ -1413,7 +1413,7 @@ export interface GameState {
    * Vox Populi secret nomination ballot. Cleared after a valid ballot commits.
    */
   storeVoxExtraNominationChoiceActive?: boolean
-  /** Active, season-reserved Store protection applied only to nomination eligibility. */
+  /** Active Store protection for every nomination/replacement window in the recorded game week. */
   storeNominationProtections?: Array<{
     productKey: 'immunity' | 'protection'
     targetId: string
