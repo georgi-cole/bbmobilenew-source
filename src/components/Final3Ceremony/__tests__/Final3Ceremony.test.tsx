@@ -37,6 +37,13 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
     awaitingFinal3Plea: true,
     awaitingFinal3Eviction: false,
     players,
+    strategicRelationships: {
+      ...initial.strategicRelationships,
+      [loh.id]: {
+        [nominees[0].id]: { affinity: 72, tags: ['romance', 'alliance'] },
+        [nominees[1].id]: { affinity: -25, tags: ['betrayal'] },
+      },
+    },
     finalThree: {
       mode: 'classic' as const,
       stage: 'ceremony' as const,
@@ -92,5 +99,39 @@ describe('Final3Ceremony plea dialogue', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
     act(() => vi.advanceTimersByTime(400))
     expect(screen.queryByRole('dialog', { name: 'The Finale plea chat' })).toBeNull()
+  })
+
+  it('makes the eviction consequence explicit and shows relationship history instead of a résumé', () => {
+    vi.useFakeTimers()
+    const { nominees } = renderPleaCeremony()
+
+    act(() => vi.advanceTimersByTime(12_000))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
+    act(() => vi.advanceTimersByTime(400))
+
+    expect(
+      screen.getByText(
+        /choose who you are evicting\. the other finalist stays and faces you in the final two/i
+      )
+    ).toBeTruthy()
+    expect(screen.getByText(/romance — this became more than a game relationship/i)).toBeTruthy()
+    expect(screen.getByText(/betrayal — trust between you was broken/i)).toBeTruthy()
+    expect(screen.queryByText(/competition wins/i)).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[0].name, 'i') }))
+
+    expect(
+      screen.getByText(
+        new RegExp(
+          `You will evict ${nominees[0].name}\\. ${nominees[1].name} will join you in the Final Two\\.`,
+          'i'
+        )
+      )
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', {
+        name: new RegExp(`Evict ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
+      })
+    ).toBeTruthy()
   })
 })

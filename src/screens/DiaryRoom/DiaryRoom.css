@@ -48,10 +48,76 @@
 }
 
 .diary-room__title {
-  margin: 0;
+  min-width: 0;
+  margin: 0 auto 0 0;
   font-size: 1.2rem;
   font-weight: 900;
   color: var(--color-text);
+}
+
+.diary-room__wallet-shortcut {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 5px 10px 5px 8px;
+  border: 1px solid rgba(196, 167, 255, 0.26);
+  border-radius: 12px;
+  background: rgba(20, 13, 32, 0.84);
+  color: rgba(248, 242, 255, 0.94);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.diary-room__wallet-shortcut:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.diary-room__wallet-shortcut-coin {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border: 2px solid #c8a7ff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f4e8ff, #9b69dd 50%, #472363);
+  box-shadow: 0 0 12px rgba(169, 115, 238, 0.32);
+}
+
+.diary-room__wallet-shortcut-copy {
+  display: grid;
+  justify-items: start;
+  line-height: 1.05;
+}
+
+.diary-room__wallet-shortcut-copy small {
+  color: rgba(222, 209, 239, 0.62);
+  font-size: 0.56rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diary-room__wallet-shortcut-copy strong {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 390px) {
+  .diary-room__header {
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .diary-room__title {
+    font-size: 1.02rem;
+  }
+
+  .diary-room__wallet-shortcut {
+    min-height: 38px;
+    padding-inline: 7px 8px;
+  }
 }
 
 .diary-room__entry-overlay {

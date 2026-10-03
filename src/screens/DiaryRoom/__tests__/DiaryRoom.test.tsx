@@ -395,6 +395,18 @@ describe('DiaryRoom', () => {
     expect(screen.getByLabelText(/confessional chat/i)).toBeTruthy()
   })
 
+  it('keeps the Eyeolean wallet balance and shortcut visible without scrolling', () => {
+    renderDiaryRoom()
+
+    const shortcut = screen.getByRole('button', { name: /open wallet, .* eyeoleans/i })
+    expect(shortcut).toBeTruthy()
+
+    fireEvent.click(shortcut)
+
+    expect(screen.getByLabelText(/eyeolean wallet and powers/i)).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /wallet/i }).getAttribute('aria-selected')).toBe('true')
+  })
+
   it('plays the confessional door animation on entry', async () => {
     renderDiaryRoom()
 

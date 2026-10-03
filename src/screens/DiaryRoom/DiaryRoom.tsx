@@ -96,6 +96,7 @@ import {
   type VoxNominationReveal,
 } from '../../features/voxNominationRevealStorage'
 import { recordAdShown } from '../../store/adsSlice'
+import { selectEyeoleanBalance } from '../../store/profilesSlice'
 import { showRewarded } from '../../services/ads/adsService'
 import type { RootState } from '../../store/store'
 import './DiaryRoom.css'
@@ -574,6 +575,7 @@ export default function DiaryRoom() {
   const secretMission = useAppSelector((s) => s.game.secretMission)
   const currentWeekForMission = useAppSelector((s) => s.game.week)
   const players = useAppSelector((s) => s.game.players)
+  const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const confessionalLocked = userPlayer?.status === 'evicted' || userPlayer?.status === 'jury'
   const voxPopuliActive = gameState.voxPopuli?.status === 'active'
@@ -1597,6 +1599,19 @@ export default function DiaryRoom() {
             <GameBackButton className="diary-room__back" onClick={() => navigate(-1)} />
           )}
           <h1 className="diary-room__title">🚪 Confessional</h1>
+          <button
+            type="button"
+            className="diary-room__wallet-shortcut"
+            aria-label={`Open Wallet, ${eyeoleanBalance.toLocaleString('en-US')} Eyeoleans`}
+            disabled={confessionalDecisionPending || confessionalLocked}
+            onClick={() => setActiveView('wallet')}
+          >
+            <span className="diary-room__wallet-shortcut-coin" aria-hidden="true" />
+            <span className="diary-room__wallet-shortcut-copy">
+              <small>Wallet</small>
+              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+            </span>
+          </button>
         </div>
 
         <div className="diary-room__body">

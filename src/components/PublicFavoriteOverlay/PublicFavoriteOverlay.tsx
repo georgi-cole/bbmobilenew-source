@@ -1159,7 +1159,7 @@ export default function PublicFavoriteOverlay({
   return (
     <MotionConfig reducedMotion={prefersReducedMotion ? 'always' : 'never'}>
       <div
-        className={`pf-overlay${prefersReducedMotion ? ' pf-overlay--reduced-motion' : ''}${forecastOpen ? ' pf-overlay--forecast' : ''}`}
+        className={`pf-overlay${prefersReducedMotion ? ' pf-overlay--reduced-motion' : ''}${forecastOpen ? ' pf-overlay--forecast' : ''}${isComplete ? ' pf-overlay--complete' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={
