@@ -225,7 +225,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.democracia',
     'loh_comp_announcement',
     'DEMOCRACIA!',
-    'The house will elect the new Leader of the House by secret vote.',
+    'The hubmates will elect the new Leader of the Hub by secret vote.',
     'democracia',
     'Democracia branch',
     'critical'
@@ -265,12 +265,17 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'loh.democracia-vote-start',
     'loh_comp',
-    "🗳️ Today's Leader of the House will be chosen by popular vote! Cast your votes now.",
+    "🗳️ Today's Leader of the Hub will be chosen by popular vote! Cast your votes now.",
     'game',
     // card.democracia is the one full-screen announcement for this branch.
-    // Keep the vote-start line in the feed so moving into the ballot cannot
-    // replay the Democracia shock on the same day.
-    'minor'
+    // Keep this transition receipt in the activity log only so entering the
+    // ballot cannot replay the Democracia announcement.
+    'minor',
+    undefined,
+    'Democracia vote-start receipt',
+    false,
+    undefined,
+    { importance: 'required', presentationMode: 'log_only' }
   ),
   feed('loh.winner', 'loh_results', '{winner} has won Leader of the House! 👑'),
   feed(
@@ -379,7 +384,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'shock.democracia',
     'loh_comp',
-    'DEMOCRACIA! The house will elect its Leader by popular vote.',
+    'DEMOCRACIA! The hubmates will elect their Leader by popular vote.',
     'twist',
     // Democracia already has the canonical full-screen phase card above.
     // Keep this legacy receipt in the activity log only so activation cannot
@@ -402,19 +407,22 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     true,
     'vox_populi'
   ),
-  card(
+  feed(
     'card.democracia-vote',
     'democracia_vote',
-    'DEMOCRACIA!',
-    'The house votes by secret ballot to elect the Leader of the House.',
-    'democracia',
+    'The hubmates vote by secret ballot to elect the Leader of the Hub.',
+    'game',
+    'minor',
     undefined,
-    'critical'
+    'Democracia ballot receipt; the activation card is the sole full-screen announcement',
+    false,
+    undefined,
+    { importance: 'required', presentationMode: 'log_only' }
   ),
   feed(
     'democracia.winner',
     'democracia_vote',
-    '🗳️ {winner} has been elected Leader of the House! 👑'
+    '🗳️ {winner} has been elected Leader of the Hub! 👑'
   ),
   feed(
     'democracia.public-tiebreak',
@@ -424,7 +432,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'democracia.co-leaders',
     'democracia_vote',
-    '🗳️ The votes remain tied! {players} will BOTH serve as co-Leaders of the House! 👑👑'
+    '🗳️ The votes remain tied! {players} will BOTH serve as co-Leaders of the Hub! 👑👑'
   ),
   feed(
     'democracia.no-voters',
@@ -434,24 +442,24 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'democracia.ballotage',
     'democracia_vote',
-    "🗳️ It's a tie between {players}! We go to BALLOTAGE! All other houseguests must revote between the tied candidates. 🗳️"
+    "🗳️ It's a tie between {players}! We go to BALLOTAGE! All other hubmates must revote between the tied candidates. 🗳️"
   ),
   feed(
     'democracia.co-loh-social',
     'democracia_results',
-    '{players} are now co-Leaders of the House! 👑👑 Alliances are already forming…',
+    '{players} are now co-Leaders of the Hub! 👑👑 Alliances are already forming…',
     'social'
   ),
   feed(
     'democracia.social',
     'democracia_results',
-    'Housemates congratulate {winner}. Alliances are already forming… 💬',
+    'Hubmates congratulate {winner}. Alliances are already forming… 💬',
     'social'
   ),
   feed(
     'democracia.vox-social',
     'democracia_results',
-    'Housemates congratulate {winner} on winning immunity. The secret nomination conversations begin. 💬',
+    'Hubmates congratulate {winner} on winning immunity. The secret nomination conversations begin. 💬',
     'social',
     'minor',
     undefined,
