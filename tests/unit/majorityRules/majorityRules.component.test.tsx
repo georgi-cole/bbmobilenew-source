@@ -203,6 +203,97 @@ describe('MajorityRulesComp', () => {
     expect(store.getState().majorityRules.draftAnswers.user).toBe(chosenOptionId)
   })
 
+  it('starts a revote without reopening stale LIVE INTEL and clearly blocks the previous answer', async () => {
+    const question = MAJORITY_RULES_QUESTIONS[0]
+    const [firstOption, secondOption] = question.options
+    const store = makeStore(undefined, {
+      phase: 'reveal',
+      competitionType: 'LOH',
+      seed: 42,
+      participantIds: ['user', 'finn', 'mimi', 'rae'],
+      activeIds: ['user', 'finn', 'mimi', 'rae'],
+      eliminatedIds: [],
+      humanPlayerId: 'user',
+      roundNumber: 1,
+      revoteNumber: 0,
+      currentQuestion: question,
+      usedQuestionIds: [question.id],
+      draftAnswers: { user: firstOption.id },
+      previousDistribution: null,
+      blockedAnswers: {},
+      doubleEliminationArmed: false,
+      hintInventories: {
+        user: { pollHintUsed: true, peekTwoUsed: false, followPlayerUsed: false },
+        finn: { pollHintUsed: false, peekTwoUsed: false, followPlayerUsed: false },
+        mimi: { pollHintUsed: false, peekTwoUsed: false, followPlayerUsed: false },
+        rae: { pollHintUsed: false, peekTwoUsed: false, followPlayerUsed: false },
+      },
+      roundHintUsedBy: 'user',
+      roundHintType: 'pollHint',
+      roundHintTargetId: null,
+      roundHintPollEstimate: { [firstOption.id]: 50, [secondOption.id]: 50 },
+      roundHintPeekedAnswers: null,
+      revealState: {
+        result: {
+          kind: 'revote',
+          distribution: { [firstOption.id]: 2, [secondOption.id]: 2 },
+          answers: {
+            user: firstOption.id,
+            finn: firstOption.id,
+            mimi: secondOption.id,
+            rae: secondOption.id,
+          },
+          eliminatedIds: [],
+          minorityOptionId: null,
+          tiedOptionIds: [firstOption.id, secondOption.id],
+          eliminationCount: 0,
+        },
+        revoteNumber: 0,
+      },
+      threeWayDuel: null,
+      finalDuel: null,
+      winnerId: null,
+      outcomeResolved: false,
+      aiIdentities: {},
+    })
+
+    render(
+      <Provider store={store}>
+        <MajorityRulesComp
+          participantIds={['user', 'finn', 'mimi', 'rae']}
+          participants={[
+            { id: 'user', name: 'You', isHuman: true, precomputedScore: 0, previousPR: null },
+            { id: 'finn', name: 'Finn', isHuman: false, precomputedScore: 0, previousPR: null },
+            { id: 'mimi', name: 'Mimi', isHuman: false, precomputedScore: 0, previousPR: null },
+            { id: 'rae', name: 'Rae', isHuman: false, precomputedScore: 0, previousPR: null },
+          ]}
+          prizeType="LOH"
+          seed={42}
+        />
+      </Provider>
+    )
+
+    await act(async () => {})
+    fireEvent.click(screen.getByRole('button', { name: 'Start re-vote' }))
+
+    const state = store.getState().majorityRules
+    expect(state.phase).toBe('question')
+    expect(state.revoteNumber).toBe(1)
+    expect(state.blockedAnswers.user).toBe(firstOption.id)
+    expect(state.roundHintUsedBy).toBeNull()
+    expect(state.roundHintType).toBeNull()
+    expect(state.roundHintPollEstimate).toBeNull()
+    expect(state.hintInventories.user.pollHintUsed).toBe(true)
+
+    expect(screen.queryByRole('dialog', { name: 'Majority Rules intel' })).not.toBeInTheDocument()
+    expect(screen.getByText('Pick a different answer.')).toBeInTheDocument()
+    expect(screen.getByText('Previous answer — unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Poll/i })).toBeDisabled()
+
+    const blockedOption = screen.getByText(firstOption.text).closest('button')
+    expect(blockedOption).toBeDisabled()
+  })
+
   it('pauses after elimination and resumes normal timing when the user continues watching', async () => {
     vi.useFakeTimers()
     const question = MAJORITY_RULES_QUESTIONS[0]
