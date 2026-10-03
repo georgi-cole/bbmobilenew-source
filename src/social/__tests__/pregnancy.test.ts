@@ -14,7 +14,12 @@ import {
   type PlayerLike,
   type PregnancyStoryState,
 } from '../reality/pregnancy'
-import { resolveProfileAge } from '../../store/gameSlice'
+import gameReducer, {
+  createInitialGameState,
+  resolveProfileAge,
+  resolveProfileSex,
+  updateUserPlayerIdentity,
+} from '../../store/gameSlice'
 import { evaluateSocialActionEligibility } from '../socialActionEligibility'
 import { SOCIAL_ACTIONS } from '../socialActions'
 import { createInitialDramaSocialNetwork } from '../dramaModeEngine'
@@ -154,6 +159,84 @@ describe('Reality pregnancy lifecycle', () => {
         romanceActive: true,
       })
     ).toMatchObject({ eligible: true, carrierId: female.id })
+  })
+
+  it('keeps Try for a Baby available with Aria after a climax romance when human sex is unset', () => {
+    const human: PlayerLike = {
+      id: 'user',
+      name: 'You',
+      status: 'active',
+      isUser: true,
+      age: 30,
+    }
+    const aria: PlayerLike = {
+      id: 'aria',
+      name: 'Aria',
+      status: 'active',
+      age: 23,
+      sex: 'Female',
+    }
+    const story = createInitialPregnancyStoryState()
+    const pregnancyEligibility = getPregnancyEligibility({
+      actor: human,
+      target: aria,
+      currentDay: 5,
+      story,
+      romanceActive: true,
+      relationshipScore: 92,
+    })
+    expect(pregnancyEligibility).toMatchObject({
+      eligible: true,
+      needsHumanRoleChoice: true,
+    })
+
+    const network = createInitialDramaSocialNetwork()
+    network.arcs.push({
+      id: 'romance-user-aria',
+      type: 'romance',
+      participantIds: [human.id, aria.id],
+      stage: 'climax',
+      intensity: 92,
+      startedWeek: 2,
+      lastAdvancedWeek: 5,
+      public: false,
+      status: 'active',
+    })
+    const action = SOCIAL_ACTIONS.find((entry) => entry.id === 'try_for_baby')!
+    expect(
+      evaluateSocialActionEligibility({
+        action,
+        actorId: human.id,
+        targetIds: [aria.id],
+        players: [human, aria],
+        relationships: { user: { aria: { affinity: 92, tags: [] } } },
+        dramaNetwork: network,
+        pregnancyStory: story,
+        dramaMode: true,
+        week: 5,
+        requireCompleteSelection: true,
+      })
+    ).toEqual({ eligible: true, reason: '' })
+  })
+
+  it('reports the adult prerequisite when the live human age is missing', () => {
+    const humanWithoutAge: PlayerLike = {
+      id: 'user',
+      name: 'You',
+      status: 'active',
+      isUser: true,
+    }
+    const result = getPregnancyEligibility({
+      actor: humanWithoutAge,
+      target: female,
+      currentDay: 2,
+      story: createInitialPregnancyStoryState(),
+      romanceActive: true,
+    })
+    expect(result).toEqual({
+      eligible: false,
+      reason: 'Both housemates must be 18 or older.',
+    })
   })
 
   it('uses carrier age, never relationship score, for conception probability', () => {
@@ -433,6 +516,63 @@ describe('Reality pregnancy lifecycle', () => {
   it('resolves numeric ages from profile age ranges', () => {
     expect(resolveProfileAge('mid-20s')).toBe(25)
     expect(resolveProfileAge('52')).toBe(52)
+  })
+
+  it('resolves profile sex only when explicit or unambiguous reproductive metadata exists', () => {
+    expect(resolveProfileSex('Male')).toBe('Male')
+    expect(resolveProfileSex(undefined, { canCausePregnancy: true })).toBe('Male')
+    expect(resolveProfileSex(undefined, { canBecomePregnant: true })).toBe('Female')
+    expect(
+      resolveProfileSex(undefined, {
+        canBecomePregnant: true,
+        canCausePregnancy: true,
+      })
+    ).toBeUndefined()
+  })
+
+  it('synchronizes edited age, sex, and reproductive metadata into the live human player', () => {
+    const state = createInitialGameState({ seed: 9081 })
+    const human = state.players.find((player) => player.isUser)!
+    delete human.age
+    delete human.sex
+    delete human.reproductiveProfile
+
+    const updated = gameReducer(
+      state,
+      updateUserPlayerIdentity({
+        name: human.name,
+        avatar: human.avatar,
+        age: 30,
+        sex: 'Male',
+        reproductiveProfile: {
+          canBecomePregnant: false,
+          canCausePregnancy: true,
+        },
+      })
+    )
+    expect(updated.players.find((player) => player.isUser)).toMatchObject({
+      age: 30,
+      sex: 'Male',
+      reproductiveProfile: {
+        canBecomePregnant: false,
+        canCausePregnancy: true,
+      },
+    })
+
+    const cleared = gameReducer(
+      updated,
+      updateUserPlayerIdentity({
+        name: human.name,
+        avatar: human.avatar,
+        age: null,
+        sex: null,
+        reproductiveProfile: null,
+      })
+    )
+    const clearedHuman = cleared.players.find((player) => player.isUser)!
+    expect(clearedHuman.age).toBeUndefined()
+    expect(clearedHuman.sex).toBeUndefined()
+    expect(clearedHuman.reproductiveProfile).toBeUndefined()
   })
 
   it('normalizes persisted story state and preserves the hidden conception lock', () => {

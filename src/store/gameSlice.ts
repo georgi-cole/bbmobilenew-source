@@ -490,16 +490,23 @@ export function resolveProfileAge(value?: string): number | undefined {
   return decade ? Number(decade[1]) + 5 : undefined
 }
 
+export function resolveProfileSex(
+  value?: string,
+  reproductiveProfile?: Player['reproductiveProfile']
+): string | undefined {
+  const explicit = value?.trim()
+  if (explicit) return explicit
+
+  const canCause = reproductiveProfile?.canCausePregnancy === true
+  const canBecome = reproductiveProfile?.canBecomePregnant === true
+  if (canCause === canBecome) return undefined
+  return canCause ? 'Male' : 'Female'
+}
+
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
   const parsedAge = resolveProfileAge(profile.bio?.age)
-  const profileSex = profile.bio?.sex?.trim()
-  const reproductiveSex =
-    !profileSex && profile.bio?.reproductiveProfile?.canCausePregnancy === true
-      ? 'Male'
-      : !profileSex && profile.bio?.reproductiveProfile?.canBecomePregnant === true
-        ? 'Female'
-        : undefined
+  const resolvedSex = resolveProfileSex(profile.bio?.sex, profile.bio?.reproductiveProfile)
   return {
     id: 'user',
     name: profile.name,
@@ -507,7 +514,7 @@ function buildUserPlayer(): Player {
     status: 'active',
     isUser: true,
     ...(parsedAge !== undefined ? { age: parsedAge } : {}),
-    ...(profileSex || reproductiveSex ? { sex: profileSex || reproductiveSex } : {}),
+    ...(resolvedSex ? { sex: resolvedSex } : {}),
     ...(profile.bio?.reproductiveProfile
       ? { reproductiveProfile: profile.bio.reproductiveProfile }
       : {}),
@@ -8329,7 +8336,14 @@ const gameSlice = createSlice({
     },
     updateUserPlayerIdentity(
       state,
-      action: PayloadAction<{ name: string; avatar: string; photoId?: string }>
+      action: PayloadAction<{
+        name: string
+        avatar: string
+        photoId?: string
+        age?: number | null
+        sex?: string | null
+        reproductiveProfile?: Player['reproductiveProfile'] | null
+      }>
     ) {
       const human = state.players.find((player) => player.isUser)
       if (!human) return
@@ -8337,6 +8351,20 @@ const gameSlice = createSlice({
       human.avatar = action.payload.photoId
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
+
+      if ('age' in action.payload) {
+        if (action.payload.age == null) delete human.age
+        else human.age = action.payload.age
+      }
+      if ('sex' in action.payload) {
+        const sex = action.payload.sex?.trim()
+        if (!sex) delete human.sex
+        else human.sex = sex
+      }
+      if ('reproductiveProfile' in action.payload) {
+        if (!action.payload.reproductiveProfile) delete human.reproductiveProfile
+        else human.reproductiveProfile = action.payload.reproductiveProfile
+      }
     },
     debugForceBellaIntoCast(state) {
       if (state.players.some((player) => player.id === BELLA_ID)) {
