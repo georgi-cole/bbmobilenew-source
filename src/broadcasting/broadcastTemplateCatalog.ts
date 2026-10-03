@@ -529,7 +529,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'nominations.co-loh-prompt',
     'nomination_results',
-    '{leader}, as co-Leader of the House, you must nominate one houseguest for elimination. 🎯'
+    '{leader}, as co-Leader of the Hub, you must nominate one hubmate for elimination. 🎯'
   ),
   feed('nominations.co-loh-pick', 'nomination_results', '{leader} nominates {nominee}. 🎯'),
   feed(
