@@ -41,6 +41,7 @@ describe('incoming interaction contextual resolution', () => {
     'nominee_hoh_plea',
     'nominee_veto_pitch',
     'nominee_campaign',
+    'co_nominee_check_in',
     'nomination_aftershock',
     'nominee_understands_loh',
     'nominee_confronts_loh',
@@ -90,6 +91,21 @@ describe('incoming interaction contextual resolution', () => {
       'negative',
       'dismiss',
     ])
+  })
+
+  it('gives co-nominees choices that do not pretend either can cast a saving vote', () => {
+    const choices = getContextualIncomingChoices(
+      makeInteraction({
+        type: 'check_in',
+        payload: { scenarioKey: 'co_nominee_check_in' },
+      })
+    )
+
+    expect(choices).toHaveLength(4)
+    expect(choices?.some((choice) => /compare|share/i.test(choice.label))).toBe(true)
+    expect(choices?.some((choice) => /promise your vote|vote with them/i.test(choice.label))).toBe(
+      false
+    )
   })
 
   it('keeps a scene response short and concrete', () => {
