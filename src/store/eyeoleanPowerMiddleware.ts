@@ -12,8 +12,6 @@ import {
   declineVoteDeduction,
   finalizeNominations,
   hydrateGame,
-  getEligibleReplacementNominees,
-  resolveUnfillableReplacement,
   submitHumanDoubleVote,
   submitCoLohNomination,
   canStoreNominationProtectionAffectPlayer,
@@ -85,21 +83,37 @@ function reconcileReservations(api: PowerMiddlewareApi) {
   })
   ;(['immunity', 'protection'] as const).forEach((productKey) => {
     const reservation = reservationFor(state, productKey)
+    const activeProtection = state.game.storeNominationProtections?.find(
+      (item) => item.productKey === productKey
+    )
+
+    // Once a Store shield actually blocks nominations, its inventory
+    // reservation is consumed but the shield remains authoritative for the
+    // rest of that game day/week. Clear that spent shield only when its week
+    // has ended, the target has left, or the game has reached the power lock.
     if (!reservation) {
+      if (!activeProtection) return
+      const protectedTarget = state.game.players.find(
+        (player) => player.id === activeProtection.targetId
+      )
       if (
-        state.game.storeNominationProtections?.some(
-          (item) =>
-            item.productKey === productKey &&
-            (shouldReturn ||
-              item.week !== state.game.week ||
-              (state.game.phase === 'nomination_results' && state.game.awaitingNominations))
-        )
+        shouldReturn ||
+        activeProtection.week !== state.game.week ||
+        !protectedTarget ||
+        protectedTarget.status === 'evicted' ||
+        protectedTarget.status === 'jury'
       ) {
         api.dispatch(clearStoreNominationProtection(productKey))
       }
       return
     }
-    const target = state.game.players.find((player) => player.id === reservation.targetId)
+
+    const targetId =
+      reservation.targetId ??
+      (productKey === 'immunity'
+        ? state.game.players.find((player) => player.isUser)?.id
+        : undefined)
+    const target = state.game.players.find((player) => player.id === targetId)
     if (
       shouldReturn ||
       reservation.gameId !== state.game.gameId ||
@@ -160,7 +174,12 @@ function resolveNominationProtection(api: PowerMiddlewareApi, before: PowerMiddl
     if (protection.week !== after.game.week) continue
     const reservation = reservationFor(after, protection.productKey)
     if (!reservationMatchesGame(after, protection.productKey)) {
-      api.dispatch(clearStoreNominationProtection(protection.productKey))
+      // A missing reservation can be the expected state after this shield was
+      // already consumed earlier in the same week. Its protection still lasts
+      // through later public-save and backup-nominee windows.
+      if (reservation || protection.week !== after.game.week) {
+        api.dispatch(clearStoreNominationProtection(protection.productKey))
+      }
       continue
     }
 
@@ -171,10 +190,13 @@ function resolveNominationProtection(api: PowerMiddlewareApi, before: PowerMiddl
           gameId: reservation!.gameId,
         })
       )
+      continue
     }
-    // A consumed shield stays active for the rest of this day, including any
-    // public save, Safety replacement, or LOH ambush. The next day clears it.
-    else api.dispatch(clearStoreNominationProtection(protection.productKey))
+
+    // If the target was already immune or an unavoidable automatic nominee,
+    // the power did not fire: keep the reservation available and remove only
+    // this ineffective ceremony shield.
+    api.dispatch(clearStoreNominationProtection(protection.productKey))
   }
 }
 
@@ -237,14 +259,6 @@ export const eyeoleanPowerMiddleware: Middleware = (api) => {
     const result = next(action)
 
     reconcileReservations(typedApi)
-
-    const replacementState = typedApi.getState().game
-    if (
-      replacementState.replacementNeeded &&
-      getEligibleReplacementNominees(replacementState).length === 0
-    ) {
-      typedApi.dispatch(resolveUnfillableReplacement())
-    }
 
     const afterReconcile = typedApi.getState()
     if (advance.match(action) || hydrateGame.match(action)) {

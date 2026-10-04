@@ -1,33 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { completeMinigame } from '../../store/gameSlice'
-import { useQuickTapRaceAudio } from '../../hooks/useQuickTapRaceAudio'
-import { DEFAULT_LANE_RACERS_DURATION_MS, DEFAULT_LANE_RACERS_DURATION_SECONDS } from './constants'
-import { attachQuickTapRaceInput } from './engine/input'
-import { QuickTapRaceCanvasEngine } from './engine/quickTapRaceCanvasEngine'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { completeMinigame } from '../../store/gameSlice';
+import { useQuickTapRaceAudio } from '../../hooks/useQuickTapRaceAudio';
+import { DEFAULT_LANE_RACERS_DURATION_MS, DEFAULT_LANE_RACERS_DURATION_SECONDS } from './constants';
+import { attachQuickTapRaceInput } from './engine/input';
+import { QuickTapRaceCanvasEngine } from './engine/quickTapRaceCanvasEngine';
 import type {
   QuickTapRaceEngineSnapshot,
   QuickTapRaceParticipantConfig,
   QuickTapRaceResult,
-} from './engine/types'
-import type { MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
-import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types'
-import '../../components/QuickTapRace/QuickTapRace.css'
+} from './engine/types';
+import type { MinigameParticipant } from '../../components/MinigameHost/MinigameHost';
+import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types';
+import '../../components/QuickTapRace/QuickTapRace.css';
 
 interface Props {
-  session?: MinigameSession
-  players?: Player[]
-  onFinish?: (value: number) => void
-  seed?: number
-  autoStart?: boolean
-  participantIds?: string[]
-  participants?: MinigameParticipant[]
+  session?: MinigameSession;
+  players?: Player[];
+  onFinish?: (value: number) => void;
+  seed?: number;
+  autoStart?: boolean;
+  participantIds?: string[];
+  participants?: MinigameParticipant[];
 }
 
-const EMPTY_PLAYERS: Player[] = []
-const EMPTY_PARTICIPANT_IDS: string[] = []
-const EMPTY_PARTICIPANTS: MinigameParticipant[] = []
-const RACER_COLORS = ['#38bdf8', '#f97316', '#f43f5e', '#22c55e', '#facc15', '#a855f7']
+const EMPTY_PLAYERS: Player[] = [];
+const EMPTY_PARTICIPANT_IDS: string[] = [];
+const EMPTY_PARTICIPANTS: MinigameParticipant[] = [];
+const RACER_COLORS = ['#38bdf8', '#f97316', '#f43f5e', '#22c55e', '#facc15', '#a855f7'];
 
 function createEmptySnapshot(): QuickTapRaceEngineSnapshot {
   return {
@@ -47,55 +47,54 @@ function createEmptySnapshot(): QuickTapRaceEngineSnapshot {
     rankings: [],
     result: null,
     seed: 0,
-  }
+  };
 }
 
 function formatTimeLeft(timeLeftMs: number): string {
-  return `${Math.max(0, timeLeftMs / 1000).toFixed(1)}s`
+  return `${Math.max(0, timeLeftMs / 1000).toFixed(1)}s`;
 }
 
 function formatPlacement(index: number): string {
-  if (index === 0) return '1st'
-  if (index === 1) return '2nd'
-  if (index === 2) return '3rd'
-  return `${index + 1}th`
+  if (index === 0) return '1st';
+  if (index === 1) return '2nd';
+  if (index === 2) return '3rd';
+  return `${index + 1}th`;
 }
 
 function buildSessionRacers(
   session: MinigameSession,
   players: Player[],
-  humanId: string | null
+  humanId: string | null,
 ): QuickTapRaceParticipantConfig[] {
   return session.participants.map((id, index) => {
-    const player = players.find((candidate) => candidate.id === id)
+    const player = players.find((candidate) => candidate.id === id);
     return {
       id,
       name: player?.name ?? id,
       isPlayer: id === humanId,
       color: RACER_COLORS[index % RACER_COLORS.length],
-      targetScore: id === humanId ? 0 : (session.aiScores[id] ?? 170),
+      targetScore: id === humanId ? 0 : session.aiScores[id] ?? 170,
       profile: player?.competitionProfile ?? null,
-    }
-  })
+    };
+  });
 }
 
 function buildHostedRacers(
   participantIds: string[],
-  participants: MinigameParticipant[]
+  participants: MinigameParticipant[],
 ): QuickTapRaceParticipantConfig[] {
-  const source =
-    participants.length > 0
-      ? participants
-      : participantIds.map((id, index) => ({
-          id,
-          name: id,
-          // Integration note: MinigameHost normally supplies full participant metadata.
-          // This fallback only exists for minimal local/test harnesses that pass ids
-          // without participant records, so the first slot becomes the human lane.
-          isHuman: index === 0,
-          precomputedScore: 0,
-          previousPR: null,
-        }))
+  const source = participants.length > 0
+    ? participants
+    : participantIds.map((id, index) => ({
+        id,
+        name: id,
+        // Integration note: MinigameHost normally supplies full participant metadata.
+        // This fallback only exists for minimal local/test harnesses that pass ids
+        // without participant records, so the first slot becomes the human lane.
+        isHuman: index === 0,
+        precomputedScore: 0,
+        previousPR: null,
+      }));
 
   return source.map((participant, index) => ({
     id: participant.id,
@@ -107,7 +106,7 @@ function buildHostedRacers(
     // leaderboard contract instead of drifting against a second score source.
     targetScore: participant.isHuman ? 0 : participant.precomputedScore,
     profile: null,
-  }))
+  }));
 }
 
 export default function LaneRacersCanvasGame({
@@ -118,100 +117,71 @@ export default function LaneRacersCanvasGame({
   participantIds = EMPTY_PARTICIPANT_IDS,
   participants = EMPTY_PARTICIPANTS,
 }: Props) {
-  const dispatch = useAppDispatch()
-  const fallbackHumanId = useAppSelector(
-    (state) => state.game.players.find((player) => player.isUser)?.id ?? null
-  )
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const engineRef = useRef<QuickTapRaceCanvasEngine | null>(null)
-  const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const audioSnapshotRef = useRef<{ rawTaps: number; effectLabel: string | null }>({
-    rawTaps: 0,
-    effectLabel: null,
-  })
+  const dispatch = useAppDispatch();
+  const fallbackHumanId = useAppSelector((state) => state.game.players.find((player) => player.isUser)?.id ?? null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const engineRef = useRef<QuickTapRaceCanvasEngine | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const audioSnapshotRef = useRef<{ rawTaps: number; effectLabel: string | null }>({ rawTaps: 0, effectLabel: null });
 
-  const [snapshot, setSnapshot] = useState<QuickTapRaceEngineSnapshot>(() => createEmptySnapshot())
-  const [result, setResult] = useState<QuickTapRaceResult | null>(null)
-  const [canvasError, setCanvasError] = useState<string | null>(null)
+  const [snapshot, setSnapshot] = useState<QuickTapRaceEngineSnapshot>(() => createEmptySnapshot());
+  const [result, setResult] = useState<QuickTapRaceResult | null>(null);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
 
   const humanId = session
-    ? (players.find((player) => player.isUser)?.id ?? fallbackHumanId)
-    : (participants.find((participant) => participant.isHuman)?.id ??
-      participantIds[0] ??
-      fallbackHumanId)
-  const timeLimitMs = (session?.options.timeLimit ?? DEFAULT_LANE_RACERS_DURATION_SECONDS) * 1000
-  const reducedMotion =
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      : false
+    ? players.find((player) => player.isUser)?.id ?? fallbackHumanId
+    : participants.find((participant) => participant.isHuman)?.id ?? participantIds[0] ?? fallbackHumanId;
+  const timeLimitMs = (session?.options.timeLimit ?? DEFAULT_LANE_RACERS_DURATION_SECONDS) * 1000;
+  const reducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
 
   const racers = useMemo(() => {
     if (session) {
-      return buildSessionRacers(session, players, humanId)
+      return buildSessionRacers(session, players, humanId);
     }
-    return buildHostedRacers(participantIds, participants)
-  }, [humanId, participantIds, participants, players, session])
+    return buildHostedRacers(participantIds, participants);
+  }, [humanId, participantIds, participants, players, session]);
 
-  const { playTap, playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'active')
+  const { playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'active');
 
-  const handleProgress = useCallback(
-    (nextSnapshot: QuickTapRaceEngineSnapshot) => {
-      const previous = audioSnapshotRef.current
-      if (nextSnapshot.playerRawTaps > previous.rawTaps) {
-        playTap()
+  const handleProgress = useCallback((nextSnapshot: QuickTapRaceEngineSnapshot) => {
+    const previous = audioSnapshotRef.current;
+    if (nextSnapshot.playerEffectLabel !== previous.effectLabel && nextSnapshot.playerEffectLabel) {
+      const ranking = nextSnapshot.rankings.find((entry) => entry.isPlayer);
+      const playerLead = ranking ? nextSnapshot.rankings[0]?.id === ranking.id : false;
+      if (playerLead || nextSnapshot.playerEffectIcon === '⚡' || nextSnapshot.playerEffectIcon === '🔥' || nextSnapshot.playerEffectIcon === '🛡️') {
+        playBooster();
+      } else {
+        playHalfTap();
       }
-      if (
-        nextSnapshot.playerEffectLabel !== previous.effectLabel &&
-        nextSnapshot.playerEffectLabel
-      ) {
-        const ranking = nextSnapshot.rankings.find((entry) => entry.isPlayer)
-        const playerLead = ranking ? nextSnapshot.rankings[0]?.id === ranking.id : false
-        if (
-          playerLead ||
-          nextSnapshot.playerEffectIcon === '⚡' ||
-          nextSnapshot.playerEffectIcon === '🔥' ||
-          nextSnapshot.playerEffectIcon === '🛡️'
-        ) {
-          playBooster()
-        } else {
-          playHalfTap()
-        }
-      }
-      audioSnapshotRef.current = {
-        rawTaps: nextSnapshot.playerRawTaps,
-        effectLabel: nextSnapshot.playerEffectLabel,
-      }
-      setSnapshot(nextSnapshot)
-    },
-    [playBooster, playHalfTap, playTap]
-  )
+    }
+    audioSnapshotRef.current = {
+      rawTaps: nextSnapshot.playerRawTaps,
+      effectLabel: nextSnapshot.playerEffectLabel,
+    };
+    setSnapshot(nextSnapshot);
+  }, [playBooster, playHalfTap]);
 
-  const handleEngineFinish = useCallback(
-    (raceResult: QuickTapRaceResult) => {
-      setResult(raceResult)
-      setSnapshot((current) => ({
-        ...current,
-        result: raceResult,
-        rankings: raceResult.rankings,
-        phase: 'completed',
-      }))
-      if (!session && onFinish) {
-        onFinish(raceResult.humanScore)
-      }
-    },
-    [onFinish, session]
-  )
+  const handleEngineFinish = useCallback((raceResult: QuickTapRaceResult) => {
+    setResult(raceResult);
+    setSnapshot((current) => ({ ...current, result: raceResult, rankings: raceResult.rankings, phase: 'completed' }));
+    if (!session && onFinish) {
+      onFinish(raceResult.humanScore);
+    }
+  }, [onFinish, session]);
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const container = containerRef.current
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
     if (!canvas || !container || racers.length === 0) {
-      return undefined
+      return undefined;
     }
 
-    canvas.style.touchAction = 'manipulation'
-    let detachInput: (() => void) | undefined
+    canvas.style.touchAction = 'manipulation';
+    let detachInput: (() => void) | undefined;
 
     try {
       const engine = new QuickTapRaceCanvasEngine(canvas, {
@@ -221,73 +191,72 @@ export default function LaneRacersCanvasGame({
         reducedMotion,
         onProgress: handleProgress,
         onFinish: handleEngineFinish,
-      })
-      engineRef.current = engine
-      setSnapshot(engine.getSnapshot())
-      detachInput = attachQuickTapRaceInput(canvas, engine)
+      });
+      engineRef.current = engine;
+      setSnapshot(engine.getSnapshot());
+      detachInput = attachQuickTapRaceInput(canvas, engine);
 
       const measureAndResize = () => {
-        const rect = container.getBoundingClientRect()
-        if (rect.width <= 0 || rect.height <= 0) return
-        engine.resize(rect.width, rect.height, window.devicePixelRatio || 1)
-      }
+        const rect = container.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        engine.resize(rect.width, rect.height, window.devicePixelRatio || 1);
+      };
 
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserverRef.current = new ResizeObserver(() => {
-          measureAndResize()
-        })
-        resizeObserverRef.current.observe(container)
+          measureAndResize();
+        });
+        resizeObserverRef.current.observe(container);
       } else {
-        window.addEventListener('resize', measureAndResize)
+        window.addEventListener('resize', measureAndResize);
       }
 
       const handleVisibility = () => {
         if (document.hidden) {
-          engine.pause()
-          return
+          engine.pause();
+          return;
         }
-        engine.resume()
-      }
+        engine.resume();
+      };
 
-      document.addEventListener('visibilitychange', handleVisibility)
-      measureAndResize()
-      engine.start()
-      setCanvasError(null)
+      document.addEventListener('visibilitychange', handleVisibility);
+      measureAndResize();
+      engine.start();
+      setCanvasError(null);
 
       return () => {
-        document.removeEventListener('visibilitychange', handleVisibility)
-        resizeObserverRef.current?.disconnect()
-        resizeObserverRef.current = null
-        window.removeEventListener('resize', measureAndResize)
-        detachInput?.()
-        engine.destroy()
-        engineRef.current = null
-      }
+        document.removeEventListener('visibilitychange', handleVisibility);
+        resizeObserverRef.current?.disconnect();
+        resizeObserverRef.current = null;
+        window.removeEventListener('resize', measureAndResize);
+        detachInput?.();
+        engine.destroy();
+        engineRef.current = null;
+      };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Canvas initialization failed.'
-      setCanvasError(message)
-      detachInput?.()
-      return undefined
+      const message = error instanceof Error ? error.message : 'Canvas initialization failed.';
+      setCanvasError(message);
+      detachInput?.();
+      return undefined;
     }
-  }, [handleEngineFinish, handleProgress, racers, reducedMotion, seed, session?.seed, timeLimitMs])
+  }, [handleEngineFinish, handleProgress, racers, reducedMotion, seed, session?.seed, timeLimitMs]);
 
   const handleContinue = useCallback(() => {
-    if (!session || !result) return
+    if (!session || !result) return;
     const payload: CompleteMinigamePayload = {
       humanScore: result.humanScore,
       winnerId: result.winnerId,
       lastPlaceId: result.lastPlaceId ?? undefined,
-    }
-    dispatch(completeMinigame(payload))
-  }, [dispatch, result, session])
+    };
+    dispatch(completeMinigame(payload));
+  }, [dispatch, result, session]);
 
-  const leader = snapshot.rankings[0] ?? null
-  const playerEntry =
-    result?.rankings.find((entry) => entry.isPlayer) ??
-    snapshot.rankings.find((entry) => entry.isPlayer) ??
-    null
-  const controlsDisabled = canvasError !== null || snapshot.phase !== 'active'
-  const dodgeLabel = snapshot.playerPickupDodgeMs > 0 ? 'Dodge armed' : 'Dodge next pickup'
+  const leader = snapshot.rankings[0] ?? null;
+  const playerEntry = result?.rankings.find((entry) => entry.isPlayer)
+    ?? snapshot.rankings.find((entry) => entry.isPlayer)
+    ?? null;
+  const controlsDisabled = canvasError !== null || snapshot.phase !== 'active';
+  const dodgeLabel = snapshot.playerPickupDodgeMs > 0 ? 'Dodge armed' : 'Dodge next pickup';
 
   return (
     <div className="qtr" role="dialog" aria-modal="true" aria-label="Lane Racers Competition">
@@ -333,8 +302,8 @@ export default function LaneRacersCanvasGame({
                 type="button"
                 className="qtr__button qtr__button--tap"
                 onPointerDown={(event) => {
-                  event.preventDefault()
-                  engineRef.current?.handleControlTap()
+                  event.preventDefault();
+                  engineRef.current?.handleControlTap();
                 }}
                 disabled={controlsDisabled}
               >
@@ -358,10 +327,7 @@ export default function LaneRacersCanvasGame({
             </div>
             <ol className="qtr__rankings">
               {snapshot.rankings.slice(0, 5).map((entry, index) => (
-                <li
-                  key={entry.id}
-                  className={entry.isPlayer ? 'qtr__ranking qtr__ranking--player' : 'qtr__ranking'}
-                >
+                <li key={entry.id} className={entry.isPlayer ? 'qtr__ranking qtr__ranking--player' : 'qtr__ranking'}>
                   <span>{formatPlacement(index)}</span>
                   <span>{entry.name}</span>
                   <strong>{entry.score}</strong>
@@ -388,5 +354,5 @@ export default function LaneRacersCanvasGame({
         )}
       </div>
     </div>
-  )
+  );
 }

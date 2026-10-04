@@ -339,9 +339,14 @@ export function evaluateSocialCommitmentsForAction(
   decisionContext: { eligibleTargetIds?: string[]; savedTargetIds?: string[] } = {}
 ): void {
   const state = store.getState()
-  if (actionType === 'game/finalizeNominations' || actionType === 'game/commitNominees') {
+  const nominationLocked =
+    actionType === 'game/finalizeNominations' || actionType === 'game/commitNominees'
+  const finalizingWallDeal = actionType === 'game/finalizeHoldTheWallNominationDeal'
+  if (nominationLocked || finalizingWallDeal) {
     const nominees = state.game.nomineeIds ?? []
     for (const commitment of pendingForAction(state, 'protect_from_nomination')) {
+      const isHoldTheWallDeal = commitment.id.startsWith('hold-wall-deal:')
+      if (finalizingWallDeal && !isHoldTheWallDeal) continue
       const consent =
         state.social.reality &&
         getActiveFacadeAgreement(
@@ -379,11 +384,20 @@ export function evaluateSocialCommitmentsForAction(
         continue
       }
       const kept = !nominees.includes(commitment.beneficiaryId)
+      // A Hold-the-Wall bargain promises safety for the whole nomination day,
+      // not merely the opening block. If the beneficiary is safe initially,
+      // defer "kept" until the Safety/replacement window has closed so a
+      // backdoor cannot be misrecorded as an honored promise.
+      if (nominationLocked && isHoldTheWallDeal && kept) continue
       resolvePromise(
         store,
         commitment,
         kept,
-        kept ? 'protected_at_nominations' : 'nominated_after_promise'
+        kept
+          ? isHoldTheWallDeal
+            ? 'protected_through_replacement_window'
+            : 'protected_at_nominations'
+          : 'nominated_after_promise'
       )
     }
     return

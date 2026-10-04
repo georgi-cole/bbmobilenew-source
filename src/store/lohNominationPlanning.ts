@@ -2,6 +2,7 @@ import type { Reducer, UnknownAction } from '@reduxjs/toolkit'
 import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
 import { TWIN_SHOCK_ALI_ID, TWIN_SHOCK_LIA_ID } from '../bb/twinShock'
+import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 
 export type LohNominationStrategy = 'direct' | 'backdoor'
 export type LohNominationPlanStatus =
@@ -29,6 +30,22 @@ export interface LohNominationPlan {
   safetyParticipantIds?: string[]
   revealPending?: boolean
   revealed?: boolean
+}
+
+/**
+ * A true Ambush is planned before nominations: the real target is deliberately
+ * kept off the opening block so the LOH can try to name them only after Safety
+ * opens a replacement slot. A normal replacement nomination is not an Ambush.
+ */
+export function isLohAmbushPlan(
+  plan: LohNominationPlan | null | undefined
+): plan is LohNominationPlan {
+  return Boolean(
+    plan &&
+    plan.strategy === 'backdoor' &&
+    plan.targetId.length > 0 &&
+    !plan.initialNomineeIds.includes(plan.targetId)
+  )
 }
 
 declare module '../types' {
@@ -115,8 +132,20 @@ function isTwinPartnerPair(state: GameState, firstId: string, secondId: string):
   )
 }
 
+function isStoreNominationProtected(state: GameState, playerId: string): boolean {
+  return Boolean(
+    state.storeNominationProtections?.some(
+      (protection) => protection.week === state.week && protection.targetId === playerId
+    )
+  )
+}
+
 function canPlanAgainst(state: GameState, lohId: string, candidate: Player): boolean {
-  return candidate.id !== lohId && !isTwinPartnerPair(state, lohId, candidate.id)
+  return (
+    candidate.id !== lohId &&
+    !isTwinPartnerPair(state, lohId, candidate.id) &&
+    !isStoreNominationProtected(state, candidate.id)
+  )
 }
 
 function isCanonicalSingleLohDay(state: GameState): boolean {
@@ -238,7 +267,7 @@ function choosePawns(
   return result
 }
 
-function calculateBackdoorChance(
+export function calculateLohAmbushChance(
   state: GameState,
   lohId: string,
   target: Player,
@@ -246,32 +275,52 @@ function calculateBackdoorChance(
   secondScore: number
 ): number {
   const aliveCount = alivePlayers(state).length
-  // Final 4 uses a separate Safety/eviction rule and has no normal replacement ceremony.
-  if (state.week < 2 || aliveCount <= 4) return 0
+  // An accepted wall deal can become a genuine same-day ambush if the
+  // relationship deteriorates enough for the deterministic betrayal read to flip.
+  // Final 4 still has no normal replacement structure, so it cannot be an Ambush.
+  if (aliveCount <= 4) return 0
+  const wallDeal = state.holdTheWallSafetyDeal
+  if (
+    wallDeal?.week === state.week &&
+    wallDeal.promisorId === lohId &&
+    wallDeal.beneficiaryId === target.id &&
+    getHoldTheWallDealDisposition(state, wallDeal) === 'betray'
+  ) {
+    return 1
+  }
+  // Ordinary Ambushes stay disabled on Day 1.
+  if (state.week < 2) return 0
 
   const tags = relationshipTags(state, lohId, target.id)
   const wins = (target.stats?.lohWins ?? 0) + (target.stats?.posWins ?? 0)
   const comp = competitionStrength(state, target)
   const hostility = hasAnyTag(tags, HOSTILE_TAGS) || affinity(state, lohId, target.id) <= -30
-  const seriousThreat = comp >= 64 || wins > 0 || hostility || targetScore - secondScore >= 36
-  if (!seriousThreat) return 0
+  const scoreLead = Math.max(0, targetScore - secondScore)
 
-  let chance = 0.16
-  if (comp >= 70) chance += 0.12
-  if (comp >= 82) chance += 0.08
-  chance += Math.min(0.16, wins * 0.06)
-  if (hostility) chance += 0.08
-  chance += Math.min(0.1, Math.max(0, targetScore - secondScore) / 180)
-  chance += Math.min(0.08, Math.max(0, state.week - 2) * 0.02)
+  // Ambush is reserved for a target the LOH has a reason to conceal. The
+  // threshold is intentionally broader than before so a clearly emerging
+  // threat can qualify before they have already stacked multiple wins.
+  const threatSignals = [comp >= 58, wins > 0, hostility, scoreLead >= 28].filter(Boolean).length
+  if (threatSignals === 0) return 0
 
-  // Everybody plays Safety in this ruleset. The tactical value of concealment is
-  // that a non-nominee may conserve or throw, while a nominee always fights for Safety.
+  // Eligible Ambushes should be noticeable across a season without becoming
+  // the default nomination strategy. A single credible threat signal starts
+  // around one-in-five; multiple independent signals raise confidence.
+  let chance = 0.22 + Math.max(0, threatSignals - 1) * 0.05
+  if (comp >= 70) chance += 0.1
+  if (comp >= 82) chance += 0.07
+  chance += Math.min(0.14, wins * 0.06)
+  if (hostility) chance += 0.07
+  chance += Math.min(0.1, scoreLead / 180)
+  chance += Math.min(0.1, Math.max(0, state.week - 2) * 0.025)
+
+  // Everybody plays Safety in this ruleset. Concealment matters most against
+  // contestants who may conserve effort when they are not initially exposed.
   const archetype = target.aiGameIdentity?.archetype
-  if (archetype && CONCEALMENT_SENSITIVE_ARCHETYPES.has(archetype)) chance += 0.08
-  if (archetype && ALWAYS_PUSH_ARCHETYPES.has(archetype)) chance -= 0.06
-  if (state.week === 2) chance -= 0.06
+  if (archetype && CONCEALMENT_SENSITIVE_ARCHETYPES.has(archetype)) chance += 0.07
+  if (archetype && ALWAYS_PUSH_ARCHETYPES.has(archetype)) chance -= 0.05
 
-  return clamp(chance, 0, 0.62)
+  return clamp(chance, 0, 0.64)
 }
 
 export function buildLohNominationPlan(
@@ -307,7 +356,7 @@ export function buildLohNominationPlan(
   const backupTarget = ranked[1]?.candidate ?? null
   const targetScore = ranked[0].strategicScore
   const secondScore = ranked[1]?.strategicScore ?? targetScore
-  const backdoorChance = calculateBackdoorChance(state, loh.id, target, targetScore, secondScore)
+  const backdoorChance = calculateLohAmbushChance(state, loh.id, target, targetScore, secondScore)
   const backdoorRoll = seededUnit(
     `${state.gameId}:${state.week}:${state.seed}:${loh.id}:${target.id}:backdoor`
   )
@@ -476,6 +525,9 @@ function reconcileInitialAiNominations(previous: GameState, state: GameState): G
   const baseNominees = [...state.nomineeIds]
   const desired = [...plan.initialNomineeIds]
   if (baseNominees.length !== desired.length || baseNominees.length === 0) return state
+  // The plan can predate a Store shield. Never let the planner rewrite the
+  // canonical nomination result back onto somebody who became protected.
+  if (desired.some((playerId) => isStoreNominationProtected(state, playerId))) return state
 
   const cloned = cloneForPlayerMutation(state)
   const baseSet = new Set(baseNominees)
@@ -509,12 +561,7 @@ function isReplacementEligible(state: GameState, playerId: string): boolean {
   if (state.nomineeIds.includes(playerId)) return false
   if (state.povSavedId === playerId) return false
   if ((state.povProtectedIds ?? []).includes(playerId)) return false
-  if (
-    state.storeNominationProtections?.some(
-      (protection) => protection.week === state.week && protection.targetId === playerId
-    )
-  )
-    return false
+  if (isStoreNominationProtected(state, playerId)) return false
   return true
 }
 
@@ -535,12 +582,7 @@ function replaceReplacementEventCopy(state: GameState, replacementId: string): v
 
 function reconcileBackdoorReplacement(previous: GameState, state: GameState): GameState {
   const plan = state.lohNominationPlan
-  if (
-    !plan ||
-    plan.strategy !== 'backdoor' ||
-    plan.week !== state.week ||
-    plan.lohId !== state.lohId
-  ) {
+  if (!isLohAmbushPlan(plan) || plan.week !== state.week || plan.lohId !== state.lohId) {
     return state
   }
   if (plan.status === 'executed' || plan.status === 'failed' || plan.status === 'compromised') {
@@ -601,7 +643,8 @@ function reconcileBackdoorReplacement(previous: GameState, state: GameState): Ga
     cloned.lohSocialPlan = canonicalSocialPlan(cloned, cloned.lohNominationPlan)
   } else if (
     state.posWinnerId === plan.targetId ||
-    (state.povProtectedIds ?? []).includes(plan.targetId)
+    (state.povProtectedIds ?? []).includes(plan.targetId) ||
+    isStoreNominationProtected(state, plan.targetId)
   ) {
     // The hidden target earned protection. The LOH must pivot, so the backdoor
     // was genuinely foiled rather than silently rewritten into a success.
@@ -615,6 +658,7 @@ function reconcileBackdoorReplacement(previous: GameState, state: GameState): Ga
 }
 
 function buildBackdoorRevealEvent(state: GameState, plan: LohNominationPlan): TvEvent | null {
+  if (!isLohAmbushPlan(plan) || plan.status !== 'executed') return null
   const loh = state.players.find((player) => player.id === plan.lohId)
   const target = state.players.find((player) => player.id === plan.targetId)
   if (!target) return null
@@ -656,10 +700,19 @@ function maybePublishBackdoorReveal(
   }
 }
 
-function establishPlan(state: GameState, scoreFn: NominationScoreFn): GameState {
+function establishPlan(
+  state: GameState,
+  scoreFn: NominationScoreFn,
+  previous?: GameState
+): GameState {
   const planningPhase =
     state.phase === 'loh_results' || state.phase === 'social_1' || state.phase === 'nominations'
-  if (!planningPhase || planMatchesCurrentLoh(state)) return state
+  const activeWallDeal =
+    state.holdTheWallSafetyDeal?.week === state.week &&
+    state.holdTheWallSafetyDeal.promisorId === state.lohId
+  const refreshForWallDeal =
+    Boolean(activeWallDeal) && state.phase === 'nominations' && previous?.phase !== 'nominations'
+  if (!planningPhase || (planMatchesCurrentLoh(state) && !refreshForWallDeal)) return state
   const plan = buildLohNominationPlan(state, scoreFn)
   if (!plan) return state
   return {
@@ -693,8 +746,7 @@ function deliverBackdoorSafetyPitch(previous: GameState, state: GameState): Game
   if (
     previous.phase === state.phase ||
     state.phase !== 'pos_results' ||
-    plan?.strategy !== 'backdoor' ||
-    !plan ||
+    !isLohAmbushPlan(plan) ||
     plan.week !== state.week ||
     plan.lohId !== state.lohId ||
     plan.status !== 'initial_block_set' ||
@@ -814,7 +866,7 @@ export function withLohNominationPlanning(
       if (next.lohNominationPlan != null) next = { ...next, lohNominationPlan: null }
     }
 
-    next = establishPlan(next, scoreFn)
+    next = establishPlan(next, scoreFn, previous)
     next = reconcileInitialAiNominations(previous, next)
     next = recordSafetyField(previous, next)
     next = deliverBackdoorSafetyPitch(previous, next)

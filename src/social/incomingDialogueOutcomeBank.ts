@@ -164,6 +164,7 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
     ],
   },
   week_start_alliance_lock: ALLIANCE_BEATS,
+  co_nominee_check_in: ALLIANCE_BEATS,
   alliance_reassurance: ALLIANCE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,

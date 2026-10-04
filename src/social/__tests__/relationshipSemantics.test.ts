@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   createDirectedRelationship,
+  applyRealityRelationshipChange,
   createInitialRealityDomainState,
   createRealityAlliance,
+  createRealityGrievance,
+  recordRealityAllianceBetrayal,
 } from '../reality'
 import {
   hasCanonicalLiveAlliance,
@@ -138,5 +141,50 @@ describe('canonical relationship presentation', () => {
     expect(selectCanonicalAlliance(firstOrder, 'human', 'rune')?.id).toBe('alpha-active')
     expect(selectCanonicalAlliance(secondOrder, 'human', 'rune')?.id).toBe('alpha-active')
     expect(pairView(firstOrder).alliance).toEqual(pairView(secondOrder).alliance)
+  })
+
+  it('shows a fight-created enemy and grievance as rivalry rather than betrayal', () => {
+    const reality = createInitialRealityDomainState()
+    applyRealityRelationshipChange(reality, {
+      sourceId: 'human',
+      targetId: 'rune',
+      deltas: {
+        trust: -70,
+        resentment: 85,
+        suspicion: 60,
+        perceivedThreat: 55,
+      },
+      day: 2,
+      phase: 'social_1',
+      eventId: 'fight:human:rune',
+      anchor: 'negative',
+    })
+    createRealityGrievance(reality, {
+      id: 'grievance:fight:human:rune',
+      holderId: 'rune',
+      againstId: 'human',
+      causeEventId: 'fight:human:rune',
+      severity: 75,
+      at: { day: 2, phase: 'social_1' },
+    })
+
+    const view = pairView(reality)
+    expect(view.visibleTags.has('rivalry')).toBe(true)
+    expect(view.visibleTags.has('betrayal')).toBe(false)
+  })
+
+  it('still exposes a real alliance betrayal from the Reality event record', () => {
+    const reality = createInitialRealityDomainState()
+    addAlliance(reality, 'trusted-pact', 'ACTIVE')
+    recordRealityAllianceBetrayal(reality, {
+      actorId: 'human',
+      targetId: 'rune',
+      kind: 'SOCIAL_BETRAYAL',
+      at: { day: 3, phase: 'social_2' },
+      sourceEventId: 'social-betrayal:human:rune',
+    })
+
+    const view = pairView(reality)
+    expect(view.visibleTags.has('betrayal')).toBe(true)
   })
 })

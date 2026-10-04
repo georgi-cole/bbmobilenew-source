@@ -1260,10 +1260,11 @@ export default function TvZone(props: TvZoneProps) {
   const handleShockIntroComplete = useCallback(() => {
     startTransition(() => {
       setShockIntroActive(false)
-      if (activeAnnouncement?.key === 'vox_populi') {
-        // The fullscreen Vox proclamation is only beat one. Keep its managed
-        // instruction event alive as beat two on the faux TV; the main Play
-        // control consumes it and reveals the season welcome as beat three.
+      if (activeAnnouncement?.key === 'vox_populi' || activeAnnouncement?.key === 'democracia') {
+        // Vox has a deliberate faux-TV handoff. Democracia immediately hands
+        // control to the ballot modal. Neither flow should start the generic
+        // info-button spotlight after the fullscreen stinger; for Democracia
+        // that target sits behind the voting decision modal.
         setShockInfoSpotlightActive(false)
       } else if (activeAnnouncement?.key === 'cupid_arrow') {
         // Cupid follows the same three-beat structure. Acknowledging the
@@ -1860,7 +1861,7 @@ export default function TvZone(props: TvZoneProps) {
               />
             )}
 
-            {gameState.twistActive && (
+            {gameState.twistActive && !gameState.weekendInterlude?.active && (
               <div className="tv-zone__twist-badge" aria-hidden="true">
                 <span>🌀</span>
                 SHOCK
@@ -2010,7 +2011,7 @@ export default function TvZone(props: TvZoneProps) {
            confessional prompt spotlight. The target ref is forwarded to the ℹ️
            button inside TvAnnouncementOverlay. */}
       <ConfessionalSpotlightOverlay
-        active={shockInfoSpotlightActive}
+        active={shockInfoSpotlightActive && gameState.phase !== 'democracia_vote'}
         targetRef={announcementInfoButtonRef}
         onComplete={handleShockSpotlightComplete}
       />

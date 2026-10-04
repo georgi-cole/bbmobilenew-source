@@ -124,6 +124,58 @@ describe('social commitments', () => {
     })
   })
 
+  it('keeps a Hold the Wall safety deal pending until the replacement window closes', () => {
+    const { store, social } = makeStore(['nova'])
+    store.dispatch(
+      addSocialCommitment({
+        id: 'hold-wall-deal:game:2:user:lia',
+        interactionId: 'hold-wall-deal:game:2:user:lia',
+        kind: 'protect_from_nomination',
+        promisorId: 'user',
+        beneficiaryId: 'lia',
+        createdWeek: 2,
+        dueWeek: 2,
+        status: 'pending',
+      })
+    )
+
+    evaluateSocialCommitmentsForAction(store, 'game/commitNominees')
+    expect(social().commitments[0]).toMatchObject({ status: 'pending' })
+
+    evaluateSocialCommitmentsForAction(store, 'game/finalizeHoldTheWallNominationDeal')
+    expect(social().commitments[0]).toMatchObject({
+      status: 'kept',
+      resolutionReason: 'protected_through_replacement_window',
+    })
+  })
+
+  it('records a Hold the Wall backdoor as a broken promise instead of an early keep', () => {
+    const { store, social } = makeStore(['nova'])
+    store.dispatch(
+      addSocialCommitment({
+        id: 'hold-wall-deal:game:2:user:lia',
+        interactionId: 'hold-wall-deal:game:2:user:lia',
+        kind: 'protect_from_nomination',
+        promisorId: 'user',
+        beneficiaryId: 'lia',
+        createdWeek: 2,
+        dueWeek: 2,
+        status: 'pending',
+      })
+    )
+
+    evaluateSocialCommitmentsForAction(store, 'game/commitNominees')
+    expect(social().commitments[0].status).toBe('pending')
+
+    store.getState().game.nomineeIds?.splice(0, 1, 'lia')
+    evaluateSocialCommitmentsForAction(store, 'game/finalizeHoldTheWallNominationDeal')
+
+    expect(social().commitments[0]).toMatchObject({
+      status: 'broken',
+      resolutionReason: 'nominated_after_promise',
+    })
+  })
+
   it('keeps a private vote promise out of house relationships', () => {
     const { store, social } = makeStore(['lia', 'nova'])
     const voteInteraction = interaction({

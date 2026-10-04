@@ -1602,8 +1602,19 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: DEMOCRACIA!/i })).toBeDefined()
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
     expect(store.getState().game.phase).toBe('loh_comp_announcement')
     expect(store.getState().game.democracia?.awaitingHumanVote).toBe(false)
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))
+      store.dispatch(setPhase('democracia_vote'))
+      vi.advanceTimersByTime(POST_DISMISS_SETTLE_MS)
+    })
+
+    expect(screen.queryByRole('dialog', { name: /Announcement: DEMOCRACIA!/i })).toBeNull()
+    expect(screen.queryByTestId('shock-intro-overlay')).toBeNull()
+    expect(screen.queryByTestId('confessional-spotlight')).toBeNull()
     vi.useRealTimers()
   })
 
@@ -2005,7 +2016,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: SHORT BREAK/i })).toBeDefined()
-    expect(screen.getByText(/house is about to vote/i)).toBeTruthy()
+    expect(screen.getByText(/hub is about to vote/i)).toBeTruthy()
 
     act(() => {
       window.dispatchEvent(new CustomEvent('tv:announcement-dismiss'))
@@ -2076,7 +2087,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('Housemates compare notes before the next ceremony.')
+    expect(nowEl).toHaveTextContent('players compare notes before the next ceremony.')
   })
 
   it('keeps an acknowledged Major phase card as steady viewport copy', () => {
@@ -2094,7 +2105,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     const nowEl = document.querySelector('.tv-zone__now')
     expect(nowEl).not.toHaveStyle({ opacity: '0' })
-    expect(nowEl).toHaveTextContent('The house will vote to eliminate.')
+    expect(nowEl).toHaveTextContent('The hub will vote to eliminate.')
   })
 })
 

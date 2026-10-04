@@ -888,6 +888,18 @@ export interface GameState {
   /** Player ID of the current Leader of the House, or null between weeks. */
   lohId: string | null
   /**
+   * A final-two Hold the Wall bargain that traded the competition win for
+   * same-day nomination safety. It expires at the next Day Start.
+   */
+  holdTheWallSafetyDeal?: {
+    week: number
+    promisorId: string
+    beneficiaryId: string
+    source: 'hold_the_wall'
+    affinityAtDeal: number
+    tagsAtDeal: string[]
+  } | null
+  /**
    * A disclosed LOH plan is persisted so conversation intel and the eventual
    * ceremony cannot contradict one another. Cleared at the next week start.
    */
@@ -1414,7 +1426,7 @@ export interface GameState {
    * Vox Populi secret nomination ballot. Cleared after a valid ballot commits.
    */
   storeVoxExtraNominationChoiceActive?: boolean
-  /** Active, season-reserved Store protection applied only to nomination eligibility. */
+  /** Active Store protection for every nomination/replacement window in the recorded game week. */
   storeNominationProtections?: Array<{
     productKey: 'immunity' | 'protection'
     targetId: string

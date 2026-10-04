@@ -14,88 +14,104 @@
  *  8. Human player is excluded from the AI drop schedule.
  */
 
-import { describe, it, expect } from 'vitest'
-import { configureStore } from '@reduxjs/toolkit'
+import { describe, it, expect } from 'vitest';
+import { configureStore } from '@reduxjs/toolkit';
 import holdTheWallReducer, {
   startHoldTheWall,
+  offerFinalTwoDeal,
+  resolveFinalTwoDeal,
   dropPlayer,
+  dropFinalDuelAi,
   markHoldTheWallOutcomeResolved,
   resetHoldTheWall,
   buildAiDropSchedule,
   AI_DROP_MIN_MS,
   AI_DROP_MAX_MS,
-} from '../../../src/features/holdTheWall/holdTheWallSlice'
+} from '../../../src/features/holdTheWall/holdTheWallSlice';
 
 function makeStore() {
-  return configureStore({ reducer: { holdTheWall: holdTheWallReducer } })
+  return configureStore({ reducer: { holdTheWall: holdTheWallReducer } });
 }
 
 describe('holdTheWallSlice — initial state', () => {
   it('status is idle', () => {
-    const store = makeStore()
-    expect(store.getState().holdTheWall.status).toBe('idle')
-  })
+    const store = makeStore();
+    expect(store.getState().holdTheWall.status).toBe('idle');
+  });
 
   it('outcomeResolved is false', () => {
-    const store = makeStore()
-    expect(store.getState().holdTheWall.outcomeResolved).toBe(false)
-  })
-})
+    const store = makeStore();
+    expect(store.getState().holdTheWall.outcomeResolved).toBe(false);
+  });
+});
 
 describe('holdTheWallSlice — startHoldTheWall', () => {
   it('transitions status to active', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 42,
-      })
-    )
-    expect(store.getState().holdTheWall.status).toBe('active')
-  })
+      }),
+    );
+    expect(store.getState().holdTheWall.status).toBe('active');
+  });
+
+  it('stores the human participant for final-two deal validation', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1', 'ai2'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 42,
+      }),
+    );
+    expect(store.getState().holdTheWall.humanId).toBe('human');
+  });
 
   it('stores participantIds', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 42,
-      })
-    )
-    expect(store.getState().holdTheWall.participantIds).toEqual(['human', 'ai1', 'ai2'])
-  })
+      }),
+    );
+    expect(store.getState().holdTheWall.participantIds).toEqual(['human', 'ai1', 'ai2']);
+  });
 
   it('creates aiDropSchedule for AI players only (not human)', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 42,
-      })
-    )
-    const { aiDropSchedule } = store.getState().holdTheWall
-    expect('human' in aiDropSchedule).toBe(false)
-    expect('ai1' in aiDropSchedule).toBe(true)
-    expect('ai2' in aiDropSchedule).toBe(true)
-  })
+      }),
+    );
+    const { aiDropSchedule } = store.getState().holdTheWall;
+    expect('human' in aiDropSchedule).toBe(false);
+    expect('ai1' in aiDropSchedule).toBe(true);
+    expect('ai2' in aiDropSchedule).toBe(true);
+  });
 
   it('resets droppedIds and winnerId', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
+      }),
+    );
+    store.dispatch(dropFinalDuelAi('ai1'));
     // Now restart
     store.dispatch(
       startHoldTheWall({
@@ -103,212 +119,311 @@ describe('holdTheWallSlice — startHoldTheWall', () => {
         humanId: 'human',
         prizeType: 'LOH',
         seed: 2,
-      })
-    )
-    const state = store.getState().holdTheWall
-    expect(state.droppedIds).toEqual([])
-    expect(state.winnerId).toBeNull()
-    expect(state.outcomeResolved).toBe(false)
-  })
-})
+      }),
+    );
+    const state = store.getState().holdTheWall;
+    expect(state.droppedIds).toEqual([]);
+    expect(state.winnerId).toBeNull();
+    expect(state.outcomeResolved).toBe(false);
+  });
+});
+
+describe('holdTheWallSlice — final-two deal', () => {
+  it('marks an accepted bargain as triggered only when the beneficiary drops', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 11,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'ai1',
+        beneficiaryId: 'human',
+        offeredBy: 'ai',
+        affinityAtDeal: 65,
+        tagsAtDeal: ['alliance'],
+      }),
+    );
+    store.dispatch(resolveFinalTwoDeal(true));
+    store.dispatch(dropPlayer('human'));
+
+    const state = store.getState().holdTheWall;
+    expect(state.finalTwoDeal?.triggered).toBe(true);
+    expect(state.winnerId).toBe('ai1');
+  });
+
+  it('does not create a triggered bargain when the promisor drops instead', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 12,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'human',
+        beneficiaryId: 'ai1',
+        offeredBy: 'human',
+        affinityAtDeal: 20,
+        tagsAtDeal: [],
+      }),
+    );
+    store.dispatch(resolveFinalTwoDeal(true));
+    store.dispatch(dropPlayer('human'));
+
+    expect(store.getState().holdTheWall.finalTwoDeal?.triggered).toBe(false);
+  });
+
+  it('does not open nomination-safety deals in a POS competition', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'POS',
+        seed: 13,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'ai1',
+        beneficiaryId: 'human',
+        offeredBy: 'ai',
+        affinityAtDeal: 80,
+        tagsAtDeal: ['alliance'],
+      }),
+    );
+
+    expect(store.getState().holdTheWall.finalTwoDeal).toBeNull();
+  });
+});
+
+describe('holdTheWallSlice — final duel authority', () => {
+  it('ignores the old scheduled AI drop once only the human and one AI remain', () => {
+    const store = makeStore();
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['human', 'ai1'],
+        humanId: 'human',
+        prizeType: 'LOH',
+        seed: 21,
+      }),
+    );
+
+    store.dispatch(dropPlayer('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('active');
+    expect(store.getState().holdTheWall.droppedIds).toEqual([]);
+
+    store.dispatch(dropFinalDuelAi('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('human');
+  });
+});
 
 describe('holdTheWallSlice — dropPlayer', () => {
   it('adds player to droppedIds', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    expect(store.getState().holdTheWall.droppedIds).toContain('ai1')
-  })
+      }),
+    );
+    store.dispatch(dropPlayer('ai1'));
+    expect(store.getState().holdTheWall.droppedIds).toContain('ai1');
+  });
 
   it('transitions to complete and sets winnerId when one player remains', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    const state = store.getState().holdTheWall
-    expect(state.status).toBe('complete')
-    expect(state.winnerId).toBe('human')
-  })
+      }),
+    );
+    store.dispatch(dropFinalDuelAi('ai1'));
+    const state = store.getState().holdTheWall;
+    expect(state.status).toBe('complete');
+    expect(state.winnerId).toBe('human');
+  });
 
   it('does not transition until only one player remains', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    expect(store.getState().holdTheWall.status).toBe('active')
-    store.dispatch(dropPlayer('ai2'))
-    expect(store.getState().holdTheWall.status).toBe('complete')
-    expect(store.getState().holdTheWall.winnerId).toBe('human')
-  })
+      }),
+    );
+    store.dispatch(dropPlayer('ai1'));
+    expect(store.getState().holdTheWall.status).toBe('active');
+    store.dispatch(dropFinalDuelAi('ai2'));
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('human');
+  });
 
   it('is idempotent — dropping the same player twice does not double-add', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    store.dispatch(dropPlayer('ai1'))
-    const dropped = store.getState().holdTheWall.droppedIds
-    expect(dropped.filter((id) => id === 'ai1').length).toBe(1)
-  })
+      }),
+    );
+    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropPlayer('ai1'));
+    const dropped = store.getState().holdTheWall.droppedIds;
+    expect(dropped.filter((id) => id === 'ai1').length).toBe(1);
+  });
 
   it('is a no-op when status is not active', () => {
-    const store = makeStore()
+    const store = makeStore();
     // idle state
-    store.dispatch(dropPlayer('nobody'))
-    expect(store.getState().holdTheWall.droppedIds).toEqual([])
-  })
+    store.dispatch(dropPlayer('nobody'));
+    expect(store.getState().holdTheWall.droppedIds).toEqual([]);
+  });
 
   it('human wins when all AI drop', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2', 'ai3'],
         humanId: 'human',
         prizeType: 'POS',
         seed: 999,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    store.dispatch(dropPlayer('ai2'))
-    store.dispatch(dropPlayer('ai3'))
-    const state = store.getState().holdTheWall
-    expect(state.status).toBe('complete')
-    expect(state.winnerId).toBe('human')
-  })
+      }),
+    );
+    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropPlayer('ai2'));
+    store.dispatch(dropFinalDuelAi('ai3'));
+    const state = store.getState().holdTheWall;
+    expect(state.status).toBe('complete');
+    expect(state.winnerId).toBe('human');
+  });
 
   it('AI wins when human drops first and only one AI remains', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('human'))
-    store.dispatch(dropPlayer('ai1'))
-    const state = store.getState().holdTheWall
-    expect(state.status).toBe('complete')
-    expect(state.winnerId).toBe('ai2')
-  })
+      }),
+    );
+    store.dispatch(dropPlayer('human'));
+    store.dispatch(dropPlayer('ai1'));
+    const state = store.getState().holdTheWall;
+    expect(state.status).toBe('complete');
+    expect(state.winnerId).toBe('ai2');
+  });
 
   it('never changes the winner after the last player standing is locked', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1', 'ai2'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(dropPlayer('ai1'))
-    store.dispatch(dropPlayer('human'))
+      }),
+    );
+    store.dispatch(dropPlayer('ai1'));
+    store.dispatch(dropPlayer('human'));
 
-    expect(store.getState().holdTheWall.winnerId).toBe('ai2')
+    expect(store.getState().holdTheWall.winnerId).toBe('ai2');
 
     // Late pointer/timer events are inert once the authoritative winner exists.
-    store.dispatch(dropPlayer('ai2'))
-    expect(store.getState().holdTheWall.status).toBe('complete')
-    expect(store.getState().holdTheWall.winnerId).toBe('ai2')
-  })
-})
+    store.dispatch(dropPlayer('ai2'));
+    expect(store.getState().holdTheWall.status).toBe('complete');
+    expect(store.getState().holdTheWall.winnerId).toBe('ai2');
+  });
+});
 
 describe('holdTheWallSlice — outcomeResolved idempotency', () => {
   it('markHoldTheWallOutcomeResolved sets outcomeResolved to true', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(markHoldTheWallOutcomeResolved())
-    expect(store.getState().holdTheWall.outcomeResolved).toBe(true)
-  })
+      }),
+    );
+    store.dispatch(markHoldTheWallOutcomeResolved());
+    expect(store.getState().holdTheWall.outcomeResolved).toBe(true);
+  });
 
   it('resetHoldTheWall resets outcomeResolved to false', () => {
-    const store = makeStore()
-    store.dispatch(markHoldTheWallOutcomeResolved())
-    store.dispatch(resetHoldTheWall())
-    expect(store.getState().holdTheWall.outcomeResolved).toBe(false)
-  })
-})
+    const store = makeStore();
+    store.dispatch(markHoldTheWallOutcomeResolved());
+    store.dispatch(resetHoldTheWall());
+    expect(store.getState().holdTheWall.outcomeResolved).toBe(false);
+  });
+});
 
 describe('holdTheWallSlice — resetHoldTheWall', () => {
   it('returns status to idle', () => {
-    const store = makeStore()
+    const store = makeStore();
     store.dispatch(
       startHoldTheWall({
         participantIds: ['human', 'ai1'],
         humanId: 'human',
         prizeType: 'LOH',
         seed: 1,
-      })
-    )
-    store.dispatch(resetHoldTheWall())
-    expect(store.getState().holdTheWall.status).toBe('idle')
-  })
-})
+      }),
+    );
+    store.dispatch(resetHoldTheWall());
+    expect(store.getState().holdTheWall.status).toBe('idle');
+  });
+});
 
 describe('buildAiDropSchedule', () => {
   it('is deterministic — same seed produces same schedule', () => {
-    const a = buildAiDropSchedule(42, ['human', 'ai1', 'ai2'], 'human')
-    const b = buildAiDropSchedule(42, ['human', 'ai1', 'ai2'], 'human')
-    expect(a).toEqual(b)
-  })
+    const a = buildAiDropSchedule(42, ['human', 'ai1', 'ai2'], 'human');
+    const b = buildAiDropSchedule(42, ['human', 'ai1', 'ai2'], 'human');
+    expect(a).toEqual(b);
+  });
 
   it('different seeds produce different schedules', () => {
-    const a = buildAiDropSchedule(1, ['human', 'ai1', 'ai2'], 'human')
-    const b = buildAiDropSchedule(2, ['human', 'ai1', 'ai2'], 'human')
+    const a = buildAiDropSchedule(1, ['human', 'ai1', 'ai2'], 'human');
+    const b = buildAiDropSchedule(2, ['human', 'ai1', 'ai2'], 'human');
     // Extremely unlikely to be equal with different seeds
-    expect(a.ai1 !== b.ai1 || a.ai2 !== b.ai2).toBe(true)
-  })
+    expect(a.ai1 !== b.ai1 || a.ai2 !== b.ai2).toBe(true);
+  });
 
   it('all AI drop times are within [AI_DROP_MIN_MS, AI_DROP_MAX_MS)', () => {
-    const schedule = buildAiDropSchedule(99, ['h', 'ai1', 'ai2', 'ai3', 'ai4'], 'h')
+    const schedule = buildAiDropSchedule(99, ['h', 'ai1', 'ai2', 'ai3', 'ai4'], 'h');
     for (const ms of Object.values(schedule)) {
-      expect(ms).toBeGreaterThanOrEqual(AI_DROP_MIN_MS)
-      expect(ms).toBeLessThan(AI_DROP_MAX_MS)
+      expect(ms).toBeGreaterThanOrEqual(AI_DROP_MIN_MS);
+      expect(ms).toBeLessThan(AI_DROP_MAX_MS);
     }
-  })
+  });
 
   it('excludes the human player', () => {
-    const schedule = buildAiDropSchedule(7, ['human', 'ai1'], 'human')
-    expect('human' in schedule).toBe(false)
-    expect('ai1' in schedule).toBe(true)
-  })
+    const schedule = buildAiDropSchedule(7, ['human', 'ai1'], 'human');
+    expect('human' in schedule).toBe(false);
+    expect('ai1' in schedule).toBe(true);
+  });
 
   it('includes all participants when humanId is null', () => {
-    const schedule = buildAiDropSchedule(7, ['p1', 'p2', 'p3'], null)
-    expect(Object.keys(schedule)).toHaveLength(3)
-  })
-})
+    const schedule = buildAiDropSchedule(7, ['p1', 'p2', 'p3'], null);
+    expect(Object.keys(schedule)).toHaveLength(3);
+  });
+});

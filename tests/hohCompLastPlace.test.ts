@@ -22,6 +22,8 @@ import settingsReducer from '../src/store/settingsSlice'
 import publicOpinionReducer from '../src/publicOpinion/publicOpinionSlice'
 import holdTheWallReducer, {
   startHoldTheWall,
+  offerFinalTwoDeal,
+  resolveFinalTwoDeal,
   dropPlayer,
 } from '../src/features/holdTheWall/holdTheWallSlice'
 import glassBridgeReducer from '../src/features/glassBridge/glassBridgeSlice'
@@ -192,6 +194,43 @@ describe('LOH comp last-place mismatch — HoldTheWall (last-player-standing)', 
     // First to drop (p2) must be the auto-nominee, matching the UI
     expect(state.lastHohCompFinisherId).toBe('p2')
   })
+
+  it('persists an accepted final-two safety bargain when the beneficiary drops', () => {
+    const players = makePlayers(2);
+    players[0].isUser = true;
+    const store = makeGameStore({ players, publicModeEnabled: false });
+
+    store.dispatch(
+      startHoldTheWall({
+        participantIds: ['p0', 'p1'],
+        humanId: 'p0',
+        prizeType: 'LOH',
+        seed: 17,
+      }),
+    );
+    store.dispatch(
+      offerFinalTwoDeal({
+        promisorId: 'p1',
+        beneficiaryId: 'p0',
+        offeredBy: 'ai',
+        affinityAtDeal: 72,
+        tagsAtDeal: ['alliance'],
+      }),
+    );
+    store.dispatch(resolveFinalTwoDeal(true));
+    store.dispatch(dropPlayer('p0'));
+    store.dispatch(resolveHoldTheWallOutcome() as never);
+
+    expect(store.getState().game.lohId).toBe('p1');
+    expect(store.getState().game.holdTheWallSafetyDeal).toEqual({
+      week: 2,
+      promisorId: 'p1',
+      beneficiaryId: 'p0',
+      source: 'hold_the_wall',
+      affinityAtDeal: 72,
+      tagsAtDeal: ['alliance'],
+    });
+  });
 
   it('second player to drop does NOT become lastHohCompFinisherId', () => {
     const players = makePlayers(4)

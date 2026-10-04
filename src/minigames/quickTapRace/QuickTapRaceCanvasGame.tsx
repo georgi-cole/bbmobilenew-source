@@ -15,74 +15,79 @@
  * is shown so the player is never trapped.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { createPortal } from 'react-dom'
-import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { completeMinigame } from '../../store/gameSlice'
-import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types'
-import { useQuickTapRaceAudio } from '../../hooks/useQuickTapRaceAudio'
-import { resolveHybridAiScores } from '../../ai/competition/hybridScoreResolver'
-import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
-import { QuickTapRaceCanvasEngine } from './engine/quickTapRaceCanvasEngine'
-import type { QTREngineSnapshot, QTRTimingDiagnostics } from './engine/types'
-import './QuickTapRaceCanvasGame.css'
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { completeMinigame } from '../../store/gameSlice';
+import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types';
+import { useQuickTapRaceAudio } from '../../hooks/useQuickTapRaceAudio';
+import { resolveHybridAiScores } from '../../ai/competition/hybridScoreResolver';
+import { cryptoSeed } from '../../features/riskWheel/cryptoSpin';
+import { QuickTapRaceCanvasEngine } from './engine/quickTapRaceCanvasEngine';
+import type { QTREngineSnapshot, QTRTimingDiagnostics } from './engine/types';
+import './QuickTapRaceCanvasGame.css';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const GAME_DURATION = 30
-const MEDALS = ['🥇', '🥈', '🥉']
+const GAME_DURATION = 30;
+const MEDALS = ['🥇', '🥈', '🥉'];
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface ScoreEntry {
-  id: string
-  name: string
-  effectiveScore: number
-  rawTaps: number
-  isHuman: boolean
-  modifiersApplied: string[]
+  id: string;
+  name: string;
+  effectiveScore: number;
+  rawTaps: number;
+  isHuman: boolean;
+  modifiersApplied: string[];
 }
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 interface Props {
   /** LOH/POS minigame path: full session data. */
-  session?: MinigameSession
+  session?: MinigameSession;
   /** LOH/POS minigame path: all game players (for name lookup). */
-  players?: Player[]
+  players?: Player[];
   /** MinigameHost path: called with the human's final effective score. */
-  onFinish?: (value: number) => void
+  onFinish?: (value: number) => void;
   /** Competition seed. Accepted for GenericMinigameProps interface compatibility but
    *  intentionally ignored when no session is present — a fresh cryptoSeed() is always
    *  generated on mount so that challenge retries produce different booster sequences. */
-  seed?: number
+  seed?: number;
   /** When true the ready countdown is skipped. */
-  autoStart?: boolean
+  autoStart?: boolean;
   /** Forwarded from MinigameHost; not consumed directly (matches GenericMinigameProps). */
-  participantIds?: string[]
+  participantIds?: string[];
   /** Forwarded from MinigameHost; not consumed directly (matches GenericMinigameProps). */
   participants?: Array<{
-    id: string
-    name: string
-    isHuman: boolean
-    avatar?: string
-    precomputedScore: number
-    previousPR: number | null
-  }>
+    id: string;
+    name: string;
+    isHuman: boolean;
+    avatar?: string;
+    precomputedScore: number;
+    previousPR: number | null;
+  }>;
   /** Dev-only experiment hook. Ignored in production builds. */
   experimental?: {
-    seed: number
+    seed: number;
     onFinish: (result: {
-      effectiveScore: number
-      rawTaps: number
-      modifiers: string[]
-      timing: QTRTimingDiagnostics
-    }) => void
-  }
+      effectiveScore: number;
+      rawTaps: number;
+      modifiers: string[];
+      timing: QTRTimingDiagnostics;
+    }) => void;
+  };
 }
 
 // Stable empty-array sentinels.
-const EMPTY_PLAYERS: Player[] = []
+const EMPTY_PLAYERS: Player[] = [];
 
 function makeEmptySnapshot(): QTREngineSnapshot {
   return {
@@ -94,7 +99,7 @@ function makeEmptySnapshot(): QTREngineSnapshot {
     heatLevel: 0,
     activeMultiplier: null,
     visibleBooster: null,
-  }
+  };
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -107,21 +112,21 @@ export default function QuickTapRaceCanvasGame({
   autoStart = false,
   experimental,
 }: Props) {
-  const dispatch = useAppDispatch()
-  const humanId = useAppSelector((s) => s.game.players.find((p) => p.isUser)?.id)
+  const dispatch = useAppDispatch();
+  const humanId = useAppSelector((s) => s.game.players.find((p) => p.isUser)?.id);
 
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const engineRef = useRef<QuickTapRaceCanvasEngine | null>(null)
-  const resizeObserverRef = useRef<ResizeObserver | null>(null)
-  const lastResizeRef = useRef<{ width: number; height: number; dpr: number } | null>(null)
-  const completionRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const engineRef = useRef<QuickTapRaceCanvasEngine | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const lastResizeRef = useRef<{ width: number; height: number; dpr: number } | null>(null);
+  const completionRef = useRef(false);
 
-  const [uiPhase, setUiPhase] = useState<'playing' | 'results' | 'fallback'>('playing')
-  const [snapshot, setSnapshot] = useState<QTREngineSnapshot>(() => makeEmptySnapshot())
-  const [scores, setScores] = useState<ScoreEntry[]>([])
-  const [appliedModifiers, setAppliedModifiers] = useState<string[]>([])
-  const [canvasError, setCanvasError] = useState<string | null>(null)
+  const [uiPhase, setUiPhase] = useState<'playing' | 'results' | 'fallback'>('playing');
+  const [snapshot, setSnapshot] = useState<QTREngineSnapshot>(() => makeEmptySnapshot());
+  const [scores, setScores] = useState<ScoreEntry[]>([]);
+  const [appliedModifiers, setAppliedModifiers] = useState<string[]>([]);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
 
   // Always generate a fresh per-session seed when no authoritative session seed is
   // provided.  Using the prop seed directly (e.g. pendingChallenge.seed from the
@@ -134,25 +139,25 @@ export default function QuickTapRaceCanvasGame({
       ? experimental.seed
       : session?.seed && session.seed !== 0
         ? session.seed
-        : cryptoSeed()
-  )
-  const [resolvedDuration] = useState(() => session?.options.timeLimit ?? GAME_DURATION)
-  const [resolvedAutoStart] = useState(() => autoStart)
+        : cryptoSeed(),
+  );
+  const [resolvedDuration] = useState(() => session?.options.timeLimit ?? GAME_DURATION);
+  const [resolvedAutoStart] = useState(() => autoStart);
   const latestFinishContextRef = useRef({
     session,
     players,
     humanId,
     onFinish,
     experimental,
-  })
+  });
   const latestAudioRef = useRef({
-    playTap: () => {},
     playBooster: () => {},
     playHalfTap: () => {},
-  })
+  });
 
-  // Audio — active only during the playing phase.
-  const { playTap, playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'playing')
+  // Keep only low-frequency booster cues. Per-tap audio is intentionally
+  // disabled so a fast tapping burst cannot queue hundreds of sound plays.
+  const { playBooster, playHalfTap } = useQuickTapRaceAudio(snapshot.phase === 'playing');
 
   useEffect(() => {
     latestFinishContextRef.current = {
@@ -161,114 +166,118 @@ export default function QuickTapRaceCanvasGame({
       humanId,
       onFinish,
       experimental,
-    }
-  }, [session, players, humanId, onFinish, experimental])
+    };
+  }, [session, players, humanId, onFinish, experimental]);
 
   useEffect(() => {
     latestAudioRef.current = {
-      playTap,
       playBooster,
       playHalfTap,
-    }
-  }, [playBooster, playHalfTap, playTap])
+    };
+  }, [playBooster, playHalfTap]);
 
   // ── Finish handler ─────────────────────────────────────────────────────────
 
   const handleEngineFinish = useCallback(
-    (finalScore: number, rawTaps: number, modifiers: string[], timing: QTRTimingDiagnostics) => {
+    (
+      finalScore: number,
+      rawTaps: number,
+      modifiers: string[],
+      timing: QTRTimingDiagnostics,
+    ) => {
       const {
         session: currentSession,
         players: currentPlayers,
         humanId: currentHumanId,
         onFinish: currentOnFinish,
         experimental: currentExperiment,
-      } = latestFinishContextRef.current
-      if (completionRef.current) return
-      completionRef.current = true
-      setAppliedModifiers(modifiers)
+      } = latestFinishContextRef.current;
+      if (completionRef.current) return;
+      completionRef.current = true;
+      setAppliedModifiers(modifiers);
 
       if (import.meta.env.DEV && currentExperiment) {
-        currentExperiment.onFinish({ effectiveScore: finalScore, rawTaps, modifiers, timing })
+        currentExperiment.onFinish({ effectiveScore: finalScore, rawTaps, modifiers, timing });
       }
 
       if (currentSession) {
         // LOH/POS path — build full leaderboard and transition to results.
-        let resolvedAiScores: Record<string, number>
+        let resolvedAiScores: Record<string, number>;
         if (currentSession.hybridResolveOnComplete) {
           const aiParticipants = currentSession.participants
             .filter((id) => id !== currentHumanId)
             .map((id) => {
-              const p = currentPlayers.find((pl) => pl.id === id)
-              return { id, profile: p?.competitionProfile }
-            })
+              const p = currentPlayers.find((pl) => pl.id === id);
+              return { id, profile: p?.competitionProfile };
+            });
           resolvedAiScores = resolveHybridAiScores({
             gameKey: currentSession.key,
             humanScore: finalScore,
             aiParticipants,
             seed: currentSession.seed,
-          })
+          });
         } else {
-          resolvedAiScores = currentSession.aiScores
+          resolvedAiScores = currentSession.aiScores;
         }
 
         const allScores: Record<string, number> = {
           ...resolvedAiScores,
           ...(currentHumanId ? { [currentHumanId]: finalScore } : {}),
-        }
+        };
 
         const entries: ScoreEntry[] = currentSession.participants.map((id) => {
-          const p = currentPlayers.find((pl) => pl.id === id)
-          const isHuman = id === currentHumanId
+          const p = currentPlayers.find((pl) => pl.id === id);
+          const isHuman = id === currentHumanId;
           return {
             id,
             name: p?.name ?? id,
             effectiveScore: allScores[id] ?? 0,
-            rawTaps: isHuman ? rawTaps : (allScores[id] ?? 0),
+            rawTaps: isHuman ? rawTaps : allScores[id] ?? 0,
             isHuman,
             modifiersApplied: isHuman ? modifiers : [],
-          }
-        })
-        const ranked = [...entries].sort((a, b) => b.effectiveScore - a.effectiveScore)
-        setScores(ranked)
-        setUiPhase('results')
+          };
+        });
+        const ranked = [...entries].sort((a, b) => b.effectiveScore - a.effectiveScore);
+        setScores(ranked);
+        setUiPhase('results');
       } else {
         // MinigameHost path — report score immediately.
-        currentOnFinish?.(finalScore)
+        currentOnFinish?.(finalScore);
       }
     },
-    []
-  )
+    [],
+  );
 
   // ── Done handler (LOH/POS "Continue ▶" button) ─────────────────────────────
 
   const handleDone = useCallback(() => {
-    if (!session) return
-    const human = scores.find((e) => e.isHuman)
-    const humanEffective = human?.effectiveScore ?? 0
-    const lastPlaceId = scores.length > 0 ? scores[scores.length - 1].id : undefined
-    const payload: CompleteMinigamePayload = { humanScore: humanEffective, lastPlaceId }
-    dispatch(completeMinigame(payload))
-  }, [dispatch, scores, session])
+    if (!session) return;
+    const human = scores.find((e) => e.isHuman);
+    const humanEffective = human?.effectiveScore ?? 0;
+    const lastPlaceId = scores.length > 0 ? scores[scores.length - 1].id : undefined;
+    const payload: CompleteMinigamePayload = { humanScore: humanEffective, lastPlaceId };
+    dispatch(completeMinigame(payload));
+  }, [dispatch, scores, session]);
 
   // ── Fallback resolve (canvas error path) ───────────────────────────────────
 
   const handleFallbackContinue = useCallback(() => {
     if (onFinish) {
-      onFinish(0)
+      onFinish(0);
     } else if (session) {
-      const payload: CompleteMinigamePayload = { humanScore: 0 }
-      dispatch(completeMinigame(payload))
+      const payload: CompleteMinigamePayload = { humanScore: 0 };
+      dispatch(completeMinigame(payload));
     }
-  }, [dispatch, onFinish, session])
+  }, [dispatch, onFinish, session]);
 
   // ── Canvas engine lifecycle ────────────────────────────────────────────────
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const container = containerRef.current
-    if (!canvas || !container) return undefined
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return undefined;
 
-    let engine: QuickTapRaceCanvasEngine | null = null
+    let engine: QuickTapRaceCanvasEngine | null = null;
 
     try {
       engine = new QuickTapRaceCanvasEngine(canvas, {
@@ -278,109 +287,100 @@ export default function QuickTapRaceCanvasGame({
         strictWallClock: Boolean(import.meta.env.DEV && experimental),
         lowLatencyInput: Boolean(import.meta.env.DEV && experimental),
         onTick: (next) => {
-          setSnapshot(next)
+          setSnapshot(next);
         },
         onFinish: handleEngineFinish,
-        onTap: () => {
-          latestAudioRef.current.playTap()
-        },
         onBoosterActivated: (beneficial) => {
           if (beneficial) {
-            latestAudioRef.current.playBooster()
+            latestAudioRef.current.playBooster();
           } else {
-            latestAudioRef.current.playHalfTap()
+            latestAudioRef.current.playHalfTap();
           }
         },
-      })
-      engineRef.current = engine
+      });
+      engineRef.current = engine;
 
       const measureAndResize = (width?: number, height?: number) => {
-        const nextWidth = Math.round(width ?? container.clientWidth)
-        const nextHeight = Math.round(height ?? container.clientHeight)
-        const nextDpr = Math.max(1, window.devicePixelRatio || 1)
-        if (nextWidth <= 0 || nextHeight <= 0) return
+        const nextWidth = Math.round(width ?? container.clientWidth);
+        const nextHeight = Math.round(height ?? container.clientHeight);
+        const nextDpr = Math.max(1, window.devicePixelRatio || 1);
+        if (nextWidth <= 0 || nextHeight <= 0) return;
         if (
           lastResizeRef.current?.width === nextWidth &&
           lastResizeRef.current?.height === nextHeight &&
           lastResizeRef.current?.dpr === nextDpr
         ) {
-          return
+          return;
         }
-        lastResizeRef.current = { width: nextWidth, height: nextHeight, dpr: nextDpr }
-        engine?.resize(nextWidth, nextHeight, nextDpr)
-      }
+        lastResizeRef.current = { width: nextWidth, height: nextHeight, dpr: nextDpr };
+        engine?.resize(nextWidth, nextHeight, nextDpr);
+      };
 
       const handleWindowResize = () => {
-        measureAndResize()
-      }
+        measureAndResize();
+      };
 
       if (typeof ResizeObserver !== 'undefined') {
         resizeObserverRef.current = new ResizeObserver((entries) => {
-          const entry = entries.find((candidate) => candidate.target === container)
-          measureAndResize(entry?.contentRect.width, entry?.contentRect.height)
-        })
-        resizeObserverRef.current.observe(container)
+          const entry = entries.find((candidate) => candidate.target === container);
+          measureAndResize(entry?.contentRect.width, entry?.contentRect.height);
+        });
+        resizeObserverRef.current.observe(container);
       }
-      window.addEventListener('resize', handleWindowResize)
+      window.addEventListener('resize', handleWindowResize);
 
-      measureAndResize()
-      engine.start()
+      measureAndResize();
+      engine.start();
 
       return () => {
-        resizeObserverRef.current?.disconnect()
-        resizeObserverRef.current = null
-        lastResizeRef.current = null
-        window.removeEventListener('resize', handleWindowResize)
-        engine?.destroy()
-        engineRef.current = null
-      }
+        resizeObserverRef.current?.disconnect();
+        resizeObserverRef.current = null;
+        lastResizeRef.current = null;
+        window.removeEventListener('resize', handleWindowResize);
+        engine?.destroy();
+        engineRef.current = null;
+      };
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Canvas initialization failed.'
+      const message = error instanceof Error ? error.message : 'Canvas initialization failed.';
       queueMicrotask(() => {
-        setCanvasError(message)
-        setUiPhase('fallback')
-      })
-      engine?.destroy()
-      return undefined
+        setCanvasError(message);
+        setUiPhase('fallback');
+      });
+      engine?.destroy();
+      return undefined;
     }
-  }, [experimental, handleEngineFinish, resolvedAutoStart, resolvedDuration, resolvedSeed])
+  }, [experimental, handleEngineFinish, resolvedAutoStart, resolvedDuration, resolvedSeed]);
 
   // ── Pointer forwarding to engine ───────────────────────────────────────────
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas || !engineRef.current) return
-    const rect = canvas.getBoundingClientRect()
-    engineRef.current.handlePointerDown(
-      e.pointerId,
-      {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      },
-      e.timeStamp,
-      performance.now(),
-      e.pointerType
-    )
-  }, [])
+    const canvas = canvasRef.current;
+    if (!canvas || !engineRef.current) return;
+    const rect = canvas.getBoundingClientRect();
+    engineRef.current.handlePointerDown(e.pointerId, {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }, e.timeStamp, performance.now(), e.pointerType);
+  }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    engineRef.current?.handlePointerUp(e.pointerId)
-  }, [])
+    engineRef.current?.handlePointerUp(e.pointerId);
+  }, []);
 
   // ── Derived HUD values ─────────────────────────────────────────────────────
 
-  const timeLeft = snapshot.timeLeft
-  const isUrgent = timeLeft <= 5 && snapshot.phase === 'playing'
-  const progressPct = Math.min(100, (timeLeft / resolvedDuration) * 100)
-  const currentMultiplier = snapshot.activeMultiplier ?? 1
-  const showHud = snapshot.phase === 'playing'
-  const heatLevel = snapshot.heatLevel
-  const heatClass = heatLevel >= 2 ? `qtr-canvas--heat-${Math.min(heatLevel, 5)}` : ''
+  const timeLeft = snapshot.timeLeft;
+  const isUrgent = timeLeft <= 5 && snapshot.phase === 'playing';
+  const progressPct = Math.min(100, (timeLeft / resolvedDuration) * 100);
+  const currentMultiplier = snapshot.activeMultiplier ?? 1;
+  const showHud = snapshot.phase === 'playing';
+  const heatLevel = snapshot.heatLevel;
+  const heatClass = heatLevel >= 2 ? `qtr-canvas--heat-${Math.min(heatLevel, 5)}` : '';
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (uiPhase === 'results' && scores.length > 0) {
-    return createPortal(
+    return createPortal((
       <div
         className="qtr-canvas"
         role="dialog"
@@ -430,30 +430,34 @@ export default function QuickTapRaceCanvasGame({
               ))}
             </ol>
             {appliedModifiers.length > 0 && (
-              <p className="qtr-canvas__mod-summary" aria-label="Active modifiers this game">
+              <p
+                className="qtr-canvas__mod-summary"
+                aria-label="Active modifiers this game"
+              >
                 Modifiers: {appliedModifiers.join(' → ')}
               </p>
             )}
-            <button className="qtr-canvas__continue-btn" onClick={handleDone} type="button">
+            <button
+              className="qtr-canvas__continue-btn"
+              onClick={handleDone}
+              type="button"
+            >
               Continue ▶
             </button>
           </div>
         </div>
-      </div>,
-      document.body
-    )
+      </div>
+    ), document.body);
   }
 
-  return createPortal(
+  return createPortal((
     <div
       className={[
         'qtr-canvas',
         'qtr-canvas--full-screen',
         showHud ? 'qtr-canvas--playing' : '',
         heatClass,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      ].filter(Boolean).join(' ')}
       role="dialog"
       aria-modal="true"
       aria-label="Quick Tap Race Competition"
@@ -470,12 +474,7 @@ export default function QuickTapRaceCanvasGame({
             <div className="qtr-canvas__hud">
               <div className="qtr-canvas__score-block">
                 <span
-                  className={[
-                    'qtr-canvas__score-value',
-                    heatClass && 'qtr-canvas__score-value--heat',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
+                  className={['qtr-canvas__score-value', heatClass && 'qtr-canvas__score-value--heat'].filter(Boolean).join(' ')}
                   aria-live="polite"
                   aria-atomic="true"
                 >
@@ -489,7 +488,10 @@ export default function QuickTapRaceCanvasGame({
                 <span className="qtr-canvas__score-label">taps</span>
               </div>
               <span
-                className={['qtr-canvas__time', isUrgent ? 'qtr-canvas__time--urgent' : '']
+                className={[
+                  'qtr-canvas__time',
+                  isUrgent ? 'qtr-canvas__time--urgent' : '',
+                ]
                   .filter(Boolean)
                   .join(' ')}
                 aria-live={isUrgent ? 'assertive' : 'off'}
@@ -506,7 +508,10 @@ export default function QuickTapRaceCanvasGame({
               aria-valuemin={0}
               aria-valuemax={resolvedDuration}
             >
-              <div className="qtr-canvas__progress-fill" style={{ width: `${progressPct}%` }} />
+              <div
+                className="qtr-canvas__progress-fill"
+                style={{ width: `${progressPct}%` }}
+              />
             </div>
 
             <div className="qtr-canvas__multiplier-slot">
@@ -570,7 +575,6 @@ export default function QuickTapRaceCanvasGame({
           </div>
         </div>
       </div>
-    </div>,
-    document.body
-  )
+    </div>
+  ), document.body);
 }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   ALL_BROADCAST_PHASES,
@@ -27,6 +28,23 @@ describe('broadcast template catalog', () => {
       level: 'minor',
       major: undefined,
     })
+    expect(getBroadcastTemplate('loh.democracia-vote-start')).toMatchObject({
+      forceOnTv: false,
+      editorial: {
+        importance: 'required',
+        presentationMode: 'log_only',
+      },
+    })
+    expect(getBroadcastTemplate('card.democracia-vote')).toMatchObject({
+      kind: 'feed',
+      level: 'minor',
+      major: undefined,
+      forceOnTv: false,
+      editorial: {
+        importance: 'required',
+        presentationMode: 'log_only',
+      },
+    })
     expect(getBroadcastTemplate('shock.democracia')).toMatchObject({
       kind: 'feed',
       level: 'minor',
@@ -37,6 +55,31 @@ describe('broadcast template catalog', () => {
         presentationMode: 'log_only',
       },
     })
+  })
+
+  it('does not let bundled live config promote the Democracia ballot into another fullscreen announcement', () => {
+    const liveConfig = JSON.parse(readFileSync('public/config/live-config.json', 'utf8')) as {
+      broadcastManager?: {
+        overrides?: Record<
+          string,
+          { major?: string | null; level?: string; forceOnTv?: boolean; text?: string }
+        >
+      }
+    }
+    const overrides = liveConfig.broadcastManager?.overrides ?? {}
+
+    expect(overrides['loh.democracia-vote-start']).toMatchObject({
+      major: null,
+      level: 'minor',
+      forceOnTv: false,
+    })
+    expect(overrides['card.democracia-vote']).toMatchObject({
+      major: null,
+      level: 'minor',
+      forceOnTv: false,
+    })
+    expect(overrides['card.democracia-vote']?.text).toMatch(/Hub/)
+    expect(overrides['card.democracia-vote']?.text).not.toMatch(/houseguest|house votes/i)
   })
 
   it('has at least one visible source template for every manager phase', () => {

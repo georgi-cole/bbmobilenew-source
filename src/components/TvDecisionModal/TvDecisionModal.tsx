@@ -14,6 +14,10 @@ interface Props {
   danger?: boolean
   /** Label shown on the confirm button. Default: "Confirm" */
   confirmLabel?: string
+  /** Optional full confirm label for context where the consequence must be explicit. */
+  confirmSelectionLabel?: (selectedPlayer: Player, options: Player[]) => string
+  /** Optional consequence copy shown above the footer actions after a selection. */
+  selectionConsequence?: (selectedPlayer: Player, options: Player[]) => string
   /** Label shown on the back/change button. Default: "Change" */
   cancelLabel?: string
   /**
@@ -52,6 +56,8 @@ export default function TvDecisionModal({
   onSelect,
   danger = false,
   confirmLabel = 'Confirm',
+  confirmSelectionLabel,
+  selectionConsequence,
   cancelLabel = 'Change',
   stingerMessage = 'Decision locked in!',
 }: Props) {
@@ -136,26 +142,41 @@ export default function TvDecisionModal({
 
           {selectedPlayer && (
             <footer className="tv-decision-modal__footer">
-              <button
-                className="tv-decision-modal__btn-change"
-                onClick={() => setSelectedId(null)}
-                type="button"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                className={[
-                  'tv-decision-modal__btn-confirm',
-                  danger ? 'tv-decision-modal__btn-confirm--danger' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={handleConfirm}
-                type="button"
-              >
-                {confirmLabel}:{' '}
-                <span className="tv-decision-modal__btn-confirm-name">{selectedPlayer.name}</span>
-              </button>
+              {selectionConsequence && (
+                <p className="tv-decision-modal__consequence">
+                  {selectionConsequence(selectedPlayer, options)}
+                </p>
+              )}
+              <div className="tv-decision-modal__footer-actions">
+                <button
+                  className="tv-decision-modal__btn-change"
+                  onClick={() => setSelectedId(null)}
+                  type="button"
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  className={[
+                    'tv-decision-modal__btn-confirm',
+                    danger ? 'tv-decision-modal__btn-confirm--danger' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={handleConfirm}
+                  type="button"
+                >
+                  {confirmSelectionLabel ? (
+                    confirmSelectionLabel(selectedPlayer, options)
+                  ) : (
+                    <>
+                      {confirmLabel}:{' '}
+                      <span className="tv-decision-modal__btn-confirm-name">
+                        {selectedPlayer.name}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </footer>
           )}
         </div>

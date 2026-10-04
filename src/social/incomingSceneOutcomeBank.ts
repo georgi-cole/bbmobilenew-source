@@ -264,6 +264,24 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} cannot tell whether you are avoiding the vote or simply already decided.',
     ],
   },
+  co_nominee_check_in: {
+    positive: [
+      '{from} leaves with a clearer shared read of the vote without pretending either of you can cast it.',
+      '{from} feels the nomination pressure did not erase the trust between you.',
+    ],
+    neutral: [
+      '{from} gets useful information, but knows both of you still have to survive independently.',
+      '{from} keeps the connection open while treating the vote as something neither of you controls directly.',
+    ],
+    negative: [
+      '{from} understands that being nominated together does not mean your games are still aligned.',
+      '{from} stops assuming the shared danger automatically creates shared strategy.',
+    ],
+    dismiss: [
+      '{from} leaves the co-nominee check-in unresolved and goes back to reading the room alone.',
+      '{from} accepts that the two of you will face the vote without comparing what you are hearing.',
+    ],
+  },
   nomination_aftershock: {
     positive: [
       '{from} does not like the nomination, but believes you saw the human cost of the move.',

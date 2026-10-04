@@ -150,8 +150,9 @@ export function getCanonicalRelationshipTags(input: {
 
   for (const relationship of [edge, reverseEdge]) {
     if (!relationship) continue
-    if (relationship.perceivedLabel === 'RIVAL') tags.add('rivalry')
-    if (relationship.perceivedLabel === 'ENEMY') tags.add('rivalry')
+    if (relationship.perceivedLabel === 'RIVAL' || relationship.perceivedLabel === 'ENEMY') {
+      tags.add('rivalry')
+    }
     if (
       relationship.trust <= 18 &&
       (relationship.resentment >= 18 ||
@@ -183,12 +184,11 @@ export function getCanonicalRelationshipTags(input: {
   }
 
   if (
-    input.reality &&
-    Object.values(input.reality.grievances).some(
-      (grievance) =>
-        grievance.status !== 'RESOLVED' &&
-        ((grievance.holderId === input.actorId && grievance.againstId === input.targetId) ||
-          (grievance.holderId === input.targetId && grievance.againstId === input.actorId))
+    input.reality?.events.some(
+      (event) =>
+        event.type === 'ALLIANCE_BETRAYAL' &&
+        ((event.actorId === input.actorId && event.targetIds.includes(input.targetId)) ||
+          (event.actorId === input.targetId && event.targetIds.includes(input.actorId)))
     )
   ) {
     tags.add('strained')
