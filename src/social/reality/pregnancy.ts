@@ -63,6 +63,10 @@ export interface PregnancyAttempt {
   /** Public paternity reveal deadline. */
   paternityRevealDay?: number | null
   paternityPublicRevealed?: boolean
+  /** Housemates privately told by the carrier before the scheduled reveal. */
+  pregnancyNewsSharedWithIds?: string[]
+  pregnancyNewsSharedDay?: number
+  pregnancyNewsLeakedById?: string | null
 }
 
 export interface PregnancyEligibilityInput {
@@ -132,6 +136,10 @@ export function createInitialPregnancyStoryState(): PregnancyStoryState {
 
 function finiteDay(day: number): number {
   return Number.isFinite(day) ? Math.max(0, Math.floor(day)) : 0
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value))
 }
 
 function isInHouse(player: PlayerLike | undefined): boolean {
@@ -436,6 +444,70 @@ function rollForAttempt(parts: readonly unknown[]): number {
   let value = hashSeed(parts)
   value = (Math.imul(value ^ (value >>> 16), 0x45d9f3b) + 0x9e3779b9) >>> 0
   return value / 0x1_0000_0000
+}
+
+export function pregnancyNewsLeakChance(loyalty: number): number {
+  const boundedLoyalty = clamp(Number.isFinite(loyalty) ? loyalty : 50, 0, 100)
+  return 0.55 - boundedLoyalty * 0.0045
+}
+
+export function shouldLeakPregnancyNews(input: {
+  seed: number
+  day: number
+  attemptId: string
+  recipientId: string
+  loyalty: number
+}): boolean {
+  const roll = rollForAttempt([
+    input.seed,
+    input.day,
+    input.attemptId,
+    input.recipientId,
+    'pregnancy-news-leak',
+  ])
+  return roll < pregnancyNewsLeakChance(input.loyalty)
+}
+
+export function recordPregnancyNewsShare(
+  story: PregnancyStoryState,
+  input: { attemptId: string; recipientIds: string[]; day: number }
+): PregnancyStoryState {
+  const recipients = [...new Set(input.recipientIds.filter(Boolean))]
+  return {
+    ...story,
+    attempts: story.attempts.map((attempt) =>
+      attempt.attemptId === input.attemptId
+        ? {
+            ...attempt,
+            pregnancyNewsSharedWithIds: [
+              ...new Set([...(attempt.pregnancyNewsSharedWithIds ?? []), ...recipients]),
+            ],
+            pregnancyNewsSharedDay: finiteDay(input.day),
+          }
+        : attempt
+    ),
+  }
+}
+
+export function revealPregnancyNewsLeak(
+  story: PregnancyStoryState,
+  input: { attemptId: string; leakerId: string; day: number }
+): PregnancyStoryState {
+  return {
+    ...story,
+    attempts: story.attempts.map((attempt) => {
+      if (attempt.attemptId !== input.attemptId || attempt.status !== 'POSITIVE') return attempt
+      const ambiguous = (attempt.plausibleFatherIds?.length ?? 1) > 1
+      return {
+        ...attempt,
+        pregnancyNewsLeakedById: input.leakerId,
+        pregnancyPublicRevealed: true,
+        announcementEmitted: true,
+        pregnancyPublicRevealDay: finiteDay(input.day),
+        ...(ambiguous ? {} : { paternityResultKnown: true, paternityPublicRevealed: true }),
+      }
+    }),
+  }
 }
 
 export function hasPublicPregnancyWithOtherPartner(

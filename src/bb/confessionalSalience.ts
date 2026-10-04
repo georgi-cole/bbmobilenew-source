@@ -14,10 +14,15 @@ export interface BigEyeWorldSnapshot {
   remainingCount: number
   closestName: string | null
   closestAffinity: number | null
+  /** Return announcements already present at the last visit. Optional for older saves. */
+  publicReturnEvents?: string[]
 }
 
 export function buildBigEyeWorldSnapshot(world: ConfessionalWorldContext): BigEyeWorldSnapshot {
-  const closest = world.closestRelationships[0] ?? null
+  const closest =
+    world.closestRelationships
+      .filter((relationship) => relationship.affinity > 0)
+      .sort((left, right) => right.affinity - left.affinity)[0] ?? null
   return {
     week: world.week,
     phase: world.phase,
@@ -28,6 +33,11 @@ export function buildBigEyeWorldSnapshot(world: ConfessionalWorldContext): BigEy
     remainingCount: world.remainingHousemates.length,
     closestName: closest?.name ?? null,
     closestAffinity: closest?.affinity ?? null,
+    publicReturnEvents: (world.recentPublicEvents ?? []).filter((event) =>
+      /\b(?:has returned|returned to|back in the game|back to the game|re.?entered the (?:house|game))\b/i.test(
+        event
+      )
+    ),
   }
 }
 
@@ -51,19 +61,14 @@ export function getSalientConfessionalObservation(input: {
   const candidates: Array<{ event: ConfessionalSalienceEvent; detail?: string }> = []
   const normalizedPlayer = input.playerName.toLowerCase()
   const publicReturnSeen =
-    input.current.recentPublicEvents?.some((event) => {
+    current.publicReturnEvents?.some((event) => {
       const text = event.toLowerCase()
-      return (
-        text.includes(normalizedPlayer) &&
-        (text.includes('return') ||
-          text.includes('back in the game') ||
-          text.includes('back to the game'))
-      )
+      return text.includes(normalizedPlayer) && !previous.publicReturnEvents?.includes(event)
     }) ?? false
 
   if (
     publicReturnSeen ||
-    (previous.playerStatus === 'evicted' &&
+    ((previous.playerStatus === 'evicted' || previous.playerStatus === 'jury') &&
       current.playerStatus !== 'evicted' &&
       current.playerStatus !== 'jury')
   ) {
@@ -81,7 +86,12 @@ export function getSalientConfessionalObservation(input: {
   ) {
     candidates.push({ event: 'won_safety' })
   }
-  if (playerWasNominated && !playerIsNominated && current.playerStatus !== 'evicted') {
+  if (
+    playerWasNominated &&
+    !playerIsNominated &&
+    current.playerStatus !== 'evicted' &&
+    current.playerStatus !== 'jury'
+  ) {
     candidates.push({ event: 'survived_nomination' })
   }
   if (previous.closestName && current.closestName && previous.closestName !== current.closestName) {

@@ -305,6 +305,7 @@ export function useTwistFlow({
   ])
   const publicSaveApprovals = publicSaveResolution?.voteShareByPlayerId ?? publicSaveBaseApprovals
   const publicSaveWinnerId = publicSaveResolution?.savedId || null
+  const publicSaveTieBreakUsed = publicSaveResolution?.tieBreakUsed ?? false
 
   const publicSaveResultAnnouncement = useMemo<Announcement | null>(() => {
     if (!pendingPublicSaveResult) return null
@@ -669,6 +670,7 @@ export function useTwistFlow({
     showPublicSaveReveal,
     publicSaveApprovals,
     publicSaveWinnerId,
+    publicSaveTieBreakUsed,
     publicSaveResultAnnouncement,
     showPublicSaveCeremony,
     handlePublicSaveDone,

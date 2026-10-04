@@ -44,6 +44,7 @@ import {
   getEligibleNominationTargets,
   getEligibleReplacementNominees,
   getNominationTargetScore,
+  getSafetyRelationshipScore,
 } from '../store/gameSlice'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import { planRelationshipStoryBeat, reserveRelationshipBeat } from './reality/relationshipAutonomy'
@@ -163,6 +164,7 @@ type InteractionScenarioKey =
   | 'nominee_campaign'
   | 'nomination_aftershock'
   | 'nominee_understands_loh'
+  | 'unavoidable_nominee_reaction'
   | 'automatic_nominee_reaction'
   | 'nominee_confronts_loh'
   | 'replacement_nominee_reacts_to_loh'
@@ -210,6 +212,7 @@ const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
   'safety_holder_consults_loh',
   'loh_consults_safety_holder',
   'nominee_understands_loh',
+  'unavoidable_nominee_reaction',
   'automatic_nominee_reaction',
   'nominee_confronts_loh',
   'replacement_nominee_reacts_to_loh',
@@ -347,6 +350,57 @@ function getLohSafetyPreference(
   preferredReplacementId?: string
   preferredReplacementName?: string
 } {
+  const game = context.gameState
+  if (game) {
+    const nominees = game.players.filter(
+      (player) =>
+        game.nomineeIds.includes(player.id) &&
+        player.status !== 'evicted' &&
+        player.status !== 'jury'
+    )
+    const replacements = getEligibleReplacementNominees(game, game.lohId)
+    const currentTargetId =
+      game.lohSocialPlan?.week === game.week && game.lohSocialPlan.lohId === game.lohId
+        ? game.lohSocialPlan.currentTargetId
+        : undefined
+    const currentTarget =
+      nominees.find((nominee) => nominee.id === currentTargetId) ??
+      [...nominees].sort(
+        (left, right) =>
+          getNominationTargetScore(game, actorId, right) -
+            getNominationTargetScore(game, actorId, left) || left.id.localeCompare(right.id)
+      )[0]
+    const plannedBackupId =
+      game.lohSocialPlan?.week === game.week && game.lohSocialPlan.lohId === game.lohId
+        ? game.lohSocialPlan.backupTargetId
+        : undefined
+    const replacement =
+      replacements.find((candidate) => candidate.id === plannedBackupId) ??
+      [...replacements].sort(
+        (left, right) =>
+          getNominationTargetScore(game, actorId, right) -
+            getNominationTargetScore(game, actorId, left) || left.id.localeCompare(right.id)
+      )[0]
+    const saveTarget =
+      [...nominees].sort(
+        (left, right) =>
+          getSafetyRelationshipScore(game, actorId, right) -
+            getSafetyRelationshipScore(game, actorId, left) || left.id.localeCompare(right.id)
+      )[0] ?? currentTarget
+    const wantsReplacement =
+      Boolean(currentTarget && replacement) &&
+      getNominationTargetScore(game, actorId, replacement!) >=
+        getNominationTargetScore(game, actorId, currentTarget!) + 12
+    if (!wantsReplacement) return { preferredSafetyAdvice: 'hold' }
+    return {
+      preferredSafetyAdvice: 'save',
+      preferredSafetyTargetId: saveTarget?.id,
+      preferredSafetyTargetName: saveTarget?.name ?? saveTarget?.id,
+      preferredReplacementId: replacement?.id,
+      preferredReplacementName: replacement?.name ?? replacement?.id,
+    }
+  }
+
   const nominees = (context.nomineeIds ?? [])
     .map((id) => getPlayerById(context, id))
     .filter((player): player is AutonomyPlayer => Boolean(player))
@@ -687,16 +741,17 @@ function resolveAllianceInteractionPlan(
   }
 
   if (actorHasSafety && phase === 'pos_results') {
-    const nominees = game.players.filter(
-      (candidate) =>
-        game.nomineeIds.includes(candidate.id) &&
-        !isAllianceProtectedGameUnit(game, alliance, candidate.id)
-    )
+    const nominees = game.players.filter((candidate) => game.nomineeIds.includes(candidate.id))
     if (nominees.length === 0) return null
-    const allianceMemberTargetPreferences = strategicPreferencesByMember(
-      game,
-      activeStrategists,
-      nominees
+    const allianceMemberTargetPreferences = Object.fromEntries(
+      activeStrategists.flatMap((memberId) => {
+        const preferred = [...nominees].sort(
+          (left, right) =>
+            getSafetyRelationshipScore(game, memberId, right) -
+              getSafetyRelationshipScore(game, memberId, left) || left.id.localeCompare(right.id)
+        )[0]
+        return preferred ? [[memberId, preferred.id] as const] : []
+      })
     )
     const subjectId =
       allianceMemberTargetPreferences[actorId] ?? bestStrategicTarget(game, actorId, nominees)
@@ -708,6 +763,14 @@ function resolveAllianceInteractionPlan(
       activeStrategists,
       replacements
     )
+    const plannedBackupId =
+      game.lohSocialPlan?.week === game.week && game.lohSocialPlan.lohId === game.lohId
+        ? game.lohSocialPlan.backupTargetId
+        : undefined
+    const lohBackup = replacements.find((candidate) => candidate.id === plannedBackupId)
+    if (lohBackup && !isAllianceProtectedGameUnit(game, alliance, lohBackup.id)) {
+      allianceMemberFallbackPreferences[game.lohId ?? ''] = lohBackup.id
+    }
     const secondarySubjectId =
       allianceMemberFallbackPreferences[actorId] ?? bestStrategicTarget(game, actorId, replacements)
     if (!subjectId) return null
@@ -861,6 +924,22 @@ function fallbackInteractionPlan(
   return null
 }
 
+function hasUnavoidableNominationReceipt(
+  actorId: string,
+  lohId: string,
+  context: AutonomyContext,
+  stage: 'INITIAL' | 'REPLACEMENT'
+): boolean {
+  return Object.values(context.gameState?.nominationDecisionReasons ?? {}).some(
+    (reason) =>
+      reason.week === context.week &&
+      reason.lohId === lohId &&
+      reason.nomineeId === actorId &&
+      reason.stage === stage &&
+      reason.primaryReason === 'FORCED_BY_RULES'
+  )
+}
+
 function resolveIncomingInteractionPlan(
   actorId: string,
   playerId: string,
@@ -984,8 +1063,9 @@ function resolveIncomingInteractionPlan(
       }
     } else if (context.phase === 'nomination_results' && constraints.actorIsNominee) {
       if (context.dramaMode && constraints.playerIsHoh) {
-        plan =
-          signals.isMildEnemy || signals.tags.has('betrayal')
+        plan = hasUnavoidableNominationReceipt(actorId, playerId, context, 'INITIAL')
+          ? { type: 'check_in', scenarioKey: 'unavoidable_nominee_reaction' }
+          : signals.isMildEnemy || signals.tags.has('betrayal')
             ? { type: 'warning', scenarioKey: 'nominee_confronts_loh' }
             : { type: 'check_in', scenarioKey: 'nominee_understands_loh' }
       } else {
@@ -997,10 +1077,12 @@ function resolveIncomingInteractionPlan(
       constraints.actorWasReplacementNominee
     ) {
       if (context.dramaMode && constraints.playerIsHoh) {
-        plan = {
-          type: signals.isMildEnemy ? 'warning' : 'check_in',
-          scenarioKey: 'replacement_nominee_reacts_to_loh',
-        }
+        plan = hasUnavoidableNominationReceipt(actorId, playerId, context, 'REPLACEMENT')
+          ? { type: 'check_in', scenarioKey: 'unavoidable_nominee_reaction' }
+          : {
+              type: signals.isMildEnemy ? 'warning' : 'check_in',
+              scenarioKey: 'replacement_nominee_reacts_to_loh',
+            }
       } else {
         plan = { type: 'check_in', scenarioKey: 'post_veto_campaign' }
       }
@@ -1287,6 +1369,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
     'nominee_hoh_plea',
     'safety_holder_consults_loh',
     'nominee_understands_loh',
+    'unavoidable_nominee_reaction',
     'automatic_nominee_reaction',
     'nominee_confronts_loh',
     'replacement_nominee_reacts_to_loh',
@@ -1450,6 +1533,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I will not pretend seeing my name felt good, but I understand you had to make a move. I wanted to hear it from you.',
     'You put me in danger, {hoh}. I am trying to separate the game decision from our relationship.',
     'I get that the LOH has to show their cards. I need to know whether this was strategy or something personal.',
+  ],
+  unavoidable_nominee_reaction: [
+    'I know the rules left you no other eligible name. Being on the block is scary, but I am not treating this as you turning on me.',
+    'You had no legal alternative, and I know it. I want to focus on how Safety and the vote affect my chances now.',
+    'The block was forced by the rules, not by our relationship. Let us talk about what I can still do to stay.',
   ],
   automatic_nominee_reaction: [
     'Finishing last put me on the block automatically. I know that was the rule, not somebody choosing my name.',

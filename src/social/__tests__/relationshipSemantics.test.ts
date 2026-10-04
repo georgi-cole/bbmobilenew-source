@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialRealityDomainState, createRealityAlliance } from '../reality'
+import {
+  createDirectedRelationship,
+  createInitialRealityDomainState,
+  createRealityAlliance,
+} from '../reality'
 import {
   hasCanonicalLiveAlliance,
   selectCanonicalRelationshipView,
@@ -32,6 +36,21 @@ function pairView(reality: ReturnType<typeof createInitialRealityDomainState>) {
 }
 
 describe('canonical relationship presentation', () => {
+  it('shows an enemy after a fight as rivalry, without inventing betrayal', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'rune')
+    edge.perceivedLabel = 'ENEMY'
+    reality.relationships.human = { rune: edge }
+    const view = selectCanonicalRelationshipView({
+      relationships: { human: { rune: { affinity: -45, tags: ['betrayal'] } } },
+      reality,
+      actorId: 'human',
+      targetId: 'rune',
+    })
+    expect(view.visibleTags.has('rivalry')).toBe(true)
+    expect(view.visibleTags.has('betrayal')).toBe(false)
+  })
+
   it('keeps a formal alliance visible without a projected relationship edge', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {

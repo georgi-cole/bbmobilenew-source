@@ -121,9 +121,11 @@ export default function NumberTrivia({
     Math.ceil(NUMBER_TRIVIA_READING_BUFFER_MS / 1000)
   )
   const [answeringOpen, setAnsweringOpen] = useState(false)
+  const gameSurfaceRef = useRef<HTMLDivElement>(null)
   const roundStartedAtRef = useRef(0)
 
   const currentRoundNumber = roundIndex + 1
+  const scoreboardVisible = Boolean(scoreboard)
   const currentQuestion =
     phase === 'duel'
       ? chosenQuestions[NUMBER_TRIVIA_TOTAL_ROUNDS + duelIndex]
@@ -168,6 +170,10 @@ export default function NumberTrivia({
     }
   }, [currentQuestion, humanStillActive, scoreboard])
 
+  useEffect(() => {
+    gameSurfaceRef.current?.scrollTo({ top: 0, left: 0 })
+  }, [scoreboardVisible, scoreboard?.roundNumber, scoreboard?.duelNumber, currentQuestion])
+
   const finishCompetition = useCallback(
     (finalStandings: TriviaStanding[]) => {
       if (!onFinish || finalStandings.length === 0) return
@@ -177,6 +183,7 @@ export default function NumberTrivia({
       const winner = finalStandings[0]
       onFinish(rawResults[humanId] ?? winner.cumulativeScore, undefined, {
         authoritativeWinnerId: winner.participantId,
+        authoritativeRankedIds: finalStandings.map((entry) => entry.participantId),
         rawValue: rawResults[humanId] ?? winner.cumulativeScore,
         rawResults,
       })
@@ -608,10 +615,10 @@ export default function NumberTrivia({
     : 'number-trivia number-trivia--playing'
 
   return (
-    <div className={rootClassName} data-testid="number-trivia-root">
+    <div className={rootClassName} data-testid="number-trivia-root" ref={gameSurfaceRef}>
       <div className="number-trivia__shell">
         {!scoreboard && currentQuestion && (
-          <section className="number-trivia__round" aria-live="polite">
+          <section className="number-trivia__round" aria-live="off">
             <header className="number-trivia__header number-trivia__header--playing">
               <p className="number-trivia__eyebrow">
                 {phase === 'duel'
@@ -622,7 +629,7 @@ export default function NumberTrivia({
               <p className="number-trivia__subtitle number-trivia__subtitle--compact">
                 {phase === 'duel'
                   ? 'The weakest answer loses one life. Last finalist standing wins.'
-                  : 'Question and answer stay together on one gameplay screen.'}
+                  : 'Use the hints to find the number before attempts run out.'}
               </p>
             </header>
 
@@ -719,7 +726,11 @@ export default function NumberTrivia({
                       Skip
                     </button>
                   </div>
-                  {inputError && <p className="number-trivia__error">{inputError}</p>}
+                  {inputError && (
+                    <p className="number-trivia__error" role="alert">
+                      {inputError}
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="number-trivia__spectator-card">

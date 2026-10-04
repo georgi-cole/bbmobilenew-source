@@ -57,6 +57,56 @@ describe('Confessional salience', () => {
     expect(observation?.event).toBe('returned')
   })
 
+  it('does not replay a return announcement on an unchanged later visit', () => {
+    const current = { ...baseWorld, recentPublicEvents: ['Alex has returned to the game.'] }
+    expect(
+      getSalientConfessionalObservation({
+        previous: buildBigEyeWorldSnapshot(current),
+        current,
+        playerName: 'Alex',
+      })
+    ).toBeNull()
+  })
+
+  it('does not treat talk of returning as a completed return', () => {
+    expect(
+      getSalientConfessionalObservation({
+        previous: buildBigEyeWorldSnapshot(baseWorld),
+        current: { ...baseWorld, recentPublicEvents: ['Alex hopes to return tomorrow.'] },
+        playerName: 'Alex',
+      })
+    ).toBeNull()
+  })
+
+  it('uses the warmest positive relationship when a rival has a stronger negative affinity', () => {
+    const snapshot = buildBigEyeWorldSnapshot({
+      ...baseWorld,
+      closestRelationships: [
+        { name: 'Sam', affinity: -95, tags: ['rival'] },
+        { name: 'Maya', affinity: 70, tags: ['ally'] },
+        { name: 'Jordan', affinity: 30, tags: [] },
+      ],
+    })
+    expect(snapshot.closestName).toBe('Maya')
+    expect(snapshot.closestAffinity).toBe(70)
+    expect(
+      buildBigEyeWorldSnapshot({
+        ...baseWorld,
+        closestRelationships: [{ name: 'Sam', affinity: -95, tags: ['rival'] }],
+      }).closestName
+    ).toBeNull()
+  })
+
+  it('does not tell a jury member they survived nomination', () => {
+    expect(
+      getSalientConfessionalObservation({
+        previous: buildBigEyeWorldSnapshot({ ...baseWorld, nomineeNames: ['Alex'] }),
+        current: { ...baseWorld, playerStatus: 'jury' },
+        playerName: 'Alex',
+      })
+    ).toBeNull()
+  })
+
   it('uses a remotely updated observation template without code changes', () => {
     setRemoteConfessionalConfig({
       salience: {

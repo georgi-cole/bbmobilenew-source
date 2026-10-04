@@ -132,12 +132,26 @@ export function getCanonicalRelationshipTags(input: {
   if (input.reality) {
     tags.delete('alliance')
     if (hasLiveAlliance) tags.add('alliance')
+    // A hostile read or an ordinary grievance is not proof that trust was broken.
+    tags.delete('betrayal')
+    if (
+      input.reality.events.some(
+        (event) =>
+          event.participantIds.includes(input.actorId) &&
+          event.participantIds.includes(input.targetId) &&
+          (event.type === 'ALLIANCE_BETRAYAL' ||
+            event.actionId === 'betray' ||
+            event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
+      )
+    ) {
+      tags.add('betrayal')
+    }
   }
 
   for (const relationship of [edge, reverseEdge]) {
     if (!relationship) continue
     if (relationship.perceivedLabel === 'RIVAL') tags.add('rivalry')
-    if (relationship.perceivedLabel === 'ENEMY') tags.add('betrayal')
+    if (relationship.perceivedLabel === 'ENEMY') tags.add('rivalry')
     if (
       relationship.trust <= 18 &&
       (relationship.resentment >= 18 ||
@@ -177,7 +191,7 @@ export function getCanonicalRelationshipTags(input: {
           (grievance.holderId === input.targetId && grievance.againstId === input.actorId))
     )
   ) {
-    tags.add('betrayal')
+    tags.add('strained')
   }
 
   return tags

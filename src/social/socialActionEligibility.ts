@@ -154,7 +154,7 @@ export function evaluateSocialActionEligibility({
     if (requireCompleteSelection && subjectId) return unavailable('This action has no subject')
   } else if (requireCompleteSelection) {
     if (targetMode === 'multi') {
-      const minimum = Math.max(2, action.minTargets ?? 2)
+      const minimum = Math.max(1, action.minTargets ?? 2)
       if (targets.length < minimum) {
         return unavailable(`Select at least ${minimum} housemates`)
       }
@@ -367,6 +367,25 @@ export function evaluateSocialActionEligibility({
       action: action.id === 'pregnancy_test' ? 'PREGNANCY_TEST' : 'TRY_FOR_A_BABY',
     })
     if (!pregnancyEligibility.eligible) return unavailable(pregnancyEligibility.reason)
+  }
+
+  if (action.id === 'share_pregnancy_news') {
+    if (!actorId || !pregnancyStory) return unavailable('This story is not available yet')
+    if (targets.length === 0) return unavailable('Choose at least one housemate to tell')
+    const activeAttemptId = pregnancyStory.activePregnancies[actorId]
+    const pregnancy = pregnancyStory.attempts.find(
+      (attempt) => attempt.attemptId === activeAttemptId
+    )
+    if (!pregnancy || !pregnancy.resultKnown || pregnancy.status !== 'POSITIVE') {
+      return unavailable('You need a confirmed pregnancy before sharing the news')
+    }
+    if (pregnancy.pregnancyPublicRevealed) {
+      return unavailable('The pregnancy news is already public')
+    }
+    const alreadyTold = new Set(pregnancy.pregnancyNewsSharedWithIds ?? [])
+    if (targets.some((targetId) => alreadyTold.has(targetId))) {
+      return unavailable('You have already shared this news with that housemate')
+    }
   }
 
   if (action.requiresKnownSecret) {

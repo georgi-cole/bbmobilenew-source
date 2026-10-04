@@ -123,6 +123,7 @@ function fallbackScenarioOutcome(
     nominee_campaign: `${fromName} says the vote is still movable, but they need another number.`,
     nomination_aftershock: `${fromName} says the nomination changed who they think is really with them.`,
     nominee_understands_loh: `${fromName} says they understand the move, but will remember who made it.`,
+    unavoidable_nominee_reaction: `${fromName} understands the rules left you no alternative and is focused on surviving the block.`,
     automatic_nominee_reaction: `${fromName} says finishing last put them on the block automatically, so they are not treating it as anybody's personal nomination.`,
     nominee_confronts_loh: `${fromName} says the nomination felt personal, whatever the strategy was.`,
     replacement_nominee_reacts_to_loh: `${fromName} says the replacement choice changed how they see you.`,

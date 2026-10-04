@@ -24,12 +24,34 @@ const rawApprovals = {
 }
 
 function formatShare(value: number): string {
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}%`
+  const rounded = Number(value.toFixed(4))
+  const formatted = Number.isInteger(rounded)
+    ? rounded.toFixed(0)
+    : rounded.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
+  return `${formatted}%`
+}
+
+function advanceReveal(ms = 5000): void {
+  act(() => {
+    vi.advanceTimersByTime(900)
+  })
+  act(() => {
+    vi.advanceTimersByTime(20)
+  })
+  if (ms > 920) {
+    act(() => {
+      vi.advanceTimersByTime(ms - 920)
+    })
+  }
 }
 
 describe('PublicSaveReveal', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) =>
+      window.setTimeout(() => callback(performance.now() + 5000), 16)
+    )
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => window.clearTimeout(id))
     document.body.classList.remove('no-animations')
     store.dispatch(setGameUX({ dramaMode: false }))
   })
@@ -55,19 +77,60 @@ describe('PublicSaveReveal', () => {
       />
     )
 
-    expect(screen.getAllByText('?? %')).toHaveLength(3)
+    expect(screen.getAllByText('—')).toHaveLength(3)
 
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
+    advanceReveal()
 
-    expect(screen.queryByText('?? %')).toBeNull()
+    expect(screen.queryByText('—')).toBeNull()
     nominees.forEach((nominee) => {
       expect(screen.getByText(formatShare(expectedShares[nominee.id]))).toBeTruthy()
     })
   })
 
-  it('shows honest tied vote shares without inventing a decimal lead', () => {
+  it('explains an exact audience-score tie when the tie rules settle the save', () => {
+    render(
+      <PublicSaveReveal
+        nominees={nominees}
+        approvals={{ p1: 25, p2: 50, p3: 50 }}
+        savedId="p3"
+        tieBreakUsed
+        onDone={vi.fn()}
+      />
+    )
+
+    advanceReveal()
+
+    expect(screen.getAllByText('40%')).toHaveLength(2)
+    expect(screen.queryByText('40.1%')).toBeNull()
+    expect(screen.queryByText('39.9%')).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(2600)
+    })
+    expect(
+      screen.getByText(
+        'Audience scores tied. Season average, completed goals, then stable player order settled the save.'
+      )
+    ).toBeTruthy()
+  })
+
+  it('shows distinct four-decimal shares for close but different scores', () => {
+    render(
+      <PublicSaveReveal
+        nominees={nominees}
+        approvals={{ p1: 25, p2: 50, p3: 50.01 }}
+        savedId="p3"
+        onDone={vi.fn()}
+      />
+    )
+
+    advanceReveal(7600)
+
+    expect(screen.getByText('39.9968%')).toBeTruthy()
+    expect(screen.getByText('40.0048%')).toBeTruthy()
+    expect(screen.queryByText(/round to a tie/)).toBeNull()
+  })
+
+  it('explains when displayed shares match at the reveal precision', () => {
     render(
       <PublicSaveReveal
         nominees={nominees}
@@ -77,13 +140,14 @@ describe('PublicSaveReveal', () => {
       />
     )
 
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
+    advanceReveal(7600)
 
     expect(screen.getAllByText('40%')).toHaveLength(2)
-    expect(screen.queryByText('40.1%')).toBeNull()
-    expect(screen.queryByText('39.9%')).toBeNull()
+    expect(
+      screen.getByText(
+        'These shares match at 0.0001% precision. The saved result follows the full audience-ballot calculation.'
+      )
+    ).toBeTruthy()
   })
 
   it('preserves the original timing and saved-player treatment', () => {
@@ -158,13 +222,11 @@ describe('PublicSaveReveal', () => {
 
     expect(document.querySelector('.psr')).toBeTruthy()
     expect(document.querySelector('.avr')).toBeNull()
-    expect(screen.getAllByText('?? %')).toHaveLength(3)
+    expect(screen.getAllByText('—')).toHaveLength(3)
 
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
+    advanceReveal()
 
-    expect(screen.queryByText('?? %')).toBeNull()
+    expect(screen.queryByText('—')).toBeNull()
     expect(
       screen
         .getAllByText(/%$/)
@@ -196,13 +258,11 @@ describe('PublicSaveReveal', () => {
     expect(document.querySelectorAll('.psr__nominee')).toHaveLength(3)
     expect(document.querySelectorAll('.psr__avatar-member')).toHaveLength(6)
     expect(screen.getByText('Cupid 1 & Cupid 2')).toBeTruthy()
-    expect(screen.getAllByText('?? %')).toHaveLength(3)
+    expect(screen.getAllByText('—')).toHaveLength(3)
 
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
+    advanceReveal()
 
-    expect(screen.queryByText('?? %')).toBeNull()
-    expect(screen.getByText('46.6%')).toBeTruthy()
+    expect(screen.queryByText('—')).toBeNull()
+    expect(screen.getByText('46.6666%')).toBeTruthy()
   })
 })

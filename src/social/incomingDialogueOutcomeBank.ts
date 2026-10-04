@@ -168,6 +168,7 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,
   nominee_understands_loh: REPAIR_BEATS,
+  unavoidable_nominee_reaction: POWER_BEATS,
   automatic_nominee_reaction: POWER_BEATS,
   nominee_confronts_loh: REPAIR_BEATS,
   replacement_nominee_reacts_to_loh: REPAIR_BEATS,

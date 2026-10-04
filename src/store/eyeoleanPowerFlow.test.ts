@@ -4,10 +4,15 @@ import gameReducer, {
   activateStoreExtraVote,
   activateStoreVoxExtraVote,
   applyStoreVoxVoteRemoval,
+  advance,
   commitNominees,
   applyStoreVoteRemoval,
   createInitialGameState,
+  finalizeNominations,
+  getEligibleReplacementNominees,
   hydrateGame,
+  resolveUnfillableReplacement,
+  setReplacementNominee,
   submitHumanDoubleVote,
 } from './gameSlice'
 import profilesReducer, {
@@ -92,6 +97,76 @@ function prepareVoxNominationState(): { state: GameState; human: Player; targets
 }
 
 describe('Eyeolean Store voting powers', () => {
+  it('keeps a purchased protection active after nominations and rejects a protected backup', () => {
+    const game = createInitialGameState({ seed: 7713 })
+    game.phase = 'social_1'
+    game.awaitingNominations = false
+    const human = game.players.find((player) => player.isUser)!
+    const others = game.players.filter((player) => !player.isUser)
+    game.lohId = human.id
+    game.pendingNominee1Id = others[0]!.id
+
+    const store = configureStore({
+      reducer: { game: gameReducer, profiles: profilesReducer },
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
+    })
+    store.dispatch(createProfile({ name: 'Shield Test', avatar: '🛡️' }))
+    store.dispatch(debugGrantEyeoleans({ grantId: 'shield-test', amount: 100_000 }))
+    store.dispatch(
+      purchaseEyeoleanStoreProduct({ transactionId: 'shield', productKey: 'protection' })
+    )
+    store.dispatch(hydrateGame(game))
+    store.dispatch(
+      armEyeoleanStorePower({
+        productKey: 'protection',
+        targetId: others[2]!.id,
+        gameId: game.gameId,
+        season: game.season,
+        week: game.week,
+      })
+    )
+    expect(store.getState().profiles.profiles[0]?.eyeoleanPowerReservations).toHaveProperty(
+      'protection'
+    )
+    store.dispatch(advance())
+    expect(store.getState().game.storeNominationProtections).toContainEqual({
+      productKey: 'protection',
+      targetId: others[2]!.id,
+      week: game.week,
+    })
+
+    const nominations = structuredClone(store.getState().game)
+    nominations.phase = 'nomination_results'
+    nominations.awaitingNominations = true
+    store.dispatch(hydrateGame(nominations))
+
+    store.dispatch(finalizeNominations(others[1]!.id))
+    const after = store.getState()
+    expect(after.game.storeNominationProtections).toContainEqual({
+      productKey: 'protection',
+      targetId: others[2]!.id,
+      week: game.week,
+    })
+    expect(after.profiles.profiles[0]?.eyeoleanPowerReservations).toEqual({})
+
+    const replacementDay = structuredClone(after.game)
+    replacementDay.phase = 'pos_ceremony_results'
+    replacementDay.posWinnerId = others[3]!.id
+    replacementDay.povSavedId = others[0]!.id
+    replacementDay.nomineeIds = [others[1]!.id]
+    replacementDay.players = replacementDay.players.filter((player) =>
+      [human.id, others[0]!.id, others[1]!.id, others[2]!.id, others[3]!.id].includes(player.id)
+    )
+    replacementDay.replacementNeeded = true
+    expect(getEligibleReplacementNominees(replacementDay)).toEqual([])
+    expect(gameReducer(replacementDay, setReplacementNominee(others[2]!.id)).nomineeIds).toEqual([
+      others[1]!.id,
+    ])
+    expect(gameReducer(replacementDay, resolveUnfillableReplacement()).replacementNeeded).toBe(
+      false
+    )
+  })
+
   it('applies Vox Remove a Nomination alongside Extra Vote after the ballot resolves', () => {
     const { state, human } = prepareVoxNominationState()
     if (!state.voxPopuli) throw new Error('Expected Vox Populi state')

@@ -9,20 +9,20 @@
  *     inside the viewport (the "main TV" zone).
  */
 
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
-import { Provider } from 'react-redux';
-import { MemoryRouter } from 'react-router';
-import { configureStore } from '@reduxjs/toolkit';
-import gameReducer from '../../../src/store/gameSlice';
-import challengeReducer from '../../../src/store/challengeSlice';
-import socialReducer from '../../../src/social/socialSlice';
-import profilesReducer from '../../../src/store/profilesSlice';
-import finaleReducer from '../../../src/store/finaleSlice';
-import uiReducer from '../../../src/store/uiSlice';
-import settingsReducer from '../../../src/store/settingsSlice';
-import type { GameState, Player } from '../../../src/types';
-import TvZone from '../../../src/components/ui/TvZone';
+import { describe, it, expect } from 'vitest'
+import { render } from '@testing-library/react'
+import { Provider } from 'react-redux'
+import { MemoryRouter } from 'react-router'
+import { configureStore } from '@reduxjs/toolkit'
+import gameReducer from '../../../src/store/gameSlice'
+import challengeReducer from '../../../src/store/challengeSlice'
+import socialReducer from '../../../src/social/socialSlice'
+import profilesReducer from '../../../src/store/profilesSlice'
+import finaleReducer from '../../../src/store/finaleSlice'
+import uiReducer from '../../../src/store/uiSlice'
+import settingsReducer from '../../../src/store/settingsSlice'
+import type { GameState, Player } from '../../../src/types'
+import TvZone from '../../../src/components/ui/TvZone'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ function makePlayers(count: number): Player[] {
     avatar: '🧑',
     status: 'active' as const,
     isUser: i === 0,
-  }));
+  }))
 }
 
 function makeStore(twistActive: boolean) {
@@ -66,7 +66,7 @@ function makeStore(twistActive: boolean) {
     isLive: false,
     twistActive,
     doubleEviction: { usedCount: 0, weekActive: false, pendingSecondEviction: null },
-  };
+  }
   return configureStore({
     reducer: {
       game: gameReducer,
@@ -78,59 +78,59 @@ function makeStore(twistActive: boolean) {
       settings: settingsReducer,
     },
     preloadedState: { game: base },
-  });
+  })
 }
 
 function renderTvZone(twistActive: boolean) {
-  const store = makeStore(twistActive);
+  const store = makeStore(twistActive)
   const { container } = render(
     <Provider store={store}>
       <MemoryRouter>
         <TvZone />
       </MemoryRouter>
-    </Provider>,
-  );
-  return { container, store };
+    </Provider>
+  )
+  return { container, store }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('TvZone — twist indicator placement', () => {
   it('renders no TWIST chip in the head-pills when twistActive is false', () => {
-    const { container } = renderTvZone(false);
-    const pills = container.querySelector('.tv-zone__head-pills');
-    expect(pills).toBeTruthy();
+    const { container } = renderTvZone(false)
+    const pills = container.querySelector('.tv-zone__head-pills')
+    expect(pills).toBeTruthy()
     // No pill with TWIST text
-    expect(pills!.textContent).not.toContain('TWIST');
-  });
+    expect(pills!.textContent).not.toContain('TWIST')
+  })
 
   it('renders no twist badge in the viewport when twistActive is false', () => {
-    const { container } = renderTvZone(false);
-    expect(container.querySelector('.tv-zone__twist-badge')).toBeNull();
-  });
+    const { container } = renderTvZone(false)
+    expect(container.querySelector('.tv-zone__twist-badge')).toBeNull()
+  })
 
   it('renders no TWIST StatusPill in the head-pills when twistActive is true', () => {
-    const { container } = renderTvZone(true);
-    const pills = container.querySelector('.tv-zone__head-pills');
-    expect(pills).toBeTruthy();
+    const { container } = renderTvZone(true)
+    const pills = container.querySelector('.tv-zone__head-pills')
+    expect(pills).toBeTruthy()
     // The head-pills should not contain a TWIST chip
-    expect(pills!.textContent).not.toContain('TWIST');
-  });
+    expect(pills!.textContent).not.toContain('TWIST')
+  })
 
   it('renders .tv-zone__twist-badge inside the viewport when twistActive is true', () => {
-    const { container } = renderTvZone(true);
-    const badge = container.querySelector('.tv-zone__twist-badge');
-    expect(badge).toBeTruthy();
+    const { container } = renderTvZone(true)
+    const badge = container.querySelector('.tv-zone__twist-badge')
+    expect(badge).toBeTruthy()
     // The badge must be inside the viewport element
-    const viewport = container.querySelector('.tv-zone__viewport');
-    expect(viewport).toBeTruthy();
-    expect(viewport!.contains(badge)).toBe(true);
-  });
+    const viewport = container.querySelector('.tv-zone__viewport')
+    expect(viewport).toBeTruthy()
+    expect(viewport!.contains(badge)).toBe(true)
+  })
 
   it('twist badge is aria-hidden (does not pollute the viewport live region)', () => {
-    const { container } = renderTvZone(true);
-    const badge = container.querySelector('.tv-zone__twist-badge');
-    expect(badge).toBeTruthy();
-    expect(badge!.getAttribute('aria-hidden')).toBe('true');
-  });
-});
+    const { container } = renderTvZone(true)
+    const badge = container.querySelector('.tv-zone__twist-badge')
+    expect(badge).toBeTruthy()
+    expect(badge!.getAttribute('aria-hidden')).toBe('true')
+  })
+})

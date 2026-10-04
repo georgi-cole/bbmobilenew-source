@@ -61,6 +61,8 @@ import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
 import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
+  recordPregnancyNewsShare as recordPregnancyStoryNewsShare,
+  revealPregnancyNewsLeak as revealPregnancyStoryNewsLeak,
   processPregnancyStoryDay,
   advancePregnancyWeekendDay as advancePregnancyStoryWeekendDay,
   revealPaternityResult as resolvePaternityResult,
@@ -1404,6 +1406,17 @@ function getPovProtectedIds(state: GameState): string[] {
   return [...ids]
 }
 
+function getDayNominationProtectedIds(state: GameState): string[] {
+  return [
+    ...new Set([
+      ...getPovProtectedIds(state),
+      ...(state.storeNominationProtections ?? [])
+        .filter((protection) => protection.week === state.week)
+        .map((protection) => protection.targetId),
+    ]),
+  ]
+}
+
 function addPovProtectedId(state: GameState, playerId: string | null | undefined) {
   if (!playerId) return
   const ids = new Set(getPovProtectedIds(state))
@@ -1727,7 +1740,7 @@ function resolveCupidPairEviction(state: GameState): boolean {
 function getReplacementEligiblePlayers(
   state: GameState,
   alivePlayers: Player[],
-  neededCount = 1,
+  _neededCount = 1,
   options: { allowLoh?: boolean; actorId?: string | null } = {}
 ): Player[] {
   const actorId = options.actorId === undefined ? state.lohId : options.actorId
@@ -1745,11 +1758,10 @@ function getReplacementEligiblePlayers(
       )
     })
   )
-  const protectedIds = new Set(getPovProtectedIds(state))
-  const nonProtected = baseEligible.filter((player) =>
+  const protectedIds = new Set(getDayNominationProtectedIds(state))
+  return baseEligible.filter((player) =>
     expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
   )
-  return nonProtected.length >= neededCount ? nonProtected : baseEligible
 }
 
 export function getEligibleReplacementNominees(
@@ -2252,6 +2264,55 @@ export function getStrategicReplacementNomineeBreakdown(
     boundedVariation
   factors.total = total
   return { total, factors }
+}
+
+function recordUnavoidableNominationReason(
+  state: GameState,
+  lohId: string | null | undefined,
+  selectedIds: string[],
+  legalCandidates: Player[],
+  stage: 'INITIAL' | 'REPLACEMENT'
+): void {
+  if (
+    !lohId ||
+    legalCandidates.length !== selectedIds.length ||
+    !selectedIds.every((id) => legalCandidates.some((candidate) => candidate.id === id))
+  )
+    return
+
+  state.nominationDecisionReasons ??= {}
+  for (const nomineeId of selectedIds) {
+    const tags = [
+      ...(state.strategicRelationships?.[lohId]?.[nomineeId]?.tags ?? []),
+      ...(state.strategicRelationships?.[nomineeId]?.[lohId]?.tags ?? []),
+    ]
+    const relationshipTier = tags.includes('ride_or_die')
+      ? 'RIDE_OR_DIE'
+      : tags.includes('romance')
+        ? 'ROMANCE'
+        : tags.includes('primary_alliance')
+          ? 'PRIMARY_ALLIANCE'
+          : tags.includes('alliance')
+            ? 'ALLIANCE'
+            : tags.includes('bromance')
+              ? 'BROMANCE'
+              : 'ORDINARY'
+    state.nominationDecisionReasons[`${state.week}:${lohId}:${stage}:${nomineeId}`] = {
+      week: state.week,
+      lohId,
+      nomineeId,
+      stage,
+      primaryReason: 'FORCED_BY_RULES',
+      factors: { unavoidable: true },
+      targetScoreAtDecision: 0,
+      eligibleAlternativeIds: [],
+      strongerProtectedIds: [],
+      forcedChoice: true,
+      relationshipTier,
+      relationshipTagsAtDecision: [...new Set(tags)],
+      trustAtDecision: state.strategicRelationships?.[nomineeId]?.[lohId]?.affinity,
+    }
+  }
 }
 
 function recordNominationDecisionReason(
@@ -2943,7 +3004,7 @@ function restoreVoxNomineeMinimum(state: GameState): string[] {
   const replacements = resolveVoxReplacementNominees({
     activeIds: alive.map((player) => player.id),
     currentNomineeIds: state.nomineeIds,
-    protectedIds: getPovProtectedIds(state),
+    protectedIds: getDayNominationProtectedIds(state),
     immunityWinnerId: getVoxNominationImmunityId(state),
     nominationVoteCounts: state.voxPopuli.nominationVoteCounts,
     requiredNomineeCount,
@@ -4769,6 +4830,32 @@ const gameSlice = createSlice({
         action.payload
       ).story
     },
+    recordPregnancyNewsShare(
+      state,
+      action: PayloadAction<{ attemptId: string; recipientIds: string[]; currentDay: number }>
+    ) {
+      state.pregnancyStory = recordPregnancyStoryNewsShare(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        {
+          attemptId: action.payload.attemptId,
+          recipientIds: action.payload.recipientIds,
+          day: action.payload.currentDay,
+        }
+      )
+    },
+    revealPregnancyNewsLeak(
+      state,
+      action: PayloadAction<{ attemptId: string; leakerId: string; currentDay: number }>
+    ) {
+      state.pregnancyStory = revealPregnancyStoryNewsLeak(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        {
+          attemptId: action.payload.attemptId,
+          leakerId: action.payload.leakerId,
+          day: action.payload.currentDay,
+        }
+      )
+    },
     revealPaternityResult(state, action: PayloadAction<{ carrierId: string }>) {
       state.pregnancyStory = resolvePaternityResult(
         state.pregnancyStory ?? createInitialPregnancyStoryState(),
@@ -5709,6 +5796,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === coLohOwnerId)
       if (!player || !lohPlayer) return
 
+      recordUnavoidableNominationReason(
+        state,
+        coLohOwnerId,
+        [id],
+        getEligibleReplacementNominees(state, coLohOwnerId),
+        'REPLACEMENT'
+      )
       appendNominee(state, id)
       state.replacementNomineeIds = [...new Set([...(state.replacementNomineeIds ?? []), id])]
       state.replacementNeeded = false
@@ -5723,6 +5817,17 @@ const gameSlice = createSlice({
         }
       }
       pushEvent(state, `${lohPlayer.name} named ${player.name} as the backup nominee. 🎯`, 'game')
+    },
+
+    resolveUnfillableReplacement(state) {
+      if (!state.replacementNeeded || getEligibleReplacementNominees(state).length > 0) return
+      state.replacementNeeded = false
+      state.coLohReplacementOwnerId = null
+      pushEvent(
+        state,
+        'No eligible backup nominee remains. The ceremony continues with a short block.',
+        'game'
+      )
     },
 
     /**
@@ -5766,6 +5871,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
       if (!p1 || !p2) return
 
+      recordUnavoidableNominationReason(
+        state,
+        state.lohId,
+        [id1, id2],
+        getEligibleNominationTargets(state, state.lohId ?? ''),
+        'INITIAL'
+      )
       state.nomineeIds = [id1, id2]
       p1.status = 'nominated'
       p2.status = 'nominated'
@@ -5849,6 +5961,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
       if (nominees.length !== expectedCount) return
 
+      recordUnavoidableNominationReason(
+        state,
+        state.lohId,
+        ids,
+        getEligibleNominationTargets(state, state.lohId ?? ''),
+        'INITIAL'
+      )
       // Keep the submitted choices separate from the draft nominee list.
       // appendNominee mutates nomineeIds below; assigning the payload array
       // directly would also mutate `ids` and incorrectly attribute the forced
@@ -6287,7 +6406,10 @@ const gameSlice = createSlice({
       )
       if (selectedIds.length !== slotsRequired) return
 
-      const lohPlayer = state.players.find((p) => p.id === state.lohId)
+      const tieBreakerName = state.awaitingPosTieBreak
+        ? (state.players.find((player) => player.id === state.posWinnerId)?.name ??
+          'The Safety holder')
+        : (state.players.find((player) => player.id === state.lohId)?.name ?? 'The LOH')
       const selectedPlayers = selectedIds
         .map((id) => state.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
@@ -6295,6 +6417,7 @@ const gameSlice = createSlice({
       if (selectedPlayers.length !== selectedIds.length) return
 
       state.awaitingTieBreak = false
+      state.awaitingPosTieBreak = false
       state.tiedNomineeIds = null
       state.votes = {}
 
@@ -6303,7 +6426,7 @@ const gameSlice = createSlice({
         .filter((name): name is string => Boolean(name))
       const selectedNames = selectedPlayers.map((player) => player.name)
       const tieResolutionMessage = buildDoubleEvictionTieResolutionMessage({
-        deciderName: lohPlayer?.name ?? 'The LOH',
+        deciderName: tieBreakerName,
         tiedNames,
         selectedNames,
         publicModeEnabled: state.publicModeEnabled,
@@ -8329,7 +8452,7 @@ const gameSlice = createSlice({
     },
     updateUserPlayerIdentity(
       state,
-      action: PayloadAction<{ name: string; avatar: string; photoId?: string }>
+      action: PayloadAction<{ name: string; avatar: string; photoId?: string; age?: string }>
     ) {
       const human = state.players.find((player) => player.isUser)
       if (!human) return
@@ -8337,6 +8460,11 @@ const gameSlice = createSlice({
       human.avatar = action.payload.photoId
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
+      if (action.payload.age !== undefined) {
+        const age = resolveProfileAge(action.payload.age)
+        if (age === undefined) delete human.age
+        else human.age = age
+      }
     },
     debugForceBellaIntoCast(state) {
       if (state.players.some((player) => player.id === BELLA_ID)) {
@@ -8509,8 +8637,12 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
+      const profileAge = resolveProfileAge(loadActiveProfile().bio?.age)
       const hydrated: GameState = {
         ...action.payload,
+        players: action.payload.players.map((player) =>
+          player.isUser && profileAge !== undefined ? { ...player, age: profileAge } : player
+        ),
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
@@ -11270,6 +11402,11 @@ const gameSlice = createSlice({
               if (ambiguousBoundaryTie) {
                 state.awaitingTieBreak = true
                 state.tiedNomineeIds = tiedBoundaryIds
+                const doubleTieBreakerId = getClassicEvictionTieBreakerId(state)
+                state.awaitingPosTieBreak =
+                  !state.publicModeEnabled &&
+                  doubleTieBreakerId === state.posWinnerId &&
+                  doubleTieBreakerId !== state.lohId
               } else {
                 state.doubleEviction.pendingSecondEviction = {
                   evicteeId: secondId,
@@ -11983,6 +12120,8 @@ export const {
   resetPregnancyStoryForDebug,
   startPregnancyAttempt,
   revealPregnancyTest,
+  recordPregnancyNewsShare,
+  revealPregnancyNewsLeak,
   revealPaternityResult,
   markPregnancyReactions,
   updateTvEvent,
@@ -12109,6 +12248,7 @@ export const {
   archiveSeason,
   replacePlayers,
   updateUserPlayerIdentity,
+  resolveUnfillableReplacement,
   debugForceBellaIntoCast,
   debugSetBellaHeir,
   debugSetBellaWillReward,

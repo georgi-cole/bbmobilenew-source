@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import { createMemoryRouter, useNavigate } from 'react-router'
@@ -23,6 +24,8 @@ import profilesReducer, {
   settleSeasonEyeoleans,
 } from '../../../store/profilesSlice'
 import type { RootState } from '../../../store/store'
+import * as bigBrother from '../../../services/bigBrother'
+import { markVoxNominationRevealIntroSeen } from '../../../features/voxNominationRevealStorage'
 import { getSecretMissionBoxRewards } from '../../../bb/secretMission'
 import {
   loadEvictionVoteBreakdownUnlock,
@@ -31,7 +34,10 @@ import {
 
 function renderDiaryRoom(
   initialEntries = ['/game', '/diary-room'],
-  options?: { setupStore?: (store: ReturnType<typeof configureStore>) => void }
+  options?: {
+    setupStore?: (store: ReturnType<typeof configureStore>) => void
+    strictMode?: boolean
+  }
 ) {
   const store = configureStore({
     reducer: {
@@ -61,7 +67,8 @@ function renderDiaryRoom(
             }
           )}
         />
-      </Provider>
+      </Provider>,
+      { wrapper: options?.strictMode ? StrictMode : undefined }
     ),
   }
 }
@@ -122,6 +129,26 @@ async function flushConversationTimers() {
   })
 }
 
+function delayedReply(text: string): bigBrother.BigBrotherResponse {
+  return {
+    text,
+    reason: 'unknown',
+    intent: 'unknown',
+    nextState: { ...bigBrother.createInitialBigEyeState(), turnCount: 55 },
+    delayMs: 0,
+    memorySummary: 'stale memory',
+    source: 'offline',
+    vipEligible: false,
+    performance: {
+      emotion: 'watchful',
+      intensity: 0.4,
+      eyeState: 'steady',
+      delivery: 'measured',
+      pauseBeforeMs: 700,
+    },
+  }
+}
+
 describe('DiaryRoom', () => {
   beforeEach(() => {
     ;(
@@ -139,6 +166,7 @@ describe('DiaryRoom', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -328,17 +356,294 @@ describe('DiaryRoom', () => {
     expect(store.getState().game.twinShock?.promptStage).toBeNull()
     expect(screen.queryByTestId('twin-shock-required-response')).toBeNull()
     expect(screen.getByRole('button', { name: /go back/i })).toBeTruthy()
+    await flushConversationTimers()
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(1)
   })
 
   it('greets the player on first entry', async () => {
     renderDiaryRoom()
     await flushConversationTimers()
 
+    expect(screen.getByText(/hello, you\. what is on your mind\?/i)).toBeTruthy()
+  })
+
+  it('shows one mission prompt instead of a greeting and delayed second welcome', async () => {
+    const { store } = renderDiaryRoom(['/diary-room'], {
+      strictMode: true,
+      setupStore: (appStore) => appStore.dispatch(triggerSecretMission(5)),
+    })
+    expect(screen.getByText(/i have a secret mission for you/i)).toBeTruthy()
+    expect(screen.queryByText(/hello,|welcome,/i)).toBeNull()
+    expect(store.getState().game.secretMission?.offerCount).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: /accept the mission/i }))
+    await flushConversationTimers()
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(2)
+    expect(screen.queryByText(/lift your spirits|would you like to hear it/i)).toBeNull()
+    expect(store.getState().game.secretMission?.status).toBe('accepted')
+  })
+
+  it('explains an already offered mission on a new visit without consuming another offer', async () => {
+    const { store } = renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) => {
+        appStore.dispatch(triggerSecretMission(5))
+        appStore.dispatch(offerSecretMission(5))
+      },
+    })
+    await flushConversationTimers()
+    expect(screen.getByText(/i have a secret mission for you/i)).toBeTruthy()
+    expect(store.getState().game.secretMission?.offerCount).toBe(1)
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(1)
+  })
+
+  it('respects a mission decline until a later game day and limits the re-offer', async () => {
+    const first = renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) => appStore.dispatch(triggerSecretMission(5)),
+    })
+    fireEvent.click(screen.getByRole('button', { name: /decline/i }))
+    await flushConversationTimers()
+    expect(screen.getByText('Understood. The mission is declined.')).toBeTruthy()
+    const declinedGame = first.store.getState().game
+    first.unmount()
+    const sameDay = renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) => appStore.dispatch(hydrateGame(declinedGame)),
+    })
+    await flushConversationTimers()
+    expect(screen.queryByLabelText('Secret mission offer')).toBeNull()
+    expect(sameDay.store.getState().game.secretMission?.offerCount).toBe(1)
+    sameDay.unmount()
+    const laterDay = renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) =>
+        appStore.dispatch(hydrateGame({ ...declinedGame, week: declinedGame.week + 1 })),
+    })
+    expect(screen.getByLabelText('Secret mission offer')).toBeTruthy()
+    expect(laterDay.store.getState().game.secretMission?.offerCount).toBe(2)
+  })
+
+  it.each(['available', 'rewardPending'] as const)(
+    'keeps a required vote ahead of an optional %s mission',
+    async (status) => {
+      const { store } = renderDiaryRoom(['/diary-room'], {
+        setupStore: (appStore) => {
+          appStore.dispatch(triggerSecretMission(5))
+          if (status === 'rewardPending') {
+            appStore.dispatch(offerSecretMission(5))
+            appStore.dispatch(acceptSecretMission())
+            appStore.dispatch(completeMission())
+          }
+          const game = (appStore.getState() as RootState).game
+          appStore.dispatch(
+            hydrateGame({
+              ...game,
+              phase: 'live_vote',
+              awaitingHumanVote: true,
+              nomineeIds: [game.players[1].id, game.players[2].id],
+            })
+          )
+        },
+      })
+      await flushConversationTimers()
+      expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(1)
+      expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
+      expect(screen.queryByLabelText('Secret mission offer')).toBeNull()
+      expect(screen.queryByLabelText('Secret mission checklist')).toBeNull()
+      expect(screen.getByLabelText('Diary entry')).toBeDisabled()
+      expect(store.getState().game.secretMission?.status).toBe(status)
+    }
+  )
+
+  it('keeps a reward introduction to one bubble through effect replay and wallet visits', async () => {
+    renderDiaryRoom(['/diary-room'], {
+      strictMode: true,
+      setupStore: (appStore) => {
+        appStore.dispatch(triggerSecretMission(5))
+        appStore.dispatch(offerSecretMission(5))
+        appStore.dispatch(acceptSecretMission())
+        appStore.dispatch(completeMission())
+      },
+    })
+    await flushConversationTimers()
+    fireEvent.click(screen.getByRole('tab', { name: 'Wallet' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Confess' }))
+    await flushConversationTimers()
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(1)
+    expect(screen.getAllByText(/four reward boxes await/i)).toHaveLength(1)
+  })
+
+  it('teaches nomination reveals as the sole entry message, including effect replay', async () => {
+    markVoxNominationRevealIntroSeen()
+    renderDiaryRoom(['/diary-room'], {
+      strictMode: true,
+      setupStore: (appStore) => appStore.dispatch(activateVoxPopuliNow()),
+    })
+    await flushConversationTimers()
+    expect(screen.getByText(/type “reveal nominations” here/i)).toBeTruthy()
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(1)
+  })
+
+  it('serializes rapid form submissions and retains the next draft while waiting', async () => {
+    const generate = vi.spyOn(bigBrother, 'generateBigBrotherReply')
+    renderDiaryRoom()
+    fireEvent.change(screen.getByLabelText('Diary entry'), { target: { value: 'I am bored' } })
+    const form = screen.getByLabelText('Diary entry').closest('form')!
+    act(() => {
+      fireEvent.submit(form)
+      fireEvent.submit(form)
+    })
+    fireEvent.change(screen.getByLabelText('Diary entry'), { target: { value: 'Another thought' } })
+    await flushConversationTimers()
+    expect(generate).toHaveBeenCalledTimes(1)
+    expect(document.querySelectorAll('.diary-room__bubble--user')).toHaveLength(1)
+    expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(2)
+    expect(screen.getByLabelText('Diary entry')).toHaveValue('Another thought')
+  })
+
+  it('discards a delayed reply and memory after the player leaves', async () => {
+    let resolveReply!: (reply: bigBrother.BigBrotherResponse) => void
+    vi.spyOn(bigBrother, 'generateBigBrotherReply').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveReply = resolve
+        })
+    )
+    const visit = renderDiaryRoom()
+    const game = visit.store.getState().game
+    const playerId = game.players.find((player) => player.isUser)!.id
+    fireEvent.change(screen.getByLabelText('Diary entry'), {
+      target: { value: 'What should I do?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350)
+    })
+    visit.unmount()
+    await act(async () => {
+      resolveReply(delayedReply('Old reply'))
+      await vi.runAllTimersAsync()
+    })
+    expect(localStorage.getItem(`big_eye_memory_${game.gameId}_${playerId}`)).toBeNull()
+    expect(sessionStorage.getItem(`bb_dr_chat_${playerId}`)).toBeNull()
     expect(
-      screen.getByText(
-        /hello, you! welcome to the confessional\. here your thoughts may be echoed off the walls/i
+      visit.store.getState().game.tvFeed.filter((event) => /confessional/i.test(event.text))
+    ).toHaveLength(1)
+  })
+
+  it.each(['next-day', 'evicted', 'required-vote'] as const)(
+    'discards a delayed conversational reply when context changes to %s',
+    async (change) => {
+      let resolveReply!: (reply: bigBrother.BigBrotherResponse) => void
+      vi.spyOn(bigBrother, 'generateBigBrotherReply').mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveReply = resolve
+          })
       )
-    ).toBeTruthy()
+      const { store } = renderDiaryRoom()
+      fireEvent.change(screen.getByLabelText('Diary entry'), {
+        target: { value: 'What should I do?' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(350)
+      })
+      const game = store.getState().game
+      await act(async () => {
+        store.dispatch(
+          hydrateGame({
+            ...game,
+            ...(change === 'next-day'
+              ? { week: game.week + 1 }
+              : change === 'evicted'
+                ? {
+                    players: game.players.map((player) =>
+                      player.isUser ? { ...player, status: 'evicted' as const } : player
+                    ),
+                  }
+                : {
+                    phase: 'live_vote' as const,
+                    awaitingHumanVote: true,
+                    nomineeIds: [game.players[1].id, game.players[2].id],
+                  }),
+          })
+        )
+        resolveReply(delayedReply('Old reply'))
+        await vi.runAllTimersAsync()
+      })
+      expect(screen.queryByText('Old reply')).toBeNull()
+      const playerId = game.players.find((player) => player.isUser)!.id
+      expect(localStorage.getItem(`big_eye_memory_${game.gameId}_${playerId}`)).toBeNull()
+    }
+  )
+
+  it('shows recent conversation by default and lets the player retrieve earlier messages', async () => {
+    renderDiaryRoom()
+    for (let index = 0; index < 7; index += 1) {
+      fireEvent.change(screen.getByLabelText('Diary entry'), {
+        target: { value: `Thought number ${index}` },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+      await flushConversationTimers()
+    }
+    expect(document.querySelectorAll('.diary-room__bubble')).toHaveLength(12)
+    expect(screen.queryByText('Thought number 0')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show earlier messages' }))
+    expect(screen.getByText('Thought number 0')).toBeTruthy()
+  })
+
+  it('releases a slow chat turn immediately when a required decision arrives in the same phase', async () => {
+    let resolveReply!: (reply: bigBrother.BigBrotherResponse) => void
+    vi.spyOn(bigBrother, 'generateBigBrotherReply').mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveReply = resolve
+        })
+    )
+    const { store } = renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) => {
+        const game = (appStore.getState() as RootState).game
+        appStore.dispatch(hydrateGame({ ...game, phase: 'live_vote' }))
+      },
+    })
+    fireEvent.change(screen.getByLabelText('Diary entry'), {
+      target: { value: 'What should I do?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(350)
+    })
+    const game = store.getState().game
+    act(() => {
+      store.dispatch(
+        hydrateGame({
+          ...game,
+          awaitingHumanVote: true,
+          nomineeIds: [game.players[1].id, game.players[2].id],
+        })
+      )
+    })
+    expect(screen.queryByText('The Big Eye is forming a response')).toBeNull()
+    expect(screen.queryByRole('button', { name: /waiting/i })).toBeNull()
+    expect(screen.getByTestId('confessional-decision-message')).toBeTruthy()
+    await act(async () => {
+      resolveReply(delayedReply('Old reply'))
+      await vi.runAllTimersAsync()
+    })
+    expect(screen.queryByText('Old reply')).toBeNull()
+  })
+
+  it('does not interpret a new visit’s yes as confirmation of an old self-eviction question', async () => {
+    const visit = renderDiaryRoom()
+    fireEvent.change(screen.getByLabelText('Diary entry'), { target: { value: 'I wanna leave' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+    await flushConversationTimers()
+    const game = visit.store.getState().game
+    visit.unmount()
+    renderDiaryRoom(['/diary-room'], {
+      setupStore: (appStore) => appStore.dispatch(hydrateGame(game)),
+    })
+    fireEvent.change(screen.getByLabelText('Diary entry'), { target: { value: 'yes' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }))
+    await flushConversationTimers()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('clears prior chat after leaving and re-entering the confessional', async () => {
@@ -362,7 +667,7 @@ describe('DiaryRoom', () => {
     expect(screen.queryByText(/want to play a game|offer tic tac toe|wake the board/i)).toBeNull()
     expect(
       screen.getByText(
-        /welcome back\. i am all eyes\.|i have been expecting you\.|ah, you return\.|something tells me you are uneasy\./i
+        /back again\. what changed\?|what do you want to talk through\?|where would you like to start\?|the door is closed\. your turn\./i
       )
     ).toBeTruthy()
 
@@ -546,7 +851,7 @@ describe('DiaryRoom', () => {
     expect(store.getState().game.secretMission?.reward?.type).toBe('immunity')
   })
 
-  it('applies 1,000 Influence when the assigned influence box is claimed', () => {
+  it('claims the current resource-cache box and explains its resources in one reply', () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
       setupStore: (store) => {
         store.dispatch(triggerSecretMission(5))
@@ -557,19 +862,20 @@ describe('DiaryRoom', () => {
     })
 
     const assignedRewards = getSecretMissionBoxRewards(store.getState().game.secretMission!)
-    const influenceBoxIndex = assignedRewards.indexOf('plus1000Influence')
-    const userId = store.getState().game.players.find((player) => player.isUser)?.id ?? 'user'
+    const influenceBoxIndex = assignedRewards.indexOf('resourceCache')
     fireEvent.click(
       screen.getByRole('button', {
         name: new RegExp(`open mystery box ${influenceBoxIndex + 1}`, 'i'),
       })
     )
 
-    expect(store.getState().game.secretMission?.reward?.type).toBe('plus1000Influence')
-    expect(store.getState().social.influenceBank[userId]).toBe(1000)
+    expect(store.getState().game.secretMission?.reward?.type).toBe('resourceCache')
+    expect(
+      screen.getByText(/\+25 social energy, \+500 influence and \+1,000 information/i)
+    ).toBeTruthy()
   })
 
-  it('uses outcome-neutral reward-pending copy and reinjects it for a later mission', async () => {
+  it('replaces an untouched reward prompt when a later mission becomes ready', async () => {
     const { store } = renderDiaryRoom(['/game', '/diary-room'], {
       setupStore: (store) => {
         store.dispatch(triggerSecretMission(5))
@@ -607,7 +913,7 @@ describe('DiaryRoom', () => {
     })
 
     await flushConversationTimers()
-    expect(screen.getAllByText(/four reward boxes await/i)).toHaveLength(2)
+    expect(screen.getAllByText(/four reward boxes await/i)).toHaveLength(1)
   })
 
   it('shows only the locked door for eliminated players and leaves secret missions inactive', async () => {
@@ -920,8 +1226,8 @@ describe('DiaryRoom', () => {
 
     expect(screen.getByText(/i will use power of safety/i)).toBeTruthy()
     expect(
-      screen.getByText(/your choice has been recorded\. the ceremony will proceed\./i)
-    ).toBeTruthy()
+      screen.queryByText(/your choice has been recorded\. the ceremony will proceed\./i)
+    ).toBeNull()
     expect(screen.getByText(/choose which nominee you want to save/i)).toBeTruthy()
   })
 

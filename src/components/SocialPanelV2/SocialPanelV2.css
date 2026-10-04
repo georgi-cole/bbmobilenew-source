@@ -47,6 +47,54 @@
   backdrop-filter: blur(3px);
 }
 
+.sp2-consult-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0.5rem;
+  color: #aaa2b7;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.sp2-consult-scope button {
+  min-width: 0;
+  padding: 0.32rem 0.58rem;
+  border: 1px solid rgba(211, 192, 247, 0.2);
+  border-radius: 999px;
+  background: rgba(19, 14, 29, 0.85);
+  color: #cbc3d8;
+  font: inherit;
+}
+
+.sp2-consult-scope button.is-active {
+  border-color: rgba(190, 151, 255, 0.75);
+  background: rgba(105, 47, 195, 0.55);
+  color: #fff;
+}
+
+.sp2-consult-scope__alliance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.sp2-consult-scope__alliance select {
+  max-width: min(12rem, 52vw);
+  padding: 0.3rem 0.45rem;
+  border: 1px solid rgba(211, 192, 247, 0.2);
+  border-radius: 0.55rem;
+  background: rgba(19, 14, 29, 0.85);
+  color: #eee8f6;
+  font: inherit;
+}
+
+.sp2-consult-scope__alliance-name {
+  color: #d5c2fb;
+  font-size: 0.68rem;
+}
+
 .sp2-backdrop--weekend {
   z-index: 20010;
 }
@@ -568,6 +616,7 @@
 }
 
 .sp2-footer {
+  position: relative;
   min-width: 0;
   flex: 0 0 auto;
   display: flex;
@@ -577,6 +626,38 @@
   padding: 0.62rem 0.72rem calc(0.62rem + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, rgba(25, 21, 31, 0.94), rgba(11, 9, 15, 0.98));
   border-top: 1px solid rgba(205, 190, 236, 0.1);
+}
+
+.sp2-pregnancy-burst {
+  position: absolute;
+  z-index: 2;
+  right: 1rem;
+  bottom: calc(100% - 0.2rem);
+  color: #f4d7ff;
+  font-size: 1.15rem;
+  letter-spacing: 0.16rem;
+  text-shadow: 0 0 1rem rgba(204, 142, 255, 0.8);
+  pointer-events: none;
+  animation: sp2-pregnancy-burst 1.8s cubic-bezier(0.16, 0.8, 0.3, 1) both;
+}
+
+@keyframes sp2-pregnancy-burst {
+  0% {
+    opacity: 0;
+    transform: translateY(0.8rem) scale(0.55);
+  }
+  24% {
+    opacity: 1;
+    transform: translateY(-0.25rem) scale(1.12);
+  }
+  68% {
+    opacity: 0.95;
+    transform: translateY(-1.45rem) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-2.2rem) scale(0.88);
+  }
 }
 
 .sp2-footer__cost,

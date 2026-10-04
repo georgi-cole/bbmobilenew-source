@@ -176,6 +176,28 @@ export default function SocialPanelV2() {
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const weekendActive = game.weekendInterlude?.active === true
+  const consultationAlliances = useMemo(() => {
+    if (!humanPlayer) return []
+    const activePlayerIds = new Set(
+      game.players
+        .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+        .map((player) => player.id)
+    )
+    return Object.values(socialState.reality?.alliances ?? {})
+      .filter(
+        (alliance) =>
+          (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+          alliance.memberIds.includes(humanPlayer.id) &&
+          alliance.memberIds.some(
+            (memberId) => memberId !== humanPlayer.id && activePlayerIds.has(memberId)
+          )
+      )
+      .sort(
+        (left, right) =>
+          (left.name ?? left.purpose).localeCompare(right.name ?? right.purpose) ||
+          left.id.localeCompare(right.id)
+      )
+  }, [game.players, humanPlayer, socialState.reality?.alliances])
   const memberAllianceExists = useMemo(() => {
     if (!dramaMode || !humanPlayer) return false
     return Object.values(socialState.reality?.alliances ?? {}).some(
@@ -231,9 +253,12 @@ export default function SocialPanelV2() {
   const [primaryTargetId, setPrimaryTargetId] = useState<string | null>(null)
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
   const [multiSelectActive, setMultiSelectActive] = useState(false)
+  const [consultationScope, setConsultationScope] = useState<'selected' | 'alliance'>('alliance')
+  const [consultationAllianceId, setConsultationAllianceId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
   const [feedbackExpanded, setFeedbackExpanded] = useState(false)
+  const [pregnancyCelebration, setPregnancyCelebration] = useState(false)
   const [successPulse, setSuccessPulse] = useState(false)
   const [relationshipPulseDeltas, setRelationshipPulseDeltas] = useState<
     ReadonlyMap<string, number>
@@ -341,6 +366,8 @@ export default function SocialPanelV2() {
     setSelectedSubjectId(null)
     setFeedbackMsg(null)
     setMultiSelectActive(false)
+    setConsultationScope('alliance')
+    setConsultationAllianceId(null)
   }
 
   function handleClose() {
@@ -375,7 +402,16 @@ export default function SocialPanelV2() {
     !selectedAction?.requiredTargetStatus &&
     selectedActionId !== 'proposeAlliance' &&
     selectedActionId !== 'consult_alliance'
-  const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
+  const isAllianceConsultation = selectedActionId === 'consult_alliance'
+  const selectedConsultationAlliance =
+    consultationAlliances.find((alliance) => alliance.id === consultationAllianceId) ??
+    consultationAlliances.find((alliance) => alliance.memberIds.includes(primaryTargetId ?? '')) ??
+    consultationAlliances[0] ??
+    null
+  const usesMultipleTargets =
+    targetMode === 'multi' ||
+    (multiSelectActive && isBatchCompatible) ||
+    (isAllianceConsultation && consultationScope === 'selected')
   // A social visit always starts with the roster unselected. Contextual calls
   // can highlight an action, but never choose a housemate on the player's behalf.
   const effectivePrimaryTargetId = targetMode === 'none' ? null : primaryTargetId
@@ -389,11 +425,12 @@ export default function SocialPanelV2() {
     [effectivePrimaryTargetId, selectedTargets]
   )
   const selectedTargetCount = selectedTargets.size
+  const minimumTargetCount = Math.max(1, selectedAction?.minTargets ?? 2)
   const needsTarget = targetMode !== 'none'
   const needsSubject = targetMode === 'primaryPlusSubject'
   const hasRequiredTargets =
     targetMode === 'multi'
-      ? selectedTargetCount >= Math.max(2, selectedAction?.minTargets ?? 2)
+      ? selectedTargetCount >= minimumTargetCount
       : usesMultipleTargets
         ? selectedTargetCount >= 1
         : !needsTarget || effectivePrimaryTargetId !== null
@@ -414,7 +451,7 @@ export default function SocialPanelV2() {
     if (selectedActionId === 'group_chat') {
       return { ...baseCosts, energy: Math.max(2, selectedTargetCount) }
     }
-    if (usesMultipleTargets) {
+    if (usesMultipleTargets && !isAllianceConsultation) {
       return {
         energy: baseCosts.energy * targetCount,
         influence: baseCosts.influence * targetCount,
@@ -430,6 +467,7 @@ export default function SocialPanelV2() {
     selectedActionId,
     selectedTargetCount,
     targetCount,
+    isAllianceConsultation,
     usesMultipleTargets,
   ])
 
@@ -458,6 +496,20 @@ export default function SocialPanelV2() {
           : effectivePrimaryTargetId
             ? [effectivePrimaryTargetId]
             : []
+
+    if (isAllianceConsultation) {
+      const hasCommonAlliance = Boolean(
+        selectedConsultationAlliance &&
+        selectedConsultationAlliance.memberIds.includes(humanPlayer.id) &&
+        targetIds.every((targetId) => selectedConsultationAlliance.memberIds.includes(targetId))
+      )
+      if (!hasCommonAlliance) {
+        return {
+          eligible: false,
+          reason: 'Choose one or more members of the selected alliance.',
+        }
+      }
+    }
 
     if (usesMultipleTargets && targetMode !== 'multi') {
       for (const targetId of targetIds) {
@@ -491,8 +543,10 @@ export default function SocialPanelV2() {
     game,
     hasExecutableSelection,
     humanPlayer,
+    isAllianceConsultation,
     selectedAction,
     selectedSubjectId,
+    selectedConsultationAlliance,
     selectedTargets,
     settings,
     socialState,
@@ -511,7 +565,9 @@ export default function SocialPanelV2() {
       selectedActionId === 'paternity_test_self'
       ? 'You'
       : selectedActionId === 'consult_alliance'
-        ? 'Alliance'
+        ? consultationScope === 'alliance'
+          ? 'Whole alliance'
+          : 'Selected allies'
         : targetMode === 'none'
           ? weekendActive
             ? 'Hub'
@@ -645,6 +701,8 @@ export default function SocialPanelV2() {
         setSelectedActionId(null)
         setSelectedSubjectId(null)
         setMultiSelectActive(false)
+        setConsultationScope('alliance')
+        setConsultationAllianceId(null)
         setFeedbackMsg(null)
         return
       }
@@ -663,6 +721,8 @@ export default function SocialPanelV2() {
         setMultiSelectActive(false)
       }
       setSelectedActionId(actionId)
+      setConsultationScope('alliance')
+      setConsultationAllianceId(null)
       setSelectedSubjectId(null)
       setFeedbackMsg(null)
     },
@@ -728,6 +788,7 @@ export default function SocialPanelV2() {
     isExecutingRef.current = true
     setExecuting(true)
     setFeedbackMsg(null)
+    setPregnancyCelebration(false)
 
     const targetIds =
       targetMode === 'none'
@@ -748,8 +809,12 @@ export default function SocialPanelV2() {
       releaseGuard()
       return
     }
-    if (targetMode === 'multi' && targetIds.length < 2) {
-      setFeedbackMsg('Select at least two players for a group action.')
+    if (targetMode === 'multi' && targetIds.length < minimumTargetCount) {
+      setFeedbackMsg(
+        minimumTargetCount === 1
+          ? 'Select at least one housemate.'
+          : `Select at least ${minimumTargetCount} housemates for this group action.`
+      )
       releaseGuard()
       return
     }
@@ -799,6 +864,12 @@ export default function SocialPanelV2() {
                 targetId: targetIds[0],
                 targetIds,
                 actionId: selectedActionId,
+                consultationScope:
+                  selectedActionId === 'consult_alliance' ? consultationScope : undefined,
+                consultationAllianceId:
+                  selectedActionId === 'consult_alliance'
+                    ? selectedConsultationAlliance?.id
+                    : undefined,
                 subjectId: selectedSubjectId ?? undefined,
                 costOverride: totalCosts,
               })
@@ -835,6 +906,12 @@ export default function SocialPanelV2() {
                     targetId: targetIds[0],
                     targetIds,
                     actionId: selectedActionId,
+                    consultationScope:
+                      selectedActionId === 'consult_alliance' ? consultationScope : undefined,
+                    consultationAllianceId:
+                      selectedActionId === 'consult_alliance'
+                        ? selectedConsultationAlliance?.id
+                        : undefined,
                     subjectId: selectedSubjectId ?? undefined,
                     costOverride: totalCosts,
                   })
@@ -843,6 +920,7 @@ export default function SocialPanelV2() {
 
     const successfulResults = results.filter((result) => result.success)
     const firstResult = results[0]
+    setPregnancyCelebration(firstResult.label === 'Positive')
     const reachedTargetCount =
       Object.keys(firstResult.targetDeltas ?? {}).length || successfulResults.length
     setFeedbackMsg(
@@ -873,6 +951,7 @@ export default function SocialPanelV2() {
         selectedActionId === 'group_chat'
           ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
           : selectedActionId === 'ask_loh_target' ||
+              selectedActionId === 'share_pregnancy_news' ||
               selectedActionId === 'pregnancy_test_self' ||
               selectedActionId === 'paternity_test_self'
             ? firstResult.summary
@@ -929,6 +1008,9 @@ export default function SocialPanelV2() {
     influence,
     selectedAction,
     selectedActionId,
+    minimumTargetCount,
+    consultationScope,
+    selectedConsultationAlliance,
     selectedSubjectId,
     selectedTargets,
     targetMode,
@@ -1208,10 +1290,82 @@ export default function SocialPanelV2() {
               {usesMultipleTargets && (
                 <span className="sp2-multi-hint" role="status">
                   Group: {selectedTargets.size} selected ·{' '}
-                  {targetMode === 'multi' ? 'tap 2+ players' : 'applies to everyone selected'}
+                  {targetMode === 'multi'
+                    ? `tap ${minimumTargetCount === 1 ? '1+' : `${minimumTargetCount}+`} players`
+                    : 'applies to everyone selected'}
                 </span>
               )}
             </div>
+            {isAllianceConsultation && (
+              <div className="sp2-consult-scope" role="group" aria-label="Consultation scope">
+                <span>Invite</span>
+                <button
+                  type="button"
+                  aria-pressed={consultationScope === 'selected'}
+                  className={consultationScope === 'selected' ? 'is-active' : ''}
+                  onClick={() => {
+                    setConsultationScope('selected')
+                    if (primaryTargetId)
+                      setSelectedTargets((current) =>
+                        current.size > 0 ? current : new Set([primaryTargetId])
+                      )
+                  }}
+                >
+                  Selected allies
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={consultationScope === 'alliance'}
+                  className={consultationScope === 'alliance' ? 'is-active' : ''}
+                  onClick={() => {
+                    setConsultationScope('alliance')
+                    if (primaryTargetId) setSelectedTargets(new Set([primaryTargetId]))
+                  }}
+                >
+                  Whole alliance
+                </button>
+                {consultationAlliances.length > 1 ? (
+                  <label className="sp2-consult-scope__alliance">
+                    <span>Alliance</span>
+                    <select
+                      aria-label="Alliance to consult"
+                      value={selectedConsultationAlliance?.id ?? ''}
+                      onChange={(event) => {
+                        const alliance = consultationAlliances.find(
+                          (candidate) => candidate.id === event.target.value
+                        )
+                        if (!alliance || !humanPlayer) return
+                        setConsultationAllianceId(alliance.id)
+                        const activeRepresentative = alliance.memberIds.find(
+                          (memberId) =>
+                            memberId !== humanPlayer.id &&
+                            game.players.some(
+                              (player) =>
+                                player.id === memberId &&
+                                player.status !== 'evicted' &&
+                                player.status !== 'jury'
+                            )
+                        )
+                        setPrimaryTargetId(activeRepresentative ?? null)
+                        setSelectedTargets(
+                          activeRepresentative ? new Set([activeRepresentative]) : new Set()
+                        )
+                      }}
+                    >
+                      {consultationAlliances.map((alliance) => (
+                        <option key={alliance.id} value={alliance.id}>
+                          {alliance.name ?? alliance.purpose}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : selectedConsultationAlliance ? (
+                  <span className="sp2-consult-scope__alliance-name">
+                    {selectedConsultationAlliance.name ?? selectedConsultationAlliance.purpose}
+                  </span>
+                ) : null}
+              </div>
+            )}
             <PlayerList
               players={orderedPlayers}
               humanPlayerId={humanPlayer.id}
@@ -1406,6 +1560,11 @@ export default function SocialPanelV2() {
         </div>
 
         <footer className="sp2-footer" data-reality-tutorial="footer">
+          {pregnancyCelebration && (
+            <span className="sp2-pregnancy-burst" aria-hidden="true">
+              🤰 ✨ 🍼 💜 ✨
+            </span>
+          )}
           {feedbackMsg ? (
             <button
               type="button"

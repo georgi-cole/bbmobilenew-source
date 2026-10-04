@@ -75,6 +75,11 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
     humanMustBeHoh: true,
     invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],
   },
+  unavoidable_nominee_reaction: {
+    senderMustBeNominee: true,
+    humanMustBeHoh: true,
+    invalidPhases: ['live_vote', 'eviction_results', 'week_end', 'week_start'],
+  },
   automatic_nominee_reaction: {
     senderMustBeNominee: true,
     allowedPhases: ['nomination_results'],

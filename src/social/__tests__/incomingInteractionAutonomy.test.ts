@@ -158,6 +158,43 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(interaction?.payload?.scenarioKey).toBe('nominee_understands_loh')
   })
 
+  it.each([
+    ['nomination_results', 'INITIAL'],
+    ['pos_ceremony_results', 'REPLACEMENT'],
+  ] as const)(
+    'recognizes an unavoidable %s nomination in the incoming reaction',
+    (phase, stage) => {
+      const context = buildContext({
+        phase,
+        lohId: 'user',
+        nomineeIds: ['nominee'],
+        replacementNomineeIds: stage === 'REPLACEMENT' ? ['nominee'] : [],
+        gameState: {
+          nominationDecisionReasons: {
+            forced: {
+              week: 2,
+              lohId: 'user',
+              nomineeId: 'nominee',
+              stage,
+              primaryReason: 'FORCED_BY_RULES',
+            },
+          },
+        } as unknown as AutonomyContext['gameState'],
+        random: () => 0,
+      })
+      const store = buildStore(context)
+
+      scheduleIncomingInteractionsForPhase(phase, store, context)
+
+      const interaction = store.social.scheduledIncomingInteractions.find(
+        (entry) => entry.interaction.fromId === 'nominee'
+      )?.interaction
+      expect(interaction?.payload?.scenarioKey).toBe('unavoidable_nominee_reaction')
+      expect(interaction?.text).toMatch(/only choice|no other|rule|safety/i)
+      expect(interaction?.text).not.toMatch(/you chose|you put me up|your move/i)
+    }
+  )
+
   it('attributes an automatic last-place nomination to the rule before LOH conflict logic', () => {
     const context = buildContext({
       phase: 'nomination_results',

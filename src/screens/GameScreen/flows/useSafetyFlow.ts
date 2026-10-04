@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   aiReplacementRendered,
+  getEligibleReplacementNominees,
   setReplacementNominee,
   submitDiamondReplacement,
   submitPovSaveTarget,
@@ -52,33 +53,10 @@ export function useSafetyFlow({
   // replacement. The Continue button is hidden while this modal is open.
   // (showReplacementModal is defined below after pendingReplacementCeremony.)
   const replacementNeeded = game.replacementNeeded === true
-  const replacementBaseOptions = (() => {
-    const roleIds = new Set(
-      expandCupidIds(
-        game,
-        [game.lohId, game.posWinnerId].filter((id): id is string => Boolean(id))
-      )
-    )
-    const candidates = alivePlayers.filter((player) => {
-      const unitIds = expandCupidIds(game, [player.id])
-      return !roleIds.has(player.id) && unitIds.every((id) => !game.nomineeIds.includes(id))
-    })
-    if (!isCupidArrowActive(game)) return candidates
-    const seen = new Set<string>()
-    return candidates.filter((player) => {
-      const key = getCupidPair(game, player.id)?.id ?? `solo:${player.id}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-  })()
-  const replacementOptions = (() => {
-    const protectedIds = new Set(game.povProtectedIds ?? [])
-    const nonProtected = replacementBaseOptions.filter((player) =>
-      expandCupidIds(game, [player.id]).every((id) => !protectedIds.has(id))
-    )
-    return nonProtected.length > 0 ? nonProtected : replacementBaseOptions
-  })()
+  const replacementOptions = getEligibleReplacementNominees(
+    game,
+    game.coLohReplacementOwnerId ?? game.lohId
+  )
 
   // ── Human POS holder decision (use veto or not) ──────────────────────────
   const humanIsPosHolder = Boolean(
@@ -505,18 +483,10 @@ export function useSafetyFlow({
   const showReplacementModal =
     replacementNeeded && humanIsHoH && !pendingReplacementCeremony && !activeConfessionalDecision
   const holderReplacementOptions = replacementOptions
-  const coupBaseOptions = alivePlayers.filter(
-    (p) =>
-      p.id !== game.posWinnerId &&
-      !game.nomineeIds.includes(p.id) &&
-      p.id !== game.specialVeto?.coupReplacement1Id
-  )
-  const coupReplacementOptions = (() => {
-    const protectedIds = new Set(game.povProtectedIds ?? [])
-    const nonProtected = coupBaseOptions.filter((player) => !protectedIds.has(player.id))
-    const neededCount = game.specialVeto?.awaitingCoupReplacement1 ? 2 : 1
-    return nonProtected.length >= neededCount ? nonProtected : coupBaseOptions
-  })()
+  const coupReplacementOptions = getEligibleReplacementNominees(game, game.posWinnerId, {
+    allowLoh: true,
+    neededCount: game.specialVeto?.awaitingCoupReplacement1 ? 2 : 1,
+  }).filter((player) => player.id !== game.specialVeto?.coupReplacement1Id)
 
   // ── Store-driven replacement nominee animation ───────────────────────────
   // AI replacements and Confessional human-LOH replacements are already committed

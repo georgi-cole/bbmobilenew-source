@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppSelector } from '../../store/hooks'
 import { findByName, getById } from '../../data/houseguests'
-import {
-  buildAchievementSummary,
-  findArchiveUserSummary,
-} from '../../store/achievementSummary'
+import { buildAchievementSummary, findArchiveUserSummary } from '../../store/achievementSummary'
 import type { SeasonArchive } from '../../store/seasonArchive'
 import './Leaderboard.css'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
@@ -44,7 +41,9 @@ function seasonFormatLabel(archive: SeasonArchive): string {
 function seasonDuration(archive: SeasonArchive): number | null {
   const durations = archive.playerSummaries
     .map((summary) => summary.daysAlive ?? summary.weeksAlive)
-    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0)
+    .filter(
+      (value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0
+    )
   if (durations.length === 0) return null
   return Math.max(...durations)
 }
@@ -66,7 +65,9 @@ export default function Leaderboard() {
         .map((archive) => {
           const winner = archive.playerSummaries.find((summary) => summary.finalPlacement === 1)
           const runnerUp = archive.playerSummaries.find((summary) => summary.finalPlacement === 2)
-          const publicFavorite = archive.playerSummaries.find((summary) => summary.wonPublicFavorite)
+          const publicFavorite = archive.playerSummaries.find(
+            (summary) => summary.wonPublicFavorite
+          )
           const userSummary = findArchiveUserSummary(archive, userPlayer)
           const duration = seasonDuration(archive)
           return {
@@ -222,7 +223,10 @@ export default function Leaderboard() {
       )}
 
       {tab === 'achievements' && (
-        <section className="hall-of-fame-screen__panel hall-of-fame-screen__achievements" aria-label="Achievements">
+        <section
+          className="hall-of-fame-screen__panel hall-of-fame-screen__achievements"
+          aria-label="Achievements"
+        >
           <div className="hall-of-fame-screen__achievement-intro">
             <div>
               <span className="hall-of-fame-screen__eyebrow">Career legacy</span>

@@ -219,6 +219,7 @@ export default function EditProfile() {
         name: name.trim() || profile.name,
         avatar,
         photoId,
+        age: bio.age,
       })
     )
 

@@ -12,6 +12,8 @@ import {
   declineVoteDeduction,
   finalizeNominations,
   hydrateGame,
+  getEligibleReplacementNominees,
+  resolveUnfillableReplacement,
   submitHumanDoubleVote,
   submitCoLohNomination,
   canStoreNominationProtectionAffectPlayer,
@@ -84,7 +86,15 @@ function reconcileReservations(api: PowerMiddlewareApi) {
   ;(['immunity', 'protection'] as const).forEach((productKey) => {
     const reservation = reservationFor(state, productKey)
     if (!reservation) {
-      if (state.game.storeNominationProtections?.some((item) => item.productKey === productKey)) {
+      if (
+        state.game.storeNominationProtections?.some(
+          (item) =>
+            item.productKey === productKey &&
+            (shouldReturn ||
+              item.week !== state.game.week ||
+              (state.game.phase === 'nomination_results' && state.game.awaitingNominations))
+        )
+      ) {
         api.dispatch(clearStoreNominationProtection(productKey))
       }
       return
@@ -162,8 +172,9 @@ function resolveNominationProtection(api: PowerMiddlewareApi, before: PowerMiddl
         })
       )
     }
-    // If the target was already immune or auto-nominated, keep the reservation.
-    api.dispatch(clearStoreNominationProtection(protection.productKey))
+    // A consumed shield stays active for the rest of this day, including any
+    // public save, Safety replacement, or LOH ambush. The next day clears it.
+    else api.dispatch(clearStoreNominationProtection(protection.productKey))
   }
 }
 
@@ -226,6 +237,14 @@ export const eyeoleanPowerMiddleware: Middleware = (api) => {
     const result = next(action)
 
     reconcileReservations(typedApi)
+
+    const replacementState = typedApi.getState().game
+    if (
+      replacementState.replacementNeeded &&
+      getEligibleReplacementNominees(replacementState).length === 0
+    ) {
+      typedApi.dispatch(resolveUnfillableReplacement())
+    }
 
     const afterReconcile = typedApi.getState()
     if (advance.match(action) || hydrateGame.match(action)) {

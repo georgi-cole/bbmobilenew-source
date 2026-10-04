@@ -509,6 +509,12 @@ function isReplacementEligible(state: GameState, playerId: string): boolean {
   if (state.nomineeIds.includes(playerId)) return false
   if (state.povSavedId === playerId) return false
   if ((state.povProtectedIds ?? []).includes(playerId)) return false
+  if (
+    state.storeNominationProtections?.some(
+      (protection) => protection.week === state.week && protection.targetId === playerId
+    )
+  )
+    return false
   return true
 }
 

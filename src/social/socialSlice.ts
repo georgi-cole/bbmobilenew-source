@@ -158,11 +158,22 @@ function projectRealityTags(
   ) {
     tags.push('romance')
   }
-  if (edge?.perceivedLabel === 'RIVAL') tags.push('rivalry')
+  if (edge?.perceivedLabel === 'RIVAL' || edge?.perceivedLabel === 'ENEMY') tags.push('rivalry')
   if ((edge?.suspicion ?? 0) >= 55) tags.push('suspicious')
   if ((edge?.reliability ?? 0) <= -35) tags.push('unreliable')
   if (
-    edge?.perceivedLabel === 'ENEMY' ||
+    reality.events.some(
+      (event) =>
+        event.participantIds.includes(sourceId) &&
+        event.participantIds.includes(targetId) &&
+        (event.type === 'ALLIANCE_BETRAYAL' ||
+          event.actionId === 'betray' ||
+          event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
+    )
+  ) {
+    tags.push('betrayal')
+  }
+  if (
     Object.values(reality.grievances).some(
       (grievance) =>
         grievance.holderId === sourceId &&
@@ -171,7 +182,7 @@ function projectRealityTags(
         grievance.severity >= 65
     )
   ) {
-    tags.push('betrayal')
+    tags.push('strained')
   }
   if (
     Object.values(reality.promises).some(

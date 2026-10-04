@@ -83,6 +83,8 @@ export interface ReactMinigameCompletion {
   authoritativeWinnerId?: string | null
   /** Authoritative worst finisher when the minigame owns its full standings. */
   authoritativeLastPlaceId?: string | null
+  /** Complete feature-owned ordering, best to worst, when its scoring has richer tie-breaks. */
+  authoritativeRankedIds?: string[]
   rawValue?: number
   rawResults?: Record<string, number>
   /** Optional time-based tie-breaker in ms (lower = faster = better rank). */
@@ -413,6 +415,14 @@ export default function MinigameHost({
       return { ...p, score, isPR }
     })
     entries.sort((a, b) => {
+      const authoritativeRank = finalCompletion?.authoritativeRankedIds
+      if (authoritativeRank?.length) {
+        const rankA = authoritativeRank.indexOf(a.id)
+        const rankB = authoritativeRank.indexOf(b.id)
+        if (rankA >= 0 && rankB >= 0 && rankA !== rankB) return rankA - rankB
+        if (rankA >= 0) return -1
+        if (rankB >= 0) return 1
+      }
       if (finalCompletion?.authoritativeWinnerId && a.id !== b.id) {
         if (a.id === finalCompletion.authoritativeWinnerId) return -1
         if (b.id === finalCompletion.authoritativeWinnerId) return 1
@@ -861,7 +871,16 @@ export default function MinigameHost({
 
   return (
     <div
-      className="minigame-host"
+      className={[
+        'minigame-host',
+        launchedGame.reactComponentKey === 'NumberTrivia' ||
+        launchedGame.reactComponentKey === 'SnakeGame' ||
+        launchedGame.reactComponentKey === 'BlackjackTournament'
+          ? 'minigame-host--scrollable-game'
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="dialog"
       aria-modal="true"
       aria-label={`${launchedGame.title} minigame`}
@@ -932,7 +951,21 @@ export default function MinigameHost({
       )}
 
       {phase === 'playing' && (
-        <div className="minigame-host-playing" key={`${sessionId}:${attempt}`}>
+        <div
+          className={[
+            'minigame-host-playing',
+            launchedGame.reactComponentKey === 'NumberTrivia'
+              ? 'minigame-host-playing--number-trivia'
+              : '',
+            launchedGame.reactComponentKey === 'SnakeGame' ? 'minigame-host-playing--snake' : '',
+            launchedGame.reactComponentKey === 'BlackjackTournament'
+              ? 'minigame-host-playing--blackjack'
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          key={`${sessionId}:${attempt}`}
+        >
           {renderActiveGame()}
         </div>
       )}

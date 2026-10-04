@@ -70,6 +70,15 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Explain the decision', 'Hear them out', 'Keep it strictly strategic', 'End the talk'],
     ['Own the move', 'Ask what they need', 'Refuse to apologize', 'Give them space'],
   ],
+  unavoidable_nominee_reaction: [
+    ['Acknowledge the rule', 'Discuss Safety and votes', 'Say you cannot help', 'Give them space'],
+    [
+      'Confirm there was no alternative',
+      'Plan their next move',
+      'Keep your distance',
+      'End the talk',
+    ],
+  ],
   automatic_nominee_reaction: [
     ['Acknowledge the rule', 'Hear how they feel', 'Talk next steps', 'Give them space'],
     ['Keep it factual', 'Ask what they need now', 'Focus on Safety', 'End the talk'],

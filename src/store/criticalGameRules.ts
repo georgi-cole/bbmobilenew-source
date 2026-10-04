@@ -161,13 +161,18 @@ export function canCastClassicEvictionVote(state: GameState, playerId: string): 
 }
 
 /**
- * Resolve the special tie-break authority after the ordinary vote.
- *
- * Democracia co-LOH days delegate the tie-break to the POS holder. Normal
- * Classic uses the LOH. In either case, a current nominee is ineligible to
- * break the tie; this matters for Detox, which can put the LOH on the block.
+ * Resolve who breaks a tied elimination vote. Double Eviction delegates to the
+ * audience in Public Mode and to the LOH otherwise, with an eligible Safety
+ * holder as fallback if the LOH cannot decide. Democracia co-LOH days delegate
+ * to the Safety holder; ordinary Classic uses LOH. A nominee cannot break a
+ * tie, which matters for shocks that can put an office holder on the block.
  */
 export function getClassicEvictionTieBreakerId(state: GameState): string | null {
+  const isDoubleEvictionTie = state.doubleEviction?.weekActive === true
+  // A double-elimination tie is decided by the audience when Public Mode is
+  // on, otherwise by the sitting LOH. The POS holder is only the fallback if
+  // that LOH is ineligible.
+  if (isDoubleEvictionTie && state.publicModeEnabled) return null
   const isCoLohDay = Boolean(state.coLohIds && state.coLohIds.length >= 2)
   const primaryCandidateId = isCoLohDay ? state.posWinnerId : state.lohId
   if (
@@ -178,11 +183,23 @@ export function getClassicEvictionTieBreakerId(state: GameState): string | null 
     return primaryCandidateId
   }
 
-  // Some shocks (currently Detox) can deliberately put the sitting LOH on the
-  // block. A nominee cannot break their own eviction tie, so the POS holder
-  // becomes the explicit emergency tie-break authority instead of silently
-  // falling through to a random elimination.
-  if (!isCoLohDay && state.lohId && state.nomineeIds.includes(state.lohId)) {
+  // If the LOH cannot decide (for example, they are a nominee), let an
+  // eligible Safety holder break the tie instead of choosing a random exit.
+  if (isDoubleEvictionTie && state.lohId) {
+    const fallbackId = state.posWinnerId
+    if (fallbackId && isActivePlayer(state, fallbackId) && !state.nomineeIds.includes(fallbackId)) {
+      return fallbackId
+    }
+  }
+
+  // Some shocks (currently Detox) can put the LOH on the block. For an
+  // ordinary Classic tie, delegate to an eligible Safety holder in that case.
+  if (
+    !isDoubleEvictionTie &&
+    !isCoLohDay &&
+    state.lohId &&
+    state.nomineeIds.includes(state.lohId)
+  ) {
     const fallbackId = state.posWinnerId
     if (fallbackId && isActivePlayer(state, fallbackId) && !state.nomineeIds.includes(fallbackId)) {
       return fallbackId

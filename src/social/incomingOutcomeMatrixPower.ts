@@ -2,6 +2,26 @@ import { acts, says } from './incomingOutcomeMatrixUtils'
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  unavoidable_nominee_reaction: {
+    'acknowledge the rule': says(
+      'they know you had no legal alternative and want to plan their survival.'
+    ),
+    'discuss safety and votes': says(
+      'they shift the conversation to the decisions that can still change their week.'
+    ),
+    'say you cannot help': says(
+      'they understand the nomination was forced, but will find support elsewhere.'
+    ),
+    'give them space': acts('starts campaigning without blaming you for the forced nomination.'),
+    'confirm there was no alternative': says(
+      'they agree that the legal choices were already fixed.'
+    ),
+    'plan their next move': says('they want to focus on the next controllable decision.'),
+    'keep your distance': says(
+      'they stop relying on you for help without blaming you for the forced block.'
+    ),
+    'end the talk': acts('leaves the conversation without treating the nomination as betrayal.'),
+  },
   hoh_safety_request: {
     'give them a real opening': says(
       'they can offer you a week of safety if you keep their name off the block.'

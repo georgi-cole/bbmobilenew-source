@@ -161,20 +161,16 @@
 /* ── Status line ────────────────────────────────────────────────────────── */
 
 .snake-status-line {
-  position: absolute;
-  top: var(--snake-lcd-status-top);
-  left: var(--snake-lcd-status-side);
-  z-index: 2;
+  flex: 0 0 auto;
+  align-self: stretch;
   font-family: 'Courier New', Courier, monospace;
   font-size: clamp(9px, 2.4vw, 12px);
   font-weight: 700;
-  color: var(--snake-pixel-dark);
-  background: rgba(155, 188, 15, 0.26);
-  padding: 1px 5px;
-  border-radius: 1px;
+  color: var(--snake-lcd-top);
+  text-align: left;
+  padding: 2px 5px 4px;
   letter-spacing: 1px;
   line-height: 1.1;
-  text-shadow: 0 0 1px rgba(15, 56, 15, 0.2);
   pointer-events: none;
 }
 
@@ -624,6 +620,213 @@
 @media (max-width: 360px) {
   .snake-root {
     --snake-phone-width: min(100%, 340px);
+  }
+}
+
+/* Hosted layout: the host reserves the utility dock and device safe areas. */
+.minigame-host-playing--snake {
+  touch-action: pan-y;
+}
+
+.minigame-host-playing > .snake-root {
+  position: absolute;
+  inset: var(--minigame-stage-top-padding) var(--minigame-safe-padding-right)
+    var(--minigame-safe-padding-bottom) var(--minigame-safe-padding-left);
+  width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  background: transparent;
+}
+
+.minigame-host-playing > .snake-root .snake-phone {
+  flex: 0 1 auto;
+  width: min(100%, 480px);
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: clamp(8px, 1.5vh, 12px) clamp(8px, 2vw, 16px);
+  gap: 0;
+  border: 1px solid rgba(109, 108, 145, 0.52);
+  border-radius: 18px;
+  box-sizing: border-box;
+}
+
+.minigame-host-playing > .snake-root .snake-lcd-bezel {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.minigame-host-playing > .snake-root .snake-overlay-title {
+  font-size: clamp(16px, 4.5vw, 22px);
+}
+
+.minigame-host-playing > .snake-root .snake-overlay-hint {
+  font-size: clamp(11px, 3vw, 14px);
+}
+
+.minigame-host-playing > .snake-root .snake-btn {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.minigame-host-playing > .snake-root .snake-dpad {
+  flex: 0 0 auto;
+  --snake-dpad-size: clamp(44px, 10vw, 54px);
+  margin: 6px 0 0;
+}
+
+.minigame-host-playing > .snake-root .snake-dpad-btn {
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+.minigame-host-playing > .snake-root .snake-dpad-btn:focus-visible,
+.minigame-host-playing > .snake-root .snake-btn:focus-visible {
+  outline: 3px solid #f5e98d;
+  outline-offset: 2px;
+}
+
+.minigame-host-playing > .snake-root .snake-btn--start,
+.minigame-host-playing > .snake-root .snake-btn--ff,
+.minigame-host-playing > .snake-root .snake-btn--done {
+  min-height: 48px;
+  touch-action: manipulation;
+}
+
+.minigame-host-playing > .snake-root .snake-results {
+  width: min(100%, 420px);
+  max-height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.minigame-host-playing > .snake-root .snake-results-title {
+  font-size: 1.15rem;
+}
+
+.minigame-host-playing > .snake-root .snake-results-winner {
+  margin: 0 0 8px;
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.minigame-host-playing > .snake-root .snake-leaderboard {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(
+    52dvh,
+    calc(
+      100dvh - var(--minigame-stage-top-padding) - var(--minigame-safe-padding-bottom) - 200px
+    )
+  );
+  margin-bottom: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.minigame-host-playing > .snake-root .snake-leaderboard-entry {
+  min-height: 40px;
+  padding: 6px 8px;
+  gap: 7px;
+  font-size: 0.78rem;
+  box-sizing: border-box;
+}
+
+.minigame-host-playing > .snake-root .snake-leaderboard-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.minigame-host-playing > .snake-root .snake-leaderboard-score {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+}
+
+.minigame-host-playing > .snake-root .snake-btn--done {
+  position: sticky;
+  bottom: 0;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.minigame-host-playing > .snake-root .snake-waiting {
+  width: min(100%, 420px);
+  max-height: 100%;
+  padding: clamp(12px, 2vh, 18px);
+  box-sizing: border-box;
+}
+
+.minigame-host-playing > .snake-root .snake-waiting-copy {
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+}
+
+.minigame-host-playing > .snake-root .snake-mini-shell {
+  width: min(100%, 200px);
+  margin-bottom: 10px;
+  padding: 7px;
+}
+
+.minigame-host-playing > .snake-root .snake-mini-lcd {
+  height: clamp(56px, 12vh, 84px);
+}
+
+@media (max-height: 700px) {
+  .minigame-host-playing > .snake-root .snake-phone {
+    padding-block: 6px;
+  }
+
+  .minigame-host-playing > .snake-root .snake-dpad {
+    margin-top: 4px;
+  }
+
+  .minigame-host-playing > .snake-root .snake-waiting-copy {
+    margin-bottom: 6px;
+  }
+
+  .minigame-host-playing > .snake-root .snake-mini-shell {
+    margin-bottom: 6px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .minigame-host-playing > .snake-root .snake-phone {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .minigame-host-playing > .snake-root .snake-lcd-bezel {
+    flex: 1 1 auto;
+    height: 100%;
+  }
+
+  .minigame-host-playing > .snake-root .snake-dpad {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snake-lcd-container--fx-boot,
+  .snake-lcd-container--fx-death,
+  .snake-mini-food,
+  .snake-mini-snake {
+    animation: none;
   }
 }
 

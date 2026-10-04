@@ -74,6 +74,20 @@ export function evaluateRelationshipViolation(
     }
   }
 
+  // With a complete legal-choice snapshot, no remaining alternative means
+  // this nominee was unavoidable. Safety and the vote still matter, but the
+  // LOH did not choose to break the bond or an impossible protection promise.
+  if (input.actionType === 'NOMINATION' && input.eligibleAlternatives?.length === 0) {
+    return {
+      classification: 'NONE',
+      severity: 0,
+      reasons: ['unavoidable_nomination'],
+      forcedChoice: true,
+      consentProtected: false,
+      violatedBondTier: tier,
+    }
+  }
+
   if (input.explicitDefection || input.actionType === 'SOCIAL_BETRAYAL') {
     return {
       classification: 'BETRAYAL',
