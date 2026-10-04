@@ -27,7 +27,7 @@ interface LockableOrientationLike {
  * - optionally hides only the native status bar during gameplay, while the
  *   measured CSS safe area remains the fallback if a platform keeps it visible
  */
-export default function useGameMode(hideNativeStatusBar = false): void {
+export default function useGameMode(hideNativeStatusBar = false, allowLandscape = false): void {
   useEffect(() => {
     const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
     if (!isNativeAndroid) return undefined
@@ -152,14 +152,14 @@ export default function useGameMode(hideNativeStatusBar = false): void {
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
         void requestWakeLock()
-        void lockOrientation()
+        if (!allowLandscape) void lockOrientation()
       } else {
         void releaseWakeLock()
       }
     }
 
     void requestWakeLock()
-    void lockOrientation()
+    if (!allowLandscape) void lockOrientation()
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
@@ -168,5 +168,5 @@ export default function useGameMode(hideNativeStatusBar = false): void {
       unlockOrientation()
       void releaseWakeLock()
     }
-  }, [])
+  }, [allowLandscape])
 }

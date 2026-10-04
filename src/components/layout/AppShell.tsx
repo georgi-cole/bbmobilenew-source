@@ -64,7 +64,7 @@ export default function AppShell() {
 
   // Gameplay owns the full Android display. Other screens restore the native
   // status bar and continue to use the measured safe-area inset.
-  useGameMode(location.pathname === '/game')
+  useGameMode(location.pathname === '/game', allowsLandscape)
 
   // React Router keeps this persistent scroll container mounted between
   // screens. Reset it before the next screen paints so a long form (notably
@@ -143,7 +143,7 @@ export default function AppShell() {
   }, [settings.gameUX.animations])
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${allowsLandscape ? ' app-shell--landscape-game' : ''}`}>
       {remoteBroadcast && (
         <aside
           className={`app-shell__broadcast app-shell__broadcast--${remoteBroadcast.priority ?? 'normal'}`}
