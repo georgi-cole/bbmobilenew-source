@@ -60,6 +60,23 @@ body:has(.game-screen-shell) .app-shell {
   }
 }
 
+@media (orientation: landscape) and (pointer: coarse) {
+  .app-shell.app-shell--landscape-game {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    margin: 0;
+  }
+
+  .app-shell.app-shell--landscape-game .app-shell__main {
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
 .app-shell__main {
   position: relative;
   flex: 1 1 0;
