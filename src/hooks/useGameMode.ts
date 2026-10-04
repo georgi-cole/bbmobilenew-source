@@ -1,20 +1,20 @@
-import { useEffect } from "react";
-import { Capacitor, SystemBars, SystemBarType } from "@capacitor/core";
+import { useEffect } from 'react'
+import { Capacitor, SystemBars, SystemBarType } from '@capacitor/core'
 
 interface WakeLockSentinelLike {
-  released?: boolean;
-  release?: () => Promise<void>;
-  addEventListener?: (type: "release", listener: () => void) => void;
-  removeEventListener?: (type: "release", listener: () => void) => void;
+  released?: boolean
+  release?: () => Promise<void>
+  addEventListener?: (type: 'release', listener: () => void) => void
+  removeEventListener?: (type: 'release', listener: () => void) => void
 }
 
 interface WakeLockControllerLike {
-  request: (type: "screen") => Promise<WakeLockSentinelLike>;
+  request: (type: 'screen') => Promise<WakeLockSentinelLike>
 }
 
 interface LockableOrientationLike {
-  lock?: (orientation: "portrait") => Promise<void>;
-  unlock?: () => void;
+  lock?: (orientation: 'portrait') => Promise<void>
+  unlock?: () => void
 }
 
 /**
@@ -27,21 +27,17 @@ interface LockableOrientationLike {
  * - optionally hides only the native status bar during gameplay, while the
  *   measured CSS safe area remains the fallback if a platform keeps it visible
  */
-export default function useGameMode(
-  hideNativeStatusBar = false,
-  allowLandscape = false,
-): void {
+export default function useGameMode(hideNativeStatusBar = false, allowLandscape = false): void {
   useEffect(() => {
-    const isNativeAndroid =
-      Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
-    if (!isNativeAndroid) return undefined;
+    const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+    if (!isNativeAndroid) return undefined
 
     async function syncStatusBar() {
       try {
         if (hideNativeStatusBar) {
-          await SystemBars.hide({ bar: SystemBarType.StatusBar });
+          await SystemBars.hide({ bar: SystemBarType.StatusBar })
         } else {
-          await SystemBars.show({ bar: SystemBarType.StatusBar });
+          await SystemBars.show({ bar: SystemBarType.StatusBar })
         }
       } catch {
         // Web builds and unsupported native shells keep using measured CSS insets.
@@ -49,68 +45,56 @@ export default function useGameMode(
     }
 
     function handleStatusBarVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void syncStatusBar();
+      if (document.visibilityState === 'visible') {
+        void syncStatusBar()
       }
     }
 
     function handleNativeResume() {
-      void syncStatusBar();
+      void syncStatusBar()
     }
 
-    void syncStatusBar();
-    document.addEventListener(
-      "visibilitychange",
-      handleStatusBarVisibilityChange,
-    );
-    window.addEventListener("focus", handleNativeResume);
-    window.addEventListener("pageshow", handleNativeResume);
+    void syncStatusBar()
+    document.addEventListener('visibilitychange', handleStatusBarVisibilityChange)
+    window.addEventListener('focus', handleNativeResume)
+    window.addEventListener('pageshow', handleNativeResume)
 
     return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleStatusBarVisibilityChange,
-      );
-      window.removeEventListener("focus", handleNativeResume);
-      window.removeEventListener("pageshow", handleNativeResume);
+      document.removeEventListener('visibilitychange', handleStatusBarVisibilityChange)
+      window.removeEventListener('focus', handleNativeResume)
+      window.removeEventListener('pageshow', handleNativeResume)
       if (hideNativeStatusBar) {
-        void SystemBars.show({ bar: SystemBarType.StatusBar }).catch(
-          () => undefined,
-        );
+        void SystemBars.show({ bar: SystemBarType.StatusBar }).catch(() => undefined)
       }
-    };
-  }, [hideNativeStatusBar]);
+    }
+  }, [hideNativeStatusBar])
 
   useEffect(() => {
-    let isMounted = true;
-    let wakeLockSentinel: WakeLockSentinelLike | null = null;
-    let wakeLockRequestInFlight: Promise<void> | null = null;
-    const wakeLock = (
-      navigator as Navigator & { wakeLock?: WakeLockControllerLike }
-    ).wakeLock;
-    const orientation = screen.orientation as
-      | LockableOrientationLike
-      | undefined;
+    let isMounted = true
+    let wakeLockSentinel: WakeLockSentinelLike | null = null
+    let wakeLockRequestInFlight: Promise<void> | null = null
+    const wakeLock = (navigator as Navigator & { wakeLock?: WakeLockControllerLike }).wakeLock
+    const orientation = screen.orientation as LockableOrientationLike | undefined
 
     function isWakeLockRequestAllowedByVisibility() {
-      return document.visibilityState === "visible";
+      return document.visibilityState === 'visible'
     }
 
     const handleWakeLockRelease = () => {
-      wakeLockSentinel = null;
+      wakeLockSentinel = null
       if (isMounted && isWakeLockRequestAllowedByVisibility()) {
-        void requestWakeLock();
+        void requestWakeLock()
       }
-    };
+    }
 
     async function releaseWakeLock() {
-      const activeSentinel = wakeLockSentinel;
-      wakeLockSentinel = null;
+      const activeSentinel = wakeLockSentinel
+      wakeLockSentinel = null
 
-      activeSentinel?.removeEventListener?.("release", handleWakeLockRelease);
+      activeSentinel?.removeEventListener?.('release', handleWakeLockRelease)
 
       try {
-        await activeSentinel?.release?.();
+        await activeSentinel?.release?.()
       } catch {
         // Unsupported/rejected wake-lock releases are safe to ignore.
       }
@@ -123,35 +107,35 @@ export default function useGameMode(
         wakeLockSentinel != null ||
         wakeLockRequestInFlight != null
       ) {
-        return;
+        return
       }
 
       const pendingRequest = (async () => {
         try {
-          const sentinel = await wakeLock?.request("screen");
-          if (!sentinel) return;
+          const sentinel = await wakeLock?.request('screen')
+          if (!sentinel) return
 
           if (!isMounted || !isWakeLockRequestAllowedByVisibility()) {
-            await sentinel.release?.();
-            return;
+            await sentinel.release?.()
+            return
           }
 
-          wakeLockSentinel = sentinel;
-          sentinel.addEventListener?.("release", handleWakeLockRelease);
+          wakeLockSentinel = sentinel
+          sentinel.addEventListener?.('release', handleWakeLockRelease)
         } catch {
           // Browsers may reject wake lock requests unless the page is active.
         } finally {
-          wakeLockRequestInFlight = null;
+          wakeLockRequestInFlight = null
         }
-      })();
+      })()
 
-      wakeLockRequestInFlight = pendingRequest;
-      await pendingRequest;
+      wakeLockRequestInFlight = pendingRequest
+      await pendingRequest
     }
 
     async function lockOrientation() {
       try {
-        await orientation?.lock?.("portrait");
+        await orientation?.lock?.('portrait')
       } catch {
         // Orientation lock is best-effort and unsupported on many browsers.
       }
@@ -159,30 +143,30 @@ export default function useGameMode(
 
     function unlockOrientation() {
       try {
-        orientation?.unlock?.();
+        orientation?.unlock?.()
       } catch {
         // Some browsers expose lock but not unlock; ignore cleanup failures.
       }
     }
 
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void requestWakeLock();
-        if (!allowLandscape) void lockOrientation();
+      if (document.visibilityState === 'visible') {
+        void requestWakeLock()
+        if (!allowLandscape) void lockOrientation()
       } else {
-        void releaseWakeLock();
+        void releaseWakeLock()
       }
     }
 
-    void requestWakeLock();
-    if (!allowLandscape) void lockOrientation();
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    void requestWakeLock()
+    if (!allowLandscape) void lockOrientation()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      isMounted = false;
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      unlockOrientation();
-      void releaseWakeLock();
-    };
-  }, [allowLandscape]);
+      isMounted = false
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      unlockOrientation()
+      void releaseWakeLock()
+    }
+  }, [allowLandscape])
 }
