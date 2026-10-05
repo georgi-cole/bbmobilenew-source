@@ -188,7 +188,9 @@ describe('Eyeolean profile wallet', () => {
       remove_vote: 1,
     })
     expect(profile.eyeoleanTransactions?.slice(-3).map((entry) => entry.amount)).toEqual([
-      -15_000, -25_000, -25_000,
+      -15_000,
+      -25_000,
+      -25_000,
     ])
     expect(profile.eyeoleanPowerSeasonProgress).toMatchObject({
       extra_vote: { gameId: 'game-a', season: 1, purchases: 2, uses: 0 },
@@ -198,7 +200,10 @@ describe('Eyeolean profile wallet', () => {
 
   it('caps Store purchases at two per power per season and resets the tier next season', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
-    state = profilesReducer(state, debugGrantEyeoleans({ grantId: 'season-stock', amount: 100_000 }))
+    state = profilesReducer(
+      state,
+      debugGrantEyeoleans({ grantId: 'season-stock', amount: 100_000 })
+    )
 
     for (const transactionId of ['first', 'second', 'third']) {
       state = profilesReducer(
@@ -364,7 +369,10 @@ describe('Eyeolean profile wallet', () => {
 
   it('caps resolved uses at two per power per season even when more inventory exists', () => {
     let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
-    state = profilesReducer(state, debugGrantEyeoleans({ grantId: 'use-cap', amount: 100_000 }))
+    state = profilesReducer(
+      state,
+      debugGrantEyeoleans({ grantId: 'use-cap', amount: 100_000 })
+    )
 
     for (const [transactionId, week] of [
       ['first', 3],
