@@ -238,7 +238,9 @@ export default function ConfessionalWallet() {
                       aria-label="Choose a player for Protection"
                       value={selectedProtectionTarget}
                       onChange={(event) => setSelectedProtectionTarget(event.target.value)}
-                      disabled={!availability.available || seasonLimitReached || inventoryCount <= 0}
+                      disabled={
+                        !availability.available || seasonLimitReached || inventoryCount <= 0
+                      }
                     >
                       <option value="">Choose a player</option>
                       {protectionTargets.map((player) => (
@@ -276,13 +278,15 @@ export default function ConfessionalWallet() {
                     Get
                   </button>
                 )}
-                {!armed && inventoryCount > 0 && (seasonLimitReached || !availability.available) && (
-                  <small>
-                    {seasonLimitReached
-                      ? `Season limit reached: ${product.maxSeasonUses}/${product.maxSeasonUses} uses.`
-                      : availability.reason}
-                  </small>
-                )}
+                {!armed &&
+                  inventoryCount > 0 &&
+                  (seasonLimitReached || !availability.available) && (
+                    <small>
+                      {seasonLimitReached
+                        ? `Season limit reached: ${product.maxSeasonUses}/${product.maxSeasonUses} uses.`
+                        : availability.reason}
+                    </small>
+                  )}
               </div>
             </article>
           )
