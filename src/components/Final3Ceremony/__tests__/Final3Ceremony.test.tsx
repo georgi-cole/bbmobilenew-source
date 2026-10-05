@@ -40,10 +40,26 @@ function renderPleaCeremony(onPlayAvailabilityChange = vi.fn()) {
     strategicRelationships: {
       ...initial.strategicRelationships,
       [loh.id]: {
-        [nominees[0].id]: { affinity: 72, tags: ['romance', 'alliance'] },
+        [nominees[0].id]: { affinity: 30, tags: ['romance', 'alliance'] },
         [nominees[1].id]: { affinity: -25, tags: ['betrayal'] },
       },
     },
+    strategicAlliances: [
+      {
+        id: 'final-three-core-pact',
+        memberIds: [loh.id, nominees[0].id],
+        leaderIds: [loh.id],
+        status: 'ACTIVE' as const,
+        cohesion: 0.9,
+        fractureRisk: 0.05,
+        currentTargetIds: [],
+        fallbackTargetIds: [],
+        memberCommitment: { [loh.id]: 0.9, [nominees[0].id]: 0.9 },
+        memberPerceivedStatus: { [loh.id]: 'CORE' as const, [nominees[0].id]: 'CORE' as const },
+        memberPlanBeliefs: { [loh.id]: [], [nominees[0].id]: [] },
+        infiltratorIds: [],
+      },
+    ],
     finalThree: {
       mode: 'classic' as const,
       stage: 'ceremony' as const,
@@ -133,5 +149,49 @@ describe('Final3Ceremony plea dialogue', () => {
         name: new RegExp(`Evict ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
       })
     ).toBeTruthy()
+  })
+
+  it('lets the evicted finalist react to a broken expectation or accept the decision', () => {
+    vi.useFakeTimers()
+    const { nominees } = renderPleaCeremony()
+
+    act(() => vi.advanceTimersByTime(12_000))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
+    act(() => vi.advanceTimersByTime(400))
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[1].name, 'i') }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`Evict ${nominees[1].name} · Keep ${nominees[0].name}`, 'i'),
+      })
+    )
+    act(() => vi.advanceTimersByTime(900))
+    act(() => vi.advanceTimersByTime(12_000))
+
+    const announcement = screen.getByRole('log').textContent ?? ''
+    expect(announcement).toContain('The Tribunal will hear exactly how this ended.')
+    expect(announcement).toContain(nominees[1].name)
+  })
+
+  it('acknowledges a strong bond or active alliance when the finalist accepts the bronze exit', () => {
+    vi.useFakeTimers()
+    const { nominees } = renderPleaCeremony()
+
+    act(() => vi.advanceTimersByTime(12_000))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue →' }))
+    act(() => vi.advanceTimersByTime(400))
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[0].name, 'i') }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`Evict ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
+      })
+    )
+    act(() => vi.advanceTimersByTime(900))
+    act(() => vi.advanceTimersByTime(12_000))
+
+    expect(screen.getByRole('log').textContent).toContain(
+      'I thought our history would carry me beside you'
+    )
   })
 })

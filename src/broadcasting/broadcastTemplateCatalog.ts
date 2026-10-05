@@ -1192,7 +1192,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   card(
     'card.final-decision',
     'final3_decision',
-    'Final Power Decision',
+    'Final LOH Decision',
     'One finalist will be eliminated.',
     'final_hoh'
   ),

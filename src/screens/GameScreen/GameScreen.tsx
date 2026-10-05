@@ -77,7 +77,6 @@ import SpectatorView from '../../components/ui/SpectatorView'
 import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
-import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
 import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../../utils/avatar'
@@ -1269,7 +1268,6 @@ export default function GameScreen() {
     game.phase === 'final3_decision' &&
     !!game.lohId
   const finaleOverlayActive =
-    finalPowerBattleIntroActive ||
     finalThreeBlockRevealActive ||
     spectatorF3Part1Active ||
     spectatorF3Active ||
@@ -1601,6 +1599,15 @@ export default function GameScreen() {
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
                 : null
             }
+            finalPowerBattleIntro={
+              finalPowerBattleIntroActive
+                ? {
+                    finalists: alivePlayers,
+                    mode: isVoxPopuli ? 'vox_populi' : 'classic',
+                    onComplete: handleFinalPowerBattleIntroDone,
+                  }
+                : null
+            }
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
             externalAnnouncement={
@@ -1909,14 +1916,6 @@ export default function GameScreen() {
         )}
 
         {/* ── Final 4 plea chat overlay (all players) ─────────────────────── */}
-        {finalPowerBattleIntroActive && (
-          <FinalPowerBattleIntro
-            finalists={alivePlayers}
-            mode={isVoxPopuli ? 'vox_populi' : 'classic'}
-            onComplete={handleFinalPowerBattleIntroDone}
-          />
-        )}
-
         {finalThreeBlockRevealActive && finalThreeBlockPlayer && (
           <FinalThreeBlockReveal
             blockPlayer={finalThreeBlockPlayer}
@@ -2767,6 +2766,7 @@ export default function GameScreen() {
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
             finaleOverlayActive={finaleOverlayActive}
+            finaleInlinePlayActive={finalPowerBattleIntroActive}
             finalePlayAvailable={finalePlayAvailable}
             finaleDockOnTop={finaleOverlayActive && finalePlayAvailable}
           />

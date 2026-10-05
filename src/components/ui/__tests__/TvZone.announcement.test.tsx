@@ -183,6 +183,34 @@ describe('TvZone — announcement overlay', () => {
     expect(screen.getByText('Public Save')).toBeTruthy()
   })
 
+  it('keeps the Final Power Battle introduction inside the faux TV and lets its Play beat own progression', () => {
+    const store = makeStore()
+    const onComplete = vi.fn()
+    renderTvZone(store, {
+      finalPowerBattleIntro: {
+        finalists: store.getState().game.players.slice(0, 3),
+        mode: 'classic',
+        onComplete,
+      },
+    })
+
+    const intro = screen.getByRole('region', { name: /Final Power Battle introduction/i })
+    const viewport = document.querySelector('.tv-zone__viewport')
+    expect(viewport?.contains(intro)).toBe(true)
+    expect(screen.queryByRole('dialog', { name: /Final Power Battle introduction/i })).toBeNull()
+
+    act(() => {
+      window.dispatchEvent(new Event('ui:playPressed', { cancelable: true }))
+    })
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(screen.getByText('Press Play to begin Part 1.')).toBeDefined()
+
+    act(() => {
+      window.dispatchEvent(new Event('ui:playPressed', { cancelable: true }))
+    })
+    expect(onComplete).toHaveBeenCalledOnce()
+  })
+
   it('clears the previous viewport message while the public save reveal is active', () => {
     const store = makeStore()
     const nominees = [
