@@ -92,7 +92,12 @@ for (const file of files) {
   }
 
   checked.push(file)
-  if (!currentClean) violations.push(file)
+  if (!currentClean) {
+    violations.push(file)
+    if (file === 'src/store/profilesSlice.eyeoleans.test.ts') {
+      console.error(await prettier.format(currentSource, options))
+    }
+  }
 }
 
 console.log(`Strictly checked: ${checked.length}`)
