@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import socialReducer, {
+  commitRealityOutcome,
   recordRealityActualVote,
   replaceRealityDomain,
   updateRelationship,
@@ -21,6 +22,7 @@ import {
 } from '../reality'
 import type { RealityFact, RealityMemory, RealityPromise } from '../reality'
 import { SOCIAL_INITIAL_STATE } from '../constants'
+import { createInitialRealitySimulationState } from '../realitySimulation'
 
 function memory(overrides: Partial<RealityMemory> = {}): RealityMemory {
   return {
@@ -49,6 +51,46 @@ function memory(overrides: Partial<RealityMemory> = {}): RealityMemory {
 }
 
 describe('Reality domain migration and directed relationships', () => {
+  it('projects only the relationship pairs touched by an autonomous outcome', () => {
+    const domain = createInitialRealityDomainState()
+    domain.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
+    domain.relationships.kai = { human: createDirectedRelationship('kai', 'human') }
+    const simulation = createInitialRealitySimulationState(23)
+    const initial = socialReducer(
+      undefined,
+      commitRealityOutcome({
+        domain,
+        simulation,
+        actorId: 'ava',
+        energyDelta: 0,
+        changedRelationshipPairs: [
+          { sourceId: 'ava', targetId: 'lia' },
+          { sourceId: 'kai', targetId: 'human' },
+        ],
+      })
+    )
+    const untouchedLegacyProjection = initial.relationships.kai?.human
+    const nextDomain = structuredClone(domain)
+    nextDomain.relationships.ava.lia.warmth = 20
+    nextDomain.relationships.kai.human.warmth = 40
+
+    const next = socialReducer(
+      initial,
+      commitRealityOutcome({
+        domain: nextDomain,
+        simulation,
+        actorId: 'ava',
+        energyDelta: 0,
+        changedRelationshipPairs: [{ sourceId: 'ava', targetId: 'lia' }],
+      })
+    )
+
+    expect(next.relationships.ava.lia?.affinity).toBeGreaterThan(
+      initial.relationships.ava.lia?.affinity ?? 0
+    )
+    expect(next.relationships.kai?.human).toBe(untouchedLegacyProjection)
+  })
+
   it('clears the complete social simulation when a new game is started', () => {
     const store = configureStore({ reducer: { social: socialReducer } })
     store.dispatch(updateRelationship({ source: 'human', target: 'lia', delta: 24 }))

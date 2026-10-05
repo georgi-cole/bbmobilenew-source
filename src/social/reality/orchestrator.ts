@@ -1,3 +1,4 @@
+import { createDraft, finishDraft } from 'immer'
 import {
   appendRealitySimulationTrace,
   drawRealityRandom,
@@ -72,11 +73,80 @@ export interface RealityOrchestrationResult {
    * partially successful group interaction does not flatten every target to
    * the same legacy success/failure result. */
   targetResponses?: Array<{ targetId: string; response: RealityResponseResolution }>
+  /** Relationship edges whose legacy-facing values or story tags may have changed. */
+  changedRelationshipPairs?: Array<{ sourceId: string; targetId: string }>
   score?: RealityScoreBreakdown
 }
 
-function cloneDomain(domain: RealityDomainState): RealityDomainState {
-  return structuredClone(domain)
+function changedRelationshipPairs(
+  before: RealityDomainState,
+  after: RealityDomainState,
+  event: RealitySocialEvent
+): Array<{ sourceId: string; targetId: string }> {
+  const pairs = new Map<string, { sourceId: string; targetId: string }>()
+  const add = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    pairs.set(`${sourceId}\u0000${targetId}`, { sourceId, targetId })
+  }
+
+  for (const sourceId of new Set([
+    ...Object.keys(before.relationships),
+    ...Object.keys(after.relationships),
+  ])) {
+    const oldTargets = before.relationships[sourceId] ?? {}
+    const newTargets = after.relationships[sourceId] ?? {}
+    if (oldTargets === newTargets) continue
+    for (const targetId of new Set([...Object.keys(oldTargets), ...Object.keys(newTargets)])) {
+      if (oldTargets[targetId] !== newTargets[targetId]) add(sourceId, targetId)
+    }
+  }
+
+  // Story tags such as alliance, betrayal, or nemesis target can change for
+  // pairs that did not receive a numeric relationship delta in this event.
+  for (const sourceId of event.participantIds) {
+    for (const targetId of event.participantIds) add(sourceId, targetId)
+  }
+  for (const relatedEvent of after.events) {
+    if (relatedEvent.sequence < before.nextSequence) continue
+    for (const sourceId of relatedEvent.participantIds) {
+      for (const targetId of relatedEvent.participantIds) add(sourceId, targetId)
+    }
+  }
+
+  const changedEntries = <T extends object>(
+    oldValues: Record<string, T>,
+    newValues: Record<string, T>
+  ): Array<{ id: string; value: T }> => {
+    const changed: Array<{ id: string; value: T }> = []
+    for (const [id, value] of Object.entries(newValues)) {
+      if (oldValues[id] !== value) changed.push({ id, value })
+    }
+    return changed
+  }
+  for (const { value: alliance } of changedEntries(before.alliances, after.alliances)) {
+    for (const sourceId of alliance.memberIds) {
+      for (const targetId of alliance.memberIds) add(sourceId, targetId)
+      for (const targetId of alliance.currentTargetIds) add(sourceId, targetId)
+    }
+  }
+  for (const { value: romance } of changedEntries(before.romances, after.romances)) {
+    for (const sourceId of romance.participantIds) {
+      for (const targetId of romance.participantIds) add(sourceId, targetId)
+    }
+  }
+  for (const { value: grievance } of changedEntries(before.grievances, after.grievances)) {
+    add(grievance.holderId, grievance.againstId)
+  }
+  for (const { value: promise } of changedEntries(before.promises, after.promises)) {
+    for (const targetId of promise.beneficiaryIds) add(promise.promisorId, targetId)
+  }
+  for (const { value: nemesis } of changedEntries(
+    before.relationshipAutonomy.nemeses,
+    after.relationshipAutonomy.nemeses
+  )) {
+    add(nemesis.ownerId, nemesis.targetId)
+  }
+  return [...pairs.values()]
 }
 
 function selectWeighted<T extends { weight: number; id: string }>(
@@ -754,7 +824,10 @@ export function runRealityOpportunity(input: {
   simulation = { ...simulation, rng: selectionDraw.next }
   const selected = selectWeighted(viable, selectionDraw.value)
   if (!selected) throw new Error('Eligible Reality candidates had no selectable weight')
-  const domain = cloneDomain(sourceDomain)
+  // Keep the public immutable contract while copying only the branches this
+  // outcome actually changes. Reality worlds grow throughout a season, so a
+  // full structuredClone here made every successful social action more costly.
+  const domain = createDraft(sourceDomain)
   simulation = appendRealitySimulationTrace(simulation, {
     day: input.opportunity.context.day,
     phase: input.opportunity.context.phase,
@@ -831,7 +904,7 @@ export function runRealityOpportunity(input: {
       }
     }
     return {
-      domain,
+      domain: finishDraft(domain),
       simulation,
       interaction,
       event: null,
@@ -1002,14 +1075,16 @@ export function runRealityOpportunity(input: {
     witnessIds: event.witnessIds,
     rngCursor: responseCursor,
   })
+  const committedDomain = finishDraft(domain)
   return {
-    domain,
+    domain: committedDomain,
     simulation,
     interaction,
     event,
     selectedActionId: selected.action.id,
     response,
     targetResponses: responses,
+    changedRelationshipPairs: changedRelationshipPairs(sourceDomain, committedDomain, event),
     score: selected.score,
   }
 }
@@ -1058,16 +1133,20 @@ export function resolvePendingHumanRealityInteraction(input: {
   secondarySubjectId?: string
   allianceId?: string
   allianceStrategyKind?: 'NOMINATION' | 'SAFETY'
-}): { domain: RealityDomainState; event: RealitySocialEvent | null } {
-  const domain = cloneDomain(input.domain)
+}): {
+  domain: RealityDomainState
+  event: RealitySocialEvent | null
+  changedRelationshipPairs?: Array<{ sourceId: string; targetId: string }>
+} {
+  const domain = createDraft(input.domain)
   const interaction = domain.interactions[input.interactionId]
   if (!interaction || interaction.status !== 'AWAITING_HUMAN') {
-    return { domain, event: null }
+    return { domain: finishDraft(domain), event: null }
   }
   const action = getRealityActionContract(interaction.actionId)
   if (!action) {
     interaction.status = 'INVALIDATED'
-    return { domain, event: null }
+    return { domain: finishDraft(domain), event: null }
   }
   const humanResponse = explicitHumanResponse(input.responseType)
   const responses: Array<{ targetId: string; response: RealityResponseResolution }> = [
@@ -1212,5 +1291,12 @@ export function resolvePendingHumanRealityInteraction(input: {
     )
   }
   updateRealityExperience(domain, actorId, action, event)
-  return { domain, event }
+  const committedDomain = finishDraft(domain)
+  return {
+    domain: committedDomain,
+    event,
+    ...(event
+      ? { changedRelationshipPairs: changedRelationshipPairs(input.domain, committedDomain, event) }
+      : {}),
+  }
 }

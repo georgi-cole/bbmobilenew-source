@@ -281,6 +281,29 @@ describe('Reality action contract', () => {
 })
 
 describe('Reality causal orchestration', () => {
+  it('copies only changed Reality branches and reports relationship pairs for projection', () => {
+    const domain = createInitialRealityDomainState()
+    const before = structuredClone(domain)
+    const untouchedBranch = domain.reentryProfiles
+
+    const result = runRealityOpportunity({
+      domain,
+      simulation: createInitialRealitySimulationState(123),
+      opportunity: opportunity(),
+    })
+
+    expect(result.event).not.toBeNull()
+    expect(domain).toEqual(before)
+    expect(result.domain).not.toBe(domain)
+    expect(result.domain.reentryProfiles).toBe(untouchedBranch)
+    expect(result.changedRelationshipPairs).toEqual(
+      expect.arrayContaining([
+        { sourceId: 'ava', targetId: 'lia' },
+        { sourceId: 'lia', targetId: 'ava' },
+      ])
+    )
+  })
+
   it('resolves AI-to-AI through selection, target response, event, memory, and directed effects', () => {
     const result = runRealityOpportunity({
       domain: createInitialRealityDomainState(),
@@ -996,7 +1019,7 @@ describe('Reality causal orchestration', () => {
       (fact) => fact.propositionType === 'ALLIANCE_PUBLIC_CLAIM' && fact.objectId === alliance.id
     )
     expect(publicClaim?.publicVisible).toBe(true)
-    expect(publicClaim?.subjectIds.sort()).toEqual(['kai', 'lia'])
+    expect([...(publicClaim?.subjectIds ?? [])].sort()).toEqual(['kai', 'lia'])
     expect(publicClaim?.subjectIds).not.toContain('nova')
 
     const outsiderView = getRealityAllianceKnowledgeView(result.domain, alliance.id, 'human')
