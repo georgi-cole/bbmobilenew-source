@@ -16,6 +16,7 @@ import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
   getEyeoleanStoreProduct,
+  getEyeoleanStorePurchasePrice,
   type EyeoleanStoreProductKey,
 } from '../economy/storeCatalog'
 import type { RootState } from './store'
@@ -103,6 +104,13 @@ export interface EyeoleanPowerReservation {
   targetId?: string
 }
 
+export interface EyeoleanPowerSeasonProgress {
+  gameId: string
+  season: number
+  purchases: number
+  uses: number
+}
+
 export interface EyeoleanTransaction {
   /** Stable idempotency key. Duplicate IDs are never applied twice. */
   id: string
@@ -140,6 +148,10 @@ export interface StoredProfile {
   eyeoleanInventory?: Partial<Record<EyeoleanStoreProductKey, number>>
   /** One reserved unit per power, bound to the active season until used or returned. */
   eyeoleanPowerReservations?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>>
+  /** Purchase/use counters for the current season of each Store power. */
+  eyeoleanPowerSeasonProgress?: Partial<
+    Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>
+  >
   /**
    * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
    * an old purchase callback cannot become payable again after enough transactions.
@@ -285,6 +297,67 @@ function coerceEyeoleanPowerReservations(
   return reservations
 }
 
+function coerceEyeoleanPowerSeasonProgress(
+  raw: unknown
+): Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>> {
+  if (!raw || typeof raw !== 'object') return {}
+  const source = raw as Record<string, unknown>
+  const progress: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>> = {}
+
+  EYEOLEAN_STORE_PRODUCT_KEYS.forEach((key) => {
+    const value = source[key]
+    if (!value || typeof value !== 'object') return
+    const entry = value as Partial<EyeoleanPowerSeasonProgress>
+    if (
+      typeof entry.gameId !== 'string' ||
+      !entry.gameId ||
+      typeof entry.season !== 'number' ||
+      !Number.isFinite(entry.season)
+    ) {
+      return
+    }
+    progress[key] = {
+      gameId: entry.gameId,
+      season: Math.max(1, Math.floor(entry.season)),
+      purchases:
+        typeof entry.purchases === 'number' && Number.isFinite(entry.purchases)
+          ? Math.max(0, Math.floor(entry.purchases))
+          : 0,
+      uses:
+        typeof entry.uses === 'number' && Number.isFinite(entry.uses)
+          ? Math.max(0, Math.floor(entry.uses))
+          : 0,
+    }
+  })
+
+  return progress
+}
+
+export function getEyeoleanPowerSeasonProgress(
+  profile: StoredProfile | null | undefined,
+  productKey: EyeoleanStoreProductKey,
+  gameId: string,
+  season: number
+): EyeoleanPowerSeasonProgress {
+  const normalizedSeason = Math.max(1, Math.floor(season))
+  const current = profile?.eyeoleanPowerSeasonProgress?.[productKey]
+  if (!current || current.gameId !== gameId || current.season !== normalizedSeason) {
+    return {
+      gameId,
+      season: normalizedSeason,
+      purchases: 0,
+      uses: 0,
+    }
+  }
+
+  return {
+    gameId,
+    season: normalizedSeason,
+    purchases: Math.max(0, Math.floor(current.purchases)),
+    uses: Math.max(0, Math.floor(current.uses)),
+  }
+}
+
 function appendEyeoleanTransaction(
   profile: StoredProfile,
   transaction: EyeoleanTransaction
@@ -356,6 +429,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     eyeoleans: migratedForecastBalance,
     eyeoleanInventory: coerceEyeoleanInventory(r.eyeoleanInventory),
     eyeoleanPowerReservations: coerceEyeoleanPowerReservations(r.eyeoleanPowerReservations),
+    eyeoleanPowerSeasonProgress: coerceEyeoleanPowerSeasonProgress(r.eyeoleanPowerSeasonProgress),
     eyeoleanTransactions: Array.isArray(r.eyeoleanTransactions)
       ? r.eyeoleanTransactions
           .map(coerceEyeoleanTransaction)
@@ -676,25 +750,54 @@ const profilesSlice = createSlice({
      */
     purchaseEyeoleanStoreProduct(
       state,
-      action: PayloadAction<{ transactionId: string; productKey: EyeoleanStoreProductKey }>
+      action: PayloadAction<{
+        transactionId: string
+        productKey: EyeoleanStoreProductKey
+        gameId: string
+        season: number
+      }>
     ) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       const transactionId = action.payload.transactionId.trim()
-      if (!profile || !transactionId) return
+      const gameId = action.payload.gameId.trim()
+      const season = Math.max(1, Math.floor(action.payload.season))
+      if (
+        !profile ||
+        !transactionId ||
+        !gameId ||
+        !Number.isFinite(action.payload.season)
+      ) {
+        return
+      }
 
       const product = getEyeoleanStoreProduct(action.payload.productKey)
+      const progress = getEyeoleanPowerSeasonProgress(
+        profile,
+        product.key,
+        gameId,
+        season
+      )
+      if (
+        progress.purchases >= product.maxSeasonPurchases ||
+        progress.uses >= product.maxSeasonUses
+      ) {
+        return
+      }
+      const price = getEyeoleanStorePurchasePrice(product.key, progress.purchases)
+      if (price == null) return
+
       const processedIds =
         profile.processedEyeoleanTransactionIds ??
         (profile.eyeoleanTransactions ?? []).map((entry) => entry.id)
       if (processedIds.includes(transactionId)) return
 
       const balance = Math.max(0, Math.floor(profile.eyeoleans ?? 0))
-      if (balance < product.price) return
+      if (balance < price) return
 
       if (
         !appendEyeoleanTransaction(profile, {
           id: transactionId,
-          amount: -product.price,
+          amount: -price,
           source: 'store_purchase',
           label: product.title,
           createdAt: new Date().toISOString(),
@@ -703,12 +806,19 @@ const profilesSlice = createSlice({
         return
       }
 
-      profile.eyeoleans = balance - product.price
+      profile.eyeoleans = balance - price
       const inventory = profile.eyeoleanInventory ?? {}
       const currentQuantity = Math.max(0, Math.floor(inventory[product.key] ?? 0))
       profile.eyeoleanInventory = {
         ...inventory,
         [product.key]: Math.min(Number.MAX_SAFE_INTEGER, currentQuantity + 1),
+      }
+      profile.eyeoleanPowerSeasonProgress = {
+        ...(profile.eyeoleanPowerSeasonProgress ?? {}),
+        [product.key]: {
+          ...progress,
+          purchases: progress.purchases + 1,
+        },
       }
     },
 
@@ -740,6 +850,15 @@ const profilesSlice = createSlice({
 
       const reservations = profile.eyeoleanPowerReservations ?? {}
       if (reservations[productKey]) return
+
+      const product = getEyeoleanStoreProduct(productKey)
+      const progress = getEyeoleanPowerSeasonProgress(
+        profile,
+        productKey,
+        gameId,
+        action.payload.season
+      )
+      if (progress.uses >= product.maxSeasonUses) return
 
       const inventory = profile.eyeoleanInventory ?? {}
       const quantity = Math.max(0, Math.floor(inventory[productKey] ?? 0))
@@ -795,6 +914,22 @@ const profilesSlice = createSlice({
       if (!profile) return
       const reservation = profile.eyeoleanPowerReservations?.[action.payload.productKey]
       if (!reservation || reservation.gameId !== action.payload.gameId) return
+
+      const product = getEyeoleanStoreProduct(action.payload.productKey)
+      const progress = getEyeoleanPowerSeasonProgress(
+        profile,
+        action.payload.productKey,
+        reservation.gameId,
+        reservation.season
+      )
+      profile.eyeoleanPowerSeasonProgress = {
+        ...(profile.eyeoleanPowerSeasonProgress ?? {}),
+        [action.payload.productKey]: {
+          ...progress,
+          uses: Math.min(product.maxSeasonUses, progress.uses + 1),
+        },
+      }
+
       const nextReservations = { ...(profile.eyeoleanPowerReservations ?? {}) }
       delete nextReservations[action.payload.productKey]
       profile.eyeoleanPowerReservations = nextReservations
