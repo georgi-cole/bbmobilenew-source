@@ -597,7 +597,7 @@
   background: rgba(25, 19, 50, 0.72);
 }
 
-.vip-store__wallet-row span {
+.vip-store__wallet-row > span:first-child {
   margin-right: auto;
   color: rgba(226, 232, 240, 0.62);
   font-size: 0.62rem;
@@ -606,11 +606,27 @@
   text-transform: uppercase;
 }
 
+.vip-store__wallet-balance {
+  display: grid;
+  justify-items: end;
+  gap: 0.08rem;
+}
+
+.vip-store__wallet-balance strong {
+  margin: 0;
+}
+
+.vip-store__wallet-balance small {
+  font-size: 0.5rem;
+  line-height: 1;
+}
+
 .vip-store__product-grid--powers {
   margin-top: 0.75rem;
 }
 
 .vip-store__product--power {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
   cursor: default;
 }
 
@@ -624,12 +640,72 @@
   background: rgba(124, 58, 237, 0.14);
 }
 
+.vip-store__product-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.vip-store__power-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.vip-store__power-meta > span {
+  padding: 0.18rem 0.4rem;
+  border: 1px solid rgba(196, 181, 253, 0.17);
+  border-radius: 999px;
+  color: rgba(226, 232, 240, 0.72);
+  background: rgba(139, 92, 246, 0.08);
+  font-size: 0.52rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .vip-store__product--power .vip-store__product-description {
   display: block;
 }
 
-.vip-store__product--power .vip-store__product-footer button {
+.vip-store__power-price {
+  display: block;
+  margin-top: 0.3rem;
+  color: #f0dda4;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.1;
+}
+
+.vip-store__power-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: stretch;
+  min-width: 5.8rem;
+}
+
+.vip-store__power-action button {
   min-width: 5.6rem;
+  min-height: 1.95rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 9px;
+  color: #111827;
+  background: linear-gradient(135deg, #f0dda4, #d6aa54);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.vip-store__power-action button:disabled {
+  color: rgba(226, 232, 240, 0.65);
+  background: rgba(51, 65, 85, 0.72);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
 }
 
 @media (max-width: 520px) {
@@ -672,6 +748,38 @@
     font-size: 0.76rem;
     line-height: 1.2;
     overflow-wrap: anywhere;
+  }
+
+  .vip-store__product--power {
+    grid-template-columns: 1.85rem minmax(0, 1fr) auto;
+    gap: 0.55rem;
+  }
+
+  .vip-store__product--power .vip-store__product-icon {
+    align-self: start;
+  }
+
+  .vip-store__product-heading {
+    gap: 0.32rem;
+  }
+
+  .vip-store__power-meta {
+    gap: 0.2rem;
+  }
+
+  .vip-store__power-meta > span {
+    padding: 0.16rem 0.34rem;
+    font-size: 0.49rem;
+  }
+
+  .vip-store__power-action {
+    grid-column: 3;
+    min-width: 4.8rem;
+  }
+
+  .vip-store__power-action button {
+    min-width: 4.8rem;
+    padding-inline: 0.5rem;
   }
 
   .vip-store__wallet-row {

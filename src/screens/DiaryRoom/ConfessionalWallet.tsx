@@ -141,14 +141,16 @@ export default function ConfessionalWallet() {
         <div className="diary-room__wallet-balance-copy">
           <span className="diary-room__wallet-coin" aria-hidden="true" />
           <div className="diary-room__wallet-balance-meta">
-            <small>Eyeoleans</small>
             <strong>{balance.toLocaleString('en-US')}</strong>
+            <small>Eyeoleans</small>
           </div>
         </div>
         <button
           type="button"
           className="diary-room__wallet-store-btn"
-          onClick={() => navigate('/store', { state: { returnTo: '/diary-room' } })}
+          onClick={() =>
+            navigate('/store', { state: { returnTo: '/diary-room', shelf: 'powers' } })
+          }
         >
           Store
         </button>
@@ -197,9 +199,11 @@ export default function ConfessionalWallet() {
               ? 'Unavailable this season'
               : seasonLimitReached
                 ? 'Season limit reached'
-                : inventoryCount > 0
-                  ? 'Available'
-                  : 'Not owned'
+                : inventoryCount <= 0
+                  ? 'Not owned'
+                  : !availability.available
+                    ? 'Later'
+                    : 'Available'
 
           return (
             <article
@@ -223,12 +227,18 @@ export default function ConfessionalWallet() {
                 <div className="diary-room__wallet-power-title">
                   <h3>{modeRule?.available ? modeRule.title : product.title}</h3>
                   <span data-status={armed ? 'armed' : 'idle'}>{status}</span>
-                  <span className="diary-room__wallet-owned">×{totalOwned}</span>
+                  <span className="diary-room__wallet-owned" title="Owned">
+                    ×{totalOwned}
+                  </span>
+                  <span
+                    className="diary-room__wallet-usage"
+                    title="Season uses"
+                    aria-label={`Season uses ${seasonProgress.uses} of ${product.maxSeasonUses}`}
+                  >
+                    {seasonProgress.uses}/{product.maxSeasonUses}
+                  </span>
                 </div>
-                <p>
-                  {powerDetail(game, productKey)} · Season uses {seasonProgress.uses}/
-                  {product.maxSeasonUses}
-                </p>
+                <p>{powerDetail(game, productKey)}</p>
               </div>
               <div className="diary-room__wallet-power-action">
                 {productKey === 'protection' && !armed && (
@@ -273,20 +283,16 @@ export default function ConfessionalWallet() {
                   <button
                     type="button"
                     className="diary-room__wallet-secondary-btn"
-                    onClick={() => navigate('/store', { state: { returnTo: '/diary-room' } })}
+                    onClick={() =>
+                      navigate('/store', { state: { returnTo: '/diary-room', shelf: 'powers' } })
+                    }
                   >
                     Get
                   </button>
                 )}
-                {!armed &&
-                  inventoryCount > 0 &&
-                  (seasonLimitReached || !availability.available) && (
-                    <small>
-                      {seasonLimitReached
-                        ? `Season limit reached: ${product.maxSeasonUses}/${product.maxSeasonUses} uses.`
-                        : availability.reason}
-                    </small>
-                  )}
+                {!armed && inventoryCount > 0 && seasonLimitReached && (
+                  <small>Season limit reached.</small>
+                )}
               </div>
             </article>
           )
