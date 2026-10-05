@@ -149,9 +149,7 @@ export interface StoredProfile {
   /** One reserved unit per power, bound to the active season until used or returned. */
   eyeoleanPowerReservations?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>>
   /** Purchase/use counters for the current season of each Store power. */
-  eyeoleanPowerSeasonProgress?: Partial<
-    Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>
-  >
+  eyeoleanPowerSeasonProgress?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>>
   /**
    * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
    * an old purchase callback cannot become payable again after enough transactions.
@@ -761,22 +759,12 @@ const profilesSlice = createSlice({
       const transactionId = action.payload.transactionId.trim()
       const gameId = action.payload.gameId.trim()
       const season = Math.max(1, Math.floor(action.payload.season))
-      if (
-        !profile ||
-        !transactionId ||
-        !gameId ||
-        !Number.isFinite(action.payload.season)
-      ) {
+      if (!profile || !transactionId || !gameId || !Number.isFinite(action.payload.season)) {
         return
       }
 
       const product = getEyeoleanStoreProduct(action.payload.productKey)
-      const progress = getEyeoleanPowerSeasonProgress(
-        profile,
-        product.key,
-        gameId,
-        season
-      )
+      const progress = getEyeoleanPowerSeasonProgress(profile, product.key, gameId, season)
       if (
         progress.purchases >= product.maxSeasonPurchases ||
         progress.uses >= product.maxSeasonUses
