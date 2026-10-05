@@ -158,6 +158,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:first',
         productKey: 'extra_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
     state = profilesReducer(
@@ -165,6 +167,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:second',
         productKey: 'extra_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
     state = profilesReducer(
@@ -172,18 +176,69 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:remove-vote:first',
         productKey: 'remove_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
 
     const profile = state.profiles[0]
-    expect(profile.eyeoleans).toBe(85_000)
+    expect(profile.eyeoleans).toBe(55_000)
     expect(profile.eyeoleanInventory).toEqual({
       extra_vote: 2,
       remove_vote: 1,
     })
     expect(profile.eyeoleanTransactions?.slice(-3).map((entry) => entry.amount)).toEqual([
-      -10_000, -10_000, -15_000,
+      -15_000, -25_000, -25_000,
     ])
+    expect(profile.eyeoleanPowerSeasonProgress).toMatchObject({
+      extra_vote: { gameId: 'game-a', season: 1, purchases: 2, uses: 0 },
+      remove_vote: { gameId: 'game-a', season: 1, purchases: 1, uses: 0 },
+    })
+  })
+
+  it('caps Store purchases at two per power per season and resets the tier next season', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    state = profilesReducer(state, debugGrantEyeoleans({ grantId: 'season-stock', amount: 100_000 }))
+
+    for (const transactionId of ['first', 'second', 'third']) {
+      state = profilesReducer(
+        state,
+        purchaseEyeoleanStoreProduct({
+          transactionId: `store:extra-vote:${transactionId}`,
+          productKey: 'extra_vote',
+          gameId: 'game-a',
+          season: 1,
+        })
+      )
+    }
+
+    expect(state.profiles[0]?.eyeoleans).toBe(60_000)
+    expect(state.profiles[0]?.eyeoleanInventory?.extra_vote).toBe(2)
+    expect(state.profiles[0]?.eyeoleanPowerSeasonProgress?.extra_vote).toMatchObject({
+      gameId: 'game-a',
+      season: 1,
+      purchases: 2,
+      uses: 0,
+    })
+
+    state = profilesReducer(
+      state,
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'store:extra-vote:new-season',
+        productKey: 'extra_vote',
+        gameId: 'game-b',
+        season: 2,
+      })
+    )
+
+    expect(state.profiles[0]?.eyeoleans).toBe(45_000)
+    expect(state.profiles[0]?.eyeoleanInventory?.extra_vote).toBe(3)
+    expect(state.profiles[0]?.eyeoleanPowerSeasonProgress?.extra_vote).toMatchObject({
+      gameId: 'game-b',
+      season: 2,
+      purchases: 1,
+      uses: 0,
+    })
   })
 
   it('does not duplicate inventory or charge twice when a store transaction is replayed', () => {
@@ -196,12 +251,14 @@ describe('Eyeolean profile wallet', () => {
     const purchase = purchaseEyeoleanStoreProduct({
       transactionId: 'store:remove-vote:stable',
       productKey: 'remove_vote',
+    gameId: 'game-a',
+    season: 1,
     })
     state = profilesReducer(state, purchase)
     state = profilesReducer(state, purchase)
 
     const profile = state.profiles[0]
-    expect(profile.eyeoleans).toBe(105_000)
+    expect(profile.eyeoleans).toBe(95_000)
     expect(profile.eyeoleanInventory?.remove_vote).toBe(1)
   })
 
@@ -211,6 +268,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:no-funds',
         productKey: 'extra_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
 
@@ -230,6 +289,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:reserve',
         productKey: 'extra_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
 
@@ -271,6 +332,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:remove-vote:reserve',
         productKey: 'remove_vote',
+      gameId: 'game-a',
+      season: 1,
       })
     )
     state = profilesReducer(
