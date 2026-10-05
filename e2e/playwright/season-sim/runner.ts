@@ -71,6 +71,8 @@ async function createFreshProfile(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
   await page.getByPlaceholder('Enter display name').fill(name)
+  await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
