@@ -8,8 +8,9 @@ import {
   armEyeoleanStorePower,
   returnEyeoleanStorePower,
   selectCurrentProfile,
+  getEyeoleanPowerSeasonProgress,
 } from '../store/profilesSlice'
-import type { EyeoleanStoreProductKey } from './storeCatalog'
+import { getEyeoleanStoreProduct, type EyeoleanStoreProductKey } from './storeCatalog'
 import {
   getEyeoleanPowerArmAvailability,
   getEyeoleanPowerModeResolution,
@@ -37,6 +38,20 @@ export function armEyeoleanPower(productKey: EyeoleanStoreProductKey, selectedTa
     const quantity = Math.max(0, Math.floor(profile.eyeoleanInventory?.[productKey] ?? 0))
     if (quantity <= 0) {
       return { ok: false, message: 'You do not own this power yet.' }
+    }
+
+    const product = getEyeoleanStoreProduct(productKey)
+    const seasonProgress = getEyeoleanPowerSeasonProgress(
+      profile,
+      productKey,
+      state.game.gameId,
+      state.game.season
+    )
+    if (seasonProgress.uses >= product.maxSeasonUses) {
+      return {
+        ok: false,
+        message: `Season limit reached: ${product.maxSeasonUses}/${product.maxSeasonUses} uses.`,
+      }
     }
 
     const availability = getEyeoleanPowerArmAvailability(state.game, productKey)
