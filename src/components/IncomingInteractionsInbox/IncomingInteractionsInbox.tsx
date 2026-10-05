@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   closeIncomingInbox,
@@ -358,15 +358,24 @@ function InteractionItem({
 
 export default function IncomingInteractionsInbox() {
   const dispatch = useAppDispatch()
-  const game = useAppSelector((state) => state.game)
   const open = useAppSelector(selectIncomingInboxOpen)
+  const compareWhileOpen = useCallback(
+    (previous: unknown, next: unknown) => !open || previous === next,
+    [open]
+  )
+  // Preserve the inbox and its resolved-conversation state while closed without
+  // rerendering it for every background relationship or season update.
+  const game = useAppSelector((state) => state.game, compareWhileOpen)
   const interactions = useAppSelector(selectIncomingInteractions)
-  const relationships = useAppSelector((state) => state.social?.relationships ?? {})
-  const socialMemory = useAppSelector((state) => state.social?.socialMemory ?? {})
+  const relationships = useAppSelector(
+    (state) => state.social?.relationships ?? {},
+    compareWhileOpen
+  )
+  const socialMemory = useAppSelector((state) => state.social?.socialMemory ?? {}, compareWhileOpen)
   const commitments = useAppSelector(selectSocialCommitments)
-  const dramaNetwork = useAppSelector(selectDramaNetwork)
-  const settings = useAppSelector((state) => state.settings)
-  const vip = useAppSelector((state) => state.vip)
+  const dramaNetwork = useAppSelector(selectDramaNetwork, compareWhileOpen)
+  const settings = useAppSelector((state) => state.settings, compareWhileOpen)
+  const vip = useAppSelector((state) => state.vip, compareWhileOpen)
   const activeProfileId = useAppSelector((state) => state.profiles?.activeProfileId ?? null)
   const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false)
   const globalDramaMode = getEffectiveSocialMode({ game, settings, vip }) === 'drama'
