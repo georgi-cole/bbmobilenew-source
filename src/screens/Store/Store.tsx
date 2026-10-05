@@ -55,6 +55,10 @@ const STORE_SHELVES = [
 
 type StoreShelfId = (typeof STORE_SHELVES)[number]['id']
 
+function isStoreShelfId(value: unknown): value is StoreShelfId {
+  return STORE_SHELVES.some((shelf) => shelf.id === value)
+}
+
 const VIP_BENEFIT_HIGHLIGHTS: Record<string, string> = {
   'Public Mode controls': 'Put the viewers in the game.',
   'Surveyeval Mode': 'Outlast every replacement.',
@@ -75,12 +79,15 @@ export default function Store() {
   const game = useAppSelector((state) => state.game)
   const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
   const eyeoleanInventory = useAppSelector(selectEyeoleanInventory)
+  const locationState = location.state as { returnTo?: unknown; shelf?: unknown } | null
   const [notice, setNotice] = useState<string | null>(null)
   const [eyeoleanNotice, setEyeoleanNotice] = useState<string | null>(null)
   const [eyeoleanError, setEyeoleanError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [selectedProductKey, setSelectedProductKey] = useState<StoreProductKey | null>(null)
-  const [activeShelf, setActiveShelf] = useState<StoreShelfId>('all-access')
+  const [activeShelf, setActiveShelf] = useState<StoreShelfId>(
+    isStoreShelfId(locationState?.shelf) ? locationState.shelf : 'all-access'
+  )
   const purchaseLockRef = useRef(false)
   const busy =
     storeState.status === 'loading' ||
@@ -94,7 +101,7 @@ export default function Store() {
       ? resolveVipUpgradeOffer(storeState.entitlements)
       : null
   const developerAccess = TEMPORARY_STORE_UNLOCKS_ENABLED
-  const returnTo = (location.state as { returnTo?: unknown } | null)?.returnTo
+  const returnTo = locationState?.returnTo
   const hasReturnDestination = typeof returnTo === 'string' && returnTo.startsWith('/')
 
   function goBack() {
@@ -249,15 +256,16 @@ export default function Store() {
           <div className="vip-store__section-heading">
             <p className="vip-store__eyebrow">Use your balance</p>
             <h2 id="eyeolean-items-title">Power Market</h2>
-            <p>Repeatable powers for a future eligible eviction.</p>
           </div>
           <div
             className="vip-store__wallet vip-store__wallet-row"
             aria-label="Eyeolean wallet balance"
           >
             <span>Wallet</span>
-            <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
-            <small>Eyeoleans</small>
+            <span className="vip-store__wallet-balance">
+              <strong>{eyeoleanBalance.toLocaleString('en-US')}</strong>
+              <small>Eyeoleans</small>
+            </span>
           </div>
 
           <div className="vip-store__product-grid vip-store__product-grid--powers">
@@ -293,24 +301,32 @@ export default function Store() {
                           : '🛡️'}
                   </span>
                   <span className="vip-store__product-copy">
-                    <span className="vip-store__product-title">
-                      {modeRule?.available ? modeRule.title : product.title}
+                    <span className="vip-store__product-heading">
+                      <span className="vip-store__product-title">
+                        {modeRule?.available ? modeRule.title : product.title}
+                      </span>
+                      <span className="vip-store__power-meta" aria-label="Power inventory status">
+                        <span>Owned ×{owned}</span>
+                        <span>
+                          Uses {progress.uses}/{product.maxSeasonUses}
+                        </span>
+                      </span>
                     </span>
                     <span className="vip-store__product-description">
-                      {product.shortDescription} · Owned {owned} · Season uses {progress.uses}/
-                      {product.maxSeasonUses}
+                      {product.shortDescription}
                     </span>
-                  </span>
-                  <span className="vip-store__product-footer">
-                    <strong>
-                      {nextPrice == null
-                        ? 'Season stock exhausted'
-                        : `${nextPrice.toLocaleString('en-US')} Eyeoleans`}
+                    <strong className="vip-store__power-price">
+                      {nextPrice == null ? 'Season stock exhausted' : nextPrice.toLocaleString('en-US')}
                     </strong>
+                  </span>
+                  <span className="vip-store__power-action">
                     <button
                       type="button"
                       onClick={() => purchaseEyeoleanItem(productKey)}
                       disabled={!canBuy}
+                      title={
+                        !modeRule?.available ? modeResolution.unavailableReason : undefined
+                      }
                       aria-label={
                         nextPrice == null
                           ? `${product.title} season stock exhausted`
@@ -331,9 +347,6 @@ export default function Store() {
                                   : 'Buy 2nd'
                                 : 'Not enough'}
                     </button>
-                    {!modeRule?.available && modeResolution.unavailableReason && (
-                      <small>{modeResolution.unavailableReason}</small>
-                    )}
                   </span>
                 </article>
               )
