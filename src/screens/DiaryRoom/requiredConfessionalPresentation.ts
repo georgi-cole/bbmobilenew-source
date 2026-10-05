@@ -234,7 +234,11 @@ export function getRequiredConfessionalPresentation(
         title: required > 1 ? 'Break the Elimination Tie' : 'Cast the Deciding Vote',
         prompt:
           required > 1
-            ? `The vote is tied. Select the ${required} players you want eliminated.`
+            ? game.publicModeEnabled
+              ? `The double-elimination vote is tied. Public approval decides who leaves; the audience result is being revealed.`
+              : game.awaitingPosTieBreak
+                ? `The double-elimination vote is tied. As the Power of Safety holder, select the ${required} players to eliminate.`
+                : `The double-elimination vote is tied. As the LOH, select the ${required} players you want eliminated.`
             : game.awaitingPosTieBreak
               ? 'As the Power of Safety holder, you must break the tie and choose who is eliminated.'
               : 'The house vote is tied. Choose the nominee whose game will end.',

@@ -857,6 +857,7 @@ export default function GameScreen() {
     showPublicSaveReveal,
     publicSaveApprovals,
     publicSaveWinnerId,
+    publicSaveTieBreakUsed,
     publicSaveResultAnnouncement,
     showPublicSaveCeremony,
     handlePublicSaveDone,
@@ -1490,6 +1491,7 @@ export default function GameScreen() {
               nominees: publicSaveNominees,
               approvals: publicSaveApprovals,
               savedId: publicSaveWinnerId,
+              tieBreakUsed: publicSaveTieBreakUsed,
               pairs: isCupidArrowActive(game) ? game.cupidArrow?.pairs : undefined,
             }}
             onPublicSaveDone={handlePublicSaveDone}

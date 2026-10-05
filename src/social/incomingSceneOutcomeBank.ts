@@ -318,6 +318,24 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} walks away with the nomination still feeling personal because you would not discuss it.',
     ],
   },
+  unavoidable_nominee_reaction: {
+    positive: [
+      '{from} appreciates that you understand the rules left no other nominee and starts planning how to survive.',
+      '{from} keeps the forced nomination separate from your bond and turns to the next Safety or vote decision.',
+    ],
+    neutral: [
+      '{from} knows this was the only legal nomination and focuses on the block rather than blaming you.',
+      '{from} stays close enough to compare survival plans while the week moves on.',
+    ],
+    negative: [
+      '{from} dislikes your reply, but still does not treat the forced nomination as a personal betrayal.',
+      '{from} chooses to campaign elsewhere without rewriting the rules as your choice.',
+    ],
+    dismiss: [
+      '{from} leaves to work on their survival plan; the reason they were nominated remains clear.',
+      '{from} gives you space and concentrates on Safety and the vote.',
+    ],
+  },
   automatic_nominee_reaction: {
     positive: [
       "{from} appreciates that you are not pretending the automatic nomination was anybody's personal move.",

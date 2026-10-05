@@ -286,6 +286,7 @@ type TvZonePublicSaveReveal = {
   nominees: Player[]
   approvals: Record<string, number>
   savedId: string
+  tieBreakUsed?: boolean
   pairs?: CupidArrowPair[]
 }
 
@@ -1932,6 +1933,7 @@ export default function TvZone(props: TvZoneProps) {
                 nominees={props.publicSaveReveal.nominees}
                 approvals={props.publicSaveReveal.approvals}
                 savedId={props.publicSaveReveal.savedId}
+                tieBreakUsed={props.publicSaveReveal.tieBreakUsed}
                 pairs={props.publicSaveReveal.pairs}
                 onDone={props.onPublicSaveDone ?? NOOP}
               />

@@ -55,6 +55,7 @@ const WEEKEND_BLOCKED_ACTION_IDS = new Set([
   'pregnancy_test',
   'pregnancy_test_self',
   'paternity_test_self',
+  'share_pregnancy_news',
 ])
 
 export interface SocialExecutionSelection {

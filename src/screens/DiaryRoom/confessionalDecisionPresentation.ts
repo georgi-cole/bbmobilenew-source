@@ -147,7 +147,11 @@ export function getConfessionalDecisionPresentation(
         : 1
       prompt =
         multiSelectCount > 1
-          ? `Choose the ${multiSelectCount} players you want to eliminate.`
+          ? game.publicModeEnabled
+            ? 'The double-elimination tie is being decided by public approval.'
+            : game.awaitingPosTieBreak
+              ? `As the Power of Safety holder, choose the ${multiSelectCount} tied players to eliminate.`
+              : `Choose the ${multiSelectCount} players you want to eliminate.`
           : game.awaitingPosTieBreak
             ? 'As the Power of Safety holder, break the tie by choosing who you want to eliminate.'
             : 'Break the tie by choosing who you want to eliminate.'

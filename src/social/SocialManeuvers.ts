@@ -589,7 +589,7 @@ function getContextualActionSummary({
     players?: Array<{ id: string; name?: string; status: string }>
     nomineeIds?: string[]
     lohId?: string | null
-    nominationContext?: { autoNomineeId: string | null } | null
+    nominationContext?: { autoNomineeId: string | null; hohNomineeIds?: string[] } | null
     nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
   }
   relationships: SocialState['relationships']
@@ -614,6 +614,18 @@ function getContextualActionSummary({
     }
     if (disclosure.outcome === 'false') {
       return `${relationshipPrefix}${lohName} said you were becoming too dangerous in competitions and they could not leave you comfortable.`
+    }
+    if (reason.primaryReason === 'FORCED_BY_RULES') {
+      if (reason.stage === 'REPLACEMENT') {
+        return `${relationshipPrefix}${lohName} said Safety had already changed the block and you were the only eligible backup nominee. They had no other legal choice.`
+      }
+      const automaticId = game?.nominationContext?.autoNomineeId
+      const otherNominees = (game?.nominationContext?.hohNomineeIds ?? [])
+        .filter((id) => id !== actorId)
+        .map(name)
+      return automaticId
+        ? `${relationshipPrefix}${lohName} said ${name(automaticId)} was nominated automatically, leaving you${otherNominees.length ? ` and ${otherNominees.join(' and ')}` : ''} as the only eligible choices. Safety is the next chance to change the block.`
+        : `${relationshipPrefix}${lohName} said the rules left no other eligible nomination choices. Safety is the next chance to change the block.`
     }
     if (reason.forcedChoice) {
       return `${relationshipPrefix}${lohName} said there was no clean non-allied option left and they had to choose among people they were connected to.`

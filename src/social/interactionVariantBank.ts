@@ -1511,6 +1511,22 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
     ]
   ),
 
+  unavoidable_nominee_reaction: makeScenePool(
+    'unr',
+    [
+      'I know there was no other eligible name. I am scared to be on the block, but I am not blaming you for a choice you did not have.',
+      'The rules forced this nomination. What matters now is the next chance to change the block.',
+    ],
+    [
+      'I still trust you. Help me work out how Safety and the votes can get me through this.',
+      'Being nominated stings, but I know you could not legally put up anyone else.',
+    ],
+    [
+      'I have stopped looking for another motive. The legal choices were fixed; I need a survival plan now.',
+      'I know the nomination was unavoidable. Tell me where the vote stands.',
+    ]
+  ),
+
   automatic_nominee_reaction: makeScenePool(
     'anr',
     [

@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest'
 import {
   advancePregnancyWeekendDay,
   createInitialPregnancyStoryState,
+  getActivePregnancyAttempt,
   getPregnancyEligibility,
   hasPublicPregnancyWithOtherPartner,
   normalizePregnancyStoryState,
+  pregnancyNewsLeakChance,
   processPregnancyStoryDay,
+  recordPregnancyNewsShare,
+  revealPregnancyNewsLeak,
   resolvePregnancyResultDay,
   revealPaternityResult,
   revealPregnancyTest,
   shouldAcceptPregnancyAttempt,
+  shouldLeakPregnancyNews,
   startPregnancyAttempt,
   type PlayerLike,
   type PregnancyStoryState,
@@ -374,6 +379,11 @@ describe('Reality pregnancy lifecycle', () => {
       pregnancyPublicRevealed: false,
       biologicalFatherId: male.id,
     })
+    const resultRevealedDay = privateResult.result.attempt?.resultRevealedDay
+    expect(typeof resultRevealedDay).toBe('number')
+    expect(privateResult.result.attempt?.pregnancyPublicRevealDay).toBe(
+      (resultRevealedDay ?? -1) + 1
+    )
     expect(privateResult.result.attempt?.plausibleFatherIds).toEqual(
       expect.arrayContaining([male.id, secondMale.id])
     )
@@ -393,6 +403,87 @@ describe('Reality pregnancy lifecycle', () => {
       kind: 'PATERNITY_PUBLIC',
       fatherId: male.id,
     })
+  })
+
+  it('records private pregnancy shares and makes a leak public immediately', () => {
+    const first = findPositiveAttempt()
+    const pregnancyId = first.attempt!.attemptId
+    const confirmed = revealPregnancyTest(first.story, {
+      attemptId: pregnancyId,
+      currentDay: first.attempt!.resultAvailableDay!,
+    })
+    const shared = recordPregnancyNewsShare(confirmed.story, {
+      attemptId: pregnancyId,
+      recipientIds: ['friend-a', 'friend-b', 'friend-a'],
+      day: confirmed.result.attempt!.resultRevealedDay!,
+    })
+    const active = getActivePregnancyAttempt(shared, female.id)!
+    expect(active.pregnancyNewsSharedWithIds).toEqual(['friend-a', 'friend-b'])
+
+    const leaked = revealPregnancyNewsLeak(shared, {
+      attemptId: pregnancyId,
+      leakerId: 'friend-b',
+      day: 9,
+    })
+    expect(getActivePregnancyAttempt(leaked, female.id)).toMatchObject({
+      pregnancyPublicRevealed: true,
+      pregnancyPublicRevealDay: 9,
+      pregnancyNewsLeakedById: 'friend-b',
+    })
+    expect(pregnancyNewsLeakChance(90)).toBeLessThan(pregnancyNewsLeakChance(20))
+    expect(
+      shouldLeakPregnancyNews({
+        seed: 42,
+        day: 9,
+        attemptId: pregnancyId,
+        recipientId: 'friend-b',
+        loyalty: 40,
+      })
+    ).toBe(
+      shouldLeakPregnancyNews({
+        seed: 42,
+        day: 9,
+        attemptId: pregnancyId,
+        recipientId: 'friend-b',
+        loyalty: 40,
+      })
+    )
+  })
+
+  it('offers Share Pregnancy News only for a confirmed, still-private pregnancy', () => {
+    const first = findPositiveAttempt()
+    const pregnancyId = first.attempt!.attemptId
+    const confirmed = revealPregnancyTest(first.story, {
+      attemptId: pregnancyId,
+      currentDay: first.attempt!.resultAvailableDay!,
+    })
+    const action = SOCIAL_ACTIONS.find((entry) => entry.id === 'share_pregnancy_news')!
+    const eligible = evaluateSocialActionEligibility({
+      action,
+      actorId: female.id,
+      targetIds: [male.id],
+      players: [male, female],
+      pregnancyStory: confirmed.story,
+      dramaMode: true,
+      requireCompleteSelection: true,
+    })
+    expect(eligible).toEqual({ eligible: true, reason: '' })
+
+    const shared = recordPregnancyNewsShare(confirmed.story, {
+      attemptId: pregnancyId,
+      recipientIds: [male.id],
+      day: confirmed.result.attempt!.resultRevealedDay!,
+    })
+    const alreadyTold = evaluateSocialActionEligibility({
+      action,
+      actorId: female.id,
+      targetIds: [male.id],
+      players: [male, female],
+      pregnancyStory: shared,
+      dramaMode: true,
+      requireCompleteSelection: true,
+    })
+    expect(alreadyTold.eligible).toBe(false)
   })
 
   it('allows a private paternity test after an ambiguous pregnancy is public', () => {
@@ -516,6 +607,43 @@ describe('Reality pregnancy lifecycle', () => {
   it('resolves numeric ages from profile age ranges', () => {
     expect(resolveProfileAge('mid-20s')).toBe(25)
     expect(resolveProfileAge('52')).toBe(52)
+  })
+
+  it('uses a newly edited profile age for an in-progress adult romance', () => {
+    const game = createInitialGameState({ seed: 9082 })
+    const human = game.players.find((player) => player.isUser)!
+    const partner = game.players.find((player) => !player.isUser && player.sex !== human.sex)!
+    delete human.age
+
+    const updated = gameReducer(
+      game,
+      updateUserPlayerIdentity({ name: human.name, avatar: human.avatar, age: '28' })
+    )
+    const adult = updated.players.find((player) => player.isUser)!
+    expect(adult.age).toBe(28)
+    expect(
+      getPregnancyEligibility({
+        actor: adult,
+        target: partner,
+        currentDay: 4,
+        story: createInitialPregnancyStoryState(),
+        romanceActive: true,
+      }).reason
+    ).not.toBe('Both housemates must be 18 or older.')
+
+    const minor = gameReducer(
+      updated,
+      updateUserPlayerIdentity({ name: adult.name, avatar: adult.avatar, age: '17' })
+    )
+    expect(
+      getPregnancyEligibility({
+        actor: minor.players.find((player) => player.isUser)!,
+        target: partner,
+        currentDay: 4,
+        story: createInitialPregnancyStoryState(),
+        romanceActive: true,
+      }).eligible
+    ).toBe(false)
   })
 
   it('resolves profile sex only when explicit or unambiguous reproductive metadata exists', () => {

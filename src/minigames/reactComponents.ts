@@ -78,6 +78,7 @@ export interface GenericMinigameProps {
     completion?: {
       authoritativeWinnerId?: string | null
       authoritativeLastPlaceId?: string | null
+      authoritativeRankedIds?: string[]
       rawValue?: number
       rawResults?: Record<string, number>
       tiebreakerMs?: number

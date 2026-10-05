@@ -61,6 +61,8 @@ import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
 import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
+  recordPregnancyNewsShare as recordPregnancyStoryNewsShare,
+  revealPregnancyNewsLeak as revealPregnancyStoryNewsLeak,
   processPregnancyStoryDay,
   advancePregnancyWeekendDay as advancePregnancyStoryWeekendDay,
   revealPaternityResult as resolvePaternityResult,
@@ -139,7 +141,6 @@ import {
   resolveHubSaysQuestion,
 } from '../features/weekend/hubSays'
 import { buildSeasonSoFarFacts } from '../features/weekend/seasonSoFar'
-import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 import {
   createInitialVoxPopuliState,
   isVoxPopuliActive,
@@ -503,7 +504,6 @@ export function resolveProfileSex(
   if (canCause === canBecome) return undefined
   return canCause ? 'Male' : 'Female'
 }
-
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
   const parsedAge = resolveProfileAge(profile.bio?.age)
@@ -1087,33 +1087,6 @@ function enqueueManagedBroadcast(state: GameState, event: TvEvent) {
   state.broadcastQueue = queue
 }
 
-const LOG_ONLY_BROADCAST_TEMPLATE_IDS = new Set([
-  'loh.democracia-vote-start',
-  'card.democracia-vote',
-])
-
-function sanitizeBroadcastOverride(id: string, override: BroadcastOverride): BroadcastOverride {
-  if (!LOG_ONLY_BROADCAST_TEMPLATE_IDS.has(id)) return { ...override }
-
-  // These are receipts for a Democracia flow whose activation card already
-  // owns the one fullscreen announcement. Manager/remote config may edit their
-  // copy/order or disable them, but cannot promote them back onto faux TV.
-  return {
-    ...override,
-    level: 'minor',
-    major: null,
-    forceOnTv: false,
-  }
-}
-
-function sanitizeBroadcastOverrides(
-  overrides: Record<string, BroadcastOverride>
-): Record<string, BroadcastOverride> {
-  return Object.fromEntries(
-    Object.entries(overrides).map(([id, override]) => [id, sanitizeBroadcastOverride(id, override)])
-  )
-}
-
 function rebuildManagedBroadcastQueue(state: GameState, phase: Phase) {
   const retainedPlainEvent = state.lastPlainBroadcastEventId
     ? state.tvFeed.find((event) => event.id === state.lastPlainBroadcastEventId)
@@ -1439,6 +1412,17 @@ function getPovProtectedIds(state: GameState): string[] {
   return [...ids]
 }
 
+function getDayNominationProtectedIds(state: GameState): string[] {
+  return [
+    ...new Set([
+      ...getPovProtectedIds(state),
+      ...(state.storeNominationProtections ?? [])
+        .filter((protection) => protection.week === state.week)
+        .map((protection) => protection.targetId),
+    ]),
+  ]
+}
+
 function addPovProtectedId(state: GameState, playerId: string | null | undefined) {
   if (!playerId) return
   const ids = new Set(getPovProtectedIds(state))
@@ -1762,7 +1746,7 @@ function resolveCupidPairEviction(state: GameState): boolean {
 function getReplacementEligiblePlayers(
   state: GameState,
   alivePlayers: Player[],
-  neededCount = 1,
+  _neededCount = 1,
   options: { allowLoh?: boolean; actorId?: string | null } = {}
 ): Player[] {
   const actorId = options.actorId === undefined ? state.lohId : options.actorId
@@ -1780,11 +1764,10 @@ function getReplacementEligiblePlayers(
       )
     })
   )
-  const protectedIds = new Set(getPovProtectedIds(state))
-  const nonProtected = baseEligible.filter((player) =>
+  const protectedIds = new Set(getDayNominationProtectedIds(state))
+  return baseEligible.filter((player) =>
     expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
   )
-  return nonProtected.length >= neededCount ? nonProtected : baseEligible
 }
 
 export function getEligibleReplacementNominees(
@@ -2207,18 +2190,6 @@ function getNominationTargetBreakdown(
       factors.mediaStrategistThreat = mediaThreat
     }
   }
-  const wallDeal = state.holdTheWallSafetyDeal
-  if (
-    wallDeal?.week === state.week &&
-    wallDeal.promisorId === lohId &&
-    wallDeal.beneficiaryId === candidate.id
-  ) {
-    const disposition = getHoldTheWallDealDisposition(state, wallDeal)
-    const dealContribution = disposition === 'honor' ? -260 : 240
-    score += dealContribution
-    factors.holdTheWallDeal = disposition
-    factors.holdTheWallDealContribution = dealContribution
-  }
   const priorNominations = state.lastWeekNominationRecord
   if (priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)) {
     // Revenge matters, but alliances and stronger strategic reasons can still outweigh it.
@@ -2299,6 +2270,55 @@ export function getStrategicReplacementNomineeBreakdown(
     boundedVariation
   factors.total = total
   return { total, factors }
+}
+
+function recordUnavoidableNominationReason(
+  state: GameState,
+  lohId: string | null | undefined,
+  selectedIds: string[],
+  legalCandidates: Player[],
+  stage: 'INITIAL' | 'REPLACEMENT'
+): void {
+  if (
+    !lohId ||
+    legalCandidates.length !== selectedIds.length ||
+    !selectedIds.every((id) => legalCandidates.some((candidate) => candidate.id === id))
+  )
+    return
+
+  state.nominationDecisionReasons ??= {}
+  for (const nomineeId of selectedIds) {
+    const tags = [
+      ...(state.strategicRelationships?.[lohId]?.[nomineeId]?.tags ?? []),
+      ...(state.strategicRelationships?.[nomineeId]?.[lohId]?.tags ?? []),
+    ]
+    const relationshipTier = tags.includes('ride_or_die')
+      ? 'RIDE_OR_DIE'
+      : tags.includes('romance')
+        ? 'ROMANCE'
+        : tags.includes('primary_alliance')
+          ? 'PRIMARY_ALLIANCE'
+          : tags.includes('alliance')
+            ? 'ALLIANCE'
+            : tags.includes('bromance')
+              ? 'BROMANCE'
+              : 'ORDINARY'
+    state.nominationDecisionReasons[`${state.week}:${lohId}:${stage}:${nomineeId}`] = {
+      week: state.week,
+      lohId,
+      nomineeId,
+      stage,
+      primaryReason: 'FORCED_BY_RULES',
+      factors: { unavoidable: true },
+      targetScoreAtDecision: 0,
+      eligibleAlternativeIds: [],
+      strongerProtectedIds: [],
+      forcedChoice: true,
+      relationshipTier,
+      relationshipTagsAtDecision: [...new Set(tags)],
+      trustAtDecision: state.strategicRelationships?.[nomineeId]?.[lohId]?.affinity,
+    }
+  }
 }
 
 function recordNominationDecisionReason(
@@ -2987,13 +3007,10 @@ function restoreVoxNomineeMinimum(state: GameState): string[] {
   state.voxPopuli.lastReplacementNomineeIds = []
   if (state.nomineeIds.length >= requiredNomineeCount) return []
   const alive = getAlivePlayers(state)
-  const storeProtectedIds = (state.storeNominationProtections ?? [])
-    .filter((protection) => protection.week === state.week)
-    .map((protection) => protection.targetId)
   const replacements = resolveVoxReplacementNominees({
     activeIds: alive.map((player) => player.id),
     currentNomineeIds: state.nomineeIds,
-    protectedIds: [...new Set([...getPovProtectedIds(state), ...storeProtectedIds])],
+    protectedIds: getDayNominationProtectedIds(state),
     immunityWinnerId: getVoxNominationImmunityId(state),
     nominationVoteCounts: state.voxPopuli.nominationVoteCounts,
     requiredNomineeCount,
@@ -4177,11 +4194,6 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
     if (!winner.stats) winner.stats = { lohWins: 0, posWins: 0, timesNominated: 0 }
     winner.stats.lohWins += 1
   }
-  // Democracia already publishes its election result in the vote flow. Do not
-  // append the ordinary "won Leader of the House" competition receipt on top
-  // of that result; besides duplicating the beat, it uses classic-mode copy.
-  if (source?.includes('democracia')) return
-
   const partnerId = getCupidPartnerId(state, winnerId)
   const partner = state.players.find((player) => player.id === partnerId)
   if (voxPopuliActive) {
@@ -4698,6 +4710,7 @@ const gameSlice = createSlice({
     advanceWeek(state) {
       state.week += 1
       state.phase = 'week_start'
+      state.holdTheWallSafetyDeal = null
       settleSecretMissionArrival(state)
     },
     updatePlayer(state, action: PayloadAction<Player>) {
@@ -4830,6 +4843,32 @@ const gameSlice = createSlice({
         action.payload
       ).story
     },
+    recordPregnancyNewsShare(
+      state,
+      action: PayloadAction<{ attemptId: string; recipientIds: string[]; currentDay: number }>
+    ) {
+      state.pregnancyStory = recordPregnancyStoryNewsShare(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        {
+          attemptId: action.payload.attemptId,
+          recipientIds: action.payload.recipientIds,
+          day: action.payload.currentDay,
+        }
+      )
+    },
+    revealPregnancyNewsLeak(
+      state,
+      action: PayloadAction<{ attemptId: string; leakerId: string; currentDay: number }>
+    ) {
+      state.pregnancyStory = revealPregnancyStoryNewsLeak(
+        state.pregnancyStory ?? createInitialPregnancyStoryState(),
+        {
+          attemptId: action.payload.attemptId,
+          leakerId: action.payload.leakerId,
+          day: action.payload.currentDay,
+        }
+      )
+    },
     revealPaternityResult(state, action: PayloadAction<{ carrierId: string }>) {
       state.pregnancyStory = resolvePaternityResult(
         state.pregnancyStory ?? createInitialPregnancyStoryState(),
@@ -4920,10 +4959,10 @@ const gameSlice = createSlice({
     /** Change the source definition used by future Play-driven broadcasts. */
     setBroadcastOverride(state, action: PayloadAction<{ id: string; changes: BroadcastOverride }>) {
       state.broadcastOverrides ??= {}
-      state.broadcastOverrides[action.payload.id] = sanitizeBroadcastOverride(action.payload.id, {
+      state.broadcastOverrides[action.payload.id] = {
         ...(state.broadcastOverrides[action.payload.id] ?? {}),
         ...action.payload.changes,
-      })
+      }
       state.tvFeed.forEach((event) => {
         const isLegacyVoxIntro =
           action.payload.id === 'season.vox-populi-intro' &&
@@ -4966,7 +5005,7 @@ const gameSlice = createSlice({
         customMessages: CustomBroadcastMessage[]
       }>
     ) {
-      state.broadcastOverrides = sanitizeBroadcastOverrides(action.payload.overrides)
+      state.broadcastOverrides = action.payload.overrides
       state.customBroadcasts = action.payload.customMessages
       beginPhaseBroadcastSequence(state, state.phase)
       finishPhaseBroadcastSequence(state)
@@ -5770,6 +5809,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === coLohOwnerId)
       if (!player || !lohPlayer) return
 
+      recordUnavoidableNominationReason(
+        state,
+        coLohOwnerId,
+        [id],
+        getEligibleReplacementNominees(state, coLohOwnerId),
+        'REPLACEMENT'
+      )
       appendNominee(state, id)
       state.replacementNomineeIds = [...new Set([...(state.replacementNomineeIds ?? []), id])]
       state.replacementNeeded = false
@@ -5784,6 +5830,17 @@ const gameSlice = createSlice({
         }
       }
       pushEvent(state, `${lohPlayer.name} named ${player.name} as the backup nominee. 🎯`, 'game')
+    },
+
+    resolveUnfillableReplacement(state) {
+      if (!state.replacementNeeded || getEligibleReplacementNominees(state).length > 0) return
+      state.replacementNeeded = false
+      state.coLohReplacementOwnerId = null
+      pushEvent(
+        state,
+        'No eligible backup nominee remains. The ceremony continues with a short block.',
+        'game'
+      )
     },
 
     /**
@@ -5827,6 +5884,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
       if (!p1 || !p2) return
 
+      recordUnavoidableNominationReason(
+        state,
+        state.lohId,
+        [id1, id2],
+        getEligibleNominationTargets(state, state.lohId ?? ''),
+        'INITIAL'
+      )
       state.nomineeIds = [id1, id2]
       p1.status = 'nominated'
       p2.status = 'nominated'
@@ -5910,6 +5974,13 @@ const gameSlice = createSlice({
       const lohPlayer = state.players.find((p) => p.id === state.lohId)
       if (nominees.length !== expectedCount) return
 
+      recordUnavoidableNominationReason(
+        state,
+        state.lohId,
+        ids,
+        getEligibleNominationTargets(state, state.lohId ?? ''),
+        'INITIAL'
+      )
       // Keep the submitted choices separate from the draft nominee list.
       // appendNominee mutates nomineeIds below; assigning the payload array
       // directly would also mutate `ids` and incorrectly attribute the forced
@@ -6348,7 +6419,10 @@ const gameSlice = createSlice({
       )
       if (selectedIds.length !== slotsRequired) return
 
-      const lohPlayer = state.players.find((p) => p.id === state.lohId)
+      const tieBreakerName = state.awaitingPosTieBreak
+        ? (state.players.find((player) => player.id === state.posWinnerId)?.name ??
+          'The Safety holder')
+        : (state.players.find((player) => player.id === state.lohId)?.name ?? 'The LOH')
       const selectedPlayers = selectedIds
         .map((id) => state.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
@@ -6356,6 +6430,7 @@ const gameSlice = createSlice({
       if (selectedPlayers.length !== selectedIds.length) return
 
       state.awaitingTieBreak = false
+      state.awaitingPosTieBreak = false
       state.tiedNomineeIds = null
       state.votes = {}
 
@@ -6364,7 +6439,7 @@ const gameSlice = createSlice({
         .filter((name): name is string => Boolean(name))
       const selectedNames = selectedPlayers.map((player) => player.name)
       const tieResolutionMessage = buildDoubleEvictionTieResolutionMessage({
-        deciderName: lohPlayer?.name ?? 'The LOH',
+        deciderName: tieBreakerName,
         tiedNames,
         selectedNames,
         publicModeEnabled: state.publicModeEnabled,
@@ -8394,7 +8469,7 @@ const gameSlice = createSlice({
         name: string
         avatar: string
         photoId?: string
-        age?: number | null
+        age?: number | string | null
         sex?: string | null
         reproductiveProfile?: Player['reproductiveProfile'] | null
       }>
@@ -8405,10 +8480,13 @@ const gameSlice = createSlice({
       human.avatar = action.payload.photoId
         ? profilePhotoAvatar(action.payload.photoId)
         : action.payload.avatar
-
       if ('age' in action.payload) {
-        if (action.payload.age == null) delete human.age
-        else human.age = action.payload.age
+        const age =
+          typeof action.payload.age === 'number'
+            ? action.payload.age
+            : resolveProfileAge(action.payload.age ?? undefined)
+        if (age === undefined) delete human.age
+        else human.age = age
       }
       if ('sex' in action.payload) {
         const sex = action.payload.sex?.trim()
@@ -8591,8 +8669,12 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
+      const profileAge = resolveProfileAge(loadActiveProfile().bio?.age)
       const hydrated: GameState = {
         ...action.payload,
+        players: action.payload.players.map((player) =>
+          player.isUser && profileAge !== undefined ? { ...player, age: profileAge } : player
+        ),
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
@@ -9801,7 +9883,7 @@ const gameSlice = createSlice({
           )
           pushEvent(
             state,
-            `🗳️ The votes are in! ${winnerName} has been elected Leader of the Hub! 👑`,
+            `🗳️ The votes are in! ${winnerName} has been elected Leader of the House! 👑`,
             'game'
           )
           applyLohWinner(state, winnerId, '[advance/democracia_vote]')
@@ -9851,12 +9933,12 @@ const gameSlice = createSlice({
                 dVoteCounts,
                 dTopCandidates.length > 3 ? 'DEMOCRACIA TIE' : 'CO-LEADERS ELECTED',
                 dTopCandidates.length > 3
-                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the Hub.`
-                  : `${dTopNames} remain tied and will serve together as co-Leaders of the Hub.`
+                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the House.`
+                  : `${dTopNames} remain tied and will serve together as co-Leaders of the House.`
               )
               pushEvent(
                 state,
-                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the Hub! 👑👑`,
+                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the House! 👑👑`,
                 'game'
               )
               dem.active = false
@@ -9879,7 +9961,7 @@ const gameSlice = createSlice({
               'DEMOCRACIA WINNER',
               `${fallbackName} wins the tiebreak by chance after no eligible ballotage voters remained.`
             )
-            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the Hub! 👑`, 'game')
+            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the House! 👑`, 'game')
             applyLohWinner(state, fallbackId, '[advance/democracia_vote/ballotage_fallback]')
             dem.active = false
             state.phase = 'democracia_results'
@@ -9891,12 +9973,12 @@ const gameSlice = createSlice({
               dVoteCounts,
               dTopCandidates.length > 3 ? 'REVOTE REQUIRED' : 'TIED VOTE',
               dTopCandidates.length > 3
-                ? `${dTopNames} are tied. The hubmates must revote among the tied candidates.`
-                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The hubmates must revote.`
+                ? `${dTopNames} are tied. The house must revote among the tied candidates.`
+                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The house must revote.`
             )
             pushEvent(
               state,
-              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other hubmates must revote between the tied candidates. 🗳️`,
+              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other houseguests must revote between the tied candidates. 🗳️`,
               'game'
             )
             dem.round += 1
@@ -9936,7 +10018,7 @@ const gameSlice = createSlice({
             .join(' and ')
           pushEvent(
             state,
-            `${coNames} are now co-Leaders of the Hub! 👑👑 Alliances are already forming…`,
+            `${coNames} are now co-Leaders of the House! 👑👑 Alliances are already forming…`,
             'social'
           )
         } else {
@@ -9944,8 +10026,8 @@ const gameSlice = createSlice({
           pushEvent(
             state,
             isVoxPopuliActive(state)
-              ? `Hubmates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
-              : `Hubmates congratulate ${hohName}. Alliances are already forming… 💬`,
+              ? `Housemates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
+              : `Housemates congratulate ${hohName}. Alliances are already forming… 💬`,
             'social'
           )
         }
@@ -9992,7 +10074,6 @@ const gameSlice = createSlice({
           state.nominationDecisionReasons = {}
           state.lohId = null
           state.lohSocialPlan = null
-          state.holdTheWallSafetyDeal = null
           state.nomineeIds = []
           state.lohSafetyAdvice = null
           state.posWinnerId = null
@@ -11353,6 +11434,11 @@ const gameSlice = createSlice({
               if (ambiguousBoundaryTie) {
                 state.awaitingTieBreak = true
                 state.tiedNomineeIds = tiedBoundaryIds
+                const doubleTieBreakerId = getClassicEvictionTieBreakerId(state)
+                state.awaitingPosTieBreak =
+                  !state.publicModeEnabled &&
+                  doubleTieBreakerId === state.posWinnerId &&
+                  doubleTieBreakerId !== state.lohId
               } else {
                 state.doubleEviction.pendingSecondEviction = {
                   evicteeId: secondId,
@@ -11936,7 +12022,7 @@ const gameSlice = createSlice({
       }
     },
 
-    /** Apply a Store shield that remains active for every nomination window this game day/week. */
+    /** Apply the selected Store shield to the next nomination round only. */
     activateStoreNominationProtection(
       state,
       action: PayloadAction<{
@@ -12067,6 +12153,8 @@ export const {
   resetPregnancyStoryForDebug,
   startPregnancyAttempt,
   revealPregnancyTest,
+  recordPregnancyNewsShare,
+  revealPregnancyNewsLeak,
   revealPaternityResult,
   markPregnancyReactions,
   updateTvEvent,
@@ -12193,6 +12281,7 @@ export const {
   archiveSeason,
   replacePlayers,
   updateUserPlayerIdentity,
+  resolveUnfillableReplacement,
   debugForceBellaIntoCast,
   debugSetBellaHeir,
   debugSetBellaWillReward,

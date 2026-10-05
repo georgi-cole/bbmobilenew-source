@@ -491,6 +491,63 @@ describe('production middleware attribution', () => {
     expect(store.getState().social.reality).toEqual(after)
   })
 
+  it('keeps both allies and protection promises intact when the automatic nominee leaves exactly two legal LOH choices', () => {
+    const store = makeStore(true, {
+      setup(game, reality) {
+        game.players = game.players.filter((player) => player.id !== 'two')
+        game.lastHohCompFinisherId = 'spare'
+        createRealityAlliance(reality, {
+          id: 'second-pact',
+          founderIds: ['loh', 'one'],
+          memberIds: [],
+          purpose: 'Work together',
+          at: { day: 3, phase: 'social_1' },
+        }).status = 'ACTIVE'
+      },
+    })
+    const before = structuredClone(store.getState().social.reality.relationships)
+
+    store.dispatch(commitNominees(['ally', 'one']))
+    const state = store.getState()
+    expect(state.game.nominationContext?.autoNomineeId).toBe('spare')
+    expect(state.game.nominationDecisionReasons?.['3:loh:INITIAL:ally']?.forcedChoice).toBe(true)
+    expect(state.game.nominationDecisionReasons?.['3:loh:INITIAL:one']?.forcedChoice).toBe(true)
+    expect(state.social.reality.relationships.ally.loh).toEqual(before.ally.loh)
+    expect(state.social.reality.relationships.one.loh).toEqual(before.one.loh)
+    expect(state.social.reality.alliances.pact.status).toBe('ACTIVE')
+    expect(state.social.reality.alliances['second-pact'].status).toBe('ACTIVE')
+    expect(state.social.reality.promises.promise.status).toBe('VOID')
+    expect(state.social.commitments[0].status).toBe('void')
+    expect(betrayals(state.social.reality)).toHaveLength(0)
+  })
+
+  it('keeps the sole eligible allied backup intact when a nominee saves themself', () => {
+    const store = makeStore(false, {
+      setup(game) {
+        game.players = game.players.filter((player) => player.id !== 'spare')
+        Object.assign(game, {
+          phase: 'pos_ceremony_results',
+          nomineeIds: ['one'],
+          posWinnerId: 'two',
+          povSavedId: 'two',
+          povProtectedIds: ['two'],
+          replacementNeeded: true,
+        })
+      },
+    })
+    const before = structuredClone(store.getState().social.reality.relationships.ally.loh)
+
+    store.dispatch(setReplacementNominee('ally'))
+    const state = store.getState()
+    expect(state.game.nominationDecisionReasons?.['3:loh:REPLACEMENT:ally']?.forcedChoice).toBe(
+      true
+    )
+    expect(state.social.reality.relationships.ally.loh).toEqual(before)
+    expect(state.social.reality.alliances.pact.status).toBe('ACTIVE')
+    expect(state.social.reality.promises.promise.status).toBe('VOID')
+    expect(betrayals(state.social.reality)).toHaveLength(0)
+  })
+
   it('does not manufacture a Safety decision from a rejected action', () => {
     const store = makeStore()
     const before = structuredClone(store.getState().social.reality)

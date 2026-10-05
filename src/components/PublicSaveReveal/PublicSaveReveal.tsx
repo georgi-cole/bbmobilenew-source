@@ -11,6 +11,7 @@ export interface PublicSaveRevealProps {
   /** Audience ballot scores or precomputed vote shares, normalised to exactly 100%. */
   approvals: Record<string, number>
   savedId: string
+  tieBreakUsed?: boolean
   /** Active Cupid pairs are rendered as one compact, shared-vote TV unit. */
   pairs?: CupidArrowPair[]
   onDone: () => void
@@ -70,19 +71,25 @@ const EXIT_MS = 9300
 const DONE_MS = 10000
 
 function formatShare(value: number): string {
-  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}%`
+  const rounded = Number(value.toFixed(4))
+  const formatted = Number.isInteger(rounded)
+    ? rounded.toFixed(0)
+    : rounded.toFixed(4).replace(/0+$/, '').replace(/\.$/, '')
+  return `${formatted}%`
 }
 
 function NormalPublicSaveReveal({
   nominees,
   voteShares,
   savedId,
+  tieBreakUsed,
   pairs,
   onDone,
 }: {
   nominees: Player[]
   voteShares: Record<string, number>
   savedId: string
+  tieBreakUsed: boolean
   pairs?: CupidArrowPair[]
   onDone: () => void
 }) {
@@ -99,6 +106,18 @@ function NormalPublicSaveReveal({
     unit.members.some((member) => member.id === savedId)
   )
   const hasPairedUnits = displayUnits.some((unit) => unit.members.length > 1)
+  const displayedTie = Boolean(
+    savedUnit &&
+    displayUnits.some(
+      (unit) =>
+        unit.id !== savedUnit.id && formatShare(unit.voteShare) === formatShare(savedUnit.voteShare)
+    )
+  )
+  const decisionNote = tieBreakUsed
+    ? 'Audience scores tied. Season average, completed goals, then stable player order settled the save.'
+    : displayedTie
+      ? 'These shares match at 0.0001% precision. The saved result follows the full audience-ballot calculation.'
+      : null
 
   const clearTimers = useCallback(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id))
@@ -217,6 +236,11 @@ function NormalPublicSaveReveal({
             )
           })}
         </div>
+        {decisionNote && (phase === 'saved' || phase === 'exiting') && (
+          <p className="psr__decision-note" aria-live="polite">
+            {decisionNote}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -231,6 +255,7 @@ export default function PublicSaveReveal({
   nominees,
   approvals,
   savedId,
+  tieBreakUsed = false,
   pairs,
   onDone,
 }: PublicSaveRevealProps) {
@@ -274,6 +299,7 @@ export default function PublicSaveReveal({
       nominees={nominees}
       voteShares={voteShares}
       savedId={savedId}
+      tieBreakUsed={tieBreakUsed}
       pairs={pairs}
       onDone={handleDone}
     />

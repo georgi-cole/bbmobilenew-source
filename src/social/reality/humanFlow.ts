@@ -43,14 +43,19 @@ import {
   estimateFinalThreeDay,
   getLatestAttempt,
   getLatestCarrierAttempt,
+  getActivePregnancyAttempt,
   getPregnancyEligibility,
+  shouldLeakPregnancyNews,
   revealPaternityResult,
   revealPregnancyTest,
   shouldAcceptPregnancyAttempt,
   startPregnancyAttempt,
 } from './pregnancy'
 import {
+  addTvEvent,
   markPregnancyReactions,
+  recordPregnancyNewsShare,
+  revealPregnancyNewsLeak,
   revealPaternityResult as revealPaternityResultAction,
   revealPregnancyTest as revealPregnancyTestAction,
   startPregnancyAttempt as startPregnancyAttemptAction,
@@ -61,6 +66,8 @@ export interface HumanRealityActionInput {
   targetId: string
   targetIds?: string[]
   actionId: string
+  consultationScope?: 'selected' | 'alliance'
+  consultationAllianceId?: string
   subjectId?: string
   costOverride?: { energy: number; influence: number; info: number }
 }
@@ -225,6 +232,7 @@ function executePregnancyFlow(
     'pregnancy_test',
     'pregnancy_test_self',
     'paternity_test_self',
+    'share_pregnancy_news',
   ].includes(input.actionId)
   if (!isPregnancyAction) return null
 
@@ -242,6 +250,116 @@ function executePregnancyFlow(
     (player) => player.status !== 'evicted' && player.status !== 'jury'
   ).length
   const finalThreeDay = estimateFinalThreeDay(state.game.week, activeCount, state.game.phase)
+
+  if (input.actionId === 'share_pregnancy_news') {
+    const pregnancy = getActivePregnancyAttempt(pregnancyStory, actor.id)
+    const recipientIds = [...new Set(input.targetIds ?? [input.targetId])].filter(
+      (id) => id && id !== actor.id
+    )
+    if (!pregnancy || !pregnancy.resultKnown || pregnancy.status !== 'POSITIVE') {
+      return result(false, 'You need a confirmed pregnancy before sharing the news.', 0)
+    }
+    if (pregnancy.pregnancyPublicRevealed) {
+      return result(false, 'The pregnancy news is already public.', 0)
+    }
+    if (recipientIds.length === 0) {
+      return result(false, 'Choose at least one active housemate to tell.', 0)
+    }
+    const alreadyTold = new Set(pregnancy.pregnancyNewsSharedWithIds ?? [])
+    if (recipientIds.some((id) => alreadyTold.has(id))) {
+      return result(false, 'You have already shared this news with that housemate.', 0)
+    }
+
+    const leakerId = recipientIds.find((recipientId) => {
+      const loyalty = state.social.reality.relationships[recipientId]?.[actor.id]?.loyalty ?? 50
+      return shouldLeakPregnancyNews({
+        seed: state.game.seed,
+        day: state.game.week,
+        attemptId: pregnancy.attemptId,
+        recipientId,
+        loyalty,
+      })
+    })
+    dispatch(
+      recordPregnancyNewsShare({
+        attemptId: pregnancy.attemptId,
+        recipientIds,
+        currentDay: state.game.week,
+      })
+    )
+    dispatch(applyEnergyDelta({ playerId: actor.id, delta: -costs.energy }))
+
+    for (const recipientId of recipientIds) {
+      const leaked = recipientId === leakerId
+      dispatch(
+        updateRelationship({
+          source: actor.id,
+          target: recipientId,
+          delta: leaked ? -8 : 5,
+          ...(leaked ? { tags: ['betrayal'] } : {}),
+          actionSource: 'manual',
+        })
+      )
+      if (!leaked) {
+        dispatch(
+          updateRelationship({
+            source: recipientId,
+            target: actor.id,
+            delta: 3,
+            actionSource: 'system',
+          })
+        )
+      }
+    }
+
+    if (leakerId) {
+      const leakerName =
+        state.game.players.find((player) => player.id === leakerId)?.name ?? leakerId
+      const carrierName =
+        state.game.players.find((player) => player.id === pregnancy.carrierId)?.name ?? actor.name
+      dispatch(
+        revealPregnancyNewsLeak({
+          attemptId: pregnancy.attemptId,
+          leakerId,
+          currentDay: state.game.week,
+        })
+      )
+      dispatch(
+        addTvEvent({
+          text: `Hub leak: ${leakerName} shared ${carrierName}'s private pregnancy news. The secret is out.`,
+          type: 'social',
+          major: 'pregnancy_secret_leaked',
+          source: 'system',
+          channels: ['tv', 'dr'],
+          meta: { pregnancyAttemptId: pregnancy.attemptId, forceOnTv: true },
+        })
+      )
+      return {
+        ...result(
+          true,
+          `${leakerName} leaked your pregnancy news. The Hub knows, and your trust with them has been damaged.`,
+          (state.social.energyBank[actor.id] ?? 0) - costs.energy,
+          -8,
+          'Leaked'
+        ),
+        targetDeltas: Object.fromEntries(recipientIds.map((id) => [id, id === leakerId ? -8 : 5])),
+      }
+    }
+
+    const recipientNames = recipientIds.map(
+      (id) => state.game.players.find((player) => player.id === id)?.name ?? id
+    )
+    return {
+      ...result(
+        true,
+        `You shared the pregnancy news privately with ${recipientNames.join(', ')}. Their loyalty determines whether they keep it secret.`,
+        (state.social.energyBank[actor.id] ?? 0) - costs.energy,
+        5,
+        'Shared privately'
+      ),
+      targetDeltas: Object.fromEntries(recipientIds.map((id) => [id, 5])),
+    }
+  }
 
   if (input.actionId === 'paternity_test_self') {
     const eligibility = getPregnancyEligibility({
@@ -504,10 +622,18 @@ function executePregnancyFlow(
   const carrierName =
     state.game.players.find((player) => player.id === revealed.carrierId)?.name ?? target.name
   const ambiguous = (revealed.plausibleFatherIds?.length ?? 0) > 1
+  const publicRevealCopy =
+    revealed.pregnancyPublicRevealDay == null
+      ? ' The result stays private for the rest of this season because the scheduled reveal would fall at Final 3.'
+      : ` The result is private today; the Hub reveal is scheduled for Day ${revealed.pregnancyPublicRevealDay}.`
+  const paternityRevealCopy =
+    ambiguous && revealed.paternityRevealDay != null
+      ? ` Paternity is uncertain and is scheduled to be revealed on Day ${revealed.paternityRevealDay}.`
+      : ''
   return result(
     true,
     revealed.status === 'POSITIVE'
-      ? `Positive. ${carrierName} is pregnant. The result is private for now.${ambiguous ? ' Paternity is not yet certain.' : ''}`
+      ? `Positive. ${carrierName} is pregnant.${publicRevealCopy}${paternityRevealCopy}`
       : 'Negative. The result is attached to this attempt and will not change.',
     state.social.energyBank[input.actorId] ?? 0,
     revealed.status === 'POSITIVE' ? 10 : 3,
@@ -626,6 +752,92 @@ function summarizeAlliancePreferences(
   }
 }
 
+function summarizeAllianceSlate(
+  state: RootState,
+  preferences: Array<{ advisorId: string; targetId: string; score: number }>,
+  decisionLabel: string,
+  seatCount: number
+): {
+  summary: string
+  targetIds: string[]
+  fallbackTargetIds: string[]
+  preferenceByAdvisor: Record<string, string>
+} {
+  const counts = new Map<string, { votes: number; score: number }>()
+  for (const preference of preferences) {
+    const current = counts.get(preference.targetId) ?? { votes: 0, score: 0 }
+    current.votes += 1
+    current.score += preference.score
+    counts.set(preference.targetId, current)
+  }
+  const ranked = [...counts.entries()].sort(
+    (left, right) =>
+      right[1].votes - left[1].votes ||
+      right[1].score - left[1].score ||
+      left[0].localeCompare(right[0])
+  )
+  const targetIds = ranked.slice(0, Math.max(1, seatCount)).map(([id]) => id)
+  const fallbackTargetIds = ranked.slice(targetIds.length, targetIds.length + 1).map(([id]) => id)
+  const preferenceByAdvisor = Object.fromEntries(
+    preferences
+      .filter(
+        (preference, index, entries) =>
+          entries.findIndex((candidate) => candidate.advisorId === preference.advisorId) === index
+      )
+      .map((preference) => [preference.advisorId, preference.targetId])
+  )
+  const names = targetIds.map((id) => playerName(state, id))
+  const recommendationsByAdvisor = new Map<string, string[]>()
+  for (const preference of preferences) {
+    const recommendations = recommendationsByAdvisor.get(preference.advisorId) ?? []
+    if (!recommendations.includes(preference.targetId)) recommendations.push(preference.targetId)
+    recommendationsByAdvisor.set(preference.advisorId, recommendations)
+  }
+  const recommendationLines = [...recommendationsByAdvisor.entries()]
+    .slice(0, 4)
+    .map(
+      ([advisorId, targetIds]) =>
+        `${playerName(state, advisorId)} → ${targetIds.map((id) => playerName(state, id)).join(', ')}`
+    )
+    .join(' · ')
+  const slotLabel = decisionLabel.toLowerCase().includes('nomination')
+    ? 'nomination spots'
+    : 'exit spots'
+  const slate = names.length > 0 ? names.join(', ') : 'no eligible targets yet'
+  const slotProgress = `${targetIds.length} of ${seatCount} ${slotLabel} planned`
+  return {
+    summary: `${decisionLabel}: ${slate} (${slotProgress})${fallbackTargetIds.length ? ` · next option ${playerName(state, fallbackTargetIds[0])}` : ''}${recommendationLines ? `; member reads: ${recommendationLines}` : ''}`,
+    targetIds,
+    fallbackTargetIds,
+    preferenceByAdvisor,
+  }
+}
+
+function buildConsultationSlateBeliefs(
+  attendeeIds: readonly string[],
+  actorId: string,
+  read: {
+    targetIds: string[]
+    fallbackTargetIds: string[]
+    preferenceByAdvisor: Record<string, string>
+  }
+): Record<string, string[]> {
+  const slateIds = new Set(read.targetIds)
+  return Object.fromEntries(
+    attendeeIds.map((memberId) => {
+      const preference = read.preferenceByAdvisor[memberId]
+      const beliefs = [
+        ...read.targetIds.map((targetId) => `target:${targetId}`),
+        ...read.fallbackTargetIds.map((targetId) => `fallback:${targetId}`),
+      ]
+      if (memberId !== actorId && preference && !slateIds.has(preference)) {
+        beliefs.push(`preference:${preference}`)
+      }
+      return [memberId, beliefs]
+    })
+  )
+}
+
 function buildConsultationMemberPlanBeliefs(
   attendeeIds: readonly string[],
   actorId: string,
@@ -701,12 +913,19 @@ function getAllianceConsultationAgenda(
 function buildAllianceConsultationPlan(
   state: RootState,
   alliance: RealityAlliance,
-  actorId: string
+  actorId: string,
+  requestedAdvisorIds?: readonly string[]
 ): AllianceConsultationPlan | null {
-  const advisors = activeAllianceAdvisors(state, alliance, actorId)
+  const availableAdvisors = activeAllianceAdvisors(state, alliance, actorId)
+  const requested = requestedAdvisorIds ? new Set(requestedAdvisorIds) : null
+  const advisors = requested
+    ? availableAdvisors.filter((advisorId) => requested.has(advisorId))
+    : availableAdvisors
   if (advisors.length === 0) return null
   const attendeeIds = [actorId, ...advisors]
   const attendeeSet = new Set(attendeeIds)
+  // A scoped consultation is a private subset meeting. Members who were not
+  // invited are not treated as having skipped an alliance meeting.
   const excusedAbsentIds = alliance.memberIds.filter((id) => !attendeeSet.has(id))
   const agenda = getAllianceConsultationAgenda(state, actorId)
   const nominees = state.game.players.filter((player) => state.game.nomineeIds.includes(player.id))
@@ -716,29 +935,21 @@ function buildAllianceConsultationPlan(
       (candidate) => !isAllianceProtectedGameUnit(state, alliance, candidate.id)
     )
     if (candidates.length === 0) return null
-    const preferences = advisors
-      .map((advisorId) => {
-        const ranked = candidates
-          .filter((candidate) => candidate.id !== advisorId)
-          .map((candidate) => ({
-            advisorId,
-            targetId: candidate.id,
-            score: getNominationTargetScore(state.game, advisorId, candidate),
-          }))
-          .sort(
-            (left, right) => right.score - left.score || left.targetId.localeCompare(right.targetId)
-          )
-        return ranked[0]
-      })
-      .filter((entry): entry is { advisorId: string; targetId: string; score: number } =>
-        Boolean(entry)
-      )
-    const read = summarizeAlliancePreferences(
-      state,
-      preferences,
-      'Nomination consensus',
-      new Set(alliance.memberIds)
-    )
+    const nominationSeats = state.game.doubleEviction?.weekActive ? 3 : 2
+    const preferences = advisors.flatMap((advisorId) => {
+      const ranked = candidates
+        .filter((candidate) => candidate.id !== advisorId)
+        .map((candidate) => ({
+          advisorId,
+          targetId: candidate.id,
+          score: getNominationTargetScore(state.game, advisorId, candidate),
+        }))
+        .sort(
+          (left, right) => right.score - left.score || left.targetId.localeCompare(right.targetId)
+        )
+      return ranked.slice(0, nominationSeats)
+    })
+    const read = summarizeAllianceSlate(state, preferences, 'Nomination slate', nominationSeats)
     return {
       allianceId: alliance.id,
       attendeeIds,
@@ -751,7 +962,7 @@ function buildAllianceConsultationPlan(
       agenda: 'nominations',
       summary: `Nomination huddle — ${read.summary}`,
       excusedAbsentIds,
-      memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
+      memberPlanBeliefs: buildConsultationSlateBeliefs(attendeeIds, actorId, read),
     }
   }
 
@@ -793,6 +1004,29 @@ function buildAllianceConsultationPlan(
       .filter((entry): entry is { advisorId: string; targetId: string; score: number } =>
         Boolean(entry)
       )
+    const canonicalBackupId =
+      state.game.lohSocialPlan?.week === state.game.week &&
+      state.game.lohSocialPlan.lohId === state.game.lohId
+        ? state.game.lohSocialPlan.backupTargetId
+        : null
+    if (
+      state.game.lohId &&
+      canonicalBackupId &&
+      replacements.some((candidate) => candidate.id === canonicalBackupId)
+    ) {
+      const lohReplacementPreference = replacementPreferences.find(
+        (preference) => preference.advisorId === state.game.lohId
+      )
+      const canonicalBackup = replacements.find((candidate) => candidate.id === canonicalBackupId)
+      if (lohReplacementPreference && canonicalBackup) {
+        lohReplacementPreference.targetId = canonicalBackupId
+        lohReplacementPreference.score = getNominationTargetScore(
+          state.game,
+          state.game.lohId,
+          canonicalBackup
+        )
+      }
+    }
     const replacementRead = summarizeAlliancePreferences(
       state,
       replacementPreferences,
@@ -851,21 +1085,53 @@ function buildAllianceConsultationPlan(
       .filter((nominee) => !isAllianceProtectedGameUnit(state, alliance, nominee.id))
       .map((nominee) => nominee.id)
     if (nomineeIds.length === 0) return null
-    const preferences = advisors.map((advisorId) => {
+    const preferences = advisors.flatMap((advisorId) => {
       const targetId = chooseAiEvictionVote(
         state.game,
         advisorId,
         nomineeIds,
         (state.game.seed ?? 0) ^ state.game.week
       )
-      return { advisorId, targetId, score: 1 }
+      const firstChoice = nomineeIds.find((id) => id === targetId)
+      const recommendations = firstChoice ? [firstChoice] : []
+      if (state.game.doubleEviction?.weekActive) {
+        const additionalChoices = nomineeIds
+          .filter((id) => id !== firstChoice)
+          .map((id) => ({
+            id,
+            score: getNominationTargetScore(
+              state.game,
+              advisorId,
+              state.game.players.find((player) => player.id === id)!
+            ),
+          }))
+          .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
+          .slice(0, 1)
+          .map((choice) => choice.id)
+        recommendations.push(...additionalChoices)
+      }
+      return recommendations.map((recommendationId, index) => ({
+        advisorId,
+        targetId: recommendationId,
+        score:
+          index === 0
+            ? 1
+            : getNominationTargetScore(
+                state.game,
+                advisorId,
+                state.game.players.find((player) => player.id === recommendationId)!
+              ),
+      }))
     })
-    const read = summarizeAlliancePreferences(
-      state,
-      preferences,
-      agenda === 'eviction_vote' ? 'Vote consensus' : 'Current block',
-      new Set(alliance.memberIds)
-    )
+    const read =
+      agenda === 'eviction_vote' && state.game.doubleEviction?.weekActive
+        ? summarizeAllianceSlate(state, preferences, 'Double eviction vote plan', 2)
+        : summarizeAlliancePreferences(
+            state,
+            preferences,
+            agenda === 'eviction_vote' ? 'Vote consensus' : 'Current block',
+            new Set(alliance.memberIds)
+          )
     return {
       allianceId: alliance.id,
       attendeeIds,
@@ -878,7 +1144,10 @@ function buildAllianceConsultationPlan(
       agenda,
       summary: `${agenda === 'eviction_vote' ? 'Eviction huddle' : 'Block strategy'} — ${read.summary}`,
       excusedAbsentIds,
-      memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
+      memberPlanBeliefs:
+        agenda === 'eviction_vote' && state.game.doubleEviction?.weekActive
+          ? buildConsultationSlateBeliefs(attendeeIds, actorId, read)
+          : buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
     }
   }
 
@@ -1301,19 +1570,53 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
 
     const consultationAlliance =
       input.actionId === 'consult_alliance' && input.targetId
-        ? findRealityAllianceForConsultation(state.social.reality, input.actorId, input.targetId)
+        ? input.consultationAllianceId
+          ? (() => {
+              const alliance = state.social.reality.alliances[input.consultationAllianceId]
+              return alliance &&
+                (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+                alliance.memberIds.includes(input.actorId) &&
+                alliance.memberIds.includes(input.targetId)
+                ? alliance
+                : null
+            })()
+          : findRealityAllianceForConsultation(state.social.reality, input.actorId, input.targetId)
         : null
     if (input.actionId === 'consult_alliance' && !consultationAlliance) {
       return result(false, 'You do not share an active alliance with that housemate.', energy)
     }
+    const selectedConsultationAdvisorIds =
+      input.actionId === 'consult_alliance' && input.consultationScope === 'selected'
+        ? targetIds
+        : undefined
+    if (consultationAlliance && selectedConsultationAdvisorIds) {
+      const allShareThisAlliance = selectedConsultationAdvisorIds.every((advisorId) =>
+        consultationAlliance.memberIds.includes(advisorId)
+      )
+      if (!allShareThisAlliance) {
+        return result(
+          false,
+          'Selected allies must all belong to the same alliance with you.',
+          energy,
+          0,
+          'Invalid consultation group'
+        )
+      }
+    }
     if (consultationAlliance) {
       const agenda = getAllianceConsultationAgenda(state, input.actorId)
+      const invitedIds = selectedConsultationAdvisorIds
+        ? [input.actorId, ...selectedConsultationAdvisorIds]
+        : [input.actorId, ...activeAllianceAdvisors(state, consultationAlliance, input.actorId)]
+      const invited = new Set(invitedIds)
       const alreadyMet = state.social.reality.events.some(
         (event) =>
           event.type === 'ALLIANCE_STRATEGY_MEETING' &&
           event.day === state.game.week &&
           event.phase === getWeekendActivityPhase(state) &&
-          event.reason.startsWith(`strategy_meeting:${consultationAlliance.id}:${agenda}:`)
+          event.reason.startsWith(`strategy_meeting:${consultationAlliance.id}:${agenda}:`) &&
+          event.participantIds.length === invited.size &&
+          event.participantIds.every((participantId) => invited.has(participantId))
       )
       if (alreadyMet) {
         return result(
@@ -1326,13 +1629,22 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       }
     }
     const executionTargetIds = consultationAlliance
-      ? activeAllianceAdvisors(state, consultationAlliance, input.actorId)
+      ? selectedConsultationAdvisorIds
+        ? activeAllianceAdvisors(state, consultationAlliance, input.actorId).filter((id) =>
+            selectedConsultationAdvisorIds.includes(id)
+          )
+        : activeAllianceAdvisors(state, consultationAlliance, input.actorId)
       : targetIds
     if (consultationAlliance && executionTargetIds.length === 0) {
       return result(false, 'No active alliance member is available for a huddle.', energy)
     }
     const consultationPlan = consultationAlliance
-      ? buildAllianceConsultationPlan(state, consultationAlliance, input.actorId)
+      ? buildAllianceConsultationPlan(
+          state,
+          consultationAlliance,
+          input.actorId,
+          selectedConsultationAdvisorIds
+        )
       : null
     if (consultationAlliance && !consultationPlan) {
       return result(

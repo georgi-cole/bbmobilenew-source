@@ -69,6 +69,13 @@ export interface PlayerPublicProfile {
   cumulativePositiveDelta: number
   /** The three live ingredients of the audience's overall approval score. */
   audienceBreakdown?: AudienceBreakdown
+  /** Short-lived, story-driven rating modifiers; raw approval history is unchanged. */
+  temporaryApprovalBoosts?: Array<{
+    id: string
+    delta: number
+    expiresWeek: number
+    reason: 'pregnancy_news'
+  }>
 }
 
 export type AudienceMetric = 'charisma' | 'gameplay' | 'integrity'

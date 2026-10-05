@@ -9,9 +9,12 @@ import {
   finalizePendingEviction,
   setEvictionOverlay,
   submitDoubleEvictionTieBreak,
+  getNominationTargetScore,
+  getSafetyRelationshipScore,
   tryActivateBattleBack,
   tryActivatePendingForcedBattleBack,
 } from '../../../store/gameSlice'
+import { getClassicEvictionTieBreakerId } from '../../../store/criticalGameRules'
 import type { AppDispatch, RootState } from '../../../store/store'
 import type { Announcement } from '../../../components/ui/TvAnnouncementOverlay/TvAnnouncementOverlay'
 import type { Phase, Player } from '../../../types'
@@ -174,6 +177,16 @@ export function useEvictionFlow({
   const [activeAiTiebreakContext, setActiveAiTiebreakContext] = useState<AiTiebreakContext | null>(
     null
   )
+  const humanIsDoubleTieBreaker = Boolean(
+    game.doubleEviction?.weekActive &&
+    !game.publicModeEnabled &&
+    game.players.some(
+      (player) => player.isUser && player.id === getClassicEvictionTieBreakerId(game)
+    )
+  )
+  const humanIsVoteTieBreaker = game.doubleEviction?.weekActive
+    ? humanIsDoubleTieBreaker
+    : humanIsHoH
   const isPostEvictionConfessionalModeRef = useRef(false)
   const postEvictionVoteSnapshotRef = useRef<VoteBreakdownSnapshot | null>(null)
   const autoRevealOwnEvictionVotesRef = useRef(false)
@@ -684,6 +697,16 @@ export function useEvictionFlow({
   const handleTiebreakerRequired = useCallback(
     (tiedIds: string[]) => {
       console.log('TIE_BREAK_STARTED', { tiedIds, hohIsHuman: !!humanIsHoH, screen: 'GameScreen' })
+      if (game.doubleEviction?.weekActive) {
+        if (humanIsDoubleTieBreaker) {
+          handleVoteResultsDone()
+        } else if (!game.publicModeEnabled) {
+          // Let the Safety holder's tie-break choreography run after the tally
+          // closes; the state remains paused until that decision is recorded.
+          dispatch(dismissVoteResults())
+        }
+        return
+      }
       if (!humanIsHoH) {
         if (!aiTiebreakContext) {
           // If we cannot build the AI tie-break context, still dismiss the vote
@@ -704,7 +727,16 @@ export function useEvictionFlow({
         handleVoteResultsDone()
       }
     },
-    [aiTiebreakContext, armPostEvictionVoteBreakdown, dispatch, humanIsHoH, handleVoteResultsDone]
+    [
+      aiTiebreakContext,
+      armPostEvictionVoteBreakdown,
+      dispatch,
+      game.doubleEviction?.weekActive,
+      game.publicModeEnabled,
+      handleVoteResultsDone,
+      humanIsDoubleTieBreaker,
+      humanIsHoH,
+    ]
   )
 
   const handleAiTiebreakAnnouncementDismiss = useCallback(() => {
@@ -765,6 +797,7 @@ export function useEvictionFlow({
     return {
       tiedNominees,
       evicteeIds,
+      countdownMs: 7000,
     }
   }, [
     game.awaitingTieBreak,
@@ -789,7 +822,7 @@ export function useEvictionFlow({
     if (
       !game.awaitingTieBreak ||
       !game.doubleEviction?.weekActive ||
-      humanIsHoH ||
+      humanIsVoteTieBreaker ||
       game.publicModeEnabled
     ) {
       return []
@@ -798,26 +831,35 @@ export function useEvictionFlow({
     if (tiedIds.length === 0) return []
     const aiRng = mulberry32((game.seed ^ 0xdeadbeef) >>> 0)
     const tieBreakRanks = Object.fromEntries(tiedIds.map((id) => [id, aiRng()]))
-    const rankedIds = [...tiedIds].sort((a, b) => (tieBreakRanks[b] ?? 0) - (tieBreakRanks[a] ?? 0))
+    const deciderId = getClassicEvictionTieBreakerId(game)
+    const rankedIds = [...tiedIds].sort((a, b) => {
+      const playerA = game.players.find((player) => player.id === a)
+      const playerB = game.players.find((player) => player.id === b)
+      const scoreA = playerA
+        ? game.awaitingPosTieBreak
+          ? getSafetyRelationshipScore(game, deciderId ?? game.posWinnerId ?? '', playerA)
+          : getNominationTargetScore(game, deciderId ?? game.lohId ?? '', playerA)
+        : 0
+      const scoreB = playerB
+        ? game.awaitingPosTieBreak
+          ? getSafetyRelationshipScore(game, deciderId ?? game.posWinnerId ?? '', playerB)
+          : getNominationTargetScore(game, deciderId ?? game.lohId ?? '', playerB)
+        : 0
+      return (
+        scoreA - scoreB || (tieBreakRanks[b] ?? 0) - (tieBreakRanks[a] ?? 0) || a.localeCompare(b)
+      )
+    })
     const selectionCount = calculateRequiredDoubleEvictionSlots(
       tiedIds.length,
       Boolean(game.pendingEviction)
     )
     return rankedIds.slice(0, selectionCount)
-  }, [
-    game.awaitingTieBreak,
-    game.doubleEviction?.weekActive,
-    game.pendingEviction,
-    game.publicModeEnabled,
-    game.seed,
-    game.tiedNomineeIds,
-    humanIsHoH,
-  ])
+  }, [game, humanIsVoteTieBreaker])
 
   const showAiSecondTieBreakOverlay =
     game.phase === 'eviction_results' &&
     Boolean(game.awaitingTieBreak) &&
-    !humanIsHoH &&
+    !humanIsVoteTieBreaker &&
     !game.publicModeEnabled &&
     !game.voteResults
 

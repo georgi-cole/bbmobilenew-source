@@ -1,4 +1,5 @@
 import type { PlayerPublicProfile, PublicFeedEntry } from './types'
+import { getEffectivePublicApproval } from './publicApproval'
 
 export type PublicSaveDecisiveReason =
   | 'audience_mix'
@@ -32,8 +33,8 @@ export interface PublicSaveContext {
 
 /** Floating-point tolerance for score comparisons. */
 const FLOAT_EQUALITY_EPSILON = 0.001
-/** Store shares as tenths of one percent while allocating the remainder. */
-const SHARE_UNITS = 1000
+/** Store shares to four decimal places while allocating the remainder. */
+const SHARE_UNITS = 1_000_000
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value))
@@ -86,19 +87,26 @@ export function getPublicSaveAudienceMix(
 
 function audienceWeightedScore(
   profile: PlayerPublicProfile | undefined,
-  mix: ReturnType<typeof getPublicSaveAudienceMix>
+  mix: ReturnType<typeof getPublicSaveAudienceMix>,
+  week: number
 ): number {
-  const approval = profile?.approval ?? 50
+  const baseApproval = profile?.approval ?? 50
+  const approval = getEffectivePublicApproval(profile, week)
+  const temporaryDelta = approval - baseApproval
   const breakdown = profile?.audienceBreakdown
-  const charisma = breakdown?.charisma ?? approval
-  const gameplay = breakdown?.gameplay ?? approval
-  const integrity = breakdown?.integrity ?? approval
+  const charisma = (breakdown?.charisma ?? baseApproval) + temporaryDelta
+  const gameplay = (breakdown?.gameplay ?? baseApproval) + temporaryDelta
+  const integrity = (breakdown?.integrity ?? baseApproval) + temporaryDelta
   return charisma * mix.charisma + gameplay * mix.gameplay + integrity * mix.integrity
 }
 
-function momentumScore(profile: PlayerPublicProfile | undefined): number {
+function momentumScore(profile: PlayerPublicProfile | undefined, week: number): number {
   if (!profile) return 50
-  const momentum = clamp(profile.approval - profile.previousApproval, -12, 12)
+  const momentum = clamp(
+    getEffectivePublicApproval(profile, week) - profile.previousApproval,
+    -12,
+    12
+  )
   return clamp(50 + momentum * 3, 0, 100)
 }
 
@@ -156,11 +164,11 @@ function buildComponents(params: {
       return [
         playerId,
         {
-          audienceMix: audienceWeightedScore(profile, mix),
-          momentum: momentumScore(profile),
+          audienceMix: audienceWeightedScore(profile, mix, week),
+          momentum: momentumScore(profile, week),
           storyline: storylineScore(playerId, context?.feed, week),
           underdog: underdogScore(playerId, context?.nominationCounts),
-          approval: clamp(profile?.approval ?? 50, 0, 100),
+          approval: clamp(getEffectivePublicApproval(profile, week), 0, 100),
           noise: context ? pollNoise(seed, week, playerId) : 0,
         },
       ]
@@ -195,7 +203,7 @@ export function buildPublicSaveScores(params: {
 
 /**
  * Convert arbitrary non-negative audience scores into a deterministic vote
- * distribution that totals exactly 100.0%.
+ * distribution that totals exactly 100.0000%.
  */
 export function normalisePublicSaveVoteShares(
   playerIds: string[],
@@ -231,7 +239,7 @@ export function normalisePublicSaveVoteShares(
   }
 
   return Object.fromEntries(
-    playerIds.map((playerId, index) => [playerId, allocatedUnits[index] / 10])
+    playerIds.map((playerId, index) => [playerId, allocatedUnits[index] / 10_000])
   )
 }
 

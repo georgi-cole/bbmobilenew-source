@@ -50,7 +50,13 @@ function hashStringU32(value: string): number {
 }
 
 function seededUnit(value: string): number {
-  return hashStringU32(value) / 0x1_0000_0000
+  let hash = hashStringU32(value)
+  hash ^= hash >>> 16
+  hash = Math.imul(hash, 0x7feb352d)
+  hash ^= hash >>> 15
+  hash = Math.imul(hash, 0x846ca68b)
+  hash ^= hash >>> 16
+  return (hash >>> 0) / 0x1_0000_0000
 }
 
 function hasAnyTag(tags: readonly string[], vocabulary: ReadonlySet<string>): boolean {

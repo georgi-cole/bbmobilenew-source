@@ -180,6 +180,22 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     allowedRealityPresets: ['adult'],
   },
   {
+    id: 'share_pregnancy_news',
+    title: 'Share Pregnancy News',
+    icon: '🤰',
+    description:
+      'Tell selected housemates privately. Their loyalty affects the chance they keep your news secret.',
+    category: 'friendly',
+    kind: 'rapport',
+    baseCost: { energy: 1 },
+    targetMode: 'multi',
+    minTargets: 1,
+    maxTargets: 15,
+    dramaOnly: true,
+    realityExclusive: true,
+    allowedRealityPresets: ['adult'],
+  },
+  {
     id: 'paternity_test_self',
     title: 'Take Paternity Test',
     icon: '🧬',

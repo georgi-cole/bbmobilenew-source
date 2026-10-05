@@ -938,6 +938,7 @@ export interface GameState {
       nomineeId: string
       stage: 'INITIAL' | 'REPLACEMENT'
       primaryReason:
+        | 'FORCED_BY_RULES'
         | 'BETRAYAL'
         | 'COMPETITION_THREAT'
         | 'ALLIANCE_TARGET'

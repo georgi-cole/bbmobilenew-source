@@ -37,11 +37,14 @@ import socialReducer, {
   setEnergyBankEntry,
   setInfluenceBankEntry,
   openSocialPanel,
+  replaceRealityDomain,
 } from '../../../social/socialSlice'
 import { initManeuvers } from '../../../social/SocialManeuvers'
 import SocialPanelV2 from '../SocialPanelV2'
 import type { RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
+import { createInitialRealityDomainState } from '../../../social/reality/state'
+import { createRealityAlliance } from '../../../social/reality/relationshipForms'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -726,6 +729,62 @@ describe('SocialPanelV2 – accessibility', () => {
     })
     renderPanel(store)
     expect(document.getElementById('sp2-body')).not.toBeNull()
+  })
+})
+
+describe('SocialPanelV2 – scoped alliance consultation', () => {
+  it('offers selected-allies and whole-alliance scopes with one fixed huddle cost', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    const allies = store
+      .getState()
+      .game.players.filter((player) => !player.isUser)
+      .slice(0, 2)
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'consult-scope-ui',
+      founderIds: [humanId, allies[0].id],
+      memberIds: [allies[1].id],
+      purpose: 'Coordinate the block',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    alliance.name = 'The Numbers'
+    const otherAlliance = createRealityAlliance(reality, {
+      id: 'consult-scope-ui-overlap',
+      founderIds: [humanId, allies[0].id],
+      memberIds: [allies[1].id],
+      purpose: 'Mutual protection',
+      at: { day: 1, phase: 'social_1' },
+    })
+    otherAlliance.status = 'ACTIVE'
+    otherAlliance.name = 'Safe Harbor'
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(allies[0].name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
+    expect(screen.getByRole('group', { name: 'Consultation scope' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Alliance to consult' }), {
+      target: { value: otherAlliance.id },
+    })
+    expect(screen.getByRole('combobox', { name: 'Alliance to consult' })).toHaveValue(
+      otherAlliance.id
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Selected allies' }))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(allies[1].name, 'i') })[0])
+
+    expect(screen.getByText(/Selected allies.*⚡2/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Whole alliance' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Whole alliance' }))
+    expect(screen.getByText(/Whole alliance.*⚡2/)).toBeInTheDocument()
   })
 })
 

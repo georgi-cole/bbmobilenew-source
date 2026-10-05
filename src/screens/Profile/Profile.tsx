@@ -470,7 +470,12 @@ export default function Profile() {
   const userPlayer = useAppSelector((s) => s.game.players.find((p) => p.isUser) ?? null)
   const publicApproval = useAppSelector((s) => {
     const userId = s.game.players.find((player) => player.isUser)?.id ?? 'user'
-    return s.publicOpinion?.profiles?.[userId]?.approval ?? publicOpinionConfig.DEFAULT_APPROVAL
+    const profile = s.publicOpinion?.profiles?.[userId]
+    if (!profile) return publicOpinionConfig.DEFAULT_APPROVAL
+    const boost = (profile.temporaryApprovalBoosts ?? [])
+      .filter((item) => s.game.week < item.expiresWeek)
+      .reduce((sum, item) => sum + item.delta, 0)
+    return Math.max(0, Math.min(100, profile.approval + boost))
   })
   const houseRating = useAppSelector((s) => {
     const userId = s.game.players.find((player) => player.isUser)?.id ?? 'user'

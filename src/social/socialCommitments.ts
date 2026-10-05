@@ -36,6 +36,7 @@ interface CommitmentState {
     lohId?: string | null
     dramaSocialMode?: boolean
     nominationContext?: { autoNomineeId: string | null } | null
+    nominationDecisionReasons?: GameState['nominationDecisionReasons']
     cupidArrow?: GameState['cupidArrow']
     coLohIds?: string[] | null
     coLohNomineeByCoLohId?: Record<string, string> | null
@@ -362,8 +363,17 @@ export function evaluateSocialCommitmentsForAction(
         ([, nomineeId]) =>
           expandCupidIds(state.game, [nomineeId]).includes(commitment.beneficiaryId)
       )?.[0]
+      const unavoidableNomination = Object.values(state.game.nominationDecisionReasons ?? {}).some(
+        (reason) =>
+          reason.week === state.game.week &&
+          reason.lohId === commitment.promisorId &&
+          reason.nomineeId === commitment.beneficiaryId &&
+          reason.stage === 'INITIAL' &&
+          reason.primaryReason === 'FORCED_BY_RULES'
+      )
       if (
         automaticIds.includes(commitment.beneficiaryId) ||
+        unavoidableNomination ||
         consent ||
         (otherOwner && otherOwner !== commitment.promisorId) ||
         (state.game.lohId !== undefined &&

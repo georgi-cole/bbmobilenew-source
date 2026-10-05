@@ -18,6 +18,7 @@ export {
 } from './audienceBreakdown'
 export type { AudienceArchetype } from './audienceBreakdown'
 export { publicOpinionConfig } from './publicOpinionConfig'
+export { getEffectivePublicApproval } from './publicApproval'
 export {
   default as publicOpinionReducer,
   initializeProfiles,
@@ -26,6 +27,7 @@ export {
   resolveDirection,
   pruneExpiredDirections,
   resetDailyFeedBudget,
+  addTemporaryApprovalBoost,
   updateMissionProgress,
   selectPublicOpinion,
   selectPlayerProfile,

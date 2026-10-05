@@ -375,6 +375,33 @@ const publicOpinionSlice = createSlice({
       beginApprovalDay(state, action.payload.week)
     },
 
+    /** Add short-lived pregnancy buzz without changing historical approval. */
+    addTemporaryApprovalBoost(
+      state,
+      action: PayloadAction<{
+        playerId: string
+        id: string
+        delta: number
+        expiresWeek: number
+        reason: 'pregnancy_news'
+      }>
+    ) {
+      const profile = state.profiles[action.payload.playerId]
+      if (
+        !profile ||
+        profile.temporaryApprovalBoosts?.some((boost) => boost.id === action.payload.id)
+      ) {
+        return
+      }
+      profile.temporaryApprovalBoosts ??= []
+      profile.temporaryApprovalBoosts.push({
+        id: action.payload.id,
+        delta: action.payload.delta,
+        expiresWeek: action.payload.expiresWeek,
+        reason: action.payload.reason,
+      })
+    },
+
     /**
      * Update the progress percentage of an active mission direction.
      * If progress reaches the completion threshold, calls the shared
@@ -457,6 +484,7 @@ export const {
   resolveDirection,
   pruneExpiredDirections,
   resetDailyFeedBudget,
+  addTemporaryApprovalBoost,
   updateMissionProgress,
   hydratePublicOpinion,
 } = publicOpinionSlice.actions

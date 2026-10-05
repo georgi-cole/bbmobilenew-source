@@ -8,6 +8,7 @@ import {
   updateMissionProgress,
   resolveDirection,
   resetDailyFeedBudget,
+  addTemporaryApprovalBoost,
 } from './publicOpinionSlice'
 import { publicOpinionConfig } from './publicOpinionConfig'
 import { generateDirectionsForCycle } from './PublicDirectionService'
@@ -47,6 +48,15 @@ interface GameState {
   povSavedId?: string | null
   /** ID of the nominee saved by the public-save twist (null if not triggered). */
   publicSavedNomineeId?: string | null
+  pregnancyStory?: {
+    attempts: Array<{
+      attemptId: string
+      participantIds?: string[]
+      carrierId: string
+      status: string
+      pregnancyPublicRevealed?: boolean
+    }>
+  }
   /** Vox Populi season-format state, when scheduled or active. */
   voxPopuli?: {
     status: 'inactive' | 'scheduled' | 'active' | 'complete'
@@ -345,6 +355,36 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
   const actionType = (actionWithMood as { type: string }).type
   const actionPayload = (actionWithMood as { payload?: unknown }).payload
   ensureProfiles(store, game)
+
+  // Pregnancy attention begins only once the pregnancy is public. The modifier
+  // is stored separately from approval history and expires after three days.
+  if (
+    game.publicModeEnabled === true &&
+    ['game/advance', 'game/revealPregnancyNewsLeak'].includes(actionType)
+  ) {
+    const previousAttempts = new Map(
+      (prevState.game?.pregnancyStory?.attempts ?? []).map((attempt) => [
+        attempt.attemptId,
+        attempt,
+      ])
+    )
+    for (const attempt of game.pregnancyStory?.attempts ?? []) {
+      const wasPublic = previousAttempts.get(attempt.attemptId)?.pregnancyPublicRevealed === true
+      if (wasPublic || !attempt.pregnancyPublicRevealed || attempt.status !== 'POSITIVE') continue
+      const participantIds = attempt.participantIds ?? []
+      for (const playerId of participantIds) {
+        store.dispatch(
+          addTemporaryApprovalBoost({
+            playerId,
+            id: `pregnancy:${attempt.attemptId}:${playerId}`,
+            delta: playerId === attempt.carrierId ? 6 : 4,
+            expiresWeek: (game.week ?? 1) + 3,
+            reason: 'pregnancy_news',
+          })
+        )
+      }
+    }
+  }
 
   // ── Game reset ─────────────────────────────────────────────────────────────
   if (actionType === 'game/resetGame') {

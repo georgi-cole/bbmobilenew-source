@@ -14,7 +14,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { configureStore } from '@reduxjs/toolkit'
-import gameReducer, { setPhase } from '../../src/store/gameSlice'
+import gameReducer, { setDramaSocialMode, setPhase } from '../../src/store/gameSlice'
 import settingsReducer, { setGameUX } from '../../src/store/settingsSlice'
 import socialReducer, {
   selectEnergyBank,
@@ -552,7 +552,9 @@ describe('Reality alliance consultation economy', () => {
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socialMiddleware),
     })
     store.dispatch(setGameUX({ dramaMode: true }))
+    store.dispatch(setDramaSocialMode(true))
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 5 }))
+    initManeuvers(store)
 
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
@@ -563,15 +565,24 @@ describe('Reality alliance consultation economy', () => {
       at: { day: 1, phase: 'social_1' },
     })
     alliance.status = 'ACTIVE'
+    const overlappingAlliance = createRealityAlliance(reality, {
+      id: 'overlapping-huddle',
+      founderIds: ['p1', 'p2'],
+      memberIds: ['p3'],
+      purpose: 'Mutual protection',
+      at: { day: 1, phase: 'social_1' },
+    })
+    overlappingAlliance.status = 'ACTIVE'
     store.dispatch(replaceRealityDomain(reality))
 
     const result = executeHumanRealityAction({
       actorId: 'p1',
       targetId: 'p2',
       actionId: 'consult_alliance',
+      consultationAllianceId: alliance.id,
     })(store.dispatch as never, store.getState as never)
 
-    expect(result.success).toBe(true)
+    expect(result.success, result.summary).toBe(true)
     expect(result.summary).toMatch(/P2.*P4/i)
     expect(result.summary).toMatch(/P3.*P4/i)
     expect(store.getState().social.energyBank.p1).toBe(3)
@@ -579,7 +590,71 @@ describe('Reality alliance consultation economy', () => {
       .getState()
       .social.reality.events.find((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
     expect(huddle?.participantIds).toEqual(expect.arrayContaining(['p1', 'p2', 'p3']))
+    expect(huddle?.reason).toContain(`strategy_meeting:${alliance.id}:`)
     expect(store.getState().social.reality.alliances[alliance.id].currentTargetIds).toEqual(['p4'])
+    expect(
+      store.getState().social.reality.alliances[overlappingAlliance.id].currentTargetIds
+    ).toEqual([])
+  })
+
+  it('lets a scoped nomination huddle stay private and plans every double-nomination seat', () => {
+    const initialGame = gameReducer(undefined, { type: '@@test/init' })
+    const players = [
+      { id: 'p1', name: 'P1', status: 'loh' as const, isUser: true },
+      { id: 'p2', name: 'P2', status: 'active' as const },
+      { id: 'p3', name: 'P3', status: 'active' as const },
+      { id: 'p4', name: 'P4', status: 'active' as const },
+      { id: 'p5', name: 'P5', status: 'active' as const },
+      { id: 'p6', name: 'P6', status: 'active' as const },
+      { id: 'p7', name: 'P7', status: 'active' as const },
+    ]
+    const store = configureStore({
+      reducer: { game: gameReducer, social: socialReducer, settings: settingsReducer },
+      preloadedState: {
+        game: {
+          ...initialGame,
+          players,
+          week: 2,
+          phase: 'social_1',
+          lohId: 'p1',
+          doubleEviction: { ...initialGame.doubleEviction!, weekActive: true },
+        },
+      } as never,
+      middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socialMiddleware),
+    })
+    store.dispatch(setGameUX({ dramaMode: true }))
+    store.dispatch(setDramaSocialMode(true))
+    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 5 }))
+    initManeuvers(store)
+
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'scoped-double-huddle',
+      founderIds: ['p1', 'p2'],
+      memberIds: ['p3'],
+      purpose: 'Coordinate the block',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    store.dispatch(replaceRealityDomain(reality))
+
+    const result = executeHumanRealityAction({
+      actorId: 'p1',
+      targetId: 'p2',
+      targetIds: ['p2'],
+      consultationScope: 'selected',
+      actionId: 'consult_alliance',
+    })(store.dispatch as never, store.getState as never)
+
+    expect(result.success, result.summary).toBe(true)
+    expect(result.summary).toContain('Nomination slate')
+    expect(result.summary).not.toContain('split; no alliance decision')
+    expect(store.getState().social.energyBank.p1).toBe(3)
+    const huddle = store
+      .getState()
+      .social.reality.events.find((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
+    expect(huddle?.participantIds).toEqual(['p1', 'p2'])
+    expect(store.getState().social.reality.alliances[alliance.id].currentTargetIds).toHaveLength(3)
   })
 
   it('does not charge energy when an alliance huddle has no valid outside target', () => {
@@ -603,6 +678,7 @@ describe('Reality alliance consultation economy', () => {
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(socialMiddleware),
     })
     store.dispatch(setGameUX({ dramaMode: true }))
+    store.dispatch(setDramaSocialMode(true))
     store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 5 }))
 
     const reality = createInitialRealityDomainState()

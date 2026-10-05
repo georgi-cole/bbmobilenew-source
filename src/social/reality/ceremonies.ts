@@ -203,6 +203,7 @@ function resolveCeremonyPromises(
       if (!beneficiaryId) continue
       if (
         input.automaticTargetIds?.includes(beneficiaryId) ||
+        (event.targetIds.includes(beneficiaryId) && input.eligibleAlternativeIds?.length === 0) ||
         (input.eligibleAlternativeIds &&
           !event.targetIds.includes(beneficiaryId) &&
           !input.eligibleAlternativeIds.includes(beneficiaryId)) ||

@@ -93,6 +93,7 @@ const ADULT_REALITY_ACTION_IDS = new Set([
   'pregnancy_test',
   'pregnancy_test_self',
   'paternity_test_self',
+  'share_pregnancy_news',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {

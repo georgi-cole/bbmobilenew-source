@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { useAppSelector } from '../../store/hooks'
 import {
   selectPublicOpinion,
-  selectRankedProfiles,
   selectPublicFeed,
   selectAllDirections,
   publicOpinionConfig,
@@ -14,6 +13,7 @@ import {
   type PublicDirection,
   type PublicFeedEntry,
 } from '../../publicOpinion'
+import { getEffectivePublicApproval } from '../../publicOpinion/publicApproval'
 import type { Player } from '../../types'
 import { isEmoji, resolveAvatarCandidates } from '../../utils/avatar'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
@@ -391,16 +391,27 @@ export default function PublicMeter() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [, refreshContextualGuides] = useState(0)
   const publicOpinion = useAppSelector(selectPublicOpinion)
-  const rankedProfiles = useAppSelector(selectRankedProfiles)
   const feed = useAppSelector(selectPublicFeed)
   const allDirections = useAppSelector(selectAllDirections)
 
   const game = useAppSelector((s) => s.game)
+  const rankedProfiles = useMemo(
+    () =>
+      Object.values(publicOpinion.profiles).sort(
+        (left, right) =>
+          getEffectivePublicApproval(right, game.week) - getEffectivePublicApproval(left, game.week)
+      ),
+    [game.week, publicOpinion.profiles]
+  )
   const activeProfileId = useAppSelector((s) => s.profiles?.activeProfileId ?? null)
   const isGuest = useAppSelector((s) => s.profiles?.isGuest ?? false)
   const isVoxPopuli = game.voxPopuli?.status === 'active'
   const userPlayer = game.players.find((p) => p.isUser)
   const userProfile = userPlayer ? publicOpinion.profiles[userPlayer.id] : undefined
+  const userApproval = getEffectivePublicApproval(userProfile, game.week)
+  const activePregnancyBuzz = userProfile?.temporaryApprovalBoosts?.find(
+    (boost) => game.week < boost.expiresWeek && boost.reason === 'pregnancy_news'
+  )
   const userFeed = useMemo(
     () => (userPlayer ? feed.filter((entry) => entry.playerId === userPlayer.id).slice(0, 4) : []),
     [feed, userPlayer]
@@ -567,16 +578,16 @@ export default function PublicMeter() {
           <div className="public-meter__lens-stage">
             <div
               className="public-meter__lens"
-              style={{ '--approval': `${userProfile.approval}%` } as CSSProperties}
+              style={{ '--approval': `${userApproval}%` } as CSSProperties}
               role="progressbar"
               aria-label="Your public approval rating"
-              aria-valuenow={userProfile.approval}
+              aria-valuenow={userApproval}
               aria-valuemin={0}
               aria-valuemax={100}
             >
               <div className="public-meter__lens-glass">
                 <PublicMeterAvatar player={userPlayer} size="md" />
-                <span className="public-meter__lens-score">{userProfile.approval}%</span>
+                <span className="public-meter__lens-score">{userApproval}%</span>
               </div>
             </div>
             <div className="public-meter__hero-copy">
@@ -588,12 +599,12 @@ export default function PublicMeter() {
               </div>
               <div className="public-meter__verdict" aria-label="Current audience verdict">
                 <span>The crowd is</span>
-                <strong>{getApprovalBand(userProfile.approval)}</strong>
+                <strong>{getApprovalBand(userApproval)}</strong>
               </div>
               <div className="approval-bar__info">
                 {(() => {
                   const trend = getTrend(
-                    userProfile.approval,
+                    userApproval,
                     userProfile.approvalAtDayStart ?? userProfile.previousApproval
                   )
                   return (
@@ -603,7 +614,7 @@ export default function PublicMeter() {
                     </span>
                   )
                 })()}
-                <span className="approval-bar__band">{getApprovalBand(userProfile.approval)}</span>
+                <span className="approval-bar__band">{getApprovalBand(userApproval)}</span>
                 {isInactivePlayer(userPlayer) && (
                   <span className="public-meter__status-pill public-meter__status-pill--inactive">
                     {userPlayer.status === 'jury' ? 'Tribunal phase' : 'Out of game'}
@@ -614,11 +625,17 @@ export default function PublicMeter() {
           </div>
           <div className="approval-bar">
             <div
-              className={`approval-bar__fill ${getApprovalToneClass(userProfile.approval)}`}
-              style={{ width: `${userProfile.approval}%` }}
+              className={`approval-bar__fill ${getApprovalToneClass(userApproval)}`}
+              style={{ width: `${userApproval}%` }}
               aria-hidden="true"
             />
           </div>
+          {activePregnancyBuzz && (
+            <p className="public-meter__section-caption" role="status">
+              Pregnancy news is giving you +{activePregnancyBuzz.delta} temporary audience buzz
+              through Day {activePregnancyBuzz.expiresWeek - 1}.
+            </p>
+          )}
           <details className="public-meter__explain">
             <summary>What changed</summary>
             <div className="public-meter__explain-body">
@@ -672,8 +689,9 @@ export default function PublicMeter() {
               const player = game.players.find((p) => p.id === profile.playerId)
               const isUser = player?.isUser ?? false
               const inactive = isInactivePlayer(player)
+              const effectiveApproval = getEffectivePublicApproval(profile, game.week)
               const trend = getTrend(
-                profile.approval,
+                effectiveApproval,
                 profile.approvalAtDayStart ?? profile.previousApproval
               )
               return (
@@ -695,7 +713,7 @@ export default function PublicMeter() {
                     )}
                   </div>
                   <span className="ranking-row__approval">
-                    {isUser ? `${profile.approval}%` : getApprovalBandLabel(profile.approval)}
+                    {isUser ? `${effectiveApproval}%` : getApprovalBandLabel(effectiveApproval)}
                   </span>
                   <span className={`ranking-row__trend ${trend.className}`}>{trend.symbol}</span>
                 </button>
@@ -893,8 +911,8 @@ export default function PublicMeter() {
               </div>
               <strong className="audience-dossier__overall" aria-label="Overall audience rating">
                 {selectedPlayer?.isUser
-                  ? `${selectedProfile.approval}%`
-                  : getApprovalBandLabel(selectedProfile.approval)}
+                  ? `${getEffectivePublicApproval(selectedProfile, game.week)}%`
+                  : getApprovalBandLabel(getEffectivePublicApproval(selectedProfile, game.week))}
                 <small>{selectedPlayer?.isUser ? 'overall' : 'public read'}</small>
               </strong>
             </div>

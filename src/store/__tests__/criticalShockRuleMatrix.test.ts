@@ -385,6 +385,37 @@ describe('critical shock / ruleset matrix', () => {
     expect(['evicted', 'jury']).not.toContain(survivingNominee?.status)
   })
 
+  it('uses LOH as the Double Eviction tie-breaker with Safety as an eligible fallback', () => {
+    const state = cleanState(515)
+    const players = alive(state)
+    const safetyHolder = players.find((player) => player.isUser)
+    const loh = players.find((player) => !player.isUser)
+    const nominees = players
+      .filter((player) => player !== safetyHolder && player !== loh)
+      .slice(0, 3)
+    if (!safetyHolder || !loh || nominees.length < 3)
+      throw new Error('Expected a full double block')
+
+    state.doubleEviction!.weekActive = true
+    state.lohId = loh.id
+    loh.status = 'loh'
+    state.posWinnerId = safetyHolder.id
+    safetyHolder.status = 'pos'
+    state.nomineeIds = nominees.map((player) => player.id)
+
+    expect(getClassicEvictionTieBreakerId(state)).toBe(loh.id)
+
+    state.nomineeIds.push(safetyHolder.id)
+    expect(getClassicEvictionTieBreakerId(state)).toBe(loh.id)
+
+    state.nomineeIds.pop()
+    state.nomineeIds.push(loh.id)
+    expect(getClassicEvictionTieBreakerId(state)).toBe(safetyHolder.id)
+
+    state.publicModeEnabled = true
+    expect(getClassicEvictionTieBreakerId(state)).toBeNull()
+  })
+
   it('treats Democracia co-LOHs as non-voters and delegates a tie to an eligible POS holder', () => {
     let state = cleanState(520)
     const players = alive(state)

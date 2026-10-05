@@ -445,3 +445,253 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Hosted play owns one safe, touch-scrollable viewport below the utility dock. */
+.minigame-host-playing--number-trivia {
+  touch-action: pan-y;
+}
+
+.minigame-host-playing > .number-trivia {
+  inset: var(--minigame-stage-top-padding) var(--minigame-safe-padding-right)
+    var(--minigame-safe-padding-bottom) var(--minigame-safe-padding-left);
+  width: auto;
+  height: auto;
+  padding: 8px clamp(8px, 2vw, 16px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__shell {
+  min-height: 100%;
+  gap: clamp(8px, 1.5vh, 14px);
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--playing {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--playing .number-trivia__eyebrow {
+  margin-bottom: 3px;
+  font-size: 0.68rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--playing .number-trivia__title {
+  font-size: clamp(1.35rem, 5vw, 2rem);
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--playing .number-trivia__subtitle {
+  display: none;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__summary--playing {
+  gap: 6px;
+  padding: 7px;
+  border-radius: 16px;
+}
+
+.minigame-host-playing
+  > .number-trivia
+  .number-trivia__summary--playing
+  .number-trivia__summary-item {
+  padding: 7px 4px;
+  gap: 3px;
+  border-radius: 12px;
+}
+
+.minigame-host-playing
+  > .number-trivia
+  .number-trivia__summary--playing
+  .number-trivia__summary-label {
+  font-size: clamp(0.62rem, 2.4vw, 0.76rem);
+  line-height: 1.15;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__summary--playing strong {
+  font-size: 0.95rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__gameplay-card {
+  gap: clamp(7px, 1.25vh, 11px);
+  padding: clamp(10px, 1.8vh, 15px);
+  border-radius: 16px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__question-label {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__question-text,
+.minigame-host-playing > .number-trivia .number-trivia__status-text {
+  font-size: clamp(0.94rem, 3.7vw, 1.08rem);
+  line-height: 1.32;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__reading-buffer {
+  grid-template-columns: auto auto 1fr;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__reading-buffer strong {
+  min-width: 32px;
+  font-size: 1rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__reading-buffer span:last-child {
+  font-size: 0.72rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__status-meta {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 7px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__input,
+.minigame-host-playing > .number-trivia .number-trivia__button {
+  min-height: 48px;
+  box-sizing: border-box;
+  border-radius: 13px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__button {
+  min-width: 0;
+  padding-inline: clamp(10px, 3vw, 18px);
+  font-size: 0.88rem;
+  touch-action: manipulation;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__error {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__scoreboard {
+  min-height: 100%;
+  gap: 8px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--scoreboard {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--scoreboard .number-trivia__eyebrow {
+  margin-bottom: 2px;
+  font-size: 0.68rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__header--scoreboard .number-trivia__title {
+  font-size: clamp(1.25rem, 5vw, 1.7rem);
+}
+
+.minigame-host-playing
+  > .number-trivia
+  .number-trivia__header--scoreboard
+  .number-trivia__subtitle {
+  display: none;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__question-card--compact {
+  display: flex;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.minigame-host-playing
+  > .number-trivia
+  .number-trivia__question-card--compact
+  .number-trivia__question-text {
+  font-size: 0.95rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__scoreboard-callout {
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__table-wrap {
+  max-height: min(
+    42dvh,
+    calc(100dvh - var(--minigame-stage-top-padding) - var(--minigame-safe-padding-bottom) - 250px)
+  );
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__table th,
+.minigame-host-playing > .number-trivia .number-trivia__table td {
+  padding: 8px 6px;
+  font-size: 0.76rem;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__table th {
+  position: sticky;
+  top: 0;
+  background: #181f35;
+}
+
+.minigame-host-playing > .number-trivia.number-trivia--scoreboard .number-trivia__footer {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid rgba(116, 163, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(14, 19, 34, 0.98);
+  box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.32);
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__footer .number-trivia__button {
+  min-height: 48px;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__spectator-actions {
+  width: 100%;
+  justify-content: stretch;
+}
+
+.minigame-host-playing > .number-trivia .number-trivia__spectator-actions .number-trivia__button {
+  flex: 1 1 0;
+}
+
+@media (max-height: 700px) {
+  .minigame-host-playing > .number-trivia {
+    padding-block: 5px;
+  }
+
+  .minigame-host-playing > .number-trivia .number-trivia__shell {
+    gap: 6px;
+  }
+
+  .minigame-host-playing > .number-trivia .number-trivia__gameplay-card {
+    gap: 6px;
+    padding-block: 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .minigame-host-playing > .number-trivia .number-trivia__controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .minigame-host-playing > .number-trivia .number-trivia__input {
+    grid-column: 1 / -1;
+  }
+}

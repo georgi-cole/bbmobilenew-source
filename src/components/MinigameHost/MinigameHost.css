@@ -42,6 +42,15 @@
   touch-action: none;
 }
 
+/* Let these games' bounded content panels accept vertical touch scrolling. */
+.minigame-host--scrollable-game {
+  touch-action: pan-y;
+}
+
+.minigame-host--scrollable-game .minigame-host-playing {
+  touch-action: pan-y;
+}
+
 .minigame-host-ready {
   position: relative;
   isolation: isolate;
@@ -243,8 +252,7 @@
 .minigame-host-playing > .bbl,
 .minigame-host-playing > .tbg,
 .minigame-host-playing > .glass-bridge,
-.minigame-host-playing > .bb-blitz,
-.minigame-host-playing > .snake-root {
+.minigame-host-playing > .bb-blitz {
   box-sizing: border-box;
 }
 
@@ -309,16 +317,6 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.minigame-host-playing > .snake-root {
-  padding: var(--minigame-stage-top-padding) var(--minigame-safe-padding-right)
-    var(--minigame-safe-padding-bottom) var(--minigame-safe-padding-left);
-}
-
-.minigame-host-playing > .snake-root .snake-phone {
-  height: calc(100% - var(--minigame-stage-top-padding) - var(--minigame-safe-padding-bottom));
-  max-height: calc(100% - var(--minigame-stage-top-padding) - var(--minigame-safe-padding-bottom));
-}
-
 .minigame-host-playing > .cm {
   padding: calc(12px + var(--minigame-stage-top-padding)) calc(8px + var(--minigame-safe-right))
     calc(20px + var(--minigame-safe-bottom)) calc(8px + var(--minigame-safe-left));
@@ -354,12 +352,6 @@
     calc(clamp(16px, 3vw, 28px) + var(--minigame-safe-bottom))
     calc(clamp(16px, 3vw, 28px) + var(--minigame-safe-left));
   box-sizing: border-box;
-}
-
-.minigame-host-playing > .number-trivia {
-  padding: calc(var(--minigame-stage-top-padding) + 72px)
-    max(16px, calc(var(--minigame-safe-right) + 16px)) calc(var(--minigame-safe-bottom) + 24px)
-    max(16px, calc(var(--minigame-safe-left) + 16px));
 }
 
 .minigame-host-playing > .capitalization {
