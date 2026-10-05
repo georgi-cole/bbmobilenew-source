@@ -182,18 +182,19 @@ describe('DiaryRoom', () => {
                 code: 'runner_up',
                 label: 'QA grant',
                 quantity: 1,
-                unitAmount: 10_000,
-                amount: 10_000,
+                unitAmount: 15_000,
+                amount: 15_000,
               },
             ],
           })
         )
+        const game = (store.getState() as { game: RootState['game'] }).game
         store.dispatch(
           purchaseEyeoleanStoreProduct({
             transactionId: 'qa-extra-vote',
             productKey: 'extra_vote',
-            gameId: store.getState().game.gameId,
-            season: store.getState().game.season,
+            gameId: game.gameId,
+            season: game.season,
           })
         )
         store.dispatch(activateVoxPopuliNow())
