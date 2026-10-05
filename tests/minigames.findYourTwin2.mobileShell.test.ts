@@ -26,6 +26,7 @@ describe('Find Your Twin 2 remastered mobile shell', () => {
     expect(source).toContain('-webkit-touch-callout: none')
     expect(source).toContain('-webkit-tap-highlight-color: transparent')
     expect(source).toContain("button.addEventListener('contextmenu'")
-    expect(source).toContain("surface?.addEventListener('selectstart'")
+    expect(source).toContain("document.addEventListener('selectstart'")
+    expect(source).toContain("event.target.closest?.('canvas, .controls')")
   })
 })
