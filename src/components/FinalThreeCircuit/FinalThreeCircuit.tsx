@@ -103,10 +103,10 @@ export default function FinalThreeCircuit({
       result[player.id] =
         player.id === human.id
           ? humanStages
-          : simulateAiCircuitScores(player.precomputedScore, seed, player.id)
+          : simulateAiCircuitScores(player.precomputedScore, seed, player.id, finalPart)
     })
     return result
-  }, [human.id, humanStages, roster, seed])
+  }, [finalPart, human.id, humanStages, roster, seed])
 
   const completedStages =
     view === 'tutorialSignal' || view === 'signal'
@@ -235,11 +235,15 @@ export default function FinalThreeCircuit({
           {view === 'tutorialSignal' && (
             <CircuitTutorial kind="signal" onComplete={() => setView('signal')} />
           )}
-          {view === 'signal' && <SignalHuntStage seed={seed} onComplete={completeSignal} />}
+          {view === 'signal' && (
+            <SignalHuntStage seed={seed} part={finalPart} onComplete={completeSignal} />
+          )}
           {view === 'tutorialSequence' && (
             <CircuitTutorial kind="sequence" onComplete={() => setView('sequence')} />
           )}
-          {view === 'sequence' && <SequenceStage seed={seed} onComplete={completeSequence} />}
+          {view === 'sequence' && (
+            <SequenceStage seed={seed} part={finalPart} onComplete={completeSequence} />
+          )}
           {view === 'risk' && <RiskRunStage seed={seed} onComplete={completeRisk} />}
 
           {summary && (

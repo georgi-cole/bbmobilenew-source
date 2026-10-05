@@ -522,16 +522,6 @@ function categoryBalancedShuffle(
   seed: number
 ): MemoryLaneQuestion[] {
   const random = rngFor(seed, 'balanced-question-order')
-  const groups = new Map<MemoryLaneCategory, MemoryLaneQuestion[]>()
-  for (const question of questions) {
-    const group = groups.get(question.category) ?? []
-    group.push(question)
-    groups.set(question.category, group)
-  }
-  for (const [category, group] of groups.entries()) {
-    groups.set(category, shuffle(group, rngFor(seed, `category:${category}`)))
-  }
-
   const preferredOrder: MemoryLaneCategory[] = [
     'milestone',
     'competition',
@@ -540,19 +530,37 @@ function categoryBalancedShuffle(
     'public',
     'cupid',
   ]
+  const remaining = shuffle(questions, random)
   const result: MemoryLaneQuestion[] = []
-  while ([...groups.values()].some((group) => group.length > 0)) {
-    const availableCategories = preferredOrder.filter(
-      (category) => (groups.get(category)?.length ?? 0) > 0
+  const answerCounts = new Map<string, number>()
+  const categoryCounts = new Map<MemoryLaneCategory, number>()
+
+  while (remaining.length > 0) {
+    // Prefer a different answer identity first, then a less-used category. This
+    // spreads repeated season leaders across the duel without removing any
+    // verified questions from the bank.
+    let bestScore = Number.POSITIVE_INFINITY
+    let bestIndexes: number[] = []
+    remaining.forEach((question, index) => {
+      const score =
+        (answerCounts.get(question.correctPlayerId) ?? 0) * 6 +
+        (categoryCounts.get(question.category) ?? 0) * 2 +
+        preferredOrder.indexOf(question.category) * 0.01
+      if (score < bestScore) {
+        bestScore = score
+        bestIndexes = [index]
+      } else if (score === bestScore) {
+        bestIndexes.push(index)
+      }
+    })
+    const selectedIndex = bestIndexes[Math.floor(random() * bestIndexes.length)]
+    const [question] = remaining.splice(selectedIndex, 1)
+    result.push(question)
+    answerCounts.set(
+      question.correctPlayerId,
+      (answerCounts.get(question.correctPlayerId) ?? 0) + 1
     )
-    if (availableCategories.length === 0) break
-    const offset = Math.floor(random() * availableCategories.length)
-    const rotated = [...availableCategories.slice(offset), ...availableCategories.slice(0, offset)]
-    for (const category of rotated) {
-      const group = groups.get(category)
-      const question = group?.shift()
-      if (question) result.push(question)
-    }
+    categoryCounts.set(question.category, (categoryCounts.get(question.category) ?? 0) + 1)
   }
   return result
 }

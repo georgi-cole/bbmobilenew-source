@@ -15,6 +15,7 @@ import './DownMemoryLane.css'
 
 const STARTING_LIVES = 5
 const OPEN_BUZZ_WINDOW_MS = 8_000
+const MEMORY_READ_WINDOW_MS = 1_300
 const HUMAN_ANSWER_WINDOW_MS = 6_000
 const BETWEEN_QUESTIONS_MS = 1_450
 
@@ -104,6 +105,7 @@ export default function DownMemoryLane({
   const [questionIndex, setQuestionIndex] = useState(0)
   const [humanLives, setHumanLives] = useState(STARTING_LIVES)
   const [aiLives, setAiLives] = useState(STARTING_LIVES)
+  const [buzzOpen, setBuzzOpen] = useState(false)
   const [buzzOwner, setBuzzOwner] = useState<'human' | 'ai' | null>(null)
   const [aiPendingDecision, setAiPendingDecision] = useState<MemoryLaneAiDecision | null>(null)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
@@ -139,6 +141,7 @@ export default function DownMemoryLane({
   const advanceQuestion = () => {
     clearTimers()
     setBuzzOwner(null)
+    setBuzzOpen(false)
     setAiPendingDecision(null)
     setSelectedAnswer(null)
     setFeedback(null)
@@ -232,29 +235,34 @@ export default function DownMemoryLane({
     }
 
     clearTimers()
-    const aiDecision = simulateMemoryLaneAiDecision({
-      seed: seed + questionIndex * 977 + questionCycle * 7919,
-      question: currentQuestion,
-      aiPlayerId: duelists.ai.id,
-      aiAbility: opponentAbility,
-      aiLives,
-      humanLives,
-    })
+    setBuzzOpen(false)
+    const readTimer = window.setTimeout(() => {
+      setBuzzOpen(true)
+      const aiDecision = simulateMemoryLaneAiDecision({
+        seed: seed + questionIndex * 977 + questionCycle * 7919,
+        question: currentQuestion,
+        aiPlayerId: duelists.ai!.id,
+        aiAbility: opponentAbility,
+        aiLives,
+        humanLives,
+      })
 
-    if (aiDecision.willBuzz) {
-      const aiTimer = window.setTimeout(() => {
-        setAiPendingDecision(aiDecision)
-        setBuzzOwner('ai')
-      }, aiDecision.delayMs)
-      timerRefs.current.push(aiTimer)
-    }
+      if (aiDecision.willBuzz) {
+        const aiTimer = window.setTimeout(() => {
+          setAiPendingDecision(aiDecision)
+          setBuzzOwner('ai')
+        }, aiDecision.delayMs)
+        timerRefs.current.push(aiTimer)
+      }
 
-    const expireTimer = window.setTimeout(() => {
-      setFeedback('Nobody buzzed. That memory is gone.')
-      setFeedbackTone('neutral')
-      timerRefs.current.push(window.setTimeout(advanceQuestion, 850))
-    }, OPEN_BUZZ_WINDOW_MS)
-    timerRefs.current.push(expireTimer)
+      const expireTimer = window.setTimeout(() => {
+        setFeedback('Nobody buzzed. That memory is gone.')
+        setFeedbackTone('neutral')
+        timerRefs.current.push(window.setTimeout(advanceQuestion, 850))
+      }, OPEN_BUZZ_WINDOW_MS)
+      timerRefs.current.push(expireTimer)
+    }, MEMORY_READ_WINDOW_MS)
+    timerRefs.current.push(readTimer)
 
     return clearTimers
     // Deliberately keyed to the question and owner; lives are captured for the current round.
@@ -441,7 +449,13 @@ export default function DownMemoryLane({
         </div>
         <h2>{currentQuestion.prompt}</h2>
 
-        {!buzzOwner && !feedback && (
+        {!buzzOwner && !feedback && !buzzOpen && (
+          <div className="memory-lane__ai-buzz" role="status">
+            <strong>Read the memory…</strong>
+          </div>
+        )}
+
+        {!buzzOwner && !feedback && buzzOpen && (
           <>
             <div className="memory-lane__buzz-clock" key={`buzz-${questionIndex}`}>
               <i />

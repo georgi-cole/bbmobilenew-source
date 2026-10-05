@@ -102,11 +102,29 @@ function shuffle<T>(values: readonly T[], random: () => number): T[] {
   return result
 }
 
-export function buildSignalRounds(seed: number): SignalRound[] {
+export function buildSignalRounds(seed: number, part: 1 | 2 = 1): SignalRound[] {
   const configs = [
-    { cellCount: 16, columns: 4, targetCount: 6, timeLimitMs: 12_000, maxPoints: 30 },
-    { cellCount: 20, columns: 5, targetCount: 8, timeLimitMs: 12_000, maxPoints: 33 },
-    { cellCount: 25, columns: 5, targetCount: 10, timeLimitMs: 12_000, maxPoints: 37 },
+    {
+      cellCount: 16,
+      columns: 4,
+      targetCount: 6,
+      timeLimitMs: part === 2 ? 10_500 : 12_000,
+      maxPoints: 30,
+    },
+    {
+      cellCount: 20,
+      columns: 5,
+      targetCount: 8,
+      timeLimitMs: part === 2 ? 10_500 : 12_000,
+      maxPoints: 33,
+    },
+    {
+      cellCount: 25,
+      columns: 5,
+      targetCount: 10,
+      timeLimitMs: part === 2 ? 10_500 : 12_000,
+      maxPoints: 37,
+    },
   ]
 
   return configs.map((config, roundIndex) => {
@@ -180,10 +198,22 @@ export function isSequenceSolved(order: readonly string[], target: readonly stri
   return order.length === target.length && order.every((tile, index) => tile === target[index])
 }
 
-export function buildSequenceBoards(seed: number): SequenceBoard[] {
+export function buildSequenceBoards(seed: number, part: 1 | 2 = 1): SequenceBoard[] {
   const configs = [
-    { rows: 2, columns: 3, scrambleMoves: 8, timeLimitMs: SEQUENCE_STAGE_TIME_MS, maxPoints: 40 },
-    { rows: 3, columns: 3, scrambleMoves: 22, timeLimitMs: SEQUENCE_STAGE_TIME_MS, maxPoints: 60 },
+    {
+      rows: 2,
+      columns: 3,
+      scrambleMoves: part === 2 ? 10 : 8,
+      timeLimitMs: part === 2 ? 240_000 : SEQUENCE_STAGE_TIME_MS,
+      maxPoints: 40,
+    },
+    {
+      rows: 3,
+      columns: 3,
+      scrambleMoves: part === 2 ? 28 : 22,
+      timeLimitMs: part === 2 ? 240_000 : SEQUENCE_STAGE_TIME_MS,
+      maxPoints: 60,
+    },
   ]
 
   return configs.map((config, boardIndex) => {
@@ -233,7 +263,7 @@ export function scoreSequenceBoard(
   if (solved) {
     const extraMoves = Math.max(0, moves - board.scrambleMoves)
     const efficiency = Math.max(0, 1 - extraMoves / Math.max(5, board.scrambleMoves))
-    const timeRatio = Math.max(0, Math.min(1, remainingMs / SEQUENCE_STAGE_TIME_MS))
+    const timeRatio = Math.max(0, Math.min(1, remainingMs / board.timeLimitMs))
     return clampCircuitScore(
       board.maxPoints * (0.82 + efficiency * 0.14 + timeRatio * 0.04),
       board.maxPoints

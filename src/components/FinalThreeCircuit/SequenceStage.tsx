@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   EMPTY_SEQUENCE_TILE,
-  SEQUENCE_STAGE_TIME_MS,
   buildSequenceBoards,
   clampCircuitScore,
   isSequenceSolved,
@@ -11,6 +10,7 @@ import {
 
 interface SequenceStageProps {
   seed: number
+  part?: 1 | 2
   onComplete: (score: number) => void
 }
 
@@ -21,18 +21,18 @@ function formatTime(milliseconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
-export default function SequenceStage({ seed, onComplete }: SequenceStageProps) {
-  const boards = useMemo(() => buildSequenceBoards(seed), [seed])
+export default function SequenceStage({ seed, part = 1, onComplete }: SequenceStageProps) {
+  const boards = useMemo(() => buildSequenceBoards(seed, part), [part, seed])
   const [boardIndex, setBoardIndex] = useState(0)
   const [order, setOrder] = useState<string[]>(boards[0].initial)
   const [moves, setMoves] = useState(0)
-  const [remainingMs, setRemainingMs] = useState(SEQUENCE_STAGE_TIME_MS)
+  const [remainingMs, setRemainingMs] = useState(boards[0].timeLimitMs)
   const [bank, setBank] = useState(0)
   const [boardScore, setBoardScore] = useState<number | null>(null)
   const [resetCount, setResetCount] = useState(0)
   const orderRef = useRef<string[]>(boards[0].initial)
   const movesRef = useRef(0)
-  const remainingMsRef = useRef(SEQUENCE_STAGE_TIME_MS)
+  const remainingMsRef = useRef(boards[0].timeLimitMs)
   const board = boards[boardIndex]
 
   useEffect(() => {
@@ -118,8 +118,9 @@ export default function SequenceStage({ seed, onComplete }: SequenceStageProps) 
       </div>
 
       <p className="f3-circuit__copy">
-        You have five minutes for both boards. The target stays visible, but only tiles touching the
-        empty slot can move. The first board is a warm-up; the second is the full 3 × 3 challenge.
+        You have {part === 2 ? 'four' : 'five'} minutes for both boards. The target stays visible,
+        but only tiles touching the empty slot can move. The first board is a warm-up; the second is
+        the full 3 × 3 challenge.
       </p>
 
       <div className="f3-circuit__sequence-layout">
