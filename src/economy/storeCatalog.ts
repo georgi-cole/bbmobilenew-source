@@ -31,7 +31,13 @@ export type EyeoleanPowerModeRule =
 export interface EyeoleanStoreProductDefinition {
   key: EyeoleanStoreProductKey
   title: string
+  /** Price of the first purchase of this power in a season. */
   price: number
+  /** Price of the second purchase of this power in the same season. */
+  secondPrice: number
+  /** Purchases and actual resolved uses are both season-capped. */
+  maxSeasonPurchases: number
+  maxSeasonUses: number
   shortDescription: string
   inventoryLabel: string
   /** Complete per-ruleset contract. New vote powers cannot omit a mode. */
@@ -50,7 +56,10 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   extra_vote: {
     key: 'extra_vote',
     title: 'Extra Vote',
-    price: 10_000,
+    price: 15_000,
+    secondPrice: 25_000,
+    maxSeasonPurchases: 2,
+    maxSeasonUses: 2,
     shortDescription: 'Adds one ballot to your next eligible vote.',
     inventoryLabel: 'Extra Votes',
     modeRules: {
@@ -73,7 +82,10 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   remove_vote: {
     key: 'remove_vote',
     title: 'Remove a Vote',
-    price: 15_000,
+    price: 25_000,
+    secondPrice: 40_000,
+    maxSeasonPurchases: 2,
+    maxSeasonUses: 2,
     shortDescription: 'Removes one vote against you from the next eligible result.',
     inventoryLabel: 'Vote Removals',
     modeRules: {
@@ -98,7 +110,10 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   immunity: {
     key: 'immunity',
     title: 'Immunity',
-    price: 100_000,
+    price: 150_000,
+    secondPrice: 300_000,
+    maxSeasonPurchases: 2,
+    maxSeasonUses: 2,
     shortDescription:
       'Protects you from nominations for the full day. Public Mode auto-nominations still apply.',
     inventoryLabel: 'Immunity',
@@ -124,7 +139,10 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   protection: {
     key: 'protection',
     title: 'Protection',
-    price: 50_000,
+    price: 60_000,
+    secondPrice: 90_000,
+    maxSeasonPurchases: 2,
+    maxSeasonUses: 2,
     shortDescription:
       'Protects one other player from nomination. Public Mode auto-nominations still apply.',
     inventoryLabel: 'Protection',
@@ -155,6 +173,20 @@ export function getEyeoleanStoreProduct(
   key: EyeoleanStoreProductKey
 ): EyeoleanStoreProductDefinition {
   return EYEOLEAN_STORE_PRODUCTS[key]
+}
+
+/**
+ * Return the canonical price for the next purchase of a power in the current
+ * season. null means the season purchase stock has been exhausted.
+ */
+export function getEyeoleanStorePurchasePrice(
+  key: EyeoleanStoreProductKey,
+  purchasesThisSeason: number
+): number | null {
+  const product = getEyeoleanStoreProduct(key)
+  const purchases = Math.max(0, Math.floor(purchasesThisSeason))
+  if (purchases >= product.maxSeasonPurchases) return null
+  return purchases === 0 ? product.price : product.secondPrice
 }
 
 export function getEyeoleanPowerModeRule(

@@ -9,6 +9,7 @@ import {
   selectCurrentProfile,
   selectEyeoleanBalance,
   selectEyeoleanInventory,
+  getEyeoleanPowerSeasonProgress,
 } from '../../store/profilesSlice'
 import { initializeVip, purchaseStoreItem, restoreVip, selectVip } from '../../store/vipSlice'
 import { setGameUX } from '../../store/settingsSlice'
@@ -23,6 +24,7 @@ import {
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
   getEyeoleanStoreProduct,
+  getEyeoleanStorePurchasePrice,
   type EyeoleanStoreProductKey,
 } from '../../economy/storeCatalog'
 import { getEyeoleanPowerModeResolution } from '../../economy/eyeoleanPowerRules'
@@ -149,9 +151,26 @@ export default function Store() {
       setEyeoleanError('Choose a profile to use the Eyeolean Store.')
       return
     }
-    if (eyeoleanBalance < product.price) {
+
+    const progress = getEyeoleanPowerSeasonProgress(
+      currentProfile,
+      productKey,
+      game.gameId,
+      game.season
+    )
+    if (progress.uses >= product.maxSeasonUses) {
+      setEyeoleanError(`Season use limit reached for ${product.title}.`)
+      return
+    }
+
+    const price = getEyeoleanStorePurchasePrice(productKey, progress.purchases)
+    if (price == null) {
+      setEyeoleanError(`Season stock exhausted for ${product.title}.`)
+      return
+    }
+    if (eyeoleanBalance < price) {
       setEyeoleanError(
-        `You need ${(product.price - eyeoleanBalance).toLocaleString('en-US')} more Eyeoleans.`
+        `You need ${(price - eyeoleanBalance).toLocaleString('en-US')} more Eyeoleans.`
       )
       return
     }
@@ -164,6 +183,8 @@ export default function Store() {
       purchaseEyeoleanStoreProduct({
         productKey,
         transactionId: `store:${productKey}:${randomId}`,
+        gameId: game.gameId,
+        season: game.season,
       })
     )
     setEyeoleanNotice(`${product.title} added to your inventory.`)
@@ -245,9 +266,20 @@ export default function Store() {
               const modeResolution = getEyeoleanPowerModeResolution(game, productKey)
               const modeRule = modeResolution.rule
               const owned = eyeoleanInventory[productKey] ?? 0
+              const progress = getEyeoleanPowerSeasonProgress(
+                currentProfile,
+                productKey,
+                game.gameId,
+                game.season
+              )
+              const nextPrice = getEyeoleanStorePurchasePrice(productKey, progress.purchases)
+              const seasonUseLimitReached = progress.uses >= product.maxSeasonUses
+              const seasonStockExhausted = nextPrice == null
               const canBuy =
                 Boolean(currentProfile) &&
-                eyeoleanBalance >= product.price &&
+                nextPrice != null &&
+                !seasonUseLimitReached &&
+                eyeoleanBalance >= nextPrice &&
                 modeRule?.available === true
               return (
                 <article className="vip-store__product vip-store__product--power" key={productKey}>
@@ -265,24 +297,39 @@ export default function Store() {
                       {modeRule?.available ? modeRule.title : product.title}
                     </span>
                     <span className="vip-store__product-description">
-                      {product.shortDescription} · Owned {owned}
+                      {product.shortDescription} · Owned {owned} · Season uses {progress.uses}/
+                      {product.maxSeasonUses}
                     </span>
                   </span>
                   <span className="vip-store__product-footer">
-                    <strong>{product.price.toLocaleString('en-US')} Eyeoleans</strong>
+                    <strong>
+                      {nextPrice == null
+                        ? 'Season stock exhausted'
+                        : `${nextPrice.toLocaleString('en-US')} Eyeoleans`}
+                    </strong>
                     <button
                       type="button"
                       onClick={() => purchaseEyeoleanItem(productKey)}
                       disabled={!canBuy}
-                      aria-label={`Buy ${product.title} for ${product.price.toLocaleString('en-US')} Eyeoleans`}
+                      aria-label={
+                        nextPrice == null
+                          ? `${product.title} season stock exhausted`
+                          : `Buy ${product.title} for ${nextPrice.toLocaleString('en-US')} Eyeoleans`
+                      }
                     >
                       {!currentProfile
                         ? 'Profile required'
                         : !modeRule?.available
                           ? 'Unavailable'
-                          : canBuy
-                            ? 'Buy'
-                            : 'Not enough'}
+                          : seasonUseLimitReached
+                            ? 'Season limit'
+                            : seasonStockExhausted
+                              ? 'Sold out'
+                              : canBuy
+                                ? progress.purchases === 0
+                                  ? 'Buy'
+                                  : 'Buy 2nd'
+                                : 'Not enough'}
                     </button>
                     {!modeRule?.available && modeResolution.unavailableReason && (
                       <small>{modeResolution.unavailableReason}</small>

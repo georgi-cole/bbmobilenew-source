@@ -189,11 +189,13 @@ describe('Eyeolean Store nomination protection', () => {
       })
 
       store.dispatch(createProfile({ name: 'QA Protection Test', avatar: '🛡️' }))
-      store.dispatch(debugGrantEyeoleans({ grantId: `qa-${productKey}`, amount: 30_000 }))
+      store.dispatch(debugGrantEyeoleans({ grantId: `qa-${productKey}`, amount: 500_000 }))
       store.dispatch(
         purchaseEyeoleanStoreProduct({
           transactionId: `qa-buy-${productKey}`,
           productKey,
+          gameId: state.gameId,
+          season: state.season,
         })
       )
       store.dispatch(hydrateGame(state))
@@ -269,9 +271,14 @@ describe('Eyeolean Store voting powers', () => {
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
     })
     store.dispatch(createProfile({ name: 'Shield Test', avatar: '🛡️' }))
-    store.dispatch(debugGrantEyeoleans({ grantId: 'shield-test', amount: 100_000 }))
+    store.dispatch(debugGrantEyeoleans({ grantId: 'shield-test', amount: 500_000 }))
     store.dispatch(
-      purchaseEyeoleanStoreProduct({ transactionId: 'shield', productKey: 'protection' })
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'shield',
+        productKey: 'protection',
+        gameId: game.gameId,
+        season: game.season,
+      })
     )
     store.dispatch(hydrateGame(game))
     store.dispatch(
@@ -380,12 +387,22 @@ describe('Eyeolean Store voting powers', () => {
       middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(eyeoleanPowerMiddleware),
     })
     store.dispatch(createProfile({ name: 'QA Power Test', avatar: '🧪' }))
-    store.dispatch(debugGrantEyeoleans({ grantId: 'qa-powers', amount: 30_000 }))
+    store.dispatch(debugGrantEyeoleans({ grantId: 'qa-powers', amount: 500_000 }))
     store.dispatch(
-      purchaseEyeoleanStoreProduct({ transactionId: 'qa-extra', productKey: 'extra_vote' })
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'qa-extra',
+        productKey: 'extra_vote',
+        gameId: state.gameId,
+        season: state.season,
+      })
     )
     store.dispatch(
-      purchaseEyeoleanStoreProduct({ transactionId: 'qa-remove', productKey: 'remove_vote' })
+      purchaseEyeoleanStoreProduct({
+        transactionId: 'qa-remove',
+        productKey: 'remove_vote',
+        gameId: state.gameId,
+        season: state.season,
+      })
     )
     store.dispatch(hydrateGame(state))
     for (const productKey of ['extra_vote', 'remove_vote'] as const) {

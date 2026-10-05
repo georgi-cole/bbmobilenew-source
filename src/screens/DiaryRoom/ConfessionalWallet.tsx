@@ -6,6 +6,7 @@ import {
   selectEyeoleanBalance,
   selectEyeoleanInventory,
   selectEyeoleanPowerReservations,
+  getEyeoleanPowerSeasonProgress,
 } from '../../store/profilesSlice'
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
@@ -169,6 +170,13 @@ export default function ConfessionalWallet() {
           const inventoryCount = Math.max(0, Math.floor(inventory[productKey] ?? 0))
           const totalOwned = inventoryCount + (armed ? 1 : 0)
           const availability = getEyeoleanPowerArmAvailability(game, productKey)
+          const seasonProgress = getEyeoleanPowerSeasonProgress(
+            profile,
+            productKey,
+            game.gameId,
+            game.season
+          )
+          const seasonLimitReached = seasonProgress.uses >= product.maxSeasonUses
           const modeRule = getEyeoleanPowerModeResolution(game, productKey).rule
           const targetSelected =
             productKey !== 'protection' ||
@@ -177,6 +185,7 @@ export default function ConfessionalWallet() {
             Boolean(profile) &&
             inventoryCount > 0 &&
             availability.available &&
+            !seasonLimitReached &&
             !armed &&
             targetSelected
           const canDisarm = armed && !disarmLocked
@@ -186,9 +195,11 @@ export default function ConfessionalWallet() {
               : 'Armed'
             : endgameLocked
               ? 'Unavailable this season'
-              : inventoryCount > 0
-                ? 'Available'
-                : 'Not owned'
+              : seasonLimitReached
+                ? 'Season limit reached'
+                : inventoryCount > 0
+                  ? 'Available'
+                  : 'Not owned'
 
           return (
             <article
@@ -214,7 +225,10 @@ export default function ConfessionalWallet() {
                   <span data-status={armed ? 'armed' : 'idle'}>{status}</span>
                   <span className="diary-room__wallet-owned">×{totalOwned}</span>
                 </div>
-                <p>{powerDetail(game, productKey)}</p>
+                <p>
+                  {powerDetail(game, productKey)} · Season uses {seasonProgress.uses}/
+                  {product.maxSeasonUses}
+                </p>
               </div>
               <div className="diary-room__wallet-power-action">
                 {productKey === 'protection' && !armed && (
@@ -224,7 +238,9 @@ export default function ConfessionalWallet() {
                       aria-label="Choose a player for Protection"
                       value={selectedProtectionTarget}
                       onChange={(event) => setSelectedProtectionTarget(event.target.value)}
-                      disabled={!availability.available || inventoryCount <= 0}
+                      disabled={
+                        !availability.available || seasonLimitReached || inventoryCount <= 0
+                      }
                     >
                       <option value="">Choose a player</option>
                       {protectionTargets.map((player) => (
@@ -262,9 +278,15 @@ export default function ConfessionalWallet() {
                     Get
                   </button>
                 )}
-                {!armed && inventoryCount > 0 && !availability.available && (
-                  <small>{availability.reason}</small>
-                )}
+                {!armed &&
+                  inventoryCount > 0 &&
+                  (seasonLimitReached || !availability.available) && (
+                    <small>
+                      {seasonLimitReached
+                        ? `Season limit reached: ${product.maxSeasonUses}/${product.maxSeasonUses} uses.`
+                        : availability.reason}
+                    </small>
+                  )}
               </div>
             </article>
           )
