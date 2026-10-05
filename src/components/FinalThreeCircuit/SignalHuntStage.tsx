@@ -8,11 +8,12 @@ import {
 
 interface SignalHuntStageProps {
   seed: number
+  part?: 1 | 2
   onComplete: (score: number) => void
 }
 
-export default function SignalHuntStage({ seed, onComplete }: SignalHuntStageProps) {
-  const rounds = useMemo(() => buildSignalRounds(seed), [seed])
+export default function SignalHuntStage({ seed, part = 1, onComplete }: SignalHuntStageProps) {
+  const rounds = useMemo(() => buildSignalRounds(seed, part), [part, seed])
   const [roundIndex, setRoundIndex] = useState(0)
   const [step, setStep] = useState(0)
   const [remainingMs, setRemainingMs] = useState(rounds[0].timeLimitMs)

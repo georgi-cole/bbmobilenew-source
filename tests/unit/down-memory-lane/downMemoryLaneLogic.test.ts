@@ -145,6 +145,26 @@ describe('Down Memory Lane question bank', () => {
     expect(first.every((question) => new Set(question.optionPlayerIds).size === 4)).toBe(true)
   })
 
+  it('spreads the opening questions across answer identities when one finalist dominates the season', () => {
+    const state = seasonState()
+    const user = state.players.find((entry) => entry.id === 'user')!
+    user.stats!.lohWins = 8
+    user.stats!.posWins = 6
+    user.stats!.timesNominated = 8
+    const questions = buildMemoryLaneQuestionBank(state, 42)
+    const openingAnswerCounts = new Map<string, number>()
+
+    for (const question of questions.slice(0, 5)) {
+      openingAnswerCounts.set(
+        question.correctPlayerId,
+        (openingAnswerCounts.get(question.correctPlayerId) ?? 0) + 1
+      )
+    }
+
+    expect(Math.max(...openingAnswerCounts.values())).toBeLessThanOrEqual(2)
+    expect(questions).toHaveLength(new Set(questions.map((question) => question.id)).size)
+  })
+
   it('skips an ambiguous maximum instead of inventing a winner', () => {
     const state = seasonState()
     state.players.find((entry) => entry.id === 'user')!.stats!.timesNominated = 4

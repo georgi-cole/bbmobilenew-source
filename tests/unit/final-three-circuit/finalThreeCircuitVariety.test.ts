@@ -100,4 +100,11 @@ describe('Final Three Circuit content variety', () => {
       buildSequenceBoards(12).map((board) => board.initial)
     )
   })
+
+  it('raises the pace and puzzle depth in Final Three Part 2', () => {
+    expect(buildSignalRounds(11, 2).every((round) => round.timeLimitMs === 10_500)).toBe(true)
+    expect(buildSequenceBoards(11, 2).every((board) => board.timeLimitMs === 240_000)).toBe(true)
+    expect(buildSequenceBoards(11, 2).map((board) => board.scrambleMoves)).toEqual([10, 28])
+    expect(buildSequenceBoards(11, 1).map((board) => board.scrambleMoves)).toEqual([8, 22])
+  })
 })

@@ -29,21 +29,29 @@ describe('Final Three Circuit AI calibration', () => {
     }
   })
 
-  it('makes stronger AI better on average without forcing every individual stage to be perfect', () => {
+  it('preserves the upstream expected total while allowing stronger skills and varied stages', () => {
     const averageTotal = (ability: number) => {
       let total = 0
-      for (let seed = 1; seed <= 40; seed += 1) {
+      for (let seed = 1; seed <= 500; seed += 1) {
         total += simulateAiCircuitScores(ability, seed, `player-${seed}`).reduce(
           (sum, score) => sum + score,
           0
         )
       }
-      return total / 40
+      return total / 500
     }
 
-    const average = averageTotal(72)
-    const elite = averageTotal(95)
-    expect(elite).toBeGreaterThan(average + 15)
-    expect(elite).toBeLessThan(270)
+    expect(averageTotal(218)).toBeGreaterThan(214)
+    expect(averageTotal(218)).toBeLessThan(222)
+    expect(averageTotal(258)).toBeGreaterThan(averageTotal(218))
+    expect(averageTotal(95)).toBeLessThan(285)
+
+    const scores = Array.from({ length: 30 }, (_unused, index) =>
+      simulateAiCircuitScores(218, index + 1, 'same-finalist')
+    )
+    expect(new Set(scores.map((stages) => stages.join(','))).size).toBeGreaterThan(20)
+    expect(
+      simulateAiCircuitScores(218, 1, 'same-finalist', 2).reduce((a, b) => a + b, 0)
+    ).toBeLessThan(simulateAiCircuitScores(218, 1, 'same-finalist', 1).reduce((a, b) => a + b, 0))
   })
 })

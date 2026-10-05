@@ -47,9 +47,10 @@ function stageScore(
   floor: number,
   ceiling: number,
   ability: number,
-  random: () => number
+  random: () => number,
+  meanAdjustment: number
 ): number {
-  const mean = meanLow + (meanHigh - meanLow) * ability
+  const mean = meanLow + (meanHigh - meanLow) * ability + meanAdjustment
   let score = mean + centeredHumanNoise(random) * spread
 
   // Even strong humans occasionally make a material mistake. This prevents the
@@ -67,20 +68,39 @@ function stageScore(
  *
  * The old implementation split one precomputed total across all three stages,
  * which made AI players look unnaturally consistent and often near-perfect.
- * Here the upstream score only sets an ability band; each discipline gets its
- * own realistic range plus deterministic human variance and occasional errors.
+ * The upstream competition simulator has already turned player skills and
+ * season form into a score. Preserve that expected total while adding realistic
+ * stage-to-stage strengths, mistakes, and deterministic run variance.
  */
 export function simulateAiCircuitScores(
   rawAbilityScore: number,
   seed: number,
-  playerId: string
+  playerId: string,
+  part: 1 | 2 = 1
 ): CircuitStageScores {
   const ability = normalizeCircuitAiAbility(rawAbilityScore)
   const random = seededRandom((seed ^ hashStringU32(`circuit-human-ai:${playerId}`)) >>> 0)
 
-  const signal = stageScore(52, 86, 10, 28, 95, ability, random)
-  const sequence = stageScore(43, 84, 14, 20, 96, ability, random)
-  const risk = stageScore(39, 79, 13, 18, 94, ability, random)
+  // Generic competition AI scores have already incorporated profile skills,
+  // form, and intent. Treat that score as an expected Circuit total rather
+  // than converting it to ability and scoring it a second time.
+  const targetTotal =
+    clamp(rawAbilityScore <= 100 ? 150 + rawAbilityScore * 1.35 : rawAbilityScore, 150, 285) *
+    (part === 2 ? 0.94 : 1)
+  const means = [52 + 34 * ability, 43 + 41 * ability, 39 + 40 * ability]
+  const expectedError = 3 * (0.2 - ability * 0.12) * (12 + 3.5 * (1 - ability))
+  const correction =
+    (targetTotal - means.reduce((sum, score) => sum + score, 0) + expectedError) / 3
+
+  // A finalist can favor one discipline over another. Keep these tendencies
+  // centered so they affect the shape of the run without distorting its total.
+  const tendencies = [random(), random(), random()].map((roll) => (roll - 0.5) * 10)
+  const tendencyMean = tendencies.reduce((sum, value) => sum + value, 0) / tendencies.length
+  const stageAdjustment = (index: number) => correction + tendencies[index] - tendencyMean
+
+  const signal = stageScore(52, 86, 10, 28, 95, ability, random, stageAdjustment(0))
+  const sequence = stageScore(43, 84, 14, 20, 96, ability, random, stageAdjustment(1))
+  const risk = stageScore(39, 79, 13, 18, 94, ability, random, stageAdjustment(2))
 
   return [signal, sequence, risk]
 }
