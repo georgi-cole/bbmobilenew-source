@@ -326,7 +326,7 @@ export default function Store() {
                       onClick={() => purchaseEyeoleanItem(productKey)}
                       disabled={!canBuy}
                       title={
-                        !modeRule?.available ? modeResolution.unavailableReason : undefined
+                        !modeRule?.available ? modeResolution.unavailableReason ?? undefined : undefined
                       }
                       aria-label={
                         nextPrice == null
