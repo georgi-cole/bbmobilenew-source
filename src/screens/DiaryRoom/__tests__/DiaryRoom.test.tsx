@@ -189,7 +189,12 @@ describe('DiaryRoom', () => {
           })
         )
         store.dispatch(
-          purchaseEyeoleanStoreProduct({ transactionId: 'qa-extra-vote', productKey: 'extra_vote' })
+          purchaseEyeoleanStoreProduct({
+            transactionId: 'qa-extra-vote',
+            productKey: 'extra_vote',
+            gameId: store.getState().game.gameId,
+            season: store.getState().game.season,
+          })
         )
         store.dispatch(activateVoxPopuliNow())
       },
