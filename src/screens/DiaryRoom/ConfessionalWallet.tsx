@@ -199,11 +199,11 @@ export default function ConfessionalWallet() {
               ? 'Unavailable this season'
               : seasonLimitReached
                 ? 'Season limit reached'
-                : !availability.available
-                  ? 'Later'
-                  : inventoryCount > 0
-                    ? 'Available'
-                    : 'Not owned'
+                : inventoryCount <= 0
+                  ? 'Not owned'
+                  : !availability.available
+                    ? 'Later'
+                    : 'Available'
 
           return (
             <article
