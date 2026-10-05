@@ -149,7 +149,9 @@ export interface StoredProfile {
   /** One reserved unit per power, bound to the active season until used or returned. */
   eyeoleanPowerReservations?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerReservation>>
   /** Purchase/use counters for the current season of each Store power. */
-  eyeoleanPowerSeasonProgress?: Partial<Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>>
+  eyeoleanPowerSeasonProgress?: Partial<
+    Record<EyeoleanStoreProductKey, EyeoleanPowerSeasonProgress>
+  >
   /**
    * Long-lived idempotency keys. Kept separately from the trimmed display ledger so
    * an old purchase callback cannot become payable again after enough transactions.
