@@ -29,6 +29,8 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
   await page.getByPlaceholder('Enter display name').fill(playerName)
+  await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
   await page.evaluate((profileId) => {

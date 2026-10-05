@@ -244,6 +244,18 @@
   border-color: rgba(107, 183, 255, 0.4);
 }
 
+.profile-picker__create-label {
+  display: block;
+  margin: 12px 0 6px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.profile-picker__create-label span {
+  color: #ff9b9b;
+}
+
 .profile-picker__avatar-grid {
   display: flex;
   flex-wrap: wrap;

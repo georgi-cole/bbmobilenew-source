@@ -51,6 +51,8 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   }))
   if (fieldMetrics.coarsePointer) expect(fieldMetrics.fontSize).toBeGreaterThanOrEqual(16)
   await nameField.fill(playerName)
+  await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
 
   // Reproduce the persistent-container failure: the long picker is scrolled
   // when profile creation replaces it with the Profile screen.

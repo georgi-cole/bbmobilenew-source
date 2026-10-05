@@ -23,6 +23,10 @@ const mockState: {
     status?: string
     week: number
     phase: string
+    mode?: string
+    runId?: string
+    pendingEviction?: unknown
+    seasonFinale?: unknown
   }
 } = {
   profiles: {
@@ -65,6 +69,11 @@ vi.mock('../../store/archivePersistence', () => ({
 vi.mock('../../store/saveStatePersistence', () => ({
   loadSavedRunProfile: (...args: unknown[]) => mockLoadSavedRunProfile(...args),
   clearSavedRun: vi.fn(),
+  flushSavePersistence: vi.fn(() => Promise.resolve(true)),
+}))
+
+vi.mock('../../store/store', () => ({
+  flushPendingRunSnapshots: vi.fn(),
 }))
 
 vi.mock('../../utils/imageDb', () => ({
@@ -106,6 +115,8 @@ describe('ProfilePicker', () => {
     fireEvent.change(screen.getByPlaceholderText(/enter display name/i), {
       target: { value: 'Jordan' },
     })
+    fireEvent.change(screen.getByLabelText(/age/i), { target: { value: '28' } })
+    fireEvent.change(screen.getByLabelText(/sex/i), { target: { value: 'Female' } })
     fireEvent.click(screen.getByRole('button', { name: /create profile/i }))
 
     await waitFor(() => {
@@ -114,6 +125,48 @@ describe('ProfilePicker', () => {
         state: { from: '/game' },
       })
     })
+  })
+
+  it('adopts an in-progress guest game into the new profile without resetting it', async () => {
+    mockState.profiles.isGuest = true
+    mockState.game = {
+      week: 2,
+      phase: 'nomination',
+      runId: 'guest-run-1',
+    }
+    render(<ProfilePicker />)
+
+    fireEvent.click(screen.getByRole('button', { name: /create new profile/i }))
+    fireEvent.change(screen.getByPlaceholderText(/enter display name/i), {
+      target: { value: 'Jordan' },
+    })
+    fireEvent.change(screen.getByLabelText(/age/i), { target: { value: '28' } })
+    fireEvent.change(screen.getByLabelText(/sex/i), { target: { value: 'Female' } })
+    fireEvent.click(screen.getByRole('button', { name: /create profile/i }))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/game', {
+        replace: true,
+        state: { from: '/game' },
+      })
+    })
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'profiles/createProfile',
+        payload: expect.objectContaining({ bio: { age: '28', sex: 'Female' } }),
+      })
+    )
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'game/updateUserPlayerIdentity',
+        payload: expect.objectContaining({ age: 28, sex: 'Female' }),
+      })
+    )
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'game/resetGame',
+      })
+    )
   })
 
   it('shows a direct way back home from the picker', () => {

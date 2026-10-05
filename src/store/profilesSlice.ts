@@ -575,7 +575,12 @@ const profilesSlice = createSlice({
      */
     createProfile(
       state,
-      action: PayloadAction<{ name: string; avatar: string; photoId?: string }>
+      action: PayloadAction<{
+        name: string
+        avatar: string
+        photoId?: string
+        bio?: Pick<ProfileBio, 'age' | 'sex'>
+      }>
     ) {
       if (state.profiles.length >= MAX_PROFILES) return
       const profile: StoredProfile = {
@@ -584,6 +589,7 @@ const profilesSlice = createSlice({
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
         createdAt: new Date().toISOString(),
+        bio: action.payload.bio,
         eyeoleans: 0,
         eyeoleanTransactions: [],
         eyeoleanInventory: {},
