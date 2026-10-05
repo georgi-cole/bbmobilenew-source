@@ -7,6 +7,7 @@
  * contract before resources or relationships can change.
  */
 
+import { createDraft, finishDraft } from 'immer'
 import { chooseActionFor, chooseTargetsFor } from './SocialPolicy'
 import { canAfford, executeAction, executeGroupAction, getActionById } from './SocialManeuvers'
 import { resolveActionTargetMode } from './socialActions'
@@ -17,9 +18,9 @@ import {
   applyEnergyDelta,
   applyInfoDelta,
   applyInfluenceDelta,
+  commitRealityDomainUpdate,
   commitRealityOutcome,
   recordSocialAction,
-  replaceRealityDomain,
   replaceRealitySimulation,
   scheduleIncomingInteraction,
   updateRelationship,
@@ -326,12 +327,15 @@ function executeRealityCandidate(
     // A blocked opportunity only advances the bounded simulation trace. Do
     // not replace the full Reality domain unless a pending interaction was
     // actually created.
-    if (result.interaction) _store.dispatch(replaceRealityDomain(result.domain))
+    if (result.interaction) {
+      _store.dispatch(commitRealityDomainUpdate({ domain: result.domain }))
+    }
     _store.dispatch(replaceRealitySimulation(result.simulation))
     return false
   }
   if (candidate.relationshipIntent && candidate.targetIds[0]) {
-    advanceRelationshipAutonomy(result.domain, {
+    const outcomeDraft = createDraft(result.domain)
+    advanceRelationshipAutonomy(outcomeDraft, {
       ownerId: player.id,
       targetId: candidate.targetIds[0],
       kind: candidate.relationshipIntent,
@@ -340,6 +344,7 @@ function executeRealityCandidate(
       accepted: result.response?.accepted === true,
       deferred: result.response?.kind === 'QUESTION' || result.response?.kind === 'COUNTER',
     })
+    result.domain = finishDraft(outcomeDraft)
   }
   const costs = normalizeActionCosts(action, candidate.targetIds.length, dramaMode)
   const compatibilityOutcome = result.event.outcome === 'SUCCESS' ? 'success' : 'failure'
@@ -365,6 +370,7 @@ function executeRealityCandidate(
       simulation: result.simulation,
       actorId: player.id,
       energyDelta: -costs.energy,
+      changedRelationshipPairs: result.changedRelationshipPairs,
       influenceDelta: -costs.influence + resourceEffect.influence,
       infoDelta: -costs.info + resourceEffect.info,
     })
@@ -425,33 +431,71 @@ let _timer: ReturnType<typeof setInterval> | null = null
 let _running = false
 let _tickCount = 0
 let _actionsExecuted = 0
+let _epoch = 0
+let _activePhaseKey: string | null = null
+let _cycle: AiTickCycle | null = null
+let _cancelScheduledWork: (() => void) | null = null
+let _pausedForBackground = false
 
 const CANDIDATE_ATTEMPTS_PER_TICK = 4
+const AI_SLICE_BUDGET_MS = 4
 
-function executedSystemActionsThisPhase(state: DriverState, playerId: string): number {
+interface AiTickCycle {
+  epoch: number
+  phaseKey: string
+  players: DriverPlayer[]
+  actionCounts: Record<string, number>
+  playerIndex: number
+  attempt: number
+}
+
+function getPhaseKey(state: DriverState): string {
+  const roster = state.game.players
+    .map((player) => `${player.id}:${player.status}:${player.isUser === true ? 'human' : 'ai'}`)
+    .join(',')
+  return [
+    state.game.seed ?? '',
+    state.game.week ?? '',
+    state.game.phase ?? '',
+    state.game.mode ?? '',
+    state.game.publicModeEnabled === true,
+    state.game.dramaSocialMode === true,
+    state.game.lohId ?? '',
+    state.game.posWinnerId ?? '',
+    roster,
+  ].join(':')
+}
+
+function systemActionCountsThisPhase(state: DriverState): Record<string, number> {
   const history = getPersistentSocialHistory(state.social as SocialStateWithHistory)
-  return history.filter(
-    (entry) =>
+  const counts: Record<string, number> = {}
+  for (const entry of history) {
+    if (
       entry.source === 'system' &&
-      entry.actorId === playerId &&
       entry.week === state.game.week &&
       entry.phase === state.game.phase
-  ).length
+    ) {
+      counts[entry.actorId] = (counts[entry.actorId] ?? 0) + 1
+    }
+  }
+  return counts
 }
 
 function hasAvailableAiWork(
   state: DriverState,
   aiPlayers: readonly DriverPlayer[],
-  budgets: Record<string, number>
+  budgets: Record<string, number>,
+  actionCounts = systemActionCountsThisPhase(state)
 ): boolean {
   return aiPlayers.some(
     (player) =>
       (budgets[player.id] ?? 0) > 0 &&
-      executedSystemActionsThisPhase(state, player.id) < socialConfig.maxActionsPerPlayer
+      (actionCounts[player.id] ?? 0) < socialConfig.maxActionsPerPlayer
   )
 }
 
 export function setStore(store: StoreAPI): void {
+  if (_store && _store !== store) stop()
   _store = store
 }
 
@@ -461,11 +505,14 @@ export function start(): void {
   const state = _store.getState() as DriverState
   const aiPlayers = getAIPlayers(state)
   const budgets = state.social?.energyBank ?? {}
-  if (!hasAvailableAiWork(state, aiPlayers, budgets)) return
+  const actionCounts = systemActionCountsThisPhase(state)
+  if (!hasAvailableAiWork(state, aiPlayers, budgets, actionCounts)) return
 
   _running = true
   _tickCount = 0
   _actionsExecuted = 0
+  _epoch += 1
+  _activePhaseKey = getPhaseKey(state)
 
   if (socialConfig.verbose) {
     console.debug(
@@ -474,11 +521,21 @@ export function start(): void {
     )
   }
 
+  if (typeof document !== 'undefined' && document.hidden) {
+    _pausedForBackground = true
+    return
+  }
+  _pausedForBackground = false
   _timer = setInterval(tick, socialConfig.tickIntervalMs)
 }
 
 export function stop(): void {
   _running = false
+  _epoch += 1
+  _cycle = null
+  _activePhaseKey = null
+  _pausedForBackground = false
+  cancelScheduledWork()
   clearTimer()
 
   if (socialConfig.verbose) {
@@ -507,6 +564,125 @@ function clearTimer(): void {
     clearInterval(_timer)
     _timer = null
   }
+}
+
+function cancelScheduledWork(): void {
+  _cancelScheduledWork?.()
+  _cancelScheduledWork = null
+}
+
+function scheduleWork(cycle: AiTickCycle): void {
+  if (!_running || _pausedForBackground || _cancelScheduledWork) return
+  const callback = () => {
+    _cancelScheduledWork = null
+    processTickSlice(cycle)
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    const frame = requestAnimationFrame(callback)
+    _cancelScheduledWork = () => cancelAnimationFrame(frame)
+  } else {
+    const timeout = setTimeout(callback, 0)
+    _cancelScheduledWork = () => clearTimeout(timeout)
+  }
+}
+
+function isCycleCurrent(cycle: AiTickCycle): boolean {
+  if (!_store || !_running || cycle.epoch !== _epoch || cycle !== _cycle) return false
+  const currentState = _store.getState() as DriverState
+  if (getPhaseKey(currentState) !== cycle.phaseKey) {
+    stop()
+    return false
+  }
+  return true
+}
+
+function finishTickCycle(cycle: AiTickCycle): void {
+  if (!isCycleCurrent(cycle)) return
+  _cycle = null
+  if (!socialConfig.allowOverspend && _store) {
+    const updatedState = _store.getState() as DriverState
+    const updatedBudgets = updatedState.social?.energyBank ?? {}
+    if (!hasAvailableAiWork(updatedState, cycle.players, updatedBudgets, cycle.actionCounts)) stop()
+  }
+}
+
+function processTickSlice(cycle: AiTickCycle): void {
+  if (!isCycleCurrent(cycle) || !_store) return
+  const deadline =
+    (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
+
+  while (isCycleCurrent(cycle)) {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    if (now >= deadline) {
+      scheduleWork(cycle)
+      return
+    }
+    if (cycle.playerIndex >= cycle.players.length) {
+      finishTickCycle(cycle)
+      return
+    }
+
+    const player = cycle.players[cycle.playerIndex]
+    const playerState = _store.getState() as DriverState
+    if ((playerState.social?.energyBank[player.id] ?? 0) <= 0) {
+      cycle.playerIndex += 1
+      cycle.attempt = 0
+      continue
+    }
+
+    if ((cycle.actionCounts[player.id] ?? 0) >= socialConfig.maxActionsPerPlayer) {
+      cycle.playerIndex += 1
+      cycle.attempt = 0
+      continue
+    }
+
+    if (cycle.attempt >= CANDIDATE_ATTEMPTS_PER_TICK) {
+      cycle.playerIndex += 1
+      cycle.attempt = 0
+      continue
+    }
+
+    const attempt = cycle.attempt
+    cycle.attempt += 1
+    const freshState = _store.getState() as DriverState
+    const currentPlayer = freshState.game.players.find((entry) => entry.id === player.id)
+    if (
+      !currentPlayer ||
+      currentPlayer.isUser ||
+      currentPlayer.status === 'evicted' ||
+      currentPlayer.status === 'jury'
+    ) {
+      cycle.playerIndex += 1
+      cycle.attempt = 0
+      continue
+    }
+    const candidate = candidateForPlayer(freshState, currentPlayer, attempt)
+    if (candidate && executeCandidate(freshState, currentPlayer, candidate)) {
+      _actionsExecuted += 1
+      cycle.actionCounts[player.id] = (cycle.actionCounts[player.id] ?? 0) + 1
+      cycle.playerIndex += 1
+      cycle.attempt = 0
+    }
+  }
+}
+
+function onVisibilityChange(): void {
+  if (!_running || typeof document === 'undefined') return
+  if (document.hidden) {
+    _pausedForBackground = true
+    clearTimer()
+    cancelScheduledWork()
+    return
+  }
+
+  if (!_pausedForBackground) return
+  _pausedForBackground = false
+  if (_store && getPhaseKey(_store.getState() as DriverState) !== _activePhaseKey) {
+    stop()
+    return
+  }
+  _timer = setInterval(tick, socialConfig.tickIntervalMs)
+  if (_cycle) scheduleWork(_cycle)
 }
 
 const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>> = {
@@ -751,7 +927,7 @@ function routeHumanFacingAction(
   if (!realityResult.interaction || realityResult.event) return 'blocked'
   interaction.payload ??= {}
   interaction.payload.realityInteractionId = realityResult.interaction.id
-  _store.dispatch(replaceRealityDomain(realityResult.domain))
+  _store.dispatch(commitRealityDomainUpdate({ domain: realityResult.domain }))
   _store.dispatch(replaceRealitySimulation(realityResult.simulation))
 
   _store.dispatch(applyEnergyDelta({ playerId: actorId, delta: -costs.energy }))
@@ -1139,17 +1315,25 @@ function executeCandidate(
 }
 
 function tick(): void {
-  if (!_store || !_running) {
+  if (!_store || !_running || _pausedForBackground) {
     clearTimer()
     return
   }
+  // A slow cycle is allowed to finish across multiple browser frames; missed
+  // interval callbacks are dropped instead of creating overlapping work.
+  if (_cycle) return
 
-  _tickCount += 1
   const state = _store.getState() as DriverState
+  const phaseKey = getPhaseKey(state)
+  if (phaseKey !== _activePhaseKey) {
+    stop()
+    return
+  }
+  _tickCount += 1
   const human = state.game.players.find((player) => player.isUser)
   if (getEffectiveSocialMode(state) === 'drama' && human) {
-    const domain = structuredClone(state.social.reality)
-    const nemesis = startAutonomousNemesisIfReady(domain, {
+    const draft = createDraft(state.social.reality)
+    const nemesis = startAutonomousNemesisIfReady(draft, {
       targetId: human.id,
       candidateIds: state.game.players
         .filter(
@@ -1160,41 +1344,42 @@ function tick(): void {
       at: { day: state.game.week ?? 1, phase: state.game.phase ?? 'social_1' },
       humanHasPower: state.game.lohId === human.id || state.game.posWinnerId === human.id,
     })
-    if (nemesis) _store.dispatch(replaceRealityDomain(domain))
+    const nemesisPair = nemesis ? { sourceId: nemesis.ownerId, targetId: nemesis.targetId } : null
+    const domain = finishDraft(draft)
+    if (nemesisPair) {
+      _store.dispatch(
+        commitRealityDomainUpdate({
+          domain,
+          changedRelationshipPairs: [
+            nemesisPair,
+            { sourceId: nemesisPair.targetId, targetId: nemesisPair.sourceId },
+          ],
+        })
+      )
+    }
   }
   const aiPlayers = getAIPlayers(state)
   const budgets = state.social?.energyBank ?? {}
+  const actionCounts = systemActionCountsThisPhase(state)
 
   if (_tickCount >= MAX_TICKS()) {
     stop()
     return
   }
-  if (!hasAvailableAiWork(state, aiPlayers, budgets)) {
+  if (!hasAvailableAiWork(state, aiPlayers, budgets, actionCounts)) {
     stop()
     return
   }
 
-  for (const player of aiPlayers) {
-    if ((budgets[player.id] ?? 0) <= 0) continue
-    const playerState = _store.getState() as DriverState
-    if (executedSystemActionsThisPhase(playerState, player.id) >= socialConfig.maxActionsPerPlayer)
-      continue
-
-    let executed = false
-    for (let attempt = 0; attempt < CANDIDATE_ATTEMPTS_PER_TICK && !executed; attempt += 1) {
-      const freshState = _store.getState() as DriverState
-      const candidate = candidateForPlayer(freshState, player, attempt)
-      if (!candidate) continue
-      executed = executeCandidate(freshState, player, candidate)
-    }
-    if (executed) _actionsExecuted += 1
+  _cycle = {
+    epoch: _epoch,
+    phaseKey,
+    players: aiPlayers,
+    actionCounts,
+    playerIndex: 0,
+    attempt: 0,
   }
-
-  if (!socialConfig.allowOverspend) {
-    const updatedBudgets = (_store.getState() as DriverState).social?.energyBank ?? {}
-    const updatedState = _store.getState() as DriverState
-    if (!hasAvailableAiWork(updatedState, aiPlayers, updatedBudgets)) stop()
-  }
+  processTickSlice(_cycle)
 }
 
 if (typeof window !== 'undefined') {
@@ -1203,4 +1388,8 @@ if (typeof window !== 'undefined') {
     stop,
     getStatus,
   }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', onVisibilityChange)
 }

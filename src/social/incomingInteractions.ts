@@ -12,6 +12,7 @@ import {
   applyDramaIncomingResponse,
   applyInfoDelta,
   applyInfluenceDelta,
+  commitRealityDomainUpdate,
   dismissIncomingInteraction,
   replaceRealityDomain,
   resolveIncomingInteractionsByDeadline,
@@ -488,7 +489,14 @@ function resolveRealityIncomingInteraction(
         ? interaction.payload.secondarySubjectId
         : undefined,
   })
-  if (resolved.event) dispatch(replaceRealityDomain(resolved.domain))
+  if (resolved.event) {
+    dispatch(
+      commitRealityDomainUpdate({
+        domain: resolved.domain,
+        changedRelationshipPairs: resolved.changedRelationshipPairs,
+      })
+    )
+  }
 }
 
 export function getIncomingInteractionTypeLabel(type: IncomingInteractionType): string {

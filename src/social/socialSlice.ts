@@ -349,6 +349,20 @@ const socialSlice = createSlice({
       state.reality = normalizeRealityDomainState(action.payload, state.relationships)
       projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
     },
+    /** Commits an orchestrator-produced domain that already shares unchanged branches. */
+    commitRealityDomainUpdate(
+      state,
+      action: PayloadAction<{
+        domain: RealityDomainState
+        changedRelationshipPairs?: Array<{ sourceId: string; targetId: string }>
+      }>
+    ) {
+      const { domain, changedRelationshipPairs } = action.payload
+      state.reality = domain
+      for (const { sourceId, targetId } of changedRelationshipPairs ?? []) {
+        projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
+      }
+    },
     /**
      * Commit one autonomous Reality outcome in a single reducer pass. The
      * social event is dispatched separately so existing intelligence, drama,
@@ -365,6 +379,7 @@ const socialSlice = createSlice({
         simulation: RealitySimulationState
         actorId: string
         energyDelta: number
+        changedRelationshipPairs?: Array<{ sourceId: string; targetId: string }>
         influenceDelta?: number
         infoDelta?: number
       }>
@@ -374,11 +389,22 @@ const socialSlice = createSlice({
         simulation,
         actorId,
         energyDelta,
+        changedRelationshipPairs,
         influenceDelta = 0,
         infoDelta = 0,
       } = action.payload
-      state.reality = normalizeRealityDomainState(domain, state.relationships)
-      projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+      // This action is reserved for outcomes orchestrated from the already
+      // normalized in-memory domain. Keep its structural sharing instead of
+      // normalizing/copying every collection again. Hydration and migrations
+      // still use replaceRealityDomain's full normalization/projection path.
+      state.reality = domain
+      if (changedRelationshipPairs) {
+        for (const { sourceId, targetId } of changedRelationshipPairs) {
+          projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
+        }
+      } else {
+        projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+      }
       state.realitySimulation = normalizeRealitySimulationState(simulation)
       state.energyBank[actorId] = clampSocialResource(
         (state.energyBank[actorId] ?? 0) + energyDelta,
@@ -1067,6 +1093,7 @@ export const {
   initializeRealitySimulation,
   replaceRealitySimulation,
   replaceRealityDomain,
+  commitRealityDomainUpdate,
   commitRealityOutcome,
   ensureRealityDomainActors,
   applyRealityRelationshipDelta,
