@@ -80,13 +80,14 @@ export default function Store() {
   const eyeoleanBalance = useAppSelector(selectEyeoleanBalance)
   const eyeoleanInventory = useAppSelector(selectEyeoleanInventory)
   const locationState = location.state as { returnTo?: unknown; shelf?: unknown } | null
+  const requestedShelf = locationState?.shelf
   const [notice, setNotice] = useState<string | null>(null)
   const [eyeoleanNotice, setEyeoleanNotice] = useState<string | null>(null)
   const [eyeoleanError, setEyeoleanError] = useState<string | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [selectedProductKey, setSelectedProductKey] = useState<StoreProductKey | null>(null)
   const [activeShelf, setActiveShelf] = useState<StoreShelfId>(
-    isStoreShelfId(locationState?.shelf) ? locationState.shelf : 'all-access'
+    isStoreShelfId(requestedShelf) ? requestedShelf : 'all-access'
   )
   const purchaseLockRef = useRef(false)
   const busy =
