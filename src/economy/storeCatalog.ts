@@ -56,10 +56,7 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   extra_vote: {
     key: 'extra_vote',
     title: 'Extra Vote',
-    price: 25_000,
-    secondPrice: 40_000,
-    maxSeasonPurchases: 2,
-    maxSeasonUses: 2,
+    price: 15_000,
     secondPrice: 25_000,
     maxSeasonPurchases: 2,
     maxSeasonUses: 2,
@@ -85,7 +82,10 @@ export const EYEOLEAN_STORE_PRODUCTS: Readonly<
   remove_vote: {
     key: 'remove_vote',
     title: 'Remove a Vote',
-    price: 15_000,
+    price: 25_000,
+    secondPrice: 40_000,
+    maxSeasonPurchases: 2,
+    maxSeasonUses: 2,
     shortDescription: 'Removes one vote against you from the next eligible result.',
     inventoryLabel: 'Vote Removals',
     modeRules: {
