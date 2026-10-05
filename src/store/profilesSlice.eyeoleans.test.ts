@@ -158,8 +158,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:first',
         productKey: 'extra_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
     state = profilesReducer(
@@ -167,8 +167,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:second',
         productKey: 'extra_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
     state = profilesReducer(
@@ -176,8 +176,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:remove-vote:first',
         productKey: 'remove_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
 
@@ -251,8 +251,8 @@ describe('Eyeolean profile wallet', () => {
     const purchase = purchaseEyeoleanStoreProduct({
       transactionId: 'store:remove-vote:stable',
       productKey: 'remove_vote',
-    gameId: 'game-a',
-    season: 1,
+      gameId: 'game-a',
+      season: 1,
     })
     state = profilesReducer(state, purchase)
     state = profilesReducer(state, purchase)
@@ -268,8 +268,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:no-funds',
         productKey: 'extra_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
 
@@ -289,8 +289,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:extra-vote:reserve',
         productKey: 'extra_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
 
@@ -332,8 +332,8 @@ describe('Eyeolean profile wallet', () => {
       purchaseEyeoleanStoreProduct({
         transactionId: 'store:remove-vote:reserve',
         productKey: 'remove_vote',
-      gameId: 'game-a',
-      season: 1,
+        gameId: 'game-a',
+        season: 1,
       })
     )
     state = profilesReducer(
@@ -353,6 +353,73 @@ describe('Eyeolean profile wallet', () => {
 
     expect(state.profiles[0]?.eyeoleanInventory?.remove_vote).toBe(0)
     expect(state.profiles[0]?.eyeoleanPowerReservations?.remove_vote).toBeUndefined()
-    expect(state.profiles[0]?.eyeoleans).toBe(105_000)
+    expect(state.profiles[0]?.eyeoleans).toBe(95_000)
+    expect(state.profiles[0]?.eyeoleanPowerSeasonProgress?.remove_vote).toMatchObject({
+      gameId: 'game-a',
+      season: 1,
+      purchases: 1,
+      uses: 1,
+    })
+  })
+
+  it('caps resolved uses at two per power per season even when more inventory exists', () => {
+    let state = profilesReducer(undefined, createProfile({ name: 'Test', avatar: '👤' }))
+    state = profilesReducer(state, debugGrantEyeoleans({ grantId: 'use-cap', amount: 100_000 }))
+
+    for (const [transactionId, week] of [
+      ['first', 3],
+      ['second', 4],
+    ] as const) {
+      state = profilesReducer(
+        state,
+        purchaseEyeoleanStoreProduct({
+          transactionId: `store:extra-vote:${transactionId}`,
+          productKey: 'extra_vote',
+          gameId: 'game-a',
+          season: 1,
+        })
+      )
+      state = profilesReducer(
+        state,
+        armEyeoleanStorePower({
+          productKey: 'extra_vote',
+          gameId: 'game-a',
+          season: 1,
+          week,
+        })
+      )
+      state = profilesReducer(
+        state,
+        consumeEyeoleanStorePower({ productKey: 'extra_vote', gameId: 'game-a' })
+      )
+    }
+
+    state = {
+      ...state,
+      profiles: state.profiles.map((profile, index) =>
+        index === 0
+          ? {
+              ...profile,
+              eyeoleanInventory: {
+                ...(profile.eyeoleanInventory ?? {}),
+                extra_vote: 1,
+              },
+            }
+          : profile
+      ),
+    }
+    state = profilesReducer(
+      state,
+      armEyeoleanStorePower({
+        productKey: 'extra_vote',
+        gameId: 'game-a',
+        season: 1,
+        week: 5,
+      })
+    )
+
+    expect(state.profiles[0]?.eyeoleanPowerSeasonProgress?.extra_vote?.uses).toBe(2)
+    expect(state.profiles[0]?.eyeoleanInventory?.extra_vote).toBe(1)
+    expect(state.profiles[0]?.eyeoleanPowerReservations?.extra_vote).toBeUndefined()
   })
 })
