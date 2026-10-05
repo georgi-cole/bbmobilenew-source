@@ -13,7 +13,7 @@ import {
   archiveKeyForProfile,
   type StoredProfile,
 } from '../../store/profilesSlice'
-import { resetGame, hydrateGame } from '../../store/gameSlice'
+import { resetGame, hydrateGame, updateUserPlayerIdentity } from '../../store/gameSlice'
 import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
@@ -26,6 +26,7 @@ import {
 } from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import { flushPendingRunSnapshots } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { imageIdToDataUrl, saveImage, deleteImage } from '../../utils/imageDb'
@@ -59,11 +60,22 @@ export default function ProfilePicker() {
   const isGameActive = useAppSelector(
     (s) => s.game.status === 'active' || s.game.week > 1 || s.game.phase !== 'week_start'
   )
+  const hasGuestRunProgress = useAppSelector(
+    (s) =>
+      s.game.mode === 'survival' ||
+      s.game.week > 1 ||
+      (s.game.phase !== 'season_start' && s.game.phase !== 'week_start') ||
+      Boolean(s.game.runId) ||
+      Boolean(s.game.pendingEviction) ||
+      Boolean(s.game.seasonFinale)
+  )
 
   const [photoCache, setPhotoCache] = useState<Record<string, string>>({})
 
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newAge, setNewAge] = useState('')
+  const [newSex, setNewSex] = useState('')
   const [newAvatar, setNewAvatar] = useState('🧑')
   const [newPhotoPreview, setNewPhotoPreview] = useState<string | null>(null)
   const [newPhotoBlob, setNewPhotoBlob] = useState<Blob | null>(null)
@@ -78,6 +90,14 @@ export default function ProfilePicker() {
   const [pendingResumeId, setPendingResumeId] = useState<string | null>(null)
 
   const atLimit = profiles.length >= MAX_PROFILES
+  const parsedNewAge = Number(newAge)
+  const canCreateProfile =
+    Boolean(newName.trim()) &&
+    Boolean(newAge.trim()) &&
+    Number.isInteger(parsedNewAge) &&
+    parsedNewAge >= 0 &&
+    parsedNewAge <= 120 &&
+    ['Male', 'Female'].includes(newSex)
 
   useEffect(() => {
     async function loadPhotos() {
@@ -202,7 +222,8 @@ export default function ProfilePicker() {
   }
 
   async function handleCreate() {
-    if (!newName.trim() || atLimit) return
+    if (!canCreateProfile || atLimit) return
+    const parsedAge = parsedNewAge
     let photoId: string | undefined
     if (newPhotoBlob) {
       const randomPart = (() => {
@@ -220,15 +241,41 @@ export default function ProfilePicker() {
         photoId = undefined
       }
     }
-    withRunAutosaveSuspended(() => {
-      dispatch(createProfile({ name: newName.trim(), avatar: newAvatar, photoId }))
-      dispatch(resetGame([]))
-    })
+    const adoptGuestRun = isGuest && hasGuestRunProgress
+    const profileDetails = {
+      name: newName.trim(),
+      avatar: newAvatar,
+      photoId,
+      bio: { age: String(parsedAge), sex: newSex },
+    }
+    if (adoptGuestRun) {
+      withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
+      // This action schedules the current, intact guest season under the newly
+      // active profile; flushing both layers makes it available after reload.
+      dispatch(
+        updateUserPlayerIdentity({
+          name: profileDetails.name,
+          avatar: profileDetails.avatar,
+          photoId,
+          age: parsedAge,
+          sex: newSex,
+        })
+      )
+      flushPendingRunSnapshots()
+      await flushSavePersistence()
+    } else {
+      withRunAutosaveSuspended(() => {
+        dispatch(createProfile(profileDetails))
+        dispatch(resetGame([]))
+      })
+    }
     setShowCreateForm(false)
     setNewName('')
+    setNewAge('')
+    setNewSex('')
     setNewAvatar('🧑')
     clearNewPhoto()
-    navigate('/profile', { replace: true, state: { from: returnTo } })
+    navigate(adoptGuestRun ? '/game' : '/profile', { replace: true, state: { from: returnTo } })
   }
 
   function clearNewPhoto() {
@@ -429,6 +476,37 @@ export default function ProfilePicker() {
                 onChange={(e) => setNewName(e.target.value)}
                 autoFocus
               />
+              <label className="profile-picker__create-label" htmlFor="profile-create-age">
+                Age <span aria-hidden="true">*</span>
+              </label>
+              <input
+                id="profile-create-age"
+                className="profile-picker__input"
+                type="number"
+                min="0"
+                max="120"
+                step="1"
+                placeholder="Enter your age"
+                value={newAge}
+                onChange={(e) => setNewAge(e.target.value)}
+                required
+              />
+              <label className="profile-picker__create-label" htmlFor="profile-create-sex">
+                Sex (Reality storylines) <span aria-hidden="true">*</span>
+              </label>
+              <select
+                id="profile-create-sex"
+                className="profile-picker__input"
+                value={newSex}
+                onChange={(e) => setNewSex(e.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  Select your sex
+                </option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
               <div className="profile-picker__avatar-grid">
                 {AVATAR_OPTIONS.map((em) => (
                   <button
@@ -459,7 +537,7 @@ export default function ProfilePicker() {
                 <button
                   type="button"
                   className="profile-picker__btn profile-picker__btn--create"
-                  disabled={!newName.trim() || processingPhoto}
+                  disabled={!canCreateProfile || processingPhoto}
                   onClick={() => void handleCreate()}
                 >
                   Create Profile

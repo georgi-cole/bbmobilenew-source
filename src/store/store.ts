@@ -289,6 +289,11 @@ function hasMeaningfulGameProgress(game: ReturnType<typeof store.getState>['game
 // save window flushes. Lifecycle boundaries still flush immediately.
 const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
 
+/** Flush pending campaign snapshots before leaving a profile adoption flow. */
+export function flushPendingRunSnapshots(): void {
+  runSnapshotAutosave.flush()
+}
+
 function scheduleCurrentRunSnapshot(
   profileId: string,
   current: ReturnType<typeof store.getState>
