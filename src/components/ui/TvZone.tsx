@@ -1495,15 +1495,25 @@ export default function TvZone(props: TvZoneProps) {
       // cannot fit; viewport width alone is deliberately not used.
       const fullPhaseWidth = phaseMeasure.getBoundingClientRect().width + 14
       const requiredWidth = fullPhaseWidth + pills.scrollWidth + actions.offsetWidth + 20
-      setCompactPhaseChip(requiredWidth > header.clientWidth + 0.5)
+      const shouldCompact = requiredWidth > header.clientWidth + 0.5
+      setCompactPhaseChip((current) => (current === shouldCompact ? current : shouldCompact))
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(header)
     observer.observe(pills)
     observer.observe(actions)
-    return () => observer.disconnect()
-  })
+    observer.observe(phaseMeasure)
+    for (const item of [...pills.children, ...actions.children]) observer.observe(item)
+    const contentObserver = new MutationObserver(measure)
+    for (const container of [pills, actions]) {
+      contentObserver.observe(container, { childList: true, subtree: true, characterData: true })
+    }
+    return () => {
+      observer.disconnect()
+      contentObserver.disconnect()
+    }
+  }, [phaseLabel, shortPhaseLabel])
   const isAtGameStart =
     gameState.week === 1 && (gameState.phase === 'season_start' || gameState.phase === 'week_start')
   const debugWeekendPreviewActive = gameState.weekendInterlude?.debug === true

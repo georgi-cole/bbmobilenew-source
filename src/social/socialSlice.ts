@@ -248,6 +248,39 @@ function projectRealityRelationshipsIntoLegacy(
   }
 }
 
+type WeekSeedRelationshipUpdate = {
+  source: string
+  target: string
+  delta: number
+  tags?: string[]
+  actionSource?: 'manual' | 'system'
+}
+
+type WeekSeedAmbientRelationshipUpdate = {
+  sourceId: string
+  targetId: string
+  socialDelta: number
+  day: number
+  phase?: string
+}
+
+type WeekSeedMoodUpdate = {
+  actorId: string
+  valenceDelta: number
+  arousalDelta: number
+  stressDelta: number
+  socialEnergyDelta: number
+}
+
+export type WeekSeedOperation =
+  | { kind: 'relationship'; payload: WeekSeedRelationshipUpdate }
+  | { kind: 'ambientRelationship'; payload: WeekSeedAmbientRelationshipUpdate }
+
+export type WeekSeedBatch = {
+  operations: WeekSeedOperation[]
+  moods: WeekSeedMoodUpdate[]
+}
+
 const socialSlice = createSlice({
   name: 'social',
   initialState: SOCIAL_INITIAL_STATE,
@@ -446,16 +479,7 @@ const socialSlice = createSlice({
         action.payload.targetId
       )
     },
-    applyRealityAmbientMood(
-      state,
-      action: PayloadAction<{
-        actorId: string
-        valenceDelta: number
-        arousalDelta: number
-        stressDelta: number
-        socialEnergyDelta: number
-      }>
-    ) {
+    applyRealityAmbientMood(state, action: PayloadAction<WeekSeedMoodUpdate>) {
       const { actorId, valenceDelta, arousalDelta, stressDelta, socialEnergyDelta } = action.payload
       ensureRealityActors(state.reality as RealityDomainState, [actorId])
       const contestant = state.reality.contestants[actorId]
@@ -477,13 +501,7 @@ const socialSlice = createSlice({
     },
     applyRealityAmbientRelationship(
       state,
-      action: PayloadAction<{
-        sourceId: string
-        targetId: string
-        socialDelta: number
-        day: number
-        phase?: string
-      }>
+      action: PayloadAction<WeekSeedAmbientRelationshipUpdate>
     ) {
       const { sourceId, targetId, socialDelta, day, phase = 'week_start' } = action.payload
       if (sourceId === targetId || socialDelta === 0) return
@@ -521,6 +539,29 @@ const socialSlice = createSlice({
         sourceId,
         targetId
       )
+    },
+    /** Apply deterministic week-start relationship and mood changes in one store update. */
+    applyWeekSeedBatch(state, action: PayloadAction<WeekSeedBatch>) {
+      for (const operation of action.payload.operations) {
+        if (operation.kind === 'relationship') {
+          socialSlice.caseReducers.updateRelationship(state, {
+            type: updateRelationship.type,
+            payload: operation.payload,
+          })
+        } else {
+          socialSlice.caseReducers.applyRealityAmbientRelationship(state, {
+            type: applyRealityAmbientRelationship.type,
+            payload: operation.payload,
+          })
+        }
+      }
+
+      for (const mood of action.payload.moods) {
+        socialSlice.caseReducers.applyRealityAmbientMood(state, {
+          type: applyRealityAmbientMood.type,
+          payload: mood,
+        })
+      }
     },
     recordRealityFact(state, action: PayloadAction<RealityFact>) {
       addRealityFact(state.reality as RealityDomainState, action.payload)
@@ -1151,6 +1192,7 @@ export const {
   closeIncomingInbox,
   clearSessionLogs,
   snapshotWeekRelationships,
+  applyWeekSeedBatch,
   hydrateSocial,
 } = socialSlice.actions
 export default socialSlice.reducer

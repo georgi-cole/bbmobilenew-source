@@ -8,12 +8,16 @@
  */
 
 import {
+  applyWeekSeedBatch,
   applyRealityAmbientMood,
   applyRealityAmbientRelationship,
   updateRelationship,
 } from './socialSlice'
+import type { WeekSeedBatch, WeekSeedOperation } from './socialSlice'
 import HOUSEGUESTS from '../data/houseguests'
 import type { SocialMemoryEntry, SocialMemoryMap } from './types'
+import { getEffectiveSocialMode } from './socialMode'
+import { BELLA_ID } from '../features/twists/bellasWill'
 
 interface StoreAPI {
   dispatch: (action: unknown) => unknown
@@ -34,7 +38,20 @@ interface SeedState {
   settings?: {
     gameUX?: { dramaMode?: boolean }
   }
+  vip?: {
+    isActive?: boolean
+    entitlements?: { dramaMode?: boolean }
+  }
 }
+
+const BELLA_COMMITMENT_TAGS = new Set([
+  'alliance',
+  'protection',
+  'shield',
+  'safety_promise',
+  'ride_or_die',
+  'promise_keeper',
+])
 
 function makeLcg(seed: number): () => number {
   let state = seed >>> 0
@@ -48,54 +65,64 @@ const HOUSEGUEST_PROFILE_BY_ID = Object.fromEntries(
   HOUSEGUESTS.map((houseguest) => [houseguest.id, houseguest])
 )
 
-function seedStaticRelationshipChemistry(store: StoreAPI, activePlayerIds: string[]): void {
+function seedStaticRelationshipChemistry(
+  operations: WeekSeedOperation[],
+  activePlayerIds: string[]
+): void {
   const activeIds = new Set(activePlayerIds)
   for (const actorId of activePlayerIds) {
     const profile = HOUSEGUEST_PROFILE_BY_ID[actorId]
     if (!profile) continue
     profile.allies.forEach((targetId) => {
       if (!activeIds.has(targetId)) return
-      store.dispatch(
-        updateRelationship({ source: actorId, target: targetId, delta: 8, actionSource: 'system' })
-      )
+      operations.push({
+        kind: 'relationship',
+        payload: { source: actorId, target: targetId, delta: 8, actionSource: 'system' },
+      })
     })
     profile.enemies.forEach((targetId) => {
       if (!activeIds.has(targetId)) return
-      store.dispatch(
-        updateRelationship({ source: actorId, target: targetId, delta: -8, actionSource: 'system' })
-      )
+      operations.push({
+        kind: 'relationship',
+        payload: { source: actorId, target: targetId, delta: -8, actionSource: 'system' },
+      })
     })
   }
 }
 
-function seedStaticRelationshipTags(store: StoreAPI, activePlayerIds: string[]): void {
+function seedStaticRelationshipTags(
+  operations: WeekSeedOperation[],
+  activePlayerIds: string[]
+): void {
   const activeIds = new Set(activePlayerIds)
   for (const actorId of activePlayerIds) {
     const profile = HOUSEGUEST_PROFILE_BY_ID[actorId]
     if (!profile) continue
     profile.allies.forEach((targetId) => {
       if (!activeIds.has(targetId)) return
-      store.dispatch(
-        updateRelationship({
+      operations.push({
+        kind: 'relationship',
+        payload: {
           source: actorId,
           target: targetId,
           delta: 0,
           tags: ['alliance'],
           actionSource: 'system',
-        })
-      )
+        },
+      })
     })
     profile.enemies.forEach((targetId) => {
       if (!activeIds.has(targetId)) return
-      store.dispatch(
-        updateRelationship({
+      operations.push({
+        kind: 'relationship',
+        payload: {
           source: actorId,
           target: targetId,
           delta: 0,
           tags: ['target'],
           actionSource: 'system',
-        })
-      )
+        },
+      })
     })
   }
 }
@@ -150,12 +177,14 @@ export function seedWeekRelationships(store: StoreAPI): void {
   const active = players.filter((player) => player.status !== 'evicted' && player.status !== 'jury')
   if (active.length < 2) return
 
+  const batch: WeekSeedBatch = { operations: [], moods: [] }
+
   if (week === 1) {
     const activeIds = active.map((player) => player.id)
     if (state.settings?.gameUX?.dramaMode === true || state.game.dramaSocialMode === true) {
-      seedStaticRelationshipChemistry(store, activeIds)
+      seedStaticRelationshipChemistry(batch.operations, activeIds)
     } else {
-      seedStaticRelationshipTags(store, activeIds)
+      seedStaticRelationshipTags(batch.operations, activeIds)
     }
   }
 
@@ -182,37 +211,72 @@ export function seedWeekRelationships(store: StoreAPI): void {
         : Math.round(-12 + rng() * 37)
 
       if (delta !== 0) {
-        store.dispatch(
-          updateRelationship({
+        batch.operations.push({
+          kind: 'relationship',
+          payload: {
             source: actor.id,
             target: target.id,
             delta,
             actionSource: 'system',
-          })
-        )
+          },
+        })
         if (existing) {
-          store.dispatch(
-            applyRealityAmbientRelationship({
+          batch.operations.push({
+            kind: 'ambientRelationship',
+            payload: {
               sourceId: actor.id,
               targetId: target.id,
               socialDelta: delta,
               day: week,
-            })
-          )
+            },
+          })
         }
       }
     }
   }
 
   for (const player of active) {
-    store.dispatch(
-      applyRealityAmbientMood({
-        actorId: player.id,
-        valenceDelta: Math.round((rng() - 0.48) * 10),
-        arousalDelta: Math.round((rng() - 0.5) * 8),
-        stressDelta: Math.round((rng() - 0.52) * 6),
-        socialEnergyDelta: Math.round((rng() - 0.5) * 8),
-      })
-    )
+    batch.moods.push({
+      actorId: player.id,
+      valenceDelta: Math.round((rng() - 0.48) * 10),
+      arousalDelta: Math.round((rng() - 0.5) * 8),
+      stressDelta: Math.round((rng() - 0.52) * 6),
+      socialEnergyDelta: Math.round((rng() - 0.5) * 8),
+    })
+  }
+
+  // Drama mode observes every relationship action for twin propagation, so it
+  // keeps the legacy action path. Normal mode has no per-update side effects;
+  // applying the same ordered reducer operations together keeps the resulting
+  // legacy relationships, canonical Reality domain, and moods unchanged.
+  const current = store.getState() as SeedState
+  if (
+    getEffectiveSocialMode({
+      game: current.game,
+      settings: current.settings,
+      vip: current.vip,
+    }) === 'drama'
+  ) {
+    for (const operation of batch.operations) {
+      store.dispatch(
+        operation.kind === 'relationship'
+          ? updateRelationship(operation.payload)
+          : applyRealityAmbientRelationship(operation.payload)
+      )
+    }
+    for (const mood of batch.moods) store.dispatch(applyRealityAmbientMood(mood))
+  } else {
+    for (const operation of batch.operations) {
+      if (operation.kind !== 'relationship') continue
+      const { payload } = operation
+      if (
+        payload.source === BELLA_ID &&
+        payload.delta > 0 &&
+        !(payload.tags ?? []).some((tag) => BELLA_COMMITMENT_TAGS.has(tag))
+      ) {
+        payload.delta = Math.max(1, Math.round(payload.delta * 0.45))
+      }
+    }
+    store.dispatch(applyWeekSeedBatch(batch))
   }
 }

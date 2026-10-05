@@ -149,10 +149,18 @@ function getSubjectCandidates(
 export default function SocialPanelV2() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const game = useAppSelector((state) => state.game)
-  const settings = useAppSelector((state) => state.settings)
-  const vip = useAppSelector((state) => state.vip)
-  const socialState = useAppSelector((state) => state.social)
+  const socialPanelOpenForUpdates = useAppSelector(selectSocialPanelOpen)
+  const comparePanelState = useCallback(
+    (previous: unknown, next: unknown) => !socialPanelOpenForUpdates || previous === next,
+    [socialPanelOpenForUpdates]
+  )
+  // Keep the component's local selection and tutorial state alive while closed,
+  // but stop Redux changes to the season and social world from rerendering it.
+  // Opening the panel reselects the latest slices before rendering its content.
+  const game = useAppSelector((state) => state.game, comparePanelState)
+  const settings = useAppSelector((state) => state.settings, comparePanelState)
+  const vip = useAppSelector((state) => state.vip, comparePanelState)
+  const socialState = useAppSelector((state) => state.social, comparePanelState)
   const activeProfileId = useAppSelector((state) => state.profiles?.activeProfileId ?? null)
   const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false)
   const energyBank = useAppSelector(selectEnergyBank)
