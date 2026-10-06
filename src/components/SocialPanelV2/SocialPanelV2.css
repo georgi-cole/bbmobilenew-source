@@ -1586,6 +1586,27 @@
   background: rgba(100, 69, 20, 0.16);
 }
 
+.sp2-focus__commitments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.26rem;
+  margin-top: 0.3rem;
+}
+
+.sp2-focus__commitments span {
+  max-width: 12rem;
+  overflow: hidden;
+  padding: 0.16rem 0.38rem;
+  border: 1px solid rgba(192, 142, 255, 0.36);
+  border-radius: 999px;
+  color: #e7d5ff;
+  background: linear-gradient(135deg, rgba(109, 40, 217, 0.28), rgba(47, 21, 83, 0.3));
+  font-size: 0.54rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sp2-focus__prompt {
   position: absolute;
   right: 0.7rem;
@@ -1655,7 +1676,7 @@
 
 .sp2-move-filters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.24rem;
   padding: 0.22rem;
   border: 1px solid rgba(222, 207, 191, 0.12);
@@ -1667,6 +1688,7 @@
 }
 
 .sp2-move-filters button {
+  position: relative;
   min-width: 0;
   min-height: 1.8rem;
   border: 0;
@@ -1677,6 +1699,25 @@
   font-size: 0.57rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.sp2-move-filters__badge {
+  position: absolute;
+  top: -0.18rem;
+  right: 0.16rem;
+  display: grid;
+  min-width: 0.9rem;
+  height: 0.9rem;
+  padding-inline: 0.2rem;
+  place-items: center;
+  border: 1px solid rgba(255, 237, 183, 0.72);
+  border-radius: 999px;
+  color: #1a1024;
+  background: #f1d47d;
+  font-size: 0.48rem;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 0 0.45rem rgba(236, 195, 92, 0.34);
 }
 
 .sp2-move-filters button.is-active {

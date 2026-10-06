@@ -972,3 +972,40 @@ describe('LOH target question integration', () => {
     expect(recentActivity).not.toHaveTextContent('You performed')
   })
 })
+
+describe('SocialPanelV2 – integrated alliance actions', () => {
+  it('forms a group through the existing hubmate and move flow', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const candidates = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 2)
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
+    expect(within(socialDialog).queryByRole('region', { name: 'Your alliances' })).toBeNull()
+
+    fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
+    fireEvent.click(within(socialDialog).getByRole('button', { name: /Found an alliance/i }))
+
+    const roster = within(socialDialog).getByRole('region', { name: 'Player roster' })
+    for (const candidate of candidates) {
+      fireEvent.click(within(roster).getByRole('button', { name: new RegExp(candidate.name, 'i') }))
+    }
+    fireEvent.click(within(socialDialog).getByRole('button', { name: 'Propose group' }))
+
+    const foundingRequest = Object.values(
+      store.getState().social.reality.allianceManagement.requests
+    ).find(
+      (request) =>
+        request.kind === 'FOUND' &&
+        request.memberIds.includes(human.id) &&
+        candidates.every((candidate) => request.memberIds.includes(candidate.id))
+    )
+    expect(foundingRequest?.memberIds).toHaveLength(3)
+    expect(foundingRequest?.consents[human.id]).toBe(true)
+  })
+})

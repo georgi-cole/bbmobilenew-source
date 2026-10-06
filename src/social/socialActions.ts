@@ -332,8 +332,7 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'proposeAlliance',
     title: 'Propose Personal Pact',
     icon: '🤝',
-    description:
-      'Ask one housemate for a personal protection pact. Use Your Alliances to found or expand a group.',
+    description: 'Ask this hubmate for a private two-person protection pact.',
     category: 'alliance',
     kind: 'intel_spend',
     baseCost: { energy: 0 },
