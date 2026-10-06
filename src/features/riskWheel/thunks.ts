@@ -14,8 +14,30 @@
  */
 import type { AppDispatch, RootState } from '../../store/store';
 import { applyMinigameWinner } from '../../store/gameSlice';
-import { markRiskWheelOutcomeResolved } from './riskWheelSlice';
+import {
+  advanceFromRoundSummary,
+  markRiskWheelOutcomeResolved,
+  resolveAllAiTurns,
+} from './riskWheelSlice';
 import type { RiskWheelState } from './riskWheelSlice';
+
+export const skipRiskWheelToResults =
+  () => (dispatch: AppDispatch, getState: () => RootState) => {
+    let safety = 0;
+
+    while (getState().riskWheel.phase !== 'complete' && safety++ < 1000) {
+      const { phase, activePlayerIds, eliminatedThisRound, humanPlayerId } = getState().riskWheel;
+      const humanEliminatedThisRound =
+        phase === 'round_summary' && humanPlayerId !== null && eliminatedThisRound.includes(humanPlayerId);
+      if (humanPlayerId && activePlayerIds.includes(humanPlayerId) && !humanEliminatedThisRound) return;
+
+      if (phase === 'round_summary') {
+        dispatch(advanceFromRoundSummary());
+      } else {
+        dispatch(resolveAllAiTurns());
+      }
+    }
+  };
 
 export const resolveRiskWheelOutcome =
   () => (dispatch: AppDispatch, getState: () => RootState) => {
