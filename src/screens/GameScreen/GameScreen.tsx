@@ -78,6 +78,7 @@ import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
+import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
 import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../../utils/avatar'
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
@@ -1268,6 +1269,7 @@ export default function GameScreen() {
     game.phase === 'final3_decision' &&
     !!game.lohId
   const finaleOverlayActive =
+    finalPowerBattleIntroActive ||
     finalThreeBlockRevealActive ||
     spectatorF3Part1Active ||
     spectatorF3Active ||
@@ -1594,18 +1596,10 @@ export default function GameScreen() {
         ) : (
           <TvZone
             key={game.gameId}
+            playOwnedExternally={finalPowerBattleIntroActive}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
-                : null
-            }
-            finalPowerBattleIntro={
-              finalPowerBattleIntroActive
-                ? {
-                    finalists: alivePlayers,
-                    mode: isVoxPopuli ? 'vox_populi' : 'classic',
-                    onComplete: handleFinalPowerBattleIntroDone,
-                  }
                 : null
             }
             priorityAnnouncement={confessionalTvAnnouncement}
@@ -1922,6 +1916,14 @@ export default function GameScreen() {
             competitors={finalThreeBlockCompetitors}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
             onComplete={handleFinalThreeBlockRevealDone}
+          />
+        )}
+
+        {finalPowerBattleIntroActive && (
+          <FinalPowerBattleIntro
+            finalists={alivePlayers}
+            mode={isVoxPopuli ? 'vox_populi' : 'classic'}
+            onComplete={handleFinalPowerBattleIntroDone}
           />
         )}
 

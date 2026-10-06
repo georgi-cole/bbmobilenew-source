@@ -9,8 +9,6 @@ interface Props {
   onComplete: () => void
 }
 
-const OPENING_BEAT_MS = 2200
-const PART_BEAT_MS = 2600
 const READY_BEAT = 4
 
 const BEATS = [
@@ -51,21 +49,12 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
   }, [beat])
 
   useEffect(() => {
-    if (beat >= READY_BEAT) return
-    const timer = window.setTimeout(
-      () => setBeat((current) => Math.min(READY_BEAT, current + 1)),
-      beat === 0 ? OPENING_BEAT_MS : PART_BEAT_MS
-    )
-    return () => window.clearTimeout(timer)
-  }, [beat])
-
-  useEffect(() => {
     const handlePlay = (event: Event) => {
       if (completedRef.current) return
       event.preventDefault()
       event.stopImmediatePropagation()
       if (beatRef.current < READY_BEAT) {
-        setBeat(READY_BEAT)
+        setBeat((current) => Math.min(READY_BEAT, current + 1))
         return
       }
       completedRef.current = true
@@ -79,7 +68,7 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
 
   return (
     <section
-      className="fpb-intro fpb-intro--inline"
+      className="fpb-intro"
       role="region"
       aria-label="Final Power Battle introduction"
       aria-live="polite"
@@ -112,7 +101,7 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
         ))}
       </div>
       <p className="fpb-intro__play-cue">
-        {beat === READY_BEAT ? 'Press Play to begin Part 1.' : 'The finale story is unfolding.'}
+        {beat === READY_BEAT ? 'Press Play to begin Part 1.' : 'Press Play to continue.'}
       </p>
     </section>
   )

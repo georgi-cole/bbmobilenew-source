@@ -78,7 +78,6 @@ import VoxAudiencePulseReveal, {
   type VoxAudiencePulseExit,
 } from '../VoxAudiencePulseReveal/VoxAudiencePulseReveal'
 import WeekendInterludeOverlay from '../WeekendInterludeOverlay/WeekendInterludeOverlay'
-import FinalPowerBattleIntro from '../FinalPowerBattle/FinalPowerBattleIntro'
 import './TvZone.css'
 import './TvZoneEnhancements.css'
 import './ShockDangerMode.css'
@@ -325,12 +324,8 @@ type LiveVoteBackdropMetrics = {
 }
 
 type TvZoneProps = {
-  /** Finale opening story beats rendered inside the faux-TV viewport. */
-  finalPowerBattleIntro?: {
-    finalists: Player[]
-    mode: 'classic' | 'vox_populi'
-    onComplete: () => void
-  } | null
+  /** A full-screen sequence owns the shared Play press outside the Faux TV. */
+  playOwnedExternally?: boolean
   /**
    * Temporarily owns the viewport copy while a full-screen flow is in progress.
    * This keeps an older feed item from showing through a dimmed game background.
@@ -1335,9 +1330,8 @@ export default function TvZone(props: TvZoneProps) {
   // card so the next Safety/shock announcement can take the screen.
   useEffect(() => {
     const handlePlay = (event: Event) => {
-      // The inline finale sequence owns the shared Play press until its ready
-      // beat completes; do not also consume an older faux-TV broadcast.
-      if (props.finalPowerBattleIntro) return
+      // A full-screen sequence owns Play; don't also consume an older TV card.
+      if (props.playOwnedExternally) return
       // A final appeal is a modal decision.  The global Play button must not
       // dismiss a TV card or advance the season underneath it.
       if (document.querySelector('[aria-label="Final appeal to the audience"]')) {
@@ -1417,7 +1411,7 @@ export default function TvZone(props: TvZoneProps) {
     eventAnnouncementSource,
     gameState.broadcastQueue?.length,
     cupidFollowUpVisible,
-    props.finalPowerBattleIntro,
+    props.playOwnedExternally,
   ])
 
   const handleModalClose = useCallback(() => setModalOpen(false), [])
@@ -1986,13 +1980,6 @@ export default function TvZone(props: TvZoneProps) {
                 postRevealDelayMs={VOTE_RESULTS_POST_REVEAL_MS}
                 countdownMs={VOTE_RESULTS_OUTCOME_MS}
                 variant="tv"
-              />
-            )}
-            {props.finalPowerBattleIntro && (
-              <FinalPowerBattleIntro
-                finalists={props.finalPowerBattleIntro.finalists}
-                mode={props.finalPowerBattleIntro.mode}
-                onComplete={props.finalPowerBattleIntro.onComplete}
               />
             )}
           </div>
