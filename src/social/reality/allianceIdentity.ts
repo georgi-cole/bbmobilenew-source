@@ -1,7 +1,7 @@
 import type { RealityAlliance, RealityDomainState } from './types'
 import type { RelationshipsMap } from '../types'
 
-export const ALLIANCE_LIMITS = { groupsPerMember: 2, pactsPerMember: 3, groupMembers: 6 } as const
+export const ALLIANCE_LIMITS = { groupsPerMember: 2, groupMembers: 6 } as const
 
 export function isCurrentAlliance(alliance: RealityAlliance): boolean
 export function isCurrentAlliance(

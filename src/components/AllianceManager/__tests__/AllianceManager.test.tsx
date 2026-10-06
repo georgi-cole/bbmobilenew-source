@@ -44,7 +44,7 @@ describe('AllianceManager', () => {
         at: context.at,
       })
     render(<AllianceManager reality={reality} players={players} humanId="u" onCommand={vi.fn()} />)
-    expect(screen.getByText('0 / 2 groups · 2 / 3 personal pacts')).toBeTruthy()
+    expect(screen.getByText('0 / 2 groups · 2 personal pacts')).toBeTruthy()
     expect(screen.getAllByRole('button', { name: 'End personal pact' })).toHaveLength(2)
   })
   it('gives regular members suggestions and a scoped leave preview', () => {

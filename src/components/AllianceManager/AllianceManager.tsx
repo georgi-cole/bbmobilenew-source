@@ -83,8 +83,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
       <div className="alliance-manager__heading">
         <h3>Your alliances</h3>
         <p>
-          {counts.groups} / {ALLIANCE_LIMITS.groupsPerMember} groups · {counts.pacts} /{' '}
-          {ALLIANCE_LIMITS.pactsPerMember} personal pacts
+          {counts.groups} / {ALLIANCE_LIMITS.groupsPerMember} groups · {counts.pacts} personal pacts
         </p>
       </div>
       <p className="alliance-manager__hint">
@@ -114,7 +113,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
         </label>
         <button
           type="button"
-          disabled={!pactCandidate || counts.pacts >= ALLIANCE_LIMITS.pactsPerMember}
+          disabled={!pactCandidate}
           onClick={() => {
             act({ type: 'PROPOSE', kind: 'PACT', actorId: humanId, candidateId: pactCandidate })
             setPactCandidate('')

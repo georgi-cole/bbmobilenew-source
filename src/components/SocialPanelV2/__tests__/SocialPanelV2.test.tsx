@@ -981,6 +981,18 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
       .getState()
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
       .slice(0, 2)
+    const reality = structuredClone(store.getState().social.reality)
+    const existingPacts = candidates.map((candidate) =>
+      createRealityAlliance(reality, {
+        id: `test-pact-${candidate.id}`,
+        kind: 'PACT',
+        founderIds: [human.id],
+        memberIds: [candidate.id],
+        purpose: 'Mutual protection',
+        at: { day: store.getState().game.week, phase: 'social_1' },
+      })
+    )
+    store.dispatch(replaceRealityDomain(reality))
     store.dispatch(openSocialPanel())
     initManeuvers(store)
     renderPanel(store)
@@ -1007,5 +1019,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     )
     expect(foundingRequest?.memberIds).toHaveLength(3)
     expect(foundingRequest?.consents[human.id]).toBe(true)
+    expect(foundingRequest?.basePactId).toBeUndefined()
+    expect(existingPacts.every((pact) => pact.status !== 'DISSOLVED')).toBe(true)
   })
 })

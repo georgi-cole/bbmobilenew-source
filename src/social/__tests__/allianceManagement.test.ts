@@ -109,6 +109,43 @@ describe('explicit alliance management', () => {
       ['u', 'r'],
     ])
   })
+  it('keeps existing one-to-one pacts when founding a separate group', () => {
+    const state = setup()
+    const beaPact = pact(state, 'u', 'k')
+    const zedPact = pact(state, 'u', 'r')
+    const id = manageAlliance(
+      state,
+      {
+        type: 'PROPOSE',
+        kind: 'FOUND',
+        actorId: 'u',
+        memberIds: ['u', 'k', 'r'],
+      },
+      context
+    ).requestId!
+
+    respond(state, id, 'k')
+    respond(state, id, 'r')
+
+    expect(isCurrentAlliance(beaPact)).toBe(true)
+    expect(isCurrentAlliance(zedPact)).toBe(true)
+    expect(currentAllianceCounts(state, 'u')).toEqual({ groups: 1, pacts: 2 })
+  })
+  it('allows more than three independent personal pacts', () => {
+    const state = setup()
+    for (const partner of ['k', 'r', 'x', 'c']) pact(state, 'u', partner)
+
+    const proposal = manageAlliance(
+      state,
+      { type: 'PROPOSE', kind: 'PACT', actorId: 'u', candidateId: 'd' },
+      context
+    )
+    const request = state.allianceManagement.requests[proposal.requestId!]
+
+    expect(proposal.status).toBe('APPLIED')
+    expect(request.status).toBe('CONSENT')
+    expect(currentAllianceCounts(state, 'u').pacts).toBe(4)
+  })
   it('creates a new group only after unanimous founding and then supersedes the selected ordinary pact', () => {
     const state = setup()
     const original = pact(state)
@@ -293,7 +330,7 @@ describe('explicit alliance management', () => {
     expect(state.allianceManagement.requests[second].status).toBe('INVALIDATED')
     expect(currentAllianceCounts(state, 'x').groups).toBe(2)
   })
-  it('grandfathers excessive pact counts without blocking recruitment into an existing group', () => {
+  it('allows additional personal pacts independently of group membership limits', () => {
     const state = setup()
     group(state)
     group(state, ['u', 'c', 'd'], 'second')
@@ -309,7 +346,7 @@ describe('explicit alliance management', () => {
         { type: 'PROPOSE', kind: 'PACT', actorId: 'u', candidateId: 'e' },
         context
       ).status
-    ).toBe('REJECTED')
+    ).toBe('APPLIED')
   })
   it('keeps roles stable when social standing changes and requires accepting an officer offer', () => {
     const state = setup()

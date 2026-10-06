@@ -434,7 +434,6 @@ export default function SocialPanelV2() {
       (alliance) => isCurrentAlliance(alliance) && alliance.memberIds.includes(humanId)
     )
     const groups = currentCommitments.filter((alliance) => allianceKind(alliance) === 'GROUP')
-    const pacts = currentCommitments.filter((alliance) => allianceKind(alliance) === 'PACT')
     const counts = currentAllianceCounts(reality, humanId)
     const actions: AllianceQuickAction[] = []
 
@@ -452,19 +451,12 @@ export default function SocialPanelV2() {
         allowWithoutTarget: true,
         buildCommand: (targetIds) => {
           const memberIds = [...new Set([humanId, ...targetIds])]
-          const basePact = pacts.find(
-            (pact) =>
-              pact.memberIds.every((memberId) => memberIds.includes(memberId)) &&
-              !/final\s*(two|2)|endgame|ride.?or.?die|last\s*two/i.test(pact.purpose)
-          )
           return {
             type: 'PROPOSE',
             kind: 'FOUND',
             actorId: humanId,
             memberIds,
-            basePactId: basePact?.id,
             leaderId: humanId,
-            name: memberIds.map(playerName).join(' · ').slice(0, 28),
           }
         },
       })

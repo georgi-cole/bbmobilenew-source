@@ -119,8 +119,7 @@ function endAlliance(
 function capacityProblem(
   state: RealityDomainState,
   memberIds: string[],
-  kind: 'PACT' | 'GROUP',
-  basePactId?: string
+  kind: 'PACT' | 'GROUP'
 ): string | undefined {
   if (kind === 'GROUP' && memberIds.length > ALLIANCE_LIMITS.groupMembers)
     return 'A group can have at most six members.'
@@ -128,9 +127,6 @@ function capacityProblem(
     const counts = currentAllianceCounts(state, actorId)
     if (kind === 'GROUP' && counts.groups >= ALLIANCE_LIMITS.groupsPerMember)
       return 'A founder or candidate already belongs to two groups.'
-    const replacesPact = basePactId && state.alliances[basePactId]?.memberIds.includes(actorId)
-    if (kind === 'PACT' && !replacesPact && counts.pacts >= ALLIANCE_LIMITS.pactsPerMember)
-      return 'A participant already has three personal pacts.'
   }
   return undefined
 }
@@ -189,12 +185,7 @@ function finalize(
   const alliance = request.allianceId ? state.alliances[request.allianceId] : undefined
   if (request.kind === 'PACT' || request.kind === 'FOUND') {
     const kind = request.kind === 'PACT' ? 'PACT' : 'GROUP'
-    const capacity = capacityProblem(
-      state,
-      request.memberIds,
-      kind,
-      request.kind === 'PACT' ? request.basePactId : undefined
-    )
+    const capacity = capacityProblem(state, request.memberIds, kind)
     if (capacity) {
       settle(request, 'INVALIDATED', capacity, context.at)
       return
@@ -427,7 +418,14 @@ export function advanceAllianceRequests(
         continue
       }
       if (request.kind !== 'REMOVE_SUGGESTION' && answers.includes(false)) {
-        settle(request, 'DECLINED', 'The proposed terms were declined.', context.at)
+        settle(
+          request,
+          'DECLINED',
+          request.kind === 'ADMIT'
+            ? 'The invited candidate declined and was not added to the group.'
+            : 'The proposed terms were declined.',
+          context.at
+        )
         continue
       }
       if (allianceRequestDecisionActors(request).length === 0) {
@@ -516,12 +514,7 @@ function propose(
       return reject('End or mutually renew the unresolved personal pact before converting it.')
   }
   if (command.kind === 'PACT' || command.kind === 'FOUND') {
-    const capacity = capacityProblem(
-      state,
-      members,
-      command.kind === 'PACT' ? 'PACT' : 'GROUP',
-      command.kind === 'PACT' ? command.basePactId : undefined
-    )
+    const capacity = capacityProblem(state, members, command.kind === 'PACT' ? 'PACT' : 'GROUP')
     if (capacity) return reject(capacity)
   } else if (!alliance || allianceKind(alliance) !== 'GROUP')
     return reject('This decision requires a group alliance.')

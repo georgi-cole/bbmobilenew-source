@@ -4,11 +4,11 @@
 
 A personal pact connects exactly two people. A group starts with three or more consenting founders and remains a group if its roster later falls to two. A relationship score, title, or conversation alone does not create membership.
 
-People may hold up to two group memberships and three personal pacts, including a private Final Two. Groups hold up to six members. Existing saves above a limit remain playable; new actions only fail when they increase a participant's count beyond the limit. Health such as fractured or dormant describes reliability, not membership.
+People may hold up to two group memberships and may keep any number of independent personal pacts, including a private Final Two. Groups hold up to six members. Health such as fractured or dormant describes reliability, not membership.
 
 ## Consent and officers
 
-Every pact partner accepts. Every group founder accepts the same roster and officers. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
+Every pact partner accepts. Every group founder accepts the same roster and officers. Founding a group leaves existing personal pacts in place. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
 
 A group has one leader and at most one co-leader. Leaders offer officer appointments or leadership transfers, which take effect only when the nominee accepts. The co-leader succeeds the leader; otherwise the longest-serving current member succeeds. Social standing cannot change authority.
 
