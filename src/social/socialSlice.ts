@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from './reality/allianceIdentity'
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type {
@@ -115,9 +116,7 @@ function projectRealityTags(
   const formalPairAlliances = Object.values(reality.alliances).filter(
     (alliance) => alliance.memberIds.includes(sourceId) && alliance.memberIds.includes(targetId)
   )
-  const hasLiveFormalAlliance = formalPairAlliances.some(
-    (alliance) => alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
-  )
+  const hasLiveFormalAlliance = formalPairAlliances.some((alliance) => isCurrentAlliance(alliance))
   const exitedSharedAlliance = reality.events.some(
     (event) =>
       [
@@ -132,10 +131,7 @@ function projectRealityTags(
   )
   // Normal Mode pacts use the legacy tag. Preserve it only when the Reality
   // domain has no formal history or departure event for this pair.
-  if (
-    hasLiveFormalAlliance ||
-    (formalPairAlliances.length === 0 && !exitedSharedAlliance && existingTags.includes('alliance'))
-  ) {
+  if (hasLiveFormalAlliance) {
     tags.push('alliance')
   }
   if (
@@ -239,6 +235,14 @@ function projectRealityRelationshipsIntoLegacy(
   reality: RealityDomainState,
   relationships: SocialState['relationships']
 ): void {
+  // Membership projects independently of affinity and pre-existing relationship edges.
+  for (const alliance of Object.values(reality.alliances).filter(isCurrentAlliance)) {
+    for (const sourceId of alliance.memberIds)
+      for (const targetId of alliance.memberIds) {
+        if (sourceId !== targetId)
+          projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId)
+      }
+  }
   for (const [sourceId, targets] of Object.entries(reality.relationships)) {
     relationships[sourceId] ??= {}
     delete relationships[sourceId][sourceId]

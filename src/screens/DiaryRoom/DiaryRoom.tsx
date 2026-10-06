@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from '../../social/reality/allianceIdentity'
 /**
  * DiaryRoom — private player confessional / game log screen.
  *
@@ -671,9 +672,7 @@ export default function DiaryRoom() {
     const nameFor = (id: string | null | undefined) => (id ? (playerNameById.get(id) ?? id) : null)
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
-      .filter(
-        (alliance) => alliance.memberIds.includes(playerId) && alliance.status !== 'DISSOLVED'
-      )
+      .filter((alliance) => isCurrentAlliance(alliance) && alliance.memberIds.includes(playerId))
       .map((alliance) => ({
         id: alliance.id,
         name: alliance.name?.trim() || null,
@@ -681,26 +680,7 @@ export default function DiaryRoom() {
         status: alliance.status,
       }))
 
-    const legacyAllianceNames =
-      formalAlliances.length === 0
-        ? relationshipRows
-            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
-            .map((row) => row.name)
-        : []
-
-    const alliances =
-      formalAlliances.length > 0
-        ? formalAlliances
-        : legacyAllianceNames.length > 0
-          ? [
-              {
-                id: 'relationship-allies',
-                name: null,
-                memberNames: [playerName, ...legacyAllianceNames],
-                status: 'ACTIVE',
-              },
-            ]
-          : []
+    const alliances = formalAlliances
 
     const publicFeed = gameState.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
     const recentEvictedNames: string[] = []
@@ -753,7 +733,6 @@ export default function DiaryRoom() {
     gameState.tvFeed,
     gameState.week,
     playerId,
-    playerName,
     playerNameById,
     players,
     realityDomain.alliances,

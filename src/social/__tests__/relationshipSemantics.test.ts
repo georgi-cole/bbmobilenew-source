@@ -21,7 +21,7 @@ function addAlliance(
   const alliance = createRealityAlliance(reality, {
     id,
     founderIds: ['human', 'rune'],
-    memberIds: [],
+    memberIds: [`member-${id}`],
     purpose: id,
     at: { day: 1, phase: 'social_1' },
   })
@@ -82,8 +82,8 @@ describe('canonical relationship presentation', () => {
       actorId: 'human',
       targetId: 'rune',
     })
-    expect(fractured.visibleTags.has('alliance')).toBe(false)
-    expect(fractured.visibleTags.has('broken_alliance')).toBe(true)
+    expect(fractured.visibleTags.has('alliance')).toBe(true)
+    expect(fractured.visibleTags.has('strained_alliance')).toBe(true)
   })
 
   it('prefers an operational alliance over a fractured historical overlap', () => {
@@ -115,7 +115,7 @@ describe('canonical relationship presentation', () => {
   })
 
   it.each(['FRACTURED', 'DISSOLVED'] as const)(
-    'keeps a %s-only overlap visibly broken',
+    'distinguishes %s membership from operational health',
     (status) => {
       const reality = createInitialRealityDomainState()
       addAlliance(reality, `${status.toLowerCase()}-only`, status)
@@ -123,9 +123,9 @@ describe('canonical relationship presentation', () => {
       const view = pairView(reality)
       expect(view.alliance?.status).toBe(status)
       expect(view.alliance?.operational).toBe(false)
-      expect(view.visibleTags.has('alliance')).toBe(false)
-      expect(view.visibleTags.has('broken_alliance')).toBe(true)
-      expect(hasCanonicalLiveAlliance(reality, 'human', 'rune')).toBe(false)
+      expect(view.visibleTags.has('alliance')).toBe(status === 'FRACTURED')
+      expect(view.visibleTags.has('broken_alliance')).toBe(status === 'DISSOLVED')
+      expect(hasCanonicalLiveAlliance(reality, 'human', 'rune')).toBe(status === 'FRACTURED')
     }
   )
 

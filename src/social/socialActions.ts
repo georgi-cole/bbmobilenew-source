@@ -330,20 +330,20 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
   // ── Alliance & relationship actions ───────────────────────────────────────
   {
     id: 'proposeAlliance',
-    title: 'Propose Alliance',
+    title: 'Propose Personal Pact',
     icon: '🤝',
-    description: 'Propose a formal alliance. Success creates a lasting bond.',
+    description:
+      'Ask one housemate for a personal protection pact. Use Your Alliances to found or expand a group.',
     category: 'alliance',
     kind: 'intel_spend',
-    baseCost: { energy: 3, info: 2.0 },
-    dramaCost: { energy: 4, info: 1.0 },
+    baseCost: { energy: 0 },
+    dramaCost: { energy: 0 },
     targetMode: 'primary',
     successWeight: 1,
     outcomeTag: 'alliance',
-    availabilityHint: 'More likely to land with positive affinity',
-    excludedRelationshipTags: ['alliance'],
+    availabilityHint: 'One personal pact per pair; up to three personal pacts per contestant',
     realityExclusive: true,
-    yields: { influence: 0.06 },
+    yields: { influence: 0 },
   },
   {
     id: 'consult_alliance',

@@ -229,7 +229,7 @@ describe('Reality action contract', () => {
     expect(result.blockedReasons).not.toContain('cooldown_active')
   })
 
-  it('does not let a fractured formal pact satisfy active-alliance action gates', () => {
+  it('allows betrayal of a still-current fractured pact', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'fractured-action-gate',
@@ -250,8 +250,8 @@ describe('Reality action contract', () => {
       direction: 'AI_TO_AI',
     })
 
-    expect(result.eligible).toBe(false)
-    expect(result.blockedReasons).toContain('relationship_required')
+    expect(result.eligible).toBe(true)
+    expect(result.blockedReasons).not.toContain('relationship_required')
   })
 
   it('uses exact phase-scoped repetition chances when resolving a target', () => {
@@ -529,7 +529,8 @@ describe('Reality causal orchestration', () => {
     expect(Object.values(resolved.domain.alliances)).toHaveLength(1)
     expect(Object.values(resolved.domain.alliances)[0]).toMatchObject({
       memberIds: expect.arrayContaining(['ava', 'human']),
-      status: 'ACTIVE',
+      kind: 'PACT',
+      status: 'PROBATIONARY',
     })
     expect(resolved.domain.interactions[pending.interaction!.id].status).toBe('RESOLVED')
   })
@@ -1029,7 +1030,7 @@ describe('Reality causal orchestration', () => {
     expect(outsiderView.displayName).toBeUndefined()
   })
 
-  it('recruits an accepted target into a wider coalition instead of creating another pair', () => {
+  it('creates an accepted personal pact without recruiting the existing partner', () => {
     const domain = createInitialRealityDomainState()
     const core = createRealityAlliance(domain, {
       id: 'alliance-core',
@@ -1073,18 +1074,14 @@ describe('Reality causal orchestration', () => {
     expect(alliances).toHaveLength(2)
     expect(resolved.domain.alliances['alliance-core'].memberIds).toEqual(['ava', 'lia'])
 
-    const coalition = alliances.find((alliance) => alliance.id !== 'alliance-core')
-    expect(coalition).toMatchObject({
-      memberIds: ['ava', 'lia', 'human'],
-      status: 'ACTIVE',
+    const pact = alliances.find((alliance) => alliance.id !== 'alliance-core')
+    expect(pact).toMatchObject({
+      kind: 'PACT',
+      memberIds: ['ava', 'human'],
+      status: 'PROBATIONARY',
     })
-    expect(coalition?.memberPerceivedStatus).toMatchObject({
-      ava: 'CORE',
-      lia: 'CORE',
-      human: 'REGULAR',
-    })
-    expect(coalition?.overlapAllianceIds).toEqual(['alliance-core'])
-    expect(resolved.domain.alliances['alliance-core'].overlapAllianceIds).toEqual([coalition?.id])
+    expect(pact?.memberIds).not.toContain('lia')
+    expect(pact?.overlapAllianceIds).toEqual([])
   })
 
   it('routes the live Betray Ally action into the formal alliance lifecycle', () => {

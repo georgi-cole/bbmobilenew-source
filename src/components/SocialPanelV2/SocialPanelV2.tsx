@@ -1,4 +1,6 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import AllianceManager from '../AllianceManager/AllianceManager'
+import { executeAllianceManagementCommand } from '../../social/allianceManagementActions'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
@@ -1241,6 +1243,16 @@ export default function SocialPanelV2() {
                 )}
               </div>
             </section>
+          )}
+
+          {game.mode !== 'survival' && (
+            <AllianceManager
+              reality={socialState.reality}
+              players={game.players}
+              humanId={humanPlayer.id}
+              onCommand={(command) => dispatch(executeAllianceManagementCommand(command))}
+              onRename={handleRenameAlliance}
+            />
           )}
 
           <IntelLeads

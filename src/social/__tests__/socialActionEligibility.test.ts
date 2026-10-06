@@ -32,9 +32,7 @@ describe('social action catalogue context contract', () => {
   })
 
   it('gives every contextual legacy action a machine-enforced rule', () => {
-    expect(action('proposeAlliance')).toMatchObject({
-      excludedRelationshipTags: ['alliance'],
-    })
+    expect(action('proposeAlliance').excludedRelationshipTags).toBeUndefined()
     expect(action('favor_request').dramaMinAffinity).toBe(5)
     expect(action('pitch_target')).toMatchObject({
       requiredTargetStatus: ['loh', 'loh+pos'],
@@ -112,7 +110,7 @@ describe('evaluateSocialActionEligibility', () => {
     ).toBe(true)
   })
 
-  it('uses a live formal Reality alliance even when projected legacy affinity is low', () => {
+  it('allows strategy consultations and blocks duplicate personal pacts regardless of affinity', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'formal-low-affinity-pact',
@@ -177,7 +175,7 @@ describe('evaluateSocialActionEligibility', () => {
     expect(result).toEqual({ eligible: true, reason: '' })
   })
 
-  it('blocks duplicate LOH proposals only for ACTIVE or PROBATIONARY formal alliances', () => {
+  it('blocks duplicate personal pacts regardless of continuing membership health', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'loh-pact',
@@ -202,7 +200,7 @@ describe('evaluateSocialActionEligibility', () => {
     alliance.status = 'PROBATIONARY'
     expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
     alliance.status = 'FRACTURED'
-    expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
     alliance.status = 'DISSOLVED'
     expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
   })

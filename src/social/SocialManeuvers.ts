@@ -1,3 +1,6 @@
+import { executeAllianceManagementCommand } from './allianceManagementActions'
+import { getCurrentPact } from './reality/allianceIdentity'
+import type { AppDispatch, RootState } from '../store/store'
 /**
  * SocialManeuvers — core API for executing social actions during a phase.
  *
@@ -32,7 +35,6 @@ import {
   MIN_ALLIANCE_AFFINITY,
   hasAllianceBetween,
 } from './socialAlliance'
-import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
@@ -766,7 +768,7 @@ export function getAvailableActions(
       action.id === 'proposeAlliance' &&
       socialState &&
       (socialState.reality
-        ? hasCanonicalLiveAlliance(socialState.reality, actorId, targetId)
+        ? Boolean(getCurrentPact(socialState.reality, actorId, targetId))
         : hasAllianceBetween(socialState.relationships, actorId, targetId))
     ) {
       return false
@@ -917,6 +919,41 @@ export function executeAction(
 
   const weekendWallet = getWeekendWallet(state, actorId)
   const currentEnergy = weekendWallet?.energy ?? SocialEnergyBank.get(actorId)
+  if (['proposeAlliance', 'ally', 'break_alliance'].includes(actionId)) {
+    const pact = getCurrentPact(state.social.reality, actorId, targetId)
+    if (!state.game || (actionId === 'break_alliance' && !pact))
+      return {
+        success: false,
+        delta: 0,
+        newEnergy: currentEnergy,
+        score: 0,
+        label: 'Unavailable',
+        summary:
+          'Use Your Alliances to select the specific group or personal pact you want to leave.',
+      }
+    const command =
+      actionId === 'break_alliance'
+        ? { type: 'LEAVE' as const, allianceId: pact!.id, actorId }
+        : { type: 'PROPOSE' as const, kind: 'PACT' as const, actorId, candidateId: targetId }
+    const managed = executeAllianceManagementCommand(command)(
+      _store.dispatch as AppDispatch,
+      _store.getState as () => RootState
+    )
+    const latest = _store.getState() as RootState
+    const request = managed.requestId
+      ? latest.social.reality.allianceManagement.requests[managed.requestId]
+      : undefined
+    return {
+      success:
+        managed.status === 'APPLIED' &&
+        !['DECLINED', 'INVALIDATED', 'EXPIRED'].includes(request?.status ?? ''),
+      delta: 0,
+      newEnergy: currentEnergy,
+      score: 0,
+      label: request?.status ?? managed.status,
+      summary: managed.reason,
+    }
+  }
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const realityPreset = state.settings?.gameUX?.realityModePreset
   if (realityPreset && !isActionAllowedForRealityPreset(action, realityPreset)) {
@@ -950,7 +987,7 @@ export function executeAction(
   if (
     actionId === 'proposeAlliance' &&
     (state.social.reality
-      ? hasCanonicalLiveAlliance(state.social.reality, actorId, targetId)
+      ? Boolean(getCurrentPact(state.social.reality, actorId, targetId))
       : hasAllianceBetween(state.social.relationships, actorId, targetId))
   ) {
     return {

@@ -396,7 +396,13 @@ describe('coordinated betrayal consequences', () => {
     const single = createInitialRealityDomainState()
     pact(single)
     const overlap = structuredClone(single)
-    pact(overlap, 'second-pact')
+    createRealityAlliance(overlap, {
+      id: 'second-group',
+      founderIds: ['loh', 'ally'],
+      memberIds: ['third'],
+      purpose: 'Group',
+      at: { day: 1, phase: 'social_1' },
+    })
     const input = {
       actorId: 'loh',
       targetId: 'ally',

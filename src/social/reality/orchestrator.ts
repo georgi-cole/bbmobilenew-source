@@ -1,3 +1,4 @@
+import { finalizeAcceptedPersonalPact } from './allianceManagement'
 import { createDraft, finishDraft } from 'immer'
 import {
   appendRealitySimulationTrace,
@@ -18,17 +19,12 @@ import { scoreRealityAction, type RealityScoreBreakdown } from './scoring'
 import { addRealityFact, learnRealityFact, resolveRealityAllianceIdForFact } from './knowledge'
 import {
   applyRealityApology,
-  createRealityAlliance,
   createRealityGrievance,
   coordinateRealityAllianceTarget,
-  findRealityAllianceForRecruitment,
-  holdRealityAllianceMeeting,
   holdRealityAllianceStrategyMeeting,
   leakRealityAlliance,
   removeRealityAllianceMember,
-  markRealityAllianceInfiltratorIfSecondary,
   recordRealityAllianceBetrayal,
-  recruitRealityAllianceMember,
   signalRealityRomance,
 } from './relationshipForms'
 import { upsertRealityPromise, upsertRealitySecret, upsertRealityThread } from './commitments'
@@ -288,52 +284,21 @@ function applyRealityLifecycle(input: {
 
   if (action.purposes.includes('COMMITMENT') && ['proposeAlliance', 'ally'].includes(action.id)) {
     for (const targetId of acceptedTargets) {
-      const existing = Object.values(domain.alliances).find(
-        (alliance) =>
-          alliance.status !== 'DISSOLVED' &&
-          alliance.memberIds.includes(interaction.actorId) &&
-          alliance.memberIds.includes(targetId)
-      )
-      if (existing) {
-        holdRealityAllianceMeeting(domain, {
-          allianceId: existing.id,
-          attendeeIds: [interaction.actorId, targetId],
-          targetIds: subjectId ? [subjectId] : existing.currentTargetIds,
-          planIds: subjectId ? [`watch:${subjectId}`] : [`maintain:${existing.id}`],
-          at,
-        })
-      } else {
-        const recruitmentAlliance = findRealityAllianceForRecruitment(
-          domain,
-          interaction.actorId,
-          targetId
-        )
-        if (recruitmentAlliance) {
-          recruitRealityAllianceMember(domain, {
-            allianceId: recruitmentAlliance.id,
-            recruiterId: interaction.actorId,
-            targetId,
-            expandedAllianceId: `alliance:${[...recruitmentAlliance.memberIds, targetId]
-              .sort()
-              .join('~')}:${interaction.id}`,
-            at,
-          })
-        } else {
-          const alliance = createRealityAlliance(domain, {
-            id: `alliance:${[interaction.actorId, targetId].sort().join('~')}:${interaction.id}`,
-            founderIds: [interaction.actorId],
-            memberIds: [targetId],
-            purpose: subjectId ? `Coordinate around ${subjectId}` : 'Mutual protection',
-            at,
-          })
-          holdRealityAllianceMeeting(domain, {
-            allianceId: alliance.id,
-            attendeeIds: [interaction.actorId, targetId],
-            targetIds: subjectId ? [subjectId] : [],
-            planIds: subjectId ? [`watch:${subjectId}`] : [`protect:${alliance.id}`],
-            at,
-          })
-          markRealityAllianceInfiltratorIfSecondary(domain, alliance.id, targetId, at)
+      const applied = finalizeAcceptedPersonalPact(domain, {
+        actorId: interaction.actorId,
+        targetId,
+        at,
+        interactionId: interaction.id,
+        purpose: subjectId ? 'Mutual protection' : undefined,
+      })
+      if (applied.status === 'REJECTED') {
+        event.outcome = 'FAILURE'
+        event.reason = applied.reason
+        const response = responses.find((entry) => entry.targetId === targetId)?.response
+        if (response) {
+          response.accepted = false
+          response.kind = 'REJECT'
+          response.reason = applied.reason
         }
       }
     }
@@ -395,6 +360,7 @@ function applyRealityLifecycle(input: {
       stakes: Math.min(1, 0.45 + (action.baseWeight ?? 0) * 0.1),
       scope: {
         actionId: action.id,
+        ...(allianceId ? { allianceId } : {}),
         ...(subjectId ? { targetId: subjectId } : {}),
       },
       status: 'ACTIVE',

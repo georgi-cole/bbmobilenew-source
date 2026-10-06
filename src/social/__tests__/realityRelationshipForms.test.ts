@@ -1,3 +1,5 @@
+import { consentedRecruit } from './allianceConsentFixture'
+import { manageAlliance } from '../reality/allianceManagement'
 import { describe, expect, it } from 'vitest'
 import {
   adjustRealityAllianceCommitment,
@@ -206,7 +208,7 @@ describe('Reality alliance player-facing coordination', () => {
         name: 'Stolen Name',
         at: { day: 3, phase: 'social_2' },
       })
-    ).toThrow('Only a member')
+    ).toThrow('Only the group leader')
   })
 })
 
@@ -232,7 +234,7 @@ describe('Reality alliance commitment and hierarchy', () => {
     alliance.memberPerceivedStatus.lia = 'REGULAR'
     adjustRealityAllianceCommitment(state, alliance.id, 'lia', 0.01)
     expect(alliance.memberPerceivedStatus.lia).toBe('CORE')
-    expect(alliance.leaderIds).toContain('lia')
+    expect(alliance.leaderIds).toEqual([])
 
     adjustRealityAllianceCommitment(state, alliance.id, 'lia', -0.2)
     expect(alliance.memberCommitment.lia).toBeCloseTo(0.54)
@@ -444,7 +446,7 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
       at: { day: 2, phase: 'social_2' },
     })
 
-    const coalition = recruitRealityAllianceMember(state, {
+    const coalition = consentedRecruit(state, {
       allianceId: core.id,
       recruiterId: 'ava',
       targetId: 'kai',
@@ -452,10 +454,14 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
       at: { day: 5, phase: 'social_1' },
     })
 
+    markRealityAllianceInfiltratorIfSecondary(state, coalition.id, 'kai', {
+      day: 5,
+      phase: 'social_1',
+    })
     expect(primary.memberCommitment.kai).toBeGreaterThanOrEqual(0.68)
     expect(coalition.infiltratorIds).toContain('kai')
     expect(coalition.genuine).toBe(false)
-    expect(coalition.memberPerceivedStatus.kai).toBe('PERIPHERAL')
+    expect(coalition.memberPerceivedStatus.kai).toBe('REGULAR')
     expect(coalition.memberCommitment.kai).toBeLessThanOrEqual(0.3)
     expect(
       state.events.some(
@@ -508,7 +514,7 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
     expect(secondary.genuine).toBe(true)
   })
 
-  it('lets a recruit organically defect from a weak unrelated pact after loyalty shifts', () => {
+  it('keeps a weak pact until its member explicitly leaves', () => {
     const state = createInitialRealityDomainState()
     const oldPact = createRealityAlliance(state, {
       id: 'old-pact',
@@ -544,15 +550,21 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
     })
 
     expect(newCoalition.memberIds).toContain('kai')
+    expect(oldPact.memberIds).toContain('kai')
+    manageAlliance(
+      state,
+      { type: 'LEAVE', actorId: 'kai', allianceId: oldPact.id },
+      {
+        at: { day: 4, phase: 'social_2' },
+        activeActorIds: ['ava', 'lia', 'kai', 'nova'],
+        humanActorIds: ['kai'],
+        seed: 1,
+      }
+    )
     expect(oldPact.memberIds).not.toContain('kai')
     expect(oldPact.status).toBe('DISSOLVED')
     expect(
-      state.events.some(
-        (event) =>
-          event.type === 'ALLIANCE_MEMBER_DEFECTED' &&
-          event.targetIds.includes('kai') &&
-          event.reason.includes('old-pact')
-      )
+      state.events.some((event) => event.type === 'ALLIANCE_ENDED' && event.actorId === 'kai')
     ).toBe(true)
   })
 
@@ -603,7 +615,7 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
     ).toBe(false)
   })
 
-  it('expels a collapsed member from a fractured coalition instead of destroying the whole group', () => {
+  it('requires an officer decision to remove a collapsed member', () => {
     const state = createInitialRealityDomainState()
     const alliance = createRealityAlliance(state, {
       id: 'fractured-coalition',
@@ -627,6 +639,17 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
       sourceEventId: 'kai-crossed-line',
     })
 
+    expect(alliance.memberIds).toContain('kai')
+    manageAlliance(
+      state,
+      { type: 'REMOVE', actorId: 'ava', targetId: 'kai', allianceId: alliance.id },
+      {
+        at: { day: 5, phase: 'social_2' },
+        activeActorIds: ['ava', 'lia', 'kai'],
+        humanActorIds: ['ava'],
+        seed: 1,
+      }
+    )
     expect(alliance.memberIds).toEqual(expect.arrayContaining(['ava', 'lia']))
     expect(alliance.memberIds).not.toContain('kai')
     expect(alliance.status).not.toBe('DISSOLVED')
@@ -640,7 +663,7 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
     ).toBe(true)
   })
 
-  it('fractures a core pact after a serious betrayal and dissolves it after another severe breach', () => {
+  it('records repeated breaches without silently terminating the pact', () => {
     const state = createInitialRealityDomainState()
     const alliance = createRealityAlliance(state, {
       id: 'ride-or-die',
@@ -692,6 +715,17 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
       sourceEventId: 'betrayal-2',
     })
 
+    expect(alliance.status).toBe('FRACTURED')
+    manageAlliance(
+      state,
+      { type: 'LEAVE', actorId: 'lia', allianceId: alliance.id },
+      {
+        at: { day: 6, phase: 'social_1' },
+        activeActorIds: ['ava', 'lia'],
+        humanActorIds: ['lia'],
+        seed: 1,
+      }
+    )
     expect(alliance.status).toBe('DISSOLVED')
     expect(alliance.currentTargetIds).toEqual([])
     expect(alliance.fallbackTargetIds).toEqual([])
@@ -705,7 +739,7 @@ describe('Reality coalition recruitment', () => {
       id: 'alliance-core',
       founderIds: ['ava'],
       memberIds: ['lia'],
-      purpose: 'Mutual protection',
+      purpose: 'Final two',
       at: { day: 2, phase: 'social_1' },
     })
     holdRealityAllianceMeeting(state, {
@@ -718,7 +752,7 @@ describe('Reality coalition recruitment', () => {
 
     expect(findRealityAllianceForRecruitment(state, 'ava', 'kai')?.id).toBe(core.id)
 
-    const coalition = recruitRealityAllianceMember(state, {
+    const coalition = consentedRecruit(state, {
       allianceId: core.id,
       recruiterId: 'ava',
       targetId: 'kai',
@@ -731,9 +765,9 @@ describe('Reality coalition recruitment', () => {
     expect(coalition.memberPerceivedStatus).toMatchObject({
       ava: 'CORE',
       lia: 'CORE',
-      kai: 'REGULAR',
+      kai: 'CORE',
     })
-    expect(core.overlapAllianceIds).toEqual(['alliance-coalition'])
+    expect(core.overlapAllianceIds).toEqual([coalition.id])
     expect(coalition.overlapAllianceIds).toEqual(['alliance-core'])
     expect(Object.values(state.alliances)).toHaveLength(2)
   })
@@ -754,7 +788,7 @@ describe('Reality coalition recruitment', () => {
       planIds: ['protect:core'],
       at: { day: 2, phase: 'social_2' },
     })
-    const coalition = recruitRealityAllianceMember(state, {
+    const coalition = consentedRecruit(state, {
       allianceId: core.id,
       recruiterId: 'ava',
       targetId: 'kai',
@@ -764,7 +798,7 @@ describe('Reality coalition recruitment', () => {
 
     expect(findRealityAllianceForRecruitment(state, 'ava', 'nova')?.id).toBe(coalition.id)
 
-    const expanded = recruitRealityAllianceMember(state, {
+    const expanded = consentedRecruit(state, {
       allianceId: coalition.id,
       recruiterId: 'ava',
       targetId: 'nova',
@@ -773,11 +807,11 @@ describe('Reality coalition recruitment', () => {
     })
     expect(expanded.id).toBe(coalition.id)
     expect(expanded.memberIds).toEqual(['ava', 'lia', 'kai', 'nova'])
-    expect(expanded.memberPerceivedStatus.nova).toBe('PERIPHERAL')
+    expect(expanded.memberPerceivedStatus.nova).toBe('REGULAR')
     expect(Object.values(state.alliances)).toHaveLength(2)
 
     const eventCount = state.events.length
-    const duplicate = recruitRealityAllianceMember(state, {
+    const duplicate = consentedRecruit(state, {
       allianceId: coalition.id,
       recruiterId: 'ava',
       targetId: 'nova',
@@ -843,7 +877,7 @@ describe('Reality coalition recruitment', () => {
         expandedAllianceId: 'alliance-2',
         at: { day: 3, phase: 'social_1' },
       })
-    ).toThrow('Peripheral members cannot recruit')
+    ).toThrow('Recruitment requires member approval')
   })
 })
 

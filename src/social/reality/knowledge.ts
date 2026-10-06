@@ -23,20 +23,7 @@ export function resolveRealityAllianceIdForFact(
 ): string | undefined {
   if (!ALLIANCE_KNOWLEDGE_PROPOSITIONS.has(fact.propositionType)) return undefined
   if (fact.objectId && state.alliances[fact.objectId]) return fact.objectId
-  const subjects = unique(fact.subjectIds)
-  if (subjects.length < 2) return undefined
-  return Object.values(state.alliances)
-    .filter((alliance) => subjects.every((id) => alliance.memberIds.includes(id)))
-    .sort((left, right) => {
-      const liveRank = (status: typeof left.status) =>
-        status === 'ACTIVE' ? 4 : status === 'PROBATIONARY' ? 3 : status === 'FRACTURED' ? 2 : 1
-      return (
-        liveRank(right.status) - liveRank(left.status) ||
-        left.memberIds.length - right.memberIds.length ||
-        right.cohesion - left.cohesion ||
-        left.id.localeCompare(right.id)
-      )
-    })[0]?.id
+  return undefined
 }
 
 export function canActorKnowFact(fact: RealityFact, actorId: string): boolean {

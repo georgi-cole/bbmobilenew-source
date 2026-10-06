@@ -263,7 +263,10 @@ export default function RealityLedger({
           alliance,
           knowledge: getRealityAllianceKnowledgeView(reality, alliance.id, humanId),
         }))
-        .filter(({ knowledge }) => knowledge.level !== 'UNKNOWN')
+        .filter(
+          ({ alliance, knowledge }) =>
+            alliance.provenance !== 'SOURCE' && knowledge.level !== 'UNKNOWN'
+        )
         .sort(
           (left, right) =>
             Number(right.knowledge.level === 'MEMBER') -

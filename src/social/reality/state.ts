@@ -1,5 +1,6 @@
 import type { RelationshipsMap } from '../types'
 import { MAX_REALITY_MEMORIES_PER_ACTOR } from './memory'
+import { importLegacyPairMemberships, normalizeAllianceManagement } from './allianceIdentity'
 import type {
   DirectedRelationship,
   RealityContestantState,
@@ -139,7 +140,7 @@ export function createInitialRealityDomainState(
   legacyRelationships: RelationshipsMap = {}
 ): RealityDomainState {
   return {
-    version: 1,
+    version: 2,
     nextSequence: 0,
     relationships: projectLegacyRelationships(legacyRelationships),
     memoriesByOwner: {},
@@ -151,6 +152,14 @@ export function createInitialRealityDomainState(
     grievances: {},
     threads: {},
     alliances: {},
+    allianceManagement: {
+      version: 1,
+      nextRequestSequence: 0,
+      requests: {},
+      processedCommands: {},
+      importedLegacyIds: [],
+      aliases: {},
+    },
     romances: {},
     contestants: {},
     interactions: {},
@@ -219,8 +228,17 @@ export function normalizeRealityDomainState(
   legacyRelationships: RelationshipsMap = {}
 ): RealityDomainState {
   const base = createInitialRealityDomainState(legacyRelationships)
-  if (!isRecord(value) || value.version !== 1) return base
-  const input = value as unknown as Partial<RealityDomainState>
+  if (!isRecord(value)) {
+    importLegacyPairMemberships(base, legacyRelationships)
+    return base
+  }
+  if (value.version !== 1 && value.version !== 2) {
+    throw new Error(
+      `Unsupported Reality save version ${String(value.version)}. The original save must be retained for recovery.`
+    )
+  }
+  // Hydration and migrations must never mutate the source recovery snapshot.
+  const input = JSON.parse(JSON.stringify(value)) as Partial<RealityDomainState>
   const inputRelationships =
     input.relationships && isRecord(input.relationships) ? input.relationships : {}
   const relationships = { ...base.relationships }
@@ -230,10 +248,10 @@ export function normalizeRealityDomainState(
       ...targets,
     }
   }
-  return {
+  const normalized: RealityDomainState = {
     ...base,
     ...input,
-    version: 1,
+    version: 2,
     nextSequence: Math.max(0, Math.round(Number(input.nextSequence) || 0)),
     relationships,
     memoriesByOwner: retainRealityMemories(input.memoriesByOwner),
@@ -287,6 +305,9 @@ export function normalizeRealityDomainState(
         : [],
     },
   }
+  normalizeAllianceManagement(normalized, value.version === 1)
+  if (value.version === 1) importLegacyPairMemberships(normalized, legacyRelationships)
+  return normalized
 }
 
 export function ensureRealityActors(state: RealityDomainState, actorIds: readonly string[]): void {

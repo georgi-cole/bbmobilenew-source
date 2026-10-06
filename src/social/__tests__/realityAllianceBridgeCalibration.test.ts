@@ -1,3 +1,4 @@
+import { consentedRecruit as recruitRealityAllianceMember } from './allianceConsentFixture'
 import { describe, expect, it } from 'vitest'
 import {
   chooseAiEvictionVote,
@@ -15,7 +16,6 @@ import {
   holdRealityAllianceMeeting,
   leakRealityAlliance,
   markRealityAllianceInfiltratorIfSecondary,
-  recruitRealityAllianceMember,
 } from '../reality'
 
 function player(id: string): Player {
@@ -296,7 +296,7 @@ describe('Reality alliance strategic bridge calibration', () => {
       id: 'coalition-base',
       founderIds: ['leader'],
       memberIds: ['wing'],
-      purpose: 'Control the vote',
+      purpose: 'Final two',
       at: { day: 4, phase: 'social_1' },
     })
     holdRealityAllianceMeeting(domain, {
