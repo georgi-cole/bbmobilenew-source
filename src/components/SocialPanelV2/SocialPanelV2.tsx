@@ -463,7 +463,12 @@ export default function SocialPanelV2() {
     }
 
     for (const request of Object.values(reality.allianceManagement?.requests ?? {})) {
-      if (!isPendingAllianceRequest(request) || !canSeeAllianceRequest(request, humanId)) continue
+      if (
+        !isPendingAllianceRequest(request) ||
+        !canSeeAllianceRequest(request, humanId) ||
+        request.proposerId !== humanId
+      )
+        continue
       const canAnswer = allianceRequestDecisionActors(request).includes(humanId)
       const groupName = request.allianceId
         ? (reality.alliances[request.allianceId]?.name ?? request.name ?? 'the alliance')
@@ -716,6 +721,7 @@ export default function SocialPanelV2() {
     return Object.values(socialState.reality.allianceManagement?.requests ?? {}).filter(
       (request) =>
         isPendingAllianceRequest(request) &&
+        request.proposerId === humanPlayer.id &&
         allianceRequestDecisionActors(request).includes(humanPlayer.id)
     ).length
   }, [humanPlayer, socialState.reality.allianceManagement?.requests])

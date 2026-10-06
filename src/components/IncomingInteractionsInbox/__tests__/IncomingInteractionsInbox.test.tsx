@@ -7,11 +7,18 @@ import settingsReducer, { setGameUX } from '../../../store/settingsSlice'
 import socialReducer, {
   openIncomingInbox,
   pushIncomingInteraction,
+  replaceRealityDomain,
   updateRelationship,
   updateSocialMemory,
 } from '../../../social/socialSlice'
 import { socialMiddleware } from '../../../social/socialMiddleware'
 import { hasAllianceBetween } from '../../../social/socialAlliance'
+import {
+  allianceRequestDecisionActors,
+  manageAlliance,
+} from '../../../social/reality/allianceManagement'
+import { createInitialRealityDomainState, ensureRealityActors } from '../../../social/reality/state'
+import { createRealityAlliance } from '../../../social/reality/relationshipForms'
 import IncomingInteractionsInbox from '../IncomingInteractionsInbox'
 
 function makeStore() {
@@ -42,6 +49,84 @@ function getNonUserPlayer(store: ReturnType<typeof makeStore>) {
 }
 
 describe('IncomingInteractionsInbox', () => {
+  it('shows an AI group invitation in Incoming after member approval and accepts it there', async () => {
+    const store = makeStore()
+    const game = store.getState().game
+    const human = game.players.find((player) => player.isUser)!
+    const activePlayers = game.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    )
+    const activeActorIds = activePlayers.map((player) => player.id)
+    const founders = activePlayers.filter((player) => !player.isUser).slice(0, 3)
+    expect(founders).toHaveLength(3)
+
+    const at = { day: game.week, phase: game.phase }
+    const reality = createInitialRealityDomainState()
+    ensureRealityActors(reality, activeActorIds)
+    const alliance = createRealityAlliance(reality, {
+      id: 'ai-alliance-incoming-test',
+      kind: 'GROUP',
+      founderIds: founders.map((player) => player.id),
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'Night Owls',
+      at,
+    })
+    alliance.status = 'ACTIVE'
+
+    const context = {
+      at,
+      activeActorIds,
+      // Keep the test's AI votes explicit so it can model both sides of the gate.
+      humanActorIds: activeActorIds,
+      seed: game.seed ?? 1,
+    }
+    const proposed = manageAlliance(
+      reality,
+      {
+        type: 'PROPOSE',
+        kind: 'ADMIT',
+        actorId: alliance.leaderId!,
+        allianceId: alliance.id,
+        candidateId: human.id,
+      },
+      context
+    )
+    expect(proposed.requestId).toBeTruthy()
+    const request = reality.allianceManagement.requests[proposed.requestId!]
+    expect(request.status).toBe('VOTING')
+
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+    expect(screen.queryByText('Alliance proposals and votes · 1')).not.toBeInTheDocument()
+
+    for (const actorId of allianceRequestDecisionActors(request))
+      manageAlliance(
+        reality,
+        { type: 'RESPOND', requestId: request.id, actorId, accept: true },
+        context
+      )
+    expect(request.status).toBe('CONSENT')
+    expect(request.candidateInvitedAt).toBeDefined()
+
+    store.dispatch(replaceRealityDomain(reality))
+    expect(await screen.findByText('Alliance proposals and votes · 1')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'The group approved your admission. Accept to join as a regular member. Current members: ' +
+          founders.map((player) => player.name).join(' · ') +
+          '.'
+      )
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Accept invitation' }))
+
+    await waitFor(() => {
+      expect(store.getState().social.reality.alliances[alliance.id].memberIds).toContain(human.id)
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('The agreed change is now active.')
+  })
+
   it('uses one chronological message stream and collapsed History', async () => {
     const store = makeStore()
     store.dispatch(openIncomingInbox())
