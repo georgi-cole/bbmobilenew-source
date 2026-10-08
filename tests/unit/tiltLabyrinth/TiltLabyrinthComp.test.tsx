@@ -6,9 +6,11 @@ import { StrictMode, type ReactNode } from 'react';
 import TiltLabyrinthComp from '../../../src/components/TiltLabyrinthComp/TiltLabyrinthComp';
 import {
   calculateTiltAdjustedTime,
+  rankTiltLabyrinthResults,
   resolveCollisions,
 } from '../../../src/components/TiltLabyrinthComp/tiltLabyrinthCollision';
 import tiltLabyrinthReducer, {
+  initTiltLabyrinth,
   setHumanScore,
 } from '../../../src/features/tiltLabyrinth/tiltLabyrinthSlice';
 
@@ -93,8 +95,32 @@ describe('Tilt Labyrinth adjusted scoring', () => {
     expect(calculateTiltAdjustedTime(7 * 60_000, 4)).toBe(432_000);
   });
 
-  it('adds a thirty-second penalty when the player uses the route hint', () => {
-    expect(calculateTiltAdjustedTime(60_000, 2, true)).toBe(96_000);
+  it('adds a ten-second penalty when the player uses the route hint', () => {
+    expect(calculateTiltAdjustedTime(60_000, 2, true)).toBe(76_000);
+  });
+
+  it('awards the same hazard and raw-time tie-breaks shown by the leaderboard', () => {
+    const store = makeStore();
+    const entries = [
+      { id: 'ai', rawTimeMs: 15_000, hazardHits: 1, adjustedTimeMs: 18_000 },
+      { id: 'human', rawTimeMs: 18_000, hazardHits: 0, adjustedTimeMs: 18_000 },
+    ];
+
+    store.dispatch(initTiltLabyrinth({
+      participantIds: ['ai', 'human'],
+      participantNames: { ai: 'Alex', human: 'You' },
+      humanPlayerId: 'human',
+      competitionType: 'LOH',
+      seed: 42,
+      aiScores: { ai: 18_000 },
+      aiRunDetails: { ai: entries[0] },
+    }));
+    store.dispatch(setHumanScore(entries[1]));
+
+    const ranked = rankTiltLabyrinthResults(entries);
+    expect(ranked.map((entry) => entry.id)).toEqual(['human', 'ai']);
+    expect(store.getState().tiltLabyrinth.winnerId).toBe(ranked[0].id);
+    expect(store.getState().tiltLabyrinth.lastPlaceId).toBe(ranked.at(-1)?.id);
   });
 });
 describe('TiltLabyrinthComp movement hardening', () => {
@@ -195,7 +221,7 @@ describe('TiltLabyrinthComp movement hardening', () => {
     expect(screen.getByText(/hazards 0.*\+0s/i)).toBeInTheDocument();
   });
 
-  it('offers a one-use hint that shows the route for three seconds', () => {
+  it('offers a one-use hint that shows the route for eight seconds', () => {
     vi.useFakeTimers();
     render(
       <Provider store={makeStore()}>
@@ -212,13 +238,13 @@ describe('TiltLabyrinthComp movement hardening', () => {
       </Provider>,
     );
 
-    const hint = screen.getByRole('button', { name: /use hint.*add 30 seconds/i });
+    const hint = screen.getByRole('button', { name: /use hint.*add 10 seconds.*8 seconds/i });
     fireEvent.click(hint);
     expect(hint).toBeDisabled();
-    expect(screen.getByText(/path shown.*\+30s/i)).toBeInTheDocument();
+    expect(screen.getByText(/path shown.*\+10s/i)).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(3_000));
-    expect(screen.getByText(/hint used.*\+30s/i)).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(8_000));
+    expect(screen.getByText(/hint used.*\+10s/i)).toBeInTheDocument();
     vi.useRealTimers();
   });
 
