@@ -1,4 +1,7 @@
-import { executeAllianceManagementCommand } from '../../social/allianceManagementActions'
+import {
+  allianceProposalPrice,
+  executeAllianceManagementCommand,
+} from '../../social/allianceManagementActions'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -100,7 +103,8 @@ function allianceAction(
   icon: string,
   targetMode: 'none' | 'primary' | 'multi' = 'none',
   minTargets?: number,
-  energyCost = 0
+  energyCost = 0,
+  influenceCost = 0
 ): SocialActionDefinition {
   return {
     id,
@@ -109,9 +113,10 @@ function allianceAction(
     icon,
     category: 'alliance',
     kind: 'rapport',
-    baseCost: { energy: energyCost },
+    baseCost: { energy: energyCost, influence: influenceCost },
     targetMode,
     minTargets,
+    maxTargets: targetMode === 'multi' ? ALLIANCE_LIMITS.groupMembers - 1 : undefined,
     realityExclusive: true,
   }
 }
@@ -454,11 +459,12 @@ export default function SocialPanelV2() {
         action: allianceAction(
           'alliance:found',
           'Found an alliance',
-          'Choose at least two hubmates. Founding costs ⚡2, plus ⚡1 for each additional invite. Everyone must agree before the group becomes active.',
+          'Choose at least two hubmates. Founding costs ⚡3 and 🤝5 for three members, plus ⚡1 for each additional founder. Everyone must agree before the group becomes active.',
           '✦',
           'multi',
           2,
-          2
+          3,
+          0.5
         ),
         executeLabel: 'Propose group',
         allowWithoutTarget: true,
@@ -608,11 +614,12 @@ export default function SocialPanelV2() {
             action: allianceAction(
               `alliance:invite:${group.id}:${targetId}`,
               `Invite ${playerName(targetId)}`,
-              `Ask ${groupName} to vote on admitting ${playerName(targetId)}. This proposal costs ⚡1 and the invite is sent only after approval.`,
+              `Ask ${groupName} to vote on admitting ${playerName(targetId)}. This proposal costs ⚡1 and 🤝5; the invite is sent only after approval.`,
               '＋',
               'primary',
               undefined,
-              1
+              1,
+              0.5
             ),
             executeLabel: 'Start vote',
             buildCommand: () => ({
@@ -826,8 +833,13 @@ export default function SocialPanelV2() {
         )
       : null
     if (!baseCosts) return null
+    if (selectedAllianceAction) {
+      const command = selectedAllianceAction.buildCommand([...selectedTargets])
+      const proposalPrice = allianceProposalPrice(command)
+      if (proposalPrice) return proposalPrice
+    }
     if (selectedActionId === 'alliance:found') {
-      return { ...baseCosts, energy: Math.max(2, selectedTargetCount) }
+      return { ...baseCosts, energy: Math.max(3, selectedTargetCount + 1) }
     }
     if (selectedActionId === 'group_chat') {
       return { ...baseCosts, energy: Math.max(2, selectedTargetCount) }
@@ -845,7 +857,9 @@ export default function SocialPanelV2() {
     effectivePrimaryTargetId,
     humanPlayer?.id,
     selectedAction,
+    selectedAllianceAction,
     selectedActionId,
+    selectedTargets,
     selectedTargetCount,
     targetCount,
     isAllianceConsultation,

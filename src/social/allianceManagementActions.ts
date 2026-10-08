@@ -4,6 +4,7 @@ import {
   applyEnergyDelta,
   applyInfoDelta,
   applyInfluenceDelta,
+  recordSocialAction,
   replaceRealityDomain,
 } from './socialSlice'
 import {
@@ -30,6 +31,23 @@ export function allianceManagementContext(
   }
 }
 
+/** The authoritative price for player-submitted alliance commitments. */
+export function allianceProposalPrice(command: AllianceManagementCommand): {
+  energy: number
+  influence: number
+  info: number
+} | null {
+  if (command.type !== 'PROPOSE') return null
+  if (command.kind === 'PACT')
+    return command.basePactId
+      ? { energy: 1, influence: 0, info: 0 }
+      : { energy: 2, influence: 0, info: 0 }
+  if (command.kind === 'FOUND')
+    return { energy: Math.max(3, command.memberIds?.length ?? 0), influence: 5, info: 0 }
+  if (command.kind === 'ADMIT') return { energy: 1, influence: 5, info: 0 }
+  return null
+}
+
 /** Charge only a newly submitted player proposal; decisions and exits remain free. */
 export function executeAllianceManagementCommand(
   command: AllianceManagementCommand,
@@ -40,20 +58,20 @@ export function executeAllianceManagementCommand(
     const domain = normalizeRealityDomainState(state.social.reality)
     const result = manageAlliance(domain, command, allianceManagementContext(state))
 
-    const proposalKind = command.type === 'PROPOSE' ? command.kind : undefined
+    const actor = state.game.players.find((player) => player.id === command.actorId)
+    const proposalPrice = allianceProposalPrice(command)
     const isPaidProposal =
-      costs !== undefined &&
+      actor?.isUser === true &&
+      proposalPrice !== null &&
       command.type === 'PROPOSE' &&
-      ['PACT', 'FOUND', 'ADMIT'].includes(proposalKind ?? '') &&
       result.status === 'APPLIED' &&
       Boolean(result.requestId)
-    if (isPaidProposal && costs && command.type === 'PROPOSE') {
+    if (isPaidProposal && proposalPrice && command.type === 'PROPOSE') {
       const price = {
-        energy: Math.max(0, costs.energy),
-        influence: Math.max(0, costs.influence ?? 0),
-        info: Math.max(0, costs.info ?? 0),
+        energy: proposalPrice.energy,
+        influence: proposalPrice.influence,
+        info: proposalPrice.info,
       }
-      const actor = state.game.players.find((player) => player.id === command.actorId)
       const weekendWallet =
         state.game.weekendInterlude?.active && actor?.isUser
           ? state.game.weekendInterlude.wallet
@@ -83,7 +101,67 @@ export function executeAllianceManagementCommand(
           dispatch(applyInfluenceDelta({ playerId: command.actorId, delta: -price.influence }))
         if (price.info) dispatch(applyInfoDelta({ playerId: command.actorId, delta: -price.info }))
       }
-      result.reason = `${result.reason} Spent ⚡${price.energy} to submit.`
+      const spent = [
+        price.energy ? `⚡${price.energy}` : null,
+        price.influence ? `🤝${price.influence}` : null,
+        price.info ? `💡${price.info}` : null,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      result.reason = `${result.reason} Spent ${spent} to submit.`
+      const displayedPriceChanged =
+        costs !== undefined &&
+        (costs.energy !== price.energy ||
+          (costs.influence ?? 0) !== price.influence ||
+          (costs.info ?? 0) !== price.info)
+      if (displayedPriceChanged)
+        result.reason = `${result.reason} The current proposal price is ${spent}.`
+
+      const latest = getState()
+      const balancesAfter = weekendWallet
+        ? {
+            energy: weekendWallet.energy - price.energy,
+            influence: weekendWallet.influence - price.influence,
+            info: weekendWallet.info - price.info,
+          }
+        : {
+            energy: latest.social.energyBank[command.actorId] ?? 0,
+            influence: latest.social.influenceBank[command.actorId] ?? 0,
+            info: latest.social.infoBank[command.actorId] ?? 0,
+          }
+      const targetIds =
+        command.kind === 'FOUND'
+          ? (command.memberIds ?? []).filter((id) => id !== command.actorId)
+          : command.candidateId
+            ? [command.candidateId]
+            : []
+      dispatch(
+        recordSocialAction({
+          entry: {
+            actionId:
+              command.kind === 'FOUND'
+                ? 'alliance_found'
+                : command.kind === 'ADMIT'
+                  ? 'alliance_admit'
+                  : 'proposeAlliance',
+            actorId: command.actorId,
+            targetId: targetIds[0] ?? command.actorId,
+            targetIds,
+            cost: price.energy,
+            costs: price,
+            delta: 0,
+            outcome: 'success',
+            label: 'Submitted',
+            newEnergy: balancesAfter.energy,
+            balancesAfter,
+            timestamp: Date.now(),
+            week: latest.game.week,
+            phase: latest.game.phase,
+            source: 'manual',
+            narrative: 'Alliance proposal was submitted and is awaiting approval.',
+          },
+        })
+      )
     }
 
     if (JSON.stringify(domain) !== JSON.stringify(state.social.reality))
