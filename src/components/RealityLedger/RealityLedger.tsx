@@ -11,10 +11,14 @@ import {
   canHumanKnowFact,
   getRealityAllianceKnowledgeView,
   getRelationshipStoryLabel,
-  type DirectedRelationship,
   type RealityBelief,
   type RealityDomainState,
 } from '../../social/reality'
+import {
+  combinedLiveRelationship,
+  liveRelationshipLabel,
+  liveRelationshipMetrics,
+} from './relationshipRead'
 import './RealityLedger.css'
 
 type LedgerTab = 'knowledge' | 'deals' | 'house' | 'relationships'
@@ -61,85 +65,6 @@ function allianceSecrecyLabel(value: number): string {
   if (value >= 0.42) return 'Low profile'
   if (value > 0.2) return 'Leaking'
   return 'Exposed'
-}
-
-function clampRelationship(value: number): number {
-  return Math.max(-100, Math.min(100, Math.round(value)))
-}
-
-function tension(edge: DirectedRelationship): number {
-  return Math.round(
-    Math.max(0, Math.min(100, edge.resentment * 0.45 + edge.suspicion * 0.35 + edge.fear * 0.2))
-  )
-}
-
-function combinedLiveRelationship(
-  relationships: RelationshipsMap | undefined,
-  humanId: string,
-  otherId: string
-): { affinity: number; tags: Set<string> } | null {
-  const outward = relationships?.[humanId]?.[otherId]
-  if (!outward) return null
-  return {
-    affinity: outward.affinity,
-    tags: new Set(outward.tags ?? []),
-  }
-}
-
-function liveRelationshipLabel(
-  edge: DirectedRelationship,
-  live: ReturnType<typeof combinedLiveRelationship>
-): string {
-  if (!live) return titleCase(edge.perceivedLabel)
-  const tags = live.tags
-  if (tags.has('ex') || tags.has('broken_romance')) return '💔 Ex'
-  if (tags.has('betrayal') || tags.has('broken_promise')) return 'Betrayed'
-  if (tags.has('broken_alliance')) return 'Broken alliance'
-  if (tags.has('rivalry') || tags.has('target')) return 'Rival'
-  if (tags.has('romance')) return 'Romance'
-  if (tags.has('bromance')) return 'Ride-or-die'
-  if (tags.has('alliance') || tags.has('cupid_partner')) return 'Ally'
-  if (live.affinity >= 55) return 'Close'
-  if (live.affinity >= 20) return 'Friendly'
-  if (live.affinity <= -45) return 'Hostile'
-  if (live.affinity <= -15) return 'Tense'
-  return titleCase(edge.perceivedLabel)
-}
-
-function liveRelationshipMetrics(
-  edge: DirectedRelationship,
-  live: ReturnType<typeof combinedLiveRelationship>
-): Array<[string, number]> {
-  if (!live) {
-    return [
-      ['Trust', edge.trust],
-      ['Warmth', edge.warmth],
-      ['Loyalty', edge.loyalty],
-      ['Respect', edge.respect],
-      ['Tension', tension(edge)],
-    ]
-  }
-  const broken =
-    live.tags.has('ex') ||
-    live.tags.has('broken_romance') ||
-    live.tags.has('broken_alliance') ||
-    live.tags.has('betrayal') ||
-    live.tags.has('broken_promise')
-  const affinity = broken ? Math.min(-50, live.affinity) : live.affinity
-  const trust = clampRelationship(edge.trust * 0.6 + affinity * 0.4)
-  const warmth = clampRelationship(edge.warmth * 0.5 + affinity * 0.5)
-  const loyalty = clampRelationship(
-    broken ? Math.min(edge.loyalty, affinity) : edge.loyalty * 0.55 + affinity * 0.45
-  )
-  const respect = clampRelationship(edge.respect * 0.7 + affinity * 0.3)
-  const liveTension = affinity < 0 ? Math.min(100, Math.abs(affinity) + (broken ? 30 : 8)) : 0
-  return [
-    ['Trust', trust],
-    ['Warmth', warmth],
-    ['Loyalty', loyalty],
-    ['Respect', respect],
-    ['Tension', Math.max(tension(edge), liveTension)],
-  ]
 }
 
 function beliefSource(
@@ -218,31 +143,39 @@ export default function RealityLedger({
       Object.values(reality.promises)
         .filter(
           (promise) =>
-            promise.promisorId === humanId ||
-            promise.beneficiaryIds.includes(humanId) ||
-            promise.witnessIds.includes(humanId)
+            (promise.promisorId === humanId ||
+              promise.beneficiaryIds.includes(humanId) ||
+              promise.witnessIds.includes(humanId)) &&
+            (!focusPlayerId ||
+              promise.promisorId === focusPlayerId ||
+              promise.beneficiaryIds.includes(focusPlayerId))
         )
         .sort((left, right) => right.createdAt.day - left.createdAt.day),
-    [humanId, reality.promises]
+    [focusPlayerId, humanId, reality.promises]
   )
   const legacyCommitments = useMemo(() => {
     const realityPromiseIds = Object.keys(reality.promises)
     return socialCommitments.filter(
       (commitment) =>
         (commitment.promisorId === humanId || commitment.beneficiaryId === humanId) &&
+        (!focusPlayerId ||
+          commitment.promisorId === focusPlayerId ||
+          commitment.beneficiaryId === focusPlayerId) &&
         !realityPromiseIds.some(
           (id) =>
             id === `promise:${commitment.interactionId}` ||
             id.startsWith(`promise:${commitment.interactionId}:`)
         )
     )
-  }, [humanId, reality.promises, socialCommitments])
+  }, [focusPlayerId, humanId, reality.promises, socialCommitments])
   const debts = useMemo(
     () =>
       Object.values(reality.debts).filter(
-        (debt) => debt.debtorId === humanId || debt.creditorId === humanId
+        (debt) =>
+          (debt.debtorId === humanId || debt.creditorId === humanId) &&
+          (!focusPlayerId || debt.debtorId === focusPlayerId || debt.creditorId === focusPlayerId)
       ),
-    [humanId, reality.debts]
+    [focusPlayerId, humanId, reality.debts]
   )
   const openPromises = promises.filter(
     (promise) => promise.status === 'ACTIVE' || promise.status === 'PROPOSED'

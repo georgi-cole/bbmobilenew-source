@@ -59,9 +59,6 @@ import {
   type BigEyeWorldSnapshot,
 } from '../../bb/confessionalSalience'
 import { applyInfluenceDelta } from '../../social/socialSlice'
-import { getEffectiveSocialMode } from '../../social/socialMode'
-import RealityLedger from '../../components/RealityLedger/RealityLedger'
-import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
 import {
   createInitialBigEyeState,
   generateBigBrotherReply,
@@ -553,7 +550,6 @@ export default function DiaryRoom() {
   const gameState = useAppSelector((s) => s.game)
   const socialRelationships = useAppSelector((s) => s.social.relationships)
   const realityDomain = useAppSelector((s) => s.social.reality)
-  const realityReadEnabled = useAppSelector((s) => getEffectiveSocialMode(s) === 'drama')
   const phase = useAppSelector((s) => s.game.phase)
   const seed = useAppSelector((s) => s.game.seed)
   const userPlayer = useAppSelector((s) => s.game.players.find((p) => p.isUser))
@@ -1649,39 +1645,6 @@ export default function DiaryRoom() {
                         Reply below with your best guess. On the final call, you can also say
                         &ldquo;I give up&rdquo; to continue the game.
                       </p>
-                    </section>
-                  )}
-                  {userPlayer && realityReadEnabled && (
-                    <details className="diary-room__reality-recap">
-                      <summary>Your private game read</summary>
-                      <RealityLedger
-                        reality={realityDomain}
-                        players={players}
-                        humanId={userPlayer.id}
-                        relationships={socialRelationships}
-                      />
-                    </details>
-                  )}
-                  {userPlayer && !realityReadEnabled && (
-                    <section
-                      className="diary-room__reality-recap diary-room__reality-recap--locked"
-                      aria-label="Private game read locked"
-                    >
-                      <span
-                        className="diary-room__reality-recap-badge"
-                        aria-label="Reality Mode required"
-                      >
-                        <StoreProductIcon name="vip" />
-                      </span>
-                      <div>
-                        <strong>Your private game read</strong>
-                        <small>
-                          Unlock Reality Mode to see what is really shifting around you.
-                        </small>
-                      </div>
-                      <button type="button" onClick={() => navigate('/store')}>
-                        Unlock
-                      </button>
                     </section>
                   )}
                   {ticTacToeActive && (
