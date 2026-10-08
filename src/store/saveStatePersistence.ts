@@ -44,6 +44,7 @@ export const SAVED_RUNS_KEY_PREFIX = 'bbmobilenew:savedRuns:'
 export const SAVED_RUN_SLOT_KEY_PREFIX = 'bbmobilenew:savedRunSlot:'
 export const SAVE_PERSISTENCE_ISSUE_EVENT = 'bb:save-persistence-issue'
 export const CORRUPT_SAVE_RECOVERY_KEY = 'bbmobilenew:recovery:lastCorruptSave'
+export const ALLIANCE_MIGRATION_RECOVERY_PREFIX = 'bbmobilenew:allianceRecovery:'
 export const SAVE_SNAPSHOT_WARNING_BYTES = 1_500_000
 
 export type SaveFailureReason =
@@ -326,6 +327,16 @@ function coerceSnapshot(raw: unknown, profileId: string): SavedSeasonSnapshot | 
     return null
   }
   const snapshot = parsed as SavedSeasonSnapshot
+  const realityVersion = (snapshot.social as SocialState | undefined)?.reality?.version
+  if (typeof realityVersion === 'number' && realityVersion !== 2) {
+    const mode = snapshot.game.mode ?? 'classic'
+    const recoveryKey = `${ALLIANCE_MIGRATION_RECOVERY_PREFIX}${profileId}:${mode}`
+    try {
+      if (!getDurableItem(recoveryKey)) setDurableItem(recoveryKey, JSON.stringify(snapshot))
+    } catch {
+      // Keep loading the save if its optional migration backup cannot be written.
+    }
+  }
   const legacyGame = snapshot.game as unknown as {
     mode?: GameMode | 'survivor'
     modeSpecific?: {

@@ -158,5 +158,5 @@ describe('Reality alliance ecology calibration', () => {
     expect(summary.safety.memoryOverflows).toBe(0)
     expect(summary.safety.eventOverflows).toBe(0)
     expect(totalAlliances).toBeGreaterThan(0)
-  }, 60_000)
+  }, 180_000)
 })

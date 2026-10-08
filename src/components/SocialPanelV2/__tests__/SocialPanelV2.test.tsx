@@ -45,6 +45,7 @@ import type { RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { createInitialRealityDomainState } from '../../../social/reality/state'
 import { createRealityAlliance } from '../../../social/reality/relationshipForms'
+import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,9 @@ function makeStore(overrides?: {
 }
 
 function renderPanel(store: ReturnType<typeof makeStore>) {
+  // These action-flow tests assert the Social dialog directly; onboarding is
+  // covered by its own integration suite and must not add a second dialog.
+  markSocialTutorialHandled(null, false, 'reality')
   return render(
     <MemoryRouter>
       <Provider store={store}>
@@ -970,5 +974,99 @@ describe('LOH target question integration', () => {
     const recentActivity = screen.getByLabelText('Recent Activity')
     expect(recentActivity).toHaveTextContent(`${loh.name}:`)
     expect(recentActivity).not.toHaveTextContent('You performed')
+  })
+})
+
+describe('SocialPanelV2 – integrated alliance actions', () => {
+  it('charges two energy for a new pact from the integrated Alliances panel', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const candidate = store
+      .getState()
+      .game.players.find((player) => !player.isUser && player.status !== 'jury')!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 3 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
+    fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
+    const manager = within(socialDialog).getByRole('region', { name: 'Your alliances' })
+    fireEvent.change(within(manager).getByLabelText('Personal pact with'), {
+      target: { value: candidate.id },
+    })
+    fireEvent.click(within(manager).getByRole('button', { name: /Propose personal pact/i }))
+
+    expect(store.getState().social.energyBank[human.id]).toBe(1)
+    expect(
+      Object.values(store.getState().social.reality.alliances).some(
+        (alliance) =>
+          alliance.memberIds.includes(human.id) && alliance.memberIds.includes(candidate.id)
+      )
+    ).toBe(false)
+    expect(
+      Object.values(store.getState().social.reality.allianceManagement.requests).some(
+        (request) => request.kind === 'PACT' && request.proposerId === human.id
+      )
+    ).toBe(true)
+  })
+
+  it('forms a group through the existing hubmate and move flow', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 5 }))
+    const candidates = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 2)
+    const affinitiesBeforePacts = candidates.map(
+      (candidate) => store.getState().social.relationships[human.id]?.[candidate.id]?.affinity ?? 0
+    )
+    const reality = structuredClone(store.getState().social.reality)
+    const existingPacts = candidates.map((candidate) =>
+      createRealityAlliance(reality, {
+        id: `test-pact-${candidate.id}`,
+        kind: 'PACT',
+        founderIds: [human.id],
+        memberIds: [candidate.id],
+        purpose: 'Mutual protection',
+        at: { day: store.getState().game.week, phase: 'social_1' },
+      })
+    )
+    store.dispatch(replaceRealityDomain(reality))
+    for (const [index, candidate] of candidates.entries()) {
+      expect(
+        store.getState().social.relationships[human.id]?.[candidate.id]?.affinity ?? 0
+      ).toBeGreaterThan(affinitiesBeforePacts[index])
+    }
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
+    fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
+    const manager = within(socialDialog).getByRole('region', { name: 'Your alliances' })
+    fireEvent.click(within(manager).getByRole('button', { name: /Found a group/i }))
+
+    for (const candidate of candidates) {
+      fireEvent.click(within(manager).getByRole('checkbox', { name: candidate.name }))
+    }
+    fireEvent.click(within(manager).getByRole('button', { name: /Ask all founders/i }))
+
+    const foundingRequest = Object.values(
+      store.getState().social.reality.allianceManagement.requests
+    ).find(
+      (request) =>
+        request.kind === 'FOUND' &&
+        request.memberIds.includes(human.id) &&
+        candidates.every((candidate) => request.memberIds.includes(candidate.id))
+    )
+    expect(foundingRequest?.memberIds).toHaveLength(3)
+    expect(foundingRequest?.consents[human.id]).toBe(true)
+    expect(foundingRequest?.basePactId).toBeUndefined()
+    expect(existingPacts.every((pact) => pact.status !== 'DISSOLVED')).toBe(true)
+    expect(store.getState().social.energyBank[human.id]).toBe(2)
+    expect(store.getState().social.influenceBank[human.id]).toBe(0)
   })
 })

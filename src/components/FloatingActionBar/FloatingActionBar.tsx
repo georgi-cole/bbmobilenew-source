@@ -24,6 +24,10 @@ import {
   selectEnergyBank,
   selectPendingIncomingInteractionCount,
 } from '../../social/socialSlice'
+import {
+  allianceRequestDecisionActors,
+  isPendingAllianceRequest,
+} from '../../social/reality/allianceManagement'
 import { selectAllDirections } from '../../publicOpinion'
 import {
   selectAdvanceEnabled,
@@ -104,6 +108,15 @@ export default function FloatingActionBar({
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
+  const pendingAllianceDecisionCount = useAppSelector((state) => {
+    const humanId = state.game.players.find((player) => player.isUser)?.id
+    if (!humanId) return 0
+    return Object.values(state.social.reality.allianceManagement?.requests ?? {}).filter(
+      (request) =>
+        isPendingAllianceRequest(request) &&
+        allianceRequestDecisionActors(request).includes(humanId)
+    ).length
+  })
   const confessionalAlertCount = useAppSelector(selectConfessionalAlertCount)
   const canUseSocialModules = useAppSelector(selectHumanCanUseSocialModules)
   const canUseIncomingSocialModule = useAppSelector(selectHumanCanUseIncomingSocialModule)
@@ -849,7 +862,9 @@ export default function FloatingActionBar({
         }
         chatFlash={!socialModulesUnavailable && isFlashing}
         incomingRequestsBadgeCount={
-          !incomingSocialModuleUnavailable && pendingCount > 0 ? pendingCount : undefined
+          !incomingSocialModuleUnavailable && pendingCount + pendingAllianceDecisionCount > 0
+            ? pendingCount + pendingAllianceDecisionCount
+            : undefined
         }
         publicMeterBadgeCount={
           game.publicModeEnabled === true && publicRequestCount > 0 ? publicRequestCount : undefined

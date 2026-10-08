@@ -155,6 +155,7 @@ function buildRealityActors(state: DriverState): Record<string, RealityActorSnap
         actor.id,
         {
           id: actor.id,
+          name: actor.name,
           isHuman: actor.isUser === true,
           active: actor.status !== 'evicted' && actor.status !== 'jury',
           roles,

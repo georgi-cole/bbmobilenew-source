@@ -1,3 +1,4 @@
+import { findRealityAllianceForConsultation } from './relationshipForms'
 import { SOCIAL_ACTIONS, resolveActionTargetMode } from '../socialActions'
 import type { SocialActionDefinition } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
@@ -71,6 +72,7 @@ export interface RealityActionContract {
 
 export interface RealityActorSnapshot {
   id: string
+  name?: string
   isHuman: boolean
   active: boolean
   roles: string[]
@@ -391,6 +393,11 @@ export function evaluateRealityCandidate({
   for (const targetId of targetIds) {
     const tags = relationshipTagsForReality(reality, actor.id, targetId)
     const affinity = projectedAffinity(reality, actor.id, targetId)
+    if (
+      action.id === 'consult_alliance' &&
+      !findRealityAllianceForConsultation(reality, actor.id, targetId)
+    )
+      blockedReasons.push('relationship_required')
     if (
       requiredRelationshipTags.length > 0 &&
       !(action.id === 'repair_bond'

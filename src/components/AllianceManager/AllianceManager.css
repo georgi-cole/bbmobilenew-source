@@ -1,0 +1,122 @@
+.alliance-manager {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin-block: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(11, 18, 33, 0.8);
+  color: #f0f5ff;
+}
+.alliance-manager h3,
+.alliance-manager h4,
+.alliance-manager p {
+  margin: 0;
+}
+.alliance-manager__heading,
+.alliance-manager__new,
+.alliance-manager__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.alliance-manager__heading {
+  justify-content: space-between;
+}
+.alliance-manager__hint {
+  font-size: 0.9rem;
+  color: #c3d1e5;
+}
+.alliance-manager__card,
+.alliance-manager__form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  margin-block: 8px;
+}
+.alliance-manager__message {
+  padding: 10px;
+  border-radius: 8px;
+  background: #233c55;
+}
+.alliance-manager label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.alliance-manager input:not([type='checkbox']),
+.alliance-manager select {
+  min-height: 40px;
+  max-width: 100%;
+  color: #f0f5ff;
+  background: #1b2b40;
+  border: 1px solid #526780;
+  border-radius: 7px;
+  padding: 8px;
+}
+.alliance-manager button {
+  min-height: 40px;
+  padding: 8px 12px;
+  color: #fff;
+  background: #294763;
+  border: 1px solid #6886a2;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.alliance-manager button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.alliance-manager button:focus-visible,
+.alliance-manager input:focus-visible,
+.alliance-manager select:focus-visible,
+.alliance-manager summary:focus-visible {
+  outline: 3px solid #9bddff;
+  outline-offset: 2px;
+}
+.alliance-manager ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.alliance-manager li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+.alliance-manager li span {
+  font-size: 0.85rem;
+  color: #b2cce0;
+}
+.alliance-manager fieldset {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #526780;
+  border-radius: 8px;
+}
+.alliance-manager fieldset label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.alliance-manager summary {
+  cursor: pointer;
+  padding-block: 8px;
+}
+@media (max-width: 480px) {
+  .alliance-manager {
+    padding: 12px;
+  }
+  .alliance-manager__new > label {
+    width: 100%;
+  }
+  .alliance-manager__actions > button {
+    flex: 1 1 140px;
+  }
+}

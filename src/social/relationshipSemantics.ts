@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from './reality/allianceIdentity'
 import type { RelationshipsMap } from './types'
 import type { RealityAlliance, RealityAllianceStatus, RealityDomainState } from './reality/types'
 
@@ -25,12 +26,20 @@ export function getSharedFormalAlliances(
   if (!reality || actorId === targetId) return []
   return Object.values(reality.alliances)
     .filter(
-      (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
+      (alliance) =>
+        (alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)) ||
+        (!isCurrentAlliance(alliance) &&
+          Object.values(alliance.rosterKnowledgeByActor ?? {}).some(
+            (snapshot) =>
+              snapshot.memberIds.includes(actorId) && snapshot.memberIds.includes(targetId)
+          ))
     )
     .sort(
       (left, right) =>
+        Number(isCurrentAlliance(right)) - Number(isCurrentAlliance(left)) ||
         (ALLIANCE_STATUS_PRIORITY[right.status] ?? -1) -
-          (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) || left.id.localeCompare(right.id)
+          (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) ||
+        left.id.localeCompare(right.id)
     )
 }
 
@@ -62,7 +71,7 @@ export function hasCanonicalLiveAlliance(
   return Boolean(
     reality &&
     getSharedFormalAlliances(reality, actorId, targetId).some((alliance) =>
-      LIVE_ALLIANCE_STATUSES.has(alliance.status)
+      isCurrentAlliance(alliance)
     )
   )
 }
@@ -87,10 +96,12 @@ export function selectCanonicalRelationshipView(input: {
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
 
-  if (formalAlliance?.status === 'PROBATIONARY') visibleTags.add('strained_alliance')
+  if (formalAlliance?.status === 'PROBATIONARY') {
+    visibleTags.delete('strained_alliance')
+    visibleTags.add('new_alliance')
+  }
   if (formalAlliance?.status === 'FRACTURED') {
-    visibleTags.delete('alliance')
-    visibleTags.add('broken_alliance')
+    visibleTags.add('strained_alliance')
   }
   if (formalAlliance?.status === 'DISSOLVED') {
     visibleTags.delete('alliance')

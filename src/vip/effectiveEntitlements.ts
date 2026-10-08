@@ -3,6 +3,7 @@ import { IS_ADMIN_BUILD, IS_MOBILE_DEV_BUILD } from '../config/buildTarget'
 
 export interface VipEntitlementStateLike {
   isActive?: boolean
+  debugUnlocked?: boolean
   entitlements?: Partial<Record<StoreEntitlementKey, boolean>>
 }
 
@@ -19,7 +20,7 @@ export function isEffectiveVipActive(
   vip: VipEntitlementStateLike | undefined,
   temporaryUnlocksEnabled = TEMPORARY_STORE_UNLOCKS_ENABLED
 ): boolean {
-  return temporaryUnlocksEnabled || vip?.isActive === true
+  return temporaryUnlocksEnabled || vip?.debugUnlocked === true || vip?.isActive === true
 }
 
 export function hasEffectiveStoreEntitlement(

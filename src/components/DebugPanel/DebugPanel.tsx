@@ -63,6 +63,7 @@ import { isDebugAccessGranted, persistDebugAccess } from '../../utils/debugMode'
 import type { ForcedShockType, Phase } from '../../types'
 import type { IncomingInteraction, IncomingInteractionType } from '../../social/types'
 import { selectDebugExpansionUnlocks, setDebugExpansionUnlock } from '../../store/uiSlice'
+import { selectIsVipActive, setDebugVipUnlocked } from '../../store/vipSlice'
 import { IS_RELEASE_BUILD } from '../../config/buildTarget'
 import {
   activateDepressionShockForDebug,
@@ -217,6 +218,8 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
   const settings = useAppSelector((s) => s.settings ?? DEFAULT_SETTINGS)
   const incomingLogs = useAppSelector(selectIncomingInteractionLogs)
   const debugExpansionUnlocks = useAppSelector(selectDebugExpansionUnlocks)
+  const debugVipUnlocked = useAppSelector((s) => s.vip.debugUnlocked)
+  const isVipActive = useAppSelector(selectIsVipActive)
 
   const [isOpen, setIsOpen] = useState(true)
   const [selectedPhase, setSelectedPhase] = useState<Phase>(game.phase)
@@ -909,6 +912,19 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                   }
                 >
                   {debugExpansionUnlocks.voxPopuli ? 'Lock Vox Test' : 'Unlock Vox Test'}
+                </button>
+                <button
+                  className="dbg-btn"
+                  type="button"
+                  aria-pressed={debugVipUnlocked}
+                  onClick={() => dispatch(setDebugVipUnlocked(!debugVipUnlocked))}
+                  title={
+                    isVipActive && !debugVipUnlocked
+                      ? 'VIP is already active on this account'
+                      : undefined
+                  }
+                >
+                  {debugVipUnlocked ? 'Lock VIP Test' : 'Unlock VIP'}
                 </button>
               </div>
 
