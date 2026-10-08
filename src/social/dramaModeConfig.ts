@@ -233,7 +233,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     description: 'Break off the relationship before the game does it for you.',
     category: 'aggressive',
     kind: 'aggressive',
-    baseCost: { energy: 2 },
+    baseCost: { energy: 0 },
     targetMode: 'primary',
     successWeight: 2,
     outcomeTag: 'ex',

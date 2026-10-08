@@ -30,12 +30,13 @@ function runCommand(
   command: Parameters<typeof executeAllianceManagementCommand>[0],
   costs?: { energy: number; influence?: number; info?: number }
 ) {
-  const dispatch = vi.fn((action: { type: string; payload?: any }) => {
+  const dispatch = vi.fn((action: { type: string; payload?: unknown }) => {
     if (action.type === applyEnergyDelta.type) {
-      const { playerId, delta } = action.payload
+      const { playerId, delta } = action.payload as { playerId: string; delta: number }
       state.social.energyBank[playerId] = (state.social.energyBank[playerId] ?? 0) + delta
     }
-    if (action.type === replaceRealityDomain.type) state.social.reality = action.payload
+    if (action.type === replaceRealityDomain.type)
+      state.social.reality = action.payload as typeof state.social.reality
     return action
   })
   const result = executeAllianceManagementCommand(command, costs)(
@@ -46,7 +47,7 @@ function runCommand(
 }
 
 describe('alliance proposal resource costs', () => {
-  it('charges one energy for a new personal pact proposal, only once', () => {
+  it('charges two energy for a new personal pact proposal, only once', () => {
     const state = makeState(3)
     const command = {
       type: 'PROPOSE' as const,
@@ -55,14 +56,14 @@ describe('alliance proposal resource costs', () => {
       candidateId: 'k',
       commandId: 'pact-once',
     }
-    const first = runCommand(state, command, { energy: 1 })
-    const second = runCommand(state, command, { energy: 1 })
+    const first = runCommand(state, command, { energy: 2 })
+    const second = runCommand(state, command, { energy: 2 })
 
     expect(first.result.status).toBe('APPLIED')
-    expect(first.result.reason).toContain('Spent ⚡1 to submit.')
-    expect(state.social.energyBank.u).toBe(2)
+    expect(first.result.reason).toContain('Spent ⚡2 to submit.')
+    expect(state.social.energyBank.u).toBe(1)
     expect(second.result.status).toBe('NO_OP')
-    expect(state.social.energyBank.u).toBe(2)
+    expect(state.social.energyBank.u).toBe(1)
   })
 
   it('rejects an unaffordable proposal without committing it or spending resources', () => {
@@ -96,6 +97,6 @@ describe('alliance proposal resource costs', () => {
     )
 
     expect(response.result.status).toBe('APPLIED')
-    expect(state.social.energyBank.u).toBe(3)
+    expect(state.social.energyBank.u).toBe(1)
   })
 })

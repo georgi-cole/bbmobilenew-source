@@ -50,3 +50,163 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* Keep the private read adjacent to the choices, with a calmer decision hierarchy. */
+.required-confessional__privacy-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0 0 18px;
+  color: #968aa3;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.required-confessional__privacy-note svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.required-confessional__decision-bubble {
+  padding: 24px;
+  border-color: rgba(231, 213, 242, 0.24);
+  border-radius: 20px;
+  background: linear-gradient(
+    145deg,
+    rgba(91, 69, 103, 0.14),
+    rgba(35, 25, 45, 0.22) 48%,
+    rgba(22, 15, 30, 0.3)
+  );
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.08),
+    0 16px 44px rgba(4, 2, 8, 0.2);
+}
+
+.required-confessional__decision-bubble > .diary-room__bubble-author {
+  color: #988ba3;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.required-confessional__decision-title {
+  margin-top: 4px;
+  font-size: 23px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.required-confessional__decision-bubble > .diary-room__bubble-text {
+  color: #c7bacf;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.required-confessional .rcd-layout {
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.required-confessional .rcd-player {
+  min-height: 76px;
+  padding: 13px 46px 13px 14px;
+  border-color: rgba(221, 197, 232, 0.12);
+  border-radius: 14px;
+  background: rgba(227, 207, 240, 0.035);
+  box-shadow: none;
+}
+
+.required-confessional .rcd-player:hover:not(:disabled) {
+  background: rgba(227, 207, 240, 0.075);
+}
+
+.required-confessional .rcd-player--selected {
+  border-color: rgba(214, 179, 232, 0.5);
+  background: rgba(150, 100, 170, 0.14);
+}
+
+.required-confessional .rcd-player--danger.rcd-player--selected {
+  border-color: rgba(209, 134, 152, 0.55);
+  background: rgba(170, 72, 97, 0.12);
+}
+
+.required-confessional .rcd-player__copy strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.required-confessional .rcd-player__avatar .pa,
+.required-confessional .rcd-player__pair-avatars .pa {
+  width: 44px;
+  height: 44px;
+}
+
+.required-confessional .rcd-player--danger.rcd-player--selected .rcd-player__check {
+  background: #a84c62;
+}
+
+.required-confessional .rcd-player__check {
+  right: 14px;
+  width: 21px;
+  height: 21px;
+  border-color: rgba(223, 207, 232, 0.24);
+  font-size: 12px;
+}
+
+.required-confessional .rcd-confirm {
+  margin-top: 6px;
+  padding: 20px 0 0;
+  border: 0;
+  border-top: 1px solid rgba(221, 197, 232, 0.12);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.required-confessional .rcd-confirm__copy > span {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.required-confessional .rcd-confirm__copy strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.required-confessional .rcd-confirm__copy small {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.required-confessional .rcd-confirm__button {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.required-confessional .rcd-confirm--danger .rcd-confirm__button {
+  background: linear-gradient(135deg, #ab455b, #893446);
+}
+
+@media (max-width: 420px) {
+  .required-confessional__decision-bubble {
+    padding: 18px;
+  }
+
+  .required-confessional__decision-title {
+    font-size: 21px;
+  }
+}
