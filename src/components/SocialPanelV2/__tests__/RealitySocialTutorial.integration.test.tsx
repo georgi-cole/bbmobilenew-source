@@ -146,6 +146,21 @@ describe('adaptive Social first-use tutorial', () => {
     expect(screen.queryByTestId('reality-social-tutorial-prompt')).toBeNull()
   })
 
+  it('includes alliance invitations in the Reality tutorial', () => {
+    const store = makeStore({ vipOwned: true })
+    renderPanel(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Quick tour' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Pacts, groups and invitations' })
+    ).toBeInTheDocument()
+    expect(screen.getByText(/member vote and the invited person’s acceptance/i)).toBeInTheDocument()
+  })
+
   it('re-arms Social once when the centralized replay toggle is enabled', () => {
     const firstStore = makeStore({ vipOwned: true })
     renderPanel(firstStore)

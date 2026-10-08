@@ -214,6 +214,10 @@ function applyRealityLifecycle(input: {
   secondarySubjectId?: string
   allianceId?: string
   allianceStrategyKind?: 'NOMINATION' | 'SAFETY'
+  actors?: Record<string, RealityActorSnapshot>
+  displayNames?: Readonly<Record<string, string>>
+  humanActorIds?: readonly string[]
+  viewerActorId?: string
   responses: Array<{ targetId: string; response: RealityResponseResolution }>
 }): void {
   const {
@@ -225,6 +229,10 @@ function applyRealityLifecycle(input: {
     secondarySubjectId,
     allianceId,
     allianceStrategyKind,
+    actors,
+    displayNames,
+    humanActorIds,
+    viewerActorId,
     responses,
   } = input
   const acceptedTargets = responses
@@ -290,6 +298,18 @@ function applyRealityLifecycle(input: {
         at,
         interactionId: interaction.id,
         purpose: subjectId ? 'Mutual protection' : undefined,
+        displayNames:
+          displayNames ??
+          Object.fromEntries(
+            Object.values(actors ?? {}).map((actor) => [actor.id, actor.name ?? actor.id])
+          ),
+        humanActorIds:
+          humanActorIds ??
+          Object.values(actors ?? {})
+            .filter((actor) => actor.isHuman)
+            .map((actor) => actor.id),
+        viewerActorId:
+          viewerActorId ?? Object.values(actors ?? {}).find((actor) => actor.isHuman)?.id,
       })
       if (applied.status === 'REJECTED') {
         event.outcome = 'FAILURE'
@@ -997,6 +1017,7 @@ export function runRealityOpportunity(input: {
     event,
     action: selected.action,
     subjectId: selected.subjectId,
+    actors: input.opportunity.actors,
     responses,
   })
   interaction.status = 'RESOLVED'
@@ -1099,6 +1120,9 @@ export function resolvePendingHumanRealityInteraction(input: {
   secondarySubjectId?: string
   allianceId?: string
   allianceStrategyKind?: 'NOMINATION' | 'SAFETY'
+  displayNames?: Readonly<Record<string, string>>
+  humanActorIds?: readonly string[]
+  viewerActorId?: string
 }): {
   domain: RealityDomainState
   event: RealitySocialEvent | null
@@ -1230,6 +1254,9 @@ export function resolvePendingHumanRealityInteraction(input: {
     secondarySubjectId: input.secondarySubjectId,
     allianceId: input.allianceId,
     allianceStrategyKind: input.allianceStrategyKind,
+    displayNames: input.displayNames,
+    humanActorIds: input.humanActorIds,
+    viewerActorId: input.viewerActorId,
     responses,
   })
   resolveRelationshipStoryResponse(domain, {

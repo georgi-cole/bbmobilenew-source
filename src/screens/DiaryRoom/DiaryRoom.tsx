@@ -58,7 +58,7 @@ import {
   getSalientConfessionalObservation,
   type BigEyeWorldSnapshot,
 } from '../../bb/confessionalSalience'
-import { applyInfluenceDelta, renameRealityAllianceRecord } from '../../social/socialSlice'
+import { applyInfluenceDelta } from '../../social/socialSlice'
 import { getEffectiveSocialMode } from '../../social/socialMode'
 import RealityLedger from '../../components/RealityLedger/RealityLedger'
 import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
@@ -568,22 +568,6 @@ export default function DiaryRoom() {
   const visualEyeReactions =
     useAppSelector((s) => s.remoteConfig?.config?.confessional?.features?.visualEyeReactions) !==
     false
-
-  const handleRenameAlliance = useCallback(
-    (allianceId: string, name: string) => {
-      if (!userPlayer) return
-      dispatch(
-        renameRealityAllianceRecord({
-          allianceId,
-          actorId: userPlayer.id,
-          name,
-          day: gameState.week,
-          phase,
-        })
-      )
-    },
-    [dispatch, gameState.week, phase, userPlayer]
-  )
 
   // ── Active ceremony decision routed to the confessional ───────────────────
   // When non-null the player must complete the decision before leaving.
@@ -1675,7 +1659,6 @@ export default function DiaryRoom() {
                         players={players}
                         humanId={userPlayer.id}
                         relationships={socialRelationships}
-                        onRenameAlliance={handleRenameAlliance}
                       />
                     </details>
                   )}

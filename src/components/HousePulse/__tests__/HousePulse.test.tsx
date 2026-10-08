@@ -12,7 +12,7 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
-  it('opens the visibility-bound Reality stream first and keeps the private read one tap away', () => {
+  it('opens a short Today briefing with direct Intel and Commitments sections', () => {
     render(
       <HousePulse
         network={createInitialDramaSocialNetwork()}
@@ -27,14 +27,14 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByText(/major developments will appear here when you see them/i)
-    ).toBeInTheDocument()
-    expect(screen.getByText('current developments')).toBeInTheDocument()
+    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Today' })).toHaveClass('is-active')
+    expect(screen.getByRole('button', { name: 'Intel' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Commitments' })).toBeInTheDocument()
     expect(screen.queryByText('house stories')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'My Game' }))
-    expect(screen.getByText('Your private game read')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Commitments' }))
+    expect(screen.getByRole('heading', { name: 'Commitments' })).toBeInTheDocument()
   })
 
   it('responds to the Reality Social tutorial navigation events', () => {
@@ -55,21 +55,21 @@ describe('HousePulse', () => {
       window.dispatchEvent(new Event('reality-social-tutorial:open-pulse'))
     })
     expect(screen.getByRole('dialog', { name: 'My Pulse' })).toBeInTheDocument()
-    expect(screen.getByText(/major developments will appear here/i)).toBeInTheDocument()
+    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(
-        new CustomEvent('reality-social-tutorial:set-pulse-tab', { detail: 'ledger' })
+        new CustomEvent('reality-social-tutorial:set-pulse-tab', { detail: 'commitments' })
       )
     })
-    expect(screen.getByText('Your private game read')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Commitments' })).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(
-        new CustomEvent('reality-social-tutorial:set-ledger-tab', { detail: 'house' })
+        new CustomEvent('reality-social-tutorial:set-pulse-tab', { detail: 'intel' })
       )
     })
-    expect(screen.getByText('Your groups and open stories')).toBeInTheDocument()
+    expect(screen.getByText('Leads and discoveries')).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(new Event('reality-social-tutorial:close-pulse'))
@@ -141,7 +141,7 @@ describe('HousePulse', () => {
       screen.getByText(/Repeated moments are turning into a real storyline/)
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'intel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Intel' }))
     expect(
       screen.getByText('Lia heard Kai testing your name as a backup plan.')
     ).toBeInTheDocument()

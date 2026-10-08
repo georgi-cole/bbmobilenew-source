@@ -30,6 +30,107 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
+function allianceBondDeltas(
+  state: RealityDomainState,
+  sourceId: string,
+  targetId: string,
+  at: RealityClock,
+  eventId: string
+): {
+  warmth: number
+  trust: number
+  loyalty: number
+  reliability: number
+  strategicValue: number
+  secretCloseness: number
+} {
+  const edge = state.relationships[sourceId]?.[targetId]
+  const sharedHistory = state.events.filter(
+    (event) =>
+      event.id !== eventId &&
+      event.participantIds.includes(sourceId) &&
+      event.participantIds.includes(targetId)
+  )
+  const firstKnownDay = sharedHistory.reduce<number | undefined>(
+    (earliest, event) => (earliest === undefined ? event.day : Math.min(earliest, event.day)),
+    undefined
+  )
+  const timeKnown = clamp01(
+    Math.max(
+      firstKnownDay === undefined ? 0 : (at.day - firstKnownDay) / 10,
+      (edge?.familiarity ?? 0) / 80
+    )
+  )
+  const sharedExperience = clamp01(sharedHistory.length / 6)
+  const successfulExperience =
+    sharedHistory.length === 0
+      ? 0.5
+      : sharedHistory.filter((event) => event.outcome === 'SUCCESS').length / sharedHistory.length
+  const positiveHistory = clamp01((edge?.positiveAnchorEventIds.length ?? 0) / 5)
+  const relationshipQuality =
+    edge === undefined
+      ? 0.5
+      : clamp01((edge.warmth + edge.trust + edge.loyalty + edge.reliability + 400) / 800)
+  const strain = Math.min(
+    0.45,
+    (edge?.negativeAnchorEventIds.length ?? 0) * 0.06 +
+      (edge?.unresolvedGrievanceIds.length ?? 0) * 0.12
+  )
+  const bondStrength = clamp01(
+    0.1 +
+      sharedExperience * 0.2 +
+      timeKnown * 0.15 +
+      positiveHistory * 0.18 +
+      successfulExperience * 0.15 +
+      relationshipQuality * 0.22 -
+      strain
+  )
+
+  return {
+    warmth: 5 + Math.round(bondStrength * 5),
+    trust: 5 + Math.round(bondStrength * 7),
+    loyalty: 7 + Math.round(bondStrength * 9),
+    reliability: 3 + Math.round(bondStrength * 4),
+    strategicValue: 7 + Math.round(bondStrength * 8),
+    secretCloseness: 5 + Math.round(bondStrength * 4),
+  }
+}
+
+/** Give only newly connected member pairs a visible, history-sensitive bond boost. */
+export function strengthenRealityAllianceBonds(
+  state: RealityDomainState,
+  memberIds: readonly string[],
+  at: RealityClock,
+  eventId: string
+): void {
+  for (const sourceId of memberIds) {
+    for (const targetId of memberIds) {
+      if (sourceId === targetId) continue
+      strengthenRealityAlliancePair(state, sourceId, targetId, at, eventId)
+    }
+  }
+}
+
+/** Apply the same bond boost to one new relationship edge without touching existing pairs. */
+export function strengthenRealityAlliancePair(
+  state: RealityDomainState,
+  sourceId: string,
+  targetId: string,
+  at: RealityClock,
+  eventId: string
+): void {
+  if (sourceId === targetId) return
+  applyRealityRelationshipChange(state, {
+    sourceId,
+    targetId,
+    eventId,
+    day: at.day,
+    phase: at.phase,
+    anchor: 'positive',
+    deltas: allianceBondDeltas(state, sourceId, targetId, at, eventId),
+  })
+}
+
 function allianceNameHash(value: string): number {
   let hash = 2166136261
   for (const character of value) {
@@ -1105,6 +1206,7 @@ export function createRealityAlliance(
     infiltratorIds: [],
   }
   state.alliances[alliance.id] = alliance
+  ensureRealityAllianceName(state, alliance)
   const event = appendRealityEvent(state, {
     ...input.at,
     type: 'ALLIANCE_FORMED',
@@ -1122,22 +1224,8 @@ export function createRealityAlliance(
     publicEligible: false,
     juryEligible: true,
   })
-  for (const fromId of memberIds) {
-    for (const toId of memberIds) {
-      if (fromId === toId) continue
-      applyRealityRelationshipChange(state, {
-        sourceId: fromId,
-        targetId: toId,
-        eventId: event.id,
-        day: input.at.day,
-        phase: input.at.phase,
-        anchor: 'positive',
-        deltas: { trust: 8, loyalty: 12, strategicValue: 15, secretCloseness: 10 },
-      })
-    }
-  }
+  strengthenRealityAllianceBonds(state, memberIds, input.at, event.id)
   refreshRealityAllianceDynamics(alliance)
-  ensureRealityAllianceName(state, alliance)
   rememberAllianceRoster(alliance)
   refreshRealityAllianceOverlaps(state)
   return alliance

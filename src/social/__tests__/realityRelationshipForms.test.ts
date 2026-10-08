@@ -9,6 +9,8 @@ import {
   createRealityAlliance,
   createRealityGrievance,
   createInitialRealityDomainState,
+  appendRealityEvent,
+  projectRealityAffinity,
   findRealityAllianceForConsultation,
   findRealityAllianceForRecruitment,
   formRealityTruce,
@@ -26,6 +28,78 @@ import {
 } from '../reality'
 
 describe('operational Reality alliances', () => {
+  it('makes a pact visibly strengthen a bond, with a larger boost for a shared positive history', () => {
+    const newPair = createInitialRealityDomainState()
+    const establishedPair = createInitialRealityDomainState()
+    for (let day = 1; day <= 5; day += 1) {
+      appendRealityEvent(establishedPair, {
+        day,
+        phase: 'social_1',
+        type: 'SOCIAL_ACTION',
+        actorId: 'ava',
+        targetIds: ['lia'],
+        participantIds: ['ava', 'lia'],
+        witnessIds: [],
+        visibility: 'PAIR_ONLY',
+        outcome: 'SUCCESS',
+        reason: 'A positive shared interaction.',
+        tags: [],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: false,
+      })
+    }
+
+    const newPairBefore = projectRealityAffinity(newPair.relationships.ava?.lia)
+    const establishedPairBefore = projectRealityAffinity(establishedPair.relationships.ava?.lia)
+    const newPact = createRealityAlliance(newPair, {
+      id: 'new-pact',
+      kind: 'PACT',
+      founderIds: ['ava', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: 6, phase: 'social_1' },
+    })
+    const establishedPact = createRealityAlliance(establishedPair, {
+      id: 'established-pact',
+      kind: 'PACT',
+      founderIds: ['ava', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: 6, phase: 'social_1' },
+    })
+
+    expect(newPact.kind).toBe('PACT')
+    const newPairAfter = projectRealityAffinity(newPair.relationships.ava?.lia)
+    const establishedPairAfter = projectRealityAffinity(establishedPair.relationships.ava?.lia)
+    expect(newPairAfter).toBeGreaterThan(newPairBefore)
+    expect(establishedPairAfter - establishedPairBefore).toBeGreaterThan(
+      newPairAfter - newPairBefore
+    )
+    expect(newPair.events.find((event) => event.type === 'ALLIANCE_FORMED')?.reason).toContain(
+      'Mutual protection'
+    )
+    const allianceAffinityAfterPact = newPairAfter
+    const group = createRealityAlliance(newPair, {
+      id: 'new-group',
+      kind: 'GROUP',
+      founderIds: ['ava', 'lia', 'kai'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: 7, phase: 'social_1' },
+    })
+    expect(projectRealityAffinity(newPair.relationships.ava?.lia)).toBeGreaterThan(
+      allianceAffinityAfterPact
+    )
+    expect(
+      newPair.events.find((event) => event.type === 'ALLIANCE_FORMED' && event.day === 7)?.reason
+    ).toContain('Mutual protection')
+    expect(group.name).toBeTruthy()
+    expect(establishedPact.memberIds).toEqual(['ava', 'lia'])
+  })
+
   it('lets members hold different plan beliefs and vote independently', () => {
     const state = createInitialRealityDomainState()
     const alliance = createRealityAlliance(state, {

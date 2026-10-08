@@ -89,6 +89,37 @@ const approve = (state: RealityDomainState, id: string) => {
 }
 
 describe('explicit alliance management', () => {
+  it('names the members and alliance when a founding vote succeeds', () => {
+    const state = setup()
+    const namedContext: AllianceManagementContext = {
+      ...context,
+      humanActorIds: ['u', 'k', 'r'],
+      displayNames: { u: 'Player', k: 'Kian', r: 'Jax' },
+      viewerActorId: 'u',
+    }
+    const proposal = manageAlliance(
+      state,
+      {
+        type: 'PROPOSE',
+        kind: 'FOUND',
+        actorId: 'u',
+        memberIds: ['u', 'k', 'r'],
+        name: 'The Shield',
+      },
+      namedContext
+    )
+    const requestId = proposal.requestId!
+    manageAlliance(state, { type: 'RESPOND', requestId, actorId: 'k', accept: true }, namedContext)
+    const completed = manageAlliance(
+      state,
+      { type: 'RESPOND', requestId, actorId: 'r', accept: true },
+      namedContext
+    )
+
+    expect(completed.reason).toBe('You, Kian, and Jax made it official: The Shield is born.')
+    expect(state.allianceManagement.requests[requestId].status).toBe('ACCEPTED')
+  })
+
   it('keeps the Kian/Rae conversations as two personal pacts without inventing a group', () => {
     const state = setup()
     finalizeAcceptedPersonalPact(state, {

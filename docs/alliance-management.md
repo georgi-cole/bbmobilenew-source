@@ -1,14 +1,22 @@
 # Alliance management
 
+For exact in-game steps, see the [player guide](alliance-management-player-guide.md).
+For AI proposal triggers, acceptance rules, and current product gaps, see the
+[product-owner notes](alliance-management-product-owner-notes.md).
+
 ## Commitments
 
 A personal pact connects exactly two people. A group starts with three or more consenting founders and remains a group if its roster later falls to two. A relationship score, title, or conversation alone does not create membership.
 
 People may hold up to two group memberships and may keep any number of independent personal pacts, including a private Final Two. Groups hold up to six members. Health such as fractured or dormant describes reliability, not membership.
 
+Submitting a personal pact proposal costs one Energy. Founding a group costs two Energy, plus one for each selected founder above the three-person minimum. Proposing a new group member or renewing an older pact costs one Energy. These are submission costs and are not refunded if the request is declined or expires. Voting, accepting or declining, leaving, removing a member, and dissolving a group are free; alliances have no recurring upkeep. AI proposals do not charge the player.
+
+Pact and group formation strengthen each member pair's relationship. The boost reflects shared history, familiarity, successful interactions, current relationship quality, and existing strain. Admitting a member strengthens their links to current members. This can make the relationship visibly warmer, but it does not promise loyalty or synchronized votes. A successful group-founding confirmation names its founders and group, such as “You, Kian, and Jax made it official: The Shield is born.” A new probationary alliance appears as **New alliance**, not **Strained alliance**.
+
 ## Consent and officers
 
-Every pact partner accepts. Every group founder accepts the same roster and officers. Founding a group leaves existing personal pacts in place. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
+Every pact partner accepts. Every group founder accepts the same roster and officers. Founding a separate group through the player's direct Social action leaves existing personal pacts in place. An AI group proposal can explicitly convert its base pact when accepted, except for pacts whose purpose marks them as Final Two/endgame/ride-or-die/last two. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
 
 A group has one leader and at most one co-leader. Leaders offer officer appointments or leadership transfers, which take effect only when the nominee accepts. The co-leader succeeds the leader; otherwise the longest-serving current member succeeds. Social standing cannot change authority.
 

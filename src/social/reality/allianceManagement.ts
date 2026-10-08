@@ -14,6 +14,7 @@ import {
   createRealityAlliance,
   refreshRealityAllianceOverlaps,
   removeRealityAllianceMember,
+  strengthenRealityAlliancePair,
 } from './relationshipForms'
 import type {
   RealityAlliance,
@@ -27,6 +28,8 @@ export interface AllianceManagementContext {
   at: RealityClock
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
+  displayNames?: Readonly<Record<string, string>>
+  viewerActorId?: string
   seed: number
   disabled?: boolean
   terminal?: boolean
@@ -172,6 +175,18 @@ function settle(
   request.settledAt = { ...at }
 }
 
+function displayMemberNames(
+  memberIds: readonly string[],
+  context: AllianceManagementContext
+): string {
+  const names = memberIds.map((id) =>
+    id === context.viewerActorId ? 'You' : (context.displayNames?.[id] ?? id)
+  )
+  if (names.length < 2) return names[0] ?? 'The group'
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
 function finalize(
   state: RealityDomainState,
   request: RealityAllianceRequest,
@@ -183,6 +198,7 @@ function finalize(
     return
   }
   const alliance = request.allianceId ? state.alliances[request.allianceId] : undefined
+  let successReason = 'The agreed change is now active.'
   if (request.kind === 'PACT' || request.kind === 'FOUND') {
     const kind = request.kind === 'PACT' ? 'PACT' : 'GROUP'
     const capacity = capacityProblem(state, request.memberIds, kind)
@@ -220,6 +236,15 @@ function finalize(
       replacesPactId: kind === 'PACT' ? request.basePactId : undefined,
     })
     request.resultAllianceId = created.id
+    const members = displayMemberNames(request.memberIds, context)
+    successReason =
+      kind === 'PACT'
+        ? `${members} made it official: ${
+            context.viewerActorId && request.memberIds.includes(context.viewerActorId)
+              ? 'your'
+              : 'their'
+          } personal pact is live.`
+        : `${members} made it official: ${created.name ?? 'your alliance'} is born.`
     if (request.basePactId) {
       const base = state.alliances[request.basePactId]
       created.predecessorIds = [base.id]
@@ -252,6 +277,7 @@ function finalize(
       return
     }
     const candidateId = request.candidateId
+    const priorMemberIds = [...alliance.memberIds]
     alliance.memberIds.push(candidateId)
     alliance.memberJoinSequence ??= {}
     alliance.memberJoinSequence[candidateId] = state.nextSequence++
@@ -261,10 +287,21 @@ function finalize(
     alliance.operationalRoles[candidateId] = []
     alliance.rosterRevision = (alliance.rosterRevision ?? 0) + 1
     rememberAllianceRoster(alliance)
-    event(state, alliance, request.proposerId, 'ALLIANCE_MEMBER_RECRUITED', context.at, [
-      candidateId,
-    ])
+    const recruitmentEvent = event(
+      state,
+      alliance,
+      request.proposerId,
+      'ALLIANCE_MEMBER_RECRUITED',
+      context.at,
+      [candidateId]
+    )
+    for (const memberId of priorMemberIds) {
+      strengthenRealityAlliancePair(state, memberId, candidateId, context.at, recruitmentEvent.id)
+      strengthenRealityAlliancePair(state, candidateId, memberId, context.at, recruitmentEvent.id)
+    }
     request.resultAllianceId = alliance.id
+    const candidateName = displayMemberNames([candidateId], context)
+    successReason = `${candidateName} is in! ${alliance.name ?? 'The alliance'} now has ${alliance.memberIds.length} members.`
   } else if (
     alliance &&
     (request.kind === 'APPOINT' || request.kind === 'TRANSFER') &&
@@ -308,7 +345,7 @@ function finalize(
     })
     request.resultAllianceId = alliance.id
   }
-  settle(request, 'ACCEPTED', 'The agreed change is now active.', context.at)
+  settle(request, 'ACCEPTED', successReason, context.at)
   refreshRealityAllianceOverlaps(state)
 }
 
@@ -765,12 +802,17 @@ export function finalizeAcceptedPersonalPact(
     at: RealityClock
     interactionId: string
     purpose?: string
+    displayNames?: Readonly<Record<string, string>>
+    humanActorIds?: readonly string[]
+    viewerActorId?: string
   }
 ): AllianceManagementResult {
   const context: AllianceManagementContext = {
     at: input.at,
     activeActorIds: [input.actorId, input.targetId],
-    humanActorIds: [input.actorId, input.targetId],
+    humanActorIds: input.humanActorIds ?? [],
+    displayNames: input.displayNames,
+    viewerActorId: input.viewerActorId ?? input.humanActorIds?.[0],
     seed: 0,
   }
   normalizeAllianceManagement(state)

@@ -407,6 +407,11 @@ function resolveRealityIncomingInteraction(
         targetId: humanId,
         at: { day, phase },
         interactionId: 'incoming:' + interaction.id,
+        displayNames: Object.fromEntries(
+          state.game.players.map((player) => [player.id, player.name])
+        ),
+        humanActorIds: [humanId],
+        viewerActorId: humanId,
       })
       domainChanged = applied.status === 'APPLIED' || domainChanged
     }
@@ -434,6 +439,9 @@ function resolveRealityIncomingInteraction(
       interaction.payload?.allianceStrategyKind === 'SAFETY'
         ? interaction.payload.allianceStrategyKind
         : undefined,
+    displayNames: Object.fromEntries(state.game.players.map((player) => [player.id, player.name])),
+    humanActorIds: [humanId],
+    viewerActorId: humanId,
     secondarySubjectId:
       typeof interaction.payload?.secondarySubjectId === 'string'
         ? interaction.payload.secondarySubjectId

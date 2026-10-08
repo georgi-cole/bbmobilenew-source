@@ -98,7 +98,7 @@ describe('canonical relationship presentation', () => {
     expect(hasCanonicalLiveAlliance(reality, 'human', 'rune')).toBe(true)
   })
 
-  it('displays a probationary overlap as strained rather than dissolved', () => {
+  it('displays a new probationary alliance without implying it is strained', () => {
     const reality = createInitialRealityDomainState()
     addAlliance(reality, 'dissolved-history', 'DISSOLVED')
     addAlliance(reality, 'probationary-pact', 'PROBATIONARY')
@@ -110,7 +110,8 @@ describe('canonical relationship presentation', () => {
       operational: true,
     })
     expect(view.visibleTags.has('alliance')).toBe(true)
-    expect(view.visibleTags.has('strained_alliance')).toBe(true)
+    expect(view.visibleTags.has('new_alliance')).toBe(true)
+    expect(view.visibleTags.has('strained_alliance')).toBe(false)
     expect(view.visibleTags.has('broken_alliance')).toBe(false)
   })
 

@@ -23,9 +23,17 @@ interface Props {
   humanId: string
   onCommand: (command: AllianceManagementCommand) => AllianceManagementResult
   onRename?: (id: string, name: string) => void
+  onOpenIncoming?: () => void
 }
 
-export default function AllianceManager({ reality, players, humanId, onCommand, onRename }: Props) {
+export default function AllianceManager({
+  reality,
+  players,
+  humanId,
+  onCommand,
+  onRename,
+  onOpenIncoming,
+}: Props) {
   const [message, setMessage] = useState('')
   const [founding, setFounding] = useState(false)
   const [founders, setFounders] = useState<string[]>([humanId])
@@ -119,14 +127,14 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
             setPactCandidate('')
           }}
         >
-          Propose personal pact
+          Propose personal pact · ⚡1
         </button>
         <button
           type="button"
           disabled={counts.groups >= ALLIANCE_LIMITS.groupsPerMember}
           onClick={() => startFounding()}
         >
-          Found a group
+          Found a group · ⚡2+
         </button>
       </div>
       {founding && (
@@ -170,6 +178,9 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
                       basePactId && reality.alliances[basePactId].memberIds.includes(player.id)
                     ) ||
                     (!founders.includes(player.id) &&
+                      currentAllianceCounts(reality, player.id).groups >=
+                        ALLIANCE_LIMITS.groupsPerMember) ||
+                    (!founders.includes(player.id) &&
                       founders.length >= ALLIANCE_LIMITS.groupMembers)
                   }
                   onChange={(event) =>
@@ -184,6 +195,10 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
               </label>
             ))}
           </fieldset>
+          <p>
+            Housemates who have reached their group limit cannot join this roster. A group needs at
+            least three founders.
+          </p>
           <p>You will lead the group.</p>
           <label>
             Optional co-leader
@@ -212,7 +227,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
           )}
           <div className="alliance-manager__actions">
             <button type="submit" disabled={founders.length < 3}>
-              Ask all founders
+              Ask all founders · ⚡{Math.max(2, founders.length - 1)}
             </button>
             <button type="button" onClick={() => setFounding(false)}>
               Cancel
@@ -279,7 +294,11 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
                   .
                 </p>
                 <div className="alliance-manager__actions">
-                  {canAnswer ? (
+                  {onOpenIncoming && canAnswer ? (
+                    <button type="button" onClick={onOpenIncoming}>
+                      Review in Incoming
+                    </button>
+                  ) : canAnswer ? (
                     <>
                       <button
                         type="button"
@@ -309,7 +328,11 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
                       </button>
                     </>
                   ) : (
-                    <span>Your answer is recorded; waiting for the remaining decisions.</span>
+                    <span>
+                      {request.proposerId === humanId
+                        ? 'Your proposal is waiting for the required responses.'
+                        : 'No response is needed from you right now.'}
+                    </span>
                   )}
                   {request.proposerId === humanId && (
                     <button
@@ -339,7 +362,11 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
         const action = groupAction?.allianceId === group.id ? groupAction : undefined
         const options =
           action?.kind === 'ADMIT'
-            ? alive.filter((player) => !group.memberIds.includes(player.id))
+            ? alive.filter(
+                (player) =>
+                  !group.memberIds.includes(player.id) &&
+                  currentAllianceCounts(reality, player.id).groups < ALLIANCE_LIMITS.groupsPerMember
+              )
             : alive.filter(
                 (player) =>
                   group.memberIds.includes(player.id) &&
@@ -369,7 +396,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
             </ul>
             <div className="alliance-manager__actions">
               <button type="button" onClick={() => chooseGroupAction(group.id, 'ADMIT')}>
-                Suggest a recruit
+                Suggest a recruit · ⚡1
               </button>
               <button
                 type="button"
@@ -483,7 +510,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
                       action.kind === 'RENAME' ? renameDraft.trim().length < 2 : !groupCandidate
                     }
                   >
-                    Confirm
+                    {action.kind === 'ADMIT' ? 'Start vote · ⚡1' : 'Confirm'}
                   </button>
                   <button type="button" onClick={() => setGroupAction(undefined)}>
                     Cancel
@@ -542,7 +569,7 @@ export default function AllianceManager({ reality, players, humanId, onCommand, 
                       })
                     }
                   >
-                    Mutually renew
+                    Mutually renew · ⚡1
                   </button>
                 ) : (
                   <button

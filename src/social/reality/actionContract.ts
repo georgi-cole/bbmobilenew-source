@@ -72,6 +72,7 @@ export interface RealityActionContract {
 
 export interface RealityActorSnapshot {
   id: string
+  name?: string
   isHuman: boolean
   active: boolean
   roles: string[]

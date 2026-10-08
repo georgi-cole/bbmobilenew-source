@@ -91,7 +91,8 @@ export default function PlayerCard({
     (hasBetrayal &&
       (relationshipTags.includes(ALLIANCE_TAG) || relationshipTags.includes(BROMANCE_TAG)))
   const positiveBondIsCurrent = !hasBetrayal && !hasBrokenRomance && !hasBrokenAlliance
-  const probationaryAlliance = relationshipTags.includes('strained_alliance')
+  const newAlliance = relationshipTags.includes('new_alliance')
+  const strainedAlliance = relationshipTags.includes('strained_alliance')
 
   function handleClick(e: React.MouseEvent) {
     if (disabled) return
@@ -171,7 +172,7 @@ export default function PlayerCard({
           {positiveBondIsCurrent && relationshipTags.includes(ALLIANCE_TAG) && (
             <span className="pc__bond-chip pc__bond-chip--ally">
               {'\uD83E\uDD1D '}
-              {probationaryAlliance ? 'Strained alliance' : 'Ally'}
+              {newAlliance ? 'New alliance' : strainedAlliance ? 'Strained alliance' : 'Ally'}
             </span>
           )}
           {positiveBondIsCurrent && relationshipTags.includes('cupid_partner') && (

@@ -152,6 +152,7 @@ function buildActors(state: RootState): Record<string, RealityActorSnapshot> {
         player.id,
         {
           id: player.id,
+          name: player.name,
           isHuman: player.isUser === true,
           active: player.status !== 'evicted' && player.status !== 'jury',
           roles,

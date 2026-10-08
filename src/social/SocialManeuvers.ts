@@ -935,11 +935,28 @@ export function executeAction(
       actionId === 'break_alliance'
         ? { type: 'LEAVE' as const, allianceId: pact!.id, actorId }
         : { type: 'PROPOSE' as const, kind: 'PACT' as const, actorId, candidateId: targetId }
-    const managed = executeAllianceManagementCommand(command)(
+    const proposalCosts =
+      actionId !== 'break_alliance' && options?.source === 'manual' && !options.waiveCosts
+        ? (options.costOverride ??
+          normalizeActionCosts(action, 0, getEffectiveSocialMode(state) === 'drama'))
+        : undefined
+    if (proposalCosts && !canAfford(actorId, proposalCosts, state))
+      return {
+        success: false,
+        delta: 0,
+        newEnergy: currentEnergy,
+        score: 0,
+        label: 'Unmoved',
+        summary: 'Insufficient resources. Nothing was spent.',
+      }
+    const managed = executeAllianceManagementCommand(command, proposalCosts)(
       _store.dispatch as AppDispatch,
       _store.getState as () => RootState
     )
     const latest = _store.getState() as RootState
+    const latestWeekendWallet = getWeekendWallet(latest, actorId)
+    const latestEnergy =
+      latestWeekendWallet?.energy ?? latest.social.energyBank[actorId] ?? currentEnergy
     const request = managed.requestId
       ? latest.social.reality.allianceManagement.requests[managed.requestId]
       : undefined
@@ -948,7 +965,7 @@ export function executeAction(
         managed.status === 'APPLIED' &&
         !['DECLINED', 'INVALIDATED', 'EXPIRED'].includes(request?.status ?? ''),
       delta: 0,
-      newEnergy: currentEnergy,
+      newEnergy: latestEnergy,
       score: 0,
       label: request?.status ?? managed.status,
       summary: managed.reason,

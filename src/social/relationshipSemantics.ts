@@ -96,7 +96,10 @@ export function selectCanonicalRelationshipView(input: {
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
 
-  if (formalAlliance?.status === 'PROBATIONARY') visibleTags.add('strained_alliance')
+  if (formalAlliance?.status === 'PROBATIONARY') {
+    visibleTags.delete('strained_alliance')
+    visibleTags.add('new_alliance')
+  }
   if (formalAlliance?.status === 'FRACTURED') {
     visibleTags.add('strained_alliance')
   }
