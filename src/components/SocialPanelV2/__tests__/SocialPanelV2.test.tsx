@@ -978,7 +978,7 @@ describe('LOH target question integration', () => {
 })
 
 describe('SocialPanelV2 – integrated alliance actions', () => {
-  it('charges one energy for a new pact from the integrated Alliances panel', () => {
+  it('charges two energy for a new pact from the integrated Alliances panel', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const candidate = store
@@ -997,7 +997,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     })
     fireEvent.click(within(manager).getByRole('button', { name: /Propose personal pact/i }))
 
-    expect(store.getState().social.energyBank[human.id]).toBe(2)
+    expect(store.getState().social.energyBank[human.id]).toBe(1)
     expect(
       Object.values(store.getState().social.reality.alliances).some(
         (alliance) =>
@@ -1015,6 +1015,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 5 }))
     const candidates = store
       .getState()
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
@@ -1065,6 +1066,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     expect(foundingRequest?.consents[human.id]).toBe(true)
     expect(foundingRequest?.basePactId).toBeUndefined()
     expect(existingPacts.every((pact) => pact.status !== 'DISSOLVED')).toBe(true)
-    expect(store.getState().social.energyBank[human.id]).toBe(3)
+    expect(store.getState().social.energyBank[human.id]).toBe(2)
+    expect(store.getState().social.influenceBank[human.id]).toBe(0)
   })
 })

@@ -2006,7 +2006,7 @@ export default function SocialPanelV2() {
                   onCommand={(command) => {
                     const costs =
                       command.type === 'PROPOSE' && command.kind === 'FOUND'
-                        ? { energy: Math.max(2, (command.memberIds?.length ?? 3) - 1) }
+                        ? { energy: Math.max(3, command.memberIds?.length ?? 3), influence: 5 }
                         : command.type === 'PROPOSE' && command.kind === 'ADMIT'
                           ? { energy: 1 }
                           : command.type === 'PROPOSE' && command.kind === 'PACT'
