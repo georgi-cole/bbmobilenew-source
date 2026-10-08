@@ -32,7 +32,7 @@ import {
   pickSectorIndex,
   type RiskWheelCompetitionType,
 } from '../../features/riskWheel/riskWheelSlice'
-import { resolveRiskWheelOutcome } from '../../features/riskWheel/thunks'
+import { resolveRiskWheelOutcome, skipRiskWheelToResults } from '../../features/riskWheel/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
 import HOUSEGUESTS from '../../data/houseguests'
@@ -758,6 +758,11 @@ export default function RiskWheelComp({
     dispatch(advanceFromRoundSummary())
   }, [dispatch, playClickSound])
 
+  const handleSkipToResults = useCallback(() => {
+    playClickSound()
+    dispatch(skipRiskWheelToResults())
+  }, [dispatch, playClickSound])
+
   // ─────────────────────────────────────────────────────────────────────────
   if (!rw || rw.phase === 'idle') {
     return (
@@ -793,6 +798,9 @@ export default function RiskWheelComp({
     initialPlayerCount,
     allPlayerIds,
   } = rw
+  const isHumanEliminated =
+    humanId !== null &&
+    (eliminatedPlayerIds.includes(humanId) || eliminatedThisRound.includes(humanId))
 
   const currentScore = currentId ? (roundScores[currentId] ?? 0) : 0
   const currentName = currentId ? getName(currentId, participants) : ''
@@ -913,15 +921,20 @@ export default function RiskWheelComp({
           })}
         </ul>
         <div className="rw-summary-footer">
-          {eliminatedThisRound.length > 0 && (
-            <p className="rw-summary-elim-msg" aria-live="assertive">
-              👋 {eliminatedThisRound.map((id) => getName(id, participants)).join(', ')}{' '}
-              {eliminatedThisRound.length === 1 ? 'has been' : 'have been'} eliminated.
-            </p>
+          {isHumanEliminated ? (
+            <>
+              <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
+                Continue as spectator
+              </button>
+              <button className="rw-btn rw-btn--secondary rw-btn--lg" onClick={handleSkipToResults}>
+                Skip to results
+              </button>
+            </>
+          ) : (
+            <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
+              {isLastRound ? '🏆 See Winner' : `▶ Start Round ${round + 1}`}
+            </button>
           )}
-          <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
-            {isLastRound ? '🏆 See Winner' : `▶ Start Round ${round + 1}`}
-          </button>
         </div>
       </div>
     )
