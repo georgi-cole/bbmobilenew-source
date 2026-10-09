@@ -2,10 +2,14 @@ import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakdownStorage'
 import { expandCupidIds } from '../features/twists/cupidArrow'
 import type { GameState, TvEvent } from '../types'
-import { consumeBroadcastEvent, updateTvEvent } from './gameSlice'
+import { addTvEvent, consumeBroadcastEvent, updateTvEvent } from './gameSlice'
 
 type PresentationState = {
   game: GameState
+  profiles?: {
+    activeProfileId?: string | null
+    isGuest?: boolean
+  }
 }
 
 type GenericAction = {
@@ -18,6 +22,8 @@ type AddTvEventAction = GenericAction & {
 
 const VOX_IMMUNITY_COMPETITION_COPY =
   'The Immunity Competition has begun! 🛡️ Who will secure safety today?'
+const GUEST_MODE_SAVE_WARNING =
+  "You're playing as a guest, so your progress won't be saved. Go to More → Profile → Create Profile to save it."
 const AUTHORIZE_VOX_AUDIENCE_VOTE_ACTION = 'presentation/authorizeVoxAudienceVoteResolution'
 const COMMIT_VOX_AUDIENCE_VOTE_ACTION = 'game/commitVoxAudienceVote'
 
@@ -140,6 +146,43 @@ function consumePreviousDayBroadcasts(
       api.dispatch(consumeBroadcastEvent(event.id))
     }
   }
+}
+
+function addGuestModeSaveWarning(
+  api: MiddlewareAPI,
+  actionType: string | undefined,
+  before: PresentationState,
+  after: PresentationState
+): void {
+  const profile = after.profiles
+  const canSaveRun = Boolean(profile && !profile.isGuest && profile.activeProfileId)
+  if (
+    actionType !== 'game/advance' ||
+    before.game.phase !== 'week_start' ||
+    before.game.week !== 1 ||
+    after.game.phase !== 'loh_comp_announcement' ||
+    after.game.week !== 1 ||
+    !profile ||
+    canSaveRun
+  ) {
+    return
+  }
+
+  api.dispatch(
+    addTvEvent({
+      text: GUEST_MODE_SAVE_WARNING,
+      type: 'game',
+      channels: ['tv', 'mainLog'],
+      source: 'system',
+      meta: {
+        broadcastDelivery: 'next',
+        broadcastLevel: 'minor',
+        forceOnTv: true,
+        phase: 'loh_comp_announcement',
+        week: 1,
+      },
+    })
+  )
 }
 
 function shouldDeferBackdoorAdvance(state: GameState, action: unknown): boolean {
@@ -289,6 +332,7 @@ export const presentationConsistencyMiddleware: Middleware = (api) => (next) => 
   const result = next(actionForNext)
 
   const after = api.getState() as PresentationState
+  addGuestModeSaveWarning(api, actionType, before, after)
   consumePreviousDayBroadcasts(api, before.game, after.game)
 
   if (!isPendingVoxEvictionAudienceVote(after.game)) {

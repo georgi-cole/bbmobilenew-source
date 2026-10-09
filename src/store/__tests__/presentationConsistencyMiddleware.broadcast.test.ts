@@ -26,6 +26,49 @@ function runMiddleware(action: unknown) {
   return next
 }
 
+function runGuestDayOneOpeningTransition(options: {
+  isGuest: boolean
+  activeProfileId: string | null
+  beforePhase?: string
+  beforeWeek?: number
+  afterPhase?: string
+  afterWeek?: number
+}) {
+  let state = {
+    game: {
+      phase: options.beforePhase ?? 'week_start',
+      week: options.beforeWeek ?? 1,
+      tvFeed: [],
+      players: [],
+      replacementNeeded: false,
+    },
+    profiles: {
+      isGuest: options.isGuest,
+      activeProfileId: options.activeProfileId,
+    },
+  }
+  const next = vi.fn((action) => {
+    if ((action as { type?: string }).type === 'game/advance') {
+      state = {
+        ...state,
+        game: {
+          ...state.game,
+          phase: options.afterPhase ?? 'loh_comp_announcement',
+          week: options.afterWeek ?? 1,
+        },
+      }
+    }
+    return action
+  })
+  const api = {
+    getState: () => state,
+    dispatch: vi.fn(),
+  }
+
+  presentationConsistencyMiddleware(api as never)(next as never)({ type: 'game/advance' })
+  return api.dispatch
+}
+
 function createPendingVoxVoteHarness() {
   const state = {
     game: {
@@ -51,6 +94,53 @@ function createPendingVoxVoteHarness() {
 }
 
 describe('presentationConsistencyMiddleware important broadcasts', () => {
+  it('queues a guest save reminder before the Day 1 LOH competition announcement', () => {
+    const dispatch = runGuestDayOneOpeningTransition({ isGuest: true, activeProfileId: null })
+
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'game/addTvEvent',
+        payload: expect.objectContaining({
+          text: expect.stringContaining('More → Profile → Create Profile'),
+          channels: ['tv', 'mainLog'],
+          meta: expect.objectContaining({
+            phase: 'loh_comp_announcement',
+            week: 1,
+            broadcastDelivery: 'next',
+            broadcastLevel: 'minor',
+            forceOnTv: true,
+          }),
+        }),
+      })
+    )
+  })
+
+  it('does not show the guest reminder when a profile is active', () => {
+    const dispatch = runGuestDayOneOpeningTransition({
+      isGuest: false,
+      activeProfileId: 'active-profile',
+    })
+
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('only shows the reminder on the Day 1 LOH competition transition', () => {
+    const laterWeekDispatch = runGuestDayOneOpeningTransition({
+      isGuest: true,
+      activeProfileId: null,
+      beforeWeek: 2,
+      afterWeek: 2,
+    })
+    const otherPhaseDispatch = runGuestDayOneOpeningTransition({
+      isGuest: true,
+      activeProfileId: null,
+      afterPhase: 'social_1',
+    })
+
+    expect(laterWeekDispatch).not.toHaveBeenCalled()
+    expect(otherPhaseDispatch).not.toHaveBeenCalled()
+  })
+
   it('stamps the Vox secret-ballot unlock with the live phase/day and forces it onto Faux TV', () => {
     const next = runMiddleware({
       type: 'game/addTvEvent',
