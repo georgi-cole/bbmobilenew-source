@@ -104,10 +104,10 @@ describe('presentationConsistencyMiddleware important broadcasts', () => {
           text: expect.stringContaining('More → Profile → Create Profile'),
           channels: ['tv', 'mainLog'],
           meta: expect.objectContaining({
-            major: 'guest_mode_save_warning',
             phase: 'loh_comp_announcement',
             week: 1,
-            broadcastPriority: 'critical',
+            broadcastDelivery: 'next',
+            broadcastLevel: 'minor',
             forceOnTv: true,
           }),
         }),

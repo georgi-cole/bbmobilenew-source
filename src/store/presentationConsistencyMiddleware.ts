@@ -175,9 +175,8 @@ function addGuestModeSaveWarning(
       channels: ['tv', 'mainLog'],
       source: 'system',
       meta: {
-        major: 'guest_mode_save_warning',
-        broadcastPriority: 'critical',
-        broadcastLevel: 'critical',
+        broadcastDelivery: 'next',
+        broadcastLevel: 'minor',
         forceOnTv: true,
         phase: 'loh_comp_announcement',
         week: 1,

@@ -323,13 +323,6 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
         'Control is up for winning — who will become Leader of the Hub?'
       ),
     },
-    guest_mode_save_warning: {
-      eventMajor: true,
-      announcement: liveCard(
-        'Playing as a Guest',
-        "Your progress won't be saved. Go to More → Profile → Create Profile to save it."
-      ),
-    },
     pos_comp_announcement: {
       eventMajor: true,
       announcement: liveCard(
