@@ -129,6 +129,23 @@ describe('Reality ceremony aftermath', () => {
 })
 
 describe('Reality jury knowledge boundaries', () => {
+  it('builds jury scorecards without mutating a frozen relationship snapshot', () => {
+    const state = createInitialRealityDomainState()
+    recordRealityCeremonyOutcome(state, {
+      kind: 'POWER_WON',
+      day: 4,
+      phase: 'loh_results',
+      actorId: 'aria',
+      targetIds: [],
+      witnessIds: ['juror'],
+      publicEligible: true,
+    })
+    state.relationships.juror = Object.freeze({})
+
+    expect(() => realityJurorScorecard('juror', ['lux', 'aria'], state)).not.toThrow()
+    expect(state.relationships.juror).not.toHaveProperty('lux')
+  })
+
   it('does not score a finalist from a hidden alliance event the juror never learned', () => {
     const state = createInitialRealityDomainState()
     const alliance = createRealityAlliance(state, {

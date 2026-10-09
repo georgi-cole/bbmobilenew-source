@@ -8,3 +8,11 @@ export function shouldShowGameControlDock(
   // navbar and leave the player without navigation after a stale flow flag.
   return hasStartedGame || allowWhenInactive;
 }
+
+/** Full-screen season-end chats provide their own Continue/Skip controls. */
+export function shouldRenderGameControlDock(
+  dockAvailable: boolean,
+  seasonFinaleActive: boolean
+): boolean {
+  return dockAvailable && !seasonFinaleActive
+}

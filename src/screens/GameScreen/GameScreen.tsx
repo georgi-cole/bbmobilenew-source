@@ -59,6 +59,7 @@ import type { HostPhase, MinigameParticipant } from '../../components/MinigameHo
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
+import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
@@ -2763,7 +2764,7 @@ export default function GameScreen() {
         )}
 
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
-        {showGameControlDock && (
+        {shouldRenderGameControlDock(showGameControlDock, Boolean(game.seasonFinale)) && (
           <FloatingActionBar
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
