@@ -100,17 +100,6 @@ console.log(`Legacy-format exceptions already dirty at merge base: ${legacyExcep
 for (const file of legacyExceptions) console.log(`  legacy: ${file}`)
 
 if (violations.length > 0) {
-  const file = 'js/ui/introHub.js'
-  if (violations.includes(file)) {
-    const source = await readFile(file, 'utf8')
-    const config = (await prettier.resolveConfig(file)) ?? {}
-    const formatted = await prettier.format(source, { ...config, filepath: file })
-    const from = formatted.indexOf('  function getFeedbackContext(')
-    const to = formatted.indexOf('  function toNumber(', from)
-    console.error('PRETTIER_EXPECTED_FEEDBACK_BEGIN')
-    console.error(formatted.slice(from, to))
-    console.error('PRETTIER_EXPECTED_FEEDBACK_END')
-  }
   console.error('Changed-file formatting regressions:')
   for (const file of violations) console.error(`  ${file}`)
   process.exit(1)
