@@ -387,14 +387,15 @@
 
   function getFeedbackContext(includeDevice) {
     const build = global.__bigEyeFeedbackBuild || {}
-    const day = typeof g.day === 'number' ? g.day : g.week
+    const gameContext = global.__bigEyeFeedbackContext || g
+    const day = typeof gameContext.day === 'number' ? gameContext.day : gameContext.week
     const lines = [
       'Game: The Big Eye',
       'Version: ' + (build.version || 'unknown'),
       'Build: ' + (build.buildId || 'unknown'),
-      'Season: ' + (typeof g.season === 'number' ? g.season : 'unknown'),
+      'Season: ' + (typeof gameContext.season === 'number' ? gameContext.season : 'unknown'),
       'Day: ' + (typeof day === 'number' ? day : 'unknown'),
-      'Phase: ' + (typeof g.phase === 'string' ? g.phase.slice(0, 80) : 'unknown'),
+      'Phase: ' + (typeof gameContext.phase === 'string' ? gameContext.phase.slice(0, 80) : 'unknown'),
       'Reported at (UTC): ' + new Date().toISOString(),
     ]
     if (includeDevice) {
@@ -1455,6 +1456,7 @@
     init: init,
     toggleChipVisual: toggleChipVisual,
     closeDialog: closeHubDialog,
+    openFeedback: openFeedbackComposer,
   }
 
   // Expose houseguests panel hook (can be overridden before this module loads)
