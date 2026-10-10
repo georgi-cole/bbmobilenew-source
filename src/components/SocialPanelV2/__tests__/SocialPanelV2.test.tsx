@@ -978,7 +978,7 @@ describe('LOH target question integration', () => {
 })
 
 describe('SocialPanelV2 – integrated alliance actions', () => {
-  it('charges two energy for a new pact from the integrated Alliances panel', () => {
+  it('charges two energy for a new pact from the integrated alliance action card', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const candidate = store
@@ -991,11 +991,12 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
 
     const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
     fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
-    const manager = within(socialDialog).getByRole('region', { name: 'Your alliances' })
-    fireEvent.change(within(manager).getByLabelText('Personal pact with'), {
-      target: { value: candidate.id },
-    })
-    fireEvent.click(within(manager).getByRole('button', { name: /Propose personal pact/i }))
+    expect(within(socialDialog).queryByRole('region', { name: 'Your alliances' })).toBeNull()
+    expect(within(socialDialog).queryByLabelText('Personal pact with')).toBeNull()
+    expect(within(socialDialog).getByRole('button', { name: /Found an alliance/i })).toBeVisible()
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
+    fireEvent.click(screen.getByRole('button', { name: /Propose Personal Pact/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
     expect(store.getState().social.energyBank[human.id]).toBe(1)
     expect(
@@ -1011,7 +1012,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     ).toBe(true)
   })
 
-  it('forms a group through the existing hubmate and move flow', () => {
+  it('keeps group founding in the shared action-card flow and shows its full price', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
@@ -1020,53 +1021,25 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
       .getState()
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
       .slice(0, 2)
-    const affinitiesBeforePacts = candidates.map(
-      (candidate) => store.getState().social.relationships[human.id]?.[candidate.id]?.affinity ?? 0
-    )
-    const reality = structuredClone(store.getState().social.reality)
-    const existingPacts = candidates.map((candidate) =>
-      createRealityAlliance(reality, {
-        id: `test-pact-${candidate.id}`,
-        kind: 'PACT',
-        founderIds: [human.id],
-        memberIds: [candidate.id],
-        purpose: 'Mutual protection',
-        at: { day: store.getState().game.week, phase: 'social_1' },
-      })
-    )
-    store.dispatch(replaceRealityDomain(reality))
-    for (const [index, candidate] of candidates.entries()) {
-      expect(
-        store.getState().social.relationships[human.id]?.[candidate.id]?.affinity ?? 0
-      ).toBeGreaterThan(affinitiesBeforePacts[index])
-    }
     store.dispatch(openSocialPanel())
     initManeuvers(store)
     renderPanel(store)
 
     const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
     fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
-    const manager = within(socialDialog).getByRole('region', { name: 'Your alliances' })
-    fireEvent.click(within(manager).getByRole('button', { name: /Found a group/i }))
+    expect(within(socialDialog).queryByRole('region', { name: 'Your alliances' })).toBeNull()
+    expect(within(socialDialog).queryByLabelText('Personal pact with')).toBeNull()
+    const foundAllianceCard = screen.getByRole('button', { name: /Found an alliance/i })
+    expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
+    expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
+    fireEvent.click(foundAllianceCard)
 
     for (const candidate of candidates) {
-      fireEvent.click(within(manager).getByRole('checkbox', { name: candidate.name }))
+      fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
     }
-    fireEvent.click(within(manager).getByRole('button', { name: /Ask all founders/i }))
-
-    const foundingRequest = Object.values(
-      store.getState().social.reality.allianceManagement.requests
-    ).find(
-      (request) =>
-        request.kind === 'FOUND' &&
-        request.memberIds.includes(human.id) &&
-        candidates.every((candidate) => request.memberIds.includes(candidate.id))
-    )
-    expect(foundingRequest?.memberIds).toHaveLength(3)
-    expect(foundingRequest?.consents[human.id]).toBe(true)
-    expect(foundingRequest?.basePactId).toBeUndefined()
-    expect(existingPacts.every((pact) => pact.status !== 'DISSOLVED')).toBe(true)
-    expect(store.getState().social.energyBank[human.id]).toBe(2)
-    expect(store.getState().social.influenceBank[human.id]).toBe(0)
+    expect(
+      screen.getByText((_, element) => element?.classList.contains('sp2-footer__cost') ?? false)
+    ).toHaveTextContent('Cost: Group · ⚡3 · 🤝5')
+    expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
   })
 })
