@@ -17,11 +17,11 @@ import {
   selectSessionLogs,
   selectSocialPanelOpen,
   selectWeekStartRelSnapshot,
-  renameRealityAllianceRecord,
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
 import { SocialManeuvers } from '../../social/SocialManeuvers'
+import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
 import { buildDrSessionSummary } from '../../services/activityService'
 import {
@@ -59,7 +59,6 @@ import {
 } from '../../social/reality/allianceManagement'
 import type { PublicDirection } from '../../publicOpinion/types'
 import { getPublicRequestProgressStage } from '../../publicOpinion/publicRequestProgress'
-import AllianceManager from '../AllianceManager/AllianceManager'
 import { getRelationshipLabel } from './relationshipUtils'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import RealitySocialTutorialTour, {
@@ -328,10 +327,10 @@ export default function SocialPanelV2() {
   >(new Map())
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
   useEffect(() => {
-    const openAllianceManager = () => setMoveFilter('alliances')
-    window.addEventListener('reality-social-tutorial:open-alliances', openAllianceManager)
+    const openAllianceActions = () => setMoveFilter('alliances')
+    window.addEventListener('reality-social-tutorial:open-alliances', openAllianceActions)
     return () =>
-      window.removeEventListener('reality-social-tutorial:open-alliances', openAllianceManager)
+      window.removeEventListener('reality-social-tutorial:open-alliances', openAllianceActions)
   }, [])
   const [historyOpen, setHistoryOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
@@ -464,7 +463,7 @@ export default function SocialPanelV2() {
           'multi',
           2,
           3,
-          0.5
+          5
         ),
         executeLabel: 'Propose group',
         allowWithoutTarget: true,
@@ -619,7 +618,7 @@ export default function SocialPanelV2() {
               'primary',
               undefined,
               1,
-              0.5
+              5
             ),
             executeLabel: 'Start vote',
             buildCommand: () => ({
@@ -823,23 +822,22 @@ export default function SocialPanelV2() {
 
   const totalCosts = useMemo(() => {
     const baseCosts = selectedAction
-      ? SocialManeuvers.computeActionCosts(
-          humanPlayer?.id ?? '',
-          selectedAction,
-          effectivePrimaryTargetId ?? humanPlayer?.id ?? '',
-          undefined,
-          selectedTargetCount,
-          dramaMode
-        )
+      ? selectedAllianceAction
+        ? normalizeActionCosts(selectedAction, selectedTargetCount, dramaMode)
+        : SocialManeuvers.computeActionCosts(
+            humanPlayer?.id ?? '',
+            selectedAction,
+            effectivePrimaryTargetId ?? humanPlayer?.id ?? '',
+            undefined,
+            selectedTargetCount,
+            dramaMode
+          )
       : null
     if (!baseCosts) return null
     if (selectedAllianceAction) {
       const command = selectedAllianceAction.buildCommand([...selectedTargets])
       const proposalPrice = allianceProposalPrice(command)
       if (proposalPrice) return proposalPrice
-    }
-    if (selectedActionId === 'alliance:found') {
-      return { ...baseCosts, energy: Math.max(3, selectedTargetCount + 1) }
     }
     if (selectedActionId === 'group_chat') {
       return { ...baseCosts, energy: Math.max(2, selectedTargetCount) }
@@ -1019,22 +1017,6 @@ export default function SocialPanelV2() {
       : selectedAllianceAction
         ? 'No resource cost'
         : null
-
-  const handleRenameAlliance = useCallback(
-    (allianceId: string, name: string) => {
-      if (!humanPlayer) return
-      dispatch(
-        renameRealityAllianceRecord({
-          allianceId,
-          actorId: humanPlayer.id,
-          name,
-          day: game.week,
-          phase: game.phase,
-        })
-      )
-    },
-    [dispatch, game.phase, game.week, humanPlayer]
-  )
 
   const hiddenContextualActionIds = useMemo(() => {
     const hidden = new Set<string>()
@@ -1737,7 +1719,7 @@ export default function SocialPanelV2() {
                 setSelectedActionId(null)
                 requestAnimationFrame(() => {
                   document
-                    .getElementById('sp2-alliance-manager')
+                    .getElementById('sp2-alliance-actions')
                     ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 })
               }}
@@ -1957,6 +1939,7 @@ export default function SocialPanelV2() {
           <section
             className="sp2-moves"
             aria-label="Social actions"
+            id="sp2-alliance-actions"
             data-reality-tutorial="actions"
           >
             <div className="sp2-moves__heading">
@@ -1997,68 +1980,45 @@ export default function SocialPanelV2() {
                 </button>
               ))}
             </div>
-            {dramaMode && moveFilter === 'alliances' ? (
-              <div id="sp2-alliance-manager" className="sp2-alliance-manager">
-                <AllianceManager
-                  reality={socialState.reality}
-                  players={game.players}
-                  humanId={humanPlayer.id}
-                  onCommand={(command) => {
-                    const costs =
-                      command.type === 'PROPOSE' && command.kind === 'FOUND'
-                        ? { energy: Math.max(3, command.memberIds?.length ?? 3), influence: 5 }
-                        : command.type === 'PROPOSE' && command.kind === 'ADMIT'
-                          ? { energy: 1 }
-                          : command.type === 'PROPOSE' && command.kind === 'PACT'
-                            ? { energy: 1 }
-                            : undefined
-                    return dispatch(executeAllianceManagementCommand(command, costs))
-                  }}
-                  onRename={handleRenameAlliance}
-                  onOpenIncoming={() => {
-                    handleClose()
-                    dispatch(openIncomingInbox())
-                  }}
-                />
-              </div>
-            ) : (
-              <ActionGrid
-                selectedId={selectedActionId}
-                onActionClick={handleActionClick}
-                onPremiumLockedClick={handleRealityUpgrade}
-                selectedTargetIds={selectedPlayerIds}
-                players={orderedPlayers}
-                actorId={humanPlayer.id}
-                actorEnergy={energy}
-                actorInfluence={influence}
-                actorInfo={info}
-                relationships={relationships}
-                primaryTargetStatus={
-                  effectivePrimaryTargetId
-                    ? (game.players.find((player) => player.id === effectivePrimaryTargetId)
-                        ?.status ?? null)
-                    : null
-                }
-                dramaMode={dramaMode}
-                currentPhase={weekendActive ? 'social_2' : game.phase}
-                dramaNetwork={dramaNetwork}
-                hiddenActionIds={hiddenContextualActionIds}
-                energyCostOverrides={
-                  selectedActionId && totalCosts
-                    ? { [selectedActionId]: totalCosts.energy }
-                    : undefined
-                }
-                categoryFilter={moveFilter}
-                supplementalActions={
-                  moveFilter === 'alliances'
-                    ? allianceQuickActions.map(({ action, allowWithoutTarget }) => ({
-                        action,
-                        allowWithoutTarget,
-                      }))
-                    : undefined
-                }
-              />
-            )}
+            <ActionGrid
+              selectedId={selectedActionId}
+              onActionClick={handleActionClick}
+              onPremiumLockedClick={handleRealityUpgrade}
+              selectedTargetIds={selectedPlayerIds}
+              players={orderedPlayers}
+              actorId={humanPlayer.id}
+              actorEnergy={energy}
+              actorInfluence={influence}
+              actorInfo={info}
+              relationships={relationships}
+              primaryTargetStatus={
+                effectivePrimaryTargetId
+                  ? (game.players.find((player) => player.id === effectivePrimaryTargetId)
+                      ?.status ?? null)
+                  : null
+              }
+              dramaMode={dramaMode}
+              currentPhase={weekendActive ? 'social_2' : game.phase}
+              dramaNetwork={dramaNetwork}
+              hiddenActionIds={hiddenContextualActionIds}
+              energyCostOverrides={
+                selectedActionId && totalCosts
+                  ? { [selectedActionId]: totalCosts.energy }
+                  : undefined
+              }
+              categoryFilter={moveFilter}
+              supplementalActions={
+                moveFilter === 'alliances'
+                  ? allianceQuickActions.map(({ action, allowWithoutTarget, buildCommand }) => ({
+                      action,
+                      allowWithoutTarget,
+                      costs:
+                        allianceProposalPrice(buildCommand([...selectedTargets])) ??
+                        normalizeActionCosts(action, selectedTargetCount, dramaMode),
+                    }))
+                  : undefined
+              }
+            />
           </section>
         </div>
 

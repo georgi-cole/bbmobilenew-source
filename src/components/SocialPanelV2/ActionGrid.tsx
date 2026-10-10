@@ -45,6 +45,7 @@ export interface ActionGridProps {
   categoryFilter?: 'all' | 'connect' | 'strategy' | 'drama' | 'alliances'
   supplementalActions?: readonly {
     action: SocialActionDefinition
+    costs?: { energy: number; influence: number; info: number }
     allowWithoutTarget?: boolean
     disabled?: boolean
     availabilityReason?: string
@@ -421,18 +422,23 @@ export default function ActionGrid({
             />
           )
         })}
-        {visibleSupplementalActions.map(({ action, disabled = false, availabilityReason }) => (
-          <ActionCard
-            key={action.id}
-            action={action}
-            costs={{ energy: 0, influence: 0, info: 0 }}
-            selected={selectedId === action.id}
-            disabled={disabled}
-            availabilityReason={availabilityReason}
-            available={!disabled}
-            onClick={onActionClick}
-          />
-        ))}
+        {visibleSupplementalActions.map(
+          ({ action, costs, disabled = false, availabilityReason }) => {
+            const resolvedCosts = costs ?? getActionCosts(action)
+            return (
+              <ActionCard
+                key={action.id}
+                action={action}
+                costs={resolvedCosts}
+                selected={selectedId === action.id}
+                disabled={disabled}
+                availabilityReason={availabilityReason || getAvailabilityReason(resolvedCosts)}
+                available={!disabled && isActionAffordable(resolvedCosts)}
+                onClick={onActionClick}
+              />
+            )
+          }
+        )}
       </div>
       <ConfirmExitModal
         open={realityModePromptOpen}
