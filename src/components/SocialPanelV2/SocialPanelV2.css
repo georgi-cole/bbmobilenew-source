@@ -1655,6 +1655,41 @@
   min-height: 6.7rem;
 }
 
+.sp2-alliance-name-field {
+  display: grid;
+  gap: 0.24rem;
+  padding: 0.2rem 0.05rem 0.35rem;
+}
+
+.sp2-alliance-name-field label {
+  color: #e9d8ff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.sp2-alliance-name-field input {
+  width: 100%;
+  min-height: 2.45rem;
+  padding: 0.55rem 0.72rem;
+  border: 1px solid rgba(205, 180, 255, 0.32);
+  border-radius: 0.72rem;
+  outline: none;
+  color: #fff8ff;
+  background: rgba(14, 10, 25, 0.82);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.sp2-alliance-name-field input:focus-visible {
+  border-color: #c59aff;
+  box-shadow: 0 0 0 2px rgba(159, 93, 255, 0.24);
+}
+
+.sp2-alliance-name-field span {
+  color: rgba(234, 220, 248, 0.58);
+  font-size: 0.59rem;
+}
+
 .sp2-recent {
   height: clamp(3.8rem, 8.5dvh, 4.7rem);
   padding: 0.44rem 0.68rem 0.5rem;

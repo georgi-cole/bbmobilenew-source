@@ -4,14 +4,16 @@ import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import RealityLedger from '../../components/RealityLedger/RealityLedger'
 import {
   combinedLiveRelationship,
-  liveRelationshipLabel,
   liveRelationshipMetrics,
 } from '../../components/RealityLedger/relationshipRead'
 import { getRelationshipLabel } from '../../components/SocialPanelV2/relationshipUtils'
 import { useAppSelector } from '../../store/hooks'
 import { getIntelLeadViews } from '../../social/intelligenceSystem'
 import { getEffectiveSocialMode } from '../../social/socialMode'
-import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import {
+  getCanonicalRelationshipLabel,
+  selectCanonicalRelationshipView,
+} from '../../social/relationshipSemantics'
 import { getRealityAllianceKnowledgeView } from '../../social/reality'
 import type {
   TieBreakerAllianceAdvice,
@@ -84,7 +86,7 @@ function ReadSheet({
   const affinity = realityMode ? live?.affinity : relationship.affinity
   const label =
     realityMode && edge
-      ? liveRelationshipLabel(edge, live)
+      ? getCanonicalRelationshipLabel(edge, relationship.alliance?.operational)
       : affinity === undefined
         ? 'Still forming'
         : getRelationshipLabel(affinity).label

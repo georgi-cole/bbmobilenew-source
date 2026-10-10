@@ -15,12 +15,12 @@ import {
   type RealityDomainState,
 } from '../../social/reality'
 import {
-  combinedLiveRelationship,
-  liveRelationshipLabel,
   liveRelationshipMetrics,
   relationshipEventLabel,
   relationshipMetricStatus,
 } from './relationshipRead'
+import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { getRealityRelationshipLabel } from '../SocialPanelV2/relationshipUtils'
 import './RealityLedger.css'
 
 type LedgerTab = 'knowledge' | 'deals' | 'house' | 'relationships'
@@ -266,8 +266,16 @@ export default function RealityLedger({
   const selectedRelationship = focusPlayerId
     ? relationships.find((edge) => edge.toId === focusPlayerId)
     : (relationships.find((edge) => edge.toId === selectedPlayerId) ?? relationships[0])
-  const selectedLiveRelationship = selectedRelationship
-    ? combinedLiveRelationship(liveRelationships, humanId, selectedRelationship.toId)
+  const selectedRelationshipDisplay = selectedRelationship
+    ? getRealityRelationshipLabel(
+        selectedRelationship,
+        selectCanonicalRelationshipView({
+          relationships: liveRelationships,
+          reality,
+          actorId: humanId,
+          targetId: selectedRelationship.toId,
+        }).alliance?.operational
+      )
     : null
   const recentRelationshipShift = selectedRelationship?.lastMeaningfulInteraction
     ? reality.events.find(
@@ -584,7 +592,16 @@ export default function RealityLedger({
                 {!focusPlayerId && (
                   <div className="reality-ledger__people" role="list">
                     {relationships.map((edge) => {
-                      const live = combinedLiveRelationship(liveRelationships, humanId, edge.toId)
+                      const relationshipView = selectCanonicalRelationshipView({
+                        relationships: liveRelationships,
+                        reality,
+                        actorId: humanId,
+                        targetId: edge.toId,
+                      })
+                      const relationshipDisplay = getRealityRelationshipLabel(
+                        edge,
+                        relationshipView.alliance?.operational
+                      )
                       return (
                         <button
                           role="listitem"
@@ -594,7 +611,7 @@ export default function RealityLedger({
                           onClick={() => setSelectedPlayerId(edge.toId)}
                         >
                           <strong>{playerName(edge.toId)}</strong>
-                          <small>{liveRelationshipLabel(edge, live)}</small>
+                          <small>{relationshipDisplay.label}</small>
                         </button>
                       )
                     })}
@@ -604,9 +621,9 @@ export default function RealityLedger({
                   <article className="reality-ledger__relationship">
                     <div>
                       <strong>{playerName(selectedRelationship.toId)}</strong>
-                      <span>
-                        {liveRelationshipLabel(selectedRelationship, selectedLiveRelationship)}
-                      </span>
+                      {!focusPlayerId && selectedRelationshipDisplay && (
+                        <span>{selectedRelationshipDisplay.label}</span>
+                      )}
                     </div>
                     {liveRelationshipMetrics(selectedRelationship, currentDay).map(
                       ([label, rawValue]) => {

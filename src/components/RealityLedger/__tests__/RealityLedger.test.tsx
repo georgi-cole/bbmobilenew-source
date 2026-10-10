@@ -98,6 +98,51 @@ describe('RealityLedger privacy projection', () => {
     expect(screen.queryByText('Secret Final Two')).toBeNull()
   })
 
+  it('keeps the focused read to relationship dimensions without repeating its summary label', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'lia', 10)
+    edge.perceivedLabel = 'FRIENDLY'
+    reality.relationships.human = { lia: edge }
+
+    render(
+      <RealityLedger
+        reality={reality}
+        players={players}
+        humanId="human"
+        relationships={{ human: { lia: { affinity: 10, tags: [] } } }}
+        focusPlayerId="lia"
+        section="relationships"
+        compact
+      />
+    )
+
+    expect(screen.getByText('Your relationship reads')).toBeInTheDocument()
+    expect(screen.getByText('Trust')).toBeInTheDocument()
+    expect(screen.getByText('Warmth')).toBeInTheDocument()
+    expect(screen.queryByText('Friendly')).toBeNull()
+  })
+
+  it('uses the Reality category when the legacy affinity projects to Neutral', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'lia', 8)
+    edge.perceivedLabel = 'FRIENDLY'
+    reality.relationships.human = { lia: edge }
+
+    render(
+      <RealityLedger
+        reality={reality}
+        players={players}
+        humanId="human"
+        relationships={{ human: { lia: { affinity: 8, tags: [] } } }}
+        section="relationships"
+        compact
+      />
+    )
+
+    expect(screen.getAllByText('Friendly')).toHaveLength(2)
+    expect(screen.queryByText('Neutral')).toBeNull()
+  })
+
   it('shows only discovered alliance members supported by the player’s evidence', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {

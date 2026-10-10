@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createInitialDramaSocialNetwork } from '../../../social/dramaModeEngine'
 import { createInitialRealityDomainState } from '../../../social/reality'
 import type { Player } from '../../../types'
@@ -148,5 +148,85 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to Social' }))
     expect(screen.queryByRole('dialog', { name: 'My Pulse' })).toBeNull()
+  })
+
+  it('explains who ended an alliance and why without linking to unrelated live alliance actions', () => {
+    const reality = createInitialRealityDomainState()
+    reality.alliances['alliance:shield'] = {
+      id: 'alliance:shield',
+      kind: 'GROUP',
+      name: 'The Shield',
+      memberIds: [],
+      founderIds: ['human', 'kai', 'lia'],
+      leaderIds: [],
+      secrecy: 0.5,
+      cohesion: 0.5,
+      fractureRisk: 0,
+      purpose: 'safety',
+      currentTargetIds: [],
+      fallbackTargetIds: [],
+      sharedPromiseIds: [],
+      memberCommitment: {},
+      memberPerceivedStatus: {},
+      memberPlanBeliefs: {},
+      operationalRoles: {},
+      suspectedByIds: [],
+      knownLeakEventIds: [],
+      overlapAllianceIds: [],
+      status: 'DISSOLVED',
+      genuine: true,
+      infiltratorIds: [],
+      endReason: 'DISSOLVED_BY_LEADER',
+    }
+    reality.events.push({
+      id: 'alliance-ended',
+      sequence: 1,
+      day: 2,
+      phase: 'social_2',
+      type: 'ALLIANCE_ENDED',
+      actorId: 'kai',
+      targetIds: [],
+      participantIds: ['human', 'kai', 'lia'],
+      witnessIds: [],
+      visibility: 'GROUP_VISIBLE',
+      outcome: 'SUCCESS',
+      reason: 'management:alliance:shield',
+      tags: ['ALLIANCE', 'MANAGEMENT'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      allianceSnapshot: {
+        id: 'alliance:shield',
+        kind: 'GROUP',
+        name: 'The Shield',
+        memberIds: ['human', 'kai', 'lia'],
+        endReason: 'DISSOLVED_BY_LEADER',
+      },
+      publicEligible: false,
+      juryEligible: true,
+    })
+    const onOpenAlliances = vi.fn()
+
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={reality}
+        onOpenAlliances={onOpenAlliances}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByRole('heading', { name: 'An alliance ended' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Kai dissolved The Shield, ending it for you, Kai, and Lia.')
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /alliance actions/i })).toBeNull()
+    expect(onOpenAlliances).not.toHaveBeenCalled()
   })
 })

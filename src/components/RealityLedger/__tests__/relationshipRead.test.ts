@@ -5,8 +5,25 @@ import {
   createInitialRealityDomainState,
 } from '../../../social/reality'
 import { liveRelationshipMetrics } from '../relationshipRead'
+import { getRelationshipLabel } from '../../SocialPanelV2/relationshipUtils'
+import { getCanonicalRelationshipLabel } from '../../../social/relationshipSemantics'
 
 describe('relationship profile metrics', () => {
+  it('keeps Reality labels distinct from the legacy affinity bands', () => {
+    const edge = createDirectedRelationship('human', 'lia', 8)
+    edge.perceivedLabel = 'FRIENDLY'
+
+    expect(getRelationshipLabel(8).label).toBe('Neutral')
+    expect(getRelationshipLabel(0).label).toBe('Neutral')
+    expect(getCanonicalRelationshipLabel(edge)).toBe('Friendly')
+  })
+
+  it('keeps an unformed Reality relationship distinct from neutral affinity', () => {
+    const edge = createDirectedRelationship('human', 'lia')
+
+    expect(getCanonicalRelationshipLabel(edge)).toBe('Still forming')
+  })
+
   it('shows each directed relationship dimension without blending in overall affinity', () => {
     const reality = createInitialRealityDomainState()
     const relationship = createDirectedRelationship('human', 'lia')

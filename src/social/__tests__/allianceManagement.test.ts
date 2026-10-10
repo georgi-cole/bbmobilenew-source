@@ -118,6 +118,55 @@ describe('explicit alliance management', () => {
 
     expect(completed.reason).toBe('You, Kian, and Jax made it official: The Shield is born.')
     expect(state.allianceManagement.requests[requestId].status).toBe('ACCEPTED')
+    expect(state.alliances[`alliance:${requestId}`]?.name).toBe('The Shield')
+  })
+
+  it('lets only the leader rename directly and routes member suggestions to the leader', () => {
+    const state = setup()
+    const alliance = group(state)
+    const rejected = manageAlliance(
+      state,
+      { type: 'RENAME', allianceId: alliance.id, actorId: 'k', name: 'The Orbit' },
+      context
+    )
+    expect(rejected.status).toBe('REJECTED')
+    expect(alliance.name).not.toBe('The Orbit')
+
+    const suggestion = manageAlliance(
+      state,
+      { type: 'SUGGEST_RENAME', allianceId: alliance.id, actorId: 'k', name: 'The Orbit' },
+      context
+    )
+    expect(suggestion.status).toBe('APPLIED')
+    expect(alliance.name).not.toBe('The Orbit')
+    const accepted = respond(state, suggestion.requestId!, 'u')
+    expect(accepted.status).toBe('APPLIED')
+    expect(alliance.name).toBe('The Orbit')
+    expect(state.events.some((event) => event.type === 'ALLIANCE_RENAMED')).toBe(true)
+
+    const leaderRename = manageAlliance(
+      state,
+      { type: 'RENAME', allianceId: alliance.id, actorId: 'u', name: 'The Night Shift' },
+      context
+    )
+    expect(leaderRename.status).toBe('APPLIED')
+    expect(alliance.name).toBe('The Night Shift')
+
+    const pendingSuggestion = manageAlliance(
+      state,
+      { type: 'SUGGEST_RENAME', allianceId: alliance.id, actorId: 'r', name: 'The Late Shift' },
+      context
+    )
+    const leaderChange = manageAlliance(
+      state,
+      { type: 'RENAME', allianceId: alliance.id, actorId: 'u', name: 'The Final Four' },
+      context
+    )
+    expect(leaderChange.status).toBe('APPLIED')
+    expect(state.allianceManagement.requests[pendingSuggestion.requestId!].status).toBe(
+      'INVALIDATED'
+    )
+    expect(alliance.name).toBe('The Final Four')
   })
 
   it('keeps the Kian/Rae conversations as two personal pacts without inventing a group', () => {

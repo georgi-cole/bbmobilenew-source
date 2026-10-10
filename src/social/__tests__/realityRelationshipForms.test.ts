@@ -23,6 +23,7 @@ import {
   recruitRealityAllianceMember,
   refreshRealityAllianceDynamics,
   refreshRealityAllianceOverlaps,
+  removeRealityAllianceMember,
   reciprocateRealityRomance,
   signalRealityRomance,
 } from '../reality'
@@ -637,9 +638,55 @@ describe('Reality overlapping deals and betrayal lifecycle', () => {
     )
     expect(oldPact.memberIds).not.toContain('kai')
     expect(oldPact.status).toBe('DISSOLVED')
-    expect(
-      state.events.some((event) => event.type === 'ALLIANCE_ENDED' && event.actorId === 'kai')
-    ).toBe(true)
+    const endedEvent = state.events.find(
+      (event) => event.type === 'ALLIANCE_ENDED' && event.actorId === 'kai'
+    )
+    expect(endedEvent?.allianceSnapshot).toMatchObject({
+      id: oldPact.id,
+      kind: 'PACT',
+      memberIds: ['kai', 'nova'],
+      endReason: 'ENDED_BY_PARTNER',
+    })
+  })
+
+  it('records the final roster and the departure that ends a group with too few members', () => {
+    const state = createInitialRealityDomainState()
+    const group = createRealityAlliance(state, {
+      id: 'the-shield',
+      kind: 'GROUP',
+      name: 'The Shield',
+      founderIds: ['ava', 'lia', 'kai'],
+      memberIds: [],
+      purpose: 'safety',
+      at: { day: 1, phase: 'social_1' },
+    })
+
+    removeRealityAllianceMember(state, {
+      allianceId: group.id,
+      memberId: 'kai',
+      actorId: 'kai',
+      kind: 'VOLUNTARY',
+      at: { day: 2, phase: 'social_2' },
+    })
+    removeRealityAllianceMember(state, {
+      allianceId: group.id,
+      memberId: 'lia',
+      actorId: 'lia',
+      kind: 'VOLUNTARY',
+      at: { day: 2, phase: 'social_2' },
+    })
+
+    const endedEvent = state.events.find(
+      (event) => event.type === 'ALLIANCE_ENDED' && event.allianceSnapshot?.id === group.id
+    )
+    expect(endedEvent?.allianceSnapshot).toMatchObject({
+      kind: 'GROUP',
+      name: 'The Shield',
+      memberIds: ['ava', 'lia'],
+      endReason: 'TOO_FEW_MEMBERS',
+      exitKind: 'VOLUNTARY',
+    })
+    expect(endedEvent?.targetIds).toEqual(['lia'])
   })
 
   it('does not break a nested inner pact when loyalty rises in its overlapping coalition', () => {

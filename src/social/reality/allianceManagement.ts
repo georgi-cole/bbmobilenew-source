@@ -14,6 +14,7 @@ import {
   createRealityAlliance,
   refreshRealityAllianceOverlaps,
   removeRealityAllianceMember,
+  renameRealityAlliance,
   strengthenRealityAlliancePair,
 } from './relationshipForms'
 import type {
@@ -59,6 +60,14 @@ export type AllianceManagementCommand =
       targetId?: string
       commandId?: string
     }
+  | { type: 'RENAME'; allianceId: string; actorId: string; name: string; commandId?: string }
+  | {
+      type: 'SUGGEST_RENAME'
+      allianceId: string
+      actorId: string
+      name: string
+      commandId?: string
+    }
 
 export interface AllianceManagementResult {
   status: 'APPLIED' | 'NO_OP' | 'REJECTED'
@@ -79,7 +88,8 @@ function event(
   actorId: string,
   type: string,
   at: RealityClock,
-  targetIds: string[] = []
+  targetIds: string[] = [],
+  options: { endReason?: string } = {}
 ) {
   return appendRealityEvent(state, {
     ...at,
@@ -95,6 +105,17 @@ function event(
     relatedFactIds: [],
     relatedPromiseIds: [],
     relatedThreadIds: [],
+    ...(type === 'ALLIANCE_ENDED'
+      ? {
+          allianceSnapshot: {
+            id: alliance.id,
+            kind: allianceKind(alliance),
+            ...(alliance.name ? { name: alliance.name } : {}),
+            memberIds: [...alliance.memberIds],
+            ...(options.endReason ? { endReason: options.endReason } : {}),
+          },
+        }
+      : {}),
     publicEligible: false,
     juryEligible: true,
   })
@@ -108,7 +129,7 @@ function endAlliance(
   reason: string
 ): void {
   rememberAllianceRoster(alliance)
-  event(state, alliance, actorId, 'ALLIANCE_ENDED', at)
+  event(state, alliance, actorId, 'ALLIANCE_ENDED', at, [], { endReason: reason })
   alliance.status = 'DISSOLVED'
   alliance.endedAt = { ...at }
   alliance.endReason = reason
@@ -199,7 +220,16 @@ function finalize(
   }
   const alliance = request.allianceId ? state.alliances[request.allianceId] : undefined
   let successReason = 'The agreed change is now active.'
-  if (request.kind === 'PACT' || request.kind === 'FOUND') {
+  if (request.kind === 'RENAME_SUGGESTION' && alliance && request.proposedName) {
+    renameRealityAlliance(state, {
+      allianceId: alliance.id,
+      actorId: alliance.leaderId!,
+      name: request.proposedName,
+      at: context.at,
+      ignoreRequestId: request.id,
+    })
+    successReason = `The alliance is now called ${request.proposedName}.`
+  } else if (request.kind === 'PACT' || request.kind === 'FOUND') {
     const kind = request.kind === 'PACT' ? 'PACT' : 'GROUP'
     const capacity = capacityProblem(state, request.memberIds, kind)
     if (capacity) {
@@ -367,6 +397,8 @@ function aiConsent(
     Math.max(1, otherIds.length)
   if (request.kind === 'REMOVE_SUGGESTION')
     return (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10
+  if (request.kind === 'RENAME_SUGGESTION')
+    return (state.relationships[actorId]?.[request.proposerId]?.trust ?? 0) >= 0
   return hash / 0x1_0000_0000 < Math.max(0.12, Math.min(0.92, 0.62 + trust / 200))
 }
 
@@ -385,11 +417,15 @@ export function allianceRequestDecisionActors(request: RealityAllianceRequest): 
   const actors =
     request.kind === 'PACT' || request.kind === 'FOUND'
       ? request.memberIds
-      : request.kind === 'REMOVE_SUGGESTION'
-        ? request.officerIds.filter((id) => id !== request.candidateId)
-        : request.candidateId
-          ? [request.candidateId]
+      : request.kind === 'RENAME_SUGGESTION'
+        ? request.leaderId
+          ? [request.leaderId]
           : []
+        : request.kind === 'REMOVE_SUGGESTION'
+          ? request.officerIds.filter((id) => id !== request.candidateId)
+          : request.candidateId
+            ? [request.candidateId]
+            : []
   return actors.filter((id) => request.consents[id] === undefined)
 }
 
@@ -452,6 +488,19 @@ export function advanceAllianceRequests(
       const answers = Object.values(request.consents)
       if (request.kind === 'REMOVE_SUGGESTION' && answers.includes(true)) {
         finalize(state, request, context)
+        continue
+      }
+      if (request.kind === 'RENAME_SUGGESTION') {
+        if (answers.includes(false)) {
+          settle(request, 'DECLINED', 'The leader declined the rename suggestion.', context.at)
+          continue
+        }
+        if (allianceRequestDecisionActors(request).length === 0) {
+          finalize(state, request, context)
+          continue
+        }
+        if (overdue)
+          settle(request, 'EXPIRED', 'The response window ended without a decision.', context.at)
         continue
       }
       if (request.kind !== 'REMOVE_SUGGESTION' && answers.includes(false)) {
@@ -668,6 +717,70 @@ function propose(
   }
 }
 
+function suggestAllianceRename(
+  state: RealityDomainState,
+  command: Extract<AllianceManagementCommand, { type: 'SUGGEST_RENAME' }>,
+  context: AllianceManagementContext
+): AllianceManagementResult {
+  const alliance = state.alliances[command.allianceId]
+  if (!alliance || !isCurrentAlliance(alliance) || allianceKind(alliance) !== 'GROUP')
+    return reject('Choose a current group alliance.')
+  if (!alliance.leaderId) return reject('This group has no current leader.')
+  if (!alliance.memberIds.includes(command.actorId))
+    return reject('Only a current member can suggest a rename.')
+  if (alliance.leaderId === command.actorId)
+    return reject('As leader, you can rename the alliance directly.')
+  const leaderId = alliance.leaderId
+  const proposedName = command.name.trim().replace(/\s+/g, ' ').slice(0, 28)
+  if (proposedName.length < 2) return reject('Alliance names must be 2 to 28 characters.')
+  if (proposedName === alliance.name)
+    return { status: 'NO_OP', reason: 'That is already the alliance name.' }
+  const pending = Object.values(state.allianceManagement.requests).find(
+    (request) =>
+      request.kind === 'RENAME_SUGGESTION' &&
+      request.allianceId === alliance.id &&
+      isPendingAllianceRequest(request)
+  )
+  if (pending)
+    return {
+      status: 'NO_OP',
+      reason: 'A rename suggestion is already awaiting the leader.',
+      requestId: pending.id,
+    }
+
+  const id = `request:${state.allianceManagement.nextRequestSequence++}`
+  const request: RealityAllianceRequest = {
+    id,
+    kind: 'RENAME_SUGGESTION',
+    status: 'CONSENT',
+    proposerId: command.actorId,
+    allianceId: alliance.id,
+    memberIds: [...alliance.memberIds],
+    electorateIds: [],
+    officerIds: [leaderId],
+    votes: {},
+    consents: {},
+    rosterRevision: alliance.rosterRevision,
+    governanceRevision: alliance.governanceRevision,
+    leaderId,
+    name: alliance.name,
+    proposedName,
+    purpose: 'Suggest an alliance rename',
+    createdAt: { ...context.at },
+    deadline: nextAllianceDeadline(context.at),
+  }
+  state.allianceManagement.requests[id] = request
+  advanceAllianceRequests(state, context)
+  return {
+    status: 'APPLIED',
+    reason:
+      request.reason ??
+      `Rename suggestion sent to ${context.displayNames?.[leaderId] ?? 'the leader'} for approval.`,
+    requestId: id,
+    allianceId: alliance.id,
+  }
+}
+
 export function manageAlliance(
   state: RealityDomainState,
   command: AllianceManagementCommand,
@@ -682,6 +795,8 @@ export function manageAlliance(
   if (context.disabled || context.terminal || !context.activeActorIds.includes(command.actorId))
     result = reject('Alliance management is unavailable for this contestant or game window.')
   else if (command.type === 'PROPOSE') result = propose(state, command, context)
+  else if (command.type === 'SUGGEST_RENAME')
+    result = suggestAllianceRename(state, command, context)
   else if (command.type === 'RESPOND' || command.type === 'WITHDRAW') {
     const request = state.allianceManagement.requests[command.requestId]
     if (!request || !isPendingAllianceRequest(request))
@@ -733,6 +848,33 @@ export function manageAlliance(
         status: 'APPLIED',
         reason: 'You left this commitment. Other independent agreements remain.',
         allianceId: alliance.id,
+      }
+    } else if (command.type === 'RENAME') {
+      if (allianceKind(alliance) !== 'GROUP' || alliance.leaderId !== command.actorId)
+        result = reject('Only the group leader may rename the group.')
+      else {
+        try {
+          const normalizedName = command.name.trim().replace(/\s+/g, ' ').slice(0, 28)
+          if (normalizedName === alliance.name) {
+            result = { status: 'NO_OP', reason: 'The alliance already has that name.' }
+          } else {
+            renameRealityAlliance(state, {
+              allianceId: alliance.id,
+              actorId: command.actorId,
+              name: command.name,
+              at: context.at,
+            })
+            result = {
+              status: 'APPLIED',
+              reason: `The alliance is now called ${alliance.name}.`,
+              allianceId: alliance.id,
+            }
+          }
+        } catch (error) {
+          result = reject(
+            error instanceof Error ? error.message : 'The alliance could not be renamed.'
+          )
+        }
       }
     } else if (command.type === 'DISSOLVE') {
       if (allianceKind(alliance) !== 'GROUP' || alliance.leaderId !== command.actorId)

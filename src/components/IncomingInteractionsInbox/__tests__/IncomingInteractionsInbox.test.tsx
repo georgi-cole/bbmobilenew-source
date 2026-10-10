@@ -127,6 +127,68 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByRole('status')).toHaveTextContent('The agreed change is now active.')
   })
 
+  it('lets the alliance leader accept a member rename suggestion in Incoming', async () => {
+    const store = makeStore()
+    const game = store.getState().game
+    const human = game.players.find((player) => player.isUser)!
+    const activePlayers = game.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    )
+    const otherMembers = activePlayers.filter((player) => !player.isUser).slice(0, 2)
+    const at = { day: game.week, phase: game.phase }
+    const reality = createInitialRealityDomainState()
+    ensureRealityActors(
+      reality,
+      activePlayers.map((player) => player.id)
+    )
+    const alliance = createRealityAlliance(reality, {
+      id: 'rename-suggestion-incoming-test',
+      kind: 'GROUP',
+      founderIds: [human.id, ...otherMembers.map((player) => player.id)],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'Night Owls',
+      leaderId: human.id,
+      at,
+    })
+    alliance.status = 'ACTIVE'
+
+    const proposer = otherMembers[0]
+    const context = {
+      at,
+      activeActorIds: activePlayers.map((player) => player.id),
+      humanActorIds: [human.id],
+      displayNames: Object.fromEntries(activePlayers.map((player) => [player.id, player.name])),
+      viewerActorId: human.id,
+      seed: game.seed ?? 1,
+    }
+    const suggestion = manageAlliance(
+      reality,
+      {
+        type: 'SUGGEST_RENAME',
+        allianceId: alliance.id,
+        actorId: proposer.id,
+        name: 'The Late Shift',
+      },
+      context
+    )
+    expect(suggestion.status).toBe('APPLIED')
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+
+    expect(await screen.findByText('Alliance proposals and votes · 1')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Suggested name: The Late Shift. Accept to rename the group; decline to keep its current name.'
+      )
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Accept new name' }))
+    await waitFor(() => {
+      expect(store.getState().social.reality.alliances[alliance.id].name).toBe('The Late Shift')
+    })
+  })
+
   it('uses one chronological message stream and collapsed History', async () => {
     const store = makeStore()
     store.dispatch(openIncomingInbox())

@@ -8,6 +8,7 @@ import {
   recordRealityAllianceBetrayal,
 } from '../reality'
 import {
+  getCanonicalRelationshipLabel,
   hasCanonicalLiveAlliance,
   selectCanonicalRelationshipView,
   selectCanonicalAlliance,
@@ -39,6 +40,16 @@ function pairView(reality: ReturnType<typeof createInitialRealityDomainState>) {
 }
 
 describe('canonical relationship presentation', () => {
+  it('distinguishes an unformed relationship from a neutral affinity score', () => {
+    const unknown = createDirectedRelationship('human', 'rune')
+    const friendly = createDirectedRelationship('human', 'rune', 8)
+    friendly.perceivedLabel = 'FRIENDLY'
+
+    expect(getCanonicalRelationshipLabel(unknown)).toBe('Still forming')
+    expect(getCanonicalRelationshipLabel(friendly)).toBe('Friendly')
+    expect(getCanonicalRelationshipLabel(unknown, true)).toBe('Ally')
+  })
+
   it('shows an enemy after a fight as rivalry, without inventing betrayal', () => {
     const reality = createInitialRealityDomainState()
     const edge = createDirectedRelationship('human', 'rune')

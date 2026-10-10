@@ -213,6 +213,7 @@ export function renameRealityAlliance(
     actorId: string
     name: string
     at: RealityClock
+    ignoreRequestId?: string
   }
 ): RealityAlliance {
   const alliance = state.alliances[input.allianceId]
@@ -223,6 +224,19 @@ export function renameRealityAlliance(
   const name = input.name.trim().replace(/\s+/g, ' ').slice(0, 28)
   if (name.length < 2) throw new Error('Alliance name is too short')
   if (alliance.name === name) return alliance
+
+  for (const request of Object.values(state.allianceManagement.requests)) {
+    if (
+      request.id !== input.ignoreRequestId &&
+      request.kind === 'RENAME_SUGGESTION' &&
+      request.allianceId === alliance.id &&
+      (request.status === 'VOTING' || request.status === 'CONSENT')
+    ) {
+      request.status = 'INVALIDATED'
+      request.reason = 'The alliance name changed before the suggestion was decided.'
+      request.settledAt = { ...input.at }
+    }
+  }
 
   alliance.name = name
   rememberAllianceRoster(alliance)
@@ -463,6 +477,31 @@ export function removeRealityAllianceMember(
     alliance.endReason = 'TOO_FEW_MEMBERS'
     alliance.memberIds = []
     synchronizeAllianceOfficers(alliance)
+    appendRealityEvent(state, {
+      ...input.at,
+      type: 'ALLIANCE_ENDED',
+      actorId: input.actorId,
+      targetIds: [input.memberId],
+      participantIds: formerMemberIds,
+      witnessIds: formerMemberIds.filter((id) => id !== input.memberId),
+      visibility: 'GROUP_VISIBLE',
+      outcome: 'SUCCESS',
+      reason: `management:${alliance.id}`,
+      tags: ['ALLIANCE', 'MANAGEMENT', 'TOO_FEW_MEMBERS'],
+      relatedFactIds: [],
+      relatedPromiseIds: [...alliance.sharedPromiseIds],
+      relatedThreadIds: [],
+      allianceSnapshot: {
+        id: alliance.id,
+        kind: allianceKind(alliance),
+        ...(alliance.name ? { name: alliance.name } : {}),
+        memberIds: formerMemberIds,
+        endReason: 'TOO_FEW_MEMBERS',
+        exitKind: input.kind,
+      },
+      publicEligible: false,
+      juryEligible: true,
+    })
   } else {
     if (!input.deferSuccession) {
       synchronizeAllianceOfficers(alliance)
