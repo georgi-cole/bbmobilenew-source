@@ -9,7 +9,7 @@ import type {
   SocialCommitment,
 } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality'
-import { getRealityAllianceKnowledgeView } from '../../social/reality'
+import { allianceKind, getRealityAllianceKnowledgeView } from '../../social/reality'
 import {
   getSocialCommitmentDueCopy,
   getSocialCommitmentLabel,
@@ -128,17 +128,18 @@ function buildRealityPulseStream(
             : event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
               ? 'public'
               : 'bond'
-      const allianceId = event.reason.startsWith('management:')
-        ? event.reason.slice('management:'.length)
-        : null
+      const allianceId =
+        event.allianceSnapshot?.id ??
+        (event.reason.startsWith('management:') ? event.reason.slice('management:'.length) : null)
       const alliance = allianceId ? reality.alliances[allianceId] : null
       const allianceKnowledge = alliance
         ? getRealityAllianceKnowledgeView(reality, alliance.id, humanId)
         : null
       const knownAllianceName =
-        alliance && allianceKnowledge?.level !== 'UNKNOWN'
+        event.allianceSnapshot?.name ??
+        (alliance && allianceKnowledge?.level !== 'UNKNOWN'
           ? (allianceKnowledge?.displayName ?? alliance.name)
-          : undefined
+          : undefined)
       const allianceName = knownAllianceName ?? 'the alliance'
       const formationName = knownAllianceName ?? 'an alliance'
       const otherParticipants = event.participantIds.filter(
@@ -154,7 +155,10 @@ function buildRealityPulseStream(
             : /ALLIANCE_RENAMED/.test(event.type)
               ? 'Your alliance was renamed'
               : /ALLIANCE_(ENDED|DISSOLVED)/.test(event.type)
-                ? 'An alliance ended'
+                ? (event.allianceSnapshot?.kind ??
+                    (alliance ? allianceKind(alliance) : undefined)) === 'PACT'
+                  ? 'A pact ended'
+                  : 'An alliance ended'
                 : event.visibility === 'CEREMONY_PUBLIC'
                   ? 'A public decision landed'
                   : /nomination/.test(signal)
@@ -187,7 +191,16 @@ function buildRealityPulseStream(
             : /ALLIANCE_RENAMED/.test(event.type)
               ? `${subject} gave ${allianceName} a new name.`
               : /ALLIANCE_(ENDED|DISSOLVED)/.test(event.type)
-                ? `${allianceName} came to an end.`
+                ? allianceEndText({
+                    event,
+                    allianceName,
+                    endReason: event.allianceSnapshot?.endReason ?? alliance?.endReason,
+                    allianceKind:
+                      event.allianceSnapshot?.kind ??
+                      (alliance ? allianceKind(alliance) : undefined),
+                    playerName,
+                    humanId,
+                  })
                 : event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
                   ? `${subject} made a visible move${detail}. The house has seen it.`
                   : `${subject} was part of a moment${detail} that you experienced firsthand.`
@@ -196,6 +209,7 @@ function buildRealityPulseStream(
         kind,
         title,
         text,
+        eventType: event.type,
         participantIds: event.participantIds,
         week: event.day,
         phase: event.phase,
@@ -209,6 +223,65 @@ function buildRealityPulseStream(
         dedupeKey: event.id,
       }
     })
+}
+
+function allianceEndText(input: {
+  event: RealityDomainState['events'][number]
+  allianceName: string
+  endReason?: string
+  allianceKind?: 'PACT' | 'GROUP'
+  playerName: (id: string) => string
+  humanId: string
+}): string {
+  const { event, allianceName, endReason, allianceKind, playerName, humanId } = input
+  const snapshot = event.allianceSnapshot
+  const actor = event.actorId ? playerName(event.actorId) : 'The house'
+  const subject = event.actorId === humanId ? 'You' : actor
+  const memberIds = snapshot?.memberIds ?? event.participantIds
+  const memberNames = memberIds.map(playerName)
+  const otherMembers = memberIds.filter((id) => id !== humanId).map(playerName)
+
+  if (endReason === 'DISSOLVED_BY_LEADER') {
+    const roster = memberNames.length
+      ? `, ending it for ${formatNames(memberNames.map((name) => (name === 'You' ? 'you' : name)))}`
+      : ''
+    return `${subject} dissolved ${allianceName}${roster}.`
+  }
+  if (endReason === 'ENDED_BY_PARTNER') {
+    if (event.actorId === humanId)
+      return `You ended your pact with ${otherMembers.join(' and ') || 'your partner'}.`
+    return `${actor} ended their pact with you.`
+  }
+  if (endReason === 'TOO_FEW_MEMBERS') {
+    const departingId = event.targetIds[0]
+    const departingName = departingId ? playerName(departingId) : 'A member'
+    const exitVerb =
+      snapshot?.exitKind === 'EXPELLED'
+        ? 'was removed'
+        : snapshot?.exitKind === 'DEFECTION'
+          ? 'defected'
+          : snapshot?.exitKind === 'EVICTED'
+            ? 'left the game'
+            : 'left'
+    const action =
+      snapshot?.exitKind === 'EXPELLED' && event.actorId && event.actorId !== departingId
+        ? ` by ${actor}`
+        : ''
+    return `${allianceName} ended after ${departingName} ${exitVerb}${action}, leaving too few members to continue.`
+  }
+  if (endReason === 'SUPERSEDED')
+    return allianceKind === 'PACT'
+      ? `${allianceName} ended when the pact was replaced by a group.`
+      : `${allianceName} was replaced by a newer alliance.`
+  if (endReason === 'RECONCILED') return `${allianceName} ended as the pact was renewed.`
+  const roster = memberNames.length ? ` Members were ${memberNames.join(', ')}.` : ''
+  return `${allianceName} ended${roster}`
+}
+
+function formatNames(names: string[]): string {
+  if (names.length < 2) return names[0] ?? ''
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`
 }
 
 export default function HousePulse({
@@ -459,6 +532,8 @@ export default function HousePulse({
                       <p>{beat.text}</p>
                       {reality &&
                         onOpenAlliances &&
+                        beat.eventType !== 'ALLIANCE_ENDED' &&
+                        beat.eventType !== 'ALLIANCE_DISSOLVED' &&
                         /alliance|pact|group/.test(beat.title.toLowerCase()) && (
                           <button
                             type="button"
@@ -468,7 +543,7 @@ export default function HousePulse({
                               onOpenAlliances()
                             }}
                           >
-                            View alliances
+                            Open alliance actions
                           </button>
                         )}
                     </article>

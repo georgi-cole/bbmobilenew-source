@@ -88,7 +88,8 @@ function event(
   actorId: string,
   type: string,
   at: RealityClock,
-  targetIds: string[] = []
+  targetIds: string[] = [],
+  options: { endReason?: string } = {}
 ) {
   return appendRealityEvent(state, {
     ...at,
@@ -104,6 +105,17 @@ function event(
     relatedFactIds: [],
     relatedPromiseIds: [],
     relatedThreadIds: [],
+    ...(type === 'ALLIANCE_ENDED'
+      ? {
+          allianceSnapshot: {
+            id: alliance.id,
+            kind: allianceKind(alliance),
+            ...(alliance.name ? { name: alliance.name } : {}),
+            memberIds: [...alliance.memberIds],
+            ...(options.endReason ? { endReason: options.endReason } : {}),
+          },
+        }
+      : {}),
     publicEligible: false,
     juryEligible: true,
   })
@@ -117,7 +129,7 @@ function endAlliance(
   reason: string
 ): void {
   rememberAllianceRoster(alliance)
-  event(state, alliance, actorId, 'ALLIANCE_ENDED', at)
+  event(state, alliance, actorId, 'ALLIANCE_ENDED', at, [], { endReason: reason })
   alliance.status = 'DISSOLVED'
   alliance.endedAt = { ...at }
   alliance.endReason = reason

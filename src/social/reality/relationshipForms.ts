@@ -477,6 +477,31 @@ export function removeRealityAllianceMember(
     alliance.endReason = 'TOO_FEW_MEMBERS'
     alliance.memberIds = []
     synchronizeAllianceOfficers(alliance)
+    appendRealityEvent(state, {
+      ...input.at,
+      type: 'ALLIANCE_ENDED',
+      actorId: input.actorId,
+      targetIds: [input.memberId],
+      participantIds: formerMemberIds,
+      witnessIds: formerMemberIds.filter((id) => id !== input.memberId),
+      visibility: 'GROUP_VISIBLE',
+      outcome: 'SUCCESS',
+      reason: `management:${alliance.id}`,
+      tags: ['ALLIANCE', 'MANAGEMENT', 'TOO_FEW_MEMBERS'],
+      relatedFactIds: [],
+      relatedPromiseIds: [...alliance.sharedPromiseIds],
+      relatedThreadIds: [],
+      allianceSnapshot: {
+        id: alliance.id,
+        kind: allianceKind(alliance),
+        ...(alliance.name ? { name: alliance.name } : {}),
+        memberIds: formerMemberIds,
+        endReason: 'TOO_FEW_MEMBERS',
+        exitKind: input.kind,
+      },
+      publicEligible: false,
+      juryEligible: true,
+    })
   } else {
     if (!input.deferSuccession) {
       synchronizeAllianceOfficers(alliance)

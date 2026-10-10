@@ -166,6 +166,12 @@ before moving through several game phases.
 If a group falls below two members, it ends. A former group with two members
 remains a group; it does not silently become a personal pact.
 
+When a pact or group ends, **My Pulse** records the former commitment's name,
+members, and the cause when known (for example, who dissolved a group or which
+member's departure left too few people to continue). An ended commitment is
+shown as history; its card does not send you to the controls for a different,
+active alliance.
+
 ## What membership changes in play
 
 Group members become formal allies with each other. Their alliance can influence

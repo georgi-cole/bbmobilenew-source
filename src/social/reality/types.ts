@@ -611,6 +611,15 @@ export interface RealitySocialEvent extends RealityClock {
   relatedFactIds: string[]
   relatedPromiseIds: string[]
   relatedThreadIds: string[]
+  /** A durable snapshot for alliance-history events, even after the live roster is cleared. */
+  allianceSnapshot?: {
+    id: string
+    kind?: 'PACT' | 'GROUP'
+    name?: string
+    memberIds: RealityActorId[]
+    endReason?: string
+    exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'EVICTED'
+  }
   publicEligible: boolean
   juryEligible: boolean
 }
