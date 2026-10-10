@@ -406,9 +406,7 @@
     ]
     if (includeDevice) {
       lines.push('Device/browser: ' + (global.navigator?.userAgent || 'unknown'))
-      lines.push(
-        'Viewport: ' + (global.innerWidth || '?') + ' × ' + (global.innerHeight || '?')
-      )
+      lines.push('Viewport: ' + (global.innerWidth || '?') + ' × ' + (global.innerHeight || '?'))
     }
     return lines.join('\n')
   }
@@ -442,7 +440,7 @@
       icon: '💬',
       description:
         'Tell us what happened. You can also share suggestions. ' +
-          'This prepares an email; nothing is sent automatically.',
+        'This prepares an email; nothing is sent automatically.',
       renderBody: function (body) {
         const form = applyStyles(document.createElement('form'), {
           display: 'grid',
