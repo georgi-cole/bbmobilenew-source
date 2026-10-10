@@ -3,7 +3,11 @@ import { compareRealityClock, resolveRealityPromise } from './commitments'
 import { appendRealityEvent } from './events'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
-import { createRealityContestantState, createRealityPerception } from './state'
+import {
+  createDirectedRelationship,
+  createRealityContestantState,
+  createRealityPerception,
+} from './state'
 import { reconcileNemesisWithVoluntarySafety } from './relationshipAutonomy'
 import { evaluateRelationshipViolation } from '../relationshipViolation'
 import { getActiveFacadeAgreement } from './facadeAgreements'
@@ -1062,7 +1066,13 @@ export function computeRealityJuryEvaluation(
   finalistId: string,
   persist = true
 ): RealityJuryEvaluation {
-  const relationship = getRealityRelationship(state, jurorId, finalistId)
+  // Scorecard reads commonly run while building a Redux action from a frozen
+  // store snapshot. Do not create a missing relationship edge on that read
+  // path; only the persisted evaluation below is allowed to mutate state.
+  const relationship = persist
+    ? getRealityRelationship(state, jurorId, finalistId)
+    : (state.relationships[jurorId]?.[finalistId] ??
+      createDirectedRelationship(jurorId, finalistId))
   const sourceEvents = state.events.filter(
     (event) =>
       event.juryEligible &&

@@ -9,7 +9,8 @@
   gap: clamp(0.55rem, 1.6vh, 1.1rem);
   padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 5vw, 3rem)
     calc(var(--game-action-dock-height, 82px) + env(safe-area-inset-bottom, 0px) + 28px);
-  overflow: auto;
+  overflow: hidden;
+  min-height: 100dvh;
   color: #f8f4e9;
   text-align: center;
   isolation: isolate;
@@ -128,6 +129,28 @@
   color: rgba(255, 236, 186, 0.74);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
+}
+
+.fpb-intro__progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.28rem;
+  width: min(42%, 9rem);
+  height: 2px;
+}
+
+.fpb-intro__progress span {
+  flex: 1;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  transition:
+    background 360ms ease,
+    box-shadow 360ms ease;
+}
+
+.fpb-intro__progress span.is-active {
+  background: linear-gradient(90deg, #f4c75a, #c3a2ff);
+  box-shadow: 0 0 8px rgba(196, 162, 255, 0.42);
 }
 
 .fpb-intro__copy h2,
@@ -259,11 +282,10 @@
 
 .fp-holder-reveal__portrait {
   position: relative;
-  align-self: end;
+  align-self: stretch;
   width: min(92vw, 31rem);
-  height: min(59vh, 39rem);
-  min-height: 13rem;
-  margin-top: -0.3rem;
+  min-height: 0;
+  max-height: min(62vh, 39rem);
   animation: fp-holder-rise 850ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
 }
 
@@ -344,8 +366,7 @@
     gap: 0.25rem;
   }
   .fp-holder-reveal__portrait {
-    height: min(50vh, 24rem);
-    min-height: 10rem;
+    max-height: min(53vh, 24rem);
   }
   .fp-holder-reveal__copy h2 {
     font-size: clamp(2rem, 9vh, 3.6rem);

@@ -425,9 +425,9 @@ export function useEndgameFlow({
 
   // ── Final 3 human Final LOH eviction ─────────────────────────────────────
   // Shown when phase is final3_decision and the human player is the Final LOH.
-  const humanIsFinalHoh = Boolean(humanPlayer && game.lohId === humanPlayer.id)
+  const humanIsFinalLoh = Boolean(humanPlayer && game.lohId === humanPlayer.id)
   const showFinal3Modal =
-    game.awaitingFinal3Eviction === true && game.phase === 'final3_decision' && humanIsFinalHoh
+    game.awaitingFinal3Eviction === true && game.phase === 'final3_decision' && humanIsFinalLoh
 
   const final3Options = alivePlayers.filter((p) => game.nomineeIds.includes(p.id))
 
@@ -490,7 +490,7 @@ export function useEndgameFlow({
     final4Options,
     handleFinal4PleaComplete,
     handleFinal4AnnounceComplete,
-    humanIsFinalHoh,
+    humanIsFinalLoh,
     showFinal3Modal,
     final3Options,
     handleEnterJuryVote,

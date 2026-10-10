@@ -34,7 +34,7 @@ import SpotlightEvictionOverlay from '../Eviction/SpotlightEvictionOverlay'
 import FinalPowerHolderReveal from '../FinalPowerBattle/FinalPowerHolderReveal'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
-import type { Player } from '../../types'
+import type { Player, StrategicAllianceSnapshot } from '../../types'
 import './Final3Ceremony.css'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -55,7 +55,9 @@ const DEV_SKIP = import.meta.env.DEV || import.meta.env.CI === 'true'
 type DecisionRead = {
   threat: number
   affinity: number
+  inwardAffinity: number
   tags: string[]
+  expectedFinalTwo: boolean
   comparison: string
   reason: string
 }
@@ -101,7 +103,8 @@ function buildRelationshipRecap(affinity: number, tags: string[]): string {
 function readDecision(
   lohId: string | null,
   nominee: Player,
-  relationships: Record<string, Record<string, { affinity: number; tags: string[] }>> | undefined
+  relationships: Record<string, Record<string, { affinity: number; tags: string[] }>> | undefined,
+  alliances: StrategicAllianceSnapshot[] | undefined
 ): DecisionRead {
   const stats = nominee.stats
   const lohWins = stats?.lohWins ?? 0
@@ -110,9 +113,27 @@ function readDecision(
   const outwardRelationship = lohId ? relationships?.[lohId]?.[nominee.id] : undefined
   const inwardRelationship = lohId ? relationships?.[nominee.id]?.[lohId] : undefined
   const affinity = outwardRelationship?.affinity ?? inwardRelationship?.affinity ?? 0
+  const inwardAffinity = inwardRelationship?.affinity ?? outwardRelationship?.affinity ?? 0
   const tags = [
     ...new Set([...(outwardRelationship?.tags ?? []), ...(inwardRelationship?.tags ?? [])]),
   ]
+  const sharedCorePact = Boolean(
+    lohId &&
+    alliances?.some(
+      (alliance) =>
+        alliance.status === 'ACTIVE' &&
+        alliance.memberIds.includes(lohId) &&
+        alliance.memberIds.includes(nominee.id) &&
+        (alliance.memberCommitment[lohId] ?? 0) >= 0.65 &&
+        (alliance.memberCommitment[nominee.id] ?? 0) >= 0.65
+    )
+  )
+  const expectedFinalTwo =
+    inwardAffinity >= 38 ||
+    sharedCorePact ||
+    tags.some((tag) =>
+      ['alliance', 'protection', 'romance', 'bromance', 'safety_promise'].includes(tag)
+    )
   const threat = lohWins * 3 + posWins * 2 + Math.min(timesNominated, 3)
   const brokeTrust =
     tags.includes('betrayal') || tags.includes('target') || tags.includes('rivalry')
@@ -125,17 +146,18 @@ function readDecision(
         : timesNominated >= 2
           ? 'you have survived every time the house put you in danger'
           : 'this is the move I can live with'
-  return { threat, affinity, tags, comparison, reason }
+  return { threat, affinity, inwardAffinity, tags, expectedFinalTwo, comparison, reason }
 }
 
 function chooseAiEvictee(
   lohId: string | null,
   nominees: Player[],
-  relationships: Record<string, Record<string, { affinity: number; tags: string[] }>> | undefined
+  relationships: Record<string, Record<string, { affinity: number; tags: string[] }>> | undefined,
+  alliances: StrategicAllianceSnapshot[] | undefined
 ): { player: Player; reason: string } | null {
   const ranked = nominees
     .map((player) => {
-      const read = readDecision(lohId, player, relationships)
+      const read = readDecision(lohId, player, relationships, alliances)
       const relationshipPenalty = read.affinity
       const betrayalBonus = read.tags.includes('betrayal') ? 28 : 0
       const rivalryBonus = read.tags.includes('target') || read.tags.includes('rivalry') ? 14 : 0
@@ -195,6 +217,27 @@ function thirdPlaceExitLine(player: Player, read: DecisionRead): string {
   return `${player.name}'s story ends one step before the Final 2.`
 }
 
+function thirdPlaceReaction(holder: Player | null, read: DecisionRead): string {
+  const holderName = holder?.name ?? 'you'
+  const expectedBetrayal =
+    read.tags.includes('betrayal') ||
+    read.tags.includes('target') ||
+    read.tags.includes('rivalry') ||
+    (read.expectedFinalTwo && read.inwardAffinity < 0)
+
+  if (expectedBetrayal) {
+    return read.expectedFinalTwo
+      ? `I thought our bond meant I had a place beside you, ${holderName}. I won't forget this, and I won't protect your story in the Tribunal.`
+      : `I know where we stand now, ${holderName}. The Tribunal will hear exactly how this ended.`
+  }
+
+  if (read.expectedFinalTwo) {
+    return `I thought our history would carry me beside you, ${holderName}. I'm hurt, but I know you had to make your call.`
+  }
+
+  return `${holderName}, I understand the move. I gave this season everything I had, and I'm leaving with my head up.`
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -215,10 +258,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       Object.fromEntries(
         nominees.map((nominee) => [
           nominee.id,
-          readDecision(lohId, nominee, game.strategicRelationships),
+          readDecision(lohId, nominee, game.strategicRelationships, game.strategicAlliances),
         ])
       ),
-    [game.strategicRelationships, lohId, nominees]
+    [game.strategicAlliances, game.strategicRelationships, lohId, nominees]
   )
   const optionDescriptions = useMemo(
     () =>
@@ -337,6 +380,12 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           role: 'host',
           text: `${evictee.name}, you finish in 3rd place and will take the bronze exit. ${thirdPlaceExitLine(evictee, read)}`,
         },
+        {
+          id: 'f3c-evict-reaction',
+          role: 'evicted',
+          player: evictee,
+          text: thirdPlaceReaction(lohPlayer, read),
+        },
       ]
       setAnnounceLines(lines)
     },
@@ -356,12 +405,25 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   // move from the actual season record instead of a hidden random pick.
   useEffect(() => {
     if (stage !== 'decision' || humanIsLoh) return
-    const pick = chooseAiEvictee(lohId, nominees, game.strategicRelationships)
+    const pick = chooseAiEvictee(
+      lohId,
+      nominees,
+      game.strategicRelationships,
+      game.strategicAlliances
+    )
     if (!pick) return
     setEvicteeId(pick.player.id)
     buildAnnounceLines(pick.player, pick.reason)
     setStage('announcement')
-  }, [buildAnnounceLines, game.strategicRelationships, humanIsLoh, lohId, nominees, stage])
+  }, [
+    buildAnnounceLines,
+    game.strategicAlliances,
+    game.strategicRelationships,
+    humanIsLoh,
+    lohId,
+    nominees,
+    stage,
+  ])
 
   // ── Human LOH decision ────────────────────────────────────────────────────
 

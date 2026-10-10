@@ -1,6 +1,7 @@
 /* ─── PublicFavoriteOverlay ───────────────────────────────────────────────── */
 
 .pf-overlay {
+  --pf-announcement-block-size: clamp(12rem, 28dvh, 14rem);
   position: fixed;
   inset: 0;
   z-index: 9200;
@@ -101,7 +102,9 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 0.55rem;
+  overflow: hidden;
   padding: 1rem 1rem 0.95rem;
   border-radius: 1.35rem;
   background: linear-gradient(180deg, rgba(17, 20, 34, 0.96), rgba(12, 14, 24, 0.94));
@@ -110,9 +113,9 @@
 .pf-overlay__announcement-slot {
   flex-shrink: 0;
   display: grid;
-  flex-basis: 7.5rem;
-  height: 7.5rem;
-  min-height: 7.5rem;
+  flex-basis: var(--pf-announcement-block-size);
+  height: var(--pf-announcement-block-size);
+  min-height: var(--pf-announcement-block-size);
 }
 
 .pf-overlay__announcement-slot > *,
@@ -1002,9 +1005,9 @@
 }
 
 .pf-overlay__announcement-slot {
-  flex-basis: 7.5rem;
-  height: 7.5rem;
-  min-height: 7.5rem;
+  flex-basis: var(--pf-announcement-block-size);
+  height: var(--pf-announcement-block-size);
+  min-height: var(--pf-announcement-block-size);
 }
 
 .pf-overlay__header {
