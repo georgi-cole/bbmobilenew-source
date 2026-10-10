@@ -1883,6 +1883,7 @@ export default function SocialPanelV2() {
                     size="lg"
                     affinity={focusedAffinity}
                     relationshipScale="signed"
+                    relationshipTags={focusedTags}
                   />
                 </div>
                 <div className="sp2-focus__copy">
@@ -1935,6 +1936,7 @@ export default function SocialPanelV2() {
                         humanId={humanPlayer.id}
                         relationships={relationships ?? {}}
                         focusPlayerId={focusedPlayer.id}
+                        currentDay={game.week}
                         section="relationships"
                         compact
                       />

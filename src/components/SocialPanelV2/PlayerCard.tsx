@@ -125,7 +125,13 @@ export default function PlayerCard({
     >
       {/* ── Compact header row (always visible) ── */}
       <div className="pc__row">
-        <PlayerAvatar player={player} size="sm" affinity={affinity} relationshipScale="signed" />
+        <PlayerAvatar
+          player={player}
+          size="sm"
+          affinity={affinity}
+          relationshipScale="signed"
+          relationshipTags={relationshipTags}
+        />
         <span className="pc__identity">
           <span className="pc__name">{player.name}</span>
           <span className={`pc__status pc__status--${player.status.split('+')[0]}`}>

@@ -94,6 +94,8 @@ export function createDirectedRelationship(
     familiarity: clamp(Math.abs(safeAffinity) + tags.length * 8, 0, 100),
     publicCloseness: clamp(isAlliance || isRomance || isBromance ? 25 : safeAffinity * 0.15),
     secretCloseness: clamp(isAlliance || isRomance || isBromance ? 40 : safeAffinity * 0.2),
+    acuteTension: 0,
+    acuteTensionDay: 0,
     trend: 0,
     positiveAnchorEventIds: isBetrayal || isRivalry ? [] : anchorIds,
     negativeAnchorEventIds: isBetrayal || isRivalry ? anchorIds : [],

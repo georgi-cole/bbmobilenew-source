@@ -91,6 +91,9 @@ export interface DirectedRelationship {
   familiarity: number
   publicCloseness: number
   secretCloseness: number
+  /** Recent emotional pressure; it fades with game progression while grievances remain. */
+  acuteTension?: number
+  acuteTensionDay?: number
   trend: number
   positiveAnchorEventIds: string[]
   negativeAnchorEventIds: string[]

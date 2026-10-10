@@ -36,6 +36,7 @@ describe('Reality ceremony aftermath', () => {
     expect(state.memoriesByOwner.lia[0].sourceType).toBe('OFFICIAL')
     expect(state.contestants.ava.confidence).toBeGreaterThan(0)
     expect(state.publicPerception.ava.competitionRespect).toBeGreaterThan(0)
+    expect(state.relationships.lia.ava.respect).toBe(5)
   })
 
   it('creates directed nomination fallout and a mandatory survival replan', () => {

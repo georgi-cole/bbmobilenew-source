@@ -164,13 +164,51 @@ function selectWeighted<T extends { weight: number; id: string }>(
 
 function relationshipDeltas(action: RealityActionContract, response: RealityResponseResolution) {
   if (action.purposes.includes('CONFLICT')) {
-    return response.kind === 'DE_ESCALATE'
-      ? action.relationshipEffects.deEscalated
-      : action.relationshipEffects.escalated
+    return response.kind === 'ESCALATE'
+      ? action.relationshipEffects.escalated
+      : action.relationshipEffects.deEscalated
   }
   return response.accepted
     ? action.relationshipEffects.accepted
     : action.relationshipEffects.rejected
+}
+
+function receivedRelationshipDeltas(
+  action: RealityActionContract,
+  response: RealityResponseResolution,
+  forcedRejection = false
+) {
+  const purposes = action.purposes
+  if (purposes.includes('CONFLICT')) {
+    if (response.kind === 'ESCALATE') {
+      return { warmth: -6, trust: -6, resentment: 10, suspicion: 3, perceivedThreat: 4 }
+    }
+    if (response.kind === 'WALK_AWAY') return { warmth: -1, suspicion: 1, familiarity: 1 }
+    return { warmth: -1, resentment: 2, respect: 1, familiarity: 1 }
+  }
+
+  if (response.accepted) {
+    return {
+      warmth: purposes.includes('BOND') || purposes.includes('ROMANCE') ? 5 : 3,
+      trust: 4,
+      loyalty: purposes.includes('COMMITMENT') ? 4 : 0,
+      respect: purposes.includes('COMMITMENT') ? 1 : 0,
+      attraction: purposes.includes('ROMANCE') ? 4 : 0,
+      intimacy: purposes.includes('ROMANCE') ? 3 : 0,
+      reliability: purposes.includes('COMMITMENT') ? 2 : 0,
+      familiarity: 3,
+    }
+  }
+
+  if (forcedRejection) return { warmth: -5, trust: -4, suspicion: 7, resentment: 3, familiarity: 2 }
+  if (response.kind === 'WALK_AWAY') return { warmth: -1, suspicion: 1, familiarity: 1 }
+  if (purposes.includes('ROMANCE')) return { warmth: -1, attraction: -2, familiarity: 1 }
+  if (purposes.includes('COMMITMENT')) return { trust: -2, suspicion: 2, familiarity: 2 }
+  if (purposes.includes('INFORMATION')) return { suspicion: 2, familiarity: 1 }
+  if (response.kind === 'QUESTION' || response.kind === 'COUNTER' || response.kind === 'LIE') {
+    return { suspicion: 2, familiarity: 1 }
+  }
+  return { warmth: -1, familiarity: 1 }
 }
 
 function makeMemory(input: {
@@ -985,18 +1023,12 @@ export function runRealityOpportunity(input: {
       applyRealityRelationshipChange(domain, {
         sourceId: targetId,
         targetId: actor.id,
-        deltas:
-          targetResponse.kind === 'ESCALATE'
-            ? { warmth: -8, trust: -7, resentment: 12, perceivedThreat: 5 }
-            : targetResponse.accepted
-              ? { warmth: 4, trust: 4, familiarity: 3 }
-              : selected.acceptanceChanceOverride !== undefined &&
-                  selected.acceptanceChanceOverride <= 0.02
-                ? { warmth: -5, trust: -4, suspicion: 7, resentment: 3, familiarity: 2 }
-                : selected.acceptanceChanceOverride !== undefined &&
-                    selected.acceptanceChanceOverride <= 0.25
-                  ? { warmth: -3, trust: -2, suspicion: 4, familiarity: 2 }
-                  : { suspicion: 2, familiarity: 1 },
+        deltas: receivedRelationshipDeltas(
+          selected.action,
+          targetResponse,
+          selected.acceptanceChanceOverride !== undefined &&
+            selected.acceptanceChanceOverride <= 0.02
+        ),
         day: event.day,
         phase: event.phase,
         eventId: event.id,
@@ -1207,11 +1239,7 @@ export function resolvePendingHumanRealityInteraction(input: {
         applyRealityRelationshipChange(domain, {
           sourceId: targetId,
           targetId: actorId,
-          deltas: targetResponse.accepted
-            ? { warmth: 5, trust: 5, familiarity: 3 }
-            : targetResponse.kind === 'WALK_AWAY'
-              ? { warmth: -2, suspicion: 2, familiarity: 1 }
-              : { trust: -3, suspicion: 3, familiarity: 2 },
+          deltas: receivedRelationshipDeltas(action, targetResponse),
           day: input.day,
           phase: input.phase,
           eventId: event.id,

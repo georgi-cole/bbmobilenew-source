@@ -189,7 +189,7 @@ function ReadSheet({
           >
             <h4>Relationship</h4>
             <div className="rcd-read-sheet__metrics">
-              {liveRelationshipMetrics(edge, live).map(([name, rawValue]) => {
+              {liveRelationshipMetrics(edge, game.week).map(([name, rawValue]) => {
                 const value = Math.max(
                   0,
                   Math.min(100, name === 'Tension' ? rawValue : (rawValue + 100) / 2)
