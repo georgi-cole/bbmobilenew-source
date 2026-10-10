@@ -544,7 +544,12 @@
             'p',
             'Season, day, phase and build info are included. No saved game, account data or screenshot is attached. ' +
               'You can attach a screenshot in your email app.',
-            { margin: '0', fontSize: '12px', lineHeight: '1.5', color: 'rgba(236,241,255,0.65)' }
+            {
+              margin: '0',
+              fontSize: '12px',
+              lineHeight: '1.5',
+              color: 'rgba(236,241,255,0.65)',
+            }
           )
         )
 
