@@ -340,7 +340,6 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
     targetMode: 'primary',
     successWeight: 1,
     outcomeTag: 'alliance',
-    availabilityHint: 'One personal pact per pair; no cap on independent pacts',
     realityExclusive: true,
     yields: { influence: 0 },
   },

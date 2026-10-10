@@ -458,12 +458,12 @@ export default function SocialPanelV2() {
         action: allianceAction(
           'alliance:found',
           'Found an alliance',
-          'Choose at least two hubmates. Founding costs ⚡3 and 🤝5 for three members, plus ⚡1 for each additional founder. Everyone must agree before the group becomes active.',
+          'Choose at least two hubmates. Everyone must agree before the group becomes active.',
           '✦',
           'multi',
           2,
           3,
-          5
+          0.5
         ),
         executeLabel: 'Propose group',
         allowWithoutTarget: true,
@@ -613,12 +613,12 @@ export default function SocialPanelV2() {
             action: allianceAction(
               `alliance:invite:${group.id}:${targetId}`,
               `Invite ${playerName(targetId)}`,
-              `Ask ${groupName} to vote on admitting ${playerName(targetId)}. This proposal costs ⚡1 and 🤝5; the invite is sent only after approval.`,
+              `Ask ${groupName} to vote on admitting ${playerName(targetId)}. The invite is sent only after approval.`,
               '＋',
               'primary',
               undefined,
               1,
-              5
+              0.5
             ),
             executeLabel: 'Start vote',
             buildCommand: () => ({
@@ -706,7 +706,7 @@ export default function SocialPanelV2() {
             action: allianceAction(
               `alliance:renew:${pact.id}`,
               `Renew pact with ${playerName(targetId)}`,
-              'Ask both sides to confirm this older pact under the current rules. This costs ⚡1.',
+              'Ask both sides to confirm this older pact under the current rules.',
               '⟳',
               'primary',
               undefined,
