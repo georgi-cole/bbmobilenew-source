@@ -25,35 +25,6 @@ export function combinedLiveRelationship(
   return { affinity: outward.affinity, tags: new Set(outward.tags ?? []) }
 }
 
-export function liveRelationshipLabel(
-  edge: DirectedRelationship,
-  live: ReturnType<typeof combinedLiveRelationship>
-): string {
-  const perceivedLabel =
-    edge.perceivedLabel === 'UNKNOWN'
-      ? 'Still forming'
-      : edge.perceivedLabel
-          .replaceAll('_', ' ')
-          .toLowerCase()
-          .replace(/\b\w/g, (letter) => letter.toUpperCase())
-  if (!live) {
-    return perceivedLabel
-  }
-  const tags = live.tags
-  if (tags.has('ex') || tags.has('broken_romance')) return '💔 Ex'
-  if (tags.has('betrayal') || tags.has('broken_promise')) return 'Betrayed'
-  if (tags.has('broken_alliance')) return 'Broken alliance'
-  if (tags.has('rivalry') || tags.has('target')) return 'Rival'
-  if (tags.has('romance')) return 'Romance'
-  if (tags.has('bromance')) return 'Ride-or-die'
-  if (tags.has('alliance') || tags.has('cupid_partner')) return 'Ally'
-  if (live.affinity >= 55) return 'Close'
-  if (live.affinity >= 20) return 'Friendly'
-  if (live.affinity <= -45) return 'Hostile'
-  if (live.affinity <= -15) return 'Tense'
-  return perceivedLabel
-}
-
 export function liveRelationshipMetrics(
   edge: DirectedRelationship,
   currentDay?: number

@@ -1,7 +1,12 @@
 import { useI18n } from '../../i18n'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
-import { getRelationshipLabel, getPlayerMood, getMoodClass } from './relationshipUtils'
+import {
+  getRelationshipLabel,
+  getPlayerMood,
+  getMoodClass,
+  type RelationshipLabel,
+} from './relationshipUtils'
 import './PlayerCard.css'
 
 const ALLIANCE_TAG = 'alliance'
@@ -16,6 +21,8 @@ interface PlayerCardProps {
   onSelect: (playerId: string, additive: boolean, shiftKey: boolean) => void
   /** Optional signed relationship score representing the human player's current read. */
   affinity?: number
+  /** Canonical Reality Mode label; the legacy affinity remains only a meter value. */
+  relationshipLabel?: RelationshipLabel
   /**
    * Relationship delta accumulated this session (sum of action deltas for this
    * actor→target pair). Positive → green up arrow, negative → red down arrow,
@@ -61,6 +68,7 @@ export default function PlayerCard({
   disabled,
   onSelect,
   affinity,
+  relationshipLabel,
   affinityDelta,
   relationshipPulseDelta,
   relationshipTags = [],
@@ -78,7 +86,7 @@ export default function PlayerCard({
     .filter(Boolean)
     .join(' ')
 
-  const rel = affinity !== undefined ? getRelationshipLabel(affinity) : null
+  const rel = relationshipLabel ?? (affinity !== undefined ? getRelationshipLabel(affinity) : null)
   const affinityDisplay = affinity !== undefined ? `${Math.round(affinity)}%` : '—'
   const mood = getPlayerMood(player.id, affinity)
   const moodClass = getMoodClass(mood)

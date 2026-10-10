@@ -59,8 +59,9 @@ import {
 } from '../../social/reality/allianceManagement'
 import type { PublicDirection } from '../../publicOpinion/types'
 import { getPublicRequestProgressStage } from '../../publicOpinion/publicRequestProgress'
-import { getRelationshipLabel } from './relationshipUtils'
+import { getRealityRelationshipLabel, getRelationshipLabel } from './relationshipUtils'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { projectRealityAffinity } from '../../social/reality/relationships'
 import RealitySocialTutorialTour, {
   RealitySocialTutorialPrompt,
 } from '../../onboarding/RealitySocialTutorialTour'
@@ -1579,13 +1580,28 @@ export default function SocialPanelV2() {
         targetId: focusedPlayer.id,
       })
     : null
+  const focusedRealityEdge = focusedPlayer
+    ? socialState.reality.relationships[humanPlayer.id]?.[focusedPlayer.id]
+    : undefined
+  const focusedHasRelationshipEvidence =
+    focusedRealityEdge &&
+    (focusedRealityEdge.perceivedLabel !== 'UNKNOWN' ||
+      focusedRealityEdge.familiarity > 0 ||
+      focusedRealityEdge.lastMeaningfulInteraction !== undefined)
   const focusedAffinity = dramaMode
-    ? focusedOutward?.affinity
+    ? focusedHasRelationshipEvidence
+      ? projectRealityAffinity(focusedRealityEdge)
+      : undefined
     : focusedOutward?.affinity !== undefined || focusedInward?.affinity !== undefined
       ? Math.round(((focusedOutward?.affinity ?? 0) + (focusedInward?.affinity ?? 0)) / 2)
       : undefined
-  const focusedRelationship =
-    focusedAffinity === undefined ? null : getRelationshipLabel(focusedAffinity)
+  const focusedRelationship = !focusedPlayer
+    ? null
+    : dramaMode
+      ? getRealityRelationshipLabel(focusedRealityEdge, focusedCanonical?.alliance?.operational)
+      : focusedAffinity === undefined
+        ? null
+        : getRelationshipLabel(focusedAffinity)
   const focusedTags = focusedPlayer
     ? (dramaMode
         ? [...(focusedCanonical?.visibleTags ?? [])]
