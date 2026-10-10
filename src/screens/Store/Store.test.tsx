@@ -60,6 +60,7 @@ function makeVipState(options?: {
   return {
     status: 'ready',
     isActive: options?.vip ?? false,
+    debugUnlocked: false,
     entitlements,
     billingAvailable,
     products,

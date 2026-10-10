@@ -152,6 +152,7 @@ function buildActors(state: RootState): Record<string, RealityActorSnapshot> {
         player.id,
         {
           id: player.id,
+          name: player.name,
           isHuman: player.isUser === true,
           active: player.status !== 'evicted' && player.status !== 'jury',
           roles,
@@ -1385,6 +1386,15 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     const effectiveResources = getEffectiveHumanResources(state, input.actorId)
     const energy = effectiveResources.energy
     if (!action) return result(false, 'Unknown action', energy)
+    if (['proposeAlliance', 'ally', 'break_alliance'].includes(input.actionId)) {
+      if ((input.targetIds?.length ?? 1) > 1)
+        return result(
+          false,
+          'Choose one partner for a personal pact, or use Your Alliances to agree a group roster.',
+          energy
+        )
+      return executeAction(input.actorId, input.targetId, input.actionId, { source: 'manual' })
+    }
 
     const dramaMode = getEffectiveSocialMode(state) === 'drama'
     const actionTargetMode = resolveActionTargetMode(action, dramaMode)

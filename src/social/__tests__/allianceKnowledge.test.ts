@@ -1,3 +1,4 @@
+import { consentedRecruit as recruitRealityAllianceMember } from './allianceConsentFixture'
 import { describe, expect, it } from 'vitest'
 import {
   addRealityFact,
@@ -6,7 +7,6 @@ import {
   getRealityAllianceKnowledgeView,
   learnRealityFact,
   leakRealityAlliance,
-  recruitRealityAllianceMember,
 } from '../reality'
 import type { RealityMemory } from '../reality'
 
@@ -90,6 +90,7 @@ describe('Reality alliance identity and private knowledge', () => {
     })
     addRealityFact(state, {
       id: 'observed-pair',
+      objectId: alliance.id,
       propositionType: 'SECRET_ALLIANCE',
       subjectIds: ['lia', 'kai'],
       value: true,

@@ -1,3 +1,5 @@
+import { evaluateAllianceAutonomy } from './reality/allianceAutonomy'
+import { advanceAllianceRequests } from './reality/allianceManagement'
 import {
   getRealityActionContracts,
   createInitialRealityDomainState,
@@ -163,6 +165,14 @@ export function simulateRealitySeason(
     ceremonies += 1
 
     for (const phase of ['social_1', 'social_2'] as const) {
+      const managementContext = {
+        at: { day, phase },
+        activeActorIds: activeIds,
+        humanActorIds: [humanId],
+        seed,
+      }
+      advanceAllianceRequests(domain, managementContext)
+      evaluateAllianceAutonomy(domain, managementContext)
       for (let actorIndex = 0; actorIndex < activeAI.length; actorIndex += 1) {
         const actorId = activeAI[actorIndex]
         const targetPool = activeAI.filter((targetId) => targetId !== actorId)
@@ -194,7 +204,7 @@ export function simulateRealitySeason(
             candidates: candidateActions.map((action) => ({ action, targetIds: [targetId] })),
           },
         })
-        domain = result.domain
+        domain = structuredClone(result.domain)
         simulation = result.simulation
         if (result.interaction?.actorId === humanId) humanAutonomyViolations += 1
         if (result.selectedActionId) {

@@ -50,6 +50,8 @@
   display: grid;
   grid-template-columns: var(--more-menu-button-size);
   gap: 6px;
+  max-height: min(58svh, 380px);
+  overflow-y: auto;
   width: calc(var(--more-menu-button-size) + 10px);
   box-sizing: border-box;
   padding: 5px;

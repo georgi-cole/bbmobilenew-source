@@ -17,17 +17,32 @@
   background: rgba(255, 255, 255, 0.06);
   border: 2px solid rgba(255, 255, 255, 0.14);
   overflow: visible;
-  transition: border-color 0.18s, box-shadow 0.18s, transform 0.14s;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s,
+    transform 0.14s;
 }
 
 .pa__img,
 .pa__fallback,
-.pa__ring { position: relative; z-index: 1; }
+.pa__ring {
+  position: relative;
+  z-index: 1;
+}
 
 /* Size variants */
-.pa--sm { width: 2rem;  height: 2rem;  }
-.pa--md { width: 3rem;  height: 3rem;  }
-.pa--lg { width: 4rem;  height: 4rem;  }
+.pa--sm {
+  width: 2rem;
+  height: 2rem;
+}
+.pa--md {
+  width: 3rem;
+  height: 3rem;
+}
+.pa--lg {
+  width: 4rem;
+  height: 4rem;
+}
 
 /* Button reset when used as interactive element */
 button.pa {
@@ -39,7 +54,9 @@ button.pa {
 button.pa:hover {
   transform: scale(1.07);
   border-color: rgba(99, 102, 241, 0.55);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18), 0 4px 14px rgba(0,0,0,0.4);
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.18),
+    0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 button.pa:focus-visible {
@@ -63,8 +80,14 @@ button.pa:focus-visible {
 }
 
 @keyframes paFadeIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ── Emoji / initials fallback ──────────────────────────────────────────── */
@@ -88,13 +111,17 @@ button.pa:focus-visible {
   border-radius: 50%;
   border: 2px solid transparent;
   pointer-events: none;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
 }
 
 /* ── Selected state ─────────────────────────────────────────────────────── */
 .pa--selected {
   border-color: rgba(100, 160, 255, 0.7);
-  box-shadow: 0 0 0 2px rgba(100, 160, 255, 0.2), 0 4px 16px rgba(80, 130, 255, 0.3);
+  box-shadow:
+    0 0 0 2px rgba(100, 160, 255, 0.2),
+    0 4px 16px rgba(80, 130, 255, 0.3);
   animation: paSelectPop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -104,22 +131,51 @@ button.pa:focus-visible {
 }
 
 @keyframes paSelectPop {
-  from { transform: scale(0.9); }
-  to   { transform: scale(1); }
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* ── Reduce motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .pa, .pa::before, .pa::after, .pa__img, .pa__ring { animation: none !important; transition: none !important; }
-  .pa__img { opacity: 1; }
+  .pa,
+  .pa::before,
+  .pa::after,
+  .pa__img,
+  .pa__ring {
+    animation: none !important;
+    transition: none !important;
+  }
+  .pa__img {
+    opacity: 1;
+  }
 }
 
 /* ── Revive animation (jury → active transition) ────────────────────────── */
 @keyframes revive-pop {
-  0%   { filter: grayscale(1);     transform: scale(1);    opacity: 0.55; }
-  40%  { filter: grayscale(0.3);   transform: scale(1.18); opacity: 1;    }
-  70%  { filter: grayscale(0);     transform: scale(0.95); opacity: 1;    }
-  100% { filter: grayscale(0);     transform: scale(1);    opacity: 1;    }
+  0% {
+    filter: grayscale(1);
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  40% {
+    filter: grayscale(0.3);
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  70% {
+    filter: grayscale(0);
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    filter: grayscale(0);
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .pa--revived .pa__img,
@@ -140,14 +196,57 @@ button.pa:focus-visible {
  * Applied via pa--rel-{tone} classes. Uses box-shadow to avoid layout shift
  * and support circular crops. Transition matches the base .pa transition.
  * ────────────────────────────────────────────────────────────────────────── */
-.pa--rel-good {
-  box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.85), 0 0 6px rgba(46, 204, 113, 0.35);
-}
-
-.pa--rel-neutral {
-  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.85), 0 0 6px rgba(234, 179, 8, 0.35);
-}
-
+.pa--rel-good,
+.pa--rel-neutral,
 .pa--rel-bad {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.85), 0 0 6px rgba(239, 68, 68, 0.35);
+  --pa-relationship-ring: #9e91b6;
+}
+
+.pa--relationship-nemesis {
+  --pa-relationship-ring: #372638;
+  --pa-relationship-glow: rgba(55, 38, 56, 0.44);
+}
+.pa--relationship-hostile {
+  --pa-relationship-ring: #77334d;
+  --pa-relationship-glow: rgba(119, 51, 77, 0.48);
+}
+.pa--relationship-strained {
+  --pa-relationship-ring: #b75d78;
+  --pa-relationship-glow: rgba(183, 93, 120, 0.46);
+}
+.pa--relationship-neutral {
+  --pa-relationship-ring: #9287b2;
+  --pa-relationship-glow: rgba(146, 135, 178, 0.42);
+}
+.pa--relationship-warm {
+  --pa-relationship-ring: #d28a94;
+  --pa-relationship-glow: rgba(210, 138, 148, 0.48);
+}
+.pa--relationship-close {
+  --pa-relationship-ring: #e4aa77;
+  --pa-relationship-glow: rgba(228, 170, 119, 0.52);
+}
+.pa--relationship-lovers {
+  --pa-relationship-ring: #e7a989;
+  --pa-relationship-glow: rgba(217, 128, 161, 0.54);
+}
+
+.pa--relationship-nemesis,
+.pa--relationship-hostile,
+.pa--relationship-strained,
+.pa--relationship-neutral,
+.pa--relationship-warm,
+.pa--relationship-close,
+.pa--relationship-lovers {
+  border-color: var(--pa-relationship-ring);
+  box-shadow:
+    0 0 0 2px var(--pa-relationship-ring),
+    0 0 8px var(--pa-relationship-glow);
+}
+
+.pa--relationship-lovers .pa__ring {
+  border-color: #e7a989;
+  box-shadow:
+    0 0 0 1px rgba(242, 196, 112, 0.65),
+    0 0 10px rgba(217, 128, 161, 0.5);
 }

@@ -476,10 +476,31 @@ export function getDefaultRealityEffects(action: SocialActionDefinition): Effect
 
   const defaults: EffectiveRealityEffects = conflict
     ? {
-        accepted: { warmth: -8, trust: -9, resentment: 14, suspicion: 6, familiarity: 3 },
-        rejected: { warmth: -8, trust: -9, resentment: 14, suspicion: 6, familiarity: 3 },
-        escalated: { warmth: -8, trust: -9, resentment: 14, suspicion: 6, familiarity: 3 },
-        deEscalated: { warmth: -2, trust: -2, resentment: 3, familiarity: 2 },
+        accepted: {
+          warmth: -8,
+          trust: -9,
+          respect: -2,
+          resentment: 14,
+          suspicion: 6,
+          familiarity: 3,
+        },
+        rejected: {
+          warmth: -8,
+          trust: -9,
+          respect: -2,
+          resentment: 14,
+          suspicion: 6,
+          familiarity: 3,
+        },
+        escalated: {
+          warmth: -8,
+          trust: -9,
+          respect: -2,
+          resentment: 14,
+          suspicion: 6,
+          familiarity: 3,
+        },
+        deEscalated: { warmth: -2, trust: -2, respect: 2, resentment: 3, familiarity: 2 },
       }
     : romance
       ? {
@@ -490,7 +511,7 @@ export function getDefaultRealityEffects(action: SocialActionDefinition): Effect
         }
       : commitment
         ? {
-            accepted: { trust: 8, loyalty: 10, strategicValue: 7, familiarity: 2 },
+            accepted: { trust: 8, loyalty: 10, respect: 2, strategicValue: 7, familiarity: 2 },
             rejected: { trust: -3, suspicion: 4, familiarity: 2 },
             escalated: { trust: 8, loyalty: 10, strategicValue: 7, familiarity: 2 },
             deEscalated: { trust: -3, suspicion: 4, familiarity: 2 },
@@ -503,7 +524,7 @@ export function getDefaultRealityEffects(action: SocialActionDefinition): Effect
               deEscalated: { suspicion: 3, familiarity: 1 },
             }
           : {
-              accepted: { warmth: 6, trust: 3, familiarity: 3 },
+              accepted: { warmth: 6, trust: 3, respect: 1, familiarity: 3 },
               rejected: { warmth: -2, familiarity: 1 },
               escalated: { warmth: 6, trust: 3, familiarity: 3 },
               deEscalated: { warmth: -2, familiarity: 1 },

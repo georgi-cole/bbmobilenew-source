@@ -1223,6 +1223,7 @@ export default function TetrisComp({
           <ControlButton
             label={t('fitMeIn.control.moveLeft')}
             disabled={isGameOver}
+            repeat
             onPress={() => tryMove(-1, 0)}
           >
             ◀
@@ -1230,6 +1231,7 @@ export default function TetrisComp({
           <ControlButton
             label={t('fitMeIn.control.softDrop')}
             disabled={isGameOver}
+            repeat
             onPress={softDrop}
           >
             ▼
@@ -1237,6 +1239,7 @@ export default function TetrisComp({
           <ControlButton
             label={t('fitMeIn.control.moveRight')}
             disabled={isGameOver}
+            repeat
             onPress={() => tryMove(1, 0)}
           >
             ▶
@@ -1260,22 +1263,68 @@ function ControlButton({
   className = '',
   label,
   disabled,
+  repeat = false,
   onPress,
   children,
 }: {
   className?: string
   label: string
   disabled: boolean
+  repeat?: boolean
   onPress: () => void
   children: React.ReactNode
 }) {
+  const repeatDelayRef = useRef<number | null>(null)
+  const repeatIntervalRef = useRef<number | null>(null)
+  const onPressRef = useRef(onPress)
+  const suppressPointerClickRef = useRef(false)
+
+  useEffect(() => {
+    onPressRef.current = onPress
+  }, [onPress])
+
+  const stopRepeat = useCallback(() => {
+    if (repeatDelayRef.current !== null) window.clearTimeout(repeatDelayRef.current)
+    if (repeatIntervalRef.current !== null) window.clearInterval(repeatIntervalRef.current)
+    repeatDelayRef.current = null
+    repeatIntervalRef.current = null
+  }, [])
+
+  useEffect(() => {
+    if (disabled || !repeat) stopRepeat()
+    return stopRepeat
+  }, [disabled, repeat, stopRepeat])
+
   return (
     <button
       type="button"
       className={['tetris-btn', className].filter(Boolean).join(' ')}
       onPointerDown={(event) => {
         event.preventDefault()
+        if (disabled) return
+        suppressPointerClickRef.current = true
         onPress()
+        if (!repeat) return
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+        repeatDelayRef.current = window.setTimeout(() => {
+          repeatIntervalRef.current = window.setInterval(() => onPressRef.current(), 90)
+        }, 280)
+      }}
+      onPointerUp={stopRepeat}
+      onPointerCancel={() => {
+        stopRepeat()
+        suppressPointerClickRef.current = false
+      }}
+      onLostPointerCapture={stopRepeat}
+      onClick={(event) => {
+        if (event.detail === 0) {
+          suppressPointerClickRef.current = false
+          onPress()
+          return
+        }
+        if (suppressPointerClickRef.current) {
+          suppressPointerClickRef.current = false
+        }
       }}
       aria-label={label}
       disabled={disabled}

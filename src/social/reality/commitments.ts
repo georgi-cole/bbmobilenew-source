@@ -1,3 +1,5 @@
+import { compareSocialClock } from './clock'
+import { getCurrentPact, isCurrentAlliance } from './allianceIdentity'
 import type {
   RealityClock,
   RealityDebt,
@@ -9,73 +11,26 @@ import type {
 import { recordGroundedScandalFromSecret } from './relationshipAutonomy'
 import { adjustRealityAllianceCommitment } from './relationshipForms'
 
-const PHASE_ORDER = [
-  'week_start',
-  'morning',
-  'social_1',
-  'loh_comp',
-  'nomination_results',
-  'social_2',
-  'pos_results',
-  'pos_ceremony',
-  'pos_ceremony_results',
-  'live_vote',
-  'eviction_results',
-  'night',
-]
-
 export function compareRealityClock(left: RealityClock, right: RealityClock): number {
-  if (left.day !== right.day) return left.day - right.day
-  const leftIndex = PHASE_ORDER.indexOf(left.phase)
-  const rightIndex = PHASE_ORDER.indexOf(right.phase)
-  if (leftIndex !== -1 || rightIndex !== -1) {
-    return (
-      (leftIndex === -1 ? PHASE_ORDER.length : leftIndex) -
-      (rightIndex === -1 ? PHASE_ORDER.length : rightIndex)
-    )
-  }
-  return left.phase.localeCompare(right.phase)
+  return compareSocialClock(left, right)
 }
 
 export function upsertRealityPromise(state: RealityDomainState, promise: RealityPromise): void {
+  promise = {
+    ...promise,
+    originatingAllianceId:
+      promise.originatingAllianceId ??
+      (typeof promise.scope.allianceId === 'string'
+        ? promise.scope.allianceId
+        : promise.beneficiaryIds.length === 1
+          ? getCurrentPact(state, promise.promisorId, promise.beneficiaryIds[0])?.id
+          : undefined),
+  }
   state.promises[promise.id] = promise
   for (const beneficiaryId of promise.beneficiaryIds) {
     const edge = state.relationships[promise.promisorId]?.[beneficiaryId]
     if (edge && !edge.activePromiseIds.includes(promise.id)) edge.activePromiseIds.push(promise.id)
   }
-}
-
-function strongestSharedPromiseAlliance(
-  state: RealityDomainState,
-  leftId: string,
-  rightId: string
-) {
-  return Object.values(state.alliances)
-    .filter(
-      (alliance) =>
-        ['ACTIVE', 'PROBATIONARY', 'FRACTURED'].includes(alliance.status) &&
-        alliance.memberIds.includes(leftId) &&
-        alliance.memberIds.includes(rightId)
-    )
-    .sort((left, right) => {
-      const statusRank = (status: typeof left.status) =>
-        status === 'ACTIVE' ? 4 : status === 'PROBATIONARY' ? 3 : status === 'FRACTURED' ? 2 : 1
-      const leftCommitment = Math.min(
-        left.memberCommitment[leftId] ?? 0,
-        left.memberCommitment[rightId] ?? 0
-      )
-      const rightCommitment = Math.min(
-        right.memberCommitment[leftId] ?? 0,
-        right.memberCommitment[rightId] ?? 0
-      )
-      return (
-        statusRank(right.status) - statusRank(left.status) ||
-        rightCommitment - leftCommitment ||
-        right.cohesion - left.cohesion ||
-        left.memberIds.length - right.memberIds.length ||
-        left.id.localeCompare(right.id)
-      )
-    })[0]
 }
 
 function applyPromiseAllianceConsequence(
@@ -88,8 +43,15 @@ function applyPromiseAllianceConsequence(
   const beneficiariesByAlliance = new Map<string, string[]>()
 
   for (const beneficiaryId of promise.beneficiaryIds) {
-    const alliance = strongestSharedPromiseAlliance(state, promise.promisorId, beneficiaryId)
-    if (!alliance) continue
+    const alliance = promise.originatingAllianceId
+      ? state.alliances[promise.originatingAllianceId]
+      : undefined
+    if (
+      !isCurrentAlliance(alliance) ||
+      !alliance.memberIds.includes(promise.promisorId) ||
+      !alliance.memberIds.includes(beneficiaryId)
+    )
+      continue
     beneficiariesByAlliance.set(alliance.id, [
       ...(beneficiariesByAlliance.get(alliance.id) ?? []),
       beneficiaryId,

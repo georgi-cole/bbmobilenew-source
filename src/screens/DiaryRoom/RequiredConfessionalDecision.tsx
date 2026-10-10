@@ -35,6 +35,7 @@ import {
   getTieBreakerAllianceAdvice,
   getTieBreakerRecommendation,
 } from '../../social/tieBreakerStrategy'
+import ConfessionalDecisionBriefing from './ConfessionalDecisionBriefing'
 
 interface Props {
   decision: ActiveConfessionalDecision
@@ -74,7 +75,7 @@ function PlayerCard({
         aria-label={impression?.label}
         title={impression?.label}
       >
-        <PlayerAvatar player={player} selected={selected} size="md" />
+        <PlayerAvatar player={player} size="md" showRelationshipOutline={false} />
       </span>
       <span className="rcd-player__copy">
         <strong>{player.name}</strong>
@@ -132,7 +133,7 @@ function DecisionUnitCard({
     >
       <span className="rcd-player__pair-avatars" aria-hidden="true">
         {unit.players.map((player) => (
-          <PlayerAvatar key={player.id} player={player} selected={selected} size="md" />
+          <PlayerAvatar key={player.id} player={player} size="md" showRelationshipOutline={false} />
         ))}
       </span>
       <span className="rcd-player__copy">
@@ -352,6 +353,12 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
           </span>
         </div>
       )}
+      <ConfessionalDecisionBriefing
+        playerIds={optionUnits.flatMap((unit) => unit.memberIds)}
+        selectedPlayerIds={selectedIds.flatMap(
+          (id) => optionUnits.find((unit) => unit.id === id)?.memberIds ?? []
+        )}
+      />
       <div className="rcd-grid" role="group" aria-label="Nomination choices">
         {selectableUnits.map((unit) => {
           return (
@@ -411,6 +418,10 @@ function SingleUnitDecision({
 
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
+      <ConfessionalDecisionBriefing
+        playerIds={units.flatMap((unit) => unit.memberIds)}
+        selectedPlayerIds={selectedUnit?.memberIds ?? []}
+      />
       <div className="rcd-grid" role="group" aria-label={presentation.title}>
         {units.map((unit) => (
           <DecisionUnitCard
@@ -719,6 +730,10 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
 
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
+      <ConfessionalDecisionBriefing
+        playerIds={options.map((player) => player.id)}
+        selectedPlayerIds={[vote1, vote2].filter((id): id is string => id !== null)}
+      />
       <section className="rcd-vote-step" aria-labelledby="double-vote-one">
         <h3 id="double-vote-one">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</h3>
         <div className="rcd-grid" role="group" aria-label="First eviction vote">
@@ -829,41 +844,13 @@ function TieBreakDecision({ presentation, onDecisionCommitted }: Omit<Props, 'de
 
   return (
     <div className="rcd-layout" data-testid="required-confessional-decision">
-      {(recommendation || allianceAdvice.length > 0) && (
-        <section className="rcd-tiebreak-advice" aria-label="Tie-break advice">
-          {recommendation && (
-            <div className="rcd-tiebreak-advice__recommendation">
-              <div>
-                <span className="rcd-tiebreak-advice__eyebrow">Strategic read</span>
-                <strong>Consider voting to eliminate {recommendation.nomineeName}</strong>
-                <p>{recommendation.reason}</p>
-              </div>
-              <button type="button" onClick={() => selectNominee(recommendation.nomineeId)}>
-                Use suggestion
-              </button>
-            </div>
-          )}
-          {allianceAdvice.length > 0 && (
-            <details className="rcd-tiebreak-advice__alliance">
-              <summary>
-                Consult alliance · {allianceAdvice.length} read
-                {allianceAdvice.length === 1 ? '' : 's'}
-              </summary>
-              {allianceAdvice.map((advice) => (
-                <article key={advice.advisorId}>
-                  <p>
-                    <strong>{advice.advisorName}</strong> recommends eliminating{' '}
-                    <strong>{advice.nomineeName}</strong>. {advice.reason}
-                  </p>
-                  <button type="button" onClick={() => selectNominee(advice.nomineeId)}>
-                    Follow their read
-                  </button>
-                </article>
-              ))}
-            </details>
-          )}
-        </section>
-      )}
+      <ConfessionalDecisionBriefing
+        playerIds={units.flatMap((unit) => unit.memberIds)}
+        selectedPlayerIds={selectedUnits.flatMap((unit) => unit.memberIds)}
+        recommendation={recommendation}
+        allianceAdvice={allianceAdvice}
+        onUseAdvice={selectNominee}
+      />
       <div className="rcd-grid" role="group" aria-label="Tie-break choices">
         {units.map((unit) => (
           <DecisionUnitCard

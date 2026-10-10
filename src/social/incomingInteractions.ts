@@ -1,3 +1,5 @@
+import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
+import { getCurrentPact } from './reality/allianceIdentity'
 import { getIncomingInteractionTone } from './incomingInteractionPresentation'
 import {
   getIncomingResponseLogCopy,
@@ -25,12 +27,7 @@ import {
 } from './socialSlice'
 import {
   coordinateRealityAllianceTarget,
-  createRealityAlliance,
-  findRealityAllianceForRecruitment,
-  holdRealityAllianceMeeting,
   holdRealityAllianceStrategyMeeting,
-  markRealityAllianceInfiltratorIfSecondary,
-  recruitRealityAllianceMember,
   resolvePendingHumanRealityInteraction,
   resolveRelationshipStoryResponse,
 } from './reality'
@@ -404,61 +401,19 @@ function resolveRealityIncomingInteraction(
         }) || domainChanged
     }
 
-    // Autonomy-scheduled alliance proposals do not carry a pending Reality
-    // interaction id. Accepting one must still create/recruit a canonical
-    // RealityAlliance; otherwise the legacy Alliance tag is only temporary and
-    // disappears when the Reality projection runs on the next phase/day.
-    if (
-      getInteractionSocialMode(interaction, state) === 'drama' &&
-      interaction.type === 'alliance_proposal' &&
-      responseType === 'accept'
-    ) {
-      const existing = Object.values(domain.alliances).find(
-        (alliance) =>
-          (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
-          alliance.memberIds.includes(interaction.fromId) &&
-          alliance.memberIds.includes(humanId)
-      )
-      if (!existing) {
-        const recruitmentAlliance = findRealityAllianceForRecruitment(
-          domain,
-          interaction.fromId,
-          humanId
-        )
-        if (recruitmentAlliance) {
-          recruitRealityAllianceMember(domain, {
-            allianceId: recruitmentAlliance.id,
-            recruiterId: interaction.fromId,
-            targetId: humanId,
-            expandedAllianceId: `alliance:${[...recruitmentAlliance.memberIds, humanId]
-              .sort()
-              .join('~')}:incoming:${interaction.id}`,
-            at: { day, phase },
-          })
-        } else {
-          const alliance = createRealityAlliance(domain, {
-            id: `alliance:${[interaction.fromId, humanId]
-              .sort()
-              .join('~')}:incoming:${interaction.id}`,
-            founderIds: [interaction.fromId],
-            memberIds: [humanId],
-            purpose: 'Mutual protection',
-            at: { day, phase },
-          })
-          holdRealityAllianceMeeting(domain, {
-            allianceId: alliance.id,
-            attendeeIds: [interaction.fromId, humanId],
-            targetIds: [],
-            planIds: [`protect:${alliance.id}`],
-            at: { day, phase },
-          })
-          markRealityAllianceInfiltratorIfSecondary(domain, alliance.id, humanId, {
-            day,
-            phase,
-          })
-        }
-        domainChanged = true
-      }
+    if (interaction.type === 'alliance_proposal' && responseType === 'accept') {
+      const applied = finalizeAcceptedPersonalPact(domain, {
+        actorId: interaction.fromId,
+        targetId: humanId,
+        at: { day, phase },
+        interactionId: 'incoming:' + interaction.id,
+        displayNames: Object.fromEntries(
+          state.game.players.map((player) => [player.id, player.name])
+        ),
+        humanActorIds: [humanId],
+        viewerActorId: humanId,
+      })
+      domainChanged = applied.status === 'APPLIED' || domainChanged
     }
 
     if (domainChanged) dispatch(replaceRealityDomain(domain))
@@ -484,6 +439,9 @@ function resolveRealityIncomingInteraction(
       interaction.payload?.allianceStrategyKind === 'SAFETY'
         ? interaction.payload.allianceStrategyKind
         : undefined,
+    displayNames: Object.fromEntries(state.game.players.map((player) => [player.id, player.name])),
+    humanActorIds: [humanId],
+    viewerActorId: humanId,
     secondarySubjectId:
       typeof interaction.payload?.secondarySubjectId === 'string'
         ? interaction.payload.secondarySubjectId
@@ -1159,10 +1117,47 @@ export function respondToIncomingInteraction({
     const resolvedAt = Date.now()
     const realityBeforeResponse = state.social.reality
 
-    if (isIncomingInteractionInvalidated(interaction, state.game, state.social.reality)) {
+    if (
+      isIncomingInteractionOverdue(interaction, { day: currentWeek, phase: state.game.phase }) ||
+      isIncomingInteractionInvalidated(interaction, state.game, state.social.reality)
+    ) {
       dispatch(
         dismissIncomingInteraction({
           interactionId,
+          resolvedAt,
+          resolvedWeek: currentWeek,
+        })
+      )
+      return
+    }
+
+    if (interaction.type === 'alliance_proposal') {
+      resolveRealityIncomingInteraction(
+        dispatch,
+        getState,
+        interaction,
+        responseType,
+        currentWeek,
+        state.game.phase,
+        realityBeforeResponse
+      )
+      const humanId = state.game.players.find((player) => player.isUser)?.id
+      const activePact = humanId
+        ? getCurrentPact(getState().social.reality, interaction.fromId, humanId)
+        : undefined
+      const outcomeText =
+        responseType === 'accept'
+          ? activePact
+            ? 'Your personal pact is now active. Other groups and pacts are unchanged.'
+            : 'This pact could not be finalized. Check your current pact limit and request status.'
+          : 'The personal pact proposal was declined. No membership changed.'
+      settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
+      dispatch(
+        resolveIncomingInteraction({
+          interactionId,
+          resolvedWith: responseType,
+          resolvedLabel: responseLabel,
+          outcomeText,
           resolvedAt,
           resolvedWeek: currentWeek,
         })

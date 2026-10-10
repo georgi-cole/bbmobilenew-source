@@ -17,7 +17,7 @@ import {
   captureRealityReentryProfile,
   recordRealityAllianceBetrayal,
   recordRealityAlliancePlanDefiance,
-  removeRealityAllianceMember,
+  removeRealityAllianceMembers,
 } from './relationshipForms'
 import type {
   RealityClock,
@@ -126,6 +126,8 @@ function projectPublicCeremony(
     }
   }
   if (kind === 'EVICTION') {
+    for (const targetId of event.targetIds)
+      captureRealityReentryProfile(state, targetId, { day: event.day, phase: event.phase })
     for (const targetId of event.targetIds) {
       updatePerception(state, targetId, event.id, {
         underdog: 8,
@@ -448,6 +450,19 @@ function applyCeremonyAftermath(
     winner.confidence = clamp(winner.confidence + 14)
     winner.emotions.joy = clamp(winner.emotions.joy + 18, 0, 100)
     winner.primaryGoalId = 'USE_POWER_WITHOUT_CREATING_UNNECESSARY_ENEMIES'
+    if (event.publicEligible) {
+      for (const witnessId of event.witnessIds) {
+        if (witnessId === actorId) continue
+        applyRealityRelationshipChange(state, {
+          sourceId: witnessId,
+          targetId: actorId,
+          day: event.day,
+          phase: event.phase,
+          eventId: event.id,
+          deltas: { respect: 5 },
+        })
+      }
+    }
   }
 
   if (kind === 'NOMINATIONS_LOCKED') {
@@ -585,28 +600,16 @@ function applyCeremonyAftermath(
 
   if (kind === 'EVICTION') {
     for (const targetId of event.targetIds) {
-      captureRealityReentryProfile(state, targetId, { day: event.day, phase: event.phase })
       const evictee = contestant(state, targetId)
       evictee.stress = clamp(evictee.stress + 28, 0, 100)
       evictee.emotions.sadness = clamp(evictee.emotions.sadness + 35, 0, 100)
       evictee.primaryGoalId = 'EVALUATE_JURY_VOTE'
-
-      const allianceIds = Object.values(state.alliances)
-        .filter(
-          (alliance) => alliance.status !== 'DISSOLVED' && alliance.memberIds.includes(targetId)
-        )
-        .map((alliance) => alliance.id)
-      for (const allianceId of allianceIds) {
-        removeRealityAllianceMember(state, {
-          allianceId,
-          memberId: targetId,
-          actorId: targetId,
-          kind: 'EVICTED',
-          at: { day: event.day, phase: event.phase },
-          sourceEventId: event.id,
-        })
-      }
     }
+    removeRealityAllianceMembers(state, {
+      memberIds: event.targetIds,
+      at: { day: event.day, phase: event.phase },
+      sourceEventId: event.id,
+    })
     for (const witnessId of event.witnessIds) {
       if (event.targetIds.includes(witnessId)) continue
       contestant(state, witnessId).primaryGoalId = 'REPLAN_AFTER_EVICTION'

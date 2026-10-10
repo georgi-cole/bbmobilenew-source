@@ -13,6 +13,13 @@ import {
   getIncomingInteractionTypeLabel,
   respondToIncomingInteraction,
 } from '../../social/incomingInteractions'
+import { executeAllianceManagementCommand } from '../../social/allianceManagementActions'
+import {
+  allianceRequestDecisionActors,
+  canSeeAllianceRequest,
+  isPendingAllianceRequest,
+} from '../../social/reality/allianceManagement'
+import type { RealityAllianceRequest } from '../../social/reality/types'
 import {
   getIncomingInteractionResponseLabel,
   getIncomingInteractionResponseOptions,
@@ -162,6 +169,78 @@ function formatResolutionReason(reason?: string): string {
       return reason
         ? reason.replaceAll('_', ' ')
         : 'The promise was judged by a later game decision.'
+  }
+}
+
+function allianceDecisionTitle(
+  request: RealityAllianceRequest,
+  allianceName: string,
+  proposerName: string,
+  candidateName: string
+): string {
+  switch (request.kind) {
+    case 'ADMIT':
+      return request.status === 'VOTING'
+        ? `Vote on inviting ${candidateName} to ${allianceName}`
+        : `${proposerName} invited you to join ${allianceName}`
+    case 'FOUND':
+      return `${proposerName} proposed a new group`
+    case 'PACT':
+      return `${proposerName} proposed a personal pact`
+    case 'APPOINT':
+      return `${proposerName} offered you co-leader in ${allianceName}`
+    case 'TRANSFER':
+      return `${proposerName} offered you leadership of ${allianceName}`
+    case 'REMOVE_SUGGESTION':
+      return `Vote on removing ${candidateName} from ${allianceName}`
+    case 'RENAME_SUGGESTION':
+      return `${proposerName} suggested renaming ${allianceName}`
+  }
+}
+
+function allianceDecisionCopy(
+  request: RealityAllianceRequest,
+  allianceName: string,
+  roster: string,
+  candidateName: string
+): string {
+  switch (request.kind) {
+    case 'ADMIT':
+      return request.status === 'VOTING'
+        ? `The group is voting on admitting ${candidateName}. A strict member majority and an officer's yes vote are required.`
+        : `The group approved your admission. Accept to join as a regular member. Current members: ${roster}.`
+    case 'FOUND':
+      return `Review the proposed founding roster: ${roster}. Every founder must agree before the group is formed.`
+    case 'PACT':
+      return 'Accept to create a one-to-one personal pact. This does not form a group.'
+    case 'APPOINT':
+      return `Accept to become co-leader of ${allianceName}.`
+    case 'TRANSFER':
+      return `Accept to take leadership of ${allianceName}; the current leader becomes a regular member.`
+    case 'REMOVE_SUGGESTION':
+      return `The officers are considering a request to remove ${candidateName} from ${allianceName}.`
+    case 'RENAME_SUGGESTION':
+      return `Suggested name: ${request.proposedName ?? 'Unnamed'}. Accept to rename the group; decline to keep its current name.`
+  }
+}
+
+function allianceDecisionActionLabels(request: RealityAllianceRequest): [string, string] {
+  if (request.status === 'VOTING') return ['Approve vote', 'Vote no']
+  switch (request.kind) {
+    case 'ADMIT':
+      return ['Accept invitation', 'Decline invitation']
+    case 'FOUND':
+      return ['Agree to group', 'Decline proposal']
+    case 'PACT':
+      return ['Accept pact', 'Decline pact']
+    case 'APPOINT':
+      return ['Accept role', 'Decline role']
+    case 'TRANSFER':
+      return ['Accept leadership', 'Decline transfer']
+    case 'REMOVE_SUGGESTION':
+      return ['Approve removal', 'Decline suggestion']
+    case 'RENAME_SUGGESTION':
+      return ['Accept new name', 'Keep current name']
   }
 }
 
@@ -367,6 +446,11 @@ export default function IncomingInteractionsInbox() {
   // rerendering it for every background relationship or season update.
   const game = useAppSelector((state) => state.game, compareWhileOpen)
   const interactions = useAppSelector(selectIncomingInteractions)
+  const allianceRequests = useAppSelector(
+    (state) => state.social.reality.allianceManagement?.requests ?? {},
+    compareWhileOpen
+  )
+  const reality = useAppSelector((state) => state.social.reality, compareWhileOpen)
   const relationships = useAppSelector(
     (state) => state.social?.relationships ?? {},
     compareWhileOpen
@@ -380,6 +464,7 @@ export default function IncomingInteractionsInbox() {
   const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false)
   const globalDramaMode = getEffectiveSocialMode({ game, settings, vip }) === 'drama'
   const [recentlyResolvedIds, setRecentlyResolvedIds] = useState<Set<string>>(() => new Set())
+  const [allianceDecisionFeedback, setAllianceDecisionFeedback] = useState<string | null>(null)
   const [, refreshContextualGuides] = useState(0)
 
   const players = game.players
@@ -387,6 +472,15 @@ export default function IncomingInteractionsInbox() {
   const humanPlayer = players.find((player) => player.isUser)
   const socialModuleAvailability = useMemo(() => getIncomingSocialModuleAvailability(game), [game])
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
+  const actionableAllianceRequests = useMemo(() => {
+    if (!humanPlayer) return []
+    return Object.values(allianceRequests).filter(
+      (request) =>
+        isPendingAllianceRequest(request) &&
+        canSeeAllianceRequest(request, humanPlayer.id) &&
+        allianceRequestDecisionActors(request).includes(humanPlayer.id)
+    )
+  }, [allianceRequests, humanPlayer])
 
   const interactionEntries = useMemo(
     () =>
@@ -454,9 +548,16 @@ export default function IncomingInteractionsInbox() {
   )
 
   const headerSummary =
-    openInteractions.length === 0
-      ? 'All caught up'
-      : `${openInteractions.length} open conversation${openInteractions.length === 1 ? '' : 's'}`
+    [
+      actionableAllianceRequests.length > 0
+        ? `${actionableAllianceRequests.length} alliance decision${actionableAllianceRequests.length === 1 ? '' : 's'}`
+        : null,
+      openInteractions.length > 0
+        ? `${openInteractions.length} open conversation${openInteractions.length === 1 ? '' : 's'}`
+        : null,
+    ]
+      .filter((entry): entry is string => entry !== null)
+      .join(' · ') || 'All caught up'
 
   const hasSeenIncomingGuide = hasSeenContextualGuide('incoming', activeProfileId, isGuest)
   const hasSeenPromiseGuide = hasSeenContextualGuide('promise', activeProfileId, isGuest)
@@ -586,10 +687,114 @@ export default function IncomingInteractionsInbox() {
         </header>
 
         <div className="inbox-list">
-          {sortedInteractions.length === 0 ? (
-            <div className="inbox-empty">No incoming interactions yet.</div>
+          {allianceDecisionFeedback && (
+            <p className="inbox-alliance-feedback" role="status" aria-live="polite">
+              {allianceDecisionFeedback}
+            </p>
+          )}
+          {sortedInteractions.length === 0 && actionableAllianceRequests.length === 0 ? (
+            <div className="inbox-empty">No incoming interactions or alliance decisions.</div>
           ) : (
             <div className="inbox-sections">
+              {actionableAllianceRequests.length > 0 && (
+                <section className="inbox-section" aria-label="Alliance proposals and decisions">
+                  <h3 className="inbox-section__title">
+                    Alliance proposals and votes · {actionableAllianceRequests.length}
+                  </h3>
+                  <div className="inbox-section__list" role="list">
+                    {actionableAllianceRequests.map((request) => {
+                      const proposerName =
+                        playerById.get(request.proposerId)?.name ?? request.proposerId
+                      const candidateName = request.candidateId
+                        ? (playerById.get(request.candidateId)?.name ?? request.candidateId)
+                        : 'the candidate'
+                      const alliance = request.allianceId
+                        ? reality.alliances[request.allianceId]
+                        : undefined
+                      const allianceName = alliance?.name ?? request.name ?? 'the group'
+                      const rosterIds =
+                        request.kind === 'FOUND'
+                          ? request.memberIds
+                          : (alliance?.memberIds ?? request.memberIds)
+                      const roster = rosterIds
+                        .map((id) => playerById.get(id)?.name ?? id)
+                        .join(' · ')
+                      const [acceptLabel, declineLabel] = allianceDecisionActionLabels(request)
+                      return (
+                        <article
+                          className="inbox-item inbox-item--alliance inbox-item--unread"
+                          key={request.id}
+                          role="listitem"
+                        >
+                          <div className="inbox-item__header">
+                            <div className="inbox-item__title">
+                              <div className="inbox-item__from-row">
+                                <span className="inbox-item__from">
+                                  {allianceDecisionTitle(
+                                    request,
+                                    allianceName,
+                                    proposerName,
+                                    candidateName
+                                  )}
+                                </span>
+                                <span className="inbox-item__priority inbox-item__priority--alliance">
+                                  Alliance
+                                </span>
+                              </div>
+                              <div className="inbox-item__type-row">
+                                <span className="inbox-item__type">
+                                  {request.status === 'VOTING' ? 'Member vote' : 'Your decision'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="inbox-item__text">
+                            {allianceDecisionCopy(request, allianceName, roster, candidateName)}
+                          </p>
+                          <div className="inbox-item__actions">
+                            <button
+                              type="button"
+                              aria-label={acceptLabel}
+                              className="inbox-action inbox-action--positive"
+                              onClick={() => {
+                                const result = dispatch(
+                                  executeAllianceManagementCommand({
+                                    type: 'RESPOND',
+                                    requestId: request.id,
+                                    actorId: humanPlayer.id,
+                                    accept: true,
+                                  })
+                                )
+                                setAllianceDecisionFeedback(result.reason)
+                              }}
+                            >
+                              {acceptLabel}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={declineLabel}
+                              className="inbox-action inbox-action--negative"
+                              onClick={() => {
+                                const result = dispatch(
+                                  executeAllianceManagementCommand({
+                                    type: 'RESPOND',
+                                    requestId: request.id,
+                                    actorId: humanPlayer.id,
+                                    accept: false,
+                                  })
+                                )
+                                setAllianceDecisionFeedback(result.reason)
+                              }}
+                            >
+                              {declineLabel}
+                            </button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
               {globalDramaMode && pendingCommitments.length > 0 && (
                 <details className="inbox-section inbox-section--promises">
                   <summary className="inbox-section__title inbox-section__title--promises">

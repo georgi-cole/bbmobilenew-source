@@ -1,3 +1,5 @@
+import { getCurrentPact } from './reality/allianceIdentity'
+import { findRealityAllianceForConsultation } from './reality/relationshipForms'
 import type { PlayerStatus } from '../types'
 import { getPublicDramaActionAvailability, isPublicDramaAction } from './dramaPacing'
 import type { SocialActionDefinition, SubjectPool } from './socialActions'
@@ -150,6 +152,21 @@ export function evaluateSocialActionEligibility({
 
   const targetMode = resolveActionTargetMode(action, dramaMode)
   const targets = [...new Set(targetIds.filter(Boolean))]
+  if (
+    actorId &&
+    reality &&
+    ['proposeAlliance', 'ally'].includes(action.id) &&
+    targets.some((id) => getCurrentPact(reality, actorId, id))
+  )
+    return unavailable('You already share a personal pact')
+  if (
+    actorId &&
+    reality &&
+    action.id === 'consult_alliance' &&
+    targets.some((id) => !findRealityAllianceForConsultation(reality, actorId, id))
+  )
+    return unavailable('This commitment is not ready for a strategy meeting')
+
   if (targetMode === 'none') {
     if (requireCompleteSelection && subjectId) return unavailable('This action has no subject')
   } else if (requireCompleteSelection) {

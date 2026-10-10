@@ -5,11 +5,14 @@
  * and derives a deterministic mood string for a player.
  */
 
-export type RelationshipKey = 'enemies' | 'strained' | 'neutral' | 'friendly' | 'allies';
+import type { DirectedRelationship } from '../../social/reality/types'
+import { getCanonicalRelationshipLabel } from '../../social/relationshipSemantics'
+
+export type RelationshipKey = 'enemies' | 'strained' | 'neutral' | 'friendly' | 'allies'
 
 export interface RelationshipLabel {
-  label: string;
-  key: RelationshipKey;
+  label: string
+  key: RelationshipKey
 }
 
 /**
@@ -23,40 +26,63 @@ export interface RelationshipLabel {
  *   ≥ 60     : Allies
  */
 export function getRelationshipLabel(affinity: number): RelationshipLabel {
-  if (affinity < -30) return { label: 'Enemies', key: 'enemies' };
-  if (affinity < -10) return { label: 'Strained', key: 'strained' };
-  if (affinity < 20) return { label: 'Neutral', key: 'neutral' };
-  if (affinity < 60) return { label: 'Friendly', key: 'friendly' };
-  return { label: 'Allies', key: 'allies' };
+  if (affinity < -30) return { label: 'Enemies', key: 'enemies' }
+  if (affinity < -10) return { label: 'Strained', key: 'strained' }
+  if (affinity < 20) return { label: 'Neutral', key: 'neutral' }
+  if (affinity < 60) return { label: 'Friendly', key: 'friendly' }
+  return { label: 'Allies', key: 'allies' }
+}
+
+function relationshipKeyForDisplayLabel(label: string): RelationshipKey {
+  const normalized = label.toLowerCase()
+  if (/enemy|hostile|rival|betray|broken alliance|\bex\b/.test(normalized)) return 'enemies'
+  if (/tense|strained|uneasy|estranged/.test(normalized)) return 'strained'
+  if (/ally|close|ride-or-die|romance|power pair/.test(normalized)) return 'allies'
+  if (/friend|friendly/.test(normalized)) return 'friendly'
+  return 'neutral'
+}
+
+/**
+ * Build the one player-facing relationship label used in Reality Mode.
+ * The Reality edge owns the relationship category; its projected legacy
+ * affinity remains useful for the meter, but must not relabel the relationship.
+ */
+export function getRealityRelationshipLabel(
+  edge: DirectedRelationship | undefined,
+  hasOperationalAlliance = false
+): RelationshipLabel {
+  const label = getCanonicalRelationshipLabel(edge, hasOperationalAlliance)
+
+  return { label, key: relationshipKeyForDisplayLabel(label) }
 }
 
 // ── Mood ──────────────────────────────────────────────────────────────────────
 
-const MOODS_GOOD    = ['Content', 'Cheerful', 'Relaxed', 'Optimistic', 'Warm'] as const;
-const MOODS_NEUTRAL = ['Pensive', 'Focused', 'Reserved', 'Observant', 'Quiet'] as const;
-const MOODS_BAD     = ['Anxious', 'Suspicious', 'Irritable', 'Distant', 'Guarded'] as const;
+const MOODS_GOOD = ['Content', 'Cheerful', 'Relaxed', 'Optimistic', 'Warm'] as const
+const MOODS_NEUTRAL = ['Pensive', 'Focused', 'Reserved', 'Observant', 'Quiet'] as const
+const MOODS_BAD = ['Anxious', 'Suspicious', 'Irritable', 'Distant', 'Guarded'] as const
 
-export type MoodClass = 'good' | 'neutral' | 'bad';
+export type MoodClass = 'good' | 'neutral' | 'bad'
 
 /**
  * Returns a deterministic mood string for a player, influenced by their affinity.
  * Uses a simple hash of the player id to keep the mood stable across renders.
  */
 export function getPlayerMood(playerId: string, affinity?: number): string {
-  let hash = 0;
+  let hash = 0
   for (let i = 0; i < playerId.length; i++) {
-    hash = (hash * 31 + playerId.charCodeAt(i)) & 0x7fffffff;
+    hash = (hash * 31 + playerId.charCodeAt(i)) & 0x7fffffff
   }
   if (affinity !== undefined) {
-    if (affinity >= 60) return MOODS_GOOD[hash % MOODS_GOOD.length];
-    if (affinity <= 20) return MOODS_BAD[hash % MOODS_BAD.length];
+    if (affinity >= 60) return MOODS_GOOD[hash % MOODS_GOOD.length]
+    if (affinity <= 20) return MOODS_BAD[hash % MOODS_BAD.length]
   }
-  return MOODS_NEUTRAL[hash % MOODS_NEUTRAL.length];
+  return MOODS_NEUTRAL[hash % MOODS_NEUTRAL.length]
 }
 
 /** Returns the CSS class key for a given mood string. */
 export function getMoodClass(mood: string): MoodClass {
-  if ((MOODS_GOOD as readonly string[]).includes(mood)) return 'good';
-  if ((MOODS_BAD as readonly string[]).includes(mood)) return 'bad';
-  return 'neutral';
+  if ((MOODS_GOOD as readonly string[]).includes(mood)) return 'good'
+  if ((MOODS_BAD as readonly string[]).includes(mood)) return 'bad'
+  return 'neutral'
 }

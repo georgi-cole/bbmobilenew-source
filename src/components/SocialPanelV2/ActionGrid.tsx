@@ -42,7 +42,14 @@ export interface ActionGridProps {
   dramaNetwork?: DramaSocialNetwork
   hiddenActionIds?: ReadonlySet<string>
   energyCostOverrides?: Readonly<Record<string, number>>
-  categoryFilter?: 'all' | 'connect' | 'strategy' | 'drama'
+  categoryFilter?: 'all' | 'connect' | 'strategy' | 'drama' | 'alliances'
+  supplementalActions?: readonly {
+    action: SocialActionDefinition
+    costs?: { energy: number; influence: number; info: number }
+    allowWithoutTarget?: boolean
+    disabled?: boolean
+    availabilityReason?: string
+  }[]
 }
 
 /**
@@ -70,6 +77,7 @@ export default function ActionGrid({
   hiddenActionIds = new Set(),
   energyCostOverrides,
   categoryFilter = 'all',
+  supplementalActions = [],
 }: ActionGridProps) {
   const { t } = useI18n()
   const dispatch = useAppDispatch()
@@ -272,8 +280,9 @@ export default function ActionGrid({
 
   function matchesCategoryFilter(category: ActionCategory): boolean {
     if (categoryFilter === 'all') return true
-    if (categoryFilter === 'connect') return category === 'friendly' || category === 'alliance'
+    if (categoryFilter === 'connect') return category === 'friendly'
     if (categoryFilter === 'strategy') return category === 'strategic'
+    if (categoryFilter === 'alliances') return category === 'alliance'
     return category === 'aggressive'
   }
 
@@ -321,6 +330,13 @@ export default function ActionGrid({
   // order fixed so cards never jump, expand into a featured row, or appear to
   // disappear when the player compares actions.
   const visibleActions = orderedVisibleActions
+  const visibleSupplementalActions = supplementalActions.filter(
+    ({ action, allowWithoutTarget }) => {
+      if (!matchesCategoryFilter(action.category)) return false
+      if (!explicitlyNoTargetSelected) return true
+      return allowWithoutTarget || resolveActionTargetMode(action, dramaMode) === 'none'
+    }
+  )
 
   useEffect(() => {
     if (!invitation || appliedInvitationRef.current === invitation.id) return
@@ -406,6 +422,23 @@ export default function ActionGrid({
             />
           )
         })}
+        {visibleSupplementalActions.map(
+          ({ action, costs, disabled = false, availabilityReason }) => {
+            const resolvedCosts = costs ?? getActionCosts(action)
+            return (
+              <ActionCard
+                key={action.id}
+                action={action}
+                costs={resolvedCosts}
+                selected={selectedId === action.id}
+                disabled={disabled}
+                availabilityReason={availabilityReason || getAvailabilityReason(resolvedCosts)}
+                available={!disabled && isActionAffordable(resolvedCosts)}
+                onClick={onActionClick}
+              />
+            )
+          }
+        )}
       </div>
       <ConfirmExitModal
         open={realityModePromptOpen}

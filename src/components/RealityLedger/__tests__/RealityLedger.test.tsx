@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   addRealityFact,
   createDirectedRelationship,
@@ -98,7 +98,52 @@ describe('RealityLedger privacy projection', () => {
     expect(screen.queryByText('Secret Final Two')).toBeNull()
   })
 
-  it('shows only the alliance members supported by the human player’s evidence', () => {
+  it('keeps the focused read to relationship dimensions without repeating its summary label', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'lia', 10)
+    edge.perceivedLabel = 'FRIENDLY'
+    reality.relationships.human = { lia: edge }
+
+    render(
+      <RealityLedger
+        reality={reality}
+        players={players}
+        humanId="human"
+        relationships={{ human: { lia: { affinity: 10, tags: [] } } }}
+        focusPlayerId="lia"
+        section="relationships"
+        compact
+      />
+    )
+
+    expect(screen.getByText('Your relationship reads')).toBeInTheDocument()
+    expect(screen.getByText('Trust')).toBeInTheDocument()
+    expect(screen.getByText('Warmth')).toBeInTheDocument()
+    expect(screen.queryByText('Friendly')).toBeNull()
+  })
+
+  it('uses the Reality category when the legacy affinity projects to Neutral', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'lia', 8)
+    edge.perceivedLabel = 'FRIENDLY'
+    reality.relationships.human = { lia: edge }
+
+    render(
+      <RealityLedger
+        reality={reality}
+        players={players}
+        humanId="human"
+        relationships={{ human: { lia: { affinity: 8, tags: [] } } }}
+        section="relationships"
+        compact
+      />
+    )
+
+    expect(screen.getAllByText('Friendly')).toHaveLength(2)
+    expect(screen.queryByText('Neutral')).toBeNull()
+  })
+
+  it('shows only discovered alliance members supported by the player’s evidence', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'hidden-coalition',
@@ -119,7 +164,7 @@ describe('RealityLedger privacy projection', () => {
     })
 
     render(<RealityLedger reality={reality} players={players} humanId="human" />)
-    fireEvent.click(screen.getByRole('button', { name: 'house' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Known' }))
 
     expect(screen.getByText('Suspected pact')).toBeInTheDocument()
     expect(screen.getByText(/Known links: Lia · Kai · other members unknown/)).toBeInTheDocument()
@@ -128,7 +173,7 @@ describe('RealityLedger privacy projection', () => {
     expect(screen.queryByText(alliance.name ?? 'not-a-name')).toBeNull()
   })
 
-  it('shows hierarchy for the player’s alliance and lets the player submit a custom name', () => {
+  it('keeps alliance membership and controls in Social instead of duplicating them in the notebook', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'player-coalition',
@@ -142,27 +187,30 @@ describe('RealityLedger privacy projection', () => {
     alliance.memberPerceivedStatus.human = 'CORE'
     alliance.memberPerceivedStatus.lia = 'CORE'
     alliance.memberPerceivedStatus.kai = 'REGULAR'
-    const onRenameAlliance = vi.fn()
+    render(<RealityLedger reality={reality} players={players} humanId="human" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Known' }))
+    expect(screen.queryByText('Night Shift')).toBeNull()
+    expect(screen.queryByText(/cohesion/i)).toBeNull()
 
-    render(
-      <RealityLedger
-        reality={reality}
-        players={players}
-        humanId="human"
-        onRenameAlliance={onRenameAlliance}
-      />
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'house' }))
+    fireEvent.click(screen.getByRole('button', { name: 'House stories' }))
+    expect(screen.queryByText(/You \(Leader\)/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rename alliance' })).toBeNull()
+  })
 
-    expect(screen.getByText(/You \(Leader\)/)).toBeInTheDocument()
-    expect(screen.getByText(/Lia \(Co-leader\)/)).toBeInTheDocument()
-    expect(screen.getByText(/Kai \(Regular\)/)).toBeInTheDocument()
+  it('keeps your current group out of Intel, where only discovered groups appear', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'new-coalition',
+      founderIds: ['lia', 'kai'],
+      memberIds: ['human'],
+      purpose: 'Control the middle',
+      at: { day: 2, phase: 'social_1' },
+    })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Rename alliance' }))
-    const input = screen.getByRole('textbox', { name: 'Alliance name' })
-    fireEvent.change(input, { target: { value: 'Night Shift' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    render(<RealityLedger reality={reality} players={players} humanId="human" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Known' }))
 
-    expect(onRenameAlliance).toHaveBeenCalledWith('player-coalition', 'Night Shift')
+    expect(screen.queryByText('New group')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rename alliance' })).toBeNull()
   })
 })

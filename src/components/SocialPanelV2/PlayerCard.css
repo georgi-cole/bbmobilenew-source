@@ -26,7 +26,7 @@
   padding: 0;
 }
 
-.pc:hover:not(.pc--disabled) {
+.pc:hover:not(.pc--disabled):not(.pc--selected) {
   background: rgba(99, 102, 241, 0.1);
   border-color: rgba(99, 102, 241, 0.35);
   transform: translateY(-1px);

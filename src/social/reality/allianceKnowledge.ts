@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from './allianceIdentity'
 import { appendRealityEvent } from './events'
 import { addRealityFact, canActorKnowFact, learnRealityFact } from './knowledge'
 import type {
@@ -43,11 +44,7 @@ function beliefMatchesAlliance(belief: RealityBelief, alliance: RealityAlliance)
   ) {
     return false
   }
-  if (belief.objectId) return belief.objectId === alliance.id
-  return (
-    belief.subjectIds.length >= 2 &&
-    belief.subjectIds.every((id) => alliance.memberIds.includes(id))
-  )
+  return belief.objectId === alliance.id
 }
 
 function publicFactMatchesAlliance(
@@ -61,9 +58,9 @@ function publicFactMatchesAlliance(
   ) {
     return false
   }
-  if (fact.objectId && fact.objectId !== alliance.id) return false
+  if (fact.objectId !== alliance.id) return false
   if (!canActorKnowFact(fact, observerId)) return false
-  return fact.subjectIds.every((id) => alliance.memberIds.includes(id))
+  return true
 }
 
 export function getRealityAllianceKnowledgeView(
@@ -82,7 +79,7 @@ export function getRealityAllianceKnowledgeView(
     }
   }
 
-  if (alliance.memberIds.includes(observerId)) {
+  if (isCurrentAlliance(alliance) && alliance.memberIds.includes(observerId)) {
     return {
       allianceId,
       level: 'MEMBER',
@@ -107,18 +104,24 @@ export function getRealityAllianceKnowledgeView(
       beliefMatchesAlliance(belief, alliance)
   )
 
+  const knownRoster = alliance.rosterKnowledgeByActor?.[observerId]
   const knownMemberIds = unique([
+    ...(knownRoster?.memberIds ?? []),
     ...publicFacts.flatMap((fact) => fact.subjectIds),
     ...beliefs.filter((belief) => belief.confidence >= 0.35).flatMap((belief) => belief.subjectIds),
-  ]).filter((id) => alliance.memberIds.includes(id))
+  ])
   const confidence = Math.max(
-    publicFacts.length > 0 ? 1 : 0,
+    publicFacts.length > 0 || knownRoster ? 1 : 0,
     ...beliefs.map((belief) => belief.confidence),
     0
   )
   const isPublic = publicFacts.length > 0
   const hasFullPublicExposure = publicFacts.some(
-    (fact) => fact.propositionType === 'ALLIANCE_EXPOSED'
+    (fact) =>
+      fact.propositionType === 'ALLIANCE_EXPOSED' &&
+      (fact.rosterRevision !== undefined
+        ? fact.rosterRevision === (alliance.rosterRevision ?? 0)
+        : [...fact.subjectIds].sort().join('~') === [...alliance.memberIds].sort().join('~'))
   )
   const level: RealityAllianceKnowledgeLevel = isPublic
     ? 'PUBLIC'
@@ -129,7 +132,9 @@ export function getRealityAllianceKnowledgeView(
         : 'UNKNOWN'
   // Private evidence can confirm that named people are working together, but
   // it must never prove by omission that nobody else belongs to the pact.
-  const fullMembershipKnown = hasFullPublicExposure
+  const fullMembershipKnown =
+    hasFullPublicExposure ||
+    Boolean(knownRoster && knownRoster.rosterRevision === alliance.rosterRevision)
   const publicName = publicFacts
     .filter((fact) => fact.propositionType === 'ALLIANCE_EXPOSED')
     .map((fact) => (typeof fact.value === 'string' ? fact.value : undefined))
@@ -141,7 +146,7 @@ export function getRealityAllianceKnowledgeView(
     confidence,
     knownMemberIds,
     fullMembershipKnown,
-    ...(publicName ? { displayName: publicName } : {}),
+    ...(publicName || knownRoster?.name ? { displayName: publicName ?? knownRoster?.name } : {}),
   }
 }
 
@@ -287,12 +292,13 @@ export function maybeExposeRealityAlliance(
     (fact) =>
       fact.propositionType === 'ALLIANCE_EXPOSED' &&
       fact.objectId === alliance.id &&
-      fact.publicVisible
+      fact.publicVisible &&
+      fact.rosterRevision === (alliance.rosterRevision ?? 0)
   )
   if (existing) return existing
 
   alliance.secrecy = 0
-  const factId = `fact:alliance-exposed:${alliance.id}:${at.day}`
+  const factId = `fact:alliance-exposed:${alliance.id}:${alliance.rosterRevision ?? 0}:${at.day}`
   const sourceActorId = state.events.find((event) => event.id === sourceEventId)?.actorId
   const event = appendRealityEvent(state, {
     ...at,
@@ -315,6 +321,8 @@ export function maybeExposeRealityAlliance(
   const fact: RealityFact = {
     id: factId,
     propositionType: 'ALLIANCE_EXPOSED',
+    rosterRevision: alliance.rosterRevision ?? 0,
+    disclosedMemberIds: [...alliance.memberIds],
     subjectIds: [...alliance.memberIds],
     objectId: alliance.id,
     value: alliance.name ?? true,

@@ -317,7 +317,9 @@ export default function Store() {
                       {product.shortDescription}
                     </span>
                     <strong className="vip-store__power-price">
-                      {nextPrice == null ? 'Season stock exhausted' : nextPrice.toLocaleString('en-US')}
+                      {nextPrice == null
+                        ? 'Season stock exhausted'
+                        : nextPrice.toLocaleString('en-US')}
                     </strong>
                   </span>
                   <span className="vip-store__power-action">
@@ -327,7 +329,7 @@ export default function Store() {
                       disabled={!canBuy}
                       title={
                         !modeRule?.available
-                          ? modeResolution.unavailableReason ?? undefined
+                          ? (modeResolution.unavailableReason ?? undefined)
                           : undefined
                       }
                       aria-label={

@@ -45,6 +45,7 @@ import type { RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { createInitialRealityDomainState } from '../../../social/reality/state'
 import { createRealityAlliance } from '../../../social/reality/relationshipForms'
+import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,9 @@ function makeStore(overrides?: {
 }
 
 function renderPanel(store: ReturnType<typeof makeStore>) {
+  // These action-flow tests assert the Social dialog directly; onboarding is
+  // covered by its own integration suite and must not add a second dialog.
+  markSocialTutorialHandled(null, false, 'reality')
   return render(
     <MemoryRouter>
       <Provider store={store}>
@@ -970,5 +974,195 @@ describe('LOH target question integration', () => {
     const recentActivity = screen.getByLabelText('Recent Activity')
     expect(recentActivity).toHaveTextContent(`${loh.name}:`)
     expect(recentActivity).not.toHaveTextContent('You performed')
+  })
+})
+
+describe('SocialPanelV2 – integrated alliance actions', () => {
+  it('charges two energy for a new pact from the integrated alliance action card', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const candidate = store
+      .getState()
+      .game.players.find((player) => !player.isUser && player.status !== 'jury')!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 3 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
+    fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
+    expect(within(socialDialog).queryByRole('region', { name: 'Your alliances' })).toBeNull()
+    expect(within(socialDialog).queryByLabelText('Personal pact with')).toBeNull()
+    expect(within(socialDialog).getByRole('button', { name: /Found an alliance/i })).toBeVisible()
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
+    const pactCard = screen.getByRole('button', { name: /Propose Personal Pact/i })
+    expect(pactCard).not.toHaveTextContent(/cap|per pair/i)
+    fireEvent.click(pactCard)
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+
+    expect(store.getState().social.energyBank[human.id]).toBe(1)
+    expect(
+      Object.values(store.getState().social.reality.alliances).some(
+        (alliance) =>
+          alliance.memberIds.includes(human.id) && alliance.memberIds.includes(candidate.id)
+      )
+    ).toBe(false)
+    expect(
+      Object.values(store.getState().social.reality.allianceManagement.requests).some(
+        (request) => request.kind === 'PACT' && request.proposerId === human.id
+      )
+    ).toBe(true)
+  })
+
+  it('keeps group founding in the shared action-card flow and shows its full price', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 5 }))
+    const candidates = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 2)
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const socialDialog = screen.getByRole('dialog', { name: 'Social Phase' })
+    fireEvent.click(within(socialDialog).getByRole('tab', { name: 'Alliances' }))
+    expect(within(socialDialog).queryByRole('region', { name: 'Your alliances' })).toBeNull()
+    expect(within(socialDialog).queryByLabelText('Personal pact with')).toBeNull()
+    const foundAllianceCard = screen.getByRole('button', { name: /Found an alliance/i })
+    expect(
+      within(foundAllianceCard).getByText(
+        'Choose at least two hubmates. Everyone must agree before the group becomes active.'
+      )
+    ).toBeVisible()
+    expect(foundAllianceCard).not.toHaveTextContent(/costs|additional founder/i)
+    expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
+    expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
+    fireEvent.click(foundAllianceCard)
+    expect(screen.getByRole('button', { name: 'Propose group' })).toBeDisabled()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Alliance name' }), {
+      target: { value: 'The Shield' },
+    })
+
+    for (const candidate of candidates) {
+      fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
+    }
+    for (const candidate of candidates) {
+      expect(
+        screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]
+      ).toHaveClass('pc--selected')
+    }
+    expect(
+      screen.getByText((_, element) => element?.classList.contains('sp2-footer__cost') ?? false)
+    ).toHaveTextContent('Cost: Group · ⚡3 · 🤝5')
+    expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
+    expect(
+      Object.values(store.getState().social.reality.allianceManagement.requests).some(
+        (request) => request.kind === 'FOUND' && request.name === 'The Shield'
+      )
+    ).toBe(true)
+  })
+
+  it('keeps invitations to two alliances distinct without repeating prices in their descriptions', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const [allyA, allyB, candidate] = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 3)
+    const reality = createInitialRealityDomainState()
+    for (const [id, name] of [
+      ['compact-shield', 'The Shield'],
+      ['compact-circle', 'The Circle'],
+    ]) {
+      const group = createRealityAlliance(reality, {
+        id,
+        founderIds: [human.id, allyA.id],
+        memberIds: [allyB.id],
+        purpose: 'Mutual protection',
+        at: { day: 1, phase: 'social_1' },
+      })
+      group.name = name
+      group.status = 'ACTIVE'
+    }
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 5 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    const roster = screen.getByRole('region', { name: 'Player roster' })
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(candidate.name, 'i') }))
+    const grid = screen.getByRole('group', { name: 'Action grid' })
+    const invitations = within(grid).getAllByRole('button', {
+      name: new RegExp(`Invite ${candidate.name}`, 'i'),
+    })
+    expect(invitations).toHaveLength(2)
+    for (const [index, name] of ['The Shield', 'The Circle'].entries()) {
+      expect(invitations[index]).toHaveTextContent(
+        `Ask ${name} to vote on admitting ${candidate.name}. The invite is sent only after approval.`
+      )
+      expect(invitations[index]).not.toHaveTextContent(/proposal costs|cap|limit/i)
+      expect(within(invitations[index]).getByLabelText('Energy cost: 1')).toBeVisible()
+      expect(within(invitations[index]).getByLabelText('Influence cost: 5')).toBeVisible()
+    }
+    fireEvent.click(invitations[1])
+    expect(screen.getByRole('button', { name: 'Start vote' })).toBeEnabled()
+  })
+
+  it('shows leader rename and member rename-suggestion actions in the Alliances cards', async () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const members = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 2)
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'name-actions-test',
+      kind: 'GROUP',
+      founderIds: [human.id, ...members.map((player) => player.id)],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'The Shield',
+      leaderId: human.id,
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    fireEvent.click(screen.getByRole('button', { name: /Rename The Shield/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'New alliance name' }), {
+      target: { value: 'The Night Shift' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Rename alliance' }))
+    expect(store.getState().social.reality.alliances[alliance.id].name).toBe('The Night Shift')
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 275)))
+
+    const memberLedReality = structuredClone(store.getState().social.reality)
+    memberLedReality.alliances[alliance.id].leaderId = members[0].id
+    memberLedReality.alliances[alliance.id].leaderIds = [members[0].id]
+    act(() => store.dispatch(replaceRealityDomain(memberLedReality)))
+    fireEvent.click(screen.getByRole('button', { name: /Suggest a new name for The Night Shift/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Suggested alliance name' }), {
+      target: { value: 'The Night Crew' },
+    })
+    expect(screen.getByRole('button', { name: 'Suggest name' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest name' }))
+    expect(
+      Object.values(store.getState().social.reality.allianceManagement.requests).some(
+        (request) =>
+          request.kind === 'RENAME_SUGGESTION' && request.proposedName === 'The Night Crew'
+      )
+    ).toBe(true)
   })
 })
