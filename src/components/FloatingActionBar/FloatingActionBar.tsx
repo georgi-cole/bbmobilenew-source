@@ -667,7 +667,6 @@ export default function FloatingActionBar({
       if (destination === 'feedback') {
         openBugReportFromGame({
           season: game.season,
-          day: game.day,
           week: game.week,
           phase: game.phase,
         })
@@ -682,7 +681,7 @@ export default function FloatingActionBar({
       } as const
       navigate(routes[destination])
     },
-    [game.day, game.phase, game.season, game.week, navigate, voxPopuliActive]
+    [game.phase, game.season, game.week, navigate, voxPopuliActive]
   )
 
   // Center the dock in the real rendered space between the content immediately
