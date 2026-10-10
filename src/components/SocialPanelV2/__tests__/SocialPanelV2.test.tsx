@@ -1049,6 +1049,11 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     for (const candidate of candidates) {
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
     }
+    for (const candidate of candidates) {
+      expect(
+        screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]
+      ).toHaveClass('pc--selected')
+    }
     expect(
       screen.getByText((_, element) => element?.classList.contains('sp2-footer__cost') ?? false)
     ).toHaveTextContent('Cost: Group · ⚡3 · 🤝5')
