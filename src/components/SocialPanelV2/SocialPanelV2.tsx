@@ -92,6 +92,7 @@ interface AllianceQuickAction {
   action: SocialActionDefinition
   executeLabel: string
   allowWithoutTarget?: boolean
+  namePrompt?: { label: string; initialValue?: string; hint: string }
   buildCommand: (targetIds: string[]) => AllianceManagementCommand
 }
 
@@ -314,6 +315,7 @@ export default function SocialPanelV2() {
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set())
   const [primaryTargetId, setPrimaryTargetId] = useState<string | null>(null)
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
+  const [allianceNameDraft, setAllianceNameDraft] = useState('')
   const [multiSelectActive, setMultiSelectActive] = useState(false)
   const [consultationScope, setConsultationScope] = useState<'selected' | 'alliance'>('alliance')
   const [consultationAllianceId, setConsultationAllianceId] = useState<string | null>(null)
@@ -467,6 +469,10 @@ export default function SocialPanelV2() {
         ),
         executeLabel: 'Propose group',
         allowWithoutTarget: true,
+        namePrompt: {
+          label: 'Alliance name',
+          hint: 'Choose the name your group will use if everyone agrees.',
+        },
         buildCommand: (targetIds) => {
           const memberIds = [...new Set([humanId, ...targetIds])]
           return {
@@ -475,6 +481,7 @@ export default function SocialPanelV2() {
             actorId: humanId,
             memberIds,
             leaderId: humanId,
+            name: allianceNameDraft,
           }
         },
       })
@@ -502,7 +509,9 @@ export default function SocialPanelV2() {
                 ? `co-leader offer for ${groupName}`
                 : request.kind === 'TRANSFER'
                   ? `leadership offer for ${groupName}`
-                  : `removal suggestion for ${groupName}`
+                  : request.kind === 'RENAME_SUGGESTION'
+                    ? `rename suggestion for ${groupName}`
+                    : `removal suggestion for ${groupName}`
 
       if (canAnswer) {
         actions.push(
@@ -569,6 +578,34 @@ export default function SocialPanelV2() {
         executeLabel: 'Leave group',
         allowWithoutTarget: true,
         buildCommand: () => ({ type: 'LEAVE', allianceId: group.id, actorId: humanId }),
+      })
+      actions.push({
+        action: allianceAction(
+          `alliance:${leader ? 'rename' : 'suggest-rename'}:${group.id}`,
+          leader ? `Rename ${groupName}` : `Suggest a new name for ${groupName}`,
+          leader
+            ? 'Choose the name for this group.'
+            : 'Send a name idea to the group leader for approval.',
+          '✎'
+        ),
+        executeLabel: leader ? 'Rename alliance' : 'Suggest name',
+        allowWithoutTarget: true,
+        namePrompt: {
+          label: leader ? 'New alliance name' : 'Suggested alliance name',
+          initialValue: leader ? groupName : '',
+          hint: leader
+            ? 'The new name is visible to the group.'
+            : 'The leader decides whether to use it.',
+        },
+        buildCommand: () =>
+          leader
+            ? { type: 'RENAME', allianceId: group.id, actorId: humanId, name: allianceNameDraft }
+            : {
+                type: 'SUGGEST_RENAME',
+                allianceId: group.id,
+                actorId: humanId,
+                name: allianceNameDraft,
+              },
       })
       if (leader) {
         if (group.coLeaderId) {
@@ -737,7 +774,14 @@ export default function SocialPanelV2() {
     }
 
     return actions
-  }, [dramaMode, game.players, humanPlayer, primaryTargetId, socialState.reality])
+  }, [
+    allianceNameDraft,
+    dramaMode,
+    game.players,
+    humanPlayer,
+    primaryTargetId,
+    socialState.reality,
+  ])
 
   const pendingAllianceDecisionCount = useMemo(() => {
     if (!humanPlayer) return 0
@@ -874,7 +918,10 @@ export default function SocialPanelV2() {
     ? (game.weekendInterlude?.wallet.info ?? 0)
     : (infoBank?.[humanPlayer?.id ?? ''] ?? 0)
   const hasExecutableSelection =
-    Boolean(selectedActionId) && hasRequiredTargets && (!needsSubject || selectedSubjectId !== null)
+    Boolean(selectedActionId) &&
+    hasRequiredTargets &&
+    (!needsSubject || selectedSubjectId !== null) &&
+    (!selectedAllianceAction?.namePrompt || allianceNameDraft.trim().length >= 2)
 
   const executionEligibility = useMemo(() => {
     const eligibilityGame = weekendActive ? { ...game, phase: 'social_2' as const } : game
@@ -1116,6 +1163,7 @@ export default function SocialPanelV2() {
       if (selectedActionId === actionId) {
         setSelectedActionId(null)
         setSelectedSubjectId(null)
+        setAllianceNameDraft('')
         setMultiSelectActive(false)
         setConsultationScope('alliance')
         setConsultationAllianceId(null)
@@ -1126,6 +1174,7 @@ export default function SocialPanelV2() {
       const nextAction =
         SocialManeuvers.getActionById(actionId) ??
         allianceQuickActions.find((entry) => entry.action.id === actionId)?.action
+      const nextAllianceAction = allianceQuickActions.find((entry) => entry.action.id === actionId)
       const nextMode = nextAction ? resolveActionTargetMode(nextAction, dramaMode) : 'primary'
       const nextBatchCompatible =
         nextMode === 'primary' &&
@@ -1139,6 +1188,7 @@ export default function SocialPanelV2() {
         setMultiSelectActive(false)
       }
       setSelectedActionId(actionId)
+      setAllianceNameDraft(nextAllianceAction?.namePrompt?.initialValue ?? '')
       setConsultationScope('alliance')
       setConsultationAllianceId(null)
       setSelectedSubjectId(null)
@@ -1252,6 +1302,7 @@ export default function SocialPanelV2() {
       setFeedbackExpanded(false)
       if (managed.status !== 'REJECTED') {
         setSelectedActionId(null)
+        setAllianceNameDraft('')
         setSuccessPulse(true)
         if (selectedAllianceAction.action.id === 'alliance:found') {
           setSelectedTargets(new Set())
@@ -2021,6 +2072,24 @@ export default function SocialPanelV2() {
                   : undefined
               }
             />
+            {selectedAllianceAction?.namePrompt && (
+              <div className="sp2-alliance-name-field">
+                <label htmlFor="sp2-alliance-name-input">
+                  {selectedAllianceAction.namePrompt.label}
+                </label>
+                <input
+                  id="sp2-alliance-name-input"
+                  type="text"
+                  value={allianceNameDraft}
+                  maxLength={28}
+                  minLength={2}
+                  autoComplete="off"
+                  onChange={(event) => setAllianceNameDraft(event.target.value)}
+                  aria-describedby="sp2-alliance-name-hint"
+                />
+                <span id="sp2-alliance-name-hint">{selectedAllianceAction.namePrompt.hint}</span>
+              </div>
+            )}
           </section>
         </div>
 

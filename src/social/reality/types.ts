@@ -400,6 +400,7 @@ export type RealityAllianceRequestKind =
   | 'APPOINT'
   | 'TRANSFER'
   | 'REMOVE_SUGGESTION'
+  | 'RENAME_SUGGESTION'
 export type RealityAllianceRequestStatus =
   | 'VOTING'
   | 'CONSENT'
@@ -427,6 +428,7 @@ export interface RealityAllianceRequest {
   coLeaderId?: RealityActorId
   basePactId?: string
   name?: string
+  proposedName?: string
   purpose: string
   createdAt: RealityClock
   deadline: RealityClock

@@ -193,6 +193,8 @@ function allianceDecisionTitle(
       return `${proposerName} offered you leadership of ${allianceName}`
     case 'REMOVE_SUGGESTION':
       return `Vote on removing ${candidateName} from ${allianceName}`
+    case 'RENAME_SUGGESTION':
+      return `${proposerName} suggested renaming ${allianceName}`
   }
 }
 
@@ -217,6 +219,8 @@ function allianceDecisionCopy(
       return `Accept to take leadership of ${allianceName}; the current leader becomes a regular member.`
     case 'REMOVE_SUGGESTION':
       return `The officers are considering a request to remove ${candidateName} from ${allianceName}.`
+    case 'RENAME_SUGGESTION':
+      return `Suggested name: ${request.proposedName ?? 'Unnamed'}. Accept to rename the group; decline to keep its current name.`
   }
 }
 
@@ -235,6 +239,8 @@ function allianceDecisionActionLabels(request: RealityAllianceRequest): [string,
       return ['Accept leadership', 'Decline transfer']
     case 'REMOVE_SUGGESTION':
       return ['Approve removal', 'Decline suggestion']
+    case 'RENAME_SUGGESTION':
+      return ['Accept new name', 'Keep current name']
   }
 }
 

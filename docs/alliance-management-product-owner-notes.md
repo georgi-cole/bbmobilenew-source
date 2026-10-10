@@ -48,6 +48,7 @@ not a guaranteed invitation schedule.
 | Admit a group member           | Current group electorate, then candidate | During the member vote, each AI member's directed trust toward the candidate. After approval, an AI candidate's average directed trust toward current group members |
 | Accept co-leader or leadership | The named nominee                        | The nominee AI's average directed trust toward current group members                                                                                                |
 | Suggest removing a member      | Group officers                           | An AI officer approves when its directed trust toward the candidate is below −10                                                                                    |
+| Suggest renaming a group       | Current leader                           | An AI leader accepts when its directed trust toward the suggester is at least 0                                                                                     |
 
 For pact, founding, admission, and role acceptance, the AI threshold is:
 
@@ -124,7 +125,21 @@ record view, not an invitation mailbox.
   when it drops below two.
 - A new group starts with the initiator as leader and no co-leader in the
   player's direct founding flow. Only the leader can offer co-leadership,
-  transfer leadership, clear the co-leader role, rename, or dissolve.
+  transfer leadership, clear the co-leader role, rename, or dissolve. The
+  initiator supplies the name in the founding action; the name is included in
+  the all-founder consent request. Older or AI-created groups can retain their
+  generated name until the current leader changes it.
+- A leader can rename immediately without a vote or resource cost. A current
+  non-leader member can submit one pending rename suggestion per group. Only the
+  current leader can accept or decline it; accepting applies the name and writes
+  an `ALLIANCE_RENAMED` event, while declining keeps the current name. If the
+  leader renames the group while a suggestion is pending, that suggestion is
+  invalidated. Roster or officer changes also invalidate it through the regular
+  request revision checks. A suggestion expires at its normal response-window
+  deadline if the leader does not answer.
+- Names are trimmed, repeated spaces are collapsed, and names are limited to
+  2–28 characters. Name entry and suggestions have no resource cost. There may
+  be only one pending name suggestion per group.
 - A leader can remove a co-leader or regular member. A co-leader can remove a
   regular member only. Any member can leave. A regular member can suggest a
   removal for officer consideration.

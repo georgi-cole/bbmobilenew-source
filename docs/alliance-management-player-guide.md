@@ -17,10 +17,11 @@ joins or leaves.
   vote together or prevent betrayal.
 - Pact, group, and admission requests appear in **Incoming requests**. A group
   invitation is sent to its candidate only after the current members approve.
-- Sending a personal pact proposal costs ⚡1. Founding a group costs ⚡2, plus
-  ⚡1 for each selected founder above the minimum roster. Proposing an admission
-  or renewing an older pact costs ⚡1. Votes, accepting or declining, leaving a
-  group, removing a member, and dissolving it are free.
+- Sending a new personal pact proposal costs ⚡2; renewing an older pact costs
+  ⚡1. Founding a group costs ⚡3 and 🤝5, plus ⚡1 for each founder above the
+  minimum roster. Proposing an admission costs ⚡1 and 🤝5. Votes, accepting or
+  declining, naming, leaving a group, removing a member, and dissolving it are
+  free.
 
 ## Where to manage alliances
 
@@ -61,6 +62,8 @@ other person, choosing **Alliances → End pact**, and pressing **Execute**.
 4. Press **Execute** to send the proposed roster for consent.
 5. Every named founder must agree. Your own initiating agreement is recorded
    when you submit the proposal.
+6. Enter a name in **Alliance name** before submitting. The name is included in
+   the founding proposal so every founder sees what they are agreeing to.
 
 The founding cost is paid when you submit and is not refunded if someone later
 declines or the request expires. When everyone agrees, the game confirms the
@@ -68,6 +71,10 @@ founders and the group's name, for example: “You, Kian, and Jax made it offici
 The Shield is born.” The person who starts this Social action becomes its
 leader. The group can hold up to six people. Founding a separate group leaves
 your existing personal pacts in place.
+The leader can change the name later from **Social → Alliances**. Other members
+can suggest a name there; the group leader receives the suggestion in **Incoming
+requests** and chooses whether to accept it. Naming and rename suggestions are
+free.
 
 ## Invite someone into one of your groups
 
@@ -151,7 +158,10 @@ before moving through several game phases.
 - **Change roles:** only the leader can offer co-leadership or transfer
   leadership. The nominee must accept. The leader can also clear the co-leader
   role.
-- **Rename a group:** only its leader can rename it in **My Game → Hub**.
+- **Rename a group:** the leader chooses the name while founding the group and
+  can rename it later in **Social → Alliances**. Other members can suggest a
+  name; it changes only if the leader accepts the suggestion in **Incoming
+  requests**.
 
 If a group falls below two members, it ends. A former group with two members
 remains a group; it does not silently become a personal pact.

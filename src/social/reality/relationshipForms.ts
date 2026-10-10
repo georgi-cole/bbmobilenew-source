@@ -213,6 +213,7 @@ export function renameRealityAlliance(
     actorId: string
     name: string
     at: RealityClock
+    ignoreRequestId?: string
   }
 ): RealityAlliance {
   const alliance = state.alliances[input.allianceId]
@@ -223,6 +224,19 @@ export function renameRealityAlliance(
   const name = input.name.trim().replace(/\s+/g, ' ').slice(0, 28)
   if (name.length < 2) throw new Error('Alliance name is too short')
   if (alliance.name === name) return alliance
+
+  for (const request of Object.values(state.allianceManagement.requests)) {
+    if (
+      request.id !== input.ignoreRequestId &&
+      request.kind === 'RENAME_SUGGESTION' &&
+      request.allianceId === alliance.id &&
+      (request.status === 'VOTING' || request.status === 'CONSENT')
+    ) {
+      request.status = 'INVALIDATED'
+      request.reason = 'The alliance name changed before the suggestion was decided.'
+      request.settledAt = { ...input.at }
+    }
+  }
 
   alliance.name = name
   rememberAllianceRoster(alliance)
