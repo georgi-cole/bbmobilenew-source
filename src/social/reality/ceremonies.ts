@@ -446,6 +446,19 @@ function applyCeremonyAftermath(
     winner.confidence = clamp(winner.confidence + 14)
     winner.emotions.joy = clamp(winner.emotions.joy + 18, 0, 100)
     winner.primaryGoalId = 'USE_POWER_WITHOUT_CREATING_UNNECESSARY_ENEMIES'
+    if (event.publicEligible) {
+      for (const witnessId of event.witnessIds) {
+        if (witnessId === actorId) continue
+        applyRealityRelationshipChange(state, {
+          sourceId: witnessId,
+          targetId: actorId,
+          day: event.day,
+          phase: event.phase,
+          eventId: event.id,
+          deltas: { respect: 5 },
+        })
+      }
+    }
   }
 
   if (kind === 'NOMINATIONS_LOCKED') {

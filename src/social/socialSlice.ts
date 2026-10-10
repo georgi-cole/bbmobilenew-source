@@ -512,6 +512,8 @@ const socialSlice = createSlice({
       ensureRealityActors(state.reality as RealityDomainState, [sourceId, targetId])
       const magnitude = Math.min(3, Math.abs(socialDelta))
       const cooling = socialDelta > 0
+      const hasUnresolvedGrievance =
+        (state.reality.relationships[sourceId]?.[targetId]?.unresolvedGrievanceIds.length ?? 0) > 0
       applyRealityRelationshipChange(state.reality as RealityDomainState, {
         sourceId,
         targetId,
@@ -523,9 +525,9 @@ const socialSlice = createSlice({
           ? {
               warmth: magnitude,
               trust: magnitude * 0.6,
-              resentment: -magnitude * 3,
-              suspicion: -magnitude * 2.5,
-              fear: -magnitude * 1.5,
+              resentment: hasUnresolvedGrievance ? 0 : -magnitude * 3,
+              suspicion: hasUnresolvedGrievance ? 0 : -magnitude * 2.5,
+              fear: hasUnresolvedGrievance ? 0 : -magnitude * 1.5,
               perceivedThreat: -magnitude,
             }
           : {

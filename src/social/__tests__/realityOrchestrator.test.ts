@@ -325,6 +325,22 @@ describe('Reality causal orchestration', () => {
     ])
   })
 
+  it('lets accepted social actions strengthen the recipient’s read of the initiator', () => {
+    const action = REALITY_ACTION_BY_ID.get('compliment')!
+    const result = runRealityOpportunity({
+      domain: createInitialRealityDomainState(),
+      simulation: createInitialRealitySimulationState(124),
+      opportunity: {
+        ...opportunity(),
+        candidates: [{ action, targetIds: ['lia'], acceptanceChanceOverride: 1 }],
+      },
+    })
+
+    expect(result.response?.accepted).toBe(true)
+    expect(result.domain.relationships.lia.ava.warmth).toBeGreaterThan(0)
+    expect(result.domain.relationships.lia.ava.trust).toBeGreaterThan(0)
+  })
+
   it('routes AI-to-human through one pending interaction without inventing a response', () => {
     const pendingOpportunity: RealityOpportunity = {
       ...opportunity(),

@@ -5,10 +5,14 @@ function clampRelationship(value: number): number {
   return Math.max(-100, Math.min(100, Math.round(value)))
 }
 
-function tension(edge: DirectedRelationship): number {
-  return Math.round(
-    Math.max(0, Math.min(100, edge.resentment * 0.45 + edge.suspicion * 0.35 + edge.fear * 0.2))
+function tension(edge: DirectedRelationship, currentDay?: number): number {
+  const lingeringTension = edge.resentment * 0.45 + edge.suspicion * 0.35 + edge.fear * 0.2
+  const elapsedDays = Math.max(
+    0,
+    (currentDay ?? edge.acuteTensionDay ?? 0) - (edge.acuteTensionDay ?? 0)
   )
+  const recentTension = Math.max(0, (edge.acuteTension ?? 0) - elapsedDays * 8)
+  return Math.round(Math.max(0, Math.min(100, Math.max(lingeringTension, recentTension))))
 }
 
 export function combinedLiveRelationship(
@@ -52,36 +56,40 @@ export function liveRelationshipLabel(
 
 export function liveRelationshipMetrics(
   edge: DirectedRelationship,
-  live: ReturnType<typeof combinedLiveRelationship>
+  currentDay?: number
 ): Array<[string, number]> {
-  if (!live) {
-    return [
-      ['Trust', edge.trust],
-      ['Warmth', edge.warmth],
-      ['Loyalty', edge.loyalty],
-      ['Respect', edge.respect],
-      ['Tension', tension(edge)],
-    ]
-  }
-  const broken =
-    live.tags.has('ex') ||
-    live.tags.has('broken_romance') ||
-    live.tags.has('broken_alliance') ||
-    live.tags.has('betrayal') ||
-    live.tags.has('broken_promise')
-  const affinity = broken ? Math.min(-50, live.affinity) : live.affinity
-  const trust = clampRelationship(edge.trust * 0.6 + affinity * 0.4)
-  const warmth = clampRelationship(edge.warmth * 0.5 + affinity * 0.5)
-  const loyalty = clampRelationship(
-    broken ? Math.min(edge.loyalty, affinity) : edge.loyalty * 0.55 + affinity * 0.45
-  )
-  const respect = clampRelationship(edge.respect * 0.7 + affinity * 0.3)
-  const liveTension = affinity < 0 ? Math.min(100, Math.abs(affinity) + (broken ? 30 : 8)) : 0
   return [
-    ['Trust', trust],
-    ['Warmth', warmth],
-    ['Loyalty', loyalty],
-    ['Respect', respect],
-    ['Tension', Math.max(tension(edge), liveTension)],
+    ['Trust', clampRelationship(edge.trust)],
+    ['Warmth', clampRelationship(edge.warmth)],
+    ['Loyalty', clampRelationship(edge.loyalty)],
+    ['Respect', clampRelationship(edge.respect)],
+    ['Tension', tension(edge, currentDay)],
   ]
+}
+
+export function relationshipMetricStatus(label: string, value: number): string {
+  if (label === 'Tension') {
+    if (value >= 45) return 'High'
+    if (value >= 20) return 'Rising'
+    return 'Calm'
+  }
+  if (value <= -60) return 'Very low'
+  if (value <= -20) return 'Low'
+  if (value < 20) return 'Still forming'
+  if (value < 60) return 'Growing'
+  return 'Strong'
+}
+
+export function relationshipEventLabel(type: string, actionId?: string): string {
+  if (type === 'SOCIAL_INTERACTION_RESOLVED' && actionId) {
+    return actionId.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  }
+  const ceremonyLabels: Record<string, string> = {
+    CEREMONY_NOMINATIONS_LOCKED: 'Nomination',
+    CEREMONY_SAFETY_USED: 'Safety used',
+    CEREMONY_SAFETY_DECLINED: 'Safety declined',
+    CEREMONY_POWER_WON: 'Competition win',
+    ALLIANCE_BETRAYAL: 'Alliance betrayal',
+  }
+  return ceremonyLabels[type] ?? 'House interaction'
 }

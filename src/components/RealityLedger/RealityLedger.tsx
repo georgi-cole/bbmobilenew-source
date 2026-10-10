@@ -18,6 +18,8 @@ import {
   combinedLiveRelationship,
   liveRelationshipLabel,
   liveRelationshipMetrics,
+  relationshipEventLabel,
+  relationshipMetricStatus,
 } from './relationshipRead'
 import './RealityLedger.css'
 
@@ -267,6 +269,17 @@ export default function RealityLedger({
   const selectedLiveRelationship = selectedRelationship
     ? combinedLiveRelationship(liveRelationships, humanId, selectedRelationship.toId)
     : null
+  const recentRelationshipShift = selectedRelationship?.lastMeaningfulInteraction
+    ? reality.events.find(
+        (event) => event.id === selectedRelationship.lastMeaningfulInteraction?.eventId
+      )
+    : undefined
+  const recentShiftIsKnown =
+    recentRelationshipShift &&
+    (recentRelationshipShift.participantIds.includes(humanId) ||
+      recentRelationshipShift.witnessIds.includes(humanId) ||
+      recentRelationshipShift.visibility === 'HOUSE_PUBLIC' ||
+      recentRelationshipShift.visibility === 'CEREMONY_PUBLIC')
 
   return (
     <section
@@ -595,17 +608,51 @@ export default function RealityLedger({
                         {liveRelationshipLabel(selectedRelationship, selectedLiveRelationship)}
                       </span>
                     </div>
-                    {liveRelationshipMetrics(selectedRelationship, selectedLiveRelationship).map(
+                    {liveRelationshipMetrics(selectedRelationship, currentDay).map(
                       ([label, rawValue]) => {
                         const value = Number(rawValue)
                         const normalized = label === 'Tension' ? value : (value + 100) / 2
                         return (
-                          <label key={String(label)}>
+                          <label
+                            className={
+                              label === 'Tension' ? 'reality-ledger__metric--tension' : undefined
+                            }
+                            key={String(label)}
+                          >
                             <span>{label}</span>
-                            <meter min="0" max="100" value={normalized} />
+                            <div
+                              className={`reality-ledger__relationship-meter${label === 'Tension' ? ' reality-ledger__relationship-meter--tension' : ''}`}
+                              role="meter"
+                              aria-label={`${label}: ${relationshipMetricStatus(String(label), value)}`}
+                              aria-valuemin={0}
+                              aria-valuemax={100}
+                              aria-valuenow={normalized}
+                              aria-valuetext={relationshipMetricStatus(String(label), value)}
+                            >
+                              <span
+                                className="reality-ledger__relationship-meter-fill"
+                                style={{ width: `${normalized}%` }}
+                              />
+                              {label !== 'Tension' && (
+                                <span
+                                  className="reality-ledger__relationship-meter-midpoint"
+                                  aria-hidden="true"
+                                />
+                              )}
+                            </div>
+                            <small>{relationshipMetricStatus(String(label), value)}</small>
                           </label>
                         )
                       }
+                    )}
+                    {recentRelationshipShift && recentShiftIsKnown && (
+                      <p className="reality-ledger__relationship-shift">
+                        Recent shift · Week {selectedRelationship.lastMeaningfulInteraction?.day} ·{' '}
+                        {relationshipEventLabel(
+                          recentRelationshipShift.type,
+                          recentRelationshipShift.actionId
+                        )}
+                      </p>
                     )}
                     <small>
                       This is your character’s read. Their private opinion of you remains hidden.
