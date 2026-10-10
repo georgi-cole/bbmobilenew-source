@@ -665,7 +665,12 @@ export default function FloatingActionBar({
   const handleMoreClick = useCallback(
     (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store' | 'feedback') => {
       if (destination === 'feedback') {
-        openBugReportFromGame({ season: game.season, day: game.day, week: game.week, phase: game.phase })
+        openBugReportFromGame({
+          season: game.season,
+          day: game.day,
+          week: game.week,
+          phase: game.phase,
+        })
         return
       }
       const routes = {
