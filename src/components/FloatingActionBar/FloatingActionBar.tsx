@@ -64,6 +64,7 @@ import {
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
 import AdPrompt from '../AdPrompt/AdPrompt'
 import GameControlDock from '../GameControlDock/GameControlDock'
+import { openBugReportFromGame } from '../../utils/openBugReport'
 import ConfessionalSpotlightOverlay from './ConfessionalSpotlightOverlay'
 import { resolveBalancedDockBottom } from './floatingActionBarLayout'
 import { resolvePublicMeterDestination } from './publicMeterNavigation'
@@ -662,7 +663,15 @@ export default function FloatingActionBar({
   ])
 
   const handleMoreClick = useCallback(
-    (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store') => {
+    (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store' | 'feedback') => {
+      if (destination === 'feedback') {
+        openBugReportFromGame({
+          season: game.season,
+          week: game.week,
+          phase: game.phase,
+        })
+        return
+      }
       const routes = {
         settings: '/settings',
         profile: '/profile',
@@ -672,7 +681,7 @@ export default function FloatingActionBar({
       } as const
       navigate(routes[destination])
     },
-    [navigate, voxPopuliActive]
+    [game.phase, game.season, game.week, navigate, voxPopuliActive]
   )
 
   // Center the dock in the real rendered space between the content immediately
