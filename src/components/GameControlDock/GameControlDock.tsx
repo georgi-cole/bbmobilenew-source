@@ -49,7 +49,7 @@ export interface GameControlDockProps {
   onPublicMeterClick?: () => void
   onToolClick?: () => void
   onHomeClick?: () => void
-  onMoreClick?: (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store') => void
+  onMoreClick?: (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store' | 'feedback') => void
   disabled?: boolean
   primaryDisabled?: boolean
   socialDisabled?: boolean
@@ -414,6 +414,7 @@ export default function GameControlDock({
                 ['rules', navAssetUrl('rules_approved_final.svg'), 'Rules'],
                 ['leaderboard', navAssetUrl('hall_of_fame_approved_final.svg'), 'Hall of Fame'],
                 ['store', `${BASE}/assets/icons/shop.svg`, 'Store'],
+                ['feedback', `${BASE}/assets/side_utilities_button/feedback_v2.svg`, 'Report a bug'],
               ] as const
             ).map(([destination, icon, label]) => (
               <button
