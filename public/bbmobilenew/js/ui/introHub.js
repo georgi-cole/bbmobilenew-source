@@ -395,7 +395,8 @@
       'Build: ' + (build.buildId || 'unknown'),
       'Season: ' + (typeof gameContext.season === 'number' ? gameContext.season : 'unknown'),
       'Day: ' + (typeof day === 'number' ? day : 'unknown'),
-      'Phase: ' + (typeof gameContext.phase === 'string' ? gameContext.phase.slice(0, 80) : 'unknown'),
+      'Phase: ' +
+        (typeof gameContext.phase === 'string' ? gameContext.phase.slice(0, 80) : 'unknown'),
       'Reported at (UTC): ' + new Date().toISOString(),
     ]
     if (includeDevice) {
@@ -427,7 +428,7 @@
 
   function buildFeedbackMailtoUrl(kind, report) {
     const subject = encodeURIComponent('The Big Eye — ' + kind)
-    return 'mailto:' + FEEDBACK_EMAIL + '?subject=' + subject + '&body=' + encodeURIComponent(report)
+    return `mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${encodeURIComponent(report)}`
   }
 
   function openFeedbackComposer() {
@@ -435,7 +436,8 @@
       title: 'Report a bug',
       icon: '💬',
       description:
-        'Tell us what happened. You can also share suggestions. This prepares an email; nothing is sent automatically.',
+        'Tell us what happened. You can also share suggestions. ' +
+          'This prepares an email; nothing is sent automatically.',
       renderBody: function (body) {
         const form = applyStyles(document.createElement('form'), {
           display: 'grid',
@@ -535,7 +537,8 @@
         form.appendChild(
           createTextNode(
             'p',
-            'Season, day, phase and build info are included. No saved game, account data or screenshot is attached. You can attach a screenshot in your email app.',
+            'Season, day, phase and build info are included. No saved game, account data or screenshot is attached. ' +
+              'You can attach a screenshot in your email app.',
             { margin: '0', fontSize: '12px', lineHeight: '1.5', color: 'rgba(236,241,255,0.65)' }
           )
         )
@@ -622,7 +625,8 @@
             Promise.resolve(global.navigator.clipboard.writeText(report))
               .then(function () {
                 manualCopy.style.display = 'none'
-                status.textContent = 'Report copied. Paste it into an email or message to the developer.'
+                status.textContent =
+                  'Report copied. Paste it into an email or message to the developer.'
               })
               .catch(function () {
                 manualCopy.style.display = 'block'
