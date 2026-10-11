@@ -29,6 +29,8 @@ export interface ActionGridProps {
   disabledIds?: ReadonlySet<string>
   selectedId?: string | null
   selectedTargetIds?: ReadonlySet<string>
+  /** A valid group member keeps alliance consultation discoverable without a selected housemate. */
+  consultationTargetIds?: ReadonlySet<string>
   players?: readonly Player[]
   actorId?: string
   actorEnergy?: number
@@ -63,6 +65,7 @@ export default function ActionGrid({
   disabledIds = new Set(),
   selectedId = null,
   selectedTargetIds,
+  consultationTargetIds,
   players,
   actorId = '',
   actorEnergy,
@@ -148,10 +151,14 @@ export default function ActionGrid({
   }
 
   function getContextEligibility(action: SocialActionDefinition) {
+    const targetIds =
+      action.id === 'consult_alliance'
+        ? (consultationTargetIds ?? new Set<string>())
+        : selectedTargetIds
     return evaluateSocialActionEligibility({
       action,
       actorId,
-      targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
+      targetIds: targetIds ? Array.from(targetIds) : [],
       phase: currentPhase,
       week: game.week,
       players: game.players.length > 0 ? game.players : players,
@@ -316,7 +323,10 @@ export default function ActionGrid({
         action,
         dramaMode || isRealityExclusiveAction(action)
       )
-      return actionMode === 'none'
+      return (
+        actionMode === 'none' ||
+        (action.id === 'consult_alliance' && (consultationTargetIds?.size ?? 0) > 0)
+      )
     })
     .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action))
     .sort((left, right) => {

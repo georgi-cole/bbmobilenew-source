@@ -47,52 +47,68 @@
   backdrop-filter: blur(3px);
 }
 
-.sp2-consult-scope {
+.sp2-consult-alliance-picker {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.15rem 0 0.5rem;
-  color: #aaa2b7;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.sp2-consult-scope button {
   min-width: 0;
-  padding: 0.32rem 0.58rem;
-  border: 1px solid rgba(211, 192, 247, 0.2);
-  border-radius: 999px;
-  background: rgba(19, 14, 29, 0.85);
-  color: #cbc3d8;
-  font: inherit;
+  margin: 0.2rem 0 0.55rem;
 }
 
-.sp2-consult-scope button.is-active {
-  border-color: rgba(190, 151, 255, 0.75);
-  background: rgba(105, 47, 195, 0.55);
-  color: #fff;
+.sp2-consult-alliance-picker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.42rem;
+  min-width: 0;
 }
 
-.sp2-consult-scope__alliance {
+.sp2-consult-alliance-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-}
-
-.sp2-consult-scope__alliance select {
-  max-width: min(12rem, 52vw);
-  padding: 0.3rem 0.45rem;
-  border: 1px solid rgba(211, 192, 247, 0.2);
-  border-radius: 0.55rem;
-  background: rgba(19, 14, 29, 0.85);
-  color: #eee8f6;
+  min-width: 0;
+  max-width: min(15rem, calc(100vw - 3.5rem));
+  overflow: hidden;
+  padding: 0.36rem 0.72rem;
+  border: 1px solid rgba(211, 192, 247, 0.24);
+  border-radius: 999px;
+  background: rgba(19, 14, 29, 0.78);
+  color: #d6c8eb;
   font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease;
 }
 
-.sp2-consult-scope__alliance-name {
-  color: #d5c2fb;
-  font-size: 0.68rem;
+.sp2-consult-alliance-chip:hover,
+.sp2-consult-alliance-chip:focus-visible {
+  border-color: rgba(208, 177, 255, 0.68);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(165, 112, 255, 0.18);
+}
+
+.sp2-consult-alliance-chip.is-active {
+  border-color: rgba(216, 181, 255, 0.88);
+  background: linear-gradient(135deg, rgba(111, 48, 196, 0.82), rgba(74, 36, 132, 0.88));
+  color: #fff;
+  box-shadow: 0 0 14px rgba(125, 74, 207, 0.2);
+}
+
+.sp2-consult-alliance-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp2-consult-alliance-picker__empty {
+  color: #aaa2b7;
+  font-size: 0.76rem;
+  font-weight: 650;
 }
 
 .sp2-backdrop--weekend {
@@ -418,18 +434,32 @@
 .sp2-relationship-legend i {
   width: 0.45rem;
   height: 0.45rem;
-  border: 2px solid currentColor;
+  flex: 0 0 auto;
+  background: currentColor;
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 999px;
 }
 
-.sp2-relationship-legend .is-close {
-  color: #2ecc71;
+.sp2-relationship-legend .is-nemesis {
+  color: #372638;
 }
-.sp2-relationship-legend .is-mixed {
-  color: #eab308;
+.sp2-relationship-legend .is-hostile {
+  color: #77334d;
 }
 .sp2-relationship-legend .is-strained {
-  color: #ef4444;
+  color: #b75d78;
+}
+.sp2-relationship-legend .is-neutral {
+  color: #9287b2;
+}
+.sp2-relationship-legend .is-warm {
+  color: #d28a94;
+}
+.sp2-relationship-legend .is-close {
+  color: #e4aa77;
+}
+.sp2-relationship-legend .is-romance {
+  color: #e7a989;
 }
 
 .sp2-multi-hint {

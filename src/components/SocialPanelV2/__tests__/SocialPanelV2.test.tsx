@@ -737,7 +737,7 @@ describe('SocialPanelV2 – accessibility', () => {
 })
 
 describe('SocialPanelV2 – scoped alliance consultation', () => {
-  it('offers selected-allies and whole-alliance scopes with one fixed huddle cost', () => {
+  it('consults one selected official alliance as a group and keeps pacts out of the picker', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     const allies = store
@@ -779,40 +779,37 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     initManeuvers(store)
     renderPanel(store)
 
+    expect(
+      screen.getByLabelText(
+        'Avatar rings: Nemesis, Hostile, Strained, Still forming, Warm, Close, Romance'
+      )
+    ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
-    fireEvent.click(
-      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
-        name: new RegExp(allies[0].name, 'i'),
-      })
-    )
     fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
-    expect(screen.getByRole('group', { name: 'Consultation scope' })).toBeInTheDocument()
-    const alliancePicker = screen.getByRole('combobox', { name: 'Alliance to consult' })
-    expect(
-      Array.from((alliancePicker as HTMLSelectElement).options).map((option) => option.value)
-    ).toEqual([otherAlliance.id, alliance.id])
-    expect(
-      screen.queryByRole('option', { name: /Migrated strategic pact/i })
-    ).not.toBeInTheDocument()
-    fireEvent.change(alliancePicker, {
-      target: { value: otherAlliance.id },
-    })
-    expect(screen.getByRole('combobox', { name: 'Alliance to consult' })).toHaveValue(
-      otherAlliance.id
+    expect(screen.getByRole('tab', { name: 'Alliances' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('region', { name: 'Choose an alliance' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Player roster' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Selected allies' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Whole alliance' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /Alliance/i })).not.toBeInTheDocument()
+    const alliancePicker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    expect(alliancePicker.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'Safe Harbor',
+      'The Numbers',
+    ])
+    expect(alliancePicker.queryByRole('button', { name: /Migrated strategic pact/i })).toBeNull()
+    fireEvent.click(alliancePicker.getByRole('button', { name: 'Safe Harbor' }))
+    expect(alliancePicker.getByRole('button', { name: 'Safe Harbor' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
     )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Selected allies' }))
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(allies[1].name, 'i') })[0])
-
-    expect(screen.getByText(/Selected allies.*⚡2/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Whole alliance' })).toHaveAttribute(
+    expect(alliancePicker.getByRole('button', { name: 'The Numbers' })).toHaveAttribute(
       'aria-pressed',
       'false'
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Whole alliance' }))
-    expect(screen.getByText(/Whole alliance.*⚡2/)).toBeInTheDocument()
+
     const execute = screen.getByRole('button', { name: 'Execute' })
     expect(execute).toBeEnabled()
     fireEvent.click(execute)

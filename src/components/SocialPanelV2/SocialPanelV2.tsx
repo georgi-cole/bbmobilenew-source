@@ -319,7 +319,6 @@ export default function SocialPanelV2() {
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
   const [allianceNameDraft, setAllianceNameDraft] = useState('')
   const [multiSelectActive, setMultiSelectActive] = useState(false)
-  const [consultationScope, setConsultationScope] = useState<'selected' | 'alliance'>('alliance')
   const [consultationAllianceId, setConsultationAllianceId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
@@ -438,7 +437,6 @@ export default function SocialPanelV2() {
     setSelectedSubjectId(null)
     setFeedbackMsg(null)
     setMultiSelectActive(false)
-    setConsultationScope('alliance')
     setConsultationAllianceId(null)
   }
 
@@ -835,24 +833,41 @@ export default function SocialPanelV2() {
   const isAllianceConsultation = selectedActionId === 'consult_alliance'
   const selectedConsultationAlliance =
     consultationAlliances.find((alliance) => alliance.id === consultationAllianceId) ??
-    consultationAlliances.find((alliance) => alliance.memberIds.includes(primaryTargetId ?? '')) ??
-    consultationAlliances[0] ??
-    null
-  const usesMultipleTargets =
-    targetMode === 'multi' ||
-    (multiSelectActive && isBatchCompatible) ||
-    (isAllianceConsultation && consultationScope === 'selected')
+    (consultationAlliances.length === 1 ? consultationAlliances[0] : null)
+  const consultationRepresentativeId = selectedConsultationAlliance?.memberIds.find(
+    (memberId) =>
+      memberId !== humanPlayer?.id &&
+      game.players.some(
+        (player) =>
+          player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+      )
+  )
+  const consultationPreviewTargetId = consultationAlliances[0]?.memberIds.find(
+    (memberId) =>
+      memberId !== humanPlayer?.id &&
+      game.players.some(
+        (player) =>
+          player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+      )
+  )
+  const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
   // A social visit always starts with the roster unselected. Contextual calls
   // can highlight an action, but never choose a housemate on the player's behalf.
-  const effectivePrimaryTargetId = targetMode === 'none' ? null : primaryTargetId
+  const effectivePrimaryTargetId = isAllianceConsultation
+    ? (consultationRepresentativeId ?? null)
+    : targetMode === 'none'
+      ? null
+      : primaryTargetId
   const selectedPlayerIds = useMemo(
     () =>
-      selectedTargets.size > 0
-        ? selectedTargets
-        : effectivePrimaryTargetId
-          ? new Set([effectivePrimaryTargetId])
-          : selectedTargets,
-    [effectivePrimaryTargetId, selectedTargets]
+      isAllianceConsultation
+        ? new Set<string>()
+        : selectedTargets.size > 0
+          ? selectedTargets
+          : effectivePrimaryTargetId
+            ? new Set([effectivePrimaryTargetId])
+            : selectedTargets,
+    [effectivePrimaryTargetId, isAllianceConsultation, selectedTargets]
   )
   const selectedTargetCount = selectedTargets.size
   const minimumTargetCount = Math.max(1, selectedAction?.minTargets ?? 2)
@@ -875,7 +890,7 @@ export default function SocialPanelV2() {
             selectedAction,
             effectivePrimaryTargetId ?? humanPlayer?.id ?? '',
             undefined,
-            selectedTargetCount,
+            isAllianceConsultation ? 1 : selectedTargetCount,
             dramaMode
           )
       : null
@@ -1043,9 +1058,9 @@ export default function SocialPanelV2() {
       selectedActionId === 'paternity_test_self'
       ? 'You'
       : selectedActionId === 'consult_alliance'
-        ? consultationScope === 'alliance'
-          ? 'Whole alliance'
-          : 'Selected allies'
+        ? (selectedConsultationAlliance?.name ??
+          selectedConsultationAlliance?.purpose ??
+          'Alliance')
         : targetMode === 'none'
           ? weekendActive
             ? 'Hub'
@@ -1167,7 +1182,6 @@ export default function SocialPanelV2() {
         setSelectedSubjectId(null)
         setAllianceNameDraft('')
         setMultiSelectActive(false)
-        setConsultationScope('alliance')
         setConsultationAllianceId(null)
         setFeedbackMsg(null)
         return
@@ -1189,9 +1203,14 @@ export default function SocialPanelV2() {
         setSelectedTargets(new Set([primaryTargetId]))
         setMultiSelectActive(false)
       }
+      if (actionId === 'consult_alliance') {
+        setMoveFilter('alliances')
+        setSelectedTargets(new Set())
+        setPrimaryTargetId(null)
+        setMultiSelectActive(false)
+      }
       setSelectedActionId(actionId)
       setAllianceNameDraft(nextAllianceAction?.namePrompt?.initialValue ?? '')
-      setConsultationScope('alliance')
       setConsultationAllianceId(null)
       setSelectedSubjectId(null)
       setFeedbackMsg(null)
@@ -1360,7 +1379,7 @@ export default function SocialPanelV2() {
       const consultationOptions =
         selectedActionId === 'consult_alliance'
           ? {
-              consultationScope,
+              consultationScope: 'alliance' as const,
               consultationAllianceId: selectedConsultationAlliance?.id,
             }
           : {}
@@ -1525,7 +1544,6 @@ export default function SocialPanelV2() {
     selectedActionId,
     selectedAllianceAction,
     minimumTargetCount,
-    consultationScope,
     selectedConsultationAlliance,
     selectedSubjectId,
     selectedTargets,
@@ -1812,30 +1830,48 @@ export default function SocialPanelV2() {
         <div id="sp2-body" className="sp2-body">
           <section
             className="sp2-hubmates"
-            aria-label="Player roster"
+            aria-label={isAllianceConsultation ? 'Choose an alliance' : 'Player roster'}
             data-reality-tutorial="hubmates"
           >
             <div className="sp2-section-heading">
               <span>
                 <span className="sp2-section-heading__eyebrow">Private lounge</span>
-                <span className="sp2-section-heading__title">Choose a hubmate</span>
+                <span className="sp2-section-heading__title">
+                  {isAllianceConsultation ? 'Choose an alliance' : 'Choose a hubmate'}
+                </span>
               </span>
-              {!usesMultipleTargets && (
+              {!isAllianceConsultation && !usesMultipleTargets && (
                 <span
                   className="sp2-relationship-legend"
-                  aria-label="Avatar rings: green means close, yellow means mixed, red means strained"
+                  aria-label="Avatar rings: Nemesis, Hostile, Strained, Still forming, Warm, Close, Romance"
                 >
+                  <span>
+                    <i className="is-nemesis" />
+                    Nemesis
+                  </span>
+                  <span>
+                    <i className="is-hostile" />
+                    Hostile
+                  </span>
+                  <span>
+                    <i className="is-strained" />
+                    Strained
+                  </span>
+                  <span>
+                    <i className="is-neutral" />
+                    Still forming
+                  </span>
+                  <span>
+                    <i className="is-warm" />
+                    Warm
+                  </span>
                   <span>
                     <i className="is-close" />
                     Close
                   </span>
                   <span>
-                    <i className="is-mixed" />
-                    Mixed
-                  </span>
-                  <span>
-                    <i className="is-strained" />
-                    Strained
+                    <i className="is-romance" />
+                    Romance
                   </span>
                 </span>
               )}
@@ -1849,90 +1885,55 @@ export default function SocialPanelV2() {
               )}
             </div>
             {isAllianceConsultation && (
-              <div className="sp2-consult-scope" role="group" aria-label="Consultation scope">
-                <span>Invite</span>
-                <button
-                  type="button"
-                  aria-pressed={consultationScope === 'selected'}
-                  className={consultationScope === 'selected' ? 'is-active' : ''}
-                  onClick={() => {
-                    setConsultationScope('selected')
-                    if (primaryTargetId)
-                      setSelectedTargets((current) =>
-                        current.size > 0 ? current : new Set([primaryTargetId])
+              <div
+                className="sp2-consult-alliance-picker"
+                role="group"
+                aria-label="Official alliances"
+              >
+                {consultationAlliances.length > 0 ? (
+                  <div className="sp2-consult-alliance-picker__chips">
+                    {consultationAlliances.map((alliance) => {
+                      const allianceName = alliance.name ?? alliance.purpose
+                      const isSelected = selectedConsultationAlliance?.id === alliance.id
+                      return (
+                        <button
+                          key={alliance.id}
+                          type="button"
+                          title={allianceName}
+                          aria-label={allianceName}
+                          aria-pressed={isSelected}
+                          className={`sp2-consult-alliance-chip${isSelected ? ' is-active' : ''}`}
+                          onClick={() => setConsultationAllianceId(alliance.id)}
+                        >
+                          <span className="sp2-consult-alliance-chip__name">{allianceName}</span>
+                        </button>
                       )
-                  }}
-                >
-                  Selected allies
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={consultationScope === 'alliance'}
-                  className={consultationScope === 'alliance' ? 'is-active' : ''}
-                  onClick={() => {
-                    setConsultationScope('alliance')
-                    if (primaryTargetId) setSelectedTargets(new Set([primaryTargetId]))
-                  }}
-                >
-                  Whole alliance
-                </button>
-                {consultationAlliances.length > 1 ? (
-                  <label className="sp2-consult-scope__alliance">
-                    <span>Alliance</span>
-                    <select
-                      aria-label="Alliance to consult"
-                      value={selectedConsultationAlliance?.id ?? ''}
-                      onChange={(event) => {
-                        const alliance = consultationAlliances.find(
-                          (candidate) => candidate.id === event.target.value
-                        )
-                        if (!alliance || !humanPlayer) return
-                        setConsultationAllianceId(alliance.id)
-                        const activeRepresentative = alliance.memberIds.find(
-                          (memberId) =>
-                            memberId !== humanPlayer.id &&
-                            game.players.some(
-                              (player) =>
-                                player.id === memberId &&
-                                player.status !== 'evicted' &&
-                                player.status !== 'jury'
-                            )
-                        )
-                        setPrimaryTargetId(activeRepresentative ?? null)
-                        setSelectedTargets(
-                          activeRepresentative ? new Set([activeRepresentative]) : new Set()
-                        )
-                      }}
-                    >
-                      {consultationAlliances.map((alliance) => (
-                        <option key={alliance.id} value={alliance.id}>
-                          {alliance.name ?? alliance.purpose}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : selectedConsultationAlliance ? (
-                  <span className="sp2-consult-scope__alliance-name">
-                    {selectedConsultationAlliance.name ?? selectedConsultationAlliance.purpose}
+                    })}
+                  </div>
+                ) : (
+                  <span className="sp2-consult-alliance-picker__empty">
+                    No active alliances are available to consult.
                   </span>
-                ) : null}
+                )}
               </div>
             )}
-            <PlayerList
-              players={orderedPlayers}
-              humanPlayerId={humanPlayer.id}
-              relationships={relationships}
-              disabledIds={disabledPlayerIds}
-              selectedIds={selectedPlayerIds}
-              onSelectionChange={handleSelectionChange}
-              multiSelectEnabled={targetMode === 'multi'}
-              deltasByTargetId={deltasByTargetId}
-              relationshipPulseDeltas={relationshipPulseDeltas}
-              multiSelect={usesMultipleTargets}
-              cupidPartners={cupidPartners}
-              playerLimitedRead={dramaMode}
-              reality={socialState.reality}
-            />
+            {!isAllianceConsultation && (
+              <PlayerList
+                players={orderedPlayers}
+                humanPlayerId={humanPlayer.id}
+                relationships={relationships}
+                disabledIds={disabledPlayerIds}
+                selectedIds={selectedPlayerIds}
+                onSelectionChange={handleSelectionChange}
+                multiSelectEnabled={targetMode === 'multi'}
+                deltasByTargetId={deltasByTargetId}
+                relationshipPulseDeltas={relationshipPulseDeltas}
+                multiSelect={usesMultipleTargets}
+                cupidPartners={cupidPartners}
+                playerLimitedRead={dramaMode}
+                reality={socialState.reality}
+              />
+            )}
           </section>
 
           <section
@@ -2069,6 +2070,9 @@ export default function SocialPanelV2() {
               onActionClick={handleActionClick}
               onPremiumLockedClick={handleRealityUpgrade}
               selectedTargetIds={selectedPlayerIds}
+              consultationTargetIds={
+                consultationPreviewTargetId ? new Set([consultationPreviewTargetId]) : new Set()
+              }
               players={orderedPlayers}
               actorId={humanPlayer.id}
               actorEnergy={energy}
