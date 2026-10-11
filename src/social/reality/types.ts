@@ -372,6 +372,8 @@ export interface RealityAlliance {
     }
   >
   name?: string
+  /** A human founder must name or keep the suggested name after all founders agree. */
+  initialNamePending?: boolean
   memberIds: RealityActorId[]
   founderIds: RealityActorId[]
   leaderIds: RealityActorId[]
@@ -631,6 +633,7 @@ export interface RealitySocialEvent extends RealityClock {
     kind?: 'PACT' | 'GROUP'
     name?: string
     previousName?: string
+    nameAction?: 'NAMED' | 'RENAMED'
     leaderId?: RealityActorId
     coLeaderId?: RealityActorId
     memberIds: RealityActorId[]

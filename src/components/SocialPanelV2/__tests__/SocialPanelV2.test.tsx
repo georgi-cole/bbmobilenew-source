@@ -779,11 +779,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     initManeuvers(store)
     renderPanel(store)
 
-    expect(
-      screen.getByLabelText(
-        'Avatar rings: Nemesis, Hostile, Strained, Still forming, Warm, Close, Romance'
-      )
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Avatar rings: Nemesis, Still forming, Ally')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))

@@ -142,6 +142,7 @@ export function allianceEventText(
     case 'ALLIANCE_MEMBER_EXPELLED':
       return `${actor} removed ${target === 'You' ? 'you' : target} from ${name}.`
     case 'ALLIANCE_RENAMED':
+      if (event.allianceSnapshot?.nameAction === 'NAMED') return `${actor} named ${name}.`
       return `${actor} renamed ${event.allianceSnapshot?.previousName ?? 'the alliance'} to ${name}.`
     case 'ALLIANCE_OFFICERS_CHANGED':
       if (event.targetIds.length && event.targetIds[0] === event.allianceSnapshot?.leaderId)

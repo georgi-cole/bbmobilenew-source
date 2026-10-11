@@ -61,6 +61,7 @@ export type AllianceManagementCommand =
       targetId?: string
       commandId?: string
     }
+  | { type: 'KEEP_INITIAL_NAME'; allianceId: string; actorId: string; commandId?: string }
   | { type: 'RENAME'; allianceId: string; actorId: string; name: string; commandId?: string }
   | {
       type: 'SUGGEST_RENAME'
@@ -295,6 +296,10 @@ function finalize(
       coLeaderId: request.coLeaderId,
       replacesPactId: kind === 'PACT' ? request.basePactId : undefined,
     })
+    created.initialNamePending =
+      kind === 'GROUP' &&
+      request.proposerId === context.viewerActorId &&
+      request.leaderId === context.viewerActorId
     request.resultAllianceId = created.id
     for (const entry of request.history ?? []) {
       entry.allianceId = created.id
@@ -315,7 +320,9 @@ function finalize(
               ? 'your'
               : 'their'
           } personal pact is live.`
-        : `${members} made it official: ${created.name ?? 'your alliance'} is born.`
+        : created.initialNamePending
+          ? `${members} made it official. Your new alliance is ready to be named.`
+          : `${members} made it official: ${created.name ?? 'their alliance'} is born.`
     if (request.basePactId) {
       const base = state.alliances[request.basePactId]
       created.predecessorIds = [base.id]
@@ -907,7 +914,31 @@ export function manageAlliance(
         reason: 'You no longer belong to this commitment.',
         allianceId: command.allianceId,
       }
-    else if (command.type === 'LEAVE') {
+    else if (command.type === 'KEEP_INITIAL_NAME') {
+      if (allianceKind(alliance) !== 'GROUP' || alliance.leaderId !== command.actorId)
+        result = reject('Only the group leader can confirm its initial name.')
+      else if (!alliance.initialNamePending)
+        result = { status: 'NO_OP', reason: 'The alliance already has a confirmed name.' }
+      else {
+        try {
+          renameRealityAlliance(state, {
+            allianceId: alliance.id,
+            actorId: command.actorId,
+            name: alliance.name ?? 'The Winners',
+            at: context.at,
+          })
+          result = {
+            status: 'APPLIED',
+            reason: `${alliance.name ?? 'The alliance'} will keep its suggested name.`,
+            allianceId: alliance.id,
+          }
+        } catch (error) {
+          result = reject(
+            error instanceof Error ? error.message : 'The alliance name could not be confirmed.'
+          )
+        }
+      }
+    } else if (command.type === 'LEAVE') {
       if (allianceKind(alliance) === 'PACT')
         endAlliance(state, alliance, command.actorId, context.at, 'ENDED_BY_PARTNER')
       else
@@ -929,9 +960,10 @@ export function manageAlliance(
       else {
         try {
           const normalizedName = command.name.trim().replace(/\s+/g, ' ').slice(0, 28)
-          if (normalizedName === alliance.name) {
+          if (normalizedName === alliance.name && !alliance.initialNamePending) {
             result = { status: 'NO_OP', reason: 'The alliance already has that name.' }
           } else {
+            const firstName = alliance.initialNamePending === true
             renameRealityAlliance(state, {
               allianceId: alliance.id,
               actorId: command.actorId,
@@ -940,7 +972,9 @@ export function manageAlliance(
             })
             result = {
               status: 'APPLIED',
-              reason: `The alliance is now called ${alliance.name}.`,
+              reason: firstName
+                ? `You named the alliance ${alliance.name}.`
+                : `The alliance is now called ${alliance.name}.`,
               allianceId: alliance.id,
             }
           }

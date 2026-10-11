@@ -320,6 +320,8 @@ export default function SocialPanelV2() {
   const [primaryTargetId, setPrimaryTargetId] = useState<string | null>(null)
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
   const [allianceNameDraft, setAllianceNameDraft] = useState('')
+  const [initialAllianceNameDraft, setInitialAllianceNameDraft] = useState('')
+  const [allianceSelectionPulse, setAllianceSelectionPulse] = useState(false)
   const [multiSelectActive, setMultiSelectActive] = useState(false)
   const [selectedAllianceId, setSelectedAllianceId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
@@ -345,6 +347,21 @@ export default function SocialPanelV2() {
       ),
     [humanPlayer, socialState.reality.alliances]
   )
+  const pendingAllianceNaming = activeGroups
+    .filter(
+      (alliance) => alliance.initialNamePending === true && alliance.leaderId === humanPlayer?.id
+    )
+    .sort(
+      (left, right) =>
+        (left.createdAt?.day ?? 0) - (right.createdAt?.day ?? 0) || left.id.localeCompare(right.id)
+    )[0]
+  const pendingAllianceNamingIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const allianceId = pendingAllianceNaming?.id ?? null
+    if (pendingAllianceNamingIdRef.current === allianceId) return
+    pendingAllianceNamingIdRef.current = allianceId
+    if (allianceId) setInitialAllianceNameDraft('')
+  }, [pendingAllianceNaming?.id])
   const formerGroups = useMemo(
     () =>
       Object.values(socialState.reality.alliances).filter(
@@ -460,6 +477,7 @@ export default function SocialPanelV2() {
     navigate('/store')
   }, [dispatch, navigate])
   const successPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const allianceSelectionPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const executeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isExecutingRef = useRef(false)
   const focusPublicRequest = useCallback(() => {
@@ -482,6 +500,9 @@ export default function SocialPanelV2() {
       if (executeGuardTimerRef.current !== null) {
         clearTimeout(executeGuardTimerRef.current)
       }
+      if (allianceSelectionPulseTimerRef.current !== null) {
+        clearTimeout(allianceSelectionPulseTimerRef.current)
+      }
     },
     []
   )
@@ -494,9 +515,19 @@ export default function SocialPanelV2() {
     setFeedbackMsg(null)
     setMultiSelectActive(false)
     setSelectedAllianceId(null)
+    setAllianceSelectionPulse(false)
+    if (allianceSelectionPulseTimerRef.current !== null) {
+      clearTimeout(allianceSelectionPulseTimerRef.current)
+      allianceSelectionPulseTimerRef.current = null
+    }
   }
 
   function selectAlliance(id: string | null) {
+    setAllianceSelectionPulse(false)
+    if (allianceSelectionPulseTimerRef.current !== null) {
+      clearTimeout(allianceSelectionPulseTimerRef.current)
+      allianceSelectionPulseTimerRef.current = null
+    }
     setSelectedAllianceId(id)
     if (
       selectedActionId !== 'consult_alliance' &&
@@ -540,10 +571,6 @@ export default function SocialPanelV2() {
         ),
         executeLabel: 'Propose group',
         allowWithoutTarget: true,
-        namePrompt: {
-          label: 'Alliance name',
-          hint: 'Choose the name your group will use if everyone agrees.',
-        },
         buildCommand: (targetIds) => {
           const memberIds = [...new Set([humanId, ...targetIds])]
           return {
@@ -552,7 +579,6 @@ export default function SocialPanelV2() {
             actorId: humanId,
             memberIds,
             leaderId: humanId,
-            name: allianceNameDraft,
           }
         },
       })
@@ -1292,6 +1318,23 @@ export default function SocialPanelV2() {
         !nextAction?.requiredTargetStatus &&
         actionId !== 'proposeAlliance' &&
         actionId !== 'consult_alliance'
+      const needsAllianceChoice =
+        (actionId === 'consult_alliance' &&
+          consultationAlliances.length > 0 &&
+          !consultationAlliances.some((alliance) => alliance.id === selectedAllianceId)) ||
+        (actionId.startsWith('alliance:invite:') &&
+          invitationGroups.length > 0 &&
+          !invitationGroups.some((alliance) => alliance.id === selectedAllianceId))
+      if (needsAllianceChoice) {
+        setAllianceSelectionPulse(true)
+        if (allianceSelectionPulseTimerRef.current !== null) {
+          clearTimeout(allianceSelectionPulseTimerRef.current)
+        }
+        allianceSelectionPulseTimerRef.current = setTimeout(() => {
+          setAllianceSelectionPulse(false)
+          allianceSelectionPulseTimerRef.current = null
+        }, 1750)
+      }
       if (nextMode === 'multi') {
         setMultiSelectActive(true)
       } else if (!nextBatchCompatible && primaryTargetId) {
@@ -1313,7 +1356,15 @@ export default function SocialPanelV2() {
       setSelectedSubjectId(null)
       setFeedbackMsg(null)
     },
-    [allianceQuickActions, dramaMode, primaryTargetId, selectedActionId]
+    [
+      allianceQuickActions,
+      dramaMode,
+      invitationGroups,
+      primaryTargetId,
+      selectedActionId,
+      selectedAllianceId,
+      consultationAlliances,
+    ]
   )
 
   const handleSelectionChange = useCallback(
@@ -1349,6 +1400,34 @@ export default function SocialPanelV2() {
       }
     },
     [dramaMode, game.players, selectedAction, usesMultipleTargets]
+  )
+
+  const finishInitialAllianceNaming = useCallback(
+    (keepSuggestedName: boolean) => {
+      if (!pendingAllianceNaming || !humanPlayer) return
+      const result = keepSuggestedName
+        ? dispatch(
+            executeAllianceManagementCommand({
+              type: 'KEEP_INITIAL_NAME',
+              allianceId: pendingAllianceNaming.id,
+              actorId: humanPlayer.id,
+            })
+          )
+        : dispatch(
+            executeAllianceManagementCommand({
+              type: 'RENAME',
+              allianceId: pendingAllianceNaming.id,
+              actorId: humanPlayer.id,
+              name: initialAllianceNameDraft.trim(),
+            })
+          )
+      setFeedbackMsg(result.reason)
+      if (result.status === 'REJECTED') return
+      setSelectedAllianceId(pendingAllianceNaming.id)
+      setMoveFilter('alliances')
+      setInitialAllianceNameDraft('')
+    },
+    [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming]
   )
 
   const handleExecute = useCallback(() => {
@@ -1942,35 +2021,19 @@ export default function SocialPanelV2() {
               {showPlayerRoster && !usesMultipleTargets && (
                 <span
                   className="sp2-relationship-legend"
-                  aria-label="Avatar rings: Nemesis, Hostile, Strained, Still forming, Warm, Close, Romance"
+                  aria-label="Avatar rings: Nemesis, Still forming, Ally"
                 >
                   <span>
                     <i className="is-nemesis" />
                     Nemesis
                   </span>
                   <span>
-                    <i className="is-hostile" />
-                    Hostile
-                  </span>
-                  <span>
-                    <i className="is-strained" />
-                    Strained
-                  </span>
-                  <span>
                     <i className="is-neutral" />
                     Still forming
                   </span>
                   <span>
-                    <i className="is-warm" />
-                    Warm
-                  </span>
-                  <span>
-                    <i className="is-close" />
-                    Close
-                  </span>
-                  <span>
-                    <i className="is-romance" />
-                    Romance
+                    <i className="is-ally" />
+                    Ally
                   </span>
                 </span>
               )}
@@ -1994,7 +2057,7 @@ export default function SocialPanelV2() {
             </div>
             {showAlliancePicker && (
               <div
-                className="sp2-consult-alliance-picker"
+                className={`sp2-consult-alliance-picker${allianceSelectionPulse ? ' is-attention' : ''}`}
                 role="group"
                 aria-label="Official alliances"
               >
@@ -2442,6 +2505,56 @@ export default function SocialPanelV2() {
             >
               Not now
             </button>
+          </section>
+        </div>
+      )}
+      {pendingAllianceNaming && (
+        <div className="sp2-alliance-naming-overlay" role="presentation">
+          <section
+            className="sp2-alliance-naming-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sp2-alliance-naming-title"
+            aria-describedby="sp2-alliance-naming-description"
+          >
+            <span className="sp2-alliance-naming-eyebrow">ALLIANCE APPROVED</span>
+            <h2 id="sp2-alliance-naming-title">Give your group a name</h2>
+            <p id="sp2-alliance-naming-description">
+              Your founders agreed and the alliance is formed. Choose its name, or keep the
+              suggested name, <strong>{pendingAllianceNaming.name ?? 'The Winners'}</strong>.
+            </p>
+            <form
+              className="sp2-alliance-naming-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                finishInitialAllianceNaming(false)
+              }}
+            >
+              <label htmlFor="sp2-initial-alliance-name">Alliance name</label>
+              <input
+                id="sp2-initial-alliance-name"
+                type="text"
+                value={initialAllianceNameDraft}
+                minLength={2}
+                maxLength={28}
+                autoComplete="off"
+                autoFocus
+                placeholder="For example, The Winners"
+                onChange={(event) => setInitialAllianceNameDraft(event.target.value)}
+              />
+              <div className="sp2-alliance-naming-actions">
+                <button type="submit" disabled={initialAllianceNameDraft.trim().length < 2}>
+                  Name alliance
+                </button>
+                <button
+                  type="button"
+                  className="sp2-alliance-naming-actions__secondary"
+                  onClick={() => finishInitialAllianceNaming(true)}
+                >
+                  Keep {pendingAllianceNaming.name ?? 'suggested name'}
+                </button>
+              </div>
+            </form>
           </section>
         </div>
       )}

@@ -61,18 +61,19 @@ other person, choosing **Alliances → End pact**, and pressing **Execute**.
 2. Select **Found an alliance**. This switches the roster to group selection.
 3. Tap at least two other active hubmates. With you, that makes at least three
    founders. The roster hint shows how many people are selected.
-4. Enter a name in **Alliance name** before submitting. The name is included in
-   the founding proposal so every founder sees what they are agreeing to.
-5. Press **Propose group** to send the roster for consent.
-6. Every named founder must agree. Your own initiating agreement is recorded
+4. Press **Propose group** to send the roster for consent. The game uses a
+   suggested name while the founding proposal is pending.
+5. Every founding member must agree. Your own initiating agreement is recorded
    when you submit the proposal.
 
 The founding cost is paid when you submit and is not refunded if someone later
-declines or the request expires. When everyone agrees, the game confirms the
-founders and the group's name, for example: “You, Kian, and Jax made it official:
-The Shield is born.” The person who starts this Social action becomes its
-leader. The group can hold up to six people. Founding a separate group leaves
-your existing personal pacts in place.
+declines or the request expires. If everyone agrees, the group forms and its
+player leader sees a naming dialog. Enter a name and choose **Name alliance**,
+or keep the suggested name with **Keep [name]**. If you close and reopen Social before
+choosing, the prompt remains until the leader names the group or keeps the
+suggestion. A declined or expired proposal never opens this dialog. The person
+who starts this Social action becomes its leader. The group can hold up to six
+people. Founding a separate group leaves your existing personal pacts in place.
 The leader can change the name later from **Social → Alliances**. Other members
 can suggest a name there; the group leader receives the suggestion in **Incoming
 requests** and chooses whether to accept it. Naming and rename suggestions are
@@ -193,8 +194,8 @@ before moving through several game phases.
 - **Change roles:** only the leader can offer co-leadership or transfer
   leadership. The nominee must accept. The leader can also clear the co-leader
   role.
-- **Rename a group:** the leader chooses the name while founding the group and
-  can rename it later in **Social → Alliances**. Other members can suggest a
+- **Rename a group:** after the founders approve a group, its leader names it
+  in the formation dialog and can rename it later in **Social → Alliances**. Other members can suggest a
   name; it changes only if the leader accepts the suggestion in **Incoming
   requests**.
 

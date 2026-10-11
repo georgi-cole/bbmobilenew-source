@@ -165,11 +165,14 @@ record view, not an invitation mailbox.
 - A group stays kind `GROUP` if it drops from three members to two. It dissolves
   when it drops below two.
 - A new group starts with the initiator as leader and no co-leader in the
-  player's direct founding flow. Only the leader can offer co-leadership,
-  transfer leadership, clear the co-leader role, rename, or dissolve. The
-  initiator supplies the name in the founding action; the name is included in
-  the all-founder consent request. Older or AI-created groups can retain their
-  generated name until the current leader changes it.
+  player's direct founding flow. The founding request uses a generated
+  placeholder name. Only after all founders approve and the group is active,
+  the player leader sees a naming dialog and can choose a name or keep the
+  suggested one. This pending choice is stored on the alliance so it survives
+  closing and reopening Social. Declined and expired founding proposals never
+  trigger the dialog. Only the leader can offer co-leadership, transfer
+  leadership, clear the co-leader role, rename, or dissolve. Older or AI-created
+  groups can retain their generated name until the current leader changes it.
 - A leader can rename immediately without a vote or resource cost. A current
   non-leader member can submit one pending rename suggestion per group. Only the
   current leader can accept or decline it; accepting applies the name and writes

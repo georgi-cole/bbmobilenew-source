@@ -109,6 +109,41 @@
   box-shadow: 0 0 14px rgba(125, 74, 207, 0.2);
 }
 
+.sp2-consult-alliance-picker.is-attention .sp2-consult-alliance-chip {
+  animation: sp2-alliance-chip-attention 760ms ease-in-out 2;
+}
+
+.sp2-consult-alliance-picker.is-attention .sp2-consult-alliance-chip:nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.sp2-consult-alliance-picker.is-attention .sp2-consult-alliance-chip:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+@keyframes sp2-alliance-chip-attention {
+  0%,
+  100% {
+    border-color: rgba(211, 192, 247, 0.24);
+    box-shadow: 0 0 0 rgba(191, 143, 255, 0);
+  }
+
+  48% {
+    border-color: rgba(255, 218, 133, 0.96);
+    box-shadow:
+      0 0 0 2px rgba(255, 202, 112, 0.2),
+      0 0 18px rgba(187, 123, 255, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp2-consult-alliance-picker.is-attention .sp2-consult-alliance-chip {
+    animation: none;
+    border-color: rgba(255, 218, 133, 0.96);
+    box-shadow: 0 0 0 2px rgba(255, 202, 112, 0.2);
+  }
+}
+
 .sp2-consult-alliance-chip__name {
   min-width: 0;
   max-width: 28ch;
@@ -556,26 +591,16 @@
   border-radius: 999px;
 }
 
-.sp2-relationship-legend .is-nemesis {
-  color: #372638;
-}
-.sp2-relationship-legend .is-hostile {
-  color: #77334d;
-}
-.sp2-relationship-legend .is-strained {
-  color: #b75d78;
-}
 .sp2-relationship-legend .is-neutral {
-  color: #9287b2;
+  color: #a882ff;
 }
-.sp2-relationship-legend .is-warm {
-  color: #d28a94;
+.sp2-relationship-legend .is-ally {
+  color: #3ddc97;
 }
-.sp2-relationship-legend .is-close {
-  color: #e4aa77;
-}
-.sp2-relationship-legend .is-romance {
-  color: #e7a989;
+.sp2-relationship-legend .is-nemesis {
+  color: #120e16;
+  border-color: rgba(249, 241, 255, 0.82);
+  box-shadow: 0 0 0 1px rgba(8, 6, 12, 0.8);
 }
 
 .sp2-multi-hint {
@@ -2355,6 +2380,129 @@
   background: rgba(5, 4, 8, 0.82);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+.sp2-alliance-naming-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(5, 4, 8, 0.84);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+
+.sp2-alliance-naming-dialog {
+  width: min(100%, 29rem);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 1.2rem;
+  border: 1px solid rgba(226, 187, 111, 0.44);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(140, 83, 208, 0.2), transparent 42%),
+    linear-gradient(150deg, rgba(36, 21, 47, 0.99), rgba(12, 9, 18, 0.995));
+  box-shadow:
+    0 20px 56px rgba(0, 0, 0, 0.55),
+    0 0 28px rgba(151, 93, 210, 0.13);
+  color: #f7f0fb;
+}
+
+.sp2-alliance-naming-eyebrow {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #e2bd73;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+}
+
+.sp2-alliance-naming-dialog h2 {
+  margin: 0;
+  font-size: 1.28rem;
+  line-height: 1.2;
+}
+
+.sp2-alliance-naming-dialog p {
+  margin: 0.65rem 0 1rem;
+  color: rgba(241, 232, 247, 0.78);
+  font-size: 0.88rem;
+  line-height: 1.48;
+}
+
+.sp2-alliance-naming-dialog p strong {
+  color: #f2d18a;
+}
+
+.sp2-alliance-naming-form {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sp2-alliance-naming-form label {
+  color: #d8c5ec;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.sp2-alliance-naming-form input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(199, 165, 235, 0.36);
+  border-radius: 12px;
+  background: rgba(8, 7, 13, 0.72);
+  color: #fff;
+  font: inherit;
+}
+
+.sp2-alliance-naming-form input:focus-visible {
+  outline: 2px solid #e2bd73;
+  outline-offset: 2px;
+}
+
+.sp2-alliance-naming-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.3rem;
+}
+
+.sp2-alliance-naming-actions button {
+  min-height: 46px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(226, 187, 111, 0.52);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #a56a22, #e0b76d);
+  color: #1c1208;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.sp2-alliance-naming-actions button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.sp2-alliance-naming-actions .sp2-alliance-naming-actions__secondary {
+  border-color: rgba(202, 177, 229, 0.25);
+  background: rgba(255, 255, 255, 0.07);
+  color: #e3d7ef;
+}
+
+.sp2-alliance-naming-actions button:focus-visible {
+  outline: 2px solid #e2bd73;
+  outline-offset: 2px;
+}
+
+@media (max-width: 390px) {
+  .sp2-alliance-naming-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sp2-story-role-dialog {

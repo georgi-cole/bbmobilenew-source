@@ -224,7 +224,8 @@ export function renameRealityAlliance(
 
   const name = input.name.trim().replace(/\s+/g, ' ').slice(0, 28)
   if (name.length < 2) throw new Error('Alliance name is too short')
-  if (alliance.name === name) return alliance
+  const firstName = alliance.initialNamePending === true
+  if (alliance.name === name && !firstName) return alliance
 
   for (const request of Object.values(state.allianceManagement.requests)) {
     if (
@@ -242,6 +243,7 @@ export function renameRealityAlliance(
 
   const previousName = alliance.name
   alliance.name = name
+  alliance.initialNamePending = false
   rememberAllianceRoster(alliance)
   appendRealityEvent(state, {
     ...input.at,
@@ -252,6 +254,7 @@ export function renameRealityAlliance(
       kind: allianceKind(alliance),
       name,
       previousName,
+      ...(firstName ? { nameAction: 'NAMED' as const } : {}),
       memberIds: [...alliance.memberIds],
     },
     actorId: input.actorId,
@@ -260,7 +263,7 @@ export function renameRealityAlliance(
     witnessIds: [],
     visibility: 'GROUP_VISIBLE',
     outcome: 'SUCCESS',
-    reason: `renamed:${alliance.id}:${name}`,
+    reason: `${firstName ? 'named' : 'renamed'}:${alliance.id}:${name}`,
     tags: ['ALLIANCE', 'IDENTITY'],
     relatedFactIds: [],
     relatedPromiseIds: [...alliance.sharedPromiseIds],
