@@ -38,7 +38,7 @@ describe('public-mode nomination ranking', () => {
         { playerId: ids[3], guess: 90 },
       ],
       100,
-      ids,
+      ids
     )
 
     expect(result.eliminated).toEqual(['worst-overshoot', 'quartz'])
