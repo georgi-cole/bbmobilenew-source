@@ -394,7 +394,7 @@ export function computeMassElimination(
     const eliminatedSet = new Set(
       worstOverGuesses.slice(0, eliminationCount).map((entry) => entry.playerId)
     )
-    const eliminated = aliveIds.filter((id) => eliminatedSet.has(id))
+    const eliminated = worstOverGuesses.slice(0, eliminationCount).map((entry) => entry.playerId)
     const surviving = aliveIds.filter((id) => !eliminatedSet.has(id))
     return { eliminated, surviving, redraw: false }
   }

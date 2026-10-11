@@ -8,7 +8,7 @@
  */
 import type { AppDispatch, RootState } from '../../store/store';
 import { applyMinigameWinner } from '../../store/gameSlice';
-import { markGlassBridgeOutcomeResolved } from './glassBridgeSlice';
+import { getGlassBridgeLastPlace, markGlassBridgeOutcomeResolved } from './glassBridgeSlice';
 import type { GlassBridgeState } from './glassBridgeSlice';
 
 export const resolveGlassBridgeOutcome =
@@ -49,8 +49,6 @@ export const resolveGlassBridgeOutcome =
     }
 
     dispatch(markGlassBridgeOutcomeResolved());
-    // The first player eliminated from the bridge is the worst finisher ("last place").
-    // Pass them as lastPlaceId so the third-nominee auto-add matches the UI.
-    const lastPlaceId = gb.eliminationOrder[0] ?? null;
+    const lastPlaceId = getGlassBridgeLastPlace(gb.placements);
     dispatch(applyMinigameWinner({ winnerId, lastPlaceId, lastPlaceType: 'survival' }));
   };
