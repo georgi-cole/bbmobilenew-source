@@ -55,16 +55,27 @@
 
 .sp2-consult-alliance-picker__chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.42rem;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 0.12rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sp2-consult-alliance-picker__chips::-webkit-scrollbar {
+  display: none;
 }
 
 .sp2-consult-alliance-chip {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   min-width: 0;
-  max-width: min(15rem, calc(100vw - 3.5rem));
+  max-width: min(calc(28ch + 1.5rem), calc(100vw - 3.5rem));
   overflow: hidden;
   padding: 0.36rem 0.72rem;
   border: 1px solid rgba(211, 192, 247, 0.24);
@@ -100,6 +111,7 @@
 
 .sp2-consult-alliance-chip__name {
   min-width: 0;
+  max-width: 28ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -762,7 +762,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
       at: { day: 1, phase: 'social_1' },
     })
     otherAlliance.status = 'ACTIVE'
-    otherAlliance.name = 'Safe Harbor'
+    otherAlliance.name = 'The Winners'
     const legacyPact = createRealityAlliance(reality, {
       id: 'consult-scope-legacy-pact',
       founderIds: [humanId, allies[0].id],
@@ -796,12 +796,19 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     expect(screen.queryByRole('combobox', { name: /Alliance/i })).not.toBeInTheDocument()
     const alliancePicker = within(screen.getByRole('group', { name: 'Official alliances' }))
     expect(alliancePicker.getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Safe Harbor',
       'The Numbers',
+      'The Winners',
     ])
     expect(alliancePicker.queryByRole('button', { name: /Migrated strategic pact/i })).toBeNull()
-    fireEvent.click(alliancePicker.getByRole('button', { name: 'Safe Harbor' }))
-    expect(alliancePicker.getByRole('button', { name: 'Safe Harbor' })).toHaveAttribute(
+    expect(alliancePicker.getByRole('button', { name: 'The Winners' })).toHaveAttribute(
+      'title',
+      'The Winners'
+    )
+    expect(alliancePicker.getByRole('button', { name: 'The Winners' })).toHaveTextContent(
+      'The Winners'
+    )
+    fireEvent.click(alliancePicker.getByRole('button', { name: 'The Winners' }))
+    expect(alliancePicker.getByRole('button', { name: 'The Winners' })).toHaveAttribute(
       'aria-pressed',
       'true'
     )
