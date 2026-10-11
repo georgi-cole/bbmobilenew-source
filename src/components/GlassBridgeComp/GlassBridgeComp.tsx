@@ -36,6 +36,7 @@ import {
   expireTimer,
   fastForwardRemainingPlayers,
   completeGame,
+  getGlassBridgeLastPlace,
   setHumanSpectating,
   resetGlassBridge,
   aiDecideStep,
@@ -464,10 +465,9 @@ export default function GlassBridgeComp({
   const buildHostedCompletion = useCallback(
     (): ReactMinigameCompletion => ({
       authoritativeWinnerId: gb.winnerId ?? gb.placements[0] ?? null,
-      authoritativeLastPlaceId:
-        gb.eliminationOrder[0] ?? gb.placements[gb.placements.length - 1] ?? null,
+      authoritativeLastPlaceId: getGlassBridgeLastPlace(gb.placements),
     }),
-    [gb.eliminationOrder, gb.placements, gb.winnerId]
+    [gb.placements, gb.winnerId]
   )
 
   const getName = useCallback(

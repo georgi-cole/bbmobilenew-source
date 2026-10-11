@@ -514,6 +514,22 @@ function dealDuelCards(
   }
 }
 
+/** Resolve last place from the frozen league and final elimination orders. */
+export function getBlackjackTournamentLastPlace(
+  state: Pick<BlackjackTournamentState, 'leagueRankings' | 'finalistIds' | 'eliminatedPlayerIds'>
+): { playerId: string | null; type: 'scored' | 'survival' } {
+  const finalistIds = new Set(state.finalistIds ?? [])
+  const lastLeagueNonFinalist = [...state.leagueRankings]
+    .reverse()
+    .find((playerId) => !finalistIds.has(playerId))
+  if (lastLeagueNonFinalist) return { playerId: lastLeagueNonFinalist, type: 'scored' }
+
+  return {
+    playerId: state.eliminatedPlayerIds.find((playerId) => finalistIds.has(playerId)) ?? null,
+    type: 'survival',
+  }
+}
+
 function finishLeague(state: BlackjackTournamentState): void {
   state.leagueScores = { ...state.playerScores }
   state.leagueRankings = rankLeaguePlayers(state.allPlayerIds, state.leagueScores, state.seed)
