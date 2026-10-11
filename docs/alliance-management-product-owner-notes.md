@@ -5,6 +5,47 @@ This companion document describes the current implementation behind the
 rules from behavior the interface or AI does not promise. Thresholds here are
 engineering details; they are not currently shown to players.
 
+## Context, history, and admission UX
+
+The Alliances category starts with general actions. Group chips are a separate
+selection from action cards: selecting a group narrows all management actions
+to that group and replaces the individual relationship summary with an alliance
+read. A second tap clears the group. Switching groups cancels a prepared rename,
+role change, removal, or dissolution so it cannot execute against an unexpected
+group. A prepared consultation or admission follows the newly chosen group.
+Changing categories clears the group context and restores the individual roster.
+
+An individual selected in the normal roster has one **Invite [name] to an
+alliance** card, available in both All moves and Alliances. Choosing that card
+retains the candidate and shows eligible official group chips. Execution requires
+an explicit group selection. Groups with a pending admission or no free place,
+people at their group limit, existing members, and same-day declined/expired
+retries are excluded. If eligibility changes after selection, execution becomes
+unavailable and spends nothing. The existing strict-majority/officer vote,
+candidate consent, Incoming notifications, and resource prices remain in force.
+
+The alliance read shows founding day, member count, player role, cohesion, and
+fracture risk. Its expander contains known members, commitments, request progress,
+and the recorded timeline. Members selected inside that read become the target
+for that group's role or removal controls. Former groups remain readable and
+offer no management actions.
+
+Today reports one direct sentence per development, in event order (newest first),
+without a generic heading repeating the same sentence. Ballots and intermediate
+acceptance steps live in the full read. Synchronous proposal/vote/invitation
+steps collapse to their outcome in Today. **View alliance** passes the stable
+alliance ID, including for ended groups, instead of opening unrelated live controls.
+
+New events carry alliance IDs and snapshots of names/rosters. Each alliance keeps
+its history independently of the rolling 500-event social feed; requests also
+retain decisions and settlement outcomes. Formation, admission, departure,
+renaming, role changes, consultations, plans, and commitment outcomes are recorded.
+Visibility is checked per event: private AI intentions, unobserved private
+promises, pre-approval ballots for a candidate, and later private events for former
+members stay hidden. Founding dates use creation records rather than last-meeting
+dates. Existing saves adopt surviving events and show earlier request summaries;
+the game never fabricates records already trimmed from an older save.
+
 ## How an AI alliance proposal starts
 
 AI alliance autonomy is evaluated when the game advances into a `social_1` or

@@ -1,6 +1,7 @@
 import type { RelationshipsMap } from '../types'
 import { MAX_REALITY_MEMORIES_PER_ACTOR } from './memory'
 import { importLegacyPairMemberships, normalizeAllianceManagement } from './allianceIdentity'
+import { allianceForEvent } from './allianceHistory'
 import type {
   DirectedRelationship,
   RealityContestantState,
@@ -309,6 +310,19 @@ export function normalizeRealityDomainState(
   }
   normalizeAllianceManagement(normalized, value.version === 1)
   if (value.version === 1) importLegacyPairMemberships(normalized, legacyRelationships)
+  for (const alliance of Object.values(normalized.alliances)) {
+    if (!Array.isArray(alliance.history)) alliance.history = []
+  }
+  for (const request of Object.values(normalized.allianceManagement.requests)) {
+    if (!Array.isArray(request.history)) request.history = []
+  }
+  // Adopt the legacy feed while its events are still available; never invent lost events.
+  for (const event of Array.isArray(input.events) ? input.events : []) {
+    const id = allianceForEvent(normalized, event)
+    const alliance = id ? normalized.alliances[id] : undefined
+    if (alliance && !alliance.history!.some((entry) => entry.id === event.id))
+      alliance.history!.push(event)
+  }
   return normalized
 }
 

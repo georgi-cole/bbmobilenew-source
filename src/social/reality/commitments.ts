@@ -1,4 +1,5 @@
 import { compareSocialClock } from './clock'
+import { appendRealityEvent } from './events'
 import { getCurrentPact, isCurrentAlliance } from './allianceIdentity'
 import type {
   RealityClock,
@@ -16,6 +17,7 @@ export function compareRealityClock(left: RealityClock, right: RealityClock): nu
 }
 
 export function upsertRealityPromise(state: RealityDomainState, promise: RealityPromise): void {
+  const priorStatus = state.promises[promise.id]?.status
   promise = {
     ...promise,
     originatingAllianceId:
@@ -27,10 +29,40 @@ export function upsertRealityPromise(state: RealityDomainState, promise: Reality
           : undefined),
   }
   state.promises[promise.id] = promise
+  if (promise.originatingAllianceId && priorStatus === undefined) {
+    recordAlliancePromise(state, promise, promise.createdAt)
+  }
   for (const beneficiaryId of promise.beneficiaryIds) {
     const edge = state.relationships[promise.promisorId]?.[beneficiaryId]
     if (edge && !edge.activePromiseIds.includes(promise.id)) edge.activePromiseIds.push(promise.id)
   }
+}
+
+function recordAlliancePromise(
+  state: RealityDomainState,
+  promise: RealityPromise,
+  at: RealityClock
+): void {
+  appendRealityEvent(state, {
+    ...at,
+    type: 'ALLIANCE_COMMITMENT_CHANGED',
+    allianceId: promise.originatingAllianceId,
+    allianceCommitmentSnapshot: { kind: promise.kind, status: promise.status },
+    actorId: promise.promisorId,
+    targetIds: [...promise.beneficiaryIds],
+    participantIds: [promise.promisorId, ...promise.beneficiaryIds],
+    witnessIds: [...promise.witnessIds],
+    visibility: promise.visibility ?? 'PAIR_ONLY',
+    outcome: 'SYSTEM',
+    reason: promise.kind,
+    tags: ['ALLIANCE', 'COMMITMENT'],
+    relatedFactIds: [],
+    relatedPromiseIds: [promise.id],
+    relatedThreadIds: [],
+    publicEligible:
+      promise.visibility === 'HOUSE_PUBLIC' || promise.visibility === 'CEREMONY_PUBLIC',
+    juryEligible: false,
+  })
 }
 
 function applyPromiseAllianceConsequence(
@@ -93,6 +125,7 @@ export function resolveRealityPromise(
   promise.status = status
   promise.resolvedAt = at
   promise.resolutionEventId = eventId
+  if (promise.originatingAllianceId) recordAlliancePromise(state, promise, at)
   for (const beneficiaryId of promise.beneficiaryIds) {
     const edge = state.relationships[promise.promisorId]?.[beneficiaryId]
     if (edge) edge.activePromiseIds = edge.activePromiseIds.filter((id) => id !== promise.id)

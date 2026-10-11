@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createInitialDramaSocialNetwork } from '../../../social/dramaModeEngine'
-import { createInitialRealityDomainState } from '../../../social/reality'
+import { createInitialRealityDomainState, createRealityAlliance } from '../../../social/reality'
 import type { Player } from '../../../types'
 import HousePulse from '../HousePulse'
 
@@ -12,6 +12,35 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
+  it('keeps a personal pact development out of the group-alliance selection flow', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'pact-lia',
+      kind: 'PACT',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={reality}
+        onOpenAlliances={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(
+      screen.getByRole('heading', { name: 'You formed a personal pact with Lia.' })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'View alliance' })).toBeNull()
+  })
   it('opens a short Today briefing with direct Intel and Commitments sections', () => {
     render(
       <HousePulse
@@ -150,7 +179,7 @@ describe('HousePulse', () => {
     expect(screen.queryByRole('dialog', { name: 'My Pulse' })).toBeNull()
   })
 
-  it('explains who ended an alliance and why without linking to unrelated live alliance actions', () => {
+  it('shows a concise dissolution and opens that exact ended alliance record', () => {
     const reality = createInitialRealityDomainState()
     reality.alliances['alliance:shield'] = {
       id: 'alliance:shield',
@@ -222,11 +251,9 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByRole('heading', { name: 'An alliance ended' })).toBeInTheDocument()
-    expect(
-      screen.getByText('Kai dissolved The Shield, ending it for you, Kai, and Lia.')
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /alliance actions/i })).toBeNull()
-    expect(onOpenAlliances).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Kai dissolved The Shield.' })).toBeInTheDocument()
+    expect(screen.queryByText('An alliance ended')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'View alliance' }))
+    expect(onOpenAlliances).toHaveBeenCalledWith('alliance:shield')
   })
 })

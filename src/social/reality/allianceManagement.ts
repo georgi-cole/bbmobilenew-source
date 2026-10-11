@@ -1,3 +1,4 @@
+import { recordAllianceRequestEvent } from './allianceRequestEvents'
 import {
   ALLIANCE_LIMITS,
   allianceKind,
@@ -94,6 +95,7 @@ function event(
   return appendRealityEvent(state, {
     ...at,
     type,
+    allianceId: alliance.id,
     actorId,
     targetIds,
     participantIds: [...alliance.memberIds],
@@ -185,7 +187,28 @@ function requestProblem(
   return undefined
 }
 
+function recordAllianceDecision(
+  state: RealityDomainState,
+  request: RealityAllianceRequest,
+  actorId: string,
+  accept: boolean,
+  at: RealityClock
+): void {
+  const voting = request.status === 'VOTING'
+  if (voting) request.votes[actorId] = accept
+  else request.consents[actorId] = accept
+  recordAllianceRequestEvent(
+    state,
+    request,
+    voting ? 'ALLIANCE_REQUEST_VOTE' : 'ALLIANCE_REQUEST_CONSENT',
+    at,
+    actorId,
+    accept
+  )
+}
+
 function settle(
+  state: RealityDomainState,
   request: RealityAllianceRequest,
   status: RealityAllianceRequest['status'],
   reason: string,
@@ -194,6 +217,7 @@ function settle(
   request.status = status
   request.reason = reason
   request.settledAt = { ...at }
+  recordAllianceRequestEvent(state, request, `ALLIANCE_REQUEST_${status}`, at)
 }
 
 function displayMemberNames(
@@ -215,7 +239,7 @@ function finalize(
 ): void {
   const problem = requestProblem(state, request, context)
   if (problem) {
-    settle(request, 'INVALIDATED', problem, context.at)
+    settle(state, request, 'INVALIDATED', problem, context.at)
     return
   }
   const alliance = request.allianceId ? state.alliances[request.allianceId] : undefined
@@ -233,13 +257,13 @@ function finalize(
     const kind = request.kind === 'PACT' ? 'PACT' : 'GROUP'
     const capacity = capacityProblem(state, request.memberIds, kind)
     if (capacity) {
-      settle(request, 'INVALIDATED', capacity, context.at)
+      settle(state, request, 'INVALIDATED', capacity, context.at)
       return
     }
     if (kind === 'PACT') {
       const existing = getCurrentPact(state, request.memberIds[0], request.memberIds[1])
       if (existing && existing.id !== request.basePactId) {
-        settle(request, 'INVALIDATED', 'This personal pact already exists.', context.at)
+        settle(state, request, 'INVALIDATED', 'This personal pact already exists.', context.at)
         return
       }
     } else if (
@@ -250,7 +274,13 @@ function finalize(
           [...entry.memberIds].sort().join('~') === [...request.memberIds].sort().join('~')
       )
     ) {
-      settle(request, 'INVALIDATED', 'A group with this exact roster already exists.', context.at)
+      settle(
+        state,
+        request,
+        'INVALIDATED',
+        'A group with this exact roster already exists.',
+        context.at
+      )
       return
     }
     const created = createRealityAlliance(state, {
@@ -266,6 +296,17 @@ function finalize(
       replacesPactId: kind === 'PACT' ? request.basePactId : undefined,
     })
     request.resultAllianceId = created.id
+    for (const entry of request.history ?? []) {
+      entry.allianceId = created.id
+      entry.allianceSnapshot = {
+        id: created.id,
+        kind: created.kind,
+        name: created.name,
+        memberIds: [...created.memberIds],
+      }
+      created.history ??= []
+      if (!created.history.some((existing) => existing.id === entry.id)) created.history.push(entry)
+    }
     const members = displayMemberNames(request.memberIds, context)
     successReason =
       kind === 'PACT'
@@ -299,6 +340,7 @@ function finalize(
       alliance.memberIds.length >= ALLIANCE_LIMITS.groupMembers
     ) {
       settle(
+        state,
         request,
         'INVALIDATED',
         'The candidate or group has no remaining group slot.',
@@ -341,7 +383,7 @@ function finalize(
       alliance.leaderId !== request.proposerId ||
       !alliance.memberIds.includes(request.candidateId)
     ) {
-      settle(request, 'INVALIDATED', 'The appointment is no longer authorized.', context.at)
+      settle(state, request, 'INVALIDATED', 'The appointment is no longer authorized.', context.at)
       return
     }
     if (request.kind === 'TRANSFER') {
@@ -363,7 +405,13 @@ function finalize(
       !officerId ||
       (request.candidateId === alliance.coLeaderId && officerId !== alliance.leaderId)
     ) {
-      settle(request, 'INVALIDATED', 'An authorized officer must approve this removal.', context.at)
+      settle(
+        state,
+        request,
+        'INVALIDATED',
+        'An authorized officer must approve this removal.',
+        context.at
+      )
       return
     }
     removeRealityAllianceMember(state, {
@@ -375,7 +423,7 @@ function finalize(
     })
     request.resultAllianceId = alliance.id
   }
-  settle(request, 'ACCEPTED', successReason, context.at)
+  settle(state, request, 'ACCEPTED', successReason, context.at)
   refreshRealityAllianceOverlaps(state)
 }
 
@@ -438,14 +486,13 @@ export function advanceAllianceRequests(
     if (!isPendingAllianceRequest(request)) continue
     const problem = requestProblem(state, request, context)
     if (problem) {
-      settle(request, 'INVALIDATED', problem, context.at)
+      settle(state, request, 'INVALIDATED', problem, context.at)
       continue
     }
     for (const actorId of allianceRequestDecisionActors(request)) {
       if (context.humanActorIds.includes(actorId)) continue
       const consent = aiConsent(state, request, actorId, context.seed)
-      if (request.status === 'VOTING') request.votes[actorId] = consent
-      else request.consents[actorId] = consent
+      recordAllianceDecision(state, request, actorId, consent, context.at)
     }
     const overdue = compareSocialClock(request.deadline, context.at) < 0
     if (request.status === 'VOTING') {
@@ -456,6 +503,7 @@ export function advanceAllianceRequests(
         !request.officerIds.some((id) => request.votes[id] === true)
       ) {
         settle(
+          state,
           request,
           'DECLINED',
           'Admission needs a strict member majority and an officer voting yes.',
@@ -466,6 +514,7 @@ export function advanceAllianceRequests(
       request.status = 'CONSENT'
       request.candidateInvitedAt = { ...context.at }
       request.deadline = nextAllianceDeadline(context.at)
+      recordAllianceRequestEvent(state, request, 'ALLIANCE_INVITATION_SENT', context.at)
       const alliance = state.alliances[request.allianceId!]
       alliance.rosterKnowledgeByActor ??= {}
       alliance.rosterKnowledgeByActor[request.candidateId!] = {
@@ -477,11 +526,12 @@ export function advanceAllianceRequests(
       }
       // Candidate consent is a separate stage with its own complete window.
       if (!context.humanActorIds.includes(request.candidateId!))
-        request.consents[request.candidateId!] = aiConsent(
+        recordAllianceDecision(
           state,
           request,
           request.candidateId!,
-          context.seed
+          aiConsent(state, request, request.candidateId!, context.seed),
+          context.at
         )
     }
     if (request.status === 'CONSENT') {
@@ -492,7 +542,13 @@ export function advanceAllianceRequests(
       }
       if (request.kind === 'RENAME_SUGGESTION') {
         if (answers.includes(false)) {
-          settle(request, 'DECLINED', 'The leader declined the rename suggestion.', context.at)
+          settle(
+            state,
+            request,
+            'DECLINED',
+            'The leader declined the rename suggestion.',
+            context.at
+          )
           continue
         }
         if (allianceRequestDecisionActors(request).length === 0) {
@@ -500,11 +556,18 @@ export function advanceAllianceRequests(
           continue
         }
         if (overdue)
-          settle(request, 'EXPIRED', 'The response window ended without a decision.', context.at)
+          settle(
+            state,
+            request,
+            'EXPIRED',
+            'The response window ended without a decision.',
+            context.at
+          )
         continue
       }
       if (request.kind !== 'REMOVE_SUGGESTION' && answers.includes(false)) {
         settle(
+          state,
           request,
           'DECLINED',
           request.kind === 'ADMIT'
@@ -516,10 +579,11 @@ export function advanceAllianceRequests(
       }
       if (allianceRequestDecisionActors(request).length === 0) {
         if (request.kind === 'REMOVE_SUGGESTION')
-          settle(request, 'DECLINED', 'The officers declined the suggestion.', context.at)
+          settle(state, request, 'DECLINED', 'The officers declined the suggestion.', context.at)
         else finalize(state, request, context)
       } else if (compareSocialClock(request.deadline, context.at) < 0)
         settle(
+          state,
           request,
           'EXPIRED',
           'The response window ended without complete consent.',
@@ -708,6 +772,16 @@ function propose(
     deadline: nextAllianceDeadline(context.at),
   }
   state.allianceManagement.requests[id] = request
+  recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_SUBMITTED', context.at)
+  if (request.votes[command.actorId] === true)
+    recordAllianceRequestEvent(
+      state,
+      request,
+      'ALLIANCE_REQUEST_VOTE',
+      context.at,
+      command.actorId,
+      true
+    )
   if (advance) advanceAllianceRequests(state, context)
   return {
     status: 'APPLIED',
@@ -770,6 +844,7 @@ function suggestAllianceRename(
     deadline: nextAllianceDeadline(context.at),
   }
   state.allianceManagement.requests[id] = request
+  recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_SUBMITTED', context.at)
   advanceAllianceRequests(state, context)
   return {
     status: 'APPLIED',
@@ -809,14 +884,13 @@ export function manageAlliance(
       if (request.proposerId !== command.actorId)
         result = reject('Only the proposer may withdraw this request.')
       else {
-        settle(request, 'WITHDRAWN', 'The proposer withdrew this request.', context.at)
+        settle(state, request, 'WITHDRAWN', 'The proposer withdrew this request.', context.at)
         result = { status: 'APPLIED', reason: request.reason!, requestId: request.id }
       }
     } else if (!allianceRequestDecisionActors(request).includes(command.actorId))
       result = reject('You have already answered or are not a decision maker for this request.')
     else {
-      if (request.status === 'VOTING') request.votes[command.actorId] = command.accept
-      else request.consents[command.actorId] = command.accept
+      recordAllianceDecision(state, request, command.actorId, command.accept, context.at)
       advanceAllianceRequests(state, context)
       result = {
         status: 'APPLIED',

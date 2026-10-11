@@ -123,6 +123,110 @@
   font-weight: 650;
 }
 
+.sp2-alliance-clear,
+.sp2-former-alliances > summary {
+  margin-top: 0.5rem;
+  color: #cdbce8;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.sp2-alliance-clear {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem 0;
+  margin-top: 0;
+  flex: 0 0 auto;
+  font-size: 0.6rem;
+}
+
+@media (max-width: 699px) {
+  .sp2-body.sp2-body--alliance {
+    grid-template-rows: auto auto minmax(9rem, 1fr);
+    overflow-y: auto;
+  }
+}
+
+.sp2-focus.sp2-alliance-read {
+  align-items: start;
+  min-height: 9.5rem;
+  max-height: min(32dvh, 24rem);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sp2-focus.sp2-alliance-read::after {
+  bottom: 0;
+  right: 0;
+}
+
+.sp2-alliance-read h2 {
+  overflow-wrap: anywhere;
+}
+
+.sp2-alliance-read__mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid rgba(225, 195, 111, 0.35);
+  border-radius: 50%;
+  color: #e1c36f;
+  background: rgba(92, 47, 158, 0.3);
+}
+
+.sp2-alliance-read__roster,
+.sp2-alliance-read__pending {
+  margin: 0.4rem 0;
+  color: #bdb1c9;
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.sp2-alliance-read__pending {
+  color: #e1c36f;
+}
+
+.sp2-alliance-read__details h3 {
+  margin: 0.8rem 0 0.4rem;
+  color: #e7def1;
+  font-size: 0.82rem;
+}
+
+.sp2-alliance-read__details ul {
+  padding-left: 1rem;
+  color: #c9bed3;
+  font-size: 0.75rem;
+}
+
+.sp2-alliance-read__history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sp2-alliance-read__history li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(210, 188, 235, 0.12);
+  color: #e7def1;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.sp2-alliance-read__history small {
+  color: #a997bb;
+  font-size: 0.66rem;
+}
+
+.sp2-alliance-read .sp2-consult-alliance-chip:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
 .sp2-backdrop--weekend {
   z-index: 20010;
 }

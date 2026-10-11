@@ -23,6 +23,7 @@ import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import { isLohReplacementPending } from '../../social/lohReplacementWindow'
 
 export interface ActionGridProps {
+  allianceContext?: boolean
   onActionClick?: (actionId: string) => void
   onPreview?: (actionId: string) => void
   onPremiumLockedClick?: (actionId: string) => void
@@ -59,6 +60,7 @@ export interface ActionGridProps {
  * styling and feedback rather than card position, preserving muscle memory.
  */
 export default function ActionGrid({
+  allianceContext = false,
   onActionClick,
   onPreview,
   onPremiumLockedClick,
@@ -174,6 +176,7 @@ export default function ActionGrid({
 
   function hasContextVisibility(action: SocialActionDefinition): boolean {
     return (
+      (!allianceContext || action.id === 'consult_alliance') &&
       action.enabled !== false &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
       isHumanSocialActionVisible(action, dramaMode ? 'drama' : 'normal') &&
@@ -197,6 +200,7 @@ export default function ActionGrid({
 
   function isRelevantRealityPreview(action: SocialActionDefinition): boolean {
     return (
+      (!allianceContext || action.id === 'consult_alliance') &&
       action.enabled !== false &&
       !dramaMode &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
@@ -242,6 +246,8 @@ export default function ActionGrid({
       isLohReplacementPending(game))
 
   function contextualizeAction(action: SocialActionDefinition) {
+    if (action.id === 'consult_alliance')
+      return { ...action, availabilityHint: allianceContext ? undefined : 'Choose an alliance' }
     if (action.id !== 'ask_loh_target') return action
     if (safetyConsultationOpen) {
       return {

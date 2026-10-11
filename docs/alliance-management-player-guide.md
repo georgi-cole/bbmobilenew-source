@@ -27,11 +27,13 @@ joins or leaves.
 
 1. Open **Social** from the game controls.
 2. In **Your move**, choose the **Alliances** category. The action cards below
-   it are the alliance controls available for your selected person or group.
-3. Choose an action card. The card becomes your prepared move; it does not run
-   yet.
-4. Review the people selected in **Choose a hubmate**, then press **Execute** at
-   the bottom of Social.
+   it start with general moves. No group's rename, leave, role, or dissolve
+   controls appear until you choose that group.
+3. Tap a name chip in the alliance rail to select a group. Its summary replaces
+   the individual relationship card, and only that group's controls appear.
+   Tap the same chip again or **All alliance actions** to clear the selection.
+4. Choose an action card, then press its action button at the bottom of Social.
+   Selecting a card or group does not execute anything or spend resources.
 5. For requests that need your later response, open **Incoming requests** from
    the game controls. Its badge can include alliance votes and invitations as
    well as other incoming interactions.
@@ -59,11 +61,11 @@ other person, choosing **Alliances → End pact**, and pressing **Execute**.
 2. Select **Found an alliance**. This switches the roster to group selection.
 3. Tap at least two other active hubmates. With you, that makes at least three
    founders. The roster hint shows how many people are selected.
-4. Press **Execute** to send the proposed roster for consent.
-5. Every named founder must agree. Your own initiating agreement is recorded
-   when you submit the proposal.
-6. Enter a name in **Alliance name** before submitting. The name is included in
+4. Enter a name in **Alliance name** before submitting. The name is included in
    the founding proposal so every founder sees what they are agreeing to.
+5. Press **Propose group** to send the roster for consent.
+6. Every named founder must agree. Your own initiating agreement is recorded
+   when you submit the proposal.
 
 The founding cost is paid when you submit and is not refunded if someone later
 declines or the request expires. When everyone agrees, the game confirms the
@@ -79,10 +81,11 @@ free.
 ## Invite someone into one of your groups
 
 1. Select the person you want to invite in Social.
-2. Choose **Alliances**.
-3. If you belong to more than one group, choose the **Invite [name]** card whose
-   description names the group you mean.
-4. Press **Execute** to start that group's admission vote.
+2. In **All moves** or **Alliances**, choose **Invite [name] to an alliance**.
+3. Tap the name chip for the group you want them to join. Only eligible official
+   groups appear; personal pacts never appear in this picker. The person you
+   selected remains the candidate. Switching the group changes the destination.
+4. Press **Start vote**. The button stays disabled until you select a group.
 5. The current members vote. The request passes only if more than half of the
    full current roster votes yes and at least one leader or co-leader votes yes.
    Your own vote counts as yes when you start the vote.
@@ -94,6 +97,36 @@ An accepted candidate joins as a regular member. They become formally aligned
 with all current group members, but they do not automatically receive a
 co-leader role or separate personal pacts. A candidate can belong to no more
 than two groups, and the group must have a free place.
+
+A group with an admission already pending cannot start a second one. A declined
+or expired request to the same person can be retried on the next game day.
+Selecting a chip does not send an invitation. The existing members must approve
+first, and the candidate must then accept.
+
+## Read an alliance and follow its progress
+
+1. Open **Social → Alliances** and tap a group name chip.
+2. Its summary shows the founding day, membership count, your role, cohesion,
+   and fracture risk. Cohesion describes shared commitment and alignment;
+   fracture risk describes how exposed the group is to internal strain.
+3. Tap **Open full alliance read** to see the roster, known commitments, and
+   its track record, newest first. Tap a member there to reveal the member
+   actions your role permits, such as offering co-leadership or removal.
+4. A pending admission shows the member-vote progress, followed by “invitation
+   sent; awaiting acceptance” if the group approves. Use **Incoming requests**
+   whenever the game needs your decision.
+5. Open **My Pulse → Today** for concise developments, such as “You founded
+   Spiderman with Kian and Jax” or “Lia joined Spiderman”. **View alliance**
+   opens that exact group's record, even if it ended.
+6. Open **Former alliances** in the alliance rail to revisit a group you left
+   or that dissolved. This is a history view; it has no management actions.
+
+The full read includes recorded invitations, ballots, acceptances, rejections,
+membership changes, renames, leadership changes, consultations, plans, and
+commitment outcomes. It shows only events your character could know. Leaving
+does not expose future private activity. Older saves retain surviving history
+and earlier decision summaries; already-lost events and unknown founding days
+cannot be reconstructed.
 
 ### How many yes votes are needed?
 
@@ -143,18 +176,20 @@ before moving through several game phases.
 
 ## Leave, remove, or dissolve
 
-- **Leave a group:** select any current member, choose **Alliances → Leave
-  [group name]**, then press **Execute**. You leave that group only; your other
+- **Leave a group:** choose the group chip, select **Leave
+  [group name]**, then press **Leave group**. You leave that group only; your other
   groups and pacts remain.
 - **Leave a personal pact:** select its other partner, choose **End pact**, then
-  press **Execute**. The other partner can also end it.
-- **Remove a regular member:** a leader or co-leader selects that member and
+  press **End pact** at the bottom. The other partner can also end it.
+- **Remove a regular member:** choose the group chip, expand its full read,
+  and select that member. A leader or co-leader then
   chooses **Remove [name]**. A co-leader cannot remove the leader or another
-  officer; the leader can remove a co-leader.
-- **Suggest a removal:** a regular member selects the person and chooses
-  **Suggest removing [name]**. The officers decide whether to approve it.
-- **Dissolve a group:** only the leader can choose **Dissolve [group name]**.
-  This ends the group for everybody. Independent pacts remain.
+  officer; the leader can remove a co-leader. Press **Remove member** to apply it.
+- **Suggest a removal:** choose the group and select its member in the full
+  read. A regular member then chooses
+  **Suggest removing [name]**, then **Send suggestion**. The officers decide whether to approve it.
+- **Dissolve a group:** select the group chip. Only its leader can choose **Dissolve [group name]**.
+  Press **Dissolve group** to end the group for everybody. Independent pacts remain.
 - **Change roles:** only the leader can offer co-leadership or transfer
   leadership. The nominee must accept. The leader can also clear the co-leader
   role.

@@ -16,6 +16,21 @@ Pact and group formation strengthen each member pair's relationship. The boost r
 
 ## Consent and officers
 
+Social's Alliances category has a persistent official-group chip rail. Without
+a selected group it offers general moves. Selecting a chip scopes actions and
+the full alliance read to that group; switching groups clears prepared management
+actions. An admission starts with one selected-person invite card in All moves
+or Alliances, followed by explicit group selection and **Start vote**. Its picker
+excludes personal pacts, pending admissions, full groups, ineligible candidates,
+and same-day declined/expired retries.
+
+Each alliance keeps a durable, visibility-filtered record independent of the
+rolling social feed. Names and rosters are snapshotted on events; request
+ballots, invitation stages, outcomes, and commitment changes are recorded.
+My Pulse Today displays concise developments in chronological order and opens
+the exact alliance ID. Former groups have a read-only history view. Older saves
+adopt surviving events; missing historical records are not invented.
+
 Every pact partner accepts. Every group founder accepts the same roster and officers. Founding a separate group through the player's direct Social action leaves existing personal pacts in place. An AI group proposal can explicitly convert its base pact when accepted, except for pacts whose purpose marks them as Final Two/endgame/ride-or-die/last two. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
 
 A group has one leader and at most one co-leader. Leaders offer officer appointments or leadership transfers, which take effect only when the nominee accepts. The co-leader succeeds the leader; otherwise the longest-serving current member succeeds. Social standing cannot change authority.

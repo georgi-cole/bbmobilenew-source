@@ -20,6 +20,19 @@ export function appendRealityEvent(
     relatedPromiseIds: [...new Set(input.relatedPromiseIds)],
     relatedThreadIds: [...new Set(input.relatedThreadIds)],
   }
+  const alliance = input.allianceId ? state.alliances[input.allianceId] : undefined
+  if (alliance) {
+    event.allianceSnapshot ??= {
+      id: alliance.id,
+      kind: alliance.kind,
+      name: alliance.name,
+      leaderId: alliance.leaderId,
+      coLeaderId: alliance.coLeaderId,
+      memberIds: [...alliance.memberIds],
+    }
+    alliance.history ??= []
+    alliance.history.push(event)
+  }
   state.events.push(event)
   state.events = state.events.slice(-500)
   return event
