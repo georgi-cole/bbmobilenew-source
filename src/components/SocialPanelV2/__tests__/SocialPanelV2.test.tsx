@@ -763,16 +763,40 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     })
     otherAlliance.status = 'ACTIVE'
     otherAlliance.name = 'Safe Harbor'
+    const legacyPact = createRealityAlliance(reality, {
+      id: 'consult-scope-legacy-pact',
+      founderIds: [humanId, allies[0].id],
+      memberIds: [],
+      purpose: 'Migrated strategic pact',
+      name: 'Migrated strategic pact',
+      kind: 'PACT',
+      at: { day: 1, phase: 'social_1' },
+    })
+    legacyPact.status = 'ACTIVE'
     store.dispatch(replaceRealityDomain(reality))
     store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 }))
     store.dispatch(openSocialPanel())
     initManeuvers(store)
     renderPanel(store)
 
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(allies[0].name, 'i') })[0])
+    fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
+    expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
+        name: new RegExp(allies[0].name, 'i'),
+      })
+    )
     fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
     expect(screen.getByRole('group', { name: 'Consultation scope' })).toBeInTheDocument()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Alliance to consult' }), {
+    const alliancePicker = screen.getByRole('combobox', { name: 'Alliance to consult' })
+    expect(
+      Array.from((alliancePicker as HTMLSelectElement).options).map((option) => option.value)
+    ).toEqual([otherAlliance.id, alliance.id])
+    expect(
+      screen.queryByRole('option', { name: /Migrated strategic pact/i })
+    ).not.toBeInTheDocument()
+    fireEvent.change(alliancePicker, {
       target: { value: otherAlliance.id },
     })
     expect(screen.getByRole('combobox', { name: 'Alliance to consult' })).toHaveValue(
@@ -789,6 +813,18 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Whole alliance' }))
     expect(screen.getByText(/Whole alliance.*⚡2/)).toBeInTheDocument()
+    const execute = screen.getByRole('button', { name: 'Execute' })
+    expect(execute).toBeEnabled()
+    fireEvent.click(execute)
+    expect(
+      store
+        .getState()
+        .social.reality.events.some(
+          (event) =>
+            event.type === 'ALLIANCE_STRATEGY_MEETING' &&
+            event.reason.startsWith(`strategy_meeting:${otherAlliance.id}:`)
+        )
+    ).toBe(true)
   })
 })
 

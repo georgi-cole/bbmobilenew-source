@@ -5,7 +5,6 @@ import {
   resolveActionTargetMode,
   type SocialActionDefinition,
 } from '../../social/socialActions'
-import type { ActionCategory } from '../../social/socialActions'
 import {
   buildEffectiveSocialActions,
   isActionAllowedForRealityPreset,
@@ -278,8 +277,11 @@ export default function ActionGrid({
 
   const isRealityPreview = (action: SocialActionDefinition) => isRelevantRealityPreview(action)
 
-  function matchesCategoryFilter(category: ActionCategory): boolean {
+  function matchesCategoryFilter(action: SocialActionDefinition): boolean {
     if (categoryFilter === 'all') return true
+    // A huddle belongs with alliance management in the UI while retaining its
+    // strategic category for AI response and Reality simulation rules.
+    const category = action.id === 'consult_alliance' ? 'alliance' : action.category
     if (categoryFilter === 'connect') return category === 'friendly'
     if (categoryFilter === 'strategy') return category === 'strategic'
     if (categoryFilter === 'alliances') return category === 'alliance'
@@ -316,7 +318,7 @@ export default function ActionGrid({
       )
       return actionMode === 'none'
     })
-    .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action.category))
+    .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action))
     .sort((left, right) => {
       const leftPreview = isRealityPreview(left)
       const rightPreview = isRealityPreview(right)
@@ -332,7 +334,7 @@ export default function ActionGrid({
   const visibleActions = orderedVisibleActions
   const visibleSupplementalActions = supplementalActions.filter(
     ({ action, allowWithoutTarget }) => {
-      if (!matchesCategoryFilter(action.category)) return false
+      if (!matchesCategoryFilter(action)) return false
       if (!explicitlyNoTargetSelected) return true
       return allowWithoutTarget || resolveActionTargetMode(action, dramaMode) === 'none'
     }

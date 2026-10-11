@@ -7,6 +7,29 @@ import { isCurrentAlliance } from './reality/allianceIdentity'
 import { normalizeRealityDomainState } from './reality/state'
 import { recordSocialAction, replaceRealityDomain } from './socialSlice'
 import { hasCanonicalLiveAlliance } from './relationshipSemantics'
+import { canSeeAllianceRequest } from './reality/allianceManagement'
+import type { RealityAllianceRequest } from './reality/types'
+
+function allianceRequestUpdateNarrative(request: RealityAllianceRequest, state: RootState): string {
+  const name = (id: string | undefined) =>
+    id ? (state.game.players.find((player) => player.id === id)?.name ?? id) : 'the invitee'
+  const allianceName = request.allianceId
+    ? (state.social.reality.alliances[request.allianceId]?.name ?? request.name ?? 'the alliance')
+    : (request.name ?? 'the alliance')
+  const candidateName = name(request.candidateId)
+
+  if (request.status === 'CONSENT')
+    return `${allianceName} approved inviting ${candidateName}. The invitation is now with ${candidateName}; they have not joined yet.`
+  if (request.status === 'ACCEPTED')
+    return request.reason ?? `${candidateName} accepted and joined ${allianceName}.`
+  if (request.status === 'DECLINED')
+    return `The invitation decision for ${candidateName} was declined. ${request.reason ?? ''}`.trim()
+  if (request.status === 'EXPIRED')
+    return `The invitation decision for ${candidateName} expired. ${request.reason ?? ''}`.trim()
+  if (request.status === 'INVALIDATED')
+    return `The invitation to ${candidateName} could not go ahead. ${request.reason ?? ''}`.trim()
+  return `The invitation to ${candidateName} was withdrawn. ${request.reason ?? ''}`.trim()
+}
 
 export const allianceManagementMiddleware: Middleware = (api) => (next) => (action) => {
   const beforeState = api.getState() as RootState
@@ -103,6 +126,48 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
             })
           )
         }
+      }
+    }
+
+    const previousRequests = beforeState.social.reality.allianceManagement?.requests ?? {}
+    for (const request of Object.values(state.social.reality.allianceManagement?.requests ?? {})) {
+      const previous = previousRequests[request.id]
+      if (
+        request.kind !== 'ADMIT' ||
+        !previous ||
+        previous.status === request.status ||
+        !['CONSENT', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'INVALIDATED', 'WITHDRAWN'].includes(
+          request.status
+        )
+      )
+        continue
+
+      for (const human of state.game.players.filter((player) => player.isUser)) {
+        if (!canSeeAllianceRequest(request, human.id)) continue
+        const candidateId = request.candidateId ?? request.proposerId
+        api.dispatch(
+          recordSocialAction({
+            entry: {
+              actionId: 'alliance_admit_result',
+              actorId: human.id,
+              targetId: candidateId,
+              targetIds: [candidateId],
+              cost: 0,
+              delta: 0,
+              outcome:
+                request.status === 'ACCEPTED' || request.status === 'CONSENT'
+                  ? 'success'
+                  : 'failure',
+              label: request.status === 'CONSENT' ? 'Group approved' : 'Decision recorded',
+              newEnergy: state.social.energyBank[human.id] ?? 0,
+              timestamp: Date.now(),
+              week: state.game.week,
+              phase: state.game.phase,
+              source: 'system',
+              narrative: allianceRequestUpdateNarrative(request, state),
+            },
+          })
+        )
       }
     }
   }

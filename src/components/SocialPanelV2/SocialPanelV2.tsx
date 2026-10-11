@@ -20,7 +20,7 @@ import {
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
-import { SocialManeuvers } from '../../social/SocialManeuvers'
+import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
 import { buildDrSessionSummary } from '../../services/activityService'
@@ -251,6 +251,7 @@ export default function SocialPanelV2() {
       .filter(
         (alliance) =>
           (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+          allianceKind(alliance) === 'GROUP' &&
           alliance.memberIds.includes(humanPlayer.id) &&
           alliance.memberIds.some(
             (memberId) => memberId !== humanPlayer.id && activePlayerIds.has(memberId)
@@ -1273,228 +1274,242 @@ export default function SocialPanelV2() {
       setExecuting(false)
     }
 
-    if (targetIds.length === 0) {
-      setFeedbackMsg('Select a player to continue.')
-      releaseGuard()
-      return
-    }
-    if (targetMode === 'multi' && targetIds.length < minimumTargetCount) {
-      setFeedbackMsg(
-        minimumTargetCount === 1
-          ? 'Select at least one housemate.'
-          : `Select at least ${minimumTargetCount} housemates for this group action.`
-      )
-      releaseGuard()
-      return
-    }
-    if (!executionEligibility.eligible) {
-      setFeedbackMsg(executionEligibility.reason || 'This action is not available now.')
-      releaseGuard()
-      return
-    }
-    if (selectedAllianceAction) {
-      const managed = dispatch(
-        executeAllianceManagementCommand(
-          selectedAllianceAction.buildCommand(targetIds),
-          totalCosts ?? undefined
-        )
-      )
-      setFeedbackMsg(managed.reason)
-      setFeedbackExpanded(false)
-      if (managed.status !== 'REJECTED') {
-        setSelectedActionId(null)
-        setAllianceNameDraft('')
-        setSuccessPulse(true)
-        if (selectedAllianceAction.action.id === 'alliance:found') {
-          setSelectedTargets(new Set())
-          setPrimaryTargetId(null)
-          setMultiSelectActive(false)
-        }
-        if (successPulseTimerRef.current !== null) clearTimeout(successPulseTimerRef.current)
-        successPulseTimerRef.current = setTimeout(() => {
-          setSuccessPulse(false)
-          successPulseTimerRef.current = null
-        }, 850)
-      }
-      if (executeGuardTimerRef.current !== null) clearTimeout(executeGuardTimerRef.current)
-      executeGuardTimerRef.current = setTimeout(() => {
+    try {
+      if (targetIds.length === 0) {
+        setFeedbackMsg('Select a player to continue.')
         releaseGuard()
-        executeGuardTimerRef.current = null
-      }, EXECUTE_REENTRY_GUARD_MS)
-      return
-    }
-    if (!totalCosts || !SocialManeuvers.canAfford(humanPlayer.id, totalCosts)) {
-      const needs = [
-        totalCosts && totalCosts.energy > energy ? `⚡${totalCosts.energy}` : null,
-        totalCosts && totalCosts.influence > influence ? `🤝${totalCosts.influence}` : null,
-        totalCosts && totalCosts.info > info ? `💡${totalCosts.info}` : null,
-      ]
-        .filter(Boolean)
-        .join(', ')
-      const onlyEnergyShort =
-        Boolean(totalCosts) &&
-        totalCosts!.energy > energy &&
-        totalCosts!.influence <= influence &&
-        totalCosts!.info <= info
-      setFeedbackMsg(
-        `Insufficient resources${
-          onlyEnergyShort ? ': insufficient energy' : ''
-        }${needs ? ` — need ${needs}` : ''}. Nothing was spent.`
-      )
-      releaseGuard()
-      return
-    }
-    if (
-      targetIds.some((targetId) => {
-        const target = game.players.find((player) => player.id === targetId)
-        return !target || target.status === 'evicted' || target.status === 'jury'
-      })
-    ) {
-      setFeedbackMsg('Cannot target an eliminated or Tribunal player.')
-      releaseGuard()
-      return
-    }
+        return
+      }
+      if (targetMode === 'multi' && targetIds.length < minimumTargetCount) {
+        setFeedbackMsg(
+          minimumTargetCount === 1
+            ? 'Select at least one housemate.'
+            : `Select at least ${minimumTargetCount} housemates for this group action.`
+        )
+        releaseGuard()
+        return
+      }
+      if (!executionEligibility.eligible) {
+        setFeedbackMsg(executionEligibility.reason || 'This action is not available now.')
+        releaseGuard()
+        return
+      }
+      if (selectedAllianceAction) {
+        const managed = dispatch(
+          executeAllianceManagementCommand(
+            selectedAllianceAction.buildCommand(targetIds),
+            totalCosts ?? undefined
+          )
+        )
+        setFeedbackMsg(managed.reason)
+        setFeedbackExpanded(false)
+        if (managed.status !== 'REJECTED') {
+          setSelectedActionId(null)
+          setAllianceNameDraft('')
+          setSuccessPulse(true)
+          if (selectedAllianceAction.action.id === 'alliance:found') {
+            setSelectedTargets(new Set())
+            setPrimaryTargetId(null)
+            setMultiSelectActive(false)
+          }
+          if (successPulseTimerRef.current !== null) clearTimeout(successPulseTimerRef.current)
+          successPulseTimerRef.current = setTimeout(() => {
+            setSuccessPulse(false)
+            successPulseTimerRef.current = null
+          }, 850)
+        }
+        if (executeGuardTimerRef.current !== null) clearTimeout(executeGuardTimerRef.current)
+        executeGuardTimerRef.current = setTimeout(() => {
+          releaseGuard()
+          executeGuardTimerRef.current = null
+        }, EXECUTE_REENTRY_GUARD_MS)
+        return
+      }
+      if (!totalCosts || !SocialManeuvers.canAfford(humanPlayer.id, totalCosts)) {
+        const needs = [
+          totalCosts && totalCosts.energy > energy ? `⚡${totalCosts.energy}` : null,
+          totalCosts && totalCosts.influence > influence ? `🤝${totalCosts.influence}` : null,
+          totalCosts && totalCosts.info > info ? `💡${totalCosts.info}` : null,
+        ]
+          .filter(Boolean)
+          .join(', ')
+        const onlyEnergyShort =
+          Boolean(totalCosts) &&
+          totalCosts!.energy > energy &&
+          totalCosts!.influence <= influence &&
+          totalCosts!.info <= info
+        setFeedbackMsg(
+          `Insufficient resources${
+            onlyEnergyShort ? ': insufficient energy' : ''
+          }${needs ? ` — need ${needs}` : ''}. Nothing was spent.`
+        )
+        releaseGuard()
+        return
+      }
+      if (
+        targetIds.some((targetId) => {
+          const target = game.players.find((player) => player.id === targetId)
+          return !target || target.status === 'evicted' || target.status === 'jury'
+        })
+      ) {
+        setFeedbackMsg('Cannot target an eliminated or Tribunal player.')
+        releaseGuard()
+        return
+      }
 
-    const results =
-      targetMode === 'multi'
-        ? [
-            dispatch(
-              executeHumanRealityAction({
-                actorId: humanPlayer.id,
-                targetId: targetIds[0],
-                targetIds,
-                actionId: selectedActionId,
-                consultationScope:
-                  selectedActionId === 'consult_alliance' ? consultationScope : undefined,
-                consultationAllianceId:
-                  selectedActionId === 'consult_alliance'
-                    ? selectedConsultationAlliance?.id
-                    : undefined,
-                subjectId: selectedSubjectId ?? undefined,
-                costOverride: totalCosts,
-              })
-            ),
-          ]
-        : targetMode !== 'none' && targetIds.length === 1 && !usesMultipleTargets
+      const consultationOptions =
+        selectedActionId === 'consult_alliance'
+          ? {
+              consultationScope,
+              consultationAllianceId: selectedConsultationAlliance?.id,
+            }
+          : {}
+      const results: ExecuteActionResult[] =
+        targetMode === 'multi'
           ? [
               dispatch(
                 executeHumanRealityAction({
                   actorId: humanPlayer.id,
                   targetId: targetIds[0],
+                  targetIds,
                   actionId: selectedActionId,
+                  ...consultationOptions,
                   subjectId: selectedSubjectId ?? undefined,
                   costOverride: totalCosts,
                 })
               ),
             ]
-          : targetMode === 'none'
+          : targetMode !== 'none' && targetIds.length === 1 && !usesMultipleTargets
             ? [
                 dispatch(
                   executeHumanRealityAction({
                     actorId: humanPlayer.id,
-                    targetId: humanPlayer.id,
-                    targetIds: [],
-                    actionId: selectedActionId,
-                    costOverride: totalCosts,
-                  })
-                ),
-              ]
-            : [
-                dispatch(
-                  executeHumanRealityAction({
-                    actorId: humanPlayer.id,
                     targetId: targetIds[0],
-                    targetIds,
                     actionId: selectedActionId,
-                    consultationScope:
-                      selectedActionId === 'consult_alliance' ? consultationScope : undefined,
-                    consultationAllianceId:
-                      selectedActionId === 'consult_alliance'
-                        ? selectedConsultationAlliance?.id
-                        : undefined,
+                    ...consultationOptions,
                     subjectId: selectedSubjectId ?? undefined,
                     costOverride: totalCosts,
                   })
                 ),
               ]
+            : targetMode === 'none'
+              ? [
+                  dispatch(
+                    executeHumanRealityAction({
+                      actorId: humanPlayer.id,
+                      targetId: humanPlayer.id,
+                      targetIds: [],
+                      actionId: selectedActionId,
+                      ...consultationOptions,
+                      costOverride: totalCosts,
+                    })
+                  ),
+                ]
+              : [
+                  dispatch(
+                    executeHumanRealityAction({
+                      actorId: humanPlayer.id,
+                      targetId: targetIds[0],
+                      targetIds,
+                      actionId: selectedActionId,
+                      ...consultationOptions,
+                      subjectId: selectedSubjectId ?? undefined,
+                      costOverride: totalCosts,
+                    })
+                  ),
+                ]
 
-    const successfulResults = results.filter((result) => result.success)
-    const firstResult = results[0]
-    setPregnancyCelebration(firstResult.label === 'Positive')
-    const reachedTargetCount =
-      Object.keys(firstResult.targetDeltas ?? {}).length || successfulResults.length
-    setFeedbackMsg(
-      targetMode === 'multi'
-        ? firstResult.summary
-        : usesMultipleTargets
-          ? reachedTargetCount === targetIds.length
-            ? `${getSocialActionPresentation(selectedAction).title} reached all ${
-                targetIds.length
-              } selected Hubmates.`
-            : `${getSocialActionPresentation(selectedAction).title} reached ${
-                reachedTargetCount
-              } of ${targetIds.length} selected Hubmates.`
-          : firstResult.summary
-    )
-    setFeedbackExpanded(false)
-
-    if (successfulResults.length > 0) {
-      const targetNames = targetIds.map(
-        (targetId) => game.players.find((player) => player.id === targetId)?.name ?? targetId
+      const successfulResults = results.filter((result) => result.success)
+      const firstResult = results[0]
+      setPregnancyCelebration(firstResult.label === 'Positive')
+      const reachedTargetCount =
+        Object.keys(firstResult.targetDeltas ?? {}).length || successfulResults.length
+      setFeedbackMsg(
+        targetMode === 'multi'
+          ? firstResult.summary
+          : usesMultipleTargets
+            ? reachedTargetCount === targetIds.length
+              ? `${getSocialActionPresentation(selectedAction).title} reached all ${
+                  targetIds.length
+                } selected Hubmates.`
+              : `${getSocialActionPresentation(selectedAction).title} reached ${
+                  reachedTargetCount
+                } of ${targetIds.length} selected Hubmates.`
+            : firstResult.summary
       )
-      const subjectName = selectedSubjectId
-        ? (game.players.find((player) => player.id === selectedSubjectId)?.name ??
-          selectedSubjectId)
-        : null
-      const actionTitle = getSocialActionPresentation(selectedAction).title
-      const persistentText =
-        selectedActionId === 'group_chat'
-          ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
-          : selectedActionId === 'ask_loh_target' ||
-              selectedActionId === 'share_pregnancy_news' ||
-              selectedActionId === 'pregnancy_test_self' ||
-              selectedActionId === 'paternity_test_self'
-            ? firstResult.summary
-            : subjectName
-              ? `You used ${actionTitle} with ${targetNames[0]} about ${subjectName}.`
-              : getSocialNarrative(selectedActionId, formatPlayerNames(targetNames), Date.now())
-      dispatch(
-        addTvEvent({
-          text: persistentText,
-          type: 'social',
-          source: 'manual',
-          channels: ['mainLog'],
-          // Player-action receipts belong in the activity strip, not on the
-          // broadcast.  The Faux TV is reserved for house-wide consequences.
-          meta: { suppressTv: true },
-        })
-      )
-      setSuccessPulse(true)
-      if (successPulseTimerRef.current !== null) {
-        clearTimeout(successPulseTimerRef.current)
-      }
-      successPulseTimerRef.current = setTimeout(() => {
-        setSuccessPulse(false)
-        setRelationshipPulseDeltas(new Map())
-        successPulseTimerRef.current = null
-      }, 850)
+      setFeedbackExpanded(false)
 
-      const immediateDeltas = new Map<string, number>()
-      for (const result of successfulResults) {
-        for (const [targetId, delta] of Object.entries(result.targetDeltas ?? {})) {
-          if (delta !== 0) immediateDeltas.set(targetId, delta)
+      if (successfulResults.length > 0) {
+        const targetNames = targetIds.map(
+          (targetId) => game.players.find((player) => player.id === targetId)?.name ?? targetId
+        )
+        const subjectName = selectedSubjectId
+          ? (game.players.find((player) => player.id === selectedSubjectId)?.name ??
+            selectedSubjectId)
+          : null
+        const actionTitle = getSocialActionPresentation(selectedAction).title
+        const persistentText =
+          selectedActionId === 'group_chat'
+            ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
+            : selectedActionId === 'ask_loh_target' ||
+                selectedActionId === 'share_pregnancy_news' ||
+                selectedActionId === 'pregnancy_test_self' ||
+                selectedActionId === 'paternity_test_self'
+              ? firstResult.summary
+              : subjectName
+                ? `You used ${actionTitle} with ${targetNames[0]} about ${subjectName}.`
+                : getSocialNarrative(selectedActionId, formatPlayerNames(targetNames), Date.now())
+        dispatch(
+          addTvEvent({
+            text: persistentText,
+            type: 'social',
+            source: 'manual',
+            channels: ['mainLog'],
+            // Player-action receipts belong in the activity strip, not on the
+            // broadcast.  The Faux TV is reserved for house-wide consequences.
+            meta: { suppressTv: true },
+          })
+        )
+        setSuccessPulse(true)
+        if (successPulseTimerRef.current !== null) {
+          clearTimeout(successPulseTimerRef.current)
         }
-      }
-      setRelationshipPulseDeltas(immediateDeltas)
-    }
+        successPulseTimerRef.current = setTimeout(() => {
+          setSuccessPulse(false)
+          setRelationshipPulseDeltas(new Map())
+          successPulseTimerRef.current = null
+        }, 850)
 
-    if (executeGuardTimerRef.current !== null) {
-      clearTimeout(executeGuardTimerRef.current)
-    }
-    executeGuardTimerRef.current = setTimeout(() => {
+        const immediateDeltas = new Map<string, number>()
+        for (const result of successfulResults) {
+          for (const [targetId, delta] of Object.entries(result.targetDeltas ?? {})) {
+            if (delta !== 0) immediateDeltas.set(targetId, delta)
+          }
+        }
+        setRelationshipPulseDeltas(immediateDeltas)
+      }
+
+      if (executeGuardTimerRef.current !== null) {
+        clearTimeout(executeGuardTimerRef.current)
+      }
+      executeGuardTimerRef.current = setTimeout(() => {
+        releaseGuard()
+        executeGuardTimerRef.current = null
+      }, EXECUTE_REENTRY_GUARD_MS)
+    } catch (error) {
+      console.error('Social action execution failed:', error)
+      setFeedbackMsg(
+        'That move was interrupted. Check your activity and resources before retrying.'
+      )
+      setFeedbackExpanded(false)
+      setSelectedActionId(null)
+      setMultiSelectActive(false)
+      if (executeGuardTimerRef.current !== null) {
+        clearTimeout(executeGuardTimerRef.current)
+        executeGuardTimerRef.current = null
+      }
       releaseGuard()
-      executeGuardTimerRef.current = null
-    }, EXECUTE_REENTRY_GUARD_MS)
+    }
   }, [
     dispatch,
     effectivePrimaryTargetId,

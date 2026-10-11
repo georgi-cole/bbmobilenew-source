@@ -48,6 +48,39 @@ export function allianceProposalPrice(command: AllianceManagementCommand): {
   return null
 }
 
+function allianceProposalReceipt(
+  domain: RootState['social']['reality'],
+  requestId: string | undefined,
+  state: RootState
+): string {
+  const request = requestId ? domain.allianceManagement.requests[requestId] : undefined
+  if (!request) return 'Alliance proposal submitted. Track its decision in Hub Wire.'
+
+  const playerName = (id: string | undefined) =>
+    id ? (state.game.players.find((player) => player.id === id)?.name ?? id) : 'the invitee'
+  const allianceName = request.allianceId
+    ? (domain.alliances[request.allianceId]?.name ?? request.name ?? 'the alliance')
+    : (request.name ?? 'the alliance')
+
+  if (request.kind === 'ADMIT') {
+    const candidate = playerName(request.candidateId)
+    if (request.status === 'VOTING')
+      return `${allianceName} is voting on inviting ${candidate}. If approved, ${candidate} gets a separate invitation. Follow the result in Hub Wire.`
+    if (request.status === 'CONSENT')
+      return `${allianceName} approved inviting ${candidate}. ${candidate} still needs to accept; follow the final result in Hub Wire.`
+    if (request.status === 'ACCEPTED')
+      return request.reason ?? `${candidate} joined ${allianceName}.`
+    return `The invitation decision for ${candidate} ended: ${request.reason ?? request.status}.`
+  }
+
+  if (request.status === 'ACCEPTED') return request.reason ?? 'The alliance agreement is active.'
+  if (request.status === 'CONSENT')
+    return `${allianceName} is waiting for the required members to agree. Follow the result in Hub Wire.`
+  if (request.status === 'VOTING')
+    return `${allianceName} is voting on your proposal. Follow the result in Hub Wire.`
+  return request.reason ?? 'Alliance proposal submitted. Track its decision in Hub Wire.'
+}
+
 /** Charge only a newly submitted player proposal; decisions and exits remain free. */
 export function executeAllianceManagementCommand(
   command: AllianceManagementCommand,
@@ -158,7 +191,7 @@ export function executeAllianceManagementCommand(
             week: latest.game.week,
             phase: latest.game.phase,
             source: 'manual',
-            narrative: 'Alliance proposal was submitted and is awaiting approval.',
+            narrative: allianceProposalReceipt(domain, result.requestId, latest),
           },
         })
       )
