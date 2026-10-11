@@ -203,32 +203,32 @@ button.pa:focus-visible {
 }
 
 .pa--relationship-nemesis {
-  --pa-relationship-ring: #372638;
-  --pa-relationship-glow: rgba(55, 38, 56, 0.44);
+  --pa-relationship-ring: #120e16;
+  --pa-relationship-glow: rgba(18, 14, 22, 0.78);
 }
 .pa--relationship-hostile {
-  --pa-relationship-ring: #77334d;
-  --pa-relationship-glow: rgba(119, 51, 77, 0.48);
+  --pa-relationship-ring: #e53c59;
+  --pa-relationship-glow: rgba(229, 60, 89, 0.62);
 }
 .pa--relationship-strained {
-  --pa-relationship-ring: #b75d78;
-  --pa-relationship-glow: rgba(183, 93, 120, 0.46);
+  --pa-relationship-ring: #ff916f;
+  --pa-relationship-glow: rgba(255, 145, 111, 0.6);
 }
 .pa--relationship-neutral {
-  --pa-relationship-ring: #9287b2;
-  --pa-relationship-glow: rgba(146, 135, 178, 0.42);
+  --pa-relationship-ring: #a882ff;
+  --pa-relationship-glow: rgba(168, 130, 255, 0.62);
 }
 .pa--relationship-warm {
-  --pa-relationship-ring: #d28a94;
-  --pa-relationship-glow: rgba(210, 138, 148, 0.48);
+  --pa-relationship-ring: #ffd166;
+  --pa-relationship-glow: rgba(255, 209, 102, 0.62);
 }
 .pa--relationship-close {
-  --pa-relationship-ring: #e4aa77;
-  --pa-relationship-glow: rgba(228, 170, 119, 0.52);
+  --pa-relationship-ring: #3ddc97;
+  --pa-relationship-glow: rgba(61, 220, 151, 0.64);
 }
 .pa--relationship-lovers {
-  --pa-relationship-ring: #e7a989;
-  --pa-relationship-glow: rgba(217, 128, 161, 0.54);
+  --pa-relationship-ring: #ed69c7;
+  --pa-relationship-glow: rgba(237, 105, 199, 0.64);
 }
 
 .pa--relationship-nemesis,
@@ -241,11 +241,12 @@ button.pa:focus-visible {
   border-color: var(--pa-relationship-ring);
   box-shadow:
     0 0 0 2px var(--pa-relationship-ring),
+    0 0 0 3px rgba(249, 241, 255, 0.42),
     0 0 8px var(--pa-relationship-glow);
 }
 
 .pa--relationship-lovers .pa__ring {
-  border-color: #e7a989;
+  border-color: #ed69c7;
   box-shadow:
     0 0 0 1px rgba(242, 196, 112, 0.65),
     0 0 10px rgba(217, 128, 161, 0.5);

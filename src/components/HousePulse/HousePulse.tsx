@@ -9,7 +9,13 @@ import type {
   SocialCommitment,
 } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality'
-import { allianceKind, getRealityAllianceKnowledgeView } from '../../social/reality'
+import {
+  allianceEventText,
+  allianceForEvent,
+  allianceKind,
+  canReadAllianceEvent,
+  isFormerAllianceMember,
+} from '../../social/reality'
 import {
   getSocialCommitmentDueCopy,
   getSocialCommitmentLabel,
@@ -32,7 +38,7 @@ interface HousePulseProps {
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
   onOpenIncoming?: () => void
-  onOpenAlliances?: () => void
+  onOpenAlliances?: (allianceId?: string) => void
 }
 
 const RUMOUR_LABEL: Record<string, string> = {
@@ -92,196 +98,91 @@ function titleCase(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-/**
- * Reality Mode only reports events the player took part in, witnessed, or that
- * happened openly in the house. It intentionally does not turn hidden AI
- * actions into a "story" before the player could have learned them.
- */
+type PulseStoryBeat = SocialStoryBeat & { allianceId?: string }
+
+/** Today is a concise, chronological feed of only events the player could know. */
 function buildRealityPulseStream(
   reality: RealityDomainState,
   humanId: string,
   currentWeek: number,
   playerName: (id: string) => string
-): SocialStoryBeat[] {
-  return reality.events
-    .filter(
-      (event) =>
-        event.day === currentWeek &&
-        (event.participantIds.includes(humanId) ||
-          event.witnessIds.includes(humanId) ||
-          event.visibility === 'HOUSE_PUBLIC' ||
-          event.visibility === 'CEREMONY_PUBLIC')
-    )
-    .slice()
+): PulseStoryBeat[] {
+  const records = [
+    ...new Map(
+      [
+        ...reality.events,
+        ...Object.values(reality.alliances).flatMap((alliance) => alliance.history ?? []),
+        ...Object.values(reality.allianceManagement.requests).flatMap(
+          (request) => request.history ?? []
+        ),
+      ].map((event) => [event.id, event])
+    ).values(),
+  ]
+  return records
+    .filter((event) => {
+      if (event.day !== currentWeek || !canReadAllianceEvent(event, humanId)) return false
+      if (
+        ['ALLIANCE_REQUEST_VOTE', 'ALLIANCE_REQUEST_CONSENT', 'ALLIANCE_REQUEST_ACCEPTED'].includes(
+          event.type
+        )
+      )
+        return false
+      // Synchronous voting and AI acceptance produce one outcome in Today; the full read retains every step.
+      if (
+        ['ALLIANCE_REQUEST_SUBMITTED', 'ALLIANCE_INVITATION_SENT'].includes(event.type) &&
+        event.allianceRequestId
+      ) {
+        const request = reality.allianceManagement.requests[event.allianceRequestId]
+        if (request?.settledAt?.day === event.day && request.settledAt.phase === event.phase)
+          return false
+      }
+      return true
+    })
     .map((event) => {
+      const allianceId = allianceForEvent(reality, event)
+      const alliance = allianceId ? reality.alliances[allianceId] : undefined
+      const isAllianceEvent = event.type.startsWith('ALLIANCE_')
       const signal = `${event.type} ${event.tags.join(' ')}`.toLowerCase()
-      const targetNames = event.targetIds.filter((id) => id !== humanId).map(playerName)
-      const actor = event.actorId && event.actorId !== humanId ? playerName(event.actorId) : null
       const kind: SocialStoryBeat['kind'] = /betray|conflict|confront|target|nomination/.test(
         signal
       )
         ? 'conflict'
         : /repair|apolog|reassure/.test(signal)
           ? 'repair'
-          : /alliance|deal|promise|vote|strategy/.test(signal)
+          : isAllianceEvent || /deal|promise|vote|strategy/.test(signal)
             ? 'strategy'
-            : event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
+            : event.publicEligible
               ? 'public'
               : 'bond'
-      const allianceId =
-        event.allianceSnapshot?.id ??
-        (event.reason.startsWith('management:') ? event.reason.slice('management:'.length) : null)
-      const alliance = allianceId ? reality.alliances[allianceId] : null
-      const allianceKnowledge = alliance
-        ? getRealityAllianceKnowledgeView(reality, alliance.id, humanId)
-        : null
-      const knownAllianceName =
-        event.allianceSnapshot?.name ??
-        (alliance && allianceKnowledge?.level !== 'UNKNOWN'
-          ? (allianceKnowledge?.displayName ?? alliance.name)
-          : undefined)
-      const allianceName = knownAllianceName ?? 'the alliance'
-      const formationName = knownAllianceName ?? 'an alliance'
-      const otherParticipants = event.participantIds.filter(
-        (id) => id !== humanId && id !== event.actorId
-      )
-      const otherParticipantNames = otherParticipants.map(playerName).join(' and ')
-      const title = /ALLIANCE_OFFICERS_CHANGED/.test(event.type)
-        ? 'Alliance leadership changed'
-        : /ALLIANCE_MEMBER_RECRUITED/.test(event.type)
-          ? 'A new member joined an alliance'
-          : /ALLIANCE_FORMED/.test(event.type)
-            ? 'An alliance formed'
-            : /ALLIANCE_RENAMED/.test(event.type)
-              ? 'Your alliance was renamed'
-              : /ALLIANCE_(ENDED|DISSOLVED)/.test(event.type)
-                ? (event.allianceSnapshot?.kind ??
-                    (alliance ? allianceKind(alliance) : undefined)) === 'PACT'
-                  ? 'A pact ended'
-                  : 'An alliance ended'
-                : event.visibility === 'CEREMONY_PUBLIC'
-                  ? 'A public decision landed'
-                  : /nomination/.test(signal)
-                    ? 'Nominations changed the room'
-                    : /safety|pov/.test(signal)
-                      ? 'Safety changed the board'
-                      : titleCase(event.type)
-      const subject = event.actorId === humanId ? 'You' : (actor ?? 'The house')
-      const detail = targetNames.length ? ` involving ${targetNames.join(' and ')}` : ''
-      const isAllianceEvent =
-        Boolean(allianceId) ||
-        /ALLIANCE_(FORMED|RENAMED|MEMBER_RECRUITED|OFFICERS_CHANGED|ENDED)/.test(event.type)
-      const text = /ALLIANCE_OFFICERS_CHANGED/.test(event.type)
-        ? `Leadership roles changed in ${allianceName}.`
-        : /ALLIANCE_MEMBER_RECRUITED/.test(event.type)
-          ? `${targetNames[0] ?? 'A housemate'} joined ${allianceName}.`
-          : /ALLIANCE_FORMED/.test(event.type)
-            ? event.actorId === humanId
-              ? `You formed ${formationName}${
-                  event.participantIds.filter((id) => id !== humanId).length
-                    ? ` with ${event.participantIds
-                        .filter((id) => id !== humanId)
-                        .map(playerName)
-                        .join(' and ')}`
-                    : ''
-                }.`
-              : actor
-                ? `${actor} formed ${formationName}${event.participantIds.includes(humanId) ? ' with you' : ''}${otherParticipantNames ? `${event.participantIds.includes(humanId) ? ' and ' : ' with '}${otherParticipantNames}` : ''}.`
-                : `You learned that ${formationName} formed${detail}.`
-            : /ALLIANCE_RENAMED/.test(event.type)
-              ? `${subject} gave ${allianceName} a new name.`
-              : /ALLIANCE_(ENDED|DISSOLVED)/.test(event.type)
-                ? allianceEndText({
-                    event,
-                    allianceName,
-                    endReason: event.allianceSnapshot?.endReason ?? alliance?.endReason,
-                    allianceKind:
-                      event.allianceSnapshot?.kind ??
-                      (alliance ? allianceKind(alliance) : undefined),
-                    playerName,
-                    humanId,
-                  })
-                : event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
-                  ? `${subject} made a visible move${detail}. The house has seen it.`
-                  : `${subject} was part of a moment${detail} that you experienced firsthand.`
+      const actor =
+        event.actorId === humanId ? 'You' : event.actorId ? playerName(event.actorId) : 'The hub'
+      const targets = event.targetIds
+        .filter((id) => id !== event.actorId)
+        .map((id) => (id === humanId ? 'you' : playerName(id)))
+        .join(' and ')
+      const text = isAllianceEvent
+        ? allianceEventText(reality, event, humanId, playerName)
+        : `${actor} · ${titleCase(event.actionId ?? event.type)}${targets ? ` · ${targets}` : ''}.`
       return {
         id: event.id,
         kind,
-        title,
+        title: text,
         text,
         eventType: event.type,
+        allianceId:
+          alliance &&
+          allianceKind(alliance) === 'GROUP' &&
+          isFormerAllianceMember(alliance, humanId)
+            ? allianceId
+            : undefined,
         participantIds: event.participantIds,
         week: event.day,
         phase: event.phase,
-        severity:
-          event.visibility === 'CEREMONY_PUBLIC' || /nomination|eviction|safety/.test(signal)
-            ? 'major'
-            : event.outcome === 'SYSTEM' && !isAllianceEvent
-              ? 'quiet'
-              : 'notable',
+        severity: event.visibility === 'CEREMONY_PUBLIC' ? 'major' : 'notable',
         createdAt: event.sequence,
         dedupeKey: event.id,
       }
     })
-}
-
-function allianceEndText(input: {
-  event: RealityDomainState['events'][number]
-  allianceName: string
-  endReason?: string
-  allianceKind?: 'PACT' | 'GROUP'
-  playerName: (id: string) => string
-  humanId: string
-}): string {
-  const { event, allianceName, endReason, allianceKind, playerName, humanId } = input
-  const snapshot = event.allianceSnapshot
-  const actor = event.actorId ? playerName(event.actorId) : 'The house'
-  const subject = event.actorId === humanId ? 'You' : actor
-  const memberIds = snapshot?.memberIds ?? event.participantIds
-  const memberNames = memberIds.map(playerName)
-  const otherMembers = memberIds.filter((id) => id !== humanId).map(playerName)
-
-  if (endReason === 'DISSOLVED_BY_LEADER') {
-    const roster = memberNames.length
-      ? `, ending it for ${formatNames(memberNames.map((name) => (name === 'You' ? 'you' : name)))}`
-      : ''
-    return `${subject} dissolved ${allianceName}${roster}.`
-  }
-  if (endReason === 'ENDED_BY_PARTNER') {
-    if (event.actorId === humanId)
-      return `You ended your pact with ${otherMembers.join(' and ') || 'your partner'}.`
-    return `${actor} ended their pact with you.`
-  }
-  if (endReason === 'TOO_FEW_MEMBERS') {
-    const departingId = event.targetIds[0]
-    const departingName = departingId ? playerName(departingId) : 'A member'
-    const exitVerb =
-      snapshot?.exitKind === 'EXPELLED'
-        ? 'was removed'
-        : snapshot?.exitKind === 'DEFECTION'
-          ? 'defected'
-          : snapshot?.exitKind === 'EVICTED'
-            ? 'left the game'
-            : 'left'
-    const action =
-      snapshot?.exitKind === 'EXPELLED' && event.actorId && event.actorId !== departingId
-        ? ` by ${actor}`
-        : ''
-    return `${allianceName} ended after ${departingName} ${exitVerb}${action}, leaving too few members to continue.`
-  }
-  if (endReason === 'SUPERSEDED')
-    return allianceKind === 'PACT'
-      ? `${allianceName} ended when the pact was replaced by a group.`
-      : `${allianceName} was replaced by a newer alliance.`
-  if (endReason === 'RECONCILED') return `${allianceName} ended as the pact was renewed.`
-  const roster = memberNames.length ? ` Members were ${memberNames.join(', ')}.` : ''
-  return `${allianceName} ended${roster}`
-}
-
-function formatNames(names: string[]): string {
-  if (names.length < 2) return names[0] ?? ''
-  if (names.length === 2) return `${names[0]} and ${names[1]}`
-  return `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`
 }
 
 export default function HousePulse({
@@ -358,7 +259,7 @@ export default function HousePulse({
       ),
     [humanId, network.rumours]
   )
-  const storyBeats = useMemo(
+  const storyBeats = useMemo<PulseStoryBeat[]>(
     () =>
       reality
         ? buildRealityPulseStream(reality, humanId, currentWeek, playerName)
@@ -383,11 +284,9 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const prioritizedBeats = storyBeats.slice().sort((left, right) => {
-    const weight = { major: 2, notable: 1, quiet: 0 }
-    return weight[right.severity] - weight[left.severity] || right.createdAt - left.createdAt
-  })
-  const todayBeats = reality ? prioritizedBeats : storyBeats
+  const todayBeats = reality
+    ? storyBeats.slice().sort((left, right) => right.createdAt - left.createdAt)
+    : storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
     (commitment) =>
@@ -526,26 +425,22 @@ export default function HousePulse({
                           Day {beat.week} ·{' '}
                           {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
                         </span>
-                        <em>{titleCase(beat.severity)}</em>
+                        {!reality && <em>{titleCase(beat.severity)}</em>}
                       </div>
                       <h3>{beat.title}</h3>
-                      <p>{beat.text}</p>
-                      {reality &&
-                        onOpenAlliances &&
-                        beat.eventType !== 'ALLIANCE_ENDED' &&
-                        beat.eventType !== 'ALLIANCE_DISSOLVED' &&
-                        /alliance|pact|group/.test(beat.title.toLowerCase()) && (
-                          <button
-                            type="button"
-                            className="house-pulse__link"
-                            onClick={() => {
-                              setOpen(false)
-                              onOpenAlliances()
-                            }}
-                          >
-                            Open alliance actions
-                          </button>
-                        )}
+                      {!reality && <p>{beat.text}</p>}
+                      {reality && onOpenAlliances && beat.allianceId && (
+                        <button
+                          type="button"
+                          className="house-pulse__link"
+                          onClick={() => {
+                            setOpen(false)
+                            onOpenAlliances(beat.allianceId)
+                          }}
+                        >
+                          View alliance
+                        </button>
+                      )}
                     </article>
                   ))}
                   {todayBeats.length > 3 && (
@@ -563,7 +458,19 @@ export default function HousePulse({
                             </span>
                           </div>
                           <h3>{beat.title}</h3>
-                          <p>{beat.text}</p>
+                          {!reality && <p>{beat.text}</p>}
+                          {reality && onOpenAlliances && beat.allianceId && (
+                            <button
+                              type="button"
+                              className="house-pulse__link"
+                              onClick={() => {
+                                setOpen(false)
+                                onOpenAlliances(beat.allianceId)
+                              }}
+                            >
+                              View alliance
+                            </button>
+                          )}
                         </article>
                       ))}
                     </details>

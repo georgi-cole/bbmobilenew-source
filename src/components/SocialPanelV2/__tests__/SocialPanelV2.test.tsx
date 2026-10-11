@@ -779,11 +779,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     initManeuvers(store)
     renderPanel(store)
 
-    expect(
-      screen.getByLabelText(
-        'Avatar rings: Nemesis, Hostile, Strained, Still forming, Warm, Close, Romance'
-      )
-    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Avatar rings: Nemesis, Still forming, Ally')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
@@ -1106,7 +1102,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     ).toBe(true)
   })
 
-  it('keeps invitations to two alliances distinct without repeating prices in their descriptions', () => {
+  it('invites a selected player from All moves only after selecting one eligible alliance', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const [allyA, allyB, candidate] = store
@@ -1135,24 +1131,48 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     initManeuvers(store)
     renderPanel(store)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
     const roster = screen.getByRole('region', { name: 'Player roster' })
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(allyA.name, 'i') }))
+    fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(candidate.name, 'i') }))
     const grid = screen.getByRole('group', { name: 'Action grid' })
-    const invitations = within(grid).getAllByRole('button', {
-      name: new RegExp(`Invite ${candidate.name}`, 'i'),
+    const invitation = within(grid).getByRole('button', {
+      name: new RegExp(`Invite ${candidate.name} to an alliance`, 'i'),
     })
-    expect(invitations).toHaveLength(2)
-    for (const [index, name] of ['The Shield', 'The Circle'].entries()) {
-      expect(invitations[index]).toHaveTextContent(
-        `Ask ${name} to vote on admitting ${candidate.name}. The invite is sent only after approval.`
-      )
-      expect(invitations[index]).not.toHaveTextContent(/proposal costs|cap|limit/i)
-      expect(within(invitations[index]).getByLabelText('Energy cost: 1')).toBeVisible()
-      expect(within(invitations[index]).getByLabelText('Influence cost: 5')).toBeVisible()
-    }
-    fireEvent.click(invitations[1])
+    expect(invitation).not.toHaveTextContent(/proposal costs|cap|limit/i)
+    expect(within(invitation).getByLabelText('Energy cost: 1')).toBeVisible()
+    expect(within(invitation).getByLabelText('Influence cost: 5')).toBeVisible()
+    fireEvent.click(invitation)
+    expect(
+      within(roster)
+        .getAllByRole('button')
+        .filter((button) => button.getAttribute('aria-pressed') === 'true')
+    ).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Start vote' })).toBeDisabled()
+    expect(Object.keys(store.getState().social.reality.allianceManagement.requests)).toHaveLength(0)
+    const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    expect(picker.getAllByRole('button')).toHaveLength(2)
+    fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
     expect(screen.getByRole('button', { name: 'Start vote' })).toBeEnabled()
+    fireEvent.click(picker.getByRole('button', { name: 'The Circle' }))
+    expect(
+      within(screen.getByRole('region', { name: 'Selected alliance' })).getByRole('heading', {
+        name: 'The Circle',
+      })
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Start vote' }))
+    const requests = Object.values(store.getState().social.reality.allianceManagement.requests)
+    expect(requests).toHaveLength(1)
+    expect(requests[0]).toMatchObject({
+      kind: 'ADMIT',
+      allianceId: 'compact-circle',
+      candidateId: candidate.id,
+    })
+    expect(requests[0].history?.some((event) => event.type === 'ALLIANCE_REQUEST_SUBMITTED')).toBe(
+      true
+    )
+    expect(store.getState().social.energyBank[human.id]).toBe(4)
+    expect(store.getState().social.influenceBank[human.id]).toBe(0)
   })
 
   it('shows leader rename and member rename-suggestion actions in the Alliances cards', async () => {
@@ -1180,6 +1200,12 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     renderPanel(store)
 
     fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    expect(screen.queryByRole('button', { name: /Rename The Shield/i })).toBeNull()
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Official alliances' })).getByRole('button', {
+        name: 'The Shield',
+      })
+    )
     fireEvent.click(screen.getByRole('button', { name: /Rename The Shield/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'New alliance name' }), {
       target: { value: 'The Night Shift' },
@@ -1204,5 +1230,152 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
           request.kind === 'RENAME_SUGGESTION' && request.proposedName === 'The Night Crew'
       )
     ).toBe(true)
+  })
+})
+
+describe('SocialPanelV2 – alliance context and history', () => {
+  function contextPanel() {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const [a, b, candidate] = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 3)
+    const reality = createInitialRealityDomainState()
+    for (const [id, name, leaderId] of [
+      ['scope-shield', 'The Shield', human.id],
+      ['scope-circle', 'The Circle', a.id],
+    ]) {
+      createRealityAlliance(reality, {
+        id,
+        name,
+        kind: 'GROUP',
+        leaderId,
+        founderIds: [human.id, a.id, b.id],
+        memberIds: [],
+        purpose: 'Protection',
+        at: { day: 1, phase: 'social_1' },
+      }).status = 'ACTIVE'
+    }
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 10 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 20 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+    return { store, human, a, b, candidate }
+  }
+
+  it('shows generic actions first and scopes group actions and member controls to one selected alliance', () => {
+    const { a } = contextPanel()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    const grid = within(screen.getByRole('group', { name: 'Action grid' }))
+    expect(
+      grid.queryByRole('button', { name: /Leave|Rename|Dissolve|Suggest a new name/i })
+    ).toBeNull()
+    const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
+    expect(grid.getByRole('button', { name: /Rename The Shield/i })).toBeInTheDocument()
+    expect(grid.getByRole('button', { name: /Dissolve The Shield/i })).toBeInTheDocument()
+    expect(grid.queryByRole('button', { name: /The Circle/i })).toBeNull()
+    expect(
+      grid.queryByRole('button', { name: /Found an alliance|Propose Personal Pact/i })
+    ).toBeNull()
+    fireEvent.click(screen.getByText('Open full alliance read'))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Alliance members' })).getByRole('button', {
+        name: new RegExp(a.name),
+      })
+    )
+    expect(
+      grid.getByRole('button', { name: new RegExp(`Offer co-leader to ${a.name}`, 'i') })
+    ).toBeInTheDocument()
+    fireEvent.click(picker.getByRole('button', { name: 'The Circle' }))
+    expect(
+      grid.getByRole('button', { name: /Suggest a new name for The Circle/i })
+    ).toBeInTheDocument()
+    expect(
+      grid.queryByRole('button', { name: /The Shield|Dissolve The Circle|Offer co-leader/i })
+    ).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
+    expect(screen.queryByRole('region', { name: 'Selected alliance' })).toBeNull()
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
+  })
+
+  it('clears a prepared rename when switching groups and displays the founding day and history', () => {
+    const { store } = contextPanel()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
+    expect(screen.getByText('Founded Day 1')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Open full alliance read'))
+    expect(screen.getByText(/You founded The Shield with/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Rename The Shield/i }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'New alliance name' }), {
+      target: { value: 'Wrong group' },
+    })
+    fireEvent.click(picker.getByRole('button', { name: 'The Circle' }))
+    expect(screen.queryByRole('textbox')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+    expect(store.getState().social.reality.alliances['scope-shield'].name).toBe('The Shield')
+    expect(store.getState().social.reality.alliances['scope-circle'].name).toBe('The Circle')
+  })
+
+  it('disables an invitation if its candidate becomes a member before execution without charging resources', () => {
+    const { store, human, candidate } = contextPanel()
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
+        name: new RegExp(candidate.name, 'i'),
+      })
+    )
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: new RegExp(`Invite ${candidate.name} to an alliance`, 'i'),
+      })
+    )
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Official alliances' })).getByRole('button', {
+        name: 'The Shield',
+      })
+    )
+    expect(screen.getByRole('button', { name: 'Start vote' })).toBeEnabled()
+    const changed = structuredClone(store.getState().social.reality)
+    changed.alliances['scope-shield'].memberIds.push(candidate.id)
+    act(() => store.dispatch(replaceRealityDomain(changed)))
+    expect(screen.getByRole('button', { name: 'Execute' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+    expect(store.getState().social.energyBank[human.id]).toBe(10)
+    expect(Object.values(store.getState().social.reality.allianceManagement.requests)).toHaveLength(
+      0
+    )
+  })
+
+  it('keeps a dissolved alliance selected as a read-only record and can reopen it from Today', () => {
+    const { store } = contextPanel()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    fireEvent.click(
+      within(screen.getByRole('group', { name: 'Official alliances' })).getByRole('button', {
+        name: 'The Shield',
+      })
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Dissolve The Shield/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Dissolve group' }))
+    expect(store.getState().social.reality.alliances['scope-shield'].status).toBe('DISSOLVED')
+    expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent('Dissolved')
+    expect(
+      screen.queryByRole('button', { name: /Rename The Shield|Leave The Shield|Consult Alliance/i })
+    ).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
+    fireEvent.click(screen.getByRole('button', { name: /My Pulse/i }))
+    const pulse = within(screen.getByRole('dialog', { name: 'My Pulse' }))
+    const dissolution = pulse
+      .getByRole('heading', { name: 'You dissolved The Shield.' })
+      .closest('article')!
+    fireEvent.click(within(dissolution).getByRole('button', { name: 'View alliance' }))
+    expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent(
+      'The Shield'
+    )
+    expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent('Dissolved')
   })
 })

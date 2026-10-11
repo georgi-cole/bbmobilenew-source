@@ -344,6 +344,9 @@ export type RealityAllianceStatus =
 
 export interface RealityAlliance {
   id: string
+  createdAt?: RealityClock
+  /** Alliance records survive the rolling social event feed. Visibility still applies per event. */
+  history?: RealitySocialEvent[]
   /** Missing only in a pre-management save; normalization supplies it. */
   kind?: 'PACT' | 'GROUP'
   leaderId?: RealityActorId
@@ -369,6 +372,8 @@ export interface RealityAlliance {
     }
   >
   name?: string
+  /** A human founder must name or keep the suggested name after all founders agree. */
+  initialNamePending?: boolean
   memberIds: RealityActorId[]
   founderIds: RealityActorId[]
   leaderIds: RealityActorId[]
@@ -412,6 +417,7 @@ export type RealityAllianceRequestStatus =
 
 export interface RealityAllianceRequest {
   id: string
+  history?: RealitySocialEvent[]
   kind: RealityAllianceRequestKind
   status: RealityAllianceRequestStatus
   proposerId: RealityActorId
@@ -611,11 +617,25 @@ export interface RealitySocialEvent extends RealityClock {
   relatedFactIds: string[]
   relatedPromiseIds: string[]
   relatedThreadIds: string[]
+  allianceId?: string
+  allianceRequestId?: string
+  allianceCommitmentSnapshot?: { kind: string; status: RealityPromiseStatus }
+  allianceRequestSnapshot?: {
+    kind: RealityAllianceRequestKind
+    status: RealityAllianceRequestStatus
+    candidateId?: RealityActorId
+    proposedName?: string
+    accepted?: boolean
+  }
   /** A durable snapshot for alliance-history events, even after the live roster is cleared. */
   allianceSnapshot?: {
     id: string
     kind?: 'PACT' | 'GROUP'
     name?: string
+    previousName?: string
+    nameAction?: 'NAMED' | 'RENAMED'
+    leaderId?: RealityActorId
+    coLeaderId?: RealityActorId
     memberIds: RealityActorId[]
     endReason?: string
     exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'EVICTED'

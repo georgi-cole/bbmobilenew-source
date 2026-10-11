@@ -1,3 +1,4 @@
+import { recordAllianceRequestEvent } from './allianceRequestEvents'
 import type { DramaAlliance } from '../types'
 import { maybeExposeRealityAlliance, recordRealityAllianceLeakDiscovery } from './allianceKnowledge'
 import { appendRealityEvent } from './events'
@@ -223,7 +224,8 @@ export function renameRealityAlliance(
 
   const name = input.name.trim().replace(/\s+/g, ' ').slice(0, 28)
   if (name.length < 2) throw new Error('Alliance name is too short')
-  if (alliance.name === name) return alliance
+  const firstName = alliance.initialNamePending === true
+  if (alliance.name === name && !firstName) return alliance
 
   for (const request of Object.values(state.allianceManagement.requests)) {
     if (
@@ -235,21 +237,33 @@ export function renameRealityAlliance(
       request.status = 'INVALIDATED'
       request.reason = 'The alliance name changed before the suggestion was decided.'
       request.settledAt = { ...input.at }
+      recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_INVALIDATED', input.at)
     }
   }
 
+  const previousName = alliance.name
   alliance.name = name
+  alliance.initialNamePending = false
   rememberAllianceRoster(alliance)
   appendRealityEvent(state, {
     ...input.at,
     type: 'ALLIANCE_RENAMED',
+    allianceId: alliance.id,
+    allianceSnapshot: {
+      id: alliance.id,
+      kind: allianceKind(alliance),
+      name,
+      previousName,
+      ...(firstName ? { nameAction: 'NAMED' as const } : {}),
+      memberIds: [...alliance.memberIds],
+    },
     actorId: input.actorId,
     targetIds: [],
     participantIds: [...alliance.memberIds],
     witnessIds: [],
     visibility: 'GROUP_VISIBLE',
     outcome: 'SUCCESS',
-    reason: `renamed:${alliance.id}:${name}`,
+    reason: `${firstName ? 'named' : 'renamed'}:${alliance.id}:${name}`,
     tags: ['ALLIANCE', 'IDENTITY'],
     relatedFactIds: [],
     relatedPromiseIds: [...alliance.sharedPromiseIds],
@@ -424,6 +438,7 @@ export function removeRealityAllianceMember(
   const event = appendRealityEvent(state, {
     ...input.at,
     type: eventType,
+    allianceId: alliance.id,
     actorId: input.actorId,
     targetIds: [input.memberId],
     participantIds: formerMemberIds,
@@ -480,6 +495,7 @@ export function removeRealityAllianceMember(
     appendRealityEvent(state, {
       ...input.at,
       type: 'ALLIANCE_ENDED',
+      allianceId: alliance.id,
       actorId: input.actorId,
       targetIds: [input.memberId],
       participantIds: formerMemberIds,
@@ -551,6 +567,7 @@ export function removeRealityAllianceMembers(
       request.status = 'INVALIDATED'
       request.reason = 'A participant left the house.'
       request.settledAt = { ...input.at }
+      recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_INVALIDATED', input.at)
     }
   }
   refreshRealityAllianceOverlaps(state)
@@ -728,6 +745,7 @@ export function recordRealityAllianceBetrayal(
     const betrayalEvent = appendRealityEvent(state, {
       ...input.at,
       type: 'ALLIANCE_BETRAYAL',
+      allianceId: alliance.id,
       actorId: input.actorId,
       targetIds: [input.targetId],
       participantIds: [...alliance.memberIds],
@@ -863,6 +881,7 @@ export function markRealityAllianceInfiltratorIfSecondary(
   appendRealityEvent(state, {
     ...at,
     type: 'ALLIANCE_FALSE_PRETENSE_ESTABLISHED',
+    allianceId: alliance.id,
     actorId: memberId,
     targetIds: alliance.memberIds.filter((id) => id !== memberId),
     participantIds: [memberId],
@@ -1048,6 +1067,7 @@ export function coordinateRealityAllianceTarget(
   appendRealityEvent(state, {
     ...input.at,
     type: 'ALLIANCE_TARGET_COORDINATED',
+    allianceId: alliance.id,
     actorId: input.actorId,
     targetIds: [input.subjectId],
     participantIds: [input.actorId, input.partnerId],
@@ -1210,6 +1230,7 @@ export function createRealityAlliance(
   if (existingPact && existingPact.id !== input.replacesPactId) return existingPact
   const alliance: RealityAlliance = {
     id: input.id,
+    createdAt: { ...input.at },
     kind,
     provenance: 'NATIVE',
     leaderId: kind === 'GROUP' ? (input.leaderId ?? input.founderIds[0]) : undefined,
@@ -1250,6 +1271,7 @@ export function createRealityAlliance(
   const event = appendRealityEvent(state, {
     ...input.at,
     type: 'ALLIANCE_FORMED',
+    allianceId: alliance.id,
     actorId: input.founderIds[0],
     targetIds: memberIds.filter((id) => !input.founderIds.includes(id)),
     participantIds: memberIds,
@@ -1369,6 +1391,7 @@ export function holdRealityAllianceStrategyMeeting(
   appendRealityEvent(state, {
     ...input.at,
     type: 'ALLIANCE_STRATEGY_MEETING',
+    allianceId: alliance.id,
     actorId: input.callerId,
     targetIds: [...new Set([...input.targetIds, ...(input.fallbackTargetIds ?? [])])],
     participantIds: [...new Set(input.attendeeIds)],
@@ -1460,6 +1483,7 @@ export function recordRealityAlliancePlanDefiance(
     const event = appendRealityEvent(state, {
       ...input.at,
       type: 'ALLIANCE_PLAN_DEFIED',
+      allianceId: alliance.id,
       actorId: input.actorId,
       targetIds: [input.actualTargetId],
       participantIds: [...alliance.memberIds],
@@ -1564,6 +1588,7 @@ export function leakRealityAlliance(
   const event = appendRealityEvent(state, {
     ...at,
     type: 'ALLIANCE_LEAKED',
+    allianceId: alliance.id,
     actorId: leakerId,
     targetIds: outsiderReceiverIds,
     participantIds: [leakerId, ...outsiderReceiverIds],
