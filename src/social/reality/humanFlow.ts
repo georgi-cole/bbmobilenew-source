@@ -1,3 +1,4 @@
+import { createDraft, finishDraft } from 'immer'
 import type { AppDispatch, RootState } from '../../store/store'
 import type { ExecuteActionResult } from '../SocialManeuvers'
 import { executeAction, executeGroupAction, getActionById } from '../SocialManeuvers'
@@ -10,6 +11,7 @@ import {
   updateRelationship,
 } from '../socialSlice'
 import { ALLIANCE_TAG } from '../socialAlliance'
+import { allianceKind } from './allianceIdentity'
 import { getEffectiveSocialMode } from '../socialMode'
 import { resolveActionTargetMode } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
@@ -1585,6 +1587,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
               const alliance = state.social.reality.alliances[input.consultationAllianceId]
               return alliance &&
                 (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+                allianceKind(alliance) === 'GROUP' &&
                 alliance.memberIds.includes(input.actorId) &&
                 alliance.memberIds.includes(input.targetId)
                 ? alliance
@@ -1738,6 +1741,9 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     // action and remain in Reality memory, but they must not receive full legacy
     // success rewards or trigger success-only downstream adapters.
     const resolvedAsSuccess = orchestration.event.outcome === 'SUCCESS'
+    // Orchestration returns an immutable domain snapshot. Follow-up effects
+    // such as alliance huddles and discovered warnings still need to update it.
+    const resolvedDomain = createDraft(orchestration.domain)
     const targetCompatibilitySucceeded = (targetId: string): boolean => {
       const targetResponse = orchestration.targetResponses?.find(
         (entry) => entry.targetId === targetId
@@ -1748,7 +1754,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     }
     let allianceConsultationSummary: string | null = null
     if (resolvedAsSuccess && consultationPlan) {
-      holdRealityAllianceStrategyMeeting(orchestration.domain, {
+      holdRealityAllianceStrategyMeeting(resolvedDomain, {
         allianceId: consultationPlan.allianceId,
         callerId: input.actorId,
         attendeeIds: consultationPlan.attendeeIds,
@@ -1770,7 +1776,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       state.game.lohId !== input.actorId &&
       isDangerWarningDiscovered(state, input)
     if (dangerWarningDiscovered && state.game.lohId) {
-      applyRealityRelationshipChange(orchestration.domain, {
+      applyRealityRelationshipChange(resolvedDomain, {
         sourceId: state.game.lohId,
         targetId: input.actorId,
         deltas: { trust: -7, warmth: -4, suspicion: 9, resentment: 4, familiarity: 2 },
@@ -1845,7 +1851,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     // Legacy execution preserves specialized ceremony copy and existing game
     // adapters. Restore the causal v3 world afterward so its directed result
     // is not counted a second time by the compatibility relationship write.
-    dispatch(replaceRealityDomain(orchestration.domain))
+    dispatch(replaceRealityDomain(finishDraft(resolvedDomain)))
     dispatch(replaceRealitySimulation(orchestration.simulation))
     // An accepted human alliance is authoritative in both relationship models.
     // Projecting the Reality domain can otherwise leave one legacy direction

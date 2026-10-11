@@ -69,7 +69,9 @@ export default function RecentActivity({
   )
   const visibleLogs = useMemo(() => {
     const entries = sessionLogs.filter(
-      (entry) => entry.timestamp > clearedBefore && entry.source !== 'system'
+      (entry) =>
+        entry.timestamp > clearedBefore &&
+        (entry.source !== 'system' || entry.actionId === 'alliance_admit_result')
     )
     return entries
       .filter(

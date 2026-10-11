@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RootState } from '../../store/store'
-import { applyEnergyDelta, replaceRealityDomain } from '../socialSlice'
+import { applyEnergyDelta, recordSocialAction, replaceRealityDomain } from '../socialSlice'
 import { createInitialRealityDomainState } from '../reality/state'
+import { createRealityAlliance } from '../reality/relationshipForms'
 import { executeAllianceManagementCommand } from '../allianceManagementActions'
 
 function makeState(energy: number, bothHuman = false) {
@@ -47,6 +48,43 @@ function runCommand(
 }
 
 describe('alliance proposal resource costs', () => {
+  it('explains that a proposed invite is voted on before the invitee is asked', () => {
+    const state = makeState(3, true)
+    state.game.players.push(
+      { id: 'r', name: 'Rae', isUser: false, status: 'active' } as never,
+      { id: 'x', name: 'Lia', isUser: false, status: 'active' } as never
+    )
+    state.social.influenceBank.u = 5
+    const alliance = createRealityAlliance(state.social.reality, {
+      id: 'the-shield',
+      kind: 'GROUP',
+      founderIds: ['u', 'k', 'r'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'The Shield',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+
+    const { result, dispatch } = runCommand(state, {
+      type: 'PROPOSE',
+      kind: 'ADMIT',
+      actorId: 'u',
+      candidateId: 'x',
+      allianceId: alliance.id,
+    })
+
+    expect(result.status).toBe('APPLIED')
+    const receipt = dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === recordSocialAction.type)
+    expect(
+      (receipt?.payload as { entry: { narrative: string } } | undefined)?.entry.narrative
+    ).toContain(
+      'The Shield is voting on inviting Lia. If approved, Lia gets a separate invitation.'
+    )
+  })
+
   it('charges two energy for a new personal pact proposal, only once', () => {
     const state = makeState(3)
     const command = {

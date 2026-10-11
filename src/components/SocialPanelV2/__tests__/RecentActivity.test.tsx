@@ -98,6 +98,21 @@ describe('RecentActivity – entry rendering', () => {
     expect(screen.getByText(/unknown-id/)).toBeDefined()
   })
 
+  it('shows alliance admission decisions recorded as system updates', () => {
+    const store = makeStore([
+      makeEntry({
+        actionId: 'alliance_admit_result',
+        source: 'system',
+        delta: 0,
+        narrative: 'The Shield approved inviting Lia. The invitation is now with Lia.',
+      }),
+    ])
+    renderActivity(store)
+    expect(
+      screen.getByText('The Shield approved inviting Lia. The invitation is now with Lia.')
+    ).toBeDefined()
+  })
+
   it('renders ✓ icon for positive delta', () => {
     const store = makeStore([makeEntry({ delta: 2 })])
     renderActivity(store)

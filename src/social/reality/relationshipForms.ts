@@ -971,6 +971,7 @@ export function findRealityAllianceForConsultation(
       .filter(
         (alliance) =>
           (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+          allianceKind(alliance) === 'GROUP' &&
           alliance.memberIds.includes(actorId) &&
           alliance.memberIds.includes(representativeId)
       )
