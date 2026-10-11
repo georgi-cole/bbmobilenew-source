@@ -320,7 +320,10 @@ export default function SocialPanelV2() {
   const [primaryTargetId, setPrimaryTargetId] = useState<string | null>(null)
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
   const [allianceNameDraft, setAllianceNameDraft] = useState('')
-  const [initialAllianceNameDraft, setInitialAllianceNameDraft] = useState('')
+  const [initialAllianceNameDraftState, setInitialAllianceNameDraftState] = useState<{
+    allianceId: string | null
+    value: string
+  }>({ allianceId: null, value: '' })
   const [allianceSelectionPulse, setAllianceSelectionPulse] = useState(false)
   const [multiSelectActive, setMultiSelectActive] = useState(false)
   const [selectedAllianceId, setSelectedAllianceId] = useState<string | null>(null)
@@ -355,13 +358,10 @@ export default function SocialPanelV2() {
       (left, right) =>
         (left.createdAt?.day ?? 0) - (right.createdAt?.day ?? 0) || left.id.localeCompare(right.id)
     )[0]
-  const pendingAllianceNamingIdRef = useRef<string | null>(null)
-  useEffect(() => {
-    const allianceId = pendingAllianceNaming?.id ?? null
-    if (pendingAllianceNamingIdRef.current === allianceId) return
-    pendingAllianceNamingIdRef.current = allianceId
-    if (allianceId) setInitialAllianceNameDraft('')
-  }, [pendingAllianceNaming?.id])
+  const initialAllianceNameDraft =
+    initialAllianceNameDraftState.allianceId === pendingAllianceNaming?.id
+      ? initialAllianceNameDraftState.value
+      : ''
   const formerGroups = useMemo(
     () =>
       Object.values(socialState.reality.alliances).filter(
@@ -1425,7 +1425,7 @@ export default function SocialPanelV2() {
       if (result.status === 'REJECTED') return
       setSelectedAllianceId(pendingAllianceNaming.id)
       setMoveFilter('alliances')
-      setInitialAllianceNameDraft('')
+      setInitialAllianceNameDraftState({ allianceId: null, value: '' })
     },
     [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming]
   )
@@ -2540,7 +2540,12 @@ export default function SocialPanelV2() {
                 autoComplete="off"
                 autoFocus
                 placeholder="For example, The Winners"
-                onChange={(event) => setInitialAllianceNameDraft(event.target.value)}
+                onChange={(event) =>
+                  setInitialAllianceNameDraftState({
+                    allianceId: pendingAllianceNaming.id,
+                    value: event.target.value,
+                  })
+                }
               />
               <div className="sp2-alliance-naming-actions">
                 <button type="submit" disabled={initialAllianceNameDraft.trim().length < 2}>
