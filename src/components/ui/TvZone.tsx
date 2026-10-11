@@ -324,6 +324,8 @@ type LiveVoteBackdropMetrics = {
 }
 
 type TvZoneProps = {
+  /** A full-screen sequence owns the shared Play press outside the Faux TV. */
+  playOwnedExternally?: boolean
   /**
    * Temporarily owns the viewport copy while a full-screen flow is in progress.
    * This keeps an older feed item from showing through a dimmed game background.
@@ -1328,6 +1330,8 @@ export default function TvZone(props: TvZoneProps) {
   // card so the next Safety/shock announcement can take the screen.
   useEffect(() => {
     const handlePlay = (event: Event) => {
+      // A full-screen sequence owns Play; don't also consume an older TV card.
+      if (props.playOwnedExternally) return
       // A final appeal is a modal decision.  The global Play button must not
       // dismiss a TV card or advance the season underneath it.
       if (document.querySelector('[aria-label="Final appeal to the audience"]')) {
@@ -1407,6 +1411,7 @@ export default function TvZone(props: TvZoneProps) {
     eventAnnouncementSource,
     gameState.broadcastQueue?.length,
     cupidFollowUpVisible,
+    props.playOwnedExternally,
   ])
 
   const handleModalClose = useCallback(() => setModalOpen(false), [])

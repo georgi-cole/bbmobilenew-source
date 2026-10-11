@@ -221,7 +221,7 @@ export default function FinalThreeCircuit({
       <div className="f3-circuit__shell">
         <header className="f3-circuit__hero">
           <div className="f3-circuit__hero-copy">
-            <p>Final HOH · Part {finalPart}</p>
+            <p>Final LOH · Part {finalPart}</p>
             {view === 'tutorialSignal' && <h1>Final Three Circuit</h1>}
           </div>
           <div className="f3-circuit__progress" aria-label={`Stage ${currentStage} of 3`}>
@@ -294,8 +294,8 @@ export default function FinalThreeCircuit({
                 <strong>{winner.name}</strong>
                 <p>
                   {winner.id === human.id
-                    ? 'You advance to Final HOH Part 3.'
-                    : `${winner.name} advances to Final HOH Part 3.`}
+                    ? 'You advance to Final LOH Part 3.'
+                    : `${winner.name} advances to Final LOH Part 3.`}
                 </p>
               </div>
 
@@ -349,7 +349,7 @@ export default function FinalThreeCircuit({
                 {humanFinalRank === 1 ? (
                   <>
                     <span>Next stop</span>
-                    <strong>Final HOH Part 3</strong>
+                    <strong>Final LOH Part 3</strong>
                     <p>
                       {finalPart === 1
                         ? 'The other two finalists now play Part 2.'
@@ -359,7 +359,7 @@ export default function FinalThreeCircuit({
                 ) : finalPart === 1 ? (
                   <>
                     <span>Your next challenge</span>
-                    <strong>Final HOH Part 2</strong>
+                    <strong>Final LOH Part 2</strong>
                     <p>
                       You and {otherPartTwoPlayer?.name ?? 'the other non-winner'} compete for the
                       final Part 3 seat.
@@ -367,7 +367,7 @@ export default function FinalThreeCircuit({
                   </>
                 ) : (
                   <>
-                    <span>Final HOH</span>
+                    <span>Final LOH</span>
                     <strong>Your competition run ends here</strong>
                     <p>You remain one of the Final 3, but the Part 3 seat goes to {winner.name}.</p>
                   </>

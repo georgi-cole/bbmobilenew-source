@@ -68,7 +68,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
   },
   final_hoh: {
     icon: '👑',
-    label: 'FINAL POWER BATTLE',
+    label: 'FINAL LOH · FINAL POWER BATTLE',
     category: 'Endgame',
     body: 'The Final Power holder makes the season’s last choice: who joins them in the Final Two, and who leaves in third place to join the Tribunal.',
   },
