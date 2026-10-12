@@ -1356,6 +1356,7 @@ export function holdRealityAllianceStrategyMeeting(
     fallbackTargetIds?: string[]
     planIds: string[]
     agenda: string
+    consultationSummary?: string
     at: RealityClock
     sourceEventId?: string
     excusedAbsentIds?: string[]
@@ -1403,6 +1404,9 @@ export function holdRealityAllianceStrategyMeeting(
     visibility: 'GROUP_VISIBLE',
     outcome: 'SUCCESS',
     reason: `strategy_meeting:${alliance.id}:${input.agenda}:${input.sourceEventId ?? 'manual'}`,
+    ...(input.consultationSummary
+      ? { allianceConsultationSummary: input.consultationSummary }
+      : {}),
     tags: ['ALLIANCE', 'STRATEGY', 'MEETING'],
     relatedFactIds: [],
     relatedPromiseIds: [...alliance.sharedPromiseIds],

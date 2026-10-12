@@ -38,7 +38,7 @@ interface HousePulseProps {
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
   onOpenIncoming?: () => void
-  onOpenAlliances?: (allianceId?: string) => void
+  onOpenAlliances?: (allianceId?: string, eventId?: string) => void
 }
 
 const RUMOUR_LABEL: Record<string, string> = {
@@ -118,9 +118,23 @@ function buildRealityPulseStream(
       ].map((event) => [event.id, event])
     ).values(),
   ]
+  const consultationEventIds = new Set(
+    records
+      .filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
+      .map((event) => event.reason.split(':').at(-1))
+      .filter((id): id is string => Boolean(id && id.startsWith('reality-event-')))
+  )
   return records
     .filter((event) => {
       if (event.day !== currentWeek || !canReadAllianceEvent(event, humanId)) return false
+      // The strategy meeting is the useful story record; hide its low-value
+      // interaction-log twin once the huddle has a durable outcome event.
+      if (
+        event.type === 'SOCIAL_INTERACTION_RESOLVED' &&
+        event.actionId === 'consult_alliance' &&
+        consultationEventIds.has(event.id)
+      )
+        return false
       if (
         ['ALLIANCE_REQUEST_VOTE', 'ALLIANCE_REQUEST_CONSENT', 'ALLIANCE_REQUEST_ACCEPTED'].includes(
           event.type
@@ -156,6 +170,7 @@ function buildRealityPulseStream(
               : 'bond'
       const actor =
         event.actorId === humanId ? 'You' : event.actorId ? playerName(event.actorId) : 'The hub'
+      const allianceName = event.allianceSnapshot?.name ?? alliance?.name ?? 'the alliance'
       const targets = event.targetIds
         .filter((id) => id !== event.actorId)
         .map((id) => (id === humanId ? 'you' : playerName(id)))
@@ -163,11 +178,19 @@ function buildRealityPulseStream(
       const text = isAllianceEvent
         ? allianceEventText(reality, event, humanId, playerName)
         : `${actor} · ${titleCase(event.actionId ?? event.type)}${targets ? ` · ${targets}` : ''}.`
+      const isConsultation = event.type === 'ALLIANCE_STRATEGY_MEETING'
+      const title = isConsultation ? `${actor} consulted ${allianceName}.` : text
+      const consultationDetail = isConsultation
+        ? (event.allianceConsultationSummary ??
+          (event.targetIds.length
+            ? `The recorded huddle focused on ${event.targetIds.map((id) => (id === humanId ? 'you' : playerName(id))).join(' and ')}, but its recommendation details were not saved.`
+            : 'The outcome was not recorded for this earlier huddle.'))
+        : text
       return {
         id: event.id,
         kind,
-        title: text,
-        text,
+        title,
+        text: consultationDetail,
         eventType: event.type,
         allianceId:
           alliance &&
@@ -435,11 +458,14 @@ export default function HousePulse({
                           className="house-pulse__link"
                           onClick={() => {
                             setOpen(false)
-                            onOpenAlliances(beat.allianceId)
+                            onOpenAlliances(beat.allianceId, beat.id)
                           }}
                         >
-                          View alliance
+                          View alliance history
                         </button>
+                      )}
+                      {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
+                        <p>{beat.text}</p>
                       )}
                     </article>
                   ))}
@@ -465,11 +491,14 @@ export default function HousePulse({
                               className="house-pulse__link"
                               onClick={() => {
                                 setOpen(false)
-                                onOpenAlliances(beat.allianceId)
+                                onOpenAlliances(beat.allianceId, beat.id)
                               }}
                             >
-                              View alliance
+                              View alliance history
                             </button>
+                          )}
+                          {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
+                            <p>{beat.text}</p>
                           )}
                         </article>
                       ))}

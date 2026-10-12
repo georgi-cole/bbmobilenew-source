@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type { Player } from '../../types'
 import {
   allianceEventText,
@@ -14,6 +15,7 @@ interface Props {
   humanId: string
   players: readonly Player[]
   selectedMemberId: string | null
+  focusEventId?: string
   onSelectMember: (id: string) => void
 }
 
@@ -23,6 +25,7 @@ export default function AllianceRead({
   humanId,
   players,
   selectedMemberId,
+  focusEventId,
   onSelectMember,
 }: Props) {
   const playerName = (id: string) =>
@@ -77,6 +80,16 @@ export default function AllianceRead({
       return 'Co-leader'
     return alliance.founderIds.includes(id) ? 'Founding member' : 'Member'
   }
+  useEffect(() => {
+    if (!focusEventId) return
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`alliance-history-event-${focusEventId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [focusEventId])
   return (
     <section
       className="sp2-focus sp2-focus--active sp2-alliance-read"
@@ -103,7 +116,11 @@ export default function AllianceRead({
                 : 'Former member'}
           </span>
           <span className="sp2-focus__status">
-            {foundation ? `Founded Day ${foundation.day}` : 'Foundation day unrecorded'}
+            {foundation
+              ? `Founded Day ${foundation.day}`
+              : alliance.provenance === 'LEGACY'
+                ? 'Legacy foundation date unavailable'
+                : 'Foundation date unavailable'}
           </span>
           <span className="sp2-focus__status">
             {memberIds.length} {currentMember ? 'members' : 'last known members'}
@@ -128,7 +145,7 @@ export default function AllianceRead({
             {request.deadline.phase.replaceAll('_', ' ')}.
           </p>
         ))}
-        <details className="sp2-focus__full-read" key={alliance.id}>
+        <details className="sp2-focus__full-read" key={alliance.id} open={Boolean(focusEventId)}>
           <summary>Open full alliance read</summary>
           <div className="sp2-alliance-read__details">
             <h3>{currentMember ? 'Members' : 'Last known roster'}</h3>
@@ -176,7 +193,11 @@ export default function AllianceRead({
             {history.length ? (
               <ol className="sp2-alliance-read__history">
                 {history.map((event) => (
-                  <li key={event.id}>
+                  <li
+                    key={event.id}
+                    id={`alliance-history-event-${event.id}`}
+                    className={event.id === focusEventId ? 'is-highlighted' : undefined}
+                  >
                     <small>
                       Day {event.day} · {event.phase.replaceAll('_', ' ')}
                     </small>

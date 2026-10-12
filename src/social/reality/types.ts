@@ -623,6 +623,8 @@ export interface RealitySocialEvent extends RealityClock {
   relatedThreadIds: string[]
   allianceId?: string
   allianceRequestId?: string
+  /** Player-facing result of an alliance strategy huddle, saved with its history. */
+  allianceConsultationSummary?: string
   allianceCommitmentSnapshot?: { kind: string; status: RealityPromiseStatus }
   allianceRequestSnapshot?: {
     kind: RealityAllianceRequestKind

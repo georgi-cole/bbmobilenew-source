@@ -252,6 +252,15 @@
   overflow-wrap: anywhere;
 }
 
+.sp2-alliance-read__history li.is-highlighted {
+  margin: 0 -0.45rem;
+  padding: 0.65rem 0.45rem;
+  border-radius: 0.6rem;
+  border-bottom-color: rgba(255, 189, 98, 0.42);
+  background: rgba(255, 189, 98, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 189, 98, 0.24);
+}
+
 .sp2-alliance-read__history small {
   color: #a997bb;
   font-size: 0.66rem;

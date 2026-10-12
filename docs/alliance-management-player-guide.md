@@ -119,17 +119,20 @@ first, and the candidate must then accept.
    sent; awaiting acceptance” if the group approves. Use **Incoming requests**
    whenever the game needs your decision.
 5. Open **My Pulse → Today** for concise developments, such as “You founded
-   Spiderman with Kian and Jax” or “Lia joined Spiderman”. **View alliance**
-   opens that exact group's record, even if it ended.
+   Spiderman with Kian and Jax” or “Lia joined Spiderman”. Consultation entries
+   also show what the members advised and whether a shared plan was reached.
+   **View alliance history** opens and highlights that exact entry in the
+   group's record, even if it ended.
 6. Open **Former alliances** in the alliance rail to revisit a group you left
    or that dissolved. This is a history view; it has no management actions.
 
 The full read includes recorded invitations, ballots, acceptances, rejections,
-membership changes, renames, leadership changes, consultations, plans, and
-commitment outcomes. It shows only events your character could know. Leaving
-does not expose future private activity. Older saves retain surviving history
-and earlier decision summaries; already-lost events and unknown founding days
-cannot be reconstructed.
+membership changes, renames, leadership changes, consultations and their saved
+outcomes, plans, and commitment outcomes. It shows only events your character
+could know. Leaving does not expose future private activity. Older saves retain
+surviving history and earlier decision summaries; already-lost advice and
+unknown legacy founding days cannot be reconstructed. Newly formed alliances
+record their foundation day when they become official.
 
 ### How many yes votes are needed?
 

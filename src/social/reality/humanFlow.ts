@@ -744,9 +744,9 @@ function summarizeAlliancePreferences(
           .slice(0, 4)
           .map(
             (preference) =>
-              `${playerName(state, preference.advisorId)} → ${playerName(state, preference.targetId)}`
+              `${playerName(state, preference.advisorId)} recommends ${playerName(state, preference.targetId)}`
           )
-          .join(' · ')
+          .join('; ')
   const consensus =
     hasConsensus && primaryId
       ? `${label}: ${playerName(state, primaryId)}${
@@ -817,16 +817,16 @@ function summarizeAllianceSlate(
     .slice(0, 4)
     .map(
       ([advisorId, targetIds]) =>
-        `${playerName(state, advisorId)} → ${targetIds.map((id) => playerName(state, id)).join(', ')}`
+        `${playerName(state, advisorId)} recommends ${formatPlayerNames(targetIds.map((id) => playerName(state, id)))}`
     )
-    .join(' · ')
+    .join('; ')
   const slotLabel = decisionLabel.toLowerCase().includes('nomination')
     ? 'nomination spots'
     : 'exit spots'
   const slate = names.length > 0 ? names.join(', ') : 'no eligible targets yet'
   const slotProgress = `${targetIds.length} of ${seatCount} ${slotLabel} planned`
   return {
-    summary: `${decisionLabel}: ${slate} (${slotProgress})${fallbackTargetIds.length ? ` · next option ${playerName(state, fallbackTargetIds[0])}` : ''}${recommendationLines ? `; member reads: ${recommendationLines}` : ''}`,
+    summary: `${decisionLabel}: ${slate} (${slotProgress})${fallbackTargetIds.length ? ` · next option ${playerName(state, fallbackTargetIds[0])}` : ''}${recommendationLines ? `. ${recommendationLines}.` : ''}`,
     targetIds,
     fallbackTargetIds,
     preferenceByAdvisor,
@@ -1013,7 +1013,7 @@ export function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda: 'nominations',
-      summary: `Nomination huddle — ${read.summary}`,
+      summary: read.summary,
       excusedAbsentIds,
       memberPlanBeliefs: buildConsultationSlateBeliefs(attendeeIds, actorId, read),
     }
@@ -1127,7 +1127,7 @@ export function buildAllianceConsultationPlan(
       fallbackTargetIds,
       planIds,
       agenda: 'safety',
-      summary: `Safety huddle — ${read.summary} ${replacementRead.summary}`,
+      summary: `${read.summary} ${replacementRead.summary}`,
       excusedAbsentIds,
       memberPlanBeliefs,
     }
@@ -1195,7 +1195,7 @@ export function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda,
-      summary: `${agenda === 'eviction_vote' ? 'Eviction huddle' : 'Block strategy'} — ${read.summary}`,
+      summary: read.summary,
       excusedAbsentIds,
       memberPlanBeliefs:
         agenda === 'eviction_vote' && state.game.doubleEviction?.weekActive
@@ -1241,7 +1241,7 @@ export function buildAllianceConsultationPlan(
       ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
     ],
     agenda: 'strategy',
-    summary: `Strategy huddle — ${read.summary}`,
+    summary: read.summary,
     excusedAbsentIds,
     memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
   }
@@ -1852,6 +1852,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           visibility: 'GROUP_VISIBLE',
           outcome: 'SUCCESS',
           reason: `strategy_meeting:${consultationPlan.allianceId}:loh_intel:${orchestration.event.id}`,
+          allianceConsultationSummary: consultationPlan.summary,
           tags: ['ALLIANCE', 'STRATEGY', 'MEETING', 'INTEL'],
           relatedFactIds: [],
           relatedPromiseIds: [],
@@ -1868,6 +1869,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           fallbackTargetIds: consultationPlan.fallbackTargetIds,
           planIds: consultationPlan.planIds,
           agenda: consultationPlan.agenda,
+          consultationSummary: consultationPlan.summary,
           at: { day: state.game.week, phase: state.game.phase },
           sourceEventId: orchestration.event.id,
           excusedAbsentIds: consultationPlan.excusedAbsentIds,

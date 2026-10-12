@@ -128,7 +128,7 @@ describe('LOH consultation summary', () => {
 
     expect(consultation?.agenda).toBe('block_strategy')
     expect(consultation?.summary).toMatch(
-      /Block strategy — Echo recommends (Remy|Nova) for eviction\. You have not chosen a position, so no alliance vote is set yet\./
+      /Echo recommends (Remy|Nova) for eviction\. You have not chosen a position, so no alliance vote is set yet\./
     )
     expect(consultation?.summary).not.toContain('→')
   })
