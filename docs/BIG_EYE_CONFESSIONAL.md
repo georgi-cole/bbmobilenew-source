@@ -14,6 +14,22 @@ Protected authored flows and deterministic knowledge/continuity turns bypass the
 
 The director's eye state and intensity now produce subtle CSS-only reactions in the Confessional. Text is never corrupted for a glitch, and reduced-motion preferences remain respected. The free-text limit is 500 characters so players can give enough context for meaningful replies.
 
+## Confessional conduct enforcement
+
+Before dialogue or game-action handling, a deterministic on-device check screens
+for profanity, repeated messages, flooding, excessive length, and sustained
+keyboard-mash or low-vowel gibberish. The first qualifying violation gets a
+respectful warning; the second gets a final warning; the third removes the
+player from that season. The removal is recorded in saved game state, marks the
+player ineligible for the Tribunal and Battle Back, and removes their current
+alliance memberships without recording an alliance betrayal. Starting a new
+season starts a new strike count.
+
+Threat or self-harm language is routed to the supportive response and does not
+count as misconduct. Prompt-injection attempts also do not add a conduct strike.
+The moderation check runs before the optional VIP or ordinary response service,
+so blocked input is not sent to either director.
+
 ## Remote Big Eye databank
 
 The root live-config document now accepts a validated confessional section with a revision, feature switches, persona tuning, comprehension vocabulary and slang, authored intent response pools, Challenge Me prompts, salience weights/templates, and generative-director character tuning. Invalid fields and unknown intent keys are discarded, and bundled defaults remain the final fallback.

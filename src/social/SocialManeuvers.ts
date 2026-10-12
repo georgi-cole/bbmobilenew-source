@@ -580,6 +580,7 @@ function getContextualActionSummary({
   recipientTrust,
   game,
   relationships,
+  outcome,
 }: {
   actionId: string
   actorId: string
@@ -593,11 +594,32 @@ function getContextualActionSummary({
     lohId?: string | null
     nominationContext?: { autoNomineeId: string | null; hohNomineeIds?: string[] } | null
     nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
+    lohSocialPlan?: ManeuverGameState['lohSocialPlan']
   }
   relationships: SocialState['relationships']
+  outcome: 'success' | 'failure'
 }): string | null {
   const name = (id: string | undefined) =>
     game?.players?.find((player) => player.id === id)?.name ?? id ?? 'that player'
+  if (actionId === 'protect') {
+    const targetName = name(targetId)
+    const atRisk = (game?.nomineeIds ?? []).includes(targetId)
+    const plan = game?.lohSocialPlan
+    const actorStillTargetsThem = Boolean(
+      plan &&
+      plan.week === game?.week &&
+      plan.lohId === actorId &&
+      [plan.currentTargetId, plan.backupTargetId].includes(targetId)
+    )
+    if (outcome === 'success') {
+      return atRisk
+        ? `${targetName} believes your promise to vote to keep them. You have made your position clear.`
+        : `${targetName} believes you will use your vote or power to protect them when you can.`
+    }
+    return actorStillTargetsThem
+      ? `${targetName} is wary of your offer because your current plan still names them as a target.`
+      : `${targetName} heard your promise but is not ready to rely on it yet.`
+  }
   if (actionId === 'ask_why_nominated') {
     const lohName = name(targetId)
     if (game?.nominationContext?.autoNomineeId === actorId) {
@@ -1620,6 +1642,7 @@ export function executeAction(
     recipientTrust,
     game: rootState.game,
     relationships: state.social.relationships,
+    outcome,
   })
   const standardSummary =
     contextualSummary ??

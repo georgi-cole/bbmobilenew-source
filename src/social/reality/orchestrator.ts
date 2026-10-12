@@ -48,6 +48,8 @@ export interface RealityOpportunityCandidate {
    * uses this exact acceptance chance instead of the generic relationship roll.
    */
   acceptanceChanceOverride?: number
+  /** The promisor's current plan contradicts an Offer Protection promise. */
+  promiseContradicted?: boolean
 }
 
 export interface RealityOpportunity {
@@ -907,8 +909,10 @@ export function runRealityOpportunity(input: {
           actorId: actor.id,
           targetId,
           reality: domain,
+          context: input.opportunity.context,
           draw: responseDraw.value,
           acceptanceChanceOverride: selected.acceptanceChanceOverride,
+          promiseContradicted: selected.promiseContradicted,
         })
         targetResponses[targetId] = targetResponse
         simulation = appendRealitySimulationTrace(simulation, {
@@ -959,8 +963,10 @@ export function runRealityOpportunity(input: {
         actorId: actor.id,
         targetId,
         reality: domain,
+        context: input.opportunity.context,
         draw: responseDraw.value,
         acceptanceChanceOverride: selected.acceptanceChanceOverride,
+        promiseContradicted: selected.promiseContradicted,
       })
       responses.push({ targetId, response: targetResponse })
       simulation = appendRealitySimulationTrace(simulation, {

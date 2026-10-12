@@ -129,6 +129,39 @@ function getPhaseRepetitionChance(
   return successChances[priorAttempts] ?? 0.02
 }
 
+export function isProtectionPromiseContradicted(
+  state: RootState,
+  actorId: string,
+  targetId: string
+): boolean {
+  const game = state.game
+  const currentPlan = game.lohSocialPlan
+  if (
+    currentPlan?.week === game.week &&
+    currentPlan.lohId === actorId &&
+    [currentPlan.currentTargetId, currentPlan.backupTargetId].includes(targetId)
+  ) {
+    return true
+  }
+
+  const recordedNomination = Object.values(game.nominationDecisionReasons ?? {}).some(
+    (reason) =>
+      reason.week === game.week &&
+      reason.lohId === actorId &&
+      reason.nomineeId === targetId &&
+      !reason.forcedChoice &&
+      reason.primaryReason !== 'FORCED_BY_RULES'
+  )
+  if (recordedNomination) return true
+
+  return (
+    game.currentWeekNominationRecord?.week === game.week &&
+    game.currentWeekNominationRecord.lohId === actorId &&
+    game.currentWeekNominationRecord.nomineeIds.includes(targetId) &&
+    game.nominationContext?.autoNomineeId !== targetId
+  )
+}
+
 function isDangerWarningDiscovered(state: RootState, input: HumanRealityActionInput): boolean {
   const source = [
     state.game.seed,
@@ -1801,6 +1834,10 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
             acceptanceChanceOverride: consultationAlliance
               ? 1
               : getPhaseRepetitionChance(state, input),
+            promiseContradicted:
+              input.actionId === 'protect'
+                ? isProtectionPromiseContradicted(state, input.actorId, input.targetId)
+                : undefined,
           },
         ],
       },

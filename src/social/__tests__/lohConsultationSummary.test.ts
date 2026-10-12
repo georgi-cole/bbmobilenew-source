@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { RootState } from '../../store/store'
 import { createRealityAlliance } from '../reality/relationshipForms'
 import { createInitialRealityDomainState } from '../reality/state'
-import { buildAllianceConsultationPlan, buildLohConsultationSummary } from '../reality/humanFlow'
+import {
+  buildAllianceConsultationPlan,
+  buildLohConsultationSummary,
+  isProtectionPromiseContradicted,
+} from '../reality/humanFlow'
 
 function makeBackdoorState(
   disclosureOutcome: 'truthful' | 'false' = 'truthful',
@@ -52,6 +56,13 @@ function makeBackdoorState(
 }
 
 describe('LOH consultation summary', () => {
+  it('flags a protection promise that contradicts the current target plan', () => {
+    const state = makeBackdoorState()
+
+    expect(isProtectionPromiseContradicted(state, 'echo', 'lux')).toBe(true)
+    expect(isProtectionPromiseContradicted(state, 'human', 'lux')).toBe(false)
+  })
+
   it('distinguishes the hidden backdoor target from the opening nominees', () => {
     const summary = buildLohConsultationSummary(
       makeBackdoorState(),

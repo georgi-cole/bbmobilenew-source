@@ -239,6 +239,19 @@ personality can still affect the outcome. Older tag-only/compatibility paths use
 their own voting calculations. No path guarantees that members cast identical
 votes, and human votes are never synchronized.
 
+### Offer Protection response
+
+The promise covers only the player's own vote or usable power. If the target is
+currently nominated, shares a current alliance with the player, and has no
+concrete strain or contradiction evidence, the target accepts the reassurance
+instead of facing a generic rejection roll. A current LOH target/backup plan or
+a recorded voluntary nomination by the promisor counts as a contradiction.
+Recent conflict, an active nemesis, betrayal, explicit rivalry, or strong
+distrust/resentment can still make the target wary. A rejected promise awards no
+relationship or quality gain; an accepted promise gets the configured modest
+relationship boost. The player-facing response says whether the target relies
+on the promise and does not claim it controls the rest of the house.
+
 Group cohesion is computed from the mean member commitment, commitment spread,
 and disagreement among stored plans:
 

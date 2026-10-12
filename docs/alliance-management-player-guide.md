@@ -239,6 +239,14 @@ belong to; other pacts and groups are separate. Leaving or being removed ends
 only that group's membership connection. Trust, promises, information, and
 personal history are tracked separately and are not erased when someone leaves.
 
+**Offer Protection** is a personal promise about how you will use your own vote
+or power when you have a chance to help. Select the person, choose the action,
+and press **Execute**. A nominated ally with no current conflict or evidence
+that you are still targeting them will usually take the promise seriously. They
+may remain wary if your current plan contradicts it or the relationship is
+strained. The promise does not control anyone else's vote or guarantee that the
+person will survive.
+
 ## Reading the Hub
 
 - **New group / New pact** describes a newly formed commitment. It is not a vote
