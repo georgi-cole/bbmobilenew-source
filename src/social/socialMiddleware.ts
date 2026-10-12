@@ -1866,7 +1866,10 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
   // ── Eviction: drain social resources for the evicted user player ─────────
   // Handles normal evictions, self-evictions, and administrative removal.
-  const misconductPayload = (action as { payload?: unknown }).payload
+  const misconductPayload =
+    type === 'game/recordConfessionalMisconduct'
+      ? (action as { payload?: unknown }).payload
+      : undefined
   const misconductPlayerId =
     misconductPayload && typeof misconductPayload === 'object'
       ? (misconductPayload as { playerId?: unknown }).playerId
@@ -1877,7 +1880,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           (player) => player.id === misconductPlayerId
         )
       : undefined
-  const misconductGame = (api.getState() as StateWithGame).game
+  const misconductGame = misconductPlayer ? (api.getState() as StateWithGame).game : undefined
   const misconductStrikes =
     misconductPlayer &&
     misconductGame &&
