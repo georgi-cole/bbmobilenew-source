@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createInitialDramaSocialNetwork } from '../../../social/dramaModeEngine'
 import {
@@ -16,6 +16,58 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
+  it('keeps earlier developments available without rendering them while collapsed', async () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'the-winners',
+      kind: 'GROUP',
+      founderIds: ['human', 'lia', 'kai'],
+      memberIds: [],
+      name: 'The Winners',
+      purpose: 'Coordinate the vote',
+      at: { day: 1, phase: 'social_1' },
+    })
+    for (let index = 0; index < 5; index += 1) {
+      appendRealityEvent(reality, {
+        day: 2,
+        phase: 'social_1',
+        type: 'ALLIANCE_STRATEGY_MEETING',
+        allianceId: alliance.id,
+        actorId: 'human',
+        targetIds: [],
+        participantIds: ['human', 'lia', 'kai'],
+        witnessIds: [],
+        visibility: 'GROUP_VISIBLE',
+        outcome: 'SUCCESS',
+        reason: 'strategy_meeting:the-winners',
+        allianceConsultationSummary: `Huddle ${index}.`,
+        tags: ['ALLIANCE'],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: false,
+      })
+    }
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={reality}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.queryByText('Huddle 0.')).toBeNull()
+    fireEvent.click(screen.getByText('Earlier today · 2'))
+    await waitFor(() => expect(screen.getByText('Huddle 0.')).toBeInTheDocument())
+  })
+
   it('keeps a personal pact development out of the group-alliance selection flow', () => {
     const reality = createInitialRealityDomainState()
     createRealityAlliance(reality, {

@@ -110,10 +110,12 @@ function buildRealityPulseStream(
   const records = [
     ...new Map(
       [
-        ...reality.events,
-        ...Object.values(reality.alliances).flatMap((alliance) => alliance.history ?? []),
-        ...Object.values(reality.allianceManagement.requests).flatMap(
-          (request) => request.history ?? []
+        ...reality.events.filter((event) => event.day === currentWeek),
+        ...Object.values(reality.alliances).flatMap((alliance) =>
+          (alliance.history ?? []).filter((event) => event.day === currentWeek)
+        ),
+        ...Object.values(reality.allianceManagement.requests).flatMap((request) =>
+          (request.history ?? []).filter((event) => event.day === currentWeek)
         ),
       ].map((event) => [event.id, event])
     ).values(),
@@ -126,7 +128,7 @@ function buildRealityPulseStream(
   )
   return records
     .filter((event) => {
-      if (event.day !== currentWeek || !canReadAllianceEvent(event, humanId)) return false
+      if (!canReadAllianceEvent(event, humanId)) return false
       // The strategy meeting is the useful story record; hide its low-value
       // interaction-log twin once the huddle has a durable outcome event.
       if (
@@ -152,6 +154,7 @@ function buildRealityPulseStream(
       }
       return true
     })
+    .sort((left, right) => right.sequence - left.sequence)
     .map((event) => {
       const allianceId = allianceForEvent(reality, event)
       const alliance = allianceId ? reality.alliances[allianceId] : undefined
@@ -224,10 +227,12 @@ export default function HousePulse({
 }: HousePulseProps) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<PulseTab>('today')
+  const [earlierOpen, setEarlierOpen] = useState(false)
 
   useEffect(() => {
     const openPulse = () => {
       setTab(reality ? 'today' : 'stream')
+      setEarlierOpen(false)
       setOpen(true)
     }
     const closePulse = () => setOpen(false)
@@ -243,6 +248,7 @@ export default function HousePulse({
         setTab(
           nextTab === 'ledger' ? 'commitments' : nextTab === 'stream' && reality ? 'today' : nextTab
         )
+        setEarlierOpen(false)
         setOpen(true)
       }
     }
@@ -307,9 +313,7 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const todayBeats = reality
-    ? storyBeats.slice().sort((left, right) => right.createdAt - left.createdAt)
-    : storyBeats
+  const todayBeats = storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
     (commitment) =>
@@ -470,38 +474,42 @@ export default function HousePulse({
                     </article>
                   ))}
                   {todayBeats.length > 3 && (
-                    <details className="house-pulse__history">
+                    <details
+                      className="house-pulse__history"
+                      onToggle={(event) => setEarlierOpen(event.currentTarget.open)}
+                    >
                       <summary>Earlier today · {todayBeats.length - 3}</summary>
-                      {todayBeats.slice(3).map((beat) => (
-                        <article
-                          className={`house-pulse__card house-pulse__card--${beat.kind}`}
-                          key={beat.id}
-                        >
-                          <div className="house-pulse__card-top">
-                            <span>
-                              Day {beat.week} ·{' '}
-                              {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
-                            </span>
-                          </div>
-                          <h3>{beat.title}</h3>
-                          {!reality && <p>{beat.text}</p>}
-                          {reality && onOpenAlliances && beat.allianceId && (
-                            <button
-                              type="button"
-                              className="house-pulse__link"
-                              onClick={() => {
-                                setOpen(false)
-                                onOpenAlliances(beat.allianceId, beat.id)
-                              }}
-                            >
-                              View alliance history
-                            </button>
-                          )}
-                          {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
-                            <p>{beat.text}</p>
-                          )}
-                        </article>
-                      ))}
+                      {earlierOpen &&
+                        todayBeats.slice(3).map((beat) => (
+                          <article
+                            className={`house-pulse__card house-pulse__card--${beat.kind}`}
+                            key={beat.id}
+                          >
+                            <div className="house-pulse__card-top">
+                              <span>
+                                Day {beat.week} ·{' '}
+                                {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
+                              </span>
+                            </div>
+                            <h3>{beat.title}</h3>
+                            {!reality && <p>{beat.text}</p>}
+                            {reality && onOpenAlliances && beat.allianceId && (
+                              <button
+                                type="button"
+                                className="house-pulse__link"
+                                onClick={() => {
+                                  setOpen(false)
+                                  onOpenAlliances(beat.allianceId, beat.id)
+                                }}
+                              >
+                                View alliance history
+                              </button>
+                            )}
+                            {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
+                              <p>{beat.text}</p>
+                            )}
+                          </article>
+                        ))}
                     </details>
                   )}
                 </>
@@ -635,6 +643,7 @@ export default function HousePulse({
         data-reality-tutorial="pulse-summary"
         onClick={() => {
           setTab(reality ? 'today' : 'stream')
+          setEarlierOpen(false)
           setOpen(true)
         }}
       >

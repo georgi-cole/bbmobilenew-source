@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   appendRealityEvent,
@@ -15,6 +15,73 @@ const players = [
 ] as Player[]
 
 describe('AllianceRead', () => {
+  it('keeps a long track record accessible without rendering it all while collapsed', async () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'the-winners',
+      kind: 'GROUP',
+      founderIds: ['human', 'lia', 'kai'],
+      memberIds: [],
+      name: 'The Winners',
+      purpose: 'Coordinate the vote',
+      at: { day: 1, phase: 'social_1' },
+    })
+    const events = Array.from({ length: 60 }, (_, index) =>
+      appendRealityEvent(reality, {
+        day: index + 2,
+        phase: 'social_1',
+        type: 'ALLIANCE_STRATEGY_MEETING',
+        allianceId: alliance.id,
+        actorId: 'human',
+        targetIds: [],
+        participantIds: ['human', 'lia', 'kai'],
+        witnessIds: [],
+        visibility: 'GROUP_VISIBLE',
+        outcome: 'SUCCESS',
+        reason: 'strategy_meeting:the-winners',
+        allianceConsultationSummary: `Huddle ${index}.`,
+        tags: ['ALLIANCE'],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: false,
+      })
+    )
+    const props = {
+      alliance,
+      reality,
+      humanId: 'human',
+      players,
+      selectedMemberId: null,
+      onSelectMember: vi.fn(),
+    }
+    const { rerender } = render(<AllianceRead {...props} />)
+
+    expect(screen.queryByText('You consulted The Winners. Huddle 59.')).toBeNull()
+    fireEvent.click(screen.getByText('Open full alliance read'))
+    await waitFor(() =>
+      expect(screen.getByText('You consulted The Winners. Huddle 59.')).toBeInTheDocument()
+    )
+    expect(screen.queryByText('You consulted The Winners. Huddle 0.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Show earlier events/ }))
+    expect(screen.getByText('You consulted The Winners. Huddle 10.')).toBeInTheDocument()
+    expect(screen.queryByText('You consulted The Winners. Huddle 0.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Show earlier events/ }))
+    expect(screen.getByText('You consulted The Winners. Huddle 0.')).toBeInTheDocument()
+
+    rerender(<AllianceRead {...props} focusEventId={events[0].id} />)
+    expect(document.getElementById(`alliance-history-event-${events[0].id}`)).toHaveClass(
+      'is-highlighted'
+    )
+
+    rerender(<AllianceRead key="older-focus" {...props} focusEventId={events[10].id} />)
+    expect(screen.getByText('You consulted The Winners. Huddle 10.')).toBeInTheDocument()
+    expect(screen.queryByText('You consulted The Winners. Huddle 0.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Show earlier events/ }))
+    expect(screen.getByText('You consulted The Winners. Huddle 0.')).toBeInTheDocument()
+  })
+
   it('opens and highlights the exact history event linked from Pulse', async () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
