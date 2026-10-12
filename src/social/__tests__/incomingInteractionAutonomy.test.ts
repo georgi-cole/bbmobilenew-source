@@ -490,6 +490,88 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(chooseIncomingInteractionType('ally', 'user', context)).not.toBe('alliance_proposal')
   })
 
+  it.each([
+    {
+      strategy: 'direct' as const,
+      targetId: 'lux',
+      openingNomineeIds: ['lux', 'remy'],
+      expectedText: 'Lux is my current target, and my planned opening nominees are Lux and Remy.',
+    },
+    {
+      strategy: 'backdoor' as const,
+      targetId: 'lux',
+      openingNomineeIds: ['remy', 'nova'],
+      expectedText:
+        'Lux is my backdoor target if Safety opens a replacement seat. My planned opening nominees are Remy and Nova.',
+    },
+  ])(
+    'uses the canonical $strategy nomination plan in an AI LOH alliance huddle',
+    ({ strategy, targetId, openingNomineeIds, expectedText }) => {
+      const reality = createInitialRealityDomainState()
+      createRealityAlliance(reality, {
+        id: 'loh-alliance',
+        founderIds: ['echo'],
+        memberIds: ['user'],
+        purpose: 'Coordinate nominations',
+        at: { day: 4, phase: 'social_1' },
+      })
+      const players = [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'echo', name: 'Echo', status: 'loh' },
+        { id: 'lux', name: 'Lux', status: 'active' },
+        { id: 'remy', name: 'Remy', status: 'active' },
+        { id: 'nova', name: 'Nova', status: 'active' },
+      ]
+      const context = buildContext({
+        phase: 'social_1',
+        week: 4,
+        lohId: 'echo',
+        dramaMode: true,
+        relationships: {},
+        reality,
+        players,
+        gameState: {
+          week: 4,
+          seed: 13,
+          gameId: 'loh-huddle-regression',
+          dramaSocialMode: true,
+          lohId: 'echo',
+          nomineeIds: [],
+          players: players.map((player) => ({
+            ...player,
+            stats: { lohWins: 0, posWins: 0, timesNominated: 0 },
+          })),
+          strategicRelationships: {},
+          lohNominationPlan: {
+            week: 4,
+            lohId: 'echo',
+            targetId,
+            backupTargetId: 'dex',
+            pawnIds: openingNomineeIds.filter((id) => id !== targetId),
+            initialNomineeIds: openingNomineeIds,
+            strategy,
+            status: 'planned',
+            selectionBasis: 'strategy',
+            targetScore: 10,
+            backdoorChance: strategy === 'backdoor' ? 0.4 : 0,
+          },
+        } as unknown as AutonomyContext['gameState'],
+        random: () => 0,
+      })
+      const store = buildStore(context)
+
+      scheduleIncomingInteractionsForPhase('social_1', store, context)
+
+      const huddle = store.social.scheduledIncomingInteractions.find(
+        (entry) => entry.interaction.fromId === 'echo'
+      )?.interaction
+      expect(huddle?.payload?.scenarioKey).toBe('alliance_power_nomination_huddle')
+      expect(huddle?.payload?.subjectId).toBe(targetId)
+      expect(huddle?.text).toContain(expectedText)
+      expect(huddle?.payload?.allianceMemberTargetPreferences).toMatchObject({ echo: targetId })
+    }
+  )
+
   it('treats gratitude after a save or survival as thanks rather than an alliance offer', () => {
     const relationships = { ally: { user: { affinity: 85, tags: [] } } }
     const players = [

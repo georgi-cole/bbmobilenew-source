@@ -655,6 +655,13 @@ function playerName(state: RootState, playerId: string | null | undefined): stri
   )
 }
 
+function formatPlayerNames(names: string[]): string {
+  if (names.length === 0) return 'the opening block'
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
 interface AllianceConsultationPlan {
   allianceId: string
   attendeeIds: string[]
@@ -730,23 +737,31 @@ function summarizeAlliancePreferences(
   const preferenceByAdvisor = Object.fromEntries(
     preferences.map((preference) => [preference.advisorId, preference.targetId])
   )
-  const lines = preferences
-    .slice(0, 4)
-    .map(
-      (preference) =>
-        `${playerName(state, preference.advisorId)} → ${playerName(state, preference.targetId)}`
-    )
-    .join(' · ')
+  const lines =
+    preferences.length === 1
+      ? ''
+      : preferences
+          .slice(0, 4)
+          .map(
+            (preference) =>
+              `${playerName(state, preference.advisorId)} → ${playerName(state, preference.targetId)}`
+          )
+          .join(' · ')
   const consensus =
     hasConsensus && primaryId
       ? `${label}: ${playerName(state, primaryId)}${
           fallbackId ? ` · backup ${playerName(state, fallbackId)}` : ''
         }`
       : preferences.length === 1 && primaryId
-        ? `${label}: ${playerName(state, preferences[0].advisorId)} recommends ${playerName(
-            state,
-            primaryId
-          )}; no group decision`
+        ? label === 'Eviction vote'
+          ? `${playerName(state, preferences[0].advisorId)} recommends ${playerName(
+              state,
+              primaryId
+            )} for eviction. You have not chosen a position, so no alliance vote is set yet`
+          : `${label}: ${playerName(state, preferences[0].advisorId)} recommends ${playerName(
+              state,
+              primaryId
+            )}. You have not chosen a position, so the alliance has no decision yet`
         : `${label}: split; no alliance decision`
   return {
     summary: lines ? `${lines}. ${consensus}.` : `${consensus}.`,
@@ -918,7 +933,7 @@ function getAllianceConsultationAgenda(
   return 'strategy'
 }
 
-function buildAllianceConsultationPlan(
+export function buildAllianceConsultationPlan(
   state: RootState,
   alliance: RealityAlliance,
   actorId: string,
@@ -1167,7 +1182,7 @@ function buildAllianceConsultationPlan(
         : summarizeAlliancePreferences(
             state,
             preferences,
-            agenda === 'eviction_vote' ? 'Vote consensus' : 'Current block',
+            agenda === 'eviction_vote' ? 'Vote consensus' : 'Eviction vote',
             new Set(alliance.memberIds)
           )
     return {
@@ -1293,7 +1308,7 @@ function applyCupidPartnerRipple(
  * The legacy social action can still decide whether the LOH discloses anything,
  * but it no longer gets to invent a different target from affinity alone.
  */
-function buildLohConsultationSummary(
+export function buildLohConsultationSummary(
   state: RootState,
   input: HumanRealityActionInput,
   fallback: string
@@ -1306,6 +1321,11 @@ function buildLohConsultationSummary(
       ? state.game.lohSocialPlan
       : null
   if (!plan) return fallback
+  const nominationPlan =
+    state.game.lohNominationPlan?.week === state.game.week &&
+    state.game.lohNominationPlan.lohId === state.game.lohId
+      ? state.game.lohNominationPlan
+      : null
 
   // Respect genuine refusal/repetition outcomes. Canonical strategy should fix
   // contradictory names, not turn a failed intel action into free information.
@@ -1333,6 +1353,17 @@ function buildLohConsultationSummary(
     actorHoldsSafety && ['pos_results', 'pos_ceremony'].includes(state.game.phase)
 
   if (finalBlockLocked && nominees.length > 0) {
+    if (
+      nominationPlan?.strategy === 'backdoor' &&
+      nominationPlan.status === 'initial_block_set' &&
+      !nominees.includes(nominationPlan.targetId)
+    ) {
+      const lockedBlock = formatPlayerNames(nominees.map((id) => playerName(state, id)))
+      return `The block is locked with ${lockedBlock}. ${playerName(
+        state,
+        nominationPlan.targetId
+      )} was my backdoor target, but Safety did not open a replacement seat, so I can only vote to evict someone on this block.`
+    }
     const lockedTargetId =
       (plan.currentTargetId && nominees.includes(plan.currentTargetId)
         ? plan.currentTargetId
@@ -1401,6 +1432,23 @@ function buildLohConsultationSummary(
     return replacementPending
       ? `${disclosedName} is the name I am willing to give you for the open replacement seat.`
       : `${disclosedName} is the name I am willing to give you if Safety opens the block.`
+  }
+  const activeBackdoorPlan =
+    nominationPlan?.strategy === 'backdoor' &&
+    (nominationPlan.status === 'planned' || nominationPlan.status === 'initial_block_set')
+  if (
+    activeBackdoorPlan &&
+    nominationPlan &&
+    (disclosedTargetId === nominationPlan.targetId ||
+      nominationPlan.initialNomineeIds.includes(disclosedTargetId))
+  ) {
+    const openingNominees = nominationPlan.initialNomineeIds.map((id) => playerName(state, id))
+    const openingLabel = formatPlayerNames(openingNominees)
+    const backdoorTarget = playerName(state, nominationPlan.targetId)
+    if (replacementPending && disclosedTargetId === nominationPlan.targetId) {
+      return `Safety opened the seat. ${backdoorTarget} is my planned replacement nominee; ${openingLabel} were the opening nominees.`
+    }
+    return `${backdoorTarget} is my backdoor target if Safety opens a replacement seat. My opening nominees are ${openingLabel}.`
   }
   if (nominees.includes(disclosedTargetId)) {
     return `${disclosedName} is my current target. That is who I want the pressure on.`

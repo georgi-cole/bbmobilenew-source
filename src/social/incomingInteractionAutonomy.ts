@@ -205,6 +205,11 @@ interface InteractionPlan {
   allianceGroupHuddle?: boolean
   allianceMemberTargetPreferences?: Record<string, string>
   allianceMemberFallbackPreferences?: Record<string, string>
+  lohNominationPlanContext?: {
+    strategy: 'direct' | 'backdoor'
+    targetId: string
+    openingNomineeIds: string[]
+  }
 }
 
 const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
@@ -322,6 +327,27 @@ function formatNameList(names: string[]): string {
   if (names.length === 1) return names[0]
   if (names.length === 2) return `${names[0]} and ${names[1]}`
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+function describeCanonicalLohNominationPlan(
+  context: AutonomyContext,
+  plan: InteractionPlan
+): string | null {
+  const nominationPlan = plan.lohNominationPlanContext
+  if (!nominationPlan) return null
+
+  const targetName = getPlayerName(context, nominationPlan.targetId, nominationPlan.targetId)
+  const openingNomineeNames = nominationPlan.openingNomineeIds
+    .map((id) => context.players.find((player) => player.id === id))
+    .filter((player): player is AutonomyPlayer => Boolean(player))
+    .map((player) => player.name ?? player.id)
+  const openingNominees = formatNameList(openingNomineeNames)
+
+  if (nominationPlan.strategy === 'backdoor') {
+    return `${targetName} is my backdoor target if Safety opens a replacement seat. My planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
+  }
+
+  return `${targetName} is my current target, and my planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
 }
 
 function shouldInitiateLohSafetyConsult(
@@ -726,8 +752,18 @@ function resolveAllianceInteractionPlan(
       activeStrategists,
       candidates
     )
+    const nominationPlan =
+      game.lohNominationPlan?.week === game.week && game.lohNominationPlan.lohId === actorId
+        ? game.lohNominationPlan
+        : null
+    const canonicalTargetId = nominationPlan
+      ? candidates.find((candidate) => candidate.id === nominationPlan.targetId)?.id
+      : undefined
+    if (canonicalTargetId) allianceMemberTargetPreferences[actorId] = canonicalTargetId
     const subjectId =
-      allianceMemberTargetPreferences[actorId] ?? bestStrategicTarget(game, actorId, candidates)
+      canonicalTargetId ??
+      allianceMemberTargetPreferences[actorId] ??
+      bestStrategicTarget(game, actorId, candidates)
     if (!subjectId) return null
     return {
       type: 'deal_offer',
@@ -738,6 +774,15 @@ function resolveAllianceInteractionPlan(
       allianceGroupMemberIds: activeMembers,
       allianceGroupHuddle: true,
       allianceMemberTargetPreferences,
+      ...(canonicalTargetId && nominationPlan
+        ? {
+            lohNominationPlanContext: {
+              strategy: nominationPlan.strategy,
+              targetId: nominationPlan.targetId,
+              openingNomineeIds: [...nominationPlan.initialNomineeIds],
+            },
+          }
+        : {}),
     }
   }
 
@@ -2108,6 +2153,10 @@ export function scheduleIncomingInteractionsForPhase(
     const secondarySubjectName = plan.secondarySubjectId
       ? getPlayerName(context, plan.secondarySubjectId, plan.secondarySubjectId)
       : undefined
+    const canonicalLohPlanText =
+      plan.scenarioKey === 'alliance_power_nomination_huddle'
+        ? describeCanonicalLohNominationPlan(context, plan)
+        : null
     const interactionText = (
       intelLead
         ? formatIncomingIntel(
@@ -2122,7 +2171,7 @@ export function scheduleIncomingInteractionsForPhase(
               subjectName,
               `${actor.id}:${playerId}:${week}:${phase}:${textResult.variantId}`
             )
-          : textResult.text
+          : (canonicalLohPlanText ?? textResult.text)
     )
       .replaceAll('{subject}', subjectName ?? 'that player')
       .replaceAll('{secondary}', secondarySubjectName ?? 'another option')
