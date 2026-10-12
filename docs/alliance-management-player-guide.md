@@ -68,12 +68,13 @@ other person, choosing **Alliances → End pact**, and pressing **Execute**.
 
 The founding cost is paid when you submit and is not refunded if someone later
 declines or the request expires. If everyone agrees, the group forms and its
-player leader sees a naming dialog. Enter a name and choose **Name alliance**,
-or keep the suggested name with **Keep [name]**. If you close and reopen Social before
-choosing, the prompt remains until the leader names the group or keeps the
-suggestion. A declined or expired proposal never opens this dialog. The person
-who starts this Social action becomes its leader. The group can hold up to six
-people. Founding a separate group leaves your existing personal pacts in place.
+creator becomes the leader and sees a naming dialog. Enter a name and choose
+**Name alliance**, or keep the suggested name with **Keep [name]**. If you close
+and reopen Social before choosing, the prompt remains until the leader names the
+group or keeps the suggestion. A declined or expired proposal never opens this
+dialog. The creator remains leader unless they later offer a leadership transfer
+that the nominee accepts. The group can hold up to six people. Founding a
+separate group leaves your existing personal pacts in place.
 The leader can change the name later from **Social → Alliances**. Other members
 can suggest a name there; the group leader receives the suggestion in **Incoming
 requests** and chooses whether to accept it. Naming and rename suggestions are
@@ -87,9 +88,10 @@ free.
    groups appear; personal pacts never appear in this picker. The person you
    selected remains the candidate. Switching the group changes the destination.
 4. Press **Start vote**. The button stays disabled until you select a group.
-5. The current members vote. The request passes only if more than half of the
-   full current roster votes yes and at least one leader or co-leader votes yes.
-   Your own vote counts as yes when you start the vote.
+5. The current members vote. More than half of the full roster must vote yes.
+   If the vote is tied, the leader's vote breaks the tie. A missing vote counts
+   against approval when the response window closes. Your own vote counts as
+   yes when you start the vote.
 6. If the group approves, the candidate receives a separate invitation in
    **Incoming requests**. They must choose **Accept invitation** before their
    membership begins.
@@ -117,33 +119,40 @@ first, and the candidate must then accept.
    sent; awaiting acceptance” if the group approves. Use **Incoming requests**
    whenever the game needs your decision.
 5. Open **My Pulse → Today** for concise developments, such as “You founded
-   Spiderman with Kian and Jax” or “Lia joined Spiderman”. **View alliance**
-   opens that exact group's record, even if it ended.
+   Spiderman with Kian and Jax” or “Lia joined Spiderman”. Consultation entries
+   also show what the members advised and whether a shared plan was reached.
+   **View alliance history** opens and highlights that exact entry in the
+   group's record, even if it ended.
 6. Open **Former alliances** in the alliance rail to revisit a group you left
    or that dissolved. This is a history view; it has no management actions.
 
 The full read includes recorded invitations, ballots, acceptances, rejections,
-membership changes, renames, leadership changes, consultations, plans, and
-commitment outcomes. It shows only events your character could know. Leaving
-does not expose future private activity. Older saves retain surviving history
-and earlier decision summaries; already-lost events and unknown founding days
-cannot be reconstructed.
+membership changes, renames, leadership changes, consultations and their saved
+outcomes, plans, and commitment outcomes. It shows only events your character
+could know. Leaving does not expose future private activity. Older saves retain
+surviving history and earlier decision summaries; already-lost advice and
+unknown legacy founding days cannot be reconstructed. Newly formed alliances
+record their foundation day when they become official.
 
 ### How many yes votes are needed?
 
-The proposer is already counted as one yes. The group needs a strict majority
-of its roster, plus at least one officer's yes vote.
+More than half of the full roster must vote yes. If the votes are tied, the
+leader's vote breaks the tie. This means your yes can decide a 1–1 vote when you
+are the leader; a leader's no rejects that same tie. A ballot that is still
+missing when the response window closes counts against approval.
 
-| Current members | Minimum yes votes |
-| --------------: | ----------------: |
-|               3 |                 2 |
-|               4 |                 3 |
-|               5 |                 3 |
-|               6 |                 4 |
+| Current members | Yes votes for a clear majority | Tie case                                  |
+| --------------: | -----------------------------: | ----------------------------------------- |
+|               2 |                              2 | 1 yes passes only if the leader voted yes |
+|               3 |                              2 | No tie                                    |
+|               4 |                              3 | 2 yes passes only if the leader voted yes |
+|               5 |                              3 | No tie                                    |
+|               6 |                              4 | 3 yes passes only if the leader voted yes |
 
-A no vote does not automatically defeat a proposal if enough other members can
-still meet both requirements. A candidate's own acceptance comes after this
-vote; it is not included in the member tally.
+The proposer is counted as one yes when they start the vote. The candidate's
+own acceptance comes after member approval and is not part of this tally. The
+proposal screen shows who voted yes or no and explains the result; the invited
+candidate sees the approved roster, not the member ballots.
 
 ## Respond to an invitation or vote
 
@@ -229,6 +238,14 @@ other commitment. The betrayer remains connected through any group they still
 belong to; other pacts and groups are separate. Leaving or being removed ends
 only that group's membership connection. Trust, promises, information, and
 personal history are tracked separately and are not erased when someone leaves.
+
+**Offer Protection** is a personal promise about how you will use your own vote
+or power when you have a chance to help. Select the person, choose the action,
+and press **Execute**. A nominated ally with no current conflict or evidence
+that you are still targeting them will usually take the promise seriously. They
+may remain wary if your current plan contradicts it or the relationship is
+strained. The promise does not control anyone else's vote or guarantee that the
+person will survive.
 
 ## Reading the Hub
 

@@ -327,6 +327,9 @@ export default function SocialPanelV2() {
   const [allianceSelectionPulse, setAllianceSelectionPulse] = useState(false)
   const [multiSelectActive, setMultiSelectActive] = useState(false)
   const [selectedAllianceId, setSelectedAllianceId] = useState<string | null>(null)
+  const [selectedAllianceHistoryEventId, setSelectedAllianceHistoryEventId] = useState<
+    string | null
+  >(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
   const [feedbackExpanded, setFeedbackExpanded] = useState(false)
@@ -515,6 +518,7 @@ export default function SocialPanelV2() {
     setFeedbackMsg(null)
     setMultiSelectActive(false)
     setSelectedAllianceId(null)
+    setSelectedAllianceHistoryEventId(null)
     setAllianceSelectionPulse(false)
     if (allianceSelectionPulseTimerRef.current !== null) {
       clearTimeout(allianceSelectionPulseTimerRef.current)
@@ -529,6 +533,7 @@ export default function SocialPanelV2() {
       allianceSelectionPulseTimerRef.current = null
     }
     setSelectedAllianceId(id)
+    setSelectedAllianceHistoryEventId(null)
     if (
       selectedActionId !== 'consult_alliance' &&
       !selectedActionId?.startsWith('alliance:invite:')
@@ -1991,9 +1996,10 @@ export default function SocialPanelV2() {
                 handleClose()
                 dispatch(openIncomingInbox())
               }}
-              onOpenAlliances={(allianceId) => {
+              onOpenAlliances={(allianceId, eventId) => {
                 setMoveFilter('alliances')
                 selectAlliance(allianceId ?? null)
+                setSelectedAllianceHistoryEventId(eventId ?? null)
                 setSelectedActionId(null)
                 requestAnimationFrame(() => {
                   document
@@ -2148,6 +2154,7 @@ export default function SocialPanelV2() {
               humanId={humanPlayer.id}
               players={game.players}
               selectedMemberId={primaryTargetId}
+              focusEventId={selectedAllianceHistoryEventId ?? undefined}
               onSelectMember={(id) => {
                 setPrimaryTargetId(id)
                 setSelectedTargets(new Set([id]))
@@ -2272,7 +2279,10 @@ export default function SocialPanelV2() {
                   data-reality-tutorial={filter.id === 'alliances' ? 'alliance-actions' : undefined}
                   onClick={() => {
                     setMoveFilter(filter.id)
-                    if (filter.id !== 'alliances') setSelectedAllianceId(null)
+                    if (filter.id !== 'alliances') {
+                      setSelectedAllianceId(null)
+                      setSelectedAllianceHistoryEventId(null)
+                    }
                     setMultiSelectActive(false)
                     setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
                     setSelectedActionId(null)

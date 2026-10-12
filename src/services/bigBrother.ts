@@ -12,7 +12,10 @@ import {
   type BigEyeComprehensionFrame,
 } from '../bb/confessionalComprehension'
 import { getSecretMissionEasterEggByIntent } from '../bb/secretMissionEasterEggs'
-import { assessLocalConfessionalInput } from '../bb/localConfessionalSafety'
+import {
+  assessLocalConfessionalInput,
+  type LocalConfessionalSafetyCode,
+} from '../bb/localConfessionalSafety'
 import { apiUrl } from '../utils/apiBase'
 
 export type BigEyeEmotion =
@@ -98,6 +101,8 @@ export interface BigBrotherResponse {
   source: 'ai' | 'offline'
   /** False when a deterministic authored/knowledge turn should not consume a VIP credit. */
   vipEligible: boolean
+  /** Present when the local safety front door handled this message. */
+  safetyCode?: LocalConfessionalSafetyCode
 }
 
 export type { BigEyeConversationState, BigEyeAction, BigEyeIntent }
@@ -360,6 +365,7 @@ export async function generateBigBrotherReply(
       performance: offlinePerformance(localSafety.intent, state.mood),
       source: 'offline',
       vipEligible: false,
+      safetyCode: localSafety.code,
     }
   }
   const analysis = analyzeBigEyeTurn(payload)

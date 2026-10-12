@@ -207,7 +207,7 @@ function allianceDecisionCopy(
   switch (request.kind) {
     case 'ADMIT':
       return request.status === 'VOTING'
-        ? `The group is voting on admitting ${candidateName}. A strict member majority and an officer's yes vote are required.`
+        ? `The group is voting on admitting ${candidateName}. A member majority approves; the leader breaks a tie. If approved, ${candidateName} will get a separate invitation to accept.`
         : `The group approved your admission. Accept to join as a regular member. Current members: ${roster}.`
     case 'FOUND':
       return `Review the proposed founding roster: ${roster}. Every founder must agree before the group is formed.`

@@ -209,6 +209,105 @@ describe('Reality action contract', () => {
     expect(['REJECT', 'COUNTER', 'QUESTION', 'LIE']).toContain(response.kind)
   })
 
+  it('accepts an uncontradicted protection promise from an ally to a nominee', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.999,
+    })
+
+    expect(response).toMatchObject({
+      kind: 'ACCEPT',
+      accepted: true,
+      reason: 'trusted_ally_promised_vote_protection',
+    })
+  })
+
+  it('keeps the nominee wary if the promisor is still targeting them', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      promiseContradicted: true,
+      draw: 0.999,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
+  it('does not treat an active pact as proof when the relationship is strained', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+    const edge = reality.relationships.lia.human
+    edge.trust = 5
+    edge.suspicion = 75
+    edge.resentment = 70
+    edge.perceivedLabel = 'RIVAL'
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.5,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
+  it('does not give a fractured alliance the active-ally acceptance override', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'fractured-protection-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+    pact.status = 'FRACTURED'
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.999,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
   it('allows human social actions despite a same-phase legacy cooldown', () => {
     const reality = createInitialRealityDomainState()
     reality.cooldowns.human = {

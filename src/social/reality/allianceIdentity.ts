@@ -114,13 +114,63 @@ export function normalizeAllianceIdentity(
   alliance.memberJoinSequence ??= Object.fromEntries(
     alliance.memberIds.map((id, index) => [id, index])
   )
-  if (alliance.kind === 'GROUP' && !alliance.leaderId) {
-    alliance.leaderId =
-      alliance.leaderIds.find((id) => alliance.memberIds.includes(id)) ??
-      alliance.founderIds.find((id) => alliance.memberIds.includes(id))
-    alliance.coLeaderId = alliance.leaderIds.find(
-      (id) => id !== alliance.leaderId && alliance.memberIds.includes(id)
+  const formationEvent = [...(alliance.history ?? []), ...state.events]
+    .filter(
+      (event) =>
+        event.type === 'ALLIANCE_FORMED' &&
+        (event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id)
     )
+    .sort((left, right) => left.sequence - right.sequence)[0]
+  alliance.createdById ??=
+    formationEvent?.actorId ??
+    (alliance.provenance === 'LEGACY'
+      ? undefined
+      : (alliance.founderIds[0] ??
+        [...alliance.memberIds].sort(
+          (left, right) =>
+            (alliance.memberJoinSequence?.[left] ?? 0) -
+              (alliance.memberJoinSequence?.[right] ?? 0) || left.localeCompare(right)
+        )[0]))
+
+  if (alliance.kind === 'GROUP') {
+    const creatorId = alliance.createdById
+    const creatorIsCurrentMember = Boolean(creatorId && alliance.memberIds.includes(creatorId))
+    const allianceEvents = [...(alliance.history ?? []), ...state.events].filter(
+      (event) => event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id
+    )
+    const hasApprovedLeadershipTransfer = Boolean(
+      creatorId &&
+      allianceEvents.some(
+        (event) =>
+          event.type === 'ALLIANCE_OFFICERS_CHANGED' &&
+          event.sequence > (formationEvent?.sequence ?? -1) &&
+          event.allianceSnapshot?.leaderId &&
+          event.allianceSnapshot.leaderId !== creatorId
+      )
+    )
+    const creatorPreviouslyLeft = Boolean(
+      creatorId &&
+      allianceEvents.some(
+        (event) =>
+          [
+            'ALLIANCE_MEMBER_LEFT',
+            'ALLIANCE_MEMBER_EXPELLED',
+            'ALLIANCE_MEMBER_DEFECTED',
+            'ALLIANCE_MEMBER_EVICTED',
+          ].includes(event.type) && event.targetIds.includes(creatorId)
+      )
+    )
+    if (creatorIsCurrentMember && !hasApprovedLeadershipTransfer && !creatorPreviouslyLeft) {
+      alliance.leaderId = creatorId
+      if (alliance.coLeaderId === creatorId) alliance.coLeaderId = undefined
+    } else if (!alliance.leaderId) {
+      alliance.leaderId =
+        alliance.leaderIds.find((id) => alliance.memberIds.includes(id)) ??
+        (creatorIsCurrentMember ? creatorId : undefined)
+      alliance.coLeaderId = alliance.leaderIds.find(
+        (id) => id !== alliance.leaderId && alliance.memberIds.includes(id)
+      )
+    }
   }
   synchronizeAllianceOfficers(alliance)
   rememberAllianceRoster(alliance)

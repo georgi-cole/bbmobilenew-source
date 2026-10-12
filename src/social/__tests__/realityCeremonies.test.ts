@@ -394,8 +394,12 @@ describe('Reality alliance ceremony consequences', () => {
       publicEligible: true,
     })
 
-    expect(pair.memberIds).toEqual(['ava'])
+    expect(pair.memberIds).toEqual([])
     expect(pair.status).toBe('DISSOLVED')
+    expect(
+      state.events.find((event) => event.type === 'ALLIANCE_ENDED' && event.allianceId === pair.id)
+        ?.allianceSnapshot?.memberIds
+    ).toEqual(['ava', 'lia'])
     expect(wider.memberIds).toEqual(expect.arrayContaining(['ava', 'kai']))
     expect(wider.memberIds).not.toContain('lia')
     expect(wider.status).toBe('ACTIVE')

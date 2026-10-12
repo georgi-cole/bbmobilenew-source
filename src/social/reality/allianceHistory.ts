@@ -197,7 +197,7 @@ export function allianceEventText(
     case 'ALLIANCE_REQUEST_INVALIDATED':
       return `${name}'s proposal was cancelled: ${event.reason}`
     case 'ALLIANCE_STRATEGY_MEETING':
-      return `${actor} consulted ${name}${event.targetIds.length ? ` about ${names(event.targetIds, listedPerson)}` : ''}.`
+      return `${actor} consulted ${name}. ${event.allianceConsultationSummary ?? (event.targetIds.length ? `The recorded huddle focused on ${names(event.targetIds, listedPerson)}, but its recommendation details were not saved.` : 'The outcome was not recorded for this earlier huddle.')}`
     case 'ALLIANCE_TARGET_COORDINATED':
       return `${actor} agreed a plan in ${name}${event.targetIds.length ? ` involving ${names(event.targetIds, listedPerson)}` : ''}.`
     case 'ALLIANCE_PLAN_DEFIED':

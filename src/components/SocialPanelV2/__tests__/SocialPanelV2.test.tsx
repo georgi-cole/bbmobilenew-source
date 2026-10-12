@@ -1372,7 +1372,7 @@ describe('SocialPanelV2 – alliance context and history', () => {
     const dissolution = pulse
       .getByRole('heading', { name: 'You dissolved The Shield.' })
       .closest('article')!
-    fireEvent.click(within(dissolution).getByRole('button', { name: 'View alliance' }))
+    fireEvent.click(within(dissolution).getByRole('button', { name: 'View alliance history' }))
     expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent(
       'The Shield'
     )

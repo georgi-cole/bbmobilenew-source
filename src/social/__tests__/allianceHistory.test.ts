@@ -42,6 +42,35 @@ function setup() {
 }
 
 describe('durable alliance history', () => {
+  it('keeps the consultation result attached to the alliance history event', () => {
+    const { state, group } = setup()
+    const meeting = appendRealityEvent(state, {
+      ...at,
+      type: 'ALLIANCE_STRATEGY_MEETING',
+      allianceId: group.id,
+      actorId: 'u',
+      targetIds: ['k'],
+      participantIds: ['u', 'k'],
+      witnessIds: [],
+      visibility: 'GROUP_VISIBLE',
+      outcome: 'SUCCESS',
+      reason: `strategy_meeting:${group.id}:block_strategy:reality-event-source`,
+      allianceConsultationSummary:
+        'Kian recommends Remy for eviction. You have not chosen a position, so no alliance vote is set yet.',
+      tags: ['ALLIANCE', 'STRATEGY', 'MEETING'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: false,
+      juryEligible: true,
+    })
+
+    expect(allianceEventText(state, meeting, 'u', name)).toBe(
+      'You consulted The Shield. Kian recommends Remy for eviction. You have not chosen a position, so no alliance vote is set yet.'
+    )
+    expect(allianceHistory(state, group.id, 'u')).toContain(meeting)
+  })
+
   it('retains identity, founding day, renames and dissolution after feed trimming and save reload', () => {
     const { state, group } = setup()
     renameRealityAlliance(state, {

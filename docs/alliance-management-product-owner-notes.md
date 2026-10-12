@@ -21,14 +21,27 @@ retains the candidate and shows eligible official group chips. Execution require
 an explicit group selection. Groups with a pending admission or no free place,
 people at their group limit, existing members, and same-day declined/expired
 retries are excluded. If eligibility changes after selection, execution becomes
-unavailable and spends nothing. The existing strict-majority/officer vote,
-candidate consent, Incoming notifications, and resource prices remain in force.
+unavailable and spends nothing. The current roster votes once per member. A
+strict majority approves; the leader's yes vote breaks a tie. A missing ballot
+counts against approval when the response window closes. Once approved, the
+candidate receives a separate invitation and must accept it. The proposer sees
+named ballots and the tally; the candidate sees the approved invitation and
+roster, not member ballots. AI member votes use directed trust in the candidate;
+the interface shows the ballot and decision but does not invent a separate
+narrative motive beyond that relationship signal.
 
 The alliance read shows founding day, member count, player role, cohesion, and
 fracture risk. Its expander contains known members, commitments, request progress,
 and the recorded timeline. Members selected inside that read become the target
 for that group's role or removal controls. Former groups remain readable and
 offer no management actions.
+
+The proposer of a founding request is saved as the group's creator and becomes
+leader after the founders approve. Existing records recover the creator from the
+formation event where available. A stale leader assignment is corrected to the
+creator unless the alliance history records an approved transfer or the creator
+has already left; those cases preserve the current succession. The leader can
+later offer a transfer, which takes effect only after the nominee accepts.
 
 Today reports one direct sentence per development, in event order (newest first),
 without a generic heading repeating the same sentence. Ballots and intermediate
@@ -225,6 +238,19 @@ pressure, and AI identity. Target pressure, other game decisions, and
 personality can still affect the outcome. Older tag-only/compatibility paths use
 their own voting calculations. No path guarantees that members cast identical
 votes, and human votes are never synchronized.
+
+### Offer Protection response
+
+The promise covers only the player's own vote or usable power. If the target is
+currently nominated, shares a current alliance with the player, and has no
+concrete strain or contradiction evidence, the target accepts the reassurance
+instead of facing a generic rejection roll. A current LOH target/backup plan or
+a recorded voluntary nomination by the promisor counts as a contradiction.
+Recent conflict, an active nemesis, betrayal, explicit rivalry, or strong
+distrust/resentment can still make the target wary. A rejected promise awards no
+relationship or quality gain; an accepted promise gets the configured modest
+relationship boost. The player-facing response says whether the target relies
+on the promise and does not claim it controls the rest of the house.
 
 Group cohesion is computed from the mean member commitment, commitment spread,
 and disagreement among stored plans:

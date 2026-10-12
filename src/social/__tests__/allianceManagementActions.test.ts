@@ -78,11 +78,11 @@ describe('alliance proposal resource costs', () => {
     const receipt = dispatch.mock.calls
       .map(([action]) => action)
       .find((action) => action.type === recordSocialAction.type)
-    expect(
-      (receipt?.payload as { entry: { narrative: string } } | undefined)?.entry.narrative
-    ).toContain(
-      'The Shield is voting on inviting Lia. If approved, Lia gets a separate invitation.'
-    )
+    const narrative = (receipt?.payload as { entry: { narrative: string } } | undefined)?.entry
+      .narrative
+    expect(narrative).toContain('The Shield is voting on inviting Lia.')
+    expect(narrative).toContain('Votes so far: You yes; Kian not voted; Rae yes.')
+    expect(narrative).toContain('A majority passes; the leader breaks a tie.')
   })
 
   it('charges two energy for a new personal pact proposal, only once', () => {

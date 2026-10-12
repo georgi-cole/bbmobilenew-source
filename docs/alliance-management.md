@@ -28,10 +28,21 @@ Each alliance keeps a durable, visibility-filtered record independent of the
 rolling social feed. Names and rosters are snapshotted on events; request
 ballots, invitation stages, outcomes, and commitment changes are recorded.
 My Pulse Today displays concise developments in chronological order and opens
-the exact alliance ID. Former groups have a read-only history view. Older saves
-adopt surviving events; missing historical records are not invented.
+the exact alliance history entry. Consultation cards include the advice and
+decision status saved by that huddle, and the link opens and highlights the same
+entry in the full track record. The generic consultation action log is hidden
+when the richer alliance event exists. Former groups have a read-only history
+view. Older saves adopt surviving events; missing historical records are not
+invented.
 
-Every pact partner accepts. Every group founder accepts the same roster and officers. Founding a separate group through the player's direct Social action leaves existing personal pacts in place. An AI group proposal can explicitly convert its base pact when accepted, except for pacts whose purpose marks them as Final Two/endgame/ride-or-die/last two. Admission requires a strict majority of current members, including an officer voting yes, followed by the candidate's acceptance. The candidate sees the approved invitation and disclosed roster, not the individual ballots. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
+New alliances save their actual formation day when the group becomes official.
+An older imported alliance may show that its foundation date is unavailable if
+its save has neither a creation timestamp nor a surviving formation event.
+Intel cards describe partial evidence as links and say when the full roster is
+not confirmed; this is a clue about uncertain information, not an official
+alliance with unnamed members.
+
+Every pact partner accepts. Every group founder accepts the same roster and officers. The player who submits a founding request is recorded as creator and automatically leads the new group; an approved leadership transfer is preserved. Founding a separate group through the player's direct Social action leaves existing personal pacts in place. An AI group proposal can explicitly convert its base pact when accepted, except for pacts whose purpose marks them as Final Two/endgame/ride-or-die/last two. Admission requires a strict majority of the current members. The leader breaks an exact tie, and a missing ballot counts against approval when the response window closes. The candidate must then accept a separate invitation and sees the approved roster, not member ballots. The proposer receives named ballots and the outcome. AI decisions use the saved game seed; human responses are never inferred. A request's fixed roster and officer revisions invalidate it if those terms change. Requests expire on the shared game clock and duplicate submissions do not extend the deadline.
 
 A group has one leader and at most one co-leader. Leaders offer officer appointments or leadership transfers, which take effect only when the nominee accepts. The co-leader succeeds the leader; otherwise the longest-serving current member succeeds. Social standing cannot change authority.
 

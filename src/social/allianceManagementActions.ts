@@ -61,16 +61,28 @@ function allianceProposalReceipt(
   const allianceName = request.allianceId
     ? (domain.alliances[request.allianceId]?.name ?? request.name ?? 'the alliance')
     : (request.name ?? 'the alliance')
+  const yesVotes = request.electorateIds.filter((id) => request.votes[id] === true).length
+  const currentVotes = request.electorateIds
+    .map((id) => {
+      const name =
+        id === state.game.players.find((player) => player.isUser)?.id ? 'You' : playerName(id)
+      const vote = request.votes[id]
+      return `${name} ${vote === true ? 'yes' : vote === false ? 'no' : 'not voted'}`
+    })
+    .join('; ')
+  const voteSummary =
+    request.voteSummary ??
+    `Votes so far: ${currentVotes}. ${yesVotes} of ${request.electorateIds.length} members have voted yes. A majority passes; the leader breaks a tie. An unanswered vote counts against approval when the window closes.`
 
   if (request.kind === 'ADMIT') {
     const candidate = playerName(request.candidateId)
     if (request.status === 'VOTING')
-      return `${allianceName} is voting on inviting ${candidate}. If approved, ${candidate} gets a separate invitation. Follow the result in Hub Wire.`
+      return `${allianceName} is voting on inviting ${candidate}. ${voteSummary} If approved, ${candidate} gets a separate invitation.`
     if (request.status === 'CONSENT')
-      return `${allianceName} approved inviting ${candidate}. ${candidate} still needs to accept; follow the final result in Hub Wire.`
+      return `${voteSummary} ${candidate} still needs to accept the invitation in Incoming.`
     if (request.status === 'ACCEPTED')
-      return request.reason ?? `${candidate} joined ${allianceName}.`
-    return `The invitation decision for ${candidate} ended: ${request.reason ?? request.status}.`
+      return `${voteSummary} ${request.reason ?? `${candidate} joined ${allianceName}.`}`
+    return `${voteSummary} ${request.reason ?? `The invitation decision for ${candidate} ended: ${request.status}.`}`
   }
 
   if (request.status === 'ACCEPTED') return request.reason ?? 'The alliance agreement is active.'

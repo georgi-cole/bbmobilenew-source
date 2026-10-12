@@ -378,7 +378,9 @@ export default function RealityLedger({
                     </strong>
                     <p>
                       {knowledge.knownMemberIds.length
-                        ? `Known links: ${knowledge.knownMemberIds.map(playerName).join(' · ')}${knowledge.fullMembershipKnown ? '' : ' · other members unknown'}`
+                        ? knowledge.fullMembershipKnown
+                          ? `Known members: ${knowledge.knownMemberIds.map(playerName).join(' · ')}. This is the full roster.`
+                          : `Evidence links ${knowledge.knownMemberIds.map(playerName).join(' and ')}. Your intel has not confirmed the full roster.`
                         : 'You suspect a pact exists, but do not know its members.'}
                     </p>
                   </article>

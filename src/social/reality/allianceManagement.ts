@@ -287,6 +287,7 @@ function finalize(
     const created = createRealityAlliance(state, {
       id: `alliance:${request.id}`,
       kind,
+      createdById: request.proposerId,
       founderIds: [...request.memberIds],
       memberIds: [],
       purpose: request.purpose,
@@ -457,6 +458,37 @@ function aiConsent(
   return hash / 0x1_0000_0000 < Math.max(0.12, Math.min(0.92, 0.62 + trust / 200))
 }
 
+function admissionVoteSummary(
+  request: RealityAllianceRequest,
+  context: AllianceManagementContext
+): { approved: boolean; summary: string } {
+  const displayName = (id: string) =>
+    id === context.viewerActorId ? 'You' : (context.displayNames?.[id] ?? id)
+  const yesVotes = request.electorateIds.filter((id) => request.votes[id] === true).length
+  const noVotes = request.electorateIds.filter((id) => request.votes[id] === false).length
+  const missingVotes = request.electorateIds.length - yesVotes - noVotes
+  const opposedOrMissing = request.electorateIds.length - yesVotes
+  const tied = yesVotes === opposedOrMissing
+  const leaderVote = request.leaderId ? request.votes[request.leaderId] : undefined
+  const approved = yesVotes > opposedOrMissing || (tied && leaderVote === true)
+  const ballots = request.electorateIds.map((id) => {
+    const vote = request.votes[id]
+    return `${displayName(id)} ${vote === true ? 'voted yes' : vote === false ? 'voted no' : 'did not vote'}`
+  })
+  const tally = `${yesVotes} yes, ${noVotes} no${missingVotes ? `, ${missingVotes} did not vote` : ''}`
+  const decision = tied
+    ? request.leaderId && leaderVote !== undefined
+      ? `${missingVotes ? 'With missing votes counted against approval, ' : ''}the vote was tied ${yesVotes}–${opposedOrMissing}; leader ${displayName(request.leaderId)} broke the tie with a ${leaderVote ? 'yes' : 'no'} vote.`
+      : `${missingVotes ? 'With missing votes counted against approval, ' : ''}the vote was tied ${yesVotes}–${opposedOrMissing}, and the leader did not vote yes to break it.`
+    : approved
+      ? `${yesVotes} of ${request.electorateIds.length} members voted yes, so the proposal passed.`
+      : `Only ${yesVotes} of ${request.electorateIds.length} members voted yes, so the proposal did not win a majority.`
+  return {
+    approved,
+    summary: `Votes: ${ballots.join('; ')}. Tally: ${tally}. ${decision}${request.electorateIds.some((id) => !context.humanActorIds.includes(id)) ? ' AI members weigh their current trust in the invitee.' : ''}`,
+  }
+}
+
 export function canSeeAllianceRequest(request: RealityAllianceRequest, actorId: string): boolean {
   return (
     request.memberIds.includes(actorId) ||
@@ -504,21 +536,18 @@ export function advanceAllianceRequests(
     const overdue = compareSocialClock(request.deadline, context.at) < 0
     if (request.status === 'VOTING') {
       if (!overdue && allianceRequestDecisionActors(request).length > 0) continue
-      const yes = request.electorateIds.filter((id) => request.votes[id] === true).length
-      if (
-        yes <= request.electorateIds.length / 2 ||
-        !request.officerIds.some((id) => request.votes[id] === true)
-      ) {
-        settle(
-          state,
-          request,
-          'DECLINED',
-          'Admission needs a strict member majority and an officer voting yes.',
-          context.at
-        )
+      const decision = admissionVoteSummary(request, context)
+      request.voteSummary = decision.summary
+      if (!decision.approved) {
+        settle(state, request, 'DECLINED', 'The group did not approve the invitation.', context.at)
         continue
       }
       request.status = 'CONSENT'
+      const candidateName =
+        context.displayNames?.[request.candidateId!] ?? request.candidateId ?? 'the candidate'
+      const allianceName =
+        state.alliances[request.allianceId!]?.name ?? request.name ?? 'the alliance'
+      request.reason = `${allianceName} approved inviting ${candidateName}. The invitation is waiting for their acceptance.`
       request.candidateInvitedAt = { ...context.at }
       request.deadline = nextAllianceDeadline(context.at)
       recordAllianceRequestEvent(state, request, 'ALLIANCE_INVITATION_SENT', context.at)
@@ -746,7 +775,7 @@ function propose(
       requestId: matching.id,
     }
   const leaderId =
-    command.kind === 'FOUND' ? (command.leaderId ?? command.actorId) : alliance?.leaderId
+    command.kind === 'FOUND' ? command.actorId : (alliance?.leaderId ?? alliance?.createdById)
   if (
     command.kind === 'FOUND' &&
     (!members.includes(leaderId!) ||
