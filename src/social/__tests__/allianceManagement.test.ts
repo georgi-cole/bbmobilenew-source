@@ -116,9 +116,64 @@ describe('explicit alliance management', () => {
       namedContext
     )
 
-    expect(completed.reason).toBe('You, Kian, and Jax made it official: The Shield is born.')
+    expect(completed.reason).toBe(
+      'You, Kian, and Jax made it official. Your new alliance is ready to be named.'
+    )
     expect(state.allianceManagement.requests[requestId].status).toBe('ACCEPTED')
     expect(state.alliances[`alliance:${requestId}`]?.name).toBe('The Shield')
+  })
+
+  it('makes the person who submitted the founding request the leader', () => {
+    const state = setup()
+    const proposal = manageAlliance(
+      state,
+      { type: 'PROPOSE', kind: 'FOUND', actorId: 'u', memberIds: ['k', 'r', 'u'] },
+      context
+    )
+    const requestId = proposal.requestId!
+    respond(state, requestId, 'k')
+    respond(state, requestId, 'r')
+
+    const alliance = state.alliances[`alliance:${requestId}`]
+    expect(alliance.createdById).toBe('u')
+    expect(alliance.leaderId).toBe('u')
+    expect(alliance.leaderIds).toContain('u')
+  })
+
+  it('repairs a missing or stale leader to the creator unless leadership was transferred', () => {
+    const state = setup()
+    const alliance = group(state)
+    delete alliance.createdById
+    alliance.leaderId = 'k'
+    alliance.leaderIds = ['k']
+
+    const normalized = normalizeRealityDomainState(state).alliances[alliance.id]
+    expect(normalized.createdById).toBe('u')
+    expect(normalized.leaderId).toBe('u')
+
+    const missingLeaderState = setup()
+    const missingLeaderAlliance = group(missingLeaderState)
+    delete missingLeaderAlliance.createdById
+    missingLeaderAlliance.leaderId = undefined
+    missingLeaderAlliance.leaderIds = ['k']
+    expect(normalizeRealityDomainState(missingLeaderState).alliances.group.leaderId).toBe('u')
+
+    const transferredState = setup()
+    const transferredAlliance = group(transferredState)
+    const transfer = manageAlliance(
+      transferredState,
+      { type: 'PROPOSE', kind: 'TRANSFER', actorId: 'u', candidateId: 'k', allianceId: 'group' },
+      context
+    )
+    respond(transferredState, transfer.requestId!, 'k')
+    expect(transferredAlliance.leaderId).toBe('k')
+    expect(normalizeRealityDomainState(transferredState).alliances.group.leaderId).toBe('k')
+
+    const departedState = setup()
+    const departedAlliance = group(departedState, undefined, undefined, 'u', 'k')
+    manageAlliance(departedState, { type: 'LEAVE', actorId: 'u', allianceId: 'group' }, context)
+    expect(departedAlliance.leaderId).toBe('k')
+    expect(normalizeRealityDomainState(departedState).alliances.group.leaderId).toBe('k')
   })
 
   it('lets only the leader rename directly and routes member suggestions to the leader', () => {
@@ -300,37 +355,47 @@ describe('explicit alliance management', () => {
     expect(isCurrentAlliance(original)).toBe(true)
     expect(currentAllianceCounts(state, 'u').groups).toBe(0)
   })
-  it('requires a strict majority, officer approval, and separate candidate consent', () => {
+  it('requires a strict majority and separate candidate consent', () => {
     const state = setup()
     const alliance = group(state)
     const id = request(state, 'x', 'group', 'k')
     respond(state, id, 'r')
-    expect(state.allianceManagement.requests[id].status).toBe('VOTING')
     respond(state, id, 'u', false)
-    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
-    expect(alliance.memberIds).not.toContain('x')
-    const next = manageAlliance(
-      state,
-      { type: 'PROPOSE', kind: 'ADMIT', actorId: 'u', candidateId: 'c', allianceId: alliance.id },
-      context
-    ).requestId!
-    approve(state, next)
-    expect(state.allianceManagement.requests[next].status).toBe('CONSENT')
-    expect(alliance.memberIds).not.toContain('c')
-    expect(state.allianceManagement.requests[next].deadline).toEqual({ day: 1, phase: 'social_2' })
-    respond(state, next, 'c')
-    expect(alliance.memberIds).toContain('c')
-  })
-  it('lets a co-leader provide the officer yes when the leader votes no', () => {
-    const state = setup()
-    group(state, undefined, undefined, 'u', 'k')
-    const id = request(state, 'x', 'group', 'k')
-    respond(state, id, 'u', false)
-    respond(state, id, 'k')
-    respond(state, id, 'r')
     expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(alliance.memberIds).not.toContain('x')
+    expect(state.allianceManagement.requests[id].voteSummary).toContain('k voted yes')
+    expect(state.allianceManagement.requests[id].voteSummary).toContain('r voted yes')
+    expect(state.allianceManagement.requests[id].voteSummary).toContain('u voted no')
     respond(state, id, 'x')
-    expect(state.alliances.group.memberIds).toContain('x')
+    expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
+    expect(alliance.memberIds).toContain('x')
+  })
+  it('lets the leader break a two-member admission tie with a yes vote', () => {
+    const state = setup()
+    const alliance = group(state)
+    manageAlliance(state, { type: 'LEAVE', actorId: 'r', allianceId: alliance.id }, context)
+    const id = request(state, 'x')
+    respond(state, id, 'k', false)
+
+    expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(state.allianceManagement.requests[id].voteSummary).toContain(
+      'leader u broke the tie with a yes vote'
+    )
+    respond(state, id, 'x')
+    expect(alliance.memberIds).toContain('x')
+  })
+  it('rejects a two-member tie when the leader votes no', () => {
+    const state = setup()
+    const alliance = group(state)
+    manageAlliance(state, { type: 'LEAVE', actorId: 'r', allianceId: alliance.id }, context)
+    const id = request(state, 'x', alliance.id, 'k')
+    respond(state, id, 'u', false)
+
+    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
+    expect(state.allianceManagement.requests[id].voteSummary).toContain(
+      'leader u broke the tie with a no vote'
+    )
+    expect(alliance.memberIds).not.toContain('x')
   })
   it('never invents the human ballot even when the AI ballots form a majority', () => {
     const state = setup()

@@ -68,12 +68,13 @@ other person, choosing **Alliances → End pact**, and pressing **Execute**.
 
 The founding cost is paid when you submit and is not refunded if someone later
 declines or the request expires. If everyone agrees, the group forms and its
-player leader sees a naming dialog. Enter a name and choose **Name alliance**,
-or keep the suggested name with **Keep [name]**. If you close and reopen Social before
-choosing, the prompt remains until the leader names the group or keeps the
-suggestion. A declined or expired proposal never opens this dialog. The person
-who starts this Social action becomes its leader. The group can hold up to six
-people. Founding a separate group leaves your existing personal pacts in place.
+creator becomes the leader and sees a naming dialog. Enter a name and choose
+**Name alliance**, or keep the suggested name with **Keep [name]**. If you close
+and reopen Social before choosing, the prompt remains until the leader names the
+group or keeps the suggestion. A declined or expired proposal never opens this
+dialog. The creator remains leader unless they later offer a leadership transfer
+that the nominee accepts. The group can hold up to six people. Founding a
+separate group leaves your existing personal pacts in place.
 The leader can change the name later from **Social → Alliances**. Other members
 can suggest a name there; the group leader receives the suggestion in **Incoming
 requests** and chooses whether to accept it. Naming and rename suggestions are
@@ -87,9 +88,10 @@ free.
    groups appear; personal pacts never appear in this picker. The person you
    selected remains the candidate. Switching the group changes the destination.
 4. Press **Start vote**. The button stays disabled until you select a group.
-5. The current members vote. The request passes only if more than half of the
-   full current roster votes yes and at least one leader or co-leader votes yes.
-   Your own vote counts as yes when you start the vote.
+5. The current members vote. More than half of the full roster must vote yes.
+   If the vote is tied, the leader's vote breaks the tie. A missing vote counts
+   against approval when the response window closes. Your own vote counts as
+   yes when you start the vote.
 6. If the group approves, the candidate receives a separate invitation in
    **Incoming requests**. They must choose **Accept invitation** before their
    membership begins.
@@ -131,19 +133,23 @@ cannot be reconstructed.
 
 ### How many yes votes are needed?
 
-The proposer is already counted as one yes. The group needs a strict majority
-of its roster, plus at least one officer's yes vote.
+More than half of the full roster must vote yes. If the votes are tied, the
+leader's vote breaks the tie. This means your yes can decide a 1–1 vote when you
+are the leader; a leader's no rejects that same tie. A ballot that is still
+missing when the response window closes counts against approval.
 
-| Current members | Minimum yes votes |
-| --------------: | ----------------: |
-|               3 |                 2 |
-|               4 |                 3 |
-|               5 |                 3 |
-|               6 |                 4 |
+| Current members | Yes votes for a clear majority | Tie case                                  |
+| --------------: | -----------------------------: | ----------------------------------------- |
+|               2 |                              2 | 1 yes passes only if the leader voted yes |
+|               3 |                              2 | No tie                                    |
+|               4 |                              3 | 2 yes passes only if the leader voted yes |
+|               5 |                              3 | No tie                                    |
+|               6 |                              4 | 3 yes passes only if the leader voted yes |
 
-A no vote does not automatically defeat a proposal if enough other members can
-still meet both requirements. A candidate's own acceptance comes after this
-vote; it is not included in the member tally.
+The proposer is counted as one yes when they start the vote. The candidate's
+own acceptance comes after member approval and is not part of this tally. The
+proposal screen shows who voted yes or no and explains the result; the invited
+candidate sees the approved roster, not the member ballots.
 
 ## Respond to an invitation or vote
 

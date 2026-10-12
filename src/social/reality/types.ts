@@ -344,6 +344,8 @@ export type RealityAllianceStatus =
 
 export interface RealityAlliance {
   id: string
+  /** The player who created a group; distinct from its founding roster. */
+  createdById?: RealityActorId
   createdAt?: RealityClock
   /** Alliance records survive the rolling social event feed. Visibility still applies per event. */
   history?: RealitySocialEvent[]
@@ -427,6 +429,8 @@ export interface RealityAllianceRequest {
   electorateIds: RealityActorId[]
   officerIds: RealityActorId[]
   votes: Record<RealityActorId, boolean>
+  /** Member admission ballot outcome with names and any leader tie-break. */
+  voteSummary?: string
   consents: Record<RealityActorId, boolean>
   rosterRevision?: number
   governanceRevision?: number

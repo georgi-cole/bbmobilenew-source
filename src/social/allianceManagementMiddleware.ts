@@ -10,25 +10,31 @@ import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import { canSeeAllianceRequest } from './reality/allianceManagement'
 import type { RealityAllianceRequest } from './reality/types'
 
-function allianceRequestUpdateNarrative(request: RealityAllianceRequest, state: RootState): string {
+function allianceRequestUpdateNarrative(
+  request: RealityAllianceRequest,
+  state: RootState,
+  viewerId: string
+): string {
   const name = (id: string | undefined) =>
     id ? (state.game.players.find((player) => player.id === id)?.name ?? id) : 'the invitee'
   const allianceName = request.allianceId
     ? (state.social.reality.alliances[request.allianceId]?.name ?? request.name ?? 'the alliance')
     : (request.name ?? 'the alliance')
   const candidateName = name(request.candidateId)
+  const viewerIsCandidate = request.candidateId === viewerId
+  const voteSummary = viewerIsCandidate ? undefined : request.voteSummary
 
   if (request.status === 'CONSENT')
-    return `${allianceName} approved inviting ${candidateName}. The invitation is now with ${candidateName}; they have not joined yet.`
+    return `${voteSummary ? `${voteSummary} ` : ''}${allianceName} approved inviting ${candidateName}. The invitation is now with ${candidateName}; they have not joined yet.`
   if (request.status === 'ACCEPTED')
-    return request.reason ?? `${candidateName} accepted and joined ${allianceName}.`
+    return `${voteSummary ? `${voteSummary} ` : ''}${request.reason ?? `${candidateName} accepted and joined ${allianceName}.`}`
   if (request.status === 'DECLINED')
-    return `The invitation decision for ${candidateName} was declined. ${request.reason ?? ''}`.trim()
+    return `${voteSummary ? `${voteSummary} ` : ''}${request.reason ?? `The invitation decision for ${candidateName} was declined.`}`.trim()
   if (request.status === 'EXPIRED')
-    return `The invitation decision for ${candidateName} expired. ${request.reason ?? ''}`.trim()
+    return `${voteSummary ? `${voteSummary} ` : ''}The invitation decision for ${candidateName} expired. ${request.reason ?? ''}`.trim()
   if (request.status === 'INVALIDATED')
-    return `The invitation to ${candidateName} could not go ahead. ${request.reason ?? ''}`.trim()
-  return `The invitation to ${candidateName} was withdrawn. ${request.reason ?? ''}`.trim()
+    return `${voteSummary ? `${voteSummary} ` : ''}The invitation to ${candidateName} could not go ahead. ${request.reason ?? ''}`.trim()
+  return `${voteSummary ? `${voteSummary} ` : ''}The invitation to ${candidateName} was withdrawn. ${request.reason ?? ''}`.trim()
 }
 
 export const allianceManagementMiddleware: Middleware = (api) => (next) => (action) => {
@@ -164,7 +170,7 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
               week: state.game.week,
               phase: state.game.phase,
               source: 'system',
-              narrative: allianceRequestUpdateNarrative(request, state),
+              narrative: allianceRequestUpdateNarrative(request, state, human.id),
             },
           })
         )

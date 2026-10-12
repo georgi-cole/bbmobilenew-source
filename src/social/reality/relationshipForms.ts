@@ -1204,6 +1204,7 @@ export function createRealityAlliance(
   state: RealityDomainState,
   input: {
     id: string
+    createdById?: string
     founderIds: string[]
     memberIds: string[]
     purpose: string
@@ -1230,10 +1231,13 @@ export function createRealityAlliance(
   if (existingPact && existingPact.id !== input.replacesPactId) return existingPact
   const alliance: RealityAlliance = {
     id: input.id,
+    createdById:
+      input.createdById ?? (kind === 'GROUP' ? input.leaderId : undefined) ?? input.founderIds[0],
     createdAt: { ...input.at },
     kind,
     provenance: 'NATIVE',
-    leaderId: kind === 'GROUP' ? (input.leaderId ?? input.founderIds[0]) : undefined,
+    leaderId:
+      kind === 'GROUP' ? (input.createdById ?? input.leaderId ?? input.founderIds[0]) : undefined,
     coLeaderId: kind === 'GROUP' ? input.coLeaderId : undefined,
     memberJoinSequence: Object.fromEntries(memberIds.map((id) => [id, state.nextSequence++])),
     rosterRevision: 0,
@@ -1242,7 +1246,7 @@ export function createRealityAlliance(
     memberIds,
     founderIds: [...new Set(input.founderIds)],
     leaderIds: [
-      input.leaderId ?? input.founderIds[0],
+      input.createdById ?? input.leaderId ?? input.founderIds[0],
       ...(input.coLeaderId ? [input.coLeaderId] : []),
     ],
     secrecy: Math.max(0, Math.min(1, input.secrecy ?? 0.75)),
@@ -1272,7 +1276,7 @@ export function createRealityAlliance(
     ...input.at,
     type: 'ALLIANCE_FORMED',
     allianceId: alliance.id,
-    actorId: input.founderIds[0],
+    actorId: input.createdById ?? input.leaderId ?? input.founderIds[0],
     targetIds: memberIds.filter((id) => !input.founderIds.includes(id)),
     participantIds: memberIds,
     witnessIds: [],
