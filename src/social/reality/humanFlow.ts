@@ -25,6 +25,8 @@ import {
   findRealityAllianceForConsultation,
   holdRealityAllianceStrategyMeeting,
 } from './relationshipForms'
+import { appendRealityEvent } from './events'
+import { buildPreNominationLohRead } from './allianceConsultationIntel'
 import type { RealityAlliance } from './types'
 import { getRealityModeAdapter } from './modeAdapters'
 import { applyRealityRelationshipChange } from './relationships'
@@ -889,6 +891,9 @@ function getAllianceConsultationAgenda(
   if (actorIsLoh && ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)) {
     return 'nominations'
   }
+  if (!nomineesExist && ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)) {
+    return 'loh_intel'
+  }
   if (
     actorHasSafety &&
     ['pos_results', 'pos_ceremony'].includes(state.game.phase) &&
@@ -932,6 +937,36 @@ function buildAllianceConsultationPlan(
   const excusedAbsentIds = alliance.memberIds.filter((id) => !attendeeSet.has(id))
   const agenda = getAllianceConsultationAgenda(state, actorId)
   const nominees = state.game.players.filter((player) => state.game.nomineeIds.includes(player.id))
+
+  if (agenda === 'loh_intel') {
+    const lohPlan =
+      state.game.lohSocialPlan?.week === state.game.week &&
+      state.game.lohSocialPlan.lohId === state.game.lohId
+        ? state.game.lohSocialPlan
+        : null
+    return {
+      allianceId: alliance.id,
+      attendeeIds,
+      targetIds: [],
+      fallbackTargetIds: [],
+      planIds: [],
+      agenda: 'loh_intel',
+      summary: buildPreNominationLohRead({
+        allianceName: alliance.name,
+        actorId,
+        lohId: state.game.lohId,
+        week: state.game.week,
+        attendingMemberIds: attendeeIds,
+        players: state.game.players,
+        disclosuresByMemberId: lohPlan?.disclosedTargetByPlayerId,
+        disclosureOutcomeByMemberId: lohPlan?.disclosureOutcomeByPlayerId,
+        beliefsByOwner: state.social.reality.beliefsByOwner,
+        facts: state.social.reality.facts,
+      }),
+      excusedAbsentIds,
+      memberPlanBeliefs: {},
+    }
+  }
 
   if (agenda === 'nominations') {
     const candidates = nominationConsultationCandidates(state, actorId).filter(
@@ -1754,19 +1789,43 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     }
     let allianceConsultationSummary: string | null = null
     if (resolvedAsSuccess && consultationPlan) {
-      holdRealityAllianceStrategyMeeting(resolvedDomain, {
-        allianceId: consultationPlan.allianceId,
-        callerId: input.actorId,
-        attendeeIds: consultationPlan.attendeeIds,
-        targetIds: consultationPlan.targetIds,
-        fallbackTargetIds: consultationPlan.fallbackTargetIds,
-        planIds: consultationPlan.planIds,
-        agenda: consultationPlan.agenda,
-        at: { day: state.game.week, phase: state.game.phase },
-        sourceEventId: orchestration.event.id,
-        excusedAbsentIds: consultationPlan.excusedAbsentIds,
-        memberPlanBeliefs: consultationPlan.memberPlanBeliefs,
-      })
+      if (consultationPlan.agenda === 'loh_intel') {
+        // Record the information huddle without replacing a formal alliance
+        // target slate or changing members' stored plan beliefs.
+        appendRealityEvent(resolvedDomain, {
+          day: state.game.week,
+          phase: state.game.phase,
+          type: 'ALLIANCE_STRATEGY_MEETING',
+          allianceId: consultationPlan.allianceId,
+          actorId: input.actorId,
+          targetIds: [],
+          participantIds: consultationPlan.attendeeIds,
+          witnessIds: [],
+          visibility: 'GROUP_VISIBLE',
+          outcome: 'SUCCESS',
+          reason: `strategy_meeting:${consultationPlan.allianceId}:loh_intel:${orchestration.event.id}`,
+          tags: ['ALLIANCE', 'STRATEGY', 'MEETING', 'INTEL'],
+          relatedFactIds: [],
+          relatedPromiseIds: [],
+          relatedThreadIds: [],
+          publicEligible: false,
+          juryEligible: true,
+        })
+      } else {
+        holdRealityAllianceStrategyMeeting(resolvedDomain, {
+          allianceId: consultationPlan.allianceId,
+          callerId: input.actorId,
+          attendeeIds: consultationPlan.attendeeIds,
+          targetIds: consultationPlan.targetIds,
+          fallbackTargetIds: consultationPlan.fallbackTargetIds,
+          planIds: consultationPlan.planIds,
+          agenda: consultationPlan.agenda,
+          at: { day: state.game.week, phase: state.game.phase },
+          sourceEventId: orchestration.event.id,
+          excusedAbsentIds: consultationPlan.excusedAbsentIds,
+          memberPlanBeliefs: consultationPlan.memberPlanBeliefs,
+        })
+      }
       allianceConsultationSummary = consultationPlan.summary
     }
     const dangerWarningDiscovered =

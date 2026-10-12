@@ -101,6 +101,7 @@ describe('canonical social-action eligibility', () => {
   const players = [
     { id: 'user', status: 'active' as const },
     { id: 'ally', status: 'active' as const },
+    { id: 'member', status: 'active' as const },
   ]
 
   it('never advertises Consult Alliance from a stale legacy tag that execution cannot consult', () => {
@@ -129,7 +130,7 @@ describe('canonical social-action eligibility', () => {
     const alliance = createRealityAlliance(reality, {
       id: 'live-pact',
       founderIds: ['user', 'ally'],
-      memberIds: [],
+      memberIds: ['member'],
       purpose: 'Mutual protection',
       at: { day: 2, phase: 'social_1' },
     })
