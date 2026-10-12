@@ -64,6 +64,19 @@ describe('free local Big Eye conversation', () => {
     expect(threat.text).toMatch(/not help with harm/i)
   })
 
+  it('does not route profanity to the normal Big Eye reply path', async () => {
+    const response = await generateBigBrotherReply({
+      diaryText: 'fuck you',
+      playerName: 'Alex',
+      state: createInitialBigEyeState(),
+      world,
+    })
+
+    expect(response.safetyCode).toBe('profanity')
+    expect(response.text).toMatch(/keep this room respectful/i)
+    expect(response.vipEligible).toBe(false)
+  })
+
   it('handles the reported conversation without generic unknown loops', async () => {
     let state: BigEyeConversationState = createInitialBigEyeState()
     let memorySummary = ''

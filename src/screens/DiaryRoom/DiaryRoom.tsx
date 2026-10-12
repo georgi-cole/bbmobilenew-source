@@ -37,6 +37,7 @@ import {
   submitTwinShockAnswer,
   selectAlivePlayers,
   consumeBroadcastEvent,
+  recordConfessionalMisconduct,
 } from '../../store/gameSlice'
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
@@ -66,6 +67,11 @@ import {
   type BigEyePerformance,
   type BigEyeWorldContext,
 } from '../../services/bigBrother'
+import {
+  assessLocalConfessionalInput,
+  getConfessionalMisconductResponse,
+  isConfessionalMisconductCode,
+} from '../../bb/localConfessionalSafety'
 import {
   BigEyeVipError,
   getBigEyeVipStatus,
@@ -1193,6 +1199,55 @@ export default function DiaryRoom() {
         saveChat(playerId, updated)
         return updated
       })
+
+      // Moderate before any special prompt or game-action handler. This keeps
+      // abusive or deliberately noisy input from slipping into a side channel.
+      const safety = assessLocalConfessionalInput({
+        diaryText: text,
+        history: messages.map((message) => ({
+          role: message.role,
+          text: message.text,
+          timestamp: message.timestamp,
+        })),
+        now: Date.now(),
+      })
+      if (safety) {
+        let replyText = safety.text
+        if (isConfessionalMisconductCode(safety.code)) {
+          const currentPlayer = reduxStore
+            .getState()
+            .game.players.find((candidate) => candidate.id === playerId)
+          const currentGame = reduxStore.getState().game
+          const previousStrikes =
+            currentPlayer?.confessionalMisconduct?.season === currentGame.season
+              ? currentPlayer.confessionalMisconduct.strikes
+              : 0
+          const nextStrike = previousStrikes + 1
+          dispatch(
+            recordConfessionalMisconduct({
+              playerId,
+              violation: safety.code,
+            })
+          )
+          replyText = getConfessionalMisconductResponse(nextStrike)
+          if (nextStrike >= 3) {
+            navigate('/self-evicted')
+            return
+          }
+        }
+
+        setMessages((prev) => {
+          const withSeen = prev.map((message) =>
+            message.role === 'user' && message.status !== 'seen'
+              ? { ...message, status: 'seen' as MessageStatus }
+              : message
+          )
+          saveChat(playerId, withSeen)
+          return withSeen
+        })
+        pushBigEyeMessage(replyText)
+        return
+      }
 
       if (voxPopuliActive && isVoxNominationRevealPhrase(text)) {
         setMessages((prev) => {

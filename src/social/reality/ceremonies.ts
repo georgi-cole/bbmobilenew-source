@@ -126,8 +126,11 @@ function projectPublicCeremony(
     }
   }
   if (kind === 'EVICTION') {
-    for (const targetId of event.targetIds)
-      captureRealityReentryProfile(state, targetId, { day: event.day, phase: event.phase })
+    const administrativeRemoval = event.tags.includes('administrative_removal')
+    if (!administrativeRemoval) {
+      for (const targetId of event.targetIds)
+        captureRealityReentryProfile(state, targetId, { day: event.day, phase: event.phase })
+    }
     for (const targetId of event.targetIds) {
       updatePerception(state, targetId, event.id, {
         underdog: 8,
@@ -599,11 +602,13 @@ function applyCeremonyAftermath(
   }
 
   if (kind === 'EVICTION') {
+    const administrativeRemoval = event.tags.includes('administrative_removal')
     for (const targetId of event.targetIds) {
       const evictee = contestant(state, targetId)
       evictee.stress = clamp(evictee.stress + 28, 0, 100)
       evictee.emotions.sadness = clamp(evictee.emotions.sadness + 35, 0, 100)
-      evictee.primaryGoalId = 'EVALUATE_JURY_VOTE'
+      if (administrativeRemoval) delete evictee.primaryGoalId
+      else evictee.primaryGoalId = 'EVALUATE_JURY_VOTE'
     }
     removeRealityAllianceMembers(state, {
       memberIds: event.targetIds,

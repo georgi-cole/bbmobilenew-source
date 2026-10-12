@@ -23,6 +23,13 @@ export default function SelfEvicted() {
   const playerName = useAppSelector(
     (s) => s.game.players.find((p) => p.isUser)?.name ?? 'Housemate',
   );
+  const administrativelyRemoved = useAppSelector((s) => {
+    const player = s.game.players.find((candidate) => candidate.isUser);
+    return (
+      player?.confessionalMisconduct?.season === s.game.season &&
+      player.confessionalMisconduct.administrativelyRemoved === true
+    );
+  });
   const currentRunSlot = useAppSelector((s) => getSavedRunSlot(s.game));
   const activeProfileId = useAppSelector(selectActiveProfileId);
   const isGuest = useAppSelector(selectIsGuest);
@@ -61,11 +68,14 @@ export default function SelfEvicted() {
     <div className="self-evicted-shell">
       <div className="self-evicted-card">
         <div className="self-evicted-icon">🚪</div>
-        <h1 className="self-evicted-title">You Left the House</h1>
+        <h1 className="self-evicted-title">
+          {administrativelyRemoved ? 'Removed by The Big Eye' : 'You Left the House'}
+        </h1>
         <p className="self-evicted-name">{playerName}</p>
         <p className="self-evicted-message">
-          You chose to self-evict from The Big Eye house. The game
-          continues without you — but your story ends here.
+          {administrativelyRemoved
+            ? 'The Big Eye removed you after repeated Confessional misconduct. You cannot return this season or enter the Tribunal.'
+            : 'You chose to self-evict from The Big Eye house. The game continues without you — but your story ends here.'}
         </p>
         <div className="self-evicted-actions">
           <button
