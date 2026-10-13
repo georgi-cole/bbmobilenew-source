@@ -69,6 +69,7 @@ import {
   ensureRealityActors,
   learnRealityFact,
   normalizeRealityDomainState,
+  retainResolvedRealityInteractionHistory,
   projectRealityAffinity,
   recordRealityAllianceBetrayal as applyRealityAllianceBetrayal,
   renameRealityAlliance as applyRealityAllianceRename,
@@ -406,7 +407,7 @@ const socialSlice = createSlice({
       }>
     ) {
       const { domain, changedRelationshipPairs } = action.payload
-      state.reality = domain
+      state.reality = retainResolvedRealityInteractionHistory(domain)
       for (const { sourceId, targetId } of changedRelationshipPairs ?? []) {
         projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
       }
@@ -445,7 +446,7 @@ const socialSlice = createSlice({
       // normalized in-memory domain. Keep its structural sharing instead of
       // normalizing/copying every collection again. Hydration and migrations
       // still use replaceRealityDomain's full normalization/projection path.
-      state.reality = domain
+      state.reality = retainResolvedRealityInteractionHistory(domain)
       if (changedRelationshipPairs) {
         for (const { sourceId, targetId } of changedRelationshipPairs) {
           projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)

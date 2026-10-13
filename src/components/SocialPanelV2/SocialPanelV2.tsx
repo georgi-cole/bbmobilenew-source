@@ -218,21 +218,25 @@ export default function SocialPanelV2() {
   const settings = useAppSelector((state) => state.settings, comparePanelState)
   const vip = useAppSelector((state) => state.vip, comparePanelState)
   const socialState = useAppSelector((state) => state.social, comparePanelState)
-  const activeProfileId = useAppSelector((state) => state.profiles?.activeProfileId ?? null)
-  const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false)
-  const energyBank = useAppSelector(selectEnergyBank)
-  const influenceBank = useAppSelector(selectInfluenceBank)
-  const infoBank = useAppSelector(selectInfoBank)
+  const activeProfileId = useAppSelector(
+    (state) => state.profiles?.activeProfileId ?? null,
+    comparePanelState
+  )
+  const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false, comparePanelState)
+  const energyBank = useAppSelector(selectEnergyBank, comparePanelState)
+  const influenceBank = useAppSelector(selectInfluenceBank, comparePanelState)
+  const infoBank = useAppSelector(selectInfoBank, comparePanelState)
   const socialPanelOpen = useAppSelector(selectSocialPanelOpen)
-  const sessionLogs = useAppSelector(selectSessionLogs)
-  const actionHistory = useAppSelector(selectPersistentSocialHistory)
-  const socialCommitments = useAppSelector(selectSocialCommitments)
+  const sessionLogs = useAppSelector(selectSessionLogs, comparePanelState)
+  const actionHistory = useAppSelector(selectPersistentSocialHistory, comparePanelState)
+  const socialCommitments = useAppSelector(selectSocialCommitments, comparePanelState)
   const relationships = socialState?.relationships
-  const weekStartRelSnapshot = useAppSelector(selectWeekStartRelSnapshot)
-  const dramaNetwork = useAppSelector(selectDramaNetwork)
+  const weekStartRelSnapshot = useAppSelector(selectWeekStartRelSnapshot, comparePanelState)
+  const dramaNetwork = useAppSelector(selectDramaNetwork, comparePanelState)
   // Public Mode is intentionally optional for lightweight social/test stores.
   const publicDirections = useAppSelector(
-    (state) => state.publicOpinion?.directions ?? EMPTY_PUBLIC_DIRECTIONS
+    (state) => state.publicOpinion?.directions ?? EMPTY_PUBLIC_DIRECTIONS,
+    comparePanelState
   )
   const dramaMode = getEffectiveSocialMode({ game, settings, vip }) === 'drama'
   const socialActions = useMemo(

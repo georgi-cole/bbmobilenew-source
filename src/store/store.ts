@@ -77,6 +77,10 @@ import { adsMiddleware } from './adsMiddleware'
 import remoteConfigReducer from '../remoteConfig/remoteConfigSlice'
 import { secretMissionMiddleware } from './secretMissionMiddleware'
 import { gameDiagnosticsMiddleware } from '../services/diagnostics/gameDiagnostics'
+import {
+  gamePerformanceMiddleware,
+  startGamePerformanceDiagnostics,
+} from '../services/diagnostics/gamePerformanceDiagnostics'
 import { minigameSessionMiddleware } from './minigameSessionMiddleware'
 import { eyeoleanPowerMiddleware } from './eyeoleanPowerMiddleware'
 import vipReducer, { loadVipState } from './vipSlice'
@@ -152,36 +156,42 @@ export const store = configureStore({
       serializableCheck: {
         ignoredPaths: DEV_INVARIANT_IGNORED_PATHS,
       },
-    }).concat(
-      weekendSettingsMiddleware,
-      survivorMiddleware,
-      bellaProgressMiddleware,
-      eliminatedSeasonResolutionMiddleware,
-      tribunalEligibilityMiddleware,
-      realityIntegrityMiddleware,
-      depressionShockMiddleware,
-      backdoorPresentationMiddleware,
-      presentationConsistencyMiddleware,
-      voxPublicModeSyncMiddleware,
-      intelligenceMiddleware,
-      socialStrategyMiddleware,
-      relationshipResourcePolicyMiddleware,
-      socialMiddleware,
-      allianceManagementMiddleware,
-      soundMiddleware,
-      publicOpinionMiddleware,
-      dramaPublicSaveMiddleware,
-      adsMiddleware,
-      secretMissionMiddleware,
-      eyeoleanPowerMiddleware,
-      minigameSessionMiddleware,
-      gameDiagnosticsMiddleware
-    ),
+    })
+      .prepend(gamePerformanceMiddleware)
+      .concat(
+        weekendSettingsMiddleware,
+        survivorMiddleware,
+        bellaProgressMiddleware,
+        eliminatedSeasonResolutionMiddleware,
+        tribunalEligibilityMiddleware,
+        realityIntegrityMiddleware,
+        depressionShockMiddleware,
+        backdoorPresentationMiddleware,
+        presentationConsistencyMiddleware,
+        voxPublicModeSyncMiddleware,
+        intelligenceMiddleware,
+        socialStrategyMiddleware,
+        relationshipResourcePolicyMiddleware,
+        socialMiddleware,
+        allianceManagementMiddleware,
+        soundMiddleware,
+        publicOpinionMiddleware,
+        dramaPublicSaveMiddleware,
+        adsMiddleware,
+        secretMissionMiddleware,
+        eyeoleanPowerMiddleware,
+        minigameSessionMiddleware,
+        gameDiagnosticsMiddleware
+      ),
   // A long season can dispatch thousands of actions with a large state tree.
   // Bound Redux DevTools retention in development so gameplay QA does not turn
   // the extension itself into a progressive memory/performance tax.
   devTools: import.meta.env.DEV ? { maxAge: 50, trace: false } : false,
 })
+
+// Performance sampling is inert unless a browser is opened with
+// `?debugPerformance=1`. The opt-in probe stays bounded and pauses when hidden.
+startGamePerformanceDiagnostics()
 
 // Repair saves created by the old Vox behavior where Settings could persist
 // Public Mode = on while the active game ignored the request and stayed off.

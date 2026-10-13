@@ -8,8 +8,21 @@ import styles from './HouseguestGrid.module.css'
 import './cupidRoseGold/CupidRoseGold.css'
 
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import { advance, clearSurvivorReplacementTransition } from '../../store/gameSlice'
 import { selectSurvivorStandout, type SurvivorStandoutMode } from '../../modes/survivorStandout'
+
+const houseguestGridGameEquality = createGameFieldEquality([
+  'cupidArrow',
+  'depressionShock',
+  'gameId',
+  'mode',
+  'modeSpecific',
+  'phase',
+  'players',
+  'season',
+  'week',
+])
 import { getCupidPair, isCupidArrowVisualsRevealed } from '../../features/twists/cupidArrow'
 import { resolveCupidLoveAvatar } from '../../utils/cupidLoveAvatar'
 
@@ -149,7 +162,7 @@ export default function HouseguestGrid({
 }: Props) {
   const containerRef = useRef<HTMLElement | null>(null)
   const dispatch = useAppDispatch()
-  const game = useAppSelector((s) => s.game)
+  const game = useAppSelector((s) => s.game, houseguestGridGameEquality)
   const cupidVisualsRevealed = isCupidArrowVisualsRevealed(game)
   const previousCupidVisualsRevealedRef = useRef(cupidVisualsRevealed)
   const cupidPairFocusTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)

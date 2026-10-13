@@ -225,6 +225,7 @@ export interface QuickTapRaceRuntimeState {
   lastActivePhase: Exclude<QuickTapRacePhase, 'paused'>;
   phaseElapsedMs: number;
   elapsedMs: number;
+  simulationElapsedMs: number;
   timeLeftMs: number;
   countdownMs: number;
   raceDurationMs: number;
