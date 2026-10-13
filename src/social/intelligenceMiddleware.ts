@@ -328,7 +328,12 @@ function maybeBroadcastWhisper(
       .filter((item) => item.channel === 'faux_tv')
       .map((item) => item.factId)
   )
-  const fact = selectFauxTvFact(state.social.reality, state.game.week, deliveredFactIds, state.game.players)
+  const fact = selectFauxTvFact(
+    state.social.reality,
+    state.game.week,
+    deliveredFactIds,
+    state.game.players
+  )
   if (!fact) return
   const activeIds = new Set(
     state.game.players

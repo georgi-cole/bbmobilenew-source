@@ -311,7 +311,13 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
       if (
         target?.isUser &&
         (!input.reality ||
-          !selectIntelFactForActor(input.reality, input.actorId, targetId, input.week, input.players))
+          !selectIntelFactForActor(
+            input.reality,
+            input.actorId,
+            targetId,
+            input.week,
+            input.players
+          ))
       ) {
         continue
       }

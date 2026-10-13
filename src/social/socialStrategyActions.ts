@@ -253,8 +253,20 @@ export function processTradeSecrets(
   const day = entry.week ?? state.game.week
   const phase = entry.phase ?? state.game.phase
   const domain = state.social.reality
-  const actorOffer = selectIntelFactForActor(domain, entry.actorId, entry.targetId, day, state.game.players)
-  const targetOffer = selectIntelFactForActor(domain, entry.targetId, entry.actorId, day, state.game.players)
+  const actorOffer = selectIntelFactForActor(
+    domain,
+    entry.actorId,
+    entry.targetId,
+    day,
+    state.game.players
+  )
+  const targetOffer = selectIntelFactForActor(
+    domain,
+    entry.targetId,
+    entry.actorId,
+    day,
+    state.game.players
+  )
 
   if (actorOffer) {
     deliverKnownIntel({

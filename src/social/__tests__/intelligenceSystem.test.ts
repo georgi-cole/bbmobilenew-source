@@ -505,7 +505,6 @@ describe('intelligence system', () => {
     expect(restored.intelligenceDeliveries).toHaveLength(1)
   })
 
-
   it('filters current intel involving eliminated participants and allows fresh intel after a return', () => {
     const domain = createInitialRealityDomainState()
     const fact = {
@@ -540,24 +539,17 @@ describe('intelligence system', () => {
     )
     expect(selectIntelFactForActor(domain, 'human', 'mara', 4, withLuxEliminated)).toBeNull()
     expect(selectDiscoverableFact(domain, 'mara', 4, new Set(), withLuxEliminated)).toBeNull()
-    expect(
-      selectIntelActionFact(domain, [], 'mara', 4, 'observe', withLuxEliminated)
-    ).toBeNull()
+    expect(selectIntelActionFact(domain, [], 'mara', 4, 'observe', withLuxEliminated)).toBeNull()
     expect(selectFauxTvFact(domain, 4, new Set(), withLuxEliminated)).toBeNull()
     expect(getIntelLeadViews(domain, 'human', withLuxEliminated, 4)).toEqual([])
 
     const luxReturns = withLuxEliminated.map((player) =>
-      player.id === 'lux'
-        ? { ...player, status: 'active' as const, firstEvictedAtWeek: 3 }
-        : player
+      player.id === 'lux' ? { ...player, status: 'active' as const, firstEvictedAtWeek: 3 } : player
     )
     expect(selectDiscoverableFact(domain, 'mara', 4, new Set(), luxReturns)?.id).toBe(fact.id)
 
     const stalePreReturnFact = { ...fact, id: 'fact:before-return', day: 3 }
     addRealityFact(domain, stalePreReturnFact)
-    expect(
-      selectDiscoverableFact(domain, 'mara', 4, new Set([fact.id]), luxReturns)
-    ).toBeNull()
+    expect(selectDiscoverableFact(domain, 'mara', 4, new Set([fact.id]), luxReturns)).toBeNull()
   })
-
 })

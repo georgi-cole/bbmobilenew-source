@@ -991,7 +991,6 @@ function applyIncomingChoiceConsequences({
           interaction.fromId,
           humanPlayer.id,
           currentWeek,
-          state.game.players,
           resolvedAt
         ),
       })
@@ -1069,7 +1068,8 @@ function applyIncomingChoiceConsequences({
           state.social.reality,
           interaction.fromId,
           humanPlayer.id,
-          currentWeek
+          currentWeek,
+          state.game.players
         )
       : null
   const sharedFact =

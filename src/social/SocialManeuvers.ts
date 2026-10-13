@@ -1428,10 +1428,22 @@ export function executeAction(
     actionId === 'trade_secrets' && outcome === 'success'
       ? {
           actorCanShare: Boolean(
-            selectIntelFactForActor(state.social.reality, actorId, targetId, state.game?.week ?? 0, state.game?.players ?? [])
+            selectIntelFactForActor(
+              state.social.reality,
+              actorId,
+              targetId,
+              state.game?.week ?? 0,
+              state.game?.players ?? []
+            )
           ),
           targetCanShare: Boolean(
-            selectIntelFactForActor(state.social.reality, targetId, actorId, state.game?.week ?? 0, state.game?.players ?? [])
+            selectIntelFactForActor(
+              state.social.reality,
+              targetId,
+              actorId,
+              state.game?.week ?? 0,
+              state.game?.players ?? []
+            )
           ),
         }
       : null
@@ -1555,7 +1567,6 @@ export function executeAction(
           actorId,
           state.game?.week ?? 0,
           actionId,
-          state.game?.players ?? [],
           state.game?.players ?? []
         )
       : null

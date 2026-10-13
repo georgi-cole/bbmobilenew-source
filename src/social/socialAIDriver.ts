@@ -362,7 +362,6 @@ function executeRealityCandidate(
           player.id,
           state.game.week,
           candidate.actionId,
-          state.game.players,
           state.game.players
         )
       : null
@@ -376,8 +375,20 @@ function executeRealityCandidate(
     compatibilityOutcome === 'success' &&
     candidate.targetIds.some(
       (targetId) =>
-        selectIntelFactForActor(state.social.reality, player.id, targetId, state.game.week, state.game.players) ||
-        selectIntelFactForActor(state.social.reality, targetId, player.id, state.game.week, state.game.players)
+        selectIntelFactForActor(
+          state.social.reality,
+          player.id,
+          targetId,
+          state.game.week,
+          state.game.players
+        ) ||
+        selectIntelFactForActor(
+          state.social.reality,
+          targetId,
+          player.id,
+          state.game.week,
+          state.game.players
+        )
     )
   const adjustedResourceEffect =
     candidate.actionId === 'trade_secrets' && !hasTradeInformation && resourceEffect.info > 0
@@ -911,12 +922,24 @@ function routeHumanFacingAction(
   const content = pickHumanFacingText(actionId, actorId, human.name ?? 'you', week, phase)
   const tradeLead =
     actionId === 'trade_secrets'
-      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week, current.game.players)
+      ? selectIntelFactForActor(
+          current.social.reality,
+          actorId,
+          human.id,
+          week,
+          current.game.players
+        )
       : null
   if (actionId === 'trade_secrets' && !tradeLead) return 'blocked'
   const protectionLead =
     actionId === 'protect' && intelFactId
-      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week, current.game.players)
+      ? selectIntelFactForActor(
+          current.social.reality,
+          actorId,
+          human.id,
+          week,
+          current.game.players
+        )
       : null
   const disclosedFact =
     protectionLead && protectionLead.fact.id === intelFactId ? protectionLead.fact : undefined
