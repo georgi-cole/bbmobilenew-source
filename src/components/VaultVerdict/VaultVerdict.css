@@ -1146,48 +1146,6 @@
 .vault-verdict__pod--opened {
   --charge-start: #4de9bd;
   --charge-end: #45c8ff;
-  --charge-ink: #041719;
-  border-color: color-mix(in srgb, var(--charge-start) 46%, white 8%);
-  color: var(--charge-ink);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 42%),
-    linear-gradient(145deg, var(--charge-start), var(--charge-end));
-  box-shadow:
-    0 8px 18px rgba(0, 0, 0, 0.2),
-    0 0 18px color-mix(in srgb, var(--charge-start) 15%, transparent);
-  animation: vault-verdict-battery-reveal 280ms ease both;
-}
-
-.vault-verdict__pod--opened.is-charge-medium {
-  --charge-start: #b9ef63;
-  --charge-end: #f1d35c;
-  --charge-ink: #1b2605;
-}
-
-.vault-verdict__pod--opened.is-charge-low {
-  --charge-start: #ffcb58;
-  --charge-end: #ff934b;
-  --charge-ink: #2b1405;
-}
-
-.vault-verdict__pod--opened.is-charge-critical {
-  --charge-start: #ff7f78;
-  --charge-end: #ff557b;
-  --charge-ink: #2b0710;
-}
-
-.vault-verdict__pod--opened .vault-verdict__pod-number,
-.vault-verdict__pod--opened .vault-verdict__pod-label {
-  color: color-mix(in srgb, var(--charge-ink) 72%, transparent);
-}
-
-.vault-verdict__pod--opened .vault-verdict__pod-special {
-  color: color-mix(in srgb, var(--charge-ink) 88%, transparent);
-}
-
-.vault-verdict__pod--opened {
-  --charge-start: #4de9bd;
-  --charge-end: #45c8ff;
   --charge-ink: #f7fbff;
   border-color: color-mix(in srgb, var(--charge-start) 34%, rgba(224, 232, 255, 0.14));
   color: var(--charge-ink);
@@ -1215,13 +1173,20 @@
   --charge-end: #ff557b;
 }
 
+.vault-verdict__pod--opened .vault-verdict__pod-value {
+  color: #fff;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.74);
+}
+
 .vault-verdict__pod--opened .vault-verdict__pod-number,
 .vault-verdict__pod--opened .vault-verdict__pod-label {
-  color: rgba(224, 230, 248, 0.5);
+  color: #e9e4f4;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
 }
 
 .vault-verdict__pod--opened .vault-verdict__pod-special {
-  color: rgba(242, 246, 255, 0.72);
+  color: #fff1d3;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.92);
 }
 
 .vault-verdict__pod--opened.is-special-cell.is-doubleVote {
@@ -2538,8 +2503,14 @@
     min-height: 38px;
   }
 
-  .vault-verdict__pod-special {
-    display: none;
+  .vault-verdict__pod--opened.is-special-cell .vault-verdict__pod-value {
+    font-size: 0.88rem;
+  }
+
+  .vault-verdict__pod--opened.is-special-cell .vault-verdict__pod-special {
+    display: block;
+    margin-top: 1px;
+    font-size: 0.39rem;
   }
 
   .vault-verdict__lower-third {
