@@ -108,6 +108,12 @@ export function getCommitmentKindForInteraction(
   if (interaction.type === 'deal_offer' && scenario === 'tie_break_campaign') {
     return 'tie_break_keep'
   }
+  if (
+    interaction.type === 'deal_offer' &&
+    (scenario === 'protection_deal' || scenario === 'protection_deal_future_vote')
+  ) {
+    return 'vote_to_keep'
+  }
   return null
 }
 
@@ -140,7 +146,10 @@ export function createCommitmentFromInteraction({
     promisorId,
     beneficiaryId: interaction.fromId,
     createdWeek: week,
-    dueWeek: week,
+    dueWeek:
+      scenarioKey(interaction) === 'protection_deal_future_vote'
+        ? (interaction.createdWeek ?? week) + 1
+        : week,
     status: 'pending',
   }
 }

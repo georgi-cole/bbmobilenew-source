@@ -485,7 +485,7 @@ export function getRevealEffectProfile(
       tier: 'special',
       eyebrow: 'SYSTEM BLACKOUT',
       title: 'BLACKOUT CELL',
-      strapline: 'The house vote penalty flickers into view.',
+      strapline: 'The Hub vote penalty flickers into view.',
       hero: true,
       soundKey: 'ui:error',
       soundVolume: 0.62,

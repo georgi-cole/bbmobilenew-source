@@ -20,6 +20,7 @@ import type {
   SocialActionLogEntry,
   SocialMemoryMap,
 } from './types'
+import type { RealityDomainState } from './reality/types'
 
 export interface DramaPlayer {
   id: string
@@ -52,6 +53,7 @@ export interface DramaActionEffectInput {
   actorId: string
   targetId: string
   subjectId?: string
+  intelFactId?: string
   actorName?: string
   targetName?: string
   week: number
@@ -71,6 +73,7 @@ export interface DramaAIMoveInput {
   relationships: RelationshipsMap
   memory: SocialMemoryMap
   network: DramaSocialNetwork
+  reality?: RealityDomainState
   recentActions?: SocialActionLogEntry[]
   week: number
   phase: string
@@ -79,11 +82,14 @@ export interface DramaAIMoveInput {
   lohId?: string | null
   posWinnerId?: string | null
   nomineeIds?: string[]
+  povProtectedIds?: string[]
 }
 export interface DramaAIMove {
   actionId: string
   targetId: string
   subjectId?: string
+  /** A single known lead to include in an AI protection offer, when useful. */
+  intelFactId?: string
   reason: string
 }
 
@@ -528,7 +534,7 @@ export function applyDramaActionEffect(
       })
     }
   }
-  if (input.actionId === 'snoop_around')
+  if (input.actionId === 'snoop_around' && !input.intelFactId)
     discoverSecretArc(network, input.actorId, input.week, input.phase, input.targetId)
   if (input.actionId === 'ride_or_die') {
     startOrAdvanceArc(network, 'bromance', input.actorId, input.targetId, input.week, 34)
@@ -576,13 +582,13 @@ export function applyDramaActionEffect(
       })
   if (input.actionId === 'plant_lie')
     makeRumour(network, input.actorId, input.targetId, subject, 'fake_deal', 'false', input.week)
-  if (input.actionId === 'rumor' || input.actionId === 'trade_secrets')
+  if (input.actionId === 'rumor')
     makeRumour(
       network,
       input.actorId,
       input.targetId,
       subject,
-      input.actionId === 'trade_secrets' ? 'secret_alliance' : 'targeting',
+      'targeting',
       'uncertain',
       input.week
     )

@@ -56,14 +56,49 @@ export type SeasonsAiResult = {
   accidentalTaps: number
 }
 
-type SeasonsAiOpponent = {
+type SeasonsOpponentModel = {
   id: string
   name: string
-  rate: number
-  boxChance: number
+  tapsPerSecond: number
+  fatigueLoss: number
+  pauseRatePerSecond: number
+  minPauseSeconds: number
+  maxPauseSeconds: number
+  winterMistakeRate: number
+  boxUseChance: number
+  boxDecisionSkill: number
+  boxWasteChance: number
+  boxThinkMinSeconds: number
+  boxThinkMaxSeconds: number
 }
 
-function simulateSeasonsAiOpponent(seed: number, opponent: SeasonsAiOpponent): SeasonsAiResult {
+const DEFAULT_PROFILE: CompetitionSkillProfile = {
+  overall: 50,
+  physical: 50,
+  mental: 50,
+  precision: 50,
+  nerve: 50,
+  consistency: 50,
+  clutch: 50,
+  chokeRisk: 50,
+  luck: 50,
+}
+
+export const SEASONS_STANDALONE_AI_FIELD: ReadonlyArray<{
+  id: string
+  name: string
+  profile: CompetitionSkillProfile
+}> = [
+  { id: 'nova', name: 'Nova', profile: { ...DEFAULT_PROFILE, physical: 43, consistency: 44 } },
+  { id: 'milo', name: 'Milo', profile: { ...DEFAULT_PROFILE, physical: 50, consistency: 54 } },
+  { id: 'zara', name: 'Zara', profile: { ...DEFAULT_PROFILE, physical: 57, consistency: 64 } },
+]
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
+
+function scoreWithSeasonsModel(seed: number, opponent: SeasonsOpponentModel): SeasonsAiResult {
   const schedule = buildSeasonSchedule(seed)
   const rng = mulberry32((seed ^ hash(opponent.id) ^ 0xa15ea50a) >>> 0)
   let season = schedule[0].season
@@ -74,39 +109,72 @@ function simulateSeasonsAiOpponent(seed: number, opponent: SeasonsAiOpponent): S
   let score = 0
   let manualSeasonChanges = 0
   let accidentalTaps = 0
-  let winterInertia = season === 'winter' ? 1 + Math.floor(rng() * 3) : 0
-  let nextTap = 0.18 + rng() * 0.28
+  let nextTap = 0.14 + rng() * 0.18
+  let nextPauseAt = 1 / opponent.pauseRatePerSecond + rng() * 2
 
   while (nextTap < SEASONS_DURATION) {
     while (seasonIndex < schedule.length && nextSeasonAt <= nextTap) {
       season = schedule[seasonIndex++].season
       nextSeasonAt += SEASON_LENGTH
-      winterInertia = season === 'winter' ? 1 + Math.floor(rng() * 3) : 0
     }
+
     while (boxIndex < SEASON_BOX_TIMES.length && SEASON_BOX_TIMES[boxIndex] <= nextTap) {
-      const wantsBetterSeason = SEASONS[season].multiplier <= 0.5
-      const deliberateChange = rng() < opponent.boxChance && (wantsBetterSeason || rng() < 0.38)
-      const accidentalBoxTap = !deliberateChange && rng() < 0.035
-      if (deliberateChange || accidentalBoxTap) {
-        season = rerollSeason(seed ^ hash(opponent.id), boxIndex, season)
-        nextSeasonAt = Math.min(SEASONS_DURATION, nextTap + SEASON_LENGTH)
-        manualSeasonChanges += 1
-        winterInertia = season === 'winter' ? 1 + Math.floor(rng() * 3) : 0
+      const boxAt = SEASON_BOX_TIMES[boxIndex]
+      // The mystery box is only clickable for the same four-second window as
+      // the playable screen, and its outcome uses the shared game seed/index.
+      if (nextTap < boxAt + 4) {
+        const boxSeason = rerollSeason(seed, boxIndex, season)
+        const timeToScheduledChange = Math.max(0, nextSeasonAt - nextTap)
+        const nextScheduledSeason = schedule[seasonIndex]?.season
+        const fallbackSeason = nextScheduledSeason ?? season
+        const noBoxAverage =
+          (SEASONS[season].multiplier * timeToScheduledChange +
+            SEASONS[fallbackSeason].multiplier * (SEASON_LENGTH - timeToScheduledChange)) /
+          SEASON_LENGTH
+        const improvesWindow = SEASONS[boxSeason].multiplier > noBoxAverage
+        const decisive = rng() < opponent.boxDecisionSkill
+        const deliberateChange =
+          rng() < opponent.boxUseChance &&
+          ((improvesWindow && decisive) || (!improvesWindow && rng() < opponent.boxWasteChance))
+        const accidentalBoxTap = !deliberateChange && rng() < 0.012
+
+        if (deliberateChange || accidentalBoxTap) {
+          season = boxSeason
+          nextSeasonAt = Math.min(SEASONS_DURATION, nextTap + SEASON_LENGTH)
+          nextTap +=
+            opponent.boxThinkMinSeconds +
+            rng() * (opponent.boxThinkMaxSeconds - opponent.boxThinkMinSeconds)
+          manualSeasonChanges += 1
+        }
       }
       boxIndex += 1
     }
 
-    // A player can lose their rhythm in winter and make a stray negative tap.
-    const accidentalWinterTap = season === 'winter' && winterInertia === 0 && rng() < 0.085
-    if (season !== 'winter' || winterInertia > 0 || accidentalWinterTap) {
+    while (seasonIndex < schedule.length && nextSeasonAt <= nextTap) {
+      season = schedule[seasonIndex++].season
+      nextSeasonAt += SEASON_LENGTH
+    }
+
+    const accidentalWinterTap = season === 'winter' && rng() < opponent.winterMistakeRate
+    if (season !== 'winter' || accidentalWinterTap) {
       rawTaps += 1
       score += SEASONS[season].multiplier
-      if (season === 'winter' && winterInertia > 0) winterInertia -= 1
       if (accidentalWinterTap) accidentalTaps += 1
     }
-    const fatigue = 1 - (nextTap / SEASONS_DURATION) * (opponent.id === 'nova' ? 0.14 : 0.07)
-    nextTap += 1 / Math.max(3, opponent.rate * fatigue * (0.92 + rng() * 0.16))
-    if (rng() > 0.965) nextTap += 0.12 + rng() * 0.22
+
+    // Fatigue trims the nominal pace gradually instead of leaving AI tap rates
+    // effectively constant for the full race.
+    const elapsedRatio = nextTap / SEASONS_DURATION
+    const fatigueMultiplier = 1 - elapsedRatio * opponent.fatigueLoss
+    const paceJitter = 0.94 + rng() * 0.12
+    nextTap += 1 / Math.max(4, opponent.tapsPerSecond * fatigueMultiplier * paceJitter)
+
+    // Pauses are timed in seconds, so they affect all tap rates consistently.
+    if (nextTap >= nextPauseAt) {
+      nextTap +=
+        opponent.minPauseSeconds + rng() * (opponent.maxPauseSeconds - opponent.minPauseSeconds)
+      nextPauseAt = nextTap + (0.5 + rng()) / opponent.pauseRatePerSecond
+    }
   }
 
   return {
@@ -119,30 +187,92 @@ function simulateSeasonsAiOpponent(seed: number, opponent: SeasonsAiOpponent): S
   }
 }
 
-export function simulateSeasonsAiScore({
+function createSeasonsAiOpponent(
+  seed: number,
+  id: string,
+  profile: CompetitionSkillProfile,
+  name = id
+): SeasonsOpponentModel {
+  const rng = mulberry32((seed ^ hash(id) ^ 0x5ea50a1) >>> 0)
+  const physical = clamp01(profile.physical / 100)
+  const consistency = clamp01(profile.consistency / 100)
+
+  return {
+    id,
+    name,
+    // Stronger contestants can briefly exceed ten taps per second, while
+    // fatigue, short pauses, and imperfect box reads keep average AI in range.
+    tapsPerSecond: 8.9 + physical * 1.6 + consistency * 0.55 + rng() * 0.35,
+    fatigueLoss: 0.2 - consistency * 0.04 + rng() * 0.02,
+    pauseRatePerSecond: 0.095 - consistency * 0.015,
+    minPauseSeconds: 0.18,
+    maxPauseSeconds: 0.46,
+    winterMistakeRate: 0.025 + (1 - consistency) * 0.045,
+    boxUseChance: 0.67 + consistency * 0.2,
+    boxDecisionSkill: 0.55 + consistency * 0.35,
+    boxWasteChance: 0.18 + (1 - consistency) * 0.14,
+    boxThinkMinSeconds: 0.18,
+    boxThinkMaxSeconds: 0.5,
+  }
+}
+
+/**
+ * Simulate the same score returned to hosted competitions, with diagnostics for
+ * the standalone Seasons practice screen and balance benchmarks.
+ */
+export function simulateSeasonsAiResult({
   seed,
   playerId,
+  name,
   participantIndex = 0,
-  profile,
+  profile = DEFAULT_PROFILE,
 }: {
+  seed: number
+  playerId?: string
+  name?: string
+  participantIndex?: number
+  profile?: CompetitionSkillProfile
+}): SeasonsAiResult {
+  const id = playerId ?? `seasons-ai-${participantIndex}`
+  return scoreWithSeasonsModel(seed, createSeasonsAiOpponent(seed, id, profile, name ?? id))
+}
+
+export function simulateSeasonsAiScore(args: {
   seed: number
   playerId?: string
   participantIndex?: number
   profile?: CompetitionSkillProfile
 }): number {
-  const id = playerId ?? `seasons-ai-${participantIndex}`
-  const rng = mulberry32((seed ^ hash(id) ^ 0x5ea50a1) >>> 0)
-  const physical = Math.min(1, Math.max(0, (profile?.physical ?? 50) / 100))
-  const consistency = Math.min(1, Math.max(0, (profile?.consistency ?? 50) / 100))
-  const rate = 5.6 + physical * 2.5 + consistency * 0.8 + rng() * 0.45
-  const boxChance = 0.45 + consistency * 0.32 + rng() * 0.12
-  return simulateSeasonsAiOpponent(seed, { id, name: id, rate, boxChance }).score
+  return simulateSeasonsAiResult(args).score
 }
 
+/** Modelled 10-taps/second strategic player used for synthetic balance checks. */
+export function simulateSeasonsStrategicPlayer(seed: number): SeasonsAiResult {
+  return scoreWithSeasonsModel(seed, {
+    id: 'benchmark-strategic-player',
+    name: 'Strategic player (synthetic)',
+    tapsPerSecond: 10,
+    fatigueLoss: 0.16,
+    pauseRatePerSecond: 0.12,
+    minPauseSeconds: 0.18,
+    maxPauseSeconds: 0.48,
+    winterMistakeRate: 0.012,
+    boxUseChance: 0.98,
+    boxDecisionSkill: 0.99,
+    boxWasteChance: 0.01,
+    boxThinkMinSeconds: 0.16,
+    boxThinkMaxSeconds: 0.38,
+  })
+}
+
+/** The practice roster uses the exact profile-driven simulator used by hosted AI. */
 export function simulateSeasonsAiField(seed: number): SeasonsAiResult[] {
-  return [
-    { id: 'nova', name: 'Nova', rate: 7.25, boxChance: 0.55 },
-    { id: 'milo', name: 'Milo', rate: 7.65, boxChance: 0.72 },
-    { id: 'zara', name: 'Zara', rate: 8.15, boxChance: 0.88 },
-  ].map((opponent) => simulateSeasonsAiOpponent(seed, opponent))
+  return SEASONS_STANDALONE_AI_FIELD.map(({ id, name, profile }) =>
+    simulateSeasonsAiResult({
+      seed,
+      playerId: id,
+      name,
+      profile,
+    })
+  )
 }

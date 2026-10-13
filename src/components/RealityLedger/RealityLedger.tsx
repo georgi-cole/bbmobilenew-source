@@ -348,43 +348,59 @@ export default function RealityLedger({
                     <em>{lead.source}</em>
                   </article>
                 ))}
-                {discoveredAlliances.map(({ alliance, knowledge }) => (
-                  <article className="reality-ledger__item" key={alliance.id}>
-                    <div>
-                      <span className="reality-ledger__badge reality-ledger__badge--alliance">
-                        {knowledge.level === 'MEMBER'
-                          ? allianceStatusLabel(alliance.status, allianceKind(alliance))
-                          : knowledge.level === 'PUBLIC'
-                            ? 'Public alliance'
-                            : knowledge.level === 'CONFIRMED'
-                              ? 'Confirmed pact'
-                              : 'Suspected pact'}
-                      </span>
-                      <small>
-                        {knowledge.level === 'MEMBER'
-                          ? `${Math.round((knowledge.cohesion ?? 0) * 100)}% cohesion · ${allianceSecrecyLabel(knowledge.secrecy ?? 0)}`
-                          : knowledge.level === 'PUBLIC'
-                            ? 'Hub-known'
-                            : confidenceLabel(knowledge.confidence)}
-                      </small>
-                    </div>
-                    <strong>
-                      {knowledge.displayName ??
-                        (knowledge.level === 'MEMBER'
-                          ? 'Private pact'
-                          : knowledge.level === 'PUBLIC'
-                            ? 'Exposed alliance'
-                            : 'Possible alliance')}
-                    </strong>
-                    <p>
-                      {knowledge.knownMemberIds.length
-                        ? knowledge.fullMembershipKnown
-                          ? `Known members: ${knowledge.knownMemberIds.map(playerName).join(' · ')}. This is the full roster.`
-                          : `Evidence links ${knowledge.knownMemberIds.map(playerName).join(' and ')}. Your intel has not confirmed the full roster.`
-                        : 'You suspect a pact exists, but do not know its members.'}
-                    </p>
-                  </article>
-                ))}
+                {discoveredAlliances.map(({ alliance, knowledge }) => {
+                  const isFormerAlliance =
+                    knowledge.level !== 'MEMBER' && alliance.status === 'DISSOLVED'
+                  const knownMembers = [
+                    ...knowledge.knownMemberIds,
+                    ...knowledge.historicalMemberIds.filter(
+                      (id) => !knowledge.knownMemberIds.includes(id)
+                    ),
+                  ]
+                  return (
+                    <article className="reality-ledger__item" key={alliance.id}>
+                      <div>
+                        <span className="reality-ledger__badge reality-ledger__badge--alliance">
+                          {knowledge.level === 'MEMBER'
+                            ? allianceStatusLabel(alliance.status, allianceKind(alliance))
+                            : isFormerAlliance
+                              ? 'Former alliance'
+                              : knowledge.level === 'PUBLIC'
+                                ? 'Public alliance'
+                                : knowledge.level === 'CONFIRMED'
+                                  ? 'Confirmed pact'
+                                  : 'Suspected pact'}
+                        </span>
+                        <small>
+                          {knowledge.level === 'MEMBER'
+                            ? `${Math.round((knowledge.cohesion ?? 0) * 100)}% cohesion · ${allianceSecrecyLabel(knowledge.secrecy ?? 0)}`
+                            : isFormerAlliance
+                              ? 'Historical'
+                              : knowledge.level === 'PUBLIC'
+                                ? 'Hub-known'
+                                : confidenceLabel(knowledge.confidence)}
+                        </small>
+                      </div>
+                      <strong>
+                        {knowledge.displayName ??
+                          (knowledge.level === 'MEMBER'
+                            ? 'Private pact'
+                            : isFormerAlliance
+                              ? 'Former alliance'
+                              : knowledge.level === 'PUBLIC'
+                                ? 'Exposed alliance'
+                                : 'Possible alliance')}
+                      </strong>
+                      <p>
+                        {knownMembers.length
+                          ? knowledge.fullMembershipKnown
+                            ? `Known members: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')}. This is the full roster.`
+                            : `Known links: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')}. The full roster has not been confirmed.`
+                          : 'You suspect a pact exists, but do not know its members.'}
+                      </p>
+                    </article>
+                  )
+                })}
               </>
             )}
             {(knownFacts.length > 0 || beliefs.length > 0) && (
@@ -547,7 +563,7 @@ export default function RealityLedger({
 
         {activeTab === 'house' && (
           <>
-            <h3>Open Hub stories</h3>
+            <h3>Open house stories</h3>
             {threads.length === 0 && knownRelationshipStories.length === 0 ? (
               <p className="reality-ledger__empty">No known Hub story is active.</p>
             ) : (

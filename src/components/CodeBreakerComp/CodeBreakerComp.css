@@ -883,3 +883,191 @@
   margin: 0;
   color: #b8cbe4;
 }
+
+/* A single purple stage keeps the vault, feedback, and history in place. */
+.cb {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(86px, 18dvh);
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(8px, 1.5vh, 14px) clamp(10px, 2.5vw, 20px)
+    max(8px, env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
+  color: #f5efff;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(142, 87, 255, 0.28), transparent 48%),
+    radial-gradient(ellipse at 92% 85%, rgba(85, 54, 155, 0.18), transparent 36%),
+    linear-gradient(160deg, #100b1d 0%, #0b0914 56%, #120e20 100%);
+}
+
+.cb::before {
+  background:
+    linear-gradient(rgba(203, 178, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(203, 178, 255, 0.025) 1px, transparent 1px);
+  opacity: 0.24;
+}
+
+.cb__header {
+  width: min(100%, 760px);
+  max-width: 760px;
+  justify-self: center;
+  gap: 8px;
+  padding: clamp(8px, 1.4vh, 12px) clamp(10px, 2vw, 16px);
+  border: 1px solid rgba(190, 157, 255, 0.2);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(37, 27, 59, 0.95), rgba(17, 15, 31, 0.94));
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22), inset 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.cb__title {
+  color: #f8f3ff;
+  background: none;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: #f8f3ff;
+  background-clip: initial;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  letter-spacing: 0.12em;
+}
+
+.cb__stats-panel { gap: 7px; }
+
+.cb__stat-chip {
+  min-width: 0;
+  padding: 7px 9px;
+  border-color: rgba(190, 157, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(14, 11, 24, 0.74);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.cb__stat-label { color: #ad9bc8; font-size: 0.6rem; }
+.cb__stat-value { overflow: hidden; color: #eee5fa; font-size: clamp(0.78rem, 3vw, 0.96rem); text-overflow: ellipsis; }
+
+.cb__canvas-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 58px;
+  align-content: stretch;
+  gap: 7px;
+  width: min(100%, 760px);
+  max-width: 760px;
+  min-height: 0;
+  justify-self: center;
+  padding: 8px 0 0;
+}
+
+.cb__canvas-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  border-color: rgba(190, 157, 255, 0.22);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 50% 12%, rgba(145, 91, 255, 0.18), transparent 46%),
+    rgba(12, 9, 21, 0.96);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.32), inset 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.cb__status-card {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 4px 12px;
+  border: 1px solid rgba(190, 157, 255, 0.13);
+  border-radius: 14px;
+  background: rgba(18, 14, 30, 0.72);
+}
+
+.cb__status { color: #e8def8; font-size: clamp(0.78rem, 3vw, 0.95rem); }
+.cb__status--fail { color: #fca5a5; }
+.cb__hint { margin: 3px 0 0; color: #b7a7cf; font-size: 0.73rem; }
+
+.cb__history {
+  width: min(100%, 760px);
+  max-width: 760px;
+  min-height: 0;
+  justify-self: center;
+  margin: 0;
+  padding: 5px 2px 2px;
+  overflow: hidden;
+}
+
+.cb__history-head { margin: 0 2px 5px; }
+.cb__history-label { color: #d5b6ff; font-size: 0.63rem; }
+.cb__history-count { color: #b7a7cf; font-size: 0.63rem; }
+.cb__history-list { max-height: calc(100% - 20px); gap: 5px; overflow-y: auto; padding: 0 2px 4px; }
+.cb__history-empty,
+.cb__guess-row {
+  border-color: rgba(190, 157, 255, 0.15);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(37, 27, 59, 0.78), rgba(16, 13, 25, 0.9));
+}
+.cb__history-empty { padding: 8px 11px; color: #ad9bc8; font-size: 0.75rem; }
+.cb__guess-row { min-height: 42px; padding: 6px 10px; }
+.cb__guess-meta { color: #ad9bc8; font-size: 0.58rem; }
+.cb__guess-digits { color: #f3ecfc; font-size: 1rem; }
+
+.cb__submit-btn,
+.cb__continue-btn {
+  min-width: min(220px, 100%);
+  min-height: 46px;
+  border-color: rgba(220, 193, 255, 0.35);
+  border-radius: 15px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7 56%, #c026d3);
+  box-shadow: 0 10px 24px rgba(139, 92, 246, 0.24), inset 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.cb__results {
+  width: min(100%, 760px);
+  max-width: 760px;
+  min-height: 0;
+  justify-self: center;
+  align-items: stretch;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 9px 0 0;
+}
+
+.cb__results-headline { color: #f5efff; font-size: 1.1rem; text-align: center; }
+.cb__leaderboard { min-height: 0; overflow-y: auto; gap: 6px; padding: 1px 2px 6px; }
+.cb__lb-entry { min-height: 44px; padding: 7px 10px; border-color: rgba(190, 157, 255, 0.15); border-radius: 13px; background: linear-gradient(145deg, rgba(37, 27, 59, 0.86), rgba(18, 15, 28, 0.88)); }
+.cb__lb-entry--winner { border-color: rgba(167, 243, 208, 0.35); }
+.cb__lb-entry--you { border-color: rgba(192, 151, 255, 0.5); }
+.cb__lb-name { color: #eee5fa; font-size: 0.85rem; }
+.cb__lb-meta { color: #b7a7cf; font-size: 0.68rem; }
+.cb__lb-score-label { color: #ad9bc8; }
+.cb__lb-score { color: #d8b4fe; }
+.cb__code-reveal { color: #b7a7cf; font-size: 0.75rem; }
+.cb__code-reveal strong { color: #e4cbff; }
+
+.cb--results { grid-template-rows: auto minmax(0, 1fr); }
+.cb--results .cb__continue-btn { width: 100%; }
+
+@media (max-height: 700px) {
+  .cb { grid-template-rows: auto minmax(0, 1fr) minmax(70px, 17dvh); gap: 5px; }
+  .cb__header { gap: 5px; padding-block: 5px; }
+  .cb__canvas-stage { grid-template-rows: minmax(0, 1fr) 48px; gap: 5px; padding-top: 4px; }
+  .cb__stat-chip { padding-block: 5px; }
+  .cb__history-head { margin-bottom: 3px; }
+}
+
+@media (max-width: 380px) {
+  .cb { padding-inline: 8px; }
+  .cb__header { padding-inline: 8px; }
+  .cb__stats-panel { gap: 4px; }
+  .cb__stat-chip { padding-inline: 6px; }
+}
+
+@media (min-width: 760px) and (orientation: landscape) {
+  .cb--play { grid-template-columns: minmax(0, 1fr) minmax(180px, 0.38fr); grid-template-rows: auto minmax(0, 1fr); }
+  .cb--play .cb__header { grid-column: 1 / -1; }
+  .cb--play .cb__canvas-stage { grid-column: 1; grid-row: 2; }
+  .cb--play .cb__history { grid-column: 2; grid-row: 2; padding: 8px 0; }
+  .cb--play .cb__history-list { max-height: calc(100% - 20px); }
+}
