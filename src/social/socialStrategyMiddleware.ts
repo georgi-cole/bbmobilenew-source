@@ -1,6 +1,6 @@
 import type { Middleware } from '@reduxjs/toolkit'
 import type { SocialActionLogEntry } from './types'
-import { processHumanSocialStrategyAction } from './socialStrategyActions'
+import { processSocialStrategyAction } from './socialStrategyActions'
 import { queueSocialStrategyInvitation } from './socialStrategyInvitation'
 import { processSocialStrategyDayEnd } from './socialStrategyPressure'
 import type { DayEndPlan, StrategyState } from './socialStrategyShared'
@@ -32,7 +32,7 @@ export const socialStrategyMiddleware: Middleware = (api) => (next) => (action) 
 
   if (type === 'social/recordSocialAction') {
     const entry = (action as unknown as { payload: { entry: SocialActionLogEntry } }).payload.entry
-    processHumanSocialStrategyAction(api, after, entry)
+    processSocialStrategyAction(api, after, entry)
   }
 
   return result

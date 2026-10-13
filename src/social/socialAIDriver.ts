@@ -37,9 +37,11 @@ import { createDeterministicSocialRandom, validateSocialExecution } from './soci
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import { getEffectiveSocialMode } from './socialMode'
 import { getSocialResourceEffect } from './socialResourceEconomy'
+import { selectIntelActionFact, selectIntelFactForActor } from './intelligenceSystem'
 import { isIncomingInteractionActionable } from './socialRuntimeConfig'
 import type {
   DramaSocialNetwork,
+  IntelligenceDelivery,
   IncomingInteraction,
   IncomingInteractionDeliveryState,
   IncomingInteractionType,
@@ -135,6 +137,7 @@ interface DriverState {
     incomingInteractions?: IncomingInteraction[]
     scheduledIncomingInteractions?: ScheduledIncomingInteraction[]
     incomingInteractionDelivery?: IncomingInteractionDeliveryState
+    intelligenceDeliveries?: IntelligenceDelivery[]
     reality: RealityDomainState
     realitySimulation: RealitySimulationState
   }
@@ -349,11 +352,35 @@ function executeRealityCandidate(
   }
   const costs = normalizeActionCosts(action, candidate.targetIds.length, dramaMode)
   const compatibilityOutcome = result.event.outcome === 'SUCCESS' ? 'success' : 'failure'
+  const observationFact =
+    compatibilityOutcome === 'success' &&
+    state.game.mode !== 'survival' &&
+    ['observe', 'read_the_room', 'snoop_around', 'eavesdrop'].includes(candidate.actionId)
+      ? selectIntelActionFact(
+          state.social.reality,
+          state.social.intelligenceDeliveries,
+          player.id,
+          state.game.week,
+          candidate.actionId
+        )
+      : null
   const resourceEffect = getSocialResourceEffect(
     action,
     compatibilityOutcome,
     candidate.targetIds.length
   )
+  const hasTradeInformation =
+    candidate.actionId === 'trade_secrets' &&
+    compatibilityOutcome === 'success' &&
+    candidate.targetIds.some(
+      (targetId) =>
+        selectIntelFactForActor(state.social.reality, player.id, targetId, state.game.week) ||
+        selectIntelFactForActor(state.social.reality, targetId, player.id, state.game.week)
+    )
+  const adjustedResourceEffect =
+    candidate.actionId === 'trade_secrets' && !hasTradeInformation && resourceEffect.info > 0
+      ? { ...resourceEffect, info: 0 }
+      : resourceEffect
   const compatibilityDeltas = Object.fromEntries(
     candidate.targetIds.map((targetId) => [
       targetId,
@@ -372,8 +399,8 @@ function executeRealityCandidate(
       actorId: player.id,
       energyDelta: -costs.energy,
       changedRelationshipPairs: result.changedRelationshipPairs,
-      influenceDelta: -costs.influence + resourceEffect.influence,
-      infoDelta: -costs.info + resourceEffect.info,
+      influenceDelta: -costs.influence + adjustedResourceEffect.influence,
+      infoDelta: -costs.info + adjustedResourceEffect.info,
     })
   )
   const latestState = _store.getState() as DriverState
@@ -385,6 +412,11 @@ function executeRealityCandidate(
         targetId: primaryTargetId,
         targetIds: candidate.targetIds,
         ...(candidate.subjectId ? { subjectId: candidate.subjectId } : {}),
+        ...(compatibilityOutcome === 'success' &&
+        state.game.mode !== 'survival' &&
+        ['observe', 'read_the_room', 'snoop_around', 'eavesdrop'].includes(candidate.actionId)
+          ? { context: { intelFactId: observationFact?.id ?? null } }
+          : {}),
         cost: costs.energy,
         costs,
         delta: compatibilityDelta,
@@ -399,11 +431,13 @@ function executeRealityCandidate(
         week: state.game.week,
         phase: state.game.phase,
         source: 'system',
-        ...(resourceEffect.influence !== 0 || resourceEffect.info !== 0
+        ...(adjustedResourceEffect.influence !== 0 || adjustedResourceEffect.info !== 0
           ? {
               yieldsApplied: {
-                ...(resourceEffect.influence !== 0 ? { influence: resourceEffect.influence } : {}),
-                ...(resourceEffect.info !== 0 ? { info: resourceEffect.info } : {}),
+                ...(adjustedResourceEffect.influence !== 0
+                  ? { influence: adjustedResourceEffect.influence }
+                  : {}),
+                ...(adjustedResourceEffect.info !== 0 ? { info: adjustedResourceEffect.info } : {}),
               },
             }
           : {}),
@@ -421,6 +455,7 @@ interface CandidateMove {
   actionId: string
   targetIds: string[]
   subjectId?: string
+  intelFactId?: string
   reason: string
   relationshipIntent?: RealityRelationshipIntentKind
 }
@@ -691,6 +726,7 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
   proposeAlliance: 'alliance_proposal',
   compliment: 'compliment',
   protect: 'deal_offer',
+  trade_secrets: 'deal_offer',
   whisper: 'gossip',
   share_intel: 'gossip',
   rumor: 'warning',
@@ -715,8 +751,12 @@ const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
     'The way you carried yourself today stood out—in a good way.',
   ],
   protect: [
-    'I may be able to keep heat off you this week, but I need to know we are working together.',
-    'Your name is vulnerable. I can help, if we can trust each other.',
+    'I can keep your name off the block this week. If I end up nominated, I need your vote to keep me.',
+    'I have a way to protect you this week. If I am in danger, I need to know you will return the favor.',
+  ],
+  trade_secrets: [
+    'I have a lead that could matter. If we compare notes, I will share what I know and hear what you have learned.',
+    'There is something useful moving around the house. Want to trade what we each know?',
   ],
   whisper: [
     'I heard something privately that could change how you read this week.',
@@ -761,7 +801,8 @@ const HUMAN_FACING_ACTION_SCENARIOS: Partial<Record<string, string>> = {
   ally: 'week_start_alliance_lock',
   proposeAlliance: 'week_start_alliance_lock',
   compliment: 'generic_check_in',
-  protect: 'alliance_reassurance',
+  protect: 'protection_deal',
+  trade_secrets: 'trade_secrets_offer',
   whisper: 'generic_gossip',
   share_intel: 'generic_gossip',
   rumor: 'betrayal_warning',
@@ -817,7 +858,8 @@ function routeHumanFacingAction(
   actionId: string,
   subjectId: string | undefined,
   costs: { energy: number; influence: number; info: number },
-  sceneTargetIds?: string[]
+  sceneTargetIds?: string[],
+  intelFactId?: string
 ): HumanRouteResult {
   if (!_store) return 'blocked'
   const type = HUMAN_FACING_ACTION_TYPES[actionId] ?? 'other'
@@ -859,22 +901,60 @@ function routeHumanFacingAction(
 
   const mode = getEffectiveSocialMode(current)
   const content = pickHumanFacingText(actionId, actorId, human.name ?? 'you', week, phase)
+  const tradeLead =
+    actionId === 'trade_secrets'
+      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week)
+      : null
+  if (actionId === 'trade_secrets' && !tradeLead) return 'blocked'
+  const protectionLead =
+    actionId === 'protect' && intelFactId
+      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week)
+      : null
+  const disclosedFact =
+    protectionLead && protectionLead.fact.id === intelFactId ? protectionLead.fact : undefined
+  const safetyRescue =
+    actionId === 'protect' &&
+    current.game.posWinnerId === actorId &&
+    (current.game.nomineeIds ?? []).includes(human.id)
+  const scenarioKey =
+    actionId === 'protect'
+      ? safetyRescue
+        ? 'protection_deal_future_vote'
+        : 'protection_deal'
+      : content.scenarioKey
+  const protectionText =
+    actionId === 'protect'
+      ? `${disclosedFact ? 'I have a private lead that could help you. ' : ''}${
+          safetyRescue
+            ? 'I can use Safety on you now. If I am nominated next week, I need your vote to keep me.'
+            : 'I can keep your name off the block this week. If I am nominated, I need your vote to keep me.'
+        } Will you take that deal?`
+      : undefined
   const interaction = createIncomingInteraction({
     id: `ai-action-${actionId}-${actorId}-${deterministicSequence}`,
     fromId: actorId,
     type,
-    text: content.text,
+    text: protectionText ?? content.text,
     week,
     phase,
     mode,
     payload: {
       originActionId: actionId,
-      scenarioKey: content.scenarioKey,
+      scenarioKey,
       variantFamilyId: content.variantFamilyId,
       variantId: content.variantId,
       source: 'background_social',
       ...(actionId === 'group_chat' ? { groupScene: true } : {}),
       ...(subjectId ? { subjectId } : {}),
+      ...(disclosedFact
+        ? {
+            intelFactId: disclosedFact.id,
+            intelConfidence: protectionLead?.belief.confidence,
+            intelSourceChain: protectionLead?.belief.sourceChain ?? [],
+            evidence: (protectionLead?.belief.confidence ?? 0) >= 0.64 ? 'credible' : 'weak',
+            truth: 'uncertain',
+          }
+        : {}),
     },
   })
   const priority = getIncomingInteractionPriority(type)
@@ -1150,6 +1230,7 @@ function candidateForPlayer(
           relationships: state.social.relationships,
           memory: state.social.socialMemory,
           network: normalizeDramaSocialNetwork(state.social.dramaNetwork),
+          reality: state.social.reality,
           recentActions: history,
           week: state.game.week ?? 0,
           phase: state.game.phase ?? '',
@@ -1158,6 +1239,7 @@ function candidateForPlayer(
           lohId: state.game.lohId,
           posWinnerId: state.game.posWinnerId,
           nomineeIds: state.game.nomineeIds,
+          povProtectedIds: state.game.povProtectedIds,
         })
       : null
 
@@ -1252,6 +1334,7 @@ function candidateForPlayer(
       dramaMove?.reason ??
       `contextual policy attempt ${attempt + 1}`,
     relationshipIntent: relationshipCandidate?.relationshipIntent,
+    intelFactId: dramaMove?.intelFactId,
   }
 }
 
@@ -1274,7 +1357,8 @@ function executeCandidate(
       candidate.actionId,
       candidate.subjectId,
       costs,
-      [primaryTarget.id]
+      [primaryTarget.id],
+      candidate.intelFactId
     )
     if (route === 'scheduled') return true
     if (route === 'blocked' || route === 'deferred') return false
@@ -1291,7 +1375,8 @@ function executeCandidate(
       candidate.actionId,
       candidate.subjectId,
       costs,
-      candidate.targetIds
+      candidate.targetIds,
+      candidate.intelFactId
     )
     if (route === 'scheduled') return true
     if (route === 'blocked' || route === 'deferred') return false

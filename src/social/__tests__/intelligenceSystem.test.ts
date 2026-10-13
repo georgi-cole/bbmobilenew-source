@@ -1,8 +1,23 @@
+import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import type { Player } from '../../types'
 import { addRealityFact, learnRealityFact } from '../reality/knowledge'
 import { createInitialRealityDomainState } from '../reality/state'
+import {
+  getRealityAllianceKnowledgeView,
+  recordRealityAllianceDiscovery,
+  recordRealityAllianceInvitation,
+} from '../reality/allianceKnowledge'
+import { createRealityAlliance } from '../reality/relationshipForms'
+import { SOCIAL_INITIAL_STATE } from '../constants'
+import { migrateSocialState } from '../socialStateMigration'
+import socialReducer, {
+  hydrateSocial,
+  recordIntelligenceDelivery,
+  replaceRealityDomain,
+} from '../socialSlice'
+import { deliverIntelActionFact } from '../intelligenceMiddleware'
 import {
   applyCompetitionIntentToScore,
   buildIntelFactFromSocialAction,
@@ -11,6 +26,7 @@ import {
   getIntelLeadViews,
   makeIntelMemory,
   selectDiscoverableFact,
+  selectIntelActionFact,
   selectIntelFactForActor,
 } from '../intelligenceSystem'
 
@@ -106,7 +122,7 @@ describe('intelligence system', () => {
     })
     learnRealityFact(domain, { ownerId: 'human', factId: fact.id, memory, confidence: 0.7 })
     const [lead] = getIntelLeadViews(domain, 'human', players, 4)
-    expect(lead.text).toContain('Sol and Lux')
+    expect(lead.text).toContain('Sol, Lux')
     expect(lead.confidence).toBe('Credible')
     expect(lead.source).toBe('House rumour')
   })
@@ -244,6 +260,119 @@ describe('intelligence system', () => {
     expect(selectIntelFactForActor(domain, 'sol', 'human', 4)).toBeNull()
   })
 
+  it('round-trips rejected-invitation knowledge and delivery deduplication through a saved social state', () => {
+    const domain = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(domain, {
+      id: 'rejected-invite-pact',
+      founderIds: ['sol', 'mara'],
+      memberIds: ['kai'],
+      purpose: 'Protect the vote',
+      at: { day: 4, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+
+    expect(
+      recordRealityAllianceInvitation(domain, {
+        allianceId: alliance.id,
+        inviterId: 'sol',
+        inviteeId: 'lux',
+        at: { day: 4, phase: 'social_1' },
+        sourceEventId: 'invite-rejected-by-lux',
+      })
+    ).not.toBeNull()
+    expect(alliance.memberIds).not.toContain('lux')
+
+    const factId = Object.keys(domain.beliefsByOwner.lux ?? {})[0]?.replace('belief:lux:', '')
+    expect(factId).toBeTruthy()
+    const savedSocialState = JSON.parse(
+      JSON.stringify({
+        ...SOCIAL_INITIAL_STATE,
+        reality: domain,
+        intelligenceDeliveries: [
+          {
+            id: `intel-delivery:action:lux:${factId}`,
+            factId,
+            channel: 'social_action',
+            day: 4,
+            recipientId: 'lux',
+          },
+        ],
+      })
+    )
+
+    const restored = migrateSocialState(savedSocialState)
+    const view = getRealityAllianceKnowledgeView(restored.reality, alliance.id, 'lux')
+
+    expect(view.fullMembershipKnown).toBe(true)
+    expect(view.knownMemberIds.sort()).toEqual(['kai', 'mara', 'sol'])
+    expect(restored.intelligenceDeliveries).toHaveLength(1)
+    expect(restored.intelligenceDeliveries?.[0]?.factId).toBe(factId)
+
+    const store = configureStore({ reducer: { social: socialReducer } })
+    store.dispatch(hydrateSocial(restored))
+    store.dispatch(recordIntelligenceDelivery(restored.intelligenceDeliveries![0]))
+    expect(store.getState().social.intelligenceDeliveries).toHaveLength(1)
+  })
+
+  it('shares a genuinely new member from an overlapping pact once, without repeating the chain', () => {
+    const domain = createInitialRealityDomainState()
+    const inner = createRealityAlliance(domain, {
+      id: 'overlap-inner-pact',
+      founderIds: ['lia', 'kai'],
+      memberIds: [],
+      purpose: 'Core protection',
+      at: { day: 3, phase: 'social_1' },
+    })
+    inner.status = 'ACTIVE'
+    const wider = createRealityAlliance(domain, {
+      id: 'overlap-wide-pact',
+      founderIds: ['lia', 'kai'],
+      memberIds: ['nova'],
+      purpose: 'Wider vote plan',
+      at: { day: 4, phase: 'social_1' },
+    })
+    wider.status = 'ACTIVE'
+
+    recordRealityAllianceInvitation(domain, {
+      allianceId: inner.id,
+      inviterId: 'lia',
+      inviteeId: 'lux',
+      at: { day: 4, phase: 'social_1' },
+      sourceEventId: 'inner-invite',
+    })
+    recordRealityAllianceDiscovery(domain, {
+      allianceId: wider.id,
+      observerId: 'sol',
+      revealedMemberIds: wider.memberIds,
+      confidence: 0.9,
+      fullMembershipKnown: true,
+      at: { day: 5, phase: 'social_1' },
+      sourceEventId: 'wider-discovery',
+    })
+
+    const offered = selectIntelFactForActor(domain, 'sol', 'lux', 5)
+    expect(offered?.fact.objectId).toBe(wider.id)
+    expect(offered?.fact.subjectIds).toContain('nova')
+
+    if (!offered) throw new Error('Expected the wider alliance lead to be offered')
+    learnRealityFact(domain, {
+      ownerId: 'lux',
+      factId: offered.fact.id,
+      confidence: 0.72,
+      memory: makeIntelMemory({
+        ownerId: 'lux',
+        fact: offered.fact,
+        sourceType: 'HEARSAY',
+        sourceChain: ['sol'],
+        confidence: 0.72,
+        day: 5,
+        phase: 'social_1',
+      }),
+    })
+
+    expect(selectIntelFactForActor(domain, 'sol', 'lux', 5)).toBeNull()
+  })
+
   it('keeps public alliance exposure copy compact for large coalitions', () => {
     const extendedPlayers: Player[] = [
       ...players,
@@ -295,5 +424,82 @@ describe('intelligence system', () => {
     expect(selectDiscoverableFact(domain, 'human', 4, new Set(), false)?.id).toBe(
       'fact:intel:private-meeting'
     )
+  })
+
+  it('uses one shared daily cap for observation discovery and private intel delivery', () => {
+    const domain = createInitialRealityDomainState()
+    addRealityFact(domain, {
+      id: 'fact:intel:observed-meeting',
+      propositionType: 'SECRET_MEETING',
+      subjectIds: ['sol', 'lux'],
+      value: true,
+      day: 4,
+      phase: 'social_1',
+      visibility: 'GROUP_VISIBLE',
+      participantIds: ['sol', 'lux'],
+      witnessIds: ['sol'],
+      viewerVisible: false,
+      publicVisible: false,
+      juryVisible: false,
+      sourceEventId: 'social:observed-meeting',
+    })
+
+    expect(selectIntelActionFact(domain, [], 'human', 4, 'observe')?.id).toBe(
+      'fact:intel:observed-meeting'
+    )
+    expect(
+      selectIntelActionFact(
+        domain,
+        [
+          {
+            id: 'incoming-one',
+            factId: 'other-one',
+            channel: 'incoming',
+            day: 4,
+            recipientId: 'human',
+          },
+          {
+            id: 'incoming-two',
+            factId: 'other-two',
+            channel: 'incoming',
+            day: 4,
+            recipientId: 'human',
+          },
+        ],
+        'human',
+        4,
+        'observe'
+      )
+    ).toBeNull()
+    expect(selectIntelActionFact(domain, [], 'human', 2, 'observe')).toBeNull()
+  })
+
+  it('replays an observed lead into the restored Reality domain exactly once', () => {
+    const store = configureStore({ reducer: { social: socialReducer } })
+    const domain = createInitialRealityDomainState()
+    const fact = {
+      id: 'fact:intel:restored-observation',
+      propositionType: 'SECRET_MEETING' as const,
+      subjectIds: ['sol', 'lux'],
+      value: true,
+      day: 4,
+      phase: 'social_1',
+      visibility: 'GROUP_VISIBLE' as const,
+      participantIds: ['sol', 'lux'],
+      witnessIds: ['sol'],
+      viewerVisible: false,
+      publicVisible: false,
+      juryVisible: false,
+      sourceEventId: 'social:restored-observation',
+    }
+    addRealityFact(domain, fact)
+    store.dispatch(replaceRealityDomain(domain))
+
+    deliverIntelActionFact(store.dispatch, fact, 'human', 'observe', 4, 'social_1')
+    deliverIntelActionFact(store.dispatch, fact, 'human', 'observe', 4, 'social_1')
+
+    const restored = store.getState().social
+    expect(restored.reality.beliefsByOwner.human[`belief:human:${fact.id}`]?.status).toBe('ACTIVE')
+    expect(restored.intelligenceDeliveries).toHaveLength(1)
   })
 })

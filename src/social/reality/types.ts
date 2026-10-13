@@ -168,6 +168,8 @@ export interface RealityFact {
   publicVisible: boolean
   juryVisible: boolean
   sourceEventId: string
+  /** True when this evidence disclosed the complete alliance roster at the time. */
+  fullMembershipKnown?: boolean
   /** The roster disclosed by this evidence, not a promise of future disclosure. */
   rosterRevision?: number
   disclosedMemberIds?: RealityActorId[]

@@ -243,4 +243,32 @@ describe('Drama Mode story network', () => {
     expect(discovered.arcs[0].discoveredByIds).toContain('nova')
     expect(discovered.rumours[0]).toMatchObject({ kind: 'secret_romance', truth: 'true' })
   })
+
+  it('does not uncover a second legacy lead when Reality already delivered one', () => {
+    const network = createInitialDramaSocialNetwork()
+    network.arcs.push({
+      id: 'romance:human~lia:2',
+      type: 'romance',
+      participantIds: ['human', 'lia'],
+      stage: 'established',
+      intensity: 70,
+      startedWeek: 2,
+      lastAdvancedWeek: 2,
+      public: false,
+      status: 'active',
+    })
+
+    const next = applyDramaActionEffect(network, {
+      actionId: 'snoop_around',
+      actorId: 'nova',
+      targetId: 'human',
+      intelFactId: 'fact:intel:already-delivered',
+      week: 3,
+      phase: 'social_2',
+      success: true,
+    })
+
+    expect(next.arcs[0].discoveredByIds).not.toContain('nova')
+    expect(next.rumours).toHaveLength(0)
+  })
 })

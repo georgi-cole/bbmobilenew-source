@@ -6,6 +6,7 @@ import {
   createRealityAlliance,
   finalizeRealityVote,
   generateRealityJuryQuestion,
+  getRealityAllianceKnowledgeView,
   holdRealityAllianceMeeting,
   recordRealityAllianceBetrayal,
   recordRealityCeremonyOutcome,
@@ -415,6 +416,10 @@ describe('Reality alliance ceremony consequences', () => {
           (event.actorId === 'lia' || event.targetIds.includes('lia'))
       )
     ).toBe(false)
+    const formerMemberView = getRealityAllianceKnowledgeView(state, wider.id, 'lia')
+    expect(formerMemberView.fullMembershipKnown).toBe(true)
+    expect(formerMemberView.historicalMemberIds).toContain('lia')
+    expect(formerMemberView.knownMemberIds.sort()).toEqual(['ava', 'kai'])
   })
 
   it('rewards following a known alliance vote plan only once across vote projections', () => {
