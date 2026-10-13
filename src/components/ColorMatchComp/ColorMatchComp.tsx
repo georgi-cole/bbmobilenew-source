@@ -587,6 +587,13 @@ export default function ColorMatchComp({
       return (
         <div className="cm" data-testid="color-match-comp">
           <div className="cm__card cm__card--results">
+            <header className="cm__header cm__header--results">
+              <div>
+                <span className="cm__eyebrow">Color studio</span>
+                <span className="cm__round-label">Competition results</span>
+              </div>
+              <span className="cm__result-mark" aria-hidden="true">✦</span>
+            </header>
             <div className="cm__title">🎨 Color Match</div>
             <div className="cm__subtitle">Competition Results</div>
             <div className="cm__final-score">{competitionWinner ? `${competitionWinner.participantName}` : 'No Winner'}</div>
@@ -635,6 +642,13 @@ export default function ColorMatchComp({
     return (
       <div className="cm" data-testid="color-match-comp">
         <div className="cm__card cm__card--results">
+          <header className="cm__header cm__header--results">
+            <div>
+              <span className="cm__eyebrow">Color studio</span>
+              <span className="cm__round-label">Final results</span>
+            </div>
+            <span className="cm__result-mark" aria-hidden="true">✦</span>
+          </header>
           <div className="cm__title">🎨 Color Match</div>
           <div className="cm__subtitle">Final Results</div>
           <div className="cm__final-score">{finalScore}<span className="cm__final-unit">%</span></div>
@@ -678,9 +692,12 @@ export default function ColorMatchComp({
   if (phase === 'mixing') {
     return (
       <div className="cm" data-testid="color-match-comp">
-        <div className="cm__card">
+        <div className="cm__card cm__card--mixing">
           <header className="cm__header">
-            <span className="cm__round-label">{roundLabelContent}</span>
+            <div>
+              <span className="cm__eyebrow">Color studio</span>
+              <span className="cm__round-label">{roundLabelContent}</span>
+            </div>
             <span className="cm__timer" />
           </header>
           <div className="cm__mixing-stage" aria-label="Color mixing animation">
@@ -698,6 +715,7 @@ export default function ColorMatchComp({
               </div>
             )}
           </div>
+          <div className="cm__footer cm__footer--empty" aria-hidden="true" />
         </div>
       </div>
     );
@@ -706,14 +724,18 @@ export default function ColorMatchComp({
   // ── Playing / feedback screen ────────────────────────────────────────────────
   return (
     <div className="cm" data-testid="color-match-comp">
-      <div className="cm__card">
+      <div className="cm__card cm__card--play">
         <header className="cm__header">
-          <span className="cm__round-label">{roundLabelContent}</span>
+          <div>
+            <span className="cm__eyebrow">Color studio</span>
+            <span className="cm__round-label">{roundLabelContent}</span>
+          </div>
           <span className={['cm__timer', isUrgent ? 'cm__timer--urgent' : ''].filter(Boolean).join(' ')} aria-live={isUrgent ? 'assertive' : 'off'} aria-atomic="true">
             {timeLeft}s
           </span>
         </header>
 
+        <div className="cm__play-body">
         <div className="cm__timer-bar" role="progressbar" aria-valuenow={timeLeft} aria-valuemin={0} aria-valuemax={ROUND_TIME_S}>
           <div className={['cm__timer-fill', isUrgent ? 'cm__timer-fill--urgent' : ''].filter(Boolean).join(' ')} style={{ width: `${progressPct}%` }} />
         </div>
@@ -758,22 +780,47 @@ export default function ColorMatchComp({
           </div>
         </div>
 
-        {hintMessage && phase === 'playing' && (
-          <div className="cm__hint-panel" aria-live="polite" data-testid="hint-panel">
-            <div className="cm__hint-panel-title">💡 Hint {hintsUsedThisRound}</div>
-            <div className="cm__hint-panel-body">{hintMessage}</div>
-          </div>
-        )}
+        <div className="cm__status-slot" aria-live="polite">
+          {hintMessage && phase === 'playing' && (
+            <div className="cm__hint-panel" data-testid="hint-panel">
+              <div className="cm__hint-panel-title">💡 Hint {hintsUsedThisRound}</div>
+              <div className="cm__hint-panel-body">{hintMessage}</div>
+            </div>
+          )}
 
-        {phase === 'feedback' && (
-          <div className="cm__feedback" aria-live="assertive">
-            {timedOut ? (
-              <span className="cm__feedback-text cm__feedback-text--timeout">⏱ Time's up! +0</span>
-            ) : (
-              <span className="cm__feedback-text">{feedbackLabel} — {feedbackScoreText}</span>
-            )}
-          </div>
-        )}
+          {phase === 'feedback' && (
+            <div className="cm__feedback" aria-live="assertive">
+              {timedOut ? (
+                <span className="cm__feedback-text cm__feedback-text--timeout">⏱ Time's up! +0</span>
+              ) : (
+                <span className="cm__feedback-text">{feedbackLabel} — {feedbackScoreText}</span>
+              )}
+            </div>
+          )}
+
+          {competitionMode && phase === 'feedback' && roundScoreboard.length > 0 && (
+            <div className="cm__hint-panel cm__round-standings" aria-live="polite">
+              <div className="cm__hint-panel-title">
+                Round {roundIndex + 1} standings
+                {roundEliminatedIds.length > 0 ? ` — ${roundEliminatedIds.length} eliminated` : ''}
+              </div>
+              <div className="cm__hint-panel-body">
+                {roundScoreboard.map((entry) => (
+                  <div key={entry.participantId}>
+                    {entry.participantName}{entry.isHuman ? ' (You)' : ''}: {formatColorMatchScore(entry.score, roundScorePrecision)}
+                    {roundEliminatedIds.includes(entry.participantId) ? ' — eliminated' : ''}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {phase === 'playing' && competitionMode && !humanStillActive && (
+            <div className="cm__feedback">
+              <span className="cm__feedback-text">You were eliminated. Resolving the rest of the round…</span>
+            </div>
+          )}
+        </div>
 
         {(!competitionMode || humanStillActive) && (
           <div className="cm__sliders" aria-label="RGB color controls">
@@ -802,23 +849,9 @@ export default function ColorMatchComp({
           </div>
         )}
 
-        {competitionMode && phase === 'feedback' && roundScoreboard.length > 0 && (
-          <div className="cm__hint-panel" aria-live="polite">
-            <div className="cm__hint-panel-title">
-              Round {roundIndex + 1} standings
-              {roundEliminatedIds.length > 0 ? ` — ${roundEliminatedIds.length} eliminated` : ''}
-            </div>
-            <div className="cm__hint-panel-body">
-              {roundScoreboard.map((entry) => (
-                <div key={entry.participantId}>
-                  {entry.participantName}{entry.isHuman ? ' (You)' : ''}: {formatColorMatchScore(entry.score, roundScorePrecision)}
-                  {roundEliminatedIds.includes(entry.participantId) ? ' — eliminated' : ''}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
 
+        <footer className="cm__footer">
         {phase === 'playing' && (!competitionMode || humanStillActive) && (
           <div className="cm__action-row">
             <button className="cm__btn cm__btn--hint" onClick={handleHintPress} type="button" disabled={hintsRemaining <= 0}>
@@ -829,21 +862,20 @@ export default function ColorMatchComp({
             </button>
           </div>
         )}
-        {phase === 'playing' && competitionMode && !humanStillActive && (
-          <div className="cm__feedback" aria-live="polite">
-            <span className="cm__feedback-text">You were eliminated. Resolving the rest of the round…</span>
-          </div>
-        )}
         {phase === 'feedback' && (
             <button className="cm__btn cm__btn--next" onClick={handleNext} type="button" autoFocus>
             {feedbackCtaLabel}
           </button>
         )}
         {competitionMode && phase === 'feedback' && !humanStillActive && !competitionOver && (
-          <button className="cm__btn cm__btn--next cm__btn--secondary" onClick={skipToResults} type="button">
+          <button className="cm__btn cm__btn--secondary" onClick={skipToResults} type="button">
             Skip to Results
           </button>
         )}
+        {phase === 'playing' && competitionMode && !humanStillActive && (
+          <div className="cm__footer-status">Spectating the remaining players</div>
+        )}
+        </footer>
       </div>
 
       {hintWarning && (

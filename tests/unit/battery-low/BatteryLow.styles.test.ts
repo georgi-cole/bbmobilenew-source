@@ -14,6 +14,29 @@ function getRule(css: string, selector: string) {
 }
 
 describe('Battery Low responsive styles', () => {
+  it('uses one opened-cell palette with readable text for every charge tier', () => {
+    const css = read('src/components/VaultVerdict/VaultVerdict.css')
+    const openedRules = css.match(/\.vault-verdict__pod--opened\s*\{/g) ?? []
+
+    expect(openedRules).toHaveLength(1)
+    expect(getRule(css, '.vault-verdict__pod--opened')).toContain('--charge-ink: #f7fbff;')
+    expect(getRule(css, '.vault-verdict__pod--opened .vault-verdict__pod-value')).toContain(
+      'color: #fff;'
+    )
+    expect(css).toContain('.vault-verdict__pod--opened .vault-verdict__pod-number,')
+    expect(css).toContain('color: #e9e4f4;')
+    expect(getRule(css, '.vault-verdict__pod--opened .vault-verdict__pod-special')).toContain(
+      'color: #fff1d3;'
+    )
+    for (const tone of ['medium', 'low', 'critical']) {
+      expect(getRule(css, `.vault-verdict__pod--opened.is-charge-${tone}`)).not.toContain(
+        '--charge-ink:'
+      )
+    }
+    expect(css).toContain('.vault-verdict__pod--opened.is-special-cell.is-doubleVote')
+    expect(css).toContain('.vault-verdict__pod--opened.is-special-cell.is-skipVote')
+  })
+
   it('fills the minigame host without allowing normal gameplay page scrolling', () => {
     const css = read('src/components/VaultVerdict/VaultVerdict.css')
     const root = getRule(css, '.vault-verdict')

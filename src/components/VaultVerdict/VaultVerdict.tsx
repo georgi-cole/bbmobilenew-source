@@ -39,6 +39,9 @@ import type {
 import './VaultVerdict.css'
 
 const FINAL_FEED_LIMIT = 18
+const HERO_REVEAL_DURATION_MS = 3000
+const BANK_OFFER_REVEAL_HOLD_MS = 2600
+const SPECIAL_OFFER_REVEAL_HOLD_MS = 3200
 
 const BATTERY_LOW_ASSET_BASE = `${import.meta.env.BASE_URL}assets/minigames/battery-low/`
 const EYE_BANK_CREST = `${BATTERY_LOW_ASSET_BASE}eye-bank.webp`
@@ -260,6 +263,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
   const [finaleReveal, setFinaleReveal] = useState<FinaleReveal | null>(null)
   const [finaleComplete, setFinaleComplete] = useState(false)
   const [pendingOfferKey, setPendingOfferKey] = useState<string | null>(null)
+  const [presentedOfferKey, setPresentedOfferKey] = useState<string | null>(null)
   const [heroEventVaultId, setHeroEventVaultId] = useState<string | null>(null)
   const { play } = useSound()
 
@@ -314,6 +318,17 @@ export default function BatteryLow(props: GenericMinigameProps) {
   const latestRevealProfile = latestRevealVault
     ? getRevealEffectProfile(latestRevealVault.amount, latestRevealVault.specialEffect)
     : null
+  const offerKey =
+    human.currentOffer == null
+      ? null
+      : `${human.currentRound}:${human.offerHistory.length}:${human.currentOffer}`
+  const offerPresentationKey =
+    human.currentOffer == null ? null : `${human.currentRound}:${human.offerHistory.length}`
+  const offerRevealDelayMs = latestRevealProfile?.hero
+    ? SPECIAL_OFFER_REVEAL_HOLD_MS
+    : BANK_OFFER_REVEAL_HOLD_MS
+  const offerVisible = offerPresentationKey != null && presentedOfferKey === offerPresentationKey
+  const decisionPending = offerKey != null && pendingOfferKey === offerKey
   const activeHeroProfile =
     heroEventVaultId === latestRevealVaultId && latestRevealProfile?.hero
       ? latestRevealProfile
@@ -326,39 +341,41 @@ export default function BatteryLow(props: GenericMinigameProps) {
       : latestReveal > highestRemaining
         ? 'is-voltage-drop'
         : 'is-holding'
-  const eventTone = human.currentOffer != null ? 'has-offer' : ''
+  const eventTone = offerVisible ? 'has-offer' : ''
   const roundProgress = !human.personalVaultId
     ? 'Choose a reserve battery'
-    : human.currentOffer != null
+    : offerVisible
       ? human.currentRound >= VAULT_VERDICT_ROUND_SCHEDULE.length
         ? 'Final decision · Bank Offer ready'
         : `Round ${human.currentRound} · Bank Offer ready`
       : `Round ${human.currentRound} · ${vaultsLeft} pick${vaultsLeft === 1 ? '' : 's'} left`
-  const commentaryMessage =
-    human.currentOffer != null
-      ? human.currentRound >= VAULT_VERDICT_ROUND_SCHEDULE.length
-        ? 'The final Bank Offer is ready.'
-        : 'The Bank has made an offer.'
-      : revealCommentary
-        ? revealCommentary
-        : latestRevealLabel
-          ? `${latestRevealLabel} · ${formatVaultAmount(latestReveal ?? 0)} revealed`
-          : (feed[0]?.message ??
-            (human.personalVaultId
-              ? 'Choose the next battery to reveal.'
-              : 'Choose one battery to protect as your Reserve.'))
-  const offerKey =
-    human.currentOffer == null
-      ? null
-      : `${human.currentRound}:${human.offerHistory.length}:${human.currentOffer}`
-  const decisionPending = offerKey != null && pendingOfferKey === offerKey
-
+  const commentaryMessage = offerVisible
+    ? human.currentRound >= VAULT_VERDICT_ROUND_SCHEDULE.length
+      ? 'The final Bank Offer is ready.'
+      : 'The Bank has made an offer.'
+    : revealCommentary
+      ? revealCommentary
+      : latestRevealLabel
+        ? `${latestRevealLabel} · ${formatVaultAmount(latestReveal ?? 0)} revealed`
+        : (feed[0]?.message ??
+          (human.personalVaultId
+            ? 'Choose the next battery to reveal.'
+            : 'Choose one battery to protect as your Reserve.'))
   useEffect(
     () => () => {
       if (heroTimerRef.current != null) window.clearTimeout(heroTimerRef.current)
     },
     []
   )
+
+  useEffect(() => {
+    if (offerPresentationKey == null) return
+    const timer = window.setTimeout(
+      () => setPresentedOfferKey(offerPresentationKey),
+      offerRevealDelayMs
+    )
+    return () => window.clearTimeout(timer)
+  }, [offerPresentationKey, offerRevealDelayMs])
 
   useEffect(() => {
     if (!human.personalVaultId || human.finalAmount != null) return
@@ -435,7 +452,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
         heroTimerRef.current = window.setTimeout(() => {
           setHeroEventVaultId((current) => (current === vaultId ? null : current))
           heroTimerRef.current = null
-        }, 1800)
+        }, HERO_REVEAL_DURATION_MS)
       } else {
         setHeroEventVaultId(null)
       }
@@ -621,10 +638,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
         )}
 
         {gameActive ? (
-          <main
-            className="vault-verdict__game-grid"
-            aria-hidden={human.currentOffer != null || undefined}
-          >
+          <main className="vault-verdict__game-grid" aria-hidden={offerVisible || undefined}>
             <section className={`vault-verdict__board ${eventTone}`} aria-label="Battery Low board">
               <section
                 className={`vault-verdict__hero-stage ${
@@ -768,9 +782,9 @@ export default function BatteryLow(props: GenericMinigameProps) {
               <p>
                 {finaleReveal.step === 'revealed'
                   ? finaleReveal.reserveEffect === 'doubleVote'
-                    ? 'Power Cell secured. Your next eligible house eviction ballot will count twice.'
+                    ? 'Power Cell secured. Your next eligible Hub elimination ballot will count twice.'
                     : finaleReveal.reserveEffect === 'skipVote'
-                      ? 'Blackout Cell. You will sit out your next eligible house eviction vote.'
+                      ? 'Blackout Cell. You will sit out your next eligible Hub elimination vote.'
                       : finaleReveal.insuranceFloor != null &&
                           finaleReveal.finalCharge > finaleReveal.reserveAmount
                         ? `Insurance catches the fall: ${formatVaultAmount(
@@ -854,7 +868,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
           </main>
         )}
 
-        {human.currentOffer != null && gameActive && (
+        {offerVisible && human.currentOffer != null && gameActive && (
           <div className="vault-verdict__offer-layer">
             <section
               className={`vault-verdict__offer-sheet is-mood-${human.bankMood}${

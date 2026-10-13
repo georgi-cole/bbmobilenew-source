@@ -155,6 +155,7 @@ interface RosterBarProps {
   getAvatar: (id: string) => string
   playerScores?: Record<string, number>
   finalistIds?: string[] | null
+  className?: string
 }
 
 // ─── RosterBar ────────────────────────────────────────────────────────────────
@@ -168,9 +169,10 @@ function RosterBar({
   getAvatar,
   playerScores = {},
   finalistIds = null,
+  className = '',
 }: RosterBarProps) {
   return (
-    <div className="bjt-roster-wrap" aria-label="Remaining players">
+    <div className={`bjt-roster-wrap ${className}`.trim()} aria-label="Remaining players">
       <div className="bjt-roster">
         {allIds.map((id) => {
           const isElim = eliminatedIds.includes(id)
@@ -860,142 +862,172 @@ export default function BlackjackTournamentComp({
 
     return (
       <div className="bjt-container bjt-duel" role="region" aria-label="Blackjack duel">
-        {skipToEndButton}
-        <h2 className="bjt-title">
-          ⚔️{' '}
-          {isFinalDuelActive
-            ? 'Finals Duel'
-            : `League Match ${bt.leagueOpponentIndex + 1}/${bt.leagueOpponentIds.length}`}
-          : {aName} vs {bName}
-        </h2>
-        {isFinalDuelActive && (
-          <p className="bjt-final-score">
-            Final lives: {aName} {bt.playerScores[duel.fighterAId] ?? 0} -
-            {bt.playerScores[duel.fighterBId] ?? 0} {bName}
-          </p>
-        )}
-
-        {/* Fast-forward button */}
-        <button
-          className={`bjt-btn bjt-btn--ff ${speedMultiplier > 1 ? 'bjt-btn--ff-active' : ''}`}
-          onClick={() => setSpeedMultiplier(speedMultiplier > 1 ? 1.0 : FAST_FORWARD_MULT)}
-          aria-label={speedMultiplier > 1 ? 'Normal speed' : 'Fast-forward this round'}
-          title={speedMultiplier > 1 ? 'Normal speed' : 'Fast-forward this round'}
-        >
-          {speedMultiplier > 1 ? '▶ 1×' : '» FF'}
-        </button>
-
-        <div className="bjt-duel-arena" aria-label="Blackjack duel arena">
-          {/* Fighter A */}
-          <div
-            className={[
-              'bjt-duelist',
-              duel.duelTurn === 'fighterA' && !duel.fighterAStood && !duel.fighterABust
-                ? 'bjt-duelist--active'
-                : '',
-              duel.fighterABust ? 'bjt-duelist--bust' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <img
-              src={avatarForId(duel.fighterAId)}
-              alt={aName}
-              className="bjt-avatar bjt-avatar--lg"
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).src = getDicebear(duel.fighterAId)
-              }}
-            />
-            <div className="bjt-duelist-name">
-              {aName}
-              {isHuman(duel.fighterAId) && <span className="bjt-you-badge"> (you)</span>}
-            </div>
-            {renderCards(
-              duel.fighterACards,
-              duel.fighterABust,
-              duel.fighterAStood,
-              highlightFighterACard
+        <header className="bjt-duel-header">
+          <div className="bjt-duel-heading">
+            <span className="bjt-duel-kicker">
+              Blackjack Tournament · {isFinalDuelActive ? 'Finals' : 'League'}
+            </span>
+            <h2 className="bjt-title">
+              {isFinalDuelActive
+                ? 'Final duel'
+                : `Match ${bt.leagueOpponentIndex + 1} of ${bt.leagueOpponentIds.length}`}
+            </h2>
+            {isFinalDuelActive && (
+              <p className="bjt-final-score">
+                {aName} {bt.playerScores[duel.fighterAId] ?? 0} lives
+                <span aria-hidden="true"> · </span>
+                {bt.playerScores[duel.fighterBId] ?? 0} {bName}
+              </p>
             )}
           </div>
-
-          <div className="bjt-vs" aria-hidden="true">
-            VS
+          <div className="bjt-duel-utilities">
+            {skipToEndButton}
+            <button
+              className={`bjt-btn bjt-btn--ff ${speedMultiplier > 1 ? 'bjt-btn--ff-active' : ''}`}
+              onClick={() => setSpeedMultiplier(speedMultiplier > 1 ? 1.0 : FAST_FORWARD_MULT)}
+              aria-label={speedMultiplier > 1 ? 'Normal speed' : 'Fast-forward this round'}
+              title={speedMultiplier > 1 ? 'Normal speed' : 'Fast-forward this round'}
+            >
+              {speedMultiplier > 1 ? '▶ 1×' : '» FF'}
+            </button>
           </div>
+        </header>
 
-          {/* Fighter B */}
-          <div
-            className={[
-              'bjt-duelist',
-              duel.duelTurn === 'fighterB' && !duel.fighterBStood && !duel.fighterBBust
-                ? 'bjt-duelist--active'
-                : '',
-              duel.fighterBBust ? 'bjt-duelist--bust' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <img
-              src={avatarForId(duel.fighterBId)}
-              alt={bName}
-              className="bjt-avatar bjt-avatar--lg"
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).src = getDicebear(duel.fighterBId)
-              }}
-            />
-            <div className="bjt-duelist-name">
-              {bName}
-              {isHuman(duel.fighterBId) && <span className="bjt-you-badge"> (you)</span>}
+        <div className="bjt-duel-layout">
+          <section className="bjt-table-surface" aria-label="Blackjack table">
+            <div className="bjt-table-heading">
+              <span>THE TABLE</span>
+              <span>
+                Round {bt.duelIndex + 1}
+                {bt.rematchCount > 0 ? ` · Rematch ${bt.rematchCount}` : ''}
+              </span>
             </div>
-            {renderCards(
-              duel.fighterBCards,
-              duel.fighterBBust,
-              duel.fighterBStood,
-              highlightFighterBCard
-            )}
-          </div>
+            <div className="bjt-duel-arena" aria-label="Blackjack duel arena">
+              {/* Fighter A */}
+              <div
+                className={[
+                  'bjt-duelist',
+                  duel.duelTurn === 'fighterA' && !duel.fighterAStood && !duel.fighterABust
+                    ? 'bjt-duelist--active'
+                    : '',
+                  duel.fighterABust ? 'bjt-duelist--bust' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <img
+                  src={avatarForId(duel.fighterAId)}
+                  alt={aName}
+                  className="bjt-avatar bjt-avatar--lg"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = getDicebear(duel.fighterAId)
+                  }}
+                />
+                <div className="bjt-duelist-name">
+                  {aName}
+                  {isHuman(duel.fighterAId) && <span className="bjt-you-badge"> (you)</span>}
+                </div>
+                {renderCards(
+                  duel.fighterACards,
+                  duel.fighterABust,
+                  duel.fighterAStood,
+                  highlightFighterACard
+                )}
+              </div>
+
+              <div className="bjt-vs" aria-hidden="true">
+                VS
+              </div>
+
+              {/* Fighter B */}
+              <div
+                className={[
+                  'bjt-duelist',
+                  duel.duelTurn === 'fighterB' && !duel.fighterBStood && !duel.fighterBBust
+                    ? 'bjt-duelist--active'
+                    : '',
+                  duel.fighterBBust ? 'bjt-duelist--bust' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <img
+                  src={avatarForId(duel.fighterBId)}
+                  alt={bName}
+                  className="bjt-avatar bjt-avatar--lg"
+                  onError={(e) => {
+                    ;(e.target as HTMLImageElement).src = getDicebear(duel.fighterBId)
+                  }}
+                />
+                <div className="bjt-duelist-name">
+                  {bName}
+                  {isHuman(duel.fighterBId) && <span className="bjt-you-badge"> (you)</span>}
+                </div>
+                {renderCards(
+                  duel.fighterBCards,
+                  duel.fighterBBust,
+                  duel.fighterBStood,
+                  highlightFighterBCard
+                )}
+              </div>
+            </div>
+
+            <div className="bjt-duel-footer">
+              <p className="bjt-turn-label" role="status" aria-live="polite">
+                {duel.duelTurn === 'finished'
+                  ? 'Hand complete'
+                  : humanTurn
+                    ? 'Your turn — hit or stand?'
+                    : `${activeName} is deciding…`}
+              </p>
+              <div className="bjt-duel-action-slot">
+                {humanTurn && humanInDuel ? (
+                  <div className="bjt-actions" role="group" aria-label="Duel actions">
+                    <button
+                      className="bjt-btn bjt-btn--hit"
+                      onClick={() => dispatch(hitCurrentPlayer())}
+                      aria-label="Hit — take another card"
+                    >
+                      Hit <span aria-hidden="true">🃏</span>
+                    </button>
+                    <button
+                      className="bjt-btn bjt-btn--stand"
+                      onClick={() => dispatch(standCurrentPlayer())}
+                      aria-label="Stand — keep current hand"
+                    >
+                      Stand <span aria-hidden="true">✋</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bjt-actions-placeholder" aria-hidden="true">
+                    {bt.isSpectating && duel.duelTurn !== 'finished' ? 'Spectating this hand' : ' '}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <aside className="bjt-standings-card" aria-label="Tournament standings">
+            <div className="bjt-standings-heading">
+              <div>
+                <span className="bjt-duel-kicker">Tournament</span>
+                <h3>Standings</h3>
+              </div>
+              <span className="bjt-standings-count">{bt.remainingPlayerIds.length} active</span>
+            </div>
+            <RosterBar
+              allIds={allParticipantIds}
+              eliminatedIds={bt.eliminatedPlayerIds}
+              controllingId={bt.controllingPlayerId}
+              humanId={bt.humanPlayerId}
+              getName={getName}
+              getAvatar={avatarForId}
+              playerScores={bt.playerScores}
+              finalistIds={bt.finalistIds}
+              className="bjt-standings-roster"
+            />
+          </aside>
         </div>
-
-        {duel.duelTurn !== 'finished' && (
-          <p className="bjt-turn-label" role="status" aria-live="polite">
-            {humanTurn ? `Your turn — hit or stand?` : `${activeName} is deciding…`}
-          </p>
-        )}
-
-        {humanTurn && humanInDuel && (
-          <div className="bjt-actions" role="group" aria-label="Duel actions">
-            <button
-              className="bjt-btn bjt-btn--hit"
-              onClick={() => dispatch(hitCurrentPlayer())}
-              aria-label="Hit — take another card"
-            >
-              Hit 🃏
-            </button>
-            <button
-              className="bjt-btn bjt-btn--stand"
-              onClick={() => dispatch(standCurrentPlayer())}
-              aria-label="Stand — keep current hand"
-            >
-              Stand ✋
-            </button>
-          </div>
-        )}
-
-        {bt.isSpectating && duel.duelTurn !== 'finished' && (
-          <p className="bjt-spectator-note" aria-live="polite">
-            👁 Spectating…
-          </p>
-        )}
-
-        <RosterBar
-          allIds={allParticipantIds}
-          eliminatedIds={bt.eliminatedPlayerIds}
-          controllingId={bt.controllingPlayerId}
-          humanId={bt.humanPlayerId}
-          getName={getName}
-          getAvatar={avatarForId}
-          playerScores={bt.playerScores}
-          finalistIds={bt.finalistIds}
-        />
       </div>
     )
   }
@@ -1142,7 +1174,7 @@ export default function BlackjackTournamentComp({
   // ── Complete phase ────────────────────────────────────────────────────────
   if (phase === 'complete') {
     const winnerName = bt.winnerId ? getName(bt.winnerId) : 'Unknown'
-    const prizeLabel = bt.competitionType === 'LOH' ? 'Leader of the House' : 'Power of Safety'
+    const prizeLabel = bt.competitionType === 'LOH' ? 'Leader of the Hub' : 'Power of Safety'
 
     return (
       <div className="bjt-container bjt-complete" role="status" aria-live="assertive">

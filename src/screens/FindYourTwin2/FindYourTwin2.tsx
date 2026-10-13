@@ -45,7 +45,7 @@ export default function FindYourTwin2() {
           <article>
             <span>🖼️</span>
             <strong>Secret castle rooms</strong>
-            <small>Discover the Housemate Gallery and the mysterious Kolequant Vault.</small>
+            <small>Discover the Hubmate Gallery and the mysterious Kolequant Vault.</small>
           </article>
         </div>
 
