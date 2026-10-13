@@ -408,28 +408,42 @@ export default function RealityLedger({
               <>
                 {alliances.map(({ alliance, knowledge }) => {
                   const isMember = knowledge.level === 'MEMBER'
+                  const isFormerAlliance = !isMember && alliance.status === 'DISSOLVED'
                   const badge = isMember
                     ? allianceStatusLabel(alliance.status)
-                    : knowledge.level === 'PUBLIC'
-                      ? 'Public alliance'
-                      : knowledge.level === 'CONFIRMED'
-                        ? 'Confirmed pact'
-                        : 'Suspected pact'
+                    : isFormerAlliance
+                      ? 'Former alliance'
+                      : knowledge.level === 'PUBLIC'
+                        ? 'Public alliance'
+                        : knowledge.level === 'CONFIRMED'
+                          ? 'Confirmed pact'
+                          : 'Suspected pact'
                   const detail = isMember
                     ? `${Math.round((knowledge.cohesion ?? 0) * 100)}% cohesion · ${allianceSecrecyLabel(
                         knowledge.secrecy ?? 0
                       )}`
-                    : knowledge.level === 'PUBLIC'
-                      ? 'House-known'
-                      : confidenceLabel(knowledge.confidence)
+                    : isFormerAlliance
+                      ? 'Historical'
+                      : knowledge.level === 'PUBLIC'
+                        ? 'House-known'
+                        : confidenceLabel(knowledge.confidence)
                   const title =
                     knowledge.displayName ??
                     (isMember
                       ? 'Private pact'
-                      : knowledge.level === 'PUBLIC'
-                        ? 'Exposed alliance'
-                        : 'Possible alliance')
-                  const knownMembers = knowledge.knownMemberIds.map(playerName).join(' · ')
+                      : isFormerAlliance
+                        ? 'Former alliance'
+                        : knowledge.level === 'PUBLIC'
+                          ? 'Exposed alliance'
+                          : knowledge.level === 'CONFIRMED'
+                            ? 'Known alliance'
+                            : 'Possible alliance')
+                  const knownMembers = [
+                    ...knowledge.knownMemberIds.map(playerName),
+                    ...knowledge.historicalMemberIds.map(
+                      (memberId) => `${playerName(memberId)} (former)`
+                    ),
+                  ].join(' · ')
                   const memberHierarchy = isMember
                     ? knowledge.knownMemberIds
                         .map((memberId) => {

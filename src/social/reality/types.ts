@@ -165,6 +165,8 @@ export interface RealityFact {
   publicVisible: boolean
   juryVisible: boolean
   sourceEventId: string
+  /** True when this evidence disclosed the complete alliance roster at the time. */
+  fullMembershipKnown?: boolean
 }
 
 export type RealityPromiseStatus = 'PROPOSED' | 'ACTIVE' | 'KEPT' | 'BROKEN' | 'VOID'

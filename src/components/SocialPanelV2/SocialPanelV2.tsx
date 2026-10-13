@@ -42,6 +42,7 @@ import { getPublicRequestProgressStage } from '../../publicOpinion/publicRequest
 import IntelLeads from './IntelLeads'
 import { getRelationshipLabel } from './relationshipUtils'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { formatIntelLeadText, selectIntelFactForActor } from '../../social/intelligenceSystem'
 import RealitySocialTutorialTour, {
   RealitySocialTutorialPrompt,
 } from '../../onboarding/RealitySocialTutorialTour'
@@ -959,6 +960,12 @@ export default function SocialPanelV2() {
         selectedActionId === 'group_chat'
           ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
           : selectedActionId === 'ask_loh_target' ||
+              selectedActionId === 'trade_secrets' ||
+              selectedActionId === 'observe' ||
+              selectedActionId === 'read_the_room' ||
+              selectedActionId === 'snoop_around' ||
+              selectedActionId === 'eavesdrop' ||
+              selectedActionId === 'expose_secret' ||
               selectedActionId === 'share_pregnancy_news' ||
               selectedActionId === 'pregnancy_test_self' ||
               selectedActionId === 'paternity_test_self'
@@ -1024,6 +1031,29 @@ export default function SocialPanelV2() {
     targetMode,
     totalCosts,
     usesMultipleTargets,
+  ])
+
+  const tradeIntelPreview = useMemo(() => {
+    if (selectedActionId !== 'trade_secrets' || !humanPlayer || !effectivePrimaryTargetId) {
+      return null
+    }
+    const offer = selectIntelFactForActor(
+      socialState.reality,
+      humanPlayer.id,
+      effectivePrimaryTargetId,
+      game.week
+    )
+    if (!offer) {
+      return 'No fresh lead to offer. They may still have one to share.'
+    }
+    return `Ready to share: ${formatIntelLeadText(offer.fact, game.players)}`
+  }, [
+    effectivePrimaryTargetId,
+    game.players,
+    game.week,
+    humanPlayer,
+    selectedActionId,
+    socialState.reality,
   ])
 
   if (!open || !humanPlayer) return null
@@ -1550,6 +1580,13 @@ export default function SocialPanelV2() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {tradeIntelPreview && (
+          <div className="sp2-trade-preview" role="status" aria-live="polite">
+            <span className="sp2-trade-preview__label">Trade preview</span>
+            <span className="sp2-trade-preview__text">{tradeIntelPreview}</span>
           </div>
         )}
 

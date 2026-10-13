@@ -1263,10 +1263,11 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           actorId: entry.actorId,
           targetId: entry.targetId,
           subjectId: entry.subjectId,
+          intelFactId: entry.context?.intelFactId ?? undefined,
           actorName,
           targetName,
           week: entry.week ?? state.game.week ?? 1,
-          phase: state.game.phase,
+          phase: state.game.phase ?? 'social',
           success: entry.outcome === 'success',
         })
       )

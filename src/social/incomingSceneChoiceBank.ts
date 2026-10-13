@@ -115,6 +115,13 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
       'End the pitch',
     ],
   ],
+  trade_secrets_offer: [
+    ['Take the trade', 'Hear the offer', 'Keep your information close', 'End the conversation'],
+  ],
+  protection_deal: [['Take the deal', 'Ask for time', 'Refuse clearly', 'End the pitch']],
+  protection_deal_future_vote: [
+    ['Take the deal', 'Ask for time', 'Refuse clearly', 'End the pitch'],
+  ],
   survivor_gratitude: [
     ['Share the moment', 'Accept the thanks', 'Remind them who helped', 'Move on'],
     ['Strengthen the bond', 'Keep it modest', 'Call in a favor', 'Change the subject'],

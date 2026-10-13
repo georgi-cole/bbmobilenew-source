@@ -128,6 +128,10 @@ export function simulateRealitySeason(
   )
 
   for (let day = 1; day <= days; day += 1) {
+    // Reality opportunities commit frozen Immer snapshots. Ceremony helpers
+    // intentionally mutate their supplied draft, so start each new day from a
+    // detached mutable snapshot before applying official outcomes.
+    domain = structuredClone(domain)
     const activeIds = actorIds.filter((actorId) => !inactiveIds.has(actorId))
     const activeAI = activeIds.filter((actorId) => actorId !== humanId)
     if (activeAI.length === 0) break
@@ -212,6 +216,9 @@ export function simulateRealitySeason(
     }
 
     if (day % 2 === 0 && activeIds.length > 3 && nominees[0]) {
+      // A resolved opportunity also returns a frozen committed snapshot. The
+      // mid-day vote and eviction ceremonies mutate the same season state.
+      domain = structuredClone(domain)
       recordRealityCeremonyOutcome(domain, {
         kind: 'VOTES_REVEALED',
         day,

@@ -1,7 +1,10 @@
 import { normalizeAffinity } from './affinityUtils'
+import { selectIntelFactForActor } from './intelligenceSystem'
 import type { DramaAIMove, DramaAIMoveInput } from './dramaModeEngine'
+import { DRAMA_MODE_CONFIG } from './dramaModeConfig'
 import { getSocialPersonality } from './socialPersonalityBank'
 import { getSocialRuntimeConfig } from './socialRuntimeConfig'
+import { isExposableRealitySecretType, resolveRealityAllianceIdForFact } from './reality/knowledge'
 
 interface DramaCandidate extends DramaAIMove {
   utility: number
@@ -37,6 +40,110 @@ function repeatedThisWeek(input: DramaAIMoveInput, actionId: string, targetId: s
       entry.targetId === targetId &&
       entry.week === input.week
   ).length
+}
+
+function usedThisWeek(input: DramaAIMoveInput, actionId: string, limit: number): boolean {
+  return (
+    (input.recentActions ?? []).filter(
+      (entry) =>
+        entry.actorId === input.actorId && entry.actionId === actionId && entry.week === input.week
+    ).length >= limit
+  )
+}
+
+function hasActiveAlliance(input: DramaAIMoveInput, targetId: string): boolean {
+  return Object.values(input.reality?.alliances ?? {}).some(
+    (alliance) =>
+      (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+      alliance.memberIds.includes(input.actorId) &&
+      alliance.memberIds.includes(targetId)
+  )
+}
+
+function canTradeWith(input: DramaAIMoveInput, targetId: string): boolean {
+  if (!input.reality) return false
+  return Boolean(
+    selectIntelFactForActor(input.reality, input.actorId, targetId, input.week) ||
+    selectIntelFactForActor(input.reality, targetId, input.actorId, input.week)
+  )
+}
+
+function bestExposureTarget(
+  input: DramaAIMoveInput
+):
+  | { targetId: string; confidence: number; propositionType: string; allianceId?: string }
+  | undefined {
+  const domain = input.reality
+  if (!domain) return undefined
+  const activeAiIds = new Set(
+    input.players
+      .filter((player) => !player.isUser && player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
+  const exposedFactIds = new Set<string>()
+  const exposedAllianceIds = new Set<string>()
+  for (const event of domain.events) {
+    if (event.actionId !== 'expose_secret') continue
+    for (const factId of event.relatedFactIds) {
+      exposedFactIds.add(factId)
+      const exposedAllianceId = domain.facts[factId]?.objectId
+      if (exposedAllianceId) exposedAllianceIds.add(exposedAllianceId)
+    }
+  }
+  const candidates = Object.values(domain.beliefsByOwner[input.actorId] ?? [])
+    .filter(
+      (belief) =>
+        belief.status !== 'DISPROVEN' &&
+        belief.status !== 'STALE' &&
+        belief.confidence >= DRAMA_MODE_CONFIG.intelligenceStrategy.minExposureConfidence &&
+        isExposableRealitySecretType(belief.propositionType)
+    )
+    .map((belief) => {
+      const fact = domain.facts[belief.id.replace(`belief:${input.actorId}:`, '')]
+      const durableAllianceFact = Boolean(fact?.objectId && domain.alliances[fact.objectId])
+      const allianceId = fact ? resolveRealityAllianceIdForFact(domain, fact) : undefined
+      if (
+        !fact ||
+        (!durableAllianceFact && input.week - belief.lastUpdatedDay > 4) ||
+        fact.publicVisible ||
+        fact.visibility === 'HOUSE_PUBLIC' ||
+        fact.visibility === 'CEREMONY_PUBLIC' ||
+        exposedFactIds.has(fact.id) ||
+        Boolean(allianceId && exposedAllianceIds.has(allianceId))
+      ) {
+        return null
+      }
+      const targetId = fact.subjectIds
+        .filter((id) => id !== input.actorId && activeAiIds.has(id))
+        .sort(
+          (left, right) =>
+            relation(input, input.actorId, left) - relation(input, input.actorId, right) ||
+            left.localeCompare(right)
+        )[0]
+      if (!targetId) return null
+      return {
+        targetId,
+        confidence: belief.confidence,
+        propositionType: belief.propositionType,
+        allianceId,
+      }
+    })
+    .filter(
+      (
+        entry
+      ): entry is {
+        targetId: string
+        confidence: number
+        propositionType: string
+        allianceId: string | undefined
+      } => entry !== null
+    )
+  return candidates.sort(
+    (left, right) =>
+      right.confidence - left.confidence ||
+      Number(Boolean(right.allianceId)) - Number(Boolean(left.allianceId)) ||
+      left.targetId.localeCompare(right.targetId)
+  )[0]
 }
 
 function addCandidate(
@@ -176,9 +283,8 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
 
     if (arc.type === 'bromance') {
       addCandidate(candidates, input, {
-        actionId: intensity >= 0.62 ? 'trade_secrets' : 'ride_or_die',
+        actionId: 'ride_or_die',
         targetId: otherId,
-        subjectId: rival.id,
         reason: 'loyal partnership becoming strategically useful',
         motive: 'loyalty',
         utility: 0.56 + intensity * 0.46 + personality.loyalty * 0.38 + Math.max(0, affinity) * 0.3,
@@ -186,38 +292,162 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
     }
   }
 
-  const knownRumours = input.network.rumours.filter(
-    (rumour) =>
-      rumour.status === 'circulating' &&
-      (rumour.originatorId === input.actorId ||
-        rumour.listeners.some((listener) => listener.playerId === input.actorId))
-  )
-  for (const rumour of knownRumours) {
-    const confidentListener = rumour.listeners.find(
-      (listener) => listener.playerId === input.actorId
-    )
-    const confidence =
-      confidentListener?.confidence ?? (rumour.originatorId === input.actorId ? 0.7 : 0.45)
-    const expose =
-      rumour.listeners.length >= 3 &&
-      confidence >= 0.55 &&
-      personality.publicConflictComfort + personality.riskTolerance >= 0.9
-    addCandidate(candidates, input, {
-      actionId: expose ? 'expose_secret' : 'trade_secrets',
-      targetId: expose ? rumour.subjectId : closest.id,
-      subjectId: rumour.subjectId,
-      reason: expose
-        ? 'turning credible intel into a public move'
-        : 'trading known intel privately',
-      motive: 'intel',
-      utility:
-        0.4 +
-        confidence * 0.42 +
+  const strategy = DRAMA_MODE_CONFIG.intelligenceStrategy
+  if (!usedThisWeek(input, 'trade_secrets', strategy.maxTradesPerWeek)) {
+    const shareTargets = byAffinity.slice(0, strategy.maxShareRecipients).map((player) => player.id)
+    if (input.lohId && input.lohId !== input.actorId && !shareTargets.includes(input.lohId)) {
+      shareTargets.push(input.lohId)
+    }
+    for (const targetId of shareTargets) {
+      if (!alive.some((player) => player.id === targetId)) continue
+      const affinity = relation(input, input.actorId, targetId)
+      const isPreNominationWindow = ['loh_results', 'social_1', 'nominations'].includes(input.phase)
+      const isLeverageTarget =
+        targetId === input.lohId && (nominees.has(input.actorId) || isPreNominationWindow)
+      const closePact = hasActiveAlliance(input, targetId)
+      if (affinity < strategy.minShareAffinity && !isLeverageTarget && !closePact) continue
+      if (!canTradeWith(input, targetId)) continue
+      const target = alive.find((player) => player.id === targetId)
+      if (
+        target?.isUser &&
+        (!input.reality ||
+          !selectIntelFactForActor(input.reality, input.actorId, targetId, input.week))
+      ) {
+        continue
+      }
+      const utility =
+        0.25 +
         personality.gossipPropensity * 0.32 +
-        (expose
-          ? personality.publicConflictComfort * 0.24
-          : personality.strategicCalculation * 0.2),
-    })
+        personality.deceptionComfort * 0.12 +
+        personality.strategicCalculation * 0.18 +
+        personality.loyalty * (isLeverageTarget ? -0.18 : 0.16) +
+        Math.max(0, affinity) * 0.5 +
+        (closePact ? 0.18 : 0) +
+        (isLeverageTarget
+          ? nominees.has(input.actorId)
+            ? 0.7
+            : 0.58 +
+              personality.strategicCalculation * 0.14 +
+              personality.deceptionComfort * 0.1 -
+              personality.loyalty * 0.22
+          : 0)
+      addCandidate(candidates, input, {
+        actionId: 'trade_secrets',
+        targetId,
+        reason: isLeverageTarget
+          ? nominees.has(input.actorId)
+            ? 'offering the LOH a private lead while bargaining from nomination danger'
+            : 'bringing a useful private lead to the LOH before nominations'
+          : 'sharing one fresh lead with a trusted strategic partner',
+        motive: isLeverageTarget ? 'survival' : 'intel',
+        utility,
+      })
+    }
+  }
+
+  const human = alive.find((player) => player.isUser)
+  if (human && !usedThisWeek(input, 'protect', strategy.maxProtectionDealsPerWeek)) {
+    const humanIsNominee = nominees.has(human.id)
+    const humanHasSafety =
+      input.posWinnerId === human.id || (input.povProtectedIds ?? []).includes(human.id)
+    const actorCanKeepHumanOffBlock =
+      input.lohId === input.actorId &&
+      !humanIsNominee &&
+      !humanHasSafety &&
+      !human.status.includes('pos') &&
+      ['loh_results', 'social_1', 'nominations'].includes(input.phase)
+    const actorCanUseSafetyOnHuman =
+      input.posWinnerId === input.actorId &&
+      humanIsNominee &&
+      ['pos_results', 'pos_ceremony'].includes(input.phase)
+    const alreadyPromisedProtection = Object.values(input.reality?.promises ?? {}).some(
+      (promise) =>
+        promise.status === 'ACTIVE' &&
+        promise.kind === 'protect' &&
+        promise.promisorId === input.actorId &&
+        promise.beneficiaryIds.includes(human.id)
+    )
+    if ((actorCanKeepHumanOffBlock || actorCanUseSafetyOnHuman) && !alreadyPromisedProtection) {
+      const availableLead = input.reality
+        ? selectIntelFactForActor(input.reality, input.actorId, human.id, input.week)
+        : null
+      const relevantLead =
+        availableLead &&
+        ((availableLead.fact.propositionType === 'TARGETING' &&
+          availableLead.fact.objectId === human.id) ||
+          (availableLead.fact.propositionType.startsWith('ALLIANCE_') &&
+            availableLead.fact.subjectIds.includes(human.id)))
+          ? availableLead
+          : null
+      const affinity = relation(input, input.actorId, human.id)
+      const utility =
+        0.42 +
+        Math.max(0, affinity) * 0.4 +
+        personality.loyalty * 0.3 +
+        personality.warmth * 0.18 +
+        personality.strategicCalculation * 0.16 +
+        (humanIsNominee ? 0.5 : 0) +
+        (relevantLead ? 0.16 : 0)
+      if (utility >= 0.92) {
+        addCandidate(candidates, input, {
+          actionId: 'protect',
+          targetId: human.id,
+          intelFactId: relevantLead?.fact.id,
+          reason: actorCanUseSafetyOnHuman
+            ? 'offering a concrete Safety rescue with a reciprocal vote deal'
+            : 'offering a concrete week of nomination protection with a reciprocal vote deal',
+          motive: 'loyalty',
+          utility,
+        })
+      }
+    }
+  }
+
+  const exposureTarget = bestExposureTarget(input)
+  const exposureEventsThisWeek =
+    input.reality?.events.filter(
+      (event) => event.day === input.week && event.actionId === 'expose_secret'
+    ).length ?? 0
+  if (
+    exposureTarget &&
+    !usedThisWeek(input, 'expose_secret', strategy.maxExposuresPerWeek) &&
+    strategy.exposurePhases.includes(input.phase as (typeof strategy.exposurePhases)[number]) &&
+    input.network.pacing.publicEventsThisWeek < DRAMA_MODE_CONFIG.pacing.maxPublicEventsPerWeek &&
+    exposureEventsThisWeek < DRAMA_MODE_CONFIG.pacing.maxPublicEventsPerWeek
+  ) {
+    const strategicMoment =
+      nominees.has(input.actorId) ||
+      (input.lohId === input.actorId &&
+        [
+          'SECRET_ALLIANCE',
+          'ALLIANCE_PUBLIC_CLAIM',
+          'ALLIANCE_EXPOSED',
+          'ALLIANCE_FRACTURE',
+        ].includes(exposureTarget.propositionType))
+    const selfInvolvedAlliance = Boolean(
+      exposureTarget.allianceId &&
+      input.reality?.alliances[exposureTarget.allianceId]?.memberIds.includes(input.actorId)
+    )
+    const utility =
+      0.24 +
+      exposureTarget.confidence * 0.28 +
+      personality.gossipPropensity * 0.3 +
+      personality.riskTolerance * 0.24 +
+      personality.publicConflictComfort * 0.18 +
+      personality.strategicCalculation * 0.16 +
+      (strategicMoment ? 0.34 : 0) -
+      personality.loyalty * (selfInvolvedAlliance ? 0.42 : 0.18)
+    if (strategicMoment && utility >= strategy.minExposureUtility) {
+      addCandidate(candidates, input, {
+        actionId: 'expose_secret',
+        targetId: exposureTarget.targetId,
+        reason: nominees.has(input.actorId)
+          ? 'using credible private knowledge to change the house read under nomination pressure'
+          : 'putting credible alliance intelligence into play while holding power',
+        motive: 'deception',
+        utility,
+      })
+    }
   }
 
   if (nominees.has(input.actorId) && input.posWinnerId && input.posWinnerId !== input.actorId) {

@@ -198,4 +198,37 @@ describe('Reality alliance identity and private knowledge', () => {
     expect(view.cohesion).toBe(alliance.cohesion)
     expect(view).not.toHaveProperty('infiltratorIds')
   })
+
+  it('keeps a public alliance accusation distinct from confirmed full-roster exposure', () => {
+    const state = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(state, {
+      id: 'claimed-pact',
+      founderIds: ['ava'],
+      memberIds: ['lia', 'kai'],
+      purpose: 'Control the vote',
+      at: { day: 2, phase: 'social_1' },
+    })
+    addRealityFact(state, {
+      id: 'public-claim-about-pact',
+      propositionType: 'ALLIANCE_PUBLIC_CLAIM',
+      subjectIds: ['ava', 'lia'],
+      objectId: alliance.id,
+      value: true,
+      day: 4,
+      phase: 'social_2',
+      visibility: 'HOUSE_PUBLIC',
+      participantIds: ['sol', 'lux'],
+      witnessIds: [],
+      viewerVisible: true,
+      publicVisible: true,
+      juryVisible: true,
+      sourceEventId: 'public-claim-event',
+    })
+
+    const view = getRealityAllianceKnowledgeView(state, alliance.id, 'sol')
+
+    expect(view.level).toBe('PUBLIC')
+    expect(view.knownMemberIds.sort()).toEqual(['ava', 'lia'])
+    expect(view.fullMembershipKnown).toBe(false)
+  })
 })

@@ -74,6 +74,21 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
   post_veto_campaign: { topic: 'the new block after Safety', stakes: 'high', kind: 'pressure' },
   live_vote_pitch: { topic: 'the live vote', stakes: 'high', kind: 'pressure' },
   tie_break_campaign: { topic: 'your deciding tie-break vote', stakes: 'high', kind: 'pressure' },
+  trade_secrets_offer: {
+    topic: 'a private information exchange',
+    stakes: 'meaningful',
+    kind: 'intel',
+  },
+  protection_deal: {
+    topic: 'a week of safety and a reciprocal vote',
+    stakes: 'high',
+    kind: 'strategy',
+  },
+  protection_deal_future_vote: {
+    topic: 'using Safety now and returning support next week',
+    stakes: 'high',
+    kind: 'strategy',
+  },
   survivor_gratitude: { topic: 'surviving the vote', stakes: 'meaningful', kind: 'celebration' },
   betrayal_warning: { topic: 'a possible betrayal', stakes: 'high', kind: 'intel' },
   ignored_warning: { topic: 'the distance between you', stakes: 'meaningful', kind: 'bond' },

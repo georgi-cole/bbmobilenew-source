@@ -4,6 +4,7 @@ import type { SocialActionDefinition, SubjectPool } from './socialActions'
 import { isRealityExclusiveAction, resolveActionTargetMode } from './socialActions'
 import type { DramaSocialNetwork, RelationshipsMap } from './types'
 import type { RealityDomainState } from './reality/types'
+import { actorHasBelief, isExposableRealitySecretType } from './reality/knowledge'
 import { hasCanonicalRelationshipTag, isRepairableRelationship } from './relationshipSemantics'
 import { getPregnancyEligibility, type PregnancyStoryState } from './reality/pregnancy'
 
@@ -389,17 +390,29 @@ export function evaluateSocialActionEligibility({
   }
 
   if (action.requiresKnownSecret) {
-    if (!actorId || targets.length === 0 || !dramaNetwork) {
+    if (!actorId || targets.length === 0) {
       return unavailable('You do not have a secret to expose')
     }
-    const knowsTargetSecret = targets.every((targetId) =>
-      dramaNetwork.rumours.some(
-        (rumour) =>
-          rumour.status === 'circulating' &&
-          rumour.subjectId === targetId &&
-          (rumour.originatorId === actorId ||
-            rumour.listeners.some((listener) => listener.playerId === actorId))
-      )
+    const knowsTargetSecret = targets.every(
+      (targetId) =>
+        (dramaNetwork?.rumours ?? []).some(
+          (rumour) =>
+            rumour.status === 'circulating' &&
+            rumour.subjectId === targetId &&
+            (rumour.originatorId === actorId ||
+              rumour.listeners.some((listener) => listener.playerId === actorId))
+        ) ||
+        Boolean(
+          reality &&
+          actorHasBelief(
+            reality,
+            actorId,
+            (belief) =>
+              belief.subjectIds.includes(targetId) &&
+              isExposableRealitySecretType(belief.propositionType),
+            0.45
+          )
+        )
     )
     if (!knowsTargetSecret) return unavailable('You do not know a secret about this housemate')
   }

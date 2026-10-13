@@ -16,6 +16,7 @@ import { applyRealityRelationshipChange } from './relationships'
 import { resolveRealityTargetResponse, type RealityResponseResolution } from './response'
 import { scoreRealityAction, type RealityScoreBreakdown } from './scoring'
 import { addRealityFact, learnRealityFact, resolveRealityAllianceIdForFact } from './knowledge'
+import { recordRealityAllianceInvitation } from './allianceKnowledge'
 import {
   applyRealityApology,
   createRealityAlliance,
@@ -287,6 +288,37 @@ function applyRealityLifecycle(input: {
   }
 
   if (action.purposes.includes('COMMITMENT') && ['proposeAlliance', 'ally'].includes(action.id)) {
+    // Resolve all offers before recording disclosures. Learning can update the
+    // alliance's suspicion list, so it must not change which pact a later
+    // recipient is considered to have been invited into.
+    const invitationAlliances = new Map(
+      responses.map(({ targetId }) => {
+        const alreadyTogether = Object.values(domain.alliances).some(
+          (alliance) =>
+            alliance.status !== 'DISSOLVED' &&
+            alliance.memberIds.includes(interaction.actorId) &&
+            alliance.memberIds.includes(targetId)
+        )
+        return [
+          targetId,
+          alreadyTogether
+            ? null
+            : findRealityAllianceForRecruitment(domain, interaction.actorId, targetId),
+        ] as const
+      })
+    )
+    for (const { targetId } of responses) {
+      const invitationAlliance = invitationAlliances.get(targetId)
+      if (!invitationAlliance) continue
+      recordRealityAllianceInvitation(domain, {
+        allianceId: invitationAlliance.id,
+        inviterId: interaction.actorId,
+        inviteeId: targetId,
+        at,
+        sourceEventId: event.id,
+      })
+    }
+
     for (const targetId of acceptedTargets) {
       const existing = Object.values(domain.alliances).find(
         (alliance) =>
@@ -303,11 +335,7 @@ function applyRealityLifecycle(input: {
           at,
         })
       } else {
-        const recruitmentAlliance = findRealityAllianceForRecruitment(
-          domain,
-          interaction.actorId,
-          targetId
-        )
+        const recruitmentAlliance = invitationAlliances.get(targetId) ?? null
         if (recruitmentAlliance) {
           recruitRealityAllianceMember(domain, {
             allianceId: recruitmentAlliance.id,
@@ -603,9 +631,7 @@ function applyRealityLifecycle(input: {
       : undefined
     const alliance = allianceId ? domain.alliances[allianceId] : undefined
     const knownAllianceMembers =
-      allianceBelief && alliance
-        ? [...new Set(allianceBelief.subjectIds)].filter((id) => alliance.memberIds.includes(id))
-        : []
+      allianceBelief && alliance ? [...new Set(allianceBelief.subjectIds)] : []
 
     if (alliance && knownAllianceMembers.length >= 2) {
       const claimId = `fact:alliance-public-claim:${alliance.id}:${event.id}`

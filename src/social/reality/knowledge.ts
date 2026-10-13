@@ -17,6 +17,18 @@ const ALLIANCE_KNOWLEDGE_PROPOSITIONS = new Set([
   'ALLIANCE_FRACTURE',
 ])
 
+const EXPOSABLE_SECRET_PROPOSITIONS = new Set([
+  'SECRET_ALLIANCE',
+  'SECRET_MEETING',
+  'SECRET_ROMANCE',
+  'ROMANTIC_MOMENT',
+  'ALLIANCE_FRACTURE',
+])
+
+export function isExposableRealitySecretType(propositionType: string): boolean {
+  return EXPOSABLE_SECRET_PROPOSITIONS.has(propositionType)
+}
+
 export function resolveRealityAllianceIdForFact(
   state: RealityDomainState,
   fact: Pick<RealityFact, 'propositionType' | 'subjectIds' | 'objectId'>
@@ -110,7 +122,10 @@ export function learnRealityFact(
   const beliefId = `belief:${input.ownerId}:${fact.id}`
   const confidence = Math.max(0, Math.min(1, input.confidence ?? input.memory.confidence))
   state.memoriesByOwner[input.ownerId] ??= []
-  if (!state.memoriesByOwner[input.ownerId].some((memory) => memory.id === input.memory.id)) {
+  const memoryAlreadyRecorded = state.memoriesByOwner[input.ownerId].some(
+    (memory) => memory.id === input.memory.id
+  )
+  if (!memoryAlreadyRecorded) {
     state.memoriesByOwner[input.ownerId].push(input.memory)
     state.memoriesByOwner[input.ownerId] = state.memoriesByOwner[input.ownerId]
       .sort((left, right) => left.day - right.day || left.id.localeCompare(right.id))
@@ -118,6 +133,9 @@ export function learnRealityFact(
   }
   state.beliefsByOwner[input.ownerId] ??= {}
   const existing = state.beliefsByOwner[input.ownerId][beliefId]
+  const evidenceAlreadySupported = Boolean(
+    memoryAlreadyRecorded || existing?.supportingMemoryIds.includes(input.memory.id)
+  )
   const belief: RealityBelief = {
     id: beliefId,
     ownerId: input.ownerId,
@@ -125,12 +143,16 @@ export function learnRealityFact(
     subjectIds: [...fact.subjectIds],
     objectId: fact.objectId,
     value: fact.value,
-    confidence: existing ? Math.min(1, existing.confidence * 0.55 + confidence * 0.45) : confidence,
+    confidence: existing
+      ? evidenceAlreadySupported
+        ? existing.confidence
+        : Math.min(1, existing.confidence * 0.55 + confidence * 0.45)
+      : confidence,
     supportingMemoryIds: unique([...(existing?.supportingMemoryIds ?? []), input.memory.id]).slice(
       -20
     ),
     contradictingBeliefIds: existing?.contradictingBeliefIds ?? [],
-    sourceChain: unique(input.memory.sourceChain),
+    sourceChain: unique([...(existing?.sourceChain ?? []), ...input.memory.sourceChain]).slice(-20),
     lastUpdatedDay: input.memory.day,
     status: input.status ?? (confidence < 0.35 ? 'DOUBTED' : 'ACTIVE'),
   }

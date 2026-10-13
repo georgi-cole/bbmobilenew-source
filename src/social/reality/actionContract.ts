@@ -2,7 +2,7 @@ import { SOCIAL_ACTIONS, resolveActionTargetMode } from '../socialActions'
 import type { SocialActionDefinition } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
 import { getCanonicalRelationshipTags, isRepairableRelationship } from '../relationshipSemantics'
-import { actorHasBelief } from './knowledge'
+import { actorHasBelief, isExposableRealitySecretType } from './knowledge'
 import {
   getDefaultRealityEffects,
   getRuntimeSocialActionById,
@@ -381,7 +381,7 @@ export function evaluateRealityCandidate({
           actor.id,
           (belief) =>
             belief.subjectIds.includes(targetId) &&
-            belief.propositionType.toLowerCase().includes('secret'),
+            isExposableRealitySecretType(belief.propositionType),
           0.45
         )
     )

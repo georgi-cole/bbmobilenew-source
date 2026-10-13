@@ -171,14 +171,18 @@ function deliverKnownIntel(input: {
   phase: string
   timestamp: number
   confidenceScale: number
-  deliveryKind: 'shared' | 'whispered'
+  deliveryKind: 'shared' | 'whispered' | 'traded'
+  selected?: ReturnType<typeof selectIntelFactForActor>
 }): boolean {
-  const selected = selectIntelFactForActor(
-    input.state.social.reality,
-    input.sourceId,
-    input.recipientId,
-    input.day
-  )
+  const selected =
+    input.selected === undefined
+      ? selectIntelFactForActor(
+          input.state.social.reality,
+          input.sourceId,
+          input.recipientId,
+          input.day
+        )
+      : input.selected
   if (!selected) return false
 
   const confidence = Math.max(
@@ -203,7 +207,7 @@ function deliverKnownIntel(input: {
   )
   input.api.dispatch(
     recordIntelligenceDelivery({
-      id: `intel-delivery:${input.deliveryKind}:${input.timestamp}:${input.recipientId}:${selected.fact.id}`,
+      id: `intel-delivery:${input.deliveryKind}:${input.timestamp}:${input.sourceId}:${input.recipientId}:${selected.fact.id}`,
       factId: selected.fact.id,
       channel: 'social_action',
       day: input.day,
@@ -236,6 +240,49 @@ function deliverKnownIntel(input: {
   }
 
   return true
+}
+
+export function processTradeSecrets(
+  api: StrategyApi,
+  state: StrategyState,
+  entry: SocialActionLogEntry
+): void {
+  if (entry.outcome !== 'success' || !entry.targetId || entry.targetId === entry.actorId) return
+
+  const day = entry.week ?? state.game.week
+  const phase = entry.phase ?? state.game.phase
+  const domain = state.social.reality
+  const actorOffer = selectIntelFactForActor(domain, entry.actorId, entry.targetId, day)
+  const targetOffer = selectIntelFactForActor(domain, entry.targetId, entry.actorId, day)
+
+  if (actorOffer) {
+    deliverKnownIntel({
+      api,
+      state,
+      sourceId: entry.actorId,
+      recipientId: entry.targetId,
+      day,
+      phase,
+      timestamp: entry.timestamp,
+      confidenceScale: 0.82,
+      deliveryKind: 'traded',
+      selected: actorOffer,
+    })
+  }
+  if (targetOffer) {
+    deliverKnownIntel({
+      api,
+      state,
+      sourceId: entry.targetId,
+      recipientId: entry.actorId,
+      day,
+      phase,
+      timestamp: entry.timestamp,
+      confidenceScale: 0.78,
+      deliveryKind: 'traded',
+      selected: targetOffer,
+    })
+  }
 }
 
 function applyConcreteIntelPayoff(
@@ -278,11 +325,13 @@ function applyConcreteIntelPayoff(
   }
 }
 
-export function processHumanSocialStrategyAction(
+export function processSocialStrategyAction(
   api: StrategyApi,
   state: StrategyState,
   entry: SocialActionLogEntry
 ): void {
+  if (entry.actionId === 'trade_secrets') processTradeSecrets(api, state, entry)
+
   const human = strategyHumanPlayer(state)
   if (!human || entry.actorId !== human.id || entry.source === 'system') return
 
@@ -291,3 +340,6 @@ export function processHumanSocialStrategyAction(
   adoptSuggestedReplacement(api, state, entry)
   applyConcreteIntelPayoff(api, state, entry, human.id)
 }
+
+/** Kept for callers that explicitly process player-authored strategy actions. */
+export const processHumanSocialStrategyAction = processSocialStrategyAction
