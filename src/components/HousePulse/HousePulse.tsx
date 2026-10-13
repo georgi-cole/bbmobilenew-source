@@ -2,13 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Player } from '../../types'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
-import type { DramaSocialNetwork, RelationshipsMap, SocialActionLogEntry } from '../../social/types'
+import type {
+  DramaSocialNetwork,
+  RelationshipsMap,
+  SocialActionLogEntry,
+  SocialCommitment,
+} from '../../social/types'
 import type { RealityDomainState } from '../../social/reality'
+import {
+  allianceEventText,
+  allianceForEvent,
+  allianceKind,
+  canReadAllianceEvent,
+  isFormerAllianceMember,
+} from '../../social/reality'
+import {
+  getSocialCommitmentDueCopy,
+  getSocialCommitmentLabel,
+} from '../../social/socialCommitments'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import GameBackButton from '../ui/GameBackButton/GameBackButton'
 import './HousePulse.css'
 
-type PulseTab = 'stream' | 'stories' | 'intel' | 'ledger'
+type PulseTab = 'today' | 'stream' | 'stories' | 'intel' | 'commitments' | 'ledger'
 
 interface HousePulseProps {
   network: DramaSocialNetwork
@@ -19,7 +35,10 @@ interface HousePulseProps {
   weekStartRelSnapshot: Record<string, Record<string, number>>
   currentWeek: number
   reality?: RealityDomainState
-  onRenameAlliance?: (allianceId: string, name: string) => void
+  socialCommitments?: readonly SocialCommitment[]
+  pendingActionCount?: number
+  onOpenIncoming?: () => void
+  onOpenAlliances?: (allianceId?: string, eventId?: string) => void
 }
 
 const RUMOUR_LABEL: Record<string, string> = {
@@ -79,71 +98,113 @@ function titleCase(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-/**
- * Reality Mode only reports events the player took part in, witnessed, or that
- * happened openly in the house. It intentionally does not turn hidden AI
- * actions into a "story" before the player could have learned them.
- */
+type PulseStoryBeat = SocialStoryBeat & { allianceId?: string }
+
+/** Today is a concise, chronological feed of only events the player could know. */
 function buildRealityPulseStream(
   reality: RealityDomainState,
   humanId: string,
   currentWeek: number,
   playerName: (id: string) => string
-): SocialStoryBeat[] {
-  return reality.events
-    .filter(
-      (event) =>
-        event.day === currentWeek &&
-        (event.participantIds.includes(humanId) ||
-          event.witnessIds.includes(humanId) ||
-          event.visibility === 'HOUSE_PUBLIC' ||
-          event.visibility === 'CEREMONY_PUBLIC')
-    )
-    .slice()
+): PulseStoryBeat[] {
+  const records = [
+    ...new Map(
+      [
+        ...reality.events.filter((event) => event.day === currentWeek),
+        ...Object.values(reality.alliances).flatMap((alliance) =>
+          (alliance.history ?? []).filter((event) => event.day === currentWeek)
+        ),
+        ...Object.values(reality.allianceManagement.requests).flatMap((request) =>
+          (request.history ?? []).filter((event) => event.day === currentWeek)
+        ),
+      ].map((event) => [event.id, event])
+    ).values(),
+  ]
+  const consultationEventIds = new Set(
+    records
+      .filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
+      .map((event) => event.reason.split(':').at(-1))
+      .filter((id): id is string => Boolean(id && id.startsWith('reality-event-')))
+  )
+  return records
+    .filter((event) => {
+      if (!canReadAllianceEvent(event, humanId)) return false
+      // The strategy meeting is the useful story record; hide its low-value
+      // interaction-log twin once the huddle has a durable outcome event.
+      if (
+        event.type === 'SOCIAL_INTERACTION_RESOLVED' &&
+        event.actionId === 'consult_alliance' &&
+        consultationEventIds.has(event.id)
+      )
+        return false
+      if (
+        ['ALLIANCE_REQUEST_VOTE', 'ALLIANCE_REQUEST_CONSENT', 'ALLIANCE_REQUEST_ACCEPTED'].includes(
+          event.type
+        )
+      )
+        return false
+      // Synchronous voting and AI acceptance produce one outcome in Today; the full read retains every step.
+      if (
+        ['ALLIANCE_REQUEST_SUBMITTED', 'ALLIANCE_INVITATION_SENT'].includes(event.type) &&
+        event.allianceRequestId
+      ) {
+        const request = reality.allianceManagement.requests[event.allianceRequestId]
+        if (request?.settledAt?.day === event.day && request.settledAt.phase === event.phase)
+          return false
+      }
+      return true
+    })
     .sort((left, right) => right.sequence - left.sequence)
-    .slice(0, 5)
     .map((event) => {
+      const allianceId = allianceForEvent(reality, event)
+      const alliance = allianceId ? reality.alliances[allianceId] : undefined
+      const isAllianceEvent = event.type.startsWith('ALLIANCE_')
       const signal = `${event.type} ${event.tags.join(' ')}`.toLowerCase()
-      const targetNames = event.targetIds.filter((id) => id !== humanId).map(playerName)
-      const actor = event.actorId && event.actorId !== humanId ? playerName(event.actorId) : null
       const kind: SocialStoryBeat['kind'] = /betray|conflict|confront|target|nomination/.test(
         signal
       )
         ? 'conflict'
         : /repair|apolog|reassure/.test(signal)
           ? 'repair'
-          : /alliance|deal|promise|vote|strategy/.test(signal)
+          : isAllianceEvent || /deal|promise|vote|strategy/.test(signal)
             ? 'strategy'
-            : event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
+            : event.publicEligible
               ? 'public'
               : 'bond'
-      const title =
-        event.visibility === 'CEREMONY_PUBLIC'
-          ? 'A public decision landed'
-          : /nomination/.test(signal)
-            ? 'Nominations changed the room'
-            : /safety|pov/.test(signal)
-              ? 'Safety changed the board'
-              : titleCase(event.type)
-      const subject = actor ?? (event.actorId === humanId ? 'You' : 'The house')
-      const detail = targetNames.length ? ` involving ${targetNames.join(' and ')}` : ''
+      const actor =
+        event.actorId === humanId ? 'You' : event.actorId ? playerName(event.actorId) : 'The hub'
+      const allianceName = event.allianceSnapshot?.name ?? alliance?.name ?? 'the alliance'
+      const targets = event.targetIds
+        .filter((id) => id !== event.actorId)
+        .map((id) => (id === humanId ? 'you' : playerName(id)))
+        .join(' and ')
+      const text = isAllianceEvent
+        ? allianceEventText(reality, event, humanId, playerName)
+        : `${actor} · ${titleCase(event.actionId ?? event.type)}${targets ? ` · ${targets}` : ''}.`
+      const isConsultation = event.type === 'ALLIANCE_STRATEGY_MEETING'
+      const title = isConsultation ? `${actor} consulted ${allianceName}.` : text
+      const consultationDetail = isConsultation
+        ? (event.allianceConsultationSummary ??
+          (event.targetIds.length
+            ? `The recorded huddle focused on ${event.targetIds.map((id) => (id === humanId ? 'you' : playerName(id))).join(' and ')}, but its recommendation details were not saved.`
+            : 'The outcome was not recorded for this earlier huddle.'))
+        : text
       return {
         id: event.id,
         kind,
         title,
-        text:
-          event.visibility === 'HOUSE_PUBLIC' || event.visibility === 'CEREMONY_PUBLIC'
-            ? `${subject} made a visible move${detail}. The house has seen it.`
-            : `${subject} was part of a moment${detail} that you experienced firsthand.`,
+        text: consultationDetail,
+        eventType: event.type,
+        allianceId:
+          alliance &&
+          allianceKind(alliance) === 'GROUP' &&
+          isFormerAllianceMember(alliance, humanId)
+            ? allianceId
+            : undefined,
         participantIds: event.participantIds,
         week: event.day,
         phase: event.phase,
-        severity:
-          event.visibility === 'CEREMONY_PUBLIC' || /nomination|eviction|safety/.test(signal)
-            ? 'major'
-            : event.outcome === 'SYSTEM'
-              ? 'quiet'
-              : 'notable',
+        severity: event.visibility === 'CEREMONY_PUBLIC' ? 'major' : 'notable',
         createdAt: event.sequence,
         dedupeKey: event.id,
       }
@@ -159,21 +220,35 @@ export default function HousePulse({
   weekStartRelSnapshot,
   currentWeek,
   reality,
-  onRenameAlliance,
+  socialCommitments = [],
+  pendingActionCount = 0,
+  onOpenIncoming,
+  onOpenAlliances,
 }: HousePulseProps) {
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<PulseTab>('stream')
+  const [tab, setTab] = useState<PulseTab>('today')
+  const [earlierOpen, setEarlierOpen] = useState(false)
 
   useEffect(() => {
     const openPulse = () => {
-      setTab('stream')
+      setTab(reality ? 'today' : 'stream')
+      setEarlierOpen(false)
       setOpen(true)
     }
     const closePulse = () => setOpen(false)
     const setPulseTab = (event: Event) => {
       const nextTab = (event as CustomEvent<string>).detail
-      if (nextTab === 'stream' || nextTab === 'ledger') {
-        setTab(nextTab)
+      if (
+        nextTab === 'today' ||
+        nextTab === 'stream' ||
+        nextTab === 'intel' ||
+        nextTab === 'commitments' ||
+        nextTab === 'ledger'
+      ) {
+        setTab(
+          nextTab === 'ledger' ? 'commitments' : nextTab === 'stream' && reality ? 'today' : nextTab
+        )
+        setEarlierOpen(false)
         setOpen(true)
       }
     }
@@ -186,7 +261,7 @@ export default function HousePulse({
       window.removeEventListener('reality-social-tutorial:close-pulse', closePulse)
       window.removeEventListener('reality-social-tutorial:set-pulse-tab', setPulseTab)
     }
-  }, [])
+  }, [reality])
 
   const playerName = useCallback(
     (id: string) => players.find((player) => player.id === id)?.name ?? 'Unknown',
@@ -213,7 +288,7 @@ export default function HousePulse({
       ),
     [humanId, network.rumours]
   )
-  const storyBeats = useMemo(
+  const storyBeats = useMemo<PulseStoryBeat[]>(
     () =>
       reality
         ? buildRealityPulseStream(reality, humanId, currentWeek, playerName)
@@ -238,8 +313,31 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const activeStories = knownArcs.filter((arc) => arc.status === 'active').length
-  const latest = storyBeats[0]
+  const todayBeats = storyBeats
+  const latest = todayBeats[0]
+  const pendingPromises = socialCommitments.filter(
+    (commitment) =>
+      commitment.status === 'pending' &&
+      (commitment.promisorId === humanId || commitment.beneficiaryId === humanId) &&
+      !Object.keys(reality?.promises ?? {}).some(
+        (id) =>
+          id === `promise:${commitment.interactionId}` ||
+          id.startsWith(`promise:${commitment.interactionId}:`)
+      )
+  )
+  const activeRealityPromises = Object.values(reality?.promises ?? {})
+    .filter(
+      (promise) =>
+        (promise.status === 'ACTIVE' || promise.status === 'PROPOSED') &&
+        (promise.promisorId === humanId || promise.beneficiaryIds.includes(humanId))
+    )
+    .sort(
+      (left, right) =>
+        (left.deadline?.day ?? Number.POSITIVE_INFINITY) -
+          (right.deadline?.day ?? Number.POSITIVE_INFINITY) ||
+        right.createdAt.day - left.createdAt.day
+    )
+  const pendingPromiseCount = pendingPromises.length + activeRealityPromises.length
 
   const modal = open ? (
     <div className="house-pulse__overlay" role="presentation" onMouseDown={() => setOpen(false)}>
@@ -254,7 +352,7 @@ export default function HousePulse({
           <div>
             <span className="house-pulse__eyebrow">Reality Mode</span>
             <h2>My Pulse</h2>
-            <p>Your reads, promises and risks, with the live house picture beside them.</p>
+            <p>Your latest developments, learned intel and commitments.</p>
           </div>
           <GameBackButton
             className="house-pulse__back"
@@ -264,33 +362,13 @@ export default function HousePulse({
           />
         </header>
 
-        <div className="house-pulse__stats">
-          <span>
-            <strong>{reality ? storyBeats.length : activeStories}</strong>{' '}
-            {reality ? 'current developments' : 'storylines'}
-          </span>
-          <span>
-            <strong>{storyBeats.length}</strong> {reality ? 'known moments' : 'visible shifts'}
-          </span>
-          <span>
-            <strong>
-              {reality
-                ? Object.values(reality.facts).filter(
-                    (fact) =>
-                      fact.participantIds.includes(humanId) ||
-                      fact.witnessIds.includes(humanId) ||
-                      fact.visibility === 'HOUSE_PUBLIC' ||
-                      fact.visibility === 'CEREMONY_PUBLIC'
-                  ).length
-                : knownRumours.filter((rumour) => rumour.status === 'circulating').length}
-            </strong>{' '}
-            {reality ? 'known facts' : 'known claims'}
-          </span>
-        </div>
-
-        <nav className="house-pulse__tabs" aria-label="My Pulse sections">
+        <nav
+          className="house-pulse__tabs"
+          aria-label="My Pulse sections"
+          data-reality-tutorial="pulse-tabs"
+        >
           {(reality
-            ? (['stream', 'ledger'] as PulseTab[])
+            ? (['today', 'intel', 'commitments'] as PulseTab[])
             : (['stream', 'stories', 'intel'] as PulseTab[])
           ).map((item) => (
             <button
@@ -299,39 +377,153 @@ export default function HousePulse({
               className={tab === item ? 'is-active' : ''}
               onClick={() => setTab(item)}
             >
-              {item === 'ledger' ? 'My Game' : item}
+              {item === 'today'
+                ? 'Today'
+                : item === 'commitments'
+                  ? 'Commitments'
+                  : item === 'intel'
+                    ? 'Intel'
+                    : item}
             </button>
           ))}
         </nav>
 
         <div
           className="house-pulse__content"
-          data-reality-tutorial={tab === 'stream' ? 'pulse-stream' : undefined}
+          data-reality-tutorial={tab === 'today' || tab === 'stream' ? 'pulse-stream' : undefined}
         >
-          {tab === 'stream' &&
-            (storyBeats.length ? (
-              storyBeats.map((beat) => (
+          {(tab === 'today' || tab === 'stream') && (
+            <>
+              {reality && pendingActionCount > 0 && onOpenIncoming && (
                 <article
-                  className={`house-pulse__card house-pulse__card--${beat.kind} house-pulse__card--${beat.severity}`}
-                  key={beat.id}
+                  className="house-pulse__attention"
+                  aria-label="Alliance decisions need attention"
                 >
-                  <div className="house-pulse__card-top">
-                    <span>
-                      Day {beat.week} · {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
-                    </span>
-                    <em>{beat.severity === 'major' ? 'Major' : 'House read'}</em>
+                  <div>
+                    <strong>
+                      {pendingActionCount} alliance decision{pendingActionCount === 1 ? '' : 's'}{' '}
+                      await{pendingActionCount === 1 ? 's' : ''} your response
+                    </strong>
+                    <small>Open Incoming to review proposals and votes.</small>
                   </div>
-                  <h3>{beat.title}</h3>
-                  <p>{beat.text}</p>
+                  <button type="button" onClick={onOpenIncoming}>
+                    Review request
+                  </button>
                 </article>
-              ))
-            ) : (
-              <p className="house-pulse__empty">
-                {reality
-                  ? 'The house is still reading the room. Major developments will appear here when you see them.'
-                  : 'The house is still reading the room. Visible patterns will appear here as actions repeat or consequences land.'}
-              </p>
-            ))}
+              )}
+              {reality && pendingPromiseCount > 0 && (
+                <article className="house-pulse__attention house-pulse__attention--promise">
+                  <div>
+                    <strong>
+                      {activeRealityPromises[0]
+                        ? activeRealityPromises[0].promisorId === humanId
+                          ? 'Your promise'
+                          : `${playerName(activeRealityPromises[0].promisorId)} promised you`
+                        : pendingPromises[0].promisorId === humanId
+                          ? 'Your promise'
+                          : `${playerName(pendingPromises[0].promisorId)} promised you`}
+                      {' · '}
+                      {activeRealityPromises[0]
+                        ? titleCase(activeRealityPromises[0].kind)
+                        : getSocialCommitmentLabel(pendingPromises[0].kind)}
+                    </strong>
+                    <small>
+                      {activeRealityPromises[0]
+                        ? activeRealityPromises[0].deadline
+                          ? `Due Day ${activeRealityPromises[0].deadline.day} · ${PHASE_LABEL[activeRealityPromises[0].deadline.phase] ?? titleCase(activeRealityPromises[0].deadline.phase)}`
+                          : 'No deadline set'
+                        : `Due Day ${pendingPromises[0].dueWeek} · ${getSocialCommitmentDueCopy(pendingPromises[0].kind)}`}
+                    </small>
+                  </div>
+                  <button type="button" onClick={() => setTab('commitments')}>
+                    View commitment
+                  </button>
+                </article>
+              )}
+              {todayBeats.length ? (
+                <>
+                  {todayBeats.slice(0, 3).map((beat) => (
+                    <article
+                      className={`house-pulse__card house-pulse__card--${beat.kind} house-pulse__card--${beat.severity}`}
+                      key={beat.id}
+                    >
+                      <div className="house-pulse__card-top">
+                        <span>
+                          Day {beat.week} ·{' '}
+                          {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
+                        </span>
+                        {!reality && <em>{titleCase(beat.severity)}</em>}
+                      </div>
+                      <h3>{beat.title}</h3>
+                      {!reality && <p>{beat.text}</p>}
+                      {reality && onOpenAlliances && beat.allianceId && (
+                        <button
+                          type="button"
+                          className="house-pulse__link"
+                          onClick={() => {
+                            setOpen(false)
+                            onOpenAlliances(beat.allianceId, beat.id)
+                          }}
+                        >
+                          View alliance history
+                        </button>
+                      )}
+                      {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
+                        <p>{beat.text}</p>
+                      )}
+                    </article>
+                  ))}
+                  {todayBeats.length > 3 && (
+                    <details
+                      className="house-pulse__history"
+                      onToggle={(event) => setEarlierOpen(event.currentTarget.open)}
+                    >
+                      <summary>Earlier today · {todayBeats.length - 3}</summary>
+                      {earlierOpen &&
+                        todayBeats.slice(3).map((beat) => (
+                          <article
+                            className={`house-pulse__card house-pulse__card--${beat.kind}`}
+                            key={beat.id}
+                          >
+                            <div className="house-pulse__card-top">
+                              <span>
+                                Day {beat.week} ·{' '}
+                                {PHASE_LABEL[beat.phase] ?? beat.phase.replaceAll('_', ' ')}
+                              </span>
+                            </div>
+                            <h3>{beat.title}</h3>
+                            {!reality && <p>{beat.text}</p>}
+                            {reality && onOpenAlliances && beat.allianceId && (
+                              <button
+                                type="button"
+                                className="house-pulse__link"
+                                onClick={() => {
+                                  setOpen(false)
+                                  onOpenAlliances(beat.allianceId, beat.id)
+                                }}
+                              >
+                                View alliance history
+                              </button>
+                            )}
+                            {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
+                              <p>{beat.text}</p>
+                            )}
+                          </article>
+                        ))}
+                    </details>
+                  )}
+                </>
+              ) : (
+                <p className="house-pulse__empty">
+                  {reality
+                    ? pendingActionCount > 0 || pendingPromiseCount > 0
+                      ? 'Your next step is ready above. Check Intel and Commitments for more context.'
+                      : 'Nothing important has changed today. Check back after your next conversation or decision.'
+                    : 'The house is still reading the room. Visible patterns will appear here as actions repeat or consequences land.'}
+                </p>
+              )}
+            </>
+          )}
 
           {tab === 'stories' &&
             (knownArcs.length ? (
@@ -372,7 +564,8 @@ export default function HousePulse({
               <p className="house-pulse__empty">No continuing storyline has reached your radar.</p>
             ))}
 
-          {tab === 'intel' &&
+          {!reality &&
+            tab === 'intel' &&
             (knownRumours.length ? (
               knownRumours.map((rumour) => {
                 const chain = (rumour.sourceChain ?? [rumour.originatorId]).map(playerName)
@@ -415,13 +608,26 @@ export default function HousePulse({
               <p className="house-pulse__empty">You have not learned any current house intel.</p>
             ))}
 
-          {tab === 'ledger' && reality && (
+          {tab === 'intel' && reality && (
             <RealityLedger
               reality={reality}
               players={players}
               humanId={humanId}
               relationships={relationships}
-              onRenameAlliance={onRenameAlliance}
+              section="knowledge"
+              currentDay={currentWeek}
+              compact
+            />
+          )}
+          {tab === 'commitments' && reality && (
+            <RealityLedger
+              reality={reality}
+              players={players}
+              humanId={humanId}
+              relationships={relationships}
+              socialCommitments={socialCommitments}
+              section="deals"
+              compact
             />
           )}
         </div>
@@ -436,7 +642,8 @@ export default function HousePulse({
         className="house-pulse__summary"
         data-reality-tutorial="pulse-summary"
         onClick={() => {
-          setTab('stream')
+          setTab(reality ? 'today' : 'stream')
+          setEarlierOpen(false)
           setOpen(true)
         }}
       >
@@ -445,13 +652,17 @@ export default function HousePulse({
           <strong>My Pulse</strong>
           <small>
             {reality
-              ? `Today · ${storyBeats.length} ${storyBeats.length === 1 ? 'development' : 'developments'}`
-              : `My Game · ${storyBeats.length} visible shifts`}
+              ? `Today · ${storyBeats.length} development${storyBeats.length === 1 ? '' : 's'}`
+              : `Today · ${storyBeats.length} visible shift${storyBeats.length === 1 ? '' : 's'}`}
           </small>
         </span>
         <em>
           {reality
-            ? 'Your people reads, commitments and known game facts.'
+            ? pendingActionCount > 0
+              ? `${pendingActionCount} alliance decision${pendingActionCount === 1 ? '' : 's'} need your attention.`
+              : pendingPromiseCount > 0
+                ? `${pendingPromiseCount} commitment${pendingPromiseCount === 1 ? '' : 's'} need your attention.`
+                : (latest?.title ?? 'Your latest house developments and commitments.')
             : (latest?.text ?? 'The house is still reading the room.')}
         </em>
         <b>{reality ? 'Open My Pulse' : 'Open My Game'}</b>

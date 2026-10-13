@@ -37,6 +37,13 @@ export interface Player {
   status: PlayerStatus
   /** False when the player left outside a standard eviction and cannot join the Tribunal. */
   tribunalEligible?: boolean
+  /** Confessional moderation is scoped to a season and persists with the run. */
+  confessionalMisconduct?: {
+    season: number
+    strikes: number
+    lastViolation?: 'too_long' | 'duplicate' | 'flood' | 'gibberish' | 'profanity'
+    administrativelyRemoved?: boolean
+  }
   isUser?: boolean
   /** Optional competition skill profile for AI simulations. */
   competitionProfile?: CompetitionSkillProfile

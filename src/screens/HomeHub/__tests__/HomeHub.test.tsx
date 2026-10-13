@@ -460,7 +460,7 @@ describe('HomeHub', () => {
     });
 
     const store = screen.getByRole('button', { name: 'Market' });
-    const hallOfFame = screen.getByRole('button', { name: 'Hall of Fame' });
+    const hallOfFame = await screen.findByRole('button', { name: 'Hall of Fame' });
     expect(store).toHaveClass('game-btn--secondary_wide');
     expect(store.querySelector('img')).toHaveAttribute('src', expect.stringContaining('/market.svg'));
     expect(hallOfFame).toHaveAttribute('data-hub-id', 'leaderboard');

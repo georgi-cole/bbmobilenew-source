@@ -59,6 +59,7 @@ import type { HostPhase, MinigameParticipant } from '../../components/MinigameHo
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
+import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
@@ -77,8 +78,8 @@ import SpectatorView from '../../components/ui/SpectatorView'
 import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
-import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
+import FinalPowerBattleIntro from '../../components/FinalPowerBattle/FinalPowerBattleIntro'
 import VoxFinalThreeAppeal from '../../components/VoxFinalThreeAppeal/VoxFinalThreeAppeal'
 import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../../utils/avatar'
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
@@ -1596,6 +1597,7 @@ export default function GameScreen() {
         ) : (
           <TvZone
             key={game.gameId}
+            playOwnedExternally={finalPowerBattleIntroActive}
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
@@ -1909,20 +1911,20 @@ export default function GameScreen() {
         )}
 
         {/* ── Final 4 plea chat overlay (all players) ─────────────────────── */}
-        {finalPowerBattleIntroActive && (
-          <FinalPowerBattleIntro
-            finalists={alivePlayers}
-            mode={isVoxPopuli ? 'vox_populi' : 'classic'}
-            onComplete={handleFinalPowerBattleIntroDone}
-          />
-        )}
-
         {finalThreeBlockRevealActive && finalThreeBlockPlayer && (
           <FinalThreeBlockReveal
             blockPlayer={finalThreeBlockPlayer}
             competitors={finalThreeBlockCompetitors}
             mode={isVoxPopuli ? 'vox_populi' : 'classic'}
             onComplete={handleFinalThreeBlockRevealDone}
+          />
+        )}
+
+        {finalPowerBattleIntroActive && (
+          <FinalPowerBattleIntro
+            finalists={alivePlayers}
+            mode={isVoxPopuli ? 'vox_populi' : 'classic'}
+            onComplete={handleFinalPowerBattleIntroDone}
           />
         )}
 
@@ -2762,11 +2764,12 @@ export default function GameScreen() {
         )}
 
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
-        {showGameControlDock && (
+        {shouldRenderGameControlDock(showGameControlDock, Boolean(game.seasonFinale)) && (
           <FloatingActionBar
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
             finaleOverlayActive={finaleOverlayActive}
+            finaleInlinePlayActive={finalPowerBattleIntroActive}
             finalePlayAvailable={finalePlayAvailable}
             finaleDockOnTop={finaleOverlayActive && finalePlayAvailable}
           />

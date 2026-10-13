@@ -1,7 +1,12 @@
 import { useI18n } from '../../i18n'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
-import { getRelationshipLabel, getPlayerMood, getMoodClass } from './relationshipUtils'
+import {
+  getRelationshipLabel,
+  getPlayerMood,
+  getMoodClass,
+  type RelationshipLabel,
+} from './relationshipUtils'
 import './PlayerCard.css'
 
 const ALLIANCE_TAG = 'alliance'
@@ -16,6 +21,8 @@ interface PlayerCardProps {
   onSelect: (playerId: string, additive: boolean, shiftKey: boolean) => void
   /** Optional signed relationship score representing the human player's current read. */
   affinity?: number
+  /** Canonical Reality Mode label; the legacy affinity remains only a meter value. */
+  relationshipLabel?: RelationshipLabel
   /**
    * Relationship delta accumulated this session (sum of action deltas for this
    * actor→target pair). Positive → green up arrow, negative → red down arrow,
@@ -61,6 +68,7 @@ export default function PlayerCard({
   disabled,
   onSelect,
   affinity,
+  relationshipLabel,
   affinityDelta,
   relationshipPulseDelta,
   relationshipTags = [],
@@ -78,7 +86,7 @@ export default function PlayerCard({
     .filter(Boolean)
     .join(' ')
 
-  const rel = affinity !== undefined ? getRelationshipLabel(affinity) : null
+  const rel = relationshipLabel ?? (affinity !== undefined ? getRelationshipLabel(affinity) : null)
   const affinityDisplay = affinity !== undefined ? `${Math.round(affinity)}%` : '—'
   const mood = getPlayerMood(player.id, affinity)
   const moodClass = getMoodClass(mood)
@@ -91,7 +99,8 @@ export default function PlayerCard({
     (hasBetrayal &&
       (relationshipTags.includes(ALLIANCE_TAG) || relationshipTags.includes(BROMANCE_TAG)))
   const positiveBondIsCurrent = !hasBetrayal && !hasBrokenRomance && !hasBrokenAlliance
-  const probationaryAlliance = relationshipTags.includes('strained_alliance')
+  const newAlliance = relationshipTags.includes('new_alliance')
+  const strainedAlliance = relationshipTags.includes('strained_alliance')
 
   function handleClick(e: React.MouseEvent) {
     if (disabled) return
@@ -124,7 +133,13 @@ export default function PlayerCard({
     >
       {/* ── Compact header row (always visible) ── */}
       <div className="pc__row">
-        <PlayerAvatar player={player} size="sm" affinity={affinity} relationshipScale="signed" />
+        <PlayerAvatar
+          player={player}
+          size="sm"
+          affinity={affinity}
+          relationshipScale="signed"
+          relationshipTags={relationshipTags}
+        />
         <span className="pc__identity">
           <span className="pc__name">{player.name}</span>
           <span className={`pc__status pc__status--${player.status.split('+')[0]}`}>
@@ -171,7 +186,7 @@ export default function PlayerCard({
           {positiveBondIsCurrent && relationshipTags.includes(ALLIANCE_TAG) && (
             <span className="pc__bond-chip pc__bond-chip--ally">
               {'\uD83E\uDD1D '}
-              {probationaryAlliance ? 'Strained alliance' : 'Ally'}
+              {newAlliance ? 'New alliance' : strainedAlliance ? 'Strained alliance' : 'Ally'}
             </span>
           )}
           {positiveBondIsCurrent && relationshipTags.includes('cupid_partner') && (

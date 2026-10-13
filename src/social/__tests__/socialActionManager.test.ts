@@ -69,6 +69,11 @@ describe('Social Manager action overrides', () => {
     expect(computeOutcomeDelta('compliment', 'actor', 'target', 'failure')).toBe(-4)
   })
 
+  it('does not award relationship or quality gains when a protection promise is rejected', () => {
+    expect(computeOutcomeDelta('protect', 'actor', 'target', 'success')).toBe(5)
+    expect(computeOutcomeDelta('protect', 'actor', 'target', 'failure')).toBe(0)
+  })
+
   it('supports per-action Reality intensity subtype connections', () => {
     const action = buildEffectiveSocialActions({
       compliment: { allowedRealityPresets: ['adult'] },

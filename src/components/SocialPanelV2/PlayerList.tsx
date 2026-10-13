@@ -3,6 +3,8 @@ import type { Player } from '../../types'
 import type { RelationshipsMap } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality/types'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import { projectRealityAffinity } from '../../social/reality/relationships'
+import { getRealityRelationshipLabel, type RelationshipLabel } from './relationshipUtils'
 import PlayerCard from './PlayerCard'
 
 interface PlayerListProps {
@@ -148,11 +150,28 @@ export default function PlayerList({
         const isSelected = displaySelectedIds.has(player.id)
 
         let affinity: number | undefined
+        let relationshipLabel: RelationshipLabel | undefined
         let relationshipTags: string[] = []
-        if (humanPlayerId && relationships) {
-          const outward = relationships[humanPlayerId]?.[player.id]
-          const inward = relationships[player.id]?.[humanPlayerId]
-          if (playerLimitedRead) {
+        if (humanPlayerId) {
+          const outward = relationships?.[humanPlayerId]?.[player.id]
+          const inward = relationships?.[player.id]?.[humanPlayerId]
+          if (playerLimitedRead && reality) {
+            const edge = reality.relationships[humanPlayerId]?.[player.id]
+            const view = selectCanonicalRelationshipView({
+              relationships,
+              reality,
+              actorId: humanPlayerId,
+              targetId: player.id,
+            })
+            const hasRelationshipEvidence =
+              edge &&
+              (edge.perceivedLabel !== 'UNKNOWN' ||
+                edge.familiarity > 0 ||
+                edge.lastMeaningfulInteraction !== undefined)
+            affinity = hasRelationshipEvidence ? projectRealityAffinity(edge) : undefined
+            relationshipLabel = getRealityRelationshipLabel(edge, view.alliance?.operational)
+            relationshipTags = [...view.visibleTags]
+          } else if (playerLimitedRead) {
             // Reality Social is a player-limited read. The reverse
             // housemate → human edge is private state and must not leak into
             // the visible score, ring, label or directional tags.
@@ -167,14 +186,14 @@ export default function PlayerList({
               new Set([...(outward?.tags ?? []), ...(inward?.tags ?? [])])
             )
           }
-          if (reality) {
+          if (!playerLimitedRead && reality) {
             const view = selectCanonicalRelationshipView({
               relationships,
               reality,
               actorId: humanPlayerId,
               targetId: player.id,
             })
-            affinity = playerLimitedRead ? outward?.affinity : view.affinity
+            affinity = view.affinity
             relationshipTags = [...view.visibleTags]
           }
         }
@@ -194,6 +213,7 @@ export default function PlayerList({
                 }
               }}
               affinity={affinity}
+              relationshipLabel={relationshipLabel}
               affinityDelta={deltasByTargetId?.get(player.id)}
               relationshipPulseDelta={relationshipPulseDeltas?.get(player.id)}
               relationshipTags={relationshipTags}

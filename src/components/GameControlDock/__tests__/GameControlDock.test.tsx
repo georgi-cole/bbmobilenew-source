@@ -93,13 +93,14 @@ describe('GameControlDock', () => {
     )
   })
 
-  it('opens a dock-attached one-column More menu with the Hall of Fame icon', () => {
-    render(<GameControlDock />)
+  it('offers bug reporting in the dock More menu without leaving gameplay', () => {
+    const onMoreClick = vi.fn()
+    render(<GameControlDock onMoreClick={onMoreClick} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'More' }))
     expect(screen.getByRole('menu', { name: 'More destinations' })).toBeDefined()
     const menuItems = screen.getAllByRole('menuitem')
-    expect(menuItems).toHaveLength(5)
+    expect(menuItems).toHaveLength(6)
     expect(menuItems.every((item) => item.querySelector('img') && !item.textContent?.trim())).toBe(
       true
     )
@@ -109,7 +110,12 @@ describe('GameControlDock', () => {
       '/assets/updated_nav_fab_bar/hall_of_fame_approved_final.svg'
     )
 
-    fireEvent.pointerDown(document.body)
+    const feedback = screen.getByRole('menuitem', { name: 'Report a bug' })
+    expect(feedback.querySelector('img')?.getAttribute('src')).toContain(
+      '/assets/side_utilities_button/feedback_v2.svg'
+    )
+    fireEvent.click(feedback)
+    expect(onMoreClick).toHaveBeenCalledWith('feedback')
     expect(screen.queryByRole('menu', { name: 'More destinations' })).toBeNull()
   })
 })

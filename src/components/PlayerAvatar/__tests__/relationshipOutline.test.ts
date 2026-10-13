@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { getRelationshipTone } from '../relationshipOutline'
+import { getRelationshipRingTone, getRelationshipTone } from '../relationshipOutline'
 
 describe('getRelationshipTone', () => {
   it('returns "none" for undefined', () => {
@@ -105,5 +105,20 @@ describe('getRelationshipTone', () => {
     expect(getRelationshipTone(20, 'signed')).toBe('good')
     expect(getRelationshipTone(1, 'signed')).toBe('neutral')
     expect(getRelationshipTone(-11, 'signed')).toBe('bad')
+  })
+})
+
+describe('getRelationshipRingTone', () => {
+  it('uses a dark shade for a strong nemesis relationship', () => {
+    expect(getRelationshipRingTone(-82, 'signed')).toBe('nemesis')
+  })
+
+  it('uses the romance shade only for a current visible romance bond', () => {
+    expect(getRelationshipRingTone(60, 'signed', ['romance'])).toBe('lovers')
+    expect(getRelationshipRingTone(60, 'signed', ['romance', 'broken_romance'])).toBe('close')
+  })
+
+  it('keeps neutral relationships in the middle palette', () => {
+    expect(getRelationshipRingTone(0, 'signed')).toBe('neutral')
   })
 })

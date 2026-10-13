@@ -37,6 +37,7 @@ describe('Reality ceremony aftermath', () => {
     expect(state.memoriesByOwner.lia[0].sourceType).toBe('OFFICIAL')
     expect(state.contestants.ava.confidence).toBeGreaterThan(0)
     expect(state.publicPerception.ava.competitionRespect).toBeGreaterThan(0)
+    expect(state.relationships.lia.ava.respect).toBe(5)
   })
 
   it('creates directed nomination fallout and a mandatory survival replan', () => {
@@ -130,6 +131,23 @@ describe('Reality ceremony aftermath', () => {
 })
 
 describe('Reality jury knowledge boundaries', () => {
+  it('builds jury scorecards without mutating a frozen relationship snapshot', () => {
+    const state = createInitialRealityDomainState()
+    recordRealityCeremonyOutcome(state, {
+      kind: 'POWER_WON',
+      day: 4,
+      phase: 'loh_results',
+      actorId: 'aria',
+      targetIds: [],
+      witnessIds: ['juror'],
+      publicEligible: true,
+    })
+    state.relationships.juror = Object.freeze({})
+
+    expect(() => realityJurorScorecard('juror', ['lux', 'aria'], state)).not.toThrow()
+    expect(state.relationships.juror).not.toHaveProperty('lux')
+  })
+
   it('does not score a finalist from a hidden alliance event the juror never learned', () => {
     const state = createInitialRealityDomainState()
     const alliance = createRealityAlliance(state, {
@@ -377,8 +395,12 @@ describe('Reality alliance ceremony consequences', () => {
       publicEligible: true,
     })
 
-    expect(pair.memberIds).toEqual(['ava'])
+    expect(pair.memberIds).toEqual([])
     expect(pair.status).toBe('DISSOLVED')
+    expect(
+      state.events.find((event) => event.type === 'ALLIANCE_ENDED' && event.allianceId === pair.id)
+        ?.allianceSnapshot?.memberIds
+    ).toEqual(['ava', 'lia'])
     expect(wider.memberIds).toEqual(expect.arrayContaining(['ava', 'kai']))
     expect(wider.memberIds).not.toContain('lia')
     expect(wider.status).toBe('ACTIVE')

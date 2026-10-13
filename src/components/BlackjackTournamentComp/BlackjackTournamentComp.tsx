@@ -37,6 +37,7 @@ import {
   resetBlackjackTournament,
   computeTotal,
   computeSpinnerWinnerIndex,
+  getBlackjackTournamentLastPlace,
   cardRank,
   cardSuit,
   aiPickFighters,
@@ -1152,7 +1153,7 @@ export default function BlackjackTournamentComp({
             if (onComplete) {
               onComplete({
                 authoritativeWinnerId: bt.winnerId,
-                authoritativeLastPlaceId: bt.eliminatedPlayerIds[0] ?? null,
+                authoritativeLastPlaceId: getBlackjackTournamentLastPlace(bt).playerId,
               })
             } else if (!bt.outcomeResolved) {
               dispatch(resolveBlackjackTournamentOutcome())

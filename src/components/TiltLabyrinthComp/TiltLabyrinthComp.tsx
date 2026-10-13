@@ -46,10 +46,16 @@ import type {
 } from '../../features/tiltLabyrinth/tiltLabyrinthSlice';
 import {
   calculateTiltAdjustedTime,
+  rankTiltLabyrinthResults,
   resolveCollisions,
   type TiltLabyrinthMazeCell as MazeCell,
 } from './tiltLabyrinthCollision';
-import { normalizeTiltDelta } from './tiltLabyrinthInput';
+import {
+  normalizeTiltDelta,
+  TILT_LABYRINTH_BASE_FRAME_MS,
+  TILT_LABYRINTH_MAX_FRAME_SCALE,
+  tiltLabyrinthFrameScale,
+} from './tiltLabyrinthInput';
 import './TiltLabyrinthComp.css';
 
 const EMPTY_GAME_PLAYERS: RootState['game']['players'] = [];
@@ -88,7 +94,7 @@ const MIN_HAZARD_SPACING_CELLS = 2.75;
 const KEY_RADIUS = 7;
 const DOOR_RADIUS = 12;
 const GOAL_RADIUS = 10;
-const HINT_PATH_DURATION_MS = 3_000;
+const HINT_PATH_DURATION_MS = 8_000;
 const MAX_MAZE_RESEED_ATTEMPTS = 4;
 const MAZE_RESEED_STEP = 0x9e3779b9;
 
@@ -883,10 +889,24 @@ export default function TiltLabyrinthComp({
     if (!ctx) return;
 
     let animId = 0;
-    const tick = () => {
+    let lastFrameTime = performance.now();
+    const tick = (frameTime: number) => {
+      const rawFrameDelta = Math.max(0, frameTime - lastFrameTime);
+      lastFrameTime = frameTime;
       const gs = gameRef.current;
       const maze = mazeRef.current;
       if (!gs || !maze) return;
+
+      const frameDelta = Math.min(
+        rawFrameDelta,
+        TILT_LABYRINTH_BASE_FRAME_MS * TILT_LABYRINTH_MAX_FRAME_SCALE,
+      );
+      // Ignore time lost to a suspended or heavily stalled frame so the timer
+      // never advances while the physics has no opportunity to move the ball.
+      if (rawFrameDelta > frameDelta && !gs.finished) {
+        gs.startTime += rawFrameDelta - frameDelta;
+      }
+      const frameScale = tiltLabyrinthFrameScale(frameDelta);
 
       if (!gs.finished) {
         gs.elapsed = performance.now() - gs.startTime;
@@ -895,6 +915,7 @@ export default function TiltLabyrinthComp({
         setElapsedSeconds((current) => current === nextElapsedSeconds ? current : nextElapsedSeconds);
 
 
+        if (frameScale > 0) {
         // Compute acceleration
         let ax = 0;
         let ay = 0;
@@ -921,8 +942,9 @@ export default function TiltLabyrinthComp({
         }
 
         // Apply physics
-        gs.ball.vx = (gs.ball.vx + ax) * FRICTION;
-        gs.ball.vy = (gs.ball.vy + ay) * FRICTION;
+        const frameFriction = FRICTION ** frameScale;
+        gs.ball.vx = (gs.ball.vx + ax * frameScale) * frameFriction;
+        gs.ball.vy = (gs.ball.vy + ay * frameScale) * frameFriction;
 
         // Clamp velocity
         const spd = Math.sqrt(gs.ball.vx ** 2 + gs.ball.vy ** 2);
@@ -932,11 +954,13 @@ export default function TiltLabyrinthComp({
         }
 
         // Move ball
-        const nx = gs.ball.x + gs.ball.vx;
-        const ny = gs.ball.y + gs.ball.vy;
+        const stepVx = gs.ball.vx * frameScale;
+        const stepVy = gs.ball.vy * frameScale;
+        const nx = gs.ball.x + stepVx;
+        const ny = gs.ball.y + stepVy;
 
         // Resolve wall collisions
-        const resolved = resolveCollisions(maze, nx, ny, gs.ball.vx, gs.ball.vy, {
+        const resolved = resolveCollisions(maze, nx, ny, stepVx, stepVy, {
           radius: BALL_RADIUS,
           cellPx: CELL_PX,
           mazeCols: MAZE_COLS,
@@ -947,8 +971,8 @@ export default function TiltLabyrinthComp({
         });
         gs.ball.x = resolved.bx;
         gs.ball.y = resolved.by;
-        gs.ball.vx = resolved.vx;
-        gs.ball.vy = resolved.vy;
+        gs.ball.vx = resolved.vx / frameScale;
+        gs.ball.vy = resolved.vy / frameScale;
 
         // Key pickup
         if (!gs.hasKey && distance(gs.ball.x, gs.ball.y, gs.keyPos.x, gs.keyPos.y) < KEY_RADIUS + BALL_RADIUS + 2) {
@@ -964,8 +988,8 @@ export default function TiltLabyrinthComp({
 
         // Floating hazards
         gs.hazards.forEach((hazard) => {
-          hazard.x += hazard.vx;
-          hazard.y += hazard.vy;
+          hazard.x += hazard.vx * frameScale;
+          hazard.y += hazard.vy * frameScale;
 
           if (hazard.x - hazard.radius < 0 || hazard.x + hazard.radius > MAZE_W) {
             hazard.vx *= -1;
@@ -1000,6 +1024,7 @@ export default function TiltLabyrinthComp({
           // Draw final frame then stop â€” no RAF after goal reached
           drawMaze(ctx, maze, gs, gs.elapsed);
           return;
+        }
         }
       }
 
@@ -1200,14 +1225,8 @@ export default function TiltLabyrinthComp({
           timeMs,
           ...details,
         };
-      })
-      .sort((a, b) =>
-        a.adjustedTimeMs - b.adjustedTimeMs ||
-        a.hazardHits - b.hazardHits ||
-        a.rawTimeMs - b.rawTimeMs ||
-        a.id.localeCompare(b.id),
-      );
-    return entries;
+      });
+    return rankTiltLabyrinthResults(entries);
   }, [labState]);
 
   if (leaderboard && labState?.phase === 'complete') {
@@ -1348,9 +1367,9 @@ export default function TiltLabyrinthComp({
           ].filter(Boolean).join(' ')}
           onClick={handleHint}
           disabled={hintUsed}
-          aria-label="Use hint: add 30 seconds and show the correct path for 3 seconds"
+          aria-label="Use hint: add 10 seconds and show the correct path for 8 seconds"
         >
-          {hintActive ? '✨ Path shown · +30s' : hintUsed ? '✓ Hint used · +30s' : '💡 Hint · +30s'}
+          {hintActive ? '✨ Path shown · +10s' : hintUsed ? '✓ Hint used · +10s' : '💡 Hint · +10s'}
         </button>
       </div>
 

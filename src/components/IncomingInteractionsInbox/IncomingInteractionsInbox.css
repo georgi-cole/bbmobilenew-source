@@ -233,6 +233,10 @@
   color: #fcd34d;
 }
 
+.inbox-section[aria-label='Alliance proposals and decisions'] .inbox-section__title {
+  color: #c4b5fd;
+}
+
 .inbox-promises {
   gap: 0.45rem;
   padding-top: 0.55rem;
@@ -290,6 +294,11 @@
 
 .inbox-item--unread {
   box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.34);
+}
+
+.inbox-item--alliance {
+  border-left-color: rgba(196, 181, 253, 0.9);
+  background: linear-gradient(135deg, rgba(76, 29, 149, 0.22), rgba(18, 16, 22, 0.92));
 }
 
 .inbox-item--priority-high.inbox-item--policy-required {

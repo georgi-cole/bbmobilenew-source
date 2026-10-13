@@ -32,9 +32,7 @@ describe('social action catalogue context contract', () => {
   })
 
   it('gives every contextual legacy action a machine-enforced rule', () => {
-    expect(action('proposeAlliance')).toMatchObject({
-      excludedRelationshipTags: ['alliance'],
-    })
+    expect(action('proposeAlliance').excludedRelationshipTags).toBeUndefined()
     expect(action('favor_request').dramaMinAffinity).toBe(5)
     expect(action('pitch_target')).toMatchObject({
       requiredTargetStatus: ['loh', 'loh+pos'],
@@ -112,16 +110,17 @@ describe('evaluateSocialActionEligibility', () => {
     ).toBe(true)
   })
 
-  it('uses a live formal Reality alliance even when projected legacy affinity is low', () => {
+  it('allows consultations for group alliances, not personal pacts, and blocks duplicate pacts', () => {
     const reality = createInitialRealityDomainState()
-    const alliance = createRealityAlliance(reality, {
+    const pact = createRealityAlliance(reality, {
       id: 'formal-low-affinity-pact',
       founderIds: ['user', 'ally'],
       memberIds: [],
       purpose: 'Strategic protection',
+      kind: 'PACT',
       at: { day: 2, phase: 'social_1' },
     })
-    alliance.status = 'ACTIVE'
+    pact.status = 'ACTIVE'
 
     const relationships = {
       user: { ally: { affinity: 4, tags: ['alliance'] } },
@@ -135,7 +134,36 @@ describe('evaluateSocialActionEligibility', () => {
         targetIds: ['ally'],
         phase: 'social_1',
         players,
-        relationships,
+        relationships: {
+          user: { ally: { affinity: 4, tags: [] } },
+          ally: { user: { affinity: 3, tags: [] } },
+        },
+        reality,
+        requireCompleteSelection: true,
+        dramaMode: true,
+      }).eligible
+    ).toBe(false)
+
+    const alliance = createRealityAlliance(reality, {
+      id: 'formal-low-affinity-group',
+      founderIds: ['user', 'ally', 'loh'],
+      memberIds: [],
+      purpose: 'Strategic protection',
+      kind: 'GROUP',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    expect(
+      evaluateSocialActionEligibility({
+        action: action('consult_alliance'),
+        actorId: 'user',
+        targetIds: ['ally'],
+        phase: 'social_1',
+        players,
+        relationships: {
+          user: { ally: { affinity: 4, tags: [] } },
+          ally: { user: { affinity: 3, tags: [] } },
+        },
         reality,
         requireCompleteSelection: true,
         dramaMode: true,
@@ -177,7 +205,7 @@ describe('evaluateSocialActionEligibility', () => {
     expect(result).toEqual({ eligible: true, reason: '' })
   })
 
-  it('blocks duplicate LOH proposals only for ACTIVE or PROBATIONARY formal alliances', () => {
+  it('blocks duplicate personal pacts regardless of continuing membership health', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'loh-pact',
@@ -202,7 +230,7 @@ describe('evaluateSocialActionEligibility', () => {
     alliance.status = 'PROBATIONARY'
     expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
     alliance.status = 'FRACTURED'
-    expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
+    expect(evaluateSocialActionEligibility(base).eligible).toBe(false)
     alliance.status = 'DISSOLVED'
     expect(evaluateSocialActionEligibility(base).eligible).toBe(true)
   })

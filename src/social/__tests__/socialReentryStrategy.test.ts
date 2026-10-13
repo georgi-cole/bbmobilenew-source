@@ -11,6 +11,7 @@ import {
   captureRealityReentryProfile,
   createInitialRealityDomainState,
   createRealityAlliance,
+  recordRealityAllianceBetrayal,
   findRealityAllianceForConsultation,
   reconcileRealityBattleBackReturn,
   refreshRealityAllianceDynamics,
@@ -56,40 +57,21 @@ function makeReentryState() {
 }
 
 describe('Battle Back alliance reconciliation', () => {
-  it.each([
-    [4, 'ACTIVE'],
-    [5, 'ACTIVE'],
-    [6, 'PROBATIONARY'],
-    [7, 'FORMER'],
-  ] as const)(
-    'reassesses a %i-day return as %s instead of replaying the old pact',
-    (day, expected) => {
-      const state = makeReentryState()
-      const outcome = reconcileRealityBattleBackReturn(state, {
-        playerId: 'returner',
-        at: { day, phase: 'social_1' },
-        activeActorIds: ['returner', 'survivor'],
-      })
+  it.each([4, 5, 6, 7])('requires fresh consent on a day %i Battle Back return', (day) => {
+    const state = makeReentryState()
+    const outcome = reconcileRealityBattleBackReturn(state, {
+      playerId: 'returner',
+      at: { day, phase: 'social_1' },
+      activeActorIds: ['returner', 'survivor'],
+    })
+    expect(outcome.restoredAllianceIds).toEqual([])
+    expect(outcome.probationaryAllianceIds).toEqual([])
+    expect(outcome.formerAllianceIds).toEqual(['returning-pact'])
+    expect(findRealityAllianceForConsultation(state, 'returner', 'survivor')).toBeNull()
+    expect(state.reentryProfiles.returner).toBeUndefined()
+  })
 
-      if (expected === 'ACTIVE') {
-        expect(outcome.restoredAllianceIds).toEqual(['returning-pact'])
-        expect(findRealityAllianceForConsultation(state, 'returner', 'survivor')?.status).toBe(
-          'ACTIVE'
-        )
-      } else if (expected === 'PROBATIONARY') {
-        expect(outcome.probationaryAllianceIds).toEqual(['returning-pact'])
-        expect(findRealityAllianceForConsultation(state, 'returner', 'survivor')?.status).toBe(
-          'PROBATIONARY'
-        )
-      } else {
-        expect(outcome.formerAllianceIds).toEqual(['returning-pact'])
-        expect(findRealityAllianceForConsultation(state, 'returner', 'survivor')).toBeNull()
-      }
-      expect(state.reentryProfiles.returner).toBeUndefined()
-    }
-  )
-
-  it('downgrades an otherwise prompt return when survivors formed a stronger pact', () => {
+  it('preserves the survivors new pact without restoring the returning contestant', () => {
     const state = makeReentryState()
     const replacementPact = createRealityAlliance(state, {
       id: 'new-core',
@@ -109,7 +91,9 @@ describe('Battle Back alliance reconciliation', () => {
       activeActorIds: ['returner', 'survivor', 'new-ally'],
     })
 
-    expect(outcome.probationaryAllianceIds).toEqual(['returning-pact'])
+    expect(outcome.probationaryAllianceIds).toEqual([])
+    expect(outcome.formerAllianceIds).toEqual(['returning-pact'])
+    expect(replacementPact.memberIds).toEqual(['survivor', 'new-ally'])
   })
 })
 
@@ -117,6 +101,7 @@ describe('canonical social-action eligibility', () => {
   const players = [
     { id: 'user', status: 'active' as const },
     { id: 'ally', status: 'active' as const },
+    { id: 'member', status: 'active' as const },
   ]
 
   it('never advertises Consult Alliance from a stale legacy tag that execution cannot consult', () => {
@@ -145,7 +130,7 @@ describe('canonical social-action eligibility', () => {
     const alliance = createRealityAlliance(reality, {
       id: 'live-pact',
       founderIds: ['user', 'ally'],
-      memberIds: [],
+      memberIds: ['member'],
       purpose: 'Mutual protection',
       at: { day: 2, phase: 'social_1' },
     })
@@ -178,6 +163,20 @@ describe('canonical social-action eligibility', () => {
 
   it('uses the same repairable relationship truth for Private Truce after betrayal', () => {
     const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'prior-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Mutual protection',
+      at: { day: 1, phase: 'social_1' },
+    })
+    recordRealityAllianceBetrayal(reality, {
+      actorId: 'ally',
+      targetId: 'user',
+      kind: 'SOCIAL_BETRAYAL',
+      at: { day: 1, phase: 'social_2' },
+      sourceEventId: 'betrayal-proof',
+    })
     const privateTruce = socialAction('repair_bond')
     expect(
       evaluateSocialActionEligibility({

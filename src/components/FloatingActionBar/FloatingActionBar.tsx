@@ -24,6 +24,10 @@ import {
   selectEnergyBank,
   selectPendingIncomingInteractionCount,
 } from '../../social/socialSlice'
+import {
+  allianceRequestDecisionActors,
+  isPendingAllianceRequest,
+} from '../../social/reality/allianceManagement'
 import { selectAllDirections } from '../../publicOpinion'
 import {
   selectAdvanceEnabled,
@@ -60,6 +64,7 @@ import {
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
 import AdPrompt from '../AdPrompt/AdPrompt'
 import GameControlDock from '../GameControlDock/GameControlDock'
+import { openBugReportFromGame } from '../../utils/openBugReport'
 import ConfessionalSpotlightOverlay from './ConfessionalSpotlightOverlay'
 import { resolveBalancedDockBottom } from './floatingActionBarLayout'
 import { resolvePublicMeterDestination } from './publicMeterNavigation'
@@ -75,6 +80,8 @@ type FloatingActionBarProps = {
   onSocialModuleBlocked?: (availability: SocialModuleAvailability) => void
   /** Keep the shared Play control above a finale scene and route only that control. */
   finaleOverlayActive?: boolean
+  /** Route the shared Play control to a faux-TV story beat while leaving dock navigation enabled. */
+  finaleInlinePlayActive?: boolean
   finalePlayAvailable?: boolean
   /** Show the shared dock above spectator broadcasts that wait for Play input. */
   finaleDockOnTop?: boolean
@@ -95,6 +102,7 @@ export default function FloatingActionBar({
   onPublicMeterBlocked,
   onSocialModuleBlocked,
   finaleOverlayActive = false,
+  finaleInlinePlayActive = false,
   finalePlayAvailable = false,
   finaleDockOnTop = false,
 }: FloatingActionBarProps) {
@@ -104,6 +112,15 @@ export default function FloatingActionBar({
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
+  const pendingAllianceDecisionCount = useAppSelector((state) => {
+    const humanId = state.game.players.find((player) => player.isUser)?.id
+    if (!humanId) return 0
+    return Object.values(state.social.reality.allianceManagement?.requests ?? {}).filter(
+      (request) =>
+        isPendingAllianceRequest(request) &&
+        allianceRequestDecisionActors(request).includes(humanId)
+    ).length
+  })
   const confessionalAlertCount = useAppSelector(selectConfessionalAlertCount)
   const canUseSocialModules = useAppSelector(selectHumanCanUseSocialModules)
   const canUseIncomingSocialModule = useAppSelector(selectHumanCanUseIncomingSocialModule)
@@ -331,22 +348,26 @@ export default function FloatingActionBar({
     ? !weekendPlayReady
     : finaleOverlayActive
       ? !finalePlayAvailable
-      : survivorTerminalActive ||
-        survivorReplacementTransitionActive ||
-        (survivorReplacementPending
-          ? false
-          : hasPendingConfessionalDecision
-            ? confessionalPromptActivated
-            : isWaiting)
+      : finaleInlinePlayActive
+        ? !finalePlayAvailable
+        : survivorTerminalActive ||
+          survivorReplacementTransitionActive ||
+          (survivorReplacementPending
+            ? false
+            : hasPendingConfessionalDecision
+              ? confessionalPromptActivated
+              : isWaiting)
   const primaryPulse = finaleOverlayActive
     ? finalePlayAvailable
-    : survivorTerminalActive
-      ? false
-      : weekend?.active
-        ? weekendPlayReady
-        : hasPendingConfessionalDecision
-          ? !confessionalPromptActivated
-          : survivorReplacementPending || (canAdvance && !isWaiting)
+    : finaleInlinePlayActive
+      ? finalePlayAvailable
+      : survivorTerminalActive
+        ? false
+        : weekend?.active
+          ? weekendPlayReady
+          : hasPendingConfessionalDecision
+            ? !confessionalPromptActivated
+            : survivorReplacementPending || (canAdvance && !isWaiting)
   const confessionalPersistentFlash = hasPendingConfessionalDecision && confessionalPromptActivated
   const confessionalSpotlightEligible =
     hasPendingConfessionalDecision && confessionalPromptActivated && !hasSeenConfessionalSpotlight
@@ -477,6 +498,10 @@ export default function FloatingActionBar({
       return
     }
     if (survivorTerminalActive) return
+    if (finaleInlinePlayActive) {
+      dispatchPlayPressedEvent()
+      return
+    }
     if (survivorReplacementPending) {
       dispatch(revealSurvivorReplacement())
       return
@@ -525,6 +550,7 @@ export default function FloatingActionBar({
     battleBackAnnouncementActive,
     dispatch,
     dispatchPlayPressedEvent,
+    finaleInlinePlayActive,
     finaleOverlayActive,
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
@@ -649,7 +675,15 @@ export default function FloatingActionBar({
   ])
 
   const handleMoreClick = useCallback(
-    (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store') => {
+    (destination: 'settings' | 'profile' | 'rules' | 'leaderboard' | 'store' | 'feedback') => {
+      if (destination === 'feedback') {
+        openBugReportFromGame({
+          season: game.season,
+          week: game.week,
+          phase: game.phase,
+        })
+        return
+      }
       const routes = {
         settings: '/settings',
         profile: '/profile',
@@ -659,7 +693,7 @@ export default function FloatingActionBar({
       } as const
       navigate(routes[destination])
     },
-    [navigate, voxPopuliActive]
+    [game.phase, game.season, game.week, navigate, voxPopuliActive]
   )
 
   // Center the dock in the real rendered space between the content immediately
@@ -849,7 +883,9 @@ export default function FloatingActionBar({
         }
         chatFlash={!socialModulesUnavailable && isFlashing}
         incomingRequestsBadgeCount={
-          !incomingSocialModuleUnavailable && pendingCount > 0 ? pendingCount : undefined
+          !incomingSocialModuleUnavailable && pendingCount + pendingAllianceDecisionCount > 0
+            ? pendingCount + pendingAllianceDecisionCount
+            : undefined
         }
         publicMeterBadgeCount={
           game.publicModeEnabled === true && publicRequestCount > 0 ? publicRequestCount : undefined

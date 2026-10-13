@@ -20,6 +20,7 @@
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { rankTiltLabyrinthResults } from '../../components/TiltLabyrinthComp/tiltLabyrinthCollision';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,26 +94,20 @@ const initialState: TiltLabyrinthState = {
 function deriveWinnerAndLastPlace(
   scores: Record<string, number>,
   participantIds: string[],
+  runDetails: Record<string, TiltLabyrinthRunDetails>,
 ): { winnerId: string | null; lastPlaceId: string | null } {
   const eligible = participantIds.filter((id) => id in scores);
   if (eligible.length === 0) return { winnerId: null, lastPlaceId: null };
-  if (eligible.length === 1) return { winnerId: eligible[0], lastPlaceId: null };
-
-  let winnerId = eligible[0];
-  let lastPlaceId = eligible[0];
-
-  for (const id of eligible) {
-    // Lower score (time) = better → winner has the minimum
-    if (scores[id] < scores[winnerId]) winnerId = id;
-    // Higher score (time) = worse → last place has the maximum
-    if (scores[id] > scores[lastPlaceId]) lastPlaceId = id;
-  }
-
-  // Guard: winner and last place must differ; if all scores are identical they
-  // would be the same player. Return null so the store can fall back safely.
-  if (winnerId === lastPlaceId) return { winnerId, lastPlaceId: null };
-
-  return { winnerId, lastPlaceId };
+  const ranked = rankTiltLabyrinthResults(eligible.map((id) => ({
+    id,
+    rawTimeMs: runDetails[id]?.rawTimeMs ?? scores[id],
+    hazardHits: runDetails[id]?.hazardHits ?? 0,
+    adjustedTimeMs: scores[id],
+  })));
+  return {
+    winnerId: ranked[0].id,
+    lastPlaceId: ranked.length > 1 ? ranked[ranked.length - 1].id : null,
+  };
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -185,7 +180,11 @@ const tiltLabyrinthSlice = createSlice({
       state.finalScores = allScores;
 
       const participantIds = state.participants.map((p) => p.id);
-      const { winnerId, lastPlaceId } = deriveWinnerAndLastPlace(allScores, participantIds);
+      const { winnerId, lastPlaceId } = deriveWinnerAndLastPlace(
+        allScores,
+        participantIds,
+        state.runDetails,
+      );
       state.winnerId = winnerId;
       state.lastPlaceId = lastPlaceId;
       state.phase = 'complete';

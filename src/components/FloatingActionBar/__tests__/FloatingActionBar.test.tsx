@@ -466,6 +466,31 @@ describe('FloatingActionBar – layout', () => {
     expect(store.getState().game.week).toBe(2)
   })
 
+  it('keeps the shared dock navigation enabled while inline finale beats own Play', () => {
+    const store = makeStore(true, {
+      phase: 'final3_decision',
+      awaitingFinal3Eviction: true,
+    })
+    const consumePlay = vi.fn((event: Event) => event.preventDefault())
+    window.addEventListener('ui:playPressed', consumePlay, { capture: true })
+    renderFAB(store, '/game', {
+      finaleInlinePlayActive: true,
+      finalePlayAvailable: true,
+    })
+
+    const playButton = screen.getByRole('button', { name: 'Advance to next phase' })
+    expect(playButton).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Home' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Public meter' })).toBeEnabled()
+
+    act(() => playButton.click())
+
+    expect(consumePlay).toHaveBeenCalledOnce()
+    expect(store.getState().game.phase).toBe('final3_decision')
+
+    window.removeEventListener('ui:playPressed', consumePlay, { capture: true })
+  })
+
   it('starts Vox Final 3 Part 1 without dispatching the challenge twice', () => {
     const initial = makeStore().getState().game
     const finalists = initial.players.slice(0, 3)

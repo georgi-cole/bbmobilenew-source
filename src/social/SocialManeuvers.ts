@@ -1,3 +1,6 @@
+import { executeAllianceManagementCommand } from './allianceManagementActions'
+import { getCurrentPact } from './reality/allianceIdentity'
+import type { AppDispatch, RootState } from '../store/store'
 /**
  * SocialManeuvers — core API for executing social actions during a phase.
  *
@@ -32,7 +35,6 @@ import {
   MIN_ALLIANCE_AFFINITY,
   hasAllianceBetween,
 } from './socialAlliance'
-import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
@@ -607,6 +609,7 @@ function getContextualActionSummary({
   recipientTrust,
   game,
   relationships,
+  outcome,
 }: {
   actionId: string
   actorId: string
@@ -620,11 +623,32 @@ function getContextualActionSummary({
     lohId?: string | null
     nominationContext?: { autoNomineeId: string | null; hohNomineeIds?: string[] } | null
     nominationDecisionReasons?: ManeuverGameState['nominationDecisionReasons']
+    lohSocialPlan?: ManeuverGameState['lohSocialPlan']
   }
   relationships: SocialState['relationships']
+  outcome: 'success' | 'failure'
 }): string | null {
   const name = (id: string | undefined) =>
     game?.players?.find((player) => player.id === id)?.name ?? id ?? 'that player'
+  if (actionId === 'protect') {
+    const targetName = name(targetId)
+    const atRisk = (game?.nomineeIds ?? []).includes(targetId)
+    const plan = game?.lohSocialPlan
+    const actorStillTargetsThem = Boolean(
+      plan &&
+      plan.week === game?.week &&
+      plan.lohId === actorId &&
+      [plan.currentTargetId, plan.backupTargetId].includes(targetId)
+    )
+    if (outcome === 'success') {
+      return atRisk
+        ? `${targetName} believes your promise to vote to keep them. You have made your position clear.`
+        : `${targetName} believes you will use your vote or power to protect them when you can.`
+    }
+    return actorStillTargetsThem
+      ? `${targetName} is wary of your offer because your current plan still names them as a target.`
+      : `${targetName} heard your promise but is not ready to rely on it yet.`
+  }
   if (actionId === 'ask_why_nominated') {
     const lohName = name(targetId)
     if (game?.nominationContext?.autoNomineeId === actorId) {
@@ -795,7 +819,7 @@ export function getAvailableActions(
       action.id === 'proposeAlliance' &&
       socialState &&
       (socialState.reality
-        ? hasCanonicalLiveAlliance(socialState.reality, actorId, targetId)
+        ? Boolean(getCurrentPact(socialState.reality, actorId, targetId))
         : hasAllianceBetween(socialState.relationships, actorId, targetId))
     ) {
       return false
@@ -948,6 +972,58 @@ export function executeAction(
 
   const weekendWallet = getWeekendWallet(state, actorId)
   const currentEnergy = weekendWallet?.energy ?? SocialEnergyBank.get(actorId)
+  if (['proposeAlliance', 'ally', 'break_alliance'].includes(actionId)) {
+    const pact = getCurrentPact(state.social.reality, actorId, targetId)
+    if (!state.game || (actionId === 'break_alliance' && !pact))
+      return {
+        success: false,
+        delta: 0,
+        newEnergy: currentEnergy,
+        score: 0,
+        label: 'Unavailable',
+        summary:
+          'Use Your Alliances to select the specific group or personal pact you want to leave.',
+      }
+    const command =
+      actionId === 'break_alliance'
+        ? { type: 'LEAVE' as const, allianceId: pact!.id, actorId }
+        : { type: 'PROPOSE' as const, kind: 'PACT' as const, actorId, candidateId: targetId }
+    const proposalCosts =
+      actionId !== 'break_alliance' && options?.source === 'manual' && !options.waiveCosts
+        ? (options.costOverride ??
+          normalizeActionCosts(action, 0, getEffectiveSocialMode(state) === 'drama'))
+        : undefined
+    if (proposalCosts && !canAfford(actorId, proposalCosts, state))
+      return {
+        success: false,
+        delta: 0,
+        newEnergy: currentEnergy,
+        score: 0,
+        label: 'Unmoved',
+        summary: 'Insufficient resources. Nothing was spent.',
+      }
+    const managed = executeAllianceManagementCommand(command, proposalCosts)(
+      _store.dispatch as AppDispatch,
+      _store.getState as () => RootState
+    )
+    const latest = _store.getState() as RootState
+    const latestWeekendWallet = getWeekendWallet(latest, actorId)
+    const latestEnergy =
+      latestWeekendWallet?.energy ?? latest.social.energyBank[actorId] ?? currentEnergy
+    const request = managed.requestId
+      ? latest.social.reality.allianceManagement.requests[managed.requestId]
+      : undefined
+    return {
+      success:
+        managed.status === 'APPLIED' &&
+        !['DECLINED', 'INVALIDATED', 'EXPIRED'].includes(request?.status ?? ''),
+      delta: 0,
+      newEnergy: latestEnergy,
+      score: 0,
+      label: request?.status ?? managed.status,
+      summary: managed.reason,
+    }
+  }
   const dramaMode = getEffectiveSocialMode(state) === 'drama'
   const realityPreset = state.settings?.gameUX?.realityModePreset
   if (realityPreset && !isActionAllowedForRealityPreset(action, realityPreset)) {
@@ -981,7 +1057,7 @@ export function executeAction(
   if (
     actionId === 'proposeAlliance' &&
     (state.social.reality
-      ? hasCanonicalLiveAlliance(state.social.reality, actorId, targetId)
+      ? Boolean(getCurrentPact(state.social.reality, actorId, targetId))
       : hasAllianceBetween(state.social.relationships, actorId, targetId))
   ) {
     return {
@@ -1665,6 +1741,7 @@ export function executeAction(
     recipientTrust,
     game: rootState.game,
     relationships: state.social.relationships,
+    outcome,
   })
   const standardSummary =
     tradeSummary ??

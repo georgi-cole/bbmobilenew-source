@@ -1,5 +1,13 @@
+import { isCurrentAlliance } from './reality/allianceIdentity'
+import { projectRealityAffinity } from './reality/relationships'
 import type { RelationshipsMap } from './types'
-import type { RealityAlliance, RealityAllianceStatus, RealityDomainState } from './reality/types'
+import type {
+  DirectedRelationship,
+  RealityAlliance,
+  RealityAllianceStatus,
+  RealityDomainState,
+  RealityRelationshipLabel,
+} from './reality/types'
 
 const LIVE_ALLIANCE_STATUSES = new Set(['ACTIVE', 'PROBATIONARY'])
 const REPAIRABLE_LEGACY_TAGS = new Set(['betrayal', 'broken_alliance', 'rivalry', 'strained'])
@@ -9,6 +17,61 @@ const ALLIANCE_STATUS_PRIORITY: Record<RealityAllianceStatus, number> = {
   FRACTURED: 2,
   DISSOLVED: 1,
   DORMANT: 0,
+}
+
+const RELATIONSHIP_LABEL_COPY: Record<RealityRelationshipLabel, string> = {
+  UNKNOWN: 'Still forming',
+  ACQUAINTANCE: 'Acquaintance',
+  FRIENDLY: 'Friendly',
+  FRIEND: 'Friend',
+  CLOSE_FRIEND: 'Close friend',
+  TRANSACTIONAL: 'Transactional',
+  ALLY: 'Ally',
+  CORE_ALLY: 'Core ally',
+  FAKE_ALLY: 'Fake ally',
+  ROMANCE: 'Romance',
+  POWER_PAIR: 'Power pair',
+  ONE_SIDED_CRUSH: 'One-sided crush',
+  EX_ROMANCE: 'Ex',
+  RIVAL: 'Rival',
+  ENEMY: 'Enemy',
+  UNEASY_TRUCE: 'Uneasy truce',
+  ESTRANGED: 'Estranged',
+}
+const RELATIONSHIP_LABELS_WITH_PRIORITY = new Set<RealityRelationshipLabel>([
+  'CLOSE_FRIEND',
+  'TRANSACTIONAL',
+  'ALLY',
+  'CORE_ALLY',
+  'FAKE_ALLY',
+  'ROMANCE',
+  'POWER_PAIR',
+  'ONE_SIDED_CRUSH',
+  'EX_ROMANCE',
+  'RIVAL',
+  'ENEMY',
+  'UNEASY_TRUCE',
+  'ESTRANGED',
+])
+
+/** The Reality edge, rather than its compatibility affinity projection, owns the visible label. */
+export function getCanonicalRelationshipLabel(
+  edge: DirectedRelationship | undefined,
+  hasOperationalAlliance = false
+): string {
+  if (hasOperationalAlliance && (!edge || edge.perceivedLabel === 'UNKNOWN')) return 'Ally'
+  if (!edge || edge.perceivedLabel === 'UNKNOWN') return 'Still forming'
+  if (RELATIONSHIP_LABELS_WITH_PRIORITY.has(edge.perceivedLabel)) {
+    return RELATIONSHIP_LABEL_COPY[edge.perceivedLabel]
+  }
+  if (hasOperationalAlliance) return 'Ally'
+
+  const affinity = projectRealityAffinity(edge)
+  if (affinity >= 55) return 'Close'
+  if (affinity >= 20) return 'Friendly'
+  if (affinity <= -45) return 'Hostile'
+  if (affinity <= -15) return 'Tense'
+  return RELATIONSHIP_LABEL_COPY[edge?.perceivedLabel ?? 'UNKNOWN']
 }
 
 /**
@@ -25,12 +88,20 @@ export function getSharedFormalAlliances(
   if (!reality || actorId === targetId) return []
   return Object.values(reality.alliances)
     .filter(
-      (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
+      (alliance) =>
+        (alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)) ||
+        (!isCurrentAlliance(alliance) &&
+          Object.values(alliance.rosterKnowledgeByActor ?? {}).some(
+            (snapshot) =>
+              snapshot.memberIds.includes(actorId) && snapshot.memberIds.includes(targetId)
+          ))
     )
     .sort(
       (left, right) =>
+        Number(isCurrentAlliance(right)) - Number(isCurrentAlliance(left)) ||
         (ALLIANCE_STATUS_PRIORITY[right.status] ?? -1) -
-          (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) || left.id.localeCompare(right.id)
+          (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) ||
+        left.id.localeCompare(right.id)
     )
 }
 
@@ -62,7 +133,7 @@ export function hasCanonicalLiveAlliance(
   return Boolean(
     reality &&
     getSharedFormalAlliances(reality, actorId, targetId).some((alliance) =>
-      LIVE_ALLIANCE_STATUSES.has(alliance.status)
+      isCurrentAlliance(alliance)
     )
   )
 }
@@ -87,10 +158,12 @@ export function selectCanonicalRelationshipView(input: {
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
 
-  if (formalAlliance?.status === 'PROBATIONARY') visibleTags.add('strained_alliance')
+  if (formalAlliance?.status === 'PROBATIONARY') {
+    visibleTags.delete('strained_alliance')
+    visibleTags.add('new_alliance')
+  }
   if (formalAlliance?.status === 'FRACTURED') {
-    visibleTags.delete('alliance')
-    visibleTags.add('broken_alliance')
+    visibleTags.add('strained_alliance')
   }
   if (formalAlliance?.status === 'DISSOLVED') {
     visibleTags.delete('alliance')

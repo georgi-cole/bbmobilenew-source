@@ -367,9 +367,13 @@
   }
 
   .tetris-round-bar strong,
-  .tetris-round-bar small,
-  .tetris-round-timer {
+  .tetris-round-bar small {
     display: none;
+  }
+
+  .tetris-round-timer {
+    display: block;
+    font-size: 1rem;
   }
 
   .tetris-round-field {

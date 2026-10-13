@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from '../../social/reality/allianceIdentity'
 /**
  * DiaryRoom — private player confessional / game log screen.
  *
@@ -36,6 +37,7 @@ import {
   submitTwinShockAnswer,
   selectAlivePlayers,
   consumeBroadcastEvent,
+  recordConfessionalMisconduct,
 } from '../../store/gameSlice'
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
@@ -57,10 +59,7 @@ import {
   getSalientConfessionalObservation,
   type BigEyeWorldSnapshot,
 } from '../../bb/confessionalSalience'
-import { applyInfluenceDelta, renameRealityAllianceRecord } from '../../social/socialSlice'
-import { getEffectiveSocialMode } from '../../social/socialMode'
-import RealityLedger from '../../components/RealityLedger/RealityLedger'
-import StoreProductIcon from '../../components/StoreProductModal/StoreProductIcon'
+import { applyInfluenceDelta } from '../../social/socialSlice'
 import {
   createInitialBigEyeState,
   generateBigBrotherReply,
@@ -68,6 +67,11 @@ import {
   type BigEyePerformance,
   type BigEyeWorldContext,
 } from '../../services/bigBrother'
+import {
+  assessLocalConfessionalInput,
+  getConfessionalMisconductResponse,
+  isConfessionalMisconductCode,
+} from '../../bb/localConfessionalSafety'
 import {
   BigEyeVipError,
   getBigEyeVipStatus,
@@ -552,7 +556,6 @@ export default function DiaryRoom() {
   const gameState = useAppSelector((s) => s.game)
   const socialRelationships = useAppSelector((s) => s.social.relationships)
   const realityDomain = useAppSelector((s) => s.social.reality)
-  const realityReadEnabled = useAppSelector((s) => getEffectiveSocialMode(s) === 'drama')
   const phase = useAppSelector((s) => s.game.phase)
   const seed = useAppSelector((s) => s.game.seed)
   const userPlayer = useAppSelector((s) => s.game.players.find((p) => p.isUser))
@@ -567,22 +570,6 @@ export default function DiaryRoom() {
   const visualEyeReactions =
     useAppSelector((s) => s.remoteConfig?.config?.confessional?.features?.visualEyeReactions) !==
     false
-
-  const handleRenameAlliance = useCallback(
-    (allianceId: string, name: string) => {
-      if (!userPlayer) return
-      dispatch(
-        renameRealityAllianceRecord({
-          allianceId,
-          actorId: userPlayer.id,
-          name,
-          day: gameState.week,
-          phase,
-        })
-      )
-    },
-    [dispatch, gameState.week, phase, userPlayer]
-  )
 
   // ── Active ceremony decision routed to the confessional ───────────────────
   // When non-null the player must complete the decision before leaving.
@@ -671,9 +658,7 @@ export default function DiaryRoom() {
     const nameFor = (id: string | null | undefined) => (id ? (playerNameById.get(id) ?? id) : null)
 
     const formalAlliances = Object.values(realityDomain.alliances ?? {})
-      .filter(
-        (alliance) => alliance.memberIds.includes(playerId) && alliance.status !== 'DISSOLVED'
-      )
+      .filter((alliance) => isCurrentAlliance(alliance) && alliance.memberIds.includes(playerId))
       .map((alliance) => ({
         id: alliance.id,
         name: alliance.name?.trim() || null,
@@ -681,26 +666,7 @@ export default function DiaryRoom() {
         status: alliance.status,
       }))
 
-    const legacyAllianceNames =
-      formalAlliances.length === 0
-        ? relationshipRows
-            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
-            .map((row) => row.name)
-        : []
-
-    const alliances =
-      formalAlliances.length > 0
-        ? formalAlliances
-        : legacyAllianceNames.length > 0
-          ? [
-              {
-                id: 'relationship-allies',
-                name: null,
-                memberNames: [playerName, ...legacyAllianceNames],
-                status: 'ACTIVE',
-              },
-            ]
-          : []
+    const alliances = formalAlliances
 
     const publicFeed = gameState.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
     const recentEvictedNames: string[] = []
@@ -753,7 +719,6 @@ export default function DiaryRoom() {
     gameState.tvFeed,
     gameState.week,
     playerId,
-    playerName,
     playerNameById,
     players,
     realityDomain.alliances,
@@ -1235,6 +1200,55 @@ export default function DiaryRoom() {
         return updated
       })
 
+      // Moderate before any special prompt or game-action handler. This keeps
+      // abusive or deliberately noisy input from slipping into a side channel.
+      const safety = assessLocalConfessionalInput({
+        diaryText: text,
+        history: messages.map((message) => ({
+          role: message.role,
+          text: message.text,
+          timestamp: message.timestamp,
+        })),
+        now: Date.now(),
+      })
+      if (safety) {
+        let replyText = safety.text
+        if (isConfessionalMisconductCode(safety.code)) {
+          const currentPlayer = reduxStore
+            .getState()
+            .game.players.find((candidate) => candidate.id === playerId)
+          const currentGame = reduxStore.getState().game
+          const previousStrikes =
+            currentPlayer?.confessionalMisconduct?.season === currentGame.season
+              ? currentPlayer.confessionalMisconduct.strikes
+              : 0
+          const nextStrike = previousStrikes + 1
+          dispatch(
+            recordConfessionalMisconduct({
+              playerId,
+              violation: safety.code,
+            })
+          )
+          replyText = getConfessionalMisconductResponse(nextStrike)
+          if (nextStrike >= 3) {
+            navigate('/self-evicted')
+            return
+          }
+        }
+
+        setMessages((prev) => {
+          const withSeen = prev.map((message) =>
+            message.role === 'user' && message.status !== 'seen'
+              ? { ...message, status: 'seen' as MessageStatus }
+              : message
+          )
+          saveChat(playerId, withSeen)
+          return withSeen
+        })
+        pushBigEyeMessage(replyText)
+        return
+      }
+
       if (voxPopuliActive && isVoxNominationRevealPhrase(text)) {
         setMessages((prev) => {
           const withSeen = prev.map((message) =>
@@ -1686,40 +1700,6 @@ export default function DiaryRoom() {
                         Reply below with your best guess. On the final call, you can also say
                         &ldquo;I give up&rdquo; to continue the game.
                       </p>
-                    </section>
-                  )}
-                  {userPlayer && realityReadEnabled && (
-                    <details className="diary-room__reality-recap">
-                      <summary>Your private game read</summary>
-                      <RealityLedger
-                        reality={realityDomain}
-                        players={players}
-                        humanId={userPlayer.id}
-                        relationships={socialRelationships}
-                        onRenameAlliance={handleRenameAlliance}
-                      />
-                    </details>
-                  )}
-                  {userPlayer && !realityReadEnabled && (
-                    <section
-                      className="diary-room__reality-recap diary-room__reality-recap--locked"
-                      aria-label="Private game read locked"
-                    >
-                      <span
-                        className="diary-room__reality-recap-badge"
-                        aria-label="Reality Mode required"
-                      >
-                        <StoreProductIcon name="vip" />
-                      </span>
-                      <div>
-                        <strong>Your private game read</strong>
-                        <small>
-                          Unlock Reality Mode to see what is really shifting around you.
-                        </small>
-                      </div>
-                      <button type="button" onClick={() => navigate('/store')}>
-                        Unlock
-                      </button>
                     </section>
                   )}
                   {ticTacToeActive && (

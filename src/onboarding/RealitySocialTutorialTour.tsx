@@ -20,8 +20,9 @@ type TutorialMode =
   | 'targetless'
   | 'target'
   | 'pulse-stream'
-  | 'ledger-relationships'
-  | 'ledger-house'
+  | 'pulse-intel'
+  | 'pulse-commitments'
+  | 'alliances'
 
 type TutorialStep = {
   id: string
@@ -110,6 +111,15 @@ const REALITY_TUTORIAL_STEPS: readonly TutorialStep[] = [
     mode: 'target',
   },
   {
+    id: 'reality-alliances',
+    title: 'Pacts, groups and invitations',
+    body: 'Choose Alliances to propose a personal pact or start a group. Group admission needs a member vote and the invited person’s acceptance. Check Incoming requests when the badge appears.',
+    selector: '[data-reality-tutorial="actions"]',
+    padding: 4,
+    shape: 'panel',
+    mode: 'target',
+  },
+  {
     id: 'reality-costs',
     title: 'Spend strategically',
     body: 'Energy ⚡ powers social activity. Stronger moves may also use Influence 🤝 or Information 💡. Nothing happens until you press Execute.',
@@ -121,7 +131,7 @@ const REALITY_TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'reality-pulse',
     title: 'My Pulse',
-    body: 'Your private strategy feed. Stream shows developments you experienced, witnessed, learned or saw become public — not hidden activity elsewhere in the house.',
+    body: 'Today puts the latest developments and decisions first. Intel and Commitments keep the information and promises your player knows.',
     selector: '[data-reality-tutorial="pulse-stream"]',
     padding: 5,
     shape: 'panel',
@@ -129,21 +139,21 @@ const REALITY_TUTORIAL_STEPS: readonly TutorialStep[] = [
   },
   {
     id: 'reality-my-game',
-    title: 'My Game',
-    body: 'Go deeper into People, Known and Deals to review relationships, what you know, and promises or debts affecting your game.',
-    selector: '[data-reality-tutorial="ledger-tabs"]',
+    title: 'Intel and commitments',
+    body: 'Intel shows what your player has learned, with its source and confidence. Commitments keeps track of promises and favors that affect upcoming decisions.',
+    selector: '[data-reality-tutorial="pulse-tabs"]',
     padding: 5,
     shape: 'rounded',
-    mode: 'ledger-relationships',
+    mode: 'pulse-intel',
   },
   {
     id: 'reality-house',
-    title: 'The House',
-    body: 'Alliances and larger strategic relationships appear here as you discover them. You only see what your player actually knows.',
-    selector: '[data-reality-tutorial="ledger-house"]',
+    title: 'Manage alliances',
+    body: 'Review your groups, roles and proposals together under the Alliances category. Answers are handled in Incoming.',
+    selector: '[data-reality-tutorial="alliance-actions"]',
     padding: 5,
     shape: 'rounded',
-    mode: 'ledger-house',
+    mode: 'alliances',
   },
 ]
 
@@ -161,6 +171,15 @@ const REALITY_UPGRADE_STEPS: readonly TutorialStep[] = [
     id: 'upgrade-moves',
     title: 'More context, more options',
     body: 'Moves can now react to roles, promises, alliances, relationship history and what your player knows.',
+    selector: '[data-reality-tutorial="actions"]',
+    padding: 4,
+    shape: 'panel',
+    mode: 'target',
+  },
+  {
+    id: 'upgrade-alliances',
+    title: 'Pacts, groups and invitations',
+    body: 'Choose Alliances to propose a personal pact or start a group. Group admission needs a member vote and the invited person’s acceptance. Check Incoming requests when the badge appears.',
     selector: '[data-reality-tutorial="actions"]',
     padding: 4,
     shape: 'panel',
@@ -186,12 +205,21 @@ const REALITY_UPGRADE_STEPS: readonly TutorialStep[] = [
   },
   {
     id: 'upgrade-my-game',
-    title: 'Your private game read',
-    body: 'My Game tracks deeper relationships, known information, promises, debts and alliances as your season develops.',
-    selector: '[data-reality-tutorial="ledger-tabs"]',
+    title: 'Intel and commitments',
+    body: 'Intel gathers learned leads. Commitments brings your promises and favors into one place, with reminders before important decisions.',
+    selector: '[data-reality-tutorial="pulse-tabs"]',
     padding: 5,
     shape: 'rounded',
-    mode: 'ledger-relationships',
+    mode: 'pulse-commitments',
+  },
+  {
+    id: 'upgrade-hub',
+    title: 'Manage alliances',
+    body: 'Review your groups, roles and proposals together under Alliances. Answer invitations and votes in Incoming.',
+    selector: '[data-reality-tutorial="alliance-actions"]',
+    padding: 5,
+    shape: 'rounded',
+    mode: 'alliances',
   },
 ]
 
@@ -361,17 +389,19 @@ export default function RealitySocialTutorialTour({
       }
       if (mode === 'pulse-stream') {
         dispatchTutorialEvent('reality-social-tutorial:open-pulse')
-        dispatchTutorialEvent('reality-social-tutorial:set-pulse-tab', 'stream')
+        dispatchTutorialEvent('reality-social-tutorial:set-pulse-tab', 'today')
+        return
+      }
+      if (mode === 'alliances') {
+        dispatchTutorialEvent('reality-social-tutorial:close-pulse')
+        dispatchTutorialEvent('reality-social-tutorial:open-alliances')
         return
       }
       dispatchTutorialEvent('reality-social-tutorial:open-pulse')
-      dispatchTutorialEvent('reality-social-tutorial:set-pulse-tab', 'ledger')
-      window.setTimeout(() => {
-        dispatchTutorialEvent(
-          'reality-social-tutorial:set-ledger-tab',
-          mode === 'ledger-house' ? 'house' : 'relationships'
-        )
-      }, 0)
+      dispatchTutorialEvent(
+        'reality-social-tutorial:set-pulse-tab',
+        mode === 'pulse-commitments' ? 'commitments' : 'intel'
+      )
     },
     [onClearTarget, onEnsureTarget]
   )

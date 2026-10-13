@@ -4715,7 +4715,98 @@ const gameSlice = createSlice({
     },
     updatePlayer(state, action: PayloadAction<Player>) {
       const idx = state.players.findIndex((p) => p.id === action.payload.id)
-      if (idx !== -1) state.players[idx] = action.payload
+      if (idx !== -1) {
+        const previous = state.players[idx]
+        const player = {
+          ...previous,
+          ...action.payload,
+          confessionalMisconduct:
+            action.payload.confessionalMisconduct ?? previous.confessionalMisconduct,
+        }
+        if (
+          player.confessionalMisconduct?.season === state.season &&
+          player.confessionalMisconduct.administrativelyRemoved
+        ) {
+          player.status = 'evicted'
+          player.tribunalEligible = false
+        }
+        state.players[idx] = player
+      }
+    },
+    recordConfessionalMisconduct(
+      state,
+      action: PayloadAction<{
+        playerId: string
+        violation: NonNullable<Player['confessionalMisconduct']>['lastViolation']
+      }>
+    ) {
+      const player = state.players.find((candidate) => candidate.id === action.payload.playerId)
+      if (!player || player.status === 'evicted' || player.status === 'jury') return
+
+      const previous =
+        player.confessionalMisconduct?.season === state.season
+          ? player.confessionalMisconduct
+          : undefined
+      const strikes = (previous?.strikes ?? 0) + 1
+      const administrativelyRemoved = strikes >= 3
+      player.confessionalMisconduct = {
+        season: state.season,
+        strikes,
+        lastViolation: action.payload.violation,
+        administrativelyRemoved,
+      }
+
+      if (!administrativelyRemoved) return
+
+      // Treat this as an extraordinary removal: it is final for this season,
+      // outside the Tribunal, and ineligible for Battle Back.
+      assignSeasonPlacementOnExit(state, player.id)
+      player.status = 'evicted'
+      player.tribunalEligible = false
+      state.nomineeIds = state.nomineeIds.filter((id) => id !== player.id)
+      if (state.lohId === player.id) state.lohId = null
+      if (state.posWinnerId === player.id) state.posWinnerId = null
+      if (state.povSavedId === player.id) state.povSavedId = null
+      if (state.povProtectedIds?.includes(player.id)) {
+        state.povProtectedIds = state.povProtectedIds.filter((id) => id !== player.id)
+      }
+      if (state.pendingNominee1Id === player.id) state.pendingNominee1Id = null
+      if (state.pendingEviction?.evicteeId === player.id) state.pendingEviction = null
+      if (state.doubleEviction?.pendingSecondEviction?.evicteeId === player.id) {
+        state.doubleEviction.pendingSecondEviction = null
+      }
+      if (state.coLohIds?.includes(player.id)) {
+        state.coLohIds = state.coLohIds.filter((id) => id !== player.id)
+        if (state.coLohIds.length === 0) state.coLohIds = null
+      }
+      if (state.coLohNomineeByCoLohId && player.id in state.coLohNomineeByCoLohId) {
+        delete state.coLohNomineeByCoLohId[player.id]
+      }
+      if (state.coLohReplacementOwnerId === player.id) state.coLohReplacementOwnerId = null
+
+      state.replacementNeeded = false
+      state.awaitingPublicSave = false
+      state.awaitingNominations = false
+      state.awaitingPovDecision = false
+      state.awaitingPovSaveTarget = false
+      state.awaitingHumanVote = false
+      state.awaitingTieBreak = false
+      state.awaitingPosTieBreak = false
+      state.awaitingCoLohNomination = false
+      state.awaitingMissionImmunityOffer = false
+      state.tiedNomineeIds = null
+      state.awaitingFinal3Eviction = false
+      state.awaitingFinal3Plea = false
+      state.evictionSplashId = null
+      state.votes = {}
+      state.voteResults = null
+
+      pushEvent(
+        state,
+        player.name +
+          ' was removed by The Big Eye after repeated Confessional misconduct. They are ineligible for the Tribunal and any return this season.',
+        'game'
+      )
     },
     syncStrategicRelationships(
       state,
@@ -12144,6 +12235,7 @@ export const {
   setPhase,
   advanceWeek,
   updatePlayer,
+  recordConfessionalMisconduct,
   syncStrategicRelationships,
   syncStrategicAlliances,
   setLohSocialPlan,

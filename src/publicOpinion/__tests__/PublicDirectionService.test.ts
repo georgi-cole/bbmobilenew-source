@@ -51,7 +51,7 @@ describe('generateDirectionsForCycle', () => {
     expect(breakRequest?.actionHint).toContain('nova')
   })
 
-  it('does not treat a dormant Reality alliance as active because of a stale legacy tag', () => {
+  it('treats dormant membership as a continuing commitment', () => {
     const actor = player('test', true)
     const ally = player('nova')
     const reality = createInitialRealityDomainState()
@@ -74,8 +74,8 @@ describe('generateDirectionsForCycle', () => {
       realityAlliances: reality.alliances,
     })
 
-    expect(candidates.some((candidate) => candidate.type === 'reinforce_alliance')).toBe(false)
-    expect(candidates.some((candidate) => candidate.type === 'show_loyalty')).toBe(false)
+    expect(candidates.some((candidate) => candidate.type === 'reinforce_alliance')).toBe(true)
+    expect(candidates.some((candidate) => candidate.type === 'show_loyalty')).toBe(true)
   })
 
   it('writes AI requests as audience story beats without exposing the action route', () => {

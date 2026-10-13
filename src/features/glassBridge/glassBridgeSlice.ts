@@ -282,6 +282,11 @@ export function aiDecideStep(
   return rng() < 0.5 ? 'left' : 'right'
 }
 
+/** Return the last-place finisher from the authoritative displayed placements. */
+export function getGlassBridgeLastPlace(placements: string[]): string | null {
+  return placements.at(-1) ?? null
+}
+
 /** Build the final sorted placements array from completed progress data. */
 export function buildPlacements(
   progress: Record<string, GlassBridgePlayerProgress>,

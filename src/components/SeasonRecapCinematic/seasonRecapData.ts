@@ -349,7 +349,7 @@ function buildCategories(players: Player[], publicOpinion?: PublicOpinionState |
     },
     {
       id: 'head_honcho',
-      name: 'HEAD HONCHO',
+      name: 'LOH LEGEND',
       subtitle: 'Power looked comfortable on them.',
       emoji: '👑',
       winner: headHoncho,

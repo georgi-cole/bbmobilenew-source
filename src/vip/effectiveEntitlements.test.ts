@@ -45,4 +45,12 @@ describe('effective entitlements', () => {
     expect(hasEffectiveStoreEntitlement(EMPTY_VIP, 'premiumChallenges', true)).toBe(true)
     expect(hasEffectiveStoreEntitlement(EMPTY_VIP, 'noAds', true)).toBe(true)
   })
+
+  it('grants all VIP access through the session-only QA override', () => {
+    const qaVip = { ...EMPTY_VIP, debugUnlocked: true }
+
+    expect(isEffectiveVipActive(qaVip, false)).toBe(true)
+    expect(hasEffectiveStoreEntitlement(qaVip, 'dramaMode', false)).toBe(true)
+    expect(hasEffectiveStoreEntitlement(qaVip, 'premiumChallenges', false)).toBe(true)
+  })
 })

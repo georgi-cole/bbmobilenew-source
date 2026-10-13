@@ -38,6 +38,8 @@ afterEach(() => {
   delete (window as Window & { toggleIntroHubMusic?: () => void }).toggleIntroHubMusic
   delete (window as Window & { toggleIntroHubSfx?: () => void }).toggleIntroHubSfx
   setNavigatorShare(undefined)
+  delete (window as Window & { __bigEyeFeedbackBuild?: unknown }).__bigEyeFeedbackBuild
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: undefined })
   vi.restoreAllMocks()
 })
 
@@ -221,19 +223,76 @@ describe('IntroHub side utility buttons', () => {
     expect(document.getElementById('hub-dialog-panel')).toBeNull()
   })
 
-  it('opens the feedback email composer for the support inbox', () => {
+  it('opens an in-game report form rather than immediately launching an email', () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(window)
-    loadIntroHub({ season: 3, week: 7 })
+    loadIntroHub({ season: 3, week: 7, phase: 'nominations' })
 
     document.querySelector<HTMLButtonElement>('[data-hub-id="feedback"]')?.click()
 
-    expect(openSpy).toHaveBeenCalledTimes(1)
-    const [url, target] = openSpy.mock.calls[0]
-    expect(url).toContain('mailto:kolequant@gmail.com')
-    expect(url).toContain('BBMobile%20New%20feedback')
-    expect(url).toContain('Season%203')
-    expect(url).toContain('Day%207')
-    expect(target).toBe('_self')
+    const dialog = document.getElementById('hub-dialog-panel')
+    expect(dialog).toHaveAttribute('role', 'dialog')
+    expect(dialog?.textContent).toContain('Report a bug')
+    expect(dialog?.textContent).toContain('nothing is sent automatically')
+    expect(dialog?.querySelector('[data-feedback-field="details"]')).not.toBeNull()
+    expect(dialog?.querySelector('[data-feedback-action="copy"]')).not.toBeNull()
+    expect(dialog?.querySelector('[data-feedback-action="email"]')).not.toBeNull()
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('requires a description and prepares a contextual report for the developer inbox', async () => {
+    const copy = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: copy },
+    })
+    ;(window as Window & { __bigEyeFeedbackBuild?: unknown }).__bigEyeFeedbackBuild = {
+      version: '1.2.3',
+      buildId: 'beta-123',
+    }
+    loadIntroHub({ season: 3, week: 7, phase: 'nominations' })
+    document.querySelector<HTMLButtonElement>('[data-hub-id="feedback"]')?.click()
+
+    const copyButton = document.querySelector<HTMLButtonElement>('[data-feedback-action="copy"]')
+    copyButton?.click()
+    expect(copy).not.toHaveBeenCalled()
+    expect(document.querySelector('[role="status"]')?.textContent).toContain(
+      'Please describe what happened'
+    )
+
+    const details = document.querySelector<HTMLTextAreaElement>('[data-feedback-field="details"]')!
+    details.value = 'The replacement nominee never appeared'
+    document.querySelector<HTMLTextAreaElement>('[data-feedback-field="steps"]')!.value =
+      'Used POS to save my ally'
+    copyButton?.click()
+    await Promise.resolve()
+    expect(copy).toHaveBeenCalledTimes(1)
+    const report = String(copy.mock.calls[0][0])
+    expect(report).toContain('The replacement nominee never appeared')
+    expect(report).toContain('Used POS to save my ally')
+    expect(report).toContain('Season: 3')
+    expect(report).toContain('Day: 7')
+    expect(report).toContain('Phase: nominations')
+    expect(report).toContain('Version: 1.2.3')
+    expect(report).toContain('Build: beta-123')
+    expect(report).not.toContain('Device/browser:')
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Report copied')
+  })
+
+  it('only includes browser details when the player opts in', async () => {
+    const copy = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(window.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: copy },
+    })
+    loadIntroHub()
+    document.querySelector<HTMLButtonElement>('[data-hub-id="feedback"]')?.click()
+    document.querySelector<HTMLTextAreaElement>('[data-feedback-field="details"]')!.value =
+      'Unexpected screen'
+    document.querySelector<HTMLInputElement>('[data-feedback-field="device"]')!.checked = true
+    document.querySelector<HTMLButtonElement>('[data-feedback-action="copy"]')?.click()
+    await Promise.resolve()
+    expect(String(copy.mock.calls[0][0])).toContain('Device/browser:')
+    expect(String(copy.mock.calls[0][0])).toContain('Viewport:')
   })
 
   it('shows placeholder achievement values when no season history exists yet', () => {

@@ -128,7 +128,7 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
     },
     final_hoh: {
       eventMajor: true,
-      announcement: liveCard('Final Power Decision', 'The most powerful decision of the game.'),
+      announcement: liveCard('Final LOH Decision', 'The most powerful decision of the game.'),
     },
     jury: {
       eventMajor: true,

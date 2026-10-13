@@ -171,7 +171,7 @@ describe('Reality domain migration and directed relationships', () => {
     expect(migrated.reality.alliances['alliance-core-status'].memberPerceivedStatus.human).toBe(
       'CORE'
     )
-    expect(migrated.reality.alliances['alliance-core-status'].leaderIds).toContain('human')
+    expect(migrated.reality.alliances['alliance-core-status'].leaderIds).toEqual([])
   })
 
   it('re-projects vote-night alliance fractures into the visible relationship map immediately', () => {
@@ -213,10 +213,10 @@ describe('Reality domain migration and directed relationships', () => {
     )
 
     expect(store.getState().social.reality.alliances['vote-fracture'].status).toBe('FRACTURED')
-    expect(store.getState().social.relationships.human.lia.tags).not.toContain('alliance')
+    expect(store.getState().social.relationships.human.lia.tags).toContain('alliance')
   })
 
-  it('does not project fractured or dormant formal pacts as active alliance tags', () => {
+  it('projects continuing membership for fractured and dormant pacts', () => {
     for (const status of ['FRACTURED', 'DORMANT'] as const) {
       const store = configureStore({ reducer: { social: socialReducer } })
       const reality = createInitialRealityDomainState()
@@ -240,7 +240,7 @@ describe('Reality domain migration and directed relationships', () => {
 
       store.dispatch(replaceRealityDomain(reality))
 
-      expect(store.getState().social.relationships.human.lia.tags).not.toContain('alliance')
+      expect(store.getState().social.relationships.human.lia.tags).toContain('alliance')
     }
   })
 
@@ -249,7 +249,15 @@ describe('Reality domain migration and directed relationships', () => {
     store.dispatch(
       updateRelationship({ source: 'human', target: 'lia', delta: 60, tags: ['alliance'] })
     )
-    store.dispatch(replaceRealityDomain(store.getState().social.reality))
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'normal-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Personal pact',
+      at: { day: 1, phase: 'social_1' },
+    })
+    store.dispatch(replaceRealityDomain(reality))
     expect(store.getState().social.relationships.human.lia.tags).toContain('alliance')
   })
 

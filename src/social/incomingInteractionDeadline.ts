@@ -1,3 +1,4 @@
+import { compareSocialClock } from './reality/clock'
 import { INCOMING_INTERACTION_PHASE_ORDER } from './incomingInteractionPhases'
 import type { IncomingInteraction, IncomingInteractionType } from './types'
 import type { RealityDeadline, RealityClock } from './reality'
@@ -23,8 +24,7 @@ function phaseIndex(phase: string): number {
 }
 
 export function compareIncomingClock(left: RealityClock, right: RealityClock): number {
-  if (left.day !== right.day) return left.day - right.day
-  return phaseIndex(left.phase) - phaseIndex(right.phase)
+  return compareSocialClock(left, right)
 }
 
 export function deriveIncomingDeadline(input: {

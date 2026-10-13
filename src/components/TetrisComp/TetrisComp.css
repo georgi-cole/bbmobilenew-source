@@ -564,7 +564,13 @@
     margin: 4px auto 0;
   }
   .tetris-panel--right {
-    display: none;
+    order: 3;
+    display: flex;
+    align-items: center;
+    width: min(82.5vw, 280px);
+    min-height: 30px;
+    margin: 0 auto;
+    padding: 0;
   }
 
   .tetris-root .tetris-panel {
@@ -610,7 +616,7 @@
   }
 
   .tetris-root .tetris-touch-controls {
-    order: 3;
+    order: 4;
     flex: 0 0 auto;
     width: min(82.5vw, 280px);
     margin-top: auto;
@@ -626,10 +632,14 @@
   .tetris-round-field {
     display: none;
   }
-  .tetris-board {
-    --cell: min(7.8vw, calc((100dvh - 205px) / 20), 26px) !important;
+  .tetris-round-timer {
+    display: block;
+    font-size: 1rem;
   }
-  .tetris-panel--left {
+  .tetris-board {
+    --cell: min(7.8vw, calc((100dvh - 240px) / 20), 26px) !important;
+  }
+  .tetris-panel--left .tetris-hold {
     display: none;
   }
   .tetris-touch-controls {

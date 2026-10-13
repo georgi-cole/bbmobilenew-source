@@ -117,7 +117,14 @@ function violatesRealityAllianceContext(
     return true
   }
   if (
-    subjectIds.some((subjectId) => isAllianceProtectedGameUnit(game, alliance.memberIds, subjectId))
+    subjectIds
+      .filter(
+        (id) =>
+          !['alliance_safety_pitch', 'alliance_power_safety_huddle'].includes(
+            getScenarioKey(interaction) ?? ''
+          ) || id === interaction.payload?.secondarySubjectId
+      )
+      .some((subjectId) => isAllianceProtectedGameUnit(game, alliance.memberIds, subjectId))
   ) {
     return true
   }

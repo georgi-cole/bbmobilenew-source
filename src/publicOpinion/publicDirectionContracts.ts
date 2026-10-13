@@ -1,3 +1,4 @@
+import { isCurrentAlliance } from '../social/reality/allianceIdentity'
 import type { Player } from '../types'
 import { hasAllianceBetween } from '../social/socialAlliance'
 import type { DramaAlliance, RelationshipsMap } from '../social/types'
@@ -40,15 +41,15 @@ function hasRealityAlliance(
   actorId: string,
   targetId: string
 ): { present: boolean; active: boolean; fractured: boolean } {
-  const match = Object.values(alliances ?? {}).find(
+  const matches = Object.values(alliances ?? {}).filter(
     (alliance) => alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)
   )
   return {
-    present: match != null,
-    // Dormant alliances are not an active promise. They may be revived by an
-    // explicit repair action, but should not generate a new loyalty directive.
-    active: match?.status === 'ACTIVE' || match?.status === 'PROBATIONARY',
-    fractured: match?.status === 'FRACTURED',
+    present: matches.length > 0,
+    active: matches.some(isCurrentAlliance),
+    fractured: matches.some(
+      (alliance) => isCurrentAlliance(alliance) && alliance.status === 'FRACTURED'
+    ),
   }
 }
 
@@ -88,8 +89,8 @@ export function getRelationshipFacts(
   return {
     affinity,
     mutualAffinity,
-    activeAlliance: reality.active || drama.active || (!reality.present && legacyAlliance),
-    fracturedAlliance: reality.fractured || drama.fractured,
+    activeAlliance: context.realityAlliances ? reality.active : drama.active || legacyAlliance,
+    fracturedAlliance: context.realityAlliances ? reality.fractured : drama.fractured,
     rivalry: affinity < 0 || (inward?.affinity ?? 0) < 0 || tags.has('rival'),
     betrayal: tags.has('betrayal'),
   }
@@ -196,9 +197,7 @@ export function getEligibleDirectionCandidates(
         candidates.push({
           type: 'break_alliance',
           relatedPlayer,
-          actionHint: context.dramaMode
-            ? `Use Social → Break Alliance with ${relatedPlayer.name}.`
-            : `Use Social → Betray ${relatedPlayer.name}.`,
+          actionHint: `Use Your Alliances to end every personal pact and shared group connection with ${relatedPlayer.name}.`,
           rationale: `You and ${relatedPlayer.name} are currently allied.`,
           completionLabel: `Break your alliance with ${relatedPlayer.name}`,
         })

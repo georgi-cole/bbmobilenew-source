@@ -15,9 +15,18 @@ export default function ConfessionalRoute() {
   const dispatch = useAppDispatch()
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
   const focusedDecision = activeDecision?.type === 'twin_shock' ? null : activeDecision
+  const focusedDecisionKey = focusedDecision
+    ? `${focusedDecision.type}:${focusedDecision.week}:${focusedDecision.phase}`
+    : null
   const tvFeed = useAppSelector((state) => state.game.tvFeed)
   const currentWeek = useAppSelector((state) => state.game.week)
   const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
+  const [previousDecisionKey, setPreviousDecisionKey] = useState(focusedDecisionKey)
+
+  if (focusedDecisionKey !== previousDecisionKey) {
+    setPreviousDecisionKey(focusedDecisionKey)
+    if (focusedDecisionKey) setRequiredSessionActive(true)
+  }
 
   const returnToGame = useCallback(
     (returnCue: string, decisionType: ActiveConfessionalDecision['type'] | null) => {

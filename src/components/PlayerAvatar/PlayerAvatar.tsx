@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import type { Player } from '../../types'
 import { isEmoji } from '../../utils/avatar'
 import { useResolvedAvatarSrc } from '../../hooks/useResolvedAvatarSrc'
-import { getRelationshipTone, type RelationshipScale } from './relationshipOutline'
+import {
+  getRelationshipRingLabel,
+  getRelationshipRingTone,
+  getRelationshipTone,
+  type RelationshipScale,
+} from './relationshipOutline'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
 import './PlayerAvatar.css'
@@ -20,6 +25,8 @@ interface PlayerAvatarProps {
   affinity?: number | null
   /** How to interpret affinity. Social gameplay uses the signed -100..100 scale. */
   relationshipScale?: RelationshipScale
+  /** Relationship tags already visible to the current player. */
+  relationshipTags?: readonly string[]
   /** Whether to show the relationship-tone outline ring. Defaults to true. Set to false to opt out (e.g. main roster tiles, jury panel). */
   showRelationshipOutline?: boolean
   /** Whether to apply the greyscale evicted style when player.status is 'evicted'/'jury'. Defaults to true. Set to false to suppress during animations (e.g. vote reveal). */
@@ -45,6 +52,7 @@ export default function PlayerAvatar({
   onClick,
   affinity,
   relationshipScale = 'auto',
+  relationshipTags = [],
   showRelationshipOutline = true,
   showEvictedStyle = true,
 }: PlayerAvatarProps) {
@@ -105,8 +113,10 @@ export default function PlayerAvatar({
   const isEvicted = showEvictedStyle && (player.status === 'evicted' || player.status === 'jury')
 
   const tone = showRelationshipOutline ? getRelationshipTone(affinity, relationshipScale) : 'none'
-  const toneLabel =
-    tone === 'good' ? 'Close' : tone === 'neutral' ? 'Mixed' : tone === 'bad' ? 'Strained' : null
+  const ringTone = showRelationshipOutline
+    ? getRelationshipRingTone(affinity, relationshipScale, relationshipTags)
+    : 'none'
+  const toneLabel = getRelationshipRingLabel(ringTone)
 
   const classes = [
     'pa',
@@ -116,6 +126,7 @@ export default function PlayerAvatar({
     isEvicted ? 'pa--evicted' : '',
     revived ? 'pa--revived' : '',
     tone !== 'none' ? `pa--rel-${tone}` : '',
+    ringTone !== 'none' ? `pa--relationship-${ringTone}` : '',
   ]
     .filter(Boolean)
     .join(' ')

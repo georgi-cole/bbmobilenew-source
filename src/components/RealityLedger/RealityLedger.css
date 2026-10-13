@@ -129,34 +129,26 @@
   background: rgba(139, 92, 246, 0.16);
 }
 
-.reality-ledger__alliance-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 6px;
-  margin-top: 3px;
+.reality-ledger--compact {
+  gap: 8px;
 }
 
-.reality-ledger__alliance-actions input {
-  min-width: 0;
-  flex: 1 1 130px;
-  height: 32px;
-  padding: 0 9px;
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  border-radius: 8px;
-  color: #f5f3ff;
-  background: rgba(15, 23, 42, 0.65);
+.reality-ledger__hint {
+  margin: 0;
+  color: #a99db5;
   font-size: 10px;
+  line-height: 1.45;
 }
 
-.reality-ledger__alliance-actions button {
-  min-height: 32px;
-  padding: 0 9px;
+.reality-ledger__item > button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 10px;
   border: 1px solid rgba(167, 139, 250, 0.3);
-  border-radius: 8px;
-  color: #ddd6fe;
-  background: rgba(139, 92, 246, 0.11);
-  font-size: 9px;
+  border-radius: 999px;
+  color: #e9ddff;
+  background: rgba(139, 92, 246, 0.13);
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -165,6 +157,19 @@
   color: #9e92ac;
   font-size: 11px;
   text-align: center;
+}
+
+.reality-ledger__history {
+  display: grid;
+  gap: 8px;
+}
+
+.reality-ledger__history > summary {
+  padding: 8px 2px;
+  color: #bcb0ca;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .reality-ledger__people {
@@ -220,17 +225,62 @@
 
 .reality-ledger__relationship label {
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   color: #b9adca;
   font-size: 9px;
 }
 
-.reality-ledger__relationship meter {
+.reality-ledger__relationship-meter {
+  position: relative;
+  display: block;
   width: 100%;
   height: 7px;
-  accent-color: #a78bfa;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.reality-ledger__relationship-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9b82dd, #dca0ad);
+  transition: width 280ms ease;
+}
+
+.reality-ledger__relationship-meter-midpoint {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+.reality-ledger__relationship-meter--tension .reality-ledger__relationship-meter-fill {
+  background: linear-gradient(90deg, #bd718c, #ec879a);
+}
+
+.reality-ledger__relationship label small {
+  color: #b9adca;
+  font-size: 8px;
+  text-align: right;
+}
+
+.reality-ledger__relationship label span {
+  white-space: nowrap;
+}
+
+.reality-ledger__relationship-shift {
+  margin: 0;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d2b39a;
+  font-size: 9px;
+  line-height: 1.4;
 }
 
 .reality-ledger__relationship > small {
@@ -254,7 +304,7 @@
   }
 
   .reality-ledger__relationship label {
-    grid-template-columns: 50px minmax(0, 1fr);
+    grid-template-columns: 50px minmax(0, 1fr) auto;
     gap: 6px;
   }
 }

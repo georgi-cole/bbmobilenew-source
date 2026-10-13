@@ -25,6 +25,7 @@ import { computeSocialAudienceStoryReactions } from './AudienceStoryService'
 import type { SocialActionLogEntry } from '../social/types'
 import { isDirectionStillValid } from './publicDirectionContracts'
 import { addTvEvent } from '../store/gameSlice'
+import { hasCanonicalLiveAlliance } from '../social/relationshipSemantics'
 
 interface GameState {
   phase: string
@@ -218,6 +219,17 @@ function dispatchMissionProgress(
 
   const signals = resolveEventMissionProgress(event, activeDirections)
   for (const signal of signals) {
+    const direction = activeDirections.find((entry) => entry.id === signal.directionId)
+    if (
+      signal.isComplete &&
+      direction?.type === 'break_alliance' &&
+      direction.relatedPlayerId &&
+      hasCanonicalLiveAlliance(state.social?.reality, event.actorId, direction.relatedPlayerId)
+    ) {
+      signal.newProgress = Math.min(99, signal.newProgress)
+      signal.isComplete = false
+      signal.progressDelta = Math.max(0, signal.newProgress - (direction.progressPercent ?? 0))
+    }
     if (signal.isCounter) {
       store.dispatch(
         resolveDirection({
@@ -618,13 +630,15 @@ export const publicOpinionMiddleware: Middleware = (store) => (next) => (action)
       }
 
       if (missionEventType) {
-        dispatchMissionProgress(store, {
-          type: missionEventType,
-          actorId,
-          targetId,
-          actionId,
-          week,
-        })
+        for (const affectedTargetId of entry.targetIds?.length ? entry.targetIds : [targetId]) {
+          dispatchMissionProgress(store, {
+            type: missionEventType,
+            actorId,
+            targetId: affectedTargetId,
+            actionId,
+            week,
+          })
+        }
       }
     }
     return result

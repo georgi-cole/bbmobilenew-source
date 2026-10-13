@@ -101,7 +101,7 @@ async function resolveConfessional(page: Page): Promise<boolean> {
   if (!(await panel.isVisible({ timeout: UI_TIMEOUT }).catch(() => false))) return false
 
   const confirms = panel.getByRole('button', {
-    name: /Confirm nominations|Confirm power decision|Confirm replacement|Seal eviction vote|Seal deciding vote|Confirm eliminations/,
+    name: /Confirm nominations|Confirm power decision|Confirm replacement|Confirm|Seal deciding vote|Confirm eliminations/,
   })
   const confirm = confirms.first()
   for (let guard = 0; guard < 10 && !(await confirm.isEnabled().catch(() => false)); guard += 1) {

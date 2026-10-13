@@ -6,6 +6,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { createMemoryRouter, useNavigate } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import DiaryRoom, { DIARY_ROOM_ENTRY_OVERLAY_MS } from '../DiaryRoom'
+import SelfEvicted from '../../SelfEvicted/SelfEvicted'
 import gameReducer, {
   triggerSecretMission,
   offerSecretMission,
@@ -59,7 +60,7 @@ function renderDiaryRoom(
             [
               { path: '/game', element: <div>Game route</div> },
               { path: '/diary-room', element: <DiaryRoom /> },
-              { path: '/self-evicted', element: <div>Self-evicted route</div> },
+              { path: '/self-evicted', element: <SelfEvicted /> },
             ],
             {
               initialEntries,
@@ -501,6 +502,38 @@ describe('DiaryRoom', () => {
     expect(document.querySelectorAll('.diary-room__bubble--user')).toHaveLength(1)
     expect(document.querySelectorAll('.diary-room__bubble--bb')).toHaveLength(2)
     expect(screen.getByLabelText('Diary entry')).toHaveValue('Another thought')
+  })
+
+  it('warns for profanity and administratively removes the player on the third violation', async () => {
+    const generate = vi.spyOn(bigBrother, 'generateBigBrotherReply')
+    const { store } = renderDiaryRoom()
+    const send = async (text: string) => {
+      fireEvent.change(screen.getByLabelText('Diary entry'), { target: { value: text } })
+      fireEvent.click(screen.getByRole('button', { name: /send message/i }))
+      await flushConversationTimers()
+    }
+
+    await send('fuck you')
+    expect(screen.getByText(/please keep this room respectful/i)).toBeInTheDocument()
+    expect(
+      store.getState().game.players.find((player) => player.isUser)?.confessionalMisconduct
+    ).toMatchObject({
+      strikes: 1,
+    })
+
+    await send('shit')
+    expect(screen.getByText(/this is your final warning/i)).toBeInTheDocument()
+
+    await send('bitch')
+    const player = store.getState().game.players.find((candidate) => candidate.isUser)
+    expect(player).toMatchObject({
+      status: 'evicted',
+      tribunalEligible: false,
+      confessionalMisconduct: { strikes: 3, administrativelyRemoved: true },
+    })
+    expect(screen.getByRole('heading', { name: 'Removed by The Big Eye' })).toBeInTheDocument()
+    expect(screen.getByText(/cannot return this season or enter the Tribunal/i)).toBeInTheDocument()
+    expect(generate).not.toHaveBeenCalled()
   })
 
   it('discards a delayed reply and memory after the player leaves', async () => {

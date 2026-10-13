@@ -91,6 +91,9 @@ export interface DirectedRelationship {
   familiarity: number
   publicCloseness: number
   secretCloseness: number
+  /** Recent emotional pressure; it fades with game progression while grievances remain. */
+  acuteTension?: number
+  acuteTensionDay?: number
   trend: number
   positiveAnchorEventIds: string[]
   negativeAnchorEventIds: string[]
@@ -167,6 +170,9 @@ export interface RealityFact {
   sourceEventId: string
   /** True when this evidence disclosed the complete alliance roster at the time. */
   fullMembershipKnown?: boolean
+  /** The roster disclosed by this evidence, not a promise of future disclosure. */
+  rosterRevision?: number
+  disclosedMemberIds?: RealityActorId[]
 }
 
 export type RealityPromiseStatus = 'PROPOSED' | 'ACTIVE' | 'KEPT' | 'BROKEN' | 'VOID'
@@ -184,6 +190,8 @@ export interface RealityPromise {
   status: RealityPromiseStatus
   resolvedAt?: RealityClock
   resolutionEventId?: string
+  originatingAllianceId?: string
+  visibility?: RealityVisibility
 }
 
 export interface RealityDebt {
@@ -338,7 +346,38 @@ export type RealityAllianceStatus =
 
 export interface RealityAlliance {
   id: string
+  /** The player who created a group; distinct from its founding roster. */
+  createdById?: RealityActorId
+  createdAt?: RealityClock
+  /** Alliance records survive the rolling social event feed. Visibility still applies per event. */
+  history?: RealitySocialEvent[]
+  /** Missing only in a pre-management save; normalization supplies it. */
+  kind?: 'PACT' | 'GROUP'
+  leaderId?: RealityActorId
+  coLeaderId?: RealityActorId
+  memberJoinSequence?: Record<RealityActorId, number>
+  rosterRevision?: number
+  governanceRevision?: number
+  provenance?: 'NATIVE' | 'LEGACY' | 'UNRESOLVED' | 'SOURCE'
+  sourceOriginalStatus?: RealityAllianceStatus
+  sourceEpisodeIds?: string[]
+  predecessorIds?: string[]
+  endedAt?: RealityClock
+  endReason?: string
+  supersededById?: string
+  rosterKnowledgeByActor?: Record<
+    RealityActorId,
+    {
+      memberIds: RealityActorId[]
+      rosterRevision: number
+      name?: string
+      leaderId?: RealityActorId
+      coLeaderId?: RealityActorId
+    }
+  >
   name?: string
+  /** A human founder must name or keep the suggested name after all founders agree. */
+  initialNamePending?: boolean
   memberIds: RealityActorId[]
   founderIds: RealityActorId[]
   leaderIds: RealityActorId[]
@@ -361,6 +400,72 @@ export interface RealityAlliance {
   status: RealityAllianceStatus
   genuine: boolean
   infiltratorIds: RealityActorId[]
+}
+
+export type RealityAllianceRequestKind =
+  | 'PACT'
+  | 'FOUND'
+  | 'ADMIT'
+  | 'APPOINT'
+  | 'TRANSFER'
+  | 'REMOVE_SUGGESTION'
+  | 'RENAME_SUGGESTION'
+export type RealityAllianceRequestStatus =
+  | 'VOTING'
+  | 'CONSENT'
+  | 'ACCEPTED'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'WITHDRAWN'
+  | 'INVALIDATED'
+
+export interface RealityAllianceRequest {
+  id: string
+  history?: RealitySocialEvent[]
+  kind: RealityAllianceRequestKind
+  status: RealityAllianceRequestStatus
+  proposerId: RealityActorId
+  allianceId?: string
+  candidateId?: RealityActorId
+  memberIds: RealityActorId[]
+  electorateIds: RealityActorId[]
+  officerIds: RealityActorId[]
+  votes: Record<RealityActorId, boolean>
+  /** Member admission ballot outcome with names and any leader tie-break. */
+  voteSummary?: string
+  consents: Record<RealityActorId, boolean>
+  rosterRevision?: number
+  governanceRevision?: number
+  leaderId?: RealityActorId
+  coLeaderId?: RealityActorId
+  basePactId?: string
+  name?: string
+  proposedName?: string
+  purpose: string
+  createdAt: RealityClock
+  deadline: RealityClock
+  candidateInvitedAt?: RealityClock
+  settledAt?: RealityClock
+  reason?: string
+  resultAllianceId?: string
+}
+
+export interface RealityAllianceManagementState {
+  version: 1
+  nextRequestSequence: number
+  requests: Record<string, RealityAllianceRequest>
+  /** Durable receipts are independent of trimmed conversation/event history. */
+  processedCommands: Record<
+    string,
+    {
+      status: 'APPLIED' | 'NO_OP' | 'REJECTED'
+      reason: string
+      allianceId?: string
+      requestId?: string
+    }
+  >
+  importedLegacyIds: string[]
+  aliases: Record<string, string>
 }
 
 /**
@@ -518,6 +623,31 @@ export interface RealitySocialEvent extends RealityClock {
   relatedFactIds: string[]
   relatedPromiseIds: string[]
   relatedThreadIds: string[]
+  allianceId?: string
+  allianceRequestId?: string
+  /** Player-facing result of an alliance strategy huddle, saved with its history. */
+  allianceConsultationSummary?: string
+  allianceCommitmentSnapshot?: { kind: string; status: RealityPromiseStatus }
+  allianceRequestSnapshot?: {
+    kind: RealityAllianceRequestKind
+    status: RealityAllianceRequestStatus
+    candidateId?: RealityActorId
+    proposedName?: string
+    accepted?: boolean
+  }
+  /** A durable snapshot for alliance-history events, even after the live roster is cleared. */
+  allianceSnapshot?: {
+    id: string
+    kind?: 'PACT' | 'GROUP'
+    name?: string
+    previousName?: string
+    nameAction?: 'NAMED' | 'RENAMED'
+    leaderId?: RealityActorId
+    coLeaderId?: RealityActorId
+    memberIds: RealityActorId[]
+    endReason?: string
+    exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'EVICTED'
+  }
   publicEligible: boolean
   juryEligible: boolean
 }
@@ -576,7 +706,7 @@ export interface RealityJuryEvaluation {
 }
 
 export interface RealityDomainState {
-  version: 1
+  version: 1 | 2
   nextSequence: number
   relationships: RealityRelationshipMap
   memoriesByOwner: Record<RealityActorId, RealityMemory[]>
@@ -588,6 +718,7 @@ export interface RealityDomainState {
   grievances: Record<string, RealityGrievance>
   threads: Record<string, RealityThread>
   alliances: Record<string, RealityAlliance>
+  allianceManagement: RealityAllianceManagementState
   romances: Record<string, RealityRomance>
   contestants: Record<RealityActorId, RealityContestantState>
   interactions: Record<string, RealityInteraction>

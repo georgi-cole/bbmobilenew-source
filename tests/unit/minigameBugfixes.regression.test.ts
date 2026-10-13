@@ -5,7 +5,10 @@ import {
   getPressurePlankGaugeSafeZoneBounds,
   getPressurePlankStabilityDamagePerSecond,
 } from '../../src/components/PressurePlank/pressurePlankLogic'
-import { normalizeTiltDelta } from '../../src/components/TiltLabyrinthComp/tiltLabyrinthInput'
+import {
+  normalizeTiltDelta,
+  tiltLabyrinthFrameScale,
+} from '../../src/components/TiltLabyrinthComp/tiltLabyrinthInput'
 
 describe('minigame bug-fix regressions', () => {
   it('renders the minimum Pressure Plank safe zone on the same scale as its damage bounds', () => {
@@ -26,5 +29,14 @@ describe('minigame bug-fix regressions', () => {
     expect(normalizeTiltDelta(-1)).toBe(0)
     expect(normalizeTiltDelta(15)).toBeGreaterThan(0)
     expect(normalizeTiltDelta(-15)).toBeLessThan(0)
+  })
+
+  it('scales Tilt Labyrinth physics to elapsed frame time and caps stalled frames', () => {
+    expect(tiltLabyrinthFrameScale(1000 / 30)).toBeCloseTo(2)
+    expect(tiltLabyrinthFrameScale(1000 / 60)).toBeCloseTo(1)
+    expect(tiltLabyrinthFrameScale(1000 / 120)).toBeCloseTo(0.5)
+    expect(tiltLabyrinthFrameScale(250)).toBe(6)
+    expect(tiltLabyrinthFrameScale(0)).toBe(0)
+    expect(tiltLabyrinthFrameScale(Number.NaN)).toBe(0)
   })
 })

@@ -44,6 +44,18 @@ describe('PlayerAvatar relationship outline', () => {
     expect(container.firstElementChild?.classList.contains('pa--rel-bad')).toBe(true)
   })
 
+  it('shows the relationship shade and current romance tag on the ring', () => {
+    const { container } = render(
+      <PlayerAvatar
+        player={makePlayer()}
+        affinity={60}
+        relationshipScale="signed"
+        relationshipTags={['romance']}
+      />
+    )
+    expect(container.firstElementChild?.classList.contains('pa--relationship-lovers')).toBe(true)
+  })
+
   it('applies no rel class when affinity is undefined', () => {
     const { container } = render(<PlayerAvatar player={makePlayer()} />)
     const el = container.firstElementChild

@@ -19,6 +19,8 @@ export interface SocialStoryBeat {
   severity: 'quiet' | 'notable' | 'major'
   createdAt: number
   dedupeKey: string
+  /** Canonical event type when this beat was built from Reality Mode history. */
+  eventType?: string
 }
 
 interface StoryPlayer {

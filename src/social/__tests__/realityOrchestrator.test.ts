@@ -209,6 +209,105 @@ describe('Reality action contract', () => {
     expect(['REJECT', 'COUNTER', 'QUESTION', 'LIE']).toContain(response.kind)
   })
 
+  it('accepts an uncontradicted protection promise from an ally to a nominee', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.999,
+    })
+
+    expect(response).toMatchObject({
+      kind: 'ACCEPT',
+      accepted: true,
+      reason: 'trusted_ally_promised_vote_protection',
+    })
+  })
+
+  it('keeps the nominee wary if the promisor is still targeting them', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      promiseContradicted: true,
+      draw: 0.999,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
+  it('does not treat an active pact as proof when the relationship is strained', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'human-lia-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+    const edge = reality.relationships.lia.human
+    edge.trust = 5
+    edge.suspicion = 75
+    edge.resentment = 70
+    edge.perceivedLabel = 'RIVAL'
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.5,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
+  it('does not give a fractured alliance the active-ally acceptance override', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'fractured-protection-pact',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      at: { day: context.day, phase: context.phase },
+    })
+    pact.status = 'FRACTURED'
+
+    const response = resolveRealityTargetResponse({
+      action: REALITY_ACTION_BY_ID.get('protect')!,
+      actorId: 'human',
+      targetId: 'lia',
+      reality,
+      context: { day: context.day, atRiskActorIds: ['lia'] },
+      draw: 0.999,
+    })
+
+    expect(response.accepted).toBe(false)
+  })
+
   it('allows human social actions despite a same-phase legacy cooldown', () => {
     const reality = createInitialRealityDomainState()
     reality.cooldowns.human = {
@@ -229,7 +328,7 @@ describe('Reality action contract', () => {
     expect(result.blockedReasons).not.toContain('cooldown_active')
   })
 
-  it('does not let a fractured formal pact satisfy active-alliance action gates', () => {
+  it('allows betrayal of a still-current fractured pact', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'fractured-action-gate',
@@ -250,8 +349,8 @@ describe('Reality action contract', () => {
       direction: 'AI_TO_AI',
     })
 
-    expect(result.eligible).toBe(false)
-    expect(result.blockedReasons).toContain('relationship_required')
+    expect(result.eligible).toBe(true)
+    expect(result.blockedReasons).not.toContain('relationship_required')
   })
 
   it('uses exact phase-scoped repetition chances when resolving a target', () => {
@@ -323,6 +422,22 @@ describe('Reality causal orchestration', () => {
       'response',
       'outcome',
     ])
+  })
+
+  it('lets accepted social actions strengthen the recipient’s read of the initiator', () => {
+    const action = REALITY_ACTION_BY_ID.get('compliment')!
+    const result = runRealityOpportunity({
+      domain: createInitialRealityDomainState(),
+      simulation: createInitialRealitySimulationState(124),
+      opportunity: {
+        ...opportunity(),
+        candidates: [{ action, targetIds: ['lia'], acceptanceChanceOverride: 1 }],
+      },
+    })
+
+    expect(result.response?.accepted).toBe(true)
+    expect(result.domain.relationships.lia.ava.warmth).toBeGreaterThan(0)
+    expect(result.domain.relationships.lia.ava.trust).toBeGreaterThan(0)
   })
 
   it('routes AI-to-human through one pending interaction without inventing a response', () => {
@@ -529,7 +644,8 @@ describe('Reality causal orchestration', () => {
     expect(Object.values(resolved.domain.alliances)).toHaveLength(1)
     expect(Object.values(resolved.domain.alliances)[0]).toMatchObject({
       memberIds: expect.arrayContaining(['ava', 'human']),
-      status: 'ACTIVE',
+      kind: 'PACT',
+      status: 'PROBATIONARY',
     })
     expect(resolved.domain.interactions[pending.interaction!.id].status).toBe('RESOLVED')
   })
@@ -1029,7 +1145,7 @@ describe('Reality causal orchestration', () => {
     expect(outsiderView.displayName).toBeUndefined()
   })
 
-  it('recruits an accepted target into a wider coalition instead of creating another pair', () => {
+  it('creates an accepted personal pact without recruiting the existing partner', () => {
     const domain = createInitialRealityDomainState()
     const core = createRealityAlliance(domain, {
       id: 'alliance-core',
@@ -1073,18 +1189,14 @@ describe('Reality causal orchestration', () => {
     expect(alliances).toHaveLength(2)
     expect(resolved.domain.alliances['alliance-core'].memberIds).toEqual(['ava', 'lia'])
 
-    const coalition = alliances.find((alliance) => alliance.id !== 'alliance-core')
-    expect(coalition).toMatchObject({
-      memberIds: ['ava', 'lia', 'human'],
-      status: 'ACTIVE',
+    const pact = alliances.find((alliance) => alliance.id !== 'alliance-core')
+    expect(pact).toMatchObject({
+      kind: 'PACT',
+      memberIds: ['ava', 'human'],
+      status: 'PROBATIONARY',
     })
-    expect(coalition?.memberPerceivedStatus).toMatchObject({
-      ava: 'CORE',
-      lia: 'CORE',
-      human: 'REGULAR',
-    })
-    expect(coalition?.overlapAllianceIds).toEqual(['alliance-core'])
-    expect(resolved.domain.alliances['alliance-core'].overlapAllianceIds).toEqual([coalition?.id])
+    expect(pact?.memberIds).not.toContain('lia')
+    expect(pact?.overlapAllianceIds).toEqual([])
   })
 
   it('routes the live Betray Ally action into the formal alliance lifecycle', () => {

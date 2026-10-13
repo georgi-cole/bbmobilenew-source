@@ -1,5 +1,9 @@
 import type { RealityActionContract } from './actionContract'
-import type { RealityDomainState, RealityResponseResolution } from './types'
+import {
+  getCanonicalRelationshipTags,
+  selectCanonicalRelationshipView,
+} from '../relationshipSemantics'
+import type { RealityContext, RealityDomainState, RealityResponseResolution } from './types'
 
 export type { RealityResponseKind, RealityResponseResolution } from './types'
 
@@ -8,8 +12,11 @@ export function resolveRealityTargetResponse(input: {
   actorId: string
   targetId: string
   reality: RealityDomainState
+  context?: Pick<RealityContext, 'atRiskActorIds' | 'day'>
   draw: number
   acceptanceChanceOverride?: number
+  /** The promisor's current plan contradicts the protection promise. */
+  promiseContradicted?: boolean
 }): RealityResponseResolution {
   const edge = input.reality.relationships[input.targetId]?.[input.actorId]
   const trust = edge?.trust ?? 0
@@ -55,8 +62,75 @@ export function resolveRealityTargetResponse(input: {
       accepted: false,
     }
   }
-  const acceptance =
+  let acceptance =
     0.42 + trust / 260 + warmth / 360 + loyalty / 420 - suspicion / 250 - resentment / 300
+  if (input.action.id === 'protect') {
+    const relationshipTags = getCanonicalRelationshipTags({
+      reality: input.reality,
+      actorId: input.actorId,
+      targetId: input.targetId,
+    })
+    const targetToActor = input.reality.relationships[input.targetId]?.[input.actorId]
+    const actorToTarget = input.reality.relationships[input.actorId]?.[input.targetId]
+    const pairEdges = [targetToActor, actorToTarget].filter(Boolean)
+    const hasActiveNemesis = Object.values(input.reality.relationshipAutonomy.nemeses).some(
+      (nemesis) =>
+        nemesis.status === 'ACTIVE' &&
+        ((nemesis.ownerId === input.actorId && nemesis.targetId === input.targetId) ||
+          (nemesis.ownerId === input.targetId && nemesis.targetId === input.actorId))
+    )
+    const contextDay = input.context?.day
+    const recentFight =
+      contextDay !== undefined &&
+      input.reality.events.some(
+        (event) =>
+          event.day >= contextDay - 1 &&
+          event.tags.includes('CONFLICT') &&
+          event.participantIds.includes(input.actorId) &&
+          event.participantIds.includes(input.targetId)
+      )
+    const formalAlly =
+      selectCanonicalRelationshipView({
+        reality: input.reality,
+        actorId: input.actorId,
+        targetId: input.targetId,
+      }).alliance?.operational === true
+    const relationshipIsStrained =
+      relationshipTags.has('rivalry') ||
+      relationshipTags.has('betrayal') ||
+      hasActiveNemesis ||
+      recentFight ||
+      pairEdges.some(
+        (edge) =>
+          edge?.perceivedLabel === 'ENEMY' ||
+          edge?.perceivedLabel === 'RIVAL' ||
+          ((edge?.trust ?? 0) <= 18 &&
+            ((edge?.resentment ?? 0) >= 18 || (edge?.suspicion ?? 0) >= 22)) ||
+          (edge?.acuteTension ?? 0) >= 35
+      )
+    const targetIsAtRisk = input.context?.atRiskActorIds.includes(input.targetId) === true
+
+    // An uncontradicted promise from a trusted, active ally is reassuring when
+    // the recipient is on the block. Refusal remains possible when there is
+    // recent conflict, a damaged bond, or evidence that the promisor is still
+    // targeting them.
+    if (formalAlly && targetIsAtRisk && !relationshipIsStrained && !input.promiseContradicted) {
+      return {
+        kind: 'ACCEPT',
+        utility: 1,
+        reason: 'trusted_ally_promised_vote_protection',
+        accepted: true,
+      }
+    }
+
+    if (!relationshipIsStrained && !input.promiseContradicted) {
+      if (formalAlly) acceptance += 0.18
+      if (targetIsAtRisk) acceptance += 0.08
+    } else {
+      if (relationshipIsStrained) acceptance -= 0.18
+      if (input.promiseContradicted) acceptance -= 0.28
+    }
+  }
   if (input.draw < Math.max(0.04, Math.min(0.92, acceptance))) {
     return {
       kind: 'ACCEPT',

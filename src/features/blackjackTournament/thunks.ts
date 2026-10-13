@@ -12,7 +12,10 @@
  */
 import type { AppDispatch, RootState } from '../../store/store';
 import { applyMinigameWinner } from '../../store/gameSlice';
-import { markBlackjackTournamentOutcomeResolved } from './blackjackTournamentSlice';
+import {
+  getBlackjackTournamentLastPlace,
+  markBlackjackTournamentOutcomeResolved,
+} from './blackjackTournamentSlice';
 import type { BlackjackTournamentState } from './blackjackTournamentSlice';
 
 export const resolveBlackjackTournamentOutcome =
@@ -59,9 +62,6 @@ export const resolveBlackjackTournamentOutcome =
     // Mark resolved before dispatching so any synchronous re-render triggered
     // by applyMinigameWinner sees outcomeResolved = true.
     dispatch(markBlackjackTournamentOutcomeResolved());
-    // The first player in eliminatedPlayerIds was the first eliminated (worst finisher).
-    // Pass them as lastPlaceId so the third-nominee auto-add matches the elimination
-    // order shown in the competition UI.
-    const lastPlaceId = bt.eliminatedPlayerIds[0] ?? null;
-    dispatch(applyMinigameWinner({ winnerId, lastPlaceId, lastPlaceType: 'survival' }));
+    const { playerId: lastPlaceId, type: lastPlaceType } = getBlackjackTournamentLastPlace(bt);
+    dispatch(applyMinigameWinner({ winnerId, lastPlaceId, lastPlaceType }));
   };

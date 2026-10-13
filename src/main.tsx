@@ -29,6 +29,14 @@ import './styles/houseOfCardsBrightThemePriority.css'
 
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? 'local'
 
+// Only non-sensitive build identifiers are exposed to the opt-in player feedback form.
+Object.assign(window, {
+  __bigEyeFeedbackBuild: {
+    version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+    buildId: BUILD_ID,
+  },
+})
+
 // The lazy-chunk recovery helper adds a one-time query parameter to force a
 // fresh GitHub Pages entry bundle. Remove it once this document has started so
 // it never leaks into copied links or normal route URLs.

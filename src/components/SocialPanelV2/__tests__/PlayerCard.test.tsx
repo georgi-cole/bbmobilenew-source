@@ -27,6 +27,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { Player } from '../../../types'
+import {
+  createDirectedRelationship,
+  createInitialRealityDomainState,
+} from '../../../social/reality'
 import PlayerCard from '../PlayerCard'
 import PlayerList from '../PlayerList'
 
@@ -249,6 +253,44 @@ describe('PlayerList', () => {
     expect(screen.getByText(/Ally/)).toBeInTheDocument()
     expect(screen.queryByText(/Rival/)).toBeNull()
     expect(screen.queryByText('-10%')).toBeNull()
+  })
+
+  it('uses the directed Reality label when its projected affinity still falls in Neutral', () => {
+    const reality = createInitialRealityDomainState()
+    const edge = createDirectedRelationship('human', 'a', 10)
+    edge.perceivedLabel = 'FRIENDLY'
+    reality.relationships.human = { a: edge }
+
+    render(
+      <PlayerList
+        players={[players[0]]}
+        humanPlayerId="human"
+        relationships={{ human: { a: { affinity: 10, tags: [] } } }}
+        selectedIds={new Set(['a'])}
+        playerLimitedRead
+        reality={reality}
+      />
+    )
+
+    expect(screen.getByText('Friendly')).toBeInTheDocument()
+    expect(screen.queryByText('Neutral')).toBeNull()
+  })
+
+  it('shows Still forming instead of Neutral when Reality has no relationship evidence', () => {
+    render(
+      <PlayerList
+        players={[players[0]]}
+        humanPlayerId="human"
+        relationships={{ human: { a: { affinity: 0, tags: [] } } }}
+        selectedIds={new Set(['a'])}
+        playerLimitedRead
+        reality={createInitialRealityDomainState()}
+      />
+    )
+
+    expect(screen.getByText('Still forming')).toBeInTheDocument()
+    expect(screen.queryByText('Neutral')).toBeNull()
+    expect(screen.queryByText(/\d+%/)).toBeNull()
   })
 
   it('preserves the mutual relationship summary outside Reality Mode', () => {

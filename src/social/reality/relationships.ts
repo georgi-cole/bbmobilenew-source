@@ -93,6 +93,30 @@ export function applyRealityRelationshipChange(
 ): DirectedRelationship {
   const edge = getRealityRelationship(state, change.sourceId, change.targetId)
   const net = Object.values(change.deltas).reduce((sum, value) => sum + (value ?? 0), 0)
+  const previousTensionDay = edge.acuteTensionDay ?? change.day
+  const tensionDay = Math.max(previousTensionDay, change.day)
+  const decayedTension = Math.max(
+    0,
+    (edge.acuteTension ?? 0) - Math.max(0, tensionDay - previousTensionDay) * 8
+  )
+  const tensionPressure = Math.max(
+    0,
+    -(change.deltas.trust ?? 0) * 0.4 -
+      (change.deltas.warmth ?? 0) * 0.2 +
+      (change.deltas.resentment ?? 0) * 0.45 +
+      (change.deltas.suspicion ?? 0) * 0.35 +
+      (change.deltas.fear ?? 0) * 0.2
+  )
+  const tensionRelief = Math.max(
+    0,
+    (change.deltas.trust ?? 0) * 0.12 +
+      (change.deltas.warmth ?? 0) * 0.1 -
+      (change.deltas.resentment ?? 0) * 0.45 -
+      (change.deltas.suspicion ?? 0) * 0.35 -
+      (change.deltas.fear ?? 0) * 0.2
+  )
+  edge.acuteTension = clamp(decayedTension + tensionPressure * 1.5 - tensionRelief, 0, 100)
+  edge.acuteTensionDay = tensionDay
   for (const [dimension, rawDelta] of Object.entries(change.deltas) as Array<
     [RelationshipDimension, number]
   >) {

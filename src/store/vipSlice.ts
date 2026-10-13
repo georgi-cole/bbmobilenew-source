@@ -19,6 +19,8 @@ export type VipStatus = 'idle' | 'loading' | 'ready' | 'purchasing' | 'restoring
 export interface VipState {
   status: VipStatus
   isActive: boolean
+  /** QA-only in-memory override; persistence writes only verified purchase fields. */
+  debugUnlocked: boolean
   entitlements: StoreEntitlements
   billingAvailable: boolean
   products: Partial<Record<StoreProductKey, StoreProduct>>
@@ -32,6 +34,7 @@ export function loadVipState(): VipState {
   return {
     status: 'idle',
     isActive: cached.isActive,
+    debugUnlocked: false,
     entitlements: cached.entitlements,
     billingAvailable: false,
     products: {},
@@ -83,7 +86,11 @@ export const restoreVip = createAsyncThunk<VipStoreSnapshot, void, { rejectValue
 const vipSlice = createSlice({
   name: 'vip',
   initialState: loadVipState(),
-  reducers: {},
+  reducers: {
+    setDebugVipUnlocked(state, action: { payload: boolean }) {
+      state.debugUnlocked = action.payload
+    },
+  },
   extraReducers: (builder) => {
     const applySnapshot = (state: VipState, action: { payload: VipStoreSnapshot }) => {
       state.status = 'ready'
@@ -152,5 +159,7 @@ export const selectHasPremiumChallengesAccess = (state: RootState) =>
 export const selectHasNoAdsAccess = (state: RootState) => selectHasEntitlement(state, 'noAds')
 
 export const EMPTY_STORE_ENTITLEMENTS = createEmptyStoreEntitlements()
+
+export const { setDebugVipUnlocked } = vipSlice.actions
 
 export default vipSlice.reducer

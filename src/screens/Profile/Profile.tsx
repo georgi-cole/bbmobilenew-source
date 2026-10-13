@@ -170,7 +170,7 @@ function deriveArchiveTitleMap(archive: {
   const ghostMode = selectLowestSummary(summaries, nominations)
 
   addArchiveTitle(titlesByPlayerId, compzilla?.playerId, 'COMPZILLA')
-  addArchiveTitle(titlesByPlayerId, headHoncho?.playerId, 'HEAD HONCHO')
+  addArchiveTitle(titlesByPlayerId, headHoncho?.playerId, 'LOH LEGEND')
   addArchiveTitle(titlesByPlayerId, messFactory?.playerId, 'MESS FACTORY')
   addArchiveTitle(titlesByPlayerId, ghostMode?.playerId, 'GHOST MODE')
 

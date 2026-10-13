@@ -21,7 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
       - id: impact
         name: Classify changed files
         shell: bash
@@ -29,7 +30,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
           printf '%s\n' "$changed_files"
 
           runtime=false

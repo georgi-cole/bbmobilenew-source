@@ -3,13 +3,6 @@ import { useBlocker } from 'react-router'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setConfessionalMusicMode } from '../../store/uiSlice'
-import {
-  selectDramaNetwork,
-  selectPersistentSocialHistory,
-  selectWeekStartRelSnapshot,
-} from '../../social/socialSlice'
-import { getEffectiveSocialMode } from '../../social/socialMode'
-import HousePulse from '../../components/HousePulse/HousePulse'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import RequiredConfessionalDecision from './RequiredConfessionalDecision'
@@ -47,20 +40,8 @@ const VOTE_DECISION_TYPES = new Set<ActiveConfessionalDecision['type']>([
 export default function RequiredConfessionalSession({ decision, onReturnToGame }: Props) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
-  const settings = useAppSelector((state) => state.settings)
-  const vip = useAppSelector((state) => state.vip)
-  const socialState = useAppSelector((state) => state.social)
-  const dramaNetwork = useAppSelector(selectDramaNetwork)
-  const actionHistory = useAppSelector(selectPersistentSocialHistory)
-  const weekStartRelSnapshot = useAppSelector(selectWeekStartRelSnapshot)
   const survival = game.mode === 'survival'
-  const humanPlayer = game.players.find((player) => player.isUser)
   const cupidPairsActive = game.cupidArrow?.status === 'active'
-  const showVoxMyGame =
-    decision?.type === 'nominations' &&
-    game.voxPopuli?.status === 'active' &&
-    humanPlayer != null &&
-    getEffectiveSocialMode({ game, settings, vip }) === 'drama'
   const [entryActive, setEntryActive] = useState(true)
   const [lastReturnCue, setLastReturnCue] = useState('game')
   const [sourceDecisionType] = useState<ActiveConfessionalDecision['type'] | null>(
@@ -186,25 +167,13 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
 
         <div className="diary-room__body required-confessional__body">
           <div className="diary-room__confess required-confessional__confess">
-            <p className="diary-room__prompt">
-              &quot;You are now in the Confessional. No one can hear you. Speak freely.&quot;
+            <p className="required-confessional__privacy-note">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="11" rx="3" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" />
+              </svg>
+              Your decision stays private.
             </p>
-
-            {showVoxMyGame && humanPlayer && (
-              <aside className="required-confessional__my-game" aria-label="My Game">
-                <p>Review your relationships before locking in your secret nominations.</p>
-                <HousePulse
-                  network={dramaNetwork}
-                  players={game.players}
-                  humanId={humanPlayer.id}
-                  actionHistory={actionHistory}
-                  relationships={socialState.relationships ?? {}}
-                  weekStartRelSnapshot={weekStartRelSnapshot}
-                  currentWeek={game.week}
-                  reality={socialState.reality}
-                />
-              </aside>
-            )}
 
             <div className="diary-room__chat required-confessional__chat" aria-live="polite">
               {displayDecision && displayPresentation ? (
@@ -219,11 +188,13 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
 
                   {decisionComplete ? (
                     <section
-                      className="required-confessional__decision-reveal"
+                      className={`required-confessional__decision-reveal${completedDecision?.decision.type === 'eviction_vote' ? ' required-confessional__decision-reveal--elimination' : ''}`}
                       aria-label="Confirmed decision"
                     >
                       <span className="required-confessional__decision-reveal-label">
-                        ✓ Locked in
+                        {completedDecision?.decision.type === 'eviction_vote'
+                          ? 'Ballot sealed'
+                          : '✓ Locked in'}
                       </span>
                       <p className="required-confessional__decision-complete required-confessional__decision-complete--summary">
                         {completedSummary ?? 'Your choice has been recorded.'}

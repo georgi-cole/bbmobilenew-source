@@ -5,7 +5,6 @@ import {
   resolveActionTargetMode,
   type SocialActionDefinition,
 } from '../../social/socialActions'
-import type { ActionCategory } from '../../social/socialActions'
 import {
   buildEffectiveSocialActions,
   isActionAllowedForRealityPreset,
@@ -24,12 +23,15 @@ import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import { isLohReplacementPending } from '../../social/lohReplacementWindow'
 
 export interface ActionGridProps {
+  allianceContext?: boolean
   onActionClick?: (actionId: string) => void
   onPreview?: (actionId: string) => void
   onPremiumLockedClick?: (actionId: string) => void
   disabledIds?: ReadonlySet<string>
   selectedId?: string | null
   selectedTargetIds?: ReadonlySet<string>
+  /** A valid group member keeps alliance consultation discoverable without a selected housemate. */
+  consultationTargetIds?: ReadonlySet<string>
   players?: readonly Player[]
   actorId?: string
   actorEnergy?: number
@@ -42,7 +44,14 @@ export interface ActionGridProps {
   dramaNetwork?: DramaSocialNetwork
   hiddenActionIds?: ReadonlySet<string>
   energyCostOverrides?: Readonly<Record<string, number>>
-  categoryFilter?: 'all' | 'connect' | 'strategy' | 'drama'
+  categoryFilter?: 'all' | 'connect' | 'strategy' | 'drama' | 'alliances'
+  supplementalActions?: readonly {
+    action: SocialActionDefinition
+    costs?: { energy: number; influence: number; info: number }
+    allowWithoutTarget?: boolean
+    disabled?: boolean
+    availabilityReason?: string
+  }[]
 }
 
 /**
@@ -51,12 +60,14 @@ export interface ActionGridProps {
  * styling and feedback rather than card position, preserving muscle memory.
  */
 export default function ActionGrid({
+  allianceContext = false,
   onActionClick,
   onPreview,
   onPremiumLockedClick,
   disabledIds = new Set(),
   selectedId = null,
   selectedTargetIds,
+  consultationTargetIds,
   players,
   actorId = '',
   actorEnergy,
@@ -70,6 +81,7 @@ export default function ActionGrid({
   hiddenActionIds = new Set(),
   energyCostOverrides,
   categoryFilter = 'all',
+  supplementalActions = [],
 }: ActionGridProps) {
   const { t } = useI18n()
   const dispatch = useAppDispatch()
@@ -141,10 +153,14 @@ export default function ActionGrid({
   }
 
   function getContextEligibility(action: SocialActionDefinition) {
+    const targetIds =
+      action.id === 'consult_alliance'
+        ? (consultationTargetIds ?? new Set<string>())
+        : selectedTargetIds
     return evaluateSocialActionEligibility({
       action,
       actorId,
-      targetIds: selectedTargetIds ? Array.from(selectedTargetIds) : [],
+      targetIds: targetIds ? Array.from(targetIds) : [],
       phase: currentPhase,
       week: game.week,
       players: game.players.length > 0 ? game.players : players,
@@ -160,6 +176,7 @@ export default function ActionGrid({
 
   function hasContextVisibility(action: SocialActionDefinition): boolean {
     return (
+      (!allianceContext || action.id === 'consult_alliance') &&
       action.enabled !== false &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
       isHumanSocialActionVisible(action, dramaMode ? 'drama' : 'normal') &&
@@ -183,6 +200,7 @@ export default function ActionGrid({
 
   function isRelevantRealityPreview(action: SocialActionDefinition): boolean {
     return (
+      (!allianceContext || action.id === 'consult_alliance') &&
       action.enabled !== false &&
       !dramaMode &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
@@ -228,6 +246,8 @@ export default function ActionGrid({
       isLohReplacementPending(game))
 
   function contextualizeAction(action: SocialActionDefinition) {
+    if (action.id === 'consult_alliance')
+      return { ...action, availabilityHint: allianceContext ? undefined : 'Choose an alliance' }
     if (action.id !== 'ask_loh_target') return action
     if (safetyConsultationOpen) {
       return {
@@ -270,10 +290,14 @@ export default function ActionGrid({
 
   const isRealityPreview = (action: SocialActionDefinition) => isRelevantRealityPreview(action)
 
-  function matchesCategoryFilter(category: ActionCategory): boolean {
+  function matchesCategoryFilter(action: SocialActionDefinition): boolean {
     if (categoryFilter === 'all') return true
-    if (categoryFilter === 'connect') return category === 'friendly' || category === 'alliance'
+    // A huddle belongs with alliance management in the UI while retaining its
+    // strategic category for AI response and Reality simulation rules.
+    const category = action.id === 'consult_alliance' ? 'alliance' : action.category
+    if (categoryFilter === 'connect') return category === 'friendly'
     if (categoryFilter === 'strategy') return category === 'strategic'
+    if (categoryFilter === 'alliances') return category === 'alliance'
     return category === 'aggressive'
   }
 
@@ -305,9 +329,12 @@ export default function ActionGrid({
         action,
         dramaMode || isRealityExclusiveAction(action)
       )
-      return actionMode === 'none'
+      return (
+        actionMode === 'none' ||
+        (action.id === 'consult_alliance' && (consultationTargetIds?.size ?? 0) > 0)
+      )
     })
-    .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action.category))
+    .filter((action) => action.id === suggestedActionId || matchesCategoryFilter(action))
     .sort((left, right) => {
       const leftPreview = isRealityPreview(left)
       const rightPreview = isRealityPreview(right)
@@ -321,6 +348,13 @@ export default function ActionGrid({
   // order fixed so cards never jump, expand into a featured row, or appear to
   // disappear when the player compares actions.
   const visibleActions = orderedVisibleActions
+  const visibleSupplementalActions = supplementalActions.filter(
+    ({ action, allowWithoutTarget }) => {
+      if (!matchesCategoryFilter(action)) return false
+      if (!explicitlyNoTargetSelected) return true
+      return allowWithoutTarget || resolveActionTargetMode(action, dramaMode) === 'none'
+    }
+  )
 
   useEffect(() => {
     if (!invitation || appliedInvitationRef.current === invitation.id) return
@@ -406,6 +440,23 @@ export default function ActionGrid({
             />
           )
         })}
+        {visibleSupplementalActions.map(
+          ({ action, costs, disabled = false, availabilityReason }) => {
+            const resolvedCosts = costs ?? getActionCosts(action)
+            return (
+              <ActionCard
+                key={action.id}
+                action={action}
+                costs={resolvedCosts}
+                selected={selectedId === action.id}
+                disabled={disabled}
+                availabilityReason={availabilityReason || getAvailabilityReason(resolvedCosts)}
+                available={!disabled && isActionAffordable(resolvedCosts)}
+                onClick={onActionClick}
+              />
+            )
+          }
+        )}
       </div>
       <ConfirmExitModal
         open={realityModePromptOpen}

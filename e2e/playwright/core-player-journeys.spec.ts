@@ -206,7 +206,7 @@ async function completeActiveConfessionalDecision(page: Page): Promise<void> {
     await confirm.click()
   } else if (before.game.awaitingHumanVote) {
     await clickFirstEnabled(panel.getByRole('group').getByRole('button'))
-    const confirm = panel.getByRole('button', { name: 'Seal eviction vote' })
+    const confirm = panel.getByRole('button', { name: 'Confirm' })
     await expect(confirm).toBeEnabled()
     await confirm.click()
   } else if (before.game.awaitingTieBreak) {

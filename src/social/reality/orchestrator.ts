@@ -1,3 +1,4 @@
+import { finalizeAcceptedPersonalPact } from './allianceManagement'
 import { createDraft, finishDraft } from 'immer'
 import {
   appendRealitySimulationTrace,
@@ -19,17 +20,13 @@ import { addRealityFact, learnRealityFact, resolveRealityAllianceIdForFact } fro
 import { recordRealityAllianceInvitation } from './allianceKnowledge'
 import {
   applyRealityApology,
-  createRealityAlliance,
   createRealityGrievance,
   coordinateRealityAllianceTarget,
   findRealityAllianceForRecruitment,
-  holdRealityAllianceMeeting,
   holdRealityAllianceStrategyMeeting,
   leakRealityAlliance,
   removeRealityAllianceMember,
-  markRealityAllianceInfiltratorIfSecondary,
   recordRealityAllianceBetrayal,
-  recruitRealityAllianceMember,
   signalRealityRomance,
 } from './relationshipForms'
 import { upsertRealityPromise, upsertRealitySecret, upsertRealityThread } from './commitments'
@@ -53,6 +50,8 @@ export interface RealityOpportunityCandidate {
    * uses this exact acceptance chance instead of the generic relationship roll.
    */
   acceptanceChanceOverride?: number
+  /** The promisor's current plan contradicts an Offer Protection promise. */
+  promiseContradicted?: boolean
 }
 
 export interface RealityOpportunity {
@@ -169,13 +168,51 @@ function selectWeighted<T extends { weight: number; id: string }>(
 
 function relationshipDeltas(action: RealityActionContract, response: RealityResponseResolution) {
   if (action.purposes.includes('CONFLICT')) {
-    return response.kind === 'DE_ESCALATE'
-      ? action.relationshipEffects.deEscalated
-      : action.relationshipEffects.escalated
+    return response.kind === 'ESCALATE'
+      ? action.relationshipEffects.escalated
+      : action.relationshipEffects.deEscalated
   }
   return response.accepted
     ? action.relationshipEffects.accepted
     : action.relationshipEffects.rejected
+}
+
+function receivedRelationshipDeltas(
+  action: RealityActionContract,
+  response: RealityResponseResolution,
+  forcedRejection = false
+) {
+  const purposes = action.purposes
+  if (purposes.includes('CONFLICT')) {
+    if (response.kind === 'ESCALATE') {
+      return { warmth: -6, trust: -6, resentment: 10, suspicion: 3, perceivedThreat: 4 }
+    }
+    if (response.kind === 'WALK_AWAY') return { warmth: -1, suspicion: 1, familiarity: 1 }
+    return { warmth: -1, resentment: 2, respect: 1, familiarity: 1 }
+  }
+
+  if (response.accepted) {
+    return {
+      warmth: purposes.includes('BOND') || purposes.includes('ROMANCE') ? 5 : 3,
+      trust: 4,
+      loyalty: purposes.includes('COMMITMENT') ? 4 : 0,
+      respect: purposes.includes('COMMITMENT') ? 1 : 0,
+      attraction: purposes.includes('ROMANCE') ? 4 : 0,
+      intimacy: purposes.includes('ROMANCE') ? 3 : 0,
+      reliability: purposes.includes('COMMITMENT') ? 2 : 0,
+      familiarity: 3,
+    }
+  }
+
+  if (forcedRejection) return { warmth: -5, trust: -4, suspicion: 7, resentment: 3, familiarity: 2 }
+  if (response.kind === 'WALK_AWAY') return { warmth: -1, suspicion: 1, familiarity: 1 }
+  if (purposes.includes('ROMANCE')) return { warmth: -1, attraction: -2, familiarity: 1 }
+  if (purposes.includes('COMMITMENT')) return { trust: -2, suspicion: 2, familiarity: 2 }
+  if (purposes.includes('INFORMATION')) return { suspicion: 2, familiarity: 1 }
+  if (response.kind === 'QUESTION' || response.kind === 'COUNTER' || response.kind === 'LIE') {
+    return { suspicion: 2, familiarity: 1 }
+  }
+  return { warmth: -1, familiarity: 1 }
 }
 
 function makeMemory(input: {
@@ -219,6 +256,10 @@ function applyRealityLifecycle(input: {
   secondarySubjectId?: string
   allianceId?: string
   allianceStrategyKind?: 'NOMINATION' | 'SAFETY'
+  actors?: Record<string, RealityActorSnapshot>
+  displayNames?: Readonly<Record<string, string>>
+  humanActorIds?: readonly string[]
+  viewerActorId?: string
   responses: Array<{ targetId: string; response: RealityResponseResolution }>
 }): void {
   const {
@@ -230,6 +271,10 @@ function applyRealityLifecycle(input: {
     secondarySubjectId,
     allianceId,
     allianceStrategyKind,
+    actors,
+    displayNames,
+    humanActorIds,
+    viewerActorId,
     responses,
   } = input
   const acceptedTargets = responses
@@ -320,48 +365,33 @@ function applyRealityLifecycle(input: {
     }
 
     for (const targetId of acceptedTargets) {
-      const existing = Object.values(domain.alliances).find(
-        (alliance) =>
-          alliance.status !== 'DISSOLVED' &&
-          alliance.memberIds.includes(interaction.actorId) &&
-          alliance.memberIds.includes(targetId)
-      )
-      if (existing) {
-        holdRealityAllianceMeeting(domain, {
-          allianceId: existing.id,
-          attendeeIds: [interaction.actorId, targetId],
-          targetIds: subjectId ? [subjectId] : existing.currentTargetIds,
-          planIds: subjectId ? [`watch:${subjectId}`] : [`maintain:${existing.id}`],
-          at,
-        })
-      } else {
-        const recruitmentAlliance = invitationAlliances.get(targetId) ?? null
-        if (recruitmentAlliance) {
-          recruitRealityAllianceMember(domain, {
-            allianceId: recruitmentAlliance.id,
-            recruiterId: interaction.actorId,
-            targetId,
-            expandedAllianceId: `alliance:${[...recruitmentAlliance.memberIds, targetId]
-              .sort()
-              .join('~')}:${interaction.id}`,
-            at,
-          })
-        } else {
-          const alliance = createRealityAlliance(domain, {
-            id: `alliance:${[interaction.actorId, targetId].sort().join('~')}:${interaction.id}`,
-            founderIds: [interaction.actorId],
-            memberIds: [targetId],
-            purpose: subjectId ? `Coordinate around ${subjectId}` : 'Mutual protection',
-            at,
-          })
-          holdRealityAllianceMeeting(domain, {
-            allianceId: alliance.id,
-            attendeeIds: [interaction.actorId, targetId],
-            targetIds: subjectId ? [subjectId] : [],
-            planIds: subjectId ? [`watch:${subjectId}`] : [`protect:${alliance.id}`],
-            at,
-          })
-          markRealityAllianceInfiltratorIfSecondary(domain, alliance.id, targetId, at)
+      const applied = finalizeAcceptedPersonalPact(domain, {
+        actorId: interaction.actorId,
+        targetId,
+        at,
+        interactionId: interaction.id,
+        purpose: subjectId ? 'Mutual protection' : undefined,
+        displayNames:
+          displayNames ??
+          Object.fromEntries(
+            Object.values(actors ?? {}).map((actor) => [actor.id, actor.name ?? actor.id])
+          ),
+        humanActorIds:
+          humanActorIds ??
+          Object.values(actors ?? {})
+            .filter((actor) => actor.isHuman)
+            .map((actor) => actor.id),
+        viewerActorId:
+          viewerActorId ?? Object.values(actors ?? {}).find((actor) => actor.isHuman)?.id,
+      })
+      if (applied.status === 'REJECTED') {
+        event.outcome = 'FAILURE'
+        event.reason = applied.reason
+        const response = responses.find((entry) => entry.targetId === targetId)?.response
+        if (response) {
+          response.accepted = false
+          response.kind = 'REJECT'
+          response.reason = applied.reason
         }
       }
     }
@@ -423,6 +453,7 @@ function applyRealityLifecycle(input: {
       stakes: Math.min(1, 0.45 + (action.baseWeight ?? 0) * 0.1),
       scope: {
         actionId: action.id,
+        ...(allianceId ? { allianceId } : {}),
         ...(subjectId ? { targetId: subjectId } : {}),
       },
       status: 'ACTIVE',
@@ -909,8 +940,10 @@ export function runRealityOpportunity(input: {
           actorId: actor.id,
           targetId,
           reality: domain,
+          context: input.opportunity.context,
           draw: responseDraw.value,
           acceptanceChanceOverride: selected.acceptanceChanceOverride,
+          promiseContradicted: selected.promiseContradicted,
         })
         targetResponses[targetId] = targetResponse
         simulation = appendRealitySimulationTrace(simulation, {
@@ -961,8 +994,10 @@ export function runRealityOpportunity(input: {
         actorId: actor.id,
         targetId,
         reality: domain,
+        context: input.opportunity.context,
         draw: responseDraw.value,
         acceptanceChanceOverride: selected.acceptanceChanceOverride,
+        promiseContradicted: selected.promiseContradicted,
       })
       responses.push({ targetId, response: targetResponse })
       simulation = appendRealitySimulationTrace(simulation, {
@@ -1025,18 +1060,12 @@ export function runRealityOpportunity(input: {
       applyRealityRelationshipChange(domain, {
         sourceId: targetId,
         targetId: actor.id,
-        deltas:
-          targetResponse.kind === 'ESCALATE'
-            ? { warmth: -8, trust: -7, resentment: 12, perceivedThreat: 5 }
-            : targetResponse.accepted
-              ? { warmth: 4, trust: 4, familiarity: 3 }
-              : selected.acceptanceChanceOverride !== undefined &&
-                  selected.acceptanceChanceOverride <= 0.02
-                ? { warmth: -5, trust: -4, suspicion: 7, resentment: 3, familiarity: 2 }
-                : selected.acceptanceChanceOverride !== undefined &&
-                    selected.acceptanceChanceOverride <= 0.25
-                  ? { warmth: -3, trust: -2, suspicion: 4, familiarity: 2 }
-                  : { suspicion: 2, familiarity: 1 },
+        deltas: receivedRelationshipDeltas(
+          selected.action,
+          targetResponse,
+          selected.acceptanceChanceOverride !== undefined &&
+            selected.acceptanceChanceOverride <= 0.02
+        ),
         day: event.day,
         phase: event.phase,
         eventId: event.id,
@@ -1057,6 +1086,7 @@ export function runRealityOpportunity(input: {
     event,
     action: selected.action,
     subjectId: selected.subjectId,
+    actors: input.opportunity.actors,
     responses,
   })
   interaction.status = 'RESOLVED'
@@ -1159,6 +1189,9 @@ export function resolvePendingHumanRealityInteraction(input: {
   secondarySubjectId?: string
   allianceId?: string
   allianceStrategyKind?: 'NOMINATION' | 'SAFETY'
+  displayNames?: Readonly<Record<string, string>>
+  humanActorIds?: readonly string[]
+  viewerActorId?: string
 }): {
   domain: RealityDomainState
   event: RealitySocialEvent | null
@@ -1243,11 +1276,7 @@ export function resolvePendingHumanRealityInteraction(input: {
         applyRealityRelationshipChange(domain, {
           sourceId: targetId,
           targetId: actorId,
-          deltas: targetResponse.accepted
-            ? { warmth: 5, trust: 5, familiarity: 3 }
-            : targetResponse.kind === 'WALK_AWAY'
-              ? { warmth: -2, suspicion: 2, familiarity: 1 }
-              : { trust: -3, suspicion: 3, familiarity: 2 },
+          deltas: receivedRelationshipDeltas(action, targetResponse),
           day: input.day,
           phase: input.phase,
           eventId: event.id,
@@ -1290,6 +1319,9 @@ export function resolvePendingHumanRealityInteraction(input: {
     secondarySubjectId: input.secondarySubjectId,
     allianceId: input.allianceId,
     allianceStrategyKind: input.allianceStrategyKind,
+    displayNames: input.displayNames,
+    humanActorIds: input.humanActorIds,
+    viewerActorId: input.viewerActorId,
     responses,
   })
   resolveRelationshipStoryResponse(domain, {

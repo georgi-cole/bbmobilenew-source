@@ -1,5 +1,24 @@
 export const TILT_HAZARD_HIT_PENALTY_MS = 3_000;
-export const TILT_HINT_PENALTY_MS = 30_000;
+export const TILT_HINT_PENALTY_MS = 10_000;
+
+export interface TiltLabyrinthRankEntry {
+  id: string;
+  rawTimeMs: number;
+  hazardHits: number;
+  adjustedTimeMs: number;
+}
+
+/** Shared UI and outcome ordering, including visible tie-break statistics. */
+export function rankTiltLabyrinthResults<T extends TiltLabyrinthRankEntry>(
+  entries: readonly T[],
+): T[] {
+  return [...entries].sort((a, b) =>
+    a.adjustedTimeMs - b.adjustedTimeMs ||
+    a.hazardHits - b.hazardHits ||
+    a.rawTimeMs - b.rawTimeMs ||
+    a.id.localeCompare(b.id),
+  );
+}
 
 export function calculateTiltAdjustedTime(
   rawTimeMs: number,

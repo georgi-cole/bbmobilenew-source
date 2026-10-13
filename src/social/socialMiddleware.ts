@@ -104,6 +104,7 @@ const VOX_SOCIAL_BEAT_PHASES = new Set([
 
 interface GameState {
   gameId: string
+  season: number
   seed: number
   phase: string
   week: number
@@ -154,7 +155,17 @@ interface GameState {
     text: string
     meta?: { week?: number; voxSocialBeat?: boolean; pairKey?: string; [key: string]: unknown }
   }>
-  players: Array<{ id: string; name?: string; status: string; isUser?: boolean }>
+  players: Array<{
+    id: string
+    name?: string
+    status: string
+    isUser?: boolean
+    confessionalMisconduct?: {
+      season: number
+      strikes: number
+      administrativelyRemoved?: boolean
+    }
+  }>
 }
 
 interface StateWithGame {
@@ -1855,10 +1866,45 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
   }
 
   // ── Eviction: drain social resources for the evicted user player ─────────
-  // Handles both normal evictions (finalizePendingEviction) and self-evictions.
-  if (type === 'game/finalizePendingEviction' || type === 'game/selfEvict') {
+  // Handles normal evictions, self-evictions, and administrative removal.
+  const misconductPayload =
+    type === 'game/recordConfessionalMisconduct'
+      ? (action as { payload?: unknown }).payload
+      : undefined
+  const misconductPlayerId =
+    misconductPayload && typeof misconductPayload === 'object'
+      ? (misconductPayload as { playerId?: unknown }).playerId
+      : undefined
+  const misconductPlayer =
+    typeof misconductPlayerId === 'string'
+      ? ((api.getState() as StateWithGame).game?.players ?? []).find(
+          (player) => player.id === misconductPlayerId
+        )
+      : undefined
+  const misconductGame = misconductPlayer ? (api.getState() as StateWithGame).game : undefined
+  const misconductStrikes =
+    misconductPlayer &&
+    misconductGame &&
+    misconductPlayer.confessionalMisconduct?.season === misconductGame.season
+      ? misconductPlayer.confessionalMisconduct.strikes
+      : 0
+  const isConfessionalAdministrativeRemoval =
+    type === 'game/recordConfessionalMisconduct' &&
+    Boolean(misconductPlayer) &&
+    misconductPlayer?.status !== 'evicted' &&
+    misconductPlayer?.status !== 'jury' &&
+    misconductStrikes + 1 >= 3
+
+  if (
+    type === 'game/finalizePendingEviction' ||
+    type === 'game/selfEvict' ||
+    isConfessionalAdministrativeRemoval
+  ) {
     const prevState = api.getState() as StateWithGame
-    const evicteeId = (action as unknown as { payload: string }).payload
+    const payload = (action as unknown as { payload: unknown }).payload
+    const evicteeId =
+      typeof payload === 'string' ? payload : ((payload as { playerId: string }).playerId ?? '')
+    if (!evicteeId) return next(action)
     const evictee = (prevState.game?.players ?? []).find((p) => p.id === evicteeId)
     const week = prevState.game?.week
     const bondedSurvivors = (prevState.game?.players ?? [])
@@ -1881,16 +1927,26 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       .sort((left, right) => right.affinity - left.affinity)
 
     const result = next(action)
+    if (
+      isConfessionalAdministrativeRemoval &&
+      !((api.getState() as StateWithGame).game?.players ?? []).find(
+        (player) => player.id === evicteeId
+      )?.confessionalMisconduct?.administrativelyRemoved
+    ) {
+      return result
+    }
     recordCeremony(api as unknown as MiddlewareAPI, 'EVICTION', {
       targetIds: [evicteeId],
-      reason:
-        type === 'game/selfEvict'
+      reason: isConfessionalAdministrativeRemoval
+        ? 'The Big Eye removed the contestant after repeated Confessional misconduct.'
+        : type === 'game/selfEvict'
           ? 'A contestant left the game.'
           : prevState.game?.voxPopuli?.status === 'active'
             ? 'The audience vote resulted in an elimination.'
             : 'The house vote resulted in an eviction.',
-      tags:
-        type === 'game/selfEvict'
+      tags: isConfessionalAdministrativeRemoval
+        ? ['administrative_removal', 'confessional_misconduct']
+        : type === 'game/selfEvict'
           ? ['self_eviction']
           : prevState.game?.voxPopuli?.status === 'active'
             ? ['public_vote']
@@ -1902,7 +1958,12 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       api.dispatch(drainEvictedPlayerSocial({ playerId: evicteeId, week }))
     }
 
-    if (prevState.game?.voxPopuli?.status === 'active' && evictee && bondedSurvivors[0]) {
+    if (
+      !isConfessionalAdministrativeRemoval &&
+      prevState.game?.voxPopuli?.status === 'active' &&
+      evictee &&
+      bondedSurvivors[0]
+    ) {
       const affected = bondedSurvivors[0]
       api.dispatch(
         applyRealityAmbientMood({

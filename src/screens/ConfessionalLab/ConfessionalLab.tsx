@@ -123,25 +123,7 @@ export default function ConfessionalLab() {
         memberNames: alliance.memberIds.map((id) => nameFor(id) ?? id),
         status: alliance.status,
       }))
-    const legacyAllianceNames =
-      formalAlliances.length === 0
-        ? relationshipRows
-            .filter((row) => row.tags.some((tag) => tag === 'alliance' || tag === 'ally'))
-            .map((row) => row.name)
-        : []
-    const alliances =
-      formalAlliances.length > 0
-        ? formalAlliances
-        : legacyAllianceNames.length
-          ? [
-              {
-                id: 'relationship-allies',
-                name: null,
-                memberNames: [playerName, ...legacyAllianceNames],
-                status: 'ACTIVE',
-              },
-            ]
-          : []
+    const alliances = formalAlliances
 
     const publicFeed = game.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
     const recentEvictedNames: string[] = []
@@ -184,7 +166,7 @@ export default function ConfessionalLab() {
       recentEvictedNames,
       recentPublicEvents: publicFeed.slice(-8),
     }
-  }, [game, playerId, playerName, realityDomain.alliances, relationships, userPlayer])
+  }, [game, playerId, realityDomain.alliances, relationships, userPlayer])
 
   const [tab, setTab] = useState<LabTab>('workbench')
   const [contextMode, setContextMode] = useState<ContextMode>('synthetic')
