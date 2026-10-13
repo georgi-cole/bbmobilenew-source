@@ -395,7 +395,7 @@ export default function RealityLedger({
                         {knownMembers.length
                           ? knowledge.fullMembershipKnown
                             ? `Known members: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')}. This is the full roster.`
-                            : `Evidence links ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' and ')}. Your intel has not confirmed the full roster.`
+                            : `Known links: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')} · other members unknown`
                           : 'You suspect a pact exists, but do not know its members.'}
                       </p>
                     </article>

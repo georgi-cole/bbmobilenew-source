@@ -833,19 +833,6 @@ export function recordRealityAllianceBetrayal(
       refreshRealityAllianceLifecycle(alliance)
     }
 
-    const expelled = maybeExpelLowCommitmentMember(
-      state,
-      alliance,
-      input.actorId,
-      input.at,
-      input.sourceEventId
-    )
-    if (repeatedSevereBreach && !expelled) {
-      alliance.status = 'DISSOLVED'
-      alliance.currentTargetIds = []
-      alliance.fallbackTargetIds = []
-      preserveRealityAllianceRosterForMembers(state, alliance.id, input.at, betrayalEvent.id)
-    }
     affected.push(alliance)
   }
 

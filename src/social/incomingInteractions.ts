@@ -27,6 +27,7 @@ import {
 } from './socialSlice'
 import {
   coordinateRealityAllianceTarget,
+  findRealityAllianceForRecruitment,
   holdRealityAllianceStrategyMeeting,
   recordRealityAllianceInvitation,
   resolvePendingHumanRealityInteraction,
