@@ -61,8 +61,8 @@ const PHASE_LABEL: Record<string, string> = {
   pos_ceremony_results: 'After the Safety ceremony',
   social_2: 'Before the vote',
   live_vote: 'During the vote',
-  eviction_results: 'After the eviction',
-  social: 'During house life',
+  eviction_results: 'After the elimination',
+  social: 'During Hub life',
 }
 
 const ARC_LABEL = {
@@ -79,7 +79,7 @@ function arcStageCopy(stage: string): string {
     case 'building':
       return 'Repeated moments are turning into a real storyline.'
     case 'established':
-      return 'The connection is now part of how the house reads them.'
+      return 'The connection is now part of how the Hub reads them.'
     case 'strained':
       return 'Recent events have put the relationship under visible pressure.'
     case 'climax':
@@ -519,7 +519,7 @@ export default function HousePulse({
                     ? pendingActionCount > 0 || pendingPromiseCount > 0
                       ? 'Your next step is ready above. Check Intel and Commitments for more context.'
                       : 'Nothing important has changed today. Check back after your next conversation or decision.'
-                    : 'The house is still reading the room. Visible patterns will appear here as actions repeat or consequences land.'}
+                    : 'The Hub is still reading the room. Visible patterns will appear here as actions repeat or consequences land.'}
                 </p>
               )}
             </>
@@ -595,7 +595,7 @@ export default function HousePulse({
                 return (
                   <article className="house-pulse__card house-pulse__card--intel" key={rumour.id}>
                     <div className="house-pulse__card-top">
-                      <span>{RUMOUR_LABEL[rumour.kind] ?? 'House intel'}</span>
+                      <span>{RUMOUR_LABEL[rumour.kind] ?? 'Hub intel'}</span>
                       <em>{reliability}</em>
                     </div>
                     <h3>{subject}</h3>
@@ -605,7 +605,7 @@ export default function HousePulse({
                 )
               })
             ) : (
-              <p className="house-pulse__empty">You have not learned any current house intel.</p>
+              <p className="house-pulse__empty">You have not learned any current Hub intel.</p>
             ))}
 
           {tab === 'intel' && reality && (
@@ -662,8 +662,8 @@ export default function HousePulse({
               ? `${pendingActionCount} alliance decision${pendingActionCount === 1 ? '' : 's'} need your attention.`
               : pendingPromiseCount > 0
                 ? `${pendingPromiseCount} commitment${pendingPromiseCount === 1 ? '' : 's'} need your attention.`
-                : (latest?.title ?? 'Your latest house developments and commitments.')
-            : (latest?.text ?? 'The house is still reading the room.')}
+                : (latest?.title ?? 'Your latest Hub developments and commitments.')
+            : (latest?.text ?? 'The Hub is still reading the room.')}
         </em>
         <b>{reality ? 'Open My Pulse' : 'Open My Game'}</b>
       </button>

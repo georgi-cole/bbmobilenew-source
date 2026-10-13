@@ -361,7 +361,8 @@ function executeRealityCandidate(
           state.social.intelligenceDeliveries,
           player.id,
           state.game.week,
-          candidate.actionId
+          candidate.actionId,
+          state.game.players
         )
       : null
   const resourceEffect = getSocialResourceEffect(
@@ -374,8 +375,20 @@ function executeRealityCandidate(
     compatibilityOutcome === 'success' &&
     candidate.targetIds.some(
       (targetId) =>
-        selectIntelFactForActor(state.social.reality, player.id, targetId, state.game.week) ||
-        selectIntelFactForActor(state.social.reality, targetId, player.id, state.game.week)
+        selectIntelFactForActor(
+          state.social.reality,
+          player.id,
+          targetId,
+          state.game.week,
+          state.game.players
+        ) ||
+        selectIntelFactForActor(
+          state.social.reality,
+          targetId,
+          player.id,
+          state.game.week,
+          state.game.players
+        )
     )
   const adjustedResourceEffect =
     candidate.actionId === 'trade_secrets' && !hasTradeInformation && resourceEffect.info > 0
@@ -746,7 +759,7 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
 const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
   ally: [
     'I think our games fit together. I want to make this official—are you in?',
-    'The house is splitting, and I would rather have you beside me. Want to work together?',
+    'The Hub is splitting, and I would rather have you beside me. Want to work together?',
   ],
   proposeAlliance: [
     'I trust what we have been building. Are you ready to call it an alliance?',
@@ -909,12 +922,24 @@ function routeHumanFacingAction(
   const content = pickHumanFacingText(actionId, actorId, human.name ?? 'you', week, phase)
   const tradeLead =
     actionId === 'trade_secrets'
-      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week)
+      ? selectIntelFactForActor(
+          current.social.reality,
+          actorId,
+          human.id,
+          week,
+          current.game.players
+        )
       : null
   if (actionId === 'trade_secrets' && !tradeLead) return 'blocked'
   const protectionLead =
     actionId === 'protect' && intelFactId
-      ? selectIntelFactForActor(current.social.reality, actorId, human.id, week)
+      ? selectIntelFactForActor(
+          current.social.reality,
+          actorId,
+          human.id,
+          week,
+          current.game.players
+        )
       : null
   const disclosedFact =
     protectionLead && protectionLead.fact.id === intelFactId ? protectionLead.fact : undefined

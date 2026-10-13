@@ -521,7 +521,7 @@ export default function SettingsAdmin() {
                   aria-label="Back 2 the Game chance percentage"
                 />
                 <p className="settings-helper-text">
-                  Probability that a Tribunal Return twist activates after each eligible eviction
+                  Probability that a Tribunal Return twist activates after each eligible elimination
                   (requires Twists on).
                 </p>
               </div>
@@ -546,7 +546,7 @@ export default function SettingsAdmin() {
                 />
                 <p className="settings-helper-text">
                   Per-week chance that a Double Elimination activates (mid-season only, after 5
-                  evictions and above final 5). Up to 2 per season.
+                  eliminations and above final 5). Up to 2 per season.
                 </p>
               </div>
             )}
@@ -569,7 +569,7 @@ export default function SettingsAdmin() {
                   aria-label="Special Safety chance percentage"
                 />
                 <p className="settings-helper-text">
-                  Per-week chance (checked during POS results, after 5 evictions, with 6+ players
+                  Per-week chance (checked during POS results, after 5 eliminations, with 6+ players
                   and no Double Elimination) for a season-limited special safety power to activate.
                   Only one special safety may occur per season.
                 </p>
@@ -594,8 +594,8 @@ export default function SettingsAdmin() {
                   aria-label="Morning Shock chance percentage"
                 />
                 <p className="settings-helper-text">
-                  Chance that a Day 3+ morning shock removes an active housemate before the LOH comp
-                  starts. Only fires when more than 4 housemates are still alive.
+                  Chance that a Day 3+ morning shock removes an active hubmate before the LOH comp
+                  starts. Only fires when more than 4 hubmates are still alive.
                 </p>
               </div>
             )}
@@ -675,8 +675,8 @@ export default function SettingsAdmin() {
                 </button>
               </div>
               <p className="settings-helper-text" style={{ color: '#f97316' }}>
-                Opens the selected episode on Faux TV, even if your player has been evicted. Finish
-                it to return to the same day and phase in your current season.
+                Opens the selected episode on Faux TV, even if your player has been eliminated.
+                Finish it to return to the same day and phase in your current season.
               </p>
             </div>
             <div className="settings-row settings-row--col">
@@ -754,7 +754,7 @@ export default function SettingsAdmin() {
             </div>
 
             <div className="settings-row settings-row--col">
-              <label className="settings-row__label">Houseguests</label>
+              <label className="settings-row__label">Hubmates</label>
               <input
                 type="number"
                 className="settings-number"

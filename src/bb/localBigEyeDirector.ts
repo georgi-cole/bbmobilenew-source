@@ -144,7 +144,7 @@ function responseSimilarity(left: string, right: string): number {
 function getSceneFacts(input: LocalBigEyeDirectorInput): SceneFacts {
   const world = input.world
   const normalizedMessage = normalizeInput(input.diaryText)
-  const name = input.playerName?.trim() || 'Houseguest'
+  const name = input.playerName?.trim() || 'Hubmate'
   const mentionedHousemate =
     input.frame?.focusPlayer ??
     world?.closestRelationships.find((relationship) =>
@@ -191,19 +191,19 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
     case 'wellbeing_question':
       return [
         `${facts.name}, I am still watching and still listening. More importantly, how are you holding up in ${week}?`,
-        `The Eye does not sleep, worry, or face eviction. So I am well. Your turn—how are you, honestly?`,
+        `The Eye does not sleep, worry, or face elimination. So I am well. Your turn—how are you, honestly?`,
         `Operational, observant, and unexpectedly pleased you asked. How are you doing?`,
       ]
     case 'overwhelmed':
       return facts.isNominated
         ? [
-            `Being on the block${opponent} can make the whole house feel too loud. We can make it smaller: is the pressure coming from the vote, a person, or having to look fine?`,
+            `Being on the block${opponent} can make the Hub feel too loud. We can make it smaller: is the pressure coming from the vote, a person, or having to look fine?`,
             `I hear you. You do not have to solve ${week} all at once. What is the next conversation you are most afraid to have?`,
-            `Overwhelmed is not defeated. For this moment, forget the entire house and name the heaviest part.`,
+            `Overwhelmed is not defeated. For this moment, forget the whole Hub and name the heaviest part.`,
           ]
         : [
             `I hear you. Let us make it smaller: is the pressure coming from the game, a person, or the need to look fine?`,
-            `You do not have to solve the whole house tonight. What is the one thing pressing hardest right now?`,
+            `You do not have to solve the Hub tonight. What is the one thing pressing hardest right now?`,
             `Then pause the strategy. What would make the next ten minutes feel manageable?`,
           ]
     case 'repetition_complaint':
@@ -227,12 +227,12 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
     case 'gratitude':
       return [
         `You are welcome. Do not make me sentimental.`,
-        `Noted. Gratitude is rare currency in this house.`,
+        `Noted. Gratitude is rare currency in the Hub.`,
         `You are welcome. Now spend that clearer head wisely.`,
       ]
     case 'sadness':
       return [
-        `I hear you, ${facts.name}. Is this about missing someone outside, feeling alone here, or something a housemate did?`,
+        `I hear you, ${facts.name}. Is this about missing someone outside, feeling alone here, or something a hubmate did?`,
         `You do not have to turn sadness into strategy immediately. Tell me what hurts most.`,
         facts.mentionedHousemate
           ? `This feeling has ${facts.mentionedHousemate}'s name near it. What happened?`
@@ -240,7 +240,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
       ]
     case 'positive_emotion':
       return [
-        `Good. Tell me what earned that feeling before the house tries to rewrite it.`,
+        `Good. Tell me what earned that feeling before the Hub tries to rewrite it.`,
         `Hold on to that. What happened?`,
         `I noticed the change. Is this relief, pride, or excitement?`,
       ]
@@ -253,7 +253,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
     case 'advice_request':
       return facts.isNominated
         ? [
-            `My advice: stop trying to win the whole house tonight. Identify the one undecided vote and ask what would genuinely make keeping you better for their game.`,
+            `My advice: stop trying to win everyone in the Hub tonight. Identify the one undecided vote and ask what would genuinely make keeping you better for their game.`,
             `A hint from where I sit: panic makes broad promises. Make one precise offer to one movable voter, then give them room to believe it was their idea.`,
             `You are on the block${opponent}. Verify one vote, repair one damaged relationship, and keep your next target to yourself.`,
           ]
@@ -264,7 +264,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
             relationship || facts.ally
               ? `A useful hint: test ${relationship ?? facts.ally} with a small piece of information, not your whole plan. Trust should be measured before it is spent.`
               : `Do the smallest useful thing next: repair one relationship, verify one promise, and do not announce the move before it works.`,
-            `Watch who answers a simple question with too much detail. In this house, overexplaining often marks the place where the truth was edited.`,
+            `Watch who answers a simple question with too much detail. In the Hub, overexplaining often marks the place where the truth was edited.`,
           ]
     case 'fear':
     case 'help_request':
@@ -318,7 +318,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
     case 'winner_prediction':
       return facts.remainingCount > 0
         ? [
-            `${facts.remainingCount} housemates remain. The winner is usually the person whose danger is understood one week too late. Who fits that description?`,
+            `${facts.remainingCount} hubmates remain. The winner is usually the person whose danger is understood one week too late. Who fits that description?`,
             relationship
               ? `${relationship} may look well positioned from where you stand. The better question is who would actually award them the win.`
               : `I have a prediction. I am more interested in yours—and the vote you would cast to prove it.`,
@@ -330,7 +330,7 @@ function buildContextualCandidates(input: LocalBigEyeDirectorInput, facts: Scene
       return [
         facts.mentionedHousemate
           ? `You are asking about ${facts.mentionedHousemate}. I can give you a read from the relationship and game information I actually have, but I will not invent what they are secretly thinking.`
-          : `Ask me directly. If it is about the game, a housemate, or something I have observed, I will answer what I can.`,
+          : `Ask me directly. If it is about the game, a hubmate, or something I have observed, I will answer what I can.`,
         facts.leader
           ? `${facts.leader} has power during ${facts.phase}. If your question is really about safety, ask it honestly.`
           : `You are asking about ${facts.phase}, but questions often hide preferences. Which answer are you hoping for?`,
@@ -388,7 +388,7 @@ function resolveKnowledgeReply(
           )}.`
         : `The current nominees are ${formatNames(world.nomineeNames)}.`
     case 'remaining':
-      return `${world.remainingHousemates.length} housemates remain: ${formatNames(
+      return `${world.remainingHousemates.length} hubmates remain: ${formatNames(
         world.remainingHousemates
       )}.`
     case 'closest_relationship': {
@@ -417,17 +417,17 @@ function resolveKnowledgeReply(
     case 'recent_eviction': {
       const names = world.recentEvictedNames ?? []
       return names.length
-        ? `${names[0]} is the most recent confirmed eviction I can see.`
-        : 'I do not have a confirmed recent eviction in the current game record, so I will not invent one.'
+        ? `${names[0]} is the most recent confirmed elimination I can see.`
+        : 'I do not have a confirmed recent elimination in the current game record, so I will not invent one.'
     }
     case 'eviction_outlook':
       if (world.nomineeNames.length === 0) {
-        return 'Nobody is currently on the block, so there is no honest eviction read to give you.'
+        return 'Nobody is currently on the block, so there is no honest elimination read to give you.'
       }
       return `${formatNames(world.nomineeNames)} ${world.nomineeNames.length === 1 ? 'is' : 'are'} currently in danger. I do not have a legitimate view of every private vote, so I will not pretend I know who is leaving.`
     case 'person_read': {
       const focus = input.frame?.focusPlayer
-      if (!focus) return 'Name the housemate and I will tell you what I can actually see.'
+      if (!focus) return 'Name the hubmate and I will tell you what I can actually see.'
       const relationship = world.closestRelationships.find(
         (row) => normalizeInput(row.name) === normalizeInput(focus)
       )

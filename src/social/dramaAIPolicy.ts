@@ -63,8 +63,8 @@ function hasActiveAlliance(input: DramaAIMoveInput, targetId: string): boolean {
 function canTradeWith(input: DramaAIMoveInput, targetId: string): boolean {
   if (!input.reality) return false
   return Boolean(
-    selectIntelFactForActor(input.reality, input.actorId, targetId, input.week) ||
-    selectIntelFactForActor(input.reality, targetId, input.actorId, input.week)
+    selectIntelFactForActor(input.reality, input.actorId, targetId, input.week, input.players) ||
+    selectIntelFactForActor(input.reality, targetId, input.actorId, input.week, input.players)
   )
 }
 
@@ -311,7 +311,13 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
       if (
         target?.isUser &&
         (!input.reality ||
-          !selectIntelFactForActor(input.reality, input.actorId, targetId, input.week))
+          !selectIntelFactForActor(
+            input.reality,
+            input.actorId,
+            targetId,
+            input.week,
+            input.players
+          ))
       ) {
         continue
       }
@@ -369,7 +375,7 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
     )
     if ((actorCanKeepHumanOffBlock || actorCanUseSafetyOnHuman) && !alreadyPromisedProtection) {
       const availableLead = input.reality
-        ? selectIntelFactForActor(input.reality, input.actorId, human.id, input.week)
+        ? selectIntelFactForActor(input.reality, input.actorId, human.id, input.week, input.players)
         : null
       const relevantLead =
         availableLead &&

@@ -3,7 +3,7 @@ const NARRATIVE_VARIANTS = {
     'The crown found a new head, and the crowd absolutely clocked it.',
     'A power swing just landed with all the subtlety of a confetti cannon.',
     'Somebody walked away with the room keys and a whole lot of attention.',
-    'The balance in the house shifted, and viewers felt every inch of it.',
+    'The balance in the Hub shifted, and viewers felt every inch of it.',
     'A very shiny seat of power just got claimed.',
   ],
   pov_win: [
@@ -11,13 +11,13 @@ const NARRATIVE_VARIANTS = {
     'Someone just grabbed the kind of protection that makes whispers louder.',
     'A little immunity sparkle appeared at exactly the right moment.',
     'The panic button now belongs to somebody else.',
-    'A well-timed shield just made the house a lot messier.',
+    'A well-timed shield just made the Hub a lot messier.',
   ],
   nominated: [
     'The room suddenly felt a touch less cozy for somebody.',
-    'A rough headline night just hit the house.',
+    'A rough headline night just hit the Hub.',
     'The audience picked up on a very awkward vibe shift.',
-    'Somebody just landed on the wrong side of the house mood.',
+    'Somebody just landed on the wrong side of the Hub mood.',
     'There was a little too much side-eye in the air tonight.',
   ],
   nomination_sympathy: [
@@ -32,14 +32,14 @@ const NARRATIVE_VARIANTS = {
     'Public sentiment swung hard the moment that name was announced. Not a popular move.',
     'Fans are not happy about who ended up on the block. The comments are not kind.',
     'That nomination is going to cost something in the public eye — viewers were invested in that person.',
-    'The crowd turned quickly. Nominating someone beloved rarely plays well outside the house.',
+    'The crowd turned quickly. Nominating someone beloved rarely plays well outside the Hub.',
   ],
   eviction_beloved: [
-    'The live-feed community has not recovered from that eviction. The outrage is real.',
+    'The live-feed community has not recovered from that elimination. The outrage is real.',
     'Fans are furious. Sending a crowd favourite home this early has consequences.',
     'Viewers are treating this like a season-defining moment — and not in a positive way for whoever is responsible.',
-    'Social media is in full mourning mode. That eviction hit hard.',
-    'The backlash following that eviction is loud, sustained, and very pointed.',
+    'Social media is in full mourning mode. That elimination hit hard.',
+    'The backlash following that elimination is loud, sustained, and very pointed.',
   ],
   eviction_underdog_exit: [
     'Even as they walked out the door, a small farewell wave of sympathy followed them out.',
@@ -49,28 +49,28 @@ const NARRATIVE_VARIANTS = {
     'A small but vocal part of the fanbase is already saying they miss the entertainment value.',
   ],
   eviction_reaction: [
-    'The public already has opinions about who is responsible for that eviction.',
+    'The public already has opinions about who is responsible for that elimination.',
     'Blame and credit are being assigned at speed across every platform right now.',
     'Viewers are reading the room and deciding who deserves the fallout.',
-    'That eviction just reshuffled who the crowd is rooting for.',
+    'That elimination just reshuffled who the crowd is rooting for.',
     'The jury of public opinion has reached its verdict — and quickly.',
   ],
   pov_save: [
     'Using that power to help someone out played really well with the audience.',
     'That save just earned a whole lot of goodwill from the public.',
     'The crowd appreciated that protective instinct — using power to shield someone is always a good look.',
-    'Viewers are responding warmly to that veto play.',
+    'Viewers are responding warmly to that Safety play.',
     'Stepping in to help just translated directly into public support.',
   ],
   pov_save_reaction: [
     'Using that power just shifted public opinion in an interesting direction.',
-    'The veto play got noticed — viewers have decided whether that was a good idea.',
+    'The Safety play got noticed — viewers have decided whether that was a good idea.',
     'Fans are split on that save, but they are definitely paying attention.',
-    'The public reacted to that veto usage immediately, and loudly.',
+    'The public reacted to that Safety decision immediately, and loudly.',
     'Using that protection sent a message. The audience received it.',
   ],
   public_save: [
-    'The public stepped in to save one of their favourites, and the house felt it.',
+    'The public stepped in to save one of their favourites, and the Hub felt it.',
     'An outside intervention just proved how much the audience is invested this season.',
     'The crowd spoke and someone got to stay. That kind of influence always creates waves inside.',
     'A twist driven by public will just changed the trajectory of the game.',
@@ -108,12 +108,12 @@ const NARRATIVE_VARIANTS = {
     'A genuine connection moment just earned a wave of goodwill from the audience.',
   ],
   headline_negative: [
-    'Leaked house footage has the internet deeply unimpressed right now.',
+    'Leaked Hub footage has the internet deeply unimpressed right now.',
     'The public backlash is real — viewers are not letting this one go quietly.',
     'Fans are calling it out loudly and the sentiment is not kind.',
     'A rumor is spreading fast and people are choosing to believe the worst.',
     'That backstab just became the most-clipped moment of the week for all the wrong reasons.',
-    'Social media has decided there is a villain in the house and the verdict is not flattering.',
+    'Social media has decided there is a villain in the Hub and the verdict is not flattering.',
     'The audience watched that unfold in real time and the reaction has been scalding.',
     'A very ugly side just got very visible, and viewers are circulating the receipts.',
     'Outrage is the only word for what the comments section looks like right now.',
@@ -142,12 +142,12 @@ const NARRATIVE_VARIANTS = {
     'The interaction did not land, and the audience noticed the misread.',
   ],
   audience_social_warmth: [
-    'Viewers are warming to the way this housemate is connecting without forcing it.',
+    'Viewers are warming to the way this hubmate is connecting without forcing it.',
     'A run of genuine conversations is quietly winning people over.',
     'The audience is responding to a social game that feels natural rather than rehearsed.',
   ],
   audience_strategy: [
-    'Viewers are starting to respect how calmly this housemate is building numbers.',
+    'Viewers are starting to respect how calmly this hubmate is building numbers.',
     'A few subtle strategic conversations made this game look sharper today.',
     'The audience noticed a social move that created options without creating noise.',
   ],
@@ -162,23 +162,23 @@ const NARRATIVE_VARIANTS = {
     'Too many visible moves at once made the strategy look nervous.',
   ],
   nomination_underdog_sympathy: [
-    'Being sent back into danger again is turning this housemate into an audience underdog.',
-    'Another nomination has viewers rallying around the person the house cannot seem to get rid of.',
+    'Being sent back into danger again is turning this hubmate into an audience underdog.',
+    'Another nomination has viewers rallying around the person the Hub cannot seem to get rid of.',
     'The repeated targeting is starting to backfire outside — survival is becoming part of the appeal.',
   ],
   hoh_popular_targeting: [
     'Viewers understood the target. Going after somebody the audience already disliked played well.',
-    'That nomination looked ruthless inside the house but sensible to a public that was already over the target.',
+    'That nomination looked ruthless inside the Hub but sensible to a public that was already over the target.',
     'The audience rewarded a nomination that matched its own read of the season.',
   ],
   survived_repeated_targeting: [
     'They survived the block again, and the underdog story is getting harder for viewers to resist.',
-    'Another escape from danger just strengthened the public connection to this housemate.',
-    'The house keeps putting them in trouble; the audience keeps getting more invested.',
+    'Another escape from danger just strengthened the public connection to this hubmate.',
+    'The Hub keeps putting them in trouble; the audience keeps getting more invested.',
   ],
   audience_romance: [
     'The audience is getting invested in this connection, and the couple fandom is starting to form.',
-    'A visible romantic beat played warmly outside the house.',
+    'A visible romantic beat played warmly outside the Hub.',
     'Viewers are buying the chemistry, at least for now.',
   ],
   audience_bromance: [
@@ -193,7 +193,7 @@ const NARRATIVE_VARIANTS = {
   ],
   fan_favorite_backlash: [
     'Going after a public favourite was always risky, and viewers are pushing back hard.',
-    'The target may be vulnerable in the house, but outside support just turned against the aggressor.',
+    'The target may be vulnerable in the Hub, but outside support just turned against the aggressor.',
     'Fans did not like seeing one of their favourites treated that way.',
   ],
   fan_favorite_sympathy: [
@@ -203,7 +203,7 @@ const NARRATIVE_VARIANTS = {
   ],
   audience_underdog_rally: [
     'Too many people piling onto the same target has created an underdog the audience wants to protect.',
-    'The house may see an easy target; viewers are starting to see somebody worth defending.',
+    'The Hub may see an easy target; viewers are starting to see somebody worth defending.',
     'Repeated pressure from several directions has turned into a sympathy wave outside.',
   ],
   audience_pile_on_backlash: [
@@ -213,12 +213,12 @@ const NARRATIVE_VARIANTS = {
   ],
   audience_villain_callout: [
     'Calling out somebody the audience already distrusted landed surprisingly well.',
-    'Viewers liked seeing a disliked housemate challenged directly.',
+    'Viewers liked seeing a disliked hubmate challenged directly.',
     'That confrontation matched the public mood and earned a little credit.',
   ],
   audience_betrayal: [
     'The move may have been strategic, but viewers still noticed the betrayal.',
-    'A sharp game move came with an integrity cost outside the house.',
+    'A sharp game move came with an integrity cost outside the Hub.',
     'The audience enjoyed the shock more than the disloyalty.',
   ],
   audience_social_misfire: [
@@ -262,6 +262,7 @@ type NarrativeKey = keyof typeof NARRATIVE_VARIANTS
 const REASON_ALIASES: Record<string, NarrativeKey> = {
   hoh_win: 'hoh_win',
   'Won Leader of the House': 'hoh_win',
+  'Won Leader of the Hub': 'hoh_win',
   pov_win: 'pov_win',
   'Won Power of Safety': 'pov_win',
   nominated: 'nominated',
@@ -271,6 +272,7 @@ const REASON_ALIASES: Record<string, NarrativeKey> = {
   eviction_beloved: 'eviction_beloved',
   eviction_underdog_exit: 'eviction_underdog_exit',
   eviction_reaction: 'eviction_reaction',
+  'Was eliminated by the Hub': 'eviction_reaction',
   pov_save: 'pov_save',
   pov_save_reaction: 'pov_save_reaction',
   public_save: 'public_save',

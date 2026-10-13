@@ -47,16 +47,16 @@ export default function FinaleDebugControls() {
         <button
           className="dbg-btn dbg-btn--wide"
           onClick={() => dispatch(forcePhase('week_end'))}
-          title="Force game to week_end so clicking Advance triggers jury phase"
+          title="Force game to week_end so clicking Advance triggers the Tribunal phase"
         >
           → Force week_end
         </button>
         <button
           className="dbg-btn dbg-btn--wide"
           onClick={() => dispatch(forcePhase('jury'))}
-          title="Jump directly to jury phase (overlay initialises on next render)"
+          title="Jump directly to the Tribunal phase (overlay initialises on next render)"
         >
-          → Force jury
+          → Force Tribunal
         </button>
       </div>
 

@@ -30,7 +30,7 @@ export const SOCIAL_STORY_BIBLE = {
         id: 'summer_forest_hair',
         lines: [
           '{actor} told {target} their hair looked like a summer forest—beautiful, mysterious, and probably hiding a secret alliance.',
-          '{actor} called {target} the emotional support lamp of the house: unexpectedly warm and always on during drama.',
+          '{actor} called {target} the emotional support lamp of the Hub: unexpectedly warm and always on during drama.',
           '{actor} praised {target} so sincerely that two people nearby immediately assumed it was strategy.',
         ],
         effects: { relationship: [1, 5], trustSignal: 'warmth' },
@@ -42,7 +42,7 @@ export const SOCIAL_STORY_BIBLE = {
         lines: [
           '{actor} pulled {target} beside the kitchen counter and shared a detail quiet enough to make every camera zoom in.',
           '{actor} whispered one name to {target}; three minutes later the entire sofa area looked suspicious.',
-          '{actor} gave {target} intel with the solemnity of a state secret and the reliability of house gossip.',
+          '{actor} gave {target} intel with the solemnity of a state secret and the reliability of Hub gossip.',
         ],
         effects: { relationship: [0, 4], trustSignal: 'honesty' },
       },
@@ -62,7 +62,7 @@ export const SOCIAL_STORY_BIBLE = {
       {
         id: 'laundry_room_showdown',
         lines: [
-          '{actor} cornered {target} by the laundry room and asked the question the whole house had avoided.',
+          '{actor} cornered {target} by the laundry room and asked the question everyone in the Hub had avoided.',
           '{actor} confronted {target}; the conversation got so tense even the decorative cushions looked uncomfortable.',
           '{actor} told {target} the story was not adding up. Somewhere, a confessional producer quietly celebrated.',
         ],

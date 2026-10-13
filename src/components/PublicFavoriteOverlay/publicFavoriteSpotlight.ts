@@ -73,7 +73,7 @@ function buildProfileFacts(profile: Houseguest): string[] {
 
   if (profile.education) {
     facts.push(
-      `${name} studied ${profile.education}, a detail that follows them into the pressure cooker of the house.`,
+      `${name} studied ${profile.education}, a detail that follows them into the pressure cooker of the Hub.`,
     );
   }
   if (profile.funFact) {
@@ -112,7 +112,7 @@ export function buildHouseguestSpotlightItems(candidates: Player[]): HouseguestS
 
     return {
       player,
-      facts: facts.length > 0 ? facts : [`${profile.name} remains one of the houseguests to watch.`],
+      facts: facts.length > 0 ? facts : [`${profile.name} remains one of the hubmates to watch.`],
     };
   });
 }

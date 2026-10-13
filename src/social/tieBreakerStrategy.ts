@@ -197,7 +197,7 @@ export function buildTieBreakerCampaignPitch({
   if (relationshipTags.has('bromance')) {
     return {
       offer: 'bromance',
-      text: `Before you cast the deciding vote: do not let this house split us up. Keep me, and you have my loyalty and my shield from here on out.`,
+      text: `Before you cast the deciding vote: do not let the Hub split us up. Keep me, and you have my loyalty and my shield from here on out.`,
     }
   }
   if (sharedAlliance) {
@@ -220,7 +220,7 @@ export function buildTieBreakerCampaignPitch({
     },
     {
       offer: 'loyalty',
-      text: `Before you cast the deciding vote: keep me tonight and I will be a number for you. My vote, my loyalty, and my word are yours when the house turns again.`,
+      text: `Before you cast the deciding vote: keep me tonight and I will be a number for you. My vote, my loyalty, and my word are yours when the Hub turns again.`,
     },
     {
       offer: 'alliance',
@@ -230,7 +230,7 @@ export function buildTieBreakerCampaignPitch({
       offer: 'intel',
       text: outsideAlliance
         ? `Before you cast the deciding vote: keep me and I will tell you where the other alliance stands and who has been positioning against you.`
-        : `Before you cast the deciding vote: keep me and I will tell you the names being whispered around this house. You will not be blindsided by the next move.`,
+        : `Before you cast the deciding vote: keep me and I will tell you the names being whispered around the Hub. You will not be blindsided by the next move.`,
     },
   ]
   return pitches[

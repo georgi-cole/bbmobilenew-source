@@ -51,12 +51,12 @@ function explainReason(
   if (/fan_favorite_backlash/.test(signal)) {
     return attributedTo
       ? `Going after ${attributedTo} is costing you support because viewers already like them.`
-      : 'Going after a well-liked housemate is costing you support.'
+      : 'Going after a well-liked hubmate is costing you support.'
   }
   if (/fan_favorite_sympathy/.test(signal)) {
     return attributedTo
       ? `Being targeted by ${attributedTo} is creating sympathy for you.`
-      : 'Being targeted by a popular housemate is creating sympathy for you.'
+      : 'Being targeted by a popular hubmate is creating sympathy for you.'
   }
   if (/(underdog|repeated_targeting|repeat_block|block_survival)/.test(signal)) {
     return 'Repeated pressure and survival are starting to frame you as an underdog.'

@@ -44,9 +44,7 @@ export const RELATIONSHIP_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'leave it for now': acts('backs off and gives the attraction room to cool.'),
   },
   relationship_confidant_check_in: {
-    'hear them out': says(
-      'they share something they have not been comfortable saying to the house.'
-    ),
+    'hear them out': says('they share something they have not been comfortable saying to the Hub.'),
     'ask for context': says(
       'the issue has been building for days and they wanted one person they trust.'
     ),

@@ -100,9 +100,9 @@ function arcDescription(arc: DramaArc, first: string, second: string): string {
   if (arc.type === 'romance') {
     return arc.stage === 'strained'
       ? `${pair} can no longer hide that something between them is off.`
-      : `${pair} keep finding reasons to disappear together, and the house is starting to notice.`
+      : `${pair} keep finding reasons to disappear together, and the Hub is starting to notice.`
   }
-  if (arc.type === 'bromance') return `${pair} are moving through the house like a dependable unit.`
+  if (arc.type === 'bromance') return `${pair} are moving through the Hub like a dependable unit.`
   if (arc.type === 'rivalry') return `${pair} now treat even ordinary conversations like a contest.`
   return `${pair} are still living with the fallout of a move that changed their trust.`
 }
@@ -127,14 +127,14 @@ function eventToBeat(
     ? network.arcs.find((candidate) => candidate.id === event.relatedArcId)
     : undefined
   let kind: SocialStoryBeatKind = event.public ? 'public' : 'strategy'
-  let title = event.title ?? 'The house shifted'
+  let title = event.title ?? 'The Hub shifted'
   let text = event.text
   if (event.type === 'confrontation') {
     kind = 'conflict'
     const confrontationCopy = [
       {
         title: `${first} and ${second} had a blowup`,
-        text: 'A private disagreement spilled into the house, and people are starting to choose sides.',
+        text: 'A private disagreement spilled into the Hub, and people are starting to choose sides.',
       },
       {
         title: `${first} and ${second} drew a line`,
@@ -146,7 +146,7 @@ function eventToBeat(
       },
       {
         title: `${first} and ${second} lost patience`,
-        text: 'A sharp exchange exposed weeks of irritation and gave the rest of the house something new to discuss.',
+        text: 'A sharp exchange exposed weeks of irritation and gave the rest of the Hub something new to discuss.',
       },
     ]
     const variant = confrontationCopy[stableVariant(event.id, confrontationCopy.length)]
@@ -159,7 +159,7 @@ function eventToBeat(
   } else if (event.type === 'alliance_beat') {
     kind = 'strategy'
     title = 'A voting pair is taking shape'
-    text = `${first} and ${second} are coordinating often enough that the house has started counting them together.`
+    text = `${first} and ${second} are coordinating often enough that the Hub has started counting them together.`
   } else if (event.type === 'exposure') {
     kind = 'public'
     title = 'A private story just went public'
@@ -167,7 +167,7 @@ function eventToBeat(
   } else if (event.type === 'rumour_spread') {
     kind = 'intel'
     title = 'One story is spreading fast'
-    text = `A claim involving ${second} has escaped its original conversation and is changing how people read the house.`
+    text = `A claim involving ${second} has escaped its original conversation and is changing how people read the Hub.`
   } else if (event.type === 'discovery') {
     kind = 'intel'
     title = 'New information surfaced'
@@ -243,8 +243,8 @@ function buildConfrontationClusters(
       beat: {
         id: `confrontation-cluster:${currentWeek}:${centerId}`,
         kind: 'conflict',
-        title: `${centerName} is at the center of a house blowup`,
-        text: `Separate clashes with ${names} are no longer reading as isolated moments. The pattern is reshaping the house around ${centerName}.`,
+        title: `${centerName} is at the center of a Hub blowup`,
+        text: `Separate clashes with ${names} are no longer reading as isolated moments. The pattern is reshaping the Hub around ${centerName}.`,
         participantIds: [centerId, ...counterpartIds],
         week: currentWeek,
         phase: 'social',
@@ -298,7 +298,7 @@ function consolidateConflictCenters(
       beat: {
         id: `conflict-center:${currentWeek}:${centerId}`,
         kind: 'conflict',
-        title: `${nameOf(centerId)} is becoming the center of the house tension`,
+        title: `${nameOf(centerId)} is becoming the center of the Hub tension`,
         text: `Separate friction with ${names.join(', ')}${
           more > 0 ? ` and ${more} more` : ''
         } now reads as one developing pattern, not a string of identical blowups.`,
@@ -371,7 +371,7 @@ function buildActionBeats({
     } else if (positive >= 3) {
       kind = 'bond'
       title = `${actorName} is working the room`
-      text = `${actorName} made a deliberate effort with ${targetNames.join(', ')}. The house is noticing how many doors are opening.`
+      text = `${actorName} made a deliberate effort with ${targetNames.join(', ')}. The Hub is noticing how many doors are opening.`
     }
     if (!kind) continue
     clusteredActors.add(actorId)
@@ -447,10 +447,10 @@ function buildActionBeats({
         const copy = [
           {
             title: `${leftName} and ${rightName} could not hide the friction`,
-            text: 'A sharp exchange changed the mood around them, and the house is reassessing both sides.',
+            text: 'A sharp exchange changed the mood around them, and the Hub is reassessing both sides.',
           },
           {
-            title: `${leftName} challenged ${rightName} in front of the house`,
+            title: `${leftName} challenged ${rightName} in front of the Hub`,
             text: 'What began as a private disagreement became a public test of trust and patience.',
           },
           {
@@ -459,7 +459,7 @@ function buildActionBeats({
           },
           {
             title: `The room felt the strain between ${leftName} and ${rightName}`,
-            text: 'Neither player backed away cleanly, and their unresolved tension is now part of the house picture.',
+            text: 'Neither player backed away cleanly, and their unresolved tension is now part of the Hub picture.',
           },
         ][stableVariant(`${key}:${currentWeek}`, 4)]
         title = copy.title

@@ -322,11 +322,11 @@ function executePregnancyFlow(
       return result(false, 'The pregnancy news is already public.', 0)
     }
     if (recipientIds.length === 0) {
-      return result(false, 'Choose at least one active housemate to tell.', 0)
+      return result(false, 'Choose at least one active hubmate to tell.', 0)
     }
     const alreadyTold = new Set(pregnancy.pregnancyNewsSharedWithIds ?? [])
     if (recipientIds.some((id) => alreadyTold.has(id))) {
-      return result(false, 'You have already shared this news with that housemate.', 0)
+      return result(false, 'You have already shared this news with that hubmate.', 0)
     }
 
     const leakerId = recipientIds.find((recipientId) => {
@@ -515,7 +515,7 @@ function executePregnancyFlow(
       false,
       input.actionId === 'pregnancy_test'
         ? 'Choose the pregnancy carrier.'
-        : 'Choose a housemate for this story.',
+        : 'Choose a hubmate for this story.',
       state.social.energyBank[input.actorId] ?? 0
     )
   }
@@ -807,11 +807,11 @@ function summarizeAlliancePreferences(
           fallbackId ? ` · backup ${playerName(state, fallbackId)}` : ''
         }`
       : preferences.length === 1 && primaryId
-        ? label === 'Eviction vote'
+        ? label === 'Elimination vote'
           ? `${playerName(state, preferences[0].advisorId)} recommends ${playerName(
               state,
               primaryId
-            )} for eviction. You have not chosen a position, so no alliance vote is set yet`
+            )} for elimination. You have not chosen a position, so no alliance vote is set yet`
           : `${label}: ${playerName(state, preferences[0].advisorId)} recommends ${playerName(
               state,
               primaryId
@@ -1232,11 +1232,11 @@ export function buildAllianceConsultationPlan(
     })
     const read =
       agenda === 'eviction_vote' && state.game.doubleEviction?.weekActive
-        ? summarizeAllianceSlate(state, preferences, 'Double eviction vote plan', 2)
+        ? summarizeAllianceSlate(state, preferences, 'Double elimination vote plan', 2)
         : summarizeAlliancePreferences(
             state,
             preferences,
-            agenda === 'eviction_vote' ? 'Vote consensus' : 'Eviction vote',
+            agenda === 'eviction_vote' ? 'Vote consensus' : 'Elimination vote',
             new Set(alliance.memberIds)
           )
     return {
@@ -1416,7 +1416,7 @@ export function buildLohConsultationSummary(
       return `The block is locked with ${lockedBlock}. ${playerName(
         state,
         nominationPlan.targetId
-      )} was my backdoor target, but Safety did not open a replacement seat, so I can only vote to evict someone on this block.`
+      )} was my replacement target, but Safety did not open a replacement seat, so I can only vote to eliminate someone on this block.`
     }
     const lockedTargetId =
       (plan.currentTargetId && nominees.includes(plan.currentTargetId)
@@ -1502,7 +1502,7 @@ export function buildLohConsultationSummary(
     if (replacementPending && disclosedTargetId === nominationPlan.targetId) {
       return `Safety opened the seat. ${backdoorTarget} is my planned replacement nominee; ${openingLabel} were the opening nominees.`
     }
-    return `${backdoorTarget} is my backdoor target if Safety opens a replacement seat. My opening nominees are ${openingLabel}.`
+    return `${backdoorTarget} is my replacement target if Safety opens a replacement seat. My opening nominees are ${openingLabel}.`
   }
   if (nominees.includes(disclosedTargetId)) {
     return `${disclosedName} is my current target. That is who I want the pressure on.`
@@ -1555,7 +1555,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
     if (isPrimaryBatch && !batchCompatible) {
       return result(
         false,
-        'This action can only target one housemate at a time.',
+        'This action can only target one hubmate at a time.',
         energy,
         0,
         'Invalid selection'
@@ -1626,10 +1626,10 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           (targetId) =>
             state.game.players.find((player) => player.id === targetId)?.name ?? targetId
         )
-      const subject = targetNames.length === 1 ? targetNames[0] : 'The housemates'
+      const subject = targetNames.length === 1 ? targetNames[0] : 'The hubmates'
       return result(
         false,
-        `${subject} refused to talk right now. The mood in the House is too low.`,
+        `${subject} refused to talk right now. The mood in the Hub is too low.`,
         energy,
         0,
         'Refused'
@@ -1662,7 +1662,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
               success: combined.success || entry.success,
               summary:
                 index === targetIds.length - 1
-                  ? `Reached ${targetIds.length} housemates.`
+                  ? `Reached ${targetIds.length} hubmates.`
                   : combined.summary,
               newEnergy: entry.newEnergy,
               delta: (combined.delta * index + entry.delta) / Math.max(1, index + 1),
@@ -1733,7 +1733,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           : findRealityAllianceForConsultation(state.social.reality, input.actorId, input.targetId)
         : null
     if (input.actionId === 'consult_alliance' && !consultationAlliance) {
-      return result(false, 'You do not share an active alliance with that housemate.', energy)
+      return result(false, 'You do not share an active alliance with that hubmate.', energy)
     }
     const selectedConsultationAdvisorIds =
       input.actionId === 'consult_alliance' && input.consultationScope === 'selected'
@@ -1990,7 +1990,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
                   success: combined.success || entry.success,
                   summary:
                     index === executionTargetIds.length - 1
-                      ? `Reached ${executionTargetIds.length} housemates.`
+                      ? `Reached ${executionTargetIds.length} hubmates.`
                       : combined.summary,
                   newEnergy: entry.newEnergy,
                   delta: (combined.delta * index + entry.delta) / Math.max(1, index + 1),

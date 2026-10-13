@@ -69,7 +69,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'late_night_talk',
     title: 'Late-Night Talk',
     icon: '\uD83C\uDF19',
-    description: 'Open up when the rest of the house is asleep.',
+    description: 'Open up when the rest of the Hub is asleep.',
     category: 'friendly',
     kind: 'rapport',
     baseCost: { energy: 2 },
@@ -99,7 +99,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'kiss_under_covers',
     title: 'Secret Kiss',
     icon: '\uD83D\uDC8B',
-    description: 'Risk a kiss where another housemate might notice.',
+    description: 'Risk a kiss where another hubmate might notice.',
     category: 'friendly',
     kind: 'rapport',
     baseCost: { energy: 2 },
@@ -194,7 +194,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     title: 'Share Pregnancy News',
     icon: '🤰',
     description:
-      'Tell selected housemates privately. Their loyalty affects the chance they keep your news secret.',
+      'Tell selected hubmates privately. Their loyalty affects the chance they keep your news secret.',
     category: 'friendly',
     kind: 'rapport',
     baseCost: { energy: 1 },
@@ -330,7 +330,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'plant_lie',
     title: 'Plant a Lie',
     icon: '\uD83D\uDC0D',
-    description: 'Tell one housemate a calculated lie about another.',
+    description: 'Tell one hubmate a calculated lie about another.',
     category: 'aggressive',
     kind: 'intel_spend',
     baseCost: { energy: 3, info: 2 },
@@ -389,7 +389,7 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'stir_rivalry',
     title: 'Pit Them Against',
     icon: '\u26A1',
-    description: 'Use existing tension to push two housemates apart.',
+    description: 'Use existing tension to push two hubmates apart.',
     category: 'aggressive',
     kind: 'political_spend',
     baseCost: { energy: 3, influence: 1, info: 1 },
@@ -453,7 +453,7 @@ export const DRAMA_DIALOGUE_BANK: {
         '{a} and {b} protect their late-night conversations.',
       ],
       established: [
-        "{a} and {b} are the house's worst-kept romantic secret.",
+        "{a} and {b} are the Hub's worst-kept romantic secret.",
         '{a} and {b} choose each other before strategy enters the room.',
       ],
       strained: ['Jealousy and game pressure entered the conversation between {a} and {b}.'],
@@ -463,7 +463,7 @@ export const DRAMA_DIALOGUE_BANK: {
     bromance: {
       spark: [
         '{a} and {b} discovered they share the same humour and enemies.',
-        '{a} and {b} move through the house as a pair.',
+        '{a} and {b} move through the Hub as a pair.',
       ],
       building: ['{a} and {b} swap information before speaking to anyone else.'],
       established: ['{a} and {b} are a genuine ride-or-die duo.'],
@@ -477,9 +477,9 @@ export const DRAMA_DIALOGUE_BANK: {
         '{a} challenged {b} in the kitchen, and nobody changed the subject.',
       ],
       building: ['{a} and {b} are campaigning against each other in separate rooms.'],
-      established: ['{a} and {b} are public rivals, and the house is choosing sides.'],
+      established: ['{a} and {b} are public rivals, and the Hub is choosing sides.'],
       strained: ['{a} and {b} attempted a truce, but neither sounded convinced.'],
-      climax: ['{a} and {b} finally said everything in front of the whole house.'],
+      climax: ['{a} and {b} finally said everything in front of everyone in the Hub.'],
       resolved,
     },
     betrayal: {
@@ -490,7 +490,7 @@ export const DRAMA_DIALOGUE_BANK: {
       building: ['{a} is quietly collecting proof that {b} broke their deal.'],
       established: ['{a} now treats {b} as a former ally and a current threat.'],
       strained: ['{a} heard an apology from {b}, but trust did not follow.'],
-      climax: ["{a} exposed {b}'s betrayal to the entire house."],
+      climax: ["{a} exposed {b}'s betrayal to the entire Hub."],
       resolved,
     },
   },
@@ -504,12 +504,12 @@ export const DRAMA_DIALOGUE_BANK: {
     personal_comment: ['{source} says {subject} made a comment that did not stay private.'],
   },
   exposure: {
-    secret_alliance: ["HOUSE EXPOSED: {subject}'s hidden voting bloc is now public."],
-    secret_romance: ["HOUSE EXPOSED: {subject}'s secret romance has been caught on camera."],
-    targeting: ['HOUSE EXPOSED: The campaign against {subject} is no longer quiet.'],
-    fake_deal: ["HOUSE EXPOSED: {subject}'s deals do not match from room to room."],
+    secret_alliance: ["HUB EXPOSED: {subject}'s hidden voting bloc is now public."],
+    secret_romance: ["HUB EXPOSED: {subject}'s secret romance has been caught on camera."],
+    targeting: ['HUB EXPOSED: The campaign against {subject} is no longer quiet.'],
+    fake_deal: ["HUB EXPOSED: {subject}'s deals do not match from room to room."],
     personal_comment: [
-      'HOUSE EXPOSED: A private comment involving {subject} detonated in the living room.',
+      'HUB EXPOSED: A private comment involving {subject} detonated in the living room.',
     ],
   },
 }
@@ -524,7 +524,7 @@ DRAMA_DIALOGUE_BANK.arc.romance.strained = [
 DRAMA_DIALOGUE_BANK.arc.romance.climax = [
   ...DRAMA_DIALOGUE_BANK.arc.romance.climax,
   '{a} asked {b} whether this connection survives a nomination.',
-  '{a} and {b} finally addressed the romance the whole house had narrated for them.',
+  '{a} and {b} finally addressed the romance everyone in the Hub had narrated for them.',
   'One vote forced {a} and {b} to choose between chemistry and the game.',
 ]
 DRAMA_DIALOGUE_BANK.arc.bromance.building = [
@@ -535,7 +535,7 @@ DRAMA_DIALOGUE_BANK.arc.bromance.building = [
 ]
 DRAMA_DIALOGUE_BANK.arc.bromance.established = [
   ...DRAMA_DIALOGUE_BANK.arc.bromance.established,
-  '{a} and {b} have become a package deal, whether the house likes it or not.',
+  '{a} and {b} have become a package deal, whether the Hub likes it or not.',
   '{a} and {b} defend each other before hearing the accusation.',
   'Everyone now plans around the fact that {a} and {b} compare notes.',
 ]
@@ -549,13 +549,13 @@ DRAMA_DIALOGUE_BANK.arc.bromance.climax = [
   ...DRAMA_DIALOGUE_BANK.arc.bromance.climax,
   '{a} risked the week to keep {b} out of danger.',
   '{a} and {b} drew a public line: target one and inherit both.',
-  'The house demanded that {a} choose between {b} and the numbers.',
+  'The Hub demanded that {a} choose between {b} and the numbers.',
 ]
 DRAMA_DIALOGUE_BANK.arc.rivalry.building = [
   ...DRAMA_DIALOGUE_BANK.arc.rivalry.building,
   '{a} and {b} have started correcting each other in every room.',
   '{a} blamed {b} for the vote, and {b} brought witnesses.',
-  'Separate campaigns by {a} and {b} are turning the house into two camps.',
+  'Separate campaigns by {a} and {b} are turning the Hub into two camps.',
 ]
 DRAMA_DIALOGUE_BANK.arc.rivalry.established = [
   ...DRAMA_DIALOGUE_BANK.arc.rivalry.established,
@@ -573,7 +573,7 @@ DRAMA_DIALOGUE_BANK.arc.rivalry.climax = [
   ...DRAMA_DIALOGUE_BANK.arc.rivalry.climax,
   '{a} and {b} turned the living room into a courtroom with no recess.',
   '{a} named every move {b} had made and {b} answered with receipts.',
-  'The feud between {a} and {b} finally forced the house to choose sides.',
+  'The feud between {a} and {b} finally forced the Hub to choose sides.',
 ]
 DRAMA_DIALOGUE_BANK.arc.betrayal.building = [
   ...DRAMA_DIALOGUE_BANK.arc.betrayal.building,
@@ -595,9 +595,9 @@ DRAMA_DIALOGUE_BANK.arc.betrayal.strained = [
 ]
 DRAMA_DIALOGUE_BANK.arc.betrayal.climax = [
   ...DRAMA_DIALOGUE_BANK.arc.betrayal.climax,
-  '{a} read the conflicting promises from {b} aloud to the whole house.',
+  '{a} read the conflicting promises from {b} aloud to everyone in the Hub.',
   '{a} confronted {b} with the one secret that could not be explained away.',
-  'The house watched {a} turn the private betrayal by {b} into public strategy.',
+  'The Hub watched {a} turn the private betrayal by {b} into public strategy.',
 ]
 
 DRAMA_DIALOGUE_BANK.rumour.secret_alliance = [
@@ -627,28 +627,28 @@ DRAMA_DIALOGUE_BANK.rumour.personal_comment = [
 ]
 DRAMA_DIALOGUE_BANK.exposure.secret_alliance = [
   ...DRAMA_DIALOGUE_BANK.exposure.secret_alliance,
-  'HOUSE EXPOSED: Receipts reveal {subject} has been protecting a hidden partner.',
-  'HOUSE EXPOSED: The secret voting arrangement around {subject} has reached the living room.',
+  'HUB EXPOSED: Receipts reveal {subject} has been protecting a hidden partner.',
+  'HUB EXPOSED: The secret voting arrangement around {subject} has reached the living room.',
 ]
 DRAMA_DIALOGUE_BANK.exposure.secret_romance = [
   ...DRAMA_DIALOGUE_BANK.exposure.secret_romance,
-  'HOUSE EXPOSED: A hidden kiss involving {subject} is no longer secret.',
-  'HOUSE EXPOSED: The late-night chemistry around {subject} has reached the whole house.',
+  'HUB EXPOSED: A hidden kiss involving {subject} is no longer secret.',
+  'HUB EXPOSED: The late-night chemistry around {subject} has reached everyone in the Hub.',
 ]
 DRAMA_DIALOGUE_BANK.exposure.targeting = [
   ...DRAMA_DIALOGUE_BANK.exposure.targeting,
-  'HOUSE EXPOSED: Multiple private pitches named {subject} as the next move.',
-  "HOUSE EXPOSED: Private conversations have put {subject}'s name in circulation.",
+  'HUB EXPOSED: Multiple private pitches named {subject} as the next move.',
+  "HUB EXPOSED: Private conversations have put {subject}'s name in circulation.",
 ]
 DRAMA_DIALOGUE_BANK.exposure.fake_deal = [
   ...DRAMA_DIALOGUE_BANK.exposure.fake_deal,
-  'HOUSE EXPOSED: Two promises from {subject}; one impossible vote.',
-  'HOUSE EXPOSED: {subject} gave both sides the same guarantee.',
+  'HUB EXPOSED: Two promises from {subject}; one impossible vote.',
+  'HUB EXPOSED: {subject} gave both sides the same guarantee.',
 ]
 DRAMA_DIALOGUE_BANK.exposure.personal_comment = [
   ...DRAMA_DIALOGUE_BANK.exposure.personal_comment,
-  'HOUSE EXPOSED: The private remark involving {subject} has become public ammunition.',
-  'HOUSE EXPOSED: The comment involving {subject} has split the house.',
+  'HUB EXPOSED: The private remark involving {subject} has become public ammunition.',
+  'HUB EXPOSED: The comment involving {subject} has split the Hub.',
 ]
 
 export function pickDramaCopy(lines: readonly string[], seed: string): string {

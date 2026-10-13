@@ -13,6 +13,7 @@ import type {
   SocialPhaseReport,
   SocialState,
 } from './types'
+import type { RealityDeadline } from './reality/types'
 import { SOCIAL_INITIAL_STATE } from './constants'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import { socialConfig } from './socialConfig'
@@ -259,6 +260,7 @@ type WeekSeedRelationshipUpdate = {
   delta: number
   tags?: string[]
   actionSource?: 'manual' | 'system'
+  realityMeaningful?: boolean
 }
 
 type WeekSeedAmbientRelationshipUpdate = {
@@ -509,10 +511,12 @@ const socialSlice = createSlice({
       action: PayloadAction<WeekSeedAmbientRelationshipUpdate>
     ) {
       const { sourceId, targetId, socialDelta, day, phase = 'week_start' } = action.payload
-      if (sourceId === targetId || socialDelta === 0) return
+      if (sourceId === targetId) return
       ensureRealityActors(state.reality as RealityDomainState, [sourceId, targetId])
       const magnitude = Math.min(3, Math.abs(socialDelta))
       const cooling = socialDelta > 0
+      const edge = state.reality.relationships[sourceId]?.[targetId]
+      const familiarityDelta = (edge?.lastAmbientFamiliarityDay ?? -1) >= day ? 0 : 1
       const hasUnresolvedGrievance =
         (state.reality.relationships[sourceId]?.[targetId]?.unresolvedGrievanceIds.length ?? 0) > 0
       applyRealityRelationshipChange(state.reality as RealityDomainState, {
@@ -522,24 +526,34 @@ const socialSlice = createSlice({
         phase,
         eventId: `ambient:${day}:${phase}:${sourceId}:${targetId}`,
         meaningful: false,
-        deltas: cooling
-          ? {
-              warmth: magnitude,
-              trust: magnitude * 0.6,
-              resentment: hasUnresolvedGrievance ? 0 : -magnitude * 3,
-              suspicion: hasUnresolvedGrievance ? 0 : -magnitude * 2.5,
-              fear: hasUnresolvedGrievance ? 0 : -magnitude * 1.5,
-              perceivedThreat: -magnitude,
-            }
-          : {
-              warmth: -magnitude,
-              trust: -magnitude * 0.7,
-              resentment: magnitude * 6,
-              suspicion: magnitude * 4,
-              fear: magnitude * 2,
-              perceivedThreat: magnitude * 2,
-            },
+        deltas: {
+          ...(socialDelta === 0
+            ? {}
+            : cooling
+              ? {
+                  warmth: magnitude,
+                  trust: magnitude * 0.6,
+                  resentment: hasUnresolvedGrievance ? 0 : -magnitude * 3,
+                  suspicion: hasUnresolvedGrievance ? 0 : -magnitude * 2.5,
+                  fear: hasUnresolvedGrievance ? 0 : -magnitude * 1.5,
+                  perceivedThreat: -magnitude,
+                }
+              : {
+                  warmth: -magnitude,
+                  trust: -magnitude * 0.7,
+                  resentment: magnitude * 6,
+                  suspicion: magnitude * 4,
+                  fear: magnitude * 2,
+                  perceivedThreat: magnitude * 2,
+                }),
+          familiarity: familiarityDelta,
+        },
       })
+      const updatedEdge = state.reality.relationships[sourceId][targetId]
+      updatedEdge.lastAmbientFamiliarityDay = Math.max(
+        updatedEdge.lastAmbientFamiliarityDay ?? day,
+        day
+      )
       projectRealityEdgeIntoLegacy(
         state.reality as RealityDomainState,
         state.relationships,
@@ -834,6 +848,39 @@ const socialSlice = createSlice({
       entry.resolvedLabel = resolvedLabel
       entry.outcomeText = outcomeText
     },
+    /** Save a pact-offer conversation step while keeping the offer unresolved. */
+    recordIncomingInteractionFollowUp(
+      state,
+      action: PayloadAction<{
+        interactionId: string
+        action: 'ask_plan' | 'need_time'
+        outcomeText: string
+        deadline?: RealityDeadline
+      }>
+    ) {
+      const { interactionId, action: followUpAction, outcomeText, deadline } = action.payload
+      const entry = state.incomingInteractions.find(
+        (interaction) => interaction.id === interactionId
+      )
+      if (!entry || entry.resolved || entry.type !== 'alliance_proposal') return
+      if (
+        (followUpAction === 'ask_plan' && entry.payload?.pactPlanRequested === true) ||
+        (followUpAction === 'need_time' && entry.payload?.pactTimeRequested === true)
+      ) {
+        return
+      }
+      entry.read = true
+      entry.outcomeText = entry.outcomeText ? `${entry.outcomeText} ${outcomeText}` : outcomeText
+      entry.payload = {
+        ...entry.payload,
+        ...(followUpAction === 'ask_plan' ? { pactPlanRequested: true } : {}),
+        ...(followUpAction === 'need_time' ? { pactTimeRequested: true } : {}),
+      }
+      if (deadline) {
+        entry.deadline = deadline
+        entry.expiresAtWeek = deadline.day
+      }
+    },
     /** Convenience helper for dismissing an interaction. */
     dismissIncomingInteraction(
       state,
@@ -860,9 +907,13 @@ const socialSlice = createSlice({
         interactionIds: string[]
         resolvedAt?: number
         resolvedWeek?: number
+        retiredIntelHistory?: Record<
+          string,
+          { text: string; outcomeText: string; resolvedLabel: string }
+        >
       }>
     ) {
-      const { interactionIds, resolvedAt, resolvedWeek } = action.payload
+      const { interactionIds, resolvedAt, resolvedWeek, retiredIntelHistory } = action.payload
       if (interactionIds.length === 0) return
       const ids = new Set(interactionIds)
       const resolvedTimestamp = resolvedAt ?? Date.now()
@@ -874,6 +925,12 @@ const socialSlice = createSlice({
           interaction.resolvedAt = resolvedTimestamp
           interaction.resolvedWeek = resolvedWeek
           interaction.resolvedWith = 'dismiss'
+          const historicalLead = retiredIntelHistory?.[interaction.id]
+          if (historicalLead) {
+            interaction.text = historicalLead.text
+            interaction.outcomeText = historicalLead.outcomeText
+            interaction.resolvedLabel = historicalLead.resolvedLabel
+          }
         }
       })
 
@@ -928,6 +985,11 @@ const socialSlice = createSlice({
           interaction.resolvedWeek = week
           interaction.resolvedWith =
             getIncomingInteractionResponsePolicy(interaction) === 'required' ? 'ignore' : 'dismiss'
+          if (interaction.type === 'alliance_proposal') {
+            interaction.resolvedLabel = 'Expired'
+            interaction.outcomeText =
+              'The personal pact offer expired unanswered. No pact was formed.'
+          }
         }
       })
     },
@@ -953,6 +1015,11 @@ const socialSlice = createSlice({
           interaction.resolvedWeek = action.payload.day
           interaction.resolvedWith =
             getIncomingInteractionResponsePolicy(interaction) === 'required' ? 'ignore' : 'dismiss'
+          if (interaction.type === 'alliance_proposal') {
+            interaction.resolvedLabel = 'Expired'
+            interaction.outcomeText =
+              'The personal pact offer expired unanswered. No pact was formed.'
+          }
         }
       })
     },
@@ -966,6 +1033,8 @@ const socialSlice = createSlice({
         tags?: string[]
         /** Origin of the action that produced this relationship change. */
         actionSource?: 'manual' | 'system'
+        /** Whether this projection represents a direct, meaningful interaction. */
+        realityMeaningful?: boolean
         /**
          * Compatibility-only writes can update the legacy relationship map
          * without feeding the same consequence back into canonical Reality state.
@@ -973,7 +1042,8 @@ const socialSlice = createSlice({
         skipRealityProjection?: boolean
       }>
     ) {
-      const { source, target, delta, tags, skipRealityProjection } = action.payload
+      const { source, target, delta, tags, skipRealityProjection, realityMeaningful } =
+        action.payload
       const safeDelta = Number.isFinite(delta) ? delta : 0
       const preserveIncomingAlliance = tags?.includes(ALLIANCE_TAG) ?? false
       if (!state.relationships[source]) {
@@ -1010,7 +1080,8 @@ const socialSlice = createSlice({
           safeDelta,
           tags,
           0,
-          'legacy'
+          'legacy',
+          realityMeaningful
         )
       }
     },
@@ -1182,6 +1253,7 @@ export const {
   markIncomingInteractionRead,
   markAllIncomingInteractionsRead,
   resolveIncomingInteraction,
+  recordIncomingInteractionFollowUp,
   dismissIncomingInteraction,
   invalidateIncomingInteractions,
   drainEvictedPlayerSocial,

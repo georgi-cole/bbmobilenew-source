@@ -195,11 +195,11 @@ function getAudienceMoment(
   }
   if (/(betray|break_alliance)/.test(reason)) {
     return actor
-      ? `${playerName} just cut loose from ${actor}, and the fallout is already becoming the house's biggest storyline.`
+      ? `${playerName} just cut loose from ${actor}, and the fallout is already becoming the Hub's biggest storyline.`
       : `${playerName} just cut a loyalty loose, and the outside world is bracing for the fallout.`
   }
   if (/(rumor|conflict|confront|poor_social|negative_social)/.test(reason)) {
-    return `${playerName} has found themself in the middle of fresh house chatter — and viewers are not looking away.`
+    return `${playerName} has found themself in the middle of fresh Hub chatter — and viewers are not looking away.`
   }
   if (/(high_quality_social|social_warmth|positive_social|apolog|repair)/.test(reason)) {
     return actor
@@ -219,7 +219,7 @@ function getAudienceMoment(
   }
   return variants([
     `${playerName} just gave the outside world something new to talk about.`,
-    `Another ${playerName} moment is sparking fresh debate beyond the house walls.`,
+    `Another ${playerName} moment is sparking fresh debate beyond the Hub walls.`,
   ])
 }
 
@@ -231,7 +231,7 @@ function getAudienceTriggerLabel(reason: string): string {
   if (/(rumor|conflict|confront|drama)/.test(signal)) return 'Conflict'
   if (/(social|warmth|interaction|apolog|repair|closer)/.test(signal)) return 'Social move'
   if (/(direction_completed|direction_failed)/.test(signal)) return 'Public request'
-  return 'House moment'
+  return 'Hub moment'
 }
 
 function getApprovalToneClass(approval: number): string {
@@ -306,7 +306,7 @@ function getDirectionDescription(
   const lohName = loh?.name ?? 'the LOH'
   return target
     ? `Convince ${lohName} to nominate ${target.name}.`
-    : `Convince ${lohName} to nominate a specific housemate.`
+    : `Convince ${lohName} to nominate a specific hubmate.`
 }
 
 function getAudienceRequestDescription(
@@ -681,7 +681,7 @@ export default function PublicMeter() {
           <div className="public-meter__section-heading">
             <h2 className="public-meter__section-title">Public Rankings</h2>
             <span className="public-meter__section-caption">
-              See how every remaining housemate is landing with the outside world.
+              See how every remaining hubmate is landing with the outside world.
             </span>
           </div>
           <div className="ranking-list" tabIndex={0} aria-label="Scrollable public rankings">
@@ -778,7 +778,7 @@ export default function PublicMeter() {
           <div className="public-meter__section-heading">
             <h2 className="public-meter__section-title">Public Requests</h2>
             <span className="public-meter__section-caption">
-              Only players still in the house receive public requests.
+              Only players still in the Hub receive public requests.
             </span>
           </div>
           {directionGroups.every((group) => group.items.length === 0) ? (

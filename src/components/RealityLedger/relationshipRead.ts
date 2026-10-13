@@ -46,7 +46,11 @@ export function relationshipMetricStatus(label: string, value: number): string {
   }
   if (value <= -60) return 'Very low'
   if (value <= -20) return 'Low'
-  if (value < 20) return 'Still forming'
+  if (value < 20) {
+    if (label === 'Warmth') return 'Reserved'
+    if (label === 'Trust' || label === 'Loyalty' || label === 'Respect') return 'Unproven'
+    return 'Unclear'
+  }
   if (value < 60) return 'Growing'
   return 'Strong'
 }
@@ -62,5 +66,5 @@ export function relationshipEventLabel(type: string, actionId?: string): string 
     CEREMONY_POWER_WON: 'Competition win',
     ALLIANCE_BETRAYAL: 'Alliance betrayal',
   }
-  return ceremonyLabels[type] ?? 'House interaction'
+  return ceremonyLabels[type] ?? 'Hub interaction'
 }

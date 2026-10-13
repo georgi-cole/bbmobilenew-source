@@ -314,7 +314,7 @@ export default function RealityLedger({
                 : item === 'relationships'
                   ? 'People'
                   : item === 'house'
-                    ? 'House stories'
+                    ? 'Hub stories'
                     : item === 'deals'
                       ? 'Commitments'
                       : item}
@@ -377,7 +377,7 @@ export default function RealityLedger({
                             : isFormerAlliance
                               ? 'Historical'
                               : knowledge.level === 'PUBLIC'
-                                ? 'House-known'
+                                ? 'Hub-known'
                                 : confidenceLabel(knowledge.confidence)}
                         </small>
                       </div>
@@ -395,7 +395,7 @@ export default function RealityLedger({
                         {knownMembers.length
                           ? knowledge.fullMembershipKnown
                             ? `Known members: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')}. This is the full roster.`
-                            : `Known links: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')} · other members unknown`
+                            : `Known links: ${knownMembers.map((id) => `${playerName(id)}${knowledge.historicalMemberIds.includes(id) ? ' (former)' : ''}`).join(' · ')}. The full roster has not been confirmed.`
                           : 'You suspect a pact exists, but do not know its members.'}
                       </p>
                     </article>
@@ -565,7 +565,7 @@ export default function RealityLedger({
           <>
             <h3>Open house stories</h3>
             {threads.length === 0 && knownRelationshipStories.length === 0 ? (
-              <p className="reality-ledger__empty">No known house story is active.</p>
+              <p className="reality-ledger__empty">No known Hub story is active.</p>
             ) : (
               <>
                 {threads.map((thread) => (

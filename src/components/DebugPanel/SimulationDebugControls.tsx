@@ -5,7 +5,7 @@ import { SoundManager } from '../../services/sound/SoundManager'
 const CHANCE_CONTROLS = [
   ['battleBackChance', 'Battle Back'],
   ['specialSafetyChance', 'Special Safety'],
-  ['doubleEvictionChance', 'Double Eviction'],
+  ['doubleEvictionChance', 'Double Elimination'],
   ['dayStartShockChance', 'Morning Shock'],
 ] as const
 
@@ -78,7 +78,7 @@ export default function SimulationDebugControls() {
               checked={settings.sim.allowSelfEvict}
               onChange={(event) => dispatch(setSim({ allowSelfEvict: event.target.checked }))}
             />
-            Self Eviction
+            Self Elimination
           </label>
           <label>
             <input

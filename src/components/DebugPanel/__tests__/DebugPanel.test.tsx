@@ -9,6 +9,7 @@ import gameReducer from '../../../store/gameSlice';
 import socialReducer from '../../../social/socialSlice';
 import settingsReducer from '../../../store/settingsSlice';
 import profilesReducer from '../../../store/profilesSlice';
+import vipReducer from '../../../store/vipSlice';
 
 vi.mock('../FinaleControls.debug', () => ({
   default: () => null,
@@ -33,6 +34,7 @@ function makeStore() {
       social: socialReducer,
       settings: settingsReducer,
       profiles: profilesReducer,
+      vip: vipReducer,
     },
   });
 }
@@ -93,7 +95,7 @@ describe('DebugPanel forced shock controls', () => {
       </Provider>
     );
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Player House Status' }),
+      screen.getByRole('combobox', { name: 'Player Hub Status' }),
       player.id
     );
     await user.click(screen.getByRole('button', { name: 'Set Tribunal' }));

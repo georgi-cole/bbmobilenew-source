@@ -262,7 +262,7 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
       late_game: 60,
     },
     templates: {
-      returned: ['I watched you leave. Apparently the House was not finished with you.'],
+      returned: ['I watched you leave. Apparently the Hub was not finished with you.'],
       newly_nominated: ['Back already. And this time your name is on the block.'],
       became_leader: ['Power suits you. For now.'],
       won_safety: ['You won safety. I noticed.'],
@@ -282,7 +282,7 @@ const DEFAULT_CONFESSIONAL_CONFIG: ResolvedConfessionalConfig = {
     preferredMoves: ['answer', 'observe', 'challenge', 'remember', 'tease', 'probe'],
     forbiddenCliches: [
       'trust is currency',
-      'the house is listening',
+      'the Hub is listening',
       'your feelings are valid',
       'interesting',
     ],

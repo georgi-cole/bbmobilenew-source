@@ -85,6 +85,7 @@ import { useConfessionalTicTacToeTrigger } from './useConfessionalTicTacToeTrigg
 import {
   buildEvictionVoteBreakdownPlayerNamesById,
   buildEvictionVoteBreakdownRows,
+  clearEvictionVoteBreakdownUnlock,
   isEvictionVoteBreakdownActive,
   loadEvictionVoteBreakdownUnlock,
   updateEvictionVoteBreakdownStatus,
@@ -140,7 +141,7 @@ const SUMMARY_POOL = [
   'The Big Eye called {name} to the Confessional. The other players noticed.',
   '{name} spent some quality time in the Confessional. Drama incoming?',
   'Sources close to the Confessional report {name} was very talkative today.',
-  '{name} and The Big Eye had words. The House will never know what.',
+  '{name} and The Big Eye had words. The Hub will never know what.',
   'The Confessional light is off — {name} just wrapped up a private session.',
   '{name} visited the Confessional. Whatever was said, it stays private.',
 ]
@@ -163,7 +164,7 @@ const MISSION_OFFER_MSG =
 const VOX_REVEAL_EDUCATION_MSG =
   'After today’s secret nominations, type “Reveal nominations” here to uncover the ballots.'
 
-const VOTE_BREAKDOWN_DECLINED_TV_MESSAGE = "It's getting quiet in the house. Sandman on the way?"
+const VOTE_BREAKDOWN_DECLINED_TV_MESSAGE = "It's getting quiet in the Hub. Sandman on the way?"
 
 const TIC_TAC_TOE_LINES: ReadonlyArray<readonly [number, number, number]> = [
   [0, 1, 2],
@@ -240,7 +241,7 @@ const REWARD_REVEAL_COPY: Record<
   doubleVote: () =>
     'The Big Eye grants you a Double Vote. It will be offered automatically at your next eligible live vote.',
   voteDeduction: () =>
-    'The Big Eye grants you Vote Deduction. If you are on the block at an eligible eviction, you may cut one vote from your total.',
+    'The Big Eye grants you Vote Deduction. If you are on the block at an eligible elimination, you may cut one vote from your total.',
   immunity: (week, durationDays = 1) =>
     `The Big Eye grants you temporary immunity for ${durationDays} day${durationDays === 1 ? '' : 's'}. It may be used during the Safety Ceremony while nominated and expires after Day ${week + durationDays - 1}.`,
 }
@@ -559,7 +560,7 @@ export default function DiaryRoom() {
   const phase = useAppSelector((s) => s.game.phase)
   const seed = useAppSelector((s) => s.game.seed)
   const userPlayer = useAppSelector((s) => s.game.players.find((p) => p.isUser))
-  const playerName = userPlayer?.name ?? 'Housemate'
+  const playerName = userPlayer?.name ?? 'Hubmate'
   const playerId = userPlayer?.id ?? 'user'
   const secretMission = useAppSelector((s) => s.game.secretMission)
   const currentWeekForMission = useAppSelector((s) => s.game.week)
@@ -617,6 +618,7 @@ export default function DiaryRoom() {
   const [ticTacToeNextTurn, setTicTacToeNextTurn] = useState<TicTacToeMark>('X')
   const [ticTacToeThinking, setTicTacToeThinking] = useState(false)
   const activeVoteBreakdown =
+    !confessionalDecisionPending &&
     gameState.voxPopuli?.status !== 'active' &&
     isEvictionVoteBreakdownActive(
       voteBreakdownUnlock,
@@ -678,7 +680,7 @@ export default function DiaryRoom() {
         !normalized.includes('evicted') &&
         !normalized.includes('eliminated') &&
         !normalized.includes('went home') &&
-        !normalized.includes('left the house')
+        !normalized.includes('left the Hub')
       ) {
         continue
       }
@@ -866,6 +868,14 @@ export default function DiaryRoom() {
       setActiveView('confess')
     }
   }, [activeView, confessionalDecisionPending])
+
+  useEffect(() => {
+    if (!confessionalDecisionPending || voteBreakdownUnlock?.status !== 'revealed') return
+    // A mandatory Big Eye decision takes priority over an optional vote reveal.
+    // Consume the local copy too, so the chart cannot reappear after the reply.
+    clearEvictionVoteBreakdownUnlock()
+    setVoteBreakdownUnlock(null)
+  }, [confessionalDecisionPending, voteBreakdownUnlock?.status])
 
   // Stable refs for summary calculation (avoid stale closure on unmount)
   const playerNameRef = useRef(playerName)
@@ -1519,7 +1529,7 @@ export default function DiaryRoom() {
         <AdPrompt
           icon="🗳️"
           title="Unseal Today’s Ballots?"
-          description="Watch a short ad and The Big Eye will reveal which two housemates every player nominated."
+          description="Watch a short ad and The Big Eye will reveal which two hubmates every player nominated."
           watchLabel="Watch Ad to Reveal"
           skipLabel="Keep Them Secret"
           pending={voxNominationAdPending}
@@ -1596,8 +1606,8 @@ export default function DiaryRoom() {
         {/* Self-evict confirmation modal */}
         <ConfirmExitModal
           open={showSelfEvictConfirm}
-          title="Self-Evict?"
-          description="Do you want to self-evict from The Big Eye house? This cannot be undone."
+          title="Leave the Hub?"
+          description="Do you want to leave the Hub? This cannot be undone."
           confirmLabel="Yes, Leave"
           cancelLabel="No, Stay"
           onConfirm={() => {
@@ -1795,7 +1805,11 @@ export default function DiaryRoom() {
                           className="diary-room__mission-btn diary-room__mission-btn--accept"
                           type="button"
                           onClick={() => {
-                            setVoteBreakdownUnlock(updateEvictionVoteBreakdownStatus('revealed'))
+                            setVoteBreakdownUnlock({ ...activeVoteBreakdown, status: 'revealed' })
+                            // The vote chart belongs to this Confessional visit only.
+                            // Keep the current render in component state, but consume
+                            // the session record so it cannot persist through the weekend.
+                            clearEvictionVoteBreakdownUnlock()
                             const reminder = [...gameState.tvFeed]
                               .reverse()
                               .find(
@@ -1822,7 +1836,7 @@ export default function DiaryRoom() {
                               })
                             )
                             pushBigEyeMessage(
-                              'The house secret is safe with me. You can leave the Confessional.'
+                              'The Hub secret is safe with me. You can leave the Confessional.'
                             )
                           }}
                         >
@@ -1834,7 +1848,7 @@ export default function DiaryRoom() {
                   {activeVoteBreakdown?.status === 'revealed' && (
                     <section
                       className="diary-room__vote-chart"
-                      aria-label="Eviction vote breakdown"
+                      aria-label="Elimination vote breakdown"
                     >
                       <div className="diary-room__vote-chart-header">
                         <span className="diary-room__vote-reveal-eyebrow">Vote Breakdown</span>
@@ -1843,7 +1857,7 @@ export default function DiaryRoom() {
                       <div
                         className="diary-room__vote-chart-table"
                         role="table"
-                        aria-label="Eviction vote chart"
+                        aria-label="Elimination vote chart"
                       >
                         {voteBreakdownRows.map((row) => (
                           <div key={row.voterKey} className="diary-room__vote-chart-row" role="row">
@@ -2138,8 +2152,8 @@ export default function DiaryRoom() {
                         )}
                         {secretMission.reward.type === 'voteDeduction' && (
                           <p className="diary-room__reward-active-hint">
-                            If you are on the block at an eligible eviction, you may remove one vote
-                            from your total.
+                            If you are on the block at an eligible elimination, you may remove one
+                            vote from your total.
                           </p>
                         )}
                         {secretMission.reward.type === 'immunity' &&

@@ -133,9 +133,9 @@ function buildDescription(
     case 'win_veto':
       return `${playerName}, win the Power of Safety!`
     case 'flip_vote':
-      return `${playerName}, flip your vote and shake up the house!`
+      return `${playerName}, flip your vote and shake up the Hub!`
     case 'influence_hoh':
-      return `Convince ${relatedName ?? 'the LOH'} to nominate ${targetName ?? 'a specific housemate'}`
+      return `Convince ${relatedName ?? 'the LOH'} to nominate ${targetName ?? 'a specific hubmate'}`
     case 'break_alliance':
       return `Break up your alliance with ${relatedName ?? 'an ally'}`
     case 'reinforce_alliance':
@@ -143,7 +143,7 @@ function buildDescription(
     case 'repair_relationship':
       return `Repair your relationship with ${relatedName ?? 'a player'}`
     case 'create_chaos':
-      return `${playerName}, stir up chaos in the house this week!`
+      return `${playerName}, stir up chaos in the Hub this week!`
     default:
       return `Complete a public challenge`
   }

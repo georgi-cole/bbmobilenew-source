@@ -146,7 +146,7 @@ function ReadSheet({
           </svg>
         </button>
       </header>
-      <nav className="rcd-read-sheet__people" aria-label="Review a housemate">
+      <nav className="rcd-read-sheet__people" aria-label="Review a hubmate">
         {targets.map((player) => (
           <button
             type="button"

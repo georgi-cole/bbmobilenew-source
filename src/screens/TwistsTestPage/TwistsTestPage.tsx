@@ -344,7 +344,7 @@ function TwistsTestContent({
     }
     runQaAction(submitPosTieBreak(nomineeId))
     setCoLohQaMessage(
-      'POS tie-break submitted. The selected nominee is queued for the normal eviction cinematic.'
+      'POS tie-break submitted. The selected nominee is queued for the normal elimination cinematic.'
     )
   }
 
@@ -777,8 +777,8 @@ function TwistsTestContent({
           onDone={() => {
             setLastResult(
               twinScenario === 'secretKept'
-                ? 'Secret kept: Ali entered separately and replaced an evicted housemate.'
-                : 'Secret exposed: Lia and Ali now play as one housemate.'
+                ? 'Secret kept: Ali entered separately and replaced an eliminated hubmate.'
+                : 'Secret exposed: Lia and Ali now play as one hubmate.'
             )
             setActiveOverlay('none')
           }}

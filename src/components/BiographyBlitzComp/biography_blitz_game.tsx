@@ -455,7 +455,7 @@ export default function BiographyBlitzComp({
               {isHumanWin ? '🏆 You win!' : `🏆 ${winnerName} wins!`}
             </p>
             <p className="bb-blitz__winner-sub">
-              {bb.competitionType === 'LOH' ? 'New Leader of the House' : 'Power of Safety winner'}
+              {bb.competitionType === 'LOH' ? 'New Leader of the Hub' : 'Power of Safety winner'}
             </p>
           </div>
         </MinigameCompleteWrapper>
@@ -491,7 +491,7 @@ export default function BiographyBlitzComp({
       if (!isActive && !isEliminated) tileClass += ' bb-blitz__contestant-btn--out';
       if (phase === 'reveal' && isWinner) tileClass += ' bb-blitz__contestant-btn--winner';
       if (phase === 'reveal' && isCorrect && !isWinner) tileClass += ' bb-blitz__contestant-btn--correct';
-      if (isEliminationTarget) tileClass += ' bb-blitz__contestant-btn--evicted';
+      if (isEliminationTarget) tileClass += ' bb-blitz__contestant-btn--eliminated';
       if (humanIsSelected) tileClass += ' bb-blitz__contestant-btn--selected';
       if (humanSubmittedThis) tileClass += ' bb-blitz__contestant-btn--selected';
       if (isHuman) tileClass += ' bb-blitz__contestant-btn--you';

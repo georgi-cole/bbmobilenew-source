@@ -174,13 +174,13 @@ export function evaluateSocialActionEligibility({
     if (targetMode === 'multi') {
       const minimum = Math.max(1, action.minTargets ?? 2)
       if (targets.length < minimum) {
-        return unavailable(`Select at least ${minimum} housemates`)
+        return unavailable(`Select at least ${minimum} hubmates`)
       }
       if (action.maxTargets !== undefined && targets.length > action.maxTargets) {
-        return unavailable(`Select no more than ${action.maxTargets} housemates`)
+        return unavailable(`Select no more than ${action.maxTargets} hubmates`)
       }
     } else if (targets.length !== 1) {
-      return unavailable('Select one housemate')
+      return unavailable('Select one hubmate')
     }
   }
   if (requireCompleteSelection && targetMode === 'primaryPlusSubject' && !subjectId) {
@@ -199,7 +199,7 @@ export function evaluateSocialActionEligibility({
       (targetId) => action.id !== 'pregnancy_test' && !isInHouse(playerById.get(targetId)?.status)
     )
   ) {
-    return unavailable('That housemate is no longer available')
+    return unavailable('That hubmate is no longer available')
   }
 
   const requiredActorStatus = dramaMode
@@ -389,7 +389,7 @@ export function evaluateSocialActionEligibility({
 
   if (action.id === 'share_pregnancy_news') {
     if (!actorId || !pregnancyStory) return unavailable('This story is not available yet')
-    if (targets.length === 0) return unavailable('Choose at least one housemate to tell')
+    if (targets.length === 0) return unavailable('Choose at least one hubmate to tell')
     const activeAttemptId = pregnancyStory.activePregnancies[actorId]
     const pregnancy = pregnancyStory.attempts.find(
       (attempt) => attempt.attemptId === activeAttemptId
@@ -402,7 +402,7 @@ export function evaluateSocialActionEligibility({
     }
     const alreadyTold = new Set(pregnancy.pregnancyNewsSharedWithIds ?? [])
     if (targets.some((targetId) => alreadyTold.has(targetId))) {
-      return unavailable('You have already shared this news with that housemate')
+      return unavailable('You have already shared this news with that hubmate')
     }
   }
 
@@ -431,7 +431,7 @@ export function evaluateSocialActionEligibility({
           )
         )
     )
-    if (!knowsTargetSecret) return unavailable('You do not know a secret about this housemate')
+    if (!knowsTargetSecret) return unavailable('You do not know a secret about this hubmate')
   }
 
   if (requireCompleteSelection && targetMode === 'primaryPlusSubject' && subjectId) {

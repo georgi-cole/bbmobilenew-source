@@ -202,7 +202,7 @@ export default function DiaryWeekEditor({ seasonId, adminKey, existingWeek, onSa
           type="text"
           value={hohWinner}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setHohWinner(e.target.value)}
-          placeholder="Housemate name"
+          placeholder="Hubmate name"
         />,
       )}
 
@@ -213,7 +213,7 @@ export default function DiaryWeekEditor({ seasonId, adminKey, existingWeek, onSa
           type="text"
           value={posWinner}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setPosWinner(e.target.value)}
-          placeholder="Housemate name"
+          placeholder="Hubmate name"
         />,
       )}
 
@@ -236,7 +236,7 @@ export default function DiaryWeekEditor({ seasonId, adminKey, existingWeek, onSa
           type="text"
           value={replacementNominee}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setReplacementNominee(e.target.value)}
-          placeholder="Housemate name (if any)"
+          placeholder="Hubmate name (if any)"
         />,
       )}
 

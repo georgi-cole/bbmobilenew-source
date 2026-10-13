@@ -75,7 +75,7 @@ const KIND_LABELS: Record<SocialCommitmentKind, string> = {
 const KIND_DUE_COPY: Record<SocialCommitmentKind, string> = {
   protect_from_nomination: 'Checked when nominations lock',
   use_safety_on_player: 'Checked when the safety decision locks',
-  vote_to_keep: 'Checked when your eviction vote locks',
+  vote_to_keep: 'Checked when your elimination vote locks',
   tie_break_keep: 'Checked when your deciding vote locks',
 }
 

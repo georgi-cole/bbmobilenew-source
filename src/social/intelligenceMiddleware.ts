@@ -114,6 +114,7 @@ function revealFactFromIntelAction(
     entry.actorId,
     day,
     entry.actionId,
+    state.game.players,
     entry.context?.intelFactId ?? undefined
   )
   if (!fact) return
@@ -327,7 +328,12 @@ function maybeBroadcastWhisper(
       .filter((item) => item.channel === 'faux_tv')
       .map((item) => item.factId)
   )
-  const fact = selectFauxTvFact(state.social.reality, state.game.week, deliveredFactIds)
+  const fact = selectFauxTvFact(
+    state.social.reality,
+    state.game.week,
+    deliveredFactIds,
+    state.game.players
+  )
   if (!fact) return
   const activeIds = new Set(
     state.game.players

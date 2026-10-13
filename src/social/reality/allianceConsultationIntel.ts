@@ -37,7 +37,7 @@ export function buildPreNominationLohRead(input: PreNominationLohReadInput): str
   const allianceName = input.allianceName?.trim() || 'your alliance'
   const loh = input.lohId ? playerById.get(input.lohId) : undefined
   if (!isActivePlayer(loh)) {
-    return 'Pre-nomination read — There is no active Head of Household to read yet.'
+    return 'Pre-nomination read — There is no active LOH to read yet.'
   }
 
   const activeIds = new Set(input.players.filter(isActivePlayer).map((player) => player.id))

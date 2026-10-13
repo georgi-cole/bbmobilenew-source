@@ -396,7 +396,11 @@ export function adjustRealityAllianceCommitment(
   return refreshRealityAllianceLifecycle(alliance)
 }
 
-export type RealityAllianceMembershipExitKind = 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'EVICTED'
+export type RealityAllianceMembershipExitKind =
+  | 'VOLUNTARY'
+  | 'EXPELLED'
+  | 'DEFECTION'
+  | 'ELIMINATED'
 
 export function removeRealityAllianceMember(
   state: RealityDomainState,
@@ -436,7 +440,7 @@ export function removeRealityAllianceMember(
       ? 'ALLIANCE_MEMBER_EXPELLED'
       : input.kind === 'DEFECTION'
         ? 'ALLIANCE_MEMBER_DEFECTED'
-        : input.kind === 'EVICTED'
+        : input.kind === 'ELIMINATED'
           ? 'ALLIANCE_MEMBER_EVICTED'
           : 'ALLIANCE_MEMBER_LEFT'
   const event = appendRealityEvent(state, {
@@ -471,7 +475,7 @@ export function removeRealityAllianceMember(
   delete alliance.operationalRoles[input.memberId]
   alliance.genuine = alliance.infiltratorIds.length === 0
 
-  if (input.kind !== 'EVICTED') {
+  if (input.kind !== 'ELIMINATED') {
     for (const memberId of alliance.memberIds) {
       applyRealityRelationshipChange(state, {
         sourceId: memberId,
@@ -550,7 +554,7 @@ export function removeRealityAllianceMembers(
         allianceId: alliance.id,
         memberId,
         actorId: memberId,
-        kind: 'EVICTED',
+        kind: 'ELIMINATED',
         at: input.at,
         sourceEventId: input.sourceEventId,
         deferSuccession: true,
@@ -572,7 +576,7 @@ export function removeRealityAllianceMembers(
       ].some((id) => input.memberIds.includes(id))
     ) {
       request.status = 'INVALIDATED'
-      request.reason = 'A participant left the house.'
+      request.reason = 'A participant left the Hub.'
       request.settledAt = { ...input.at }
       recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_INVALIDATED', input.at)
     }

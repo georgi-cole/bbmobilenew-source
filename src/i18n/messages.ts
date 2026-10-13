@@ -25,7 +25,7 @@ export const EN_US_MESSAGES = {
     'Score comes from line clears and controlled drops. The highest final-round score wins.',
   'fitMeIn.round.semifinal': 'Semifinal',
   'fitMeIn.round.topTwoAdvance': 'Top 2 advance',
-  'fitMeIn.round.mosaicFinal': 'Houseguest Mosaic Final',
+  'fitMeIn.round.mosaicFinal': 'Hubmate Mosaic Final',
   'fitMeIn.round.highestScoreWins': 'Highest score wins',
   'fitMeIn.round.openingHeat': 'Opening Heat',
   'fitMeIn.round.lastPlaceEliminated': 'Last place is eliminated',
@@ -34,7 +34,7 @@ export const EN_US_MESSAGES = {
   'fitMeIn.round.complete': '{round} complete',
   'fitMeIn.round.qualified': 'You are through to the next round.',
   'fitMeIn.round.eliminatedMessage':
-    'You have been eliminated. The remaining houseguests will finish the tournament.',
+    'You have been eliminated. The remaining hubmates will finish the tournament.',
   'fitMeIn.round.standings': 'Round standings',
   'fitMeIn.youTag': '(you)',
   'fitMeIn.finishingTournament': 'Finishing tournament…',
@@ -43,7 +43,7 @@ export const EN_US_MESSAGES = {
   'fitMeIn.revealWinner': 'Reveal the Winner',
   'fitMeIn.youWin': 'You Win!',
   'fitMeIn.playerWins': '{name} Wins!',
-  'fitMeIn.finalComplete': 'The Houseguest Mosaic Final is complete.',
+  'fitMeIn.finalComplete': 'The Hubmate Mosaic Final is complete.',
   'fitMeIn.yourLastScore': 'Your last score:',
   'fitMeIn.levelUp': '⬆ LEVEL {level}!',
   'fitMeIn.timeUp': 'TIME!',
@@ -79,7 +79,8 @@ export const EN_US_MESSAGES = {
   'settings.theme.sunset': '🌅 Sunset',
   'settings.theme.ocean': '🌊 Ocean',
   'settings.compactMode': 'Compact mode',
-  'settings.houseFeed': 'House Feed',
+  'settings.houseFeed': 'Hub Feed',
+  'tvLog.loadEarlier': 'Load earlier events ({count} remaining)',
   'settings.realityMode': 'Reality Mode',
   'settings.realityStyle': 'Reality style',
   'settings.realityStyle.casual': 'Casual',
@@ -142,7 +143,7 @@ export const EN_US_MESSAGES = {
   'capitalization.direction.west': 'W',
   'social.action.askLohSafety.title': 'Ask LOH for POS Advice',
   'social.action.askLohSafety.description':
-    'Ask the LOH whether to leave the block alone or use Safety to open a backdoor target.',
+    'Ask the LOH whether to leave the block alone or use Safety to open a replacement target.',
   'social.action.askWhoGoes.title': 'Ask Who Goes Now',
   'social.action.askWhoGoes.description':
     'Ask which locked nominee the LOH currently wants eliminated from the final block.',
@@ -158,7 +159,7 @@ export const EN_US_MESSAGES = {
   'broadcast.shock.eyebrow': 'The Big Eye Shock',
   'broadcast.shock.handoff': 'Live broadcast incoming',
   'social.event.bondBetrayal':
-    'HOUSE SHOCK: {lohName} put {nomineeName} in danger despite their bond. The relationship has ruptured into a public betrayal.',
+    'HUB SHOCK: {lohName} put {nomineeName} in danger despite their bond. The relationship has ruptured into a public betrayal.',
   'social.commitment.reaction.nomination':
     'You promised to keep me off the block, then put me in danger. I need to know why your word meant so little.',
   'social.commitment.reaction.safety':
@@ -203,7 +204,7 @@ const FR_FR_MESSAGES = {
     'Vous marquez des points en supprimant des lignes et avec les chutes contrôlées. Le meilleur score de la finale gagne.',
   'fitMeIn.round.semifinal': 'Demi-finale',
   'fitMeIn.round.topTwoAdvance': 'Les 2 meilleurs se qualifient',
-  'fitMeIn.round.mosaicFinal': 'Finale Mosaïque des candidats',
+  'fitMeIn.round.mosaicFinal': 'Finale mosaïque des Hubmates',
   'fitMeIn.round.highestScoreWins': 'Le meilleur score gagne',
   'fitMeIn.round.openingHeat': 'Manche d’ouverture',
   'fitMeIn.round.lastPlaceEliminated': 'Le dernier est éliminé',
@@ -212,7 +213,7 @@ const FR_FR_MESSAGES = {
   'fitMeIn.round.complete': '{round} terminée',
   'fitMeIn.round.qualified': 'Vous passez à la manche suivante.',
   'fitMeIn.round.eliminatedMessage':
-    'Vous êtes éliminé. Les candidats restants termineront le tournoi.',
+    'Vous êtes éliminé. Les Hubmates restants termineront le tournoi.',
   'fitMeIn.round.standings': 'Classement de la manche',
   'fitMeIn.youTag': '(vous)',
   'fitMeIn.finishingTournament': 'Fin du tournoi en cours…',
@@ -221,7 +222,7 @@ const FR_FR_MESSAGES = {
   'fitMeIn.revealWinner': 'Révéler le vainqueur',
   'fitMeIn.youWin': 'Vous gagnez !',
   'fitMeIn.playerWins': '{name} gagne !',
-  'fitMeIn.finalComplete': 'La finale Mosaïque des candidats est terminée.',
+  'fitMeIn.finalComplete': 'La finale mosaïque des Hubmates est terminée.',
   'fitMeIn.yourLastScore': 'Votre dernier score :',
   'fitMeIn.levelUp': '⬆ NIVEAU {level} !',
   'fitMeIn.timeUp': 'TEMPS ÉCOULÉ !',
@@ -260,7 +261,8 @@ const FR_FR_MESSAGES = {
   'settings.weekends': 'Week-ends',
   'settings.weekendsDescription':
     'Faites une pause avec le Hub après les jours 5, 10 et 15. Désactivez pour jouer sans interruption.',
-  'settings.houseFeed': 'Fil de la maison',
+  'settings.houseFeed': 'Fil du Hub',
+  'tvLog.loadEarlier': 'Charger les événements précédents ({count} restants)',
   'settings.realityMode': 'Mode téléréalité',
   'settings.realityStyle': 'Style de téléréalité',
   'settings.realityStyle.casual': 'Détendu',
@@ -324,7 +326,7 @@ const FR_FR_MESSAGES = {
   'capitalization.direction.west': 'O',
   'social.action.askLohSafety.title': 'Demander conseil au LOH pour la POS',
   'social.action.askLohSafety.description':
-    'Demandez au LOH s’il faut laisser le bloc inchangé ou utiliser Safety pour ouvrir une cible de backdoor.',
+    'Demandez au LOH s’il faut laisser le bloc tel quel ou utiliser Safety pour désigner une cible de remplacement.',
   'social.action.askWhoGoes.title': 'Demander qui doit partir',
   'social.action.askWhoGoes.description':
     'Demandez quel nominé verrouillé le LOH veut éliminer du bloc final.',
@@ -340,7 +342,7 @@ const FR_FR_MESSAGES = {
   'broadcast.shock.eyebrow': 'Choc The Big Eye',
   'broadcast.shock.handoff': 'Diffusion en direct imminente',
   'social.event.bondBetrayal':
-    'CHOC DANS LA MAISON : {lohName} a mis {nomineeName} en danger malgré leur lien. Leur relation a éclaté en une trahison publique.',
+    'CHOC AU HUB : {lohName} a mis {nomineeName} en danger malgré leur lien. Leur relation a éclaté en une trahison publique.',
   'social.commitment.reaction.nomination':
     'Tu avais promis de me tenir hors du bloc, puis tu m’as mis en danger. Je veux savoir pourquoi ta parole comptait si peu.',
   'social.commitment.reaction.safety':
@@ -374,7 +376,7 @@ const IT_IT_MESSAGES = {
     'Ottieni punti cancellando linee e con le cadute controllate. Vince il punteggio più alto nel round finale.',
   'fitMeIn.round.semifinal': 'Semifinale',
   'fitMeIn.round.topTwoAdvance': 'Passano i primi 2',
-  'fitMeIn.round.mosaicFinal': 'Finale Mosaico dei concorrenti',
+  'fitMeIn.round.mosaicFinal': 'Finale Mosaico degli Hubmates',
   'fitMeIn.round.highestScoreWins': 'Vince il punteggio più alto',
   'fitMeIn.round.openingHeat': 'Manche iniziale',
   'fitMeIn.round.lastPlaceEliminated': 'L’ultimo viene eliminato',
@@ -383,7 +385,7 @@ const IT_IT_MESSAGES = {
   'fitMeIn.round.complete': '{round} completato',
   'fitMeIn.round.qualified': 'Hai superato il round e vai avanti.',
   'fitMeIn.round.eliminatedMessage':
-    'Sei stato eliminato. Gli altri concorrenti completeranno il torneo.',
+    'Sei stato eliminato. Gli altri Hubmates completeranno il torneo.',
   'fitMeIn.round.standings': 'Classifica del round',
   'fitMeIn.youTag': '(tu)',
   'fitMeIn.finishingTournament': 'Completamento del torneo…',
@@ -392,7 +394,7 @@ const IT_IT_MESSAGES = {
   'fitMeIn.revealWinner': 'Rivela il vincitore',
   'fitMeIn.youWin': 'Hai vinto!',
   'fitMeIn.playerWins': 'Vince {name}!',
-  'fitMeIn.finalComplete': 'La finale Mosaico dei concorrenti è terminata.',
+  'fitMeIn.finalComplete': 'La Finale Mosaico degli Hubmates è terminata.',
   'fitMeIn.yourLastScore': 'Il tuo ultimo punteggio:',
   'fitMeIn.levelUp': '⬆ LIVELLO {level}!',
   'fitMeIn.timeUp': 'TEMPO SCADUTO!',
@@ -431,7 +433,8 @@ const IT_IT_MESSAGES = {
   'settings.weekends': 'Fine settimana',
   'settings.weekendsDescription':
     'Fai una pausa con il Hub dopo i giorni 5, 10 e 15. Disattiva per continuare senza interruzioni.',
-  'settings.houseFeed': 'Feed della casa',
+  'settings.houseFeed': 'Feed del Hub',
+  'tvLog.loadEarlier': 'Carica gli eventi precedenti ({count} rimanenti)',
   'settings.realityMode': 'Modalità reality',
   'settings.realityStyle': 'Stile reality',
   'settings.realityStyle.casual': 'Leggero',
@@ -495,7 +498,7 @@ const IT_IT_MESSAGES = {
   'capitalization.direction.west': 'O',
   'social.action.askLohSafety.title': 'Chiedi consiglio al LOH sulla POS',
   'social.action.askLohSafety.description':
-    'Chiedi al LOH se lasciare invariato il blocco o usare Safety per aprire un obiettivo backdoor.',
+    'Chiedi al LOH se lasciare invariato il blocco o usare Safety per scegliere un obiettivo sostitutivo.',
   'social.action.askWhoGoes.title': 'Chiedi chi deve uscire',
   'social.action.askWhoGoes.description':
     'Chiedi quale nominato bloccato il LOH vuole eliminare dal blocco finale.',
@@ -511,7 +514,7 @@ const IT_IT_MESSAGES = {
   'broadcast.shock.eyebrow': 'Shock The Big Eye',
   'broadcast.shock.handoff': 'Trasmissione in diretta in arrivo',
   'social.event.bondBetrayal':
-    'SHOCK NELLA CASA: {lohName} ha messo {nomineeName} in pericolo nonostante il loro legame. La relazione è esplosa in un tradimento pubblico.',
+    'SHOCK ALL’HUB: {lohName} ha messo {nomineeName} in pericolo nonostante il loro legame. La relazione è esplosa in un tradimento pubblico.',
   'social.commitment.reaction.nomination':
     'Avevi promesso di tenermi fuori dal blocco, poi mi hai messo in pericolo. Voglio sapere perché la tua parola valeva così poco.',
   'social.commitment.reaction.safety':
@@ -545,7 +548,7 @@ const ES_ES_MESSAGES = {
     'Suma puntos al completar líneas y con caídas controladas. Gana la puntuación más alta de la ronda final.',
   'fitMeIn.round.semifinal': 'Semifinal',
   'fitMeIn.round.topTwoAdvance': 'Avanzan los 2 mejores',
-  'fitMeIn.round.mosaicFinal': 'Final Mosaico de concursantes',
+  'fitMeIn.round.mosaicFinal': 'Final Mosaico de Hubmates',
   'fitMeIn.round.highestScoreWins': 'Gana la puntuación más alta',
   'fitMeIn.round.openingHeat': 'Ronda inicial',
   'fitMeIn.round.lastPlaceEliminated': 'El último queda eliminado',
@@ -553,8 +556,7 @@ const ES_ES_MESSAGES = {
   'fitMeIn.round.progress': 'Ronda {current} de {total}',
   'fitMeIn.round.complete': '{round} completada',
   'fitMeIn.round.qualified': 'Pasas a la siguiente ronda.',
-  'fitMeIn.round.eliminatedMessage':
-    'Has sido eliminado. Los concursantes restantes terminarán el torneo.',
+  'fitMeIn.round.eliminatedMessage': 'Has sido eliminado. Los demás Hubmates terminarán el torneo.',
   'fitMeIn.round.standings': 'Clasificación de la ronda',
   'fitMeIn.youTag': '(tú)',
   'fitMeIn.finishingTournament': 'Finalizando el torneo…',
@@ -563,7 +565,7 @@ const ES_ES_MESSAGES = {
   'fitMeIn.revealWinner': 'Revelar al ganador',
   'fitMeIn.youWin': '¡Has ganado!',
   'fitMeIn.playerWins': '¡Gana {name}!',
-  'fitMeIn.finalComplete': 'La final Mosaico de concursantes ha terminado.',
+  'fitMeIn.finalComplete': 'La final Mosaico de Hubmates ha terminado.',
   'fitMeIn.yourLastScore': 'Tu última puntuación:',
   'fitMeIn.levelUp': '⬆ ¡NIVEL {level}!',
   'fitMeIn.timeUp': '¡TIEMPO!',
@@ -602,7 +604,8 @@ const ES_ES_MESSAGES = {
   'settings.weekends': 'Fines de semana',
   'settings.weekendsDescription':
     'Descansa con el Hub después de los días 5, 10 y 15. Desactiva para jugar sin interrupciones.',
-  'settings.houseFeed': 'Feed de la casa',
+  'settings.houseFeed': 'Feed del Hub',
+  'tvLog.loadEarlier': 'Cargar eventos anteriores ({count} restantes)',
   'settings.realityMode': 'Modo reality',
   'settings.realityStyle': 'Estilo reality',
   'settings.realityStyle.casual': 'Relajado',
@@ -666,7 +669,7 @@ const ES_ES_MESSAGES = {
   'capitalization.direction.west': 'O',
   'social.action.askLohSafety.title': 'Pedir consejo al LOH sobre la POS',
   'social.action.askLohSafety.description':
-    'Pregunta al LOH si conviene dejar el bloque igual o usar Safety para abrir un objetivo de backdoor.',
+    'Pregunta al LOH si conviene dejar el bloque igual o usar Safety para señalar un objetivo de reemplazo.',
   'social.action.askWhoGoes.title': 'Preguntar quién se va',
   'social.action.askWhoGoes.description':
     'Pregunta qué nominado bloqueado quiere eliminar el LOH del bloque final.',
@@ -682,7 +685,7 @@ const ES_ES_MESSAGES = {
   'broadcast.shock.eyebrow': 'Impacto The Big Eye',
   'broadcast.shock.handoff': 'Transmisión en directo a continuación',
   'social.event.bondBetrayal':
-    'IMPACTO EN LA CASA: {lohName} puso a {nomineeName} en peligro a pesar de su vínculo. La relación se ha roto en una traición pública.',
+    'IMPACTO EN EL HUB: {lohName} puso a {nomineeName} en peligro a pesar de su vínculo. La relación se ha roto en una traición pública.',
   'social.commitment.reaction.nomination':
     'Prometiste mantenerme fuera del bloque y luego me pusiste en peligro. Necesito saber por qué tu palabra significó tan poco.',
   'social.commitment.reaction.safety':
@@ -716,7 +719,7 @@ const PT_PT_MESSAGES = {
     'Ganha pontos ao completar linhas e com quedas controladas. A maior pontuação da ronda final vence.',
   'fitMeIn.round.semifinal': 'Semifinal',
   'fitMeIn.round.topTwoAdvance': 'Avançam os 2 melhores',
-  'fitMeIn.round.mosaicFinal': 'Final Mosaico dos concorrentes',
+  'fitMeIn.round.mosaicFinal': 'Final Mosaico de Hubmates',
   'fitMeIn.round.highestScoreWins': 'A maior pontuação vence',
   'fitMeIn.round.openingHeat': 'Ronda de abertura',
   'fitMeIn.round.lastPlaceEliminated': 'O último é eliminado',
@@ -724,8 +727,7 @@ const PT_PT_MESSAGES = {
   'fitMeIn.round.progress': 'Ronda {current} de {total}',
   'fitMeIn.round.complete': '{round} concluída',
   'fitMeIn.round.qualified': 'Passaste à ronda seguinte.',
-  'fitMeIn.round.eliminatedMessage':
-    'Foste eliminado. Os concorrentes restantes terminarão o torneio.',
+  'fitMeIn.round.eliminatedMessage': 'Foste eliminado. Os restantes Hubmates terminarão o torneio.',
   'fitMeIn.round.standings': 'Classificação da ronda',
   'fitMeIn.youTag': '(tu)',
   'fitMeIn.finishingTournament': 'A terminar o torneio…',
@@ -734,7 +736,7 @@ const PT_PT_MESSAGES = {
   'fitMeIn.revealWinner': 'Revelar o vencedor',
   'fitMeIn.youWin': 'Venceste!',
   'fitMeIn.playerWins': '{name} vence!',
-  'fitMeIn.finalComplete': 'A final Mosaico dos concorrentes terminou.',
+  'fitMeIn.finalComplete': 'A final Mosaico de Hubmates terminou.',
   'fitMeIn.yourLastScore': 'A tua última pontuação:',
   'fitMeIn.levelUp': '⬆ NÍVEL {level}!',
   'fitMeIn.timeUp': 'TEMPO!',
@@ -773,7 +775,8 @@ const PT_PT_MESSAGES = {
   'settings.weekends': 'Fins de semana',
   'settings.weekendsDescription':
     'Faça uma pausa com o Hub após os dias 5, 10 e 15. Desative para jogar sem interrupções.',
-  'settings.houseFeed': 'Feed da casa',
+  'settings.houseFeed': 'Feed do Hub',
+  'tvLog.loadEarlier': 'Carregar eventos anteriores ({count} restantes)',
   'settings.realityMode': 'Modo reality',
   'settings.realityStyle': 'Estilo de reality show',
   'settings.realityStyle.casual': 'Descontraído',
@@ -837,7 +840,7 @@ const PT_PT_MESSAGES = {
   'capitalization.direction.west': 'O',
   'social.action.askLohSafety.title': 'Pedir conselho ao LOH sobre a POS',
   'social.action.askLohSafety.description':
-    'Pergunte ao LOH se deve manter o bloco ou usar Safety para abrir um alvo de backdoor.',
+    'Pergunte ao LOH se deve manter o bloco ou usar Safety para indicar um alvo de substituição.',
   'social.action.askWhoGoes.title': 'Perguntar quem sai',
   'social.action.askWhoGoes.description':
     'Pergunte qual nomeado bloqueado o LOH quer eliminar do bloco final.',
@@ -853,7 +856,7 @@ const PT_PT_MESSAGES = {
   'broadcast.shock.eyebrow': 'Choque The Big Eye',
   'broadcast.shock.handoff': 'Transmissão em direto a chegar',
   'social.event.bondBetrayal':
-    'CHOQUE NA CASA: {lohName} colocou {nomineeName} em perigo apesar da ligação entre ambos. A relação rompeu-se numa traição pública.',
+    'CHOQUE NO HUB: {lohName} colocou {nomineeName} em perigo apesar da ligação entre ambos. A relação rompeu-se numa traição pública.',
   'social.commitment.reaction.nomination':
     'Prometeste manter-me fora do bloco e depois colocaste-me em perigo. Preciso de saber porque é que a tua palavra valeu tão pouco.',
   'social.commitment.reaction.safety':
@@ -887,7 +890,7 @@ const DE_DE_MESSAGES = {
     'Punkte gibt es für vollständige Linien und kontrollierte Drops. Die höchste Punktzahl der Finalrunde gewinnt.',
   'fitMeIn.round.semifinal': 'Halbfinale',
   'fitMeIn.round.topTwoAdvance': 'Die besten 2 kommen weiter',
-  'fitMeIn.round.mosaicFinal': 'Hausgast-Mosaik-Finale',
+  'fitMeIn.round.mosaicFinal': 'Hubmate-Mosaik-Finale',
   'fitMeIn.round.highestScoreWins': 'Die höchste Punktzahl gewinnt',
   'fitMeIn.round.openingHeat': 'Auftaktrunde',
   'fitMeIn.round.lastPlaceEliminated': 'Der letzte Platz scheidet aus',
@@ -896,7 +899,7 @@ const DE_DE_MESSAGES = {
   'fitMeIn.round.complete': '{round} beendet',
   'fitMeIn.round.qualified': 'Du bist für die nächste Runde qualifiziert.',
   'fitMeIn.round.eliminatedMessage':
-    'Du bist ausgeschieden. Die übrigen Hausgäste spielen das Turnier zu Ende.',
+    'Du bist ausgeschieden. Die übrigen Hubmates spielen das Turnier zu Ende.',
   'fitMeIn.round.standings': 'Rundenwertung',
   'fitMeIn.youTag': '(du)',
   'fitMeIn.finishingTournament': 'Turnier wird beendet…',
@@ -905,7 +908,7 @@ const DE_DE_MESSAGES = {
   'fitMeIn.revealWinner': 'Sieger anzeigen',
   'fitMeIn.youWin': 'Du gewinnst!',
   'fitMeIn.playerWins': '{name} gewinnt!',
-  'fitMeIn.finalComplete': 'Das Hausgast-Mosaik-Finale ist beendet.',
+  'fitMeIn.finalComplete': 'Das Hubmate-Mosaik-Finale ist beendet.',
   'fitMeIn.yourLastScore': 'Deine letzte Punktzahl:',
   'fitMeIn.levelUp': '⬆ LEVEL {level}!',
   'fitMeIn.timeUp': 'ZEIT ABGELAUFEN!',
@@ -944,7 +947,8 @@ const DE_DE_MESSAGES = {
   'settings.weekends': 'Wochenenden',
   'settings.weekendsDescription':
     'Mach nach Tag 5, 10 und 15 eine Pause mit dem Hub. Ausschalten, um ohne Unterbrechung weiterzuspielen.',
-  'settings.houseFeed': 'Haus-Feed',
+  'settings.houseFeed': 'Hub-Feed',
+  'tvLog.loadEarlier': 'Frühere Ereignisse laden ({count} verbleibend)',
   'settings.realityMode': 'Reality-Modus',
   'settings.realityStyle': 'Reality-Stil',
   'settings.realityStyle.casual': 'Locker',
@@ -1007,7 +1011,7 @@ const DE_DE_MESSAGES = {
   'capitalization.direction.west': 'W',
   'social.action.askLohSafety.title': 'LOH um POS-Rat fragen',
   'social.action.askLohSafety.description':
-    'Frage den LOH, ob der Block bestehen bleiben oder Safety für ein Backdoor-Ziel eingesetzt werden soll.',
+    'Frag den LOH, ob der Block unverändert bleiben oder Safety genutzt werden soll, um ein Ersatzziel zu bestimmen.',
   'social.action.askWhoGoes.title': 'Fragen, wer jetzt gehen soll',
   'social.action.askWhoGoes.description':
     'Frage, welchen feststehenden Nominierten der LOH aus dem finalen Block eliminieren will.',
@@ -1023,7 +1027,7 @@ const DE_DE_MESSAGES = {
   'broadcast.shock.eyebrow': 'The-Big-Eye-Schock',
   'broadcast.shock.handoff': 'Live-Übertragung folgt',
   'social.event.bondBetrayal':
-    'HAUS-SCHOCK: {lohName} hat {nomineeName} trotz ihrer Bindung in Gefahr gebracht. Die Beziehung ist in einem öffentlichen Verrat zerbrochen.',
+    'SCHOCK IM HUB: {lohName} hat {nomineeName} trotz ihrer Bindung in Gefahr gebracht. Die Beziehung ist in einem öffentlichen Verrat zerbrochen.',
   'social.commitment.reaction.nomination':
     'Du hast versprochen, mich vom Block fernzuhalten, und mich dann in Gefahr gebracht. Ich will wissen, warum dein Wort so wenig wert war.',
   'social.commitment.reaction.safety':
@@ -1050,7 +1054,7 @@ const ZH_CN_MESSAGES = {
   'fitMeIn.rules.scoring': '消除整行和受控下落可获得分数。决赛轮得分最高者获胜。',
   'fitMeIn.round.semifinal': '半决赛',
   'fitMeIn.round.topTwoAdvance': '前2名晋级',
-  'fitMeIn.round.mosaicFinal': '住客马赛克决赛',
+  'fitMeIn.round.mosaicFinal': 'Hubmate 马赛克决赛',
   'fitMeIn.round.highestScoreWins': '最高分获胜',
   'fitMeIn.round.openingHeat': '首轮赛',
   'fitMeIn.round.lastPlaceEliminated': '最后一名淘汰',
@@ -1058,7 +1062,7 @@ const ZH_CN_MESSAGES = {
   'fitMeIn.round.progress': '第 {current} 轮，共 {total} 轮',
   'fitMeIn.round.complete': '{round}结束',
   'fitMeIn.round.qualified': '你已晋级下一轮。',
-  'fitMeIn.round.eliminatedMessage': '你已被淘汰。其余住客将完成比赛。',
+  'fitMeIn.round.eliminatedMessage': '你已被淘汰。其余 Hubmates 将完成比赛。',
   'fitMeIn.round.standings': '本轮排名',
   'fitMeIn.youTag': '（你）',
   'fitMeIn.finishingTournament': '正在完成比赛…',
@@ -1067,7 +1071,7 @@ const ZH_CN_MESSAGES = {
   'fitMeIn.revealWinner': '揭晓获胜者',
   'fitMeIn.youWin': '你赢了！',
   'fitMeIn.playerWins': '{name}获胜！',
-  'fitMeIn.finalComplete': '住客马赛克决赛已结束。',
+  'fitMeIn.finalComplete': 'Hubmate 马赛克决赛已结束。',
   'fitMeIn.yourLastScore': '你的上一轮得分：',
   'fitMeIn.levelUp': '⬆ 等级 {level}！',
   'fitMeIn.timeUp': '时间到！',
@@ -1105,7 +1109,8 @@ const ZH_CN_MESSAGES = {
   'settings.compactMode': '紧凑模式',
   'settings.weekends': '周末',
   'settings.weekendsDescription': '在第5、10和15天之后，与Hub一起享受周末。关闭后可连续进行游戏。',
-  'settings.houseFeed': '屋内动态',
+  'settings.houseFeed': 'Hub 动态',
+  'tvLog.loadEarlier': '加载更早的事件（剩余 {count} 条）',
   'settings.realityMode': '真人秀模式',
   'settings.realityStyle': '真人秀风格',
   'settings.realityStyle.casual': '轻松',
@@ -1167,7 +1172,7 @@ const ZH_CN_MESSAGES = {
   'capitalization.direction.west': '西',
   'social.action.askLohSafety.title': '向 LOH 询问 POS 建议',
   'social.action.askLohSafety.description':
-    '询问 LOH 是维持提名席位不变，还是使用 Safety 打开后门目标。',
+    '询问 LOH 是维持提名名单不变，还是使用 Safety 指定替补目标。',
   'social.action.askWhoGoes.title': '询问现在淘汰谁',
   'social.action.askWhoGoes.description': '询问 LOH 想从最终提名席位中淘汰哪位已锁定的提名人。',
   'social.action.askLohPlan.title': '询问 LOH 的计划',
@@ -1180,7 +1185,7 @@ const ZH_CN_MESSAGES = {
   'broadcast.shock.eyebrow': 'The Big Eye 震撼',
   'broadcast.shock.handoff': '即将进行直播',
   'social.event.bondBetrayal':
-    '屋内震撼：{lohName} 不顾彼此的关系，让 {nomineeName} 陷入危险。这段关系已公开破裂为背叛。',
+    'Hub 震撼：{lohName} 不顾彼此的关系，让 {nomineeName} 陷入危险。这段关系已公开破裂为背叛。',
   'social.commitment.reaction.nomination':
     '你答应不把我放上提名席，却又让我陷入危险。我需要知道你的承诺为什么如此不值一提。',
   'social.commitment.reaction.safety':
@@ -1211,7 +1216,7 @@ const BG_BG_MESSAGES = {
     'Печелиш точки с изчистени линии и контролирани спускания. Най-високият резултат във финалния рунд печели.',
   'fitMeIn.round.semifinal': 'Полуфинал',
   'fitMeIn.round.topTwoAdvance': 'Първите 2 продължават',
-  'fitMeIn.round.mosaicFinal': 'Финал „Мозайка от съквартиранти“',
+  'fitMeIn.round.mosaicFinal': 'Финал „Мозайка от играчи на Hub“',
   'fitMeIn.round.highestScoreWins': 'Най-високият резултат печели',
   'fitMeIn.round.openingHeat': 'Откриващ рунд',
   'fitMeIn.round.lastPlaceEliminated': 'Последният отпада',
@@ -1219,7 +1224,7 @@ const BG_BG_MESSAGES = {
   'fitMeIn.round.progress': 'Рунд {current} от {total}',
   'fitMeIn.round.complete': '{round} приключи',
   'fitMeIn.round.qualified': 'Продължаваш към следващия рунд.',
-  'fitMeIn.round.eliminatedMessage': 'Ти отпадна. Останалите съквартиранти ще довършат турнира.',
+  'fitMeIn.round.eliminatedMessage': 'Ти отпадна. Останалите Hubmates ще довършат турнира.',
   'fitMeIn.round.standings': 'Класиране за рунда',
   'fitMeIn.youTag': '(ти)',
   'fitMeIn.finishingTournament': 'Турнирът приключва…',
@@ -1228,7 +1233,7 @@ const BG_BG_MESSAGES = {
   'fitMeIn.revealWinner': 'Покажи победителя',
   'fitMeIn.youWin': 'Ти печелиш!',
   'fitMeIn.playerWins': '{name} печели!',
-  'fitMeIn.finalComplete': 'Финалът „Мозайка от съквартиранти“ приключи.',
+  'fitMeIn.finalComplete': 'Финалът „Мозайка от играчи на Hub“ приключи.',
   'fitMeIn.yourLastScore': 'Последният ти резултат:',
   'fitMeIn.levelUp': '⬆ НИВО {level}!',
   'fitMeIn.timeUp': 'ВРЕМЕТО ИЗТЕЧЕ!',
@@ -1267,7 +1272,8 @@ const BG_BG_MESSAGES = {
   'settings.weekends': 'Уикенди',
   'settings.weekendsDescription':
     'Почини си с Hub след дни 5, 10 и 15. Изключи, за да продължиш без прекъсване.',
-  'settings.houseFeed': 'Поток от къщата',
+  'settings.houseFeed': 'Поток на Hub',
+  'tvLog.loadEarlier': 'Зареди предишни събития ({count} остават)',
   'settings.realityMode': 'Риалити режим',
   'settings.realityStyle': 'Стил на риалити режима',
   'settings.realityStyle.casual': 'По-лек',
@@ -1331,7 +1337,7 @@ const BG_BG_MESSAGES = {
   'capitalization.direction.west': 'З',
   'social.action.askLohSafety.title': 'Поискай съвет от LOH за POS',
   'social.action.askLohSafety.description':
-    'Попитай LOH дали да оставиш номинациите непроменени, или да използваш Safety за backdoor цел.',
+    'Попитай LOH дали да остави номинациите непроменени, или да използва Safety, за да посочи резервна цел.',
   'social.action.askWhoGoes.title': 'Попитай кой трябва да си тръгне',
   'social.action.askWhoGoes.description':
     'Попитай кой от заключените номинирани LOH иска да бъде елиминиран от финалния блок.',
@@ -1347,7 +1353,7 @@ const BG_BG_MESSAGES = {
   'broadcast.shock.eyebrow': 'Шок от The Big Eye',
   'broadcast.shock.handoff': 'Предстои излъчване на живо',
   'social.event.bondBetrayal':
-    'ШОК В КЪЩАТА: {lohName} постави {nomineeName} в опасност въпреки връзката им. Отношенията им се разпаднаха в публично предателство.',
+    'ШОК В HUB: {lohName} постави {nomineeName} в опасност въпреки връзката им. Отношенията им се разпаднаха в публично предателство.',
   'social.commitment.reaction.nomination':
     'Обеща да не ме поставяш сред номинираните, а после ме изложи на опасност. Искам да знам защо думата ти значеше толкова малко.',
   'social.commitment.reaction.safety':
@@ -1380,7 +1386,7 @@ const RU_RU_MESSAGES = {
     'Очки начисляются за очищенные линии и контролируемое падение. Побеждает лучший результат финального раунда.',
   'fitMeIn.round.semifinal': 'Полуфинал',
   'fitMeIn.round.topTwoAdvance': 'Двое лучших проходят дальше',
-  'fitMeIn.round.mosaicFinal': 'Финал «Мозаика участников»',
+  'fitMeIn.round.mosaicFinal': 'Финал «Мозаика игроков Hub»',
   'fitMeIn.round.highestScoreWins': 'Побеждает лучший результат',
   'fitMeIn.round.openingHeat': 'Стартовый раунд',
   'fitMeIn.round.lastPlaceEliminated': 'Последнее место выбывает',
@@ -1388,7 +1394,7 @@ const RU_RU_MESSAGES = {
   'fitMeIn.round.progress': 'Раунд {current} из {total}',
   'fitMeIn.round.complete': '{round} завершён',
   'fitMeIn.round.qualified': 'Вы проходите в следующий раунд.',
-  'fitMeIn.round.eliminatedMessage': 'Вы выбыли. Оставшиеся участники завершат турнир.',
+  'fitMeIn.round.eliminatedMessage': 'Вы выбыли. Остальные Hubmates завершат турнир.',
   'fitMeIn.round.standings': 'Результаты раунда',
   'fitMeIn.youTag': '(вы)',
   'fitMeIn.finishingTournament': 'Завершение турнира…',
@@ -1397,7 +1403,7 @@ const RU_RU_MESSAGES = {
   'fitMeIn.revealWinner': 'Показать победителя',
   'fitMeIn.youWin': 'Вы победили!',
   'fitMeIn.playerWins': 'Побеждает {name}!',
-  'fitMeIn.finalComplete': 'Финал «Мозаика участников» завершён.',
+  'fitMeIn.finalComplete': 'Финал «Мозаика игроков Hub» завершён.',
   'fitMeIn.yourLastScore': 'Ваш последний результат:',
   'fitMeIn.levelUp': '⬆ УРОВЕНЬ {level}!',
   'fitMeIn.timeUp': 'ВРЕМЯ ВЫШЛО!',
@@ -1436,7 +1442,8 @@ const RU_RU_MESSAGES = {
   'settings.weekends': 'Выходные',
   'settings.weekendsDescription':
     'Отдохните с Hub после дней 5, 10 и 15. Отключите, чтобы играть без перерывов.',
-  'settings.houseFeed': 'Лента дома',
+  'settings.houseFeed': 'Лента Хаба',
+  'tvLog.loadEarlier': 'Загрузить предыдущие события (осталось: {count})',
   'settings.realityMode': 'Режим реалити',
   'settings.realityStyle': 'Стиль реалити',
   'settings.realityStyle.casual': 'Лёгкий',
@@ -1500,7 +1507,7 @@ const RU_RU_MESSAGES = {
   'capitalization.direction.west': 'З',
   'social.action.askLohSafety.title': 'Спросить LOH о POS',
   'social.action.askLohSafety.description':
-    'Спросите LOH, оставить ли блок без изменений или использовать Safety для открытия цели на бэкдор.',
+    'Спросите LOH, оставить ли список номинантов без изменений или использовать Safety, чтобы выбрать замену.',
   'social.action.askWhoGoes.title': 'Спросить, кто должен уйти',
   'social.action.askWhoGoes.description':
     'Спросите, кого из закреплённых номинантов LOH хочет устранить из финального блока.',
@@ -1516,7 +1523,7 @@ const RU_RU_MESSAGES = {
   'broadcast.shock.eyebrow': 'Шок от The Big Eye',
   'broadcast.shock.handoff': 'Скоро прямой эфир',
   'social.event.bondBetrayal':
-    'ШОК В ДОМЕ: {lohName} подверг(ла) {nomineeName} опасности, несмотря на их связь. Отношения переросли в публичное предательство.',
+    'ШОК В HUB: {lohName} подверг(ла) {nomineeName} опасности, несмотря на их связь. Отношения переросли в публичное предательство.',
   'social.commitment.reaction.nomination':
     'Ты обещал(а) не выставлять меня на блок, а потом подверг(ла) меня опасности. Я хочу знать, почему твоё слово так мало значило.',
   'social.commitment.reaction.safety':
@@ -1550,7 +1557,7 @@ const UK_UA_MESSAGES = {
     'Очки нараховуються за очищені лінії та контрольовані падіння. Перемагає найвищий результат фінального раунду.',
   'fitMeIn.round.semifinal': 'Півфінал',
   'fitMeIn.round.topTwoAdvance': 'Двоє найкращих проходять далі',
-  'fitMeIn.round.mosaicFinal': 'Фінал «Мозаїка учасників»',
+  'fitMeIn.round.mosaicFinal': 'Фінал «Мозаїка гравців Hub»',
   'fitMeIn.round.highestScoreWins': 'Перемагає найвищий результат',
   'fitMeIn.round.openingHeat': 'Стартовий раунд',
   'fitMeIn.round.lastPlaceEliminated': 'Останнє місце вибуває',
@@ -1558,7 +1565,7 @@ const UK_UA_MESSAGES = {
   'fitMeIn.round.progress': 'Раунд {current} із {total}',
   'fitMeIn.round.complete': '{round} завершено',
   'fitMeIn.round.qualified': 'Ви проходите до наступного раунду.',
-  'fitMeIn.round.eliminatedMessage': 'Ви вибули. Решта учасників завершать турнір.',
+  'fitMeIn.round.eliminatedMessage': 'Ви вибули. Решта Hubmates завершать турнір.',
   'fitMeIn.round.standings': 'Результати раунду',
   'fitMeIn.youTag': '(ви)',
   'fitMeIn.finishingTournament': 'Завершення турніру…',
@@ -1567,7 +1574,7 @@ const UK_UA_MESSAGES = {
   'fitMeIn.revealWinner': 'Показати переможця',
   'fitMeIn.youWin': 'Ви перемогли!',
   'fitMeIn.playerWins': 'Перемагає {name}!',
-  'fitMeIn.finalComplete': 'Фінал «Мозаїка учасників» завершено.',
+  'fitMeIn.finalComplete': 'Фінал «Мозаїка гравців Hub» завершено.',
   'fitMeIn.yourLastScore': 'Ваш останній результат:',
   'fitMeIn.levelUp': '⬆ РІВЕНЬ {level}!',
   'fitMeIn.timeUp': 'ЧАС ВИЙШОВ!',
@@ -1606,7 +1613,8 @@ const UK_UA_MESSAGES = {
   'settings.weekends': 'Вихідні',
   'settings.weekendsDescription':
     'Відпочиньте з Hub після днів 5, 10 і 15. Вимкніть, щоб грати без перерв.',
-  'settings.houseFeed': 'Стрічка будинку',
+  'settings.houseFeed': 'Стрічка Хабу',
+  'tvLog.loadEarlier': 'Завантажити попередні події (ще: {count})',
   'settings.realityMode': 'Режим реаліті',
   'settings.realityStyle': 'Стиль реаліті',
   'settings.realityStyle.casual': 'Легкий',
@@ -1670,7 +1678,7 @@ const UK_UA_MESSAGES = {
   'capitalization.direction.west': 'Зх',
   'social.action.askLohSafety.title': 'Запитати LOH про POS',
   'social.action.askLohSafety.description':
-    'Запитайте LOH, чи залишити блок без змін, чи використати Safety, щоб відкрити ціль для бекдору.',
+    'Запитайте LOH, чи залишити список номінантів без змін, чи використати Safety, щоб визначити заміну.',
   'social.action.askWhoGoes.title': 'Запитати, хто має піти',
   'social.action.askWhoGoes.description':
     'Запитайте, кого із зафіксованих номінантів LOH хоче усунути з фінального блоку.',
@@ -1686,7 +1694,7 @@ const UK_UA_MESSAGES = {
   'broadcast.shock.eyebrow': 'Шок від The Big Eye',
   'broadcast.shock.handoff': 'Незабаром прямий ефір',
   'social.event.bondBetrayal':
-    'ШОК У БУДИНКУ: {lohName} поставив(ла) {nomineeName} під загрозу попри їхній зв’язок. Стосунки переросли у публічну зраду.',
+    'ШОК У HUB: {lohName} поставив(ла) {nomineeName} під загрозу попри їхній зв’язок. Стосунки переросли у публічну зраду.',
   'social.commitment.reaction.nomination':
     'Ти обіцяв(ла) не виставляти мене на блок, а потім поставив(ла) мене під загрозу. Я хочу знати, чому твоє слово так мало важило.',
   'social.commitment.reaction.safety':
@@ -1717,7 +1725,7 @@ const TR_TR_MESSAGES = {
     'Tamamlanan satırlar ve kontrollü düşüşler puan kazandırır. Final turundaki en yüksek puan kazanır.',
   'fitMeIn.round.semifinal': 'Yarı final',
   'fitMeIn.round.topTwoAdvance': 'İlk 2 ilerler',
-  'fitMeIn.round.mosaicFinal': 'Ev Sakini Mozaik Finali',
+  'fitMeIn.round.mosaicFinal': 'Hubmate Mozaik Finali',
   'fitMeIn.round.highestScoreWins': 'En yüksek puan kazanır',
   'fitMeIn.round.openingHeat': 'Açılış turu',
   'fitMeIn.round.lastPlaceEliminated': 'Son sıradaki elenir',
@@ -1725,7 +1733,7 @@ const TR_TR_MESSAGES = {
   'fitMeIn.round.progress': 'Tur {current}/{total}',
   'fitMeIn.round.complete': '{round} tamamlandı',
   'fitMeIn.round.qualified': 'Sonraki tura geçtin.',
-  'fitMeIn.round.eliminatedMessage': 'Elendin. Kalan ev sakinleri turnuvayı tamamlayacak.',
+  'fitMeIn.round.eliminatedMessage': 'Elendin. Kalan Hubmate’ler turnuvayı tamamlayacak.',
   'fitMeIn.round.standings': 'Tur sıralaması',
   'fitMeIn.youTag': '(sen)',
   'fitMeIn.finishingTournament': 'Turnuva tamamlanıyor…',
@@ -1734,7 +1742,7 @@ const TR_TR_MESSAGES = {
   'fitMeIn.revealWinner': 'Kazananı göster',
   'fitMeIn.youWin': 'Kazandın!',
   'fitMeIn.playerWins': '{name} kazandı!',
-  'fitMeIn.finalComplete': 'Ev Sakini Mozaik Finali tamamlandı.',
+  'fitMeIn.finalComplete': 'Hubmate Mozaik Finali tamamlandı.',
   'fitMeIn.yourLastScore': 'Son puanın:',
   'fitMeIn.levelUp': '⬆ SEVİYE {level}!',
   'fitMeIn.timeUp': 'SÜRE DOLDU!',
@@ -1773,7 +1781,8 @@ const TR_TR_MESSAGES = {
   'settings.weekends': 'Hafta sonları',
   'settings.weekendsDescription':
     '5, 10 ve 15. günlerden sonra Hub ile mola ver. Kesintisiz oynamak için kapat.',
-  'settings.houseFeed': 'Ev akışı',
+  'settings.houseFeed': 'Hub akışı',
+  'tvLog.loadEarlier': 'Önceki etkinlikleri yükle ({count} kaldı)',
   'settings.realityMode': 'Reality Modu',
   'settings.realityStyle': 'Reality stili',
   'settings.realityStyle.casual': 'Rahat',
@@ -1837,7 +1846,7 @@ const TR_TR_MESSAGES = {
   'capitalization.direction.west': 'B',
   'social.action.askLohSafety.title': 'LOH’tan POS tavsiyesi iste',
   'social.action.askLohSafety.description':
-    'LOH’a bloğu değiştirmemeyi mi yoksa Safety kullanarak bir backdoor hedefi açmayı mı istediğini sor.',
+    'LOH’a bloğu aynı bırakmasını mı yoksa Safety kullanarak yedek hedef belirlemesini mi istediğini sor.',
   'social.action.askWhoGoes.title': 'Şimdi kimin gideceğini sor',
   'social.action.askWhoGoes.description':
     'LOH’un final bloğundaki kilitli adaylardan hangisini elemek istediğini sor.',
@@ -1853,7 +1862,7 @@ const TR_TR_MESSAGES = {
   'broadcast.shock.eyebrow': 'The Big Eye Şoku',
   'broadcast.shock.handoff': 'Canlı yayın başlamak üzere',
   'social.event.bondBetrayal':
-    'EVDE ŞOK: {lohName}, aralarındaki bağa rağmen {nomineeName} kişisini tehlikeye attı. İlişki herkesin önünde bir ihanete dönüştü.',
+    'HUB’DA ŞOK: {lohName}, aralarındaki bağa rağmen {nomineeName} kişisini tehlikeye attı. İlişki herkesin önünde bir ihanete dönüştü.',
   'social.commitment.reaction.nomination':
     'Beni bloktan uzak tutacağına söz verdin, sonra beni tehlikeye attın. Sözünün neden bu kadar az değer taşıdığını bilmek istiyorum.',
   'social.commitment.reaction.safety':

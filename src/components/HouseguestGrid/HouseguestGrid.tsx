@@ -374,7 +374,7 @@ export default function HouseguestGrid({
             <StatusPill
               variant="ghost"
               label={occupancyLabel}
-              ariaLabel={`${occupancyLabel} housemates`}
+              ariaLabel={`${occupancyLabel} hubmates`}
             />
           )}
           {showRosterLogLauncher && (

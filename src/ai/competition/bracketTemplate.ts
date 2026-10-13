@@ -126,7 +126,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     pos: ['quickTap', 'riskWheel'],
   },
   {
-    label: 'Day 2 · 15 housemates (±1)',
+    label: 'Day 2 · 15 hubmates (±1)',
     minPlayers: 14,
     maxPlayers: 16,
     minDay: 2,
@@ -142,7 +142,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash', 'dontGoOver', 'tiltLabyrinth'],
   },
   {
-    label: 'Day 3 · 14 housemates (±1)',
+    label: 'Day 3 · 14 hubmates (±1)',
     minPlayers: 13,
     maxPlayers: 15,
     minDay: 3,
@@ -167,7 +167,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 4 · 13 housemates (±1)',
+    label: 'Day 4 · 13 hubmates (±1)',
     minPlayers: 12,
     maxPlayers: 14,
     minDay: 4,
@@ -192,7 +192,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 5 · 12 housemates (±1)',
+    label: 'Day 5 · 12 hubmates (±1)',
     minPlayers: 11,
     maxPlayers: 13,
     minDay: 5,
@@ -218,7 +218,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 6 · 11 housemates (±1)',
+    label: 'Day 6 · 11 hubmates (±1)',
     minPlayers: 10,
     maxPlayers: 12,
     minDay: 6,
@@ -244,7 +244,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 7 · 9 housemates (±1)',
+    label: 'Day 7 · 9 hubmates (±1)',
     minPlayers: 8,
     maxPlayers: 10,
     minDay: 7,
@@ -274,7 +274,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 8 · 8 housemates (±1)',
+    label: 'Day 8 · 8 hubmates (±1)',
     minPlayers: 7,
     maxPlayers: 9,
     minDay: 8,
@@ -305,7 +305,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 9 · 7 housemates (±1)',
+    label: 'Day 9 · 7 hubmates (±1)',
     minPlayers: 6,
     maxPlayers: 8,
     minDay: 9,
@@ -337,7 +337,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 10 · 5 housemates',
+    label: 'Day 10 · 5 hubmates',
     minPlayers: 5,
     maxPlayers: 5,
     minDay: 10,
@@ -371,7 +371,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 11 · 5 housemates',
+    label: 'Day 11 · 5 hubmates',
     minPlayers: 4,
     maxPlayers: 5,
     minDay: 11,
@@ -406,7 +406,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     ],
   },
   {
-    label: 'Day 12 · 4 housemates (±1)',
+    label: 'Day 12 · 4 hubmates (±1)',
     minPlayers: 3,
     maxPlayers: 5,
     minDay: 12,

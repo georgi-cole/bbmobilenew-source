@@ -211,7 +211,7 @@ export function buildTieBreakPitch(relationship: number, playerId: string, week:
   if (relationship >= 15)
     return alternate
       ? 'I can still be a number for you after tonight. Give me that chance.'
-      : 'Keep me and you keep an option in this house?not another enemy.'
+      : 'Keep me and you keep an option in the Hub? Not another enemy.'
   if (relationship <= -20)
     return alternate
       ? 'We are not close, but eliminating me only finishes someone else?s move.'
@@ -1502,7 +1502,7 @@ export default function GameScreen() {
     inlineHouseFeedVisible || responsiveGameLayout.rosterHeaderMode === 'tv-chip'
       ? {
           label: housemateOccupancyLabel,
-          ariaLabel: `Housemates ${alivePlayers.length} of ${game.players.length}`,
+          ariaLabel: `Hubmates ${alivePlayers.length} of ${game.players.length}`,
         }
       : null
 
@@ -1883,7 +1883,7 @@ export default function GameScreen() {
                     ? 'DETOX'
                     : activeSpecialVeto === 'spotlight'
                       ? 'FORCE MAJEURE'
-                      : 'VETO USED'
+                      : 'SAFETY USED'
             }
           />
         )}
@@ -2168,7 +2168,7 @@ export default function GameScreen() {
                       ? 'the Final 4 competition'
                       : isVoxPopuli
                         ? 'immunity'
-                        : 'Leader of the House'
+                        : 'Leader of the Hub'
                   }`,
                 }
               })
@@ -2181,7 +2181,7 @@ export default function GameScreen() {
                 ? 'the Final 4 competition!'
                 : isVoxPopuli
                   ? 'immunity!'
-                  : 'Leader of the House!'
+                  : 'Leader of the Hub!'
             }`}
             subtitle={
               isVoxFinalFour ? '🏆 NO IMMUNITY AWARDED' : isVoxPopuli ? '🛡️ IMMUNE TODAY' : '👑'
@@ -2192,7 +2192,7 @@ export default function GameScreen() {
                 ? 'the Final 4 competition'
                 : isVoxPopuli
                   ? 'immunity'
-                  : 'Leader of the House'
+                  : 'Leader of the Hub'
             }`}
           />
         )}
@@ -2487,8 +2487,8 @@ export default function GameScreen() {
             title="Peek Behind the Curtain?"
             description={
               voteBreakdownPromptIsPostEviction
-                ? 'Watch a short ad to unlock the vote reveal showing who voted for whom after this live eviction.'
-                : 'Watch a short ad to unlock the Confessional reveal showing who voted for whom after this live eviction.'
+                ? 'Watch a short ad to unlock the vote reveal showing who voted for whom after this live elimination.'
+                : 'Watch a short ad to unlock the Confessional reveal showing who voted for whom after this live elimination.'
             }
             watchLabel="Watch Ad to Unlock Vote Reveal"
             skipLabel="Continue"
@@ -2517,7 +2517,7 @@ export default function GameScreen() {
           <AdPrompt
             icon="🗳️"
             title="Reveal the Secret Ballots?"
-            description="Watch a short ad to see which two housemates every player nominated in the Confessional."
+            description="Watch a short ad to see which two hubmates every player nominated in the Confessional."
             watchLabel="Watch Ad to Reveal Nominations"
             skipLabel="Keep the Ballots Secret"
             onWatch={() => {
@@ -2591,7 +2591,7 @@ export default function GameScreen() {
               <div
                 className="game-screen__vote-breakdown-table"
                 role="table"
-                aria-label="Eviction vote breakdown"
+                aria-label="Elimination vote breakdown"
               >
                 {postEvictionVoteBreakdownRows.map((row) => (
                   <div key={row.voterKey} className="game-screen__vote-breakdown-row" role="row">

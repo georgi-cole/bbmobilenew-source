@@ -127,7 +127,7 @@ export const CONFESSIONAL_LAB_WORLD: BigEyeWorldContext = {
   ],
   recentEvictedNames: ['Rhea'],
   recentPublicEvents: [
-    'Kian won Leader of the House.',
+    'Kian won Leader of the Hub.',
     'Alex and Lia were nominated.',
     'Jax won the Safety competition.',
   ],
@@ -183,7 +183,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Protective stance',
     category: 'understanding',
     tier: 'contract',
-    description: 'Protective language about a named housemate should not disappear.',
+    description: 'Protective language about a named hubmate should not disappear.',
     turns: [
       {
         text: 'I want to protect Maya and keep her safe this week.',
@@ -322,7 +322,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     description: 'A general question should remain curiosity when no deterministic fact matches.',
     turns: [
       {
-        text: 'Why do people keep changing their minds in this house?',
+        text: 'Why do people keep changing their minds in the Hub?',
         expected: {
           detectedIntent: 'curiosity',
           route: 'generative',
@@ -373,7 +373,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     description: 'Remaining-player count and names are deterministic knowledge.',
     turns: [
       {
-        text: 'How many housemates are left?',
+        text: 'How many hubmates are left?',
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'remaining',
@@ -446,7 +446,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'phase',
-          localTextIncludes: ['Day 6', 'pre eviction'],
+          localTextIncludes: ['Day 6', 'pre elimination'],
         },
       },
     ],
@@ -676,13 +676,13 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
   },
   {
     id: 'authored-self-evict-cancel',
-    title: 'Self-eviction → cancel',
+    title: 'Self-elimination → cancel',
     category: 'authored',
     tier: 'contract',
-    description: 'In-game self-eviction remains a protected formal flow.',
+    description: 'In-game self-elimination remains a protected formal flow.',
     turns: [
       {
-        text: 'I want to leave the house.',
+        text: 'I want to leave the Hub.',
         expected: {
           detectedIntent: 'self_eviction',
           route: 'authored',
@@ -699,7 +699,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
   },
   {
     id: 'authored-self-evict-confirm',
-    title: 'Self-eviction → confirm',
+    title: 'Self-elimination → confirm',
     category: 'authored',
     tier: 'contract',
     description: 'A clear yes invokes the authored modal action.',
@@ -831,7 +831,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     category: 'continuity',
     tier: 'contract',
     description:
-      'The recent real transcript must keep eviction language, alliance knowledge and Nico targeting separate.',
+      'The recent real transcript must keep elimination language, alliance knowledge and Nico targeting separate.',
     world: withWorld({
       nomineeNames: ['Bea', 'Ivy'],
       remainingHousemates: ['Alex', 'Bea', 'Ivy', 'Nico', 'Maya', 'Finn'],
@@ -962,18 +962,18 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
   },
   {
     id: 'knowledge-recent-eviction',
-    title: 'Recent eviction',
+    title: 'Recent elimination',
     category: 'knowledge',
     tier: 'contract',
-    description: 'Eviction history questions are grounded and never trigger self-eviction.',
+    description: 'Elimination history questions are grounded and never trigger self-elimination.',
     turns: [
       {
-        text: 'Who got evicted today?',
+        text: 'Who got eliminated today?',
         expected: {
           route: 'deterministic',
           knowledgeQuery: 'recent_eviction',
           action: null,
-          localTextIncludes: ['Rhea', 'confirmed eviction'],
+          localTextIncludes: ['Rhea', 'confirmed elimination'],
         },
       },
     ],
@@ -1059,7 +1059,7 @@ export const CONFESSIONAL_CALIBRATION_SCENARIOS: ConfessionalCalibrationScenario
     title: 'Notice late-game threshold',
     category: 'salience',
     tier: 'contract',
-    description: 'Crossing into six remaining housemates should be recognized.',
+    description: 'Crossing into six remaining hubmates should be recognized.',
     previousSnapshot: { ...BASE_SNAPSHOT, remainingCount: 7 },
     world: withWorld({
       nomineeNames: [],

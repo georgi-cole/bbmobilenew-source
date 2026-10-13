@@ -82,13 +82,13 @@ export function getRequiredConfessionalPresentation(
         prompt: isVoxPopuli
           ? isVoxFinalFour
             ? 'Cast one secret nomination vote. Last place is already on the block, and nobody has immunity today.'
-            : `Privately choose ${required} housemates to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
+            : `Privately choose ${required} hubmates to nominate. You cannot choose yourself, today’s immunity winner, or the last-place nominee.`
           : survival
             ? `Select ${required} contestants for elimination consideration.`
-            : `As Leader, you must nominate ${required} housemates. Your choices remain private until you return to the house.`,
+            : `As Leader, you must nominate ${required} hubmates. Your choices remain private until you return to the Hub.`,
         consequence: isVoxPopuli
           ? isVoxFinalFour
-            ? 'The highest total joins the last-place housemate on the block. A tie expands the block.'
+            ? 'The highest total joins the last-place hubmate on the block. A tie expands the block.'
             : 'Only the aggregate totals will be revealed. Everyone tied at the qualifying cutoff is nominated.'
           : survival
             ? 'The selected contestants will enter the next elimination cycle.'
@@ -113,7 +113,7 @@ export function getRequiredConfessionalPresentation(
             : 'Cast your private vote for the nominee whose game you want to end tonight.',
         consequence: 'Once confirmed, this vote cannot be changed.',
         confirmLabel: 'Confirm',
-        confirmation: 'Your eviction vote is sealed.',
+        confirmation: 'Your elimination vote is sealed.',
         tone: 'danger',
         returnCue: 'live_vote',
       }
@@ -122,7 +122,8 @@ export function getRequiredConfessionalPresentation(
         key,
         eyebrow: dayLabel,
         title: 'Double Vote Available',
-        prompt: 'You have a stored Double Vote. Decide whether to activate it for this eviction.',
+        prompt:
+          'You have a stored Double Vote. Decide whether to activate it for this elimination.',
         consequence: 'Using it now spends the power and gives you two votes in the next step.',
         confirmLabel: 'Confirm power decision',
         confirmation: 'Your Double Vote decision is recorded.',
@@ -134,11 +135,11 @@ export function getRequiredConfessionalPresentation(
       return {
         key,
         eyebrow: dayLabel,
-        title: 'Cast Two Eviction Votes',
+        title: 'Cast Two Elimination Votes',
         prompt: 'Choose both votes. You may place both votes on one nominee or split them.',
         consequence: 'Both votes will be submitted together and cannot be changed afterward.',
         confirmLabel: 'Seal both votes',
-        confirmation: 'Both eviction votes are sealed.',
+        confirmation: 'Both elimination votes are sealed.',
         stepLabel: 'Power decision · Step 2 of 2',
         tone: 'danger',
         returnCue: 'live_vote',
@@ -212,8 +213,8 @@ export function getRequiredConfessionalPresentation(
           : game.specialVeto?.awaitingCoupReplacement2
             ? 'Name the Second Replacement'
             : 'Name a Replacement Nominee',
-        prompt: 'Select the eligible housemate who will take the open place on the block.',
-        consequence: 'The replacement will be revealed publicly when you return to the house.',
+        prompt: 'Select the eligible hubmate who will take the open place on the block.',
+        consequence: 'The replacement will be revealed publicly when you return to the Hub.',
         confirmLabel: 'Confirm replacement',
         confirmation: 'Your replacement nominee is locked.',
         stepLabel: 'Safety decision · Replacement',
@@ -237,7 +238,7 @@ export function getRequiredConfessionalPresentation(
                 : `The double-elimination vote is tied. As the LOH, select the ${required} players you want eliminated.`
             : game.awaitingPosTieBreak
               ? 'As the Power of Safety holder, you must break the tie and choose who is eliminated.'
-              : 'The house vote is tied. Choose the nominee whose game will end.',
+              : 'The Hub vote is tied. Choose the nominee whose game will end.',
         consequence:
           'Your decision directly determines the elimination result and cannot be changed.',
         confirmLabel: required > 1 ? 'Confirm eliminations' : 'Seal deciding vote',

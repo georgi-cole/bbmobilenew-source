@@ -83,7 +83,7 @@ export function getConfessionalDecisionPresentation(
     case 'double_vote':
       prompt = game.bellaWill?.extraVoteChoiceActive
         ? "Bella's Will grants you one inherited extra ballot. Choose your normal vote and Bella's extra vote."
-        : 'Choose your two eviction votes. You may vote for the same nominee twice.'
+        : 'Choose your two elimination votes. You may vote for the same nominee twice.'
       keyParts.push(
         `nominees=${game.nomineeIds.join(',')}`,
         `source=${game.bellaWill?.extraVoteChoiceActive ? 'bella' : 'stored-double'}`
@@ -171,7 +171,7 @@ export function getConfessionalDecisionPresentation(
         prompt = 'Say that you give up, and I will tell you the secret.'
       } else if (stage === 'secret_lost') {
         prompt =
-          'As Lia is no longer in the House, her secret will remain unrevealed. You are free to leave.'
+          'As Lia is no longer in the Hub, her secret will remain unrevealed. You are free to leave.'
       } else {
         prompt = 'The Big Eye wants to ask you about Lia.'
       }

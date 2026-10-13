@@ -66,8 +66,8 @@ const REALITY_DIMENSION_HELP: Record<(typeof REALITY_RELATIONSHIP_DIMENSIONS)[nu
   perceivedThreat: 'How dangerous the target appears strategically or socially.',
   reliability: 'Expectation that the target will keep promises and follow through.',
   familiarity: 'How well the actor feels they know the target.',
-  publicCloseness: 'Closeness that other houseguests or viewers can perceive.',
-  secretCloseness: 'Private closeness that may be hidden from the house.',
+  publicCloseness: 'Closeness that other hubmates or viewers can perceive.',
+  secretCloseness: 'Private closeness that may be hidden from the Hub.',
 }
 
 function HelpTooltip({ text }: { text: string }) {
@@ -587,7 +587,7 @@ export default function SocialManagerPanel() {
                       [
                         'allowActorAsSubject',
                         'Actor may be subject',
-                        'Allows the acting houseguest to also fill the secondary subject slot. Disable it to require somebody else.',
+                        'Allows the acting hubmate to also fill the secondary subject slot. Disable it to require somebody else.',
                       ],
                     ] as const
                   ).map(([key, label, help]) => (
@@ -766,7 +766,7 @@ export default function SocialManagerPanel() {
                         })
                       }
                     >
-                      <option value="houseguests">Houseguests</option>
+                      <option value="houseguests">Hubmates</option>
                       <option value="nominees">Nominees</option>
                       <option value="non_nominees">Non-nominees</option>
                       <option value="allies">Allies</option>
@@ -805,13 +805,13 @@ export default function SocialManagerPanel() {
                   />
                   <TextField
                     label="Actor roles"
-                    help="Comma-separated statuses the acting houseguest must have in normal mode, such as nominee, HOH, voter, or juror. Blank allows any actor role."
+                    help="Comma-separated statuses the acting hubmate must have in normal mode, such as nominee, LOH, voter, or Tribunal member. Blank allows any actor role."
                     value={csv(selected.requiredActorStatus)}
                     onChange={(value) => updateArray('requiredActorStatus', value)}
                   />
                   <TextField
                     label="Reality actor roles"
-                    help="Reality-specific statuses required for the acting houseguest. Use this to make an action available only to certain Reality roles."
+                    help="Reality-specific statuses required for the acting hubmate. Use this to make an action available only to certain Reality roles."
                     value={csv(selected.dramaRequiredActorStatus)}
                     onChange={(value) => updateArray('dramaRequiredActorStatus', value)}
                   />
@@ -877,7 +877,7 @@ export default function SocialManagerPanel() {
                   />
                   <NumberField
                     label="Reality maximum affinity"
-                    help="Reality Mode’s maximum actor-to-target affinity. Lower it to prevent the action between very close houseguests."
+                    help="Reality Mode’s maximum actor-to-target affinity. Lower it to prevent the action between very close hubmates."
                     value={selected.dramaMaxAffinity ?? selected.maxAffinity ?? 100}
                     min={-100}
                     max={100}
@@ -938,7 +938,7 @@ export default function SocialManagerPanel() {
                   <label className="social-manager__field">
                     <FieldLabel
                       label="Visibility"
-                      help="Who can observe or remember the Reality interaction. More public values can affect the house, viewers, ceremonies, or jury instead of only the participants."
+                      help="Who can observe or remember the Reality interaction. More public values can affect the Hub, viewers, ceremonies, or Tribunal instead of only the participants."
                     />
                     <select
                       value={contract.visibility}

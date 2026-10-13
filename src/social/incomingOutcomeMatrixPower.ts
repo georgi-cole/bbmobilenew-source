@@ -108,7 +108,7 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'ask what they need': says(
       'they need one firm vote before they can pressure the fence-sitters.'
     ),
-    'keep your options open': says('they will check back once the house numbers move again.'),
+    'keep your options open': says('they will check back once the Hub numbers move again.'),
     'say you cannot help': says('they stop counting your vote and redirect the campaign.'),
     'end the chat': acts('takes the hint and spends the remaining time on other votes.'),
   },

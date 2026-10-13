@@ -153,7 +153,7 @@ export function buildAchievementSummary(input: {
   if (rewardIds.size > 0) highlightBadges.push(`🥚 Reward hunter ×${rewardIds.size}`)
   if (doubleEvictionSurvivals > 0 || tripleEvictionSurvivals > 0) {
     highlightBadges.push(
-      `⚡ Eviction escape artist ×${doubleEvictionSurvivals + tripleEvictionSurvivals}`
+      `⚡ Elimination escape artist ×${doubleEvictionSurvivals + tripleEvictionSurvivals}`
     )
   }
 

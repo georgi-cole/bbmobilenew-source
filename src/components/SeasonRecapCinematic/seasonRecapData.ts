@@ -78,7 +78,7 @@ export interface RecapData {
 }
 
 function firstName(player: Player | null | undefined): string {
-  return player?.name.split(' ')[0] ?? 'A housemate';
+  return player?.name.split(' ')[0] ?? 'A hubmate';
 }
 
 function totalCompWins(player: Player): number {
@@ -296,7 +296,7 @@ function buildMontageBeats(players: Player[]): RecapBeat[] {
   return [
     {
       id: 'receipts',
-      title: 'THE HOUSE KEPT RECEIPTS.',
+      title: 'THE HUB KEPT RECEIPTS.',
       support: 'Every move left a mark.',
       visual: 'receipts',
     },
@@ -426,7 +426,7 @@ function buildTabloidCards(
   return [
     {
       id: 'opinions',
-      headline: 'THE HOUSE HAD OPINIONS.',
+      headline: 'THE HUB HAD OPINIONS.',
       subhead: 'Public approval did not come quietly.',
       articleText: `${firstName(subjects[0])} owned the season’s loudest headlines while every vote swing sent the crowd back to the comments.`,
       imageSources: resolveRecapTabloidSources(subjects[0], pickTabloidPhoto(subjects[0], tabloidPhotos, usedPhotoIds)),
@@ -436,9 +436,9 @@ function buildTabloidCards(
       id: 'saved_again',
       headline: 'SAVED AGAIN?',
       subhead: 'Some exits were postponed by pure chaos.',
-      articleText: `${firstName(subjects[1])} kept turning crisis weeks into survival stories, leaving the rest of the house to rework the plan overnight.`,
+      articleText: `${firstName(subjects[1])} kept turning crisis weeks into survival stories, leaving the rest of the Hub to rework the plan overnight.`,
       imageSources: resolveRecapTabloidSources(subjects[1], pickTabloidPhoto(subjects[1], tabloidPhotos, usedPhotoIds)),
-      imageAlt: subjects[1]?.name ?? 'Housemate reaction',
+      imageAlt: subjects[1]?.name ?? 'Hubmate reaction',
     },
     {
       id: 'alliances',

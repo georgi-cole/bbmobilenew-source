@@ -73,13 +73,13 @@ interface CreateFrontPageOptions {
 
 const NEWSPAPER_NAMES = [
   'The Big Eye Bulletin',
-  'House Watch Daily',
+  'Hub Watch Daily',
   'Midnight Mirror',
   'Power Play Press',
   'The Garden Gazette',
   'Live Vote Chronicle',
   'The Loft Ledger',
-  'The Eviction Echo',
+  'The Elimination Echo',
   'Alliance Observer',
   'Finale City Post',
 ]
@@ -97,8 +97,8 @@ function pickFromList<T>(list: T[], seed: number): T {
 }
 
 export function generatePlayfulHeadline(event: NewspaperSeasonEvent): HeadlineDraft {
-  const subject = fallbackName(event.subjectName, 'Mystery housemate')
-  const secondary = fallbackName(event.secondaryName, 'the house')
+  const subject = fallbackName(event.subjectName, 'Mystery hubmate')
+  const secondary = fallbackName(event.secondaryName, 'the Hub')
 
   switch (event.type) {
     case 'fan-favorite':
@@ -112,22 +112,22 @@ export function generatePlayfulHeadline(event: NewspaperSeasonEvent): HeadlineDr
       return {
         headline: `${subject} could not outrun the backlash`,
         subheadline: `${event.detail} Every glare, whisper, and side-eye kept the season’s outrage machine printing overtime.`,
-        category: 'House Fallout',
-        stamp: 'HOUSE IN CHAOS',
+        category: 'Hub Fallout',
+        stamp: 'HUB IN CHAOS',
       }
     case 'alliance':
       return {
         headline: `Secret alliance? ${subject} and ${secondary} spark fresh whispers`,
-        subheadline: `${event.detail} The house swore it was strategy, but the front page called it the season’s shadiest power pact.`,
+        subheadline: `${event.detail} The Hub swore it was strategy, but the front page called it the season’s shadiest power pact.`,
         category: 'Strategy Desk',
         stamp: 'SECRET ALLIANCE',
       }
     case 'betrayal':
       return {
-        headline: `House divided after ${subject}’s betrayal`,
+        headline: `Hub divided after ${subject}’s betrayal`,
         subheadline: `${event.detail} One late-night turn was enough to fracture trust across the entire block.`,
         category: 'Breaking Drama',
-        stamp: 'SHOCK EVICTION',
+        stamp: 'SHOCK ELIMINATION',
       }
     case 'veto':
       return {
@@ -159,7 +159,7 @@ export function generatePlayfulHeadline(event: NewspaperSeasonEvent): HeadlineDr
       }
     case 'duo':
       return {
-        headline: `${subject} and ${secondary} turn the house into a two-person headline`,
+        headline: `${subject} and ${secondary} turn the Hub into a two-person headline`,
         subheadline: `${event.detail} A bromance, a brain trust, or the season’s most dangerous duo — the papers could not decide.`,
         category: 'Inside Track',
         stamp: 'DOUBLE TAKE',
@@ -218,7 +218,7 @@ export function createNewspaperFrontPage(
     price,
     featuredImage: options.featuredImage ?? '/assets/houseguests/houseguest-1.jpg',
     featuredImageAlt:
-      options.featuredImageAlt ?? fallbackName(event.subjectName, 'Featured houseguest'),
+      options.featuredImageAlt ?? fallbackName(event.subjectName, 'Featured hubmate'),
     secondaryImage: options.secondaryImage,
     secondaryImageAlt: options.secondaryImageAlt ?? event.secondaryName,
     articleSnippets,
@@ -268,21 +268,21 @@ export const SAMPLE_SEASON_EVENTS: NewspaperSeasonEvent[] = [
     week: 5,
     type: 'betrayal',
     subjectName: 'Sage',
-    detail: 'One late veto decision split a safe majority and sent the backyard into crisis mode.',
+    detail: 'One late Safety decision split a safe majority and sent the garden into crisis mode.',
   },
   {
     id: 'sample-veto',
     week: 6,
     type: 'veto',
     subjectName: 'Aria',
-    detail: 'The ceremony ended with half the house stunned and the other half already spinning.',
+    detail: 'The ceremony ended with half the Hub stunned and the other half already spinning.',
   },
   {
     id: 'sample-chaos',
     week: 7,
     type: 'chaos',
     subjectName: 'Luca',
-    detail: 'A dinner-table argument exploded into the kind of house meeting tabloids dream about.',
+    detail: 'A dinner-table argument exploded into the kind of Hub meeting tabloids dream about.',
   },
   {
     id: 'sample-underdog',

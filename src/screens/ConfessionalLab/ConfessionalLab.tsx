@@ -99,7 +99,7 @@ export default function ConfessionalLab() {
   )
   const userPlayer = game.players.find((player) => player.isUser)
   const playerId = userPlayer?.id ?? 'user'
-  const playerName = userPlayer?.name ?? 'Housemate'
+  const playerName = userPlayer?.name ?? 'Hubmate'
 
   const currentWorld = useMemo<BigEyeWorldContext>(() => {
     const nameById = new Map(game.players.map((player) => [player.id, player.name]))
@@ -135,7 +135,7 @@ export default function ConfessionalLab() {
         !normalized.includes('evicted') &&
         !normalized.includes('eliminated') &&
         !normalized.includes('went home') &&
-        !normalized.includes('left the house')
+        !normalized.includes('left the Hub')
       ) {
         continue
       }

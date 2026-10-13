@@ -17,6 +17,7 @@ import {
   commitRealityDomainUpdate,
   dismissIncomingInteraction,
   replaceRealityDomain,
+  recordIncomingInteractionFollowUp,
   resolveIncomingInteractionsByDeadline,
   resolveIncomingInteraction,
   updateRelationship,
@@ -48,6 +49,7 @@ import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import type {
   IncomingInteraction,
   IncomingInteractionResponseType,
+  IncomingInteractionResponseAction,
   IncomingInteractionType,
 } from './types'
 import { formatIntelLeadText, makeIntelMemory, selectIntelFactForActor } from './intelligenceSystem'
@@ -59,7 +61,7 @@ const TYPE_LABELS: Record<IncomingInteractionType, string> = {
   compliment: 'compliment',
   gossip: 'gossip',
   warning: 'warning',
-  alliance_proposal: 'alliance proposal',
+  alliance_proposal: 'personal pact offer',
   deal_offer: 'deal offer',
   nomination_plea: 'nomination plea',
   check_in: 'check-in',
@@ -483,6 +485,15 @@ function resolveRealityIncomingInteraction(
 
 export function getIncomingInteractionTypeLabel(type: IncomingInteractionType): string {
   return TYPE_LABELS[type]
+}
+
+function getPersonalPactPlanReply(interaction: IncomingInteraction, fromName: string): string {
+  const authoredPlan = interaction.payload?.personalPactPlan
+  const plan =
+    typeof authoredPlan === 'string' && authoredPlan.trim()
+      ? authoredPlan.trim()
+      : 'I want us to share strategic reads and warn each other when plans shift. We would discuss a target before treating it as a shared decision.'
+  return `${fromName} explains: “${plan}” No target or vote is agreed yet; the personal pact offer remains open.`
 }
 
 function getResponseDelta(
@@ -1057,7 +1068,8 @@ function applyIncomingChoiceConsequences({
           state.social.reality,
           interaction.fromId,
           humanPlayer.id,
-          currentWeek
+          currentWeek,
+          state.game.players
         )
       : null
   const sharedFact =
@@ -1161,10 +1173,12 @@ export function respondToIncomingInteraction({
   interactionId,
   responseType,
   responseLabel,
+  responseAction,
 }: {
   interactionId: string
   responseType: IncomingInteractionResponseType
   responseLabel?: string
+  responseAction?: IncomingInteractionResponseAction
 }) {
   return (dispatch: AppDispatch, getState: () => RootState): void => {
     const state = getState()
@@ -1178,10 +1192,31 @@ export function respondToIncomingInteraction({
     const resolvedAt = Date.now()
     const realityBeforeResponse = state.social.reality
 
-    if (
-      isIncomingInteractionOverdue(interaction, { day: currentWeek, phase: state.game.phase }) ||
-      isIncomingInteractionInvalidated(interaction, state.game, state.social.reality)
-    ) {
+    const overdue = isIncomingInteractionOverdue(interaction, {
+      day: currentWeek,
+      phase: state.game.phase,
+    })
+    const invalidated = isIncomingInteractionInvalidated(
+      interaction,
+      state.game,
+      state.social.reality
+    )
+    if (overdue || invalidated) {
+      if (interaction.type === 'alliance_proposal') {
+        dispatch(
+          resolveIncomingInteraction({
+            interactionId,
+            resolvedWith: overdue ? 'ignore' : 'dismiss',
+            resolvedLabel: overdue ? 'Expired' : 'No longer available',
+            outcomeText: overdue
+              ? 'The personal pact offer expired unanswered. No pact was formed.'
+              : 'This personal pact offer is no longer available. No pact was formed.',
+            resolvedAt,
+            resolvedWeek: currentWeek,
+          })
+        )
+        return
+      }
       dispatch(
         dismissIncomingInteraction({
           interactionId,
@@ -1190,6 +1225,44 @@ export function respondToIncomingInteraction({
         })
       )
       return
+    }
+
+    if (interaction.type === 'alliance_proposal' && responseAction) {
+      if (responseType !== 'neutral') return
+      if (responseAction === 'ask_plan') {
+        dispatch(
+          recordIncomingInteractionFollowUp({
+            interactionId,
+            action: 'ask_plan',
+            outcomeText: getPersonalPactPlanReply(
+              interaction,
+              getState().game.players.find((player) => player.id === interaction.fromId)?.name ??
+                interaction.fromId
+            ),
+          })
+        )
+        return
+      }
+      if (responseAction === 'need_time') {
+        if (interaction.payload?.pactTimeRequested === true) return
+        const extendedDeadline = {
+          day: currentWeek + 1,
+          phase: 'social_2',
+          policy: 'AUTO_IGNORE' as const,
+        }
+        const fromName =
+          getState().game.players.find((player) => player.id === interaction.fromId)?.name ??
+          interaction.fromId
+        dispatch(
+          recordIncomingInteractionFollowUp({
+            interactionId,
+            action: 'need_time',
+            deadline: extendedDeadline,
+            outcomeText: `You asked ${fromName} for time. The offer stays open through Day ${extendedDeadline.day}'s final campaign window.`,
+          })
+        )
+        return
+      }
     }
 
     if (interaction.type === 'alliance_proposal') {
@@ -1211,7 +1284,9 @@ export function respondToIncomingInteraction({
           ? activePact
             ? 'Your personal pact is now active. Other groups and pacts are unchanged.'
             : 'This pact could not be finalized. Check your current pact limit and request status.'
-          : 'The personal pact proposal was declined. No membership changed.'
+          : responseType === 'decline'
+            ? 'You declined the personal pact offer. No pact was formed.'
+            : 'The personal pact offer was closed without a decision. No pact was formed.'
       settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
       dispatch(
         resolveIncomingInteraction({

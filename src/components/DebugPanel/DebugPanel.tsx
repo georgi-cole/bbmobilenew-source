@@ -444,7 +444,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                 <dt>Replacement?</dt> <dd>{game.replacementNeeded ? 'yes' : 'no'}</dd>
                 <dt>Minigame?</dt> <dd>{game.pendingMinigame ? game.pendingMinigame.key : '—'}</dd>
                 <dt>Alive</dt> <dd>{alive.length}</dd>
-                <dt>Evicted</dt> <dd>{evicted.length}</dd>
+                <dt>Eliminated</dt> <dd>{evicted.length}</dd>
               </dl>
               <button
                 className="dbg-btn dbg-btn--wide"
@@ -582,7 +582,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                   className="dbg-btn dbg-btn--wide"
                   onClick={() => dispatch(fastForwardToEviction())}
                 >
-                  Fast-fwd → Eviction
+                  Fast-fwd → Elimination
                 </button>
                 <button
                   className="dbg-btn dbg-btn--wide"
@@ -697,9 +697,9 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               </div>
 
               <div className="dbg-row dbg-row--col">
-                <label className="dbg-label">Player House Status</label>
+                <label className="dbg-label">Player Hub Status</label>
                 <select
-                  aria-label="Player House Status"
+                  aria-label="Player Hub Status"
                   className="dbg-select"
                   value={selectedStatusPlayer}
                   onChange={(e) => setSelectedStatusPlayer(e.target.value)}
@@ -732,7 +732,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                       )
                     }
                   >
-                    Set Pre-jury Evicted
+                    Set Pre-jury Eliminated
                   </button>
                   <button
                     className="dbg-btn"
@@ -1103,13 +1103,13 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               {/* Final 4 eviction pick (debug) */}
               {game.phase === 'final4_eviction' && f4Nominees.length > 0 && (
                 <div className="dbg-row">
-                  <label className="dbg-label">F4 Evict</label>
+                  <label className="dbg-label">F4 Eliminate</label>
                   <select
                     className="dbg-select"
                     value={selectedF4Evictee}
                     onChange={(e) => setSelectedF4Evictee(e.target.value)}
                   >
-                    <option value="">— pick evictee —</option>
+                    <option value="">— pick eliminated player —</option>
                     {f4Nominees.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}

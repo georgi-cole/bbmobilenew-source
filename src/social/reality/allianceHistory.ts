@@ -138,7 +138,7 @@ export function allianceEventText(
     case 'ALLIANCE_MEMBER_DEFECTED':
       return `${target} defected from ${name}.`
     case 'ALLIANCE_MEMBER_EVICTED':
-      return `${target} left ${name} after eviction.`
+      return `${target} left ${name} after elimination.`
     case 'ALLIANCE_MEMBER_EXPELLED':
       return `${actor} removed ${target === 'You' ? 'you' : target} from ${name}.`
     case 'ALLIANCE_RENAMED':
@@ -162,7 +162,7 @@ export function allianceEventText(
           listedPerson
         )}.`
       if (reason === 'TOO_FEW_MEMBERS')
-        return `${name} dissolved after ${target === 'You' ? 'you' : target} ${event.allianceSnapshot?.exitKind === 'EXPELLED' ? 'was removed' : event.allianceSnapshot?.exitKind === 'EVICTED' ? 'left the game' : 'left'}; too few members remained.`
+        return `${name} dissolved after ${target === 'You' ? 'you' : target} ${event.allianceSnapshot?.exitKind === 'EXPELLED' ? 'was removed' : event.allianceSnapshot?.exitKind === 'ELIMINATED' ? 'left the game' : 'left'}; too few members remained.`
       return `${name} ended${reason === 'SUPERSEDED' ? ' when it was replaced' : reason === 'RECONCILED' ? ' when the pact was renewed' : ''}.`
     }
     case 'ALLIANCE_REQUEST_SUBMITTED':

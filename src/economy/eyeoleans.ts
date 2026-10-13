@@ -140,7 +140,7 @@ export function computeSeasonEyeoleanRewards(
     addReward(
       rewards,
       'survived_double_eviction',
-      'Survived double eviction',
+      'Survived double elimination',
       1,
       EYEOLEAN_REWARD_AMOUNTS.survivedDoubleEviction
     )
@@ -149,7 +149,7 @@ export function computeSeasonEyeoleanRewards(
     addReward(
       rewards,
       'survived_triple_eviction',
-      'Survived triple eviction',
+      'Survived triple elimination',
       1,
       EYEOLEAN_REWARD_AMOUNTS.survivedTripleEviction
     )

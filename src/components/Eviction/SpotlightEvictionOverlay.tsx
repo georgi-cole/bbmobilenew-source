@@ -307,7 +307,7 @@ export default function SpotlightEvictionOverlay({
     }
 
     if (isReturn) {
-      dbg('mount – reverse eviction holding')
+      dbg('mount – reverse elimination holding')
       timers.push(
         setTimeout(() => {
           setShowReturnStrike(false)
@@ -486,9 +486,7 @@ export default function SpotlightEvictionOverlay({
       role="dialog"
       aria-modal="true"
       aria-label={
-        isReturn
-          ? `${evictee.name} is returning to the house`
-          : `${evictee.name} has been eliminated`
+        isReturn ? `${evictee.name} is returning to the Hub` : `${evictee.name} has been eliminated`
       }
       data-exit-presentation={exitPresentation}
     >
@@ -673,7 +671,7 @@ export default function SpotlightEvictionOverlay({
           className="seo__skip-btn"
           onClick={fire}
           type="button"
-          aria-label="Skip eviction animation (dev only)"
+          aria-label="Skip elimination animation (dev only)"
         >
           ⏭ Skip
         </button>

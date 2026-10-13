@@ -48,7 +48,7 @@ export const FORCED_SHOCK_CRITICAL_RULES = {
   battleBack: {
     changes: ['roster_eligibility'],
     rationale:
-      'A juror can return to active play; nomination and eviction rules are otherwise unchanged.',
+      'A Tribunal member can return to active play; nomination and elimination rules are otherwise unchanged.',
     voxCompatible: false,
   },
   vip: {
@@ -70,7 +70,7 @@ export const FORCED_SHOCK_CRITICAL_RULES = {
   spotlight: {
     changes: ['safety_replacement'],
     rationale:
-      'Force Majeure forces Safety use but does not change who casts the later eviction ballot.',
+      'Force Majeure forces Safety use but does not change who casts the later elimination ballot.',
     voxCompatible: false,
   },
   democracia: {
@@ -81,12 +81,12 @@ export const FORCED_SHOCK_CRITICAL_RULES = {
       'tie_breaker',
     ],
     rationale:
-      'The house elects leadership; a tied election can create co-LOHs who split nominations and are both excluded from the ordinary eviction ballot.',
+      'The Hub elects leadership; a tied election can create co-LOHs who split nominations and are both excluded from the ordinary elimination ballot.',
     voxCompatible: false,
   },
   dayStartShock: {
     changes: ['eviction_authority'],
-    rationale: 'A direct production removal bypasses nominations and the house vote for that exit.',
+    rationale: 'A direct production removal bypasses nominations and the Hub vote for that exit.',
     voxCompatible: true,
   },
   twinShock: {
@@ -98,7 +98,7 @@ export const FORCED_SHOCK_CRITICAL_RULES = {
   depressionShock: {
     changes: ['strategy_only'],
     rationale:
-      'Decision preferences can invert, but eligibility, vote authority, and eviction authority do not change.',
+      'Decision preferences can invert, but eligibility, vote authority, and elimination authority do not change.',
     voxCompatible: true,
   },
 } satisfies Record<ForcedShockType, CriticalShockRuleDeclaration>
@@ -108,7 +108,7 @@ export const FORMAT_CRITICAL_RULES = {
   publicMode: {
     changes: ['nomination_count', 'safety_replacement'],
     rationale:
-      'Adds an automatic third nominee and public pre-Safety save; the later house vote remains Classic.',
+      'Adds an automatic third nominee and public pre-Safety save; the later Hub vote remains Classic.',
   },
   cupidArrow: {
     changes: [
@@ -128,7 +128,7 @@ export const FORMAT_CRITICAL_RULES = {
       'tie_breaker',
     ],
     rationale:
-      'Every active housemate nominates; the audience, not the house or LOH, controls eviction.',
+      'Every active hubmate nominates; the audience, not the Hub or LOH, controls elimination.',
   },
 } as const satisfies Record<string, CriticalRuleDeclaration>
 

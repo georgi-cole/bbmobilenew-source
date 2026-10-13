@@ -42,7 +42,7 @@ const CATEGORIES: GameCategory[] = ['arcade', 'logic', 'trivia', 'endurance']
 
 function initialConfig(): RemoteConfig {
   return {
-    broadcast: { enabled: false, title: 'Big Brother Update', message: '', priority: 'normal' },
+    broadcast: { enabled: false, title: 'The Big Eye Update', message: '', priority: 'normal' },
     broadcastManager: { enabled: false, overrides: {}, customMessages: [] },
     season: { music: { tracks: [] } },
     gameManager: { enabled: false, rules: [] },

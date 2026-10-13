@@ -884,7 +884,7 @@ export default function FamousFiguresComp({
       {/* Narration */}
       <p className="ff-narration" aria-live="polite">
         {humanCorrect
-          ? 'Correct — waiting for the other housemates.'
+          ? 'Correct — waiting for the other hubmates.'
           : pickLine(NARRATION.roundStart, ff.currentRound)}
       </p>
 

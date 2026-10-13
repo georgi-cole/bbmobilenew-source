@@ -189,7 +189,7 @@ const WORD_BANK: WordEntry[] = [
     hints: [
       'Something most contestants would rather not receive.',
       "It is assigned during one of the game's formal ceremonies.",
-      'The Leader of House uses their power to place contestants in danger.',
+      'The Leader of the Hub uses their power to name the nominees.',
     ],
   },
   {
@@ -369,19 +369,19 @@ const WORD_BANK: WordEntry[] = [
     ],
   },
   {
-    text: 'eviction night',
+    text: 'elimination night',
     category: 'game',
     difficulty: 5,
     parSeconds: 58,
     finalEligible: true,
     hints: [
-      "Someone's place in the house is at risk.",
+      "Someone's place in the Hub is at risk.",
       'Votes and nominations reach their consequence during this event.',
-      'The ceremony or episode in which a contestant is removed from the house.',
+      'The ceremony or episode in which a contestant is removed from the Hub.',
     ],
   },
   {
-    text: 'leader of house',
+    text: 'leader of the hub',
     category: 'authority',
     difficulty: 5,
     parSeconds: 60,
@@ -389,7 +389,7 @@ const WORD_BANK: WordEntry[] = [
     hints: [
       'The title grants temporary authority.',
       'This player influences danger for the current cycle.',
-      'The weekly power-holder who makes nominations and leads the house.',
+      'The weekly power-holder who makes nominations and leads the Hub.',
     ],
   },
   {
@@ -461,7 +461,7 @@ const WORD_BANK: WordEntry[] = [
     hints: [
       'Belonging is the problem.',
       'The person is isolated from the group rather than integrated into it.',
-      "A contestant pushed to the edge of the house's social network.",
+      "A contestant pushed to the edge of the Hub's social network.",
     ],
   },
   {
@@ -495,7 +495,7 @@ const WORD_BANK: WordEntry[] = [
     parSeconds: 56,
     finalEligible: true,
     hints: [
-      'The house does not decide this status by itself.',
+      'The Hub does not decide this status by itself.',
       'Viewer affection can protect or reward the contestant who holds it.',
       'The contestant currently receiving the strongest audience support.',
     ],

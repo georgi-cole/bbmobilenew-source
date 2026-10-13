@@ -31,7 +31,7 @@ export function currentPressure(context: IncomingOutcomeContext): string {
     return `${fromName} says they are worried they are being kept as the pawn.`
   }
   if (senderIsNominated && ['social_2', 'live_vote'].includes(phase)) {
-    return `${fromName} says they feel the house is against them.`
+    return `${fromName} says they feel the Hub is against them.`
   }
   if (['week_start', 'loh_comp', 'loh_results', 'social_1', 'nominations'].includes(phase)) {
     return `${fromName} says they are worried about the upcoming nominations.`

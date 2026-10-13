@@ -32,7 +32,7 @@ const INTEL_BEATS: BeatSet = {
   ],
   negative: [
     '"Fair. I will not push a rumour you do not want to hear — but I will remember who you were quick to protect."',
-    '"If you think I am fishing, leave it there. I would rather keep a weak lead private than turn it into house noise."',
+    '"If you think I am fishing, leave it there. I would rather keep a weak lead private than turn it into Hub noise."',
   ],
   dismiss: [
     '"Then forget I raised it. I will take the next piece of this to someone who wants the risk."',
@@ -42,7 +42,7 @@ const INTEL_BEATS: BeatSet = {
 
 const CAMPAIGN_BEATS: BeatSet = {
   positive: [
-    '"My case is that I am a number you can work with, while the people pushing my name have more to gain from a fractured house. If you keep me safe, I will show you that in the next decision."',
+    '"My case is that I am a number you can work with, while the people pushing my name have more to gain from a divided Hub. If you keep me safe, I will show you that in the next decision."',
     '"I am not asking you to save me out of guilt. I am asking you to look at who benefits if I go, because it is not your game."',
   ],
   neutral: [
@@ -73,7 +73,7 @@ const ALLIANCE_BEATS: BeatSet = {
     '"That is clear enough. I would rather have an honest no than build a plan on something neither of us means."',
   ],
   dismiss: [
-    '"I will take that as no answer for now. If the house changes, we can see whether there is still a reason to talk."',
+    '"I will take that as no answer for now. If the Hub changes, we can see whether there is still a reason to talk."',
     '"All right. I will make my next move without assuming you are part of it."',
   ],
 }
@@ -81,7 +81,7 @@ const ALLIANCE_BEATS: BeatSet = {
 const REPAIR_BEATS: BeatSet = {
   positive: [
     '"Thank you for saying that. I did not need a perfect apology; I needed to know you saw why it landed badly."',
-    '"That helps. I am still hurt, but I would rather deal with it directly than let the house write the story for us."',
+    '"That helps. I am still hurt, but I would rather deal with it directly than let the Hub write the story for us."',
   ],
   neutral: [
     '"I hear the explanation. I am not ready to call it fixed, but at least I know you are not pretending nothing changed."',
@@ -119,7 +119,7 @@ const POWER_BEATS: BeatSet = {
 const CONNECTION_BEATS: BeatSet = {
   positive: [
     '"That is the first honest answer I have had all day. I do not need us to agree on everything; I needed to know I was not guessing alone."',
-    '"Thank you for meeting me halfway. It makes it easier to bring the next concern to you instead of carrying it around the house."',
+    '"Thank you for meeting me halfway. It makes it easier to bring the next concern to you instead of carrying it around the Hub."',
   ],
   neutral: [
     '"I can live with careful. Just do not ask me to read between the lines and call it trust."',

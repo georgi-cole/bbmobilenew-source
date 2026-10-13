@@ -312,7 +312,7 @@ function upsertAlliance(
     phase: 'social',
     participantIds: [actorId, targetId],
     title: 'A quiet deal was struck',
-    text: 'Two housemates agreed to work together, but loyalty will be proven by actions.',
+    text: 'Two hubmates agreed to work together, but loyalty will be proven by actions.',
     detail: 'The pact is private until someone shares it, spies on it, or exposes it.',
     consequence: 'Future votes, safety decisions and betrayals will test the agreement.',
     public: false,
@@ -346,7 +346,7 @@ function discoverSecretArc(
     phase,
     participantIds: [spyId, ...arc.participantIds],
     title: 'Caught away from the cameras',
-    text: `A housemate spotted signs of a secret ${arc.type}.`,
+    text: `A hubmate spotted signs of a secret ${arc.type}.`,
     detail: 'Only the witness and the people involved know this has been seen, for now.',
     consequence: 'The witness can keep the secret, trade it, or let the rumour travel.',
     relatedArcId: arc.id,
@@ -361,7 +361,7 @@ function discoverSecretArc(
     arc.type === 'romance' ? 'secret_romance' : 'secret_alliance',
     'true',
     week,
-    `A hidden ${arc.type} links the two housemates who were spotted together.`
+    `A hidden ${arc.type} links the two hubmates who were spotted together.`
   )
   return arc
 }
@@ -501,7 +501,7 @@ export function applyDramaActionEffect(
         participantIds: [...arc.participantIds],
         title: 'No more hiding',
         text: `${input.actorName ?? input.actorId} and ${input.targetName ?? input.targetId} made their romance public.`,
-        detail: 'The house now knows the bond is personal as well as strategic.',
+        detail: 'The Hub now knows the bond is personal as well as strategic.',
         consequence: 'Affection can create loyalty and make both players a visible pair.',
         relatedArcId: arc.id,
         public: true,
@@ -526,7 +526,7 @@ export function applyDramaActionEffect(
         phase: input.phase,
         participantIds: [...arc.participantIds],
         title: endingType === 'romance' ? 'The romance ended' : 'The pact ended',
-        text: `One housemate called time on the ${endingType}.`,
+        text: `One hubmate called time on the ${endingType}.`,
         consequence: 'Old closeness can become distance, resentment, or a future repair.',
         relatedArcId: arc.id,
         public: arc.public,
@@ -562,7 +562,7 @@ export function applyDramaActionEffect(
       week: input.week,
       phase: input.phase,
       participantIds: [input.actorId, input.targetId],
-      text: `HOUSE SHOCK: ${input.actorName ?? input.actorId} called out ${input.targetName ?? input.targetId} in front of everyone.`,
+      text: `HUB SHOCK: ${input.actorName ?? input.actorId} called out ${input.targetName ?? input.targetId} in front of everyone.`,
       public: true,
       severity: 'major',
     })
@@ -638,9 +638,9 @@ export function applyDramaActionEffect(
         week: input.week,
         phase: input.phase,
         participantIds: participants,
-        title: 'House Exposed',
+        title: 'Hub Exposed',
         text: revelation,
-        detail: `${input.actorName ?? input.actorId} brought the receipts to the whole house.`,
+        detail: `${input.actorName ?? input.actorId} brought the receipts to everyone in the Hub.`,
         consequence: 'Trust, targeting and any overlapping relationships will react to the reveal.',
         relatedArcId: knownArc?.id,
         relatedRumourId: rumour?.id,
@@ -794,7 +794,7 @@ export function advanceDramaNetwork(input: DramaAdvanceInput): DramaAdvanceResul
       })
       if (canGoPublic) {
         arc.public = true
-        publicAnnouncement = `HOUSE SHOCK: ${line}`
+        publicAnnouncement = `HUB SHOCK: ${line}`
         network.pacing.publicEventsThisWeek += 1
         network.pacing.lastPublicEventWeek = input.week
       }
@@ -1033,7 +1033,7 @@ export function advanceDramaNetwork(input: DramaAdvanceInput): DramaAdvanceResul
       )
       if (relatedArc) relatedArc.public = true
       const line = relatedArc
-        ? `HOUSE EXPOSED: ${relatedArc.participantIds.map((id) => input.players.find((player) => player.id === id)?.name ?? id).join(' and ')} have been hiding a ${relatedArc.type}.`
+        ? `HUB EXPOSED: ${relatedArc.participantIds.map((id) => input.players.find((player) => player.id === id)?.name ?? id).join(' and ')} have been hiding a ${relatedArc.type}.`
         : pickDramaCopy(DRAMA_DIALOGUE_BANK.exposure[rumour.kind], rumour.id)
       publicAnnouncement = relatedArc
         ? line
@@ -1046,7 +1046,7 @@ export function advanceDramaNetwork(input: DramaAdvanceInput): DramaAdvanceResul
           new Set([rumour.originatorId, rumour.subjectId, ...(relatedArc?.participantIds ?? [])])
         ),
         text: publicAnnouncement,
-        title: 'House Exposed',
+        title: 'Hub Exposed',
         detail: rumour.claim,
         consequence:
           rumour.truth === 'false'

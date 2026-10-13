@@ -22,11 +22,11 @@ export const VOX_POPULI_RULES: VoxRuleSection[] = [
   },
   {
     title: 'Secret nominations',
-    intro: 'Every eligible housemate enters the Confessional and privately names two people, except during the Final 4 vote.',
+    intro: 'Every eligible hubmate enters the Confessional and privately names two people, except during the Final 4 vote.',
     cards: [
       { kicker: 'TWO PICKS', title: 'Nominate in secret', copy: 'You cannot nominate yourself, the immunity winner, or the last-place nominee.' },
       { kicker: 'THE BLOCK', title: 'Highest totals lose safety', copy: 'The two highest vote totals are nominated. Everyone tied at the cutoff joins them.' },
-      { kicker: 'THE COUNT', title: 'Totals are revealed', copy: 'The house sees the nomination result, not who cast each ballot—unless a reveal is unlocked.' },
+      { kicker: 'THE COUNT', title: 'Totals are revealed', copy: 'The Hub sees the nomination result, not who cast each ballot—unless a reveal is unlocked.' },
     ],
   },
   {
@@ -40,16 +40,16 @@ export const VOX_POPULI_RULES: VoxRuleSection[] = [
   },
   {
     title: 'The audience decides',
-    intro: 'Housemates nominate. The audience eliminates.',
+    intro: 'Hubmates nominate. The audience eliminates.',
     cards: [
-      { kicker: 'PUBLIC VOTE', title: 'Vote to eliminate', copy: 'The nominee with the highest share of the audience vote leaves the house.' },
+      { kicker: 'PUBLIC VOTE', title: 'Vote to eliminate', copy: 'The nominee with the highest share of the audience vote leaves the Hub.' },
       { kicker: 'DOUBLE', title: 'Two can leave', copy: 'A Double Elimination needs at least three nominees; the two highest public totals are eliminated.' },
       { kicker: 'PUBLIC MODE', title: 'Read the pulse', copy: 'Public Mode shows popularity and strategy hints. It never saves a nominee or changes the official vote.' },
     ],
   },
   {
     title: 'The endgame',
-    intro: 'There is no Tribunal and no house vote at the finish.',
+    intro: 'There is no Tribunal and no Hub vote at the finish.',
     cards: [
       { kicker: 'FINAL 3', title: 'One immunity, one exit', copy: 'The challenge winner is immune. The audience eliminates one of the other two.' },
       { kicker: 'FINAL 2', title: 'Crown the winner', copy: 'The audience votes between the final two and crowns the season winner. The complete season recap follows the result.' },
@@ -59,4 +59,4 @@ export const VOX_POPULI_RULES: VoxRuleSection[] = [
 ]
 
 export const VOX_POPULI_INFO_SUMMARY =
-  'Housemates nominate in secret. The audience eliminates. Win immunity, survive the ballot, and keep the public on your side.'
+  'Hubmates nominate in secret. The audience eliminates. Win immunity, survive the ballot, and keep the public on your side.'

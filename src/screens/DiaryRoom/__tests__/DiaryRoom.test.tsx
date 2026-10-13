@@ -1116,8 +1116,8 @@ describe('DiaryRoom', () => {
     expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull()
   })
 
-  it('reveals the vote chart after accepting the confessional vote breakdown', async () => {
-    renderDiaryRoom(['/game', '/diary-room'], {
+  it('keeps the vote chart only for the current Confessional visit', async () => {
+    renderDiaryRoomWithEscapeRoute(['/game', '/diary-room'], {
       setupStore: (appStore) => {
         const game = (appStore.getState() as RootState).game
         saveEvictionVoteBreakdownUnlock({
@@ -1146,9 +1146,81 @@ describe('DiaryRoom', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
 
-    expect(screen.getByLabelText(/eviction vote breakdown/i)).toBeTruthy()
+    expect(screen.getByLabelText(/elimination vote breakdown/i)).toBeTruthy()
     expect(screen.getByText(/who voted for whom/i)).toBeTruthy()
     expect(screen.getByText(/then look closely\. the curtain is lifting now\./i)).toBeTruthy()
+    expect(loadEvictionVoteBreakdownUnlock()).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /leave route/i }))
+
+    expect(screen.getByText('Game route')).toBeTruthy()
+    expect(screen.queryByLabelText(/elimination vote breakdown/i)).toBeNull()
+    expect(loadEvictionVoteBreakdownUnlock()).toBeNull()
+  })
+
+  it('clears an open vote chart when a mandatory Twin Shock response takes priority', async () => {
+    const { store } = renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (appStore) => {
+        const game = (appStore.getState() as RootState).game
+        saveEvictionVoteBreakdownUnlock({
+          gameId: game.gameId,
+          week: 5,
+          phase: 'eviction_results',
+          votes: { [game.players[1].id]: game.players[2].id },
+          nomineeIds: [game.players[2].id, game.players[4].id],
+          evicteeId: game.players[2].id,
+          status: 'available',
+        })
+        appStore.dispatch(hydrateGame({ ...game, phase: 'eviction_results', week: 5 }))
+      },
+    })
+
+    await flushConversationTimers()
+    fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
+    expect(screen.getByLabelText(/elimination vote breakdown/i)).toBeTruthy()
+
+    const game = store.getState().game
+    act(() => {
+      store.dispatch(
+        hydrateGame({
+          ...game,
+          twinShock: {
+            status: 'day4_asked_no_correct_guess',
+            promptStage: 'day5_final',
+            queuedDay: 4,
+            retryCount: 0,
+            cluesShownDays: [],
+            pendingRevealAnimation: null,
+          },
+        })
+      )
+    })
+
+    expect(screen.getByTestId('twin-shock-required-response')).toBeTruthy()
+    expect(screen.queryByLabelText(/elimination vote breakdown/i)).toBeNull()
+    expect(loadEvictionVoteBreakdownUnlock()).toBeNull()
+    expect(store.getState().game.twinShock?.promptStage).toBe('day5_final')
+  })
+
+  it('drops vote charts left revealed by an older Confessional session', () => {
+    renderDiaryRoom(['/game', '/diary-room'], {
+      setupStore: (appStore) => {
+        const game = (appStore.getState() as RootState).game
+        saveEvictionVoteBreakdownUnlock({
+          gameId: game.gameId,
+          week: 2,
+          phase: 'eviction_results',
+          votes: { [game.players[1].id]: game.players[2].id },
+          nomineeIds: [game.players[2].id, game.players[4].id],
+          evicteeId: game.players[2].id,
+          status: 'revealed',
+        })
+        appStore.dispatch(hydrateGame({ ...game, week: 2, phase: 'week_end' }))
+      },
+    })
+
+    expect(screen.queryByLabelText(/elimination vote breakdown/i)).toBeNull()
+    expect(loadEvictionVoteBreakdownUnlock()).toBeNull()
   })
 
   it('consumes the Faux-TV confessional reminder when the vote breakdown is opened', async () => {
@@ -1347,7 +1419,7 @@ describe('DiaryRoom', () => {
     expect(screen.queryByText(/are you ready to peek behind the curtain/i)).toBeNull()
     expect(loadEvictionVoteBreakdownUnlock()).toMatchObject({ status: 'declined' })
     expect(store.getState().game.tvFeed[0]?.text).toBe(
-      "It's getting quiet in the house. Sandman on the way?"
+      "It's getting quiet in the Hub. Sandman on the way?"
     )
   })
 })

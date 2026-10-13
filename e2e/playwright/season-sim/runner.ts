@@ -130,7 +130,7 @@ async function resolveConfessional(page: Page): Promise<boolean> {
     else return false
   }
   const session = page.getByTestId('required-confessional-session')
-  const returnHome = session.getByRole('button', { name: 'Return to the House' })
+  const returnHome = session.getByRole('button', { name: 'Return to the Hub' })
   await expect(returnHome).toBeVisible({ timeout: UI_TIMEOUT })
   await returnHome.click()
   return true

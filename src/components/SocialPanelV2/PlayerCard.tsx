@@ -32,6 +32,8 @@ interface PlayerCardProps {
   /** A short-lived visual receipt for a relationship change just made by the player. */
   relationshipPulseDelta?: number
   relationshipTags?: readonly string[]
+  /** Human-readable labels derived from current formal pact/group records. */
+  relationshipBondLabels?: readonly string[]
   cupidPartner?: {
     name: string
     color: string
@@ -72,6 +74,7 @@ export default function PlayerCard({
   affinityDelta,
   relationshipPulseDelta,
   relationshipTags = [],
+  relationshipBondLabels,
   cupidPartner,
 }: PlayerCardProps) {
   const { t } = useI18n()
@@ -101,6 +104,11 @@ export default function PlayerCard({
   const positiveBondIsCurrent = !hasBetrayal && !hasBrokenRomance && !hasBrokenAlliance
   const newAlliance = relationshipTags.includes('new_alliance')
   const strainedAlliance = relationshipTags.includes('strained_alliance')
+  const bondLabels =
+    relationshipBondLabels ??
+    (relationshipTags.includes(ALLIANCE_TAG)
+      ? [newAlliance ? 'New alliance' : strainedAlliance ? 'Strained alliance' : 'Ally']
+      : [])
 
   function handleClick(e: React.MouseEvent) {
     if (disabled) return
@@ -183,12 +191,13 @@ export default function PlayerCard({
             </span>
           )}
           <span className={`pc__mood pc__mood--${moodClass}`}>{mood}</span>
-          {positiveBondIsCurrent && relationshipTags.includes(ALLIANCE_TAG) && (
-            <span className="pc__bond-chip pc__bond-chip--ally">
-              {'\uD83E\uDD1D '}
-              {newAlliance ? 'New alliance' : strainedAlliance ? 'Strained alliance' : 'Ally'}
-            </span>
-          )}
+          {positiveBondIsCurrent &&
+            bondLabels.map((label) => (
+              <span key={label} className="pc__bond-chip pc__bond-chip--ally">
+                {'\uD83E\uDD1D '}
+                {label}
+              </span>
+            ))}
           {positiveBondIsCurrent && relationshipTags.includes('cupid_partner') && (
             <span className="pc__bond-chip pc__bond-chip--romance">
               {'\uD83D\uDC98 Cupid pair'}

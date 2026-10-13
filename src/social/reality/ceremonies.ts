@@ -804,7 +804,7 @@ export function finalizeRealityVote(
     day: at.day,
     phase: at.phase,
     witnessIds: [],
-    reason: 'An individual eviction vote was revealed.',
+    reason: 'An individual elimination vote was revealed.',
     publicEligible: false,
   })
   const relationshipTags = (candidateId: string) =>
@@ -1159,7 +1159,7 @@ export function generateRealityJuryQuestion(evaluation: RealityJuryEvaluation): 
   const weaknesses = [
     {
       value: evaluation.betrayalResentment,
-      text: 'Which betrayal do you regret most, and why should the jury forgive it?',
+      text: 'Which betrayal do you regret most, and why should the Tribunal forgive it?',
     },
     {
       value: 100 - evaluation.ownership,

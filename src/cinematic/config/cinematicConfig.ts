@@ -164,7 +164,7 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
     fromSecond: 28.8,
     toSecond: 31.5,
     lines: [
-      { text: 'Housemates theme by:', style: 'label' },
+      { text: 'Hubmates theme by:', style: 'label' },
       { text: 'Jay Someday - Midnight', style: 'name', gapBefore: true },
     ],
   },

@@ -193,7 +193,7 @@ export default function ActionGrid({
     const eligibility = getContextEligibility(action)
     return (
       !eligibility.eligible &&
-      eligibility.reason === 'Both housemates must be 18 or older.' &&
+      eligibility.reason === 'Both hubmates must be 18 or older.' &&
       (selectedTargetIds?.size ?? 0) === 1
     )
   }

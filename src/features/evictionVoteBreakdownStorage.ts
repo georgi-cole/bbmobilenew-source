@@ -30,7 +30,15 @@ export function buildEvictionVoteBreakdownPlayerNamesById(
 export function loadEvictionVoteBreakdownUnlock(): EvictionVoteBreakdownUnlock | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as EvictionVoteBreakdownUnlock) : null
+    if (!raw) return null
+    const unlock = JSON.parse(raw) as EvictionVoteBreakdownUnlock
+    // Older versions persisted a revealed chart for the whole day/weekend.
+    // Revealed data is now view-local, so consume any stale record on read.
+    if (unlock.status === 'revealed') {
+      sessionStorage.removeItem(STORAGE_KEY)
+      return null
+    }
+    return unlock
   } catch {
     return null
   }

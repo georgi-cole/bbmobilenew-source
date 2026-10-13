@@ -93,6 +93,35 @@ describe('incoming interaction contextual resolution', () => {
     ])
   })
 
+  it('keeps pact decisions formal while plan and time requests remain pending actions', () => {
+    const interaction = makeInteraction({
+      type: 'alliance_proposal',
+      payload: { scenarioKey: 'week_start_alliance_lock' },
+    })
+    const choices = getContextualIncomingChoices(interaction) ?? []
+
+    expect(choices.map(({ label }) => label)).toEqual([
+      'Accept',
+      'Decline',
+      'Need time',
+      'Ask for their plan',
+    ])
+    expect(choices.map(({ responseType }) => responseType)).toEqual([
+      'accept',
+      'decline',
+      'neutral',
+      'neutral',
+    ])
+    expect(choices[2]?.action).toBe('need_time')
+    expect(choices[3]?.action).toBe('ask_plan')
+    expect(
+      getContextualIncomingChoices({
+        ...interaction,
+        payload: { ...interaction.payload, pactTimeRequested: true, pactPlanRequested: true },
+      })?.map(({ label }) => label)
+    ).toEqual(['Accept', 'Decline'])
+  })
+
   it('gives co-nominees choices that do not pretend either can cast a saving vote', () => {
     const choices = getContextualIncomingChoices(
       makeInteraction({
@@ -339,6 +368,6 @@ describe('incoming interaction contextual resolution', () => {
     expect(askThemBack.outcomeText).toBe(
       'Rune says they are still trying to read where they stand with you.'
     )
-    expect(nomineeCheckIn.outcomeText).toBe('Nico says they feel the house is against them.')
+    expect(nomineeCheckIn.outcomeText).toBe('Nico says they feel the Hub is against them.')
   })
 })

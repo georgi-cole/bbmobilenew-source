@@ -83,3 +83,9 @@ export function formatIncomingDeadline(interaction: IncomingInteraction): string
   const deadline = getIncomingDeadline(interaction)
   return `Answer before ${LABELS[deadline.phase] ?? deadline.phase.replaceAll('_', ' ')}`
 }
+
+export function formatIncomingDecisionDeadline(interaction: IncomingInteraction): string {
+  const deadline = getIncomingDeadline(interaction)
+  const phase = LABELS[deadline.phase] ?? deadline.phase.replaceAll('_', ' ')
+  return `Offer closes Day ${deadline.day} · end of ${phase}`
+}

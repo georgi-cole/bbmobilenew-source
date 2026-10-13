@@ -64,7 +64,7 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
   generic_gossip: {
     'ask source': says('they heard the story indirectly, but will not name anyone yet.'),
     'ask for the source': (context) =>
-      `${context.fromName} says the claim about ${subject(context)} came through house talk they cannot verify.`,
+      `${context.fromName} says the claim about ${subject(context)} came through Hub talk they cannot verify.`,
     'listen only': (context) =>
       `${context.fromName} says ${subject(context)} is being discussed, but the story is still incomplete.`,
     'protect the target': (context) =>
