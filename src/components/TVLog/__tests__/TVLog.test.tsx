@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import TVLog from '../TVLog'
 import { tease } from '../../../utils/tvLogTemplates'
@@ -162,6 +162,29 @@ describe('TVLog — activity filters', () => {
     const { container } = render(<TVLog entries={entries} />)
     expect(screen.getByText('Vote')).toBeDefined()
     expect(container.querySelector('time[datetime]')).toBeTruthy()
+  })
+})
+
+describe('TVLog — bounded rendering', () => {
+  it('renders a bounded first page and keeps older events reachable', async () => {
+    const entries = Array.from({ length: 125 }, (_, index) =>
+      makeEvent({ id: `event-${index}`, text: `History event ${index}` })
+    )
+    render(<TVLog entries={entries} />)
+
+    const feed = screen.getByRole('list', { name: /Game event log/i })
+    expect(feed).toHaveAttribute('data-total-events', '125')
+    expect(feed).toHaveAttribute('data-rendered-events', '60')
+    expect(screen.getByText('History event 0')).toBeDefined()
+    expect(screen.queryByText('History event 60')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Load earlier events/i }))
+    expect(feed).toHaveAttribute('data-rendered-events', '110')
+    expect(screen.getByText('History event 60')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: /Load earlier events/i }))
+    expect(feed).toHaveAttribute('data-rendered-events', '125')
+    expect(screen.getByText('History event 124')).toBeDefined()
   })
 })
 describe('TVLog — refined on-demand module', () => {

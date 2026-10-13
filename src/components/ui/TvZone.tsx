@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom'
 import type { BroadcastOverride, CupidArrowPair, Phase, Player } from '../../types'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import {
   advance,
   consumeBroadcastEvent,
@@ -32,6 +33,29 @@ import {
 import { DEFAULT_SETTINGS, setAudio } from '../../store/settingsSlice'
 import { setMusicMix } from '../../store/uiSlice'
 import type { RootState } from '../../store/store'
+
+const tvZoneGameEquality = createGameFieldEquality([
+  'battleBack',
+  'broadcastOverrides',
+  'broadcastQueue',
+  'cupidArrow',
+  'customBroadcasts',
+  'democracia',
+  'depressionShock',
+  'gameId',
+  'isLive',
+  'lastPlainBroadcastEventId',
+  'mode',
+  'phase',
+  'players',
+  'season',
+  'seasonFinale',
+  'tvFeed',
+  'twistActive',
+  'voxPopuli',
+  'week',
+  'weekendInterlude',
+])
 import GameTopChip from '../GameTopChip/GameTopChip'
 import TVLog from '../TVLog/TVLog'
 import TvAnnouncementOverlay, {
@@ -377,7 +401,7 @@ type TvZoneProps = {
 export default function TvZone(props: TvZoneProps) {
   const dispatch = useAppDispatch()
   const { onPriorityAnnouncementDismiss, onExternalAnnouncementDismiss } = props
-  const gameState = useAppSelector((s) => s.game)
+  const gameState = useAppSelector((s) => s.game, tvZoneGameEquality)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const doubleEvictionActive = useAppSelector((s) => s.game.doubleEviction?.weekActive ?? false)
   const isGuest = useAppSelector((s: RootState) => s.profiles.isGuest)

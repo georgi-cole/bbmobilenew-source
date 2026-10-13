@@ -200,6 +200,10 @@ export class QuickTapRaceCanvasEngine {
     this.state.lastActivePhase = this.state.phase;
     this.state.phase = 'paused';
     this.state.statusText = 'Paused';
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
     this.emitProgress();
   }
 
@@ -208,6 +212,7 @@ export class QuickTapRaceCanvasEngine {
     this.state.phase = this.state.lastActivePhase;
     this.state.statusText = this.state.phase === 'active' ? 'Engines hot again' : 'Get ready';
     this.lastFrameTime = performance.now();
+    if (this.rafId === null) this.queueFrame();
     this.emitProgress();
   }
 
@@ -316,6 +321,7 @@ export class QuickTapRaceCanvasEngine {
       lastActivePhase: 'countdown',
       phaseElapsedMs: 0,
       elapsedMs: 0,
+      simulationElapsedMs: 0,
       timeLeftMs: this.options.raceDurationMs ?? DEFAULT_DURATION_MS,
       countdownMs: COUNTDOWN_MS,
       raceDurationMs: this.options.raceDurationMs ?? DEFAULT_DURATION_MS,
@@ -340,24 +346,25 @@ export class QuickTapRaceCanvasEngine {
   private tick(timestamp: number): void {
     if (this.destroyed) return;
 
-    const deltaMs = clamp(timestamp - this.lastFrameTime, 0, 50);
+    const elapsedMs = Math.max(0, timestamp - this.lastFrameTime);
+    const deltaMs = Math.min(elapsedMs, 50);
     this.lastFrameTime = timestamp;
 
-    this.update(deltaMs);
+    this.update(deltaMs, elapsedMs);
     this.render();
 
-    if (!this.destroyed) {
+    if (!this.destroyed && this.state.phase !== 'completed' && this.state.phase !== 'paused') {
       this.queueFrame();
     }
   }
 
-  private update(deltaMs: number): void {
-    this.state.phaseElapsedMs += deltaMs;
+  private update(deltaMs: number, elapsedMs = deltaMs): void {
+    this.state.phaseElapsedMs += elapsedMs;
     this.state.screenPulse = Math.max(0, this.state.screenPulse - deltaMs / 700);
     this.state.finishFlash = Math.max(0, this.state.finishFlash - deltaMs / 650);
     this.state.cameraShake = Math.max(0, this.state.cameraShake - deltaMs / 500);
     this.state.playerPickupDodgeMs = Math.max(0, this.state.playerPickupDodgeMs - deltaMs);
-    this.progressEmitElapsed += deltaMs;
+    this.progressEmitElapsed += elapsedMs;
 
     this.state.tapBursts = this.state.tapBursts.filter((burst) => {
       burst.lifeMs -= deltaMs;
@@ -404,7 +411,8 @@ export class QuickTapRaceCanvasEngine {
         this.enterPhase('active', 'Race live — build momentum');
       }
     } else if (this.state.phase === 'active') {
-      this.state.elapsedMs += deltaMs;
+      this.state.elapsedMs += elapsedMs;
+      this.state.simulationElapsedMs += deltaMs;
       this.state.timeLeftMs = Math.max(0, this.state.raceDurationMs - this.state.elapsedMs);
       this.updateAiRacers(deltaMs);
       this.updateRacerMotion(deltaMs);
@@ -437,7 +445,7 @@ export class QuickTapRaceCanvasEngine {
       ai.surgeMs = Math.max(0, ai.surgeMs - deltaMs);
       ai.stumbleMs = Math.max(0, ai.stumbleMs - deltaMs);
 
-      const elapsedRatio = clamp(this.state.elapsedMs / this.state.raceDurationMs, 0, 1);
+      const elapsedRatio = clamp(this.state.simulationElapsedMs / this.state.raceDurationMs, 0, 1);
       const expectedProgress = Math.pow(elapsedRatio, ai.curveExponent);
       const progressError = expectedProgress - racer.progress;
       const desiredCadenceBoost = clamp(progressError * 1.8, -0.22, 0.38);
@@ -451,7 +459,7 @@ export class QuickTapRaceCanvasEngine {
         racer.stumbleGlow = 1;
       }
 
-      while (ai.nextTapAtMs <= this.state.elapsedMs) {
+      while (ai.nextTapAtMs <= this.state.simulationElapsedMs) {
         const jitter = (this.rng() * 2 - 1) * (1.1 - ai.consistency) * 0.45;
         const surgeFactor = ai.surgeMs > 0 ? 0.82 : 1;
         const stumbleFactor = ai.stumbleMs > 0 ? 1.3 : 1;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type UIEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { TvEvent } from '../../types'
 import { useRefinedGameChrome } from '../../hooks/useRefinedGameChrome'
@@ -7,6 +7,8 @@ import GameBackButton from '../ui/GameBackButton/GameBackButton'
 import './TVLog.css'
 
 const MAX_ADAPTIVE_VISIBLE_ROWS = 3
+const INITIAL_LOG_EVENT_WINDOW = 60
+const LOG_EVENT_WINDOW_STEP = 50
 type ActivityFilter = 'all' | TvEvent['type']
 
 const TYPE_ICONS: Record<TvEvent['type'], string> = {
@@ -69,6 +71,7 @@ export default function TVLog({
   const refined = useRefinedGameChrome()
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all')
+  const [renderedEventCount, setRenderedEventCount] = useState(INITIAL_LOG_EVENT_WINDOW)
   const [uncontrolledLogOpen, setUncontrolledLogOpen] = useState(false)
   const logOpen = forceOpen ?? uncontrolledLogOpen
   const setLogOpen = useCallback(
@@ -92,6 +95,18 @@ export default function TVLog({
       ? deduplicated
       : deduplicated.filter((entry) => entry.type === activityFilter)
   }, [activityFilter, entries, mainTVMessage])
+  const renderedEvents = visible.slice(0, renderedEventCount)
+  const loadOlderEvents = useCallback(() => {
+    setRenderedEventCount((count) => Math.min(visible.length, count + LOG_EVENT_WINDOW_STEP))
+  }, [visible.length])
+
+  const loadOlderEventsOnScroll = useCallback(
+    (event: UIEvent<HTMLUListElement>) => {
+      const list = event.currentTarget
+      if (list.scrollHeight - list.scrollTop - list.clientHeight <= 48) loadOlderEvents()
+    },
+    [loadOlderEvents]
+  )
 
   useEffect(() => {
     if (!logOpen) return undefined
@@ -152,7 +167,10 @@ export default function TVLog({
               type="button"
               className={`tv-log__filter${activityFilter === filter.value ? ' tv-log__filter--active' : ''}`}
               aria-pressed={activityFilter === filter.value}
-              onClick={() => setActivityFilter(filter.value)}
+              onClick={() => {
+                setActivityFilter(filter.value)
+                setRenderedEventCount(INITIAL_LOG_EVENT_WINDOW)
+              }}
             >
               {filter.label}
             </button>
@@ -162,9 +180,12 @@ export default function TVLog({
       <ul
         className="tv-log"
         data-testid="tv-feed"
+        data-total-events={visible.length}
+        data-rendered-events={renderedEvents.length}
         data-mobile-two-line={mobileTwoLineMode ? 'true' : undefined}
         style={{ '--tv-log-max-vis': effectiveMaxVisible } as CSSProperties}
         aria-label="Game event log"
+        onScroll={loadOlderEventsOnScroll}
       >
         {visible.length === 0 && (
           <li className="tv-log__item tv-log__item--empty" aria-live="polite">
@@ -174,7 +195,7 @@ export default function TVLog({
             <span className="tv-log__text">No matching events yet</span>
           </li>
         )}
-        {visible.map((event) => {
+        {renderedEvents.map((event) => {
           const isExpanded = expandedIds.has(event.id)
           const normalizedText = normalizeGameCopy(event.text)
           const displayText = isExpanded ? normalizedText : tease(event.text)
@@ -208,6 +229,13 @@ export default function TVLog({
             </li>
           )
         })}
+        {renderedEvents.length < visible.length && (
+          <li className="tv-log__load-more-row">
+            <button type="button" className="tv-log__load-more" onClick={loadOlderEvents}>
+              Load earlier events ({visible.length - renderedEvents.length} remaining)
+            </button>
+          </li>
+        )}
       </ul>
     </>
   )

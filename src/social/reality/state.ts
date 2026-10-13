@@ -226,6 +226,14 @@ function retainRealityInteractions(
   return Object.fromEntries([...active, ...resolved])
 }
 
+/** Bound live history as well as hydrated history without copying small domains. */
+export function retainResolvedRealityInteractionHistory(
+  domain: RealityDomainState
+): RealityDomainState {
+  const interactions = retainRealityInteractions(domain.interactions)
+  return interactions === domain.interactions ? domain : { ...domain, interactions }
+}
+
 export function normalizeRealityDomainState(
   value: unknown,
   legacyRelationships: RelationshipsMap = {}

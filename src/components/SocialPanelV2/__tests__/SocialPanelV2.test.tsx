@@ -28,6 +28,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react'
+import { Profiler } from 'react'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
 import { configureStore } from '@reduxjs/toolkit'
@@ -145,6 +146,40 @@ describe('SocialPanelV2 – visibility', () => {
     const store = makeStore({ phase: 'social_1' })
     renderPanel(store)
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('skips resource-driven renders while closed and refreshes when opened again', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    store.dispatch(openSocialPanel())
+    markSocialTutorialHandled(null, false, 'reality')
+    let renderCount = 0
+    render(
+      <Profiler
+        id="social-panel"
+        onRender={() => {
+          renderCount += 1
+        }}
+      >
+        <MemoryRouter>
+          <Provider store={store}>
+            <I18nProvider>
+              <SocialPanelV2 />
+            </I18nProvider>
+          </Provider>
+        </MemoryRouter>
+      </Profiler>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close social panel' }))
+    const closedRenderCount = renderCount
+    act(() => {
+      store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 8 }))
+    })
+    expect(renderCount).toBe(closedRenderCount)
+
+    act(() => store.dispatch(openSocialPanel()))
+    expect(screen.getByLabelText('Energy: 8')).toBeInTheDocument()
   })
 
   it('renders during social_1 phase when opened via FAB', () => {

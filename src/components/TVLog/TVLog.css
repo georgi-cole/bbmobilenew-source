@@ -70,6 +70,23 @@
   background: transparent;
 }
 
+.tv-log__load-more-row {
+  display: flex;
+  justify-content: center;
+  padding: 6px;
+}
+
+.tv-log__load-more {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--color-text-muted, #9ca3af);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* Expanded items grow to show full text */
 .tv-log__item--expanded {
   align-items: flex-start;

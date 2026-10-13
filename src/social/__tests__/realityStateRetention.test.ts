@@ -3,9 +3,11 @@ import {
   createInitialRealityDomainState,
   MAX_REALITY_MEMORIES_PER_ACTOR,
   normalizeRealityDomainState,
+  retainResolvedRealityInteractionHistory,
   REALITY_RESOLVED_INTERACTION_LIMIT,
 } from '../reality'
 import type { RealityInteraction, RealityMemory } from '../reality'
+import socialReducer, { commitRealityDomainUpdate } from '../socialSlice'
 
 function interaction(
   id: string,
@@ -75,5 +77,36 @@ describe('Reality state retention', () => {
     expect(
       normalized.interactions[`resolved-${REALITY_RESOLVED_INTERACTION_LIMIT + 4}`]
     ).toBeDefined()
+  })
+
+  it('bounds resolved interactions on live commits and preserves pending conversations', () => {
+    const domain = createInitialRealityDomainState()
+    for (let sequence = 0; sequence < REALITY_RESOLVED_INTERACTION_LIMIT + 25; sequence += 1) {
+      domain.interactions[`resolved-${sequence}`] = interaction(
+        `resolved-${sequence}`,
+        sequence,
+        'RESOLVED'
+      )
+    }
+    domain.interactions.pending = interaction('pending', 10_000, 'PENDING')
+    domain.interactions.awaiting = interaction('awaiting', 10_001, 'AWAITING_HUMAN')
+
+    const next = socialReducer(undefined, commitRealityDomainUpdate({ domain }))
+
+    expect(Object.keys(next.reality.interactions)).toHaveLength(
+      REALITY_RESOLVED_INTERACTION_LIMIT + 2
+    )
+    expect(next.reality.interactions['resolved-0']).toBeUndefined()
+    expect(next.reality.interactions['resolved-24']).toBeUndefined()
+    expect(next.reality.interactions['resolved-25']).toBeDefined()
+    expect(next.reality.interactions.pending?.status).toBe('PENDING')
+    expect(next.reality.interactions.awaiting?.status).toBe('AWAITING_HUMAN')
+  })
+
+  it('returns the same Reality domain while it is already within its retention budget', () => {
+    const domain = createInitialRealityDomainState()
+    domain.interactions.keep = interaction('keep', 1, 'RESOLVED')
+
+    expect(retainResolvedRealityInteractionHistory(domain)).toBe(domain)
   })
 })

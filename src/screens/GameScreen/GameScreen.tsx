@@ -3,6 +3,7 @@ import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import {
   addTvEvent,
   advance,
@@ -95,6 +96,43 @@ import type { PlayerPublicProfile } from '../../publicOpinion/types'
 import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
+
+const gameScreenGameEquality = createGameFieldEquality([
+  'awaitingFinal3Eviction',
+  'awaitingFinal3Plea',
+  'awaitingHumanVote',
+  'awaitingNominations',
+  'cfg',
+  'cupidArrow',
+  'depressionShock',
+  'doubleEviction',
+  'evictionOverlayPlayerId',
+  'expansionMode',
+  'favoritePlayer',
+  'gameId',
+  'lastHohCompFinisherId',
+  'lohId',
+  'mode',
+  'modeSpecific',
+  'nomineeIds',
+  'pendingMinigame',
+  'phase',
+  'players',
+  'posWinnerId',
+  'povProtectedIds',
+  'publicModeEnabled',
+  'season',
+  'seasonFinale',
+  'seed',
+  'specialVeto',
+  'status',
+  'tvFeed',
+  'voteResults',
+  'voteResultsMode',
+  'voxPopuli',
+  'week',
+  'weekendInterlude',
+])
 import {
   selectAdsState,
   clearLastCompLastPlace,
@@ -230,7 +268,7 @@ export default function GameScreen() {
     storeRef.current = store
   }, [store])
   const alivePlayers = useAppSelector(selectAlivePlayers)
-  const game = useAppSelector((s) => s.game)
+  const game = useAppSelector((s) => s.game, gameScreenGameEquality)
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)

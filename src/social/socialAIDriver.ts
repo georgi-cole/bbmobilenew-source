@@ -647,7 +647,7 @@ function processTickSlice(cycle: AiTickCycle): void {
   const deadline =
     (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
 
-  while (isCycleCurrent(cycle)) {
+  while (_store && _running && cycle.epoch === _epoch && cycle === _cycle) {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
     if (now >= deadline) {
       scheduleWork(cycle)
@@ -659,8 +659,11 @@ function processTickSlice(cycle: AiTickCycle): void {
     }
 
     const player = cycle.players[cycle.playerIndex]
-    const playerState = _store.getState() as DriverState
-    if ((playerState.social?.energyBank[player.id] ?? 0) <= 0) {
+    // One fresh snapshot serves the budget check and actor lookup. The previous
+    // loop read the Redux store twice per candidate attempt, including attempts
+    // that could not act.
+    const freshState = _store.getState() as DriverState
+    if ((freshState.social?.energyBank[player.id] ?? 0) <= 0) {
       cycle.playerIndex += 1
       cycle.attempt = 0
       continue
@@ -680,7 +683,6 @@ function processTickSlice(cycle: AiTickCycle): void {
 
     const attempt = cycle.attempt
     cycle.attempt += 1
-    const freshState = _store.getState() as DriverState
     const currentPlayer = freshState.game.players.find((entry) => entry.id === player.id)
     if (
       !currentPlayer ||
@@ -696,6 +698,10 @@ function processTickSlice(cycle: AiTickCycle): void {
     if (candidate && executeCandidate(freshState, currentPlayer, candidate)) {
       _actionsExecuted += 1
       cycle.actionCounts[player.id] = (cycle.actionCounts[player.id] ?? 0) + 1
+      // A synchronous action can move the game into another phase. Check that
+      // immediately, while avoiding a full roster-derived phase key on every
+      // candidate attempt.
+      if (!isCycleCurrent(cycle)) return
       cycle.playerIndex += 1
       cycle.attempt = 0
     }
