@@ -9,6 +9,7 @@ import {
   selectDiscoverableFact,
   selectFauxTvFact,
 } from './intelligenceSystem'
+import { createIntelligenceEligibility } from './intelligenceEligibility'
 import { learnRealityKnowledge, recordIntelligenceDelivery, recordRealityFact } from './socialSlice'
 import type { RealityFact, RealityMemorySource } from './reality/types'
 import type { SocialActionLogEntry, SocialState } from './types'
@@ -115,6 +116,7 @@ function revealFactFromIntelAction(
     entry.actorId,
     day,
     delivered,
+    state.game.players,
     entry.actionId === 'observe' || entry.actionId === 'read_the_room'
   )
   if (!fact) return
@@ -238,23 +240,18 @@ function maybeBroadcastPublicAllianceExposure(
       .filter((item) => item.channel === 'faux_tv')
       .map((item) => item.factId)
   )
+  const eligibility = createIntelligenceEligibility(state.game.players)
   const fact = Object.values(state.social.reality.facts)
     .filter(
       (candidate) =>
         !beforeFactIds.has(candidate.id) &&
         candidate.propositionType === 'ALLIANCE_EXPOSED' &&
         candidate.publicVisible &&
+        eligibility.isFactEligible(candidate) &&
         !deliveredFactIds.has(candidate.id)
     )
     .sort((left, right) => right.day - left.day || left.id.localeCompare(right.id))[0]
   if (!fact) return
-
-  const activeIds = new Set(
-    state.game.players
-      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
-      .map((player) => player.id)
-  )
-  if (fact.subjectIds.some((id) => !activeIds.has(id))) return
 
   api.dispatch(
     addTvEvent({
@@ -309,19 +306,13 @@ function maybeBroadcastWhisper(
       .filter((item) => item.channel === 'faux_tv')
       .map((item) => item.factId)
   )
-  const fact = selectFauxTvFact(state.social.reality, state.game.week, deliveredFactIds)
-  if (!fact) return
-  const activeIds = new Set(
+  const fact = selectFauxTvFact(
+    state.social.reality,
+    state.game.week,
+    deliveredFactIds,
     state.game.players
-      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
-      .map((player) => player.id)
   )
-  if (
-    fact.subjectIds.some((id) => !activeIds.has(id)) ||
-    (fact.propositionType === 'TARGETING' && fact.objectId && !activeIds.has(fact.objectId))
-  ) {
-    return
-  }
+  if (!fact) return
 
   api.dispatch(
     addTvEvent({

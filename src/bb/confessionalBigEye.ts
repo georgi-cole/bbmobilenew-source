@@ -163,7 +163,7 @@ export const BOREDOM_SYNONYMS = [
 export const SELF_EVICT_SYNONYMS = [
   'i want to leave',
   'i wanna leave',
-  'i want to leave the house',
+  'i want to leave the Hub',
   'i am leaving the game',
   'im leaving the game',
   'i want to self evict',
@@ -410,7 +410,7 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   farewell: {
     responses: [
       'Go then. I will keep score.',
-      'That will do. Back to the House.',
+      'That will do. Back to the Hub.',
       'Go. I will still be watching.',
       'Enough for now. Use what you learned.',
       'The door is open. For now.',
@@ -531,7 +531,7 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   },
   advice_request: {
     responses: [
-      'My advice: stop trying to solve the whole house. Find the one relationship that changed this week and listen before you pitch.',
+      'My advice: stop trying to solve the Hub. Find the one relationship that changed this week and listen before you pitch.',
       'A useful hint: people reveal their real priorities when you ask whom they are afraid of—not whom they trust.',
       'Do the smallest useful thing next. Repair one relationship, verify one promise, and keep one option private.',
     ],
@@ -552,14 +552,14 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
     responses: [
       'Still watching. Still listening. How are you holding up?',
       'The Eye is well. Your concern is unexpectedly civil.',
-      'I do not sleep, worry, or face eviction. So tell me—how are you?',
+      'I do not sleep, worry, or face elimination. So tell me—how are you?',
     ],
   },
   overwhelmed: {
     responses: [
       'Then we make it smaller. Is the pressure coming from the vote, a person, or the need to look fine?',
       'Overwhelmed is not the same as defeated. Name the part that feels heaviest right now.',
-      'You do not have to solve the whole house tonight. What is the next thing you need to survive?',
+      'You do not have to solve the Hub tonight. What is the next thing you need to survive?',
     ],
   },
   repetition_complaint: {
@@ -586,20 +586,20 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
   gratitude: {
     responses: [
       'You are welcome. Do not make me sentimental.',
-      'Noted. Gratitude is rare currency in this house.',
+      'Noted. Gratitude is rare currency in the Hub.',
       'Keep it. You may need the goodwill later.',
     ],
   },
   sadness: {
     responses: [
-      'I hear you. Is this about someone outside, feeling alone in the house, or something that happened today?',
+      'I hear you. Is this about someone outside, feeling alone in the Hub, or something that happened today?',
       'You do not have to turn sadness into strategy immediately. Tell me what hurts.',
       'This room can hold that for a minute. What are you missing most right now?',
     ],
   },
   positive_emotion: {
     responses: [
-      'Good. Tell me what earned that feeling before the house tries to rewrite it.',
+      'Good. Tell me what earned that feeling before the Hub tries to rewrite it.',
       'Hold on to that. Joy makes players careless, but it also makes them brave.',
       'I noticed. What happened?',
     ],
@@ -615,7 +615,7 @@ const INTENT_RESPONSES: Record<ResponseKey, ResponseEntry> = {
     responses: [
       'So be it. The door will open.',
       'A clear answer at last. Step forward.',
-      'Then the house releases you.',
+      'Then the Hub releases you.',
     ],
   },
   eviction_cancelled: {
@@ -868,7 +868,7 @@ export function getResponse(
   const nextQuestion = flowRule?.clearQuestion ? null : responseEntry.nextQuestion
   const baseText = pickResponse(responseIntent, state.mood, rng).replace(
     '{{name}}',
-    context.playerName ?? 'Houseguest'
+    context.playerName ?? 'Hubmate'
   )
   // Keep spoken text accessible. Visual glitching is handled by performance
   // metadata/CSS rather than corrupting characters in the message itself.

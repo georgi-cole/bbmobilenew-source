@@ -5,6 +5,10 @@ import type { RealityDomainState } from '../../social/reality/types'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import { projectRealityAffinity } from '../../social/reality/relationships'
 import { getRealityRelationshipLabel, type RelationshipLabel } from './relationshipUtils'
+import {
+  allianceDisplayLabel,
+  getCurrentAlliancesBetween,
+} from '../../social/reality/allianceIdentity'
 import PlayerCard from './PlayerCard'
 
 interface PlayerListProps {
@@ -152,6 +156,7 @@ export default function PlayerList({
         let affinity: number | undefined
         let relationshipLabel: RelationshipLabel | undefined
         let relationshipTags: string[] = []
+        let relationshipBondLabels: string[] | undefined
         if (humanPlayerId) {
           const outward = relationships?.[humanPlayerId]?.[player.id]
           const inward = relationships?.[player.id]?.[humanPlayerId]
@@ -196,6 +201,15 @@ export default function PlayerList({
             affinity = view.affinity
             relationshipTags = [...view.visibleTags]
           }
+          if (reality) {
+            relationshipBondLabels = Array.from(
+              new Set(
+                getCurrentAlliancesBetween(reality, humanPlayerId, player.id).map(
+                  allianceDisplayLabel
+                )
+              )
+            )
+          }
         }
 
         return (
@@ -217,6 +231,7 @@ export default function PlayerList({
               affinityDelta={deltasByTargetId?.get(player.id)}
               relationshipPulseDelta={relationshipPulseDeltas?.get(player.id)}
               relationshipTags={relationshipTags}
+              relationshipBondLabels={relationshipBondLabels}
               cupidPartner={cupidPartners?.[player.id]}
             />
           </div>

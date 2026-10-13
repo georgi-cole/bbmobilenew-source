@@ -232,7 +232,7 @@ function HousemateProfile({
           transition={{ duration: 0.56, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
         >
           <p className="hbc-profile__counter">
-            Housemate {String(index + 1).padStart(2, '0')} <span>/</span>{' '}
+            Hubmate {String(index + 1).padStart(2, '0')} <span>/</span>{' '}
             {HOUSEMATES_BIO_CARDS.length}
           </p>
           <h1>{card.name}</h1>
@@ -240,7 +240,7 @@ function HousemateProfile({
             {card.age} · {card.location} · {card.profession}
           </p>
           <div className="hbc-profile__story">
-            <span>In the house</span>
+            <span>In the Hub</span>
             <p>{card.introduction}</p>
           </div>
           <div className="hbc-profile__why">
@@ -250,7 +250,7 @@ function HousemateProfile({
         </motion.article>
       </div>
 
-      <nav className="hbc-profile__nav" aria-label="Housemate navigation">
+      <nav className="hbc-profile__nav" aria-label="Hubmate navigation">
         <button type="button" onClick={onPrevious} disabled={!hasPrevious}>
           Previous
         </button>
@@ -334,12 +334,12 @@ export default function HousematesBioCinematic({ onComplete }: HousematesBioCine
       className={`hbc${reducedMotion ? ' hbc--reduced-motion' : ''}`}
       role="dialog"
       aria-modal="true"
-      aria-label="Meet the Housemates"
+      aria-label="Meet the Hubmates"
     >
-      <button className="hbc__exit" type="button" onClick={finish} aria-label="Exit Housemates">
+      <button className="hbc__exit" type="button" onClick={finish} aria-label="Exit Hubmates">
         Exit <span aria-hidden="true">×</span>
       </button>
-      <div className="hbc__sound" aria-label="Housemates music is playing">
+      <div className="hbc__sound" aria-label="Hubmates music is playing">
         ♫
       </div>
 

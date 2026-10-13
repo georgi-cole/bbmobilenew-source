@@ -333,7 +333,7 @@ function EvictionVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
 
   return (
     <div className="cdp-shell" data-testid="confessional-decision-options">
-      <div className="cdp-option-grid" role="group" aria-label="Eviction vote choices">
+      <div className="cdp-option-grid" role="group" aria-label="Elimination vote choices">
         {optionUnits.map((unit) => (
           <DecisionUnitRow
             key={unit.id}
@@ -466,7 +466,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
     <div className="cdp-shell" data-testid="confessional-decision-options">
       <div className="cdp-section">
         <p className="cdp-section__label">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</p>
-        <div className="cdp-option-grid" role="group" aria-label="First eviction vote choice">
+        <div className="cdp-option-grid" role="group" aria-label="First elimination vote choice">
           {options.map((p) => (
             <PlayerRow
               key={`v1-${p.id}`}
@@ -481,7 +481,7 @@ function DoubleVotePanel({ onDecisionCommitted }: DecisionPanelProps) {
       </div>
       <div className="cdp-section">
         <p className="cdp-section__label">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</p>
-        <div className="cdp-option-grid" role="group" aria-label="Second eviction vote choice">
+        <div className="cdp-option-grid" role="group" aria-label="Second elimination vote choice">
           {options.map((p) => (
             <PlayerRow
               key={`v2-${p.id}`}

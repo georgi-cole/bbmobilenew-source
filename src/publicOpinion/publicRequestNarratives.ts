@@ -25,7 +25,7 @@ export function createAudienceRequestStory({
   type,
   playerName,
   relatedName = 'someone',
-  targetName = 'a housemate',
+  targetName = 'a hubmate',
   seed,
 }: AudienceRequestContext): string {
   const pair = `${playerName} and ${relatedName}`
@@ -61,7 +61,7 @@ export function createAudienceRequestStory({
         return [
           `The public has watched ${pair} move as one. Now they are waiting for the fracture.`,
           `Viewers can feel the strain inside ${pair}'s alliance. They want to see which side breaks first.`,
-          `The audience thinks ${pair} have been too comfortable for too long. A split would change the whole house.`,
+          `The audience thinks ${pair} have been too comfortable for too long. A split would change the Hub.`,
         ]
       case 'confront_player':
       case 'start_drama':
@@ -74,12 +74,12 @@ export function createAudienceRequestStory({
       case 'expose_player':
         return [
           `The public wants ${playerName} to put ${relatedName}'s game under real pressure.`,
-          `Viewers think ${relatedName} has had an easy run. They want ${playerName} to make the house look twice.`,
+          `Viewers think ${relatedName} has had an easy run. They want ${playerName} to make the Hub look twice.`,
           `The audience sees ${relatedName} as a loose thread in ${playerName}'s story. They want it pulled.`,
         ]
       case 'protect_player':
         return [
-          `The public wants ${playerName} to stand up for ${relatedName}. The house is watching who protects whom.`,
+          `The public wants ${playerName} to stand up for ${relatedName}. The Hub is watching who protects whom.`,
           `Viewers are invested in ${relatedName}'s safety, and they want ${playerName} to show where their heart really is.`,
           `The audience wants ${playerName} to make a protective move for ${relatedName} before the window closes.`,
         ]
@@ -100,9 +100,9 @@ export function createAudienceRequestStory({
       case 'flip_vote':
       case 'create_chaos':
         return [
-          `The public wants ${playerName} to stop playing the background and give the house a real turning point.`,
+          `The public wants ${playerName} to stop playing the background and give the Hub a real turning point.`,
           `Viewers think ${playerName} is one move away from becoming the episode. They want the move.`,
-          `The audience can feel a shift coming around ${playerName}. They want the house to feel it too.`,
+          `The audience can feel a shift coming around ${playerName}. They want the Hub to feel it too.`,
         ]
     }
   })()

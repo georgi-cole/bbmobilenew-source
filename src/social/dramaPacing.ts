@@ -21,11 +21,11 @@ export function getPublicDramaActionAvailability(
   network: DramaSocialNetwork | undefined,
   week?: number
 ): DramaPacingAvailability {
-  if (!network) return { available: false, reason: 'The house story is not available' }
+  if (!network) return { available: false, reason: 'The Hub story is not available' }
   if (network.pacing.publicEventsThisWeek >= DRAMA_MODE_CONFIG.pacing.maxPublicEventsPerWeek) {
     return {
       available: false,
-      reason: 'The house has already reached its public drama limit this week',
+      reason: 'The Hub has already reached its public drama limit this week',
     }
   }
   if (
@@ -34,7 +34,7 @@ export function getPublicDramaActionAvailability(
   ) {
     return {
       available: false,
-      reason: 'The house is still reacting to the last major public event',
+      reason: 'The Hub is still reacting to the last major public event',
     }
   }
   return { available: true, reason: '' }

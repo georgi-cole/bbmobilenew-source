@@ -58,7 +58,7 @@ export default function SurvivorDebugControls() {
         <dd>{currentDay ?? 'n/a'}</dd>
         <dt>Best Day</dt>
         <dd>{survivorState?.bestDayReached ?? 'n/a'}</dd>
-        <dt>Robo Evicted</dt>
+        <dt>Robo Eliminated</dt>
         <dd>{survivorState?.totalRoboContestantsEvicted ?? 'n/a'}</dd>
         <dt>Replacement</dt>
         <dd>

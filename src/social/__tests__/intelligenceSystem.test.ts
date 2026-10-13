@@ -12,6 +12,7 @@ import {
   makeIntelMemory,
   selectDiscoverableFact,
   selectIntelFactForActor,
+  selectFauxTvFact,
 } from '../intelligenceSystem'
 
 const floater: AiGameIdentity = {
@@ -108,7 +109,7 @@ describe('intelligence system', () => {
     const [lead] = getIntelLeadViews(domain, 'human', players, 4)
     expect(lead.text).toContain('Sol and Lux')
     expect(lead.confidence).toBe('Credible')
-    expect(lead.source).toBe('House rumour')
+    expect(lead.source).toBe('Hub rumour')
   })
 
   it('keeps facts about eliminated players out of current Intel leads', () => {
@@ -223,7 +224,7 @@ describe('intelligence system', () => {
       confidence: 0.84,
     })
 
-    expect(selectIntelFactForActor(domain, 'sol', 'human', 4)?.fact.id).toBe(fact.id)
+    expect(selectIntelFactForActor(domain, 'sol', 'human', 4, players)?.fact.id).toBe(fact.id)
 
     const recipientMemory = makeIntelMemory({
       ownerId: 'human',
@@ -241,7 +242,7 @@ describe('intelligence system', () => {
       confidence: 0.84,
     })
 
-    expect(selectIntelFactForActor(domain, 'sol', 'human', 4)).toBeNull()
+    expect(selectIntelFactForActor(domain, 'sol', 'human', 4, players)).toBeNull()
   })
 
   it('keeps public alliance exposure copy compact for large coalitions', () => {
@@ -291,9 +292,56 @@ describe('intelligence system', () => {
       sourceEventId: 'social:private-meeting',
     })
 
-    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), true)).toBeNull()
-    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), false)?.id).toBe(
+    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), players, true)).toBeNull()
+    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), players, false)?.id).toBe(
       'fact:intel:private-meeting'
     )
+  })
+
+  it('keeps all current intel selectors clear of facts involving an eliminated participant', () => {
+    const domain = createInitialRealityDomainState()
+    const fact = {
+      id: 'fact:ash-lux-warning',
+      propositionType: 'SECRET_MEETING',
+      subjectIds: ['sol'],
+      value: true,
+      day: 4,
+      phase: 'social_1',
+      visibility: 'GROUP_VISIBLE' as const,
+      participantIds: ['sol', 'lux'],
+      witnessIds: ['human'],
+      viewerVisible: false,
+      publicVisible: false,
+      juryVisible: false,
+      sourceEventId: 'social:ash-lux',
+    }
+    addRealityFact(domain, fact)
+    const memory = makeIntelMemory({
+      ownerId: 'human',
+      fact,
+      sourceType: 'WITNESSED',
+      sourceChain: ['human'],
+      confidence: 0.8,
+      day: 4,
+      phase: 'social_1',
+    })
+    learnRealityFact(domain, { ownerId: 'human', factId: fact.id, memory, confidence: 0.8 })
+
+    const withLuxEvicted = players.map((player) =>
+      player.id === 'lux' ? { ...player, status: 'evicted' as const } : player
+    )
+    expect(selectIntelFactForActor(domain, 'human', 'lux', 4, withLuxEvicted)).toBeNull()
+    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), withLuxEvicted)).toBeNull()
+    expect(selectFauxTvFact(domain, 4, new Set(), withLuxEvicted)).toBeNull()
+    expect(getIntelLeadViews(domain, 'human', withLuxEvicted, 4)).toEqual([])
+
+    const luxReturns = withLuxEvicted.map((player) =>
+      player.id === 'lux' ? { ...player, status: 'active' as const, firstEvictedAtWeek: 3 } : player
+    )
+    expect(selectDiscoverableFact(domain, 'human', 4, new Set(), luxReturns)?.id).toBe(fact.id)
+
+    const stalePreReturnFact = { ...fact, id: 'fact:before-return', day: 3 }
+    addRealityFact(domain, stalePreReturnFact)
+    expect(selectDiscoverableFact(domain, 'human', 4, new Set([fact.id]), luxReturns)).toBeNull()
   })
 })

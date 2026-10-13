@@ -540,7 +540,7 @@ function normalizeToken(value: string): string {
 }
 
 function firstName(player: Player | undefined): string {
-  return player?.name.split(' ')[0] ?? 'Housemate'
+  return player?.name.split(' ')[0] ?? 'Hubmate'
 }
 
 function extensionPriority(extension: string): number {
@@ -642,8 +642,8 @@ function getPlacementLabel(player: Player): string {
   if (placement === 3) return 'Third place'
   if (placement !== Number.MAX_SAFE_INTEGER) return `Placed #${placement}`
   if (player.status === 'jury') return 'Tribunal member'
-  if (player.status === 'evicted') return 'Evicted'
-  return 'Housemate'
+  if (player.status === 'evicted') return 'Eliminated'
+  return 'Hubmate'
 }
 
 function sortPlayers(players: Player[]): Player[] {
@@ -879,7 +879,7 @@ function renderTemplate(
     allyName: context.ally?.name ?? 'a former ally',
     rivalName: context.rival?.name ?? 'a former rival',
     romanticName: context.romantic?.name ?? 'a mystery companion',
-    partnerName: partner?.name ?? 'another housemate',
+    partnerName: partner?.name ?? 'another hubmate',
     competitionWins: String(context.competitionWins),
     nominationCount: String(context.nominationCount),
     seasonNumber: String(season),
@@ -1190,7 +1190,7 @@ export function buildAftermathIssue(
       : [
           {
             id: 'house',
-            name: 'The House',
+            name: 'The Hub',
             avatar: '',
             status: 'evicted' as const,
           },

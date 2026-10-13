@@ -72,10 +72,10 @@ export const AUDIO_EVENT_LABELS: Readonly<Record<AudioEventId, string>> = {
   'minigame.results': 'Minigame results',
   'minigame.winner': 'Minigame winner applied',
   'minigame.skipped': 'Minigame skipped',
-  'eviction.vote-cast': 'Eviction vote cast',
+  'eviction.vote-cast': 'Elimination vote cast',
   'safety.decision': 'Safety decision submitted',
   'twist.battle-back': 'Back 2 the Game activated',
-  'eviction.reveal': 'Eviction reveal begins',
+  'eviction.reveal': 'Elimination reveal begins',
   'tribunal.vote': 'Tribunal vote cast',
   'finale.winner': 'Finale winner reveal',
 }

@@ -177,7 +177,8 @@ function deliverKnownIntel(input: {
     input.state.social.reality,
     input.sourceId,
     input.recipientId,
-    input.day
+    input.day,
+    input.state.game.players
   )
   if (!selected) return false
 

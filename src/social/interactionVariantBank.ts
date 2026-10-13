@@ -146,7 +146,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['direct', 'composed'],
         },
         {
-          text: 'Before the house gets loud, I wanted to make sure you and I are solid.',
+          text: 'Before the Hub gets loud, I wanted to make sure you and I are solid.',
           voiceTags: ['direct', 'strategic'],
         },
         {
@@ -168,7 +168,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['emotional', 'soft'],
         },
         {
-          text: 'This house will test everything. I am glad I have you in my corner.',
+          text: 'The Hub will test everything. I am glad I have you in my corner.',
           voiceTags: ['sincere', 'soft'],
         },
       ],
@@ -204,7 +204,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['indirect', 'composed'],
         },
         {
-          text: 'You can feel the house shifting already. Nobody is sitting still.',
+          text: 'You can feel the Hub shifting already. Nobody is sitting still.',
           voiceTags: ['composed', 'strategic'],
         },
         {
@@ -218,7 +218,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
       voiceTags: ['direct', 'blunt', 'strategic'],
       variants: [
         {
-          text: 'I am going to be honest with you. The house has a short memory but I do not.',
+          text: 'I am going to be honest with you. The Hub has a short memory but I do not.',
           voiceTags: ['direct', 'blunt'],
         },
         {
@@ -262,7 +262,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['direct', 'strategic'],
         },
         {
-          text: 'This house is about to fracture. I think you and I should lock something in.',
+          text: 'The Hub is about to fracture. I think you and I should lock something in.',
           voiceTags: ['strategic', 'composed'],
         },
         {
@@ -530,7 +530,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['strategic', 'direct'],
         },
         {
-          text: 'There are better moves available to you, {hoh}. I am not your biggest threat in this house.',
+          text: 'There are better moves available to you, {hoh}. I am not your biggest threat in this Hub.',
           voiceTags: ['composed', 'strategic'],
         },
         {
@@ -829,7 +829,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['emotional', 'soft'],
         },
         {
-          text: 'Still processing everything. The house feels different when you are on the block.',
+          text: 'Still processing everything. The Hub feels different when you are on the block.',
           voiceTags: ['emotional', 'indirect'],
         },
         {
@@ -1084,7 +1084,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['emotional', 'sincere'],
         },
         {
-          text: 'Surviving that vote changed how I see the house. I know who showed up for me.',
+          text: 'Surviving that vote changed how I see the Hub. I know who showed up for me.',
           voiceTags: ['sincere', 'composed'],
         },
         {
@@ -1206,7 +1206,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['blunt', 'direct'],
         },
         {
-          text: 'Silence is still a message in this house, {player}.',
+          text: 'Silence is still a message in the Hub, {player}.',
           voiceTags: ['direct', 'composed'],
         },
       ],
@@ -1261,7 +1261,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['composed', 'strategic'],
         },
         {
-          text: 'Some of your choices are getting harder for the house to ignore.',
+          text: 'Some of your choices are getting harder for the Hub to ignore.',
           voiceTags: ['indirect', 'strategic'],
         },
       ],
@@ -1275,7 +1275,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['direct', 'blunt'],
         },
         {
-          text: 'You think you are playing quietly, but this house hears everything.',
+          text: 'You think you are playing quietly, but the Hub hears everything.',
           voiceTags: ['blunt', 'strategic'],
         },
         {
@@ -1317,7 +1317,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['sincere', 'direct'],
         },
         {
-          text: 'No matter how loud the house gets, I still see us as solid.',
+          text: 'No matter how loud the Hub gets, I still see us as solid.',
           voiceTags: ['sincere', 'emotional'],
         },
         {
@@ -1358,7 +1358,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['soft', 'sincere'],
         },
         {
-          text: 'This house will try to get between us. I am not letting that happen.',
+          text: 'The Hub will try to get between us. I am not letting that happen.',
           voiceTags: ['sincere', 'emotional'],
         },
       ],
@@ -1455,7 +1455,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
     ],
     [
       'I know you wanted that win. You do not have to pretend it did not sting.',
-      'Come sit with me for a minute. Losing a competition can make the whole house feel louder.',
+      'Come sit with me for a minute. Losing a competition can make the Hub feel louder.',
     ],
     [
       'You seemed quieter after the competition. Just checking that you are okay.',
@@ -1466,7 +1466,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
   competition_low_finish_taunt: makeScenePool(
     'clft',
     [
-      'That competition result gave the house a pretty clear read on where you stand.',
+      'That competition result gave the Hub a pretty clear read on where you stand.',
       'You looked confident going in. The finish told a different story.',
     ],
     [
@@ -1482,16 +1482,16 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
   social_momentum_notice: makeScenePool(
     'smn',
     [
-      'You have been working the house hard today. People are starting to notice.',
+      'You have been working the Hub hard today. People are starting to notice.',
       'Your social game has momentum right now. That can be useful, or dangerous.',
     ],
     [
       'You have been everywhere today, and I mean that as an observation, not an accusation.',
-      'The house is paying attention to how much ground you are covering. I thought you should know.',
+      'The Hub is paying attention to how much ground you are covering. I thought you should know.',
     ],
     [
       'I keep seeing your name come up after conversations. Your momentum is becoming a story.',
-      'I mentioned your social game earlier. The house has not stopped noticing it.',
+      'I mentioned your social game earlier. The Hub has not stopped noticing it.',
     ]
   ),
 
@@ -1587,7 +1587,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['indirect', 'composed'],
         },
         {
-          text: 'House dynamics are getting messy, and I thought you should know that.',
+          text: 'Hub dynamics are getting messy, and I thought you should know that.',
           voiceTags: ['strategic', 'direct'],
         },
         {
@@ -1628,7 +1628,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['direct', 'composed'],
         },
         {
-          text: 'Each day in this house teaches me something new. I keep wanting to compare notes with you.',
+          text: 'Each day in the Hub teaches me something new. I keep wanting to compare notes with you.',
           voiceTags: ['indirect', 'sincere'],
         },
       ],
@@ -1774,7 +1774,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['direct', 'composed'],
         },
         {
-          text: 'Nothing specific. Just wanted to read you before the house gets loud.',
+          text: 'Nothing specific. Just wanted to read you before the Hub gets loud.',
           voiceTags: ['strategic', 'direct'],
         },
         {
@@ -1792,7 +1792,7 @@ export const SCENARIO_VARIANT_POOLS: Record<string, VariantFamily[]> = {
           voiceTags: ['soft', 'sincere'],
         },
         {
-          text: 'How are you holding up? Not everyone handles this house the same way.',
+          text: 'How are you holding up? Not everyone handles life in the Hub the same way.',
           voiceTags: ['emotional', 'soft'],
         },
         {

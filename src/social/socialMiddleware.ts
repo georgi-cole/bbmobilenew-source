@@ -83,6 +83,8 @@ import { recordSocialCeremony as recordCeremony } from './ceremonyRecorder'
 import { createIncomingInteraction } from './incomingInteractionFactory'
 import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
+import { formatHistoricalIntel } from './intelligenceSystem'
+import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
 const SOCIAL_PHASES = new Set<string>(['social_1', 'social_2'])
@@ -611,9 +613,9 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       social_1:
         state.game.week === 1
           ? [
-              `First impressions are taking shape: ${left} and ${right} keep finding their way back to each other, and the house has started to notice.`,
+              `First impressions are taking shape: ${left} and ${right} keep finding their way back to each other, and the Hub has started to notice.`,
               `${left} and ${right} spent breakfast trading stories while everyone else quietly worked out whether the chemistry was personal or strategic.`,
-              `${left} chose ${right} for a long walk around the yard. By lunch, three different housemates had opinions about it.`,
+              `${left} chose ${right} for a long walk around the yard. By lunch, three different hubmates had opinions about it.`,
             ]
           : [
               `${left} and ${right} stayed behind at the kitchen island after everyone left, lowering their voices whenever footsteps approached.`,
@@ -629,11 +631,11 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       pos_results: [
         `${left} and ${right} immediately compared notes after the Safety result, careful not to let the rest of the room hear.`,
         `${right} celebrated the Safety result with ${left} on the balcony while their rivals watched from the kitchen.`,
-        `${left} promised ${right} they would face the next ceremony together. In this house, promises travel fast.`,
+        `${left} promised ${right} they would face the next ceremony together. In the Hub, promises travel fast.`,
       ],
       pos_ceremony_results: [
         `${left} and ${right} shared a long embrace after the block was confirmed. The pressure is testing every promise.`,
-        `${left} found ${right} alone by the pool after the ceremony and stayed until the rest of the house came looking.`,
+        `${left} found ${right} alone by the pool after the ceremony and stayed until the rest of the Hub came looking.`,
         `${right} made ${left} a late dinner after the Safety ceremony. Nobody believed it was only about the food.`,
       ],
       social_2: [
@@ -653,7 +655,7 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
         `${right} walked away mid-congratulations when ${left} entered the room. The feud has stopped being subtle.`,
       ],
       social_1: [
-        `${left} and ${right} crossed paths twice without speaking. The rest of the house is beginning to read the tension.`,
+        `${left} and ${right} crossed paths twice without speaking. The rest of the Hub is beginning to read the tension.`,
         `${left} accused ${right} of retelling a private conversation over breakfast. Half the table suddenly found somewhere else to be.`,
         `${left} moved bedrooms rather than share another night beside ${right}. Everyone heard the suitcase wheels.`,
       ],
@@ -663,7 +665,7 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       ],
       pos_results: [
         `${left} watched ${right}'s reaction to the Safety result closely. Their rivalry is shaping the room.`,
-        `${left} called ${right}'s Safety celebration “premature.” The comment reached the other side of the house in minutes.`,
+        `${left} called ${right}'s Safety celebration “premature.” The comment reached the other side of the Hub in minutes.`,
       ],
       pos_ceremony_results: [
         `${left} and ${right} left the Safety ceremony on opposite sides of the room. Whatever trust existed is wearing thin.`,
@@ -671,7 +673,7 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       ],
       social_2: [
         `${left} and ${right} are both making their case, but every conversation seems to circle back to their feud.`,
-        `${left} opened a counter-campaign the moment ${right} left the lounge. The house is choosing sides.`,
+        `${left} opened a counter-campaign the moment ${right} left the lounge. The Hub is choosing sides.`,
       ],
       live_vote: [
         `${left} and ${right} did not acknowledge each other as the public vote opened. The audience has seen the fracture.`,
@@ -679,11 +681,11 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       ],
     }
     const romanceOptions = [
-      `${left} and ${right} filled the jacuzzi with champagne, slipped in after lights-out, and left the rest of the house debating exactly how serious this has become.`,
-      `${left} and ${right} shared a kiss on the terrace after midnight. By breakfast, the whole house had reconstructed the moment from whispers.`,
+      `${left} and ${right} filled the jacuzzi with champagne, slipped in after lights-out, and left the rest of the Hub debating exactly how serious this has become.`,
+      `${left} and ${right} shared a kiss on the terrace after midnight. By breakfast, everyone in the Hub had reconstructed the moment from whispers.`,
       `${left} and ${right} skinny-dipped after the garden lights went down. Their secret lasted roughly until someone found the abandoned microphones.`,
       `${right} surprised ${left} with a candlelit snack beside the pool. Even the biggest schemers stopped to watch.`,
-      `${left} and ${right} fell asleep holding hands on the lounge sofa. The morning camera found them before the other housemates did.`,
+      `${left} and ${right} fell asleep holding hands on the lounge sofa. The morning camera found them before the other hubmates did.`,
     ] as const
     const romanceBeat =
       strongest.romantic &&
@@ -702,12 +704,12 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       nomination_results: [
         `${nominees.join(', ')} split after the nomination totals: one went quiet in the bedroom, while another demanded answers in the kitchen.`,
         `The nominations have exposed old fault lines around ${nominees.join(', ')}. A private promise is suddenly being repeated very loudly.`,
-        `${nominees.join(', ')} are on the block, and one of them has hinted there are receipts that could change how the house sees a former ally.`,
+        `${nominees.join(', ')} are on the block, and one of them has hinted there are receipts that could change how the Hub sees a former ally.`,
       ],
       pos_results: [
         `${nominees.join(', ')} watched the Safety winner celebrate from opposite sides of the garden. Nobody looked comfortable.`,
-        `After the Safety result, one nominee demanded a private word and another started taking notes. The house knows a confrontation is coming.`,
-        `${nominees.join(', ')} are trying to stay composed, but a sharp exchange in the dressing room has already divided the house into witnesses and deniers.`,
+        `After the Safety result, one nominee demanded a private word and another started taking notes. The Hub knows a confrontation is coming.`,
+        `${nominees.join(', ')} are trying to stay composed, but a sharp exchange in the dressing room has already divided the Hub into witnesses and deniers.`,
       ],
       pos_ceremony_results: [
         `${nominees.join(', ')} face the audience vote now. One is crying in the bedroom; another is promising that the full story will come out if they stay.`,
@@ -716,12 +718,12 @@ function maybeBroadcastVoxSocialBeat(api: MiddlewareAPI, phase: string): void {
       ],
       social_2: [
         `${nominees.join(', ')} are making their cases without naming names. The room is listening for every slip.`,
-        `A nominee's tearful apology turned into an argument when someone challenged the timing. ${nominees.join(', ')} now have the whole house watching.`,
-        `${nominees.join(', ')} have made their final appeals. The house can offer support, but only the audience will decide.`,
+        `A nominee's tearful apology turned into an argument when someone challenged the timing. ${nominees.join(', ')} now have everyone in the Hub watching.`,
+        `${nominees.join(', ')} have made their final appeals. The Hub can offer support, but only the audience will decide.`,
       ],
       live_vote: [
         `As the audience vote opens, ${nominees.join(', ')} sit apart in the lounge. One last accusation has left the room completely silent.`,
-        `${nominees.join(', ')} are holding it together for the cameras, but the house has already seen the tears, the threats, and the fractures behind the final appeals.`,
+        `${nominees.join(', ')} are holding it together for the cameras, but the Hub has already seen the tears, the threats, and the fractures behind the final appeals.`,
       ],
     }
     const choices = nomineeBeats[phase]
@@ -786,7 +788,7 @@ function scheduleSafetyThankYou(
         id: interactionId,
         fromId: savedId,
         type: 'compliment',
-        text: `You took my name off the block. I will not forget that when this house gets difficult again.`,
+        text: `You took my name off the block. I will not forget that when life in the Hub gets difficult again.`,
         week: state.game.week,
         phase: state.game.phase,
         mode: 'drama',
@@ -1035,21 +1037,67 @@ function applySurvivedNomBonus(api: MiddlewareAPI, newPhase: string, state: Stat
 
 function syncInvalidIncomingInteractions(api: MiddlewareAPI): void {
   const state = api.getState() as StateWithGame
-  if (!state.social || !state.game) return
+  const reality = state.social?.reality
+  if (!state.social || !state.game || !reality) return
 
   const interactionIds = collectInvalidIncomingInteractionIds({
     incomingInteractions: state.social.incomingInteractions ?? [],
     scheduledIncomingInteractions: state.social.scheduledIncomingInteractions ?? [],
     game: state.game,
-    reality: state.social.reality,
+    reality,
   })
   if (interactionIds.length === 0) return
+
+  const invalidatedIds = new Set(interactionIds)
+  const retiredIntelHistory: Record<
+    string,
+    { text: string; outcomeText: string; resolvedLabel: string }
+  > = {}
+  const interactions = [
+    ...(state.social.incomingInteractions ?? []),
+    ...(state.social.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
+  ]
+  for (const interaction of interactions) {
+    if (!invalidatedIds.has(interaction.id)) continue
+    const factId = interaction.payload?.intelFactId
+    const fact = typeof factId === 'string' ? reality.facts[factId] : undefined
+    if (!fact) continue
+
+    const unavailableIds = new Set(
+      getUnavailableRealityFactParticipantIds(fact, state.game.players)
+    )
+    const sender = state.game.players.find((player) => player.id === interaction.fromId)
+    if (sender && (sender.status === 'evicted' || sender.status === 'jury')) {
+      unavailableIds.add(sender.id)
+    }
+    for (const value of [interaction.payload?.subjectId, interaction.payload?.secondarySubjectId]) {
+      if (typeof value !== 'string') continue
+      const player = state.game.players.find((candidate) => candidate.id === value)
+      if (!player || player.status === 'evicted' || player.status === 'jury') {
+        unavailableIds.add(value)
+      }
+    }
+    if (unavailableIds.size === 0) continue
+
+    const names = [...unavailableIds]
+      .map((id) => state.game.players.find((player) => player.id === id)?.name)
+      .filter((name): name is string => Boolean(name))
+    const reason = names.length
+      ? `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} no longer active in the game.`
+      : 'One or more people in this lead are no longer active in the game.'
+    retiredIntelHistory[interaction.id] = {
+      text: formatHistoricalIntel(fact, state.game.players),
+      outcomeText: `This lead is kept as history from Day ${fact.day}. ${reason}`,
+      resolvedLabel: 'Past lead',
+    }
+  }
 
   api.dispatch(
     invalidateIncomingInteractions({
       interactionIds,
       resolvedAt: Date.now(),
       resolvedWeek: state.game.week,
+      retiredIntelHistory,
     })
   )
 }
@@ -1114,7 +1162,7 @@ function recordActualVotes(api: MiddlewareAPI): void {
   if (!state.social?.reality || Object.keys(votes).length === 0) return
   recordCeremony(api, 'VOTES_REVEALED', {
     targetIds: [...new Set(Object.values(votes))],
-    reason: 'The house vote was locked and revealed.',
+    reason: 'The Hub vote was locked and revealed.',
   })
   const afterCeremony = api.getState() as StateWithGame
   const eventId =
@@ -1151,7 +1199,7 @@ function recordPhaseCeremony(
     const voxPopuliActive = state.game.voxPopuli?.status === 'active'
     recordCeremony(api, 'POWER_WON', {
       actorId: state.game.lohId,
-      reason: voxPopuliActive ? 'Daily immunity was won.' : 'Leader of the House power was won.',
+      reason: voxPopuliActive ? 'Daily immunity was won.' : 'Leader of the Hub power was won.',
       tags: [voxPopuliActive ? 'immunity' : 'loh'],
     })
   }
@@ -1168,7 +1216,7 @@ function recordPhaseCeremony(
       actorId: voxPopuliActive ? null : state.game.lohId,
       targetIds: state.game.nomineeIds,
       reason: voxPopuliActive
-        ? 'The secret housemate ballots were counted.'
+        ? 'The secret hubmate ballots were counted.'
         : 'The nominations were made official.',
       tags: voxPopuliActive ? ['secret_ballot'] : undefined,
     })
@@ -1291,8 +1339,8 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           payload: {
             text:
               entry.actionId === 'expose_secret'
-                ? `HOUSE EXPOSED: ${actorName} took a secret involving ${targetName} public.`
-                : `HOUSE SHOCK: ${actorName} called out ${targetName} in front of everyone.`,
+                ? `HUB EXPOSED: ${actorName} took a secret involving ${targetName} public.`
+                : `HUB SHOCK: ${actorName} called out ${targetName} in front of everyone.`,
             type: 'social',
             source: 'system',
             channels: ['tv', 'mainLog'],
@@ -1942,7 +1990,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           ? 'A contestant left the game.'
           : prevState.game?.voxPopuli?.status === 'active'
             ? 'The audience vote resulted in an elimination.'
-            : 'The house vote resulted in an eviction.',
+            : 'The Hub vote resulted in an elimination.',
       tags: isConfessionalAdministrativeRemoval
         ? ['administrative_removal', 'confessional_misconduct']
         : type === 'game/selfEvict'
@@ -1983,7 +2031,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         api.dispatch({
           type: 'game/addTvEvent',
           payload: {
-            text: `${affected.player.name}'s reaction to ${evictee.name}'s exit is impossible to hide. Housemates are starting to wonder just how close they really were.`,
+            text: `${affected.player.name}'s reaction to ${evictee.name}'s exit is impossible to hide. Hubmates are starting to wonder just how close they really were.`,
             type: 'social',
             source: 'system',
             channels: ['tv', 'mainLog'],
@@ -2017,7 +2065,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           actorId: voxPopuliActive ? null : state.game.lohId,
           targetIds: state.game.nomineeIds,
           reason: voxPopuliActive
-            ? 'The secret housemate ballots were counted.'
+            ? 'The secret hubmate ballots were counted.'
             : 'The nominations were made official.',
           tags: voxPopuliActive ? ['secret_ballot'] : undefined,
         })

@@ -12,7 +12,7 @@ type FixPreview = {
 const FIXES: FixPreview[] = [
   {
     id: 1,
-    title: 'House Feed',
+    title: 'Hub Feed',
     result: 'Inline feed owns the log and TV occupancy count.',
     href: '#/game',
     action: 'Open game + Debug panel',
@@ -20,7 +20,7 @@ const FIXES: FixPreview[] = [
   {
     id: 2,
     title: 'Crystal Path: Infinity',
-    result: 'Scrollable results, Leader of the House copy, clearer bridge.',
+    result: 'Scrollable results, Leader of the Hub copy, clearer bridge.',
     href: '#/minigame-lab?game=crystal_path_shattered&seed=424242&players=8',
     action: 'Open Crystal Path',
   },
@@ -104,7 +104,7 @@ const FIXES: FixPreview[] = [
   {
     id: 14,
     title: 'Tribunal reveal',
-    result: 'Juror portraits use a larger cinematic treatment and cleaner message balance.',
+    result: 'Tribunal portraits use a larger cinematic treatment and cleaner message balance.',
     href: '#/game',
     action: 'Open tribunal preview',
   },

@@ -566,6 +566,69 @@ describe('incoming interaction invalidation', () => {
     expect(scheduled).toBeUndefined()
   })
 
+  it('retires pending intel when any named participant leaves and keeps a dated past-tense record', () => {
+    const store = makeStore()
+    const { game, nominee, otherNominee, loh } = buildGameState()
+
+    nominee.status = 'nominated'
+    otherNominee.status = 'nominated'
+    game.week = 4
+    game.phase = 'week_end'
+    game.nomineeIds = [nominee.id, otherNominee.id]
+    game.pendingEviction = {
+      evicteeId: nominee.id,
+      evictionMessage: `${nominee.name} was eliminated.`,
+    }
+    store.dispatch(hydrateGame(game))
+
+    const social: SocialState = {
+      ...buildSocialState([
+        makeInteraction({
+          id: 'gossip-about-two-people',
+          fromId: loh.id,
+          type: 'warning',
+          text: `I heard ${loh.name} and ${nominee.name} are meeting privately.`,
+          payload: {
+            scenarioKey: 'generic_gossip',
+            intelFactId: 'fact:private-meeting',
+            subjectId: loh.id,
+            secondarySubjectId: nominee.id,
+          },
+        }),
+      ]),
+      reality: createInitialRealityDomainState(),
+    }
+    social.reality.facts['fact:private-meeting'] = {
+      id: 'fact:private-meeting',
+      propositionType: 'SECRET_MEETING',
+      subjectIds: [loh.id, nominee.id],
+      value: true,
+      day: 3,
+      phase: 'social_2',
+      visibility: 'PAIR_ONLY',
+      participantIds: [loh.id, nominee.id],
+      witnessIds: [otherNominee.id],
+      viewerVisible: false,
+      publicVisible: false,
+      juryVisible: false,
+      sourceEventId: 'social:private-meeting',
+    }
+    store.dispatch(hydrateSocial(social))
+    store.dispatch(finalizePendingEviction(nominee.id))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'gossip-about-two-people'
+      )
+    expect(entry?.resolved).toBe(true)
+    expect(entry?.resolvedLabel).toBe('Past lead')
+    expect(entry?.text).toBe(
+      `Day 3: ${loh.name} and ${nominee.name} were reported to have met privately.`
+    )
+    expect(entry?.outcomeText).toContain(`${nominee.name} is no longer active in the game.`)
+  })
+
   it('dismisses a stale interaction instead of applying a manual response', () => {
     const store = makeStore()
     const { game, human, nominee } = buildGameState()

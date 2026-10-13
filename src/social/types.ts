@@ -243,6 +243,8 @@ export type IncomingInteractionResponseType =
   | 'dismiss'
   | 'ignore'
 
+export type IncomingInteractionResponseAction = 'ask_plan' | 'need_time'
+
 export type IncomingInteractionPriority = 'high' | 'medium' | 'low'
 
 /** A concrete future action the player promised during an incoming interaction. */

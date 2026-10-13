@@ -48,8 +48,10 @@ import { executeHumanRealityAction } from '../../social/reality/humanFlow'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
 import {
   ALLIANCE_LIMITS,
+  allianceDisplayLabel,
   allianceKind,
   currentAllianceCounts,
+  getCurrentAlliancesBetween,
   getCurrentPact,
   isCurrentAlliance,
 } from '../../social/reality/allianceIdentity'
@@ -558,7 +560,7 @@ export default function SocialPanelV2() {
     const humanId = humanPlayer.id
     const targetId = primaryTargetId
     const playerName = (id: string) =>
-      game.players.find((player) => player.id === id)?.name ?? 'Housemate'
+      game.players.find((player) => player.id === id)?.name ?? 'Hubmate'
     const currentCommitments = Object.values(reality.alliances).filter(
       (alliance) => isCurrentAlliance(alliance) && alliance.memberIds.includes(humanId)
     )
@@ -1488,8 +1490,8 @@ export default function SocialPanelV2() {
       if (targetMode === 'multi' && targetIds.length < minimumTargetCount) {
         setFeedbackMsg(
           minimumTargetCount === 1
-            ? 'Select at least one housemate.'
-            : `Select at least ${minimumTargetCount} housemates for this group action.`
+            ? 'Select at least one hubmate.'
+            : `Select at least ${minimumTargetCount} hubmates for this group action.`
         )
         releaseGuard()
         return
@@ -1827,19 +1829,24 @@ export default function SocialPanelV2() {
         : Array.from(new Set([...(focusedOutward?.tags ?? []), ...(focusedInward?.tags ?? [])]))
       ).filter((tag) => tag in RELATIONSHIP_TAG_LABELS)
     : []
+  const focusedAlliances = focusedPlayer
+    ? getCurrentAlliancesBetween(socialState.reality, humanPlayer.id, focusedPlayer.id)
+    : []
+  const focusedDisplayLabels = [
+    ...(focusedAlliances.length > 0
+      ? focusedTags.filter(
+          (tag) => !['alliance', 'new_alliance', 'strained_alliance'].includes(tag)
+        )
+      : focusedTags
+    ).map((tag) => RELATIONSHIP_TAG_LABELS[tag]),
+    ...focusedAlliances.map(allianceDisplayLabel),
+  ].filter((label, index, labels) => labels.indexOf(label) === index)
   const focusedCommitments = focusedPlayer
-    ? Object.values(socialState.reality.alliances)
-        .filter(
-          (alliance) =>
-            isCurrentAlliance(alliance) &&
-            alliance.memberIds.includes(humanPlayer.id) &&
-            alliance.memberIds.includes(focusedPlayer.id)
-        )
-        .map((alliance) =>
-          allianceKind(alliance) === 'PACT'
-            ? `Personal pact · ${focusedPlayer.name}`
-            : (alliance.name ?? 'Alliance group')
-        )
+    ? focusedAlliances.map((alliance) =>
+        allianceKind(alliance) === 'PACT'
+          ? `Personal pact · ${focusedPlayer.name}`
+          : (alliance.name ?? 'Alliance group')
+      )
     : []
 
   const hasSeenAllianceGuide = hasSeenContextualGuide('alliance', activeProfileId, isGuest)
@@ -2197,10 +2204,10 @@ export default function SocialPanelV2() {
                         {formatPlayerStatus(focusedPlayer.status)}
                       </span>
                     </div>
-                    {focusedTags.length > 0 && (
+                    {focusedDisplayLabels.length > 0 && (
                       <div className="sp2-focus__tags">
-                        {focusedTags.slice(0, 3).map((tag) => (
-                          <span key={tag}>{RELATIONSHIP_TAG_LABELS[tag]}</span>
+                        {focusedDisplayLabels.slice(0, 3).map((label) => (
+                          <span key={label}>{label}</span>
                         ))}
                       </div>
                     )}

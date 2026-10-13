@@ -462,6 +462,26 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(chooseIncomingInteractionType('ally', 'user', context)).toBe('alliance_proposal')
   })
 
+  it('authors clear terms for an AI personal pact offer', () => {
+    const context = buildContext({
+      phase: 'week_start',
+      relationships: { ally: { user: { affinity: 80, tags: [] } } },
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'ally', name: 'Ally', status: 'active' },
+      ],
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('week_start', store, context)
+
+    const offer = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.type === 'alliance_proposal'
+    )?.interaction
+    expect(offer?.payload?.personalPactPlan).toMatch(/share strategic reads/i)
+  })
+
   it('recognizes a renewed live pact after an older pact dissolved', () => {
     const reality = createInitialRealityDomainState()
     const oldPact = createRealityAlliance(reality, {
@@ -502,7 +522,7 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       targetId: 'lux',
       openingNomineeIds: ['remy', 'nova'],
       expectedText:
-        'Lux is my backdoor target if Safety opens a replacement seat. My planned opening nominees are Remy and Nova.',
+        'Lux is my replacement target if Safety opens a replacement seat. My planned opening nominees are Remy and Nova.',
     },
   ])(
     'uses the canonical $strategy nomination plan in an AI LOH alliance huddle',

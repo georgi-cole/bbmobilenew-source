@@ -153,7 +153,7 @@ function getFailedAccusationCopy(
   if (revealInfo.victimOverride) {
     return `No suspect won the ballot. ${getName(revealInfo.victimId)}'s override named ${getName(revealInfo.accusedId)}, but the saboteur stayed hidden.`;
   }
-  return `The house's leading accusation was ${getName(revealInfo.accusedId)}. The real saboteur stayed hidden.`;
+  return `The Hub's leading accusation was ${getName(revealInfo.accusedId)}. The real saboteur stayed hidden.`;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -1015,7 +1015,7 @@ export default function SilentSaboteurComp({
             <AvatarTileGrid
               playerIds={activeIds}
               getName={getName}
-              ariaLabel="Housemates"
+              ariaLabel="Hubmates"
               compact={true}
               showNames={false}
             />
@@ -1266,7 +1266,7 @@ export default function SilentSaboteurComp({
                 />
                 {revealInfo.reason === 'saboteur_caught' ? (
                   <p className="ss-reveal-body">
-                    The house correctly identified <strong>{getName(revealInfo.saboteurId)}</strong>.
+                    The Hub correctly identified <strong>{getName(revealInfo.saboteurId)}</strong>.
                   </p>
                 ) : (
                   <p className="ss-reveal-body">
@@ -1307,7 +1307,7 @@ export default function SilentSaboteurComp({
                 </h2>
                 <p className="ss-reveal-body">
                   {revealInfo.reason === 'saboteur_caught'
-                    ? 'The saboteur has been removed from the game. The house survives another round.'
+                    ? 'The saboteur has been removed from the game. The Hub survives another round.'
                     : `The sabotage succeeds. ${getName(revealInfo.victimId)} is gone.`}
                 </p>
                 {revealInfo.eliminatedId === humanPlayerId && (

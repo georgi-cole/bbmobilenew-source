@@ -50,7 +50,7 @@ export default function DepressionShockRosterCinematic({ kind, onImpact, onCompl
 
     const elements = [
       ...document.querySelectorAll<HTMLElement>(
-        '[data-houseguest-roster="true"] [data-depression-target="true"]'
+        '[data-hubmate-roster="true"] [data-depression-target="true"]'
       ),
     ]
     const measured = elements

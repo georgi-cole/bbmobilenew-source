@@ -80,7 +80,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     escalations: [
       'False sightings spread across several cities while family members ask amateur investigators to stop interfering.',
       'A parked car is found in another region, creating a wave of theories that grow more dramatic by the hour.',
-      'Former housemates coordinate privately while tabloids publish increasingly implausible explanations.',
+      'Former hubmates coordinate privately while tabloids publish increasingly implausible explanations.',
       'The situation becomes national news after a scheduled live interview airs with an empty chair.',
     ],
     outcomes: [
@@ -113,7 +113,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     setups: [
       'An old legal record links {name} to a different surname and a period of life never mentioned on the show.',
       'A local newspaper archive reveals that {name} once gave evidence in a case that received regional attention.',
-      'A former acquaintance claims {name} deliberately hid an important chapter of life before entering the house.',
+      'A former acquaintance claims {name} deliberately hid an important chapter of life before entering the Hub.',
       'Documents circulated online show {name} living under a different surname years before becoming a contestant.',
     ],
     escalations: [
@@ -132,7 +132,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       'The old surname had been visible in public records all along.',
       'The person who revived the story was trying to defend {name}.',
       'A tabloid quietly removes its most dramatic claim after receiving a legal letter.',
-      'Another housemate admits learning the truth during casting and keeping it private.',
+      'Another hubmate admits learning the truth during casting and keeping it private.',
     ],
   },
   {
@@ -164,7 +164,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     outcomes: [
       '{name} builds a durable career that eventually matters more than the season that created the fame.',
       'The comeback succeeds because {name} stops chasing celebrity and starts treating the work seriously.',
-      '{name} becomes one of the few housemates whose second act is bigger than the first.',
+      '{name} becomes one of the few hubmates whose second act is bigger than the first.',
       'Years later, the reality-show label is a footnote rather than the headline.',
     ],
     twists: [
@@ -190,7 +190,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     setups: [
       '{name} signs a rapid series of sponsorships and television deals immediately after the finale.',
-      'A management team builds an aggressive celebrity brand around {name} within days of leaving the house.',
+      'A management team builds an aggressive celebrity brand around {name} within days of leaving the Hub.',
       "For several months, {name} appears to be the season's biggest commercial success.",
       'A packed schedule leaves {name} moving from one endorsement to another with almost no control over the messaging.',
     ],

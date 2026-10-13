@@ -34,7 +34,7 @@ export function buildDoubleEvictionTieResolutionMessage({
   const selectedList = formatDoubleEvictionNameList(selectedNames);
   const actor = publicModeEnabled ? 'Public approval' : deciderName;
   const action = 'chose to eliminate';
-  const tieIntro = `There was a tie between ${tiedList}${secondEvictionOnly ? ' for the second eviction' : ''}.`;
+  const tieIntro = `There was a tie between ${tiedList}${secondEvictionOnly ? ' for the second elimination' : ''}.`;
   const decision = `${actor} had to decide between ${tiedList} and ${action} ${selectedList}.`;
 
   if (!includeEliminationClause) {
@@ -42,6 +42,6 @@ export function buildDoubleEvictionTieResolutionMessage({
   }
 
   const emoji = publicModeEnabled ? '📉' : '🗳️';
-  const elimination = `${selectedList} ${selectedNames.length === 1 ? 'has' : 'have'} been eliminated from The Big Eye house. ${emoji}`;
+  const elimination = `${selectedList} ${selectedNames.length === 1 ? 'has' : 'have'} been eliminated from the Hub. ${emoji}`;
   return `${tieIntro} ${decision} ${elimination}`;
 }

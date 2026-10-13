@@ -150,7 +150,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
           {decisionComplete || decision === null ? (
             <GameBackButton
               className="diary-room__back"
-              label="Return to the House"
+              label="Return to the Hub"
               onClick={handleReturnToGame}
             />
           ) : (
@@ -222,7 +222,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
                         </div>
                       )}
                       <p className="required-confessional__decision-complete required-confessional__decision-complete--return">
-                        Return to the House to continue the ceremony.
+                        Return to the Hub to continue the ceremony.
                       </p>
                     </section>
                   ) : (

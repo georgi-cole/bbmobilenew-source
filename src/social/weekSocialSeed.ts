@@ -77,14 +77,26 @@ function seedStaticRelationshipChemistry(
       if (!activeIds.has(targetId)) return
       operations.push({
         kind: 'relationship',
-        payload: { source: actorId, target: targetId, delta: 8, actionSource: 'system' },
+        payload: {
+          source: actorId,
+          target: targetId,
+          delta: 8,
+          actionSource: 'system',
+          realityMeaningful: false,
+        },
       })
     })
     profile.enemies.forEach((targetId) => {
       if (!activeIds.has(targetId)) return
       operations.push({
         kind: 'relationship',
-        payload: { source: actorId, target: targetId, delta: -8, actionSource: 'system' },
+        payload: {
+          source: actorId,
+          target: targetId,
+          delta: -8,
+          actionSource: 'system',
+          realityMeaningful: false,
+        },
       })
     })
   }
@@ -108,6 +120,7 @@ function seedStaticRelationshipTags(
           delta: 0,
           tags: ['alliance'],
           actionSource: 'system',
+          realityMeaningful: false,
         },
       })
     })
@@ -121,6 +134,7 @@ function seedStaticRelationshipTags(
           delta: 0,
           tags: ['target'],
           actionSource: 'system',
+          realityMeaningful: false,
         },
       })
     })
@@ -218,20 +232,23 @@ export function seedWeekRelationships(store: StoreAPI): void {
             target: target.id,
             delta,
             actionSource: 'system',
+            // Day-start background chemistry is not a direct conversation.
+            realityMeaningful: false,
           },
         })
-        if (existing) {
-          batch.operations.push({
-            kind: 'ambientRelationship',
-            payload: {
-              sourceId: actor.id,
-              targetId: target.id,
-              socialDelta: delta,
-              day: week,
-            },
-          })
-        }
       }
+      // Everyone active in the Hub shares the day's public routines. The
+      // reducer grants one familiarity point per directed pair and day, even
+      // when the ambient relationship roll itself is neutral.
+      batch.operations.push({
+        kind: 'ambientRelationship',
+        payload: {
+          sourceId: actor.id,
+          targetId: target.id,
+          socialDelta: existing ? delta : 0,
+          day: week,
+        },
+      })
     }
   }
 

@@ -54,7 +54,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       'The first leak came from a relative, not a tabloid.',
       'The reunion producers had footage hinting at the story but chose not to air it.',
       'A person loudly claiming insider knowledge turns out to have invented the entire middle chapter.',
-      'The announcement becomes the one subject every former housemate refuses to discuss.',
+      'The announcement becomes the one subject every former hubmate refuses to discuss.',
     ],
   },
   {
@@ -67,18 +67,18 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     eligibility: { tagsAny: ['romance'], requiresRelation: 'romantic' },
     headlines: [
       '{name} and {romanticName} Are Expecting',
-      'House Romance Becomes a Family',
+      'Hub Romance Becomes a Family',
       "{name}'s Biggest Post-Show Surprise Is Personal",
       'From Finale Night to Baby News',
     ],
     setups: [
-      '{name} and {romanticName} keep a pregnancy private for months after leaving the house.',
+      '{name} and {romanticName} keep a pregnancy private for months after leaving the Hub.',
       'A routine interview takes an emotional turn when {name} reveals that the relationship with {romanticName} has entered a new chapter.',
       'Fans notice {name} and {romanticName} quietly stepping away from nightlife and public events without explanation.',
       'The couple disappears from social media just as rumors begin that they are preparing for a baby.',
     ],
     escalations: [
-      'Speculation becomes intense after former housemates are seen arriving at a private family dinner.',
+      'Speculation becomes intense after former hubmates are seen arriving at a private family dinner.',
       'A gift bag accidentally visible in a livestream gives away the news before the planned announcement.',
       'The couple argues with management over whether the announcement should be sold as an exclusive.',
       'A false breakup rumor spreads at exactly the moment the pair is trying to keep the pregnancy out of the press.',
@@ -91,7 +91,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     twists: [
       'The cast had known for weeks and somehow kept the secret.',
-      'The first congratulatory message comes from the housemate least expected to support them.',
+      'The first congratulatory message comes from the hubmate least expected to support them.',
       'A magazine prints the wrong due month and creates a second wave of rumors.',
       'The couple names no brands, despite receiving dozens of offers.',
     ],
@@ -151,7 +151,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     setups: [
       '{name} and {romanticName} are still publicly together when photographs place {name} with someone else after midnight.',
-      'A supposedly private weekend for {name} becomes tabloid news after a hotel guest recognizes the former housemate.',
+      'A supposedly private weekend for {name} becomes tabloid news after a hotel guest recognizes the former hubmate.',
       'The relationship with {romanticName} appears stable until a sequence of late-night photographs begins circulating.',
       '{name} is seen leaving a private apartment hours after posting a romantic tribute to {romanticName}.',
     ],
@@ -159,7 +159,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       '{romanticName} unfollows {name}, then deletes every photograph from the relationship within minutes.',
       'A voice note leaks in which somebody appears to warn {name} that the story is about to break.',
       "The mystery companion gives a short interview that contradicts {name}'s first explanation.",
-      'Former housemates take sides publicly, turning the relationship crisis into a cast-wide feud.',
+      'Former hubmates take sides publicly, turning the relationship crisis into a cast-wide feud.',
     ],
     outcomes: [
       '{name} admits crossing a line, and the relationship with {romanticName} ends in a joint statement that reads anything but joint.',
@@ -169,7 +169,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     twists: [
       'The photographer was invited to the building by someone close to the couple.',
-      'The mystery companion had previously dated another housemate.',
+      'The mystery companion had previously dated another hubmate.',
       'One photograph was taken weeks earlier than the tabloid claimed.',
       'A second batch of images changes which partner the public believes.',
     ],

@@ -111,7 +111,7 @@ const NARRATION_LINES: Record<SpectatorVariant, string[]> = {
     'The competition is heating up fast! 🔥',
     'One slip-up could flip the whole game! 😰',
     'They are laser-focused right now! 🎯',
-    'Knowledge is power in The Big Eye house! 🏠',
+    'Knowledge is power in the Hub! 🏠',
   ],
   maze: [
     'Navigating through the twists and turns! 🌀',

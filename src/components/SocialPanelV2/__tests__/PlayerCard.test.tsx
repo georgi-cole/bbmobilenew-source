@@ -31,6 +31,7 @@ import {
   createDirectedRelationship,
   createInitialRealityDomainState,
 } from '../../../social/reality'
+import { createRealityAlliance } from '../../../social/reality/relationshipForms'
 import PlayerCard from '../PlayerCard'
 import PlayerList from '../PlayerList'
 
@@ -224,6 +225,32 @@ describe('PlayerList', () => {
     makePlayer({ id: 'c', name: 'Carol', status: 'loh' }),
   ]
 
+  function renderWithFormalCommitments(kinds: Array<'PACT' | 'GROUP'>) {
+    const reality = createInitialRealityDomainState()
+    for (const kind of kinds) {
+      const alliance = createRealityAlliance(reality, {
+        id: `ui-${kind.toLowerCase()}`,
+        founderIds: ['human'],
+        memberIds: kind === 'PACT' ? ['a'] : ['a', 'c'],
+        purpose: 'Test commitment labels',
+        kind,
+        at: { day: 1, phase: 'social_1' },
+      })
+      alliance.status = 'ACTIVE'
+    }
+
+    render(
+      <PlayerList
+        players={[players[0]]}
+        humanPlayerId="human"
+        relationships={{ human: { a: { affinity: 60, tags: ['alliance'] } } }}
+        selectedIds={new Set(['a'])}
+        playerLimitedRead
+        reality={reality}
+      />
+    )
+  }
+
   it('renders a card for each player', () => {
     render(<PlayerList players={players} />)
     expect(screen.getByText('Alice')).toBeDefined()
@@ -253,6 +280,33 @@ describe('PlayerList', () => {
     expect(screen.getByText(/Ally/)).toBeInTheDocument()
     expect(screen.queryByText(/Rival/)).toBeNull()
     expect(screen.queryByText('-10%')).toBeNull()
+  })
+
+  it('labels a personal pact as Pact instead of Ally or Alliance', () => {
+    renderWithFormalCommitments(['PACT'])
+
+    const card = screen.getByRole('button', { name: /alice/i })
+    expect(
+      [...card.querySelectorAll('.pc__bond-chip--ally')].map((chip) => chip.textContent)
+    ).toEqual(['🤝 Pact'])
+  })
+
+  it('labels group membership as Alliance', () => {
+    renderWithFormalCommitments(['GROUP'])
+
+    const card = screen.getByRole('button', { name: /alice/i })
+    expect(
+      [...card.querySelectorAll('.pc__bond-chip--ally')].map((chip) => chip.textContent)
+    ).toEqual(['🤝 Alliance'])
+  })
+
+  it('shows Pact and Alliance when both formal commitments exist', () => {
+    renderWithFormalCommitments(['PACT', 'GROUP'])
+
+    const card = screen.getByRole('button', { name: /alice/i })
+    expect(
+      [...card.querySelectorAll('.pc__bond-chip--ally')].map((chip) => chip.textContent)
+    ).toEqual(['🤝 Pact', '🤝 Alliance'])
   })
 
   it('uses the directed Reality label when its projected affinity still falls in Neutral', () => {

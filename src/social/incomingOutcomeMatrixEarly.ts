@@ -23,7 +23,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'hear them out': says('a loose voting group is forming, but nobody has locked it in.'),
     'call it fishing': says('they wanted to see what you already knew before naming anyone.'),
     'do not bite': acts('gets nothing from you and takes the rumour elsewhere.'),
-    'ask who is talking': says('the chatter is coming from more than one side of the house.'),
+    'ask who is talking': says('the chatter is coming from more than one side of the Hub.'),
     'keep it vague': says('they cannot tell whether you already heard the same thing.'),
     'challenge the angle': says('they are suspicious, but admit they cannot prove the motive.'),
     'end the chat': acts('stops pushing and leaves without trading any names.'),
@@ -64,12 +64,10 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
   },
   player_nominated_support: {
     'let them in': says('they will stay close and help you count where the votes are.'),
-    'ask what they need': says(
-      'they need you calm enough to avoid giving the house an easy target.'
-    ),
+    'ask what they need': says('they need you calm enough to avoid giving the Hub an easy target.'),
     'keep your guard up': says('they understand, but cannot help much without knowing your plan.'),
     'end the talk': acts('backs off and leaves you to handle the block alone for now.'),
-    'thank them for checking': says('they meant the support and will keep an ear on the house.'),
+    'thank them for checking': says('they meant the support and will keep an ear on the Hub.'),
     'talk it through': says('your best route is to secure one solid vote before chasing the rest.'),
     'say you are fine': says('they do not fully believe you, but stop pressing.'),
     'step away': acts('gives you space and stops asking how you are handling the nomination.'),
@@ -84,7 +82,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'try to reset': says(
       'they are willing to stop escalating if you keep the next conversation direct.'
     ),
-    'hear their read': says('the house sees you as more connected than your position suggests.'),
+    'hear their read': says('the Hub sees you as more connected than your position suggests.'),
     'draw a boundary': says('they will keep their distance and stop testing you for now.'),
     'leave it there': acts('ends the exchange without softening their read of you.'),
   },
@@ -96,7 +94,7 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'be honest about it': says(
       'they would rather hear frustration than watch you pretend it did not sting.'
     ),
-    'keep it breezy': says('they will treat the result as noise unless the house weaponizes it.'),
+    'keep it breezy': says('they will treat the result as noise unless the Hub weaponizes it.'),
     'question the concern': says(
       'they checked because weak finishes sometimes become easy nomination excuses.'
     ),
@@ -120,11 +118,11 @@ export const EARLY_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
       'people are starting to connect your separate relationships into one picture.'
     ),
     'reject the read': says(
-      'they still think your visibility is becoming part of the house narrative.'
+      'they still think your visibility is becoming part of the Hub narrative.'
     ),
     'keep it private': acts('agrees not to repeat the warning to anyone else.'),
     'ask for specifics': says(
-      'they have heard your name in different kinds of house talk, but have no firm count.'
+      'they have heard your name in different kinds of Hub talk, but have no firm count.'
     ),
     'play it cool': says(
       'they cannot tell whether the attention is helping you or making you a target.'

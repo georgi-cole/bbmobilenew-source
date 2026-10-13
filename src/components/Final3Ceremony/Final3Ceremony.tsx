@@ -144,7 +144,7 @@ function readDecision(
       : threat >= 5
         ? 'you have built too strong a case to sit beside'
         : timesNominated >= 2
-          ? 'you have survived every time the house put you in danger'
+          ? 'you have survived every time the Hub put you in danger'
           : 'this is the move I can live with'
   return { threat, affinity, inwardAffinity, tags, expectedFinalTwo, comparison, reason }
 }
@@ -430,7 +430,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const handleHumanDecision = useCallback(
     (chosenEvicteeId: string) => {
       if (import.meta.env.DEV) {
-        console.log('[Final3Ceremony] human LOH evictee chosen', chosenEvicteeId)
+        console.log('[Final3Ceremony] human LOH eliminated player chosen', chosenEvicteeId)
       }
       const evictee = game.players.find((p) => p.id === chosenEvicteeId)
       if (!evictee) return
@@ -462,7 +462,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
   const handleEvictionSplashDone = useCallback(() => {
     if (!lohId || !evicteeId) return
     if (import.meta.env.DEV) {
-      console.log('[Final3Ceremony] eviction splash done → final two reveal', {
+      console.log('[Final3Ceremony] elimination splash done → final two reveal', {
         lohId,
         evicteeId,
       })
@@ -521,7 +521,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       {stage === 'decision' && humanIsLoh && (
         <TvDecisionModal
           title="Final Power Decision"
-          subtitle="Choose who you are evicting. The other finalist stays and faces you in the Final Two."
+          subtitle="Choose who you are eliminating. The other finalist stays and faces you in the Final Two."
           options={nominees}
           optionDescriptions={optionDescriptions}
           onSelect={handleHumanDecision}
@@ -529,16 +529,16 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
           selectionConsequence={(selectedPlayer, options) => {
             const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
             return keptPlayer
-              ? `You will evict ${selectedPlayer.name}. ${keptPlayer.name} will join you in the Final Two.`
-              : `You will evict ${selectedPlayer.name}.`
+              ? `You will eliminate ${selectedPlayer.name}. ${keptPlayer.name} will join you in the Final Two.`
+              : `You will eliminate ${selectedPlayer.name}.`
           }}
           confirmSelectionLabel={(selectedPlayer, options) => {
             const keptPlayer = options.find((player) => player.id !== selectedPlayer.id)
             return keptPlayer
-              ? `Evict ${selectedPlayer.name} · Keep ${keptPlayer.name}`
-              : `Evict ${selectedPlayer.name}`
+              ? `Eliminate ${selectedPlayer.name} · Keep ${keptPlayer.name}`
+              : `Eliminate ${selectedPlayer.name}`
           }}
-          stingerMessage="EVICTION RECORDED"
+          stingerMessage="ELIMINATION RECORDED"
         />
       )}
 

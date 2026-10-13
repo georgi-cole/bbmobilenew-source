@@ -1551,7 +1551,7 @@ function activateCupidArrowForSeason(state: GameState) {
     .join(' · ')
   pushEvent(
     state,
-    `🏹 The lights soften. A golden arrow crosses the house, splitting into eight trails of light. Cupid has chosen: ${pairNames}. From this moment, every victory, every danger, every vote, and every exit belongs to the pair. 💘`,
+    `🏹 The lights soften. A golden arrow crosses the Hub, splitting into eight trails of light. Cupid has chosen: ${pairNames}. From this moment, every victory, every danger, every vote, and every exit belongs to the pair. 💘`,
     'twist',
     {
       major: 'cupid_arrow',
@@ -1615,7 +1615,7 @@ function applyPendingPublicModeChange(state: GameState, phase: Phase) {
     state,
     requested
       ? '📡 Public Mode is now live. The outside world will shape this cycle.'
-      : '📡 Public Mode is now off. The house will shape this cycle on its own.',
+      : '📡 Public Mode is now off. The Hub will shape this cycle on its own.',
     'game',
     { phase }
   )
@@ -3393,7 +3393,7 @@ function pushVoxPostEvictionReaction(state: GameState, evictee: Player): void {
     (name: string) =>
       `${name} is already calling ${evictee.name}'s exit the turning point of the season.`,
     (name: string) =>
-      `${name} cannot hide a relieved smile now that rival ${evictee.name} has left the house.`,
+      `${name} cannot hide a relieved smile now that rival ${evictee.name} has left the Hub.`,
     (name: string) => `${name} has quietly begun a victory lap after outlasting ${evictee.name}.`,
     (name: string) =>
       `${name} is telling allies that ${evictee.name}'s exit has opened the road to the finale.`,
@@ -3975,7 +3975,7 @@ function resolveTwinShockDiscovered(state: GameState) {
   }
   pushTwinShockAnnouncement(
     state,
-    `TWIN SHOCK! ${humanName} exposed that Lia had a twin. Lia has been secretly switching places with her twin sister, Ali. What a shock! Welcome Ali to the House. From now on, Lia & Ali will play as one contestant.`,
+    `TWIN SHOCK! ${humanName} exposed that Lia had a twin. Lia has been secretly switching places with her twin sister, Ali. What a shock! Welcome Ali to the Hub. From now on, Lia & Ali will play as one contestant.`,
     'twin_shock_discovered'
   )
 }
@@ -4000,7 +4000,7 @@ function resolveTwinShockMissionSuccess(state: GameState) {
         )
       })[0] ?? null
   const replacedPlayerId = replacement?.id ?? TWIN_SHOCK_ALI_ID
-  const replacedPlayerName = replacement?.name ?? 'an empty house slot'
+  const replacedPlayerName = replacement?.name ?? 'an empty spot'
   const replacedPlayerAvatar = replacement ? resolveAvatar(replacement) : TWIN_SHOCK_ALI_AVATAR
 
   if (lia) {
@@ -4053,8 +4053,8 @@ function resolveTwinShockMissionSuccess(state: GameState) {
   pushTwinShockAnnouncement(
     state,
     replacement
-      ? `TWIN SHOCK REVEALED! Lia has been secretly switching places with her twin sister, Ali, all along. Because the secret mission was successful, Ali takes over ${replacedPlayerName}'s empty spot as a full contestant. Welcome Ali to the House!`
-      : 'TWIN SHOCK REVEALED! Lia has been secretly switching places with her twin sister, Ali, all along. Because the secret mission was successful, Ali has earned her place as a full contestant. Welcome Ali to the House!',
+      ? `TWIN SHOCK REVEALED! Lia has been secretly switching places with her twin sister, Ali, all along. Because the secret mission was successful, Ali takes over ${replacedPlayerName}'s empty spot as a full contestant. Welcome Ali to the Hub!`
+      : 'TWIN SHOCK REVEALED! Lia has been secretly switching places with her twin sister, Ali, all along. Because the secret mission was successful, Ali has earned her place as a full contestant. Welcome Ali to the Hub!',
     'twin_shock_mission_success'
   )
   if (lia) {
@@ -4201,7 +4201,7 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
     pushEvent(
       state,
       finalFour
-        ? `${winner?.name ?? winnerId} wins the Final 4 competition, but there is no immunity today. Last place will begin on the block, and the other three housemates will each cast one secret nomination vote.`
+        ? `${winner?.name ?? winnerId} wins the Final 4 competition, but there is no immunity today. Last place will begin on the block, and the other three hubmates will each cast one secret nomination vote.`
         : `${winner?.name ?? winnerId} won today's competition and is immune from nomination and the audience vote.`,
       'game',
       finalFour
@@ -4210,7 +4210,7 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
             broadcastPriority: 'critical',
             announcementTitle: `${winner?.name ?? winnerId} Wins the Final 4 Competition`,
             announcementSubtitle:
-              'There is no immunity today. Last place begins on the block, and the other three housemates will each cast one secret vote.',
+              'There is no immunity today. Last place begins on the block, and the other three hubmates will each cast one secret vote.',
           }
         : undefined
     )
@@ -4219,8 +4219,8 @@ function applyLohWinner(state: GameState, winnerId: string, source?: string) {
   pushEvent(
     state,
     partner
-      ? `${winner?.name ?? winnerId} won Leader of the House, making ${partner.name} co-LOH under Cupid's Arrow! 👑💘`
-      : `${winner?.name ?? winnerId} has won Leader of the House! 👑`,
+      ? `${winner?.name ?? winnerId} won Leader of the Hub, making ${partner.name} co-LOH under Cupid's Arrow! 👑💘`
+      : `${winner?.name ?? winnerId} has won Leader of the Hub! 👑`,
     'game',
     {
       phase: 'loh_results',
@@ -4579,8 +4579,8 @@ export function chooseAiEvictionVote(
     phase: state.phase,
     seed: gameSeed,
     reason: executedBackdoorTargetId
-      ? 'highest relationship-aware eviction score with executed backdoor target pressure'
-      : 'highest relationship-aware eviction score',
+      ? 'highest relationship-aware elimination score with executed replacement target pressure'
+      : 'highest relationship-aware elimination score',
     context: {
       nomineeIds: nomineeIds.join(', '),
       ...(executedBackdoorTargetId ? { backdoorTargetId: executedBackdoorTargetId } : {}),
@@ -4655,7 +4655,7 @@ function applyOneVoteDeductionToHuman(state: GameState): boolean {
       state.tiedNomineeIds = null
       state.pendingEviction = {
         evicteeId: newEvictee.id,
-        evictionMessage: `${newEvictee.name}, you have been eliminated from The Big Eye house. 🚪`,
+        evictionMessage: `${newEvictee.name}, you have been eliminated from the Hub. 🚪`,
       }
     }
   } else {
@@ -4690,8 +4690,8 @@ function applyOneVoteDeductionToHuman(state: GameState): boolean {
       const evicted = state.players.find((player) => player.id === evicteeId)
       if (evicted) {
         const evictionMessage = tieBreakerPlayer
-          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from The Big Eye house. 🗳️`
-          : `${evicted.name} has been eliminated from The Big Eye house. 🚪`
+          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`
+          : `${evicted.name} has been eliminated from the Hub. 🚪`
         state.pendingEviction = { evicteeId: evicted.id, evictionMessage }
       }
     }
@@ -6493,7 +6493,7 @@ const gameSlice = createSlice({
       // Defer the eviction commit until the cinematic overlay completes.
       state.pendingEviction = {
         evicteeId: nomineeId,
-        evictionMessage: `${lohPlayer?.name ?? 'The LOH'} breaks the tie, voting to eliminate ${evictee.name}. ${evictee.name} has been eliminated from The Big Eye house. 🗳️`,
+        evictionMessage: `${lohPlayer?.name ?? 'The Leader of the Hub'} breaks the tie, voting to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🗳️`,
       }
       // Keep the phase at eviction_results. GameScreen commits the eviction after
       // the cinematic, then advances exactly once into week_end.
@@ -6539,8 +6539,8 @@ const gameSlice = createSlice({
       })
       const buildFollowUpMessage = (player: Player) =>
         state.publicModeEnabled
-          ? `${player.name} had the lower public approval and has been eliminated from The Big Eye house. 📉`
-          : `Following the tie-break, ${player.name} has also been eliminated from The Big Eye house. 🗳️`
+          ? `${player.name} had the lower public approval and has been eliminated from the Hub. 📉`
+          : `Following the tie-break, ${player.name} has also been eliminated from the Hub. 🗳️`
 
       if (state.pendingEviction && !state.doubleEviction.pendingSecondEviction) {
         state.doubleEviction.pendingSecondEviction = {
@@ -6704,7 +6704,7 @@ const gameSlice = createSlice({
       // Defer the eviction commit until the cinematic overlay completes.
       state.pendingEviction = {
         evicteeId: nomineeId,
-        evictionMessage: `${posHolder?.name ?? 'The POS holder'} breaks the tie as a special exception, voting to eliminate ${evictee.name}. ${evictee.name} has been eliminated from The Big Eye house. 🗳️`,
+        evictionMessage: `${posHolder?.name ?? 'The Power of Safety holder'} breaks the tie as a special exception, voting to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🗳️`,
       }
       // Keep the phase at eviction_results. The shared cinematic completion
       // handler finalizes the eviction and advances to week_end.
@@ -6811,7 +6811,7 @@ const gameSlice = createSlice({
         evictionMessage:
           action.payload.context === 'final3'
             ? `${first.name} receives ${firstPercent.toFixed(1)}% of the audience vote to eliminate and finishes in 3rd place.`
-            : `${first.name} receives the highest audience vote to eliminate at ${firstPercent.toFixed(1)}% and leaves The Big Eye house.`,
+            : `${first.name} receives the highest audience vote to eliminate at ${firstPercent.toFixed(1)}% and leaves the Hub.`,
       }
 
       if (
@@ -7064,7 +7064,7 @@ const gameSlice = createSlice({
           state.phase = 'final3'
           pushEvent(
             state,
-            `Final 3! The remaining housemates will compete for immunity before the audience decides third place.`,
+            `Final 3! The remaining hubmates will compete for immunity before the audience decides third place.`,
             'game',
             { major: 'vox_populi_final_three' }
           )
@@ -7146,8 +7146,8 @@ const gameSlice = createSlice({
       pushEvent(
         state,
         partner
-          ? `${player.name} has chosen to self-evict. Cupid's Arrow also eliminates ${partner}. 🚪💔`
-          : `${player.name} has chosen to self-evict from The Big Eye house. 🚪`,
+          ? `${player.name} has chosen to leave the Hub. Cupid's Arrow also eliminates ${partner}. 🚪💔`
+          : `${player.name} has chosen to self-eliminate from The Hub. 🚪`,
         'game',
         partner
           ? { broadcastTemplateId: 'cupid.self-eviction-pair', phase: 'eviction_results' }
@@ -7182,7 +7182,7 @@ const gameSlice = createSlice({
       state.awaitingPovDecision = false
       state.pendingEviction = {
         evicteeId,
-        evictionMessage: `${povHolder.name} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from The Big Eye house. 🚪`,
+        evictionMessage: `${povHolder.name} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🚪`,
       }
     },
 
@@ -7343,7 +7343,7 @@ const gameSlice = createSlice({
       ensurePlayerStats(winner).battleBackWins = (winner.stats!.battleBackWins ?? 0) + 1
       pushEvent(
         state,
-        `🔥 ${winner.name} has survived Back 2 the Game and RETURNS to The Big Eye house! 🏠✨`,
+        `🔥 ${winner.name} has survived Back 2 the Game and RETURNS to the Hub! 🏠✨`,
         'twist'
       )
 
@@ -7599,7 +7599,7 @@ const gameSlice = createSlice({
       if (shock.activeDay === 1) {
         pushEvent(
           state,
-          'The weather has been bad for so long that the housemates have slipped into depression. Watch out — they may not act like themselves. 🌧️',
+          'The weather has been bad for so long that the hubmates have slipped into depression. Watch out — they may not act like themselves. 🌧️',
           'twist',
           { major: 'depression_shock_start', source: action.payload.source }
         )
@@ -7612,7 +7612,7 @@ const gameSlice = createSlice({
       } else {
         pushEvent(
           state,
-          'The house is still very depressed. Colour drains from the rooms as the storm refuses to lift. 🌫️',
+          'The Hub is still very depressed. Colour drains from the rooms as the storm refuses to lift. 🌫️',
           'twist',
           { major: 'depression_shock_day_two' }
         )
@@ -7638,7 +7638,7 @@ const gameSlice = createSlice({
       state.twistActive = false
       pushEvent(
         state,
-        'A sunny break tears through the clouds. Light floods the house, a rainbow arcs overhead, and the housemates finally return to themselves. 🌈',
+        'A sunny break tears through the clouds. Light floods the Hub, a rainbow arcs overhead, and the hubmates finally return to themselves. 🌈',
         'twist',
         { major: 'depression_shock_recovery' }
       )
@@ -8047,7 +8047,7 @@ const gameSlice = createSlice({
       state.phase = 'week_end'
 
       if (import.meta.env.DEV) {
-        console.log('[gameSlice] finalizeFinal3Decision: evicted', evicteeId, 'loh', hohWinnerId)
+        console.log('[gameSlice] finalizeFinal3Decision: eliminated', evicteeId, 'loh', hohWinnerId)
       }
     },
 
@@ -8064,7 +8064,7 @@ const gameSlice = createSlice({
       if (player) {
         player.status = player.status === 'pos' ? 'loh+pos' : 'loh'
         syncCupidRoleStatuses(state)
-        pushEvent(state, `[DEBUG] ${player.name} forced as Leader of the House. 👑`, 'game')
+        pushEvent(state, `[DEBUG] ${player.name} forced as Leader of the Hub. 👑`, 'game')
       }
     },
     /** Force specific players as nominees (debug only). */
@@ -9369,7 +9369,7 @@ const gameSlice = createSlice({
             storyEvent.kind === 'PATERNITY_PUBLIC'
               ? `Faux TV: Paternity confirmed — ${fatherName ?? 'the biological father'} is the father of ${carrierName}'s pregnancy.`
               : fatherName
-                ? `Faux TV: ${carrierName} is pregnant — and ${fatherName} is the father. The House has a new story to follow.`
+                ? `Faux TV: ${carrierName} is pregnant — and ${fatherName} is the father. The Hub has a new story to follow.`
                 : `Faux TV: ${carrierName} is pregnant. Paternity is uncertain${plausibleNames.length > 1 ? ` between ${formatNameList(plausibleNames)}` : ''}.`
 
           const tvEvent = pushEvent(state, text, 'social', {
@@ -9439,7 +9439,7 @@ const gameSlice = createSlice({
           // set evictee.status and transition to final3 after the cinematic plays.
           state.pendingEviction = {
             evicteeId: evictee.id,
-            evictionMessage: `${povHolder?.name ?? 'The POS holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from The Big Eye house. 🚪`,
+            evictionMessage: `${povHolder?.name ?? 'The Power of Safety holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🚪`,
           }
         }
         return
@@ -9495,7 +9495,7 @@ const gameSlice = createSlice({
             state,
             'part1',
             'THE FINAL THREE',
-            `The final three wake to an almost empty house. Breakfast is polite, but every pause carries the weight of the last immunity battle. Tonight, one of them can still be placed beyond the audience's reach.`
+            `The final three wake to an almost empty Hub. Breakfast is polite, but every pause carries the weight of the last immunity battle. Tonight, one of them can still be placed beyond the audience's reach.`
           )
         )
           return
@@ -9974,7 +9974,7 @@ const gameSlice = createSlice({
           )
           pushEvent(
             state,
-            `🗳️ The votes are in! ${winnerName} has been elected Leader of the House! 👑`,
+            `🗳️ The votes are in! ${winnerName} has been elected Leader of the Hub! 👑`,
             'game'
           )
           applyLohWinner(state, winnerId, '[advance/democracia_vote]')
@@ -10024,12 +10024,12 @@ const gameSlice = createSlice({
                 dVoteCounts,
                 dTopCandidates.length > 3 ? 'DEMOCRACIA TIE' : 'CO-LEADERS ELECTED',
                 dTopCandidates.length > 3
-                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the House.`
-                  : `${dTopNames} remain tied and will serve together as co-Leaders of the House.`
+                  ? `${dTopNames} remain tied after the ballotage and will serve together as co-Leaders of the Hub.`
+                  : `${dTopNames} remain tied and will serve together as co-Leaders of the Hub.`
               )
               pushEvent(
                 state,
-                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the House! 👑👑`,
+                `🗳️ The votes remain tied! ${dTopNames} will BOTH serve as co-Leaders of the Hub! 👑👑`,
                 'game'
               )
               dem.active = false
@@ -10052,7 +10052,7 @@ const gameSlice = createSlice({
               'DEMOCRACIA WINNER',
               `${fallbackName} wins the tiebreak by chance after no eligible ballotage voters remained.`
             )
-            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the House! 👑`, 'game')
+            pushEvent(state, `🗳️ ${fallbackName} has been elected Leader of the Hub! 👑`, 'game')
             applyLohWinner(state, fallbackId, '[advance/democracia_vote/ballotage_fallback]')
             dem.active = false
             state.phase = 'democracia_results'
@@ -10064,12 +10064,12 @@ const gameSlice = createSlice({
               dVoteCounts,
               dTopCandidates.length > 3 ? 'REVOTE REQUIRED' : 'TIED VOTE',
               dTopCandidates.length > 3
-                ? `${dTopNames} are tied. The house must revote among the tied candidates.`
-                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The house must revote.`
+                ? `${dTopNames} are tied. The Hub must revote among the tied candidates.`
+                : `${dTopNames} are tied at ${dMaxVotes} vote${dMaxVotes === 1 ? '' : 's'}. The Hub must revote.`
             )
             pushEvent(
               state,
-              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other houseguests must revote between the tied candidates. 🗳️`,
+              `🗳️ It's a tie between ${dTopNames}! We go to BALLOTAGE! All other hubmates must revote between the tied candidates. 🗳️`,
               'game'
             )
             dem.round += 1
@@ -10109,7 +10109,7 @@ const gameSlice = createSlice({
             .join(' and ')
           pushEvent(
             state,
-            `${coNames} are now co-Leaders of the House! 👑👑 Alliances are already forming…`,
+            `${coNames} are now co-Leaders of the Hub! 👑👑 Alliances are already forming…`,
             'social'
           )
         } else {
@@ -10117,8 +10117,8 @@ const gameSlice = createSlice({
           pushEvent(
             state,
             isVoxPopuliActive(state)
-              ? `Housemates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
-              : `Housemates congratulate ${hohName}. Alliances are already forming… 💬`,
+              ? `Hubmates congratulate ${hohName} on winning immunity. The secret nomination conversations begin. 💬`
+              : `Hubmates congratulate ${hohName}. Alliances are already forming… 💬`,
             'social'
           )
         }
@@ -10318,7 +10318,7 @@ const gameSlice = createSlice({
             }
             pushEvent(
               state,
-              `🗳️ Today's Leader of the House will be chosen by popular vote! Cast your votes now.`,
+              `🗳️ Today's Leader of the Hub will be chosen by popular vote! Cast your votes now.`,
               'game'
             )
             nextPhase = 'democracia_vote'
@@ -10326,7 +10326,7 @@ const gameSlice = createSlice({
           }
           pushEvent(
             state,
-            `The Leader of the House competition has begun! 🏆 Who will win power today?`,
+            `The Leader of the Hub competition has begun! 🏆 Who will win power today?`,
             'game'
           )
           break
@@ -10364,7 +10364,7 @@ const gameSlice = createSlice({
             const hohName = state.players.find((p) => p.id === state.lohId)?.name ?? 'The new LOH'
             pushEvent(
               state,
-              `Housemates congratulate ${hohName}. Alliances are already forming… 💬`,
+              `Hubmates congratulate ${hohName}. Alliances are already forming… 💬`,
               'social'
             )
           }
@@ -10375,7 +10375,7 @@ const gameSlice = createSlice({
           pushEvent(
             state,
             isVoxPopuliActive(state)
-              ? `Housemates are being called to the Confessional one by one to nominate in secret. 🗳️`
+              ? `Hubmates are being called to the Confessional one by one to nominate in secret. 🗳️`
               : `${hohName} is preparing the nomination ceremony. 🎯`,
             'game'
           )
@@ -10398,7 +10398,7 @@ const gameSlice = createSlice({
                     canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
-            // Vox differs from Classic: every active housemate nominates,
+            // Vox differs from Classic: every active hubmate nominates,
             // including the automatic Final 4 nominee.
             const humanCanVote = Boolean(human)
             if (human && humanCanVote && humanEligibleTargets.length > 0) {
@@ -10460,7 +10460,7 @@ const gameSlice = createSlice({
               state.awaitingCoLohNomination = true
               pushEvent(
                 state,
-                `${humanCoLoh?.name ?? 'You'}, as co-Leader of the House, you must nominate one houseguest for elimination. 🎯`,
+                `${humanCoLoh?.name ?? 'You'}, as co-Leader of the Hub, you must nominate one hubmate for elimination. 🎯`,
                 'game'
               )
             } else {
@@ -10554,7 +10554,7 @@ const gameSlice = createSlice({
               nominees = [unexpected, ...nominees.slice(1)]
               pushEvent(
                 state,
-                `${lohPlayer?.name ?? 'The LOH'} makes an unexpectedly emotional nomination as the storm hangs over the house. 🌧️`,
+                `${lohPlayer?.name ?? 'The LOH'} makes an unexpectedly emotional nomination as the storm hangs over the Hub. 🌧️`,
                 'social',
                 { major: 'depression_shock_surprise_nomination' }
               )
@@ -10630,7 +10630,7 @@ const gameSlice = createSlice({
           ) {
             if (import.meta.env.DEV && state.publicModeEnabled === true) {
               const reason = state.doubleEviction?.weekActive
-                ? 'double eviction active'
+                ? 'double elimination active'
                 : `nomineeIds.length is ${state.nomineeIds.length} (expected ${expectedPublicNominees})`
               console.warn(
                 `[publicMode] pre_veto_public_save skipped even though publicModeEnabled=true — reason: ${reason}`,
@@ -11167,7 +11167,7 @@ const gameSlice = createSlice({
           if (isVoxPopuliActive(state)) {
             pushEvent(
               state,
-              `The nominees make their final appeals directly to the audience. Housemates may offer support, but they do not vote.`,
+              `The nominees make their final appeals directly to the audience. Hubmates may offer support, but they do not vote.`,
               'social',
               { key: 'vox_populi_audience_appeals' }
             )
@@ -11187,7 +11187,7 @@ const gameSlice = createSlice({
             state.voxPopuli.publicVotePercentages = null
             pushEvent(
               state,
-              `The audience vote to eliminate is now open. No housemate will cast an eviction ballot.`,
+              `The audience vote to eliminate is now open. No hubmate will cast an elimination ballot.`,
               'vote',
               { major: 'vox_populi_public_vote_open' }
             )
@@ -11512,12 +11512,12 @@ const gameSlice = createSlice({
               if (guaranteedIds.length > 0) {
                 state.pendingEviction = {
                   evicteeId: guaranteedIds[0],
-                  evictionMessage: `${firstEvictee.name}, you have been eliminated from The Big Eye house. 🚪`,
+                  evictionMessage: `${firstEvictee.name}, you have been eliminated from the Hub. 🚪`,
                 }
               } else if (!ambiguousBoundaryTie) {
                 state.pendingEviction = {
                   evicteeId: firstId,
-                  evictionMessage: `${firstEvictee.name}, you have been eliminated from The Big Eye house. 🚪`,
+                  evictionMessage: `${firstEvictee.name}, you have been eliminated from the Hub. 🚪`,
                 }
               } else {
                 state.pendingEviction = null
@@ -11560,7 +11560,7 @@ const gameSlice = createSlice({
               state.voteResults = { ...voteCounts }
               state.pendingEviction = {
                 evicteeId: evicted.id,
-                evictionMessage: `${evicted.name}, you have been eliminated from The Big Eye house. 🚪`,
+                evictionMessage: `${evicted.name}, you have been eliminated from the Hub. 🚪`,
               }
 
               // PR 3 — voteDeduction offer: if the human player is on the block
@@ -11625,7 +11625,7 @@ const gameSlice = createSlice({
                 const breakerLabel = usesPosTieBreaker ? 'The POS holder' : 'The LOH'
                 state.pendingEviction = {
                   evicteeId: evicted.id,
-                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from The Big Eye house. 🗳️`,
+                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`,
                 }
               }
             } else {
@@ -11637,7 +11637,7 @@ const gameSlice = createSlice({
                 state.voteResults = { ...voteCounts }
                 state.pendingEviction = {
                   evicteeId: evicted.id,
-                  evictionMessage: `${evicted.name} has been eliminated from The Big Eye house. 🚪`,
+                  evictionMessage: `${evicted.name} has been eliminated from the Hub. 🚪`,
                 }
               }
             }
@@ -12669,9 +12669,9 @@ function buildDebugIncomingInteraction(
     compliment: ['You are still the one to beat.', 'That move was pretty iconic.'],
     gossip: [
       'People are already reading the week as a power shift.',
-      'There is a new whisper chain in the house.',
+      'There is a new whisper chain in the Hub.',
     ],
-    warning: ['The house is noticing your numbers.', 'Someone thinks your name is coming up soon.'],
+    warning: ['The Hub is noticing your numbers.', 'Someone thinks your name is coming up soon.'],
     alliance_proposal: [
       'Want to keep the line steady this week?',
       'We should make this official while we still can.',
@@ -12808,7 +12808,7 @@ function seedDebugCycleNoise(dispatch: AppDispatch, rootState: RootState, rng: (
       summary:
         socialSummaryParts.length > 0
           ? socialSummaryParts.join(' | ')
-          : `Quiet week for the house — ${alive[0]?.name ?? 'the house'} kept things contained.`,
+          : `Quiet week for the Hub — ${alive[0]?.name ?? 'the Hub'} kept things contained.`,
       week: game.week,
     })
   )
@@ -13128,7 +13128,7 @@ export const fastForwardToEviction = () => (dispatch: AppDispatch, getState: () 
 
 /**
  * Simulate a full elimination cycle with debug-friendly social/public noise.
- * Advances through blocker states, commits pending evictions, and continues
+ * Advances through blocker states, commits pending eliminations, and continues
  * until the game stabilises on the next week or a terminal endgame beat.
  */
 export const simulateImmediateEliminationCycle =
@@ -13534,12 +13534,12 @@ export const tryActivatePendingForcedDepressionShock =
  *  - `settings.sim.enableTwists` must be true
  *  - current phase must be `week_start`
  *  - the season must be at least Day 3
- *  - at least 5 housemates must still be alive
+ *  - at least 5 hubmates must still be alive
  *  - no other twist may already be active this week
  *  - no queued debug shock may be waiting to consume the window
  *
  * If the roll succeeds, the popup is activated and the user must confirm the
- * eviction before the standard eviction animation can begin.
+ * elimination before the standard elimination animation can begin.
  */
 export const tryActivateDayStartShock =
   () =>
@@ -13651,13 +13651,13 @@ export const tryActivatePendingForcedDayStartShock =
   }
 
 /**
- * Attempt to activate the Battle Back / Jury Return twist after an eviction.
+ * Attempt to activate the Battle Back / Jury Return twist after an elimination.
  *
  * Eligibility:
  *  - `settings.sim.enableTwists` must be true
  *  - twist has not been used this season (`!game.battleBack?.used`)
  *  - at least 3 jurors currently in the game
- *  - at least 5 active players remaining after the eviction
+ *  - at least 5 active players remaining after the elimination
  *  - current phase is `eviction_results`
  *
  * If eligible, rolls a probability check using `settings.sim.battleBackChance`
@@ -13694,7 +13694,7 @@ export const tryActivateBattleBack =
       if (humanWasPreTribunalEvicted) return false
 
       // Battle Back is a Tribunal-only return mechanic. Pre-Tribunal players
-      // keep status "evicted" and are never candidates. If the human reached
+      // keep status "eliminated" and are never candidates. If the human reached
       // the Tribunal and is later eliminated, their return opportunity takes
       // precedence over the optional AI-only season selection.
       if (
@@ -13801,10 +13801,10 @@ export const tryActivatePendingForcedBattleBack =
   }
 
 /**
- * Attempt to activate the Double Eviction twist for the current week.
+ * Attempt to activate the Double Elimination twist for the current week.
  *
- * Activation rules (eviction-count pacing):
- *  - Does not attempt until at least 5 evictions have happened this season.
+ * Activation rules (elimination-count pacing):
+ *  - Does not attempt until at least 5 eliminations have happened this season.
  *  - Does not attempt at final 5 or fewer alive players.
  *  - Typically attempted at most once per eligible week by the main UI.
  *  - Each eligible attempt rolls against `settings.sim.doubleEvictionChance` (default 35%).
@@ -13814,7 +13814,7 @@ export const tryActivatePendingForcedBattleBack =
  * Eligibility:
  *  - `settings.sim.enableTwists` must be true
  *  - current phase must be `nominations`
- *  - double eviction must not already be active this week
+ *  - double elimination must not already be active this week
  *  - no other twist has already activated this week (`twistActivatedThisWeek`)
  *
  * Returns `true` if the twist was activated; `false` otherwise.
@@ -13896,9 +13896,9 @@ export const tryActivatePendingForcedDoubleEviction =
  * Activation rules:
  *  - `settings.sim.enableTwists` must be true
  *  - current phase must be `pos_results`
- *  - at least 5 evictions must have happened this season
+ *  - at least 5 eliminations must have happened this season
  *  - at least 6 alive players (above final 5)
- *  - not a Double Eviction week
+ *  - not a Double Elimination week
  *  - no other twist has already activated this week (`twistActivatedThisWeek`)
  *  - the season must not already have had a special safety activated
  *

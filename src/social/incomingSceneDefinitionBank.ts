@@ -79,7 +79,7 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
   ignored_warning: { topic: 'the distance between you', stakes: 'meaningful', kind: 'bond' },
   targeted_snark: { topic: 'their read on your game', stakes: 'meaningful', kind: 'conflict' },
   alliance_reassurance: { topic: 'the state of your alliance', stakes: 'meaningful', kind: 'bond' },
-  generic_gossip: { topic: 'a house rumour', stakes: 'meaningful', kind: 'intel' },
+  generic_gossip: { topic: 'a Hub rumour', stakes: 'meaningful', kind: 'intel' },
   generic_check_in: { topic: 'where things stand', stakes: 'quiet', kind: 'bond' },
   relationship_friendship_check_in: {
     topic: 'the connection that has been building between you',

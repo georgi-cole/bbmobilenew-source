@@ -250,7 +250,7 @@ function VoteRankingBoard({
       </div>
       {hiddenCount > 0 && (
         <p className="pf-overlay__remaining-note">
-          +{hiddenCount} housemates remain below the live cut.
+          +{hiddenCount} hubmates remain below the live cut.
         </p>
       )}
     </section>
@@ -412,7 +412,7 @@ function ForecastPick({
       )}
       <div
         className="pf-overlay__forecast-cast"
-        aria-label={`Choose your forecast from ${candidates.length} eligible housemates`}
+        aria-label={`Choose your forecast from ${candidates.length} eligible hubmates`}
       >
         {candidates.map((player) => (
           <button
@@ -543,13 +543,13 @@ function HousemateSpotlight({
     <motion.section
       className="pf-overlay__spotlight"
       role="region"
-      aria-label="Houseguest Spotlight"
+      aria-label="Hubmate Spotlight"
       data-testid="housemate-spotlight"
       layout
     >
       <div className="pf-overlay__leader-copy">
         <p className="pf-overlay__leader-kicker">
-          {finalTwoNames ? `Final two · ${finalTwoNames}` : 'Housemate file'}
+          {finalTwoNames ? `Final two · ${finalTwoNames}` : 'Hubmate file'}
         </p>
         <h3 className="pf-overlay__leader-name">{player.name}</h3>
         <motion.p
@@ -605,7 +605,7 @@ function ViewerSpotlightPanel({
           <p className="pf-overlay__surge-description">
             {activeSpotlight && selectedPlayer
               ? `${selectedPlayer.name} is receiving a temporary +5-point audience surge.`
-              : 'Choose any remaining housemate, then watch to give them a temporary +5-point audience surge.'}
+              : 'Choose any remaining hubmate, then watch to give them a temporary +5-point audience surge.'}
           </p>
           <p className="pf-overlay__surge-description">This does not change the official result.</p>
         </div>

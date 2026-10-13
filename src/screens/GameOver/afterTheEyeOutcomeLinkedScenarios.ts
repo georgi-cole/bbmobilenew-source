@@ -26,7 +26,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
     badge: 'BABY NEWS',
     headlines: [
       '{name} and {partnerName} Announce a Baby',
-      'HOUSE ROMANCE BECOMES A FAMILY',
+      'HUB ROMANCE BECOMES A FAMILY',
       'THE SECRET THEY KEPT FOR MONTHS',
     ],
     setups: [
@@ -103,7 +103,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
     escalations: [
       'One partner deletes every couple photo while the other insists the images are misleading.',
       "The third person gives an interview that contradicts the couple's public statement.",
-      'Former housemates take sides and the relationship crisis becomes a cast-wide feud.',
+      'Former hubmates take sides and the relationship crisis becomes a cast-wide feud.',
     ],
     outcomes: [
       'The relationship ends and both sides issue statements that disagree on almost every important detail.',
@@ -111,7 +111,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
       'The couple separates while insisting the public still does not know the whole story.',
     ],
     twists: [
-      'The third person had previously dated another housemate.',
+      'The third person had previously dated another hubmate.',
       'One damaging image was taken weeks earlier than reported.',
       "The leak came from somebody inside one partner's management team.",
     ],
@@ -129,7 +129,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
       'THE VOWS THAT NEVER HAPPENED',
     ],
     setups: [
-      '{name} and {partnerName} gather family and former housemates for a heavily guarded wedding.',
+      '{name} and {partnerName} gather family and former hubmates for a heavily guarded wedding.',
       'The most public romance of the season reaches the altar after months of instability.',
       'Guests arrive for a ceremony the couple has repeatedly insisted is definitely happening.',
     ],
@@ -197,7 +197,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
     setups: [
       '{name} and {partnerName} turn their post-show alliance into a joint business.',
       'The pair combines sponsorship income in a company meant to fund future projects.',
-      'A shared venture grows quickly while neither former housemate watches the accounts closely.',
+      'A shared venture grows quickly while neither former hubmate watches the accounts closely.',
     ],
     escalations: [
       'Payments stop matching the books and both sides accuse the other of authorizing transfers.',
@@ -230,7 +230,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
     setups: [
       '{name} and {partnerName} continue attacking each other in interviews long after the season ends.',
       'A livestream accusation pushes the old rivalry beyond entertainment.',
-      'Months of subtweets become explicit when both former housemates start naming each other.',
+      'Months of subtweets become explicit when both former hubmates start naming each other.',
     ],
     escalations: [
       'A legal notice is posted online and immediately becomes part of the feud.',
@@ -244,7 +244,7 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
     ],
     twists: [
       'The settlement forbids either side from discussing the settlement.',
-      'A third housemate supplied the screenshot that triggered the lawsuit.',
+      'A third hubmate supplied the screenshot that triggered the lawsuit.',
       'The host of the original livestream later apologizes.',
     ],
   },
@@ -327,8 +327,8 @@ const LINKED_DRAMA_TEMPLATES: LinkedDramaTemplate[] = [
       'A PRIVATE CONFESSION SURFACES AFTER THE SHOW',
     ],
     setups: [
-      '{name} tells {partnerName} about a complicated family secret while both are adjusting to life after the house.',
-      'A newly discovered relative contacts {name}, and {partnerName} becomes the only former housemate told.',
+      '{name} tells {partnerName} about a complicated family secret while both are adjusting to life after the Hub.',
+      'A newly discovered relative contacts {name}, and {partnerName} becomes the only former hubmate told.',
       "Questions about {name}'s family history intensify while {partnerName} quietly helps handle the situation.",
     ],
     escalations: [

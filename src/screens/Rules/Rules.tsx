@@ -35,7 +35,7 @@ const DAY_STEPS: Tile[] = [
   {
     kicker: 'LOH',
     title: 'Compete for the lead',
-    copy: 'Everyone still in the game can compete for control. The winner becomes the Leader of the House and starts the day in charge.',
+    copy: 'Everyone still in the game can compete for control. The winner becomes the Leader of the Hub and starts the day in charge.',
   },
   {
     kicker: 'NOMS',
@@ -50,7 +50,7 @@ const DAY_STEPS: Tile[] = [
   {
     kicker: 'VOTE',
     title: 'Live vote',
-    copy: 'The remaining players vote to remove someone from the game. Some special days replace this with a different eviction step, and the broadcast says when that happens.',
+    copy: 'The remaining players vote to remove someone from the game. Some special days replace this with a different elimination step, and the broadcast says when that happens.',
   },
 ]
 
@@ -142,7 +142,7 @@ const CONFESSIONAL_DECISIONS: Tile[] = [
   {
     kicker: '04',
     title: 'Tie-breaks',
-    copy: 'When the house is deadlocked, the deciding choice lands here.',
+    copy: 'When the Hub is deadlocked, the deciding choice lands here.',
   },
   {
     kicker: '05',
@@ -169,8 +169,8 @@ const SPECIAL_DAY_NOTES: Tile[] = [
   },
   {
     kicker: 'EVIC',
-    title: 'Special eviction',
-    copy: 'Some days skip the usual vote and end with a one-off eviction decision instead.',
+    title: 'Special elimination',
+    copy: 'Some days skip the usual vote and end with a one-off elimination decision instead.',
   },
 ]
 
@@ -201,7 +201,7 @@ const FINALE_STEPS: Tile[] = [
   {
     kicker: 'F4',
     title: 'Final 4',
-    copy: 'The safety winner makes the last eviction choice before the final three are set.',
+    copy: 'The safety winner makes the last elimination choice before the final three are set.',
   },
   {
     kicker: 'P1',
@@ -332,7 +332,7 @@ export default function Rules() {
             {[
               {
                 kicker: 'LOH',
-                title: 'Leader of the House',
+                title: 'Leader of the Hub',
                 copy: 'Wins the daily competition and names the nominees for the day.',
               },
               {
@@ -462,7 +462,7 @@ export default function Rules() {
             who still has control over the season.
           </p>
           <p className="rules-section__intro">
-            The final stretch moves from a special eviction at Final 4 into the three-part final
+            The final stretch moves from a special elimination at Final 4 into the three-part final
             lead race, then into the Tribunal vote.
           </p>
           <div className="rules-finale-grid">

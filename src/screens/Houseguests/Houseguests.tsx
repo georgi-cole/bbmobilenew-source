@@ -66,7 +66,7 @@ export default function Houseguests() {
 
   return (
     <div className="placeholder-screen houseguests-screen">
-      <h1 className="placeholder-screen__title">👥 Housemates</h1>
+      <h1 className="placeholder-screen__title">👥 Hubmates</h1>
 
       <HouseguestGrid
         houseguests={houseguests}

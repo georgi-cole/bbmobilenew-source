@@ -6,6 +6,7 @@ import { getSocialPersonality } from './socialPersonalityBank'
 import type { SocialMemoryDelta } from './socialMemory'
 import type {
   IncomingInteraction,
+  IncomingInteractionResponseAction,
   IncomingInteractionResponseType,
   IncomingInteractionType,
 } from './types'
@@ -17,6 +18,7 @@ export interface ContextualIncomingChoice {
   label: string
   responseType: IncomingInteractionResponseType
   style: IncomingChoiceStyle
+  action?: IncomingInteractionResponseAction
 }
 
 type OutcomeStance = 'positive' | 'neutral' | 'negative' | 'dismiss'
@@ -45,7 +47,7 @@ function styleForResponse(responseType: IncomingInteractionResponseType): Incomi
 function responseTypesFor(
   interactionType: IncomingInteractionType
 ): readonly IncomingInteractionResponseType[] {
-  if (interactionType === 'deal_offer' || interactionType === 'alliance_proposal') {
+  if (interactionType === 'deal_offer') {
     return ['accept', 'neutral', 'decline', 'dismiss']
   }
   return ['positive', 'neutral', 'negative', 'dismiss']
@@ -54,6 +56,33 @@ function responseTypesFor(
 export function getContextualIncomingChoices(
   interaction: IncomingInteraction
 ): ContextualIncomingChoice[] | null {
+  if (interaction.type === 'alliance_proposal') {
+    return [
+      { label: 'Accept', responseType: 'accept', style: 'positive' },
+      { label: 'Decline', responseType: 'decline', style: 'negative' },
+      ...(interaction.payload?.pactTimeRequested === true
+        ? []
+        : [
+            {
+              label: 'Need time',
+              responseType: 'neutral' as const,
+              style: 'neutral' as const,
+              action: 'need_time' as const,
+            },
+          ]),
+      ...(interaction.payload?.pactPlanRequested === true
+        ? []
+        : [
+            {
+              label: 'Ask for their plan',
+              responseType: 'neutral' as const,
+              style: 'neutral' as const,
+              action: 'ask_plan' as const,
+            },
+          ]),
+    ]
+  }
+
   const scenarioKey = interaction.payload?.scenarioKey
   if (typeof scenarioKey !== 'string') return null
   const variants = SCENE_CHOICES[scenarioKey]
@@ -108,7 +137,7 @@ function fallbackScenarioOutcome(
   const target = subjectName ?? 'that player'
   const replies: Record<string, string> = {
     week_start_ally_check_in: `${fromName} says they want to compare notes before the week gets away from them.`,
-    week_start_enemy_gossip: `${fromName} says the house is already splitting into new groups.`,
+    week_start_enemy_gossip: `${fromName} says the Hub is already splitting into new groups.`,
     week_start_alliance_lock: `${fromName} says they want one move to prove the alliance is real.`,
     hoh_congratulations: `${fromName} says the LOH win has made every conversation more visible.`,
     safety_win_congratulations: `${fromName} says your Safety win changed who can take risks this week.`,
@@ -119,7 +148,7 @@ function fallbackScenarioOutcome(
     social_momentum_notice: `${fromName} says people have started comparing notes about your social game.`,
     hoh_safety_request: `${fromName} says safety from you would change their whole week.`,
     nominee_hoh_plea: `${fromName} says staying off the block keeps one more vote within your reach.`,
-    nominee_veto_pitch: `${fromName} says using Safety on them would force the house to recalculate.`,
+    nominee_veto_pitch: `${fromName} says using Safety on them would force the Hub to recalculate.`,
     nominee_campaign: `${fromName} says the vote is still movable, but they need another number.`,
     co_nominee_check_in: `${fromName} says neither of you has a vote to offer the other, so the useful move is comparing what you are hearing.`,
     nomination_aftershock: `${fromName} says the nomination changed who they think is really with them.`,
@@ -141,7 +170,7 @@ function fallbackScenarioOutcome(
     generic_check_in: `${fromName} says they are still trying to read where they stand with you.`,
     relationship_friendship_check_in: `${fromName} says the friendship feels more real than they expected.`,
     relationship_alliance_follow_up: `${fromName} says they need to know whether you are actually working together.`,
-    relationship_romance_check_in: `${fromName} says they do not want the connection to become house gossip.`,
+    relationship_romance_check_in: `${fromName} says they do not want the connection to become Hub gossip.`,
     relationship_confidant_check_in: `${fromName} says they have something private to share if they can trust you.`,
     relationship_frustration_follow_up: `${fromName} says the mixed signals are affecting how they play around you.`,
     relationship_repair_follow_up: `${fromName} says fixing this will take more than one good conversation.`,

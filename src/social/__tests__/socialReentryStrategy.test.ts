@@ -49,7 +49,7 @@ function makeReentryState() {
     allianceId: alliance.id,
     memberId: 'returner',
     actorId: 'returner',
-    kind: 'EVICTED',
+    kind: 'ELIMINATED',
     at: { day: 4, phase: 'eviction_results' },
     sourceEventId: 'test-eviction',
   })

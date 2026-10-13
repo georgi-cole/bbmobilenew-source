@@ -117,7 +117,7 @@ export default function EvictionSplash({ evictee, onDone, layoutId }: Props) {
         <div className="eviction-splash__content">
           <p className="eviction-splash__label">ELIMINATED</p>
           <h1 className="eviction-splash__name">{evictee.name}</h1>
-          <p className="eviction-splash__goodbye">Goodbye from The Big Eye house 🚪</p>
+          <p className="eviction-splash__goodbye">Goodbye from the Hub 🚪</p>
           <p className="eviction-splash__skip">tap to continue</p>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function EvictionSplash({ evictee, onDone, layoutId }: Props) {
           >
             <p className="eviction-splash__label">ELIMINATED</p>
             <h1 className="eviction-splash__name">{evictee.name}</h1>
-            <p className="eviction-splash__goodbye">Goodbye from The Big Eye house 🚪</p>
+            <p className="eviction-splash__goodbye">Goodbye from the Hub 🚪</p>
           </motion.div>
         )}
       </AnimatePresence>

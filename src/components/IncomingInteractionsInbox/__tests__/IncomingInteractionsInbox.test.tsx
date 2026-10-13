@@ -124,7 +124,7 @@ describe('IncomingInteractionsInbox', () => {
     await waitFor(() => {
       expect(store.getState().social.reality.alliances[alliance.id].memberIds).toContain(human.id)
     })
-    expect(screen.getByRole('status')).toHaveTextContent('The agreed change is now active.')
+    expect(screen.getByRole('status')).toHaveTextContent("You're in! Night Owls now has 4 members.")
   })
 
   it('lets the alliance leader accept a member rename suggestion in Incoming', async () => {
@@ -310,6 +310,7 @@ describe('IncomingInteractionsInbox', () => {
 
   it('responds without parroting the selected button as a second explanation', () => {
     const store = makeStore()
+    store.dispatch(setPhase('week_start'))
     store.dispatch(openIncomingInbox())
     const otherPlayer = getNonUserPlayer(store)
     store.dispatch(
@@ -367,6 +368,7 @@ describe('IncomingInteractionsInbox', () => {
 
   it('forms a reciprocal alliance once without premium currency in Normal Mode', () => {
     const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
     store.dispatch(openIncomingInbox())
     const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     const otherPlayer = getNonUserPlayer(store)
@@ -392,10 +394,77 @@ describe('IncomingInteractionsInbox', () => {
     expect(socialState.relationships[otherPlayer.id]?.[humanId]?.tags).toContain('alliance')
     expect(socialState.relationships[humanId]?.[otherPlayer.id]?.tags).toContain('alliance')
     expect(hasAllianceBetween(socialState.relationships, humanId, otherPlayer.id)).toBe(true)
-    expect(socialState.energyBank[humanId]).toBe(2)
-    expect(socialState.energyBank[otherPlayer.id]).toBe(2)
-    expect(socialState.influenceBank[humanId]).toBe(200)
-    expect(socialState.influenceBank[otherPlayer.id]).toBe(200)
+    expect(socialState.energyBank[humanId] ?? 0).toBe(0)
+    expect(socialState.energyBank[otherPlayer.id] ?? 0).toBe(0)
+    expect(socialState.influenceBank[humanId] ?? 0).toBe(0)
+    expect(socialState.influenceBank[otherPlayer.id] ?? 0).toBe(0)
+  })
+
+  it('lets the player ask about or delay a personal pact without rejecting it', async () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    const otherPlayer = getNonUserPlayer(store)
+    const day = store.getState().game.week ?? 1
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'pact-follow-up',
+        fromId: otherPlayer.id,
+        type: 'alliance_proposal',
+        text: 'Would you make this official?',
+        payload: {
+          scenarioKey: 'week_start_alliance_lock',
+          personalPactPlan: 'I want us to share reads before either of us commits to a target.',
+        },
+        createdAt: 321,
+        createdWeek: day,
+        createdDay: day,
+        createdPhase: 'week_start',
+        deadline: { day, phase: 'social_2', policy: 'AUTO_IGNORE' },
+        expiresAtWeek: day,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+
+    expect(screen.getByText('personal pact offer')).toBeInTheDocument()
+    expect(
+      screen.getByText(`Offer closes Day ${day} · end of the final campaign window`)
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ask for their plan' }))
+
+    let offer = store
+      .getState()
+      .social.incomingInteractions.find((interaction) => interaction.id === 'pact-follow-up')!
+    expect(offer.resolved).toBe(false)
+    expect(offer.outcomeText).toContain('I want us to share reads')
+    expect(offer.outcomeText).toContain('No target or vote is agreed yet')
+    expect(offer.payload?.pactPlanRequested).toBe(true)
+    expect(hasAllianceBetween(store.getState().social.relationships, humanId, otherPlayer.id)).toBe(
+      false
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need time' }))
+    offer = store
+      .getState()
+      .social.incomingInteractions.find((interaction) => interaction.id === 'pact-follow-up')!
+    expect(offer.resolved).toBe(false)
+    expect(offer.deadline).toMatchObject({ day: day + 1, phase: 'social_2' })
+    expect(offer.outcomeText).toContain(`through Day ${day + 1}'s final campaign window`)
+    expect(offer.outcomeText).toContain('No target or vote is agreed yet')
+    expect(screen.queryByRole('button', { name: 'Need time' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ask for their plan' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }))
+    offer = store
+      .getState()
+      .social.incomingInteractions.find((interaction) => interaction.id === 'pact-follow-up')!
+    expect(offer.resolved).toBe(true)
+    expect(offer.outcomeText).toBe('You declined the personal pact offer. No pact was formed.')
   })
 
   it('keeps contextual choices compact with no permanent descriptions beneath them', () => {

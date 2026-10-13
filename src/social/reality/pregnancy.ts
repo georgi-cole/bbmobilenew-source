@@ -379,11 +379,11 @@ export function getPregnancyEligibility(input: PregnancyEligibilityInput): {
 
   if (actor.id === target.id) return { eligible: false, reason: 'You cannot choose yourself.' }
   if (ageOf(actor) < 18 || ageOf(target) < 18) {
-    return { eligible: false, reason: 'Both housemates must be 18 or older.' }
+    return { eligible: false, reason: 'Both hubmates must be 18 or older.' }
   }
 
   if (action !== 'PREGNANCY_TEST' && (!isInHouse(actor) || !isInHouse(target))) {
-    return { eligible: false, reason: 'Both participants must still be in the House.' }
+    return { eligible: false, reason: 'Both participants must still be in the Hub.' }
   }
 
   const carrierId = getPregnancyCarrier(actor, target, story)

@@ -4,7 +4,9 @@ import socialReducer, {
   markIncomingInteractionRead,
   markAllIncomingInteractionsRead,
   resolveIncomingInteraction,
+  recordIncomingInteractionFollowUp,
   resolveExpiredIncomingInteractionsForWeek,
+  resolveIncomingInteractionsByDeadline,
   updateRelationship,
   selectActiveIncomingInteractions,
   selectIncomingInteractions,
@@ -78,6 +80,77 @@ describe('socialSlice incoming interactions', () => {
     expect(entry?.resolvedAt).toBe(555)
     expect(entry?.resolvedWeek).toBe(2)
     expect(entry?.read).toBe(true)
+  })
+
+  it('records pact follow-ups without closing the offer and can extend its deadline once', () => {
+    const initial = reduce(
+      undefined,
+      pushIncomingInteraction(
+        makeInteraction({
+          type: 'alliance_proposal',
+          deadline: { day: 2, phase: 'social_2', policy: 'AUTO_IGNORE' },
+        })
+      )
+    )
+    const askedForPlan = socialReducer(
+      initial,
+      recordIncomingInteractionFollowUp({
+        interactionId: 'i-1',
+        action: 'ask_plan',
+        outcomeText: 'The proposer explains their plan. The offer remains open.',
+      })
+    ) as SocialState
+    expect(askedForPlan.incomingInteractions[0]).toMatchObject({
+      resolved: false,
+      read: true,
+      outcomeText: 'The proposer explains their plan. The offer remains open.',
+      deadline: { day: 2, phase: 'social_2' },
+    })
+
+    const timeRequested = socialReducer(
+      askedForPlan,
+      recordIncomingInteractionFollowUp({
+        interactionId: 'i-1',
+        action: 'need_time',
+        outcomeText: "The offer remains open through Day 3's final campaign window.",
+        deadline: { day: 3, phase: 'social_2', policy: 'AUTO_IGNORE' },
+      })
+    ) as SocialState
+    expect(timeRequested.incomingInteractions[0]).toMatchObject({
+      resolved: false,
+      expiresAtWeek: 3,
+      outcomeText:
+        "The proposer explains their plan. The offer remains open. The offer remains open through Day 3's final campaign window.",
+      deadline: { day: 3, phase: 'social_2' },
+      payload: { pactPlanRequested: true, pactTimeRequested: true },
+    })
+  })
+
+  it('records a personal pact offer as expired instead of declined', () => {
+    const initial = reduce(
+      undefined,
+      pushIncomingInteraction(
+        makeInteraction({
+          type: 'alliance_proposal',
+          deadline: { day: 2, phase: 'social_2', policy: 'AUTO_IGNORE' },
+        })
+      )
+    )
+    const expired = socialReducer(
+      initial,
+      resolveIncomingInteractionsByDeadline({
+        interactionIds: ['i-1'],
+        day: 3,
+        phase: 'week_start',
+      })
+    ) as SocialState
+
+    expect(expired.incomingInteractions[0]).toMatchObject({
+      resolved: true,
+      resolvedWith: 'ignore',
+      resolvedLabel: 'Expired',
+      outcomeText: 'The personal pact offer expired unanswered. No pact was formed.',
+    })
   })
 
   it('selectors compute unread and pending counts', () => {

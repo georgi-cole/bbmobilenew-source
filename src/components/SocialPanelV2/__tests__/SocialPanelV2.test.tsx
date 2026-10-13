@@ -46,6 +46,11 @@ import type { RootState } from '../../../store/store'
 import { I18nProvider } from '../../../i18n/I18nProvider'
 import { createInitialRealityDomainState } from '../../../social/reality/state'
 import { createRealityAlliance } from '../../../social/reality/relationshipForms'
+import {
+  allianceRequestDecisionActors,
+  manageAlliance,
+  type AllianceManagementContext,
+} from '../../../social/reality/allianceManagement'
 import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -131,6 +136,24 @@ function renderPanel(store: ReturnType<typeof makeStore>) {
       </Provider>
     </MemoryRouter>
   )
+}
+
+function allianceContextForStore(
+  store: ReturnType<typeof makeStore>,
+  viewerActorId: string
+): AllianceManagementContext {
+  const game = store.getState().game
+  const activePlayers = game.players.filter(
+    (player) => player.status !== 'evicted' && player.status !== 'jury'
+  )
+  return {
+    at: { day: game.week, phase: game.phase },
+    activeActorIds: activePlayers.map((player) => player.id),
+    humanActorIds: activePlayers.map((player) => player.id),
+    displayNames: Object.fromEntries(game.players.map((player) => [player.id, player.name])),
+    viewerActorId,
+    seed: game.seed ?? 1,
+  }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -861,6 +884,37 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
         )
     ).toBe(true)
   })
+
+  it('shows Pact on the focused relationship read for a personal pact', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    const target = store.getState().game.players.find((player) => !player.isUser)!
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'focused-personal-pact',
+      founderIds: [humanId],
+      memberIds: [target.id],
+      purpose: 'Test focused pact badge',
+      kind: 'PACT',
+      at: { day: 1, phase: 'social_1' },
+    })
+    pact.status = 'ACTIVE'
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
+        name: new RegExp(target.name),
+      })
+    )
+
+    const focusTags = document.querySelector('.sp2-focus__tags')
+    expect(focusTags).not.toBeNull()
+    expect(within(focusTags as HTMLElement).getByText('Pact')).toBeInTheDocument()
+    expect(within(focusTags as HTMLElement).queryByText('Alliance')).not.toBeInTheDocument()
+  })
 })
 
 // ── Subject picker ─────────────────────────────────────────────────────────
@@ -1085,7 +1139,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     ).toBe(true)
   })
 
-  it('keeps group founding in the shared action-card flow and shows its full price', () => {
+  it('keeps group founding in the shared action-card flow and defers naming', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
@@ -1113,10 +1167,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
     fireEvent.click(foundAllianceCard)
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeDisabled()
-    fireEvent.change(screen.getByRole('textbox', { name: 'Alliance name' }), {
-      target: { value: 'The Shield' },
-    })
-
+    expect(screen.queryByRole('dialog', { name: 'Give your group a name' })).toBeNull()
     for (const candidate of candidates) {
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]!)
     }
@@ -1130,11 +1181,51 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     ).toHaveTextContent('Cost: Group · ⚡3 · 🤝5')
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
-    expect(
-      Object.values(store.getState().social.reality.allianceManagement.requests).some(
-        (request) => request.kind === 'FOUND' && request.name === 'The Shield'
-      )
-    ).toBe(true)
+    const formedReality = structuredClone(store.getState().social.reality)
+    const request = Object.values(formedReality.allianceManagement.requests).find(
+      (entry) => entry.kind === 'FOUND'
+    )!
+    expect(request.memberIds).toEqual(
+      expect.arrayContaining([human.id, ...candidates.map((p) => p.id)])
+    )
+    expect(screen.queryByRole('dialog', { name: 'Give your group a name' })).toBeNull()
+  })
+
+  it('asks its founder to name the alliance only after formation', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const candidates = store
+      .getState()
+      .game.players.filter((player) => !player.isUser && player.status !== 'jury')
+      .slice(0, 2)
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'initial-alliance-name-test',
+      kind: 'GROUP',
+      createdById: human.id,
+      founderIds: [human.id, ...candidates.map((player) => player.id)],
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'The Winners',
+      leaderId: human.id,
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    expect(screen.queryByRole('dialog', { name: 'Give your group a name' })).toBeNull()
+    const formedReality = structuredClone(store.getState().social.reality)
+    formedReality.alliances[alliance.id].initialNamePending = true
+    act(() => store.dispatch(replaceRealityDomain(formedReality)))
+    expect(screen.getByRole('dialog', { name: 'Give your group a name' })).toBeVisible()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Alliance name' }), {
+      target: { value: 'The Shield' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Name alliance' }))
+    expect(store.getState().social.reality.alliances[alliance.id].name).toBe('The Shield')
   })
 
   it('invites a selected player from All moves only after selecting one eligible alliance', () => {
@@ -1250,8 +1341,27 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     await act(async () => new Promise((resolve) => setTimeout(resolve, 275)))
 
     const memberLedReality = structuredClone(store.getState().social.reality)
-    memberLedReality.alliances[alliance.id].leaderId = members[0].id
-    memberLedReality.alliances[alliance.id].leaderIds = [members[0].id]
+    const context = allianceContextForStore(store, human.id)
+    const transfer = manageAlliance(
+      memberLedReality,
+      {
+        type: 'PROPOSE',
+        kind: 'TRANSFER',
+        actorId: human.id,
+        allianceId: alliance.id,
+        candidateId: members[0].id,
+      },
+      context
+    )
+    expect(transfer.requestId).toBeTruthy()
+    const transferRequest = memberLedReality.allianceManagement.requests[transfer.requestId!]
+    for (const actorId of allianceRequestDecisionActors(transferRequest)) {
+      manageAlliance(
+        memberLedReality,
+        { type: 'RESPOND', requestId: transferRequest.id, actorId, accept: true },
+        context
+      )
+    }
     act(() => store.dispatch(replaceRealityDomain(memberLedReality)))
     fireEvent.click(screen.getByRole('button', { name: /Suggest a new name for The Night Shift/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Suggested alliance name' }), {

@@ -353,12 +353,12 @@ export function useEndgameFlow({
         id: 'f4-evict-decision',
         role: 'pos',
         player: povHolder,
-        text: `I vote to evict… ${evicted.name}. 🗳️`,
+        text: `I vote to eliminate… ${evicted.name}. 🗳️`,
       },
       {
         id: 'f4-evict-bb',
         role: 'host',
-        text: `${evicted.name}, by a vote of 1 to 0, you have been eliminated from The Big Eye house. Please take a moment to say your goodbyes. 👋`,
+        text: `${evicted.name}, by a vote of 1 to 0, you have been eliminated from the Hub. Please take a moment to say your goodbyes. 👋`,
       },
     ])
     setFinal4Stage('announcement')
@@ -460,7 +460,7 @@ export function useEndgameFlow({
 
   const handleSpyJury = useCallback(() => {
     if (import.meta.env.DEV) {
-      console.log('[jury-phase] Spy Jury tapped — Jury House module coming soon')
+      console.log('[tribunal-phase] Spy Tribunal tapped — Tribunal module coming soon')
     }
   }, [])
 

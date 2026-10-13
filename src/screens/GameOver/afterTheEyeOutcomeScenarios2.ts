@@ -40,7 +40,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     escalations: [
       'The secret unravels when a hotel accidentally addresses the pair by a shared surname.',
-      'A former housemate notices matching rings during an unrelated livestream.',
+      'A former hubmate notices matching rings during an unrelated livestream.',
       'A legal document appears online and sends fan communities into detective mode.',
       'Their management teams deny the rumor for hours before realizing the paperwork is public.',
     ],
@@ -51,7 +51,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       'They celebrate publicly only after the story is already impossible to contain.',
     ],
     twists: [
-      'The witness was a former rival from the house.',
+      'The witness was a former rival from the Hub.',
       'The rings were bought months before the finale.',
       "The couple's families met for the first time at the ceremony.",
       'A fake breakup announcement had been planned to protect the date.',
@@ -114,7 +114,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       '{name} is named in the will of a distant relative the family rarely discussed.',
       'A lawyer contacts {name} about an estate connected to a branch of the family thought to have disappeared.',
       'An elderly family friend leaves {name} a property and a sealed letter explaining a decades-old debt.',
-      'A forgotten inheritance case reopens just weeks after {name} leaves the house.',
+      'A forgotten inheritance case reopens just weeks after {name} leaves the Hub.',
     ],
     escalations: [
       'Several relatives challenge the will and accuse {name} of benefiting from family secrets.',
@@ -129,7 +129,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       "The estate is divided, but the letter changes {name}'s understanding of the family more than the money does.",
     ],
     twists: [
-      'The most valuable item in the estate is not the house but a forgotten collection in storage.',
+      'The most valuable item in the estate is not the Hub but a forgotten collection in storage.',
       "One relative fighting the will later becomes {name}'s closest ally.",
       'The sealed letter contains an apology written years before the show.',
       'The lawyer handling the case turns out to be a fan of the season.',
@@ -169,7 +169,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     twists: [
       'The original recording came from a device neither {name} nor {rivalName} owned.',
-      'The person demanding money had never met either housemate.',
+      'The person demanding money had never met either hubmate.',
       'A heavily edited clip had reversed the meaning of the conversation.',
       '{rivalName} ultimately provides evidence that helps {name}.',
     ],

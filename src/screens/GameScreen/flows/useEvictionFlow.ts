@@ -93,7 +93,7 @@ function buildDoubleEvictionPostVoteAnnouncement(options: {
   if (!firstEvictee || !secondEvictee) {
     return {
       title: 'Double Elimination Results',
-      subtitle: `${firstEvictee?.name ?? 'The evictee'}, please say your goodbyes and leave through the Confessional's special exit.`,
+      subtitle: `${firstEvictee?.name ?? 'The eliminated player'}, please say your goodbyes and leave through the Confessional's special exit.`,
     }
   }
 
@@ -362,8 +362,8 @@ export function useEvictionFlow({
               ? 'THE PUBLIC HAS CHOSEN THE FINAL 2'
               : `${evicteeVotes.toFixed(1)}% OF THE PUBLIC VOTE`,
             subtitle: isFinalThree
-              ? `With ${evicteeVotes.toFixed(1)}% of the vote to eliminate, ${evictee.name} finishes in third place. The house lights now belong to the Final 2.`
-              : `${evictee.name}, the audience has decided that you must leave The Big Eye house.`,
+              ? `With ${evicteeVotes.toFixed(1)}% of the vote to eliminate, ${evictee.name} finishes in third place. The Hub lights now belong to the Final 2.`
+              : `${evictee.name}, the audience has decided that you must leave the Hub.`,
           }
         }
         const evicteeUnitIds = expandCupidIds(game, [evictee.id])
@@ -381,7 +381,7 @@ export function useEvictionFlow({
             ? `By a vote of ${evicteeVotes} to ${otherVotes}`
             : `With ${evicteeVotes} vote${evicteeVotes === 1 ? '' : 's'}`,
           subtitle: isCupidArrowActive(game)
-            ? `${evicteeNames || evictee.name}, Cupid's Arrow means you leave the house together.`
+            ? `${evicteeNames || evictee.name}, Cupid's Arrow means you leave the Hub together.`
             : `${evictee.name}, please say your goodbyes and leave through the Confessional's special exit.`,
         }
       })()
@@ -671,7 +671,7 @@ export function useEvictionFlow({
       return {
         key: 'loh_tiebreak_deciding',
         title: `${activeAiTiebreakContext.lohName} is making a decision…`,
-        subtitle: 'Please wait while the LOH decides who to evict.',
+        subtitle: 'Please wait while the Leader of the Hub decides who will be eliminated.',
         isLive: true,
         autoDismissMs: AI_TIE_DECIDING_DELAY_MS,
       }
@@ -679,7 +679,7 @@ export function useEvictionFlow({
     if (aiTiebreakStage === 'decision') {
       return {
         key: 'loh_tiebreak_decision',
-        title: `The LOH chose to evict ${activeAiTiebreakContext.evictee.name}.`,
+        title: `The Leader of the Hub chose to eliminate ${activeAiTiebreakContext.evictee.name}.`,
         subtitle: '',
         isLive: true,
         autoDismissMs: AI_TIE_DECISION_DELAY_MS,
@@ -688,7 +688,7 @@ export function useEvictionFlow({
     return {
       key: 'loh_tiebreak_result',
       title: activeAiTiebreakContext.resultTitle,
-      subtitle: `${activeAiTiebreakContext.evictee.name}, you have been eliminated from The Big Eye house.`,
+      subtitle: `${activeAiTiebreakContext.evictee.name}, you have been eliminated from the Hub.`,
       isLive: true,
       autoDismissMs: AI_TIE_RESULT_DELAY_MS,
     }

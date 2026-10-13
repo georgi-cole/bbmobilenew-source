@@ -165,7 +165,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'season.vox-populi-intro',
     'season_start',
-    'VOX POPULI is now in force. Housemates nominate in secret, the audience decides who leaves, and Public Mode reveals the pulse without changing the official result.',
+    'VOX POPULI is now in force. Hubmates nominate in secret, the audience decides who leaves, and Public Mode reveals the pulse without changing the official result.',
     'twist',
     'critical',
     'vox_populi',
@@ -176,7 +176,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'survival.opening',
     'week_start',
-    'Surveyeval Mode online. Eight contestants enter; synthetic replacements keep the board full after every robo eviction.',
+    'Surveyeval Mode online. Eight contestants enter; synthetic replacements keep the board full after every robo elimination.',
     'game',
     'major',
     'surveyeval_opening',
@@ -234,7 +234,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.vox-immunity',
     'loh_comp_announcement',
     'Immunity Competition',
-    'One housemate can earn safety from the public vote.',
+    'One hubmate can earn safety from the public vote.',
     'vox_immunity_comp',
     'Vox Populi branch',
     'major',
@@ -253,7 +253,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'loh.competition-start',
     'loh_comp',
-    'The Leader of the House competition has begun! 🏆 Who will win power today?',
+    'The Leader of the Hub competition has begun! 🏆 Who will win power today?',
     'game',
     'minor',
     undefined,
@@ -277,11 +277,11 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     undefined,
     { importance: 'required', presentationMode: 'log_only' }
   ),
-  feed('loh.winner', 'loh_results', '{winner} has won Leader of the House! 👑'),
+  feed('loh.winner', 'loh_results', '{winner} has won Leader of the Hub! 👑'),
   feed(
     'loh.cupid-winners',
     'loh_results',
-    "{winner} won Leader of the House, making {partner} co-LOH under Cupid's Arrow! 👑💘",
+    "{winner} won Leader of the Hub, making {partner} co-LOH under Cupid's Arrow! 👑💘",
     'game',
     'minor',
     undefined,
@@ -290,7 +290,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'cupid.activation',
     'season_start',
-    '🏹 The lights soften. A golden arrow crosses the house, splitting into eight trails of light. Cupid has chosen: {pairs}. From this moment, every victory, every danger, every vote, and every exit belongs to the pair. 💘',
+    '🏹 The lights soften. A golden arrow crosses the Hub, splitting into eight trails of light. Cupid has chosen: {pairs}. From this moment, every victory, every danger, every vote, and every exit belongs to the pair. 💘',
     'twist',
     'critical',
     'cupid_arrow',
@@ -301,7 +301,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'shock.vox-double-eviction',
     'nominations',
-    'DOUBLE ELIMINATION! The public vote will eliminate two housemates tonight.',
+    'DOUBLE ELIMINATION! The public vote will eliminate two hubmates tonight.',
     'twist',
     'critical',
     'vox_double_eviction',
@@ -348,7 +348,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'shock.battle-back',
     'eviction_results',
-    'BACK 2 THE GAME! Eliminated housemates will compete for a return.',
+    'BACK 2 THE GAME! Eliminated hubmates will compete for a return.',
     'twist',
     'critical',
     'battle_back',
@@ -470,21 +470,21 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'social.loh-congratulations',
     'social_1',
-    'Housemates congratulate {winner}. Alliances are already forming… 💬',
+    'Hubmates congratulate {winner}. Alliances are already forming… 💬',
     'social'
   ),
   card(
     'card.nominations',
     'nominations',
     'Nomination Ceremony',
-    'The Leader of the House will reveal who is in danger.',
+    'The Leader of the Hub will reveal who is in danger.',
     'nomination_ceremony'
   ),
   card(
     'card.double-eviction',
     'nominations',
     'Double Elimination!',
-    'Tonight, two housemates will leave the game.',
+    'Tonight, two hubmates will leave the game.',
     'double_eviction',
     'Double Elimination branch'
   ),
@@ -492,7 +492,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.vox-nominations',
     'nominations',
     'Secret Nominations',
-    'Housemates nominate privately in the Confessional.',
+    'Hubmates nominate privately in the Confessional.',
     'vox_nominations',
     'Vox Populi branch',
     'major',
@@ -513,7 +513,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'nominations.vox-confessional',
     'nominations',
-    'Housemates are being called to the Confessional one by one to nominate in secret. 🗳️',
+    'Hubmates are being called to the Confessional one by one to nominate in secret. 🗳️',
     'game',
     'minor',
     undefined,
@@ -776,7 +776,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'vox.social-tearful-apology',
     'social_2',
-    "A nominee's tearful apology turned into an argument when someone challenged the timing. {nominees} now have the whole house watching.",
+    "A nominee's tearful apology turned into an argument when someone challenged the timing. Everyone in the Hub is watching {nominees}.",
     'social',
     'minor',
     undefined,
@@ -787,7 +787,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'vox.social-final-appeals',
     'social_2',
-    '{nominees} have made their final appeals. The house can offer support, but only the audience will decide.',
+    '{nominees} have made their final appeals. The Hub can offer support, but only the audience will decide.',
     'social',
     'minor',
     undefined,
@@ -799,7 +799,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.live-vote',
     'live_vote',
     'Live Elimination',
-    'The house will vote to eliminate.',
+    'The Hub will vote to eliminate.',
     'live_eviction'
   ),
   card(
@@ -815,7 +815,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'vote.final-pitches',
     'live_vote',
-    'Housemates give their last plea before voting begins.',
+    'Hubmates give their last plea before voting begins.',
     'social'
   ),
   feed(
@@ -828,15 +828,11 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'eviction_results',
     "It's a tie between {nominees}! {holder}, as POS holder, you must break the tie as a special exception. 🗳️"
   ),
-  feed(
-    'vote.evicted',
-    'eviction_results',
-    '{evictee}, you have been eliminated from The Big Eye house. 🚪'
-  ),
+  feed('vote.evicted', 'eviction_results', '{evictee}, you have been eliminated from the Hub. 🚪'),
   feed(
     'cupid.spell-broken',
     'eviction_results',
-    "💔 Four pairs have fallen. Cracks race through Cupid's hearts, the final arrow dissolves into light, and Cupid takes flight from The Big Eye house. The rose glow fades: every survivor now plays alone. What the pairs felt—and what they did to each other—remains.",
+    "💔 Four pairs have fallen. Cracks race through Cupid's hearts, the final arrow dissolves into light, and Cupid leaves the Hub. The rose glow fades: every survivor now plays alone. What the pairs felt—and what they did to each other—remains.",
     'twist',
     'critical',
     'cupid_arrow_broken',
@@ -851,7 +847,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'game',
     'major',
     'cupid_pair_eviction',
-    "Cupid's Arrow eviction",
+    "Cupid's Arrow elimination",
     true,
     'cupid'
   ),
@@ -862,7 +858,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'game',
     'major',
     'cupid_pair_eviction',
-    "Cupid's Arrow tie-break eviction",
+    "Cupid's Arrow tie-break elimination",
     true,
     'cupid'
   ),
@@ -880,7 +876,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'cupid.self-eviction-pair',
     'eviction_results',
-    "{player} has chosen to self-evict. Cupid's Arrow also eliminates {partner}. 🚪💔",
+    "{player} has chosen to leave the Hub. Cupid's Arrow also eliminates {partner}. 🚪💔",
     'game',
     'major',
     'cupid_pair_eviction',
@@ -924,7 +920,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'week.day-start-mood.sunny',
     'week_start',
-    'Sunlight found every window this morning. The house feels ready for something good.',
+    'Sunlight found every window this morning. The Hub feels ready for something good.',
     'social',
     'minor',
     undefined,
@@ -1008,7 +1004,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'week.day-start-mood.cloudy',
     'week_start',
-    'Soft clouds are drifting past outside. Inside, the house is taking its sweet time waking up.',
+    'Soft clouds are drifting past outside. Inside, the Hub is taking its sweet time waking up.',
     'social',
     'minor',
     undefined,
@@ -1029,7 +1025,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'week.day-end-mood.sunset',
     'week_end',
-    'The last warm light is slipping behind the house. Everything can wait until morning.',
+    'The last warm light is slipping behind the Hub. Everything can wait until morning.',
     'social',
     'minor',
     undefined,
@@ -1039,7 +1035,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
   feed(
     'week.day-end-mood.starry',
     'week_end',
-    'The house has gone quiet beneath a clear night sky. Even the game seems far away for a moment.',
+    'The Hub has gone quiet beneath a clear night sky. Even the game seems far away for a moment.',
     'social',
     'minor',
     undefined,
@@ -1069,7 +1065,7 @@ export const BROADCAST_TEMPLATE_CATALOG: readonly BroadcastTemplate[] = [
     'card.vox-final3',
     'final3',
     'Final 3',
-    'One housemate will win immunity. The audience will decide third place.',
+    'One hubmate will win immunity. The audience will decide third place.',
     'vox_final3',
     'Vox Populi branch',
     'major',

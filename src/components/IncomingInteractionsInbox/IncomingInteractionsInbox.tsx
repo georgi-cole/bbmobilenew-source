@@ -53,6 +53,7 @@ import type {
 import type { Player } from '../../types'
 import {
   formatIncomingDeadline,
+  formatIncomingDecisionDeadline,
   isIncomingInteractionUrgent,
 } from '../../social/incomingInteractionDeadline'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
@@ -98,13 +99,10 @@ function getExpiryLabel(
   currentPhase: string,
   policy: IncomingInteractionResponsePolicy
 ): string | null {
-  if (
-    interaction.resolved ||
-    policy !== 'required' ||
-    !isIncomingInteractionUrgent(interaction, { day: currentWeek, phase: currentPhase })
-  ) {
+  if (interaction.resolved || policy !== 'required') return null
+  if (interaction.type === 'alliance_proposal') return formatIncomingDecisionDeadline(interaction)
+  if (!isIncomingInteractionUrgent(interaction, { day: currentWeek, phase: currentPhase }))
     return null
-  }
   return formatIncomingDeadline(interaction)
 }
 
@@ -118,7 +116,7 @@ function getHouseRead(
   if (relevant.length === 0) {
     return {
       label: 'Still forming',
-      explanation: 'The house has not settled on a clear read of you yet.',
+      explanation: 'The Hub has not settled on a clear read of you yet.',
     }
   }
   const weight = relevant.reduce((sum, belief) => sum + belief.confidence, 0) || 1
@@ -135,12 +133,12 @@ function getHouseRead(
     return {
       label: 'Under suspicion',
       explanation:
-        'Recent choices, rumours or broken expectations are making the house more cautious around you.',
+        'Recent choices, rumours or broken expectations are making the Hub more cautious around you.',
     }
   }
   return {
     label: 'Mixed',
-    explanation: 'Different housemates currently read your game in different ways.',
+    explanation: 'Different hubmates currently read your game in different ways.',
   }
 }
 
@@ -256,7 +254,8 @@ interface InteractionItemProps {
   onRespond: (
     interactionId: string,
     responseType: IncomingInteractionResponseType,
-    responseLabel: string
+    responseLabel: string,
+    responseAction?: 'ask_plan' | 'need_time'
   ) => void
   relationships: RelationshipsMap
   socialMemory: SocialMemoryMap
@@ -368,7 +367,7 @@ function InteractionItem({
             showEvictedStyle={false}
           />
         ) : (
-          <span className="inbox-item__avatar-fallback" aria-label="Unknown housemate">
+          <span className="inbox-item__avatar-fallback" aria-label="Unknown hubmate">
             <IncomingInteractionIcon name="person" />
           </span>
         )}
@@ -390,7 +389,11 @@ function InteractionItem({
               <span className="inbox-item__tone">{tone}</span>
             )}
             {expiryLabel && (
-              <span className="inbox-item__expiry inbox-item__expiry--urgent">{expiryLabel}</span>
+              <span
+                className={`inbox-item__expiry${isUrgent ? ' inbox-item__expiry--urgent' : ''}`}
+              >
+                {expiryLabel}
+              </span>
             )}
           </div>
         </div>
@@ -419,12 +422,15 @@ function InteractionItem({
         <div className="inbox-item__actions">
           {responseOptions.map((option) => (
             <button
-              key={`${interaction.id}-${option.responseType}`}
+              key={`${interaction.id}-${option.action ?? option.label}`}
               type="button"
               aria-label={option.label}
               data-response-type={option.responseType}
+              data-response-action={option.action}
               className={`inbox-action inbox-action--${option.style}`}
-              onClick={() => onRespond(interaction.id, option.responseType, option.label)}
+              onClick={() =>
+                onRespond(interaction.id, option.responseType, option.label, option.action)
+              }
             >
               {option.label}
             </button>
@@ -608,13 +614,22 @@ export default function IncomingInteractionsInbox() {
         currentWeek={currentWeek}
         currentPhase={game.phase ?? 'week_start'}
         onRead={(interactionId) => dispatch(markIncomingInteractionRead(interactionId))}
-        onRespond={(interactionId, responseType, responseLabel) => {
-          setRecentlyResolvedIds((current) => {
-            const nextIds = new Set(current)
-            nextIds.add(interactionId)
-            return nextIds
-          })
-          dispatch(respondToIncomingInteraction({ interactionId, responseType, responseLabel }))
+        onRespond={(interactionId, responseType, responseLabel, responseAction) => {
+          if (!responseAction) {
+            setRecentlyResolvedIds((current) => {
+              const nextIds = new Set(current)
+              nextIds.add(interactionId)
+              return nextIds
+            })
+          }
+          dispatch(
+            respondToIncomingInteraction({
+              interactionId,
+              responseType,
+              responseLabel,
+              responseAction,
+            })
+          )
         }}
         relationships={relationships}
         socialMemory={socialMemory}
@@ -669,7 +684,7 @@ export default function IncomingInteractionsInbox() {
                   </p>
                   {houseRead && (
                     <p>
-                      <strong>House read: {houseRead.label}.</strong> {houseRead.explanation}
+                      <strong>Hub read: {houseRead.label}.</strong> {houseRead.explanation}
                     </p>
                   )}
                   {judgedCommitments.slice(0, 3).map((commitment) => (

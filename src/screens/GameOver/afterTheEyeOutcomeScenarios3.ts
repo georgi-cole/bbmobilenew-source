@@ -35,7 +35,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     setups: [
       '{name} becomes the public face of a fast-growing investment venture shortly after the season.',
       "A business launched around {name}'s fame raises money quickly and promises returns that sound almost impossible.",
-      "{name} signs onto a company run by aggressive managers who use the housemate's image to attract investors.",
+      "{name} signs onto a company run by aggressive managers who use the hubmate's image to attract investors.",
       'A lucrative post-show deal puts {name} on billboards before anyone explains where the money is coming from.',
     ],
     escalations: [
@@ -53,7 +53,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     twists: [
       'The contract gave {name} almost no control over the company despite using their face everywhere.',
       'A former assistant had saved the emails that become central to the case.',
-      'The founder had approached three other housemates first.',
+      'The founder had approached three other hubmates first.',
       'One of the loudest accusers had invested after being privately warned not to.',
     ],
   },
@@ -118,7 +118,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     escalations: [
       'Conflicting reports spread online while family members ask fans to stop calling the hospital.',
-      'Former housemates arrive quietly as tabloids speculate far beyond the limited facts released.',
+      'Former hubmates arrive quietly as tabloids speculate far beyond the limited facts released.',
       'A photograph of the damaged vehicle circulates before doctors have finished evaluating {name}.',
       'The public story becomes chaotic when an anonymous witness gives an exaggerated account to television.',
     ],
@@ -195,7 +195,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
       'After a chaotic period following the show, {name} acknowledges needing professional help and leaves the public circuit.',
     ],
     escalations: [
-      'Tabloids chase details while former housemates ask the public to stop turning treatment into entertainment.',
+      'Tabloids chase details while former hubmates ask the public to stop turning treatment into entertainment.',
       "A leaked photograph triggers a wave of speculation that forces {name}'s family to issue a boundary-setting statement.",
       'Several sponsors leave, but close friends continue visiting and refuse to discuss the situation publicly.',
       'An early rumor of a quick return is denied as {name} commits to a longer recovery plan.',
@@ -208,7 +208,7 @@ const DRAMA_TEMPLATES: DramaTemplate[] = [
     ],
     twists: [
       'A former rival quietly pays for part of the treatment program.',
-      'The most supportive person from the cast is someone {name} barely spoke to in the house.',
+      'The most supportive person from the cast is someone {name} barely spoke to in the Hub.',
       'A tabloid offering the largest fee for an interview is refused first.',
       "The public response is far more compassionate than {name}'s management expected.",
     ],

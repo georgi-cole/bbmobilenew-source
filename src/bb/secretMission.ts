@@ -693,7 +693,7 @@ export function getSecretMissionTaskHint(task: MissionTask, taskNumber: number):
     case 'easter_egg_discovery':
       return `${prefix}, talk naturally with the Big Eye and explore unusual topics or phrases. Hidden discoveries count automatically when you uncover them.`
     case 'survive_days':
-      return `${prefix}, remain in the house through Day ${task.endDay ?? task.target}. It updates automatically as the game advances.`
+      return `${prefix}, remain in the Hub through Day ${task.endDay ?? task.target}. It updates automatically as the game advances.`
     default:
       return `${prefix}, follow this checklist requirement before its deadline: ${task.description}`
   }
@@ -819,7 +819,7 @@ export function doubleVoteTimingMessage(currentPhase: string): string {
   return (
     'This power cannot interrupt a vote already in motion. ' +
     'Your Double Vote will be offered automatically at the next live elimination — ' +
-    'the moment the house is asked to cast their votes. ' +
+    'the moment the Hub is asked to cast their votes. ' +
     'Stay in the game and it will activate itself at exactly the right time. 🗳️🗳️'
   )
 }

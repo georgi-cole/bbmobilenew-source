@@ -710,7 +710,7 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
 const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
   ally: [
     'I think our games fit together. I want to make this official—are you in?',
-    'The house is splitting, and I would rather have you beside me. Want to work together?',
+    'The Hub is splitting, and I would rather have you beside me. Want to work together?',
   ],
   proposeAlliance: [
     'I trust what we have been building. Are you ready to call it an alliance?',

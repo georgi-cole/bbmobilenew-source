@@ -40,9 +40,9 @@ export const STATUS_BADGE_IMAGE_SRC: Record<string, string> = {
 /** Human-readable label for each badge code (used in aria-label). */
 export const STATUS_BADGE_LABEL: Record<string, string> = {
   immune: 'Immune Today',
-  loh: 'Leader of the House',
+  loh: 'Leader of the Hub',
   pos: 'Power of Safety',
-  veto_safe: 'Veto Safe',
+  veto_safe: 'Safety Safe',
   nominated: 'Nominated',
   jury: 'Tribunal Member',
   first: '1st place',

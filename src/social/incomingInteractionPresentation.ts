@@ -11,6 +11,7 @@ import {
 import type {
   IncomingInteraction,
   IncomingInteractionResponseType,
+  IncomingInteractionResponseAction,
   IncomingInteractionType,
   RelationshipsMap,
   SocialMemoryMap,
@@ -34,11 +35,17 @@ export interface IncomingInteractionResponseOption {
   style: IncomingInteractionResponseStyle
   description: string
   createsCommitment?: boolean
+  /** A follow-up conversation action that leaves a formal offer pending. */
+  action?: IncomingInteractionResponseAction
 }
 
 const RESPONSE_OPTIONS_BY_TYPE: Record<
   IncomingInteractionType,
-  Array<{ label: string; responseType: IncomingInteractionResponseType }>
+  Array<{
+    label: string
+    responseType: IncomingInteractionResponseType
+    action?: IncomingInteractionResponseAction
+  }>
 > = {
   warning: [
     { label: 'Thank', responseType: 'positive' },
@@ -59,10 +66,10 @@ const RESPONSE_OPTIONS_BY_TYPE: Record<
     { label: 'Dismiss', responseType: 'dismiss' },
   ],
   alliance_proposal: [
-    { label: 'Join', responseType: 'accept' },
-    { label: 'Think on it', responseType: 'neutral' },
-    { label: 'Refuse', responseType: 'decline' },
-    { label: 'Dismiss', responseType: 'dismiss' },
+    { label: 'Accept', responseType: 'accept' },
+    { label: 'Decline', responseType: 'decline' },
+    { label: 'Need time', responseType: 'neutral', action: 'need_time' },
+    { label: 'Ask for their plan', responseType: 'neutral', action: 'ask_plan' },
   ],
   nomination_plea: [
     { label: 'Reassure', responseType: 'positive' },
@@ -100,6 +107,7 @@ type ResponseBlueprint = Array<{
   label: string
   responseType: IncomingInteractionResponseType
   style?: IncomingInteractionResponseStyle
+  action?: IncomingInteractionResponseAction
 }>
 
 // The social engine still receives stable response intents, but the words the
@@ -129,14 +137,6 @@ const RESPONSE_OPTION_VARIANTS_BY_TYPE: Partial<
       { label: 'Ask time', responseType: 'neutral' },
       { label: 'Counter', responseType: 'decline' },
       { label: 'End pitch', responseType: 'dismiss' },
-    ],
-  ],
-  alliance_proposal: [
-    [
-      { label: 'Lock it in', responseType: 'accept' },
-      { label: 'Test waters', responseType: 'neutral' },
-      { label: 'Keep distance', responseType: 'decline' },
-      { label: 'Change subject', responseType: 'dismiss' },
     ],
   ],
   nomination_plea: [

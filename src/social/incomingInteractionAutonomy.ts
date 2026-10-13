@@ -66,6 +66,7 @@ export interface AutonomyPlayer {
   id: string
   name?: string
   status: string
+  firstEvictedAtWeek?: number
   isUser?: boolean
 }
 
@@ -344,7 +345,7 @@ function describeCanonicalLohNominationPlan(
   const openingNominees = formatNameList(openingNomineeNames)
 
   if (nominationPlan.strategy === 'backdoor') {
-    return `${targetName} is my backdoor target if Safety opens a replacement seat. My planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
+    return `${targetName} is my replacement target if Safety opens a replacement seat. My planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
   }
 
   return `${targetName} is my current target, and my planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
@@ -1504,16 +1505,16 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
   week_start_ally_check_in: [
     'Just checking in, {player} — I want us on the same page this week.',
     'Fresh week, clean slate. I wanted to touch base with you early, {player}.',
-    'Before the house gets loud, I wanted to make sure you and I are good.',
+    'Before the Hub gets loud, I wanted to make sure you and I are good.',
   ],
   week_start_enemy_gossip: [
     'New week, same whispers. People are already circling names.',
-    'You can feel the house shifting already. Nobody is sitting still.',
+    'You can feel the Hub shifting already. Nobody is sitting still.',
     'It did not take long for people to start talking again this week.',
   ],
   week_start_alliance_lock: [
     'I trust you more than most people in here. Maybe we should make that official.',
-    'This house is about to fracture. I think you and I should lock something in.',
+    'The Hub is about to fracture. I think you and I should lock something in.',
     'If we are serious about going deep, this is the week to commit.',
   ],
   hoh_congratulations: [
@@ -1552,14 +1553,14 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'Rough competition, {player}. I wanted to check that you are holding up.',
   ],
   competition_low_finish_taunt: [
-    'Last place puts a bright light on you. The house noticed.',
+    'Last place puts a bright light on you. The Hub noticed.',
     'That competition result left you exposed, {player}. People will use it.',
     'You needed that win more than you showed. Now your options are narrower.',
   ],
   social_momentum_notice: [
     'You have been everywhere today, {player}. Your social game is getting attention.',
     'People have noticed how many conversations you are having. So have I.',
-    'You are shaping the mood of the house today. That can become power—or a target.',
+    'You are shaping the mood of the Hub today. That can become power—or a target.',
   ],
   hoh_safety_request: [
     'I know you have a lot to weigh, {hoh}. I just want you to know I am not coming after you.',
@@ -1633,7 +1634,7 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
   ],
   survivor_gratitude: [
     'I am still here, and I am not forgetting the people who did not leave me hanging.',
-    'Surviving that vote changed how I see the house. I know who showed up for me.',
+    'Surviving that vote changed how I see the Hub. I know who showed up for me.',
     'After a night like that, gratitude hits harder than anything else.',
   ],
   betrayal_warning: [
@@ -1644,16 +1645,16 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
   ignored_warning: [
     'You have been hard to get a read on lately. That does not go unnoticed.',
     'I keep reaching out and getting nothing back. That tells me something.',
-    'Silence is still a message in this house, {player}.',
+    'Silence is still a message in the Hub, {player}.',
   ],
   targeted_snark: [
     'Interesting how your name keeps coming up whenever people talk strategy.',
     'You have been moving like nobody is paying attention. That is risky.',
-    'Some of your choices are getting harder for the house to ignore.',
+    'Some of your choices are getting harder for the Hub to ignore.',
   ],
   alliance_reassurance: [
     'I am not wavering on us. I just wanted to make that clear.',
-    'No matter how loud the house gets, I still see us as solid.',
+    'No matter how loud the Hub gets, I still see us as solid.',
     'I needed a quick check-in with you because our connection still matters to me.',
   ],
   alliance_nomination_pitch: [
@@ -1688,7 +1689,7 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
   ],
   generic_gossip: [
     'There is a lot moving underneath the surface right now.',
-    'House dynamics are getting messy, and I thought you should know that.',
+    'Hub dynamics are getting messy, and I thought you should know that.',
     'The vibe is shifting again. Nobody feels settled.',
   ],
   generic_check_in: [
@@ -1697,14 +1698,14 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I figured it was worth touching base for a second.',
   ],
   relationship_friendship_check_in: [
-    'I keep finding myself looking for you when the house gets loud. I wanted to check in.',
+    'I keep finding myself looking for you when the Hub gets loud. I wanted to check in.',
     'We have had a few real conversations lately. I do not want to let that fade into background noise.',
     'I feel more comfortable with you than I expected. Where is your head at?',
   ],
   relationship_alliance_follow_up: [
     'We have been circling the same ideas for a while. I need to know whether we are actually working together.',
     'I can protect a real partner, but I need a clearer read on where I stand with you.',
-    'The house is shifting again. If we are serious, this is where we start showing it.',
+    'The Hub is shifting again. If we are serious, this is where we start showing it.',
   ],
   relationship_romance_check_in: [
     'I have been thinking about our conversations more than I probably should. I wanted to be honest about that.',
@@ -2114,7 +2115,7 @@ export function scheduleIncomingInteractionsForPhase(
       privateIntelToday + pendingIntelToday.length < 2 &&
       context.reality &&
       (plan.type === 'gossip' || plan.type === 'warning')
-        ? selectIntelFactForActor(context.reality, actor.id, playerId, week)
+        ? selectIntelFactForActor(context.reality, actor.id, playerId, week, context.players)
         : null
     const intelLead =
       candidateIntelLead &&
@@ -2185,6 +2186,12 @@ export function scheduleIncomingInteractionsForPhase(
       mode: useVoxDrama ? 'drama' : 'normal',
       payload: {
         scenarioKey: plan.scenarioKey,
+        ...(interactionType === 'alliance_proposal'
+          ? {
+              personalPactPlan:
+                'I want us to share strategic reads and warn each other when plans shift. We would discuss a target before treating it as a shared decision.',
+            }
+          : {}),
         ...(plan.allianceId
           ? { dedupeGroup: `alliance_strategy:${plan.allianceId}:${plan.scenarioKey}` }
           : {}),

@@ -173,7 +173,7 @@ function requestProblem(
       ...(request.candidateId ? [request.candidateId] : []),
     ].some((id) => !context.activeActorIds.includes(id))
   )
-    return 'A participant is no longer in the house.'
+    return 'A participant is no longer in the Hub.'
   if (request.allianceId) {
     const alliance = state.alliances[request.allianceId]
     if (!alliance || !isCurrentAlliance(alliance)) return 'This alliance has ended.'
@@ -381,7 +381,7 @@ function finalize(
     }
     request.resultAllianceId = alliance.id
     const candidateName = displayMemberNames([candidateId], context)
-    successReason = `${candidateName} is in! ${alliance.name ?? 'The alliance'} now has ${alliance.memberIds.length} members.`
+    successReason = `${candidateName === 'You' ? "You're in" : `${candidateName} is in`}! ${alliance.name ?? 'The alliance'} now has ${alliance.memberIds.length} members.`
   } else if (
     alliance &&
     (request.kind === 'APPOINT' || request.kind === 'TRANSFER') &&
@@ -654,7 +654,7 @@ function propose(
     members.some((id) => !id || !context.activeActorIds.includes(id)) ||
     (command.candidateId && !context.activeActorIds.includes(command.candidateId))
   )
-    return reject('Every participant must still be in the house.')
+    return reject('Every participant must still be in the Hub.')
   if (command.kind === 'PACT') {
     if (members.length !== 2) return reject('A personal pact needs two different people.')
     const pact = getCurrentPact(state, members[0], members[1])

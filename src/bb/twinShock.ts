@@ -151,7 +151,7 @@ function unclearMessage(stage: TwinShockPromptStage | null, retryCount: number):
   }
   return retryCount <= 0
     ? 'I need a clearer answer. Do you think something is off about Lia?'
-    : 'Answer clearly, Houseguest. What exactly do you think is happening with Lia?';
+    : 'Answer clearly, Hubmate. What exactly do you think is happening with Lia?';
 }
 
 export function createInitialTwinShockState(): TwinShockState {
@@ -172,14 +172,14 @@ export function resolveTwinShockTurn(
 ): TwinShockTurnResult {
   const state = current ?? createInitialTwinShockState();
   const intent = classifyTwinShockAnswer(input);
-  const playerName = context.playerName || 'Houseguest';
+  const playerName = context.playerName || 'Hubmate';
   const stage = state.promptStage;
 
   if (stage === 'secret_lost') {
     return {
       intent,
       messages: [
-        'As Lia is no longer in the House, her secret will remain unrevealed.',
+        'As Lia is no longer in the Hub, her secret will remain unrevealed.',
         'You are free to leave.',
       ],
       status: 'resolved_secret_lost',
@@ -198,13 +198,13 @@ export function resolveTwinShockTurn(
           'Late, but sharp. You got it.',
           'Lia has been secretly switching places with her twin sister, Ali.',
           'Because you exposed the secret before it was completed, Lia and Ali will now continue as one contestant.',
-          'You may return to the House and inform the others.',
+          'You may return to the Hub and inform the others.',
         ]
         : [
-          `Very good, ${playerName}. You saw what the House missed.`,
+          `Very good, ${playerName}. You saw what the Hub missed.`,
           'Lia has not been alone in this game. She has been secretly switching places with her twin sister, Ali.',
           'Because you exposed the secret, Lia and Ali will now continue as one contestant.',
-          'Good job. You may return to the House and inform the others.',
+          'Good job. You may return to the Hub and inform the others.',
         ],
       status: 'resolved_discovered',
       promptStage: null,
@@ -257,7 +257,7 @@ export function resolveTwinShockTurn(
           'Here is the secret.',
           'All along, Lia has been secretly switching places with her twin sister, Ali.',
           'Their secret mission was successful.',
-          'Ali will now take over the first empty place in the House as a full contestant.',
+          'Ali will now take over the first empty place in the Hub as a full contestant.',
           'You are free to return and inform the others.',
         ],
         status: 'resolved_mission_success',
@@ -293,7 +293,7 @@ export function resolveTwinShockTurn(
           'Here is the secret.',
           'All along, Lia has been secretly switching places with her twin sister, Ali.',
           'Their secret mission was successful.',
-          'Ali will now take over the first empty place in the House as a full contestant.',
+          'Ali will now take over the first empty place in the Hub as a full contestant.',
           'You are free to return and inform the others.',
         ],
         status: 'resolved_mission_success',

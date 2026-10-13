@@ -248,9 +248,9 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     title: "Cupid's Arrow",
     description: "Permanently unlock the Cupid's Arrow seasonal expansion.",
     entitlement: 'cupidArrow',
-    shortTagline: 'One house. Eight pairs. Every fate is shared.',
+    shortTagline: 'One Hub. Eight pairs. Every fate is shared.',
     fullDescription:
-      'A full-season paired format where every victory, nomination, vote, and elimination binds two housemates together until the spell breaks.',
+      'A full-season paired format where every victory, nomination, vote, and elimination binds two hubmates together until the spell breaks.',
     benefits: [
       'A complete paired-season rule set',
       'Shared power, danger, votes, and exits',
@@ -275,9 +275,9 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     title: 'Vox Populi',
     description: 'Permanently unlock the Vox Populi seasonal expansion.',
     entitlement: 'voxPopuli',
-    shortTagline: 'The house nominates. The audience decides.',
+    shortTagline: 'The Hub nominates. The audience decides.',
     fullDescription:
-      'A social-first season where housemates nominate in secret, competition winners earn immunity, and the audience controls every elimination and the final crown.',
+      'A social-first season where hubmates nominate in secret, competition winners earn immunity, and the audience controls every elimination and the final crown.',
     benefits: [
       'Secret two-person nomination ballots',
       'Audience eliminations and finale decision',

@@ -177,12 +177,12 @@ export const JURY_LOCKED_LINES: string[] = [
   'My vote goes to the finalist who turned chaos into a strategy and never looked back.',
   "I'm casting my ballot for the player who was underestimated until it was far too late.",
   'I vote for the one who played this game entirely on their own terms.',
-  'My jury vote belongs to the finalist who made the big move when it mattered most.',
+  'My Tribunal vote belongs to the finalist who made the big move when it mattered most.',
   "I vote for the person whose game I couldn't help but respect, even when it hurt me.",
-  "I'm voting for the player who didn't just survive this house — they mastered it.",
+  "I'm voting for the player who didn't just survive the Hub — they mastered it.",
   'My vote goes to the finalist who showed me what it really means to want this.',
   'I vote for the person who adapted every single week and never once panicked.',
-  "I'm casting my vote for the one who walked into this house with a plan and executed it.",
+  "I'm casting my vote for the one who walked into the Hub with a plan and executed it.",
 ]
 
 /** Variations shown when the public casts the final vote. */
@@ -207,7 +207,7 @@ export const NOMINEE_PLEA_TEMPLATES: string[] = [
 export const JURY_BANTER_TEMPLATES = {
   positive: [
     'You played the game from day one.',
-    'You earned every single vote in this house.',
+    'You earned every single vote in the Hub.',
     'Your game was flawless — well done.',
     'You dominated socially and competitively.',
     "Nobody saw you coming, and that's a great game.",
@@ -215,7 +215,7 @@ export const JURY_BANTER_TEMPLATES = {
   critical: [
     'You let others do the heavy lifting.',
     'You were lucky to be in the right alliances.',
-    'Your jury management could have been better.',
+    'Your Tribunal relationships could have been better.',
     'You coasted to the end rather than competing.',
     'Close, but not quite the winner I envisioned.',
   ],

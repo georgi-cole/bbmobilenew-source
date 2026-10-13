@@ -104,6 +104,8 @@ export interface DirectedRelationship {
   publicLabel: RealityRelationshipLabel
   labelConfidence: number
   lastMeaningfulInteraction?: RealityClock & { eventId: string }
+  /** Last day passive shared game exposure added familiarity to this directed read. */
+  lastAmbientFamiliarityDay?: number
 }
 
 export type RealityRelationshipMap = Record<
@@ -644,7 +646,7 @@ export interface RealitySocialEvent extends RealityClock {
     coLeaderId?: RealityActorId
     memberIds: RealityActorId[]
     endReason?: string
-    exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'EVICTED'
+    exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'ELIMINATED'
   }
   publicEligible: boolean
   juryEligible: boolean

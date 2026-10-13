@@ -27,15 +27,15 @@ interface BioField {
 
 // Fields and their question templates.
 const BIO_FIELDS: BioField[] = [
-  { key: 'profession', prompt: 'Which houseguest works as a {value}?' },
-  { key: 'location', prompt: 'Which houseguest is from {value}?' },
-  { key: 'zodiacSign', prompt: 'Which houseguest is a {value}?' },
-  { key: 'education', prompt: 'Which houseguest holds a {value} degree?' },
-  { key: 'familyStatus', prompt: 'Which houseguest is {value}?' },
-  { key: 'funFact', prompt: 'Which houseguest can claim: "{value}"?' },
-  { key: 'pets', prompt: 'Which houseguest has the following pets: {value}?' },
-  { key: 'religion', prompt: 'Which houseguest identifies as {value}?' },
-  { key: 'motto', prompt: 'Which houseguest\'s motto is: "{value}"?' },
+  { key: 'profession', prompt: 'Which hubmate works as a {value}?' },
+  { key: 'location', prompt: 'Which hubmate is from {value}?' },
+  { key: 'zodiacSign', prompt: 'Which hubmate is a {value}?' },
+  { key: 'education', prompt: 'Which hubmate holds a {value} degree?' },
+  { key: 'familyStatus', prompt: 'Which hubmate is {value}?' },
+  { key: 'funFact', prompt: 'Which hubmate can claim: "{value}"?' },
+  { key: 'pets', prompt: 'Which hubmate has the following pets: {value}?' },
+  { key: 'religion', prompt: 'Which hubmate identifies as {value}?' },
+  { key: 'motto', prompt: 'Which hubmate\'s motto is: "{value}"?' },
 ];
 
 const PLACEHOLDER_VALUES = new Set(['none', 'None', 'n/a', 'N/A', '']);

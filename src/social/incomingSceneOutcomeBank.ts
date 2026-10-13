@@ -14,7 +14,7 @@ type OutcomeSet = Record<IncomingSceneOutcomeStance, readonly string[]>
 export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   week_start_ally_check_in: {
     positive: [
-      '{from} starts the week treating you as someone they can check in with before the house turns.',
+      '{from} starts the week treating you as someone they can check in with before the Hub turns.',
       '{from} leaves the reset feeling that the two of you are still moving in the same direction.',
     ],
     neutral: [
@@ -32,7 +32,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   week_start_enemy_gossip: {
     positive: [
-      '{from} now sees you as a useful sounding board for the shifting house map.',
+      '{from} now sees you as a useful sounding board for the shifting Hub map.',
       '{from} shares a little more of what they have noticed, but keeps the source protected.',
     ],
     neutral: [
@@ -105,7 +105,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   player_nominated_support: {
     positive: [
       '{from} feels trusted with the vulnerable part of your week and quietly becomes a more reliable check-in.',
-      '{from} leaves knowing how to support you without making your situation more visible to the house.',
+      '{from} leaves knowing how to support you without making your situation more visible to the Hub.',
     ],
     neutral: [
       '{from} understands you are under pressure, but does not know what help you would actually accept.',
@@ -122,7 +122,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   player_nominated_tension: {
     positive: [
-      '{from} sees that you are willing to face the tension before it becomes public house material.',
+      '{from} sees that you are willing to face the tension before it becomes public Hub news.',
       '{from} lowers the temperature for now, even if the nomination still changes how they see the week.',
     ],
     neutral: [
@@ -159,7 +159,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   competition_low_finish_taunt: {
     positive: [
       '{from} does not get the reaction they wanted, and the taunt loses most of its value.',
-      '{from} sees you refuse to turn one bad finish into a larger house moment.',
+      '{from} sees you refuse to turn one bad finish into a larger Hub moment.',
     ],
     neutral: [
       '{from} cannot tell whether the jab landed, so they keep watching instead of escalating immediately.',
@@ -167,7 +167,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
     ],
     negative: [
       '{from} gets the confrontation they invited and now knows the rivalry is active.',
-      '{from} walks away with a sharper story about the two of you that can travel through the house.',
+      '{from} walks away with a sharper story about the two of you that can travel through the Hub.',
     ],
     dismiss: [
       '{from} is left talking to themself, but may reframe your exit as a win if others were watching.',
@@ -176,7 +176,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   social_momentum_notice: {
     positive: [
-      '{from} sees you as someone who will discuss the way the house is reading your game, not just deny it.',
+      '{from} sees you as someone who will discuss the way the Hub is reading your game, not just deny it.',
       '{from} leaves with a more useful picture of your visibility and who might be reacting to it.',
     ],
     neutral: [
@@ -188,7 +188,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} becomes more suspicious of why you rejected the read so quickly.',
     ],
     dismiss: [
-      '{from} keeps the observation to themself and lets the house form its own read of you.',
+      '{from} keeps the observation to themself and lets the Hub form its own read of you.',
       '{from} treats the silence as a reason not to warn you before the next shift.',
     ],
   },
@@ -217,7 +217,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
     ],
     neutral: [
       '{from} has a clearer sense of your calculation, but no protection they can rely on.',
-      '{from} keeps working the house because your answer did not change the risk enough.',
+      '{from} keeps working the Hub because your answer did not change the risk enough.',
     ],
     negative: [
       '{from} understands they are not in your plan and shifts their campaign away from you.',
@@ -356,7 +356,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   nominee_confronts_loh: {
     positive: [
-      '{from} hears enough ownership to stop the confrontation from becoming a house-wide fight.',
+      '{from} hears enough ownership to stop the confrontation from becoming a Hub-wide fight.',
       '{from} remains upset, but recognises you did not hide from the consequences of the LOH move.',
     ],
     neutral: [
@@ -536,7 +536,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   },
   generic_gossip: {
     positive: [
-      '{from} sees you as someone who can handle a rumour without immediately making it house news.',
+      '{from} sees you as someone who can handle a rumour without immediately making it Hub news.',
       '{from} gives you a more useful thread to follow, while keeping the source protected.',
     ],
     neutral: [

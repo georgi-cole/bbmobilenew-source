@@ -36,13 +36,13 @@ const PHOTOSET = [
   {
     title: 'The Girls',
     eyebrow: 'Final photoshoot · Side A',
-    caption: 'The house left the cameras one last sharp frame.',
+    caption: 'The Hub left the cameras one last sharp frame.',
     imageSrc: `${BASE}assets/skins/thegirls.webp`,
   },
   {
     title: 'The Boys',
     eyebrow: 'Final photoshoot · Side B',
-    caption: 'The last looks, without a single eviction chair in sight.',
+    caption: 'The last looks, without a single elimination chair in sight.',
     imageSrc: `${BASE}assets/skins/the%20boys.webp`,
   },
 ] as const;
@@ -571,7 +571,7 @@ function FinaleCalendarFocus({
   const voxPunchLines = [
     'The audience had the final word.',
     'The spotlight narrowed, and the public closed this chapter.',
-    'One public verdict changed the shape of the house.',
+    'One public verdict changed the shape of the Hub.',
   ];
   const voxPunchLine = player
     ? voxPunchLines[(day + player.id.length) % voxPunchLines.length]

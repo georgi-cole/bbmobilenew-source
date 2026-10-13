@@ -124,8 +124,8 @@ export default function EvictionLadder({
           ✦
         </div>
         <div className="eviction-ladder__header-rule" aria-hidden="true" />
-        <p className="eviction-ladder__eyebrow">Eviction Ladder</p>
-        <p className="eviction-ladder__subhead">In order of eviction</p>
+        <p className="eviction-ladder__eyebrow">Elimination Ladder</p>
+        <p className="eviction-ladder__subhead">In order of elimination</p>
       </motion.header>
 
       <div className="eviction-ladder__stage">
@@ -167,7 +167,7 @@ export default function EvictionLadder({
           </motion.section>
         )}
 
-        <div className="eviction-ladder__rankings" role="list" aria-label="Eviction ladder">
+        <div className="eviction-ladder__rankings" role="list" aria-label="Elimination ladder">
           {visibleEntries.map((entry, index) => {
             const highlighted = entry.id === activeEntryId;
             const status = deriveEvictionLadderStatus(entry);

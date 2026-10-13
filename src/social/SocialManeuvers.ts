@@ -300,7 +300,7 @@ function buildSnoopNarrative(
     return 'You checked the hallway, storage room and whisper chain, but found no usable lead this time.'
   }
   const names = secret.participantIds.map(
-    (id) => players.find((player) => player.id === id)?.name ?? 'another housemate'
+    (id) => players.find((player) => player.id === id)?.name ?? 'another hubmate'
   )
   if (secret.type === 'romance') {
     return `You caught ${names[0]} and ${names[1]} slipping away together after lights-out. Their secret romance is now yours to keep, trade or expose.`
@@ -661,7 +661,7 @@ function getContextualActionSummary({
       return `${relationshipPrefix}${lohName} said they needed flexibility after Safety and believed you could survive the block.`
     }
     if (reason.primaryReason === 'BACKDOOR_PLAN') {
-      return `${relationshipPrefix}${lohName} said you were part of the original block because they needed the option to backdoor someone else.`
+      return `${relationshipPrefix}${lohName} said you were part of the original block because they needed the option to replacement someone else.`
     }
     if (reason.primaryReason === 'COMPETITION_THREAT') {
       return `${relationshipPrefix}${lohName} said your competition potential made you too dangerous to leave comfortable.`
@@ -1779,7 +1779,7 @@ export function executeGroupAction(
           costs.energy +
           ' energy for ' +
           targetIds.length +
-          ' housemates.'
+          ' hubmates.'
       ),
       label: 'Unmoved',
     }
@@ -1828,7 +1828,7 @@ export function executeGroupAction(
       delta: averageDelta,
       targetDeltas,
       newEnergy: currentEnergy,
-      summary: 'Group Chat preview for ' + targetIds.length + ' housemates',
+      summary: 'Group Chat preview for ' + targetIds.length + ' hubmates',
       score: finalScore,
       label: finalLabel,
     }
@@ -1898,7 +1898,7 @@ export function executeGroupAction(
     narrative:
       'You brought ' +
       targetIds.length +
-      ' housemates into one conversation; each reacted according to your history with them.',
+      ' hubmates into one conversation; each reacted according to your history with them.',
     timestamp: Date.now(),
     week: stateAfter.game?.week,
     phase: stateAfter.game?.phase,
@@ -1914,7 +1914,7 @@ export function executeGroupAction(
     targetDeltas,
     newEnergy,
     summary:
-      'Group Chat reached ' + targetIds.length + ' housemates for ' + costs.energy + ' energy.',
+      'Group Chat reached ' + targetIds.length + ' hubmates for ' + costs.energy + ' energy.',
     score: finalScore,
     label: finalLabel,
   }

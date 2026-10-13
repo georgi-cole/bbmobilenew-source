@@ -160,7 +160,8 @@ export function applyLegacyRelationshipUpdateToReality(
   delta: number,
   tags: readonly string[] = [],
   day = 0,
-  phase = 'legacy'
+  phase = 'legacy',
+  meaningful = true
 ): void {
   const sequence = state.nextSequence
   state.nextSequence += 1
@@ -202,6 +203,7 @@ export function applyLegacyRelationshipUpdateToReality(
       publicCloseness: tags.length > 0 ? 4 : 0,
       secretCloseness: alliance || romance ? 10 : 0,
     },
+    meaningful,
   })
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { VOX_POPULI_INFO_SUMMARY } from '../../../rules/voxPopuliGuide'
+import { normalizePlayerFacingCopy } from '../../../utils/playerFacingCopy'
 import './TvAnnouncementModal.css'
 
 // ─── Phase copy ───────────────────────────────────────────────────────────────
@@ -22,19 +23,19 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     label: 'SEASON START',
     category: 'Game Event',
     // i18n-ignore: Legacy phase-copy registry stores canonical English copy
-    body: 'The house opens and the season rules are introduced before Day 1 begins.',
+    body: 'The Hub opens and the season rules are introduced before Day 1 begins.',
   },
   week_start: {
     icon: '📅',
     label: 'NEW DAY',
     category: 'Game Event',
-    body: 'A new day begins in The Big Eye. Players reset their social games and strategise before the Leader of the House competition. Alliances shift, targets are reconsidered, and the game dynamics evolve.',
+    body: 'A new day begins in The Big Eye. Players reset their social games and strategise before the Leader of the Hub competition. Alliances shift, targets are reconsidered, and the game dynamics evolve.',
   },
   nomination_ceremony: {
     icon: '🎯',
     label: 'NOMINATIONS',
     category: 'Ceremony',
-    body: 'The Leader of the House gathers all players and nominates two players for potential elimination. Nominees have the chance to save themselves by winning the Power of Safety. Every speech and every alliance is tested in this moment.',
+    body: 'The Leader of the Hub gathers all players and nominates two players for potential elimination. Nominees have the chance to save themselves by winning the Power of Safety. Every speech and every alliance is tested in this moment.',
   },
   veto_competition: {
     icon: '🏆',
@@ -52,7 +53,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '📺',
     label: 'LIVE ELIMINATION',
     category: 'Live Event',
-    body: 'The house votes live to eliminate one of the current nominees. All eligible voters cast their ballots privately. The nominee with the most votes is eliminated and leaves the house immediately to join the Tribunal (or go home, pre-Tribunal). In a tie, the Leader of the House casts the deciding vote.',
+    body: 'The Hub votes live to eliminate one of the current nominees. All eligible voters cast their ballots privately. The nominee with the most votes is eliminated and leaves the Hub immediately to join the Tribunal (or go home, pre-Tribunal). In a tie, the Leader of the Hub casts the deciding vote.',
   },
   final4: {
     icon: '4️⃣',
@@ -85,7 +86,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '🛡️',
     label: 'IMMUNITY COMPETITION',
     category: 'Vox Populi',
-    body: 'Every remaining housemate may compete. Today’s winner earns immunity and cannot be nominated. The last-place finisher is placed directly on the block before the secret nominations are counted.',
+    body: 'Every remaining hubmate may compete. Today’s winner earns immunity and cannot be nominated. The last-place finisher is placed directly on the block before the secret nominations are counted.',
     shockDetail:
       'The Final 4 reverses the balance: nobody earns immunity, last place starts on the block, and the other three each cast one secret vote.',
   },
@@ -93,15 +94,15 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '4️⃣',
     label: 'FINAL 4 COMPETITION',
     category: 'Vox Populi Endgame',
-    body: 'Four housemates remain. Nobody earns immunity; the last-place finisher begins on the block.',
+    body: 'Four hubmates remain. Nobody earns immunity; the last-place finisher begins on the block.',
     shockDetail:
-      'The other three housemates each cast one secret nomination vote. The highest total joins last place on the block; a tie expands it.',
+      'The other three hubmates each cast one secret nomination vote. The highest total joins last place on the block; a tie expands it.',
   },
   vox_nominations: {
     icon: '🗳️',
     label: 'SECRET NOMINATIONS',
     category: 'Vox Populi',
-    body: 'Housemates enter the Confessional one at a time and privately name two eligible people. They cannot nominate themselves or the immunity winner.',
+    body: 'Hubmates enter the Confessional one at a time and privately name two eligible people. They cannot nominate themselves or the immunity winner.',
     shockDetail:
       'The two highest nomination totals are placed on the block. If players are tied at the cutoff, every tied player is nominated. At Final 4, the other three cast one vote each and the highest total joins the last-place nominee.',
   },
@@ -111,13 +112,13 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Vox Populi',
     body: 'The Safety holder may keep the block unchanged or save one current nominee. If the winner is on the block, they automatically save themself.',
     shockDetail:
-      'After a save, the next-highest housemate in the original secret-nomination totals joins the block only when fewer than two nominees remain. On an eligible Double Elimination day, the ranking restores the block only when fewer than three nominees remain. If enough nominees are still in danger, no backup is added.',
+      'After a save, the next-highest hubmate in the original secret-nomination totals joins the block only when fewer than two nominees remain. On an eligible Double Elimination day, the ranking restores the block only when fewer than three nominees remain. If enough nominees are still in danger, no backup is added.',
   },
   vox_public_vote: {
     icon: '📡',
     label: 'THE PUBLIC DECIDES',
     category: 'Live Audience Vote',
-    body: 'The nominees face a public vote to eliminate. The nominee with the highest share of the audience vote leaves the house. Housemates do not vote and there is no Leader of the House tiebreak.',
+    body: 'The nominees face a public vote to eliminate. The nominee with the highest share of the audience vote leaves the Hub. Hubmates do not vote and there is no Leader of the Hub tiebreak.',
     shockDetail:
       'Public Mode can show changing approval, momentum, and hints for building popularity, but it never saves a nominee in Vox Populi. On an eligible Double Elimination day, at least three nominees must face the vote and the two highest audience totals are eliminated.',
   },
@@ -125,15 +126,15 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '🏁',
     label: 'FINAL 3',
     category: 'Vox Populi Finale',
-    body: 'The last three housemates compete for final immunity. The winner is guaranteed a place in the Final 2.',
+    body: 'The last three hubmates compete for final immunity. The winner is guaranteed a place in the Final 2.',
     shockDetail:
-      'The audience votes to eliminate one of the other two housemates. Once the Final 2 is formed, the audience votes again—this time to crown the season winner. There is no Tribunal and no sole housemate vote.',
+      'The audience votes to eliminate one of the other two hubmates. Once the Final 2 is formed, the audience votes again—this time to crown the season winner. There is no Tribunal and no sole hubmate vote.',
   },
   ad_break_live_vote_auto: {
     icon: '📺',
     label: 'SHORT BREAK',
     category: 'Broadcast',
-    body: 'The house is about to vote. The result unfolds right after this short break.',
+    body: 'The Hub is about to vote. The result unfolds right after this short break.',
   },
   ad_break_safety_decision_auto: {
     icon: '📺',
@@ -185,7 +186,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '🔥',
     label: 'BACK 2 THE GAME',
     category: 'Shock',
-    body: 'Back 2 the Game has been activated. One of the recently eliminated players now has a chance to fight their way back into the house.',
+    body: 'Back 2 the Game has been activated. One of the recently eliminated players now has a chance to fight their way back into the Hub.',
     shockDetail:
       'This is not a standard elimination week. The Back 2 the Game shock changes the trajectory of the game by giving a previously eliminated player a route back in. All current alliance plans, targets, and strategies must account for a possible new returnee.',
   },
@@ -203,21 +204,21 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Competition',
     body: 'The Back 2 the Game challenge is about to begin. Watch the showdown play out to see which eliminated player can claw their way back into The Big Eye.',
     shockDetail:
-      'The challenge is live and in progress. Eliminated players are competing for the right to re-enter the house. The winner will be announced shortly — and once re-entered, they are immediately a full player again with no special protections or restrictions.',
+      'The challenge is live and in progress. Eliminated players are competing for the right to re-enter the Hub. The winner will be announced shortly — and once re-entered, they are immediately a full player again with no special protections or restrictions.',
   },
   double_eviction: {
     icon: '⚡',
     label: 'DOUBLE ELIMINATION',
     category: 'Shock',
-    body: "A Double Elimination has been triggered! Tonight's Leader of the House must nominate THREE players for elimination. After a Power of Safety competition and ceremony, the remaining players vote to eliminate TWO of those nominees in a single live show. Alliances shatter, plans collapse, and the game changes forever in one night.",
+    body: "A Double Elimination has been triggered! Tonight's Leader of the Hub must nominate THREE players for elimination. After a Power of Safety competition and ceremony, the remaining players vote to eliminate TWO of those nominees in a single live show. Alliances shatter, plans collapse, and the game changes forever in one night.",
     shockDetail:
-      'The Double Elimination runs as a compressed, fast-paced week: three nominees are put up, a Safety competition determines who can be saved, and after the Safety Ceremony the house votes out two players in one sitting. Strategic timelines are cut short — every conversation and every alliance decision must happen immediately.',
+      'The Double Elimination runs as a compressed, fast-paced week: three nominees are put up, a Safety competition determines who can be saved, and after the Safety Ceremony the Hub votes out two players in one sitting. Strategic timelines are cut short — every conversation and every alliance decision must happen immediately.',
   },
   cupid_arrow: {
     icon: '🏹',
     label: 'CUPID HAS CHOSEN',
     category: 'Season Expansion',
-    body: 'Cupid has matched every housemate with a partner. For now, you are not playing alone: every pair shares one fate inside The Big Eye house.',
+    body: 'Cupid has matched every hubmate with a partner. For now, you are not playing alone: every pair shares one fate inside The Hub.',
     shockDetail:
       'Each pair deliberates together and casts one joint ballot worth two votes. The partner of the Power of Safety winner is protected from replacement nomination. Secret Missions and conflicting shocks wait beyond the spell. Four eliminated pairs will break Cupid’s hold.',
   },
@@ -225,7 +226,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '💔',
     label: 'THE LAST ARROW BREAKS',
     category: 'Season Expansion',
-    body: 'Four pairs have fallen. The hearts fracture, Cupid’s final arrow dissolves, and the winged matchmaker leaves The Big Eye house. The rose-lit spell recedes and the original game returns.',
+    body: 'Four pairs have fallen. The hearts fracture, Cupid’s final arrow dissolves, and the winged matchmaker leaves the Hub. The rose-lit spell recedes and the original game returns.',
     shockDetail:
       'Every survivor now competes, nominates, votes, and faces elimination alone. Former partners keep the relationship history they created: devotion may survive, but arguments, betrayals, and incompatible games can turn the old bond into a scar.',
   },
@@ -251,7 +252,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Shock',
     body: 'A special power has been activated — Double Trouble! The holder of the Power of Safety may use it twice during this Safety Ceremony, saving up to two different nominees.',
     shockDetail:
-      'Each use forces the Leader of the House to immediately name a replacement nominee. The holder decides independently for each use whether to deploy the power. The power expires at the end of this ceremony and cannot be carried forward.',
+      'Each use forces the Leader of the Hub to immediately name a replacement nominee. The holder decides independently for each use whether to deploy the power. The power expires at the end of this ceremony and cannot be carried forward.',
   },
   diamond_pov: {
     icon: '😇',
@@ -267,7 +268,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     category: 'Shock',
     body: 'A special power has been activated — the Detox! Both current nominees have been immediately cleared from the block. The holder must now name two entirely new nominees.',
     shockDetail:
-      'The Detox wipes the existing nominations and forces the holder to rebuild the block from scratch. The holder is not eligible to be nominated, but the outgoing Leader of the House is. A new Power of Safety competition proceeds with the replacement nominees in place.',
+      'The Detox wipes the existing nominations and forces the holder to rebuild the block from scratch. The holder is not eligible to be nominated, but the outgoing Leader of the Hub is. A new Power of Safety competition proceeds with the replacement nominees in place.',
   },
   spotlight_veto: {
     icon: '✨',
@@ -281,7 +282,7 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
     icon: '🏆',
     label: 'LOH COMPETITION',
     category: 'Competition',
-    body: 'The Leader of the House competition is about to begin. Every eligible player is fighting for the most powerful position in the game. The winner becomes the new Leader of the House and gains the authority to nominate two of their fellow players for elimination. Control is up for winning — who will reign supreme today?',
+    body: 'The Leader of the Hub competition is about to begin. Every eligible player is fighting for the most powerful position in the game. The winner becomes the new Leader of the Hub and gains the authority to nominate two of their fellow players for elimination. Control is up for winning — who will reign supreme today?',
   },
   pos_comp_announcement: {
     icon: '🎭',
@@ -292,11 +293,11 @@ const PHASE_COPY: Record<string, PhaseCopy> = {
 }
 
 PHASE_COPY.cupid_arrow.shockDetail =
-  'When one partner wins power, both partners share it. When danger reaches one partner, it reaches both. Each pair makes one eviction choice together, worth two votes. Once four pairs have left the house, Cupid’s spell breaks and everyone returns to an individual game.'
+  'When one partner wins power, both partners share it. When danger reaches one partner, it reaches both. Each pair makes one elimination choice together, worth two votes. Once four pairs have left the Hub, Cupid’s spell breaks and everyone returns to an individual game.'
 PHASE_COPY.cupid_arrow.shockDetail =
   'Partners deliberate together and cast one joint ballot worth two votes. Power won by one partner is shared by both, and the partner of the Power of Safety winner is protected from replacement nomination. If danger reaches one partner, both are exposed; pair eliminations resolve together. Protect your bond: the Big Eye is watching.'
 PHASE_COPY.cupid_arrow_broken.body =
-  'Four pairs have fallen. Cupid’s spell has ended, the bonds are gone, and the house is no longer divided into pairs.'
+  'Four pairs have fallen. Cupid’s spell has ended, the bonds are gone, and the Hub is no longer divided into pairs.'
 PHASE_COPY.cupid_arrow_broken.shockDetail =
   'Every survivor now competes, nominates, votes, and faces elimination alone. The connection each former pair built may still shape the game—but it no longer controls their fate.'
 
@@ -361,20 +362,14 @@ export default function TvAnnouncementModal({
   if (!open) return null
 
   const sourceCopy = PHASE_COPY[announcementKey] ?? FALLBACK_COPY
-  const normalizeHubCopy = (value: string) =>
-    value
-      .replace(/\bhousemates\b/gi, 'players')
-      .replace(/\bhouseguest(s)?\b/gi, (_match, plural: string | undefined) =>
-        plural ? 'players' : 'player'
-      )
-      .replace(/\bhouse\b/gi, 'hub')
-      .replace(/\bjury\b/gi, 'Tribunal')
-      .replace(/\btwist\b/gi, 'shock')
-      .replace(/\bveto\b/gi, 'Safety')
   const copy = {
     ...sourceCopy,
-    body: normalizeHubCopy(sourceCopy.body),
-    shockDetail: sourceCopy.shockDetail ? normalizeHubCopy(sourceCopy.shockDetail) : undefined,
+    label: normalizePlayerFacingCopy(sourceCopy.label),
+    category: normalizePlayerFacingCopy(sourceCopy.category),
+    body: normalizePlayerFacingCopy(sourceCopy.body),
+    shockDetail: sourceCopy.shockDetail
+      ? normalizePlayerFacingCopy(sourceCopy.shockDetail)
+      : undefined,
   }
 
   return createPortal(

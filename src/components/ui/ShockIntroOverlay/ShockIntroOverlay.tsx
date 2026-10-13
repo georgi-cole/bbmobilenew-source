@@ -420,8 +420,8 @@ export default function ShockIntroOverlay({
           </div>
           <p className="shock-intro__cupid-declaration">
             {isCupidBreak
-              ? 'Cupid abandons the house. Every surviving housemate now stands alone.'
-              : 'Sixteen housemates. Eight bonds. From this moment, every victory and every fall is shared.'}
+              ? 'Cupid abandons the Hub. Every surviving hubmate now stands alone.'
+              : 'Sixteen hubmates. Eight bonds. From this moment, every victory and every fall is shared.'}
           </p>
           <p className="shock-intro__cupid-handoff">
             {isCupidBreak ? 'The individual game returns' : 'The Big Eye will reveal the rules'}

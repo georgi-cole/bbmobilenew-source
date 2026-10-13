@@ -33,6 +33,7 @@ import {
 import { DEFAULT_SETTINGS, setAudio } from '../../store/settingsSlice'
 import { setMusicMix } from '../../store/uiSlice'
 import type { RootState } from '../../store/store'
+import { normalizePlayerFacingCopy } from '../../utils/playerFacingCopy'
 
 const tvZoneGameEquality = createGameFieldEquality([
   'battleBack',
@@ -113,20 +114,7 @@ import {
 } from '../../features/twists/depressionShock'
 
 const NOOP = () => {}
-const normalizeHubCopy = (value: string) =>
-  value
-    .replace(/\bhousemates\b/gi, 'players')
-    .replace(/\bhouseguests\b/gi, 'players')
-    .replace(/\bhousemate\b/gi, 'player')
-    .replace(/\bhouseguest\b/gi, 'player')
-    .replace(/\bBig Brother\b/gi, 'The Big Eye')
-    .replace(/\bPower of Veto\b/gi, 'Power of Safety')
-    .replace(/\bveto\b/gi, 'Safety')
-    .replace(/\bjury\b/gi, 'Tribunal')
-    .replace(/\bjurors\b/gi, 'Tribunal members')
-    .replace(/\bjuror\b/gi, 'Tribunal member')
-    .replace(/\btwist\b/gi, 'shock')
-    .replace(/\bhouse\b/gi, 'hub')
+const normalizeHubCopy = normalizePlayerFacingCopy
 const normalizeAnnouncementCopy = (announcement: Announcement | null): Announcement | null =>
   announcement
     ? {
@@ -192,7 +180,7 @@ function buildAnnouncement(
     ? `${finalFourWinnerMatch[1]} Wins the Final 4 Competition`
     : null
   const migratedFinalFourSubtitle = finalFourWinnerMatch
-    ? 'There is no immunity today. Last place begins on the block, and the other three housemates will each cast one secret vote.'
+    ? 'There is no immunity today. Last place begins on the block, and the other three hubmates will each cast one secret vote.'
     : null
   const registryTemplate = phase ? getPhaseCardTemplate(phase, key) : undefined
   const registryOverride = registryTemplate ? overrides?.[registryTemplate.id] : undefined

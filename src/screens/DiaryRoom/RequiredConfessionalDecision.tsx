@@ -401,7 +401,7 @@ function SingleUnitDecision({
   units,
   presentation,
   reviewPrefix,
-  emptyReview = 'Select a housemate',
+  emptyReview = 'Select a hubmate',
   danger = false,
   tagForUnit,
   onCommit,
@@ -687,7 +687,7 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       units={units}
       presentation={presentation}
       reviewPrefix="Name as replacement:"
-      emptyReview="Select a housemate"
+      emptyReview="Select a hubmate"
       danger
       tagForUnit={(unit) =>
         unit.memberIds.some((id) => protectedIds.has(id))
@@ -736,7 +736,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
       />
       <section className="rcd-vote-step" aria-labelledby="double-vote-one">
         <h3 id="double-vote-one">{isBellaExtraVote ? 'Normal vote' : 'Vote 1'}</h3>
-        <div className="rcd-grid" role="group" aria-label="First eviction vote">
+        <div className="rcd-grid" role="group" aria-label="First elimination vote">
           {options.map((player) => (
             <PlayerCard
               key={`first-${player.id}`}
@@ -751,7 +751,7 @@ function DoubleVoteDecision({ presentation, onDecisionCommitted }: Omit<Props, '
       </section>
       <section className="rcd-vote-step" aria-labelledby="double-vote-two">
         <h3 id="double-vote-two">{isBellaExtraVote ? "Bella's Will vote" : 'Vote 2'}</h3>
-        <div className="rcd-grid" role="group" aria-label="Second eviction vote">
+        <div className="rcd-grid" role="group" aria-label="Second elimination vote">
           {options.map((player) => (
             <PlayerCard
               key={`second-${player.id}`}

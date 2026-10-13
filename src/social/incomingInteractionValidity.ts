@@ -1,6 +1,10 @@
 import { getIncomingInteractionValidityRule } from './incomingInteractionValidityBank'
 import type { IncomingInteraction, ScheduledIncomingInteraction } from './types'
 import type { RealityDomainState } from './reality/types'
+import {
+  arePlayersEligibleForCurrentUse,
+  isRealityFactEligibleForCurrentUse,
+} from './intelligenceEligibility'
 
 interface InteractionValidityPlayer {
   id: string
@@ -279,6 +283,16 @@ export function isIncomingInteractionInvalidated(
   if (sender && isEvictedOrGone(sender)) return true
   if (human && interaction.fromId === human.id) return true
   if (activePlayers.length <= 2) return true
+
+  const namedSubjectIds = [
+    interaction.payload?.subjectId,
+    interaction.payload?.secondarySubjectId,
+  ].filter((id): id is string => typeof id === 'string')
+  if (!arePlayersEligibleForCurrentUse(namedSubjectIds, game.players ?? [])) return true
+
+  const intelFactId = interaction.payload?.intelFactId
+  const intelFact = typeof intelFactId === 'string' ? reality?.facts[intelFactId] : undefined
+  if (intelFact && !isRealityFactEligibleForCurrentUse(intelFact, game.players ?? [])) return true
 
   if (
     interaction.payload?.originActionId === 'nominate' &&

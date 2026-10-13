@@ -314,7 +314,7 @@ export default function RealityLedger({
                 : item === 'relationships'
                   ? 'People'
                   : item === 'house'
-                    ? 'House stories'
+                    ? 'Hub stories'
                     : item === 'deals'
                       ? 'Commitments'
                       : item}
@@ -364,7 +364,7 @@ export default function RealityLedger({
                         {knowledge.level === 'MEMBER'
                           ? `${Math.round((knowledge.cohesion ?? 0) * 100)}% cohesion · ${allianceSecrecyLabel(knowledge.secrecy ?? 0)}`
                           : knowledge.level === 'PUBLIC'
-                            ? 'House-known'
+                            ? 'Hub-known'
                             : confidenceLabel(knowledge.confidence)}
                       </small>
                     </div>
@@ -547,9 +547,9 @@ export default function RealityLedger({
 
         {activeTab === 'house' && (
           <>
-            <h3>Open house stories</h3>
+            <h3>Open Hub stories</h3>
             {threads.length === 0 && knownRelationshipStories.length === 0 ? (
-              <p className="reality-ledger__empty">No known house story is active.</p>
+              <p className="reality-ledger__empty">No known Hub story is active.</p>
             ) : (
               <>
                 {threads.map((thread) => (

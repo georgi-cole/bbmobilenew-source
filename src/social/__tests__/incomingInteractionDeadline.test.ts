@@ -5,6 +5,7 @@ import {
 } from '../incomingInteractionFactory'
 import {
   formatIncomingDeadline,
+  formatIncomingDecisionDeadline,
   getIncomingDeadline,
   isIncomingInteractionOverdue,
   isIncomingInteractionUrgent,
@@ -61,5 +62,22 @@ describe('daily incoming interaction deadlines', () => {
     expect(getIncomingResponseRelationshipDelta('alliance_proposal', 'ignore')).toBe(-12)
     expect(getIncomingResponseRelationshipDelta('warning', 'ignore')).toBe(-8)
     expect(getIncomingResponseRelationshipDelta('snide_remark', 'ignore')).toBe(1)
+  })
+
+  it('shows a personal pact decision day and exact deadline window', () => {
+    const interaction = createIncomingInteraction({
+      id: 'pact-1',
+      fromId: 'lia',
+      type: 'alliance_proposal',
+      text: 'Would you make this official?',
+      week: 9,
+      phase: 'social_1',
+      mode: 'normal',
+    })
+
+    expect(interaction.deadline).toMatchObject({ day: 9, phase: 'social_2' })
+    expect(formatIncomingDecisionDeadline(interaction)).toBe(
+      'Offer closes Day 9 · end of the final campaign window'
+    )
   })
 })

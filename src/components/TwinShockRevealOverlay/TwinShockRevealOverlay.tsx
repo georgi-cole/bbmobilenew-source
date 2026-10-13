@@ -108,7 +108,7 @@ export default function TwinShockRevealOverlay({
       beforeAvatar: reveal.replacedPlayerAvatar,
       afterName: reveal.incomingName,
       afterAvatar: reveal.incomingAvatar,
-      ariaLabel: 'New housemate revealed',
+      ariaLabel: 'New hubmate revealed',
     };
   }, [reveal]);
 

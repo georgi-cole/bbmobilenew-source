@@ -20,6 +20,35 @@ export function allianceKind(alliance: RealityAlliance): 'PACT' | 'GROUP' {
   return alliance.kind ?? (alliance.memberIds.length > 2 ? 'GROUP' : 'PACT')
 }
 
+export function allianceDisplayLabel(alliance: RealityAlliance): string {
+  const isPact = allianceKind(alliance) === 'PACT'
+  const noun = isPact ? 'pact' : 'alliance'
+  if (alliance.status === 'PROBATIONARY') return `New ${noun}`
+  if (alliance.status === 'FRACTURED') return `Strained ${noun}`
+  return isPact ? 'Pact' : 'Alliance'
+}
+
+export function getCurrentAlliancesBetween(
+  state: RealityDomainState,
+  left: string,
+  right: string
+): RealityAlliance[] {
+  if (left === right) return []
+  return Object.values(state.alliances)
+    .filter(
+      (alliance) =>
+        isCurrentAlliance(alliance) &&
+        alliance.memberIds.includes(left) &&
+        alliance.memberIds.includes(right)
+    )
+    .sort(
+      (leftAlliance, rightAlliance) =>
+        Number(allianceKind(leftAlliance) === 'GROUP') -
+          Number(allianceKind(rightAlliance) === 'GROUP') ||
+        leftAlliance.id.localeCompare(rightAlliance.id)
+    )
+}
+
 export function getCurrentPact(
   state: RealityDomainState,
   left: string,
