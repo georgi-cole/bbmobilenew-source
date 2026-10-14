@@ -5,6 +5,7 @@ type DecisionType = ActiveConfessionalDecision['type']
 
 const TEMPLATE_IDS_BY_DECISION: Partial<Record<DecisionType, readonly string[]>> = {
   pos_decision: ['safety.halo-prompt'],
+  eviction_vote: ['card.live-vote'],
 }
 
 function legacyPromptMatches(decisionType: DecisionType | null, text: string): boolean {
@@ -58,3 +59,4 @@ export function findConfessionalSourceBroadcast(
     ) ?? null
   )
 }
+
