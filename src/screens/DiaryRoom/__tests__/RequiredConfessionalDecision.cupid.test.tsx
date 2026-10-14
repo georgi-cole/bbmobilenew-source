@@ -53,6 +53,37 @@ describe('RequiredConfessionalDecision during Cupid', () => {
       expect(screen.getByRole('button', { name: new RegExp(names.join('.*')) })).toBeInTheDocument()
     }
   })
+
+  it('keeps nomination names accessible when narrow cards ellipsize their display', () => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer,
+        settings: settingsReducer,
+        social: socialReducer,
+      },
+    })
+    const game = store.getState().game
+    const player = game.players.find((candidate) => !candidate.isUser)!
+    const decision = {
+      type: 'nominations' as const,
+      week: game.week,
+      phase: game.phase,
+    }
+
+    render(
+      <Provider store={store}>
+        <RequiredConfessionalDecision
+          decision={decision}
+          presentation={getRequiredConfessionalPresentation(decision, game)}
+          onDecisionCommitted={vi.fn()}
+        />
+      </Provider>
+    )
+
+    const choice = screen.getByRole('button', { name: player.name })
+    expect(choice).toHaveAttribute('aria-label', player.name)
+    expect(choice.querySelector('strong')).toHaveAttribute('title', player.name)
+  })
 })
 
 describe('RequiredConfessionalDecision Vox ballot', () => {

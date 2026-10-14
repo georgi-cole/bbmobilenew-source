@@ -1,11 +1,13 @@
 /* Focused fixes for required Confessional decisions on narrow mobile screens. */
 
-.required-confessional .rcd-player__copy strong {
-  overflow: visible;
-  overflow-wrap: anywhere;
+.required-confessional .rcd-player:not(.rcd-player--pair) .rcd-player__copy > strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: normal;
   word-break: normal;
-  text-overflow: clip;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .required-confessional[data-decision-type='eviction_vote'] .rcd-grid {
@@ -159,6 +161,30 @@
   height: 21px;
   border-color: rgba(223, 207, 232, 0.24);
   font-size: 12px;
+}
+
+@media (max-width: 599px) {
+  .required-confessional .rcd-player:not(.rcd-player--pair) {
+    gap: 6px;
+    padding: 9px 31px 9px 9px;
+  }
+
+  .required-confessional .rcd-player__avatar .pa {
+    width: 32px;
+    height: 32px;
+  }
+
+  .required-confessional .rcd-player__check {
+    right: 7px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .required-confessional[data-decision-type='nominations'] .rcd-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .required-confessional .rcd-confirm {
