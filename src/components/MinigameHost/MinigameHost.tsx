@@ -40,7 +40,6 @@ import type { SilentSaboteurPrizeType } from '../../features/silentSaboteur/sile
 import { getGame as getCanonicalGame } from '../../minigames/registryBase'
 import MajorityRulesComp from '../MajorityRulesComp/MajorityRulesComp'
 import type { MajorityRulesCompetitionType } from '../../features/majorityRules/majorityRulesSlice'
-import { buildGlassBridgeTimeLimitMs } from '../../features/glassBridge/glassBridgeSlice'
 import GlassBridgeComp from '../GlassBridgeComp/GlassBridgeComp'
 import CrystalPathShatteredGame from '../../minigames/crystalPathShattered/CrystalPathShatteredGame'
 import BlackjackTournamentComp from '../BlackjackTournamentComp/BlackjackTournamentComp'
@@ -106,6 +105,8 @@ interface Props {
   skipRules?: boolean
   /** When true the 3-second countdown is skipped (for testing). */
   skipCountdown?: boolean
+  /** Development lab override for comparing standard and VIP presentations. */
+  premiumPresentationOverride?: boolean
   /** Competition participants shown in hosted leaderboards. */
   participants?: MinigameParticipant[]
   competitionRetry?: {
@@ -145,6 +146,7 @@ export default function MinigameHost({
   onMusicVariantChange,
   skipRules = false,
   skipCountdown = false,
+  premiumPresentationOverride,
   participants,
   competitionRetry,
 }: Props) {
@@ -158,6 +160,7 @@ export default function MinigameHost({
     () => selectIsVipActive(store.getState()),
     () => selectIsVipActive(store.getState())
   )
+  const usePremiumPresentation = premiumPresentationOverride ?? isVipActive
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
@@ -200,20 +203,18 @@ export default function MinigameHost({
       (() => {
         const override =
           store.getState().remoteConfig.config?.rulesManager?.games?.[launchedGame.key]
-        // Silent Saboteur's rules are stateful and must stay in lockstep with
-        // its resolver. Ignore remote copies for this game so an older saved
+        // Stateful rules must stay in lockstep with their resolver. Ignore remote copies
+        // for these games so an older saved
         // briefing cannot describe a different ruleset.
         const resolved =
-          launchedGame.key === 'silentSaboteur'
-            ? (getCanonicalGame('silentSaboteur') ?? launchedGame)
+          launchedGame.key === 'silentSaboteur' || launchedGame.key === 'glass_bridge_brutal'
+            ? (getCanonicalGame(launchedGame.key) ?? launchedGame)
             : override
               ? { ...launchedGame, ...override }
               : launchedGame
-        return resolved.key === 'glass_bridge_brutal'
-          ? { ...resolved, timeLimitMs: buildGlassBridgeTimeLimitMs((participants ?? []).length) }
-          : resolved
+        return resolved
       })(),
-    [launchedGame, participants]
+    [launchedGame]
   )
 
   useEffect(() => {
@@ -583,6 +584,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as 'LOH' | 'POS' | undefined}
+          premium={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -602,6 +604,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as 'LOH' | 'POS' | undefined}
+          premium={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )

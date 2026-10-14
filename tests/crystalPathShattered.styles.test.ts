@@ -44,6 +44,19 @@ describe('Crystal Path: Infinity wrong-tile styles', () => {
     expect(css).toContain('animation: cps-void-collapse 1.6s cubic-bezier(0.22, 0.72, 0.2, 1) forwards;');
   });
 
+  it('defines the premium event horizon, spectral rails, and translucent glass layer', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/minigames/crystalPathShattered/crystalPathShattered.css'),
+      'utf8',
+    );
+
+    expect(css).toContain('.cps-infinity-void {');
+    expect(css).toContain('.cps-void-event-horizon {');
+    expect(css).toContain('.cps-shell--premium .cps-board::before');
+    expect(css).toContain('.cps-shell--premium .cps-tile {');
+    expect(css).toContain('backdrop-filter: blur(1.5px) saturate(0.8);');
+  });
+
   it('provides the shared reddish Continue action as the wrapper default', () => {
     const wrapper = readFileSync(
       resolve(process.cwd(), 'src/components/MinigameHost/MinigameCompleteWrapper.tsx'),
