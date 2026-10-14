@@ -100,7 +100,7 @@ describe('GlassBridgeComp', () => {
     const store = makeStore()
     render(
       <Provider store={store}>
-        <GlassBridgeComp
+        <EntitlementAwareGlassBridgeComp
           participantIds={ids}
           participants={ids.map((id) => ({ id, name: id, isHuman: id === 'user' }))}
           seed={seed}

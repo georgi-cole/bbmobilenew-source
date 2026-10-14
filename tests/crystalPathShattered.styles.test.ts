@@ -71,3 +71,18 @@ describe('Crystal Path: Infinity wrong-tile styles', () => {
     expect(commonCss).toMatch(/\.minigame-complete-continue\s*\{[^}]*min-height:\s*48px;[^}]*background:\s*#e94560;/s);
   });
 });
+
+describe('Crystal Path: standard death clock', () => {
+  it('keeps the original standard theme while styling the shared urgency clock', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/GlassBridgeComp/GlassBridgeComp.standard.css'),
+      'utf8',
+    );
+
+    expect(css).toContain('.gb-death-clock-green');
+    expect(css).toContain('.gb-death-clock-yellow');
+    expect(css).toContain('.gb-death-clock-orange');
+    expect(css).toContain('.gb-death-clock-red');
+    expect(css).toContain('.gb-death-clock-fill');
+  });
+});

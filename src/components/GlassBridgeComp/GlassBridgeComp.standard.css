@@ -89,8 +89,57 @@
 }
 
 .gb-hud-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 0.75rem;
   color: #aac8ff;
+}
+
+/* Shared decision clock: standard keeps its original scene while using the
+   same timed turn and clear visual urgency as the premium presentation. */
+.gb-death-clock {
+  position: relative;
+  display: block;
+  width: 4rem;
+  height: 0.32rem;
+  flex: 0 0 4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(37, 5, 14, 0.9);
+}
+
+.gb-death-clock-green {
+  --death-clock-color: #39d879;
+  box-shadow: 0 0 10px rgba(57, 216, 121, 0.3);
+}
+
+.gb-death-clock-yellow {
+  --death-clock-color: #f0da3a;
+  box-shadow: 0 0 10px rgba(240, 218, 58, 0.34);
+}
+
+.gb-death-clock-orange {
+  --death-clock-color: #ff9a32;
+  box-shadow: 0 0 11px rgba(255, 154, 50, 0.4);
+}
+
+.gb-death-clock-red {
+  --death-clock-color: #f34450;
+  box-shadow: 0 0 13px rgba(243, 68, 80, 0.48);
+}
+
+.gb-death-clock-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--death-clock-color, #39d879);
+  transition:
+    width 100ms linear,
+    filter 250ms ease;
+}
+
+.gb-death-clock-critical {
+  animation: gb-pulse 0.35s ease-in-out infinite;
 }
 
 /* ── Order selection ───────────────────────────────────────────────────────── */
@@ -1373,6 +1422,10 @@ body.no-animations .gb-led-rail {
       transparent 100%
     );
     background-size: 100% 100%;
+  }
+
+  .gb-death-clock-critical {
+    animation: none;
   }
 }
 
