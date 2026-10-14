@@ -85,6 +85,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   )
   const [skipRules, setSkipRules] = useState(() => readInitialFlag('skipRules', true))
   const [skipCountdown, setSkipCountdown] = useState(() => readInitialFlag('skipCountdown', true))
+  const [premiumPreview, setPremiumPreview] = useState(() => readInitialFlag('vipPreview', false))
   const [previewNonce, setPreviewNonce] = useState(0)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [completionCount, setCompletionCount] = useState(0)
@@ -96,7 +97,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const selectedGame =
     activeGames.find((game) => game.key === selectedGameKey) ?? activeGames[0] ?? null
   const participants = useMemo(() => buildParticipants(playerCount), [playerCount])
-  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${previewNonce}`
+  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${previewNonce}`
 
   const clearLastResult = () => {
     setLastResult(null)
@@ -133,6 +134,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
     clearLastResult()
   }
 
+  const handlePremiumPreviewChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPremiumPreview(event.currentTarget.checked)
+    clearLastResult()
+  }
+
   const handleRestartPreview = () => {
     setPreviewNonce((current) => current + 1)
     clearLastResult()
@@ -157,6 +163,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             participants={participants}
             skipRules={skipRules}
             skipCountdown={skipCountdown}
+            premiumPresentationOverride={premiumPreview}
             onDone={(rawValue, partial, completion) => {
               setCompletionCount((current) => current + 1)
               const rounded = Math.round(rawValue)
@@ -219,6 +226,9 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             {activeGames.length} {keyboardGamesOnly ? 'keyboard games' : 'active games'}
           </span>
           <span className="minigame-lab__badge">{playerCount} players</span>
+          <span className="minigame-lab__badge">
+            {premiumPreview ? 'VIP presentation' : 'Standard presentation'}
+          </span>
           {selectedGame?.key === 'capitalization' && capitalizationContext === 'battleBack' && (
             <span className="minigame-lab__badge">Back 2 the Game context</span>
           )}
@@ -275,6 +285,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             <span>Skip countdown</span>
           </label>
 
+          <label className="minigame-lab__toggle">
+            <input type="checkbox" checked={premiumPreview} onChange={handlePremiumPreviewChange} />
+            <span>VIP presentation</span>
+          </label>
+
           <button type="button" className="minigame-lab__restart" onClick={handleRestartPreview}>
             Restart preview
           </button>
@@ -311,6 +326,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           participants={participants}
           skipRules={skipRules}
           skipCountdown={skipCountdown}
+          premiumPresentationOverride={premiumPreview}
           onDone={(rawValue, partial, completion) => {
             setCompletionCount((current) => current + 1)
             const rounded = Math.round(rawValue)

@@ -44,6 +44,19 @@ describe('Crystal Path: Infinity wrong-tile styles', () => {
     expect(css).toContain('animation: cps-void-collapse 1.6s cubic-bezier(0.22, 0.72, 0.2, 1) forwards;');
   });
 
+  it('defines the premium event horizon, spectral rails, and translucent glass layer', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/minigames/crystalPathShattered/crystalPathShattered.css'),
+      'utf8',
+    );
+
+    expect(css).toContain('.cps-infinity-void {');
+    expect(css).toContain('.cps-void-event-horizon {');
+    expect(css).toContain('.cps-shell--premium .cps-board::before');
+    expect(css).toContain('.cps-shell--premium .cps-tile {');
+    expect(css).toContain('backdrop-filter: blur(1.5px) saturate(0.8);');
+  });
+
   it('provides the shared reddish Continue action as the wrapper default', () => {
     const wrapper = readFileSync(
       resolve(process.cwd(), 'src/components/MinigameHost/MinigameCompleteWrapper.tsx'),
@@ -56,5 +69,20 @@ describe('Crystal Path: Infinity wrong-tile styles', () => {
 
     expect(wrapper).toContain("continueButtonClassName ?? 'minigame-complete-continue'");
     expect(commonCss).toMatch(/\.minigame-complete-continue\s*\{[^}]*min-height:\s*48px;[^}]*background:\s*#e94560;/s);
+  });
+});
+
+describe('Crystal Path: standard death clock', () => {
+  it('keeps the original standard theme while styling the shared urgency clock', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/GlassBridgeComp/GlassBridgeComp.standard.css'),
+      'utf8',
+    );
+
+    expect(css).toContain('.gb-death-clock-green');
+    expect(css).toContain('.gb-death-clock-yellow');
+    expect(css).toContain('.gb-death-clock-orange');
+    expect(css).toContain('.gb-death-clock-red');
+    expect(css).toContain('.gb-death-clock-fill');
   });
 });
