@@ -66,4 +66,3 @@ describe('findConfessionalSourceBroadcast', () => {
     expect(source?.id).toBe('live-vote')
   })
 })
-

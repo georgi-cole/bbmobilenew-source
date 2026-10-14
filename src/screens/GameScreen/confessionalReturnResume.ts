@@ -47,4 +47,3 @@ export function shouldAutomaticallyAdvanceAfterConfessionalVote(
   )
   return Boolean(human && typeof game.votes?.[human.id] === 'string')
 }
-

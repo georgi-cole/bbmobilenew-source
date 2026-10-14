@@ -110,4 +110,3 @@ describe('Depression Shock lifecycle hardening', () => {
     )
   })
 })
-

@@ -160,4 +160,3 @@ describe('RequiredConfessionalDecision Vox ballot', () => {
     expect(onDecisionCommitted).toHaveBeenCalledOnce()
   })
 })
-

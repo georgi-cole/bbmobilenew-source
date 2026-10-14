@@ -59,4 +59,3 @@ describe('shouldAutomaticallyAdvanceAfterConfessionalVote', () => {
     ).toBe(false)
   })
 })
-
