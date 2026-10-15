@@ -1088,4 +1088,3 @@ export function getChamberRelationshipLabel(
   if (edge.affinity <= -25 || edge.tags.includes('rivalry')) return 'Rival'
   return null
 }
-

@@ -1340,7 +1340,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   mysticChamber: {
     key: 'mysticChamber',
     title: 'Mystic Chamber',
-    description: 'Play six social strategy rounds: build Power, protect allies, and outmaneuver rivals.',
+    description:
+      'Play six social strategy rounds: build Power, protect allies, and outmaneuver rivals.',
     instructions: [
       'The game lasts six rounds. Everyone starts with 500 Power, takes one scheduled turn per round, and the starting player rotates.',
       'Each turn offers three changing powers and a Forbidden Box with three openings shared across the match.',

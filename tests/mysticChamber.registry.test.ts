@@ -80,4 +80,3 @@ describe('Mystic Chamber activation', () => {
     expect(chooseChamberExecutionTarget(stateWithPendingExecution, relationships)?.id).toBe('rival')
   })
 })
-

@@ -561,7 +561,8 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     notes:
       'Grid of Luck — cinematic elimination board with heavy variance, ' +
       'but AI still leans on mental/nerve choices for target selection.',
-  },  mysticChamber: {
+  },
+  mysticChamber: {
     key: 'mysticChamber',
     category: 'hybrid',
     scoreDirection: 'higher-is-better',
