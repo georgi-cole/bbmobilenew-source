@@ -93,6 +93,7 @@ export default function VoxPopuliFinaleOverlay() {
         week={game.week}
         players={game.players}
         history={game.history}
+        completedWeekendDays={game.completedWeekendDays ?? []}
         publicOpinion={publicOpinion}
         onComplete={() => dispatch(vox.winnerId ? completeVoxSeasonRecap() : startVoxFinalVote())}
       />

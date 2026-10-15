@@ -45,7 +45,7 @@
 }
 
 .pf-overlay__speed-controls {
-  position: fixed;
+  position: absolute;
   top: var(--floating-corner-top-offset);
   right: var(--floating-corner-right-offset);
   z-index: 6;
@@ -1005,6 +1005,7 @@
 }
 
 .pf-overlay__announcement-slot {
+  position: relative;
   flex-basis: var(--pf-announcement-block-size);
   height: var(--pf-announcement-block-size);
   min-height: var(--pf-announcement-block-size);

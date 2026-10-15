@@ -29,6 +29,15 @@ describe('PR1556 mobile layout regressions', () => {
     expect(mobile).toContain('flex: 1 1 0;')
   })
 
+  it('lets an expanded relationship read grow inside the Social scroll area', () => {
+    const css = read('src/components/SocialPanelV2/SocialPanelV2.css')
+    const expandedRead = css.slice(css.indexOf('.sp2-focus:has(.sp2-focus__full-read[open])'))
+
+    expect(expandedRead).toContain('height: auto;')
+    expect(expandedRead).toContain('overflow: visible;')
+    expect(expandedRead).toContain('.sp2-focus:has(.sp2-focus__full-read[open])::after')
+  })
+
   it('keeps VIP Risk Wheel controls and scores inside normal phone heights', () => {
     const css = read('src/components/RiskWheelComp/RiskWheelComp.css')
     const mobile = css.slice(css.indexOf('/* ─── VIP phone viewport fit hardening'))
