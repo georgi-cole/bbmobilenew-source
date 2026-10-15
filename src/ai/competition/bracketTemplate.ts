@@ -70,7 +70,7 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'chainOfGreed',
   'batteryLow',
   'houseOfDarkness',
-  'gridOfLuck',
+  'mysticChamber',
   'finalThreeCircuit',
   'downMemoryLane',
 ] as const
@@ -367,7 +367,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {
@@ -402,7 +402,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {
@@ -437,7 +437,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {

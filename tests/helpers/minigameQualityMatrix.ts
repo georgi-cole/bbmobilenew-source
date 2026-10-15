@@ -285,13 +285,14 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     component: 'tests/unit/trapAuction/trapAuction.component.test.tsx',
     risk: 'Bid idempotency needs store/host integration evidence.',
   },
-  gridOfLuck: {
-    input: 'pointer/touch grid-cell choice',
+  mysticChamber: {
+    input: 'power, target, and Forbidden Box selection',
     scoring: 'placement',
-    tie: 'Seeded grid rules return one authoritative winner for two to four players.',
-    logic: 'tests/unit/gridOfLuck.logic.test.ts',
-    component: 'tests/unit/gridOfLuck.component.test.tsx',
-    host: 'tests/minigameHost.gridOfLuck.test.tsx',
+    tie: 'Highest final Power; then Round 6 net gain; then a seeded sigil draw selects one winner.',
+    logic: 'tests/mysticChamber.registry.test.ts',
+    component: 'src/components/GridOfLuck/MysticChamber.tsx',
+    host: 'tests/minigames.contract.test.tsx',
+    risk: 'A real browser playthrough should verify target picking and turn pacing.',
   },
   bigSpender: {
     input: 'pointer/touch spend-or-bank decision',

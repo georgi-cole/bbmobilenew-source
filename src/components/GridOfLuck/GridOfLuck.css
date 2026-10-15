@@ -1086,3 +1086,1484 @@
     font-size: 0.56rem;
   }
 }
+
+/* Mystic Chamber compact glass table and ritual animation states. */
+.mystic-chamber {
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: max(92px, calc(env(safe-area-inset-bottom, 0px) + 76px));
+  scroll-padding-bottom: 92px;
+}
+
+.mystic-chamber::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: -12%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgba(191, 149, 255, 0.38), transparent 56%);
+}
+
+.mystic-chamber > * {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+}
+
+.mystic-chamber__header {
+  gap: 10px;
+}
+
+.mystic-chamber__roster {
+  gap: 7px;
+}
+
+.mystic-chamber__player {
+  min-height: 58px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 7px 9px;
+  border-radius: 11px;
+}
+
+.mystic-chamber__avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.mystic-chamber__player-info strong {
+  font-size: 0.8rem;
+}
+
+.mystic-chamber__player-info > span {
+  font-size: 0.74rem;
+}
+
+.mystic-chamber__play-area {
+  min-height: 0;
+  display: grid;
+  align-items: start;
+}
+
+.mystic-chamber__decision,
+.mystic-chamber__status-card,
+.mystic-chamber__result {
+  padding: clamp(13px, 2.5vw, 20px);
+  border-color: rgba(240, 228, 255, 0.16);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(185, 139, 235, 0.035) 56%,
+    rgba(255, 255, 255, 0.025)
+  );
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.mystic-chamber__decision h2 {
+  margin-bottom: 4px;
+}
+
+.mystic-chamber__offers {
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.mystic-chamber button.mystic-chamber__offer {
+  appearance: none;
+  position: relative;
+  min-width: 0;
+  min-height: 102px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-content: start;
+  align-items: start;
+  gap: 2px 10px;
+  padding: 12px;
+  border: 1px solid rgba(241, 231, 255, 0.19);
+  border-radius: 13px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(181, 142, 219, 0.055) 52%,
+    rgba(255, 255, 255, 0.035)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 24px rgba(0, 0, 0, 0.13);
+  color: #faf7ff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+}
+
+.mystic-chamber button.mystic-chamber__offer:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(226, 199, 255, 0.48);
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.14),
+    rgba(185, 139, 235, 0.1) 56%,
+    rgba(255, 255, 255, 0.055)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 12px 28px rgba(9, 4, 18, 0.27),
+    0 0 22px rgba(192, 148, 244, 0.1);
+}
+
+.mystic-chamber button.mystic-chamber__offer:focus-visible {
+  outline: 2px solid rgba(244, 220, 255, 0.86);
+  outline-offset: 2px;
+}
+
+.mystic-chamber button.mystic-chamber__offer.is-forbidden {
+  border-color: rgba(255, 155, 176, 0.42);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(185, 56, 100, 0.12) 72%,
+    rgba(255, 255, 255, 0.035)
+  );
+}
+
+.mystic-chamber button.mystic-chamber__offer.is-gamble {
+  border-color: rgba(245, 212, 153, 0.36);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(190, 143, 65, 0.1) 72%,
+    rgba(255, 255, 255, 0.035)
+  );
+}
+
+.mystic-chamber button.mystic-chamber__offer.is-spent {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mystic-chamber__offer-symbol {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  margin: 1px 0 0;
+  color: #eddcff;
+  font-size: 1.32rem;
+  text-shadow: 0 0 18px rgba(225, 191, 255, 0.28);
+}
+
+.mystic-chamber__offer-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.mystic-chamber__offer-copy strong {
+  color: #fffaff;
+  font-size: 0.86rem;
+  line-height: 1.22;
+}
+
+.mystic-chamber__offer-copy > span {
+  color: #d3c9df;
+  font-size: 0.73rem;
+  font-weight: 500;
+  line-height: 1.34;
+}
+
+.mystic-chamber__offer-tag {
+  grid-column: 2;
+  justify-self: start;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 213, 228, 0.2);
+  border-radius: 999px;
+  color: #f3d9e4;
+  font-size: 0.61rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.mystic-chamber__history {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: min(100%, 880px);
+  justify-self: center;
+  margin: 0 auto;
+  border-color: rgba(240, 228, 255, 0.15);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(154, 117, 196, 0.035));
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.mystic-chamber.is-power-casting::before,
+.mystic-chamber.is-box-opening::before,
+.mystic-chamber.is-box-reveal::before,
+.mystic-chamber.is-box-impact::before {
+  opacity: 1;
+}
+
+.mystic-chamber.is-power-casting::before {
+  animation: chamber-ritual-wash 1.15s ease-in-out infinite alternate;
+}
+
+.mystic-chamber.is-box-opening::before {
+  background:
+    conic-gradient(
+      from 18deg at 50% 46%,
+      transparent,
+      rgba(223, 192, 255, 0.1),
+      transparent 24%,
+      rgba(255, 215, 158, 0.12),
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse at 50% 44%,
+      rgba(202, 153, 255, 0.46),
+      rgba(127, 67, 183, 0.17) 29%,
+      transparent 63%
+    );
+  animation: chamber-box-awakening 1.05s ease-in-out infinite alternate;
+}
+
+.mystic-chamber.is-box-reveal::before {
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(207, 160, 255, 0.36),
+    rgba(171, 91, 207, 0.11) 34%,
+    transparent 64%
+  );
+}
+
+.mystic-chamber.is-box-impact::before {
+  background: radial-gradient(
+    circle at 50% 47%,
+    rgba(255, 235, 195, 0.36),
+    rgba(218, 145, 255, 0.22) 20%,
+    transparent 62%
+  );
+  animation: chamber-impact-flash 0.82s ease-out both;
+}
+
+.mystic-chamber.is-box-reveal[data-box-effect='execution']::before,
+.mystic-chamber.is-box-impact[data-box-effect='execution']::before,
+.mystic-chamber.is-dramatic-impact[data-box-outcome='execution']::before,
+.mystic-chamber.is-dramatic-impact[data-box-outcome='backfire']::before {
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(255, 223, 221, 0.48),
+    rgba(247, 68, 117, 0.25) 22%,
+    rgba(126, 20, 76, 0.1) 43%,
+    transparent 68%
+  );
+}
+
+.mystic-chamber.is-box-reveal[data-box-effect='steal']::before,
+.mystic-chamber.is-box-impact[data-box-effect='steal']::before,
+.mystic-chamber.is-dramatic-impact[data-box-outcome='twist']::before {
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(255, 173, 214, 0.42),
+    rgba(184, 78, 193, 0.2) 27%,
+    transparent 65%
+  );
+}
+
+.mystic-chamber.is-box-reveal[data-box-effect='swap']::before,
+.mystic-chamber.is-box-impact[data-box-effect='swap']::before {
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(255, 226, 177, 0.38),
+    rgba(190, 142, 79, 0.17) 28%,
+    transparent 65%
+  );
+}
+
+.mystic-chamber.is-dramatic-impact[data-box-outcome='boon']::before {
+  background: radial-gradient(
+    circle at 50% 47%,
+    rgba(255, 245, 207, 0.56),
+    rgba(255, 204, 113, 0.27) 19%,
+    rgba(172, 118, 50, 0.09) 43%,
+    transparent 68%
+  );
+}
+
+.mystic-chamber.is-dramatic-impact[data-box-outcome='wipe']::before {
+  background: radial-gradient(
+    circle at 50% 47%,
+    rgba(210, 226, 255, 0.48),
+    rgba(110, 133, 232, 0.23) 22%,
+    rgba(101, 63, 176, 0.1) 44%,
+    transparent 68%
+  );
+}
+
+.mystic-chamber.is-dramatic-impact[data-box-outcome='setback']::before {
+  background: radial-gradient(
+    ellipse at 50% 47%,
+    rgba(255, 180, 190, 0.38),
+    rgba(189, 65, 119, 0.19) 26%,
+    transparent 64%
+  );
+}
+
+.mystic-chamber.is-dramatic-impact {
+  animation: chamber-screen-shake 0.42s ease-out both;
+}
+
+.mystic-chamber__activation {
+  position: relative;
+  min-height: 170px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid rgba(232, 212, 255, 0.22);
+  border-radius: 16px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.09),
+    rgba(151, 104, 194, 0.075),
+    rgba(255, 255, 255, 0.035)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 15px 44px rgba(0, 0, 0, 0.24);
+  text-align: center;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: chamber-card-arrive 0.38s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.mystic-chamber__activation h2 {
+  margin: 6px 0;
+  color: #fff4df;
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+}
+
+.mystic-chamber__activation > p:last-child {
+  margin: 0;
+  color: #d6cce2;
+}
+
+.mystic-chamber__activation-orbit {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  border: 1px solid rgba(231, 203, 255, 0.38);
+  border-radius: 50%;
+  color: #fae8ff;
+  font-size: 1.45rem;
+  box-shadow:
+    0 0 24px rgba(201, 157, 255, 0.24),
+    inset 0 0 16px rgba(255, 255, 255, 0.09);
+  animation: chamber-orbit-pulse 0.9s ease-in-out infinite alternate;
+}
+
+.mystic-chamber__activation.is-box .mystic-chamber__activation-orbit,
+.mystic-chamber__activation.is-impact .mystic-chamber__activation-orbit {
+  width: 58px;
+  height: 58px;
+  color: #fff2cf;
+  box-shadow:
+    0 0 34px rgba(245, 203, 255, 0.42),
+    inset 0 0 20px rgba(255, 255, 255, 0.16);
+}
+
+.mystic-chamber.is-power-impact .mystic-chamber__result {
+  animation: chamber-result-land 0.48s cubic-bezier(0.16, 0.8, 0.25, 1) both;
+}
+
+.mystic-chamber__player.is-power-gain {
+  animation: chamber-player-gain 0.82s ease-out both;
+}
+
+.mystic-chamber__player.is-power-loss,
+.mystic-chamber__player.is-power-target {
+  animation: chamber-player-hit 0.62s ease-out both;
+}
+
+.mystic-chamber__player.is-power-protected {
+  animation: chamber-ward-form 0.9s ease-out both;
+}
+
+.mystic-chamber__player.is-power-activation {
+  animation: chamber-status-charge 0.82s ease-out both;
+}
+
+.mystic-chamber__power-float {
+  position: absolute;
+  z-index: 2;
+  top: 3px;
+  right: 9px;
+  font-size: 0.86rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  animation: chamber-number-rise 1.05s cubic-bezier(0.2, 0.7, 0.25, 1) both;
+}
+
+.mystic-chamber__power-float.is-gain {
+  color: #a9f6d3;
+  text-shadow: 0 0 14px rgba(81, 241, 173, 0.54);
+}
+
+.mystic-chamber__power-float.is-loss {
+  color: #ffb6c1;
+  text-shadow: 0 0 14px rgba(255, 102, 131, 0.54);
+}
+
+@keyframes chamber-ritual-wash {
+  from {
+    opacity: 0.32;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 0.78;
+    transform: scale(1.025);
+  }
+}
+
+@keyframes chamber-box-awakening {
+  from {
+    opacity: 0.55;
+    transform: rotate(-3deg) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(3deg) scale(1.035);
+  }
+}
+
+@keyframes chamber-impact-flash {
+  0% {
+    opacity: 0.15;
+    transform: scale(0.82);
+  }
+  32% {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+  100% {
+    opacity: 0.52;
+    transform: scale(1);
+  }
+}
+
+@keyframes chamber-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chamber-orbit-pulse {
+  from {
+    transform: scale(0.92) rotate(-8deg);
+    filter: brightness(0.9);
+  }
+  to {
+    transform: scale(1.09) rotate(8deg);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes chamber-screen-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  22% {
+    transform: translate3d(-4px, 1px, 0);
+  }
+  46% {
+    transform: translate3d(4px, -1px, 0);
+  }
+  68% {
+    transform: translate3d(-2px, 0, 0);
+  }
+}
+
+@keyframes chamber-result-land {
+  from {
+    opacity: 0.76;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chamber-player-gain {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(115, 255, 196, 0);
+  }
+  35% {
+    border-color: rgba(142, 255, 208, 0.82);
+    box-shadow: 0 0 24px rgba(86, 243, 181, 0.34);
+  }
+}
+
+@keyframes chamber-player-hit {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(255, 105, 132, 0);
+  }
+  28% {
+    border-color: rgba(255, 139, 159, 0.92);
+    box-shadow: 0 0 27px rgba(255, 90, 125, 0.4);
+  }
+}
+
+@keyframes chamber-ward-form {
+  0% {
+    border-color: rgba(229, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 rgba(153, 221, 255, 0);
+  }
+  48% {
+    border-color: rgba(172, 228, 255, 0.9);
+    box-shadow:
+      inset 0 0 24px rgba(103, 190, 255, 0.2),
+      0 0 28px rgba(140, 209, 255, 0.42);
+  }
+  100% {
+    border-color: rgba(174, 218, 255, 0.5);
+    box-shadow:
+      inset 0 0 13px rgba(103, 190, 255, 0.09),
+      0 0 12px rgba(140, 209, 255, 0.12);
+  }
+}
+
+@keyframes chamber-status-charge {
+  0% {
+    filter: brightness(1);
+  }
+  35% {
+    filter: brightness(1.38);
+    border-color: rgba(236, 206, 255, 0.82);
+    box-shadow: 0 0 28px rgba(207, 154, 255, 0.36);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@keyframes chamber-number-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(15px) scale(0.75);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12);
+  }
+  76% {
+    opacity: 1;
+    transform: translateY(-17px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-27px) scale(0.96);
+  }
+}
+
+@media (max-width: 680px) {
+  .mystic-chamber {
+    gap: 9px;
+    padding-top: 11px;
+  }
+
+  .mystic-chamber__player {
+    min-height: 51px;
+    grid-template-columns: 29px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px 7px;
+  }
+
+  .mystic-chamber__avatar {
+    width: 27px;
+    height: 27px;
+  }
+
+  .mystic-chamber button.mystic-chamber__offer {
+    min-height: 92px;
+    grid-template-columns: 21px minmax(0, 1fr);
+    gap: 2px 7px;
+    padding: 9px;
+    border-radius: 11px;
+  }
+
+  .mystic-chamber__offer-symbol {
+    font-size: 1.14rem;
+  }
+
+  .mystic-chamber__offer-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .mystic-chamber__offer-copy > span {
+    font-size: 0.68rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mystic-chamber *,
+  .mystic-chamber *::before,
+  .mystic-chamber *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mystic Chamber: six paced rounds with a phase shift between each act. */
+.mystic-chamber {
+  --chamber-ink: #f8f4ff;
+  --chamber-muted: #c8bdd8;
+  --chamber-line: rgba(222, 205, 255, 0.18);
+  --chamber-mood-glow: rgba(132, 79, 198, 0.24);
+  --chamber-mood-top: #171022;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: clamp(14px, 2.6vw, 28px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  color: var(--chamber-ink);
+  background:
+    radial-gradient(ellipse at 50% -20%, var(--chamber-mood-glow), transparent 58%),
+    linear-gradient(180deg, var(--chamber-mood-top), #0c0913 68%, #09070d);
+  transition: background 900ms ease;
+  font-family: inherit;
+}
+
+.mystic-chamber.is-midgame {
+  --chamber-mood-glow: rgba(152, 66, 105, 0.23);
+  --chamber-mood-top: #1a101b;
+}
+
+.mystic-chamber.is-finale {
+  --chamber-mood-glow: rgba(177, 103, 41, 0.25);
+  --chamber-mood-top: #1c1311;
+}
+
+.mystic-chamber *,
+.mystic-chamber *::before,
+.mystic-chamber *::after {
+  box-sizing: border-box;
+}
+
+.mystic-chamber__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mystic-chamber__header h1 {
+  margin: 2px 0 0;
+  color: #fff3da;
+  font-size: clamp(1.35rem, 3.2vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: 0.045em;
+}
+
+.mystic-chamber__eyebrow {
+  margin: 0;
+  color: #c4a5f0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mystic-chamber__header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.mystic-chamber__autoplay {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--chamber-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.mystic-chamber__autoplay input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #b889fa;
+}
+
+.mystic-chamber__round {
+  padding: 7px 12px;
+  border: 1px solid var(--chamber-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #f2e8ff;
+  font-size: 0.82rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.mystic-chamber__roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(185px, 100%), 1fr));
+  gap: 9px;
+}
+
+.mystic-chamber__player {
+  position: relative;
+  min-width: 0;
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--chamber-line);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--chamber-ink);
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.mystic-chamber__player.is-active {
+  border-color: rgba(248, 208, 133, 0.8);
+  background: rgba(178, 127, 229, 0.12);
+  box-shadow: 0 0 0 1px rgba(248, 208, 133, 0.16);
+}
+
+.mystic-chamber__player.is-targetable {
+  cursor: pointer;
+  border-color: rgba(157, 215, 255, 0.58);
+}
+
+.mystic-chamber__player.is-targetable:hover,
+.mystic-chamber__player.is-targetable.is-selected {
+  border-color: #f5d28f;
+  background: rgba(202, 155, 255, 0.18);
+}
+
+.mystic-chamber__player:disabled {
+  opacity: 1;
+}
+
+.mystic-chamber__avatar {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(228, 205, 255, 0.25);
+  border-radius: 50%;
+  background: rgba(10, 7, 18, 0.8);
+}
+
+.mystic-chamber__avatar .grid-of-luck__avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mystic-chamber__player-info {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.mystic-chamber__player-info strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mystic-chamber__player-info > span {
+  color: #e5d9f1;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.mystic-chamber__player-info small {
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mystic-chamber__player-info small.is-ally {
+  color: #91e2c4;
+}
+
+.mystic-chamber__player-info small.is-rival {
+  color: #ffadba;
+}
+
+.mystic-chamber__player-info small.mystic-chamber__effects {
+  color: #b9d7ff;
+  line-height: 1.25;
+}
+
+.mystic-chamber__ward,
+.mystic-chamber__active-mark {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dcd0ec;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mystic-chamber__ward {
+  color: #aad8ff;
+  background: rgba(69, 137, 221, 0.19);
+}
+
+.mystic-chamber__active-mark {
+  grid-column: 3;
+  grid-row: 2;
+  color: #ffe1a5;
+  background: rgba(224, 165, 76, 0.14);
+}
+
+.mystic-chamber__play-area {
+  min-height: 280px;
+  display: grid;
+  align-items: start;
+}
+
+.mystic-chamber__decision,
+.mystic-chamber__status-card,
+.mystic-chamber__result {
+  width: min(100%, 880px);
+  justify-self: center;
+  padding: clamp(17px, 3vw, 28px);
+  border: 1px solid var(--chamber-line);
+  border-radius: 17px;
+  background: rgba(23, 18, 32, 0.88);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+}
+
+.mystic-chamber__decision h2,
+.mystic-chamber__status-card h2,
+.mystic-chamber__result h2 {
+  margin: 5px 0 8px;
+  color: #fff4df;
+  font-size: clamp(1.2rem, 2.7vw, 1.65rem);
+  line-height: 1.25;
+}
+
+.mystic-chamber__decision > p:not(.mystic-chamber__eyebrow),
+.mystic-chamber__status-card > p:not(.mystic-chamber__eyebrow),
+.mystic-chamber__result > p:not(.mystic-chamber__eyebrow) {
+  max-width: 66ch;
+  margin: 8px 0;
+  color: var(--chamber-muted);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.mystic-chamber__offers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.mystic-chamber__offer {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 17px;
+  border: 1px solid rgba(208, 181, 247, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.mystic-chamber__offer.is-forbidden {
+  border-color: rgba(255, 111, 123, 0.66);
+  background: linear-gradient(145deg, rgba(121, 32, 48, 0.3), rgba(255, 255, 255, 0.035));
+}
+
+.mystic-chamber__offer.is-gamble {
+  border-color: rgba(246, 201, 125, 0.52);
+  background: linear-gradient(145deg, rgba(121, 78, 26, 0.19), rgba(255, 255, 255, 0.035));
+}
+
+.mystic-chamber__offer.is-spent {
+  border-color: rgba(208, 181, 247, 0.12);
+  background: rgba(0, 0, 0, 0.12);
+  opacity: 0.72;
+}
+
+.mystic-chamber__offer-symbol {
+  display: block;
+  margin-bottom: 9px;
+  color: #e9c6ff;
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.mystic-chamber__offer.is-forbidden .mystic-chamber__offer-symbol {
+  color: #ff929e;
+}
+
+.mystic-chamber__offer.is-gamble .mystic-chamber__offer-symbol {
+  color: #f5d28f;
+}
+
+.mystic-chamber__offer.is-spent button {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mystic-chamber__offer h3 {
+  margin: 0 0 7px;
+  color: #fff;
+  font-size: 0.98rem;
+  line-height: 1.3;
+}
+
+.mystic-chamber__offer p {
+  flex: 1;
+  margin: 0 0 15px;
+  color: var(--chamber-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.mystic-chamber button:not(.mystic-chamber__player) {
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid rgba(240, 212, 255, 0.32);
+  border-radius: 10px;
+  background: #6c49a7;
+  color: #fff;
+  font: inherit;
+  font-size: 0.87rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background-color 130ms ease,
+    border-color 130ms ease,
+    transform 130ms ease;
+}
+
+.mystic-chamber button:not(.mystic-chamber__player):hover:not(:disabled) {
+  border-color: rgba(255, 234, 194, 0.74);
+  background: #8059bf;
+}
+
+.mystic-chamber button:not(.mystic-chamber__player):active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.mystic-chamber button:focus-visible,
+.mystic-chamber input:focus-visible,
+.mystic-chamber summary:focus-visible {
+  outline: 3px solid #f5d28f;
+  outline-offset: 3px;
+}
+
+.mystic-chamber button:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.mystic-chamber__hint {
+  color: #e6d5fd !important;
+}
+
+.mystic-chamber__preview {
+  display: grid;
+  gap: 5px;
+  margin: 15px 0;
+  padding: 13px 15px;
+  border-left: 3px solid #e6c27f;
+  border-radius: 0 9px 9px 0;
+  background: rgba(255, 255, 255, 0.055);
+  color: #f4e9ff;
+  line-height: 1.5;
+}
+
+.mystic-chamber__preview span {
+  color: var(--chamber-muted);
+  font-size: 0.88rem;
+}
+
+.mystic-chamber__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.mystic-chamber .mystic-chamber__actions .is-secondary {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mystic-chamber__result-message {
+  color: #f0e6fa !important;
+  font-size: 1.03rem !important;
+}
+
+.mystic-chamber__changes,
+.mystic-chamber__standings {
+  display: grid;
+  gap: 7px;
+  padding: 0;
+  margin: 17px 0;
+  list-style: none;
+}
+
+.mystic-chamber__changes li,
+.mystic-chamber__standings li {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(222, 205, 255, 0.11);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.85rem;
+}
+
+.mystic-chamber__changes li span {
+  color: var(--chamber-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mystic-chamber__changes li b,
+.mystic-chamber__standings li b {
+  font-variant-numeric: tabular-nums;
+}
+
+.mystic-chamber .is-gain {
+  color: #95e8c0;
+}
+
+.mystic-chamber .is-loss {
+  color: #ffadb7;
+}
+
+.mystic-chamber__next-turn,
+.mystic-chamber__autoplay-hint {
+  color: #d5c7e6 !important;
+  font-size: 0.82rem !important;
+}
+
+.mystic-chamber__autoplay-hint {
+  margin-bottom: 0 !important;
+}
+
+.mystic-chamber__standings li {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.mystic-chamber__standings li > span {
+  color: #d3b5f3;
+  font-weight: 800;
+}
+
+.mystic-chamber__standings li > b {
+  color: #f7d99f;
+}
+
+.mystic-chamber__sigils {
+  padding: 10px 12px;
+  border-left: 3px solid #f5d28f;
+  border-radius: 0 8px 8px 0;
+  background: rgba(245, 210, 143, 0.09);
+  color: #ffe5af !important;
+  font-weight: 700;
+}
+
+.mystic-chamber__history {
+  width: min(100%, 880px);
+  justify-self: center;
+  border: 1px solid var(--chamber-line);
+  border-radius: 12px;
+  background: rgba(17, 13, 24, 0.76);
+}
+
+.mystic-chamber__history summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  padding: 11px 15px;
+  color: #f4e9ff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.mystic-chamber__history summary span {
+  color: var(--chamber-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.mystic-chamber__history ol {
+  display: grid;
+  gap: 1px;
+  max-height: 330px;
+  overflow: auto;
+  padding: 0 10px 10px;
+  margin: 0;
+  list-style: none;
+}
+
+.mystic-chamber__history li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 3px 9px;
+  padding: 9px 6px;
+  border-top: 1px solid rgba(222, 205, 255, 0.09);
+  color: #e8dff2;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.mystic-chamber__history li > span:first-child {
+  grid-row: span 2;
+  color: #c4a5f0;
+  font-weight: 800;
+}
+
+.mystic-chamber__history li small {
+  color: #bdb0ca;
+  font-size: 0.72rem;
+}
+
+.mystic-chamber__empty-history {
+  padding: 0 15px 13px;
+  margin: 0;
+  color: var(--chamber-muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 680px) {
+  .mystic-chamber {
+    gap: 13px;
+    padding: 12px;
+  }
+
+  .mystic-chamber__header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mystic-chamber__header-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .mystic-chamber__roster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .mystic-chamber__player {
+    grid-template-columns: 34px minmax(0, 1fr);
+    min-height: 62px;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .mystic-chamber__avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mystic-chamber__player-info strong {
+    font-size: 0.79rem;
+  }
+
+  .mystic-chamber__player-info > span {
+    font-size: 0.73rem;
+  }
+
+  .mystic-chamber__ward,
+  .mystic-chamber__active-mark {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    padding: 3px 5px;
+    font-size: 0.56rem;
+  }
+
+  .mystic-chamber__active-mark {
+    top: auto;
+    bottom: 4px;
+  }
+
+  .mystic-chamber__offers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    margin-top: 15px;
+  }
+
+  .mystic-chamber__offer {
+    display: flex;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .mystic-chamber__offer-symbol {
+    margin: 0 0 7px;
+    font-size: 1.35rem;
+  }
+
+  .mystic-chamber__offer h3 {
+    margin: 0 0 5px;
+    font-size: 0.86rem;
+  }
+
+  .mystic-chamber__offer p {
+    margin: 0 0 10px;
+    font-size: 0.72rem;
+  }
+
+  .mystic-chamber__offer button {
+    width: 100%;
+    max-width: none;
+    margin-top: auto;
+    padding: 8px;
+    font-size: 0.76rem !important;
+  }
+
+  .mystic-chamber__changes li {
+    grid-template-columns: minmax(70px, 1fr) auto auto;
+    gap: 7px;
+    padding: 9px;
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 370px) {
+  .mystic-chamber__roster {
+    grid-template-columns: 1fr;
+  }
+
+  .mystic-chamber__offer {
+    padding: 9px;
+  }
+
+  .mystic-chamber__offer button {
+    width: 100%;
+    max-width: none;
+    margin-top: 9px;
+  }
+}
+
+/* Keep the whole table and its active effects visible on touch screens. */
+@container grid-of-luck (max-width: 719px) {
+  .grid-of-luck__players {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+    max-height: none;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .grid-of-luck__player-card {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .grid-of-luck__player-effects {
+    display: flex;
+  }
+}
+
+@container grid-of-luck (max-width: 430px) {
+  .grid-of-luck__active-card,
+  .grid-of-luck__reveal-card,
+  .grid-of-luck__next-card {
+    display: none;
+  }
+
+  .grid-of-luck__log-card {
+    display: grid;
+  }
+
+  .grid-of-luck__log-list {
+    max-height: 140px;
+  }
+}
+
+/* Final Mystic Chamber overrides: keep choice cards visibly translucent after shared button styles. */
+.mystic-chamber button.mystic-chamber__offer {
+  border-color: rgba(229, 218, 241, 0.24);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.105),
+      rgba(166, 143, 183, 0.075) 48%,
+      rgba(255, 255, 255, 0.025)
+    ),
+    rgba(26, 22, 32, 0.56);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 25px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px) saturate(112%);
+  -webkit-backdrop-filter: blur(20px) saturate(112%);
+}
+
+.mystic-chamber button.mystic-chamber__offer:hover:not(:disabled) {
+  border-color: rgba(237, 222, 255, 0.42);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.14),
+      rgba(174, 148, 192, 0.11) 48%,
+      rgba(255, 255, 255, 0.04)
+    ),
+    rgba(31, 25, 39, 0.62);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 13px 30px rgba(0, 0, 0, 0.25);
+}
+
+.mystic-chamber button.mystic-chamber__offer.is-forbidden {
+  border-color: rgba(220, 158, 173, 0.34);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.095),
+      rgba(131, 74, 88, 0.13) 52%,
+      rgba(255, 255, 255, 0.025)
+    ),
+    rgba(29, 21, 29, 0.62);
+}
+
+.mystic-chamber button.mystic-chamber__offer.is-gamble {
+  border-color: rgba(220, 190, 137, 0.32);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.095),
+      rgba(135, 111, 69, 0.12) 52%,
+      rgba(255, 255, 255, 0.025)
+    ),
+    rgba(29, 25, 23, 0.62);
+}
+
+.mystic-chamber__final .mystic-chamber__history {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.mystic-chamber__final > button {
+  margin-bottom: 4px;
+}
+
+.mystic-chamber.is-box-reveal[data-box-effect='hex']::before,
+.mystic-chamber.is-box-impact[data-box-effect='hex']::before {
+  background: radial-gradient(
+    ellipse at 50% 48%,
+    rgba(187, 244, 197, 0.4),
+    rgba(73, 153, 106, 0.19) 28%,
+    rgba(30, 84, 61, 0.08) 46%,
+    transparent 68%
+  );
+}
+
+.mystic-chamber.is-power-casting::before {
+  animation-duration: 2.4s;
+}
+
+.mystic-chamber.is-box-opening::before {
+  animation-duration: 2.8s;
+}
+
+.mystic-chamber.is-box-impact::before {
+  animation-duration: 1.4s;
+}
+
+.mystic-chamber__activation {
+  animation-duration: 0.68s;
+}
+
+.mystic-chamber__activation-orbit {
+  animation-duration: 1.55s;
+}
+
+.mystic-chamber.is-power-impact .mystic-chamber__result {
+  animation-duration: 0.72s;
+}
+
+.mystic-chamber__player.is-power-gain {
+  animation-duration: 1.45s;
+}
+
+.mystic-chamber__player.is-power-loss,
+.mystic-chamber__player.is-power-target {
+  animation-duration: 1.2s;
+}
+
+.mystic-chamber__player.is-power-protected,
+.mystic-chamber__player.is-power-activation {
+  animation-duration: 1.4s;
+}
+
+.mystic-chamber__power-float {
+  animation-duration: 1.8s;
+}

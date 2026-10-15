@@ -56,6 +56,8 @@ import NumberTrivia from '../components/NumberTrivia/NumberTrivia'
 import Capitalization from '../components/Capitalization/Capitalization'
 import CodeBreakerComp from '../components/CodeBreakerComp/CodeBreakerComp'
 import GridOfLuck from '../components/GridOfLuck/GridOfLuck'
+import MysticChamber from '../components/GridOfLuck/MysticChamber'
+import type { RelationshipsMap } from '../social/types'
 import ChainOfGreed from '../components/ChainOfGreed/ChainOfGreed'
 import BatteryLow from '../components/VaultVerdict/VaultVerdict'
 import BigSpender from '../components/BigSpender/BigSpender'
@@ -104,6 +106,8 @@ export interface GenericMinigameProps {
     precomputedScore: number
     previousPR: number | null
   }>
+  /** Relationship state used by games with social target selection. */
+  relationships?: RelationshipsMap
 }
 
 const reactComponents: Record<string, ComponentType<GenericMinigameProps>> = {
@@ -133,6 +137,7 @@ const reactComponents: Record<string, ComponentType<GenericMinigameProps>> = {
   Capitalization: Capitalization as ComponentType<GenericMinigameProps>,
   CodeBreaker: CodeBreakerComp as ComponentType<GenericMinigameProps>,
   GridOfLuck: GridOfLuck as ComponentType<GenericMinigameProps>,
+  MysticChamber: MysticChamber as ComponentType<GenericMinigameProps>,
   ChainOfGreed: ChainOfGreed as ComponentType<GenericMinigameProps>,
   BatteryLow: BatteryLow as ComponentType<GenericMinigameProps>,
   BigSpender: BigSpender as ComponentType<GenericMinigameProps>,

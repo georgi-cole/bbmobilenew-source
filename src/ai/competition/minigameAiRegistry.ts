@@ -562,6 +562,22 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       'Grid of Luck — cinematic elimination board with heavy variance, ' +
       'but AI still leans on mental/nerve choices for target selection.',
   },
+  mysticChamber: {
+    key: 'mysticChamber',
+    category: 'hybrid',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_HYBRID,
+    weights: {
+      physical: 0,
+      mental: 0.35,
+      precision: 0.05,
+      nerve: 0.25,
+      luck: 0.35,
+    },
+    notes:
+      'Mystic Chamber rewards strategic power choices, relationship-aware targeting, and measured risk.',
+  },
+
   chainOfGreed: {
     key: 'chainOfGreed',
     category: 'mental',
