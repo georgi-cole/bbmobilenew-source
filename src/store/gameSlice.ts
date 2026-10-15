@@ -5634,7 +5634,17 @@ const gameSlice = createSlice({
 
       let scores: Record<string, number>
 
-      if (session.hybridResolveOnComplete) {
+      if (payload.rawResults) {
+        // Some games (such as Timing Bar) provide complete standings. Keep
+        // their raw scores authoritative instead of estimating AI scores from
+        // the human score in the generic hybrid resolver.
+        scores = Object.fromEntries(
+          session.participants.map((id) => [
+            id,
+            payload.rawResults?.[id] ?? session.aiScores[id] ?? 0,
+          ])
+        )
+      } else if (session.hybridResolveOnComplete) {
         // ── Hybrid resolver path (score-based games) ─────────────────────────
         // AI scores are computed NOW, after the human score is known.
         let resolvedAiScores: Record<string, number>
@@ -5743,9 +5753,18 @@ const gameSlice = createSlice({
         winnerId,
       })
 
-      const placements = [...session.participants].sort(
+      const scorePlacements = [...session.participants].sort(
         (left, right) => (scores[right] ?? 0) - (scores[left] ?? 0) || left.localeCompare(right)
       )
+      const suppliedPlacements = payload.authoritativeRankedIds?.filter(
+        (id, index, ids) => session.participants.includes(id) && ids.indexOf(id) === index
+      )
+      const placements = suppliedPlacements
+        ? [
+            ...suppliedPlacements,
+            ...scorePlacements.filter((id) => !suppliedPlacements.includes(id)),
+          ]
+        : scorePlacements
       state.lastCompetitionResolution = {
         runId: `${session.key}:${session.seed}`,
         gameKey: session.key,

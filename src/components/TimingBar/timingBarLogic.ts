@@ -45,6 +45,12 @@ function hashString(s: string): number {
   return h;
 }
 
+/** One seeded key is shared by ranking and elimination so tied outcomes agree. */
+function getTimingTiebreakKey(participantId: string, roundSeed: number): number {
+  const combinedSeed = (roundSeed ^ hashString(participantId)) >>> 0;
+  return mulberry32(combinedSeed)();
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface TimingParticipant {
@@ -191,10 +197,10 @@ export function getEliminationCount(activeCount: number): number {
  *  1. Higher finalAccuracy (desc)
  *  2. More timeRemainingMs (desc)
  *  3. Fewer nonLockingAttempts (asc)
- *  4. Shared rank
+ *  4. Seeded participant tiebreak
  *
- * Special case: if exactly 2 players remain and all three criteria are tied,
- * break the tie using a pseudorandom choice based on the provided `roundSeed`.
+ * Exact ties are ordered by a deterministic per-round key. In the final duel,
+ * that order also assigns distinct ranks so the winner cannot be eliminated.
  *
  * Returns a new array with the `rank` field populated.
  */
@@ -202,38 +208,26 @@ export function assignRanks(
   entries: Omit<TimingRoundEntry, 'rank' | 'isEliminated'>[],
   roundSeed: number,
 ): (Omit<TimingRoundEntry, 'isEliminated'> & { rank: number })[] {
-  // Precompute deterministic per-participant tiebreak keys so the comparator
-  // remains pure and anti-symmetric while still producing a seeded ordering.
-  const tiebreakKey = new Map<string, number>();
-  for (const entry of entries) {
-    const id = entry.participantId;
-    const combinedSeed = (roundSeed ^ hashString(id)) >>> 0;
-    const rng = mulberry32(combinedSeed);
-    tiebreakKey.set(id, rng());
-  }
-
   const sorted = [...entries].sort((a, b) => {
     if (b.finalAccuracy !== a.finalAccuracy) return b.finalAccuracy - a.finalAccuracy;
     if (b.timeRemainingMs !== a.timeRemainingMs) return b.timeRemainingMs - a.timeRemainingMs;
     if (a.nonLockingAttempts !== b.nonLockingAttempts) return a.nonLockingAttempts - b.nonLockingAttempts;
-    // Final 2 deterministic seed-based tiebreak: compare per-participant keys
-    if (entries.length === 2) {
-      const keyA = tiebreakKey.get(a.participantId) ?? 0;
-      const keyB = tiebreakKey.get(b.participantId) ?? 0;
-      if (keyA < keyB) return -1;
-      if (keyA > keyB) return 1;
-    }
-    return 0;
+    const keyDifference =
+      getTimingTiebreakKey(a.participantId, roundSeed) -
+      getTimingTiebreakKey(b.participantId, roundSeed);
+    return keyDifference || a.participantId.localeCompare(b.participantId);
   });
 
   let rank = 1;
   const ranked = sorted.map((entry, idx) => {
     if (idx > 0) {
       const prev = sorted[idx - 1];
-      const isTied =
+      const hasSamePerformance =
         entry.finalAccuracy === prev.finalAccuracy &&
         entry.timeRemainingMs === prev.timeRemainingMs &&
         entry.nonLockingAttempts === prev.nonLockingAttempts;
+      const isFinalDuelTie = entries.length === 2 && hasSamePerformance;
+      const isTied = hasSamePerformance && !isFinalDuelTie;
       if (!isTied) rank = idx + 1;
     }
     return { ...entry, rank };
@@ -302,21 +296,12 @@ export function buildTimingRoundResult(params: {
   const maxEliminations = Math.max(0, activeParticipants.length - 1);
   const actualEliminations = Math.min(eliminationCount, maxEliminations);
 
-  // Precompute per-participant shuffle keys for a deterministic, transitive tie-break
-  // at the elimination boundary. Using a plain hash XOR (not RNG-per-a) ensures the
-  // comparator is anti-symmetric and produces the same order regardless of engine.
-  const eliminationKey = new Map<string, number>();
-  for (const entry of ranked) {
-    eliminationKey.set(
-      entry.participantId,
-      (hashString(entry.participantId) ^ roundSeed) >>> 0,
-    );
-  }
   const worstFirst = [...ranked].sort((a, b) => {
     if (b.rank !== a.rank) return b.rank - a.rank;
-    const keyA = eliminationKey.get(a.participantId) ?? 0;
-    const keyB = eliminationKey.get(b.participantId) ?? 0;
-    return keyA - keyB;
+    const keyDifference =
+      getTimingTiebreakKey(b.participantId, roundSeed) -
+      getTimingTiebreakKey(a.participantId, roundSeed);
+    return keyDifference || b.participantId.localeCompare(a.participantId);
   });
   const eliminatedIds = worstFirst.slice(0, actualEliminations).map((e) => e.participantId);
 

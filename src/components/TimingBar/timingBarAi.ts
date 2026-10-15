@@ -21,6 +21,9 @@ const NERVOUS_SHORT_ROUND_TIMEOUT_CHANCE = 0.12;
 /** Baseline timeout probability for all other AI / round combinations. */
 const DEFAULT_TIMEOUT_CHANCE = 0.02;
 
+/** Calibrated against human accuracy bands while retaining seeded variance. */
+const AI_ACCURACY_CALIBRATION = 0.5;
+
 // ── Personality archetypes ─────────────────────────────────────────────────────
 
 export type AiPersonality =
@@ -174,7 +177,10 @@ export function simulateAiRoundSubmission(
 
   // Clutch bonus: reduces sigma in shorter rounds.
   const clutchAdjustedSigma = pressuredSigma * (1 - pressureLevel * cfg.clutchBonus);
-  const finalSigma = Math.max(0.01, Math.min(0.5, clutchAdjustedSigma));
+  const finalSigma = Math.max(
+    0.01,
+    Math.min(0.5, clutchAdjustedSigma * AI_ACCURACY_CALIBRATION),
+  );
 
   // Generate bar position: Gaussian error from TARGET_POSITION.
   const halfBar = BAR_TRACK_WIDTH / 2; // 50
