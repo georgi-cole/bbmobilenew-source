@@ -96,7 +96,10 @@ export function getCommitmentKindForInteraction(
   interaction: IncomingInteraction
 ): SocialCommitmentKind | null {
   const scenario = scenarioKey(interaction)
-  if (interaction.type === 'nomination_plea' || scenario === 'hoh_safety_request') {
+  if (
+    interaction.type === 'nomination_plea' ||
+    (interaction.type === 'deal_offer' && scenario === 'hoh_safety_request')
+  ) {
     return 'protect_from_nomination'
   }
   if (interaction.type === 'deal_offer' && scenario === 'nominee_veto_pitch') {

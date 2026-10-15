@@ -246,6 +246,10 @@ export interface RealityThread {
   relatedPromiseIds: string[]
   relatedSecretIds: string[]
   status: 'OPEN' | 'DORMANT' | 'RESOLVED' | 'EXPIRED'
+  /** Explicit actors and pair for evidence-based jealousy reads. */
+  jealousObserverId?: RealityActorId
+  romanticPartnerId?: RealityActorId
+  romanticRivalId?: RealityActorId
 }
 
 /**

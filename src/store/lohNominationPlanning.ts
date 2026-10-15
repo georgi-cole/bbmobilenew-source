@@ -15,10 +15,20 @@ export type LohNominationPlanStatus =
 export interface LohNominationPlan {
   week: number
   lohId: string
+  /** Increments when this week's pre-nomination plan is rebuilt. */
+  revision?: number
+  /** Rule snapshot used to build the opening block. */
+  isDoubleElimination?: boolean
   targetId: string
   backupTargetId: string | null
   pawnIds: string[]
   initialNomineeIds: string[]
+  /** Ranked elimination preferences; on a double day these are two nominees. */
+  eliminationPriorityIds?: string[]
+  /** Nominee the LOH most wants to keep safe on a double day. */
+  preferredSurvivorId?: string | null
+  /** Preferred candidate to fill a seat opened by Safety. */
+  replacementTargetId?: string | null
   strategy: LohNominationStrategy
   status: LohNominationPlanStatus
   selectionBasis: 'strategy' | 'cold_start'
@@ -159,8 +169,10 @@ function isCanonicalSingleLohDay(state: GameState): boolean {
 
 function isCanonicalPlanningDay(state: GameState): boolean {
   if (!isCanonicalSingleLohDay(state)) return false
-  if (state.publicModeEnabled) return false
-  if (state.doubleEviction?.weekActive) return false
+  const isDoubleElimination = state.doubleEviction?.weekActive === true
+  // Public Mode's automatic nominee is not part of an ordinary AI plan, but
+  // Double Elimination disables that rule and gives the LOH the full three-seat block.
+  if (state.publicModeEnabled && !isDoubleElimination) return false
   if ((state.depressionShock?.activeDay ?? 0) > 0) return false
   return true
 }
@@ -360,9 +372,13 @@ export function buildLohNominationPlan(
   const backdoorRoll = seededUnit(
     `${state.gameId}:${state.week}:${state.seed}:${loh.id}:${target.id}:backdoor`
   )
-  const strategy: LohNominationStrategy = backdoorRoll < backdoorChance ? 'backdoor' : 'direct'
+  const isDoubleElimination = state.doubleEviction?.weekActive === true
+  let strategy: LohNominationStrategy = backdoorRoll < backdoorChance ? 'backdoor' : 'direct'
+  // A concealed target needs one more eligible person than the opening block.
+  // If the roster cannot support that, use a direct three-person plan instead.
+  if (isDoubleElimination && candidates.length < 4) strategy = 'direct'
   const nomineeCount = Math.min(
-    2,
+    isDoubleElimination ? 3 : 2,
     Math.max(1, candidates.length - (strategy === 'backdoor' ? 1 : 0))
   )
   const pawnCount = strategy === 'backdoor' ? nomineeCount : Math.max(0, nomineeCount - 1)
@@ -376,13 +392,42 @@ export function buildLohNominationPlan(
       ? pawns.map((player) => player.id)
       : [target.id, ...pawns.map((player) => player.id)]
 
+  const nomineesByIntent = initialNomineeIds
+    .map((id) => ranked.find((entry) => entry.candidate.id === id))
+    .filter((entry): entry is (typeof ranked)[number] => Boolean(entry))
+    .sort((left, right) => right.selectionScore - left.selectionScore)
+  const eliminationPriorityIds = isDoubleElimination
+    ? strategy === 'backdoor'
+      ? [
+          target.id,
+          nomineesByIntent.find((entry) => entry.candidate.id !== target.id)?.candidate.id,
+        ].filter((id): id is string => Boolean(id))
+      : nomineesByIntent.slice(0, 2).map((entry) => entry.candidate.id)
+    : [target.id]
+  const preferredSurvivorId = isDoubleElimination
+    ? ([...nomineesByIntent]
+        .reverse()
+        .find((entry) => !eliminationPriorityIds.includes(entry.candidate.id))?.candidate.id ??
+      null)
+    : null
+  const replacementTargetId =
+    strategy === 'backdoor'
+      ? target.id
+      : (ranked.find((entry) => !initialNomineeIds.includes(entry.candidate.id))?.candidate.id ??
+        null)
+
   return {
     week: state.week,
     lohId: loh.id,
+    revision: 1,
+    isDoubleElimination,
     targetId: target.id,
     backupTargetId: backupTarget?.id ?? null,
     pawnIds: pawns.map((player) => player.id),
     initialNomineeIds,
+    eliminationPriorityIds,
+    preferredSurvivorId,
+    replacementTargetId,
     strategy,
     status: 'planned',
     selectionBasis: strategic ? 'strategy' : 'cold_start',
@@ -406,7 +451,8 @@ function canonicalSocialPlan(state: GameState, plan: LohNominationPlan) {
       week: state.week,
       lohId: plan.lohId,
       currentTargetId: plan.targetId,
-      backupTargetId: plan.replacementTargetOverrideId ?? plan.backupTargetId,
+      backupTargetId:
+        plan.replacementTargetOverrideId ?? plan.replacementTargetId ?? plan.backupTargetId,
       askCountsByPlayerId: state.lohSocialPlan?.askCountsByPlayerId ?? {},
       disclosedTargetByPlayerId: state.lohSocialPlan?.disclosedTargetByPlayerId ?? {},
       disclosureOutcomeByPlayerId,
@@ -519,6 +565,9 @@ function reconcileInitialAiNominations(previous: GameState, state: GameState): G
   if (!plan || plan.week !== state.week || plan.lohId !== state.lohId) return state
   if (previous.phase !== 'nominations' || state.phase !== 'nomination_results') return state
   if (!isCanonicalPlanningDay(state)) return state
+  if ((plan.isDoubleElimination === true) !== (state.doubleEviction?.weekActive === true)) {
+    return state
+  }
   const loh = state.players.find((player) => player.id === state.lohId)
   if (!loh || loh.isUser) return state
 
@@ -712,13 +761,46 @@ function establishPlan(
     state.holdTheWallSafetyDeal.promisorId === state.lohId
   const refreshForWallDeal =
     Boolean(activeWallDeal) && state.phase === 'nominations' && previous?.phase !== 'nominations'
-  if (!planningPhase || (planMatchesCurrentLoh(state) && !refreshForWallDeal)) return state
+  const currentPlan = planMatchesCurrentLoh(state) ? state.lohNominationPlan : null
+  const isDoubleElimination = state.doubleEviction?.weekActive === true
+  const rulesChanged = Boolean(
+    currentPlan &&
+    currentPlan.status === 'planned' &&
+    (currentPlan.isDoubleElimination === undefined
+      ? isDoubleElimination
+      : currentPlan.isDoubleElimination !== isDoubleElimination)
+  )
+  const refreshForRulesChange = rulesChanged && state.phase !== 'nomination_results'
+  if (!planningPhase || (currentPlan && !refreshForWallDeal && !refreshForRulesChange)) {
+    return state
+  }
   const plan = buildLohNominationPlan(state, scoreFn)
-  if (!plan) return state
+  if (!plan) {
+    // Never leave a plan built for a different elimination format available to
+    // ceremonies or social systems when the revised rules cannot be planned.
+    return refreshForRulesChange
+      ? { ...state, lohNominationPlan: null, lohSocialPlan: null }
+      : state
+  }
+  plan.revision = currentPlan ? (currentPlan.revision ?? 1) + 1 : 1
+  const stateForCanonicalPlan = currentPlan
+    ? {
+        ...state,
+        lohSocialPlan: state.lohSocialPlan
+          ? {
+              ...state.lohSocialPlan,
+              // Keep previous disclosures on their resolved interactions, while
+              // preventing them from being mistaken for statements about this plan.
+              disclosedTargetByPlayerId: {},
+              disclosureOutcomeByPlayerId: {},
+            }
+          : state.lohSocialPlan,
+      }
+    : state
   return {
     ...state,
     lohNominationPlan: plan,
-    lohSocialPlan: canonicalSocialPlan(state, plan),
+    lohSocialPlan: canonicalSocialPlan(stateForCanonicalPlan, plan),
   }
 }
 

@@ -5,6 +5,7 @@ export type AiDecisionKind =
   | 'vox_nomination'
   | 'eviction_vote'
   | 'cupid_pair_eviction_vote'
+  | 'eviction_decision'
   | 'safety_use'
   | 'safety_save'
   | 'replacement_nominee'

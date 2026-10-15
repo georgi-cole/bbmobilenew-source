@@ -6,6 +6,7 @@ import {
 import { INCOMING_SCENE_OUTCOME_BANK } from '../incomingSceneOutcomeBank'
 import { getIncomingDialogueBeat } from '../incomingDialogueOutcomeBank'
 import { SCENARIO_VARIANT_POOLS } from '../interactionVariantBank'
+import { getCommitmentKindForInteraction } from '../socialCommitments'
 import type { IncomingInteraction } from '../types'
 
 function makeInteraction(overrides: Partial<IncomingInteraction> = {}): IncomingInteraction {
@@ -137,6 +138,25 @@ describe('incoming interaction contextual resolution', () => {
         payload: { ...interaction.payload, pactTimeRequested: true, pactPlanRequested: true },
       })?.map(({ label }) => label)
     ).toEqual(['Accept', 'Decline'])
+  })
+
+  it('does not turn an allied LOH check-in into an automatic protection or vote promise', () => {
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'check_in',
+          payload: { scenarioKey: 'allied_loh_plan_check_in' },
+        })
+      )
+    ).toBeNull()
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'deal_offer',
+          payload: { scenarioKey: 'live_vote_pitch' },
+        })
+      )
+    ).toBe('vote_to_keep')
   })
 
   it('gives co-nominees choices that do not pretend either can cast a saving vote', () => {
