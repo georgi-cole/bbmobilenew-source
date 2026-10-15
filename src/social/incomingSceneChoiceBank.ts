@@ -144,8 +144,8 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Defuse the jab', 'Keep your cool', 'Push back directly', 'Let it die'],
   ],
   alliance_reassurance: [
-    ['Reassure them fully', 'Compare your plans', 'Admit your doubts', 'Avoid the subject'],
-    ['Renew the pact', 'Ask what changed', 'Set new terms', 'End the check-in'],
+    ['Reassure them', 'Compare your plans', 'Set a boundary', 'End the check-in'],
+    ['Reassure them', 'Ask what changed', 'Set a boundary', 'End the check-in'],
   ],
   generic_gossip: [
     ['Ask for the source', 'Listen only', 'Protect the target', 'Stop the rumour'],

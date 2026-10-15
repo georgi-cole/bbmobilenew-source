@@ -1296,9 +1296,8 @@ export default function GameScreen() {
 
   /* eslint-enable react-hooks/set-state-in-effect */
   // ── Social phase panel ────────────────────────────────────────────────────
-  // Show the SocialPanel whenever the human player is alive and the game is in
-  // a non-vote interaction window. Blocked during live_vote and eviction phases
-  // where social interaction is not appropriate.
+  // Show Social while the human player is alive, including while a live ballot
+  // is waiting to be cast or resolved. The eviction presentation stays locked.
   const SOCIAL_INTERACTION_PHASES = new Set<string>([
     'week_start',
     'loh_comp_announcement',
@@ -1312,6 +1311,7 @@ export default function GameScreen() {
     'pos_ceremony',
     'pos_ceremony_results',
     'social_2',
+    'live_vote',
   ])
   // Vox Populi relies heavily on the social game before the endgame, but the
   // Final Three is a closed ceremony. Do not surface fresh social actions or

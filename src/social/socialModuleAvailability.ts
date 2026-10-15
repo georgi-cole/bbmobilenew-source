@@ -1,10 +1,7 @@
 import type { Phase, PlayerStatus } from '../types'
 import type { GameMode } from '../modes/modeTypes'
 
-const OUTGOING_SOCIAL_BLOCKED_PHASES: ReadonlySet<Phase> = new Set<Phase>([
-  'live_vote',
-  'eviction_results',
-])
+const OUTGOING_SOCIAL_BLOCKED_PHASES: ReadonlySet<Phase> = new Set<Phase>(['eviction_results'])
 
 const SURVIVAL_SOCIAL_BLOCK_REASON = 'Surveyeval Mode disables social modules.'
 
@@ -35,8 +32,6 @@ export interface SocialModuleAvailability {
 
 export const SOCIAL_MODULE_BLOCKED_IN_GAME_MESSAGE =
   'The Hub is in a locked ceremony, so you cannot start a new conversation right now.'
-export const SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE =
-  'Players are now being called to the confessional for the elimination. Try again later.'
 export const SOCIAL_MODULE_BLOCKED_OUT_OF_GAME_MESSAGE =
   'You are no longer in the Hub. But maybe try telepathy?'
 export const SURVIVOR_SOCIAL_BLOCKED_MESSAGES = [
@@ -101,8 +96,8 @@ export function getSocialModuleAvailability(
     }
   }
 
-  // Vox Populi runs on social relationships right through the audience-vote
-  // window; only the classic game keeps its ceremony-time conversation lock.
+  // Conversations stay available while ballots are being collected. The
+  // result presentation itself remains locked until the eviction resolves.
   if (
     moduleKind === 'outgoing' &&
     game.voxPopuli?.status !== 'active' &&
@@ -166,10 +161,6 @@ export function getBlockedSocialModuleAnnouncementMessage(
     availability.humanPlayerId === null
   ) {
     return SOCIAL_MODULE_BLOCKED_OUT_OF_GAME_MESSAGE
-  }
-
-  if (availability.phase === 'live_vote') {
-    return SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE
   }
 
   if (availability.reason === 'The weekend Faux TV moment is still playing.') {

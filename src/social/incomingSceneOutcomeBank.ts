@@ -519,7 +519,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
   alliance_reassurance: {
     positive: [
       '{from} leaves the check-in believing the alliance still has a working centre.',
-      '{from} is more willing to protect the pact when another player tests its edges.',
+      '{from} is more willing to protect the alliance when another player tests its edges.',
     ],
     neutral: [
       '{from} hears that the alliance is not broken, but keeps looking for the fault line.',
@@ -530,7 +530,7 @@ export const INCOMING_SCENE_OUTCOME_BANK: Record<string, OutcomeSet> = {
       '{from} takes the doubts seriously enough to stop sharing every strategic detail.',
     ],
     dismiss: [
-      '{from} leaves the alliance question unanswered and assumes the pact may not survive pressure.',
+      '{from} leaves the alliance question unanswered and assumes it may not survive pressure.',
       '{from} starts preparing for a world where the two of you no longer move as a pair.',
     ],
   },

@@ -105,8 +105,8 @@ export const DRAMA_RESPONSE_BANK: Record<string, ResponseSet[]> = {
     set('Stay aligned', 'Compare notes', 'Play separately', 'End the talk'),
   ],
   'scenario:alliance_reassurance': [
-    set('Reassure fully', 'Ask what changed', 'Admit your doubts', 'Avoid it'),
-    set('Renew the pact', 'Compare plans', 'Set new terms', 'End check-in'),
+    set('Reassure them', 'Ask what changed', 'Set a boundary', 'End check-in'),
+    set('Back our alliance', 'Compare plans', 'Set a boundary', 'End check-in'),
     set('Show loyalty', 'Stay cautious', 'Call out the crack', 'Move on'),
   ],
   'scenario:alliance_power_nomination_huddle': [

@@ -3,7 +3,6 @@ import {
   getBlockedSocialModuleAnnouncementMessage,
   getIncomingSocialModuleAvailability,
   getSocialModuleAvailability,
-  SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE,
   SOCIAL_MODULE_BLOCKED_OUT_OF_GAME_MESSAGE,
 } from '../socialModuleAvailability'
 
@@ -48,7 +47,7 @@ describe('socialModuleAvailability', () => {
     )
   })
 
-  it('blocks outgoing actions but keeps incoming vote pitches available during live voting', () => {
+  it('keeps outgoing conversations and incoming vote pitches available while ballots are collected', () => {
     const outgoing = getSocialModuleAvailability({
       phase: 'live_vote',
       players: activeHuman,
@@ -58,12 +57,20 @@ describe('socialModuleAvailability', () => {
       players: activeHuman,
     })
 
-    expect(outgoing.canOpen).toBe(false)
-    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toBe(
-      SOCIAL_MODULE_BLOCKED_DURING_LIVE_VOTE_MESSAGE
-    )
+    expect(outgoing.canOpen).toBe(true)
+    expect(getBlockedSocialModuleAnnouncementMessage(outgoing)).toBeNull()
     expect(incoming.canOpen).toBe(true)
     expect(getBlockedSocialModuleAnnouncementMessage(incoming)).toBeNull()
+  })
+
+  it('keeps outgoing actions locked during the actual eviction result presentation', () => {
+    const availability = getSocialModuleAvailability({
+      phase: 'eviction_results',
+      players: activeHuman,
+    })
+
+    expect(availability.canOpen).toBe(false)
+    expect(getBlockedSocialModuleAnnouncementMessage(availability)).toBeTruthy()
   })
 
   it('keeps both social modules unavailable in Survival mode', () => {

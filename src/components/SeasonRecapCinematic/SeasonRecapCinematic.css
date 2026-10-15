@@ -635,11 +635,9 @@
 .src-finale-calendar__timeline-label strong { color: #f2d28e; font-size: 0.49rem; letter-spacing: 0.13em; }
 .src-finale-calendar__timeline-label span:last-child { text-align: right; }
 .src-finale-calendar__timeline-row { position: relative; z-index: 2; display: flex; gap: 7px; min-width: 0; }
-.src-finale-calendar__timeline-row[data-direction='reverse'] { flex-direction: row-reverse; }
 .src-finale-calendar__timeline-row::before { position: absolute; top: 50%; right: 7%; left: 7%; height: 1px; background: linear-gradient(90deg, rgba(246, 211, 147, 0.28), rgba(200, 191, 255, 0.68), rgba(246, 211, 147, 0.28)); box-shadow: 0 0 11px rgba(200, 191, 255, 0.24); content: ''; }
 .src-finale-calendar__timeline-row:not(:last-child)::after { position: absolute; z-index: -1; top: 50%; width: 22px; height: calc(100% + 14px); border-top: 1px solid rgba(218, 203, 255, 0.52); border-bottom: 1px solid rgba(218, 203, 255, 0.52); content: ''; }
 .src-finale-calendar__timeline-row[data-direction='forward']:not(:last-child)::after { right: -5px; border-right: 1px solid rgba(218, 203, 255, 0.52); border-radius: 0 18px 18px 0; }
-.src-finale-calendar__timeline-row[data-direction='reverse']:not(:last-child)::after { left: -5px; border-left: 1px solid rgba(218, 203, 255, 0.52); border-radius: 18px 0 0 18px; }
 .src-finale-calendar__timeline-row .src-finale-calendar__day { width: 100%; min-width: 0; min-height: 68px; height: 68px; flex: 1 1 0; border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 18px; background: linear-gradient(145deg, rgba(38, 29, 46, 0.97), rgba(8, 9, 17, 0.98)); box-shadow: 0 7px 14px rgba(0, 0, 0, 0.24); }
 .src-finale-calendar__timeline-row .src-finale-calendar__day[data-event='true'] { border-radius: 18px; }
 .src-finale-calendar__timeline-row .src-finale-calendar__day-portrait { top: 15px; right: 8px; width: 28px; height: 28px; }
@@ -656,6 +654,10 @@
 .src-finale-calendar__day[data-kind='twist']::after { background: #c8d0ff; box-shadow: 0 0 9px rgba(200, 208, 255, 0.65); }
 .src-finale-calendar__day[data-kind='milestone']::after { background: #a4f5df; box-shadow: 0 0 9px rgba(164, 245, 223, 0.65); }
 .src-finale-calendar__day[data-kind='finale']::after { background: #fff0bd; box-shadow: 0 0 10px rgba(255, 240, 189, 0.7); }
+.src-finale-calendar__day[data-kind='weekend'] { border-color: rgba(131, 211, 197, 0.48); background: radial-gradient(circle at 67% 42%, rgba(164, 245, 223, 0.18), transparent 32%), linear-gradient(145deg, rgba(29, 67, 68, 0.96), rgba(10, 17, 25, 0.99)); }
+.src-finale-calendar__day[data-kind='weekend']::before { background: #8de0d1; }
+.src-finale-calendar__day[data-kind='weekend'] i { color: #a4f5df; }
+.src-finale-calendar__day[data-kind='weekend']::after { background: #a4f5df; box-shadow: 0 0 9px rgba(164, 245, 223, 0.65); }
 
 .src-finale-calendar__focus-card { position: relative; display: flex; box-sizing: border-box; width: 100%; min-height: 100%; flex: 1; flex-direction: column; justify-content: flex-start; overflow: hidden; padding: 58px 24px 24px; border: 1px solid rgba(245, 211, 147, 0.42); border-radius: 32px; color: #fff; background: radial-gradient(circle at 86% 18%, rgba(255, 221, 169, 0.18), transparent 24%), linear-gradient(138deg, rgba(77, 43, 62, 0.98), rgba(9, 9, 17, 0.99) 72%); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 26px 58px rgba(0, 0, 0, 0.34); transform-origin: 50% 50%; }
 .src-finale-calendar__focus-card::before { position: absolute; top: -74px; right: -86px; width: 240px; height: 240px; border: 1px solid rgba(255, 231, 197, 0.11); border-radius: 50%; box-shadow: 0 0 0 22px rgba(255, 231, 197, 0.025), 0 0 0 44px rgba(255, 231, 197, 0.018); content: ''; pointer-events: none; }

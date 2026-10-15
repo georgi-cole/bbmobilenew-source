@@ -1755,6 +1755,20 @@
   margin-top: 0.38rem;
 }
 
+/* Let the expanded read grow inside the Social scroller so every metric and
+   its final explanatory row remain reachable above the fixed footer. */
+.sp2-focus:has(.sp2-focus__full-read[open]) {
+  height: auto;
+  max-height: none;
+  flex: 0 0 auto;
+  align-items: start;
+  overflow: visible;
+}
+
+.sp2-focus:has(.sp2-focus__full-read[open])::after {
+  display: none;
+}
+
 .sp2-focus__prompt {
   position: absolute;
   right: 0.7rem;

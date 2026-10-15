@@ -150,7 +150,7 @@ describe('Hall of Fame screen', () => {
     fireEvent.click(screen.getByRole('button', { name: /Season 7/i }))
 
     expect(screen.getByText('Runner-up')).toBeInTheDocument()
-    expect(screen.getByText('Finn')).toBeInTheDocument()
+    expect(screen.getByText('Finn Lund')).toBeInTheDocument()
     expect(screen.getByText('Public Favorite')).toBeInTheDocument()
     expect(screen.getByText('4th')).toBeInTheDocument()
     expect(screen.getByText('VIBE CURATOR')).toBeInTheDocument()

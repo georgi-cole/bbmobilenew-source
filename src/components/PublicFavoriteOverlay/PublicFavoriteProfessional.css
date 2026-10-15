@@ -23,17 +23,18 @@
 }
 
 .pf-overlay__speed-controls {
-  top: max(10px, calc(env(safe-area-inset-top, 0px) + 8px));
-  right: max(10px, calc(env(safe-area-inset-right, 0px) + 8px));
+  top: 0.55rem;
+  right: 0.62rem;
+  max-width: calc(100% - 1.24rem);
 }
 
 .pf-overlay__skip,
 .pf-overlay__fast-forward {
   min-height: 42px;
-  padding: 0 12px;
+  padding: 0 0.58rem;
   border-color: rgba(255, 255, 255, 0.2);
-  font-size: 0.65rem;
-  letter-spacing: 0.1em;
+  font-size: 0.6rem;
+  letter-spacing: 0.065em;
   touch-action: manipulation;
 }
 

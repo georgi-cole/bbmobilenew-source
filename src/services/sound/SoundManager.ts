@@ -45,7 +45,12 @@ import { SOUND_REGISTRY } from './sounds'
 
 // Only the tiny, frequently-used interface sounds are worth warming during
 // the first gesture. Everything else is created on demand when it is needed.
-const MOBILE_SFX_PRIME_KEYS = ['ui:navigate', 'ui:confirm', 'ui:error'] as const
+const MOBILE_SFX_PRIME_KEYS = [
+  'ui:navigate',
+  'ui:confirm',
+  'ui:error',
+  'tv:finale_winner_stinger',
+] as const
 import type { SoundCategory, SoundEntry } from './sounds'
 import {
   MUSIC_TRACK_SOUND_KEYS,

@@ -58,13 +58,14 @@ const EXIT_HISTORY: GameHistoryEvent[] = [
   },
 ];
 
-function renderRecap(onComplete = vi.fn()) {
+function renderRecap(onComplete = vi.fn(), completedWeekendDays: number[] = []) {
   render(
     <SeasonRecapCinematic
       season={9}
       week={12}
       players={PLAYERS}
       history={EXIT_HISTORY}
+      completedWeekendDays={completedWeekendDays}
       publicOpinion={PUBLIC_OPINION}
       onComplete={onComplete}
     />,
@@ -115,6 +116,7 @@ describe('Season recap archive', () => {
 
     expect(screen.getByLabelText(/event legend/i)).toBeTruthy();
     expect(screen.getByLabelText(/12-day season/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Weekend Day/i })).toBeNull()
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByRole('button', { name: /day 13:/i })).toBeNull();
     const drewCheckpoint = screen.getByRole('button', { name: /day 6: drew, exit/i });
@@ -131,6 +133,27 @@ describe('Season recap archive', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /day 5: midseason turn, milestone/i }));
     expect(screen.getByText('Why it mattered')).toBeTruthy();
+  });
+
+  it('shows completed weekend days in chronological left-to-right order', () => {
+    renderRecap(undefined, [5, 10]);
+    skipOpening();
+    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }));
+
+    expect(screen.getByLabelText(/12-day season · 4 weekend days/i)).toBeInTheDocument();
+    const rows = screen.getAllByRole('group').filter((row) =>
+      row.classList.contains('src-finale-calendar__timeline-row')
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => row.getAttribute('data-direction') === 'forward')).toBe(true);
+    expect(rows[1]?.textContent).toContain('05');
+    expect(rows[1]?.textContent).toContain('Weekend 1');
+    expect(rows[1]?.textContent).toContain('Weekend 2');
+    expect(rows[1]?.textContent).toContain('06');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Weekend Day 1 after Game Day 5' }));
+    expect(screen.getByText('Weekend Day 1 · after Game Day 5')).toBeInTheDocument();
+    expect(screen.getByText('The season paused after Game Day 5 for Weekend Day 1.')).toBeInTheDocument();
   });
 
   it('keeps the original category data and makes the comp result explicit', () => {
