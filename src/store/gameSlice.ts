@@ -1843,6 +1843,33 @@ function getStrategicRelationship(state: GameState, actorId: string, targetId: s
   return state.strategicRelationships?.[actorId]?.[targetId] ?? null
 }
 
+function getKnownRomanticRivalPressure(
+  state: GameState,
+  actorId: string,
+  targetId: string
+): {
+  contribution: number
+  partnerId: string | null
+  evidenceDay: number | null
+  confidence: number
+  source: string | null
+} {
+  const evidence = state.dramaSocialMode
+    ? getStrategicRelationship(state, actorId, targetId)?.knownRomanticRival
+    : undefined
+  if (!evidence) {
+    return { contribution: 0, partnerId: null, evidenceDay: null, confidence: 0, source: null }
+  }
+  const confidence = Math.max(0, Math.min(1, evidence.confidence))
+  return {
+    contribution: Math.round(44 * confidence),
+    partnerId: evidence.partnerId,
+    evidenceDay: evidence.evidenceDay,
+    confidence,
+    source: evidence.source,
+  }
+}
+
 export interface StrategicAllianceDecisionRead {
   sharedProtection: number
   currentTargetPressure: number
@@ -2002,6 +2029,8 @@ function getSafetyRelationshipBreakdown(
     state.competitionSeasonStateByPlayerId?.[nominee.id]
   )
   const expendablePawnPenalty = competitionRead.pawnSuitability
+  const knownJealousy = getKnownRomanticRivalPressure(state, holderId, nominee.id)
+  const knownJealousyPenalty = -knownJealousy.contribution
   const realityAllianceContribution = state.dramaSocialMode
     ? allianceRead.sharedProtection * 82 -
       allianceRead.currentTargetPressure * 58 -
@@ -2011,7 +2040,12 @@ function getSafetyRelationshipBreakdown(
   const bellaSaveBonus = nominee.id === BELLA_ID ? 18 : 0
 
   if (!relationship) {
-    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
+    const total =
+      -threat * 3 -
+      expendablePawnPenalty +
+      realityAllianceContribution +
+      bellaSaveBonus +
+      knownJealousyPenalty
     return {
       total,
       factors: {
@@ -2021,6 +2055,11 @@ function getSafetyRelationshipBreakdown(
         relationship: 'none',
         realityAllianceContribution,
         bellaSaveBonus,
+        knownJealousyPenalty,
+        knownRomanticPartnerId: knownJealousy.partnerId,
+        jealousyEvidenceDay: knownJealousy.evidenceDay,
+        jealousyEvidenceConfidence: knownJealousy.confidence,
+        jealousyEvidenceSource: knownJealousy.source,
       },
     }
   }
@@ -2032,8 +2071,18 @@ function getSafetyRelationshipBreakdown(
     expendablePawnPenalty: -expendablePawnPenalty,
     sandbagSuspicion: competitionRead.sandbagSuspicion,
     tags: relationship.tags.join(', ') || 'none',
+    knownJealousyPenalty,
+    knownRomanticPartnerId: knownJealousy.partnerId,
+    jealousyEvidenceDay: knownJealousy.evidenceDay,
+    jealousyEvidenceConfidence: knownJealousy.confidence,
+    jealousyEvidenceSource: knownJealousy.source,
   }
-  let score = relationship.affinity - threat * 3 - expendablePawnPenalty + bellaSaveBonus
+  let score =
+    relationship.affinity -
+    threat * 3 -
+    expendablePawnPenalty +
+    bellaSaveBonus +
+    knownJealousyPenalty
   factors.bellaSaveBonus = bellaSaveBonus
   const identityContribution =
     allianceIdentityBias(holder?.aiGameIdentity) *
@@ -2118,12 +2167,18 @@ function getNominationTargetBreakdown(
   const tags = new Set(relationship?.tags ?? [])
   const affinity = relationship?.affinity ?? 0
   const threat = getAiThreatScore(state, candidate)
+  const knownJealousy = getKnownRomanticRivalPressure(state, lohId, candidate.id)
   const factors: Record<string, AiDecisionFactor> = {
     threatContribution: threat * 4,
     affinityPenalty: -affinity,
     tags: [...tags].join(', ') || 'none',
+    knownRomanticRivalJealousy: knownJealousy.contribution,
+    jealousyPartnerId: knownJealousy.partnerId,
+    jealousyEvidenceDay: knownJealousy.evidenceDay,
+    jealousyEvidenceConfidence: knownJealousy.confidence,
+    jealousyEvidenceSource: knownJealousy.source,
   }
-  let score = threat * 4 - affinity
+  let score = threat * 4 - affinity + knownJealousy.contribution
   if (tags.has('betrayal')) {
     score += 125
     factors.betrayal = 125
@@ -2208,6 +2263,233 @@ export function getNominationTargetScore(
   return getNominationTargetBreakdown(state, lohId, candidate).total
 }
 
+const ELIMINATION_CLOSE_SCORE_MARGIN = 4
+
+export interface StrategicEliminationCandidate {
+  id: string
+  label: string
+  total: number
+  factors: Record<string, AiDecisionFactor>
+}
+
+export interface StrategicEliminationChoice {
+  selectedIds: string[]
+  rankedCandidates: StrategicEliminationCandidate[]
+  publicRationale: string | null
+}
+
+/**
+ * Resolve a decisive elimination choice from the same actor-specific read for
+ * ordinary vote ties, double-elimination ties, and the Final Four sole vote.
+ * The score uses current relationships, alliance plans, promises, competition
+ * threat, and the LOH's persisted plan. Seeded variation only orders candidates
+ * whose scores are within a narrow margin.
+ */
+export function chooseStrategicEliminationCandidates(
+  state: GameState,
+  decisionMakerId: string,
+  candidateIds: string[],
+  selectionCount: number,
+  decisionType: 'ordinary_tie' | 'double_tie' | 'final_four',
+  gameSeed: number
+): StrategicEliminationChoice {
+  const candidates = candidateIds
+    .map((id) => state.players.find((player) => player.id === id))
+    .filter((player): player is Player => Boolean(player))
+  const plan =
+    state.lohNominationPlan?.week === state.week &&
+    state.lohNominationPlan.lohId === decisionMakerId &&
+    !['failed', 'compromised'].includes(state.lohNominationPlan.status)
+      ? state.lohNominationPlan
+      : null
+  const scored = candidates.map((candidate) => {
+    const nomination = getNominationTargetBreakdown(state, decisionMakerId, candidate)
+    const relationship = getStrategicRelationship(state, decisionMakerId, candidate.id)
+    const allianceRead = getStrategicAllianceDecisionRead(state, decisionMakerId, candidate.id)
+    const tags = new Set(relationship?.tags ?? [])
+    const factors: Record<string, AiDecisionFactor> = { ...nomination.factors }
+    let total = nomination.total
+
+    // Keep a live alliance plan in the model in both classic and Reality saves.
+    // Reality mode already includes this pressure in getNominationTargetBreakdown.
+    const alliancePlanContribution = state.dramaSocialMode
+      ? 0
+      : allianceRead.currentTargetPressure * 52 + allianceRead.fallbackTargetPressure * 23
+    total += alliancePlanContribution
+    factors.alliancePlanContribution = alliancePlanContribution
+    factors.sharedAllianceProtection = allianceRead.sharedProtection
+
+    // A current, explicit protection promise weighs heavily, but remains
+    // defeasible when stronger threats or betrayal evidence point the other way.
+    const taggedPromiseProtection = tags.has('safety_promise') ? -92 : 0
+    const wallDealProtection =
+      state.holdTheWallSafetyDeal?.week === state.week &&
+      state.holdTheWallSafetyDeal.promisorId === decisionMakerId &&
+      state.holdTheWallSafetyDeal.beneficiaryId === candidate.id
+        ? -108
+        : 0
+    const promiseProtection = Math.min(taggedPromiseProtection, wallDealProtection)
+    total += promiseProtection
+    factors.promiseProtection = promiseProtection
+
+    // Preserve the LOH's stated priorities as meaningful evidence, not a forced
+    // outcome. A promise, alliance decision, or current threat can still outweigh it.
+    let currentPlanContribution = 0
+    if (plan) {
+      const priorities = plan.eliminationPriorityIds?.length
+        ? plan.eliminationPriorityIds
+        : [plan.targetId]
+      const priorityIndex = priorities.indexOf(candidate.id)
+      if (priorityIndex >= 0) currentPlanContribution = priorityIndex === 0 ? 48 : 34
+      if (plan.preferredSurvivorId === candidate.id) currentPlanContribution -= 58
+      const replacementTargetId =
+        plan.replacementTargetOverrideId ?? plan.replacementTargetId ?? plan.backupTargetId
+      if (replacementTargetId === candidate.id) currentPlanContribution += 22
+    }
+    total += currentPlanContribution
+    factors.currentPlanContribution = currentPlanContribution
+    factors.total = total
+
+    return { id: candidate.id, label: candidate.name, total, factors }
+  })
+
+  const scoreOrdered = [...scored].sort(
+    (left, right) => right.total - left.total || left.id.localeCompare(right.id)
+  )
+  const rankedCandidates: StrategicEliminationCandidate[] = []
+  for (let index = 0; index < scoreOrdered.length; ) {
+    const topScore = scoreOrdered[index].total
+    let clusterEnd = index + 1
+    while (
+      clusterEnd < scoreOrdered.length &&
+      topScore - scoreOrdered[clusterEnd].total <= ELIMINATION_CLOSE_SCORE_MARGIN
+    ) {
+      clusterEnd += 1
+    }
+    const closeCandidates = scoreOrdered.slice(index, clusterEnd).sort((left, right) => {
+      const rankFor = (candidateId: string) =>
+        mulberry32(
+          (gameSeed ^
+            hashString(`${state.week}:${decisionType}:${decisionMakerId}:${candidateId}`)) >>>
+            0
+        )()
+      return rankFor(right.id) - rankFor(left.id) || left.id.localeCompare(right.id)
+    })
+    rankedCandidates.push(...closeCandidates)
+    index = clusterEnd
+  }
+
+  const selectedIds = rankedCandidates
+    .slice(0, Math.max(0, Math.min(selectionCount, rankedCandidates.length)))
+    .map((candidate) => candidate.id)
+  const humanId = state.players.find((player) => player.isUser)?.id
+  const disclosedTargetId =
+    humanId &&
+    state.lohSocialPlan?.week === state.week &&
+    state.lohSocialPlan.lohId === decisionMakerId &&
+    state.lohSocialPlan.disclosureOutcomeByPlayerId?.[humanId] !== 'false'
+      ? state.lohSocialPlan.disclosedTargetByPlayerId?.[humanId]
+      : undefined
+  const publicRationale =
+    disclosedTargetId && !selectedIds.includes(disclosedTargetId) && selectedIds.length > 0
+      ? buildKnownPlanDepartureRationale(
+          state,
+          decisionMakerId,
+          disclosedTargetId,
+          selectedIds[0],
+          scored
+        )
+      : null
+
+  return { selectedIds, rankedCandidates, publicRationale }
+}
+
+function buildKnownPlanDepartureRationale(
+  state: GameState,
+  decisionMakerId: string,
+  disclosedTargetId: string,
+  selectedId: string,
+  candidates: StrategicEliminationCandidate[]
+): string | null {
+  const previousTarget = state.players.find((player) => player.id === disclosedTargetId)
+  const selected = state.players.find((player) => player.id === selectedId)
+  const actor = state.players.find((player) => player.id === decisionMakerId)
+  const selectedScore = candidates.find((candidate) => candidate.id === selectedId)
+  const previousScore = candidates.find((candidate) => candidate.id === disclosedTargetId)
+  if (!previousTarget || !selected || !actor || !selectedScore) return null
+
+  const selectedPublicWins = (selected.stats?.lohWins ?? 0) + (selected.stats?.posWins ?? 0)
+  const previousPublicWins =
+    (previousTarget.stats?.lohWins ?? 0) + (previousTarget.stats?.posWins ?? 0)
+  const threatLead =
+    Number(selectedScore.factors.threatContribution ?? 0) -
+    Number(previousScore?.factors.threatContribution ?? 0)
+  if (selectedPublicWins > previousPublicWins && threatLead >= 4) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name}; ${selected.name}'s stronger competition record weighed in.`
+  }
+
+  const originalNomineeIds = new Set(state.currentWeekNominationRecord?.nomineeIds ?? [])
+  if (
+    state.nomineeIds.includes(selectedId) &&
+    !originalNomineeIds.has(selectedId) &&
+    state.povSavedId != null
+  ) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} after Safety changed the block.`
+  }
+
+  const humanId = state.players.find((player) => player.isUser)?.id
+  const sharedAlliancePlan = (state.strategicAlliances ?? []).some(
+    (alliance) =>
+      alliance.status !== 'DISSOLVED' &&
+      alliance.memberIds.includes(decisionMakerId) &&
+      Boolean(humanId && alliance.memberIds.includes(humanId)) &&
+      alliance.currentTargetIds.includes(selectedId)
+  )
+  if (sharedAlliancePlan) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} as the shared alliance plan shifted.`
+  }
+
+  const scoreGap = Math.abs(selectedScore.total - (previousScore?.total ?? selectedScore.total))
+  if (scoreGap <= ELIMINATION_CLOSE_SCORE_MARGIN) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name}; the tied choices were closely matched.`
+  }
+  return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} after reassessing the live nominees.`
+}
+
+function traceStrategicEliminationChoice(
+  state: GameState,
+  actorId: string,
+  choice: StrategicEliminationChoice,
+  decisionType: 'ordinary_tie' | 'double_tie' | 'final_four',
+  seed: number
+): void {
+  traceAiDecision({
+    kind: 'eviction_decision',
+    actorId,
+    actorName: state.players.find((player) => player.id === actorId)?.name,
+    chosenId: choice.selectedIds[0] ?? null,
+    chosenIds: choice.selectedIds,
+    week: state.week,
+    phase: state.phase,
+    seed,
+    reason: choice.publicRationale ?? 'highest explainable strategic elimination score',
+    context: {
+      decisionType,
+      selectedCount: choice.selectedIds.length,
+      candidateIds: choice.rankedCandidates.map((candidate) => candidate.id),
+    },
+    candidates: choice.rankedCandidates.map((candidate) => ({
+      id: candidate.id,
+      label: candidate.label,
+      total: candidate.total,
+      factors: {
+        ...candidate.factors,
+        selected: choice.selectedIds.includes(candidate.id),
+      },
+    })),
+  })
+}
+
 /**
  * One strategic resolver for every ordinary replacement decision. It starts
  * from the regular nomination read, then adds the time-sensitive information
@@ -2233,7 +2515,11 @@ export function getStrategicReplacementNomineeBreakdown(
       ? state.lohSocialPlan
       : null
   const nominationPlan = isLohDecision ? state.lohNominationPlan : null
-  const canonicalBackupPressure = socialPlan?.backupTargetId === candidate.id ? 78 : 0
+  const canonicalReplacementTargetId =
+    nominationPlan?.replacementTargetOverrideId ??
+    nominationPlan?.replacementTargetId ??
+    socialPlan?.backupTargetId
+  const canonicalBackupPressure = canonicalReplacementTargetId === candidate.id ? 78 : 0
   const hiddenAmbushPressure =
     nominationPlan?.strategy === 'backdoor' &&
     nominationPlan.status !== 'executed' &&
@@ -4455,6 +4741,12 @@ export function chooseAiEvictionVote(
       earlyHumanGrace: -grace * 1.35,
       tags: [...tags].join(', ') || 'none',
     }
+    const knownJealousy = getKnownRomanticRivalPressure(state, voterId, nomineeId)
+    factors.knownRomanticRivalJealousy = knownJealousy.contribution
+    factors.jealousyPartnerId = knownJealousy.partnerId
+    factors.jealousyEvidenceDay = knownJealousy.evidenceDay
+    factors.jealousyEvidenceConfidence = knownJealousy.confidence
+    factors.jealousyEvidenceSource = knownJealousy.source
     if (backdoorTargetContribution > 0) {
       factors.backdoorTargetContribution = backdoorTargetContribution
     }
@@ -4466,7 +4758,8 @@ export function chooseAiEvictionVote(
     let score =
       threat * 8 -
       affinity +
-      randomDraw * 4 -
+      randomDraw * 4 +
+      knownJealousy.contribution -
       grace * 1.35 +
       backdoorTargetContribution +
       alliancePlanContribution
@@ -4685,12 +4978,32 @@ function applyOneVoteDeductionToHuman(state: GameState): boolean {
     } else {
       state.awaitingTieBreak = false
       state.awaitingPosTieBreak = false
-      const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
-      const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
+      const decisionSeed = (state.seed ^ 0xdeadbeef) >>> 0
+      const decisionMakerId = tieBreakerPlayerId ?? state.lohId ?? state.posWinnerId
+      const decision = decisionMakerId
+        ? chooseStrategicEliminationCandidates(
+            state,
+            decisionMakerId,
+            topNominees,
+            1,
+            'ordinary_tie',
+            decisionSeed
+          )
+        : null
+      if (decisionMakerId && decision) {
+        traceStrategicEliminationChoice(
+          state,
+          decisionMakerId,
+          decision,
+          'ordinary_tie',
+          decisionSeed
+        )
+      }
+      const evicteeId = decision?.selectedIds[0] ?? topNominees[0]
       const evicted = state.players.find((player) => player.id === evicteeId)
       if (evicted) {
         const evictionMessage = tieBreakerPlayer
-          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`
+          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}.${decision?.publicRationale ? ` ${decision.publicRationale}` : ''} ${evicted.name} has been eliminated from the Hub. 🗳️`
           : `${evicted.name} has been eliminated from the Hub. 🚪`
         state.pendingEviction = { evicteeId: evicted.id, evictionMessage }
       }
@@ -4895,6 +5208,7 @@ const gameSlice = createSlice({
         return
       }
       plan.replacementTargetOverrideId = target.id
+      plan.replacementTargetId = target.id
       if (state.lohSocialPlan?.week === state.week && state.lohSocialPlan.lohId === state.lohId) {
         state.lohSocialPlan.backupTargetId = target.id
       }
@@ -6514,11 +6828,44 @@ const gameSlice = createSlice({
         ? (state.players.find((player) => player.id === state.posWinnerId)?.name ??
           'The Safety holder')
         : (state.players.find((player) => player.id === state.lohId)?.name ?? 'The LOH')
+      const tieBreakerId = state.awaitingPosTieBreak
+        ? state.posWinnerId
+        : (getClassicEvictionTieBreakerId(state) ?? state.lohId ?? state.posWinnerId)
+      const tieBreaker = state.players.find((player) => player.id === tieBreakerId)
+      const aiDecision =
+        tieBreaker && !tieBreaker.isUser && !state.publicModeEnabled
+          ? chooseStrategicEliminationCandidates(
+              state,
+              tieBreaker.id,
+              tied,
+              slotsRequired,
+              'double_tie',
+              (state.seed ^ 0xdeadbeef) >>> 0
+            )
+          : null
+      if (tieBreaker && aiDecision) {
+        traceStrategicEliminationChoice(
+          state,
+          tieBreaker.id,
+          aiDecision,
+          'double_tie',
+          (state.seed ^ 0xdeadbeef) >>> 0
+        )
+      }
+      const resolvedSelectedIds = aiDecision?.selectedIds ?? selectedIds
       const selectedPlayers = selectedIds
         .map((id) => state.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
 
       if (selectedPlayers.length !== selectedIds.length) return
+
+      // The model is authoritative for an AI decider. The UI uses this same
+      // deterministic resolver, while recomputing here keeps the game rule
+      // correct if the state changed during the presentation delay.
+      const resolvedPlayers = resolvedSelectedIds
+        .map((id) => state.players.find((player) => player.id === id))
+        .filter((player): player is Player => Boolean(player))
+      if (resolvedPlayers.length !== slotsRequired) return
 
       state.awaitingTieBreak = false
       state.awaitingPosTieBreak = false
@@ -6528,8 +6875,8 @@ const gameSlice = createSlice({
       const tiedNames = tied
         .map((id) => state.players.find((player) => player.id === id)?.name)
         .filter((name): name is string => Boolean(name))
-      const selectedNames = selectedPlayers.map((player) => player.name)
-      const tieResolutionMessage = buildDoubleEvictionTieResolutionMessage({
+      const selectedNames = resolvedPlayers.map((player) => player.name)
+      const tieResolutionBaseMessage = buildDoubleEvictionTieResolutionMessage({
         deciderName: tieBreakerName,
         tiedNames,
         selectedNames,
@@ -6537,6 +6884,7 @@ const gameSlice = createSlice({
         secondEvictionOnly: Boolean(state.pendingEviction),
         includeEliminationClause: true,
       })
+      const tieResolutionMessage = `${tieResolutionBaseMessage}${aiDecision?.publicRationale ? ` ${aiDecision.publicRationale}` : ''}`
       const buildFollowUpMessage = (player: Player) =>
         state.publicModeEnabled
           ? `${player.name} had the lower public approval and has been eliminated from the Hub. 📉`
@@ -6544,21 +6892,21 @@ const gameSlice = createSlice({
 
       if (state.pendingEviction && !state.doubleEviction.pendingSecondEviction) {
         state.doubleEviction.pendingSecondEviction = {
-          evicteeId: selectedPlayers[0].id,
+          evicteeId: resolvedPlayers[0].id,
           evictionMessage: tieResolutionMessage,
         }
         return
       }
 
       state.pendingEviction = {
-        evicteeId: selectedPlayers[0].id,
+        evicteeId: resolvedPlayers[0].id,
         evictionMessage: tieResolutionMessage,
       }
 
-      if (selectedPlayers[1]) {
+      if (resolvedPlayers[1]) {
         state.doubleEviction.pendingSecondEviction = {
-          evicteeId: selectedPlayers[1].id,
-          evictionMessage: buildFollowUpMessage(selectedPlayers[1]),
+          evicteeId: resolvedPlayers[1].id,
+          evictionMessage: buildFollowUpMessage(resolvedPlayers[1]),
         }
       }
     },
@@ -9428,18 +9776,37 @@ const gameSlice = createSlice({
           return
         }
 
-        // AI POS holder casts the sole vote deterministically
+        // AI POS holder uses the same explainable strategic choice as the
+        // ordinary and double-elimination tie-breaks.
+        const decisionSeed = state.seed
         const seedRng = mulberry32(state.seed)
         state.seed = (seedRng() * 0x100000000) >>> 0
-        const rng = mulberry32(state.seed)
 
         if (nominees.length > 0) {
-          const evictee = seededPick(rng, nominees)
+          const decision = chooseStrategicEliminationCandidates(
+            state,
+            povHolder?.id ?? state.posWinnerId,
+            nominees.map((nominee) => nominee.id),
+            1,
+            'final_four',
+            decisionSeed
+          )
+          if (povHolder) {
+            traceStrategicEliminationChoice(
+              state,
+              povHolder.id,
+              decision,
+              'final_four',
+              decisionSeed
+            )
+          }
+          const evictee = state.players.find((player) => player.id === decision.selectedIds[0])
+          if (!evictee) return
           // Defer the eviction commit — overlay (finalizePendingEviction) will
           // set evictee.status and transition to final3 after the cinematic plays.
           state.pendingEviction = {
             evicteeId: evictee.id,
-            evictionMessage: `${povHolder?.name ?? 'The Power of Safety holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🚪`,
+            evictionMessage: `${povHolder?.name ?? 'The Power of Safety holder'} has chosen to eliminate ${evictee.name}.${decision.publicRationale ? ` ${decision.publicRationale}` : ''} ${evictee.name} has been eliminated from the Hub. 🚪`,
           }
         }
         return
@@ -10525,13 +10892,18 @@ const gameSlice = createSlice({
           //
           // Keeping selection atomic prevents the ceremony from ever capturing the
           // base reducer's provisional pair while Faux TV is rewritten to the plan.
+          const nominationPlan = state.lohNominationPlan
+          const planMatchesRules = isDoubleEviction
+            ? nominationPlan?.isDoubleElimination === true
+            : nominationPlan?.isDoubleElimination !== true
           const plannedNomineeIds =
-            !state.publicModeEnabled &&
-            state.lohNominationPlan?.week === state.week &&
-            state.lohNominationPlan.lohId === state.lohId &&
-            state.lohNominationPlan.status === 'planned' &&
-            state.lohNominationPlan.initialNomineeIds.length === nomineeCount
-              ? state.lohNominationPlan.initialNomineeIds
+            (!publicModeEnabled || isDoubleEviction) &&
+            planMatchesRules &&
+            nominationPlan?.week === state.week &&
+            nominationPlan?.lohId === state.lohId &&
+            nominationPlan?.status === 'planned' &&
+            nominationPlan?.initialNomineeIds.length === nomineeCount
+              ? (nominationPlan?.initialNomineeIds ?? null)
               : null
           const plannedNominees = plannedNomineeIds
             ? plannedNomineeIds
@@ -11616,16 +11988,33 @@ const gameSlice = createSlice({
                 )
               }
             } else if (tieBreakerPlayer) {
-              // AI tiebreaker: deterministically pick among tied nominees — defer commit
-              const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
-              const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
+              // AI tiebreaker uses the same relationship-aware model as double
+              // ties and the Final Four sole vote. Seeded choice only separates
+              // nominees whose strategic scores are genuinely close.
+              const decisionSeed = (state.seed ^ 0xdeadbeef) >>> 0
+              const decision = chooseStrategicEliminationCandidates(
+                state,
+                tieBreakerPlayer.id,
+                topNominees,
+                1,
+                'ordinary_tie',
+                decisionSeed
+              )
+              traceStrategicEliminationChoice(
+                state,
+                tieBreakerPlayer.id,
+                decision,
+                'ordinary_tie',
+                decisionSeed
+              )
+              const evicteeId = decision.selectedIds[0]
               const evicted = state.players.find((p) => p.id === evicteeId)
               if (evicted) {
                 state.voteResults = { ...voteCounts }
                 const breakerLabel = usesPosTieBreaker ? 'The POS holder' : 'The LOH'
                 state.pendingEviction = {
                   evicteeId: evicted.id,
-                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`,
+                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}.${decision.publicRationale ? ` ${decision.publicRationale}` : ''} ${evicted.name} has been eliminated from the Hub. 🗳️`,
                 }
               }
             } else {

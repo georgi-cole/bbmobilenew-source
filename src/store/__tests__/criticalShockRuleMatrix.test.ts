@@ -11,15 +11,21 @@ import gameReducer, {
   createInitialGameState,
   finalizePendingEviction,
   getNominationTargetScore,
+  hydrateGame,
   queueForcedShock,
   submitCoupReplacement,
+  submitDoubleEvictionTieBreak,
   submitDiamondReplacement,
+  submitPovDecision,
+  submitPovSaveTarget,
   submitPosTieBreak,
   submitVipSecondSaveTarget,
 } from '../gameSlice'
 import { withLohNominationPlanning } from '../lohNominationPlanning'
 import { withImmediateVoxPublicMode } from '../voxPublicModeReducer'
 import { createInitialVoxPopuliState } from '../../features/twists/voxPopuli'
+import { rankPublicEvictionTieNominees } from '../../publicOpinion/PublicEvictionTieService'
+import type { PlayerPublicProfile } from '../../publicOpinion/types'
 import {
   FORCED_SHOCK_CRITICAL_RULES,
   FORMAT_CRITICAL_RULES,
@@ -94,6 +100,55 @@ function cleanState(seed: number): GameState {
     state.specialVeto.awaitingVipSecondSaveTarget = false
   }
   return state
+}
+
+function reloadState(state: GameState): GameState {
+  const savedState = JSON.parse(JSON.stringify(state)) as GameState
+  return criticalGameReducer(state, hydrateGame(savedState))
+}
+
+function prepareThreeWayDoubleTie(
+  seed: number,
+  publicModeEnabled = false
+): {
+  state: GameState
+  nominees: Player[]
+} {
+  const state = cleanState(seed)
+  const loh = state.players.find((player) => !player.isUser)
+  const nominees = state.players
+    .filter((player) => !player.isUser && player.id !== loh?.id)
+    .slice(0, 3)
+  if (!loh || nominees.length !== 3) throw new Error('Expected an LOH and three nominees')
+
+  state.doubleEviction!.weekActive = true
+  state.publicModeEnabled = publicModeEnabled
+  state.lohId = loh.id
+  loh.status = 'loh'
+  state.nomineeIds = nominees.map((player) => player.id)
+  nominees.forEach((player) => {
+    player.status = 'nominated'
+  })
+
+  const voters = state.players
+    .filter((player) => canCastClassicEvictionVote(state, player.id))
+    .slice(0, 6)
+  if (voters.length !== 6) throw new Error('Expected six eligible voters for an even three-way tie')
+  const includedIds = new Set([
+    loh.id,
+    ...nominees.map((player) => player.id),
+    ...voters.map((player) => player.id),
+  ])
+  state.players.forEach((player) => {
+    if (!includedIds.has(player.id)) player.status = 'evicted'
+  })
+  state.votes = Object.fromEntries(
+    voters.map((voter, index) => [voter.id, nominees[index % nominees.length].id])
+  )
+  state.phase = 'live_vote'
+  state.awaitingHumanVote = false
+  state.awaitingDoubleVoteOffer = false
+  return { state, nominees }
 }
 
 function assertStoredVotesAreEligible(state: GameState): void {
@@ -385,6 +440,157 @@ describe('critical shock / ruleset matrix', () => {
     expect(['evicted', 'jury']).not.toContain(survivingNominee?.status)
   })
 
+  it('does not add Public Mode’s automatic nominee on top of a Double Elimination block', () => {
+    let state = cleanState(509)
+    const loh = alive(state).find((player) => !player.isUser)
+    if (!loh) throw new Error('Expected an AI LOH')
+    state.publicModeEnabled = true
+    state.phase = 'nominations'
+    state.lohId = loh.id
+    loh.status = 'loh'
+
+    state = criticalGameReducer(state, activateDoubleEviction())
+    state = criticalGameReducer(state, advance())
+
+    expect(state.nomineeIds).toHaveLength(3)
+    expect(state.nomineeIds).not.toContain(loh.id)
+    expect(state.nomineeIds.every((id) => state.players.some((player) => player.id === id))).toBe(
+      true
+    )
+  })
+
+  it('preserves a three-way Classic double tie through reload and resolves both exits', () => {
+    const prepared = prepareThreeWayDoubleTie(511)
+    let state = prepared.state
+    const { nominees } = prepared
+
+    state = criticalGameReducer(state, advance())
+    expect(state.awaitingTieBreak).toBe(true)
+    expect(state.tiedNomineeIds).toHaveLength(3)
+    expect(state.pendingEviction).toBeNull()
+
+    state = reloadState(state)
+    expect(state.awaitingTieBreak).toBe(true)
+    state = criticalGameReducer(
+      state,
+      submitDoubleEvictionTieBreak([nominees[0].id, nominees[1].id])
+    )
+    const firstExitId = state.pendingEviction?.evicteeId
+    const secondExitId = state.doubleEviction?.pendingSecondEviction?.evicteeId
+    expect(firstExitId).toBeDefined()
+    expect(secondExitId).toBeDefined()
+    expect(new Set([firstExitId, secondExitId]).size).toBe(2)
+    expect(nominees.map((player) => player.id)).toContain(firstExitId)
+    expect(nominees.map((player) => player.id)).toContain(secondExitId)
+
+    state = reloadState(state)
+    state = criticalGameReducer(state, finalizePendingEviction(firstExitId!))
+    expect(state.pendingEviction?.evicteeId).toBe(secondExitId)
+    expect(state.doubleEviction?.pendingSecondEviction).toBeNull()
+
+    state = reloadState(state)
+    state = criticalGameReducer(state, finalizePendingEviction(secondExitId!))
+    expect(state.doubleEviction?.weekActive).toBe(false)
+    expect(['evicted', 'jury']).toContain(
+      state.players.find((player) => player.id === firstExitId)?.status
+    )
+    expect(['evicted', 'jury']).toContain(
+      state.players.find((player) => player.id === secondExitId)?.status
+    )
+    const survivorId = nominees.find(
+      (player) => player.id !== firstExitId && player.id !== secondExitId
+    )?.id
+    expect(state.players.find((player) => player.id === survivorId)?.status).not.toBe('evicted')
+  })
+
+  it('uses audience ranking for a Public Mode three-way tie and credits no hubmate', () => {
+    const prepared = prepareThreeWayDoubleTie(512, true)
+    let state = prepared.state
+    const { nominees } = prepared
+    const profile = (playerId: string, approval: number): PlayerPublicProfile => ({
+      playerId,
+      approval,
+      previousApproval: approval,
+      seasonApprovals: [approval],
+      completedDirectionCount: 0,
+      cumulativePositiveDelta: 0,
+    })
+    const profiles = Object.fromEntries(
+      nominees.map((player, index) => [player.id, profile(player.id, [21, 49, 78][index])])
+    )
+    const publicExitIds = rankPublicEvictionTieNominees({
+      nomineeIds: nominees.map((player) => player.id),
+      profiles,
+    }).slice(0, 2)
+    const lohName = state.players.find((player) => player.id === state.lohId)?.name
+
+    state = criticalGameReducer(state, advance())
+    expect(state.awaitingTieBreak).toBe(true)
+    state = reloadState(state)
+    state = criticalGameReducer(state, submitDoubleEvictionTieBreak(publicExitIds))
+
+    expect(state.pendingEviction?.evicteeId).toBe(publicExitIds[0])
+    expect(state.doubleEviction?.pendingSecondEviction?.evicteeId).toBe(publicExitIds[1])
+    expect(state.pendingEviction?.evictionMessage).toContain('Public approval')
+    expect(state.pendingEviction?.evictionMessage).not.toContain(lohName ?? 'impossible-name')
+    expect(state.doubleEviction?.pendingSecondEviction?.evictionMessage).toContain(
+      'lower public approval'
+    )
+
+    state = reloadState(state)
+    state = criticalGameReducer(state, finalizePendingEviction(publicExitIds[0]))
+    expect(state.pendingEviction?.evicteeId).toBe(publicExitIds[1])
+    expect(state.pendingEviction?.evictionMessage).toContain('lower public approval')
+    state = reloadState(state)
+    state = criticalGameReducer(state, finalizePendingEviction(publicExitIds[1]))
+    expect(state.doubleEviction?.weekActive).toBe(false)
+  })
+
+  it('keeps a Safety replacement on the three-person Double Elimination block across reloads', () => {
+    let state = cleanState(513)
+    const safetyHolder = state.players.find((player) => player.isUser)
+    const loh = state.players.find((player) => !player.isUser)
+    const nominees = state.players
+      .filter((player) => !player.isUser && player.id !== loh?.id)
+      .slice(0, 3)
+    if (!safetyHolder || !loh || nominees.length !== 3) {
+      throw new Error('Expected a Safety holder, LOH, and three nominees')
+    }
+
+    state.doubleEviction!.weekActive = true
+    state.lohId = loh.id
+    loh.status = 'loh'
+    state.posWinnerId = safetyHolder.id
+    safetyHolder.status = 'pos'
+    state.nomineeIds = nominees.map((player) => player.id)
+    nominees.forEach((player) => {
+      player.status = 'nominated'
+    })
+    state.phase = 'pos_results'
+    state.awaitingPovDecision = true
+
+    state = reloadState(state)
+    state = criticalGameReducer(state, submitPovDecision(true))
+    expect(state.awaitingPovSaveTarget).toBe(true)
+    state = reloadState(state)
+    state = criticalGameReducer(state, submitPovSaveTarget(nominees[0].id))
+    expect(state.aiReplacementStep).toBe(1)
+    expect(state.nomineeIds).toHaveLength(2)
+
+    state = reloadState(state)
+    state = criticalGameReducer(state, advance())
+    expect(state.aiReplacementStep).toBe(2)
+    state = reloadState(state)
+    state = criticalGameReducer(state, advance())
+
+    expect(state.aiReplacementStep).toBe(0)
+    expect(state.nomineeIds).toHaveLength(3)
+    expect(state.nomineeIds).not.toContain(nominees[0].id)
+    expect(state.nomineeIds).toContain(nominees[1].id)
+    expect(state.nomineeIds).toContain(nominees[2].id)
+    expect(state.nomineeIds.some((id) => !nominees.some((nominee) => nominee.id === id))).toBe(true)
+  })
+
   it('uses LOH as the Double Eviction tie-breaker with Safety as an eligible fallback', () => {
     const state = cleanState(515)
     const players = alive(state)
@@ -448,9 +654,11 @@ describe('critical shock / ruleset matrix', () => {
       resultDisplay: null,
     }
 
+    state = reloadState(state)
     state = criticalGameReducer(state, advance())
 
     expect(state.phase).toBe('live_vote')
+    state = reloadState(state)
     assertStoredVotesAreEligible(state)
     expect((state.votes ?? {})[coLohA.id]).toBeUndefined()
     expect((state.votes ?? {})[coLohB.id]).toBeUndefined()
@@ -501,9 +709,11 @@ describe('critical shock / ruleset matrix', () => {
     })
     state.phase = 'social_2'
 
+    state = reloadState(state)
     state = criticalGameReducer(state, advance())
 
     expect(state.phase).toBe('live_vote')
+    state = reloadState(state)
     assertStoredVotesAreEligible(state)
     for (const id of [...lohPair.memberIds, ...humanPair.memberIds]) {
       expect((state.votes ?? {})[id]).toBeUndefined()
