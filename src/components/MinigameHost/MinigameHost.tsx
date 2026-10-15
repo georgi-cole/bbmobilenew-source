@@ -835,6 +835,9 @@ export default function MinigameHost({
           voteEffectsEnabled={gameOptions?.voteEffectsEnabled !== false}
           participantIds={participantIds}
           participants={participants}
+          relationships={
+            key === 'MysticChamber' ? store.getState().social.relationships : undefined
+          }
           onFinish={(
             value: number,
             tiebreakerMs?: number,
@@ -878,7 +881,8 @@ export default function MinigameHost({
         'minigame-host',
         launchedGame.reactComponentKey === 'NumberTrivia' ||
         launchedGame.reactComponentKey === 'SnakeGame' ||
-        launchedGame.reactComponentKey === 'BlackjackTournament'
+        launchedGame.reactComponentKey === 'BlackjackTournament' ||
+        launchedGame.reactComponentKey === 'MysticChamber'
           ? 'minigame-host--scrollable-game'
           : '',
       ]
