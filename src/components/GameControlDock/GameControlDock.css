@@ -359,6 +359,59 @@ body.mode-surveyeval .fab-icon.confessional {
     0 8px 18px rgba(141, 91, 25, 0.38);
 }
 
+.dock-hit-area--confessional-special .dock-hit-area__special-badge {
+  position: absolute;
+  top: 3%;
+  right: 8%;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid rgba(248, 252, 255, 0.82);
+  border-radius: 999px;
+  background: linear-gradient(145deg, #f8fbff, #aab7c8 58%, #68788d);
+  box-shadow:
+    0 0 7px rgba(235, 244, 255, 0.9),
+    0 0 17px rgba(197, 216, 237, 0.72);
+  color: #17202b;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  pointer-events: none;
+  animation: tribunal-stream-beacon 1.8s ease-in-out infinite;
+}
+
+.game-control-dock__icon--confessional-special {
+  filter: drop-shadow(0 0 4px rgba(245, 250, 255, 0.96))
+    drop-shadow(0 0 11px rgba(197, 216, 237, 0.78));
+  animation: tribunal-stream-icon-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes tribunal-stream-beacon {
+  0%,
+  100% {
+    box-shadow:
+      0 0 5px rgba(235, 244, 255, 0.64),
+      0 0 11px rgba(197, 216, 237, 0.38);
+  }
+  50% {
+    box-shadow:
+      0 0 9px rgba(255, 255, 255, 1),
+      0 0 22px rgba(204, 224, 246, 0.88);
+  }
+}
+
+@keyframes tribunal-stream-icon-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(245, 250, 255, 0.72));
+  }
+  50% {
+    filter: drop-shadow(0 0 7px rgba(255, 255, 255, 1))
+      drop-shadow(0 0 15px rgba(197, 216, 237, 0.92));
+  }
+}
+
 .dock-hit-area:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.72);
   outline-offset: 2px;
@@ -515,6 +568,11 @@ body.mode-surveyeval .fab-icon.confessional {
   .game-control-dock__icon--confessional-flash-0,
   .game-control-dock__icon--confessional-flash-1,
   .game-control-dock__icon--confessional-persistent {
+    animation: none;
+  }
+
+  .dock-hit-area--confessional-special .dock-hit-area__special-badge,
+  .game-control-dock__icon--confessional-special {
     animation: none;
   }
 }

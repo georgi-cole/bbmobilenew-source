@@ -23,6 +23,7 @@ import gameReducer, {
   continueWeekendFeature,
   createInitialGameState,
   debugActivateWeekendInterlude,
+  debugSkipToWeekendDayTwo,
   hydrateGame,
   triggerSecretMission,
 } from '../../../store/gameSlice'
@@ -227,6 +228,73 @@ describe('FloatingActionBar – weekend progression', () => {
     act(() => screen.getByRole('button', { name: 'Continue' }).click())
     expect(store.getState().game.weekendInterlude?.stage).toBe('social')
   })
+
+  it('keeps Sunday on the Tribunal peek while Play remains an optional skip into the Final 3', () => {
+    const initial = createInitialGameState({ seed: 81603 })
+    const human = initial.players.find((player) => player.isUser)!
+    const finalists = [human, ...initial.players.filter((player) => !player.isUser).slice(0, 2)]
+    const finalistIds = new Set(finalists.map((player) => player.id))
+    const jurors = initial.players.filter((player) => !finalistIds.has(player.id)).slice(0, 3)
+    const jurorIds = new Set(jurors.map((player) => player.id))
+    let preview = gameReducer(
+      {
+        ...initial,
+        players: initial.players.map((player) => ({
+          ...player,
+          status: finalistIds.has(player.id)
+            ? ('active' as const)
+            : jurorIds.has(player.id)
+              ? ('jury' as const)
+              : ('evicted' as const),
+        })),
+      },
+      debugActivateWeekendInterlude('finale')
+    )
+    preview = gameReducer(preview, debugSkipToWeekendDayTwo())
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude
+        ? { ...preview.weekendInterlude, debug: undefined }
+        : null,
+    })
+    renderFAB(store)
+
+    expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+    expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute(
+      'aria-disabled',
+      'false'
+    )
+    expect(screen.getByRole('button', { name: 'Begin the Final Three' })).toBeEnabled()
+
+    act(() => screen.getByRole('button', { name: 'Begin the Final Three' }).click())
+    expect(store.getState().game.weekendInterlude).toBeNull()
+    expect(store.getState().game.finaleWeekendCompleted).toBe(true)
+    expect(store.getState().game.phase).toBe('final3')
+  })
+
+  it('opens the special stream from the silver Confessional badge', () => {
+    const initial = createInitialGameState({ seed: 81604 })
+    const preview = gameReducer(
+      { ...initial, phase: 'social_2' },
+      debugActivateWeekendInterlude('tribunal')
+    )
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude
+        ? { ...preview.weekendInterlude, debug: undefined }
+        : null,
+    })
+    renderFAB(store)
+
+    const confessional = screen.getByRole('button', {
+      name: 'Confessional — special Tribunal stream available',
+    })
+    expect(confessional.querySelector('.dock-hit-area__special-badge')).toHaveTextContent('!')
+    act(() => confessional.click())
+
+    expect(screen.getByTestId('location')).toHaveTextContent('/diary-room?stream=finale-tribunal')
+    expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(true)
+  })
 })
 
 describe('FloatingActionBar – social energy badge', () => {
@@ -293,7 +361,7 @@ describe('FloatingActionBar – social module availability', () => {
     expect(store.getState().social.incomingInboxOpen).toBe(true)
   })
 
-  it('blocks outgoing actions but keeps incoming vote pitches accessible during live vote', () => {
+  it('keeps outgoing conversations and incoming vote pitches accessible during live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore(true, { phase: 'live_vote' })
     renderFAB(store)
@@ -303,15 +371,9 @@ describe('FloatingActionBar – social module availability', () => {
       screen.getByRole('button', { name: 'Incoming requests' }).click()
     })
 
-    expect(store.getState().social.panelOpen).toBe(false)
+    expect(store.getState().social.panelOpen).toBe(true)
     expect(store.getState().social.incomingInboxOpen).toBe(true)
-    expect(warnSpy).toHaveBeenCalledTimes(1)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Outgoing social module did not open: Outgoing social actions are blocked during the live_vote phase.'
-      ),
-      expect.objectContaining({ phase: 'live_vote', moduleKind: 'outgoing' })
-    )
+    expect(warnSpy).not.toHaveBeenCalled()
 
     warnSpy.mockRestore()
   })

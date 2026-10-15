@@ -77,6 +77,8 @@ export interface GameControlDockProps {
   confessionalFlashTick?: number
   /** Keeps the Confessional icon/badge pulsing until the player opens it */
   confessionalPersistentFlash?: boolean
+  /** Marks an optional, limited-time Tribunal stream with a silver beacon. */
+  confessionalSpecialStream?: boolean
   /** Ref to the visible Confessional icon for guided overlays/tutorials */
   confessionalIconRef?: Ref<HTMLImageElement>
   confessionalDisabled?: boolean
@@ -109,6 +111,7 @@ export default function GameControlDock({
   confessionalFlash = false,
   confessionalFlashTick = 0,
   confessionalPersistentFlash = false,
+  confessionalSpecialStream = false,
   confessionalIconRef,
   confessionalDisabled = false,
   elevatedDuringOverlay = false,
@@ -261,7 +264,7 @@ export default function GameControlDock({
           draggable={false}
         />
         <img
-          className={`game-control-dock__icon fab-icon confessional${confessionalDisabled ? ' game-control-dock__icon--disabled' : ''}${confessionalFlash ? ` game-control-dock__icon--confessional-flash game-control-dock__icon--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' game-control-dock__icon--confessional-persistent' : ''}`}
+          className={`game-control-dock__icon fab-icon confessional${confessionalDisabled ? ' game-control-dock__icon--disabled' : ''}${confessionalFlash ? ` game-control-dock__icon--confessional-flash game-control-dock__icon--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' game-control-dock__icon--confessional-persistent' : ''}${confessionalSpecialStream ? ' game-control-dock__icon--confessional-special' : ''}`}
           src={assetUrl('fab_icon_confessional_clean.svg')}
           alt=""
           aria-hidden="true"
@@ -370,9 +373,13 @@ export default function GameControlDock({
           )}
         </button>
         <button
-          className={`dock-hit-area hit-confessional dock-hit-area--confessional${confessionalFlash ? ` dock-hit-area--confessional-flash dock-hit-area--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' dock-hit-area--confessional-persistent' : ''}`}
+          className={`dock-hit-area hit-confessional dock-hit-area--confessional${confessionalFlash ? ` dock-hit-area--confessional-flash dock-hit-area--confessional-flash-${confessionalFlashTick % 2}` : ''}${confessionalPersistentFlash ? ' dock-hit-area--confessional-persistent' : ''}${confessionalSpecialStream ? ' dock-hit-area--confessional-special' : ''}`}
           type="button"
-          aria-label={`Confessional${confessionalBadgeCount ? ` (${confessionalBadgeCount})` : ''}`}
+          aria-label={
+            confessionalSpecialStream
+              ? 'Confessional — special Tribunal stream available'
+              : `Confessional${confessionalBadgeCount ? ` (${confessionalBadgeCount})` : ''}`
+          }
           disabled={dockDisabled}
           aria-disabled={confessionalDisabled || dockDisabled}
           onClick={
@@ -386,6 +393,11 @@ export default function GameControlDock({
         >
           {confessionalLedActive && !confessionalDisabled && (
             <span className="dock-hit-area__notification-led" aria-hidden="true" />
+          )}
+          {confessionalSpecialStream && (
+            <span className="dock-hit-area__special-badge" aria-hidden="true">
+              !
+            </span>
           )}
           {confessionalBadgeCount != null && confessionalBadgeCount > 0 && (
             <span className="dock-hit-area__badge dock-hit-area__badge--mission" aria-hidden="true">

@@ -662,14 +662,23 @@ export default function AvatarTile({
             ) : evictionMarkUnavailable ? (
               <span className={`${styles.cross} ${styles.crossFallback}`} aria-hidden="true" />
             ) : (
-              <img
-                src={`${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png`}
-                alt=""
+              <span
                 aria-hidden="true"
                 className={`${styles.cross}${animateEvictionMark ? ` ${styles.crossAnimated}` : ''}${isReturning ? ` ${styles.returningCross}` : ''}`}
-                onError={() => setEvictionMarkUnavailable(true)}
+                style={
+                  {
+                    '--eviction-mark-mask': `url(${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png)`,
+                  } as React.CSSProperties
+                }
                 onAnimationEnd={animateEvictionMark ? finishEvictionMarkAnimation : undefined}
-              />
+              >
+                <img
+                  src={`${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png`}
+                  alt=""
+                  hidden
+                  onError={() => setEvictionMarkUnavailable(true)}
+                />
+              </span>
             ))}
         </motion.div>
 

@@ -3,7 +3,7 @@ import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { createGameFieldEquality } from '../../store/gameFieldEquality'
+import { gameScreenGameEquality } from './gameScreenGameEquality'
 import {
   addTvEvent,
   advance,
@@ -68,6 +68,7 @@ import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShoc
 import CeremonyOverlay from '../../components/CeremonyOverlay/CeremonyOverlay'
 import WinnerTileLiftAnimation from '../../components/WinnerTileLiftAnimation/WinnerTileLiftAnimation'
 import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
+import Final4PublicVotePanel from './Final4PublicVotePanel'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import SocialPanel from '../../components/SocialPanel/SocialPanel'
 import SocialPanelV2 from '../../components/SocialPanelV2/SocialPanelV2'
@@ -97,42 +98,6 @@ import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
 
-const gameScreenGameEquality = createGameFieldEquality([
-  'awaitingFinal3Eviction',
-  'awaitingFinal3Plea',
-  'awaitingHumanVote',
-  'awaitingNominations',
-  'cfg',
-  'cupidArrow',
-  'depressionShock',
-  'doubleEviction',
-  'evictionOverlayPlayerId',
-  'expansionMode',
-  'favoritePlayer',
-  'gameId',
-  'lastHohCompFinisherId',
-  'lohId',
-  'mode',
-  'modeSpecific',
-  'nomineeIds',
-  'pendingMinigame',
-  'phase',
-  'players',
-  'posWinnerId',
-  'povProtectedIds',
-  'publicModeEnabled',
-  'season',
-  'seasonFinale',
-  'seed',
-  'specialVeto',
-  'status',
-  'tvFeed',
-  'voteResults',
-  'voteResultsMode',
-  'voxPopuli',
-  'week',
-  'weekendInterlude',
-])
 import {
   selectAdsState,
   clearLastCompLastPlace,
@@ -892,7 +857,7 @@ export default function GameScreen() {
     final4PleaLines,
     final4AnnounceLines,
     showFinal4Chat,
-    showFinal4Modal,
+    showFinal4PublicVote,
     showFinal4AnnounceChat,
     final4Options,
     handleFinal4PleaComplete,
@@ -1449,7 +1414,6 @@ export default function GameScreen() {
           finalThreeBlockRevealActive,
           spectatorF3Part1Active,
           showFinal4Chat,
-          showFinal4Modal,
           showFinal4AnnounceChat,
           showFinal3Modal,
           showFinal3Ceremony,
@@ -1995,24 +1959,28 @@ export default function GameScreen() {
           <ChatOverlay
             lines={final4PleaLines}
             skippable
-            header={{ title: 'Final 4 🏡', subtitle: 'Hear from the nominees before the vote.' }}
+            skipToCompletion={humanIsPosHolder}
+            skipLabel={humanIsPosHolder ? 'Skip to decision' : 'Skip'}
+            backdropVariant="finale-elimination"
+            header={{
+              title: 'Final 4 🏡',
+              subtitle: humanIsPosHolder
+                ? 'Hear the pleas, then make your choice in front of the Hub.'
+                : 'Hear from the nominees before the vote.',
+            }}
             avatarRenderer={(player) => (
               <PlayerAvatar player={player} size="sm" showEvictedStyle={false} />
             )}
             onComplete={handleFinal4PleaComplete}
+            completionContent={
+              showFinal4PublicVote ? (
+                <Final4PublicVotePanel
+                  nominees={final4Options}
+                  onSelect={(id) => dispatch(finalizeFinal4Eviction(id))}
+                />
+              ) : undefined
+            }
             ariaLabel="Final 4 plea chat"
-          />
-        )}
-
-        {/* ── Final 4 eviction vote (human POS holder) ────────────────────── */}
-        {showFinal4Modal && (
-          <TvDecisionModal
-            title="Final 4 — Cast Your Vote"
-            subtitle={`${humanPlayer?.name}, you hold the sole vote to eliminate. Choose wisely.`}
-            options={final4Options}
-            onSelect={(id) => dispatch(finalizeFinal4Eviction(id))}
-            danger
-            stingerMessage="VOTE RECORDED"
           />
         )}
 
@@ -2021,6 +1989,7 @@ export default function GameScreen() {
           <ChatOverlay
             lines={final4AnnounceLines}
             skippable
+            backdropVariant="finale-elimination"
             header={{ title: 'Final 4 🚪', subtitle: 'The decision has been made.' }}
             avatarRenderer={(player) => (
               <PlayerAvatar player={player} size="sm" showEvictedStyle={false} />

@@ -13,9 +13,9 @@ import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
 import './WeekendInterludeOverlay.css'
 
-function getEpisodeTitle(afterDay: 5 | 10 | 15): string {
-  if (afterDay === 5) return 'The Hub Says'
-  if (afterDay === 10) return 'Hub Party'
+function getEpisodeTitle(weekendNumber: 1 | 2 | 3): string {
+  if (weekendNumber === 1) return 'The Hub Says'
+  if (weekendNumber === 2) return 'Hub Party'
   return 'The Season So Far'
 }
 
@@ -218,52 +218,68 @@ export default function WeekendInterludeOverlay() {
         getWeatherRuntime()?.config.temperature.unit ?? 'auto'
       )
     : ''
-  const weekendNumber = weekend.afterDay / 5
-  const welcomeCopy =
-    weekend.episode === 'hub_says'
+  const weekendNumber =
+    weekend.weekendNumber ?? (weekend.afterDay === 5 ? 1 : weekend.afterDay === 10 ? 2 : 3)
+  const welcomeCopy = weekend.finaleWeekend
+    ? 'Three finalists. One last night to prepare for the Final Power Battle.'
+    : weekend.episode === 'hub_says'
       ? 'Get ready for a little honesty. Let’s see what the players think of each other.'
       : weekend.episode === 'party'
         ? 'The lights are low and the Hub is dressed for a party. See where the night takes you.'
         : 'Take a breath and look back at the moments that brought everyone here.'
-  const dayTwoTitle =
-    weekend.episode === 'party' ? 'One more day together.' : 'A new day to look back.'
-  const dayTwoCopy =
-    weekend.episode === 'party'
+  const dayTwoTitle = weekend.finaleWeekend
+    ? 'One last night before the Final Three.'
+    : weekend.episode === 'party'
+      ? 'One more day together.'
+      : 'A new day to look back.'
+  const dayTwoCopy = weekend.finaleWeekend
+    ? 'The finalists are almost at the starting line. Make these last hours count.'
+    : weekend.episode === 'party'
       ? 'The music is still playing. See what unfolds.'
       : 'Take in one last chapter before the game moves on.'
-  const instructionEyebrow =
-    weekend.episode === 'hub_says'
+  const instructionEyebrow = weekend.finaleWeekend
+    ? 'FINAL PREPARATIONS'
+    : weekend.episode === 'hub_says'
       ? 'THE HUB SAYS'
       : weekend.episode === 'party'
         ? 'HUB PARTY'
         : 'THE SEASON SO FAR'
-  const instructionTitle =
-    weekend.episode === 'hub_says'
+  const instructionTitle = weekend.finaleWeekend
+    ? 'Three stories. One last night.'
+    : weekend.episode === 'hub_says'
       ? 'Five questions are coming.'
       : weekend.episode === 'party'
         ? 'Follow the music.'
         : 'Every Hubmate has a story.'
-  const instructionCopy =
-    weekend.episode === 'hub_says'
+  const instructionCopy = weekend.finaleWeekend
+    ? 'Look back at the finalists’ journeys, then take a little time to prepare for the competitions ahead.'
+    : weekend.episode === 'hub_says'
       ? 'For each one, choose the Hubmate who fits best. When everyone has answered, see who the Hub picked.'
       : weekend.episode === 'party'
         ? 'Talk, laugh, make a move. The night has its own plans.'
         : 'Play will take you through the moments that shaped this season, one story at a time.'
   const isWeekendFinalDay = weekend.stage === 'social' && weekend.weekendDay === 2
-  const socialEyebrow = 'A LITTLE TIME TO CONNECT'
-  const socialTitle =
-    weekend.episode === 'hub_says'
+  const socialEyebrow = weekend.finaleWeekend
+    ? 'BEFORE THE FINAL THREE'
+    : 'A LITTLE TIME TO CONNECT'
+  const socialTitle = weekend.finaleWeekend
+    ? 'The last night is yours.'
+    : weekend.episode === 'hub_says'
       ? 'That was fun, wasn’t it?'
       : weekend.episode === 'party'
         ? 'Keep the good company close.'
         : 'What a season it’s been.'
   const socialCopy = isWeekendFinalDay
-    ? weekend.episode === 'party'
-      ? 'The music’s still playing. Make the last few hours count.'
-      : weekend.episode === 'hub_says'
-        ? 'A few answers to sleep on, and a little more time to talk.'
-        : 'You’ve come a long way. Enjoy a little more time together before the game moves on.'
-    : 'The Big Eye has left you a little extra room to talk, clear the air, or make a move. Make the most of it before the weekend wraps.'
+    ? weekend.finaleWeekend
+      ? 'Settle your plans, say what needs saying, and get some rest. Tomorrow, the Final Three begins.'
+      : weekend.episode === 'party'
+        ? 'The music’s still playing. Make the last few hours count.'
+        : weekend.episode === 'hub_says'
+          ? 'A few answers to sleep on, and a little more time to talk.'
+          : 'You’ve come a long way. Enjoy a little more time together before the game moves on.'
+    : weekend.finaleWeekend
+      ? 'The finalists have one last evening to compare notes, strengthen a bond, or make a move before the competition.'
+      : 'The Big Eye has left you a little extra room to talk, clear the air, or make a move. Make the most of it before the weekend wraps.'
   const rootClassName = [
     'weekend-interlude',
     `weekend-interlude--${weekend.episode.replace(/_/g, '-')}`,
@@ -275,7 +291,7 @@ export default function WeekendInterludeOverlay() {
   return (
     <section
       className={rootClassName}
-      aria-label={`${getEpisodeTitle(weekend.afterDay)}, Weekend ${weekendNumber}, Day ${weekend.weekendDay}`}
+      aria-label={`${getEpisodeTitle(weekendNumber)}, Weekend ${weekendNumber}, Day ${weekend.weekendDay}`}
       data-weekend-stage={weekend.stage}
     >
       {(weekend.stage === 'intro' || weekend.stage === 'day_two_intro') && (
@@ -283,15 +299,21 @@ export default function WeekendInterludeOverlay() {
           className="weekend-interlude__beat weekend-interlude__beat--message"
           aria-live="polite"
         >
-          <span className="weekend-interlude__eyebrow">
-            {weekend.stage === 'intro'
-              ? 'THE WEEKEND BEGINS'
-              : weekend.episode === 'party'
-                ? 'HUB PARTY'
-                : 'THE SEASON SO FAR'}
-          </span>
+          {!(weekend.stage === 'intro' && weekend.finaleWeekend) && (
+            <span className="weekend-interlude__eyebrow">
+              {weekend.stage === 'intro'
+                ? 'THE WEEKEND BEGINS'
+                : weekend.episode === 'party'
+                  ? 'HUB PARTY'
+                  : 'THE SEASON SO FAR'}
+            </span>
+          )}
           <h2 className="weekend-interlude__stream-copy">
-            {weekend.stage === 'intro' ? 'Welcome to the weekend' : dayTwoTitle}
+            {weekend.stage === 'intro'
+              ? weekend.finaleWeekend
+                ? 'The Final Weekend'
+                : 'Welcome to the weekend'
+              : dayTwoTitle}
           </h2>
           <p className="weekend-interlude__stream-copy">
             {weekend.stage === 'intro' ? welcomeCopy : dayTwoCopy}
@@ -391,6 +413,27 @@ export default function WeekendInterludeOverlay() {
             </>
           )}
           <p className="weekend-interlude__stream-copy">{socialCopy}</p>
+        </div>
+      )}
+
+      {(weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse') && (
+        <div
+          className="weekend-interlude__beat weekend-interlude__beat--message"
+          aria-live="polite"
+        >
+          <span className="weekend-interlude__eyebrow">A FINALE NIGHT EXCLUSIVE</span>
+          <h2 className="weekend-interlude__stream-copy">Want to hear what the Tribunal thinks?</h2>
+          <p className="weekend-interlude__stream-copy">The Tribunal has plenty to say.</p>
+        </div>
+      )}
+
+      {weekend.stage === 'finale_battle_ready' && (
+        <div
+          className="weekend-interlude__beat weekend-interlude__beat--message"
+          aria-live="polite"
+        >
+          <span className="weekend-interlude__eyebrow">THE FINAL THREE</span>
+          <h2 className="weekend-interlude__stream-copy">Ready for the Final Power Battle?</h2>
         </div>
       )}
 

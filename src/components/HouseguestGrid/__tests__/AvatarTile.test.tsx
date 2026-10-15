@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AvatarTile, { EVICTION_MARK_ANIMATION_FALLBACK_MS } from '../AvatarTile'
 import { setDepressionShockVisualPhase } from '../../../features/twists/depressionShock'
+import { STATUS_BADGE_EMOJI } from '../../../utils/statusBadges'
 
 afterEach(() => {
   setDepressionShockVisualPhase('inactive')
@@ -30,6 +31,17 @@ describe('AvatarTile', () => {
     expect(badgeImage?.getAttribute('src')).toContain('/assets/avatar_badges/nomination_badge.png')
   })
 
+  it('renders the custom Tribunal crest instead of the generic scales emoji', () => {
+    render(<AvatarTile name="Taylor" avatarUrl="/avatars/Taylor.png" statuses="jury" />)
+
+    const badge = screen.getByLabelText('Tribunal Member')
+    const badgeImage = badge.querySelector('img')
+
+    expect(badge).not.toHaveTextContent('⚖️')
+    expect(badgeImage?.getAttribute('src')).toContain('/assets/avatar_badges/tribunal_badge.svg')
+    expect(STATUS_BADGE_EMOJI.jury).toBe('⚖️')
+  })
+
   it('uses the generated sad portrait while Depression Shock is active', () => {
     setDepressionShockVisualPhase('day1')
     render(<AvatarTile name="Lia" avatarUrl="/bbmobilenew/assets/skins/Lia_avatar.webp" />)
@@ -52,7 +64,7 @@ describe('AvatarTile', () => {
       />
     )
 
-    const mark = container.querySelector('img[src*="/evictionmark/evictionmark.png"]')
+    const mark = container.querySelector('[style*="--eviction-mark-mask"]')
     expect(mark).not.toBeNull()
     expect(mark?.className).toContain('crossAnimated')
     expect(sessionStorage.getItem(evictionMarkKey)).toBeNull()
@@ -61,7 +73,7 @@ describe('AvatarTile', () => {
       vi.advanceTimersByTime(EVICTION_MARK_ANIMATION_FALLBACK_MS)
     })
 
-    const permanentMark = container.querySelector('img[src*="/evictionmark/evictionmark.png"]')
+    const permanentMark = container.querySelector('[style*="--eviction-mark-mask"]')
     expect(permanentMark).not.toBeNull()
     expect(permanentMark?.className).not.toContain('crossAnimated')
     expect(sessionStorage.getItem(evictionMarkKey)).toBe('shown')
@@ -103,7 +115,7 @@ describe('AvatarTile', () => {
         evictionMarkKey={evictionMarkKey}
       />
     )
-    const retriedMark = second.container.querySelector('img[src*="/evictionmark/evictionmark.png"]')
+    const retriedMark = second.container.querySelector('[style*="--eviction-mark-mask"]')
     expect(retriedMark).not.toBeNull()
     expect(retriedMark?.className).toContain('crossAnimated')
 
@@ -113,7 +125,7 @@ describe('AvatarTile', () => {
 
     expect(sessionStorage.getItem(evictionMarkKey)).toBe('shown')
     expect(
-      second.container.querySelector('img[src*="/evictionmark/evictionmark.png"]')?.className
+      second.container.querySelector('[style*="--eviction-mark-mask"]')?.className
     ).not.toContain('crossAnimated')
   })
 

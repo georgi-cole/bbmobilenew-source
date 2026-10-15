@@ -4,7 +4,7 @@
  * Slides up to fill the screen, reveals chat lines sequentially with a typing
  * indicator, then slides back down when the user taps Continue (or Skip).
  *
- * Skip:     instantly reveals all lines and fires onComplete immediately.
+ * Skip:     instantly reveals all lines; skipToCompletion keeps inline decisions open.
  * Continue: appears after all lines are revealed; starts the exit animation
  *           then fires onComplete once the animation finishes.
  *
@@ -15,7 +15,7 @@
  *   />
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
 import type { Player } from '../../types'
 import { resolveAvatarCandidates, isEmoji } from '../../utils/avatar'
 import './ChatOverlay.css'
@@ -35,6 +35,10 @@ export interface ChatOverlayProps {
   typingSpeed?: number
   /** Show a Skip button to reveal all lines at once. Default: true */
   skippable?: boolean
+  /** Reveal the remaining lines in place so inline decision content can appear. */
+  skipToCompletion?: boolean
+  /** Label for the Skip button. Default: "Skip" */
+  skipLabel?: string
   header?: { title?: string; subtitle?: string }
   /** Custom renderer for player avatars */
   avatarRenderer?: (p: Player) => React.ReactNode
@@ -44,7 +48,7 @@ export interface ChatOverlayProps {
   onLineReveal?: (line: ChatLine, idx: number) => void
   /**
    * Called when the overlay has fully exited.
-   * • Skip  → fires immediately (synchronously).
+   * • Skip → fires immediately, unless skipToCompletion keeps the overlay open.
    * • Continue (after autoPlay) → fires after the exit animation (~340 ms).
    * • Empty lines → fires immediately.
    */
@@ -53,8 +57,12 @@ export interface ChatOverlayProps {
   ariaLabel?: string
   /** Label for the completion button once all lines are revealed. */
   completeLabel?: string
+  /** Optional cinematic backdrop treatment for special announcement chats. */
+  backdropVariant?: 'finale-elimination'
   /** Let the shared Play control reveal the text and dismiss this story beat. */
   advanceOnPlay?: boolean
+  /** Replace the completion button with an inline interaction after the chat ends. */
+  completionContent?: ReactNode
 }
 
 /** Base delay between lines (ms). Divided by typingSpeed. */
@@ -115,6 +123,8 @@ export default function ChatOverlay({
   autoPlay = true,
   typingSpeed = 1,
   skippable = true,
+  skipToCompletion = false,
+  skipLabel = 'Skip',
   header,
   avatarRenderer,
   showAvatars = true,
@@ -122,7 +132,9 @@ export default function ChatOverlay({
   onComplete,
   ariaLabel,
   completeLabel = 'Continue →',
+  backdropVariant,
   advanceOnPlay = false,
+  completionContent,
 }: ChatOverlayProps) {
   const [revealedCount, setRevealedCount] = useState(0)
   const [showTyping, setShowTyping] = useState(false)
@@ -154,17 +166,18 @@ export default function ChatOverlay({
   }, [])
 
   /**
-   * Skip: instantly reveals all lines and fires onComplete NOW (synchronously),
-   * while playing the exit animation in the background.
+   * Skip reveals every line immediately. Inline decisions stay open when
+   * skipToCompletion is enabled; otherwise the overlay completes and exits.
    */
   const handleSkip = useCallback(() => {
     clearTimers()
     setShowTyping(false)
     setRevealedCount(lines.length)
     setCompleted(true)
+    if (skipToCompletion) return
     setExiting(true)
     onCompleteRef.current?.()
-  }, [clearTimers, lines.length])
+  }, [clearTimers, lines.length, skipToCompletion])
 
   /**
    * Continue: starts the slide-down exit animation then fires onComplete after
@@ -253,7 +266,7 @@ export default function ChatOverlay({
 
   return (
     <div
-      className={`chat-overlay${advanceOnPlay ? ' chat-overlay--play-paced' : ''}${exiting ? ' chat-overlay--exiting' : ''}`}
+      className={`chat-overlay${backdropVariant ? ` chat-overlay--${backdropVariant}` : ''}${advanceOnPlay ? ' chat-overlay--play-paced' : ''}${exiting ? ' chat-overlay--exiting' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? header?.title ?? 'Chat'}
@@ -294,8 +307,12 @@ export default function ChatOverlay({
           )}
         </div>
 
-        <div className="chat-overlay__footer">
-          {advanceOnPlay && !exiting ? (
+        <div
+          className={`chat-overlay__footer${completionContent != null ? ' chat-overlay__footer--custom' : ''}`}
+        >
+          {completed && completionContent != null ? (
+            completionContent
+          ) : advanceOnPlay && !exiting ? (
             <p className="chat-overlay__play-hint">
               {completed
                 ? 'Press Play when you are ready to continue.'
@@ -303,11 +320,15 @@ export default function ChatOverlay({
             </p>
           ) : null}
           {!advanceOnPlay && skippable && !completed && !exiting && (
-            <button className="chat-overlay__skip" onClick={handleSkip} aria-label="Skip to end">
-              Skip
+            <button
+              className="chat-overlay__skip"
+              onClick={handleSkip}
+              aria-label={skipLabel === 'Skip' ? 'Skip to end' : skipLabel}
+            >
+              {skipLabel}
             </button>
           )}
-          {!advanceOnPlay && completed && !exiting && (
+          {completionContent == null && !advanceOnPlay && completed && !exiting && (
             <button className="chat-overlay__done" onClick={handleDismiss}>
               {completeLabel}
             </button>

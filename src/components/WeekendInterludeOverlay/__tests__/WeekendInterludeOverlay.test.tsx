@@ -8,12 +8,14 @@ import gameReducer, {
   createInitialGameState,
   debugActivateWeekendInterlude,
   debugSkipToWeekendDayTwo,
+  openWeekendTribunalStream,
+  returnFromWeekendTribunalStream,
   submitHubSaysVote,
 } from '../../../store/gameSlice'
 import socialReducer from '../../../social/socialSlice'
 import WeekendInterludeOverlay from '../WeekendInterludeOverlay'
 
-function renderWeekend(afterDay: 5 | 10 | 15 = 5) {
+function renderWeekend(afterDay: 5 | 10 | 15 | 'finale' = 5) {
   const base = createInitialGameState({ seed: 87231 })
   const store = configureStore({
     reducer: { game: gameReducer, social: socialReducer },
@@ -78,6 +80,45 @@ describe('Weekend Faux TV beats', () => {
     expect(screen.getByRole('heading', { name: 'Welcome to the weekend' })).toBeInTheDocument()
     act(() => store.dispatch(continueWeekendFeature()))
     expect(screen.getByRole('heading', { name: 'Follow the music.' })).toBeInTheDocument()
+  })
+
+  it('gives the finale-weekend opening one clear title instead of repeating the welcome', () => {
+    renderWeekend('finale')
+
+    expect(screen.getByRole('heading', { name: 'The Final Weekend' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Welcome to the weekend' })
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/Three finalists\. One last night to prepare/)).toBeInTheDocument()
+  })
+
+  it('makes the Tribunal invitation the Sunday beat and shows the battle-ready beat after returning', () => {
+    const { store } = renderWeekend('finale')
+    act(() => store.dispatch(debugSkipToWeekendDayTwo()))
+
+    expect(store.getState().game.weekendInterlude).toMatchObject({
+      weekendDay: 2,
+      stage: 'tribunal_invitation',
+    })
+    expect(
+      screen.getByRole('heading', { name: 'Want to hear what the Tribunal thinks?' })
+    ).toBeInTheDocument()
+    expect(screen.getByText('The Tribunal has plenty to say.')).toBeInTheDocument()
+    expect(screen.queryByText('One last night before the Final Three.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/The finalists have one last evening/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/press Play|Confessional badge|sequester/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('INSIDE THE TRIBUNAL SEQUESTER')).not.toBeInTheDocument()
+
+    act(() => {
+      store.dispatch(openWeekendTribunalStream())
+      store.dispatch(returnFromWeekendTribunalStream())
+    })
+    expect(
+      screen.getByRole('heading', { name: 'Ready for the Final Power Battle?' })
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Want to hear what the Tribunal thinks?' })
+    ).not.toBeInTheDocument()
   })
 
   it('shows the Hub Says reveal as avatar, name, and percentage only', () => {

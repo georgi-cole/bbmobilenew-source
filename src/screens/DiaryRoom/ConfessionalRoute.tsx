@@ -1,17 +1,20 @@
 import { useCallback, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import {
   selectActiveConfessionalDecision,
   type ActiveConfessionalDecision,
 } from '../../store/confessionalDecisionSelectors'
-import { consumeBroadcastEvent } from '../../store/gameSlice'
+import { consumeBroadcastEvent, returnFromWeekendTribunalStream } from '../../store/gameSlice'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import DiaryRoom from './DiaryRoom'
 import { findConfessionalSourceBroadcast } from './confessionalBroadcastReceipt'
 import RequiredConfessionalSession from './RequiredConfessionalSession'
+import FinaleTribunalStream from './FinaleTribunalStream'
 
 export default function ConfessionalRoute() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const dispatch = useAppDispatch()
   const activeDecision = useAppSelector(selectActiveConfessionalDecision)
   const focusedDecision = activeDecision?.type === 'twin_shock' ? null : activeDecision
@@ -20,6 +23,16 @@ export default function ConfessionalRoute() {
     : null
   const tvFeed = useAppSelector((state) => state.game.tvFeed)
   const currentWeek = useAppSelector((state) => state.game.week)
+  const game = useAppSelector((state) => state.game)
+  const finaleTribunalStream =
+    searchParams.get('stream') === 'finale-tribunal' &&
+    game.weekendInterlude?.active &&
+    game.weekendInterlude.finaleWeekend &&
+    ['tribunal_invitation', 'tribunal_glimpse', 'finale_battle_ready'].includes(
+      game.weekendInterlude.stage
+    )
+      ? game.weekendInterlude.tribunalGlimpse
+      : null
   const [requiredSessionActive, setRequiredSessionActive] = useState(focusedDecision !== null)
   const [previousDecisionKey, setPreviousDecisionKey] = useState(focusedDecisionKey)
 
@@ -46,6 +59,26 @@ export default function ConfessionalRoute() {
     },
     [currentWeek, dispatch, navigate, tvFeed]
   )
+
+  const closeFinaleTribunalStream = useCallback(() => {
+    const requestedReturn = (location.state as { returnTo?: unknown } | null)?.returnTo
+    const returnPath =
+      typeof requestedReturn === 'string' && requestedReturn.startsWith('/game')
+        ? requestedReturn
+        : '/game'
+    dispatch(returnFromWeekendTribunalStream())
+    navigate(returnPath, { replace: true })
+  }, [dispatch, location.state, navigate])
+
+  if (finaleTribunalStream && !activeDecision) {
+    return (
+      <FinaleTribunalStream
+        speeches={finaleTribunalStream.speeches}
+        players={game.players}
+        onClose={closeFinaleTribunalStream}
+      />
+    )
+  }
 
   if (activeDecision?.type === 'twin_shock') {
     return <DiaryRoom />

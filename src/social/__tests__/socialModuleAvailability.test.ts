@@ -83,4 +83,19 @@ describe('socialModuleAvailability', () => {
     expect(getSocialModuleAvailability(game).canOpen).toBe(false)
     expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(false)
   })
+
+  it('keeps weekend social modules open alongside the finale Sunday Tribunal peek', () => {
+    const game = {
+      phase: 'final4_eviction' as const,
+      players: activeHuman,
+      weekendInterlude: {
+        active: true,
+        finaleWeekend: true,
+        stage: 'tribunal_invitation',
+      },
+    }
+
+    expect(getSocialModuleAvailability(game).canOpen).toBe(true)
+    expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(true)
+  })
 })

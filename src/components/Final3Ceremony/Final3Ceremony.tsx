@@ -547,6 +547,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
         <ChatOverlay
           lines={announceLines}
           skippable
+          backdropVariant="finale-elimination"
           header={{
             title: 'The Finale · Bronze Exit',
             subtitle: 'The Final Power holder has made the decision.',

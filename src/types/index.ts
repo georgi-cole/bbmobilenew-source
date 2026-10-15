@@ -818,10 +818,21 @@ export interface WeekendSeasonFact {
   text: string
 }
 
+export interface WeekendTribunalSpeech {
+  speakerId?: string
+  speakerName: string
+  stance?: 'defend' | 'challenge' | 'neutral'
+  text: string
+}
+
 export interface WeekendInterludeState {
   active: true
-  /** Numbered gameplay day that has already completed. The weekend never increments this value. */
-  afterDay: 5 | 10 | 15
+  /** Numbered gameplay day when the interlude starts. The weekend never increments it. */
+  afterDay: number
+  /** Stable episode identity; it is independent of the numbered day for the finale weekend. */
+  weekendNumber?: 1 | 2 | 3
+  /** The final weekend runs between the Final Four eviction and Final Three opening. */
+  finaleWeekend?: true
   /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
   weekendDay: 1 | 2
   /** A preview launched from Settings. It returns to the current game state when finished. */
@@ -843,6 +854,10 @@ export interface WeekendInterludeState {
     | 'season_so_far'
     | 'social'
     | 'day_transition'
+    | 'tribunal_invitation'
+    | 'finale_battle_ready'
+    /** Legacy persisted stage; now rendered as the invitation rather than TV dialogue. */
+    | 'tribunal_glimpse'
   wallet: WeekendResourceWallet
   hubSays?: {
     questionIds: string[]
@@ -860,6 +875,11 @@ export interface WeekendInterludeState {
     /** Zero-based TV-card index. Older saves begin at the first fact. */
     currentFactIndex?: number
   }
+  /** Short, presentation-only predictions shown between the Final Four and Final Three. */
+  tribunalGlimpse?: {
+    speeches: WeekendTribunalSpeech[]
+    opened?: boolean
+  }
 }
 
 export interface GameState {
@@ -872,7 +892,9 @@ export interface GameState {
   weekendsEnabledForSeason?: boolean
   /** Numbered days whose weekend interlude has already been completed. */
   completedWeekendDays?: number[]
-  /** Active non-numbered weekend interlude layered over week_end. */
+  /** Whether the one-time weekend between the Final Four and Final Three has completed. */
+  finaleWeekendCompleted?: boolean
+  /** Active non-numbered weekend interlude between numbered gameplay beats. */
   weekendInterlude?: WeekendInterludeState | null
   players: Player[]
   /** Persisted Reality pregnancy attempts and resolved pregnancies. */

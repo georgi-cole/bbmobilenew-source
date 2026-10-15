@@ -40,7 +40,7 @@ export interface MusicResolverState {
     finalThree?: Pick<NonNullable<RootState['game']['finalThree']>, 'stage'> | null
     weekendInterlude?: Pick<
       NonNullable<RootState['game']['weekendInterlude']>,
-      'active' | 'afterDay'
+      'active' | 'afterDay' | 'weekendNumber'
     > | null
   }
   challenge: {
@@ -80,6 +80,9 @@ export function resolveDesiredMusicCue(
       socialOpen: state.social.panelOpen || state.social.incomingInboxOpen,
       weekendAfterDay: state.game.weekendInterlude?.active
         ? state.game.weekendInterlude.afterDay
+        : null,
+      weekendNumber: state.game.weekendInterlude?.active
+        ? state.game.weekendInterlude.weekendNumber
         : null,
       minigame: pendingChallenge
         ? {

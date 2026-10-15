@@ -1335,14 +1335,22 @@
   height: 100%;
   pointer-events: none;
   display: block;
-  object-fit: contain;
   z-index: 5;
-  /* The strike is permanent; animation only controls its one-time entrance. */
-  opacity: 1;
+  /* Use the original brush mark as an alpha mask for a richer, darker finish. */
+  background: linear-gradient(135deg, #700b18 0%, #851126 72%, #4a285f 100%);
+  -webkit-mask: var(--eviction-mark-mask) center / contain no-repeat;
+  mask: var(--eviction-mark-mask) center / contain no-repeat;
+  opacity: 0.86;
 }
 
 .crossAnimated {
   animation: crossFadeIn 0.35s ease-out forwards;
+}
+
+.crossFallback {
+  background: none;
+  -webkit-mask: none;
+  mask: none;
 }
 
 .crossFallback::before {
@@ -1352,13 +1360,8 @@
   width: 142%;
   height: 10%;
   border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    rgba(216, 43, 50, 0.82),
-    rgba(246, 48, 49, 0.96),
-    rgba(205, 31, 42, 0.84)
-  );
-  box-shadow: 0 0 9px rgba(226, 38, 46, 0.52);
+  background: linear-gradient(135deg, #700b18 0%, #851126 72%, #4a285f 100%);
+  box-shadow: 0 0 9px rgba(112, 11, 24, 0.32);
   content: '';
   transform: rotate(45deg);
 }
@@ -1594,8 +1597,20 @@
   border-color: rgba(239, 68, 68, 0.4);
 }
 .badge_jury {
-  background: rgba(156, 163, 175, 0.18);
-  border-color: rgba(156, 163, 175, 0.3);
+  width: 20px;
+  height: 18px;
+  padding: 2px 3px;
+  background: linear-gradient(145deg, rgba(86, 68, 112, 0.58), rgba(34, 27, 47, 0.48));
+  border: 1px solid rgba(218, 203, 244, 0.3);
+  border-radius: 5px;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 247, 226, 0.12);
+}
+.badge_jury .statusBadgeImage {
+  width: 14px;
+  height: 14px;
+  filter: drop-shadow(0 1px 1px rgba(9, 5, 18, 0.66));
 }
 .badge_first {
   background: rgba(251, 191, 36, 0.3);
