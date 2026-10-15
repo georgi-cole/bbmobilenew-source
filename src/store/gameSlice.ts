@@ -8,6 +8,7 @@ import type {
   Player,
   StrategicAllianceSnapshot,
   WeekendInterludeState,
+  WeekendTribunalSpeech,
   WeekendPartyBeat,
   Phase,
   TvEvent,
@@ -364,18 +365,22 @@ function activeHousemateCount(state: GameState): number {
 
 function createWeekendInterlude(
   state: GameState,
-  afterDay: 5 | 10 | 15,
-  debug = false
+  afterDay: number,
+  debug = false,
+  weekendNumber: 1 | 2 | 3 = afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+  finaleWeekend = false
 ): WeekendInterludeState {
   const base = {
     active: true as const,
     afterDay,
+    weekendNumber,
     weekendDay: 1 as const,
     wallet: { energy: 30, influence: 999, info: 999 },
+    ...(finaleWeekend ? { finaleWeekend: true as const } : {}),
     ...(debug ? { debug: true as const } : {}),
   }
 
-  if (afterDay === 5) {
+  if (weekendNumber === 1) {
     return {
       ...base,
       episode: 'hub_says',
@@ -390,7 +395,7 @@ function createWeekendInterlude(
     }
   }
 
-  if (afterDay === 10) {
+  if (weekendNumber === 2) {
     return {
       ...base,
       episode: 'party',
@@ -405,6 +410,68 @@ function createWeekendInterlude(
     stage: 'intro',
     seasonSoFar: { facts: buildSeasonSoFarFacts(state), currentFactIndex: 0 },
   }
+}
+
+function createFinaleTribunalSpeeches(state: GameState): WeekendTribunalSpeech[] {
+  const finalists = state.players
+    .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+    .sort((left, right) => {
+      const leftWins = (left.stats?.lohWins ?? 0) + (left.stats?.posWins ?? 0)
+      const rightWins = (right.stats?.lohWins ?? 0) + (right.stats?.posWins ?? 0)
+      return rightWins - leftWins
+    })
+  const tribunal = state.players
+    .filter((player) => player.status === 'jury' && player.tribunalEligible !== false)
+    .sort((left, right) => (right.evictedAtWeek ?? 0) - (left.evictedAtWeek ?? 0))
+    .slice(0, 3)
+
+  if (tribunal.length === 0) {
+    return [
+      {
+        speakerName: 'THE BIG EYE',
+        stance: 'neutral',
+        text: 'The Tribunal is settling into sequester. The finalists are all they can talk about tonight.',
+      },
+    ]
+  }
+
+  const defenses = [
+    (name: string) =>
+      `I’ll defend ${name}: making it to the Final Three takes more than luck. If I had to pick a winner tonight, they’d be in my top spot.`,
+    (name: string) =>
+      `People keep underestimating ${name}. They’re my dark horse to take the crown if they keep their nerve.`,
+    (name: string) =>
+      `${name} has a real shot. One last competition could turn them into my pick to win.`,
+  ]
+  const challenges = [
+    (name: string) =>
+      `But what is ${name}’s defining move? Getting here is one thing; I’m not ready to put them at the top of my ballot.`,
+    (name: string) =>
+      `I’m not convinced by ${name} yet. If they coast through these last days, I can’t see the jury choosing them.`,
+    (name: string) =>
+      `${name} is still in it, but surviving isn’t the same as leading. They could win the last battle and still need a stronger case.`,
+  ]
+
+  if (finalists.length === 0) return []
+
+  return finalists.slice(0, 3).flatMap((finalist, index) => {
+    const defender = tribunal[index % tribunal.length]
+    const skeptic = tribunal[(index + 1) % tribunal.length]
+    return [
+      {
+        speakerId: defender.id,
+        speakerName: defender.name,
+        stance: 'defend' as const,
+        text: defenses[index % defenses.length](finalist.name),
+      },
+      {
+        speakerId: skeptic.id,
+        speakerName: skeptic.name,
+        stance: 'challenge' as const,
+        text: challenges[index % challenges.length](finalist.name),
+      },
+    ]
+  })
 }
 
 // ─── Houseguest pool ─────────────────────────────────────────────────────────
@@ -821,6 +888,7 @@ export function createInitialGameState(options?: {
     phase: 'season_start',
     weekendsEnabledForSeason: true,
     completedWeekendDays: [],
+    finaleWeekendCompleted: false,
     weekendInterlude: null,
     seed,
     seasonDirectorPlan,
@@ -7400,7 +7468,32 @@ const gameSlice = createSlice({
           { major: 'vox_populi_final_two', broadcastPriority: 'critical' }
         )
       } else if (isFinal4) {
-        state.phase = 'final3'
+        const activePlayers = activeHousemateCount(state)
+        const human = getHumanPlayer(state)
+        if (
+          state.weekendsEnabledForSeason === true &&
+          !state.finaleWeekendCompleted &&
+          activePlayers === 3 &&
+          Boolean(human) &&
+          state.mode !== 'survival'
+        ) {
+          // Keep the Final 4 phase mounted until the interlude ends. The weekend
+          // owns the pause; completing it hands the same run into the Final 3.
+          state.weekendInterlude = createWeekendInterlude(state, state.week, false, 3, true)
+          pushEvent(
+            state,
+            'One last weekend before the Final Three. Take a breath, make your plans, and get ready for the fight ahead.',
+            'game',
+            {
+              major: 'weekend_3',
+              weekendDay: 1,
+              weekendEpisode: 'season_so_far',
+              forceOnTv: true,
+            }
+          )
+        } else {
+          state.phase = 'final3'
+        }
       } else if (state.doubleEviction?.pendingSecondEviction) {
         // Double Eviction: promote the second eviction to the main pending slot.
         state.pendingEviction = state.doubleEviction.pendingSecondEviction
@@ -8672,6 +8765,55 @@ const gameSlice = createSlice({
       // announcement. Do not append a near-identical feed event underneath
       // it, which otherwise reads as the same news twice.
     },
+    /**
+     * Debug-only Classic Final Four entry point. Keeps the human plus three
+     * active AI players and seeds the sole-vote setup so the real Final Four
+     * pleas and eviction flow can be tested directly.
+     */
+    prepareClassicFinalFourTest(state) {
+      if (isVoxPopuliActive(state)) return
+      const human = state.players.find((player) => player.isUser)
+      if (!human) return
+      const activeAi = state.players.filter(
+        (player) => !player.isUser && player.status !== 'evicted' && player.status !== 'jury'
+      )
+      const fallbackAi = state.players.filter(
+        (player) => !player.isUser && !activeAi.some((candidate) => candidate.id === player.id)
+      )
+      const finalists = [human, ...activeAi, ...fallbackAi].slice(0, 4)
+      if (finalists.length !== 4) return
+
+      resetVoxFinalThreeRound(state)
+      const finalistIds = new Set(finalists.map((player) => player.id))
+      state.players.forEach((player) => {
+        player.isWinner = false
+        player.finalRank = undefined
+        player.seasonPlacement = undefined
+        if (finalistIds.has(player.id)) {
+          player.status = 'active'
+          player.evictedAtWeek = undefined
+        } else {
+          player.status = 'jury'
+          player.evictedAtWeek ??= state.week
+        }
+      })
+
+      state.lohId = null
+      state.posWinnerId = human.id
+      state.nomineeIds = finalists.slice(1, 3).map((player) => player.id)
+      human.status = 'pos'
+      state.nomineeIds.forEach((nomineeId) => {
+        const nominee = state.players.find((player) => player.id === nomineeId)
+        if (nominee) nominee.status = 'nominated'
+      })
+      state.tvFeed = []
+      state.broadcastQueue = []
+      state.evictionSplashId = null
+      state.evictionOverlayPlayerId = null
+      state.weekendInterlude = null
+      state.finaleWeekendCompleted = false
+      state.phase = 'final4_eviction'
+    },
     /** Force entry into Final 4 eviction phase (debug only). */
     forcePhase(state, action: PayloadAction<Phase>) {
       state.phase = action.payload
@@ -9139,6 +9281,7 @@ const gameSlice = createSlice({
         // Saves created before weekends existed keep the original uninterrupted calendar.
         weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
         completedWeekendDays: action.payload.completedWeekendDays ?? [],
+        finaleWeekendCompleted: action.payload.finaleWeekendCompleted ?? false,
         weekendInterlude: action.payload.weekendInterlude ?? null,
         // Season archives are persisted independently from in-progress runs.
         // New snapshots omit them to stay small, so retain the active profile's
@@ -9479,7 +9622,58 @@ const gameSlice = createSlice({
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
       weekend.weekendDay = 2
-      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      if (weekend.finaleWeekend) {
+        weekend.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+        weekend.stage = 'tribunal_invitation'
+      } else {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      }
+    },
+
+    beginWeekendTribunalGlimpse(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        weekend.stage !== 'social'
+      ) {
+        return
+      }
+      weekend.tribunalGlimpse = {
+        speeches: createFinaleTribunalSpeeches(state),
+        opened: false,
+      }
+      weekend.stage = 'tribunal_invitation'
+    },
+
+    openWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        !weekend.tribunalGlimpse
+      ) {
+        return
+      }
+      weekend.tribunalGlimpse.opened = true
+    },
+
+    returnFromWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        !weekend.tribunalGlimpse?.opened
+      ) {
+        return
+      }
+      weekend.stage = 'finale_battle_ready'
     },
 
     spendWeekendSocialResources(
@@ -9526,14 +9720,28 @@ const gameSlice = createSlice({
 
     completeWeekendInterlude(state) {
       const weekend = state.weekendInterlude
-      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
+      if (!weekend?.active || weekend.weekendDay !== 2) return
+      if (
+        weekend.finaleWeekend
+          ? !['tribunal_invitation', 'tribunal_glimpse', 'finale_battle_ready'].includes(
+              weekend.stage
+            ) || !weekend.tribunalGlimpse
+          : weekend.stage !== 'social'
+      ) {
+        return
+      }
       if (state.pregnancyStory && !weekend.debug) {
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
       if (!weekend.debug) {
-        state.completedWeekendDays = Array.from(
-          new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
-        ).sort((left, right) => left - right)
+        if (weekend.finaleWeekend) {
+          state.finaleWeekendCompleted = true
+          state.phase = 'final3'
+        } else if (weekend.afterDay === 5 || weekend.afterDay === 10) {
+          state.completedWeekendDays = Array.from(
+            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+          ).sort((left, right) => left - right)
+        }
       } else if (weekend.debugOriginalHumanStatus) {
         const human = getHumanPlayer(state)
         if (human) human.status = weekend.debugOriginalHumanStatus
@@ -9546,9 +9754,14 @@ const gameSlice = createSlice({
       if (!action.payload && state.weekendInterlude?.active) {
         const weekend = state.weekendInterlude
         if (!weekend.debug) {
-          state.completedWeekendDays = Array.from(
-            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
-          ).sort((left, right) => left - right)
+          if (weekend.finaleWeekend) {
+            state.finaleWeekendCompleted = true
+            state.phase = 'final3'
+          } else if (weekend.afterDay === 5 || weekend.afterDay === 10) {
+            state.completedWeekendDays = Array.from(
+              new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+            ).sort((left, right) => left - right)
+          }
         } else if (weekend.debugOriginalHumanStatus) {
           const human = getHumanPlayer(state)
           if (human) human.status = weekend.debugOriginalHumanStatus
@@ -9558,7 +9771,10 @@ const gameSlice = createSlice({
     },
 
     /** Open a self-contained weekend preview from Settings without changing the season calendar. */
-    debugActivateWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+    debugActivateWeekendInterlude(
+      state,
+      action: PayloadAction<5 | 10 | 15 | 'finale' | 'tribunal'>
+    ) {
       if (
         state.weekendsEnabledForSeason === false ||
         state.weekendInterlude?.active ||
@@ -9567,8 +9783,24 @@ const gameSlice = createSlice({
         return
       }
 
-      const afterDay = action.payload
-      state.weekendInterlude = createWeekendInterlude(state, afterDay, true)
+      const isTribunalVisit = action.payload === 'tribunal'
+      const isFinaleWeekend = action.payload === 'finale' || isTribunalVisit
+      const afterDay = typeof action.payload === 'number' ? action.payload : state.week
+      state.weekendInterlude = createWeekendInterlude(
+        state,
+        afterDay,
+        true,
+        isFinaleWeekend ? 3 : afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+        isFinaleWeekend
+      )
+      if (isTribunalVisit && state.weekendInterlude) {
+        state.weekendInterlude.weekendDay = 2
+        state.weekendInterlude.stage = 'tribunal_invitation'
+        state.weekendInterlude.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+      }
       const human = getHumanPlayer(state)
       if (human && (human.status === 'evicted' || human.status === 'jury')) {
         state.weekendInterlude.debugOriginalHumanStatus = human.status
@@ -9576,11 +9808,31 @@ const gameSlice = createSlice({
       }
     },
 
-    debugRestartWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+    debugRestartWeekendInterlude(
+      state,
+      action: PayloadAction<5 | 10 | 15 | 'finale' | 'tribunal'>
+    ) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || !weekend.debug) return
       const originalHumanStatus = weekend.debugOriginalHumanStatus
-      state.weekendInterlude = createWeekendInterlude(state, action.payload, true)
+      const isTribunalVisit = action.payload === 'tribunal'
+      const isFinaleWeekend = action.payload === 'finale' || isTribunalVisit
+      const afterDay = typeof action.payload === 'number' ? action.payload : state.week
+      state.weekendInterlude = createWeekendInterlude(
+        state,
+        afterDay,
+        true,
+        isFinaleWeekend ? 3 : afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+        isFinaleWeekend
+      )
+      if (isTribunalVisit && state.weekendInterlude) {
+        state.weekendInterlude.weekendDay = 2
+        state.weekendInterlude.stage = 'tribunal_invitation'
+        state.weekendInterlude.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+      }
       if (originalHumanStatus) {
         state.weekendInterlude.debugOriginalHumanStatus = originalHumanStatus
       }
@@ -9590,7 +9842,15 @@ const gameSlice = createSlice({
       const weekend = state.weekendInterlude
       if (!weekend?.active || !weekend.debug) return
       weekend.weekendDay = 2
-      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      if (weekend.finaleWeekend) {
+        weekend.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+        weekend.stage = 'tribunal_invitation'
+      } else {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      }
     },
 
     debugExitWeekendInterlude(state) {
@@ -9677,10 +9937,9 @@ const gameSlice = createSlice({
         return
       }
 
-      // Weekend interludes are layered over week_end without incrementing game.week.
-      // Every episode reuses the same pause/resume wrapper; only its presentation content differs.
-      const weekendMilestone =
-        state.week === 5 ? 5 : state.week === 10 ? 10 : state.week === 15 ? 15 : null
+      // The first two weekend interludes follow numbered week ends without
+      // incrementing game.week. The finale weekend is opened at the Final Four exit.
+      const weekendMilestone = state.week === 5 ? 5 : state.week === 10 ? 10 : null
       if (
         state.phase === 'week_end' &&
         state.weekendsEnabledForSeason === true &&
@@ -9697,18 +9956,11 @@ const gameSlice = createSlice({
         const intro =
           weekendMilestone === 5
             ? 'The weekend has begun. No competitions. No nominations. The Hub has other plans.'
-            : weekendMilestone === 10
-              ? 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
-              : 'The season is slowing down for one weekend. The Big Eye is looking back at how everyone still here got this far.'
+            : 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
         pushEvent(state, intro, 'game', {
-          major: `weekend_${weekendMilestone === 5 ? 1 : weekendMilestone === 10 ? 2 : 3}`,
+          major: `weekend_${weekendMilestone === 5 ? 1 : 2}`,
           weekendDay: 1,
-          weekendEpisode:
-            weekendMilestone === 5
-              ? 'hub_says'
-              : weekendMilestone === 10
-                ? 'party'
-                : 'season_so_far',
+          weekendEpisode: weekendMilestone === 5 ? 'hub_says' : 'party',
           forceOnTv: true,
         })
         return
@@ -12776,6 +13028,7 @@ export const {
   forcePlayerStatus,
   prepareVoxFinalThreeTest,
   prepareClassicFinalThreeTest,
+  prepareClassicFinalFourTest,
   forcePhase,
   clearBlockingFlags,
   archiveSeason,
@@ -12797,6 +13050,9 @@ export const {
   continueHubSays,
   continueWeekendFeature,
   advanceWeekendSeasonFact,
+  beginWeekendTribunalGlimpse,
+  openWeekendTribunalStream,
+  returnFromWeekendTribunalStream,
   recordWeekendPartyBeat,
   beginWeekendDayTransition,
   advanceWeekendDay,

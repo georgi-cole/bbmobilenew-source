@@ -4,7 +4,7 @@ import { clearWeekendDebugSnapshot } from '../../store/weekendDebugPreviewSlice'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import { captureWeekendDebugSnapshot, restoreWeekendDebugSnapshot } from './weekendDebugActions'
 
-export function startWeekendDebugPreview(afterDay: 5 | 10 | 15) {
+export function startWeekendDebugPreview(afterDay: 5 | 10 | 15 | 'finale' | 'tribunal') {
   return (dispatch: AppDispatch, getState: () => RootState) => {
     const state = getState()
     if (

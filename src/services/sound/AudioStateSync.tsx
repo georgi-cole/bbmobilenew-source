@@ -69,6 +69,9 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
       weekendAfterDay: root.game.weekendInterlude?.active
         ? root.game.weekendInterlude.afterDay
         : null,
+      weekendNumber: root.game.weekendInterlude?.active
+        ? root.game.weekendInterlude.weekendNumber
+        : null,
       voteResults: root.game.voteResults,
       evictionOverlayPlayerId: root.game.evictionOverlayPlayerId ?? null,
       spectatorActive: root.game.spectatorActive,
@@ -111,7 +114,11 @@ export default function AudioStateSync({ hash }: AudioStateSyncProps) {
         status: musicState.gameStatus,
         weekendInterlude:
           musicState.weekendAfterDay != null
-            ? { active: true, afterDay: musicState.weekendAfterDay }
+            ? {
+                active: true,
+                afterDay: musicState.weekendAfterDay,
+                weekendNumber: musicState.weekendNumber ?? undefined,
+              }
             : null,
         voteResults: musicState.voteResults,
         evictionOverlayPlayerId: musicState.evictionOverlayPlayerId,

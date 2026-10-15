@@ -11,6 +11,7 @@ import {
   forcePlayerStatus,
   prepareVoxFinalThreeTest,
   prepareClassicFinalThreeTest,
+  prepareClassicFinalFourTest,
   forcePhase,
   finalizeFinal4Eviction,
   clearBlockingFlags,
@@ -507,7 +508,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               <div className="dbg-row dbg-row--col">
                 <span className="dbg-label">Weekend previews</span>
                 <div className="dbg-row">
-                  {([5, 10, 15] as const).map((afterDay, index) => (
+                  {([5, 10, 'finale', 'tribunal'] as const).map((afterDay, index) => (
                     <button
                       key={afterDay}
                       className="dbg-btn dbg-btn--wide"
@@ -526,7 +527,12 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                         setIsOpen(false)
                       }}
                     >
-                      {game.weekendInterlude?.debug ? 'Restart' : 'Play'} Weekend {index + 1}
+                      {game.weekendInterlude?.debug ? 'Restart' : 'Play'}{' '}
+                      {afterDay === 'finale'
+                        ? 'Finale Weekend'
+                        : afterDay === 'tribunal'
+                          ? 'Tribunal Sequester'
+                          : `Weekend ${index + 1}`}
                     </button>
                   ))}
                 </div>
@@ -1059,18 +1065,14 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                 >
                   Prepare Vox Final 3 Test
                 </button>
-                <button
-                  className="dbg-btn dbg-btn--wide"
-                  onClick={() => dispatch(forcePhase('final4_eviction'))}
-                >
-                  Force Final 4
-                </button>
-                <button
-                  className="dbg-btn dbg-btn--wide"
-                  onClick={() => dispatch(forcePhase('final3'))}
-                >
-                  Force Final 3
-                </button>
+                {game.voxPopuli?.status !== 'active' && (
+                  <button
+                    className="dbg-btn dbg-btn--wide"
+                    onClick={() => dispatch(prepareClassicFinalFourTest())}
+                  >
+                    Prepare Classic Final 4 Test
+                  </button>
+                )}
               </div>
 
               <div className="dbg-row">

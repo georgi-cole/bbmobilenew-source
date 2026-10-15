@@ -10,7 +10,7 @@ import type { ChatLine } from '../../../components/ChatOverlay/ChatOverlay'
 import type { Player } from '../../../types'
 import { NOMINEE_PLEA_TEMPLATES, pickPhrase } from '../../../utils/juryUtils'
 
-export type Final4Stage = 'idle' | 'pleas' | 'decision' | 'announcement' | 'splash' | 'done'
+export type Final4Stage = 'idle' | 'pleas' | 'announcement' | 'splash' | 'done'
 
 interface UseEndgameFlowOptions {
   game: RootState['game']
@@ -236,16 +236,13 @@ export function useEndgameFlow({
   // ── Final 4 cinematic flow ───────────────────────────────────────────────────
   // Stage machine drives the full Final 4 eviction sequence:
   //   idle         → not yet started (or reset after leaving final4/final3)
-  //   pleas        → plea ChatOverlay (all players; blocks FAB)
-  //   decision     → TvDecisionModal (human POS only; blocks FAB)
+  //   pleas        → plea chat and, for a human POS holder, public vote choices
   //   announcement → eviction announcement ChatOverlay (blocks FAB)
   //   splash       → EvictionSplash animation (blocks FAB)
   //   done         → complete; FAB visible so user can advance to final3 comps
   const [final4Stage, setFinal4Stage] = useState<Final4Stage>('idle')
   const [final4PleaLines, setFinal4PleaLines] = useState<ChatLine[]>([])
   const [final4AnnounceLines, setFinal4AnnounceLines] = useState<ChatLine[]>([])
-  const [final4DecisionReady, setFinal4DecisionReady] = useState(false)
-  const final4DecisionTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   // Reset all Final 4 state when the game leaves the final4/final3 region
   // (e.g. game reset, debug jump to a different phase).
@@ -262,7 +259,7 @@ export function useEndgameFlow({
 
   // Enter final4_eviction → build enriched plea lines and start the overlay.
   // For human POS: also dispatch advance() now so plea events are emitted to
-  // tvFeed and awaitingPovDecision is set before the decision modal appears.
+  // tvFeed and awaitingPovDecision is set before the public choice appears.
   // This sequence must start in QA/debug sessions too: Play is blocked for the
   // entire Final 4 phase while the presentation owns progression.
   useEffect(() => {
@@ -305,6 +302,15 @@ export function useEndgameFlow({
         player: povHolder,
         text: '• • •',
       },
+      ...(humanIsPosHolder
+        ? [
+            {
+              id: 'f4-public-vote-prompt',
+              role: 'host',
+              text: 'The Hub has heard both pleas. It is time to make your decision, in front of everyone.',
+            },
+          ]
+        : []),
     ]
     setFinal4PleaLines(lines)
     setFinal4Stage('pleas')
@@ -323,15 +329,11 @@ export function useEndgameFlow({
   ])
 
   // Plea overlay complete:
-  //   human POS → show decision modal
   //   AI POS    → dispatch advance() (AI evicts; phase transitions to final3)
   const handleFinal4PleaComplete = useCallback(() => {
-    if (humanIsPosHolder) {
-      setFinal4Stage('decision')
-    } else {
-      dispatch(advance())
-      // Stage transitions to 'announcement' via effect below once phase === 'final3'
-    }
+    if (humanIsPosHolder) return
+    dispatch(advance())
+    // Stage transitions to 'announcement' via effect below once phase === 'final3'
   }, [humanIsPosHolder, dispatch])
 
   // Detect eviction: pendingEviction was set while in pleas/decision stage.
@@ -341,7 +343,7 @@ export function useEndgameFlow({
   useEffect(() => {
     if (!game.pendingEviction) return
     if (game.phase !== 'final4_eviction') return
-    if (final4Stage !== 'pleas' && final4Stage !== 'decision') return
+    if (final4Stage !== 'pleas') return
     const evicted = game.players.find((p) => p.id === game.pendingEviction?.evicteeId)
     if (!evicted) {
       setFinal4Stage('done')
@@ -368,53 +370,13 @@ export function useEndgameFlow({
     setFinal4Stage('splash')
   }, [])
 
-  // Orchestrate 3-second delay before the Final-4 decision modal appears for
-  // the human POS holder after the plea ChatOverlay completes. Clears and resets
-  // when the phase or stage conditions are no longer met.
-  useEffect(() => {
-    const conditionsMet =
-      game.phase === 'final4_eviction' &&
-      Boolean(humanIsPosHolder) &&
-      Boolean(game.awaitingPovDecision) &&
-      final4Stage === 'decision'
-
-    if (!conditionsMet) {
-      if (final4DecisionTimerRef.current !== null) {
-        window.clearTimeout(final4DecisionTimerRef.current)
-        final4DecisionTimerRef.current = null
-      }
-      setFinal4DecisionReady(false)
-      return
-    }
-
-    if (final4DecisionTimerRef.current !== null) return
-
-    final4DecisionTimerRef.current = window.setTimeout(() => {
-      setFinal4DecisionReady(true)
-    }, 3000)
-  }, [game.phase, humanIsPosHolder, game.awaitingPovDecision, final4Stage])
-
-  // If the FAB center button is pressed while the 3-second delay is running,
-  // cancel the timer and open the decision modal immediately.
-  useEffect(() => {
-    const handlePlayPressed = () => {
-      if (final4DecisionTimerRef.current !== null) {
-        window.clearTimeout(final4DecisionTimerRef.current)
-        final4DecisionTimerRef.current = null
-        setFinal4DecisionReady(true)
-      }
-    }
-    window.addEventListener('ui:playPressed', handlePlayPressed)
-    return () => window.removeEventListener('ui:playPressed', handlePlayPressed)
-  }, [])
-
   const showFinal4Chat = game.phase === 'final4_eviction' && final4Stage === 'pleas'
-  const showFinal4Modal =
+  const showFinal4PublicVote =
     game.phase === 'final4_eviction' &&
     Boolean(game.awaitingPovDecision) &&
     Boolean(humanIsPosHolder) &&
-    final4Stage === 'decision' &&
-    final4DecisionReady
+    final4Stage === 'pleas' &&
+    game.nomineeIds.length > 0
   // Announcement: show during final4_eviction (pending commit) OR after final3 transition.
   const showFinal4AnnounceChat =
     (game.phase === 'final4_eviction' || game.phase === 'final3') && final4Stage === 'announcement'
@@ -485,7 +447,7 @@ export function useEndgameFlow({
     final4PleaLines,
     final4AnnounceLines,
     showFinal4Chat,
-    showFinal4Modal,
+    showFinal4PublicVote,
     showFinal4AnnounceChat,
     final4Options,
     handleFinal4PleaComplete,

@@ -43,11 +43,13 @@ describe('Final 4 phase entry', () => {
     expect(dispatch).toHaveBeenCalledWith(advance())
   })
 
-  it('starts the plea sequence and prepares a human POS decision', async () => {
+  it('keeps the human POS decision live after the plea sequence', async () => {
     const dispatch = vi.fn()
+    const game = final4Game('human')
+    game.awaitingPovDecision = true
     const { result } = renderHook(() =>
       useEndgameFlow({
-        game: final4Game('human'),
+        game,
         alivePlayers: players,
         humanPlayer: players[0],
         humanIsPosHolder: true,
@@ -58,6 +60,42 @@ describe('Final 4 phase entry', () => {
     )
 
     await waitFor(() => expect(result.current.showFinal4Chat).toBe(true))
+    expect(result.current.showFinal4PublicVote).toBe(true)
+    expect(result.current.final4PleaLines.at(-1)?.text).toContain('in front of everyone')
     expect(dispatch).toHaveBeenCalledWith(advance())
+  })
+
+  it('continues from the public vote straight into the eviction announcement', async () => {
+    const dispatch = vi.fn()
+    const game = final4Game('human')
+    game.awaitingPovDecision = true
+    const { result, rerender } = renderHook(
+      ({ currentGame }) =>
+        useEndgameFlow({
+          game: currentGame,
+          alivePlayers: players,
+          humanPlayer: players[0],
+          humanIsPosHolder: true,
+          spectatorReactEnabled: false,
+          spectatorMode: false,
+          dispatch: dispatch as never,
+        }),
+      { initialProps: { currentGame: game } }
+    )
+
+    await waitFor(() => expect(result.current.showFinal4PublicVote).toBe(true))
+    rerender({
+      currentGame: {
+        ...game,
+        awaitingPovDecision: false,
+        pendingEviction: {
+          evicteeId: 'mimi',
+          evictionMessage: 'The human chose Mimi.',
+        },
+      },
+    })
+
+    await waitFor(() => expect(result.current.showFinal4AnnounceChat).toBe(true))
+    expect(result.current.final4AnnounceLines[0]?.text).toContain('Mimi')
   })
 })

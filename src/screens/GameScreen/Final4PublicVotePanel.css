@@ -1,0 +1,63 @@
+.final4-public-vote {
+  display: grid;
+  width: 100%;
+  gap: 0.55rem;
+}
+
+.final4-public-vote__eyebrow {
+  margin: 0;
+  color: rgba(199, 210, 254, 0.72);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.final4-public-vote__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.final4-public-vote__choice {
+  display: flex;
+  min-width: 0;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: 0.9rem;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(127, 29, 29, 0.1));
+  color: #f8fafc;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.final4-public-vote__choice:hover,
+.final4-public-vote__choice:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(248, 113, 113, 0.8);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.24), rgba(127, 29, 29, 0.2));
+  box-shadow: 0 0 18px rgba(248, 113, 113, 0.18);
+}
+
+.final4-public-vote__choice:focus-visible {
+  outline: 2px solid rgba(254, 202, 202, 0.85);
+  outline-offset: 2px;
+}
+
+.final4-public-vote__choice > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

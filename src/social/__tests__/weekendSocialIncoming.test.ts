@@ -1,6 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
+  advanceWeekendDay,
+  advanceWeekendSeasonFact,
+  beginWeekendDayTransition,
   chooseHubSaysPlayer,
   continueHubSays,
   continueWeekendFeature,
@@ -69,6 +72,39 @@ describe('weekend incoming social activity', () => {
         expect.objectContaining({
           fromId: target.id,
           payload: expect.objectContaining({ scenarioKey: 'weekend_action_reply' }),
+        }),
+      ])
+    )
+  })
+
+  it('keeps the finale-weekend social window open during the Sunday Tribunal peek', () => {
+    const store = makeStore()
+    store.dispatch(debugActivateWeekendInterlude('finale'))
+    store.dispatch(continueWeekendFeature())
+    store.dispatch(continueWeekendFeature())
+    while (store.getState().game.weekendInterlude?.stage === 'season_so_far') {
+      store.dispatch(advanceWeekendSeasonFact())
+    }
+    store.dispatch(beginWeekendDayTransition())
+    store.dispatch(advanceWeekendDay())
+
+    expect(store.getState().game.weekendInterlude).toMatchObject({
+      weekendDay: 2,
+      stage: 'tribunal_invitation',
+    })
+    expect(store.getState().social.incomingInteractions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            scenarioKey: 'weekend_arrival',
+            weekendDay: 2,
+          }),
+        }),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            scenarioKey: 'weekend_buzz',
+            weekendDay: 2,
+          }),
         }),
       ])
     )

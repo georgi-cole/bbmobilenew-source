@@ -143,17 +143,11 @@ interface GameState {
   voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
   weekendInterlude?: {
     active?: boolean
-    afterDay: 5 | 10 | 15
+    afterDay: number
+    weekendNumber?: 1 | 2 | 3
+    finaleWeekend?: true
     weekendDay: 1 | 2
-    stage:
-      | 'intro'
-      | 'instructions'
-      | 'day_two_intro'
-      | 'hub_says'
-      | 'party'
-      | 'season_so_far'
-      | 'social'
-      | 'day_transition'
+    stage: NonNullable<FullGameState['weekendInterlude']>['stage']
     episode: 'hub_says' | 'party' | 'season_so_far'
   } | null
   dramaSocialMode?: boolean
@@ -291,7 +285,11 @@ function hasIncomingInteraction(state: StateWithGame, id: string): boolean {
 
 function weekendSocialContext(state: StateWithGame) {
   const weekend = state.game.weekendInterlude
-  if (!weekend?.active || weekend.stage !== 'social') return null
+  const socialWindowOpen =
+    weekend?.stage === 'social' ||
+    (weekend?.finaleWeekend &&
+      (weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse'))
+  if (!weekend?.active || !socialWindowOpen) return null
   const human = state.game.players.find((player) => player.isUser && isActiveWeekendPlayer(player))
   const others = state.game.players.filter(
     (player) => !player.isUser && isActiveWeekendPlayer(player)
@@ -306,12 +304,13 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
   if (!context) return
 
   const { weekend, others } = context
-  const seed = weekend.afterDay + weekend.weekendDay * 7
+  const seed = weekend.afterDay + (weekend.weekendNumber ?? 0) * 101 + weekend.weekendDay * 7
   const first = others[seed % others.length]
-  const firstId = `weekend-arrival:${state.game.gameId}:${weekend.afterDay}:${weekend.weekendDay}:${first.id}`
+  const firstId = `weekend-arrival:${state.game.gameId}:${weekend.weekendNumber ?? 'legacy'}:${weekend.afterDay}:${weekend.weekendDay}:${first.id}`
   if (!hasIncomingInteraction(state, firstId)) {
-    const opening =
-      weekend.episode === 'party'
+    const opening = weekend.finaleWeekend
+      ? 'The Final Three is almost here. What are you hoping to see when the competitions begin?'
+      : weekend.episode === 'party'
         ? 'I’m glad we got a night to relax. How are you really feeling about the week?'
         : weekend.episode === 'season_so_far'
           ? 'Seeing our season story laid out like that made me think. What moment has stayed with you?'
@@ -328,7 +327,12 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
           week: state.game.week,
           phase: 'social_2',
           mode: getEffectiveSocialMode(state),
-          payload: { scenarioKey: 'weekend_arrival', weekendDay: weekend.weekendDay },
+          payload: {
+            scenarioKey: 'weekend_arrival',
+            weekendNumber: weekend.weekendNumber,
+            weekendAfterDay: weekend.afterDay,
+            weekendDay: weekend.weekendDay,
+          },
           responsePolicy: 'optional',
         })
       )
@@ -336,7 +340,7 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
   }
 
   const second = others[(seed + 3) % others.length]
-  const secondId = `weekend-buzz:${state.game.gameId}:${weekend.afterDay}:${weekend.weekendDay}:${second.id}`
+  const secondId = `weekend-buzz:${state.game.gameId}:${weekend.weekendNumber ?? 'legacy'}:${weekend.afterDay}:${weekend.weekendDay}:${second.id}`
   if (second.id !== first.id && !hasIncomingInteraction(state, secondId)) {
     api.dispatch(
       pushIncomingInteraction(
@@ -348,7 +352,12 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
           week: state.game.week,
           phase: 'social_2',
           mode: getEffectiveSocialMode(state),
-          payload: { scenarioKey: 'weekend_buzz', weekendDay: weekend.weekendDay },
+          payload: {
+            scenarioKey: 'weekend_buzz',
+            weekendNumber: weekend.weekendNumber,
+            weekendAfterDay: weekend.afterDay,
+            weekendDay: weekend.weekendDay,
+          },
           responsePolicy: 'optional',
         })
       )
@@ -385,6 +394,7 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
   const sameWeekendReply = (interaction: (typeof allIncoming)[number]) =>
     interaction.payload?.scenarioKey === 'weekend_action_reply' &&
     interaction.payload?.weekendDay === context.weekend.weekendDay &&
+    (interaction.payload?.weekendNumber ?? null) === (context.weekend.weekendNumber ?? null) &&
     interaction.payload?.weekendAfterDay === context.weekend.afterDay
 
   // Routine weekend acknowledgements are flavour, not a new inbox thread for
@@ -408,8 +418,8 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
   // conflict actions remain distinct by action kind without duplicating the
   // exact same confrontation over and over.
   const interactionId = tenseAction
-    ? `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${entry.actionId}:${responder.id}`
-    : `weekend-reply:${state.game.gameId}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${responder.id}`
+    ? `weekend-reply:${state.game.gameId}:${context.weekend.weekendNumber ?? 'legacy'}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${entry.actionId}:${responder.id}`
+    : `weekend-reply:${state.game.gameId}:${context.weekend.weekendNumber ?? 'legacy'}:${context.weekend.afterDay}:${context.weekend.weekendDay}:${replyFamily}:${responder.id}`
   if (hasIncomingInteraction(state, interactionId)) return
 
   const responseText = tenseAction
@@ -433,6 +443,7 @@ function queueWeekendActionResponse(api: MiddlewareAPI, entry: SocialActionLogEn
           scenarioKey: 'weekend_action_reply',
           weekendDay: context.weekend.weekendDay,
           weekendAfterDay: context.weekend.afterDay,
+          weekendNumber: context.weekend.weekendNumber,
           weekendActionFamily: replyFamily,
           weekendActionPriority: tenseAction ? 'high' : 'routine',
           actionId: entry.actionId,

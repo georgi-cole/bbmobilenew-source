@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { finishWeekendDebugPreview } from '../../features/weekend/weekendDebugPreview'
@@ -7,6 +7,8 @@ import {
   advance,
   advanceWeekendSeasonFact,
   advanceWeekendDay,
+  beginWeekendTribunalGlimpse,
+  openWeekendTribunalStream,
   beginWeekendDayTransition,
   completeWeekendInterlude,
   continueHubSays,
@@ -108,6 +110,7 @@ export default function FloatingActionBar({
 }: FloatingActionBarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const reduxStore = useStore<RootState>()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
@@ -129,10 +132,23 @@ export default function FloatingActionBar({
   const isGuest = useAppSelector(selectIsGuest)
   const game = useAppSelector((s) => s.game)
   const weekend = game.weekendInterlude
+  const isWeekendTribunalInvitation =
+    weekend?.stage === 'tribunal_invitation' || weekend?.stage === 'tribunal_glimpse'
+  const weekendTribunalStreamAvailable = Boolean(
+    weekend?.active &&
+    weekend.finaleWeekend &&
+    isWeekendTribunalInvitation &&
+    weekend.tribunalGlimpse &&
+    !weekend.tribunalGlimpse.opened
+  )
   const canPersistActiveRun = !isGuest && Boolean(activeProfileId) && weekend?.debug !== true
-  const weekendSocialActive = weekend?.active === true && weekend.stage === 'social'
+  const weekendSocialActive =
+    weekend?.active === true &&
+    (weekend.stage === 'social' ||
+      (weekend.finaleWeekend &&
+        (weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse')))
   const weekendSocialSpotlightKey = weekendSocialActive
-    ? `${game.gameId ?? game.season}:${weekend.afterDay}`
+    ? `${game.gameId ?? game.season}:${weekend.weekendNumber ?? weekend.afterDay}:${weekend.afterDay}`
     : null
   const hubSaysBeat = weekend?.hubSays?.beat ?? 'question'
   const weekendPlayReady =
@@ -477,6 +493,16 @@ export default function FloatingActionBar({
         dispatch(advanceWeekendDay())
         return
       }
+      if (isWeekendTribunalInvitation || weekend.stage === 'finale_battle_ready') {
+        if (weekend.debug) {
+          dispatch(finishWeekendDebugPreview())
+        } else {
+          // Leave the season on the normal Final 3 opening scene. Its existing
+          // full-screen explanation owns the next Play press before competition.
+          dispatch(completeWeekendInterlude())
+        }
+        return
+      }
       if (
         weekend.stage === 'intro' ||
         weekend.stage === 'instructions' ||
@@ -489,7 +515,9 @@ export default function FloatingActionBar({
         dispatch(beginWeekendDayTransition())
         return
       }
-      if (weekend.debug) {
+      if (weekend.finaleWeekend) {
+        dispatch(beginWeekendTribunalGlimpse())
+      } else if (weekend.debug) {
         dispatch(finishWeekendDebugPreview())
       } else {
         dispatch(completeWeekendInterlude())
@@ -559,6 +587,7 @@ export default function FloatingActionBar({
     voxPopuliActive,
     voxTransitionOwnsPlay,
     weekend,
+    isWeekendTribunalInvitation,
     hubSaysBeat,
   ])
 
@@ -567,6 +596,15 @@ export default function FloatingActionBar({
       showSurvivorBlockedMessage(
         'The confessional is now being used as a storage room for the robotic players parts. Access is denied.'
       )
+      return
+    }
+    if (weekendTribunalStreamAvailable) {
+      dispatch(openWeekendTribunalStream())
+      navigate('/diary-room?stream=finale-tribunal', {
+        state: {
+          returnTo: `${location.pathname}${location.search}${location.hash}`,
+        },
+      })
       return
     }
     if (confessionalSpotlightEligible) {
@@ -578,8 +616,13 @@ export default function FloatingActionBar({
   }, [
     completeConfessionalSpotlight,
     confessionalSpotlightEligible,
+    dispatch,
     isSurvivorMode,
+    location.hash,
+    location.pathname,
+    location.search,
     navigate,
+    weekendTribunalStreamAvailable,
     showSurvivorBlockedMessage,
   ])
 
@@ -853,11 +896,17 @@ export default function FloatingActionBar({
                           ? 'Next story'
                           : weekend.stage === 'day_transition'
                             ? 'Start Day 2'
-                            : weekend.weekendDay === 1
-                              ? 'Finish the day'
-                              : weekend.debug
+                            : isWeekendTribunalInvitation || weekend.stage === 'finale_battle_ready'
+                              ? weekend.debug
                                 ? 'Finish preview'
-                                : `Start Day ${weekend.afterDay + 1}`
+                                : 'Begin the Final Three'
+                              : weekend.weekendDay === 1
+                                ? 'Finish the day'
+                                : weekend.finaleWeekend
+                                  ? 'Meet the Tribunal'
+                                  : weekend.debug
+                                    ? 'Finish preview'
+                                    : `Start Day ${weekend.afterDay + 1}`
               : 'Advance to next phase'
         }
         socialDisabled={socialModulesUnavailable}
@@ -897,6 +946,7 @@ export default function FloatingActionBar({
         confessionalFlash={isConfessionalFlashing}
         confessionalFlashTick={confessionalFlashTick}
         confessionalPersistentFlash={confessionalPersistentFlash}
+        confessionalSpecialStream={weekendTribunalStreamAvailable}
         confessionalIconRef={confessionalIconRef}
         socialIconRef={socialIconRef}
       />

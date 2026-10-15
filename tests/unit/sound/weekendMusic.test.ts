@@ -34,6 +34,31 @@ function previewState(afterDay: 5 | 10 | 15, debug: boolean): MusicResolverState
 }
 
 describe('weekend themes', () => {
+  it.each([5, 10, 13, 18])('uses the finale weekend theme on numbered Day %s', (afterDay) => {
+    const state = previewState(5, false)
+    const weekend = state.game.weekendInterlude as WeekendInterludeState
+    weekend.afterDay = afterDay
+    weekend.weekendNumber = 3
+    weekend.finaleWeekend = true
+    weekend.episode = 'season_so_far'
+    state.game.phase = 'final4_eviction'
+
+    const entry = resolveDesiredMusicCue(state, '#/game')
+    expect(entry.track).toBe('weekend_3')
+    weekend.weekendDay = 2
+    weekend.stage = 'tribunal_invitation'
+    expect(
+      hasSameResolvedPlayback(
+        entry,
+        resolveDesiredMusicCue(state, '#/diary-room?stream=finale-tribunal')
+      )
+    ).toBe(true)
+
+    state.game.weekendInterlude = null
+    state.game.phase = 'final3'
+    expect(resolveDesiredMusicCue(state, '#/game').track).toBe('final_three_week')
+  })
+
   it.each([5, 10, 15] as const)(
     'keeps the theme continuous across both days and Social surfaces after Day %s',
     (afterDay) => {

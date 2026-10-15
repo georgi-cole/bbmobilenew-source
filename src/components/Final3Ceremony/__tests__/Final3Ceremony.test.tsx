@@ -127,7 +127,7 @@ describe('Final3Ceremony plea dialogue', () => {
 
     expect(
       screen.getByText(
-        /choose who you are evicting\. the other finalist stays and faces you in the final two/i
+        /choose who you are eliminating\. the other finalist stays and faces you in the final two/i
       )
     ).toBeTruthy()
     expect(screen.getByText(/romance — this became more than a game relationship/i)).toBeTruthy()
@@ -139,14 +139,14 @@ describe('Final3Ceremony plea dialogue', () => {
     expect(
       screen.getByText(
         new RegExp(
-          `You will evict ${nominees[0].name}\\. ${nominees[1].name} will join you in the Final Two\\.`,
+          `You will eliminate ${nominees[0].name}\\. ${nominees[1].name} will join you in the Final Two\\.`,
           'i'
         )
       )
     ).toBeTruthy()
     expect(
       screen.getByRole('button', {
-        name: new RegExp(`Evict ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
+        name: new RegExp(`Eliminate ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
       })
     ).toBeTruthy()
   })
@@ -162,7 +162,7 @@ describe('Final3Ceremony plea dialogue', () => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[1].name, 'i') }))
     fireEvent.click(
       screen.getByRole('button', {
-        name: new RegExp(`Evict ${nominees[1].name} · Keep ${nominees[0].name}`, 'i'),
+        name: new RegExp(`Eliminate ${nominees[1].name} · Keep ${nominees[0].name}`, 'i'),
       })
     )
     act(() => vi.advanceTimersByTime(900))
@@ -184,7 +184,7 @@ describe('Final3Ceremony plea dialogue', () => {
     fireEvent.click(screen.getByRole('button', { name: new RegExp(nominees[0].name, 'i') }))
     fireEvent.click(
       screen.getByRole('button', {
-        name: new RegExp(`Evict ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
+        name: new RegExp(`Eliminate ${nominees[0].name} · Keep ${nominees[1].name}`, 'i'),
       })
     )
     act(() => vi.advanceTimersByTime(900))
