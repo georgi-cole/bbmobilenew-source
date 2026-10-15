@@ -115,6 +115,13 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
       'End the pitch',
     ],
   ],
+  trade_secrets_offer: [
+    ['Take the trade', 'Hear the offer', 'Keep your information close', 'End the conversation'],
+  ],
+  protection_deal: [['Take the deal', 'Ask for time', 'Refuse clearly', 'End the pitch']],
+  protection_deal_future_vote: [
+    ['Take the deal', 'Ask for time', 'Refuse clearly', 'End the pitch'],
+  ],
   survivor_gratitude: [
     ['Share the moment', 'Accept the thanks', 'Remind them who helped', 'Move on'],
     ['Strengthen the bond', 'Keep it modest', 'Call in a favor', 'Change the subject'],
@@ -137,8 +144,8 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Defuse the jab', 'Keep your cool', 'Push back directly', 'Let it die'],
   ],
   alliance_reassurance: [
-    ['Reassure them fully', 'Compare your plans', 'Admit your doubts', 'Avoid the subject'],
-    ['Renew the pact', 'Ask what changed', 'Set new terms', 'End the check-in'],
+    ['Reassure them', 'Compare your plans', 'Set a boundary', 'End the check-in'],
+    ['Reassure them', 'Ask what changed', 'Set a boundary', 'End the check-in'],
   ],
   generic_gossip: [
     ['Ask for the source', 'Listen only', 'Protect the target', 'Stop the rumour'],

@@ -331,6 +331,169 @@ describe('incomingInteractionAutonomy thematic routing', () => {
     expect(interaction?.text).not.toMatch(/need your vote|keep me|cast your vote/i)
   })
 
+  it('lets an allied nominee campaign for the human vote without claiming a ballot', () => {
+    const players = [
+      { id: 'user', name: 'You', status: 'active', isUser: true },
+      { id: 'nominee', name: 'Ali', status: 'nominated' },
+    ]
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'nominee-campaign-pact',
+      founderIds: ['user'],
+      memberIds: ['nominee'],
+      purpose: 'Stand together',
+      at: { day: 4, phase: 'social_1' },
+      kind: 'PACT',
+    })
+    pact.status = 'ACTIVE'
+    const context = buildContext({
+      phase: 'live_vote',
+      week: 4,
+      lohId: 'enemy',
+      nomineeIds: ['nominee'],
+      players,
+      reality,
+      relationships: { nominee: { user: { affinity: 70, tags: ['alliance'] } } },
+      gameState: {
+        players,
+        lohId: 'enemy',
+        nomineeIds: ['nominee'],
+        posWinnerId: null,
+        seed: 11,
+        week: 4,
+      } as unknown as NonNullable<AutonomyContext['gameState']>,
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('live_vote', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'nominee'
+    )?.interaction
+    expect(interaction?.payload?.scenarioKey).toBe('live_vote_pitch')
+    expect(interaction?.text).toMatch(/support|keep|stay|vote/i)
+    expect(interaction?.text).not.toMatch(/my vote|i am voting|i'm voting|still voting/i)
+  })
+
+  it('does not schedule elimination-vote pitches in Vox Populi', () => {
+    const context = buildContext({
+      phase: 'live_vote',
+      voxPopuliActive: true,
+      lohId: 'loh',
+      nomineeIds: ['nominee'],
+      players: [
+        { id: 'user', name: 'You', status: 'active', isUser: true },
+        { id: 'loh', name: 'Rae', status: 'loh' },
+        { id: 'nominee', name: 'Ali', status: 'nominated' },
+      ],
+      relationships: {
+        loh: { user: { affinity: 75, tags: ['alliance'] } },
+        nominee: { user: { affinity: 75, tags: ['alliance'] } },
+      },
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('live_vote', store, context)
+
+    expect(
+      store.social.scheduledIncomingInteractions.some(
+        ({ interaction }) => interaction.payload?.scenarioKey === 'live_vote_pitch'
+      )
+    ).toBe(false)
+  })
+
+  it('does not let a shared alliance pitch an elimination vote in Vox Populi', () => {
+    const players = [
+      { id: 'user', name: 'You', status: 'active', isUser: true },
+      { id: 'ally', name: 'Kai', status: 'active' },
+      { id: 'ally-two', name: 'Nova', status: 'active' },
+      { id: 'loh', name: 'Rae', status: 'loh' },
+      { id: 'nominee-a', name: 'Bea', status: 'nominated' },
+      { id: 'nominee-b', name: 'Remy', status: 'nominated' },
+    ]
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'vox-vote-pitch-group',
+      founderIds: ['user'],
+      memberIds: ['ally', 'ally-two'],
+      leaderId: 'ally',
+      purpose: 'Coordinate strategy',
+      at: { day: 5, phase: 'social_1' },
+      kind: 'GROUP',
+    })
+    alliance.status = 'ACTIVE'
+    const gameState = {
+      players,
+      lohId: 'loh',
+      nomineeIds: ['nominee-a', 'nominee-b'],
+      posWinnerId: null,
+      seed: 17,
+      week: 5,
+      doubleEviction: { weekActive: false },
+    } as unknown as NonNullable<AutonomyContext['gameState']>
+    const context = buildContext({
+      phase: 'social_2',
+      week: 5,
+      voxPopuliActive: true,
+      lohId: 'loh',
+      nomineeIds: ['nominee-a', 'nominee-b'],
+      players,
+      reality,
+      gameState,
+      relationships: {
+        ally: { user: { affinity: 80, tags: ['alliance'] } },
+        'ally-two': { user: { affinity: 70, tags: ['alliance'] } },
+      },
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('social_2', store, context)
+
+    expect(
+      store.social.scheduledIncomingInteractions.some(
+        ({ interaction }) => interaction.payload?.scenarioKey === 'alliance_vote_pitch'
+      )
+    ).toBe(false)
+  })
+
+  it('uses a concrete plan check-in for a pact member when the human is LOH', () => {
+    const reality = createInitialRealityDomainState()
+    const pact = createRealityAlliance(reality, {
+      id: 'loh-plan-pact',
+      founderIds: ['user'],
+      memberIds: ['ally'],
+      purpose: 'Share strategy',
+      at: { day: 2, phase: 'social_1' },
+      kind: 'PACT',
+    })
+    pact.status = 'ACTIVE'
+    const context = buildContext({
+      phase: 'social_1',
+      lohId: 'user',
+      players: [
+        { id: 'user', name: 'You', status: 'loh', isUser: true },
+        { id: 'ally', name: 'Rae', status: 'active' },
+      ],
+      relationships: { ally: { user: { affinity: 70, tags: ['alliance'] } } },
+      reality,
+      random: () => 0,
+    })
+    const store = buildStore(context)
+
+    scheduleIncomingInteractionsForPhase('social_1', store, context)
+
+    const interaction = store.social.scheduledIncomingInteractions.find(
+      (entry) => entry.interaction.fromId === 'ally'
+    )?.interaction
+    expect(interaction?.type).toBe('check_in')
+    expect(interaction?.payload?.scenarioKey).toBe('allied_loh_plan_check_in')
+    expect(interaction?.text).toMatch(/this week|plan|nominations|targets/i)
+    expect(interaction?.text).not.toMatch(/promise.*vote|vote.*promise|protect me/i)
+  })
+
   it('queues both nominee pitches when the human holds Safety, while delivery remains paced', () => {
     const context = buildContext({
       phase: 'pos_results',
@@ -515,14 +678,13 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       strategy: 'direct' as const,
       targetId: 'lux',
       openingNomineeIds: ['lux', 'remy'],
-      expectedText: 'Lux is my current target, and my planned opening nominees are Lux and Remy.',
+      expectedText: 'I want Lux to leave',
     },
     {
       strategy: 'backdoor' as const,
       targetId: 'lux',
       openingNomineeIds: ['remy', 'nova'],
-      expectedText:
-        'Lux is my replacement target if Safety opens a replacement seat. My planned opening nominees are Remy and Nova.',
+      expectedText: 'If Safety changes the block, Lux is my replacement option.',
     },
   ])(
     'uses the canonical $strategy nomination plan in an AI LOH alliance huddle',

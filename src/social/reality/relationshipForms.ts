@@ -1,6 +1,10 @@
 import { recordAllianceRequestEvent } from './allianceRequestEvents'
 import type { DramaAlliance } from '../types'
-import { maybeExposeRealityAlliance, recordRealityAllianceLeakDiscovery } from './allianceKnowledge'
+import {
+  maybeExposeRealityAlliance,
+  preserveRealityAllianceRosterForMembers,
+  recordRealityAllianceLeakDiscovery,
+} from './allianceKnowledge'
 import { appendRealityEvent } from './events'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
@@ -457,6 +461,9 @@ export function removeRealityAllianceMember(
     publicEligible: false,
     juryEligible: true,
   })
+
+  // Keep the complete roster available to a member who later leaves or is removed.
+  preserveRealityAllianceRosterForMembers(state, alliance.id, input.at, event.id, formerMemberIds)
 
   alliance.memberIds = alliance.memberIds.filter((id) => id !== input.memberId)
   alliance.rosterRevision = (alliance.rosterRevision ?? 0) + 1
@@ -1631,6 +1638,7 @@ export function leakRealityAlliance(
     alliance.status = 'DISSOLVED'
     alliance.currentTargetIds = []
     alliance.fallbackTargetIds = []
+    preserveRealityAllianceRosterForMembers(state, alliance.id, at, event.id)
     refreshRealityAllianceOverlaps(state)
   } else if (alliance.fractureRisk >= 0.72) {
     alliance.status = 'FRACTURED'

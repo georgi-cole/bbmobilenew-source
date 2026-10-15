@@ -50,4 +50,19 @@ describe('findConfessionalSourceBroadcast', () => {
 
     expect(source?.id).toBe('legacy')
   })
+
+  it('consumes the live-vote card when the private ballot is submitted', () => {
+    const source = findConfessionalSourceBroadcast(
+      [
+        event('live-vote', 'The Hub will vote to eliminate.', 10, {
+          week: 4,
+          broadcastTemplateId: 'card.live-vote',
+        }),
+      ],
+      'eviction_vote',
+      4
+    )
+
+    expect(source?.id).toBe('live-vote')
+  })
 })

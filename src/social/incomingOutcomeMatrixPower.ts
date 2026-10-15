@@ -2,6 +2,32 @@ import { acts, says } from './incomingOutcomeMatrixUtils'
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  protection_deal: {
+    'take the deal': says(
+      'agrees to keep you off the block this week, and you promise to vote to keep them if they are nominated.'
+    ),
+    'ask for time': says('accepts your hesitation without either of you making a promise.'),
+    'refuse clearly': acts('withdraws the offer after you decline the bargain.'),
+    'end the pitch': acts('ends the conversation without either of you making a promise.'),
+  },
+  protection_deal_future_vote: {
+    'take the deal': says(
+      'agrees to use Safety on you now, and you promise to vote to keep them if they are nominated next week.'
+    ),
+    'ask for time': says(
+      'accepts your hesitation without making a Safety promise or receiving a vote promise for next week.'
+    ),
+    'refuse clearly': acts('withdraws the Safety offer after you decline the bargain.'),
+    'end the pitch': acts('ends the conversation without either of you making a promise.'),
+  },
+  trade_secrets_offer: {
+    'take the trade': says(
+      'shares the available lead and receives any fresh lead you have in return.'
+    ),
+    'hear the offer': says('leaves the trade unresolved, with no information exchanged.'),
+    'keep your information close': acts('backs off without exchanging information.'),
+    'end the conversation': acts('ends the conversation without exchanging information.'),
+  },
   unavoidable_nominee_reaction: {
     'acknowledge the rule': says(
       'they know you had no legal alternative and want to plan their survival.'

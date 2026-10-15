@@ -27,9 +27,12 @@ import {
 } from './relationshipForms'
 import { appendRealityEvent } from './events'
 import { buildPreNominationLohRead } from './allianceConsultationIntel'
-import type { RealityAlliance } from './types'
+import type { RealityAlliance, RealitySocialEvent } from './types'
 import { getRealityModeAdapter } from './modeAdapters'
 import { applyRealityRelationshipChange } from './relationships'
+import { processTradeSecrets } from '../socialStrategyActions'
+import { formatIntelLeadText } from '../intelligenceSystem'
+import { deliverIntelActionFact } from '../intelligenceMiddleware'
 import type { RealityContext } from './types'
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import {
@@ -88,6 +91,24 @@ function getEffectiveHumanResources(state: RootState, actorId: string) {
     influence: state.social.influenceBank[actorId] ?? 0,
     info: state.social.infoBank[actorId] ?? 0,
   }
+}
+
+function buildExposureNarrative(
+  event: RealitySocialEvent,
+  domain: RootState['social']['reality'],
+  players: RootState['game']['players']
+): string {
+  if (!event.tags.includes('EXPOSED')) {
+    return 'The claim did not make a secret public this time.'
+  }
+  const disclosedFact = event.relatedFactIds
+    .map((factId) => domain.facts[factId])
+    .find((fact) => Boolean(fact))
+  if (!disclosedFact) return 'You brought a known secret into the open.'
+  const lead = formatIntelLeadText(disclosedFact, players)
+  return disclosedFact.propositionType === 'ALLIANCE_PUBLIC_CLAIM'
+    ? `You made an alliance claim public: ${lead}`
+    : `You exposed a known secret: ${lead}`
 }
 
 function getWeekendActivityPhase(state: RootState): string {
@@ -1992,13 +2013,55 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
                 outcome: resolvedAsSuccess ? 'success' : 'failure',
                 repetitionAlreadyResolved: true,
                 costOverride: executionCosts,
+                ...(input.actionId === 'expose_secret'
+                  ? {
+                      narrative: buildExposureNarrative(
+                        orchestration.event,
+                        orchestration.domain,
+                        state.game.players
+                      ),
+                    }
+                  : {}),
               }
             )
     // Legacy execution preserves specialized ceremony copy and existing game
     // adapters. Restore the causal v3 world afterward so its directed result
     // is not counted a second time by the compatibility relationship write.
+    const compatibilityEntry = getState().social.sessionLogs.at(-1)
     dispatch(replaceRealityDomain(finishDraft(resolvedDomain)))
     dispatch(replaceRealitySimulation(orchestration.simulation))
+    const observationFactId = compatibilityEntry?.context?.intelFactId
+    const observationFact = observationFactId
+      ? orchestration.domain.facts[observationFactId]
+      : undefined
+    if (
+      resolvedAsSuccess &&
+      state.game.mode !== 'survival' &&
+      compatibilityEntry?.actorId === input.actorId &&
+      compatibilityEntry.actionId === input.actionId &&
+      observationFact
+    ) {
+      deliverIntelActionFact(
+        dispatch,
+        observationFact,
+        input.actorId,
+        input.actionId,
+        compatibilityEntry.week ?? state.game.week,
+        compatibilityEntry.phase ?? getWeekendActivityPhase(state)
+      )
+    }
+    if (resolvedAsSuccess && input.actionId === 'trade_secrets') {
+      if (
+        compatibilityEntry?.actionId === 'trade_secrets' &&
+        compatibilityEntry.actorId === input.actorId &&
+        compatibilityEntry.targetId === input.targetId
+      ) {
+        // The compatibility action runs the shared trade middleware before the
+        // authoritative Reality-domain restore above. Replay only its intel
+        // transfer against the restored domain so the disclosure survives.
+        processTradeSecrets({ dispatch }, state, compatibilityEntry)
+      }
+    }
     // An accepted human alliance is authoritative in both relationship models.
     // Projecting the Reality domain can otherwise leave one legacy direction
     // just below the threshold used by badges and action eligibility.

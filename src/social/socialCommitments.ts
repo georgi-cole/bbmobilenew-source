@@ -96,7 +96,10 @@ export function getCommitmentKindForInteraction(
   interaction: IncomingInteraction
 ): SocialCommitmentKind | null {
   const scenario = scenarioKey(interaction)
-  if (interaction.type === 'nomination_plea' || scenario === 'hoh_safety_request') {
+  if (
+    interaction.type === 'nomination_plea' ||
+    (interaction.type === 'deal_offer' && scenario === 'hoh_safety_request')
+  ) {
     return 'protect_from_nomination'
   }
   if (interaction.type === 'deal_offer' && scenario === 'nominee_veto_pitch') {
@@ -107,6 +110,12 @@ export function getCommitmentKindForInteraction(
   }
   if (interaction.type === 'deal_offer' && scenario === 'tie_break_campaign') {
     return 'tie_break_keep'
+  }
+  if (
+    interaction.type === 'deal_offer' &&
+    (scenario === 'protection_deal' || scenario === 'protection_deal_future_vote')
+  ) {
+    return 'vote_to_keep'
   }
   return null
 }
@@ -140,7 +149,10 @@ export function createCommitmentFromInteraction({
     promisorId,
     beneficiaryId: interaction.fromId,
     createdWeek: week,
-    dueWeek: week,
+    dueWeek:
+      scenarioKey(interaction) === 'protection_deal_future_vote'
+        ? (interaction.createdWeek ?? week) + 1
+        : week,
     status: 'pending',
   }
 }

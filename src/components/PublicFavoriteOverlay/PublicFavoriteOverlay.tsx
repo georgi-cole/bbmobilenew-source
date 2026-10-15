@@ -1177,29 +1177,31 @@ export default function PublicFavoriteOverlay({
               <ForecastEliminationBurst player={forecastEliminationBurst} />
             )}
           </AnimatePresence>
-          {!isComplete && !forecastOpen && (
-            <div className="pf-overlay__speed-controls" aria-label="Public vote playback controls">
-              {phase === 'intro' && (
-                <button type="button" className="pf-overlay__skip" onClick={handleSkipIntro}>
-                  Skip intro
-                </button>
-              )}
-              <button
-                ref={fastForwardButtonRef}
-                type="button"
-                className={`pf-overlay__fast-forward${fastForwarding ? ' is-active' : ''}`}
-                onClick={handleFastForward}
-                disabled={fastForwarding || spotlightPending}
-                aria-label="Fast forward public favorite vote"
-              >
-                <span aria-hidden="true">»</span>
-                {fastForwarding ? 'Forwarding' : 'Fast forward'}
-              </button>
-            </div>
-          )}
-
           {!isComplete && (
             <div className="pf-overlay__announcement-slot" aria-live="polite">
+              {!forecastOpen && (
+                <div
+                  className="pf-overlay__speed-controls"
+                  aria-label="Public vote playback controls"
+                >
+                  {phase === 'intro' && (
+                    <button type="button" className="pf-overlay__skip" onClick={handleSkipIntro}>
+                      Skip intro
+                    </button>
+                  )}
+                  <button
+                    ref={fastForwardButtonRef}
+                    type="button"
+                    className={`pf-overlay__fast-forward${fastForwarding ? ' is-active' : ''}`}
+                    onClick={handleFastForward}
+                    disabled={fastForwarding || spotlightPending}
+                    aria-label="Fast forward public favorite vote"
+                  >
+                    <span aria-hidden="true">»</span>
+                    {fastForwarding ? 'Forwarding' : 'Fast forward'}
+                  </button>
+                </div>
+              )}
               <AnimatePresence mode="wait" initial={false}>
                 {eliminationActive ? (
                   <motion.div

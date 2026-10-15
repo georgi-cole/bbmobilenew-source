@@ -87,6 +87,7 @@ export default function SeasonRecapPreview() {
         week={12}
         players={PREVIEW_PLAYERS}
         history={PREVIEW_EXIT_HISTORY}
+        completedWeekendDays={[5, 10]}
         onComplete={() => {
           audioRef.current?.fadeOutAndStop(360);
           setOpen(false);

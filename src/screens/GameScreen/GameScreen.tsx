@@ -33,7 +33,7 @@ import {
   type PendingChallenge,
 } from '../../store/challengeSlice'
 import { selectLastSocialReport } from '../../social/socialSlice'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
 import {
   clearSavedRun,
@@ -172,6 +172,7 @@ import {
 } from '../../features/voxNominationRevealStorage'
 
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
 import { useEndgameFlow } from './flows/useEndgameFlow'
@@ -248,6 +249,7 @@ function buildAiOnlyChallengeRawResults(challenge: PendingChallenge) {
  * or add action buttons by dispatching events via useAppDispatch().
  */
 export default function GameScreen() {
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -261,6 +263,7 @@ export default function GameScreen() {
   )
   const store = useStore<RootState>()
   const gameScreenRef = useRef<HTMLDivElement | null>(null)
+  const handledConfessionalReturnKeyRef = useRef<string | null>(null)
   const refinedGameChrome = useRefinedGameChrome()
   const storeRef = useRef(store)
   const isMountedRef = useRef(true)
@@ -279,6 +282,27 @@ export default function GameScreen() {
   // and a main-TV guidance banner is shown instead.
   const selectedConfessionalDecision = useAppSelector(selectActiveConfessionalDecision)
   const activeConfessionalDecision = game.mode === 'survival' ? null : selectedConfessionalDecision
+  useEffect(() => {
+    if (handledConfessionalReturnKeyRef.current === location.key) return
+    if (
+      !shouldAutomaticallyAdvanceAfterConfessionalVote(
+        location.state,
+        game,
+        activeConfessionalDecision !== null
+      )
+    ) {
+      return
+    }
+
+    // Consume the one-shot navigation cue before advancing so revisiting this
+    // history entry cannot replay the ballot or skip a later broadcast.
+    handledConfessionalReturnKeyRef.current = location.key
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: null,
+    })
+    dispatch(advance())
+  }, [activeConfessionalDecision, dispatch, game, location, navigate])
   const publicOpinionProfiles = useAppSelector(
     (s: RootState): Record<string, PlayerPublicProfile> =>
       s.publicOpinion?.profiles ?? EMPTY_PUBLIC_PROFILES
@@ -1272,9 +1296,8 @@ export default function GameScreen() {
 
   /* eslint-enable react-hooks/set-state-in-effect */
   // ── Social phase panel ────────────────────────────────────────────────────
-  // Show the SocialPanel whenever the human player is alive and the game is in
-  // a non-vote interaction window. Blocked during live_vote and eviction phases
-  // where social interaction is not appropriate.
+  // Show Social while the human player is alive, including while a live ballot
+  // is waiting to be cast or resolved. The eviction presentation stays locked.
   const SOCIAL_INTERACTION_PHASES = new Set<string>([
     'week_start',
     'loh_comp_announcement',
@@ -1288,6 +1311,7 @@ export default function GameScreen() {
     'pos_ceremony',
     'pos_ceremony_results',
     'social_2',
+    'live_vote',
   ])
   // Vox Populi relies heavily on the social game before the endgame, but the
   // Final Three is a closed ceremony. Do not surface fresh social actions or

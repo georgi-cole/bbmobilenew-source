@@ -38,6 +38,12 @@ import {
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
+import type { RealityFact } from './reality/types'
+import {
+  formatIntelLeadText,
+  selectIntelActionFact,
+  selectIntelFactForActor,
+} from './intelligenceSystem'
 import { isLohReplacementPending } from './lohReplacementWindow'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
@@ -66,6 +72,7 @@ type PartialSocialState = {
   infoBank?: Record<string, number>
   relationships: SocialState['relationships']
   reality?: SocialState['reality']
+  intelligenceDeliveries?: SocialState['intelligenceDeliveries']
   sessionLogs: SocialActionLogEntry[]
   actionHistory?: SocialActionLogEntry[]
 }
@@ -89,6 +96,7 @@ interface ManeuverPlayer {
 
 interface ManeuverGameState {
   players: ManeuverPlayer[]
+  mode?: string
   week?: number
   phase?: string
   lohId?: string | null
@@ -153,6 +161,7 @@ const ALLIANCE_REJECTION_DELTA = -6
 const ALLIANCE_GASLIGHT_DELTA = -10
 const ALLIANCE_BETRAYAL_DELTA = -8
 const ALLIANCE_GASLIGHT_AFFINITY_THRESHOLD = 0
+const INTEL_ACTION_IDS = new Set(['observe', 'read_the_room', 'snoop_around', 'eavesdrop'])
 
 function getWeekendWallet(
   state: Pick<StateForManeuvers, 'game'> | null | undefined,
@@ -306,6 +315,26 @@ function buildSnoopNarrative(
     return `You caught ${names[0]} and ${names[1]} slipping away together after lights-out. Their secret romance is now yours to keep, trade or expose.`
   }
   return `You overheard ${names[0]} and ${names[1]} making a private loyalty pact. You now know their bromance is more strategic than it looks.`
+}
+
+function buildIntelActionNarrative(
+  actionId: string,
+  fact: RealityFact | null,
+  players: ManeuverPlayer[]
+): string | null {
+  if (!INTEL_ACTION_IDS.has(actionId)) return null
+  if (fact) {
+    const lead = formatIntelLeadText(
+      fact,
+      players.map((player) => ({ id: player.id, name: player.name ?? player.id }))
+    )
+    if (actionId === 'eavesdrop') return `You heard a possible lead: ${lead}`
+    if (actionId === 'snoop_around') return `You picked up a possible lead: ${lead}`
+    return `Your read: ${lead}`
+  }
+  if (actionId === 'snoop_around') return null
+  if (actionId === 'eavesdrop') return 'No clear story reached you this time.'
+  return 'You watched the room, but no clear lead surfaced.'
 }
 
 function buildLohTargetNarrative(
@@ -866,6 +895,8 @@ export interface ExecuteActionOptions {
    * accepted and rejected recipients from receiving the same relationship delta.
    */
   targetOutcomes?: Readonly<Record<string, 'success' | 'failure'>>
+  /** Concise outcome text supplied by the authoritative Reality resolver. */
+  narrative?: string
 }
 
 export interface ExecuteActionResult {
@@ -1393,6 +1424,29 @@ export function executeAction(
   const infoSpend = Math.min(costs.info, currentInfo)
   const postSpendInfluenceBalance = currentInfluence - influenceSpend
   const postSpendInfoBalance = currentInfo - infoSpend
+  const tradeIntelAvailability =
+    actionId === 'trade_secrets' && outcome === 'success'
+      ? {
+          actorCanShare: Boolean(
+            selectIntelFactForActor(
+              state.social.reality,
+              actorId,
+              targetId,
+              state.game?.week ?? 0,
+              state.game?.players ?? []
+            )
+          ),
+          targetCanShare: Boolean(
+            selectIntelFactForActor(
+              state.social.reality,
+              targetId,
+              actorId,
+              state.game?.week ?? 0,
+              state.game?.players ?? []
+            )
+          ),
+        }
+      : null
   if (weekendWallet) {
     _store.dispatch({
       type: 'game/spendWeekendSocialResources',
@@ -1424,10 +1478,17 @@ export function executeAction(
           info: didBackfire ? -scaledYields.info : repetitionMissed ? 0 : scaledYields.info,
         }
       : { influence: 0, info: 0 }
+  const adjustedResourceEffect =
+    tradeIntelAvailability &&
+    !tradeIntelAvailability.actorCanShare &&
+    !tradeIntelAvailability.targetCanShare &&
+    resourceEffect.info > 0
+      ? { ...resourceEffect, info: 0 }
+      : resourceEffect
   const appliedYields = { influence: 0, info: 0 }
-  if (resourceEffect.influence !== 0) {
+  if (adjustedResourceEffect.influence !== 0) {
     const appliedInfluenceDelta = clampResourceAdjustment(
-      resourceEffect.influence,
+      adjustedResourceEffect.influence,
       postSpendInfluenceBalance
     )
     if (appliedInfluenceDelta !== 0) {
@@ -1442,8 +1503,11 @@ export function executeAction(
     }
     appliedYields.influence = appliedInfluenceDelta
   }
-  if (resourceEffect.info !== 0) {
-    const appliedInfoDelta = clampResourceAdjustment(resourceEffect.info, postSpendInfoBalance)
+  if (adjustedResourceEffect.info !== 0) {
+    const appliedInfoDelta = clampResourceAdjustment(
+      adjustedResourceEffect.info,
+      postSpendInfoBalance
+    )
     if (appliedInfoDelta !== 0) {
       if (weekendWallet) {
         _store.dispatch({
@@ -1468,22 +1532,65 @@ export function executeAction(
   const newEnergy = balancesAfter.energy
 
   const subjectId = options?.subjectId ?? lohTargetPlan?.targetId
+  const tradeSummary =
+    actionId === 'trade_secrets' && outcome === 'success' && tradeIntelAvailability
+      ? (() => {
+          const targetName =
+            state.game?.players?.find((player) => player.id === targetId)?.name ?? 'your partner'
+          if (tradeIntelAvailability.actorCanShare && tradeIntelAvailability.targetCanShare) {
+            return `You and ${targetName} traded fresh leads.`
+          }
+          if (tradeIntelAvailability.actorCanShare) {
+            return `You shared a lead with ${targetName}, but they had no new information to trade.`
+          }
+          if (tradeIntelAvailability.targetCanShare) {
+            return `${targetName} shared a lead with you; you had nothing new to offer.`
+          }
+          return `You and ${targetName} compared notes, but neither had a new lead to share.`
+        })()
+      : null
 
+  const intelActor = state.game?.players.find((player) => player.id === actorId)
+  const canDiscoverIntel =
+    (options?.source === 'manual' ||
+      ((options?.source ?? 'system') === 'system' &&
+        intelActor !== undefined &&
+        !intelActor.isUser)) &&
+    outcome === 'success' &&
+    state.game?.mode !== 'survival' &&
+    INTEL_ACTION_IDS.has(actionId)
+  const intelFact =
+    canDiscoverIntel && state.social.reality
+      ? selectIntelActionFact(
+          state.social.reality,
+          state.social.intelligenceDeliveries,
+          actorId,
+          state.game?.week ?? 0,
+          actionId,
+          state.game?.players ?? []
+        )
+      : null
+  const intelNarrative =
+    canDiscoverIntel && options?.source === 'manual'
+      ? buildIntelActionNarrative(actionId, intelFact, state.game?.players ?? [])
+      : null
   const narrative =
-    outcome !== 'success'
+    options?.narrative ??
+    (outcome !== 'success'
       ? undefined
       : actionId === 'snoop_around'
-        ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
-        : actionId === 'ask_loh_target' && !safetyAdviceOpen
-          ? buildLohTargetNarrative(
-              state.game,
-              targetId,
-              priorRepeats,
-              lohTargetPlan
-                ? { targetName: lohTargetPlan.targetName, isBackdoor: lohTargetPlan.isBackdoor }
-                : null
-            )
-          : undefined
+        ? (intelNarrative ?? buildSnoopNarrative(state.social, actorId, state.game?.players ?? []))
+        : (intelNarrative ??
+          (actionId === 'ask_loh_target' && !safetyAdviceOpen
+            ? buildLohTargetNarrative(
+                state.game,
+                targetId,
+                priorRepeats,
+                lohTargetPlan
+                  ? { targetName: lohTargetPlan.targetName, isBackdoor: lohTargetPlan.isBackdoor }
+                  : null
+              )
+            : (tradeSummary ?? undefined))))
 
   const entry: SocialActionLogEntry = {
     actionId,
@@ -1491,13 +1598,18 @@ export function executeAction(
     targetId,
     ...(subjectId ? { subjectId } : {}),
     ...(narrative ? { narrative } : {}),
-    ...(lohTargetPlan
+    ...(lohTargetPlan || canDiscoverIntel
       ? {
           context: {
-            lohPlanType: lohTargetPlan.isBackdoor
-              ? ('backup_plan' as const)
-              : ('current_target' as const),
-            lohDisclosureOutcome: lohDisclosure.outcome,
+            ...(lohTargetPlan
+              ? {
+                  lohPlanType: lohTargetPlan.isBackdoor
+                    ? ('backup_plan' as const)
+                    : ('current_target' as const),
+                  lohDisclosureOutcome: lohDisclosure.outcome,
+                }
+              : {}),
+            ...(canDiscoverIntel ? { intelFactId: intelFact?.id ?? null } : {}),
           },
         }
       : {}),
@@ -1645,6 +1757,7 @@ export function executeAction(
     outcome,
   })
   const standardSummary =
+    tradeSummary ??
     contextualSummary ??
     (actionId === 'ask_loh_target' && priorLohAsks >= 3
       ? `${lohName} shut the conversation down after being asked repeatedly.`
@@ -1692,6 +1805,7 @@ export function executeAction(
       newEnergy,
       summary:
         narrative ??
+        tradeSummary ??
         contextualSummary ??
         getSocialOutcomeCopy({
           actionId,

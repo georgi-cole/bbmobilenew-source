@@ -57,14 +57,19 @@ import {
 } from './incomingInteractionAutonomy'
 import type { AutonomyStore } from './incomingInteractionAutonomy'
 import { deliverScheduledIncomingInteractionsForPhase } from './incomingInteractionScheduler'
-import { collectInvalidIncomingInteractionIds } from './incomingInteractionValidity'
+import {
+  collectInvalidIncomingInteractionIds,
+  isIncomingInteractionInvalidated,
+} from './incomingInteractionValidity'
 import type {
   DramaSocialNetwork,
   IncomingInteraction,
   ScheduledIncomingInteraction,
+  RelationshipsMap,
   SocialActionLogEntry,
   SocialMemoryMap,
 } from './types'
+import { buildKnownRomanticRivalEvidence } from './reality/knownRomanticRivalEvidence'
 import { advanceDramaNetwork, normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { seedWeekRelationships } from './weekSocialSeed'
 import { DEFAULT_ENERGY, HUMAN_SOCIAL_ALLOWANCE } from './constants'
@@ -456,6 +461,40 @@ function buildStrategicAllianceSnapshot(state: StateWithGame): StrategicAlliance
     ),
     infiltratorIds: [...alliance.infiltratorIds],
   }))
+}
+
+function buildStrategicRelationshipSnapshot(state: StateWithGame): RelationshipsMap {
+  const snapshot: RelationshipsMap = Object.fromEntries(
+    Object.entries(state.social?.relationships ?? {}).map(([sourceId, targets]) => [
+      sourceId,
+      Object.fromEntries(
+        Object.entries(targets).map(([targetId, relationship]) => [
+          targetId,
+          { ...relationship, tags: [...relationship.tags] },
+        ])
+      ),
+    ])
+  )
+  const activeIds = new Set(
+    (state.game?.players ?? [])
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
+  const knownRivals = buildKnownRomanticRivalEvidence(state.social?.reality)
+  for (const [observerId, rivalReads] of Object.entries(knownRivals)) {
+    if (!activeIds.has(observerId)) continue
+    for (const [rivalId, evidence] of Object.entries(rivalReads)) {
+      if (!activeIds.has(rivalId) || !activeIds.has(evidence.partnerId)) continue
+      snapshot[observerId] ??= {}
+      const existing = snapshot[observerId][rivalId] ?? { affinity: 0, tags: [] }
+      snapshot[observerId][rivalId] = {
+        ...existing,
+        tags: [...existing.tags],
+        knownRomanticRival: evidence,
+      }
+    }
+  }
+  return snapshot
 }
 
 function ensureRealitySimulationSeed(api: MiddlewareAPI, force = false): void {
@@ -1264,6 +1303,35 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
 
   const { type } = action as { type: string }
 
+  if (type === 'social/pushIncomingInteraction' || type === 'social/scheduleIncomingInteraction') {
+    const state = api.getState() as StateWithGame
+    const payload = (action as { payload?: unknown }).payload
+    const interaction =
+      type === 'social/scheduleIncomingInteraction' &&
+      payload !== null &&
+      typeof payload === 'object' &&
+      'interaction' in payload
+        ? (payload as { interaction?: IncomingInteraction }).interaction
+        : (payload as IncomingInteraction | undefined)
+    const sender = interaction
+      ? state.game?.players.find((player) => player.id === interaction.fromId)
+      : undefined
+    const recipient = state.game?.players.find((player) => player.isUser)
+    if (
+      !interaction ||
+      !sender ||
+      !recipient ||
+      sender.status === 'evicted' ||
+      sender.status === 'jury' ||
+      recipient.status === 'evicted' ||
+      recipient.status === 'jury' ||
+      sender.id === recipient.id ||
+      isIncomingInteractionInvalidated(interaction, state.game, state.social?.reality)
+    ) {
+      return action
+    }
+  }
+
   if (type === 'game/resetGame') {
     const result = next(action)
     // resetGame builds the active Cupid state inside the reducer, before a
@@ -1322,10 +1390,11 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           actorId: entry.actorId,
           targetId: entry.targetId,
           subjectId: entry.subjectId,
+          intelFactId: entry.context?.intelFactId ?? undefined,
           actorName,
           targetName,
           week: entry.week ?? state.game.week ?? 1,
-          phase: state.game.phase,
+          phase: state.game.phase ?? 'social',
           success: entry.outcome === 'success',
         })
       )
@@ -1625,7 +1694,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     const prevState = api.getState() as StateWithGame
     api.dispatch({
       type: 'game/syncStrategicRelationships',
-      payload: prevState.social?.relationships ?? {},
+      payload: buildStrategicRelationshipSnapshot(prevState),
     })
     api.dispatch({
       type: 'game/syncStrategicAlliances',
@@ -2110,7 +2179,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       const reconciledState = api.getState() as StateWithGame
       api.dispatch({
         type: 'game/syncStrategicRelationships',
-        payload: reconciledState.social?.relationships ?? {},
+        payload: buildStrategicRelationshipSnapshot(reconciledState),
       })
       api.dispatch({
         type: 'game/syncStrategicAlliances',

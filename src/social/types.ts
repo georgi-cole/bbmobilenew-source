@@ -12,6 +12,13 @@ export type SocialEnergyBank = Record<string, number>
 export interface RelationshipEntry {
   affinity: number
   tags: string[]
+  /** Relationship evidence an AI has personally learned, mirrored only into game decision snapshots. */
+  knownRomanticRival?: {
+    partnerId: string
+    evidenceDay: number
+    confidence: number
+    source: 'witnessed' | 'public' | 'reported' | 'inferred'
+  }
 }
 
 /** Full relationship graph: outer key = source player ID, inner key = target player ID. */
@@ -192,6 +199,7 @@ export interface SocialActionLogEntry {
   context?: {
     lohPlanType?: 'current_target' | 'backup_plan'
     lohDisclosureOutcome?: 'truthful' | 'vague' | 'false'
+    intelFactId?: string | null
   }
   /** Energy deducted (backward-compatible; prefer `costs.energy`). */
   cost: number

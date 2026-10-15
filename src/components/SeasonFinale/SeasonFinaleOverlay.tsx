@@ -136,6 +136,7 @@ export default function SeasonFinaleOverlay() {
     [finale, winner]
   )
   const wasPublicVotingPhaseRef = useRef(false)
+  const winnerStingerPlayedRef = useRef(false)
   const [showCredits, setShowCredits] = useState(false)
 
   const publicFavoriteSetupLines = useMemo(() => buildPublicFavoriteSetupLines(), [])
@@ -188,12 +189,15 @@ export default function SeasonFinaleOverlay() {
   }, [finale?.phase, location.pathname, navigate])
 
   useEffect(() => {
-    if (finale?.phase !== 'winnerCinematic') return
-    // The finale stinger is the single winner sound for this reveal.
-    const reactionTimer = window.setTimeout(() => {
-      void SoundManager.play('tv:finale_winner_stinger')
-    }, 1500)
-    return () => window.clearTimeout(reactionTimer)
+    if (finale?.phase !== 'winnerCinematic') {
+      winnerStingerPlayedRef.current = false
+      return
+    }
+    if (winnerStingerPlayedRef.current) return
+    winnerStingerPlayedRef.current = true
+    // Play as soon as the winner card appears; a delayed request can be
+    // cancelled when the player quickly continues the reveal.
+    void SoundManager.play('tv:finale_winner_stinger')
   }, [finale?.phase])
 
   if (!finale || !winner) return null

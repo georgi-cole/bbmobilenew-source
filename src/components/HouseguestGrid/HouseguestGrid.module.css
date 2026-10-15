@@ -1345,6 +1345,24 @@
   animation: crossFadeIn 0.35s ease-out forwards;
 }
 
+.crossFallback::before {
+  position: absolute;
+  top: 45%;
+  left: -21%;
+  width: 142%;
+  height: 10%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(216, 43, 50, 0.82),
+    rgba(246, 48, 49, 0.96),
+    rgba(205, 31, 42, 0.84)
+  );
+  box-shadow: 0 0 9px rgba(226, 38, 46, 0.52);
+  content: '';
+  transform: rotate(45deg);
+}
+
 .cupidEvictionMark {
   position: absolute;
   inset: 7%;

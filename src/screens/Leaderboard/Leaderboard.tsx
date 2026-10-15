@@ -155,6 +155,7 @@ export default function Leaderboard() {
                       <button
                         type="button"
                         className="hall-of-fame-screen__season-main"
+                        aria-label={`Season ${archive.seasonIndex}. ${formatLabel}${archive.twinShockConsumed ? ', Twin Shock' : ''}${duration ? `, ${duration} days` : ''}. You: ${placementLabel(userSummary?.finalPlacement)}. Public rating: ${publicRatingLabel(userSummary?.finalPublicApproval)}. Winner: ${winnerName}.`}
                         aria-expanded={isExpanded}
                         onClick={() =>
                           setExpandedSeasonId((current) =>

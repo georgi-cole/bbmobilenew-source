@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AvatarTile, { EVICTION_MARK_ANIMATION_FALLBACK_MS } from '../AvatarTile'
 import { setDepressionShockVisualPhase } from '../../../features/twists/depressionShock'
@@ -65,6 +65,17 @@ describe('AvatarTile', () => {
     expect(permanentMark).not.toBeNull()
     expect(permanentMark?.className).not.toContain('crossAnimated')
     expect(sessionStorage.getItem(evictionMarkKey)).toBe('shown')
+  })
+
+  it('shows a CSS eviction strike if the bundled strike image cannot load', () => {
+    const { container } = render(<AvatarTile name="Taylor" isEvicted />)
+    const mark = container.querySelector('img[src*="/evictionmark/evictionmark.png"]')
+
+    expect(mark).not.toBeNull()
+    fireEvent.error(mark!)
+
+    expect(container.querySelector('img[src*="/evictionmark/evictionmark.png"]')).toBeNull()
+    expect(container.querySelector('[class*="crossFallback"]')).not.toBeNull()
   })
 
   it('does not consume the eviction-strike entrance when the tile is torn down early', () => {

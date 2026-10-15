@@ -301,7 +301,7 @@ export default function MemoryColorsComp({
             </ol>
           }
         >
-          <div className="mc-results-title">🧠 Memory Colors</div>
+          <div className="mc-results-title"><span aria-hidden="true">✦</span> Memory Colors</div>
           <div className="mc-results-subtitle">20-color pool • 5 mistakes max</div>
         </MinigameCompleteWrapper>
       </div>
@@ -320,9 +320,15 @@ export default function MemoryColorsComp({
   return (
     <div className={['mc-host', isWarning ? 'mc-host--warning' : ''].filter(Boolean).join(' ')}>
       <div className="mc-header">
-        <div className="mc-round-label">
-          Round <strong>{mc.round}</strong>
-          <span className="mc-sequence-length"> ({sequenceLength} colors)</span>
+        <div className="mc-brand">
+          <span className="mc-brand-mark" aria-hidden="true">◈</span>
+          <div>
+            <span className="mc-brand-name">Memory Colors</span>
+            <div className="mc-round-label">
+              Round <strong>{mc.round}</strong>
+              <span className="mc-sequence-length"> ({sequenceLength} colors)</span>
+            </div>
+          </div>
         </div>
         <div className="mc-life-indicator" aria-label="Mistakes remaining">
           <span className={['mc-strike', mistakesRemaining <= 1 ? 'mc-strike--used' : 'mc-strike--safe'].join(' ')}>

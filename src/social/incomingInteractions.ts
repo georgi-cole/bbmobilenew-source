@@ -28,7 +28,9 @@ import {
 } from './socialSlice'
 import {
   coordinateRealityAllianceTarget,
+  findRealityAllianceForRecruitment,
   holdRealityAllianceStrategyMeeting,
+  recordRealityAllianceInvitation,
   resolvePendingHumanRealityInteraction,
   resolveRelationshipStoryResponse,
 } from './reality'
@@ -50,7 +52,7 @@ import type {
   IncomingInteractionResponseAction,
   IncomingInteractionType,
 } from './types'
-import { makeIntelMemory } from './intelligenceSystem'
+import { formatIntelLeadText, makeIntelMemory, selectIntelFactForActor } from './intelligenceSystem'
 import { getRuntimeSocialActionById } from './socialActionManager'
 import { normalizeActionCosts } from './smExecNormalize'
 import { getSocialResourceEffect } from './socialResourceEconomy'
@@ -403,6 +405,28 @@ function resolveRealityIncomingInteraction(
         }) || domainChanged
     }
 
+    // An invitation discloses a live group even when the human declines it.
+    // Accepted proposals still use the current pact admission flow.
+    if (
+      getInteractionSocialMode(interaction, state) === 'drama' &&
+      interaction.type === 'alliance_proposal'
+    ) {
+      const recruitmentAlliance = findRealityAllianceForRecruitment(
+        domain,
+        interaction.fromId,
+        humanId
+      )
+      if (recruitmentAlliance) {
+        recordRealityAllianceInvitation(domain, {
+          allianceId: recruitmentAlliance.id,
+          inviterId: interaction.fromId,
+          inviteeId: humanId,
+          at: { day, phase },
+          sourceEventId: `incoming:${interaction.id}`,
+        })
+        domainChanged = true
+      }
+    }
     if (interaction.type === 'alliance_proposal' && responseType === 'accept') {
       const applied = finalizeAcceptedPersonalPact(domain, {
         actorId: interaction.fromId,
@@ -698,6 +722,17 @@ function buildResponseOutcomeText(
     return `${fromName} knows you have not committed to a Safety plan yet.`
   }
 
+  const afterScenarioKey = interaction.payload?.scenarioKey
+  if (
+    (afterScenarioKey === 'protection_deal' ||
+      afterScenarioKey === 'protection_deal_future_vote') &&
+    (responseType === 'accept' || responseType === 'positive')
+  ) {
+    return afterScenarioKey === 'protection_deal_future_vote'
+      ? `You accept ${fromName}'s Safety offer and promise to vote to keep them if they are nominated next week.`
+      : `You accept ${fromName}'s protection offer and promise to vote to keep them if they are nominated this week.`
+  }
+
   const commitmentKind = getCommitmentKindForInteraction(interaction)
   if (commitmentKind && (responseType === 'positive' || responseType === 'accept')) {
     return `You made a promise to ${fromName}. The related game decision will judge whether you keep it.`
@@ -732,7 +767,13 @@ function mergeSocialMemoryDeltas(
 }
 
 function canAwardIntel(interaction: IncomingInteraction): boolean {
-  if (interaction.type !== 'gossip' && interaction.type !== 'warning') return false
+  const isProtectionDeal =
+    (interaction.payload?.scenarioKey === 'protection_deal' ||
+      interaction.payload?.scenarioKey === 'protection_deal_future_vote') &&
+    typeof interaction.payload?.intelFactId === 'string'
+  if (!isProtectionDeal && interaction.type !== 'gossip' && interaction.type !== 'warning') {
+    return false
+  }
   if (interaction.payload?.truth === 'false') return false
   if (interaction.payload?.evidence === 'none') return false
   return true
@@ -956,11 +997,13 @@ function applyIncomingChoiceConsequences({
     )
   }
 
-  if (
-    dramaMode &&
-    canAwardIntel(interaction) &&
-    (responseType === 'positive' || responseType === 'neutral')
-  ) {
+  const isProtectionDeal =
+    interaction.payload?.scenarioKey === 'protection_deal' ||
+    interaction.payload?.scenarioKey === 'protection_deal_future_vote'
+  const receivedIntel = isProtectionDeal
+    ? responseType === 'accept' || responseType === 'positive'
+    : responseType === 'positive' || responseType === 'neutral' || responseType === 'accept'
+  if (dramaMode && canAwardIntel(interaction) && receivedIntel) {
     dispatch(applyInfoDelta({ playerId: humanPlayer.id, delta: 1 }))
   }
 
@@ -969,11 +1012,7 @@ function applyIncomingChoiceConsequences({
       ? interaction.payload.intelFactId
       : undefined
   const intelFact = intelFactId ? state.social.reality.facts[intelFactId] : undefined
-  if (
-    intelFact &&
-    source === 'player' &&
-    (responseType === 'positive' || responseType === 'neutral')
-  ) {
+  if (intelFact && source === 'player' && receivedIntel) {
     const senderBelief =
       state.social.reality.beliefsByOwner[interaction.fromId]?.[
         `belief:${interaction.fromId}:${intelFact.id}`
@@ -984,7 +1023,10 @@ function applyIncomingChoiceConsequences({
       : (senderBelief?.confidence ?? 0.52)
     const confidence = Math.max(
       0.2,
-      Math.min(0.88, senderConfidence * (responseType === 'positive' ? 0.9 : 0.72))
+      Math.min(
+        0.88,
+        senderConfidence * (responseType === 'positive' || responseType === 'accept' ? 0.9 : 0.72)
+      )
     )
     const authoredChain = Array.isArray(interaction.payload?.intelSourceChain)
       ? interaction.payload.intelSourceChain.filter(
@@ -1018,8 +1060,28 @@ function applyIncomingChoiceConsequences({
     )
   }
 
+  const acceptedTradeLead =
+    source === 'player' &&
+    responseType === 'accept' &&
+    interaction.payload?.scenarioKey === 'trade_secrets_offer'
+      ? selectIntelFactForActor(
+          state.social.reality,
+          interaction.fromId,
+          humanPlayer.id,
+          currentWeek,
+          state.game.players
+        )
+      : null
+  const sharedFact =
+    source === 'player' && receivedIntel && responseType === 'accept'
+      ? (intelFact ?? acceptedTradeLead?.fact)
+      : undefined
+  const sharedIntelOutcome = sharedFact
+    ? ` ${fromName} shares the lead: ${formatIntelLeadText(sharedFact, state.game.players)}`
+    : ''
+
   return {
-    outcomeText: `${outcomeText}${
+    outcomeText: `${outcomeText}${sharedIntelOutcome}${
       shouldRippleCupidConversation && cupidPartnerId
         ? ` Their Cupid partner, ${
             state.game.players.find((player) => player.id === cupidPartnerId)?.name ??

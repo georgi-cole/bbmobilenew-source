@@ -12,8 +12,8 @@ describe('GameBackButton', () => {
   })
 
   it('keeps the supplied accessible label while remaining icon-only', () => {
-    render(<GameBackButton label="Return to the House" />)
+    render(<GameBackButton label="Return to the Hub" />)
 
-    expect(screen.getByRole('button', { name: 'Return to the House' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Return to the Hub' })).toBeDefined()
   })
 })

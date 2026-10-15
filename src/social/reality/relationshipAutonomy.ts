@@ -474,6 +474,9 @@ function upsertFalloutThread(
     stage: string
     importance: number
     relatedSecretIds?: string[]
+    jealousObserverId?: string
+    romanticPartnerId?: string
+    romanticRivalId?: string
   }
 ): void {
   const id = threadIdFor(input.type, input.idParts)
@@ -496,6 +499,9 @@ function upsertFalloutThread(
       ...new Set([...(existing?.relatedSecretIds ?? []), ...(input.relatedSecretIds ?? [])]),
     ],
     status: 'OPEN',
+    ...(input.jealousObserverId ? { jealousObserverId: input.jealousObserverId } : {}),
+    ...(input.romanticPartnerId ? { romanticPartnerId: input.romanticPartnerId } : {}),
+    ...(input.romanticRivalId ? { romanticRivalId: input.romanticRivalId } : {}),
   }
 }
 
@@ -528,6 +534,9 @@ export function recordGroundedJealousy(
       at: input.at,
       stage: 'ROMANTIC_INSECURITY',
       importance: 0.72,
+      jealousObserverId: jealousId,
+      romanticPartnerId: bondedId,
+      romanticRivalId: [input.actorId, input.targetId].find((id) => id !== bondedId),
     })
   }
   for (const alliance of Object.values(domain.alliances)) {

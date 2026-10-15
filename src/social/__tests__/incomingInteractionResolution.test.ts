@@ -6,6 +6,7 @@ import {
 import { INCOMING_SCENE_OUTCOME_BANK } from '../incomingSceneOutcomeBank'
 import { getIncomingDialogueBeat } from '../incomingDialogueOutcomeBank'
 import { SCENARIO_VARIANT_POOLS } from '../interactionVariantBank'
+import { getCommitmentKindForInteraction } from '../socialCommitments'
 import type { IncomingInteraction } from '../types'
 
 function makeInteraction(overrides: Partial<IncomingInteraction> = {}): IncomingInteraction {
@@ -93,6 +94,23 @@ describe('incoming interaction contextual resolution', () => {
     ])
   })
 
+  it('keeps alliance reassurance choices accurate when no personal pact exists', () => {
+    const choices = getContextualIncomingChoices(
+      makeInteraction({
+        type: 'check_in',
+        payload: { scenarioKey: 'alliance_reassurance' },
+      })
+    )
+    const labels = choices?.map((choice) => choice.label) ?? []
+
+    expect(labels).toHaveLength(4)
+    expect(labels[0]).toBe('Reassure them')
+    expect(labels[2]).toBe('Set a boundary')
+    expect(labels[3]).toBe('End the check-in')
+    expect(labels[1]).toMatch(/Ask what changed|Compare your plans/)
+    expect(labels.join(' ')).not.toMatch(/renew.*pact|new terms/i)
+  })
+
   it('keeps pact decisions formal while plan and time requests remain pending actions', () => {
     const interaction = makeInteraction({
       type: 'alliance_proposal',
@@ -120,6 +138,25 @@ describe('incoming interaction contextual resolution', () => {
         payload: { ...interaction.payload, pactTimeRequested: true, pactPlanRequested: true },
       })?.map(({ label }) => label)
     ).toEqual(['Accept', 'Decline'])
+  })
+
+  it('does not turn an allied LOH check-in into an automatic protection or vote promise', () => {
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'check_in',
+          payload: { scenarioKey: 'allied_loh_plan_check_in' },
+        })
+      )
+    ).toBeNull()
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'deal_offer',
+          payload: { scenarioKey: 'live_vote_pitch' },
+        })
+      )
+    ).toBe('vote_to_keep')
   })
 
   it('gives co-nominees choices that do not pretend either can cast a saving vote', () => {
