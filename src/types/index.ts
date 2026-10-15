@@ -146,6 +146,10 @@ export interface CompleteMinigamePayload {
    * so the results UI and nomination logic share the same authoritative source.
    */
   lastPlaceId?: string
+  /** Complete game-supplied standings, highest place first. */
+  authoritativeRankedIds?: string[]
+  /** Game-supplied raw scores keyed by participant ID. */
+  rawResults?: Record<string, number>
 }
 
 /** Active minigame session stored in game state while waiting for player input. */

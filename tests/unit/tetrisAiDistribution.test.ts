@@ -1,62 +1,87 @@
 import { describe, expect, it } from 'vitest'
-import { simulateTetrisAiScores } from '../../src/ai/competition/tetrisSimulation'
+import { simulateTetrisAiRun } from '../../src/ai/competition/tetrisSimulation'
 import {
-  rankTetrisRound,
+  splitTetrisRound,
   type TetrisRoundPerformance,
 } from '../../src/components/TetrisComp/tournament'
 
-const field = Array.from({ length: 6 }, (_, index) => ({
-  id: `ai-${index + 1}`,
-  baselineScore: 50 + index,
-}))
-
-function performance(playerId: string, score: number, tieBreaker: number): TetrisRoundPerformance {
-  return { playerId, score, lines: 0, pieces: 0, maxStackHeight: 10, previousScore: 0, tieBreaker }
+const openingRound = {
+  durationMs: 60_000,
+  speedMultiplier: 0.94,
+  tensionLevel: 1,
 }
 
-describe('Fit Me In AI distribution', () => {
-  it('is deterministic and keeps full fields spread without forcing score gaps', () => {
-    const first = simulateTetrisAiScores({
-      seed: 42,
-      participants: field,
-      minScore: 320,
-      maxScore: 2_700,
-    })
-    const second = simulateTetrisAiScores({
-      seed: 42,
-      participants: field,
-      minScore: 320,
-      maxScore: 2_700,
-    })
-    const ordered = Object.values(first).sort((a, b) => b - a)
-
-    expect(second).toEqual(first)
-    expect(ordered[0] - ordered[ordered.length - 1]).toBeGreaterThanOrEqual(500)
-    expect(ordered.at(-1)).toBeGreaterThan(320)
+describe('Fit Me In gameplay AI', () => {
+  it('replays the same board decisions for the same player and seed', () => {
+    const input = { ...openingRound, id: 'medium-ai', baselineScore: 50, seed: 42 }
+    expect(simulateTetrisAiRun(input)).toEqual(simulateTetrisAiRun(input))
   })
 
-  it('uses the 0–100 skill rating to set a solo finalist score', () => {
-    const low = simulateTetrisAiScores({
-      seed: 42,
-      participants: [{ id: 'steady-ai', baselineScore: 0 }],
-      minScore: 320,
-      maxScore: 2_700,
-    })
-    const high = simulateTetrisAiScores({
-      seed: 42,
-      participants: [{ id: 'steady-ai', baselineScore: 100 }],
-      minScore: 320,
-      maxScore: 2_700,
-    })
+  it('keeps a 912-point player competitive against four medium-rated opponents', () => {
+    let humanAdvances = 0
+    const simulations = 250
 
-    expect(high['steady-ai']).toBeGreaterThan(low['steady-ai'] + 500)
+    for (let seed = 1; seed <= simulations; seed += 1) {
+      const roundSeed = (seed ^ Math.imul(1, 0x9e3779b1)) >>> 0
+      const aiPerformances: TetrisRoundPerformance[] = Array.from({ length: 4 }, (_, index) => {
+        const playerId = `medium-${index + 1}`
+        return {
+          playerId,
+          ...simulateTetrisAiRun({
+            ...openingRound,
+            id: playerId,
+            baselineScore: 50,
+            seed: roundSeed,
+          }),
+          previousScore: 0,
+          tieBreaker: 0,
+        }
+      })
+      const humanPerformance: TetrisRoundPerformance = {
+        playerId: 'human',
+        score: 912,
+        lines: 0,
+        pieces: 20,
+        maxStackHeight: 12,
+        previousScore: 0,
+        tieBreaker: 0,
+      }
+      const standings = splitTetrisRound([...aiPerformances, humanPerformance], 4)
+      if (standings.survivorIds.includes('human')) {
+        humanAdvances += 1
+      }
+    }
+
+    expect(humanAdvances).toBeGreaterThan(simulations * 0.3)
+    expect(humanAdvances).toBeLessThan(simulations * 0.7)
   })
 
-  it('uses a stable, non-random tie resolution after all visible metrics tie', () => {
-    const ranked = rankTetrisRound([
-      performance('zeta', 1000, 0.99),
-      performance('alpha', 1000, 0.01),
-    ])
-    expect(ranked.map((entry) => entry.playerId)).toEqual(['alpha', 'zeta'])
+  it('uses the competition rating to improve play without guaranteeing a result', () => {
+    const lowSkillScores = Array.from(
+      { length: 80 },
+      (_, index) =>
+        simulateTetrisAiRun({
+          ...openingRound,
+          id: 'rated-ai',
+          baselineScore: 25,
+          seed: index + 1,
+        }).score
+    )
+    const highSkillScores = Array.from(
+      { length: 80 },
+      (_, index) =>
+        simulateTetrisAiRun({
+          ...openingRound,
+          id: 'rated-ai',
+          baselineScore: 75,
+          seed: index + 1,
+        }).score
+    )
+    const average = (scores: number[]) =>
+      scores.reduce((sum, score) => sum + score, 0) / scores.length
+
+    expect(average(highSkillScores)).toBeGreaterThan(average(lowSkillScores))
+    expect(lowSkillScores.some((score) => score > 912)).toBe(true)
+    expect(highSkillScores.some((score) => score < 912)).toBe(true)
   })
 })

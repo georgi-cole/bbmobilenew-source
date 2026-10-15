@@ -105,6 +105,9 @@ interface Props {
     completion?: {
       authoritativeWinnerId?: string | null;
       authoritativeLastPlaceId?: string | null;
+      authoritativeRankedIds?: string[];
+      rawValue?: number;
+      rawResults?: Record<string, number>;
     },
   ) => void;
   seed?: number;
@@ -330,9 +333,22 @@ export default function TimingBar({
   const [isSpectatorMode, setIsSpectatorMode] = useState(false);
   const [spectatorQueue, setSpectatorQueue] = useState<TimingRoundResult[]>([]);
 
-  // Human's accumulated score (sum for averaging later; ref-only for stability)
-  const humanTotalScoreRef = useRef(0);
-  const humanRoundsPlayedRef = useRef(0);
+  // Keep actual round accuracy for every entrant, plus elimination batches,
+  // so the final outcome can report both a tournament order and honest scores.
+  const accuracyHistoryRef = useRef(new Map<string, { total: number; rounds: number }>());
+  const eliminationBatchesRef = useRef<string[][]>([]);
+  const recordRoundHistory = useCallback((result: TimingRoundResult) => {
+    for (const entry of result.entries) {
+      const previous = accuracyHistoryRef.current.get(entry.participantId) ?? { total: 0, rounds: 0 };
+      accuracyHistoryRef.current.set(entry.participantId, {
+        total: previous.total + entry.finalAccuracy,
+        rounds: previous.rounds + 1,
+      });
+    }
+    if (!result.isFinalRound && result.eliminatedIds.length > 0) {
+      eliminationBatchesRef.current.push([...result.eliminatedIds]);
+    }
+  }, []);
 
   // ── Bar animation ──────────────────────────────────────────────────────────
 
@@ -479,12 +495,8 @@ export default function TimingBar({
       seed: effectiveSeed,
     });
 
-    // Accumulate human's accuracy for final average score
+    recordRoundHistory(result);
     const humanEntry = result.entries.find((e) => e.isHuman);
-    if (humanEntry) {
-      humanTotalScoreRef.current += humanEntry.finalAccuracy;
-      humanRoundsPlayedRef.current += 1;
-    }
 
     setRoundResult(result);
     setGamePhase(result.isFinalRound && !!humanEntry?.isEliminated ? 'final_results' : 'round_results');
@@ -495,6 +507,7 @@ export default function TimingBar({
     defaultAiProfile,
     effectivePlayers,
     effectiveSeed,
+    recordRoundHistory,
     roundNumber,
     softAttempts.length,
   ]);
@@ -593,12 +606,13 @@ export default function TimingBar({
       startingRoundNumber: roundResult.roundNumber + 1,
       seed: effectiveSeed,
     });
+    remaining.forEach(recordRoundHistory);
     setFinalResults(remaining);
     setSpectatorQueue(remaining);
     setIsSpectatorMode(true);
     setActiveParticipantIds(roundResult.advancingIds);
     setGamePhase('spectating');
-  }, [aiSubmissionFn, allParticipants, effectiveSeed, roundResult]);
+  }, [aiSubmissionFn, allParticipants, effectiveSeed, recordRoundHistory, roundResult]);
 
   /** Human was eliminated — skip to final results. */
   const handleSkipToFinal = useCallback(() => {
@@ -610,9 +624,10 @@ export default function TimingBar({
       startingRoundNumber: roundResult.roundNumber + 1,
       seed: effectiveSeed,
     });
+    remaining.forEach(recordRoundHistory);
     setFinalResults(remaining);
     setGamePhase('final_results');
-  }, [aiSubmissionFn, allParticipants, effectiveSeed, roundResult]);
+  }, [aiSubmissionFn, allParticipants, effectiveSeed, recordRoundHistory, roundResult]);
 
   /** Done — dispatch outcome or call onFinish. */
   const handleDone = useCallback(() => {
@@ -625,20 +640,30 @@ export default function TimingBar({
       ? finalResults[finalResults.length - 1]
       : roundResult ?? null;
 
-    // Average accuracy across all rounds the human played (0–100 envelope).
-    const averageScore = humanRoundsPlayedRef.current > 0
-      ? Math.round(humanTotalScoreRef.current / humanRoundsPlayedRef.current)
-      : 0;
-
-    const lastEntries = lastResult?.entries ?? [];
-    const winner = getTimingRoundWinner(lastResult) ?? lastResult?.entries[0];
-    const lastPlace = lastEntries[lastEntries.length - 1];
+    const finalRoundOrder = getRankedTimingEntries(lastResult).map((entry) => entry.participantId);
+    const earlierEliminations = [...eliminationBatchesRef.current]
+      .reverse()
+      .flatMap((batch) => [...batch].reverse());
+    const authoritativeRankedIds = [...new Set([...finalRoundOrder, ...earlierEliminations])];
+    const rawResults = Object.fromEntries(
+      authoritativeRankedIds.map((id) => {
+        const history = accuracyHistoryRef.current.get(id);
+        const average = history && history.rounds > 0 ? history.total / history.rounds : 0;
+        return [id, Math.round(average * 10) / 10];
+      }),
+    );
+    const averageScore = rawResults[effectiveHumanId ?? challengeParticipantId] ?? 0;
+    const winnerId = authoritativeRankedIds[0] ?? getTimingRoundWinner(lastResult)?.participantId;
+    const lastPlaceId = authoritativeRankedIds.at(-1);
 
     if (!session) {
       if (onFinish) {
         onFinish(averageScore, undefined, {
-          authoritativeWinnerId: winner?.participantId ?? null,
-          authoritativeLastPlaceId: lastPlace?.participantId ?? null,
+          authoritativeWinnerId: winnerId ?? null,
+          authoritativeLastPlaceId: lastPlaceId ?? null,
+          authoritativeRankedIds,
+          rawValue: averageScore,
+          rawResults,
         });
       }
       return;
@@ -646,11 +671,13 @@ export default function TimingBar({
 
     const payload: CompleteMinigamePayload = {
       humanScore: averageScore,
-      winnerId: winner?.participantId,
-      lastPlaceId: lastPlace?.participantId,
+      winnerId,
+      lastPlaceId,
+      authoritativeRankedIds,
+      rawResults,
     };
     dispatch(completeMinigame(payload));
-  }, [dispatch, finalResults, onFinish, roundResult, session]);
+  }, [challengeParticipantId, dispatch, effectiveHumanId, finalResults, onFinish, roundResult, session]);
 
   // ── Spectator auto-advance ────────────────────────────────────────────────
 
