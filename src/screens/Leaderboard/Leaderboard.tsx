@@ -163,28 +163,36 @@ export default function Leaderboard() {
                           )
                         }
                       >
-                        <span className="hall-of-fame-screen__season-copy">
+                        <span className="hall-of-fame-screen__season-header">
                           <span className="hall-of-fame-screen__season-heading">
                             Season {archive.seasonIndex}
                           </span>
-                          <span className="hall-of-fame-screen__season-meta">
-                            {formatLabel}
-                            {archive.twinShockConsumed ? ' · Twin Shock' : ''}
-                            {duration ? ` · ${duration} days` : ''}
+                          <span className="hall-of-fame-screen__chevron" aria-hidden="true">
+                            {isExpanded ? '▲' : '▼'}
                           </span>
-                          <span className="hall-of-fame-screen__your-finish">
-                            You: {placementLabel(userSummary?.finalPlacement)}
+                        </span>
+                        <span className="hall-of-fame-screen__season-meta">
+                          {formatLabel}
+                          {archive.twinShockConsumed ? ' · Twin Shock' : ''}
+                          {duration ? ` · ${duration} days` : ''}
+                        </span>
+                        <span className="hall-of-fame-screen__season-facts">
+                          <span className="hall-of-fame-screen__season-fact">
+                            <span className="hall-of-fame-screen__fact-label">Your finish</span>
+                            <strong className="hall-of-fame-screen__fact-value">
+                              {placementLabel(userSummary?.finalPlacement)}
+                            </strong>
                           </span>
-                          <span className="hall-of-fame-screen__season-rating">
-                            ★ Public rating: {publicRatingLabel(userSummary?.finalPublicApproval)}
+                          <span className="hall-of-fame-screen__season-fact">
+                            <span className="hall-of-fame-screen__fact-label">Public rating</span>
+                            <strong className="hall-of-fame-screen__fact-value hall-of-fame-screen__fact-value--rating">
+                              ★ {publicRatingLabel(userSummary?.finalPublicApproval)}
+                            </strong>
                           </span>
                         </span>
                         <span className="hall-of-fame-screen__winner-block">
-                          <span className="hall-of-fame-screen__winner-label">Winner</span>
+                          <span className="hall-of-fame-screen__winner-label">Season winner</span>
                           <span className="hall-of-fame-screen__winner-name">🏆 {winnerName}</span>
-                        </span>
-                        <span className="hall-of-fame-screen__chevron" aria-hidden="true">
-                          {isExpanded ? '▲' : '▼'}
                         </span>
                       </button>
 
