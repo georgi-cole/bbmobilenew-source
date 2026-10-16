@@ -133,7 +133,9 @@ describe('Hall of Fame screen', () => {
       'hall-of-fame-screen__season-facts',
       'hall-of-fame-screen__winner-block',
     ])
-    expect(card.querySelector('.hall-of-fame-screen__season-header .hall-of-fame-screen__chevron')).not.toBeNull()
+    expect(
+      card.querySelector('.hall-of-fame-screen__season-header .hall-of-fame-screen__chevron')
+    ).not.toBeNull()
   })
 
   it('expands a season to show runner-up, Public Favorite, finish and season titles', () => {
