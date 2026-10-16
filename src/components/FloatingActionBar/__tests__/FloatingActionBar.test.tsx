@@ -21,8 +21,10 @@ import { MemoryRouter, useLocation } from 'react-router'
 import gameReducer, {
   advance,
   continueWeekendFeature,
+  returnFromWeekendTribunalStream,
   createInitialGameState,
   debugActivateWeekendInterlude,
+  debugPrepareFinaleReunionPreview,
   debugSkipToWeekendDayTwo,
   hydrateGame,
   triggerSecretMission,
@@ -229,7 +231,36 @@ describe('FloatingActionBar – weekend progression', () => {
     expect(store.getState().game.weekendInterlude?.stage).toBe('social')
   })
 
-  it('keeps Sunday on the Tribunal peek while Play remains an optional skip into the Final 3', () => {
+  it('ends the reunion visit before offering the Tribunal invitation', () => {
+    const initial = createInitialGameState({ seed: 81602 })
+    let preview = gameReducer(initial, debugActivateWeekendInterlude('finale'))
+    preview = gameReducer(preview, debugPrepareFinaleReunionPreview())
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude,
+    })
+    renderFAB(store)
+
+    vi.useFakeTimers()
+    try {
+      expect(screen.getByRole('button', { name: 'End visit' })).toBeEnabled()
+      act(() => screen.getByRole('button', { name: 'End visit' }).click())
+
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBe(true)
+      expect(
+        screen.getByRole('button', { name: 'The eliminated players are leaving…' })
+      ).toBeDisabled()
+
+      act(() => vi.advanceTimersByTime(1700))
+      expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+      expect(store.getState().game.weekendInterlude?.reunionPreview).toBeUndefined()
+      expect(screen.getByRole('button', { name: 'Finish preview' })).toBeEnabled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('paces Sunday through guest messages, the Tribunal, the farewell, and the Final 3 opening', () => {
     const initial = createInitialGameState({ seed: 81603 })
     const human = initial.players.find((player) => player.isUser)!
     const finalists = [human, ...initial.players.filter((player) => !player.isUser).slice(0, 2)]
@@ -260,40 +291,92 @@ describe('FloatingActionBar – weekend progression', () => {
     renderFAB(store)
 
     expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
-    expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute(
-      'aria-disabled',
-      'false'
-    )
-    expect(screen.getByRole('button', { name: 'Begin the Final Three' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Let them in' })).toBeEnabled()
 
-    act(() => screen.getByRole('button', { name: 'Begin the Final Three' }).click())
-    expect(store.getState().game.weekendInterlude).toBeNull()
-    expect(store.getState().game.finaleWeekendCompleted).toBe(true)
-    expect(store.getState().game.phase).toBe('final3')
+    vi.useFakeTimers()
+    try {
+      act(() => screen.getByRole('button', { name: 'Let them in' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_reunion_social')
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBeUndefined()
+      expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute(
+        'aria-disabled',
+        'false'
+      )
+      expect(screen.getByRole('button', { name: 'Announce the Sequester Footage' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Announce the Sequester Footage' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_sequester_announcement')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(false)
+      expect(screen.getByTestId('location')).toHaveTextContent('/game')
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Continue' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_battle_ready')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(false)
+      expect(screen.getByTestId('location')).toHaveTextContent('/game')
+      expect(screen.getByRole('button', { name: 'Send the guests home' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: /^Confessional/ }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(true)
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary-room?stream=finale-tribunal')
+
+      act(() => {
+        store.dispatch(returnFromWeekendTribunalStream())
+      })
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_battle_ready')
+      expect(screen.getByRole('button', { name: 'Send the guests home' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Send the guests home' }).click())
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBe(true)
+      expect(
+        screen.getByRole('button', { name: 'The eliminated players are leaving…' })
+      ).toBeDisabled()
+
+      act(() => vi.advanceTimersByTime(1700))
+      expect(store.getState().game.weekendInterlude?.reunionDeparted).toBe(true)
+      expect(screen.getByRole('button', { name: 'Begin the Final Power Battle' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Begin the Final Power Battle' }).click())
+      expect(store.getState().game.weekendInterlude).toBeNull()
+      expect(store.getState().game.finaleWeekendCompleted).toBe(true)
+      expect(store.getState().game.phase).toBe('final3')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
-  it('opens the special stream from the silver Confessional badge', () => {
+  it('locks Confessional while the full-screen reunion announcement is waiting for Play', () => {
     const initial = createInitialGameState({ seed: 81604 })
-    const preview = gameReducer(
-      { ...initial, phase: 'social_2' },
-      debugActivateWeekendInterlude('tribunal')
+    let preview = gameReducer(
+      {
+        ...initial,
+        phase: 'social_2',
+        players: initial.players.map((player, index) => ({
+          ...player,
+          status: index < 3 ? ('active' as const) : ('jury' as const),
+        })),
+      },
+      debugActivateWeekendInterlude('finale')
     )
+    preview = gameReducer(preview, debugSkipToWeekendDayTwo())
     const store = makeStore(true, {
       players: preview.players,
       weekendInterlude: preview.weekendInterlude
-        ? { ...preview.weekendInterlude, debug: undefined }
+        ? {
+            ...preview.weekendInterlude,
+            debug: undefined,
+            tribunalGlimpse: undefined,
+          }
         : null,
     })
     renderFAB(store)
 
-    const confessional = screen.getByRole('button', {
-      name: 'Confessional — special Tribunal stream available',
-    })
-    expect(confessional.querySelector('.dock-hit-area__special-badge')).toHaveTextContent('!')
-    act(() => confessional.click())
-
-    expect(screen.getByTestId('location')).toHaveTextContent('/diary-room?stream=finale-tribunal')
-    expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(true)
+    const confessional = screen.getByRole('button', { name: /^Confessional/ })
+    expect(confessional).toBeDisabled()
+    expect(screen.getByTestId('location')).toHaveTextContent('/game')
+    expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBeUndefined()
   })
 })
 

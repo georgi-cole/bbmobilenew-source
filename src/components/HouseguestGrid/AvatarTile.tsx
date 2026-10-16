@@ -83,6 +83,12 @@ type Props = {
   isSurveyevalEvicting?: boolean
   /** Runs the reverse-eviction treatment directly on this roster tile. */
   isReturning?: boolean
+  /** Plays the finale reunion return effect without changing gameplay status. */
+  isReunionReturning?: boolean
+  /** Staggers returning reunion portraits so they arrive in a visible wave. */
+  reunionEntryDelayMs?: number
+  /** Animates a returning portrait back to its eliminated state before the Tribunal. */
+  isReunionDeparting?: boolean
   nominationCeremonyState?: 'loh' | 'danger' | 'locked'
   /** Shared instructions announced when this tile is interactive. */
   descriptionId?: string
@@ -184,6 +190,9 @@ export default function AvatarTile({
   isEvicting,
   isSurveyevalEvicting = false,
   isReturning = false,
+  isReunionReturning = false,
+  reunionEntryDelayMs = 0,
+  isReunionDeparting = false,
   nominationCeremonyState,
   descriptionId,
   pairColor,
@@ -485,6 +494,8 @@ export default function AvatarTile({
           styles.tile,
           isEvicted ? styles.evicted : '',
           isReturning ? styles.returning : '',
+          isReunionReturning ? styles.reunionReturning : '',
+          isReunionDeparting ? styles.reunionDeparting : '',
           isInteractive ? styles.interactive : '',
           isPressing ? styles.pressing : '',
         ]
@@ -519,10 +530,17 @@ export default function AvatarTile({
         }
         data-cupid-pair={pairLabel}
         style={
-          pairColor
+          pairColor || isReunionReturning || isReunionDeparting
             ? ({
-                '--cupid-pair-color': pairColor,
-                '--cupid-pair-index': pairIndex ?? 0,
+                ...(pairColor
+                  ? {
+                      '--cupid-pair-color': pairColor,
+                      '--cupid-pair-index': pairIndex ?? 0,
+                    }
+                  : {}),
+                ...(isReunionReturning || isReunionDeparting
+                  ? { '--reunion-entry-delay': `${Math.max(0, reunionEntryDelayMs)}ms` }
+                  : {}),
               } as React.CSSProperties)
             : undefined
         }
@@ -618,6 +636,16 @@ export default function AvatarTile({
             />
           ) : (
             <div className={styles.avatarPlaceholder} aria-hidden="true" />
+          )}
+
+          {isReunionReturning && (
+            <>
+              <span className={styles.reunionReturnBurst} aria-hidden="true" />
+              <span className={styles.reunionReturnSweep} aria-hidden="true" />
+            </>
+          )}
+          {isReunionDeparting && (
+            <span className={styles.reunionDepartureWave} aria-hidden="true" />
           )}
 
           {/* Status badge stack — top-left corner, stacked vertically */}

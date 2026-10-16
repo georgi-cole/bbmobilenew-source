@@ -38,6 +38,14 @@ export interface InteractionValidityGameState {
     status?: 'inactive' | 'scheduled' | 'active' | 'broken'
     pairs?: Array<{ memberIds: [string, string] }>
   }
+  weekendInterlude?: {
+    active?: boolean
+    finaleWeekend?: boolean
+    stage?: string
+    weekendNumber?: number | null
+    afterDay?: number
+    weekendDay?: number
+  } | null
   players?: InteractionValidityPlayer[]
 }
 
@@ -202,6 +210,26 @@ function isEvictedOrGone(player: InteractionValidityPlayer | null): boolean {
   return player.status === 'evicted' || player.status === 'jury'
 }
 
+function isFinaleReunionGuestMessage(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState,
+  sender: InteractionValidityPlayer | null
+): boolean {
+  const weekend = game.weekendInterlude
+  return Boolean(
+    getScenarioKey(interaction) === 'finale_reunion_guest' &&
+    weekend?.active === true &&
+    weekend.finaleWeekend === true &&
+    weekend.weekendDay === 2 &&
+    weekend.stage === 'finale_reunion_social' &&
+    interaction.payload?.weekendDay === weekend.weekendDay &&
+    (interaction.payload?.weekendNumber ?? null) === (weekend.weekendNumber ?? null) &&
+    interaction.payload?.weekendAfterDay === weekend.afterDay &&
+    sender &&
+    isEvictedOrGone(sender)
+  )
+}
+
 function isNominee(game: InteractionValidityGameState, playerId: string): boolean {
   // Status is a presentation/history field and can legitimately lag the live
   // block (for example, a former nominee who won Safety). Strategic dialogue
@@ -332,11 +360,12 @@ export function isIncomingInteractionInvalidated(
   const sender = getPlayer(game, interaction.fromId)
   const human = humanPlayer(game)
   const activePlayers = (game.players ?? []).filter((player) => !isEvictedOrGone(player))
+  const temporaryReunionGuest = isFinaleReunionGuestMessage(interaction, game, sender)
   // Production interactions always have a roster sender, but scheduler tests
   // and migrated saves can contain legacy/unknown IDs. Do not discard those
   // solely because the current roster cannot resolve the sender. Role-bound
   // scenarios above still require an actual sender at creation and delivery.
-  if (sender && isEvictedOrGone(sender)) return true
+  if (sender && isEvictedOrGone(sender) && !temporaryReunionGuest) return true
   if (human && isEvictedOrGone(human)) return true
   if (human && interaction.fromId === human.id) return true
   if (activePlayers.length <= 2) return true

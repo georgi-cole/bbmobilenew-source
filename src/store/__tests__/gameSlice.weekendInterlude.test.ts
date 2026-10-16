@@ -4,6 +4,8 @@ import gameReducer, {
   advanceWeekendSeasonFact,
   advanceWeekendDay,
   beginWeekendDayTransition,
+  beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
   completeWeekendInterlude,
   continueHubSays,
   continueWeekendFeature,
@@ -259,6 +261,13 @@ describe('Weekend 1 interlude', () => {
     expect(state.weekendInterlude).toMatchObject({
       weekendDay: 2,
       stage: 'tribunal_invitation',
+    })
+    expect(state.weekendInterlude?.tribunalGlimpse).toBeUndefined()
+    state = gameReducer(state, beginFinaleReunionSocial())
+    expect(state.weekendInterlude?.stage).toBe('finale_reunion_social')
+    state = gameReducer(state, beginWeekendTribunalGlimpse())
+    expect(state.weekendInterlude).toMatchObject({
+      stage: 'finale_sequester_announcement',
       tribunalGlimpse: { opened: false },
     })
     expect(state.weekendInterlude?.tribunalGlimpse?.speeches).toHaveLength(6)

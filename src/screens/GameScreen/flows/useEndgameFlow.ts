@@ -40,8 +40,15 @@ export function useEndgameFlow({
 
   // The opening and block setup are presentation gates only. Their completion
   // is persisted before advance() so a reload resumes the next real game beat.
+  const debugFinaleWeekendPreviewActive = Boolean(
+    game.weekendInterlude?.active &&
+    game.weekendInterlude.debug &&
+    game.weekendInterlude.finaleWeekend
+  )
   const finalPowerBattleIntroActive =
-    game.phase === 'final3' && game.finalThree?.openingSeen !== true
+    game.phase === 'final3' &&
+    game.finalThree?.openingSeen !== true &&
+    !debugFinaleWeekendPreviewActive
 
   const [spectatorF3Part1Active, setSpectatorF3Part1Active] = useState(false)
   const [spectatorF3Part1CompetitorIds, setSpectatorF3Part1CompetitorIds] = useState<string[]>([])

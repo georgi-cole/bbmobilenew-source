@@ -9623,10 +9623,9 @@ const gameSlice = createSlice({
       }
       weekend.weekendDay = 2
       if (weekend.finaleWeekend) {
-        weekend.tribunalGlimpse = {
-          speeches: createFinaleTribunalSpeeches(state),
-          opened: false,
-        }
+        // Sunday opens with the reunion first. Tribunal remarks are generated
+        // only after the returning players have had their chance to talk.
+        weekend.tribunalGlimpse = undefined
         weekend.stage = 'tribunal_invitation'
       } else {
         weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
@@ -9639,7 +9638,7 @@ const gameSlice = createSlice({
         !weekend?.active ||
         !weekend.finaleWeekend ||
         weekend.weekendDay !== 2 ||
-        weekend.stage !== 'social'
+        (weekend.stage !== 'social' && weekend.stage !== 'finale_reunion_social')
       ) {
         return
       }
@@ -9647,7 +9646,67 @@ const gameSlice = createSlice({
         speeches: createFinaleTribunalSpeeches(state),
         opened: false,
       }
-      weekend.stage = 'tribunal_invitation'
+      weekend.stage = 'finale_sequester_announcement'
+    },
+
+    /** Show the returned players on the roster and deliver their reunion messages. */
+    beginFinaleReunionSocial(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        weekend.tribunalGlimpse?.opened === true ||
+        weekend.reunionDeparted
+      ) {
+        return
+      }
+      weekend.stage = 'finale_reunion_social'
+    },
+
+    beginWeekendReunionDeparture(state) {
+      const weekend = state.weekendInterlude
+      const isDebugReunionPreview =
+        weekend?.debug === true &&
+        weekend.reunionPreview !== undefined &&
+        weekend.stage === 'finale_reunion'
+      const isLiveFarewell =
+        weekend?.debug !== true &&
+        weekend?.stage === 'finale_battle_ready' &&
+        weekend.tribunalGlimpse !== undefined
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        (!isLiveFarewell && !isDebugReunionPreview) ||
+        weekend.reunionDeparted
+      ) {
+        return
+      }
+      weekend.reunionDepartureActive = true
+    },
+
+    finishWeekendReunionDeparture(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.reunionDepartureActive) return
+      weekend.reunionDepartureActive = undefined
+      weekend.reunionDeparted = true
+    },
+
+    /** Skip the optional Tribunal footage and continue to the finale farewell. */
+    skipWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.stage !== 'finale_sequester_announcement' ||
+        !weekend.tribunalGlimpse ||
+        weekend.tribunalGlimpse.opened
+      ) {
+        return
+      }
+      weekend.stage = 'finale_battle_ready'
     },
 
     openWeekendTribunalStream(state) {
@@ -9655,11 +9714,17 @@ const gameSlice = createSlice({
       if (
         !weekend?.active ||
         !weekend.finaleWeekend ||
-        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        ![
+          'finale_sequester_announcement',
+          'finale_battle_ready',
+          'tribunal_invitation',
+          'tribunal_glimpse',
+        ].includes(weekend.stage) ||
         !weekend.tribunalGlimpse
       ) {
         return
       }
+      weekend.stage = 'tribunal_invitation'
       weekend.tribunalGlimpse.opened = true
     },
 
@@ -9851,6 +9916,62 @@ const gameSlice = createSlice({
       } else {
         weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
       }
+    },
+
+    /** Prepare an isolated Sunday reunion scene for the reversible QA preview. */
+    debugPrepareFinaleReunionPreview(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug || !weekend.finaleWeekend) return
+
+      const human = state.players.find((player) => player.isUser)
+      if (human && weekend.debugOriginalHumanStatus) {
+        human.status = weekend.debugOriginalHumanStatus
+        weekend.debugOriginalHumanStatus = undefined
+      }
+      const currentFinalists = state.players.filter(
+        (player) => player.status !== 'evicted' && player.status !== 'jury'
+      )
+      const finalists = Array.from(
+        new Map(
+          [...currentFinalists, ...state.players].map((player) => [player.id, player])
+        ).values()
+      ).slice(0, 3)
+      if (finalists.length < 3) return
+
+      const finalistIds = new Set(finalists.map((player) => player.id))
+      weekend.weekendDay = 2
+      weekend.stage = 'finale_reunion'
+      weekend.tribunalGlimpse = undefined
+      weekend.reunionPreviewEnded = undefined
+      weekend.reunionDeparted = undefined
+      weekend.reunionPreview = {
+        finalistIds: [...finalistIds],
+        guestIds: state.players
+          .filter((player) => !finalistIds.has(player.id))
+          .map((player) => player.id),
+      }
+    },
+
+    /** Leave the QA-only visit and continue to the existing Tribunal invitation. */
+    debugEndFinaleReunionPreview(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.debug ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        weekend.stage !== 'finale_reunion'
+      ) {
+        return
+      }
+      weekend.reunionPreview = undefined
+      weekend.reunionPreviewEnded = true
+      weekend.reunionDeparted = true
+      weekend.tribunalGlimpse = {
+        speeches: createFinaleTribunalSpeeches(state),
+        opened: false,
+      }
+      weekend.stage = 'tribunal_invitation'
     },
 
     debugExitWeekendInterlude(state) {
@@ -13051,6 +13172,10 @@ export const {
   continueWeekendFeature,
   advanceWeekendSeasonFact,
   beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
+  beginWeekendReunionDeparture,
+  finishWeekendReunionDeparture,
+  skipWeekendTribunalStream,
   openWeekendTribunalStream,
   returnFromWeekendTribunalStream,
   recordWeekendPartyBeat,
@@ -13063,6 +13188,8 @@ export const {
   setWeekendsEnabledForSeason,
   debugRestartWeekendInterlude,
   debugSkipToWeekendDayTwo,
+  debugPrepareFinaleReunionPreview,
+  debugEndFinaleReunionPreview,
   debugExitWeekendInterlude,
   submitTwinShockAnswer,
   completeTwinShockRevealAnimation,
