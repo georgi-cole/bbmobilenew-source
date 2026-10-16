@@ -38,4 +38,6 @@ export const gameScreenGameEquality = createGameFieldEquality([
   'voxPopuli',
   'week',
   'weekendInterlude',
+  'wildcardAdmissions',
+  'wildcardOpportunity',
 ])

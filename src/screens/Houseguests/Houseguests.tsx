@@ -6,12 +6,13 @@ import HouseguestInfoDialog from '../../components/HouseguestGrid/HouseguestInfo
 import { selectSettings } from '../../store/settingsSlice'
 import { getProfilePhotoAvatarId, resolveAvatar } from '../../utils/avatar'
 import { resolvePresentationAvatar } from '../../utils/presentationAvatar'
+import { getPresentedRosterPlayers } from '../../features/reserveEntrants/wildcardReplacement'
 import type { Player } from '../../types'
 import './Houseguests.css'
 
 export default function Houseguests() {
   const game = useAppSelector((s) => s.game)
-  const players = game.players
+  const players = getPresentedRosterPlayers(game)
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const { lohId, nomineeIds, posWinnerId } = game
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)

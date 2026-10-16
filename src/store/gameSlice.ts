@@ -42,7 +42,7 @@ import {
 import { isHybridScoredGame, resolveHybridAiScores } from '../ai/competition/hybridScoreResolver'
 import { simulateSnakeAiScore } from '../ai/competition/snakeAiSimulator'
 import { rankPressurePlankResults } from '../components/PressurePlank/pressurePlankLogic'
-import HOUSEGUESTS from '../data/houseguests'
+import HOUSEGUESTS, { getById } from '../data/houseguests'
 import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from './profilesSlice'
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
@@ -205,6 +205,12 @@ import {
   isSeasonDirectorKillSwitched,
   isWithinDirectorWindow,
 } from '../features/twists/seasonDirector'
+import {
+  chooseWildcardOpportunity,
+  getWildcardAdmissionEligibility,
+  getWildcardQaQueueEligibility,
+  WILDCARD_LAST_TRIGGER_DAY,
+} from '../features/reserveEntrants/wildcardReplacement'
 
 // ─── Canonical phase order ────────────────────────────────────────────────────
 const PHASE_ORDER: Phase[] = [
@@ -880,6 +886,10 @@ export function createInitialGameState(options?: {
         left.id.localeCompare(right.id)
     )
     .map((event) => event.id)
+  const wildcardOpportunity =
+    initialBroadcastCampaign === 'classic' && playersWithIdentity.length === 16
+      ? chooseWildcardOpportunity(seed)
+      : { status: 'none' as const }
   return {
     gameId: crypto.randomUUID(),
     expansionMode: null,
@@ -889,6 +899,8 @@ export function createInitialGameState(options?: {
     weekendsEnabledForSeason: true,
     completedWeekendDays: [],
     finaleWeekendCompleted: false,
+    wildcardOpportunity,
+    wildcardAdmissions: [],
     weekendInterlude: null,
     seed,
     seasonDirectorPlan,
@@ -3822,10 +3834,9 @@ type CommitPublicSavePayload =
 /**
  * Decide Tribunal membership at the moment an exit is committed.
  *
- * The season boundary is locked to the starting cast. The standard 16-player
- * Classic format therefore has five pre-Tribunal exits and nine Tribunal
- * seats. Extraordinary removals never join, and a filled Tribunal never grows
- * just because a replacement shock introduced an extra contestant.
+ * The Tribunal seat target stays locked to the starting cast. A committed
+ * reserve entrant adds one pre-Tribunal exit without changing the original
+ * cast-size record or the number of Tribunal seats.
  */
 function evictedStatus(state: GameState, evictee: Player): 'evicted' | 'jury' {
   if (isVoxPopuliActive(state) || evictee.tribunalEligible === false) return 'evicted'
@@ -3839,11 +3850,72 @@ function evictedStatus(state: GameState, evictee: Player): 'evicted' | 'jury' {
   const committedExits = state.players.filter(
     (player) => player.status === 'evicted' || player.status === 'jury'
   ).length
-  const preTribunalExits = preTribunalExitCount(startingCastSize, tribunalSize)
+  const admittedContestants = state.wildcardAdmissions?.length ?? 0
+  const preTribunalExits = preTribunalExitCount(
+    startingCastSize + admittedContestants,
+    tribunalSize
+  )
   return committedExits < preTribunalExits ? 'evicted' : 'jury'
 }
 
-function archiveSeasonExitContext(state: GameState, playerId: string) {
+type WildcardTriggerType = 'double_elimination' | 'morning_shock' | 'self_elimination'
+
+function queueWildcardArrivalFromTrigger(state: GameState, triggerType: WildcardTriggerType) {
+  const opportunity = state.wildcardOpportunity
+  if (opportunity?.status !== 'selected' || !opportunity.playerId) return
+
+  const cancel = (reason: string) => {
+    state.wildcardOpportunity = { ...opportunity, status: 'cancelled', reason }
+  }
+  const startingCastSize = state.cfg?.tribunalStartingCastSize ?? state.players.length
+  if (startingCastSize !== 16 || state.mode === 'survival' || state.expansionMode != null) {
+    cancel('This reserve route is limited to standard 16-player Classic seasons.')
+    return
+  }
+  if (
+    state.cupidArrow?.status === 'scheduled' ||
+    state.cupidArrow?.status === 'active' ||
+    state.voxPopuli?.status === 'scheduled' ||
+    state.voxPopuli?.status === 'active'
+  ) {
+    cancel('This season has a separate format or arrival story.')
+    return
+  }
+  if (
+    state.twinShockConsumed !== true &&
+    state.players.some((player) => player.id === 'lia' || player.id === 'lia_ali')
+  ) {
+    cancel('Resolve the separate Twin Shock story before a reserve entry.')
+    return
+  }
+  if (state.wildcardAdmissions?.length) {
+    cancel('A reserve entrant has already joined this season.')
+    return
+  }
+  if (state.players.some((player) => player.status === 'jury') || state.tribunalPhaseAnnounced) {
+    cancel('The Tribunal has already begun.')
+    return
+  }
+  if (state.week > WILDCARD_LAST_TRIGGER_DAY) {
+    cancel('Reserve opportunities close after the first half of the season.')
+    return
+  }
+  const selectedProfile = getById(opportunity.playerId)
+  if (!selectedProfile?.avatar) {
+    cancel('The selected reserve does not have a complete profile and portrait.')
+    return
+  }
+
+  state.wildcardOpportunity = {
+    ...opportunity,
+    status: 'pending',
+    triggerType,
+    triggerDay: state.week,
+    arrivalDay: state.week + 1,
+  }
+}
+
+function archiveSeasonExitContext(state: GameState, playerId: string, exitMethodOverride?: string) {
   const alreadyArchived = (state.history ?? []).some(
     (event) =>
       event.type === 'seasonExit' && event.week === state.week && event.data.playerId === playerId
@@ -3868,8 +3940,12 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
     ? []
     : (roundSnapshot?.leaderIds ??
       (state.coLohIds?.length ? [...state.coLohIds] : state.lohId ? [state.lohId] : []))
+  const pendingExitMethod =
+    state.pendingEviction?.evicteeId === playerId ? state.pendingEviction.exitMethod : undefined
   const exitMethod =
-    state.dayStartShock?.targetId === playerId
+    exitMethodOverride ??
+    pendingExitMethod ??
+    (state.dayStartShock?.targetId === playerId
       ? 'shock'
       : isCupidArrowActive(state) && state.cupidArrow?.pendingPartnerEvictionId === playerId
         ? 'linkedExit'
@@ -3877,7 +3953,7 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
           ? 'directDecision'
           : state.doubleEviction?.weekActive
             ? 'doubleExit'
-            : 'vote'
+            : 'vote')
 
   state.history = [
     ...(state.history ?? []),
@@ -3900,6 +3976,7 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
         voteCounts: roundSnapshot?.voteCounts ?? { ...(state.voteResults ?? {}) },
         decisionMakerId,
         exitMethod,
+        doubleElimination: state.doubleEviction?.weekActive === true,
         voxPopuli: isVoxPopuliActive(state),
         nominationVoteCounts: isVoxPopuliActive(state)
           ? { ...(state.voxPopuli?.nominationVoteCounts ?? {}) }
@@ -3914,6 +3991,24 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
       timestamp: Date.now(),
     },
   ]
+
+  const exit = state.history[state.history.length - 1]
+  const exitingPlayer = state.players.find((player) => player.id === playerId)
+  if (exitMethod === 'shock') {
+    queueWildcardArrivalFromTrigger(state, 'morning_shock')
+  } else if (exitMethod === 'selfEviction' && exitingPlayer && !exitingPlayer.isUser) {
+    queueWildcardArrivalFromTrigger(state, 'self_elimination')
+  } else if (exit?.data.doubleElimination === true) {
+    const sameDayDoubleExits = state.history.filter(
+      (event) =>
+        event.type === 'seasonExit' &&
+        event.week === state.week &&
+        event.data.doubleElimination === true
+    )
+    if (sameDayDoubleExits.length >= 2) {
+      queueWildcardArrivalFromTrigger(state, 'double_elimination')
+    }
+  }
 }
 
 /**
@@ -3945,6 +4040,92 @@ function assignSeasonPlacementOnExit(state: GameState, playerId: string) {
     (p) => p.status !== 'evicted' && p.status !== 'jury'
   ).length
   player.seasonPlacement = aliveCount
+}
+
+function applyWildcardAdmission(state: GameState, wildcardId: string): boolean {
+  const eligibility = getWildcardAdmissionEligibility(state, wildcardId)
+  if (!eligibility.eligible || !eligibility.displacedPlayer || eligibility.rosterIndex == null) {
+    return false
+  }
+
+  const profile = getById(wildcardId)
+  if (!profile?.avatar) return false
+  const entrant: Player = {
+    id: profile.id,
+    name: profile.name,
+    avatar: profile.avatar,
+    sex: profile.sex,
+    age: profile.age,
+    status: 'active',
+    tribunalEligible: true,
+    lateEntrant: true,
+    enteredAtDay: state.week,
+    competitionProfile: profile.competitionProfile ?? getDefaultCompetitionProfile(),
+    stats: { lohWins: 0, posWins: 0, timesNominated: 0 },
+  }
+  const [identifiedEntrant] = assignAiGameIdentities(
+    [entrant],
+    state.seed,
+    getAiIdentityMode(state)
+  )
+
+  // A new contestant increases the field by one, so previously recorded
+  // placements shift down while each original exit record stays attached to
+  // its original identity.
+  for (const player of state.players) {
+    if (typeof player.seasonPlacement === 'number') player.seasonPlacement += 1
+    if (typeof player.firstExitPlacement === 'number') player.firstExitPlacement += 1
+  }
+
+  state.players.push(identifiedEntrant)
+  state.competitionSeasonStateByPlayerId = {
+    ...(state.competitionSeasonStateByPlayerId ?? {}),
+    [wildcardId]: getDefaultCompetitionSeasonState(),
+  }
+  state.wildcardAdmissions = [
+    ...(state.wildcardAdmissions ?? []),
+    {
+      playerId: wildcardId,
+      displacedPlayerId: eligibility.displacedPlayer.id,
+      rosterIndex: eligibility.rosterIndex,
+      enteredAtDay: state.week,
+      ...(state.wildcardOpportunity?.qaForced ? { forcedByQa: true } : {}),
+    },
+  ]
+  state.wildcardOpportunity = {
+    ...(state.wildcardOpportunity ?? { status: 'pending' as const }),
+    status: 'admitted',
+    playerId: wildcardId,
+  }
+  state.history = [
+    ...(state.history ?? []),
+    {
+      type: 'wildcardAdmission',
+      week: state.week,
+      data: {
+        playerId: wildcardId,
+        displacedPlayerId: eligibility.displacedPlayer.id,
+        triggerType: state.wildcardOpportunity.triggerType ?? 'qa',
+        triggerDay: state.wildcardOpportunity.triggerDay ?? state.week - 1,
+        forcedByQa: state.wildcardOpportunity.qaForced === true,
+      },
+      timestamp: Date.now(),
+    },
+  ]
+  pushEvent(
+    state,
+    `${profile.name} has entered The Hub as a reserve contestant. Their game begins today.`,
+    'game',
+    {
+      major: 'wildcard_arrival',
+      key: `wildcard_arrival_${wildcardId}_${state.week}`,
+      phase: 'week_start',
+      forceOnTv: true,
+      broadcastPriority: 'critical',
+      announcementTitle: 'A New Player Enters',
+    }
+  )
+  return true
 }
 
 /**
@@ -7557,6 +7738,7 @@ const gameSlice = createSlice({
       selfEvictionIds.forEach((id) => {
         const exitingPlayer = state.players.find((candidate) => candidate.id === id)
         if (!exitingPlayer) return
+        archiveSeasonExitContext(state, id, id === playerId ? 'selfEviction' : 'linkedExit')
         assignSeasonPlacementOnExit(state, id)
         exitingPlayer.status = 'evicted'
       })
@@ -8123,6 +8305,7 @@ const gameSlice = createSlice({
       state.pendingEviction = {
         evicteeId: targetId,
         evictionMessage: reason,
+        exitMethod: 'shock',
       }
       state.dayStartShock = null
     },
@@ -9832,6 +10015,20 @@ const gameSlice = createSlice({
           if (human) human.status = weekend.debugOriginalHumanStatus
         }
         state.weekendInterlude = null
+      }
+    },
+
+    /** QA-only override: queue a selected reserve for the next numbered day. */
+    forceWildcardEntryForQa(state, action: PayloadAction<string>) {
+      const eligibility = getWildcardQaQueueEligibility(state, action.payload)
+      if (!eligibility.eligible) return
+      state.wildcardOpportunity = {
+        status: 'pending',
+        playerId: action.payload,
+        triggerType: 'qa',
+        triggerDay: state.week,
+        arrivalDay: state.week + 1,
+        qaForced: true,
       }
     },
 
@@ -12436,6 +12633,26 @@ const gameSlice = createSlice({
 
       finishPhaseBroadcastSequence(state)
       state.phase = nextPhase
+      const wildcardOpportunity = state.wildcardOpportunity
+      if (
+        nextPhase === 'week_start' &&
+        wildcardOpportunity?.status === 'pending' &&
+        wildcardOpportunity.arrivalDay === state.week
+      ) {
+        const wildcardId = wildcardOpportunity.playerId
+        const eligibility = wildcardId
+          ? getWildcardAdmissionEligibility(state, wildcardId)
+          : { eligible: false, reason: 'No reserve contestant was selected.' }
+        if (wildcardId && eligibility.eligible) {
+          applyWildcardAdmission(state, wildcardId)
+        } else {
+          state.wildcardOpportunity = {
+            ...wildcardOpportunity,
+            status: 'cancelled',
+            reason: eligibility.reason,
+          }
+        }
+      }
     },
 
     // ── Secret Mission reducers ────────────────────────────────────────────
@@ -13186,6 +13403,7 @@ export const {
   completeWeekendInterlude,
   debugActivateWeekendInterlude,
   setWeekendsEnabledForSeason,
+  forceWildcardEntryForQa,
   debugRestartWeekendInterlude,
   debugSkipToWeekendDayTwo,
   debugPrepareFinaleReunionPreview,
