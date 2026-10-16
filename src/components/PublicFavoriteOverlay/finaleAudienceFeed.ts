@@ -30,7 +30,7 @@ export const FINALE_AUDIENCE_FEED_TEMPLATES: ReadonlyArray<{
   { kind: 'service', text: 'A verified fashion creator spotlighted {name}’s finale look.' },
   { kind: 'comment', text: '@OneMoreVote: My whole group chat is split down the middle.' },
   { kind: 'service', text: 'A late-night radio audience opened a voting drive for {other}.' },
-  { kind: 'comment', text: '@BigMoveEnergy: {name} made moves without losing the house.' },
+  { kind: 'comment', text: '@BigMoveEnergy: {name} made moves without losing the Hub.' },
   { kind: 'comment', text: '@SoftSpot: I know it is a game, but {other}’s story got me.' },
   { kind: 'service', text: 'An international fan page translated {name}’s final appeal.' },
   { kind: 'comment', text: '@NumbersNerd: Momentum has changed twice in five minutes.' },

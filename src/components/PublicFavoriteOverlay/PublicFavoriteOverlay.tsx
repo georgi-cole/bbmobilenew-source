@@ -9,11 +9,16 @@ import {
   useTransform,
 } from 'framer-motion'
 import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS } from '../../economy/eyeoleans'
+import { findByName, getById } from '../../data/houseguests'
 import { selectPublicOpinion } from '../../publicOpinion'
 import { useAppSelector } from '../../store/hooks'
-import type { Player } from '../../types'
+import type { GameState, Player } from '../../types'
 import { useBattleBackVoting } from '../../hooks/useBattleBackVoting'
-import { resolveAvatarCandidates } from '../../utils/avatar'
+import {
+  getProfilePhotoAvatarId,
+  joinPublicAssetPath,
+  resolveAvatarCandidates,
+} from '../../utils/avatar'
 import {
   buildHouseguestSpotlightItems,
   getActiveSpotlightPlayers,
@@ -122,9 +127,32 @@ function voteTrend(previousRank: number, rank: number): VoteTrend {
   return 'stable'
 }
 
-function PlayerPortrait({ player, className = '' }: { player: Player; className?: string }) {
-  const sources = useMemo(() => resolveAvatarCandidates(player), [player])
-  const [sourceIndex, setSourceIndex] = useState(0)
+function PlayerPortrait({
+  player,
+  className = '',
+  preferGreyAvatar = false,
+}: {
+  player: Player
+  className?: string
+  preferGreyAvatar?: boolean
+}) {
+  const sources = useMemo(() => {
+    const standardSources = resolveAvatarCandidates(player)
+    if (!preferGreyAvatar) return standardSources
+    const profile = getById(player.id) ?? findByName(player.name)
+    if (!profile || player.isUser || getProfilePhotoAvatarId(player.avatar)) return standardSources
+    const portraitName = profile.name
+    const greySources = [
+      joinPublicAssetPath(`assets/skins/backup-grey-lux/${portraitName}_avatar.webp`),
+      joinPublicAssetPath(`assets/skins/backup-grey-lux/${portraitName.toLowerCase()}_avatar.webp`),
+    ]
+    return [...new Set([...greySources, ...standardSources])]
+  }, [player, preferGreyAvatar])
+  const [sourceState, setSourceState] = useState<{ sources: string[]; index: number }>({
+    sources,
+    index: 0,
+  })
+  const sourceIndex = sourceState.sources === sources ? sourceState.index : 0
   const source = sources[sourceIndex]
 
   return (
@@ -136,7 +164,12 @@ function PlayerPortrait({ player, className = '' }: { player: Player; className?
           className="pf-overlay__avatar-img"
           loading="eager"
           decoding="async"
-          onError={() => setSourceIndex((index) => index + 1)}
+          onError={() =>
+            setSourceState((current) => ({
+              sources,
+              index: current.sources === sources ? current.index + 1 : 1,
+            }))
+          }
         />
       ) : (
         <span className="pf-overlay__portrait-fallback" aria-hidden="true">
@@ -327,8 +360,7 @@ function TopThreeVoteBoard({
         ))}
       </div>
       <p className="pf-overlay__top-three-note">
-        Shares update live. The bar compares the visible players; percentages show their share of
-        all votes.
+        The crowd is still deciding. One shift can change the whole night.
       </p>
     </section>
   )
@@ -350,11 +382,8 @@ function AudiencePlayerRail({
   if (players.length === 0) return null
 
   return (
-    <section
-      className="pf-overlay__audience-rail"
-      aria-label="Choose a player for Viewer Spotlight"
-    >
-      <p className="pf-overlay__audience-rail-title">Choose a player to spotlight</p>
+    <section className="pf-overlay__audience-rail" aria-label="Choose a player to view">
+      <p className="pf-overlay__audience-rail-title">The housemates</p>
       <div className="pf-overlay__audience-rail-track">
         {players.map((player) => (
           <button
@@ -387,29 +416,54 @@ function ForecastPick({
   onLock: () => void
 }) {
   const selectedPlayer = candidates.find((player) => player.id === selectedPlayerId) ?? null
+  const game = useAppSelector((state) => state.game)
+  const selectedPlayerFullName = selectedPlayer
+    ? (getById(selectedPlayer.id)?.fullName ??
+      findByName(selectedPlayer.name)?.fullName ??
+      selectedPlayer.name)
+    : null
+  const selectedPlayerDays = selectedPlayer ? getPlayerDaysInGame(selectedPlayer, game) : null
 
   return (
     <section className="pf-overlay__your-call" aria-label="Forecast pick">
+      <div className="pf-overlay__forecast-heading">
+        <span className="pf-overlay__live-badge">
+          <span className="pf-overlay__live-dot" aria-hidden="true" /> LIVE
+        </span>
+        <span className="pf-overlay__forecast-scope">SEASON VOTE</span>
+      </div>
       <div className="pf-overlay__your-call-copy">
-        <p className="pf-overlay__your-call-kicker">Before the vote opens</p>
-        <h3 className="pf-overlay__your-call-title">Who takes the audience?</h3>
+        <h3 className="pf-overlay__your-call-title">Choose the Public Favorite</h3>
         <p className="pf-overlay__your-call-description">
-          Make one call before the live count begins.
+          Predict who the public will choose. Lock in your pick, then watch the live vote unfold.
         </p>
       </div>
-      {selectedPlayer && (
-        <div className="pf-overlay__forecast-feature" aria-live="polite">
-          <div className="pf-overlay__forecast-feature-glow" aria-hidden="true" />
-          <PlayerPortrait
-            player={selectedPlayer}
-            className="pf-overlay__forecast-feature-portrait"
-          />
-          <div>
-            <span>Your forecast</span>
-            <strong>{selectedPlayer.name}</strong>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {selectedPlayer && (
+          <motion.div
+            className="pf-overlay__forecast-feature"
+            aria-live="polite"
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.18 }}
+          >
+            <PlayerPortrait
+              player={selectedPlayer}
+              className="pf-overlay__forecast-feature-portrait"
+              preferGreyAvatar
+            />
+            <div>
+              <span>Your pick</span>
+              <strong>{selectedPlayerFullName}</strong>
+              <small className="pf-overlay__forecast-feature-days">
+                Total days in the game: {selectedPlayerDays}{' '}
+                {selectedPlayerDays === 1 ? 'day' : 'days'}
+              </small>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div
         className="pf-overlay__forecast-cast"
         aria-label={`Choose your forecast from ${candidates.length} eligible hubmates`}
@@ -422,7 +476,11 @@ function ForecastPick({
             aria-pressed={selectedPlayerId === player.id}
             onClick={() => onSelect(player.id)}
           >
-            <PlayerPortrait player={player} className="pf-overlay__forecast-cast-portrait" />
+            <PlayerPortrait
+              player={player}
+              className="pf-overlay__forecast-cast-portrait"
+              preferGreyAvatar
+            />
             <span>{player.name}</span>
           </button>
         ))}
@@ -433,15 +491,46 @@ function ForecastPick({
         disabled={!selectedPlayerId}
         onClick={onLock}
       >
-        Lock {selectedPlayer?.name ?? 'forecast'}
+        Lock forecast
       </button>
       <p className="pf-overlay__forecast-reward">
         {canBankEyeoleans
-          ? `Correct call: +${formatEyeoleans(PUBLIC_FAVORITE_FORECAST_EYEOLEANS)} and your forecast streak.`
-          : 'Correct calls build your forecast streak. Select a profile to bank Eyeoleans.'}
+          ? `Correct pick: +${formatEyeoleans(PUBLIC_FAVORITE_FORECAST_EYEOLEANS)}`
+          : 'Correct picks build your streak.'}
       </p>
+      {canBankEyeoleans && (
+        <p className="pf-overlay__forecast-currency-note">
+          Eyeoleans are the Hub’s in-game currency. Use them in the market.
+        </p>
+      )}
     </section>
   )
+}
+
+function getPlayerDaysInGame(player: Player, game: GameState | undefined): number {
+  const enteredAtDay = Math.max(1, player.enteredAtDay ?? 1)
+  const lastDay = Math.max(enteredAtDay, player.evictedAtWeek ?? game?.week ?? enteredAtDay)
+  const numberedDays = lastDay - enteredAtDay + 1
+  if (game?.weekendsEnabledForSeason !== true) return numberedDays
+
+  const completedWeekendMilestones = new Set(game.completedWeekendDays ?? [])
+  if (game.finaleWeekendCompleted) completedWeekendMilestones.add(15)
+
+  const completedWeekendDays =
+    Array.from(completedWeekendMilestones).filter(
+      (afterDay) => enteredAtDay <= afterDay && lastDay > afterDay
+    ).length * 2
+
+  const activeWeekend = game.weekendInterlude?.active ? game.weekendInterlude : null
+  const currentWeekendDays =
+    activeWeekend &&
+    player.status !== 'evicted' &&
+    player.status !== 'jury' &&
+    enteredAtDay <= activeWeekend.afterDay
+      ? Math.min(2, activeWeekend.weekendDay)
+      : 0
+
+  return numberedDays + completedWeekendDays + currentWeekendDays
 }
 
 const FORECAST_SHARD_VECTORS = [
@@ -598,33 +687,79 @@ function ViewerSpotlightPanel({
   onActivate: () => void
 }) {
   return (
-    <footer className="pf-overlay__footer">
-      <section className="pf-overlay__surge-panel" aria-label="Viewer Spotlight">
-        <div className="pf-overlay__surge-copy">
-          <p className="pf-overlay__surge-kicker">Viewer Spotlight</p>
-          <p className="pf-overlay__surge-description">
-            {activeSpotlight && selectedPlayer
-              ? `${selectedPlayer.name} is receiving a temporary +5-point audience surge.`
-              : 'Choose any remaining hubmate, then watch to give them a temporary +5-point audience surge.'}
-          </p>
-          <p className="pf-overlay__surge-description">This does not change the official result.</p>
-        </div>
-        <button
-          type="button"
-          className="pf-overlay__surge-cta"
-          onClick={onActivate}
-          disabled={!selectedPlayer || !canActivate || pending}
-        >
-          {pending
-            ? 'Connecting…'
+    <section className="pf-overlay__surge-panel" aria-label="Audience spotlight">
+      <div className="pf-overlay__surge-copy">
+        <p className="pf-overlay__surge-description">
+          {activeSpotlight && selectedPlayer
+            ? `The audience has its eyes on ${selectedPlayer.name}.`
+            : selectedPlayer
+              ? `Give ${selectedPlayer.name} the moment. See how the audience responds.`
+              : 'Choose a housemate to bring into the spotlight.'}
+        </p>
+      </div>
+      <button
+        type="button"
+        className="pf-overlay__surge-cta"
+        onClick={onActivate}
+        disabled={!selectedPlayer || !canActivate || pending}
+        aria-label={
+          pending
+            ? 'Spotlight connecting'
             : activeSpotlight
-              ? 'Viewer Spotlight Active'
+              ? 'Spotlight active'
               : used
-                ? 'Viewer Spotlight Used'
-                : `Watch to boost${selectedPlayer ? ` ${selectedPlayer.name} +5%` : ''}`}
-        </button>
-      </section>
-    </footer>
+                ? 'Spotlight complete'
+                : `Spotlight ${selectedPlayer?.name ?? 'housemate'}`
+        }
+      >
+        {pending
+          ? 'On air…'
+          : activeSpotlight
+            ? 'In the spotlight'
+            : used
+              ? 'Spotlight complete'
+              : `Spotlight${selectedPlayer ? ` ${selectedPlayer.name}` : ''}`}
+      </button>
+    </section>
+  )
+}
+
+function LiveForecastTracker({ player, entry }: { player: Player; entry: VoteEntry | null }) {
+  return (
+    <section className="pf-overlay__live-forecast" aria-label="Your live forecast">
+      <div className="pf-overlay__live-forecast-heading">
+        <span>Your call</span>
+        <span>{entry ? 'Live position' : 'Vote update'}</span>
+      </div>
+      <div className="pf-overlay__live-forecast-main">
+        <PlayerPortrait
+          player={player}
+          className="pf-overlay__live-forecast-portrait"
+          preferGreyAvatar
+        />
+        <div className="pf-overlay__live-forecast-copy">
+          <strong title={player.name}>{player.name}</strong>
+          <span>{entry ? `#${entry.rank} in the audience vote` : 'Out of the vote'}</span>
+        </div>
+        <div className="pf-overlay__live-forecast-result">
+          {entry ? <AnimatedPercent value={entry.percent} /> : <span>—</span>}
+        </div>
+      </div>
+      <div
+        className="pf-overlay__live-forecast-track"
+        role="img"
+        aria-label={
+          entry
+            ? `${player.name} has ${entry.percent}% of the audience vote`
+            : `${player.name} is out of the vote`
+        }
+      >
+        <motion.span
+          animate={{ width: `${entry ? Math.max(2, entry.percent) : 0}%` }}
+          transition={{ type: 'spring', stiffness: 80, damping: 22 }}
+        />
+      </div>
+    </section>
   )
 }
 
@@ -1004,9 +1139,6 @@ export default function PublicFavoriteOverlay({
   const selectedPlayer = selectedPlayerId ? (candidatesById[selectedPlayerId] ?? null) : null
   const forecastPick = forecastPickId ? (candidatesById[forecastPickId] ?? null) : null
   const forecastOpen = mode === 'favorite' && !forecastLocked
-  const spotlightWindowRemaining = countdown(
-    effectiveIntroMs + SPOTLIGHT_SELECTION_WINDOW_MS - elapsedMs
-  )
   const canActivateSpotlight =
     !isComplete &&
     !spotlightUsed &&
@@ -1037,9 +1169,7 @@ export default function PublicFavoriteOverlay({
           ? 'Standings paused for elimination'
           : phase === 'final_two'
             ? 'Every vote can still change who takes the crown'
-            : canActivateSpotlight
-              ? `Viewer Spotlight closes in ${spotlightWindowRemaining}s`
-              : `Next result in ${countdown(nextShiftAt - nowMs)}s`
+            : `Next result in ${countdown(nextShiftAt - nowMs)}s`
   const revealCountdown = isComplete
     ? 0
     : Math.max(
@@ -1051,13 +1181,6 @@ export default function PublicFavoriteOverlay({
       )
   const showFinalCountdown =
     mode === 'season_winner' && !isComplete && revealCountdown > 0 && revealCountdown <= 3
-
-  const handleSkipIntro = useCallback(() => {
-    const remaining = Math.max(0, effectiveIntroMs - elapsedMs)
-    if (remaining <= 0) return
-    setIntroSkipBoostMs((current) => current + remaining)
-    setNowMs(Date.now())
-  }, [effectiveIntroMs, elapsedMs])
 
   const handleFastForward = useCallback(() => {
     if (fastForwarding || isComplete || spotlightPending) return
@@ -1177,76 +1300,49 @@ export default function PublicFavoriteOverlay({
               <ForecastEliminationBurst player={forecastEliminationBurst} />
             )}
           </AnimatePresence>
-          {!isComplete && (
-            <div className="pf-overlay__announcement-slot" aria-live="polite">
-              {!forecastOpen && (
-                <div
-                  className="pf-overlay__speed-controls"
-                  aria-label="Public vote playback controls"
-                >
-                  {phase === 'intro' && (
-                    <button type="button" className="pf-overlay__skip" onClick={handleSkipIntro}>
-                      Skip intro
-                    </button>
-                  )}
-                  <button
-                    ref={fastForwardButtonRef}
-                    type="button"
-                    className={`pf-overlay__fast-forward${fastForwarding ? ' is-active' : ''}`}
-                    onClick={handleFastForward}
-                    disabled={fastForwarding || spotlightPending}
-                    aria-label="Fast forward public favorite vote"
-                  >
-                    <span aria-hidden="true">»</span>
-                    {fastForwarding ? 'Forwarding' : 'Fast forward'}
-                  </button>
+          {!isComplete && !forecastOpen && (
+            <header
+              className={`pf-overlay__broadcast-banner${eliminationActive ? ' is-cut' : ''}`}
+              aria-label="Public vote status"
+            >
+              <div className="pf-overlay__broadcast-bar">
+                <div className="pf-overlay__broadcast-id">
+                  <span className="pf-overlay__broadcast-live">
+                    <span className="pf-overlay__live-dot" aria-hidden="true" /> LIVE
+                  </span>
+                  <span className="pf-overlay__broadcast-label">Audience vote</span>
                 </div>
-              )}
-              <AnimatePresence mode="wait" initial={false}>
-                {eliminationActive ? (
-                  <motion.div
-                    key={eliminationActive.player.id}
-                    className="pf-overlay__elimination"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                  >
-                    <span className="pf-overlay__elimination-label">Audience cut</span>
-                    <strong className="pf-overlay__elimination-name">
-                      {eliminationActive.player.name}
-                    </strong>
-                    <span className="pf-overlay__elimination-copy">leaves the public vote.</span>
-                  </motion.div>
-                ) : (
-                  <header key="header" className="pf-overlay__header">
-                    <div className="pf-overlay__header-topline">
-                      <span className="pf-overlay__live-badge">
-                        <span className="pf-overlay__live-dot" /> LIVE
-                      </span>
-                      <p className="pf-overlay__subtitle">
-                        {mode === 'season_winner'
-                          ? 'The last vote of the season'
-                          : 'Season-long public vote'}
-                      </p>
-                    </div>
-                    <div className="pf-overlay__header-copy">
-                      <h2 className="pf-overlay__title">
-                        {mode === 'season_winner'
-                          ? 'The Final Two Face the Public'
-                          : 'Public Favorite Player'}
-                      </h2>
-                      <p className="pf-overlay__status">{statusLine}</p>
-                    </div>
-                  </header>
-                )}
-              </AnimatePresence>
-            </div>
+                <button
+                  ref={fastForwardButtonRef}
+                  type="button"
+                  className="pf-overlay__broadcast-forward"
+                  onClick={handleFastForward}
+                  disabled={fastForwarding || spotlightPending}
+                  aria-label="Fast forward public favorite vote"
+                >
+                  <span aria-hidden="true">»</span>
+                  {fastForwarding ? 'Forwarding' : 'Fast forward'}
+                </button>
+              </div>
+              <div className="pf-overlay__broadcast-copy" aria-live="polite">
+                <h2 className="pf-overlay__broadcast-headline">
+                  {eliminationActive
+                    ? `${eliminationActive.player.name} leaves the vote`
+                    : mode === 'season_winner'
+                      ? 'The Final Two Face the Public'
+                      : 'Public Favorite Player'}
+                </h2>
+                <p className="pf-overlay__broadcast-caption">
+                  {eliminationActive ? 'The audience has made its call.' : statusLine}
+                </p>
+              </div>
+            </header>
           )}
 
           {!isComplete ? (
             <div className="pf-overlay__broadcast">
               <div
-                className={`pf-overlay__board-shell pf-overlay__board-shell--${phase}${forecastOpen ? ' pf-overlay__board-shell--forecast' : ''}`}
+                className={`pf-overlay__board-shell pf-overlay__board-shell--${phase}${forecastOpen ? ' pf-overlay__board-shell--forecast' : mode === 'favorite' ? ' pf-overlay__board-shell--favorite-live' : ''}`}
               >
                 {forecastOpen ? (
                   <ForecastPick
@@ -1299,19 +1395,27 @@ export default function PublicFavoriteOverlay({
                         )}
                       />
                     )}
+                    {!identitiesHidden && (
+                      <ViewerSpotlightPanel
+                        selectedPlayer={selectedPlayer}
+                        activeSpotlight={activeSpotlight}
+                        used={spotlightUsed}
+                        pending={spotlightPending}
+                        canActivate={canActivateSpotlight}
+                        onActivate={handleSpotlight}
+                      />
+                    )}
+                    {mode === 'favorite' && forecastPick && (
+                      <LiveForecastTracker
+                        player={forecastPick}
+                        entry={
+                          voteEntries.find((entry) => entry.playerId === forecastPick.id) ?? null
+                        }
+                      />
+                    )}
                   </>
                 )}
               </div>
-              {!identitiesHidden && !forecastOpen && (
-                <ViewerSpotlightPanel
-                  selectedPlayer={selectedPlayer}
-                  activeSpotlight={activeSpotlight}
-                  used={spotlightUsed}
-                  pending={spotlightPending}
-                  canActivate={canActivateSpotlight}
-                  onActivate={handleSpotlight}
-                />
-              )}
               <AnimatePresence>
                 {phase === 'intro' && (
                   <motion.div

@@ -103,7 +103,7 @@ describe('PublicFavoriteOverlay finale identity reveal', () => {
       </Provider>
     )
 
-    expect(screen.getByText('Who takes the audience?')).toBeTruthy()
+    expect(screen.getByText('Choose the Public Favorite')).toBeTruthy()
     expect(screen.queryByText('Live audience vote')).toBeNull()
     act(() => screen.getByRole('button', { name: /^Lock / }).click())
 
@@ -168,7 +168,7 @@ describe('PublicFavoriteOverlay finale identity reveal', () => {
 
     expect(candidates.length).toBeGreaterThanOrEqual(16)
     expect(
-      screen.getByLabelText(`Choose your forecast from ${candidates.length} eligible housemates`)
+      screen.getByLabelText(`Choose your forecast from ${candidates.length} eligible hubmates`)
     ).toBeTruthy()
     expect(container.querySelectorAll('.pf-overlay__forecast-cast-player')).toHaveLength(
       candidates.length

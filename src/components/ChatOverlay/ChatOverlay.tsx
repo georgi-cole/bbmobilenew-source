@@ -57,7 +57,7 @@ export interface ChatOverlayProps {
   ariaLabel?: string
   /** Label for the completion button once all lines are revealed. */
   completeLabel?: string
-  /** Optional cinematic backdrop treatment for special announcement chats. */
+  /** Cinematic shared-house backdrop for finale chat scenes. */
   backdropVariant?: 'finale-elimination'
   /** Let the shared Play control reveal the text and dismiss this story beat. */
   advanceOnPlay?: boolean

@@ -50,7 +50,7 @@ const INTERVIEW_BANKS = [
       'How does it feel hearing those final votes go your way?',
       'Like a dream with confetti and way too much adrenaline.',
     ],
-    ['What surprised you most about your journey?', 'How fast allies became rivals in this house.'],
+    ['What surprised you most about your journey?', 'How fast allies became rivals in the Hub.'],
     ['Who helped shape your game the most?', 'Everyone did, but the pressure taught me the most.'],
     [
       'What will you remember first from this finale night?',
@@ -62,7 +62,7 @@ const INTERVIEW_BANKS = [
       'You just made it official. How are you processing this moment?',
       'One breath at a time, because this is huge.',
     ],
-    ['What tested you the most this season?', 'Staying calm when the house wanted chaos.'],
+    ['What tested you the most this season?', 'Staying calm when the Hub wanted chaos.'],
     ['What part of your game are you proudest of?', 'I kept fighting without losing myself.'],
     [
       'What do you want to say to everyone who watched you get here?',
@@ -136,7 +136,6 @@ export default function SeasonFinaleOverlay() {
     [finale, winner]
   )
   const wasPublicVotingPhaseRef = useRef(false)
-  const winnerStingerPlayedRef = useRef(false)
   const [showCredits, setShowCredits] = useState(false)
 
   const publicFavoriteSetupLines = useMemo(() => buildPublicFavoriteSetupLines(), [])
@@ -189,15 +188,12 @@ export default function SeasonFinaleOverlay() {
   }, [finale?.phase, location.pathname, navigate])
 
   useEffect(() => {
-    if (finale?.phase !== 'winnerCinematic') {
-      winnerStingerPlayedRef.current = false
-      return
-    }
-    if (winnerStingerPlayedRef.current) return
-    winnerStingerPlayedRef.current = true
-    // Play as soon as the winner card appears; a delayed request can be
-    // cancelled when the player quickly continues the reveal.
-    void SoundManager.play('tv:finale_winner_stinger')
+    if (finale?.phase !== 'winnerCinematic') return
+    // The finale stinger is the single winner sound for this reveal.
+    const reactionTimer = window.setTimeout(() => {
+      void SoundManager.play('tv:finale_winner_stinger')
+    }, 1500)
+    return () => window.clearTimeout(reactionTimer)
   }, [finale?.phase])
 
   if (!finale || !winner) return null

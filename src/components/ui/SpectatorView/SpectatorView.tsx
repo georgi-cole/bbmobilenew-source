@@ -26,7 +26,7 @@ import { resolvePresentationAvatar } from '../../../utils/presentationAvatar'
 import FullSizeCutoutImage from '../../FullSizeCutoutImage/FullSizeCutoutImage'
 import FinalPowerHolderReveal from '../../FinalPowerBattle/FinalPowerHolderReveal'
 import type { Player } from '../../../types'
-import { useSpectatorSimulation } from './progressEngine'
+import { useSpectatorSimulation, type CompetitorProgress } from './progressEngine'
 import { trackProductEvent } from '../../../services/liveOps/productTelemetry'
 import HoldWallVariant from './HoldWallVariant'
 import TriviaVariant from './TriviaVariant'
@@ -148,7 +148,7 @@ function FinalPowerBattleArena({
   resolveAvatarForId,
   getPlayerName,
 }: {
-  competitors: { id: string; score: number }[]
+  competitors: CompetitorProgress[]
   players: Player[]
   phase: 'simulating' | 'reconciling'
   simPct: number
@@ -158,34 +158,23 @@ function FinalPowerBattleArena({
 }) {
   const leader = [...competitors].sort((left, right) => right.score - left.score)[0]
   const runnerUp = [...competitors].sort((left, right) => left.score - right.score)[0]
-  const moment =
-    phase === 'reconciling'
-      ? 'The final result is being confirmed.'
-      : simPct < 24
-        ? 'Two paths remain. One decision changes everything.'
-        : simPct < 53
-          ? `${getPlayerName(leader?.id)} finds an opening. The other finalist is still in reach.`
-          : simPct < 78
-            ? 'Momentum shifts. Neither finalist is giving ground.'
-            : simPct < 94
-              ? 'One last surge will decide who holds the power.'
-              : 'The arena falls quiet. The final result is moments away.'
+  const monitorStatus =
+    phase === 'reconciling' ? 'RESULT UNDER REVIEW' : simulationStarted ? 'LIVE' : 'STANDBY'
 
   return (
     <div className="fpb-duel" data-phase={phase}>
-      <div className="fpb-duel__stage" role="group" aria-label="Final Power Battle faceoff">
-        <div
-          className="fpb-duel__light"
-          style={{ left: `${16 + simPct * 0.68}%` }}
-          aria-hidden="true"
-        />
+      <div
+        className="fpb-duel__canvas"
+        role="group"
+        aria-label="Final Power Battle broadcast stage"
+      >
+        <p className="fpb-duel__network">THE BIG EYE · FINALE NIGHT</p>
         {competitors.map((competitor, index) => {
           const player = players.find((candidate) => candidate.id === competitor.id)
           return (
             <div
-              className={`fpb-duel__contender fpb-duel__contender--${index === 0 ? 'left' : 'right'}${leader?.id === competitor.id && phase === 'simulating' ? ' is-surging' : ''}`}
+              className={`fpb-duel__contender fpb-duel__contender--${index === 0 ? 'left' : 'right'}${simulationStarted && leader?.id === competitor.id && phase === 'simulating' ? ' is-leading' : ''}`}
               key={competitor.id}
-              style={{ opacity: 0.76 + Math.min(competitor.score, 100) / 420 }}
             >
               <div className="fpb-duel__portrait">
                 {player ? (
@@ -194,48 +183,44 @@ function FinalPowerBattleArena({
                   <img src={resolveAvatarForId(competitor.id)} alt="" />
                 )}
               </div>
-              <div className="fpb-duel__nameplate">
-                <span>{index === 0 ? 'PART 1 ADVANCER' : 'PART 2 QUALIFIER'}</span>
-                <strong>{getPlayerName(competitor.id)}</strong>
-              </div>
             </div>
           )
         })}
         <div className="fpb-duel__versus" aria-hidden="true">
           VS
         </div>
-        <div className="fpb-duel__floor" aria-hidden="true" />
-      </div>
-      <div className="fpb-duel__live" aria-label="Live battle progress">
-        <div className="fpb-duel__live-heading">
-          <span className={simulationStarted ? 'is-on-air' : ''} aria-hidden="true" />
-          {simulationStarted
-            ? phase === 'reconciling'
-              ? 'RESULT UNDER REVIEW'
-              : 'LIVE BATTLE'
-            : 'AWAITING PLAY'}
-          {simulationStarted && <span className="fpb-duel__clock">{Math.min(simPct, 99)}%</span>}
+        <div className="fpb-duel__platform-names" aria-hidden="true">
+          {competitors.map((competitor, index) => (
+            <span
+              className={`fpb-duel__platform-name fpb-duel__platform-name--${index === 0 ? 'left' : 'right'}`}
+              key={competitor.id}
+            >
+              {getPlayerName(competitor.id)}
+            </span>
+          ))}
         </div>
-        {competitors.map((competitor) => (
-          <div className="fpb-duel__progress" key={competitor.id}>
-            <span>{getPlayerName(competitor.id)}</span>
-            <div className="fpb-duel__progress-track" aria-hidden="true">
-              <span
-                className={leader?.id === competitor.id ? 'is-leading' : ''}
-                style={{ width: `${simulationStarted ? Math.max(3, competitor.score) : 3}%` }}
-              />
-            </div>
-            <strong>{simulationStarted ? Math.round(competitor.score) : '—'}</strong>
+        <div className="fpb-duel__monitor" role="group" aria-label="Final Power Battle quiz">
+          <div className="fpb-duel__monitor-heading">
+            <strong>FINAL POWER BATTLE</strong>
+            <span className={simulationStarted ? 'is-on-air' : ''}>
+              <i aria-hidden="true" />
+              {monitorStatus}
+            </span>
           </div>
-        ))}
+          <TriviaVariant
+            competitors={competitors}
+            phase={phase}
+            simPct={simPct}
+            resolveAvatar={resolveAvatarForId}
+            getPlayerName={getPlayerName}
+            compact
+          />
+        </div>
+        <span className="fpb-duel__sr-only">
+          {getPlayerName(leader?.id)} has the current simulated lead over{' '}
+          {getPlayerName(runnerUp?.id)}.
+        </span>
       </div>
-      <p className="fpb-duel__moment" aria-live="polite" aria-atomic="true">
-        {moment}
-      </p>
-      <span className="fpb-duel__sr-only">
-        {getPlayerName(leader?.id)} has the current simulated lead over{' '}
-        {getPlayerName(runnerUp?.id)}.
-      </span>
     </div>
   )
 }
@@ -668,18 +653,19 @@ export default function SpectatorView({
             modal={false}
           />
         ) : (
-          <section className="spectator-finale" aria-live="polite">
-            <p className="spectator-finale__network">THE BIG EYE · FINALE NIGHT</p>
-            <div className="spectator-finale__title-wrap">
-              <p>
-                {presentation === 'final-three-part1'
-                  ? 'PART 1'
-                  : presentation === 'final-three-part2'
-                    ? 'PART 2'
-                    : 'PART 3'}
-              </p>
-              <h2>{finaleTitle}</h2>
-            </div>
+          <section
+            className={`spectator-finale${presentation === 'final-three-part3' ? ' spectator-finale--part3' : ''}`}
+            aria-live="polite"
+          >
+            {presentation !== 'final-three-part3' && (
+              <>
+                <p className="spectator-finale__network">THE BIG EYE · FINALE NIGHT</p>
+                <div className="spectator-finale__title-wrap">
+                  <p>{presentation === 'final-three-part1' ? 'PART 1' : 'PART 2'}</p>
+                  <h2>{finaleTitle}</h2>
+                </div>
+              </>
+            )}
             {presentation !== 'final-three-part3' && (
               <div className="spectator-finale__cast" aria-label="Competitors">
                 {simState.competitors.map((competitor, index) => (
@@ -740,17 +726,19 @@ export default function SpectatorView({
                 />
               ) : null}
             </div>
-            <p className="spectator-finale__play-cue">
-              {finaleResultReady
-                ? 'Winner revealed. Press Play when you are ready to continue.'
-                : simState.phase === 'reconciling'
-                  ? 'The result is being confirmed. The broadcast will continue in a moment.'
-                  : simState.phase === 'revealed'
-                    ? 'The winner is confirmed. Press Play when you are ready to continue.'
-                    : simulationStarted
-                      ? 'Press Play to reveal the result now, or stay and watch the battle.'
-                      : 'Press Play to begin the broadcast.'}
-            </p>
+            {presentation !== 'final-three-part3' && (
+              <p className="spectator-finale__play-cue">
+                {finaleResultReady
+                  ? 'Winner revealed. Press Play when you are ready to continue.'
+                  : simState.phase === 'reconciling'
+                    ? 'The result is being confirmed. The broadcast will continue in a moment.'
+                    : simState.phase === 'revealed'
+                      ? 'The winner is confirmed. Press Play when you are ready to continue.'
+                      : simulationStarted
+                        ? 'Press Play to reveal the result now, or stay and watch the battle.'
+                        : 'Press Play to begin the broadcast.'}
+              </p>
+            )}
           </section>
         )
       ) : (
