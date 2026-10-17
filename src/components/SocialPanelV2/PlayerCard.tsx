@@ -51,7 +51,9 @@ function formatStatus(status: Player['status']): string {
           ? 'Active'
           : part === 'jury'
             ? '⚖ Tribunal'
-            : part.toUpperCase()
+            : part === 'evicted'
+              ? 'Eliminated'
+              : part.toUpperCase()
     )
     .join(' + ')
 }

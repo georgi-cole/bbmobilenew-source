@@ -854,6 +854,9 @@ export interface WeekendInterludeState {
     | 'season_so_far'
     | 'social'
     | 'day_transition'
+    | 'finale_reunion'
+    | 'finale_reunion_social'
+    | 'finale_sequester_announcement'
     | 'tribunal_invitation'
     | 'finale_battle_ready'
     /** Legacy persisted stage; now rendered as the invitation rather than TV dialogue. */
@@ -880,6 +883,17 @@ export interface WeekendInterludeState {
     speeches: WeekendTribunalSpeech[]
     opened?: boolean
   }
+  /** Temporary visitor identities used only by the reversible reunion QA preview. */
+  reunionPreview?: {
+    guestIds: string[]
+    finalistIds: string[]
+  }
+  /** Prevents the Sunday roster return from replaying after its isolated QA preview ends. */
+  reunionPreviewEnded?: true
+  /** The returning roster tiles are animating out before the Tribunal opens. */
+  reunionDepartureActive?: true
+  /** All eliminated players have left the reunion before the finale competition. */
+  reunionDeparted?: true
 }
 
 export interface GameState {
@@ -894,6 +908,24 @@ export interface GameState {
   completedWeekendDays?: number[]
   /** Whether the one-time weekend between the Final Four and Final Three has completed. */
   finaleWeekendCompleted?: boolean
+  /** One saved season-level reserve chance, waiting for a qualifying exit event. */
+  wildcardOpportunity?: {
+    status: 'selected' | 'none' | 'pending' | 'admitted' | 'cancelled'
+    playerId?: string
+    reason?: string
+    triggerType?: 'double_elimination' | 'morning_shock' | 'self_elimination' | 'qa'
+    triggerDay?: number
+    arrivalDay?: number
+    qaForced?: boolean
+  }
+  /** New participants and the eliminated roster slots they visually occupy. */
+  wildcardAdmissions?: Array<{
+    playerId: string
+    displacedPlayerId: string
+    rosterIndex: number
+    enteredAtDay: number
+    forcedByQa?: boolean
+  }>
   /** Active non-numbered weekend interlude between numbered gameplay beats. */
   weekendInterlude?: WeekendInterludeState | null
   players: Player[]

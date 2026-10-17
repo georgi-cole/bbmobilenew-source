@@ -1438,7 +1438,10 @@ export default function GameScreen() {
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
   const weekendInterludeActive = game.weekendInterlude?.active === true
   const weekendSocialAvailable =
-    !weekendInterludeActive || game.weekendInterlude?.stage === 'social'
+    !weekendInterludeActive ||
+    game.weekendInterlude?.stage === 'social' ||
+    (game.weekendInterlude?.finaleWeekend === true &&
+      game.weekendInterlude.stage === 'finale_reunion_social')
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -1498,7 +1501,7 @@ export default function GameScreen() {
     <LayoutGroup id="game-layout">
       <div
         ref={gameScreenRef}
-        className={`game-screen game-screen-shell${responsiveGameLayout.compactRoster ? ' game-screen--compact-roster-balance' : ''}${isCupidArrowActive(game) ? ' game-screen--cupid-active' : ''}${game.cupidArrow?.visualsRevealed ? ' game-screen--cupid-revealed' : ''}${game.cupidArrow?.status === 'broken' ? ' game-screen--cupid-broken' : ''}${game.depressionShock?.activeDay === 2 ? ' game-screen--depression-day-two' : ''}${['live_vote', 'eviction_results'].includes(game.phase) ? ' game-screen--eviction-atmosphere' : ''}`}
+        className={`game-screen game-screen-shell${responsiveGameLayout.compactRoster ? ' game-screen--compact-roster-balance' : ''}${game.weekendInterlude?.active && game.weekendInterlude.finaleWeekend ? ' game-screen--finale-weekend' : ''}${isCupidArrowActive(game) ? ' game-screen--cupid-active' : ''}${game.cupidArrow?.visualsRevealed ? ' game-screen--cupid-revealed' : ''}${game.cupidArrow?.status === 'broken' ? ' game-screen--cupid-broken' : ''}${game.depressionShock?.activeDay === 2 ? ' game-screen--depression-day-two' : ''}${['live_vote', 'eviction_results'].includes(game.phase) ? ' game-screen--eviction-atmosphere' : ''}`}
         style={responsiveGameLayout.cssVars}
         data-layout-size={responsiveGameLayout.layoutSize}
         data-roster-mode={responsiveGameLayout.rosterMode}

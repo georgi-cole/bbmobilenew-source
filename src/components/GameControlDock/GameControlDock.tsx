@@ -83,6 +83,8 @@ export interface GameControlDockProps {
   confessionalIconRef?: Ref<HTMLImageElement>
   confessionalDisabled?: boolean
   elevatedDuringOverlay?: boolean
+  /** Disable dock navigation while a full-screen announcement owns the screen. */
+  navigationDisabled?: boolean
   primaryLabel?: string
 }
 
@@ -115,6 +117,7 @@ export default function GameControlDock({
   confessionalIconRef,
   confessionalDisabled = false,
   elevatedDuringOverlay = false,
+  navigationDisabled = false,
   primaryLabel = 'Advance to next phase',
 }: GameControlDockProps) {
   const dispatch = useAppDispatch()
@@ -135,7 +138,10 @@ export default function GameControlDock({
       state.game.voxPopuli.publicVoteContext === 'eviction'
   )
   const dockDisabled =
-    (disabled && !weekendActive) || votePresentationLocked || voxAudienceVoteLocked
+    (disabled && !weekendActive) ||
+    votePresentationLocked ||
+    voxAudienceVoteLocked ||
+    navigationDisabled
   // The Vox lock deliberately does NOT disable the central Play control.
   const effectivePrimaryDisabled = primaryDisabled || votePresentationLocked
   const [socialLedActive, acknowledgeSocialLed] = useNotificationLed(chatBadgeCount, {
@@ -380,10 +386,10 @@ export default function GameControlDock({
               ? 'Confessional — special Tribunal stream available'
               : `Confessional${confessionalBadgeCount ? ` (${confessionalBadgeCount})` : ''}`
           }
-          disabled={dockDisabled}
+          disabled={dockDisabled || confessionalDisabled}
           aria-disabled={confessionalDisabled || dockDisabled}
           onClick={
-            dockDisabled
+            dockDisabled || confessionalDisabled
               ? undefined
               : () => {
                   if (!confessionalDisabled) acknowledgeConfessionalLed()

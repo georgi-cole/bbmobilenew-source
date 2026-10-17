@@ -223,16 +223,6 @@ describe('SocialPanelV2 – visibility', () => {
     expect(screen.getByRole('dialog')).toBeDefined()
   })
 
-  it('renders during the live vote when opened from the game dock', () => {
-    const store = makeStore({ phase: 'live_vote' })
-    act(() => {
-      store.dispatch(openSocialPanel())
-    })
-    renderPanel(store)
-
-    expect(screen.getByRole('dialog', { name: 'Social Phase' })).toBeInTheDocument()
-  })
-
   it('renders for a nominated human player while still in the house', () => {
     const store = makeStore({ phase: 'social_1', humanStatus: 'nominated' })
     act(() => {
@@ -413,7 +403,7 @@ describe('SocialPanelV2 – close behaviour', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('keeps the panel open when the phase changes to live vote', () => {
+  it('closes and logs the reason when the phase changes to live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore({ phase: 'social_1' })
     act(() => {
@@ -427,9 +417,14 @@ describe('SocialPanelV2 – close behaviour', () => {
       store.dispatch(setPhase('live_vote'))
     })
 
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(store.getState().social.panelOpen).toBe(true)
-    expect(warnSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(store.getState().social.panelOpen).toBe(false)
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Outgoing social module did not open: Outgoing social actions are blocked during the live_vote phase.'
+      ),
+      expect.objectContaining({ phase: 'live_vote' })
+    )
 
     warnSpy.mockRestore()
   })

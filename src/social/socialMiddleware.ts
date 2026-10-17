@@ -270,6 +270,7 @@ const WEEKEND_SOCIAL_ENTRY_ACTIONS = new Set([
   'game/continueWeekendFeature',
   'game/advanceWeekendSeasonFact',
   'game/advanceWeekendDay',
+  'game/beginFinaleReunionSocial',
 ])
 
 function isActiveWeekendPlayer(player: GameState['players'][number]): boolean {
@@ -287,6 +288,7 @@ function weekendSocialContext(state: StateWithGame) {
   const weekend = state.game.weekendInterlude
   const socialWindowOpen =
     weekend?.stage === 'social' ||
+    weekend?.stage === 'finale_reunion_social' ||
     (weekend?.finaleWeekend &&
       (weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse'))
   if (!weekend?.active || !socialWindowOpen) return null
@@ -300,6 +302,25 @@ function weekendSocialContext(state: StateWithGame) {
 
 function queueWeekendSocialArrival(api: MiddlewareAPI): void {
   const state = api.getState() as StateWithGame
+  const reunion = state.game.weekendInterlude
+  if (
+    reunion?.active &&
+    reunion.finaleWeekend &&
+    reunion.weekendDay === 2 &&
+    reunion.stage === 'finale_reunion_social'
+  ) {
+    queueFinaleReunionMessages(api, state, reunion)
+    return
+  }
+  // The Sunday welcome is a full-screen announcement. Its Play action opens
+  // the reunion social window and delivers the eliminated players' messages.
+  if (
+    reunion?.finaleWeekend &&
+    reunion.weekendDay === 2 &&
+    (reunion.stage === 'tribunal_invitation' || reunion.stage === 'tribunal_glimpse')
+  ) {
+    return
+  }
   const context = weekendSocialContext(state)
   if (!context) return
 
@@ -363,6 +384,91 @@ function queueWeekendSocialArrival(api: MiddlewareAPI): void {
       )
     )
   }
+}
+
+function queueFinaleReunionMessages(
+  api: MiddlewareAPI,
+  state: StateWithGame,
+  weekend: NonNullable<StateWithGame['game']['weekendInterlude']>
+): void {
+  const human = state.game.players.find((player) => player.isUser && isActiveWeekendPlayer(player))
+  if (!human) return
+
+  // Retire the generic active-player weekend pings found in older saves. The
+  // reunion beat replaces those with messages from the returning players.
+  const previousSundayArrivals = [
+    ...(state.social?.incomingInteractions ?? []),
+    ...(state.social?.scheduledIncomingInteractions ?? []).map((entry) => entry.interaction),
+  ]
+    .filter(
+      (interaction) =>
+        !interaction.resolved &&
+        ['weekend_arrival', 'weekend_buzz'].includes(
+          String(interaction.payload?.scenarioKey ?? '')
+        ) &&
+        interaction.payload?.weekendDay === 2 &&
+        (interaction.payload?.weekendNumber ?? null) === (weekend.weekendNumber ?? null) &&
+        interaction.payload?.weekendAfterDay === weekend.afterDay
+    )
+    .map((interaction) => interaction.id)
+  if (previousSundayArrivals.length > 0) {
+    api.dispatch(
+      invalidateIncomingInteractions({
+        interactionIds: previousSundayArrivals,
+        resolvedAt: Date.now(),
+        resolvedWeek: state.game.week,
+      })
+    )
+  }
+
+  const jurors = state.game.players.filter((player) => player.status === 'jury' && !player.isUser)
+  const evictees = state.game.players.filter(
+    (player) => player.status === 'evicted' && !player.isUser
+  )
+  const guestPool = [...jurors, ...evictees]
+  if (guestPool.length === 0) return
+
+  const seed = weekend.afterDay + (weekend.weekendNumber ?? 0) * 101
+  const start = seed % guestPool.length
+  const guests = Array.from(
+    { length: Math.min(3, guestPool.length) },
+    (_, index) => guestPool[(start + index) % guestPool.length]
+  )
+  const messages = [
+    'I owe you an apology for how we left things. Can we talk before the finale?',
+    'There’s something I kept quiet about all season. Tonight may be my last chance to say it.',
+    'The Tribunal is about to take its seats. What should I remember about your game?',
+  ]
+
+  guests.forEach((guest, index) => {
+    const id = `finale-reunion-message:${state.game.gameId}:${weekend.weekendNumber ?? 'legacy'}:${weekend.afterDay}:${guest.id}`
+    if (hasIncomingInteraction(state, id)) return
+    api.dispatch(
+      pushIncomingInteraction(
+        createIncomingInteraction({
+          id,
+          fromId: guest.id,
+          type: index === 1 ? 'gossip' : 'check_in',
+          text:
+            index === 2 && guest.status !== 'jury'
+              ? 'We never got to talk after I left. I want to know where we stand before the finale.'
+              : (messages[index] ?? 'I’m glad we have one last chance to talk before the finale.'),
+          week: state.game.week,
+          phase: state.game.phase,
+          mode: getEffectiveSocialMode(state),
+          responsePolicy: 'optional',
+          payload: {
+            scenarioKey: 'finale_reunion_guest',
+            weekendNumber: weekend.weekendNumber,
+            weekendAfterDay: weekend.afterDay,
+            weekendDay: weekend.weekendDay,
+            reunionOrder: index,
+            tribunalEligible: guest.status === 'jury',
+          },
+        })
+      )
+    )
+  })
 }
 
 const WEEKEND_ROUTINE_REPLY_CAP = 4
@@ -1328,12 +1434,24 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       ? state.game?.players.find((player) => player.id === interaction.fromId)
       : undefined
     const recipient = state.game?.players.find((player) => player.isUser)
+    const reunionWeekend = state.game?.weekendInterlude
+    const temporaryReunionGuestMessage = Boolean(
+      interaction?.payload?.scenarioKey === 'finale_reunion_guest' &&
+      reunionWeekend?.active === true &&
+      reunionWeekend.finaleWeekend === true &&
+      reunionWeekend.weekendDay === 2 &&
+      reunionWeekend.stage === 'finale_reunion_social' &&
+      interaction.payload.weekendDay === reunionWeekend.weekendDay &&
+      (interaction.payload.weekendNumber ?? null) === (reunionWeekend.weekendNumber ?? null) &&
+      interaction.payload.weekendAfterDay === reunionWeekend.afterDay &&
+      (sender?.status === 'evicted' || sender?.status === 'jury')
+    )
     if (
       !interaction ||
       !sender ||
       !recipient ||
-      sender.status === 'evicted' ||
-      sender.status === 'jury' ||
+      ((sender.status === 'evicted' || sender.status === 'jury') &&
+        !temporaryReunionGuestMessage) ||
       recipient.status === 'evicted' ||
       recipient.status === 'jury' ||
       sender.id === recipient.id ||
@@ -1360,6 +1478,22 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     } else {
       clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
     }
+    queueWeekendSocialArrival(api as unknown as MiddlewareAPI)
+    return result
+  }
+
+  if (type === 'social/openIncomingInbox') {
+    const result = next(action)
+    const state = api.getState() as StateWithGame
+    const weekend = state.game.weekendInterlude
+    if (
+      weekend?.active &&
+      weekend.finaleWeekend &&
+      weekend.weekendDay === 2 &&
+      weekend.stage === 'finale_reunion_social'
+    ) {
+      queueFinaleReunionMessages(api as unknown as MiddlewareAPI, state, weekend)
+    }
     return result
   }
 
@@ -1385,6 +1519,36 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     return result
   }
 
+  if (type === 'game/beginWeekendTribunalGlimpse') {
+    const result = next(action)
+    // The reunion social window has closed. Unanswered guest messages are
+    // dismissed as the sequester footage is announced.
+    const state = api.getState() as StateWithGame
+    const weekend = state.game.weekendInterlude
+    const pendingReunionMessages = (state.social?.incomingInteractions ?? [])
+      .filter(
+        (interaction) =>
+          !interaction.resolved &&
+          interaction.payload?.scenarioKey === 'finale_reunion_guest' &&
+          weekend?.active === true &&
+          weekend.finaleWeekend === true &&
+          interaction.payload.weekendDay === 2 &&
+          (interaction.payload.weekendNumber ?? null) === (weekend.weekendNumber ?? null) &&
+          interaction.payload.weekendAfterDay === weekend.afterDay
+      )
+      .map((interaction) => interaction.id)
+    if (pendingReunionMessages.length > 0) {
+      api.dispatch(
+        invalidateIncomingInteractions({
+          interactionIds: pendingReunionMessages,
+          resolvedAt: Date.now(),
+          resolvedWeek: state.game.week,
+        })
+      )
+    }
+    return result
+  }
+
   if (type === 'social/recordSocialAction') {
     const result = next(action)
     const state = api.getState() as StateWithGame
@@ -1401,11 +1565,10 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
           actorId: entry.actorId,
           targetId: entry.targetId,
           subjectId: entry.subjectId,
-          intelFactId: entry.context?.intelFactId ?? undefined,
           actorName,
           targetName,
           week: entry.week ?? state.game.week ?? 1,
-          phase: state.game.phase ?? 'social',
+          phase: state.game.phase,
           success: entry.outcome === 'success',
         })
       )
@@ -2136,6 +2299,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     const result = next(action)
     if (type === 'social/hydrateSocial') {
       ensureRealitySimulationSeed(api as unknown as MiddlewareAPI)
+      queueWeekendSocialArrival(api as unknown as MiddlewareAPI)
     }
     if (type === 'game/finalizeNominations' || type === 'game/commitNominees') {
       const state = api.getState() as StateWithGame
