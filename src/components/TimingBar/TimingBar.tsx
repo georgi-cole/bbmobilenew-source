@@ -24,6 +24,7 @@ import type { CompleteMinigamePayload, MinigameSession, Player } from '../../typ
 import {
   getRoundDurationSeconds,
   getRoundBarSpeed,
+  getRemainingCountdownMs,
   computeRawAccuracy,
   applyAttemptPenalty,
   formatAccuracy,
@@ -300,8 +301,8 @@ export default function TimingBar({
   );
 
   // Bar animation state
-  const [barPosition, setBarPosition] = useState(0); // 0–100
   const [barStopped, setBarStopped] = useState(false); // true during soft-stop pause
+  const barElementRef = useRef<HTMLDivElement | null>(null);
   const barDirectionRef = useRef<1 | -1>(1);
   const barPositionRef = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -318,6 +319,7 @@ export default function TimingBar({
 
   const [timeRemainingMs, setTimeRemainingMs] = useState(roundDurationSeconds * 1000);
   const timeRemainingMsRef = useRef(roundDurationSeconds * 1000);
+  const timerDeadlineRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasAutoStartedRef = useRef(false);
 
@@ -380,7 +382,9 @@ export default function TimingBar({
         barDirectionRef.current = 1;
       }
 
-      setBarPosition(barPositionRef.current);
+      if (barElementRef.current) {
+        barElementRef.current.style.left = `${barPositionRef.current}%`;
+      }
       rafRef.current = requestAnimationFrame(tick);
     }
 
@@ -391,7 +395,7 @@ export default function TimingBar({
   const startBarAnimation = useCallback(() => {
     barPositionRef.current = 0;
     barDirectionRef.current = 1;
-    setBarPosition(0);
+    if (barElementRef.current) barElementRef.current.style.left = '0%';
     setBarStopped(false);
     resumeBarAnimation();
   }, [resumeBarAnimation]);
@@ -411,18 +415,19 @@ export default function TimingBar({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    timeRemainingMsRef.current = roundDurationSeconds * 1000;
-    setTimeRemainingMs(roundDurationSeconds * 1000);
+    const durationMs = roundDurationSeconds * 1000;
+    timerDeadlineRef.current = performance.now() + durationMs;
+    timeRemainingMsRef.current = durationMs;
+    setTimeRemainingMs(durationMs);
 
     const TICK_MS = 100;
     timerIntervalRef.current = setInterval(() => {
-      timeRemainingMsRef.current -= TICK_MS;
-      if (timeRemainingMsRef.current <= 0) {
-        timeRemainingMsRef.current = 0;
-        setTimeRemainingMs(0);
-      } else {
-        setTimeRemainingMs(timeRemainingMsRef.current);
-      }
+      const deadline = timerDeadlineRef.current;
+      const remainingMs = deadline === null
+        ? 0
+        : getRemainingCountdownMs(deadline, performance.now());
+      timeRemainingMsRef.current = remainingMs;
+      setTimeRemainingMs(remainingMs);
     }, TICK_MS);
   }, [roundDurationSeconds]);
 
@@ -531,6 +536,13 @@ export default function TimingBar({
    */
   const handleStop = useCallback(() => {
     if (gamePhase !== 'playing') return;
+    const deadline = timerDeadlineRef.current;
+    if (deadline !== null && getRemainingCountdownMs(deadline, performance.now()) <= 0) {
+      timeRemainingMsRef.current = 0;
+      setTimeRemainingMs(0);
+      handleRoundTimeout();
+      return;
+    }
 
     if (!barStopped) {
       // Pause the bar and record this soft attempt position.
@@ -543,19 +555,28 @@ export default function TimingBar({
       setBarStopped(false);
       resumeBarAnimation();
     }
-  }, [barStopped, gamePhase, resumeBarAnimation, stopBarAnimation]);
+  }, [barStopped, gamePhase, handleRoundTimeout, resumeBarAnimation, stopBarAnimation]);
 
   /** Lock in the current bar position as the final answer. */
   const handleLockIn = useCallback(() => {
     if (gamePhase !== 'playing' || isLocked) return;
     const pos = barPositionRef.current;
+    const deadline = timerDeadlineRef.current;
+    if (deadline !== null) {
+      timeRemainingMsRef.current = getRemainingCountdownMs(deadline, performance.now());
+      setTimeRemainingMs(timeRemainingMsRef.current);
+      if (timeRemainingMsRef.current <= 0) {
+        handleRoundTimeout();
+        return;
+      }
+    }
     lockedPositionRef.current = pos;
     setLockedPosition(pos);
     setIsLocked(true);
     stopBarAnimation();
     stopTimer();
     setGamePhase('locked');
-  }, [gamePhase, isLocked, stopBarAnimation, stopTimer]);
+  }, [gamePhase, handleRoundTimeout, isLocked, stopBarAnimation, stopTimer]);
 
   /** Start the round from the intro card. */
   const handleStartRound = useCallback(() => {
@@ -566,7 +587,7 @@ export default function TimingBar({
     setBarStopped(false);
     lockedPositionRef.current = null;
     barPositionRef.current = 0;
-    setBarPosition(0);
+    if (barElementRef.current) barElementRef.current.style.left = '0%';
     barDirectionRef.current = 1;
     lastFrameTimeRef.current = null;
     timeRemainingMsRef.current = roundDurationSeconds * 1000;
@@ -959,7 +980,8 @@ export default function TimingBar({
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ left: `${barPosition}%`, width: `${BAR_WIDTH_PCT}%` }}
+                  ref={barElementRef}
+                  style={{ left: '0%', width: `${BAR_WIDTH_PCT}%` }}
                   aria-hidden="true"
                 />
               </div>

@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getRoundDurationSeconds,
   getRoundBarSpeed,
+  getRemainingCountdownMs,
   computeRawAccuracy,
   applyAttemptPenalty,
   formatAccuracy,
@@ -57,6 +58,20 @@ describe('getRoundDurationSeconds', () => {
     expect(getRoundDurationSeconds(5)).toBe(5);
     expect(getRoundDurationSeconds(10)).toBe(5);
     expect(getRoundDurationSeconds(100)).toBe(5);
+  });
+});
+
+describe('getRemainingCountdownMs', () => {
+  it('keeps the expected time between regular timer ticks', () => {
+    expect(getRemainingCountdownMs(20_000, 1_200)).toBe(18_800);
+  });
+
+  it('catches up elapsed time after a stalled frame', () => {
+    expect(getRemainingCountdownMs(20_000, 4_350)).toBe(15_650);
+  });
+
+  it('clamps expired deadlines to zero', () => {
+    expect(getRemainingCountdownMs(20_000, 25_000)).toBe(0);
   });
 });
 
