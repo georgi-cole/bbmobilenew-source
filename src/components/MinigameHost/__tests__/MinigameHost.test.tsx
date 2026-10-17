@@ -201,7 +201,7 @@ describe('MinigameHost competition retry', () => {
     expect(screen.queryByRole('button', { name: /continue/i })).toBeNull()
   })
 
-  it('holds an authoritative last-place result behind Reverse Time until the close control is used', () => {
+  it('holds an authoritative last-place result behind Reverse Time until the close control is used', async () => {
     const onDone = vi.fn()
     const authoritativeGame = {
       ...baseGame,
@@ -226,7 +226,8 @@ describe('MinigameHost competition retry', () => {
       vi.runAllTimers()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Finish Authoritative Test Game' }))
+    vi.useRealTimers()
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish Authoritative Test Game' }))
 
     expect(screen.getByRole('button', { name: 'Reverse time' })).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()

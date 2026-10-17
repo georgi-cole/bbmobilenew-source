@@ -29,42 +29,9 @@
 //   seed?: number        — competition seed forwarded from gameOptions.seed
 //   autoStart?: boolean  — when true the game begins immediately on mount
 
-import type { ComponentType } from 'react'
-import TiltedLedge from '../components/TiltedLedge/TiltedLedge'
-import ClosestWithoutGoingOverComp from '../components/ClosestWithoutGoingOverComp'
-import HoldTheWallComp from '../components/HoldTheWallComp/HoldTheWallComp'
-import CastleRescueGame, { BennyLennyCastleRescueGame } from './castleRescue/CastleRescueGame'
-import {
-  RemasteredBennyLennyCastleRescueGame,
-  RemasteredCastleRescueGame,
-} from './castleRescue/RemasteredCastleRescueGames'
-import QuickTapRace from './quickTapRace/QuickTapRaceCanvasGame'
-import QuickTapSeasons from '../screens/QuickTapSeasons/QuickTapSeasons'
-import LaneRacers from './laneRacers/LaneRacersCanvasGame'
-import TravelingDots from '../components/TravelingDots/TravelingDots'
-import EstimationGame from '../components/EstimationGame/EstimationGame'
-import BullseyeBlitz from '../components/BullseyeBlitz/BullseyeBlitz'
-import PressurePlank from '../components/PressurePlank/PressurePlank'
-import ColorMatchComp from '../components/ColorMatchComp/ColorMatchComp'
-import SnakeGame from '../components/SnakeGame/SnakeGame'
-import RescueTheKingGame from './rescueTheKing/RescueTheKingGame'
-import TrapAuction from '../components/TrapAuction/TrapAuction'
-import TimingBar from '../components/TimingBar/TimingBar'
-import Minesweeps from '../components/Minesweeps/Minesweeps'
-import HangmanChallengeComp from '../components/HangmanChallengeComp/HangmanChallengeComp'
-import NumberTrivia from '../components/NumberTrivia/NumberTrivia'
-import Capitalization from '../components/Capitalization/Capitalization'
-import CodeBreakerComp from '../components/CodeBreakerComp/CodeBreakerComp'
-import GridOfLuck from '../components/GridOfLuck/GridOfLuck'
-import MysticChamber from '../components/GridOfLuck/MysticChamber'
+import type { ComponentType, LazyExoticComponent } from 'react'
+import { lazyWithChunkRecovery } from '../utils/lazyWithChunkRecovery'
 import type { RelationshipsMap } from '../social/types'
-import ChainOfGreed from '../components/ChainOfGreed/ChainOfGreed'
-import BatteryLow from '../components/VaultVerdict/VaultVerdict'
-import BigSpender from '../components/BigSpender/BigSpender'
-import HouseOfDarknessComp from '../components/HouseOfDarknessComp/HouseOfDarknessComp'
-import FinalThreeCircuit from '../components/FinalThreeCircuit/FinalThreeCircuit'
-import DownMemoryLane from '../components/DownMemoryLane/DownMemoryLane'
-import '../components/DownMemoryLane/DownMemoryLanePolish.css'
 
 /**
  * Minimal prop contract shared by all generic React minigame components.
@@ -110,40 +77,77 @@ export interface GenericMinigameProps {
   relationships?: RelationshipsMap
 }
 
-const reactComponents: Record<string, ComponentType<GenericMinigameProps>> = {
-  TiltedLedge: TiltedLedge as ComponentType<GenericMinigameProps>,
-  ClosestWithoutGoingOver: ClosestWithoutGoingOverComp as ComponentType<GenericMinigameProps>,
-  HoldTheWall: HoldTheWallComp as ComponentType<GenericMinigameProps>,
-  CastleRescue: CastleRescueGame as ComponentType<GenericMinigameProps>,
-  CastleRescue2: BennyLennyCastleRescueGame as ComponentType<GenericMinigameProps>,
-  CastleRescueRemastered: RemasteredCastleRescueGame as ComponentType<GenericMinigameProps>,
-  CastleRescue2Remastered:
-    RemasteredBennyLennyCastleRescueGame as ComponentType<GenericMinigameProps>,
-  QuickTapRace: QuickTapRace as ComponentType<GenericMinigameProps>,
-  QuickTapSeasons: QuickTapSeasons as ComponentType<GenericMinigameProps>,
-  LaneRacers: LaneRacers as ComponentType<GenericMinigameProps>,
-  TravelingDots: TravelingDots as ComponentType<GenericMinigameProps>,
-  EstimationGame: EstimationGame as ComponentType<GenericMinigameProps>,
-  BullseyeBlitz: BullseyeBlitz as ComponentType<GenericMinigameProps>,
-  PressurePlank: PressurePlank as ComponentType<GenericMinigameProps>,
-  ColorMatch: ColorMatchComp as ComponentType<GenericMinigameProps>,
-  SnakeGame: SnakeGame as ComponentType<GenericMinigameProps>,
-  RescueTheKing: RescueTheKingGame as ComponentType<GenericMinigameProps>,
-  TrapAuction: TrapAuction as ComponentType<GenericMinigameProps>,
-  TimingBar: TimingBar as ComponentType<GenericMinigameProps>,
-  Minesweeps: Minesweeps as ComponentType<GenericMinigameProps>,
-  HangmanChallenge: HangmanChallengeComp as ComponentType<GenericMinigameProps>,
-  NumberTrivia: NumberTrivia as ComponentType<GenericMinigameProps>,
-  Capitalization: Capitalization as ComponentType<GenericMinigameProps>,
-  CodeBreaker: CodeBreakerComp as ComponentType<GenericMinigameProps>,
-  GridOfLuck: GridOfLuck as ComponentType<GenericMinigameProps>,
-  MysticChamber: MysticChamber as ComponentType<GenericMinigameProps>,
-  ChainOfGreed: ChainOfGreed as ComponentType<GenericMinigameProps>,
-  BatteryLow: BatteryLow as ComponentType<GenericMinigameProps>,
-  BigSpender: BigSpender as ComponentType<GenericMinigameProps>,
-  HouseOfDarkness: HouseOfDarknessComp as ComponentType<GenericMinigameProps>,
-  FinalThreeCircuit: FinalThreeCircuit as ComponentType<GenericMinigameProps>,
-  DownMemoryLane: DownMemoryLane as ComponentType<GenericMinigameProps>,
+type LazyGenericMinigame = LazyExoticComponent<ComponentType<GenericMinigameProps>> & {
+  preload: () => Promise<void>
+}
+
+function lazyMinigame(loader: () => Promise<unknown>): LazyGenericMinigame {
+  return lazyWithChunkRecovery<GenericMinigameProps>(
+    async () => (await loader()) as { default: ComponentType<GenericMinigameProps> }
+  ) as LazyGenericMinigame
+}
+
+const reactComponents: Record<string, LazyGenericMinigame> = {
+  TiltedLedge: lazyMinigame(() => import('../components/TiltedLedge/TiltedLedge')),
+  ClosestWithoutGoingOver: lazyMinigame(() => import('../components/ClosestWithoutGoingOverComp')),
+  HoldTheWall: lazyMinigame(() => import('../components/HoldTheWallComp/HoldTheWallComp')),
+  CastleRescue: lazyMinigame(() =>
+    import('./castleRescue/CastleRescueGame').then(({ default: CastleRescueGame }) => ({
+      default: CastleRescueGame as ComponentType<GenericMinigameProps>,
+    }))
+  ),
+  CastleRescue2: lazyMinigame(() =>
+    import('./castleRescue/CastleRescueGame').then(({ BennyLennyCastleRescueGame }) => ({
+      default: BennyLennyCastleRescueGame as ComponentType<GenericMinigameProps>,
+    }))
+  ),
+  CastleRescueRemastered: lazyMinigame(() =>
+    import('./castleRescue/RemasteredCastleRescueGames').then(({ RemasteredCastleRescueGame }) => ({
+      default: RemasteredCastleRescueGame as ComponentType<GenericMinigameProps>,
+    }))
+  ),
+  CastleRescue2Remastered: lazyMinigame(() =>
+    import('./castleRescue/RemasteredCastleRescueGames').then(
+      ({ RemasteredBennyLennyCastleRescueGame }) => ({
+        default: RemasteredBennyLennyCastleRescueGame as ComponentType<GenericMinigameProps>,
+      })
+    )
+  ),
+  QuickTapRace: lazyMinigame(() => import('./quickTapRace/QuickTapRaceCanvasGame')),
+  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasons')),
+  LaneRacers: lazyMinigame(() => import('./laneRacers/LaneRacersCanvasGame')),
+  TravelingDots: lazyMinigame(() => import('../components/TravelingDots/TravelingDots')),
+  EstimationGame: lazyMinigame(() => import('../components/EstimationGame/EstimationGame')),
+  BullseyeBlitz: lazyMinigame(() => import('../components/BullseyeBlitz/BullseyeBlitz')),
+  PressurePlank: lazyMinigame(() => import('../components/PressurePlank/PressurePlank')),
+  ColorMatch: lazyMinigame(() => import('../components/ColorMatchComp/ColorMatchComp')),
+  SnakeGame: lazyMinigame(() => import('../components/SnakeGame/SnakeGame')),
+  RescueTheKing: lazyMinigame(() => import('./rescueTheKing/RescueTheKingGame')),
+  TrapAuction: lazyMinigame(() => import('../components/TrapAuction/TrapAuction')),
+  TimingBar: lazyMinigame(() => import('../components/TimingBar/TimingBar')),
+  Minesweeps: lazyMinigame(() => import('../components/Minesweeps/Minesweeps')),
+  HangmanChallenge: lazyMinigame(
+    () => import('../components/HangmanChallengeComp/HangmanChallengeComp')
+  ),
+  NumberTrivia: lazyMinigame(() => import('../components/NumberTrivia/NumberTrivia')),
+  Capitalization: lazyMinigame(() => import('../components/Capitalization/Capitalization')),
+  CodeBreaker: lazyMinigame(() => import('../components/CodeBreakerComp/CodeBreakerComp')),
+  GridOfLuck: lazyMinigame(() => import('../components/GridOfLuck/GridOfLuck')),
+  MysticChamber: lazyMinigame(() => import('../components/GridOfLuck/MysticChamber')),
+  ChainOfGreed: lazyMinigame(() => import('../components/ChainOfGreed/ChainOfGreed')),
+  BatteryLow: lazyMinigame(() => import('../components/VaultVerdict/VaultVerdict')),
+  BigSpender: lazyMinigame(() => import('../components/BigSpender/BigSpender')),
+  HouseOfDarkness: lazyMinigame(
+    () => import('../components/HouseOfDarknessComp/HouseOfDarknessComp')
+  ),
+  FinalThreeCircuit: lazyMinigame(
+    () => import('../components/FinalThreeCircuit/FinalThreeCircuit')
+  ),
+  DownMemoryLane: lazyMinigame(() => import('../components/DownMemoryLane/DownMemoryLane')),
 }
 
 export default reactComponents
+
+export function preloadReactMinigame(key: string): Promise<void> {
+  return reactComponents[key]?.preload() ?? Promise.resolve()
+}

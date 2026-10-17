@@ -169,6 +169,7 @@ export function resolveAvatarCandidates(
   // Persisted games created before the combined portrait was wired may still
   // carry Lia's old single portrait. The revealed twin identity is canonical.
   if (player.id === 'lia' && /\blia\s*&\s*ali\b/i.test(player.name)) {
+    candidates.push(joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp'))
     candidates.push(joinPublicAssetPath('assets/skins/Ali_lia_avatar.webp'))
   }
 

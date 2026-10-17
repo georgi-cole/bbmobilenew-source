@@ -771,7 +771,7 @@ export default function GameScreen() {
       avatarUrl: getProfilePhotoAvatarId(p.avatar)
         ? p.avatar
         : p.id === 'lia' && /\blia\s*&\s*ali\b/i.test(p.name)
-          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar.webp')
+          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp')
           : resolveAvatar(p),
       statuses,
       finalRank: (p.finalRank ?? null) as 1 | 2 | 3 | null,

@@ -12,6 +12,7 @@ import {
   type MemoryLaneQuestion,
 } from './downMemoryLaneLogic'
 import './DownMemoryLane.css'
+import './DownMemoryLanePolish.css'
 
 const STARTING_LIVES = 5
 const OPEN_BUZZ_WINDOW_MS = 8_000

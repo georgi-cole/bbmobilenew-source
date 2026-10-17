@@ -10,7 +10,15 @@
 // The host also owns one seamless edge utility dock for revisiting rules and
 // leaving a competition. Individual minigames must not render their own exit UI.
 
-import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
+import {
+  Suspense,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
@@ -27,43 +35,84 @@ import {
   type MinigameMusicVariantDetail,
 } from '../../services/sound/minigameMusicVariant'
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
-import ClosestWithoutGoingOverComp from '../ClosestWithoutGoingOverComp'
 import type { CwgoPrizeType } from '../../features/cwgo/cwgoCompetitionSlice'
-import HoldTheWallComp from '../HoldTheWallComp/HoldTheWallComp'
 import type { HoldTheWallPrizeType } from '../../features/holdTheWall/holdTheWallSlice'
-import BiographyBlitzComp from '../BiographyBlitzComp/biography_blitz_game'
 import type { BiographyBlitzCompetitionType } from '../../features/biographyBlitz/biography_blitz_logic'
-import FamousFiguresComp from '../FamousFiguresComp/FamousFiguresComp'
 import type { FamousFiguresPrizeType } from '../../features/famousFigures/famousFiguresSlice'
-import SilentSaboteurComp from '../SilentSaboteurComp/SilentSaboteurComp'
 import type { SilentSaboteurPrizeType } from '../../features/silentSaboteur/silentSaboteurSlice'
 import { getGame as getCanonicalGame } from '../../minigames/registryBase'
-import MajorityRulesComp from '../MajorityRulesComp/MajorityRulesComp'
 import type { MajorityRulesCompetitionType } from '../../features/majorityRules/majorityRulesSlice'
-import GlassBridgeComp from '../GlassBridgeComp/GlassBridgeComp'
-import CrystalPathShatteredGame from '../../minigames/crystalPathShattered/CrystalPathShatteredGame'
-import BlackjackTournamentComp from '../BlackjackTournamentComp/BlackjackTournamentComp'
 import type { BlackjackTournamentCompetitionType } from '../../features/blackjackTournament/blackjackTournamentSlice'
-import RiskWheelComp from '../RiskWheelComp/RiskWheelComp'
 import type { RiskWheelCompetitionType } from '../../features/riskWheel/riskWheelSlice'
-import WildcardWesternComp from '../WildcardWesternComp/WildcardWesternComp'
-import CodeBreakerComp from '../CodeBreakerComp/CodeBreakerComp'
 import type { CodeBreakerPrizeType } from '../CodeBreakerComp/CodeBreakerComp'
-import TetrisComp from '../TetrisComp/TetrisComp'
 import type { TetrisPrizeType } from '../../features/tetris/tetrisSlice'
-import TiltLabyrinthComp from '../TiltLabyrinthComp/TiltLabyrinthComp'
 import type { TiltLabyrinthPrizeType } from '../../features/tiltLabyrinth/tiltLabyrinthSlice'
-import HouseOfCardsComp from '../HouseOfCardsComp/HouseOfCardsComp'
 import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfCardsSlice'
-import MemoryColorsComp from '../MemoryColorsComp/MemoryColorsComp'
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
-import TrapAuctionComp from '../TrapAuction/TrapAuction'
-import ColorMatchComp from '../ColorMatchComp/ColorMatchComp'
-import reactComponents from '../../minigames/reactComponents'
+import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
+import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
 const COUNTDOWN_TIMER_KEY = 'minigame:all_3_seconds_timer'
+
+const ClosestWithoutGoingOverComp = lazyWithChunkRecovery(
+  () => import('../ClosestWithoutGoingOverComp')
+)
+const HoldTheWallComp = lazyWithChunkRecovery(() => import('../HoldTheWallComp/HoldTheWallComp'))
+const BiographyBlitzComp = lazyWithChunkRecovery(
+  () => import('../BiographyBlitzComp/biography_blitz_game')
+)
+const FamousFiguresComp = lazyWithChunkRecovery(
+  () => import('../FamousFiguresComp/FamousFiguresComp')
+)
+const SilentSaboteurComp = lazyWithChunkRecovery(
+  () => import('../SilentSaboteurComp/SilentSaboteurComp')
+)
+const MajorityRulesComp = lazyWithChunkRecovery(
+  () => import('../MajorityRulesComp/MajorityRulesComp')
+)
+const GlassBridgeComp = lazyWithChunkRecovery(() => import('../GlassBridgeComp/GlassBridgeComp'))
+const CrystalPathShatteredGame = lazyWithChunkRecovery(
+  () => import('../../minigames/crystalPathShattered/CrystalPathShatteredGame')
+)
+const BlackjackTournamentComp = lazyWithChunkRecovery(
+  () => import('../BlackjackTournamentComp/BlackjackTournamentComp')
+)
+const RiskWheelComp = lazyWithChunkRecovery(() => import('../RiskWheelComp/RiskWheelComp'))
+const WildcardWesternComp = lazyWithChunkRecovery(
+  () => import('../WildcardWesternComp/WildcardWesternComp')
+)
+const CodeBreakerComp = lazyWithChunkRecovery(() => import('../CodeBreakerComp/CodeBreakerComp'))
+const TetrisComp = lazyWithChunkRecovery(() => import('../TetrisComp/TetrisComp'))
+const TiltLabyrinthComp = lazyWithChunkRecovery(
+  () => import('../TiltLabyrinthComp/TiltLabyrinthComp')
+)
+const HouseOfCardsComp = lazyWithChunkRecovery(() => import('../HouseOfCardsComp/HouseOfCardsComp'))
+const MemoryColorsComp = lazyWithChunkRecovery(() => import('../MemoryColorsComp/MemoryColorsComp'))
+const TrapAuctionComp = lazyWithChunkRecovery(() => import('../TrapAuction/TrapAuction'))
+const ColorMatchComp = lazyWithChunkRecovery(() => import('../ColorMatchComp/ColorMatchComp'))
+
+const SPECIAL_MINIGAME_PRELOADERS: Record<string, () => Promise<void>> = {
+  ClosestWithoutGoingOver: () => ClosestWithoutGoingOverComp.preload(),
+  HoldTheWall: () => HoldTheWallComp.preload(),
+  BiographyBlitz: () => BiographyBlitzComp.preload(),
+  FamousFigures: () => FamousFiguresComp.preload(),
+  SilentSaboteur: () => SilentSaboteurComp.preload(),
+  MajorityRules: () => MajorityRulesComp.preload(),
+  GlassBridge: () => GlassBridgeComp.preload(),
+  CrystalPathShattered: () => CrystalPathShatteredGame.preload(),
+  BlackjackTournament: () => BlackjackTournamentComp.preload(),
+  RiskWheel: () => RiskWheelComp.preload(),
+  WildcardWestern: () => WildcardWesternComp.preload(),
+  CodeBreaker: () => CodeBreakerComp.preload(),
+  Tetris: () => TetrisComp.preload(),
+  TiltLabyrinth: () => TiltLabyrinthComp.preload(),
+  HouseOfCards: () => HouseOfCardsComp.preload(),
+  MemoryColors: () => MemoryColorsComp.preload(),
+  TrapAuction: () => TrapAuctionComp.preload(),
+  ColorMatch: () => ColorMatchComp.preload(),
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -164,6 +213,15 @@ export default function MinigameHost({
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
+  const reactComponentKey = launchedGame.reactComponentKey
+  useEffect(() => {
+    if (launchedGame.implementation !== 'react' || !reactComponentKey) return
+    const preload =
+      SPECIAL_MINIGAME_PRELOADERS[reactComponentKey] ??
+      (() => preloadReactMinigame(reactComponentKey))
+    void preload().catch(() => undefined)
+  }, [launchedGame.implementation, reactComponentKey])
+
   const [phase, setPhase] = useState<HostPhase>(skipRules ? 'countdown' : 'rules')
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
   const [countdown, setCountdown] = useState(3)
@@ -973,7 +1031,15 @@ export default function MinigameHost({
             .join(' ')}
           key={`${sessionId}:${attempt}`}
         >
-          {renderActiveGame()}
+          <Suspense
+            fallback={
+              <div className="minigame-host-loading" role="status" aria-live="polite">
+                Preparing {launchedGame.title}…
+              </div>
+            }
+          >
+            {renderActiveGame()}
+          </Suspense>
         </div>
       )}
 
