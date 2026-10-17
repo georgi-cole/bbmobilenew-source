@@ -87,6 +87,8 @@ export interface Player {
   twinMode?: 'combined'
   /** True for housemates inserted after the starting roster. */
   lateEntrant?: boolean
+  /** Game day the contestant entered, used when tracking late arrivals. */
+  enteredAtDay?: number
 }
 
 // ─── Minigame types ───────────────────────────────────────────────────────────
@@ -1360,7 +1362,12 @@ export interface GameState {
    * (by the overlay's `onDone` callback) to commit the eviction.
    * Cleared by `finalizePendingEviction`.
    */
-  pendingEviction?: { evicteeId: string; evictionMessage: string } | null
+  pendingEviction?: {
+    evicteeId: string
+    evictionMessage: string
+    /** Preserves the originating event through the deferred eviction animation. */
+    exitMethod?: string
+  } | null
   /**
    * ID of the player currently shown in a fullscreen eviction overlay
    * (SpotlightEvictionOverlay).  Set when any eviction overlay mounts and

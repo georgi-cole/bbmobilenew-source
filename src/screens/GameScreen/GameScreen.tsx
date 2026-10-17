@@ -4,6 +4,7 @@ import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { gameScreenGameEquality } from './gameScreenGameEquality'
+import { getPresentedRosterPlayers } from '../../features/reserveEntrants/wildcardReplacement'
 import {
   addTvEvent,
   advance,
@@ -237,6 +238,7 @@ export default function GameScreen() {
   }, [store])
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const game = useAppSelector((s) => s.game, gameScreenGameEquality)
+  const presentedRosterPlayers = useMemo(() => getPresentedRosterPlayers(game), [game])
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)
@@ -1473,7 +1475,7 @@ export default function GameScreen() {
   const responsiveGameLayout = useResponsiveGameLayout(gameScreenRef, {
     hasDock: showGameControlDock,
     unifiedActionRail: true,
-    playerCount: game.players.length,
+    playerCount: presentedRosterPlayers.length,
     userCompactRoster: settings.gameUX.compactRoster,
     inlineLogVisible: !refinedGameChrome || game.mode === 'survival' || settings.gameUX.houseFeed,
     freezeLayout: flowCoordination.activeFlow !== null,
@@ -1483,7 +1485,7 @@ export default function GameScreen() {
   // the activity affordance and the occupancy count, so the roster must not
   // render a duplicate row beside its title.
   const inlineHouseFeedVisible = gameTvLogRows > 0
-  const housemateOccupancyLabel = `${alivePlayers.length}/${game.mode === 'survival' ? 8 + (game.modeSpecific?.kind === 'survival' ? (game.modeSpecific.totalRoboContestantsEvicted ?? 0) : 0) : game.players.length}`
+  const housemateOccupancyLabel = `${alivePlayers.length}/${game.mode === 'survival' ? 8 + (game.modeSpecific?.kind === 'survival' ? (game.modeSpecific.totalRoboContestantsEvicted ?? 0) : 0) : presentedRosterPlayers.length}`
   const showSurveyevalVoteModal =
     game.mode === 'survival' && game.phase === 'live_vote' && game.awaitingHumanVote
   const surveyevalVoteOptions = game.nomineeIds
@@ -1493,7 +1495,7 @@ export default function GameScreen() {
     inlineHouseFeedVisible || responsiveGameLayout.rosterHeaderMode === 'tv-chip'
       ? {
           label: housemateOccupancyLabel,
-          ariaLabel: `Hubmates ${alivePlayers.length} of ${game.players.length}`,
+          ariaLabel: `Hubmates ${alivePlayers.length} of ${presentedRosterPlayers.length}`,
         }
       : null
 
@@ -2811,7 +2813,7 @@ export default function GameScreen() {
 
         {/* ── Houseguest grid (alive + evicted in one grid) ────────────────── */}
         <HouseguestGrid
-          houseguests={game.players.map(playerToHouseguest)}
+          houseguests={presentedRosterPlayers.map(playerToHouseguest)}
           headerSelector=".tv-zone"
           footerSelector=".nav-bar"
           overlaySelector=".game-control-dock"

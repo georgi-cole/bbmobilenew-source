@@ -2,8 +2,9 @@
 // Canonical houseguest dataset ported from bbmobile/js/data/houseguests.js
 // Single source of truth for static houseguest profile fields.
 
-import type { Houseguest } from '../types/houseguest';
-import type { CompetitionSkillProfile } from '../ai/competition/types';
+import type { Houseguest } from '../types/houseguest'
+import type { CompetitionSkillProfile } from '../ai/competition/types'
+import { RESERVE_HOUSEGUESTS } from './reserveHouseguests'
 
 const DEFAULT_COMPETITION_PROFILE: CompetitionSkillProfile = {
   overall: 50,
@@ -15,7 +16,7 @@ const DEFAULT_COMPETITION_PROFILE: CompetitionSkillProfile = {
   clutch: 50,
   chokeRisk: 50,
   luck: 50,
-};
+}
 
 const HOUSEGUESTS: Houseguest[] = [
   {
@@ -700,24 +701,31 @@ const HOUSEGUESTS: Houseguest[] = [
     },
     story: `Kian Rossi walks through Milan's streets seeing not what is, but what could be. As an Urban Planner, he dreams of transforming concrete jungles into vibrant, sustainable communities where people thrive. Raised in a working-class neighborhood that was gentrified out of existence, Kian's passion for inclusive urban design is personal. He fights daily battles with developers who see only profit margins, not communities. His idealism has cost him promotions and made him enemies in city hall, but he refuses to compromise his vision. The Big Eye is his chance to prove that collaboration and strategic thinking can build something better than cutthroat competition ever could. In a game about alliances and territory, the urban planner will try to design a path to victory that leaves no one behind.`,
   },
-];
+]
 
-export default HOUSEGUESTS;
+export default HOUSEGUESTS
 
 export function getCompetitionProfile(playerId: string): CompetitionSkillProfile {
-  const profile = getById(playerId)?.competitionProfile;
-  return profile ? { ...profile } : { ...DEFAULT_COMPETITION_PROFILE };
+  const profile = getById(playerId)?.competitionProfile
+  return profile ? { ...profile } : { ...DEFAULT_COMPETITION_PROFILE }
 }
 
 export function getAll(): Houseguest[] {
-  return HOUSEGUESTS.slice();
+  return [...HOUSEGUESTS, ...RESERVE_HOUSEGUESTS]
 }
 
 export function getById(id: string): Houseguest | undefined {
-  return HOUSEGUESTS.find((h) => h.id === id.toLowerCase());
+  const normalized = id.toLowerCase()
+  return (
+    HOUSEGUESTS.find((houseguest) => houseguest.id === normalized) ??
+    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.id === normalized)
+  )
 }
 
 export function findByName(name: string): Houseguest | undefined {
-  const lower = name.toLowerCase();
-  return HOUSEGUESTS.find((h) => h.name.toLowerCase() === lower);
+  const lower = name.toLowerCase()
+  return (
+    HOUSEGUESTS.find((houseguest) => houseguest.name.toLowerCase() === lower) ??
+    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.name.toLowerCase() === lower)
+  )
 }
