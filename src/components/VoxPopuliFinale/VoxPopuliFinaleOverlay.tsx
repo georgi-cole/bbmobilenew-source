@@ -70,7 +70,7 @@ export default function VoxPopuliFinaleOverlay() {
       const introduction = player.isUser
         ? profileBio?.story?.trim() ||
           (profileIdentity || numericAge
-            ? `${player.name} entered the house${profileIdentity ? ` as ${profileIdentity}` : ''}${numericAge ? ` at ${numericAge}` : ''}—then turned that real-life experience into a game the audience could follow.`
+            ? `${player.name} entered the Hub${profileIdentity ? ` as ${profileIdentity}` : ''}${numericAge ? ` at ${numericAge}` : ''}—then turned that real-life experience into a game the audience could follow.`
             : `${player.name} entered without a borrowed storyline. Every risk, bond, and survival became the story the audience knows now.`)
         : undefined
       return { player, introduction, powerMoves }
@@ -93,7 +93,6 @@ export default function VoxPopuliFinaleOverlay() {
         week={game.week}
         players={game.players}
         history={game.history}
-        completedWeekendDays={game.completedWeekendDays ?? []}
         publicOpinion={publicOpinion}
         onComplete={() => dispatch(vox.winnerId ? completeVoxSeasonRecap() : startVoxFinalVote())}
       />

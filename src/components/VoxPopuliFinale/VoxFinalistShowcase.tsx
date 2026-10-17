@@ -72,7 +72,7 @@ export default function VoxFinalistShowcase({ finalists, onComplete }: Props) {
             <small>{current.kind === 'story' ? 'Their story' : 'Their road to the final'}</small>
             <h2>{current.player.name}</h2>
             {current.kind === 'story' ? (
-              <p>{current.introduction ?? bio?.introduction ?? `${current.player.name} entered the house ready to be seen—and stayed long enough to make the audience listen.`}</p>
+              <p>{current.introduction ?? bio?.introduction ?? `${current.player.name} entered the Hub ready to be seen—and stayed long enough to make the audience listen.`}</p>
             ) : (
               <ul>
                 {current.powerMoves.map((move) => <li key={move}>{move}</li>)}

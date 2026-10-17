@@ -51,9 +51,21 @@ describe("Don't Go Over spectator choice", () => {
       </Provider>,
     );
 
+    const stage = screen.getByTestId('cwgo-stage');
+    expect(stage.querySelector('.cwgo__header')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo__question')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo__phase-window')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo__action-rail')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo-results-wrap')).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(screen.getByRole('dialog', { name: 'How would you like to continue?' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Continue as spectator' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Exit game' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How would you like to continue?' })).toBeInTheDocument();
+    expect(stage).toHaveClass('cwgo');
+    expect(stage.querySelector('.cwgo__question')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo__phase-window')).toBeInTheDocument();
+    expect(stage.querySelector('.cwgo__action-rail')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Watch game' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Skip to winner' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

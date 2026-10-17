@@ -505,6 +505,7 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
         <ChatOverlay
           lines={pleaLines}
           skippable
+          backdropVariant="finale-elimination"
           header={{
             title: 'Final Power Decision',
             subtitle: 'One last conversation before the Final Two is set.',
@@ -589,14 +590,10 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
                     draggable={false}
                   />
                 </div>
-                <span>{player.name}</span>
               </div>
             ))}
           </div>
-          <p className="f3c-final-two__copy">The Tribunal will decide who wins the season.</p>
-          <p className="f3c-final-two__play-cue">
-            Press Play when you are ready to enter the Tribunal.
-          </p>
+          <p className="f3c-final-two__copy">The Tribunal chooses the winner.</p>
         </div>
       )}
     </>

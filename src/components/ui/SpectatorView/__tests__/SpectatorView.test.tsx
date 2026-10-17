@@ -303,10 +303,26 @@ describe('SpectatorView', () => {
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
     act(() => vi.advanceTimersByTime(6_000))
 
-    expect(
-      screen.getByText('The result is being confirmed. The broadcast will continue in a moment.')
-    ).toBeDefined()
+    expect(screen.getByText('RESULT UNDER REVIEW')).toBeDefined()
+    expect(document.querySelector('.spectator-finale__play-cue')).toBeNull()
     expect(onPlayAvailabilityChange).toHaveBeenLastCalledWith(false)
+    vi.useRealTimers()
+  })
+
+  it('renders the Part 3 live monitor over the broadcast stage without a redundant Play cue', () => {
+    vi.useFakeTimers()
+    const store = makeStore()
+    renderSpectator(store, {
+      competitorIds: ['p1', 'p2'],
+      presentation: 'final-three-part3',
+    })
+
+    expect(screen.getByRole('group', { name: 'Final Power Battle broadcast stage' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Final Power Battle quiz' })).toBeTruthy()
+    expect(document.querySelector('.sv-trivia--monitor')).toBeTruthy()
+    expect(screen.getByText('What does the Part 1 winner earn?')).toBeTruthy()
+    expect(screen.getByText('STANDBY')).toBeTruthy()
+    expect(document.querySelector('.spectator-finale__play-cue')).toBeNull()
     vi.useRealTimers()
   })
 

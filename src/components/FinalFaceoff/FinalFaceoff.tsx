@@ -372,7 +372,6 @@ export default function FinalFaceoff() {
         week={game.week}
         players={game.players}
         history={game.history}
-        completedWeekendDays={game.completedWeekendDays ?? []}
         publicOpinion={publicOpinion}
         onComplete={handleRecapComplete}
       />
