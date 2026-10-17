@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   advance,
+  advanceWeek,
+  setWeekendsEnabledForSeason,
   setPhase,
   forceHoH,
   forceNominees,
@@ -625,6 +627,15 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               <div className="dbg-row">
                 <button className="dbg-btn dbg-btn--wide" onClick={() => dispatch(advance())}>
                   Advance Phase
+                </button>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  onClick={() => dispatch(setWeekendsEnabledForSeason(false))}
+                >
+                  Disable Weekends (debug)
+                </button>
+                <button className="dbg-btn dbg-btn--wide" onClick={() => dispatch(advanceWeek())}>
+                  Advance Day (debug)
                 </button>
                 <button
                   className="dbg-btn dbg-btn--wide"

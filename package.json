@@ -64,6 +64,7 @@
     "check:production-debug-globals": "node scripts/check-production-debug-globals.mjs",
     "test:minigames": "node scripts/run-minigame-tests.mjs",
     "test:e2e": "playwright test e2e/playwright/",
+    "test:performance": "node scripts/run-season-performance.mjs",
     "test:season-sim": "node scripts/run-season-simulation.mjs",
     "test:season-sim:watch": "node scripts/watch-season-simulation.mjs",
     "test:season-sim:full": "node scripts/run-season-simulation.mjs --full",

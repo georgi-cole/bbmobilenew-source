@@ -49,7 +49,6 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   rescueTheKing: { kind: 'board', primaryInput: 'board movement' },
   trapAuction: { kind: 'choice', primaryInput: 'bid and target choice' },
   mysticChamber: { kind: 'choice', primaryInput: 'power, target, and turn-continuation choices' },
-  bigSpender: { kind: 'choice', primaryInput: 'spend or bank choice' },
   chainOfGreed: { kind: 'choice', primaryInput: 'split, steal, vote, or duel choice' },
   batteryLow: { kind: 'choice', primaryInput: 'reserve and bank choices' },
   houseOfDarkness: { kind: 'memory', primaryInput: 'memory-card selection' },

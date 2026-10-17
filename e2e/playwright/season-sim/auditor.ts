@@ -4,7 +4,12 @@ import { writeFile } from 'node:fs/promises'
 import { readAppState } from '../support/test'
 import type { CoverageLedger } from './coverage'
 import { buildSimulationEyeoleanSample } from './economyCalibration'
-import type { SimulationContext, SimulationFinding, TimelineEntry } from './types'
+import type {
+  SeasonPerformanceCheckpoint,
+  SimulationContext,
+  SimulationFinding,
+  TimelineEntry,
+} from './types'
 
 const activeStatus = new Set(['active', 'jury'])
 type StateSnapshot = Awaited<ReturnType<typeof readAppState>>
@@ -17,6 +22,7 @@ export class SeasonAuditor {
   readonly findings: SimulationFinding[] = []
   readonly timeline: TimelineEntry[] = []
   readonly checkpoints: Array<{ name: string; phase: string; day: number }> = []
+  readonly performanceCheckpoints: SeasonPerformanceCheckpoint[] = []
   private lastPhase: string | null = null
   private lastWeek = 0
   private readonly announced = new Set<string>()
@@ -52,6 +58,10 @@ export class SeasonAuditor {
       ...(note ? { note } : {}),
     })
     await this.writeProgress(state ?? (await readAppState(this.context.page)), action)
+  }
+
+  recordPerformanceCheckpoint(checkpoint: SeasonPerformanceCheckpoint): void {
+    this.performanceCheckpoints.push(checkpoint)
   }
 
   private async writeProgress(state: StateSnapshot, lastAction: string): Promise<void> {
@@ -90,6 +100,9 @@ export class SeasonAuditor {
       terminal,
       findings: this.findings,
       ...(economySample ? { economySample } : {}),
+      ...(this.performanceCheckpoints.length > 0
+        ? { performanceCheckpoints: this.performanceCheckpoints }
+        : {}),
       ...(compactEconomyReport
         ? {}
         : {
@@ -120,6 +133,16 @@ export class SeasonAuditor {
             '## Eyeolean economy',
             `- payout: ${economySample.total.toLocaleString('en-US')}`,
             `- source: ${economySample.source}`,
+          ]
+        : []),
+      ...(this.performanceCheckpoints.length > 0
+        ? [
+            '',
+            '## Progression performance',
+            ...this.performanceCheckpoints.map(
+              (checkpoint) =>
+                `- ${checkpoint.name} (day ${checkpoint.day}): input p95 ${checkpoint.metrics.inputResponseP95Ms ?? 'n/a'} ms; Redux p95 ${checkpoint.metrics.reduxActionP95Ms ?? 'n/a'} ms; frame-gap p95 ${checkpoint.metrics.frameGapP95Ms ?? 'n/a'} ms; ${checkpoint.frameGapsOver100Ms} frame gaps over 100 ms; state history/feed ${checkpoint.historyCount}/${checkpoint.tvFeedCount}.`
+            ),
           ]
         : []),
       '',
