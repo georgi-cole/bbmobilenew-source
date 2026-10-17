@@ -51,6 +51,30 @@ function memory(overrides: Partial<RealityMemory> = {}): RealityMemory {
 }
 
 describe('Reality domain migration and directed relationships', () => {
+  it('keeps unchanged legacy relationship records when a full Reality projection repeats', () => {
+    const reality = createInitialRealityDomainState()
+    reality.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
+    const alliance = createRealityAlliance(reality, {
+      id: 'shared-projection-pair',
+      founderIds: ['ava'],
+      memberIds: ['lia'],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+
+    const initial = socialReducer(undefined, replaceRealityDomain(reality))
+    const forwardRecord = initial.relationships.ava.lia
+    const reverseRecord = initial.relationships.lia.ava
+    expect(forwardRecord.tags).toContain('alliance')
+    expect(reverseRecord.tags).toContain('alliance')
+
+    const reprojected = socialReducer(initial, replaceRealityDomain(initial.reality))
+
+    expect(reprojected.relationships.ava.lia).toBe(forwardRecord)
+    expect(reprojected.relationships.lia.ava).toBe(reverseRecord)
+  })
+
   it('projects only the relationship pairs touched by an autonomous outcome', () => {
     const domain = createInitialRealityDomainState()
     domain.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
