@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { simulateTetrisAiRun } from '../../src/ai/competition/tetrisSimulation'
+import {
+  simulateTetrisAiRun,
+  simulateTetrisAiRunsInSlices,
+} from '../../src/ai/competition/tetrisSimulation'
 import {
   splitTetrisRound,
   type TetrisRoundPerformance,
@@ -15,6 +18,45 @@ describe('Fit Me In gameplay AI', () => {
   it('replays the same board decisions for the same player and seed', () => {
     const input = { ...openingRound, id: 'medium-ai', baselineScore: 50, seed: 42 }
     expect(simulateTetrisAiRun(input)).toEqual(simulateTetrisAiRun(input))
+  })
+
+  it('preserves seeded results when simulations yield between frame-sized slices', async () => {
+    const inputs = [
+      { ...openingRound, id: 'medium-ai', baselineScore: 50, seed: 42, durationMs: 8_000 },
+      { ...openingRound, id: 'strong-ai', baselineScore: 75, seed: 42, durationMs: 8_000 },
+    ]
+    const expected = inputs.map(simulateTetrisAiRun)
+    let clock = 0
+    let frameYields = 0
+    const actual = await simulateTetrisAiRunsInSlices(inputs, {
+      timeSliceMs: 2,
+      now: () => (clock += 1),
+      yieldToFrame: async () => {
+        frameYields += 1
+      },
+    })
+
+    expect(actual).toEqual(expected)
+    expect(frameYields).toBeGreaterThan(1)
+  })
+
+  it('stops sliced AI work when its tournament view is cancelled', async () => {
+    let clock = 0
+    let frameYields = 0
+    const actual = await simulateTetrisAiRunsInSlices(
+      [{ ...openingRound, id: 'medium-ai', baselineScore: 50, seed: 42 }],
+      {
+        timeSliceMs: 0,
+        now: () => (clock += 1),
+        shouldCancel: () => frameYields >= 2,
+        yieldToFrame: async () => {
+          frameYields += 1
+        },
+      }
+    )
+
+    expect(actual).toBeNull()
+    expect(frameYields).toBe(2)
   })
 
   it('keeps a 912-point player competitive against four medium-rated opponents', () => {
