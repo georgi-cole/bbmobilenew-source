@@ -64,6 +64,7 @@ vi.mock('../../src/components/ColorMatchComp/ColorMatchComp', () => ({
   default: () => <div data-testid="mock-react-game" />,
 }));
 vi.mock('../../src/minigames/reactComponents', () => ({
+  preloadReactMinigame: vi.fn(() => Promise.resolve()),
   default: {
     Capitalization: () => <div data-testid="capitalization-game" />,
   },

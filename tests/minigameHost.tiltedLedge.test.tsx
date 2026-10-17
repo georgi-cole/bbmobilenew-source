@@ -25,6 +25,7 @@ const AUTHORITATIVE_WINNER_SEED = 99;
 
 // Mock the reactComponents map so TiltedLedge calls onFinish when rendered.
 vi.mock('../src/minigames/reactComponents', () => ({
+  preloadReactMinigame: vi.fn(() => Promise.resolve()),
   default: {
     TiltedLedge: ({
       onFinish,

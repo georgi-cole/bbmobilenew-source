@@ -6,6 +6,7 @@ import { createCompleteStub, createFinishStub, createReactComponentsProxy } from
 import { getPoolByFilter, type GameRegistryEntry } from '../src/minigames/registry';
 
 vi.mock('../src/minigames/reactComponents', () => ({
+  preloadReactMinigame: vi.fn(() => Promise.resolve()),
   default: createReactComponentsProxy(),
 }));
 vi.mock('../src/components/ClosestWithoutGoingOverComp', () => ({

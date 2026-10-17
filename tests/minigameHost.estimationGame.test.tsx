@@ -27,6 +27,7 @@ import gameReducer from '../src/store/gameSlice';
 
 // Mock the reactComponents map so EstimationGame calls onFinish when rendered.
 vi.mock('../src/minigames/reactComponents', () => ({
+  preloadReactMinigame: vi.fn(() => Promise.resolve()),
   default: {
     EstimationGame: ({ onFinish }: { onFinish?: (v: number) => void }) => (
       <div

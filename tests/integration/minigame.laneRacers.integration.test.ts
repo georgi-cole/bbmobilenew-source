@@ -16,6 +16,6 @@ describe('Lane Racers registry wiring', () => {
   });
 
   it('maps the react component key to the Lane Racers component', () => {
-    expect(reactComponents.LaneRacers).toBeTypeOf('function');
+    expect(reactComponents.LaneRacers).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
   });
 });

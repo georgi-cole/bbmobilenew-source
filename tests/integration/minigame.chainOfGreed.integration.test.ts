@@ -15,7 +15,7 @@ describe('Chain of Greed registry wiring', () => {
   });
 
   it('maps the react component key and AI metadata', () => {
-    expect(reactComponents.ChainOfGreed).toBeTypeOf('function');
+    expect(reactComponents.ChainOfGreed).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
     expect(getMinigameAiModel('chainOfGreed')).toMatchObject({
       key: 'chainOfGreed',
       category: 'mental',
