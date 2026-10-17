@@ -177,6 +177,12 @@ async function completeActiveConfessionalDecision(page: Page): Promise<void> {
   const confessional = page.getByRole('button', { name: /^Confessional \(\d+\)$/ })
   await expect(confessional).toBeVisible({ timeout: SCREEN_TIMEOUT_MS })
   await expect(confessional).toBeEnabled()
+  await expect(
+    page.locator('link[rel="preload"][as="image"][href*="confessional-painting.webp"]')
+  ).toHaveCount(1)
+  await expect(
+    page.locator('link[rel="preload"][as="image"][href*="confessional-locked-door.webp"]')
+  ).toHaveCount(1)
   await confessional.click()
 
   const session = page.getByTestId('required-confessional-session')

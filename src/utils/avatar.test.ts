@@ -13,10 +13,13 @@ describe('resolveAvatarCandidates', () => {
   it('uses the dedicated Lia and Ali pair portrait ahead of Lia artwork', () => {
     const candidates = resolveAvatarCandidates({
       id: 'lia',
-      name: 'Lia and Ali',
+      name: 'Lia & Ali',
       avatar: 'assets/skins/Ali_lia_avatar.webp',
     })
 
-    expect(candidates[0]).toContain('Ali_lia_avatar.webp')
+    expect(candidates[0]).toContain('Ali_lia_avatar_512.webp')
+    expect(candidates).toEqual(
+      expect.arrayContaining([expect.stringContaining('Ali_lia_avatar.webp')])
+    )
   })
 })

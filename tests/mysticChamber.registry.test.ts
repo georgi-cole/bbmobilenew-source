@@ -19,7 +19,7 @@ describe('Mystic Chamber activation', () => {
     expect(original?.title).toBe('Grid of Luck')
     expect(original?.retired).toBe(true)
     expect(original?.reactComponentKey).toBe('GridOfLuck')
-    expect(reactComponents.GridOfLuck).toBeTypeOf('function')
+    expect(reactComponents.GridOfLuck).toHaveProperty('$$typeof', Symbol.for('react.lazy'))
     expect(getPoolByFilter({ retired: false }).map((game) => game.key)).not.toContain('gridOfLuck')
   })
 
@@ -29,7 +29,7 @@ describe('Mystic Chamber activation', () => {
     expect(chamber?.title).toBe('Mystic Chamber')
     expect(chamber?.retired).toBe(false)
     expect(chamber?.reactComponentKey).toBe('MysticChamber')
-    expect(reactComponents.MysticChamber).toBeTypeOf('function')
+    expect(reactComponents.MysticChamber).toHaveProperty('$$typeof', Symbol.for('react.lazy'))
     expect(getPoolByFilter({ retired: false }).map((game) => game.key)).toContain('mysticChamber')
     expect(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS).toContain('mysticChamber')
     expect(minigameAiRegistry.mysticChamber).toBeDefined()

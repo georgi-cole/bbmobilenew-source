@@ -36,6 +36,7 @@ import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import type { ChatLine } from '../ChatOverlay/ChatOverlay'
 import type { Player, StrategicAllianceSnapshot } from '../../types'
 import './Final3Ceremony.css'
+import { FINAL_TWO_HUB_BACKDROP_STYLE } from './final3CeremonyAssets'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -576,7 +577,13 @@ export default function Final3Ceremony({ onPlayAvailabilityChange }: Props) {
       </AnimatePresence>
 
       {stage === 'final_two_reveal' && (
-        <div className="f3c-final-two" role="dialog" aria-modal="true" aria-label="The Final Two">
+        <div
+          className="f3c-final-two"
+          role="dialog"
+          aria-modal="true"
+          aria-label="The Final Two"
+          style={FINAL_TWO_HUB_BACKDROP_STYLE}
+        >
           <p className="f3c-final-two__eyebrow">THE FINAL TWO</p>
           <div className="f3c-final-two__players">
             {finalTwo.map((player) => (

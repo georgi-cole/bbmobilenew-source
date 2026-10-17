@@ -112,6 +112,11 @@ export function getTimingRoundWinner(roundResult: TimingRoundResult | null | und
 
 // ── Round configuration ────────────────────────────────────────────────────────
 
+/** Return countdown time from an absolute monotonic deadline, clamped at zero. */
+export function getRemainingCountdownMs(deadlineMs: number, nowMs: number): number {
+  return Math.max(0, deadlineMs - nowMs);
+}
+
 /**
  * Returns the available seconds for a given round number (1-based).
  * 20s → 15s → 10s → 5s → 5s → …

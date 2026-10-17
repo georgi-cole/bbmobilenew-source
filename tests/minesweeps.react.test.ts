@@ -20,7 +20,7 @@ describe('minesweeps registry entry', () => {
 
   it('is registered in the generic react components map', () => {
     expect(reactComponents['Minesweeps']).toBeDefined();
-    expect(typeof reactComponents['Minesweeps']).toBe('function');
+    expect(reactComponents['Minesweeps']).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
   });
 });
 

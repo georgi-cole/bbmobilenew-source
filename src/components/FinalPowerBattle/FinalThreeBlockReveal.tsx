@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Player } from '../../types'
-import duelBackdrop from '../../assets/finale/final-power-battle-duel.png'
+import duelBackdrop from '../../assets/finale/final-power-battle-duel.webp'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import './FinalPowerBattle.css'

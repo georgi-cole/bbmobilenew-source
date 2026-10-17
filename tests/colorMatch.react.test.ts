@@ -60,7 +60,7 @@ describe('colorMatch registry entry', () => {
 describe('reactComponents map', () => {
   it('contains ColorMatch entry', () => {
     expect(reactComponents['ColorMatch']).toBeDefined();
-    expect(typeof reactComponents['ColorMatch']).toBe('function');
+    expect(reactComponents['ColorMatch']).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
   });
 });
 

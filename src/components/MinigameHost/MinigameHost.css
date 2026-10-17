@@ -238,6 +238,16 @@
   touch-action: none;
 }
 
+.minigame-host-loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #f1d291;
+  font-weight: 800;
+  text-align: center;
+}
+
 .minigame-host-playing input,
 .minigame-host-playing textarea,
 .minigame-host-playing select,

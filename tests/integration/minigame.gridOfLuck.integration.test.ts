@@ -14,6 +14,6 @@ describe('Grid of Luck registry wiring', () => {
   });
 
   it('maps the react component key to the Grid of Luck component', () => {
-    expect(reactComponents.GridOfLuck).toBeTypeOf('function');
+    expect(reactComponents.GridOfLuck).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
   });
 });

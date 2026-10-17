@@ -106,31 +106,210 @@ const REALITY_PROJECTED_TAGS = new Set([
   'suspicious',
   'unreliable',
 ])
+const EXITED_ALLIANCE_EVENT_TYPES = new Set([
+  'ALLIANCE_MEMBER_LEFT',
+  'ALLIANCE_MEMBER_DEFECTED',
+  'ALLIANCE_MEMBER_EXPELLED',
+  'ALLIANCE_MEMBER_EVICTED',
+])
+
+type RelationshipPairSet = Map<string, Set<string>>
+
+type RealityProjectionIndex = {
+  formalAlliances: Map<string, Map<string, { current: boolean; ended: boolean }>>
+  exitedSharedAlliances: RelationshipPairSet
+  activeRomances: RelationshipPairSet
+  betrayals: RelationshipPairSet
+  strainedRelationships: RelationshipPairSet
+  safetyPromises: RelationshipPairSet
+  allianceTargets: RelationshipPairSet
+  nemeses: RelationshipPairSet
+}
+
+type ProjectedRelationshipPair = { sourceId: string; targetId: string }
+
+type RealityActualVoteInput = {
+  actorId: string
+  targetId: string
+  day: number
+  phase: string
+  eventId: string
+  eligibleTargetIds?: string[]
+  revealed?: boolean
+  relationshipTagsByTarget?: Record<string, string[]>
+  acceptedPromiseTargetIds?: string[]
+}
+
+function addRelationshipPair(pairs: RelationshipPairSet, sourceId: string, targetId: string): void {
+  let targets = pairs.get(sourceId)
+  if (!targets) {
+    targets = new Set<string>()
+    pairs.set(sourceId, targets)
+  }
+  targets.add(targetId)
+}
+
+function hasRelationshipPair(
+  pairs: RelationshipPairSet,
+  sourceId: string,
+  targetId: string
+): boolean {
+  return pairs.get(sourceId)?.has(targetId) ?? false
+}
+
+function forEachProjectedPairInGroup(
+  actorIds: readonly string[],
+  projectedPairs: RelationshipPairSet,
+  visit: (sourceId: string, targetId: string) => void
+): void {
+  if (actorIds.length < 2) return
+  const participants = new Set(actorIds)
+  for (const sourceId of participants) {
+    const targets = projectedPairs.get(sourceId)
+    if (!targets) continue
+    for (const targetId of targets) {
+      if (sourceId !== targetId && participants.has(targetId)) visit(sourceId, targetId)
+    }
+  }
+}
+
+function createRealityProjectionIndex(
+  reality: RealityDomainState,
+  allianceRecords: RealityDomainState['alliances'][string][],
+  projectedPairs: RelationshipPairSet
+): RealityProjectionIndex {
+  const index: RealityProjectionIndex = {
+    formalAlliances: new Map(),
+    exitedSharedAlliances: new Map(),
+    activeRomances: new Map(),
+    betrayals: new Map(),
+    strainedRelationships: new Map(),
+    safetyPromises: new Map(),
+    allianceTargets: new Map(),
+    nemeses: new Map(),
+  }
+
+  for (const alliance of allianceRecords) {
+    const current = isCurrentAlliance(alliance)
+    const ended = alliance.status === 'FRACTURED' || alliance.status === 'DISSOLVED'
+    for (const sourceId of alliance.memberIds) {
+      for (const targetId of alliance.memberIds) {
+        if (sourceId === targetId || !hasRelationshipPair(projectedPairs, sourceId, targetId))
+          continue
+        let targets = index.formalAlliances.get(sourceId)
+        if (!targets) {
+          targets = new Map()
+          index.formalAlliances.set(sourceId, targets)
+        }
+        const pair = targets.get(targetId) ?? { current: false, ended: false }
+        pair.current ||= current
+        pair.ended ||= ended
+        targets.set(targetId, pair)
+      }
+    }
+  }
+
+  for (const alliance of allianceRecords) {
+    if (alliance.status !== 'ACTIVE' && alliance.status !== 'PROBATIONARY') continue
+    for (const sourceId of alliance.memberIds) {
+      for (const targetId of alliance.currentTargetIds) {
+        if (hasRelationshipPair(projectedPairs, sourceId, targetId))
+          addRelationshipPair(index.allianceTargets, sourceId, targetId)
+      }
+    }
+  }
+
+  for (const event of reality.events) {
+    if (EXITED_ALLIANCE_EVENT_TYPES.has(event.type)) {
+      forEachProjectedPairInGroup(event.participantIds, projectedPairs, (sourceId, targetId) => {
+        if (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
+          addRelationshipPair(index.exitedSharedAlliances, sourceId, targetId)
+      })
+    }
+    if (
+      event.type === 'ALLIANCE_BETRAYAL' ||
+      event.actionId === 'betray' ||
+      event.tags.some((tag) => tag.toLowerCase() === 'betrayal')
+    ) {
+      forEachProjectedPairInGroup(event.participantIds, projectedPairs, (sourceId, targetId) => {
+        addRelationshipPair(index.betrayals, sourceId, targetId)
+      })
+    }
+  }
+
+  for (const romance of Object.values(reality.romances)) {
+    if (romance.status === 'ACTIVE') {
+      forEachProjectedPairInGroup(romance.participantIds, projectedPairs, (sourceId, targetId) => {
+        addRelationshipPair(index.activeRomances, sourceId, targetId)
+      })
+    }
+  }
+  for (const grievance of Object.values(reality.grievances)) {
+    if (
+      grievance.status !== 'RESOLVED' &&
+      grievance.severity >= 65 &&
+      hasRelationshipPair(projectedPairs, grievance.holderId, grievance.againstId)
+    ) {
+      addRelationshipPair(index.strainedRelationships, grievance.holderId, grievance.againstId)
+    }
+  }
+  for (const promise of Object.values(reality.promises)) {
+    if (
+      promise.status !== 'ACTIVE' ||
+      (!promise.kind.toLowerCase().includes('protect') &&
+        !promise.kind.toLowerCase().includes('safety'))
+    ) {
+      continue
+    }
+    for (const targetId of promise.beneficiaryIds) {
+      if (hasRelationshipPair(projectedPairs, promise.promisorId, targetId))
+        addRelationshipPair(index.safetyPromises, promise.promisorId, targetId)
+    }
+  }
+  for (const nemesis of Object.values(reality.relationshipAutonomy.nemeses)) {
+    if (
+      nemesis.status === 'ACTIVE' &&
+      hasRelationshipPair(projectedPairs, nemesis.ownerId, nemesis.targetId)
+    ) {
+      addRelationshipPair(index.nemeses, nemesis.ownerId, nemesis.targetId)
+    }
+  }
+
+  return index
+}
 
 function projectRealityTags(
   reality: RealityDomainState,
   sourceId: string,
   targetId: string,
-  existingTags: readonly string[]
+  existingTags: readonly string[],
+  projectionIndex?: RealityProjectionIndex
 ): string[] {
   const tags = existingTags.filter((tag) => !REALITY_PROJECTED_TAGS.has(tag))
   const edge = reality.relationships[sourceId]?.[targetId]
-  const formalPairAlliances = Object.values(reality.alliances).filter(
-    (alliance) => alliance.memberIds.includes(sourceId) && alliance.memberIds.includes(targetId)
-  )
-  const hasLiveFormalAlliance = formalPairAlliances.some((alliance) => isCurrentAlliance(alliance))
-  const exitedSharedAlliance = reality.events.some(
-    (event) =>
-      [
-        'ALLIANCE_MEMBER_LEFT',
-        'ALLIANCE_MEMBER_DEFECTED',
-        'ALLIANCE_MEMBER_EXPELLED',
-        'ALLIANCE_MEMBER_EVICTED',
-      ].includes(event.type) &&
-      event.participantIds.includes(sourceId) &&
-      event.participantIds.includes(targetId) &&
-      (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
-  )
+  const formalPair = projectionIndex?.formalAlliances.get(sourceId)?.get(targetId)
+  const formalPairAlliances = projectionIndex
+    ? undefined
+    : Object.values(reality.alliances).filter(
+        (alliance) => alliance.memberIds.includes(sourceId) && alliance.memberIds.includes(targetId)
+      )
+  const hasLiveFormalAlliance = projectionIndex
+    ? (formalPair?.current ?? false)
+    : (formalPairAlliances?.some((alliance) => isCurrentAlliance(alliance)) ?? false)
+  const exitedSharedAlliance = projectionIndex
+    ? hasRelationshipPair(projectionIndex.exitedSharedAlliances, sourceId, targetId)
+    : reality.events.some(
+        (event) =>
+          [
+            'ALLIANCE_MEMBER_LEFT',
+            'ALLIANCE_MEMBER_DEFECTED',
+            'ALLIANCE_MEMBER_EXPELLED',
+            'ALLIANCE_MEMBER_EVICTED',
+          ].includes(event.type) &&
+          event.participantIds.includes(sourceId) &&
+          event.participantIds.includes(targetId) &&
+          (event.targetIds.includes(sourceId) || event.targetIds.includes(targetId))
+      )
   // Normal Mode pacts use the legacy tag. Preserve it only when the Reality
   // domain has no formal history or departure event for this pair.
   if (hasLiveFormalAlliance) {
@@ -139,18 +318,22 @@ function projectRealityTags(
   if (
     !hasLiveFormalAlliance &&
     (exitedSharedAlliance ||
-      formalPairAlliances.some(
-        (alliance) => alliance.status === 'FRACTURED' || alliance.status === 'DISSOLVED'
-      ))
+      (projectionIndex
+        ? (formalPair?.ended ?? false)
+        : (formalPairAlliances?.some(
+            (alliance) => alliance.status === 'FRACTURED' || alliance.status === 'DISSOLVED'
+          ) ?? false)))
   )
     tags.push('broken_alliance')
   if (
-    Object.values(reality.romances).some(
-      (romance) =>
-        romance.status === 'ACTIVE' &&
-        romance.participantIds.includes(sourceId) &&
-        romance.participantIds.includes(targetId)
-    ) ||
+    (projectionIndex
+      ? hasRelationshipPair(projectionIndex.activeRomances, sourceId, targetId)
+      : Object.values(reality.romances).some(
+          (romance) =>
+            romance.status === 'ACTIVE' &&
+            romance.participantIds.includes(sourceId) &&
+            romance.participantIds.includes(targetId)
+        )) ||
     edge?.perceivedLabel === 'ROMANCE' ||
     edge?.perceivedLabel === 'POWER_PAIR'
   ) {
@@ -160,55 +343,67 @@ function projectRealityTags(
   if ((edge?.suspicion ?? 0) >= 55) tags.push('suspicious')
   if ((edge?.reliability ?? 0) <= -35) tags.push('unreliable')
   if (
-    reality.events.some(
-      (event) =>
-        event.participantIds.includes(sourceId) &&
-        event.participantIds.includes(targetId) &&
-        (event.type === 'ALLIANCE_BETRAYAL' ||
-          event.actionId === 'betray' ||
-          event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
-    )
+    projectionIndex
+      ? hasRelationshipPair(projectionIndex.betrayals, sourceId, targetId)
+      : reality.events.some(
+          (event) =>
+            event.participantIds.includes(sourceId) &&
+            event.participantIds.includes(targetId) &&
+            (event.type === 'ALLIANCE_BETRAYAL' ||
+              event.actionId === 'betray' ||
+              event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
+        )
   ) {
     tags.push('betrayal')
   }
   if (
-    Object.values(reality.grievances).some(
-      (grievance) =>
-        grievance.holderId === sourceId &&
-        grievance.againstId === targetId &&
-        grievance.status !== 'RESOLVED' &&
-        grievance.severity >= 65
-    )
+    projectionIndex
+      ? hasRelationshipPair(projectionIndex.strainedRelationships, sourceId, targetId)
+      : Object.values(reality.grievances).some(
+          (grievance) =>
+            grievance.holderId === sourceId &&
+            grievance.againstId === targetId &&
+            grievance.status !== 'RESOLVED' &&
+            grievance.severity >= 65
+        )
   ) {
     tags.push('strained')
   }
   if (
-    Object.values(reality.promises).some(
-      (promise) =>
-        promise.status === 'ACTIVE' &&
-        promise.promisorId === sourceId &&
-        promise.beneficiaryIds.includes(targetId) &&
-        (promise.kind.toLowerCase().includes('protect') ||
-          promise.kind.toLowerCase().includes('safety'))
-    )
+    projectionIndex
+      ? hasRelationshipPair(projectionIndex.safetyPromises, sourceId, targetId)
+      : Object.values(reality.promises).some(
+          (promise) =>
+            promise.status === 'ACTIVE' &&
+            promise.promisorId === sourceId &&
+            promise.beneficiaryIds.includes(targetId) &&
+            (promise.kind.toLowerCase().includes('protect') ||
+              promise.kind.toLowerCase().includes('safety'))
+        )
   ) {
     tags.push('safety_promise', 'protection')
   }
   if (
-    Object.values(reality.alliances).some(
-      (alliance) =>
-        (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
-        alliance.memberIds.includes(sourceId) &&
-        alliance.currentTargetIds.includes(targetId)
-    )
+    projectionIndex
+      ? hasRelationshipPair(projectionIndex.allianceTargets, sourceId, targetId)
+      : Object.values(reality.alliances).some(
+          (alliance) =>
+            (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+            alliance.memberIds.includes(sourceId) &&
+            alliance.currentTargetIds.includes(targetId)
+        )
   ) {
     tags.push('target')
   }
   if (
-    Object.values(reality.relationshipAutonomy.nemeses).some(
-      (nemesis) =>
-        nemesis.status === 'ACTIVE' && nemesis.ownerId === sourceId && nemesis.targetId === targetId
-    )
+    projectionIndex
+      ? hasRelationshipPair(projectionIndex.nemeses, sourceId, targetId)
+      : Object.values(reality.relationshipAutonomy.nemeses).some(
+          (nemesis) =>
+            nemesis.status === 'ACTIVE' &&
+            nemesis.ownerId === sourceId &&
+            nemesis.targetId === targetId
+        )
   ) {
     tags.push('target', 'rivalry')
   }
@@ -217,19 +412,49 @@ function projectRealityTags(
   )
 }
 
+function applyRealityActualVote(state: SocialState, vote: RealityActualVoteInput): void {
+  finalizeRealityVote(
+    state.reality as RealityDomainState,
+    vote.actorId,
+    vote.targetId,
+    { day: vote.day, phase: vote.phase },
+    vote.eventId,
+    vote.eligibleTargetIds,
+    {
+      revealed: vote.revealed,
+      relationshipTagsByTarget: vote.relationshipTagsByTarget,
+      acceptedPromiseTargetIds: vote.acceptedPromiseTargetIds,
+    }
+  )
+}
+
 function projectRealityEdgeIntoLegacy(
   reality: RealityDomainState,
   relationships: SocialState['relationships'],
   sourceId: string,
-  targetId: string
+  targetId: string,
+  projectionIndex?: RealityProjectionIndex
 ): void {
   const edge = reality.relationships[sourceId]?.[targetId]
   if (sourceId === targetId) return
   relationships[sourceId] ??= {}
   const existing = relationships[sourceId][targetId]
+  const affinity = edge ? projectRealityAffinity(edge) : (existing?.affinity ?? 0)
+  const projectedTags = projectRealityTags(
+    reality,
+    sourceId,
+    targetId,
+    existing?.tags ?? [],
+    projectionIndex
+  )
+  const tagsUnchanged =
+    existing !== undefined &&
+    existing.tags.length === projectedTags.length &&
+    existing.tags.every((tag, index) => tag === projectedTags[index])
+  if (existing && Object.is(existing.affinity, affinity) && tagsUnchanged) return
   relationships[sourceId][targetId] = {
-    affinity: edge ? projectRealityAffinity(edge) : (existing?.affinity ?? 0),
-    tags: projectRealityTags(reality, sourceId, targetId, existing?.tags ?? []),
+    affinity,
+    tags: existing && tagsUnchanged ? existing.tags : projectedTags,
   }
 }
 
@@ -237,20 +462,36 @@ function projectRealityRelationshipsIntoLegacy(
   reality: RealityDomainState,
   relationships: SocialState['relationships']
 ): void {
+  const allianceRecords = Object.values(reality.alliances)
+  const currentAlliances = allianceRecords.filter(isCurrentAlliance)
+  const projectedPairs: RelationshipPairSet = new Map()
+  const pairs: ProjectedRelationshipPair[] = []
+  const addProjectedPair = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    let targets = projectedPairs.get(sourceId)
+    if (!targets) {
+      targets = new Set<string>()
+      projectedPairs.set(sourceId, targets)
+    }
+    if (targets.has(targetId)) return
+    targets.add(targetId)
+    pairs.push({ sourceId, targetId })
+  }
+
   // Membership projects independently of affinity and pre-existing relationship edges.
-  for (const alliance of Object.values(reality.alliances).filter(isCurrentAlliance)) {
+  for (const alliance of currentAlliances) {
     for (const sourceId of alliance.memberIds)
-      for (const targetId of alliance.memberIds) {
-        if (sourceId !== targetId)
-          projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId)
-      }
+      for (const targetId of alliance.memberIds) addProjectedPair(sourceId, targetId)
   }
   for (const [sourceId, targets] of Object.entries(reality.relationships)) {
     relationships[sourceId] ??= {}
     delete relationships[sourceId][sourceId]
-    for (const targetId of Object.keys(targets)) {
-      projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId)
-    }
+    for (const targetId of Object.keys(targets)) addProjectedPair(sourceId, targetId)
+  }
+
+  const projectionIndex = createRealityProjectionIndex(reality, allianceRecords, projectedPairs)
+  for (const { sourceId, targetId } of pairs) {
+    projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId, projectionIndex)
   }
 }
 
@@ -644,33 +885,16 @@ const socialSlice = createSlice({
         state.relationships
       )
     },
-    recordRealityActualVote(
-      state,
-      action: PayloadAction<{
-        actorId: string
-        targetId: string
-        day: number
-        phase: string
-        eventId: string
-        eligibleTargetIds?: string[]
-        revealed?: boolean
-        relationshipTagsByTarget?: Record<string, string[]>
-        acceptedPromiseTargetIds?: string[]
-      }>
-    ) {
-      finalizeRealityVote(
+    recordRealityActualVote(state, action: PayloadAction<RealityActualVoteInput>) {
+      applyRealityActualVote(state, action.payload)
+      projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,
-        action.payload.actorId,
-        action.payload.targetId,
-        { day: action.payload.day, phase: action.payload.phase },
-        action.payload.eventId,
-        action.payload.eligibleTargetIds,
-        {
-          revealed: action.payload.revealed,
-          relationshipTagsByTarget: action.payload.relationshipTagsByTarget,
-          acceptedPromiseTargetIds: action.payload.acceptedPromiseTargetIds,
-        }
+        state.relationships
       )
+    },
+    recordRealityActualVotes(state, action: PayloadAction<RealityActualVoteInput[]>) {
+      for (const vote of action.payload) applyRealityActualVote(state, vote)
+      if (action.payload.length === 0) return
       projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,
         state.relationships
@@ -1239,6 +1463,7 @@ export const {
   recordRealityCeremony,
   reconcileRealityBattleBackReturn,
   recordRealityActualVote,
+  recordRealityActualVotes,
   recordRealityAllianceBetrayal,
   renameRealityAllianceRecord,
   recordRealitySimulationTrace,

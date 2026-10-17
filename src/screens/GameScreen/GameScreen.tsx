@@ -130,6 +130,7 @@ import { requestFavoriteAudienceSurge } from './favoriteAudienceSurgeRequest'
 import { useResponsiveGameLayout } from './useResponsiveGameLayout'
 import { getCeremonyTileElement, getCeremonyTileRect } from './ceremonyTileMeasurement'
 import { useRefinedGameChrome } from '../../hooks/useRefinedGameChrome'
+import { useGameScreenImagePreloads } from './useGameScreenImagePreloads'
 import {
   hasSeenVoxNominationRevealIntro,
   loadVoxNominationReveal,
@@ -355,6 +356,15 @@ export default function GameScreen() {
   const activeConfessionalDecisionKey = activeConfessionalDecision
     ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
     : null
+  useGameScreenImagePreloads({
+    activeConfessionalDecisionKey,
+    activeConfessionalDecisionType: activeConfessionalDecision?.type,
+    finaleWeekendActive: Boolean(
+      game.weekendInterlude?.active && game.weekendInterlude.finaleWeekend
+    ),
+    phase: game.phase,
+  })
+
   const [storedConfessionalPrompt, setStoredConfessionalPrompt] = useState<{
     decisionKey: string | null
     triggered: boolean
@@ -771,7 +781,7 @@ export default function GameScreen() {
       avatarUrl: getProfilePhotoAvatarId(p.avatar)
         ? p.avatar
         : p.id === 'lia' && /\blia\s*&\s*ali\b/i.test(p.name)
-          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar.webp')
+          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp')
           : resolveAvatar(p),
       statuses,
       finalRank: (p.finalRank ?? null) as 1 | 2 | 3 | null,

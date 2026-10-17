@@ -65,6 +65,30 @@ export interface SimulationRunConfig {
   captureFinalScreenshot?: boolean
   /** Keep only calibration-relevant report data instead of the full final Redux state/timeline. */
   compactEconomyReport?: boolean
+  /** Enable bounded browser timing samples at seeded early and late season checkpoints. */
+  performanceBenchmark?: boolean
+}
+
+export interface SeasonPerformanceCheckpoint {
+  name: 'early' | 'late'
+  day: number
+  week: number
+  phase: string
+  activePlayerCount: number
+  historyCount: number
+  tvFeedCount: number
+  sampleCounts: {
+    frameGaps: number
+    inputResponses: number
+    reduxActions: number
+  }
+  metrics: {
+    frameGapP95Ms: number | null
+    inputResponseP95Ms: number | null
+    reduxActionP95Ms: number | null
+  }
+  longestFrameGapMs: number | null
+  frameGapsOver100Ms: number
 }
 
 export interface SimulationAction {
@@ -120,6 +144,7 @@ export interface SimulationReport {
   objectives?: ObjectiveResult[]
   checkpoints?: Array<{ name: string; phase: string; day: number }>
   economySample?: SimulationEyeoleanSample
+  performanceCheckpoints?: SeasonPerformanceCheckpoint[]
   finalState?: Pick<RootState, 'game' | 'challenge' | 'social' | 'vip'>
 }
 

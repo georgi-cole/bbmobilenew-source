@@ -294,13 +294,6 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     host: 'tests/minigames.contract.test.tsx',
     risk: 'A real browser playthrough should verify target picking and turn pacing.',
   },
-  bigSpender: {
-    input: 'pointer/touch spend-or-bank decision',
-    scoring: 'placement',
-    tie: 'Authoritative elimination rules resolve equal balances deterministically.',
-    logic: 'tests/unit/big-spender/bigSpenderLogic.test.ts',
-    risk: 'No focused component or store/host Vitest test.',
-  },
   chainOfGreed: {
     input: 'pointer/touch split, steal, vote, and duel choices',
     scoring: 'placement',

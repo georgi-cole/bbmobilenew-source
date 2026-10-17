@@ -97,7 +97,11 @@ function getBoardFeatures(board: Board): {
   }
 }
 
-function enumeratePlacements(board: Board, key: PieceKey): Placement[] {
+function* enumeratePlacements(
+  board: Board,
+  key: PieceKey,
+  cooperative: boolean
+): Generator<void, Placement[], void> {
   const placements: Placement[] = []
   const initialPiece = spawnFalling(key)
   let shape = initialPiece.shape
@@ -129,6 +133,7 @@ function enumeratePlacements(board: Board, key: PieceKey): Placement[] {
           (landingY - initialPiece.y) * 0.012
 
         placements.push({ piece, evaluation })
+        if (cooperative) yield
       }
     }
     shape = rotateShape(shape)
@@ -137,12 +142,19 @@ function enumeratePlacements(board: Board, key: PieceKey): Placement[] {
   return placements.sort((left, right) => right.evaluation - left.evaluation)
 }
 
-function findMovementActions(board: Board, start: FallingPiece, target: FallingPiece): AiAction[] {
+function* findMovementActions(
+  board: Board,
+  start: FallingPiece,
+  target: FallingPiece,
+  cooperative: boolean
+): Generator<void, AiAction[], void> {
   const queue: Array<{ piece: FallingPiece; actions: AiAction[] }> = [{ piece: start, actions: [] }]
   const visited = new Set<string>()
+  let queueIndex = 0
 
-  while (queue.length > 0) {
-    const current = queue.shift()!
+  while (queueIndex < queue.length) {
+    const current = queue[queueIndex]
+    queueIndex += 1
     const stateKey = `${current.piece.rotationIndex}:${current.piece.x}`
     if (visited.has(stateKey)) continue
     visited.add(stateKey)
@@ -174,6 +186,8 @@ function findMovementActions(board: Board, start: FallingPiece, target: FallingP
       })
       break
     }
+
+    if (cooperative) yield
   }
 
   return []
@@ -184,14 +198,10 @@ function findMovementActions(board: Board, start: FallingPiece, target: FallingP
  * line-clear, level, and top-out rules as the human component. Skill changes
  * placement errors and handling time; no human score or opponent ranking is read.
  */
-export function simulateTetrisAiRun({
-  id,
-  baselineScore = 50,
-  seed,
-  durationMs,
-  speedMultiplier,
-  tensionLevel,
-}: TetrisAiRoundInput): TetrisAiRoundPerformance {
+function* simulateTetrisAiRunSteps(
+  { id, baselineScore = 50, seed, durationMs, speedMultiplier, tensionLevel }: TetrisAiRoundInput,
+  cooperative: boolean
+): Generator<void, TetrisAiRoundPerformance, void> {
   const skill = clamp(baselineScore / 100, 0, 1)
   const rng = mulberry32(((seed >>> 0) ^ hashString(id) ^ 0x71e715) >>> 0)
   const pieceRng = mulberry32(((seed >>> 0) ^ hashString(id) ^ 0x7e7715) >>> 0)
@@ -216,8 +226,9 @@ export function simulateTetrisAiRun({
   }
 
   while (elapsedMs < durationMs) {
+    if (cooperative) yield
     const key = drawPiece()
-    const placements = enumeratePlacements(board, key)
+    const placements = yield* enumeratePlacements(board, key, cooperative)
     if (placements.length === 0) break
 
     const mistakeChance = clamp(0.44 - skill * 0.2 + (tensionLevel - 1) * 0.02, 0.12, 0.52)
@@ -228,7 +239,7 @@ export function simulateTetrisAiRun({
       : placements[0]
 
     let currentPiece = spawnFalling(key)
-    const actions = findMovementActions(board, currentPiece, selected.piece)
+    const actions = yield* findMovementActions(board, currentPiece, selected.piece, cooperative)
 
     const thinkMs = 650 + (1 - skill) * 350 + rng() * 500 + (madeMistake ? 800 + rng() * 600 : 0)
     const moveStepMs = 70 + (1 - skill) * 35
@@ -258,6 +269,7 @@ export function simulateTetrisAiRun({
     if (collides(board, currentPiece.shape, currentPiece.x, currentPiece.y)) break
 
     while (!locked && elapsedMs < durationMs) {
+      if (cooperative) yield
       const nextEventAt = Math.min(actionAt, gravityAt, durationMs)
       elapsedMs = nextEventAt
 
@@ -310,4 +322,69 @@ export function simulateTetrisAiRun({
   }
 
   return { score, lines, pieces, maxStackHeight: maxHeight }
+}
+
+export function simulateTetrisAiRun(input: TetrisAiRoundInput): TetrisAiRoundPerformance {
+  const simulation = simulateTetrisAiRunSteps(input, false)
+  let step = simulation.next()
+  while (!step.done) step = simulation.next()
+  return step.value
+}
+
+export interface TetrisAiSliceOptions {
+  /** Main-thread CPU budget spent between animation frames. */
+  timeSliceMs?: number
+  /** Scheduling and clock overrides keep chunking deterministic in tests. */
+  yieldToFrame?: () => Promise<void>
+  now?: () => number
+  shouldCancel?: () => boolean
+}
+
+function yieldToBrowserFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve())
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
+
+/** Runs seeded AI simulations over frame-sized slices without changing their decisions. */
+export async function simulateTetrisAiRunsInSlices(
+  inputs: readonly TetrisAiRoundInput[],
+  {
+    timeSliceMs = 6,
+    yieldToFrame = yieldToBrowserFrame,
+    now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+    shouldCancel = () => false,
+  }: TetrisAiSliceOptions = {}
+): Promise<TetrisAiRoundPerformance[] | null> {
+  if (inputs.length === 0) return []
+
+  const simulations = inputs.map((input) => simulateTetrisAiRunSteps(input, true))
+  const results: TetrisAiRoundPerformance[] = []
+  let simulationIndex = 0
+
+  // Let the caller render its pending state before the first CPU slice.
+  await yieldToFrame()
+
+  while (simulationIndex < simulations.length) {
+    if (shouldCancel()) return null
+
+    const deadline = now() + Math.max(0, timeSliceMs)
+    let advanced = false
+    while (simulationIndex < simulations.length && (!advanced || now() < deadline)) {
+      const step = simulations[simulationIndex].next()
+      advanced = true
+      if (step.done) {
+        results.push(step.value)
+        simulationIndex += 1
+      }
+    }
+
+    if (simulationIndex < simulations.length) await yieldToFrame()
+  }
+
+  return results
 }

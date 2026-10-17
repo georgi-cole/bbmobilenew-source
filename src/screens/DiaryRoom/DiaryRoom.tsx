@@ -43,6 +43,7 @@ import { selectActiveConfessionalDecision } from '../../store/confessionalDecisi
 import ConfessionalDecisionPanel from './ConfessionalDecisionPanel'
 import ConfessionalWallet from './ConfessionalWallet'
 import { getConfessionalDecisionPresentation } from './confessionalDecisionPresentation'
+import { CONFESSIONAL_DOOR_SRC, CONFESSIONAL_PAINTING_STYLE } from './diaryRoomAssets'
 import { getSecretMissionEasterEggByIntent } from '../../bb/secretMissionEasterEggs'
 import { retrieveHistoricalFacts } from '../../bb/confessionalHistory'
 import {
@@ -111,7 +112,7 @@ type TicTacToeMark = 'X' | 'O'
 type TicTacToeCell = TicTacToeMark | null
 
 export const DIARY_ROOM_ENTRY_OVERLAY_MS = 1320
-const CONFESSIONAL_LOCKED_DOOR_SRC = `${import.meta.env.BASE_URL}assets/diary-room/confessional-locked-door.png`
+const CONFESSIONAL_LOCKED_DOOR_SRC = CONFESSIONAL_DOOR_SRC
 const BIG_EYE_DECISION_CONFIRMATION = 'Your choice has been recorded. The ceremony will proceed.'
 
 /** A single message in the private chat. */
@@ -1601,6 +1602,7 @@ export default function DiaryRoom() {
 
       <div
         className={`diary-room__shell${showEntryAnimation ? ' diary-room__shell--masked' : ''}`}
+        style={CONFESSIONAL_PAINTING_STYLE}
         data-testid="diary-room-shell"
       >
         {/* Self-evict confirmation modal */}

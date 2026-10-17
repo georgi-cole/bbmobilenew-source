@@ -32,7 +32,7 @@ export const STATUS_BADGE_EMOJI: Record<string, string> = {
 const BADGE_ASSET_BASE = (import.meta.env.BASE_URL ?? '').replace(/\/$/, '')
 
 export const STATUS_BADGE_IMAGE_SRC: Record<string, string> = {
-  loh: `${BADGE_ASSET_BASE}/assets/avatar_badges/loh_badge.png`,
+  loh: `${BADGE_ASSET_BASE}/assets/avatar_badges/loh_badge_128.webp`,
   pos: `${BADGE_ASSET_BASE}/assets/avatar_badges/safety_badge.svg`,
   nominated: `${BADGE_ASSET_BASE}/assets/avatar_badges/nomination_badge.png`,
   jury: `${BADGE_ASSET_BASE}/assets/avatar_badges/tribunal_badge.svg`,

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import HousematesBioCinematic from '../HousematesBioCinematic'
 
 const cinematicAudio = {
@@ -47,6 +47,28 @@ vi.mock('../../../services/sound/cinematicAudio', () => ({
 }))
 
 describe('Housemates archive', () => {
+  afterEach(() => {
+    document.head.querySelectorAll('[data-game-image-preload]').forEach((link) => link.remove())
+  })
+
+  it('preloads the optimized room backdrops during the intro before the carousel opens', () => {
+    render(<HousematesBioCinematic onComplete={vi.fn()} />)
+
+    const backdrops = document.querySelectorAll<HTMLLinkElement>(
+      'link[rel="preload"][as="image"][href*="housemate-bio-backgrounds/"]'
+    )
+    expect(backdrops).toHaveLength(10)
+    expect(Array.from(backdrops).every((link) => link.href.endsWith('.webp'))).toBe(true)
+    const highPriority = Array.from(backdrops).filter(
+      (link) => link.getAttribute('fetchpriority') === 'high'
+    )
+    expect(highPriority).toHaveLength(2)
+    expect(highPriority.every((link) => /music-archive|outback-camp/.test(link.href))).toBe(true)
+    expect(
+      Array.from(backdrops).filter((link) => link.getAttribute('fetchpriority') === 'low')
+    ).toHaveLength(8)
+  })
+
   it('changes from an intro segment into a browseable map and side-by-side profile', async () => {
     render(<HousematesBioCinematic onComplete={vi.fn()} />)
 
@@ -72,7 +94,7 @@ describe('Housemates archive', () => {
       0.78,
       { loop: true }
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Exit Housemates' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Exit Hubmates' }))
     expect(onComplete).toHaveBeenCalledTimes(1)
   })
 })

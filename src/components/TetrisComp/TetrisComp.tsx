@@ -16,7 +16,10 @@ import {
   type TetrisPrizeType,
 } from '../../features/tetris/tetrisSlice'
 import { resolveTetrisOutcome } from '../../features/tetris/thunks'
-import { simulateTetrisAiRun } from '../../ai/competition/tetrisSimulation'
+import {
+  simulateTetrisAiRun,
+  simulateTetrisAiRunsInSlices,
+} from '../../ai/competition/tetrisSimulation'
 import { mulberry32 } from '../../store/rng'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import ResolvedAvatarImage from '../ResolvedAvatarImage/ResolvedAvatarImage'
@@ -218,6 +221,7 @@ export default function TetrisComp({
   const roundEndingRef = useRef(false)
   const previousRoundScoresRef = useRef<Record<string, number>>({})
   const humanLastScoreRef = useRef(0)
+  const simulationGenerationRef = useRef(0)
 
   boardRef.current = board
   currentRef.current = current
@@ -246,6 +250,7 @@ export default function TetrisComp({
     )
 
     return () => {
+      simulationGenerationRef.current += 1
       dispatch(resetTetris())
     }
     // Competition inputs are immutable for the mounted minigame instance.
@@ -306,6 +311,44 @@ export default function TetrisComp({
           tensionLevel: round.tensionLevel,
         })
 
+        return {
+          playerId,
+          score: simulated.score,
+          lines: simulated.lines,
+          pieces: simulated.pieces,
+          maxStackHeight: simulated.maxStackHeight,
+          previousScore: previousRoundScoresRef.current[playerId] ?? 0,
+          tieBreaker: detailRng(),
+        }
+      })
+    },
+    [participantById, seed, tournamentPlan]
+  )
+
+  const simulateAiRoundInSlices = useCallback(
+    async (
+      ids: readonly string[],
+      roundIndex: number,
+      simulationGeneration: number
+    ): Promise<TetrisRoundPerformance[] | null> => {
+      const round = tournamentPlan[roundIndex]
+      const roundSeed = (seed ^ Math.imul(roundIndex + 1, 0x9e3779b1)) >>> 0
+      const simulations = await simulateTetrisAiRunsInSlices(
+        ids.map((playerId) => ({
+          id: playerId,
+          baselineScore: participantById.get(playerId)?.precomputedScore,
+          seed: roundSeed,
+          durationMs: round.durationMs,
+          speedMultiplier: round.speedMultiplier,
+          tensionLevel: round.tensionLevel,
+        })),
+        { shouldCancel: () => simulationGenerationRef.current !== simulationGeneration }
+      )
+      if (simulations === null) return null
+
+      return ids.map((playerId, index) => {
+        const detailRng = mulberry32((roundSeed ^ hashString(playerId) ^ 0x51a7e) >>> 0)
+        const simulated = simulations[index]
         return {
           playerId,
           score: simulated.score,
@@ -697,14 +740,23 @@ export default function TetrisComp({
     return () => window.removeEventListener('keydown', handleKey)
   }, [gamePhase, hardDrop, holdPiece, screen, softDrop, tryMove, tryRotate])
 
-  const simulateRemainingTournament = useCallback(() => {
+  const simulateRemainingTournament = useCallback(async () => {
+    const simulationGeneration = simulationGenerationRef.current + 1
+    simulationGenerationRef.current = simulationGeneration
     setSimulatingRemainder(true)
     let simulatedActiveIds = [...activeIds]
     let simulatedEliminations = [...eliminationOrderWorstFirst]
 
     for (let roundIndex = currentRoundIndex + 1; roundIndex < tournamentPlan.length; roundIndex++) {
       const round = tournamentPlan[roundIndex]
-      const performances = simulateAiRound(simulatedActiveIds, roundIndex)
+      const performances = await simulateAiRoundInSlices(
+        simulatedActiveIds,
+        roundIndex,
+        simulationGeneration
+      )
+      if (performances === null || simulationGenerationRef.current !== simulationGeneration) {
+        return
+      }
       const split = splitTetrisRound(performances, round.survivorCount)
       for (const performance of performances) {
         previousRoundScoresRef.current[performance.playerId] = performance.score
@@ -723,7 +775,7 @@ export default function TetrisComp({
     commitTournamentOutcome,
     currentRoundIndex,
     eliminationOrderWorstFirst,
-    simulateAiRound,
+    simulateAiRoundInSlices,
     tournamentPlan,
   ])
 
@@ -731,7 +783,7 @@ export default function TetrisComp({
     if (!roundResult) return
     const humanStillActive = humanId ? activeIds.includes(humanId) : false
     if (!humanStillActive) {
-      simulateRemainingTournament()
+      void simulateRemainingTournament()
       return
     }
 
