@@ -1386,9 +1386,9 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'BigSpender',
     legacy: false,
-    weight: 1,
+    weight: 0,
     category: 'arcade',
-    retired: false,
+    retired: true,
   },
 
   chainOfGreed: {

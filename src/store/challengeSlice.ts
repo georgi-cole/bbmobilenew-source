@@ -409,7 +409,7 @@ export const startChallenge =
           // Remote key takes priority over the user's selectedGameId.
           const key = remoteChallenge?.weeklyGameKey ?? compSel?.selectedGameId
           const found = key ? getGame(key) : undefined
-          if (found && eligibleForRoster(found)) {
+          if (found && !found.retired && eligibleForRoster(found)) {
             gameEntry = found
           } else {
             // Unknown or missing key — fall back to random selection.
