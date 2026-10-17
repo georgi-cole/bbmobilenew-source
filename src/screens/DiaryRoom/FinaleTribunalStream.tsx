@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Player, WeekendTribunalSpeech } from '../../types'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
+import { preloadImages } from '../../utils/preloadImages'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
+import { TRIBUNAL_BACKDROP_SRC, TRIBUNAL_BACKDROP_STYLE } from './diaryRoomAssets'
 import './FinaleTribunalStream.css'
 
 interface FinaleTribunalStreamProps {
@@ -19,6 +21,10 @@ export default function FinaleTribunalStream({
   const chatRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
+    preloadImages([TRIBUNAL_BACKDROP_SRC])
+  }, [])
+
+  useEffect(() => {
     if (visibleSpeechCount >= speeches.length) return
     const timeout = window.setTimeout(
       () => setVisibleSpeechCount((count) => Math.min(count + 1, speeches.length)),
@@ -32,7 +38,7 @@ export default function FinaleTribunalStream({
   }, [visibleSpeechCount])
 
   return (
-    <div className="diary-room diary-room__tribunal-stream">
+    <div className="diary-room diary-room__tribunal-stream" style={TRIBUNAL_BACKDROP_STYLE}>
       <div className="diary-room__shell">
         <header className="diary-room__header diary-room__tribunal-header">
           <GameBackButton

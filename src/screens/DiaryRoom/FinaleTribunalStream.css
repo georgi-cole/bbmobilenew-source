@@ -2,7 +2,7 @@
   min-height: 100%;
   background:
     linear-gradient(180deg, rgba(7, 12, 20, 0.22), rgba(5, 9, 15, 0.44)),
-    url('/assets/diary-room/tribunal-sequester.png') center / cover no-repeat,
+    var(--diary-room-tribunal-backdrop) center / cover no-repeat,
     linear-gradient(180deg, #0b111a, #070b12 68%);
 }
 

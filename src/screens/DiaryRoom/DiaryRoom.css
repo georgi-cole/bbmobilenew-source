@@ -486,7 +486,7 @@
   border-radius: 5px;
   background:
     linear-gradient(rgba(40, 30, 74, 0.16), rgba(40, 30, 74, 0.16)),
-    url('/assets/diary-room/confessional-painting.png') center / cover;
+    var(--diary-room-confessional-painting) center / cover;
   background-blend-mode: soft-light, normal;
   filter: saturate(0.78) contrast(1.04) brightness(0.72);
   box-shadow:

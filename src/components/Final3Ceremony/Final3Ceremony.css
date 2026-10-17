@@ -23,7 +23,7 @@
       rgba(5, 7, 18, 0.1) 62%,
       rgba(5, 7, 18, 0.38)
     ),
-    url('/assets/finale_stage/final-two-hub-living-room.png');
+    var(--final-two-hub-backdrop);
   background-position: center, center;
   background-size: cover;
   background-repeat: no-repeat;

@@ -35,7 +35,7 @@
       rgba(13, 17, 26, 0.8) 54%,
       rgba(13, 17, 26, 0.9) 100%
     ),
-    url('../../assets/finale/elimination-living-room.png');
+    url('../../assets/finale/elimination-living-room.webp');
   background-position: center;
   background-size: cover;
 }

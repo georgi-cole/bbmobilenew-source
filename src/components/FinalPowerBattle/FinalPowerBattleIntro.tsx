@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Player } from '../../types'
-import backyardPlayfield from '../../assets/finale/final-power-battle-backyard.png'
+import backyardPlayfield from '../../assets/finale/final-power-battle-backyard.webp'
 import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import './FinalPowerBattle.css'
 
