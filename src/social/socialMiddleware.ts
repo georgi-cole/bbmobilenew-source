@@ -37,6 +37,7 @@ import {
   applyDramaAction,
   replaceDramaNetwork,
   recordRealityActualVote,
+  recordRealityActualVotes,
   recordRealityAllianceBetrayal,
   reconcileRealityBattleBackReturn,
   setEnergyBankEntry,
@@ -1327,9 +1328,9 @@ function recordActualVotes(api: MiddlewareAPI): void {
       .find(
         (event) => event.day === afterCeremony.game.week && event.type === 'CEREMONY_VOTES_REVEALED'
       )?.id ?? `vote:${afterCeremony.game.week}`
-  for (const [actorId, targetId] of Object.entries(votes)) {
-    api.dispatch(
-      recordRealityActualVote({
+  api.dispatch(
+    recordRealityActualVotes(
+      Object.entries(votes).map(([actorId, targetId]) => ({
         actorId,
         targetId,
         day: afterCeremony.game.week ?? 1,
@@ -1337,9 +1338,9 @@ function recordActualVotes(api: MiddlewareAPI): void {
         eventId,
         eligibleTargetIds: [...afterCeremony.game.nomineeIds],
         revealed: false,
-      })
+      }))
     )
-  }
+  )
 }
 
 function recordPhaseCeremony(

@@ -128,6 +128,18 @@ type RealityProjectionIndex = {
 
 type ProjectedRelationshipPair = { sourceId: string; targetId: string }
 
+type RealityActualVoteInput = {
+  actorId: string
+  targetId: string
+  day: number
+  phase: string
+  eventId: string
+  eligibleTargetIds?: string[]
+  revealed?: boolean
+  relationshipTagsByTarget?: Record<string, string[]>
+  acceptedPromiseTargetIds?: string[]
+}
+
 function addRelationshipPair(pairs: RelationshipPairSet, sourceId: string, targetId: string): void {
   let targets = pairs.get(sourceId)
   if (!targets) {
@@ -397,6 +409,22 @@ function projectRealityTags(
   }
   return [...new Set(tags)].filter(
     (tag) => hasLiveFormalAlliance || !['primary_alliance', 'ride_or_die'].includes(tag)
+  )
+}
+
+function applyRealityActualVote(state: SocialState, vote: RealityActualVoteInput): void {
+  finalizeRealityVote(
+    state.reality as RealityDomainState,
+    vote.actorId,
+    vote.targetId,
+    { day: vote.day, phase: vote.phase },
+    vote.eventId,
+    vote.eligibleTargetIds,
+    {
+      revealed: vote.revealed,
+      relationshipTagsByTarget: vote.relationshipTagsByTarget,
+      acceptedPromiseTargetIds: vote.acceptedPromiseTargetIds,
+    }
   )
 }
 
@@ -857,33 +885,16 @@ const socialSlice = createSlice({
         state.relationships
       )
     },
-    recordRealityActualVote(
-      state,
-      action: PayloadAction<{
-        actorId: string
-        targetId: string
-        day: number
-        phase: string
-        eventId: string
-        eligibleTargetIds?: string[]
-        revealed?: boolean
-        relationshipTagsByTarget?: Record<string, string[]>
-        acceptedPromiseTargetIds?: string[]
-      }>
-    ) {
-      finalizeRealityVote(
+    recordRealityActualVote(state, action: PayloadAction<RealityActualVoteInput>) {
+      applyRealityActualVote(state, action.payload)
+      projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,
-        action.payload.actorId,
-        action.payload.targetId,
-        { day: action.payload.day, phase: action.payload.phase },
-        action.payload.eventId,
-        action.payload.eligibleTargetIds,
-        {
-          revealed: action.payload.revealed,
-          relationshipTagsByTarget: action.payload.relationshipTagsByTarget,
-          acceptedPromiseTargetIds: action.payload.acceptedPromiseTargetIds,
-        }
+        state.relationships
       )
+    },
+    recordRealityActualVotes(state, action: PayloadAction<RealityActualVoteInput[]>) {
+      for (const vote of action.payload) applyRealityActualVote(state, vote)
+      if (action.payload.length === 0) return
       projectRealityRelationshipsIntoLegacy(
         state.reality as RealityDomainState,
         state.relationships
@@ -1452,6 +1463,7 @@ export const {
   recordRealityCeremony,
   reconcileRealityBattleBackReturn,
   recordRealityActualVote,
+  recordRealityActualVotes,
   recordRealityAllianceBetrayal,
   renameRealityAllianceRecord,
   recordRealitySimulationTrace,
