@@ -355,6 +355,9 @@ export interface RealityAlliance {
   /** The player who created a group; distinct from its founding roster. */
   createdById?: RealityActorId
   createdAt?: RealityClock
+  /** Durable identity facts retained after old detailed events are compacted. */
+  creatorPreviouslyLeft?: boolean
+  leadershipTransferApproved?: boolean
   /** Alliance records survive the rolling social event feed. Visibility still applies per event. */
   history?: RealitySocialEvent[]
   /** Missing only in a pre-management save; normalization supplies it. */

@@ -704,8 +704,14 @@ export function allianceRequestDecisionActors(request: RealityAllianceRequest): 
 export function advanceAllianceRequests(
   state: RealityDomainState,
   context: AllianceManagementContext
-): void {
+): boolean {
+  const initialSequence = state.nextSequence
+  const initialRequests = state.allianceManagement?.requests
+  const initialReceipts = state.allianceManagement?.processedCommands
   normalizeAllianceManagement(state)
+  const normalizedRecordsChanged =
+    initialRequests !== state.allianceManagement.requests ||
+    initialReceipts !== state.allianceManagement.processedCommands
   for (const request of Object.values(state.allianceManagement.requests)) {
     if (!isPendingAllianceRequest(request)) continue
     const problem = requestProblem(state, request, context)
@@ -825,6 +831,7 @@ export function advanceAllianceRequests(
         )
     }
   }
+  return normalizedRecordsChanged || state.nextSequence !== initialSequence
 }
 
 function propose(

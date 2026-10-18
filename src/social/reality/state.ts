@@ -2,6 +2,7 @@ import type { RelationshipsMap } from '../types'
 import { MAX_REALITY_MEMORIES_PER_ACTOR } from './memory'
 import { importLegacyPairMemberships, normalizeAllianceManagement } from './allianceIdentity'
 import { allianceForEvent } from './allianceHistory'
+import { retainAllianceHistory, retainAllianceRequestHistory } from './events'
 import type {
   DirectedRelationship,
   RealityContestantState,
@@ -187,6 +188,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function cloneRealitySnapshot(value: unknown): unknown {
+  if (typeof structuredClone === 'function') return structuredClone(value)
+  return JSON.parse(JSON.stringify(value)) as unknown
+}
+
 function retainRealityMemories(value: unknown): RealityDomainState['memoriesByOwner'] {
   if (!isRecord(value)) return {}
   return Object.fromEntries(
@@ -249,7 +255,7 @@ export function normalizeRealityDomainState(
     )
   }
   // Hydration and migrations must never mutate the source recovery snapshot.
-  const input = JSON.parse(JSON.stringify(value)) as Partial<RealityDomainState>
+  const input = cloneRealitySnapshot(value) as Partial<RealityDomainState>
   const inputRelationships =
     input.relationships && isRecord(input.relationships) ? input.relationships : {}
   const relationships = { ...base.relationships }
@@ -319,10 +325,14 @@ export function normalizeRealityDomainState(
   normalizeAllianceManagement(normalized, value.version === 1)
   if (value.version === 1) importLegacyPairMemberships(normalized, legacyRelationships)
   for (const alliance of Object.values(normalized.alliances)) {
-    if (!Array.isArray(alliance.history)) alliance.history = []
+    alliance.history = retainAllianceHistory(
+      Array.isArray(alliance.history) ? alliance.history : []
+    )
   }
   for (const request of Object.values(normalized.allianceManagement.requests)) {
-    if (!Array.isArray(request.history)) request.history = []
+    request.history = retainAllianceRequestHistory(
+      Array.isArray(request.history) ? request.history : []
+    )
   }
   // Adopt the legacy feed while its events are still available; never invent lost events.
   for (const event of Array.isArray(input.events) ? input.events : []) {
@@ -331,6 +341,8 @@ export function normalizeRealityDomainState(
     if (alliance && !alliance.history!.some((entry) => entry.id === event.id))
       alliance.history!.push(event)
   }
+  for (const alliance of Object.values(normalized.alliances))
+    alliance.history = retainAllianceHistory(alliance.history ?? [])
   return normalized
 }
 
