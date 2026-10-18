@@ -81,7 +81,7 @@
       "Her first name is also a flower."
     ],
     "baseClueFact": "A well-known fictional character from Disney.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Disney"
   },
@@ -104,7 +104,7 @@
       "He is central to DuckTales."
     ],
     "baseClueFact": "A well-known fictional character from Disney.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Disney"
   },
@@ -210,7 +210,7 @@
       "A Disney princess who lives under the sea.",
       "She has a beautiful singing voice.",
       "She dreams of becoming human.",
-      "She is King Triton's daughter."
+      "Her father rules an underwater kingdom."
     ],
     "baseClueFact": "A well-known fictional character from Disney.",
     "difficulty": "very_easy",
@@ -477,7 +477,7 @@
       "She became one of Disney's famous fairies."
     ],
     "baseClueFact": "A well-known fictional character from Disney.",
-    "difficulty": "hard",
+    "difficulty": "very_easy",
     "category": "fictional character",
     "era": "Disney"
   },
@@ -498,7 +498,7 @@
       "Jiminy Cricket often acts as his conscience."
     ],
     "baseClueFact": "A well-known fictional character from Literature.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Literature"
   },
@@ -544,7 +544,7 @@
       "His name sounds like tiger with a playful twist."
     ],
     "baseClueFact": "A well-known fictional character from Literature.",
-    "difficulty": "hard",
+    "difficulty": "very_easy",
     "category": "fictional character",
     "era": "Literature"
   },
@@ -613,7 +613,7 @@
       "He is often annoyed by SpongeBob and Patrick."
     ],
     "baseClueFact": "A well-known fictional character from Nickelodeon.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Nickelodeon"
   },
@@ -700,12 +700,12 @@
     "hints": [
       "Became widely known through television.",
       "A cartoon mother from The Simpsons.",
-      "He has very tall blue hair.",
+      "She has very tall blue hair.",
       "He is married to Homer Simpson.",
       "He is often the voice of reason in the family."
     ],
     "baseClueFact": "A well-known fictional character from Television.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Television"
   },
@@ -751,7 +751,7 @@
       "His name suggests silly or crazy behavior."
     ],
     "baseClueFact": "A well-known fictional character from Looney Tunes.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Looney Tunes"
   },
@@ -774,7 +774,7 @@
       "He looks innocent but is clever."
     ],
     "baseClueFact": "A well-known fictional character from Looney Tunes.",
-    "difficulty": "hard",
+    "difficulty": "very_easy",
     "category": "fictional character",
     "era": "Looney Tunes"
   },
@@ -799,7 +799,7 @@
       "Rival name: Jerry."
     ],
     "baseClueFact": "A well-known fictional character from Animation.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Animation"
   },
@@ -824,7 +824,7 @@
       "Rival name: Tom."
     ],
     "baseClueFact": "A well-known fictional character from Animation.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Animation"
   },
@@ -870,7 +870,7 @@
       "He often wears a green shirt."
     ],
     "baseClueFact": "A well-known fictional character from Animation.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Animation"
   },
@@ -976,7 +976,7 @@
       "luigi"
     ],
     "hints": [
-      "Players usually encounter him through Nintendo video games.",
+      "He appears in platform games alongside his brother Mario.",
       "A Nintendo video game character.",
       "He is Mario's taller brother.",
       "He wears green.",
@@ -999,7 +999,7 @@
       "princess peach"
     ],
     "hints": [
-      "Players usually encounter her through Nintendo video games.",
+      "She rules a colorful kingdom in a long-running video game series.",
       "A Nintendo princess from the Mario games.",
       "She rules the Mushroom Kingdom.",
       "She is often kidnapped by Bowser.",
@@ -1022,7 +1022,7 @@
       "bowser"
     ],
     "hints": [
-      "Players usually encounter him through Nintendo video games.",
+      "A powerful, turtle-like rival in a long-running platform game series.",
       "A large turtle-like villain from the Mario games.",
       "He often kidnaps Princess Peach.",
       "He breathes fire.",
@@ -1096,7 +1096,7 @@
       "He is the main hero of the Pokémon anime."
     ],
     "baseClueFact": "A well-known fictional character from Anime.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Anime"
   },
@@ -1140,7 +1140,7 @@
       "His name is short and simple."
     ],
     "baseClueFact": "A well-known fictional character from Toy.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Toy"
   },
@@ -1159,8 +1159,8 @@
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A DC Comics superhero.",
       "He comes from the planet Krypton.",
-      "His secret identity is Clark Kent.",
-      "He wears a cape and has an S symbol on his chest."
+      "He wears a cape and has an S symbol on his chest.",
+      "His secret identity is Clark Kent."
     ],
     "baseClueFact": "A globally known superhero character.",
     "difficulty": "very_easy",
@@ -1206,7 +1206,7 @@
       "A DC superheroine and Amazon princess.",
       "She comes from Themyscira.",
       "She uses a lasso, bracelets, and a sword.",
-      "Her civilian name is Diana Prince."
+      "Her home is the island of Themyscira."
     ],
     "baseClueFact": "A globally known superhero character.",
     "difficulty": "very_easy",
@@ -1252,8 +1252,8 @@
     "hints": [
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A Marvel superhero in high-tech armor.",
-      "He is a billionaire inventor.",
-      "His real name is Tony Stark.",
+      "The suit was first built to help him escape captivity.",
+      "A sharp-minded engineer, he designs increasingly powerful suits of armor.",
       "Robert Downey Jr. played him in the Marvel films."
     ],
     "baseClueFact": "A globally known superhero character.",
@@ -1276,8 +1276,8 @@
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A Marvel superhero created during World War II.",
       "He carries a circular shield.",
-      "His real name is Steve Rogers.",
-      "He is known as the First Avenger."
+      "He is known as the First Avenger.",
+      "His name is Steve Rogers."
     ],
     "baseClueFact": "A globally known superhero character.",
     "difficulty": "medium",
@@ -1300,9 +1300,9 @@
     "hints": [
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A Marvel character who transforms when angry.",
-      "His human identity is Bruce Banner.",
       "He is huge, green, and extremely strong.",
-      "A famous phrase is 'Hulk smash'."
+      "A famous catchphrase ends with the word 'smash.'",
+      "His human identity is Bruce Banner."
     ],
     "baseClueFact": "A globally known superhero character.",
     "difficulty": "easy",
@@ -1353,7 +1353,7 @@
       "Chadwick Boseman famously played him."
     ],
     "baseClueFact": "A globally known superhero character.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "superhero",
     "era": "Comics"
   },
@@ -1395,7 +1395,7 @@
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A Marvel antihero known for jokes and chaos.",
       "He breaks the fourth wall.",
-      "His real name is Wade Wilson.",
+      "His red suit hides his face, but never his jokes.",
       "Ryan Reynolds plays him in the films."
     ],
     "baseClueFact": "A globally known superhero character.",
@@ -1440,12 +1440,12 @@
     "hints": [
       "Comes from a world of illustrated heroes, villains, and long-running lore.",
       "A DC character who began as the Joker's partner.",
-      "She was originally Dr. Harleen Quinzel.",
+      "She is a clever psychiatrist who turned to a life of crime.",
       "She often carries a bat or mallet.",
       "Margot Robbie played her in several films."
     ],
     "baseClueFact": "A famous fictional antagonist.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "villain",
     "era": "Comics"
   },
@@ -1513,7 +1513,7 @@
       "Connected to rebellion, royalty, and sharp courage.",
       "Known for iconic hair and fearless diplomacy.",
       "Sibling of a young hero from a desert planet.",
-      "Her first name is Leia."
+      "She served as a leader in the Rebel Alliance."
     ],
     "baseClueFact": "A well-known fictional character from Star Wars.",
     "difficulty": "easy",
@@ -1557,7 +1557,7 @@
       "A tall furry character from Star Wars.",
       "He is a Wookiee.",
       "He is Han Solo's loyal co-pilot.",
-      "His friends call him Chewie."
+      "His friends often shorten his name to Chewie."
     ],
     "baseClueFact": "A well-known fictional character from Star Wars.",
     "difficulty": "medium",
@@ -1585,7 +1585,7 @@
       "He often appears with C-3PO."
     ],
     "baseClueFact": "A well-known fictional character from Star Wars.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Star Wars"
   },
@@ -1610,7 +1610,7 @@
       "He is usually paired with R2-D2."
     ],
     "baseClueFact": "A well-known fictional character from Star Wars.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Star Wars"
   },
@@ -1677,7 +1677,7 @@
       "Rupert Grint played him in the films."
     ],
     "baseClueFact": "A well-known fictional character from Fantasy.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Fantasy"
   },
@@ -1725,7 +1725,7 @@
       "His mission is to destroy the One Ring."
     ],
     "baseClueFact": "A well-known fictional character from Fantasy.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Fantasy"
   },
@@ -1867,8 +1867,8 @@
       "Became famous through major movie stories.",
       "A fictional British spy.",
       "He works for MI6.",
-      "His code number is 007.",
-      "He likes gadgets, cars, and 'shaken, not stirred'."
+      "He likes gadgets, cars, and a martini 'shaken, not stirred'.",
+      "His British intelligence codename is 007."
     ],
     "baseClueFact": "A well-known fictional character from Film.",
     "difficulty": "very_easy",
@@ -1914,7 +1914,7 @@
       "A fictional boxer from Philadelphia.",
       "Sylvester Stallone played him.",
       "He runs up the steps of the Philadelphia Museum of Art.",
-      "He is the main character of a long-running boxing-film series."
+      "He faces Apollo Creed in his first championship bout."
     ],
     "baseClueFact": "A well-known fictional character from Film.",
     "difficulty": "medium",
@@ -1984,7 +1984,7 @@
       "Eddie Murphy voiced him."
     ],
     "baseClueFact": "A well-known fictional character from Animation.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "fictional character",
     "era": "Animation"
   },
@@ -2099,7 +2099,7 @@
       "She is Wednesday's mother."
     ],
     "baseClueFact": "A well-known fictional character from Television.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Television"
   },
@@ -2122,7 +2122,7 @@
       "He is known for dramatic affection and dark humor."
     ],
     "baseClueFact": "A well-known fictional character from Television.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Television"
   },
@@ -2371,7 +2371,7 @@
       "Laurence Fishburne played him."
     ],
     "baseClueFact": "A well-known fictional character from Film.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "fictional character",
     "era": "Film"
   },
@@ -2414,7 +2414,7 @@
     "hints": [
       "Became famous through major movie stories.",
       "A fictional character from Titanic.",
-      "He is engaged to Cal but falls in love with Jack.",
+      "She is engaged to Cal but falls in love with Jack.",
       "He is played by Kate Winslet.",
       "He survives the sinking."
     ],
@@ -2442,7 +2442,7 @@
       "Anthony Hopkins famously played him."
     ],
     "baseClueFact": "A famous fictional antagonist.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "villain",
     "era": "Film"
   },
@@ -2464,7 +2464,7 @@
       "A cyborg from a sci-fi action film series.",
       "Arnold Schwarzenegger played the most famous version.",
       "He says 'I'll be back'.",
-      "He is also known as the T-800."
+      "He is a cyborg sent back from the future to change history."
     ],
     "baseClueFact": "A well-known fictional character from Film.",
     "difficulty": "very_easy",
@@ -2483,11 +2483,11 @@
       "lara croft"
     ],
     "hints": [
-      "Players usually encounter her through video games.",
+      "She first became famous as the lead of an action-adventure game series.",
       "A video game and film heroine.",
       "She is a British archaeologist and adventurer.",
-      "She is associated with archaeology and tomb raiding.",
-      "Angelina Jolie played her in films."
+      "Angelina Jolie played her in films.",
+      "She is associated with the Tomb Raider series."
     ],
     "baseClueFact": "A famous character from video games.",
     "difficulty": "medium",
@@ -2506,7 +2506,7 @@
       "pacman"
     ],
     "hints": [
-      "Players usually encounter him through classic arcade games.",
+      "A yellow arcade hero known for navigating mazes.",
       "A classic arcade game character.",
       "He moves through mazes eating dots.",
       "He is chased by ghosts.",
@@ -2527,7 +2527,7 @@
       "donkey kong"
     ],
     "hints": [
-      "Players usually encounter him through Nintendo video games.",
+      "A barrel-throwing gorilla from classic arcade games.",
       "A Nintendo character from classic arcade games.",
       "He is a large gorilla.",
       "He throws barrels in early games.",
@@ -2557,7 +2557,7 @@
       "The Master Sword is strongly tied to him."
     ],
     "baseClueFact": "A famous character from video games.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "video game character",
     "era": "Video games"
   },
@@ -2594,14 +2594,14 @@
       "master chief"
     ],
     "hints": [
-      "Players usually encounter him through the Halo video games.",
+      "An armored hero from a science-fiction game series.",
       "A video game hero from the Halo series.",
       "He wears green futuristic armor.",
       "He is a supersoldier.",
       "His real name is John-117."
     ],
     "baseClueFact": "A famous character from video games.",
-    "difficulty": "very_hard",
+    "difficulty": "hard",
     "category": "video game character",
     "era": "Video games"
   },
@@ -2615,14 +2615,14 @@
       "kratos"
     ],
     "hints": [
-      "Players usually encounter him through action-adventure video games.",
+      "A warrior whose story spans myth-inspired action games.",
       "A video game character known for rage and mythology.",
       "He first fights Greek gods.",
       "He later appears in Norse mythology settings.",
       "He has pale skin and red markings."
     ],
     "baseClueFact": "A famous character from video games.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "video game character",
     "era": "Video games"
   },
@@ -2711,9 +2711,9 @@
     "hints": [
       "Belongs to a Japanese animated or manga-linked story world.",
       "An anime magical girl hero.",
-      "Her civilian name is Usagi Tsukino.",
-      "She fights evil with other Sailor Guardians.",
-      "Her name includes the moon."
+      "Her blonde hair is styled in two long pigtails.",
+      "She fights alongside a team of Sailor Guardians.",
+      "Her civilian name is Usagi Tsukino."
     ],
     "baseClueFact": "A famous character from anime.",
     "difficulty": "medium",
@@ -2736,10 +2736,10 @@
       "A large gentle creature from a Studio Ghibli film.",
       "He appears with two young sisters.",
       "He waits at a bus stop in a famous scene.",
-      "The film is My Neighbor Totoro."
+      "The film My Neighbor Totoro is named after him."
     ],
     "baseClueFact": "A famous character from anime.",
-    "difficulty": "very_hard",
+    "difficulty": "hard",
     "category": "anime character",
     "era": "Anime"
   },
@@ -2873,7 +2873,7 @@
       "She appears in The Little Mermaid."
     ],
     "baseClueFact": "A famous fictional antagonist.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "villain",
     "era": "Disney"
   },
@@ -2917,7 +2917,7 @@
       "Disney made an animated film about him."
     ],
     "baseClueFact": "A famous figure from mythology.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "mythological figure",
     "era": "Mythology"
   },
@@ -2959,7 +2959,7 @@
       "She is a daughter of Zeus."
     ],
     "baseClueFact": "A famous figure from mythology.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "mythological figure",
     "era": "Mythology"
   },
@@ -2980,7 +2980,7 @@
       "Perseus kills her in the myth."
     ],
     "baseClueFact": "A famous figure from mythology.",
-    "difficulty": "very_hard",
+    "difficulty": "very_easy",
     "category": "mythological figure",
     "era": "Mythology"
   },
@@ -2999,10 +2999,10 @@
     ],
     "hints": [
       "Built fame in the age of global mass media.",
-      "An American pop star often called the King of Pop.",
+      "His music helped make the moonwalk famous.",
       "He released Thriller, one of the best-selling albums ever.",
       "He made the moonwalk dance move world famous.",
-      "His hits include Billie Jean, Beat It, and Smooth Criminal."
+      "He was often called the King of Pop."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
     "difficulty": "very_easy",
@@ -3047,7 +3047,7 @@
       "The song is All I Want for Christmas Is You."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "singer",
     "era": "Modern"
   },
@@ -3084,12 +3084,12 @@
     "hints": [
       "Built fame in the age of global mass media.",
       "An American singer and actress with a career spanning decades.",
-      "She first became famous as part of Sonny and Cher.",
+      "She first became famous in a musical partnership with Sonny Bono.",
       "Her hit Believe became famous for its vocal effect.",
       "She is often called the Goddess of Pop."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "singer",
     "era": "Modern"
   },
@@ -3106,10 +3106,10 @@
     ],
     "hints": [
       "Built fame in the age of global mass media.",
-      "An American pop icon often called the Queen of Pop.",
-      "She became huge in the 1980s.",
       "Her hits include Like a Virgin, Vogue, and Material Girl.",
-      "She is famous for constant reinvention."
+      "She is famous for constant reinvention.",
+      "She became one of the biggest stars of the 1980s.",
+      "She is often called the Queen of Pop."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
     "difficulty": "easy",
@@ -3133,8 +3133,8 @@
       "Built fame in the age of global mass media.",
       "An American singer who first became famous with Destiny's Child.",
       "She is known for powerful vocals and elaborate performances.",
-      "Her fans often call her Queen Bey.",
-      "Her songs include Single Ladies and Halo."
+      "Her songs include Single Ladies and Halo.",
+      "Her fans often call her Queen Bey."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
     "difficulty": "very_easy",
@@ -3240,10 +3240,10 @@
     ],
     "hints": [
       "Rose to fame before the internet era made celebrity instant.",
-      "An American singer and actor often called the King of Rock and Roll.",
       "He helped popularize rock and roll.",
       "He lived at Graceland.",
-      "His hits include Jailhouse Rock and Can't Help Falling in Love."
+      "His hits include Jailhouse Rock and Can't Help Falling in Love.",
+      "He was often called the King of Rock and Roll."
     ],
     "baseClueFact": "A globally recognized music figure from 20th Century.",
     "difficulty": "very_easy",
@@ -3332,7 +3332,7 @@
       "The song is My Heart Will Go On."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "hard",
+    "difficulty": "easy",
     "category": "singer",
     "era": "Modern"
   },
@@ -3353,7 +3353,7 @@
       "She was called the Queen of Rock 'n' Roll."
     ],
     "baseClueFact": "A globally recognized music figure from 20th Century.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "singer",
     "era": "20th Century"
   },
@@ -3374,7 +3374,7 @@
       "She founded the Imagination Library."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "singer",
     "era": "Modern"
   },
@@ -3395,7 +3395,7 @@
       "His famous album and film is Purple Rain."
     ],
     "baseClueFact": "A globally recognized music figure from 20th Century.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "singer",
     "era": "20th Century"
   },
@@ -3436,9 +3436,9 @@
     "hints": [
       "Built fame in the age of global mass media.",
       "An American rapper from Detroit.",
-      "He is also known as Slim Shady.",
-      "His real name is Marshall Mathers.",
-      "His songs include Lose Yourself and Without Me."
+      "His songs include Lose Yourself and Without Me.",
+      "His rapid-fire lyrics and alter egos are part of his style.",
+      "His birth name is Marshall Mathers, and Slim Shady is his alter ego."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
     "difficulty": "very_easy",
@@ -3482,9 +3482,9 @@
     "hints": [
       "Rose to fame before the internet era made celebrity instant.",
       "An American rapper and actor famous in the 1990s.",
-      "He is also known as 2Pac.",
       "His songs include California Love and Changes.",
-      "He died after a shooting in Las Vegas in 1996."
+      "He was born in East Harlem, New York City.",
+      "He also performed under the name 2Pac."
     ],
     "baseClueFact": "A globally recognized music figure from 20th Century.",
     "difficulty": "medium",
@@ -3527,13 +3527,13 @@
     ],
     "hints": [
       "Built fame in the age of global mass media.",
-      "A Canadian singer whose real name is Abel Tesfaye.",
+      "A Canadian singer who blends R&B with atmospheric pop.",
       "He is known for dark pop and R&B sounds.",
-      "His hit Blinding Lights became globally huge.",
-      "His stage name begins with The."
+      "His hit Blinding Lights became a global success.",
+      "His stage name begins with the word “The”."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "category": "singer",
     "era": "Modern"
   },
@@ -3637,9 +3637,9 @@
     "hints": [
       "Built fame in the age of global mass media.",
       "An American singer, dancer, and actress.",
-      "She is also known as J.Lo.",
       "She starred in Selena and Hustlers.",
-      "She performed at the Super Bowl halftime show with Shakira."
+      "She performed at the Super Bowl halftime show with Shakira.",
+      "She is also known by the initials J.Lo."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
     "difficulty": "medium",
@@ -3705,7 +3705,7 @@
       "Her first name means love in Albanian."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "singer",
     "era": "Modern"
   },
@@ -3747,7 +3747,7 @@
       "Her show was called by her stage name."
     ],
     "baseClueFact": "A well-known fictional character from Television.",
-    "difficulty": "very_hard",
+    "difficulty": "hard",
     "category": "fictional character",
     "era": "Television"
   },
@@ -3791,7 +3791,7 @@
       "Their name is three letters."
     ],
     "baseClueFact": "A globally recognized music figure from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "music group",
     "era": "Modern"
   },
@@ -3917,8 +3917,8 @@
       "Built fame in the age of global mass media.",
       "An American actor and former professional wrestler.",
       "He was famous in WWE.",
-      "His nickname is The Rock.",
-      "He starred in Jumanji and Fast & Furious films."
+      "He starred in Jumanji and Fast & Furious films.",
+      "His wrestling nickname was The Rock."
     ],
     "baseClueFact": "A globally recognized screen performer from modern pop culture.",
     "difficulty": "very_easy",
@@ -4027,9 +4027,9 @@
     "hints": [
       "Became widely known through television.",
       "A British comedy character who rarely speaks.",
-      "He is played by Rowan Atkinson.",
       "He often causes chaos through awkward behavior.",
-      "He drives a small green Mini."
+      "He drives a small green Mini.",
+      "Rowan Atkinson plays him."
     ],
     "baseClueFact": "A well-known fictional character from Television.",
     "difficulty": "very_easy",
@@ -4227,7 +4227,7 @@
       "She played Margaret Thatcher in The Iron Lady."
     ],
     "baseClueFact": "A globally recognized screen performer from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "actor",
     "era": "Modern"
   },
@@ -4248,7 +4248,7 @@
       "She became one of the biggest stars of the 1990s."
     ],
     "baseClueFact": "A globally recognized screen performer from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "easy",
     "category": "actor",
     "era": "Modern"
   },
@@ -4294,7 +4294,7 @@
       "She was often called the People's Princess."
     ],
     "baseClueFact": "A widely known royal figure from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "very_easy",
     "category": "royal",
     "era": "Modern"
   },
@@ -4411,7 +4411,7 @@
       "He became globally known during Russia's full-scale invasion of Ukraine."
     ],
     "baseClueFact": "A widely known political figure from modern pop culture.",
-    "difficulty": "very_hard",
+    "difficulty": "medium",
     "category": "politician",
     "era": "Modern"
   },
@@ -4502,7 +4502,7 @@
       "A Portuguese footballer famous around the world.",
       "He played for Manchester United, Real Madrid, Juventus, and Portugal.",
       "He is associated with the number 7.",
-      "His nickname is CR7."
+      "Fans often call him CR7."
     ],
     "baseClueFact": "A globally recognized sports figure from modern pop culture.",
     "difficulty": "very_easy",

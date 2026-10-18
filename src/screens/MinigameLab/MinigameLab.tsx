@@ -89,7 +89,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const [previewNonce, setPreviewNonce] = useState(0)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [completionCount, setCompletionCount] = useState(0)
-  const [isMinimized, setIsMinimized] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(() => params.has('game'))
 
   const freezeEnabled = getRouteFlag('freeze')
   const capitalizationContext =

@@ -34,7 +34,7 @@ export default function FamousFiguresTestPage() {
   function startGame() {
     // Mix the displayed seed with fresh time-based entropy so each new run
     // reshuffles the figure order instead of replaying the same three names.
-    setRunSeed((seed ^ Date.now()) >>> 0);
+    setRunSeed(seed);
     setGameKey((k) => k + 1);
     setRunning(true);
   }
@@ -121,6 +121,7 @@ export default function FamousFiguresTestPage() {
             participants={participants}
             prizeType={prizeType}
             seed={runSeed}
+            avoidRecentFigures={false}
             skipWinnerAnimation={skipWinnerAnimation}
             onComplete={keepOnComplete ? undefined : () => setRunning(false)}
           />
