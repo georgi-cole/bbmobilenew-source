@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
@@ -24,8 +25,17 @@ function validateBatchId(value) {
   return value
 }
 
+function seedValue(value, fallback, name) {
+  if (value == null) return fallback >>> 0
+  const parsed = Number.parseInt(value, 0)
+  if (!Number.isFinite(parsed))
+    throw new Error(`--${name} must be an integer seed; received '${value}'.`)
+  return parsed >>> 0
+}
+
 const runs = positiveInteger('runs', readOption('runs', '1'))
-const fullSeason = process.argv.includes('--full-season') || runs > 1
+const headless = process.argv.includes('--headless')
+const fullSeason = headless || process.argv.includes('--full-season') || runs > 1
 const fullViewport = process.argv.includes('--full')
 const viewport = readOption('viewport', fullSeason ? 'compact-mobile' : 'iphone-17')
 const projectByViewport = {
@@ -39,10 +49,33 @@ const requestedBatchId = readOption('batch-id', process.env.SEASON_SIM_BATCH_ID)
 const batchId = fullSeason
   ? validateBatchId(requestedBatchId ?? `season-${Date.now().toString(36)}`)
   : undefined
+const explicitSeed = readOption('seed', process.env.SEASON_SIM_SEED)
+const seed = seedValue(explicitSeed, 0x4f1bbcdc, 'seed')
+const rosterSeed = seedValue(process.env.SEASON_SIM_ROSTER_SEED, seed, 'roster-seed')
+const seasonSeed = seedValue(
+  process.env.SEASON_SIM_SEASON_SEED,
+  explicitSeed ? seed + 0x85ebca6b : 0x6d2b79f5,
+  'season-seed'
+)
+const actorSeed = seedValue(
+  process.env.SEASON_SIM_ACTOR_SEED,
+  explicitSeed ? seed + 0xc2b2ae35 : 0x7a11ce42,
+  'actor-seed'
+)
 const node = process.execPath
 const playwrightCli = fileURLToPath(
   new URL('../node_modules/@playwright/test/cli.js', import.meta.url)
 )
+const vitestCli = [
+  new URL('../node_modules/vitest/vitest.mjs', import.meta.url),
+  new URL('../../node_modules/vitest/vitest.mjs', import.meta.url),
+  new URL('../../../node_modules/vitest/vitest.mjs', import.meta.url),
+]
+  .map((url) => fileURLToPath(url))
+  .find((candidate) => existsSync(candidate))
+if (headless && !vitestCli) {
+  throw new Error('Headless season simulation needs Vitest installed in node_modules.')
+}
 const projects = fullViewport
   ? ['--project=iphone-17-chromium', '--project=compact-mobile-chromium']
   : [`--project=${projectByViewport[viewport]}`]
@@ -55,9 +88,13 @@ const maxDays = readOption('max-days', process.env.SEASON_SIM_MAX_DAYS ?? (fullS
 const runEnvironment = {
   ...process.env,
   SEASON_SIM_SKIP_UNLOAD_AUTOSAVE: '1',
+  SEASON_SIM_ROSTER_SEED: String(rosterSeed),
+  SEASON_SIM_SEASON_SEED: String(seasonSeed),
+  SEASON_SIM_ACTOR_SEED: String(actorSeed),
   SEASON_SIM_MAX_ACTIONS: String(positiveInteger('max-actions', maxActions)),
   SEASON_SIM_MAX_DAYS: String(positiveInteger('max-days', maxDays)),
   SEASON_SIM_RUNS: String(runs),
+  ...(headless ? { SEASON_SIM_HEADLESS: '1' } : {}),
   SEASON_SIM_VIEWPORT: viewport,
   // Full-season batches skip only optional play. Required decisions still use
   // the normal visible controls, and competition forfeits use the game's menu.
@@ -75,17 +112,18 @@ const runEnvironment = {
     : {}),
 }
 
-const playwrightArgs = [
-  playwrightCli,
-  'test',
-  'e2e/playwright/season-simulation.spec.ts',
-  ...projects,
-  `--repeat-each=${runs}`,
-  '--workers=1',
-  '--retries=0',
-]
-
-const result = spawnSync(node, playwrightArgs, {
+const command = headless
+  ? [vitestCli, 'run', 'tests/season-simulation-headless.test.ts', '--maxWorkers=1']
+  : [
+      playwrightCli,
+      'test',
+      'e2e/playwright/season-simulation.spec.ts',
+      ...projects,
+      `--repeat-each=${runs}`,
+      '--workers=1',
+      '--retries=0',
+    ]
+const result = spawnSync(node, command, {
   env: runEnvironment,
   stdio: 'inherit',
 })

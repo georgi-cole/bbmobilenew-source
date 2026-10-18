@@ -601,7 +601,49 @@ export function getStatus(): {
   return { running: _running, tickCount: _tickCount, actionsExecuted: _actionsExecuted }
 }
 
-export const socialAIDriver = { setStore, start, stop, getStatus }
+/** Drain the current phase's AI social work synchronously for seeded simulations. */
+export function runCurrentPhaseSynchronously(): number {
+  if (!_store) return 0
+
+  const state = _store.getState() as DriverState
+  if (!_running) {
+    const aiPlayers = getAIPlayers(state)
+    const budgets = state.social?.energyBank ?? {}
+    if (!hasAvailableAiWork(state, aiPlayers, budgets)) return 0
+
+    _running = true
+    _tickCount = 0
+    _actionsExecuted = 0
+    _epoch += 1
+    _activePhaseKey = getPhaseKey(state)
+  }
+
+  clearTimer()
+  cancelScheduledWork()
+  _pausedForBackground = false
+  if (_cycle) processTickSlice(_cycle, true)
+
+  const actionsBefore = _actionsExecuted
+  let drainedTicks = 0
+  while (_running && drainedTicks < MAX_TICKS()) {
+    const previousTickCount = _tickCount
+    tick(true)
+    if (_tickCount === previousTickCount) break
+    drainedTicks += 1
+  }
+
+  const actionsExecuted = _actionsExecuted - actionsBefore
+  stop()
+  return actionsExecuted
+}
+
+export const socialAIDriver = {
+  setStore,
+  start,
+  stop,
+  getStatus,
+  runCurrentPhaseSynchronously,
+}
 
 function getAIPlayers(state: DriverState): DriverPlayer[] {
   return (state.game?.players ?? []).filter(
@@ -656,10 +698,11 @@ function finishTickCycle(cycle: AiTickCycle): void {
   }
 }
 
-function processTickSlice(cycle: AiTickCycle): void {
+function processTickSlice(cycle: AiTickCycle, synchronous = false): void {
   if (!isCycleCurrent(cycle) || !_store) return
-  const deadline =
-    (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
+  const deadline = synchronous
+    ? Number.POSITIVE_INFINITY
+    : (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
 
   while (_store && _running && cycle.epoch === _epoch && cycle === _cycle) {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -1482,7 +1525,7 @@ function executeCandidate(
   ).success
 }
 
-function tick(): void {
+function tick(synchronous = false): void {
   if (!_store || !_running || _pausedForBackground) {
     clearTimer()
     return
@@ -1547,7 +1590,7 @@ function tick(): void {
     playerIndex: 0,
     attempt: 0,
   }
-  processTickSlice(_cycle)
+  processTickSlice(_cycle, synchronous)
 }
 
 if (typeof window !== 'undefined') {

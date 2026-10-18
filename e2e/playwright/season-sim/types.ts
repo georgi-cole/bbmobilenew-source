@@ -158,6 +158,7 @@ export interface SimulationSeasonOutcome {
   humanLohWins: number
   humanPosWins: number
   humanNominations: number
+  aiSocialActions?: number
   aiOnlyFactionCount: number
   aiOnlyPactCount: number
   aiStrategyMeetings: number

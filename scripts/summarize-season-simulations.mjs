@@ -103,6 +103,7 @@ const batch = {
     )
   ),
   averageHumanNominations: average(resolved.map((report) => report.outcome.humanNominations ?? 0)),
+  averageAiSocialActions: average(reports.map((report) => report.outcome.aiSocialActions ?? 0)),
   averageAiOnlyFactions: average(reports.map((report) => report.outcome.aiOnlyFactionCount ?? 0)),
   averageAiOnlyPacts: average(reports.map((report) => report.outcome.aiOnlyPactCount ?? 0)),
   averageAiStrategyMeetings: average(
@@ -132,6 +133,7 @@ const batch = {
     humanStatus: report.outcome.humanStatus,
     humanCompetitionWins: (report.outcome.humanLohWins ?? 0) + (report.outcome.humanPosWins ?? 0),
     humanNominations: report.outcome.humanNominations ?? 0,
+    aiSocialActions: report.outcome.aiSocialActions ?? 0,
     aiOnlyFactions: report.outcome.aiOnlyFactionCount ?? 0,
     aiOnlyPacts: report.outcome.aiOnlyPactCount ?? 0,
     aiStrategyMeetings: report.outcome.aiStrategyMeetings ?? 0,
@@ -165,6 +167,7 @@ const markdown = [
   `- Reached Final 3: ${batch.reachedFinalThree}; made jury: ${batch.madeJury}`,
   `- Full champion recorded: ${batch.fullSeasonCompleted}`,
   `- Average human competition wins: ${batch.averageHumanCompetitionWins?.toFixed(2) ?? 'n/a'}; nominations: ${batch.averageHumanNominations?.toFixed(2) ?? 'n/a'}`,
+  `- Average AI social actions: ${batch.averageAiSocialActions?.toFixed(2) ?? 'n/a'}`,
   `- Average AI-only factions/pacts: ${batch.averageAiOnlyFactions?.toFixed(2) ?? 'n/a'} / ${batch.averageAiOnlyPacts?.toFixed(2) ?? 'n/a'}`,
   `- Average AI strategy meetings: ${batch.averageAiStrategyMeetings?.toFixed(2) ?? 'n/a'}; coordinated target moves: ${batch.averageAiCoordinatedTargetMoves?.toFixed(2) ?? 'n/a'}`,
   `- Average AI defections/leaks/romances: ${batch.averageAiAllianceDefections?.toFixed(2) ?? 'n/a'} / ${batch.averageAiAllianceLeaks?.toFixed(2) ?? 'n/a'} / ${batch.averageAiRomances?.toFixed(2) ?? 'n/a'}`,

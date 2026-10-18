@@ -1,6 +1,6 @@
 # Human-like season simulation
 
-The season simulator is a Playwright framework that plays through visible player controls and produces a replayable evidence report. It extends the existing browser journeys rather than adding a game-engine shortcut: a detached development-only state probe verifies what the UI did, but tests cannot dispatch actions or set winners through it.
+The browser simulator plays through visible controls and produces a replayable evidence report. A separate headless Classic runner advances the production game reducers and AI systems directly for quick seeded season batches. The browser state probe remains read-only; headless automation runs inside the test process.
 
 ## What is included
 
@@ -10,6 +10,7 @@ The season simulator is a Playwright framework that plays through visible player
 - A registry-complete minigame driver table covering every current playable game, including both premium remasters and the two finale-only games.
 - An auditor for state consistency, participant/nominee validity, phase/day progression, duplicate feed identities, browser errors, enabled-control visibility, and horizontal overflow.
 - JSON and Markdown reports, a final screenshot, exact roster/season/actor seeds, and an action timeline as Playwright test artifacts.
+- A headless Classic runner that skips browser startup, optional confessionals, weekends, and competition animations while preserving seeded season, AI social turns, and decision logic.
 
 The initial smoke uses a fresh Classic profile and a Strategic Operator. It validates profile creation, season launch, and the first visible Day 1 controls within a PR-sized action budget. Longer simulations opt into Social, ceremony, minigame, and finale objectives through `SimulationRunConfig`; a partial competition is reported as partial and is never represented as a normal minigame completion.
 
@@ -26,6 +27,14 @@ Run the smoke on both representative mobile viewports:
 ```powershell
 npm run test:season-sim:full
 ```
+
+Run fifty fast, seeded Classic seasons without opening a browser:
+
+```powershell
+npm run test:season-sim -- --headless --runs=50 --seed=12345
+```
+
+Headless runs simulate LOH results with seeded scores based on AI competition identities and the selected human skill. They run the production AI social turns synchronously in both weekly social phases, so AI relationship actions affect the season; reports include AI social-action counts and alliance, pact, meeting, defection, leak, and romance events. They resolve safety and Final 3 phases through seeded game logic, and automatically handle required human decisions. They do not model discretionary human social-budget actions or answer the human's incoming conversations. They skip visual minigame play, optional confessionals, weekends, and presentation pauses. Use these batches to compare AI political behavior and broad season outcomes; use the browser path to measure a specific human social strategy or visible gameplay.
 
 For a live terminal display while the journey runs, use `npm run test:season-sim:watch` with the same environment variables. It refreshes the current day, phase, last action, findings, objective count, and elapsed time once per second.
 

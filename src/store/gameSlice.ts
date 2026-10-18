@@ -13928,6 +13928,44 @@ function resolveDebugBlockers(
     return true
   }
 
+  if ((game.aiReplacementStep ?? 0) > 0) {
+    if (game.aiReplacementWaiting) dispatch(aiReplacementRendered())
+    else dispatch(advance())
+    return true
+  }
+
+  // Headless season simulations do not mount the presentation components that
+  // normally dismiss these UI-only pauses after the reducer has resolved them.
+  if (game.voteResults) {
+    dispatch(dismissVoteResults())
+    return true
+  }
+
+  if (game.evictionSplashId) {
+    dispatch(dismissEvictionSplash())
+    return true
+  }
+
+  if (game.evictionOverlayPlayerId) {
+    dispatch(clearEvictionOverlay(game.evictionOverlayPlayerId))
+    return true
+  }
+
+  if (game.twinShock?.pendingRevealAnimation) {
+    dispatch(completeTwinShockRevealAnimation())
+    return true
+  }
+
+  if (game.twinShock?.promptStage) {
+    dispatch(submitTwinShockAnswer('I give up'))
+    return true
+  }
+
+  if (game.weekendInterlude?.active) {
+    dispatch(setWeekendsEnabledForSeason(false))
+    return true
+  }
+
   if (game.dayStartShock) {
     dispatch(confirmDayStartShock())
     return true
@@ -13971,6 +14009,35 @@ function resolveDebugBlockers(
     } else {
       dispatch(clearBlockingFlags())
     }
+    return true
+  }
+
+  if (game.awaitingNominations && game.phase === 'nomination_results') {
+    const loh = game.players.find((player) => player.id === game.lohId)
+    const decisionMaker = getCupidHumanCoholder(game, game.lohId) ?? loh
+    const nomineeCount = game.doubleEviction?.weekActive === true ? 3 : 2
+    const eligible = decisionMaker ? getEligibleNominationTargets(game, decisionMaker.id) : []
+    const selected = pickStrategicAiPlayers(game, eligible, nomineeCount, rng, {
+      actorId: decisionMaker?.id,
+    })
+    if (selected.length === nomineeCount) {
+      dispatch(commitNominees(selected.map((player) => player.id)))
+    } else {
+      dispatch(clearBlockingFlags())
+    }
+    return true
+  }
+
+  if (
+    game.phase === 'pos_ceremony_results' &&
+    !game.awaitingPovDecision &&
+    !game.awaitingPovSaveTarget &&
+    !game.replacementNeeded &&
+    game.aiReplacementStep === 0
+  ) {
+    // The live UI advances after the holder's choice and replacement sequence.
+    // In a headless run, move into the vote window once those choices are settled.
+    dispatch(setPhase('social_2'))
     return true
   }
 
@@ -14157,6 +14224,21 @@ function resolveDebugBlockers(
     return true
   }
 
+  if (
+    game.phase === 'final3_comp1_minigame' ||
+    game.phase === 'final3_comp2_minigame' ||
+    game.phase === 'final3_comp3_minigame'
+  ) {
+    const participants = game.minigameContext?.participants ?? getFinalThreeActiveIds(game)
+    const candidates = participants
+      .map((id) => game.players.find((player) => player.id === id))
+      .filter((player): player is Player => Boolean(player))
+    const winner = pickStrategicAiPlayer(game, candidates, rng, 'highest')
+    if (winner) dispatch(applyF3MinigameWinner(winner.id))
+    else dispatch(clearBlockingFlags())
+    return true
+  }
+
   return false
 }
 
@@ -14199,7 +14281,7 @@ export const fastForwardToEviction = () => (dispatch: AppDispatch, getState: () 
  * until the game stabilises on the next week or a terminal endgame beat.
  */
 export const simulateImmediateEliminationCycle =
-  () => (dispatch: AppDispatch, getState: () => RootState) => {
+  (onSocialPhase?: () => void) => (dispatch: AppDispatch, getState: () => RootState) => {
     const initialWeek = getState().game.week
     const cycleSeed =
       (getState().game.seed ^
@@ -14207,6 +14289,7 @@ export const simulateImmediateEliminationCycle =
         (getState().game.players.length << 8)) >>>
       0
     const rng = mulberry32(cycleSeed)
+    const completedSocialPhases = new Set<string>()
 
     seedDebugCycleNoise(dispatch, getState(), rng)
 
@@ -14224,6 +14307,16 @@ export const simulateImmediateEliminationCycle =
         break
       }
 
+      if (onSocialPhase && (game.phase === 'social_1' || game.phase === 'social_2')) {
+        const phaseKey = `${game.week}:${game.phase}`
+        if (!completedSocialPhases.has(phaseKey)) {
+          completedSocialPhases.add(phaseKey)
+          onSocialPhase()
+          steps++
+          continue
+        }
+      }
+
       if (resolveDebugBlockers(dispatch, rootState, rng)) {
         steps++
         continue
@@ -14239,6 +14332,13 @@ export const simulateImmediateEliminationCycle =
         nextState.week === prevWeek &&
         !nextState.pendingEviction
       ) {
+        // Advancing can queue a UI prompt without changing phase (for example,
+        // the Day 4 twin-shock confessional). Resolve newly created blockers
+        // before treating an unchanged phase as a true stall.
+        if (resolveDebugBlockers(dispatch, getState(), rng)) {
+          steps++
+          continue
+        }
         dispatch(clearBlockingFlags())
         break
       }
