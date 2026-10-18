@@ -25,6 +25,7 @@ import {
   buildAiSubmissionsForRound,
   getFamousFiguresAiPlan,
   getPlayerFigureIndex,
+  getPointsForHintsUsed,
 } from '../../features/famousFigures/famousFiguresSlice'
 import type {
   FamousFiguresState,
@@ -55,6 +56,19 @@ const DEFAULT_REVEAL_PAUSE_MS = 1500
 const CONFIRM_MS = 700
 
 const WINNER_SCREEN_DURATION_MS = 4000
+const RECENT_FIGURES_STORAGE_KEY = 'bbmobile:famous-figures:recent-v1'
+const RECENT_FIGURE_MEMORY = 36
+
+function readRecentFigureNames(): string[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem(RECENT_FIGURES_STORAGE_KEY) ?? '[]')
+    return Array.isArray(stored)
+      ? stored.filter((name): name is string => typeof name === 'string')
+      : []
+  } catch {
+    return []
+  }
+}
 
 // Timer durations per phase (milliseconds).
 // Every visible clue receives 10 seconds. There is no extra overtime window
@@ -143,6 +157,8 @@ interface Props {
    * `DEFAULT_REVEAL_PAUSE_MS` (1500 ms).
    */
   revealPauseMs?: number
+  /** Avoid figures from the most recent browser-local matches. */
+  avoidRecentFigures?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -155,6 +171,7 @@ export default function FamousFiguresComp({
   onComplete,
   skipWinnerAnimation = true,
   revealPauseMs = DEFAULT_REVEAL_PAUSE_MS,
+  avoidRecentFigures = true,
 }: Props) {
   // Guard: the reveal pause must always be positive to prevent visual jank.
   const safeRevealPauseMs = revealPauseMs > 0 ? revealPauseMs : DEFAULT_REVEAL_PAUSE_MS
@@ -258,7 +275,12 @@ export default function FamousFiguresComp({
   // ── Initialise on mount ───────────────────────────────────────────────────
   useEffect(() => {
     dispatch(
-      startFamousFigures({ participantIds, competitionType: prizeType, seed: effectiveSeed })
+      startFamousFigures({
+        participantIds,
+        competitionType: prizeType,
+        seed: effectiveSeed,
+        recentFigureNames: avoidRecentFigures ? readRecentFigureNames() : [],
+      })
     )
     return () => {
       dispatch(resetFamousFigures())
@@ -271,6 +293,29 @@ export default function FamousFiguresComp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Remember recently selected figures so consecutive matches draw from the rest of the deck.
+  useEffect(() => {
+    if (
+      !avoidRecentFigures ||
+      ff.status !== 'round_active' ||
+      ff.currentRound !== 0 ||
+      ff.matchFigureOrder.length === 0
+    )
+      return
+    const selectedNames = ff.matchFigureOrder
+      .map((index) => FAMOUS_FIGURES[index]?.canonicalName)
+      .filter((name): name is string => Boolean(name))
+    const recent = readRecentFigureNames()
+    const nextRecent = [
+      ...selectedNames,
+      ...recent.filter((name) => !selectedNames.includes(name)),
+    ].slice(0, RECENT_FIGURE_MEMORY)
+    try {
+      localStorage.setItem(RECENT_FIGURES_STORAGE_KEY, JSON.stringify(nextRecent))
+    } catch {
+      // Storage can be unavailable in private browsing; matches should continue normally.
+    }
+  }, [avoidRecentFigures, ff.status, ff.currentRound, ff.matchFigureOrder])
   // ── Timer per phase ───────────────────────────────────────────────────────
   // Double-timer fix: React runs the previous effect's cleanup (clearInterval +
   // clearTimeout) before re-executing this effect whenever the dependency array
@@ -901,7 +946,15 @@ export default function FamousFiguresComp({
       {/* Clue card */}
       {figure && (
         <div className="ff-clue-card" role="region" aria-label="Current clue">
-          <div className="ff-clue-label">Clue</div>
+          <div className="ff-clue-heading">
+            <div className="ff-clue-label">Clue</div>
+            <div
+              className="ff-points-guide"
+              aria-label={`${getPointsForHintsUsed(effectiveHintsRevealed)} points available`}
+            >
+              {getPointsForHintsUsed(effectiveHintsRevealed)} pts
+            </div>
+          </div>
           <p className="ff-base-clue">{figure.baseClueFact}</p>
           {effectiveHintsRevealed > 0 && (
             <ul className="ff-hint-list" aria-label="Revealed hints">
@@ -1018,44 +1071,87 @@ function renderScoreboard(
 
   return (
     <div className="ff-scoreboard" aria-label="Scoreboard">
-      <div className="ff-scoreboard-title">Scoreboard</div>
-      <div className="ff-scoreboard-list">
-        {sorted.map((id) => {
-          const isHuman = id === humanId
-          const name = displayName(id)
-          const total = ff.playerScores[id] ?? 0
-          const roundScores = ff.playerRoundScores[id] ?? []
-          const correct = ff.playerCorrect[id]
-          return (
-            <div key={id} className="ff-scoreboard-row">
-              <span className="ff-scoreboard-avatar-wrap">
-                <img
-                  className="ff-scoreboard-avatar"
-                  src={playerAvatar(id)}
-                  alt=""
-                  aria-hidden="true"
-                  onError={(e) => {
-                    const img = e.currentTarget
-                    // one-shot fallback to Dicebear to avoid infinite onError loop
-                    img.onerror = null
-                    img.src = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(name)}`
-                  }}
-                />
-              </span>
-              <span className={`ff-scoreboard-name${isHuman ? ' ff-scoreboard-name--you' : ''}`}>
-                {isHuman ? 'You' : name}
-              </span>
-              <span className="ff-scoreboard-round">[{roundScores.join(', ')}]</span>
-              <span className="ff-scoreboard-total">{total}</span>
-              {correct && (
-                <span className="ff-scoreboard-correct" aria-label="Correct this round">
-                  ✓
-                </span>
-              )}
-            </div>
-          )
-        })}
+      <div className="ff-scoreboard-title">
+        <span>Points by round</span>
       </div>
+      <table className="ff-scoreboard-table" aria-label="Player points by round">
+        <thead>
+          <tr>
+            <th scope="col">Player</th>
+            {Array.from({ length: ff.totalRounds }, (_, index) => (
+              <th
+                key={index}
+                scope="col"
+                className={index === ff.currentRound ? 'ff-scoreboard-round-heading--current' : ''}
+              >
+                R{index + 1}
+              </th>
+            ))}
+            <th scope="col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((id) => {
+            const isHuman = id === humanId
+            const name = displayName(id)
+            const total = ff.playerScores[id] ?? 0
+            const personalScores = ff.playerPersonalRoundScores[id] ?? []
+            const roundScores = Array.from(
+              { length: ff.totalRounds },
+              (_, index) => personalScores[index] ?? null
+            )
+            const correct = ff.playerCorrect[id]
+            return (
+              <tr key={id}>
+                <th scope="row" className="ff-scoreboard-player">
+                  <span className="ff-scoreboard-avatar-wrap">
+                    <img
+                      className="ff-scoreboard-avatar"
+                      src={playerAvatar(id)}
+                      alt=""
+                      aria-hidden="true"
+                      onError={(e) => {
+                        const img = e.currentTarget
+                        // one-shot fallback to Dicebear to avoid infinite onError loop
+                        img.onerror = null
+                        img.src = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(name)}`
+                      }}
+                    />
+                  </span>
+                  <span
+                    className={`ff-scoreboard-name${isHuman ? ' ff-scoreboard-name--you' : ''}`}
+                  >
+                    {isHuman ? 'You' : name}
+                  </span>
+                  {correct && (
+                    <span className="ff-scoreboard-correct" aria-label="Correct this round">
+                      ✓
+                    </span>
+                  )}
+                </th>
+                {roundScores.map((score, index) => (
+                  <td
+                    key={index}
+                    className={[
+                      'ff-scoreboard-score',
+                      score === null && 'ff-scoreboard-score--pending',
+                      index === ff.currentRound && 'ff-scoreboard-score--current',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    aria-label={`Round ${index + 1}: ${score === null ? 'not scored' : `${score} points`}`}
+                  >
+                    <span className="ff-scoreboard-score-chip">{score ?? '—'}</span>
+                  </td>
+                ))}
+                <td className="ff-scoreboard-total" aria-label={`${total} total points`}>
+                  {total}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
