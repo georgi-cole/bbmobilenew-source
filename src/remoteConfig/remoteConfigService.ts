@@ -372,6 +372,13 @@ export function sanitiseRemoteConfig(raw: unknown): RemoteConfig | null {
   const r = raw as Record<string, unknown>
   const config: RemoteConfig = {}
 
+  if (r.iconRotation && typeof r.iconRotation === 'object' && !Array.isArray(r.iconRotation)) {
+    const rotation = r.iconRotation as Record<string, unknown>
+    if (typeof rotation.enabled === 'boolean') {
+      config.iconRotation = { enabled: rotation.enabled }
+    }
+  }
+
   const confessional = sanitiseRemoteConfessionalConfig(r.confessional)
   if (confessional) config.confessional = confessional
 
