@@ -229,19 +229,63 @@ export function competitionIdentityMultiplier(
 
 export function nominationIdentityBias(
   identity: AiGameIdentity | undefined,
-  mode: AiIdentityMode
+  mode: AiIdentityMode,
+  target: {
+    affinity: number
+    tags: readonly string[]
+    targetIdentity?: AiGameIdentity
+  }
 ): number {
   if (!identity) return 0
   const archetype = identity.archetype
-  if (mode === 'vox_populi') {
-    if (['audience_darling', 'public_pleaser'].includes(archetype)) return -8
-    if (archetype === 'media_strategist' || archetype === 'audience_chameleon') return 4
+  const loyal = ['loyal_anchor', 'romantic_loyalist', 'social_butterfly', 'jury_artisan'].includes(
+    archetype
+  )
+    ? 0.88
+    : ['double_agent', 'lone_wolf', 'opportunist', 'chaos_agent'].includes(archetype)
+      ? 0.28
+      : 0.5
+  const ambitious = [
+    'aggressive_competitor',
+    'strategic_operator',
+    'puppet_master',
+    'media_strategist',
+    'double_agent',
+  ].includes(archetype)
+    ? 0.84
+    : ['loyal_anchor', 'romantic_loyalist', 'social_butterfly'].includes(archetype)
+      ? 0.4
+      : 0.58
+  const cautious =
+    identity.temperament === 'paranoid'
+      ? 0.88
+      : Math.max(0.25, Math.min(0.78, 0.2 + identity.survivalFocus * 0.5))
+  const reactive = Math.max(
+    0,
+    Math.min(1, identity.emotionalVolatility * (identity.temperament === 'impulsive' ? 1.15 : 0.82))
+  )
+  const affinity = Math.max(-1, Math.min(1, target.affinity / 100))
+  const tags = new Set(target.tags)
+  const bondStrength =
+    (tags.has('alliance') ? 0.65 : 0) +
+    (tags.has('romance') || tags.has('bromance') ? 0.8 : 0) +
+    (tags.has('protection') || tags.has('shield') ? 0.4 : 0)
+  const grievance =
+    (tags.has('betrayal') ? 1 : 0) +
+    (tags.has('rivalry') ? 0.65 : 0) +
+    (tags.has('target') ? 0.25 : 0)
+  const targetCompetitionDrive = target.targetIdentity?.competitionDrive ?? 0.5
+
+  let bias =
+    -affinity * (loyal - 0.5) * 52 -
+    bondStrength * (loyal - 0.5) * 20 +
+    (targetCompetitionDrive - 0.5) * (ambitious * 28 + cautious * 14) +
+    grievance * (reactive - 0.4) * 20
+
+  if (mode === 'vox_populi' && target.targetIdentity) {
+    bias += (target.targetIdentity.audienceFocus - 0.5) * ambitious * 16
   }
-  if (archetype === 'aggressive_competitor' || archetype === 'strategic_operator') return 14
-  if (archetype === 'puppet_master' || archetype === 'double_agent') return 8
-  if (archetype === 'loyal_anchor' || archetype === 'romantic_loyalist') return -8
-  if (archetype === 'chaos_agent') return 10
-  return 0
+  return Math.round(bias)
 }
 
 export function allianceIdentityBias(identity: AiGameIdentity | undefined): number {

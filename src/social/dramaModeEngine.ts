@@ -28,7 +28,7 @@ export interface DramaPlayer {
   name: string
   status: string
   isUser?: boolean
-  aiGameIdentity?: Pick<AiGameIdentity, 'archetype' | 'temperament'>
+  aiGameIdentity?: AiGameIdentity
 }
 export interface DramaRelationshipEffect {
   source: string
@@ -71,6 +71,7 @@ export interface DramaIncomingResponseEffect {
 }
 export interface DramaAIMoveInput {
   actorId: string
+  aiGameIdentity?: AiGameIdentity
   players: DramaPlayer[]
   relationships: RelationshipsMap
   memory: SocialMemoryMap

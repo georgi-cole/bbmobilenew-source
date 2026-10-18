@@ -9,12 +9,15 @@ import {
   ensureRealityActors,
   isFormerAllianceMember,
   manageAlliance,
+  MAX_ALLIANCE_HISTORY_EVENTS,
+  MAX_ALLIANCE_REQUEST_HISTORY_EVENTS,
   normalizeRealityDomainState,
   removeRealityAllianceMember,
   renameRealityAlliance,
   resolveRealityPromise,
   upsertRealityPromise,
   type AllianceManagementContext,
+  type RealityAllianceRequest,
 } from '../reality'
 
 const at = { day: 1, phase: 'social_1' as const }
@@ -42,6 +45,112 @@ function setup() {
 }
 
 describe('durable alliance history', () => {
+  it('bounds detailed alliance history while retaining the founding and recent events', () => {
+    const { state, group } = setup()
+    const formation = group.history?.find((event) => event.type === 'ALLIANCE_FORMED')
+    let latestEventId = ''
+    for (let index = 0; index < MAX_ALLIANCE_HISTORY_EVENTS + 20; index += 1) {
+      const latest = appendRealityEvent(state, {
+        ...at,
+        type: 'ALLIANCE_STRATEGY_MEETING',
+        allianceId: group.id,
+        actorId: 'u',
+        targetIds: ['k'],
+        participantIds: ['u', 'k'],
+        witnessIds: [],
+        visibility: 'GROUP_VISIBLE',
+        outcome: 'SUCCESS',
+        reason: 'Recent meeting',
+        tags: ['ALLIANCE', 'STRATEGY'],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: true,
+      })
+      latestEventId = latest.id
+    }
+
+    expect(group.history).toHaveLength(MAX_ALLIANCE_HISTORY_EVENTS)
+    expect(group.history).toContain(formation)
+    expect(group.history?.at(-1)?.id).toBe(latestEventId)
+
+    const normalized = normalizeRealityDomainState(state)
+    const feedEvent = normalized.events.find((event) => event.id === latestEventId)
+    const allianceEvent = normalized.alliances[group.id].history?.find(
+      (event) => event.id === latestEventId
+    )
+    expect(allianceEvent).toBe(feedEvent)
+  })
+
+  it('caps request logs and settled receipts while keeping pending agreements', () => {
+    const state = createInitialRealityDomainState()
+    const requestHistory = Array.from(
+      { length: MAX_ALLIANCE_REQUEST_HISTORY_EVENTS + 4 },
+      (_, index) => ({
+        id: `request-event-${index}`,
+        sequence: index,
+        day: 1,
+        phase: 'social_1' as const,
+        type: 'ALLIANCE_REQUEST_VOTE',
+        targetIds: [],
+        participantIds: ['u', 'k'],
+        witnessIds: [],
+        visibility: 'GROUP_VISIBLE' as const,
+        outcome: 'SYSTEM' as const,
+        reason: '',
+        tags: ['ALLIANCE', 'REQUEST'],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: false,
+      })
+    )
+    const makeRequest = (
+      id: string,
+      status: RealityAllianceRequest['status']
+    ): RealityAllianceRequest => ({
+      id,
+      kind: 'PACT',
+      status,
+      proposerId: 'u',
+      memberIds: ['u', 'k'],
+      electorateIds: [],
+      officerIds: [],
+      votes: {},
+      consents: {},
+      purpose: 'Protection',
+      createdAt: at,
+      deadline: at,
+      history: requestHistory,
+    })
+
+    for (let index = 0; index < 70; index += 1) {
+      const request = makeRequest(`request:${index}`, 'ACCEPTED')
+      state.allianceManagement.requests[request.id] = request
+    }
+    state.allianceManagement.requests.pending = makeRequest('pending', 'VOTING')
+    for (let index = 0; index < 250; index += 1)
+      state.allianceManagement.processedCommands[`receipt-${index}`] = {
+        status: 'APPLIED',
+        reason: 'Recorded',
+      }
+
+    const normalized = normalizeRealityDomainState(state)
+
+    expect(Object.keys(normalized.allianceManagement.requests)).toHaveLength(65)
+    expect(normalized.allianceManagement.requests['request:5']).toBeUndefined()
+    expect(normalized.allianceManagement.requests['request:6']).toBeDefined()
+    expect(normalized.allianceManagement.requests.pending.status).toBe('VOTING')
+    expect(normalized.allianceManagement.requests['request:69'].history).toHaveLength(
+      MAX_ALLIANCE_REQUEST_HISTORY_EVENTS
+    )
+    expect(Object.keys(normalized.allianceManagement.processedCommands)).toHaveLength(240)
+    expect(normalized.allianceManagement.processedCommands['receipt-9']).toBeUndefined()
+    expect(normalized.allianceManagement.processedCommands['receipt-10']).toBeDefined()
+  })
+
   it('keeps the consultation result attached to the alliance history event', () => {
     const { state, group } = setup()
     const meeting = appendRealityEvent(state, {

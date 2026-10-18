@@ -1465,6 +1465,8 @@ export interface GameState {
   secretMissionTaskSetHistory?: string[]
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
+  /** Contestant-specific estimates of social and Tribunal threat, synced at phase boundaries. */
+  strategicThreatReadsByActorId?: import('../social/strategicThreat').StrategicThreatSnapshot
   /**
    * Compact Reality-alliance snapshot captured alongside strategicRelationships.
    * It lets the synchronous game reducer consume commitment, hierarchy, overlap,

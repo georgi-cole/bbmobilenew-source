@@ -45,10 +45,9 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
     const state = api.getState() as RootState
     const context = allianceManagementContext(state)
     const domain = normalizeRealityDomainState(state.social.reality)
-    advanceAllianceRequests(domain, context)
-    evaluateAllianceAutonomy(domain, context)
-    if (JSON.stringify(domain) !== JSON.stringify(state.social.reality))
-      api.dispatch(replaceRealityDomain(domain))
+    const requestsChanged = advanceAllianceRequests(domain, context)
+    const autonomyChanged = evaluateAllianceAutonomy(domain, context)
+    if (requestsChanged || autonomyChanged) api.dispatch(replaceRealityDomain(domain))
   }
   if (
     [

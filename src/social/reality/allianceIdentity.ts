@@ -2,6 +2,8 @@ import type { RealityAlliance, RealityDomainState } from './types'
 import type { RelationshipsMap } from '../types'
 
 export const ALLIANCE_LIMITS = { groupsPerMember: 2, groupMembers: 6 } as const
+const MAX_SETTLED_ALLIANCE_REQUESTS = 64
+const MAX_PROCESSED_ALLIANCE_COMMANDS = 240
 
 export function isCurrentAlliance(alliance: RealityAlliance): boolean
 export function isCurrentAlliance(
@@ -167,7 +169,7 @@ export function normalizeAllianceIdentity(
     const allianceEvents = [...(alliance.history ?? []), ...state.events].filter(
       (event) => event.allianceId === alliance.id || event.allianceSnapshot?.id === alliance.id
     )
-    const hasApprovedLeadershipTransfer = Boolean(
+    alliance.leadershipTransferApproved ??= Boolean(
       creatorId &&
       allianceEvents.some(
         (event) =>
@@ -177,7 +179,7 @@ export function normalizeAllianceIdentity(
           event.allianceSnapshot.leaderId !== creatorId
       )
     )
-    const creatorPreviouslyLeft = Boolean(
+    alliance.creatorPreviouslyLeft ??= Boolean(
       creatorId &&
       allianceEvents.some(
         (event) =>
@@ -189,7 +191,11 @@ export function normalizeAllianceIdentity(
           ].includes(event.type) && event.targetIds.includes(creatorId)
       )
     )
-    if (creatorIsCurrentMember && !hasApprovedLeadershipTransfer && !creatorPreviouslyLeft) {
+    if (
+      creatorIsCurrentMember &&
+      !alliance.leadershipTransferApproved &&
+      !alliance.creatorPreviouslyLeft
+    ) {
       alliance.leaderId = creatorId
       if (alliance.coLeaderId === creatorId) alliance.coLeaderId = undefined
     } else if (!alliance.leaderId) {
@@ -222,6 +228,32 @@ export function normalizeAllianceManagement(state: RealityDomainState, migratePa
   state.allianceManagement.processedCommands ??= {}
   state.allianceManagement.importedLegacyIds ??= []
   state.allianceManagement.aliases ??= {}
+  if (Object.keys(state.allianceManagement.requests).length > MAX_SETTLED_ALLIANCE_REQUESTS) {
+    const requestEntries = Object.entries(state.allianceManagement.requests)
+    const pendingRequestKeys = new Set(
+      requestEntries
+        .filter(([, request]) => request.status === 'VOTING' || request.status === 'CONSENT')
+        .map(([id]) => id)
+    )
+    const settledRequestEntries = requestEntries.filter(([id]) => !pendingRequestKeys.has(id))
+    if (settledRequestEntries.length > MAX_SETTLED_ALLIANCE_REQUESTS) {
+      const retainedKeys = new Set([
+        ...pendingRequestKeys,
+        ...settledRequestEntries.slice(-MAX_SETTLED_ALLIANCE_REQUESTS).map(([id]) => id),
+      ])
+      state.allianceManagement.requests = Object.fromEntries(
+        requestEntries.filter(([id]) => retainedKeys.has(id))
+      )
+    }
+  }
+  if (
+    Object.keys(state.allianceManagement.processedCommands).length > MAX_PROCESSED_ALLIANCE_COMMANDS
+  )
+    state.allianceManagement.processedCommands = Object.fromEntries(
+      Object.entries(state.allianceManagement.processedCommands).slice(
+        -MAX_PROCESSED_ALLIANCE_COMMANDS
+      )
+    )
   for (const promise of Object.values(state.promises)) {
     if (!promise.originatingAllianceId && typeof promise.scope.allianceId === 'string')
       promise.originatingAllianceId = promise.scope.allianceId

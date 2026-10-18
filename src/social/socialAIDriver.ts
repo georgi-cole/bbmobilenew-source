@@ -1,4 +1,4 @@
-﻿/**
+/**
  * socialAIDriver — budget-aware social decision loop for AI housemates.
  *
  * Normal Mode uses the compact utility policy. Drama Mode first asks the
@@ -51,6 +51,7 @@ import type {
   SocialMemoryMap,
 } from './types'
 import type { RealityDomainState } from './reality'
+import { getAllianceCampaignMove } from './reality/allianceCampaign'
 import {
   getRealityActionContract,
   projectRealityAffinity,
@@ -600,7 +601,49 @@ export function getStatus(): {
   return { running: _running, tickCount: _tickCount, actionsExecuted: _actionsExecuted }
 }
 
-export const socialAIDriver = { setStore, start, stop, getStatus }
+/** Drain the current phase's AI social work synchronously for seeded simulations. */
+export function runCurrentPhaseSynchronously(): number {
+  if (!_store) return 0
+
+  const state = _store.getState() as DriverState
+  if (!_running) {
+    const aiPlayers = getAIPlayers(state)
+    const budgets = state.social?.energyBank ?? {}
+    if (!hasAvailableAiWork(state, aiPlayers, budgets)) return 0
+
+    _running = true
+    _tickCount = 0
+    _actionsExecuted = 0
+    _epoch += 1
+    _activePhaseKey = getPhaseKey(state)
+  }
+
+  clearTimer()
+  cancelScheduledWork()
+  _pausedForBackground = false
+  if (_cycle) processTickSlice(_cycle, true)
+
+  const actionsBefore = _actionsExecuted
+  let drainedTicks = 0
+  while (_running && drainedTicks < MAX_TICKS()) {
+    const previousTickCount = _tickCount
+    tick(true)
+    if (_tickCount === previousTickCount) break
+    drainedTicks += 1
+  }
+
+  const actionsExecuted = _actionsExecuted - actionsBefore
+  stop()
+  return actionsExecuted
+}
+
+export const socialAIDriver = {
+  setStore,
+  start,
+  stop,
+  getStatus,
+  runCurrentPhaseSynchronously,
+}
 
 function getAIPlayers(state: DriverState): DriverPlayer[] {
   return (state.game?.players ?? []).filter(
@@ -655,10 +698,11 @@ function finishTickCycle(cycle: AiTickCycle): void {
   }
 }
 
-function processTickSlice(cycle: AiTickCycle): void {
+function processTickSlice(cycle: AiTickCycle, synchronous = false): void {
   if (!isCycleCurrent(cycle) || !_store) return
-  const deadline =
-    (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
+  const deadline = synchronous
+    ? Number.POSITIVE_INFINITY
+    : (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
 
   while (_store && _running && cycle.epoch === _epoch && cycle === _cycle) {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -752,6 +796,9 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
   confront: 'snide_remark',
   startFight: 'snide_remark',
   ask_use_safety: 'deal_offer',
+  pitch_target: 'warning',
+  suggest_replacement: 'warning',
+  rally_votes_against: 'other',
   nominate: 'warning',
   group_chat: 'other',
 }
@@ -801,6 +848,18 @@ const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
     'Before the Safety decision, I need to know whether you would use it to help me.',
     'You hold Safety, and that makes this conversation urgent: would you save me?',
   ],
+  pitch_target: [
+    'The alliance has been talking about your influence. They want you to put {player} on the block.',
+    'Several people are getting nervous about {player}. Are you open to hearing the alliance’s case?',
+  ],
+  suggest_replacement: [
+    'The alliance would like you to consider {player} as a replacement nominee.',
+    'If Safety is used, the group thinks {player} could be the right replacement.',
+  ],
+  rally_votes_against: [
+    'The alliance is organizing votes against {player}. Are you with the plan?',
+    'We are trying to line up votes to send {player} home. I wanted to know where you stand.',
+  ],
   nominate: [
     'I am considering putting your name in danger this week. Give me a reason not to.',
     'Your name is part of my plan right now, and I wanted to hear what you would say.',
@@ -828,6 +887,9 @@ const HUMAN_FACING_ACTION_SCENARIOS: Partial<Record<string, string>> = {
   confront: 'targeted_snark',
   startFight: 'targeted_snark',
   ask_use_safety: 'nominee_veto_pitch',
+  pitch_target: 'alliance_target_pitch',
+  suggest_replacement: 'alliance_replacement_pitch',
+  rally_votes_against: 'alliance_vote_rally',
   nominate: 'nomination_aftershock',
   group_chat: 'social_momentum_notice',
 }
@@ -886,6 +948,13 @@ function routeHumanFacingAction(
   const current = _store.getState() as DriverState
   const human = current.game.players.find((player) => player.isUser)
   if (!human) return 'blocked'
+  const subjectName = subjectId
+    ? (current.game.players.find((player) => player.id === subjectId)?.name ?? subjectId)
+    : (human.name ?? 'you')
+  const textName =
+    subjectId && ['pitch_target', 'suggest_replacement', 'rally_votes_against'].includes(actionId)
+      ? subjectName
+      : (human.name ?? 'you')
 
   if (actionId === 'nominate') {
     const isProtected =
@@ -919,7 +988,7 @@ function routeHumanFacingAction(
   }
 
   const mode = getEffectiveSocialMode(current)
-  const content = pickHumanFacingText(actionId, actorId, human.name ?? 'you', week, phase)
+  const content = pickHumanFacingText(actionId, actorId, textName, week, phase)
   const tradeLead =
     actionId === 'trade_secrets'
       ? selectIntelFactForActor(
@@ -1246,6 +1315,22 @@ function candidateForPlayer(
       ? 'pitch_target'
       : null
   if (contactBoundary && nemesis && !strategicNemesisAction) return null
+  const allianceCampaign = getAllianceCampaignMove({
+    reality: state.social.reality,
+    actorId: player.id,
+    activeActorIds: state.game.players
+      .filter((candidate) => candidate.status !== 'evicted' && candidate.status !== 'jury')
+      .map((candidate) => candidate.id),
+    eligibleVoterIds: state.game.players
+      .filter(
+        (candidate) => candidate.status === 'active' || candidate.id === state.game.posWinnerId
+      )
+      .map((candidate) => candidate.id),
+    phase: state.game.phase,
+    lohId: state.game.lohId,
+    posWinnerId: state.game.posWinnerId,
+    atRiskActorIds: state.game.nomineeIds ?? [],
+  })
   const relationshipCandidate =
     dramaMode && attempt === 0 ? relationshipCandidateForPlayer(state, player) : null
   const pregnancyTestCandidate = dramaMode
@@ -1257,6 +1342,7 @@ function candidateForPlayer(
     dramaMode && attempt === 0
       ? chooseUtilityDramaAIMove({
           actorId: player.id,
+          aiGameIdentity: player.aiGameIdentity,
           players: state.game.players,
           relationships: state.social.relationships,
           memory: state.social.socialMemory,
@@ -1277,6 +1363,7 @@ function candidateForPlayer(
 
   const policyActionId =
     strategicNemesisAction ??
+    allianceCampaign?.actionId ??
     pregnancyTestCandidate?.actionId ??
     pregnancyCandidate?.actionId ??
     causalConflictMove?.actionId ??
@@ -1290,6 +1377,7 @@ function candidateForPlayer(
       phase: state.game.phase,
       decisionIndex: _tickCount * 5 + attempt,
       recentActions: history,
+      socialMemory: state.social.socialMemory,
       availableActionIds: Object.keys(socialConfig.actionWeights).filter((candidateId) =>
         isAISocialActionVisible(candidateId, dramaMode ? 'drama' : 'normal')
       ),
@@ -1300,6 +1388,7 @@ function candidateForPlayer(
     !pregnancyCandidate &&
     !pregnancyTestCandidate &&
     !dramaMove &&
+    !allianceCampaign &&
     allianceBias >= 20 &&
     policyActionId !== 'proposeAlliance' &&
     (_tickCount + attempt + player.id.length) % 5 === 0
@@ -1320,6 +1409,9 @@ function candidateForPlayer(
   } else if (strategicNemesisAction && human) {
     targetIds = [state.game.lohId!]
     subjectId = human.id
+  } else if (allianceCampaign) {
+    targetIds = allianceCampaign.targetIds
+    subjectId = allianceCampaign.subjectId
   } else if (pregnancyTestCandidate) {
     targetIds = pregnancyTestCandidate.targetIds
   } else if (pregnancyCandidate) {
@@ -1341,6 +1433,7 @@ function candidateForPlayer(
       phase: state.game.phase,
       decisionIndex: _tickCount * 5 + attempt,
       recentActions: history,
+      socialMemory: state.social.socialMemory,
     } as Parameters<typeof chooseTargetsFor>[2])
     targetIds = selected.length > 0 ? [selected[0]] : []
     subjectId = selected[1]
@@ -1367,6 +1460,7 @@ function candidateForPlayer(
       pregnancyTestCandidate?.reason ??
       pregnancyCandidate?.reason ??
       relationshipCandidate?.reason ??
+      allianceCampaign?.reason ??
       dramaMove?.reason ??
       `contextual policy attempt ${attempt + 1}`,
     relationshipIntent: relationshipCandidate?.relationshipIntent,
@@ -1436,7 +1530,7 @@ function executeCandidate(
   ).success
 }
 
-function tick(): void {
+function tick(synchronous = false): void {
   if (!_store || !_running || _pausedForBackground) {
     clearTimer()
     return
@@ -1501,7 +1595,7 @@ function tick(): void {
     playerIndex: 0,
     attempt: 0,
   }
-  processTickSlice(_cycle)
+  processTickSlice(_cycle, synchronous)
 }
 
 if (typeof window !== 'undefined') {

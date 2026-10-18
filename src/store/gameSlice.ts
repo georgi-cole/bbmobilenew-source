@@ -27,6 +27,7 @@ import type {
 } from '../types'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
+import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
 import {
@@ -1897,7 +1898,7 @@ function appendNominee(state: GameState, playerId: string) {
 function getAiThreatScore(
   state: GameState,
   player: Player,
-  options: { preferLoh?: boolean } = {}
+  options: { preferLoh?: boolean; actorId?: string } = {}
 ): number {
   const lohWins = player.stats?.lohWins ?? 0
   const posWins = player.stats?.posWins ?? 0
@@ -1907,6 +1908,10 @@ function getAiThreatScore(
     state.competitionSeasonStateByPlayerId?.[player.id]
   )
   let score = competitionRead.threatBonus
+  score +=
+    (options.actorId
+      ? state.strategicThreatReadsByActorId?.[options.actorId]?.[player.id]?.score
+      : undefined) ?? 0
   if (player.id === state.lohId) {
     score += options.preferLoh === true ? AI_LOH_REVENGE_THREAT_WEIGHT : AI_LOH_BASE_THREAT_WEIGHT
   }
@@ -2103,7 +2108,10 @@ function getSafetyRelationshipBreakdown(
 ): { total: number; factors: Record<string, AiDecisionFactor> } {
   const relationship = getStrategicRelationship(state, holderId, nominee.id)
   const allianceRead = getStrategicAllianceDecisionRead(state, holderId, nominee.id)
-  const threat = getAiThreatScore(state, nominee)
+  const threat = getAiThreatScore(state, nominee, { actorId: holderId })
+  const socialRead = state.strategicThreatReadsByActorId?.[holderId]?.[nominee.id]
+  const socialThreat = socialRead?.score ?? 0
+  const competitionThreat = threat - socialThreat
   const competitionRead = getCompetitionPerceptionRead(
     nominee.competitionProfile,
     state.competitionSeasonStateByPlayerId?.[nominee.id]
@@ -2129,7 +2137,12 @@ function getSafetyRelationshipBreakdown(
     return {
       total,
       factors: {
-        threatContribution: -threat * 3,
+        threatContribution: -competitionThreat * 3,
+        socialInfluenceThreat: -socialThreat * 3,
+        observedPersuasion: socialRead?.persuasion ?? 0,
+        observedNetworkReach: socialRead?.networkReach ?? 0,
+        publicStrategicRespect: socialRead?.publicRespect ?? 0,
+        estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
         expendablePawnPenalty: -expendablePawnPenalty,
         sandbagSuspicion: competitionRead.sandbagSuspicion,
         relationship: 'none',
@@ -2147,7 +2160,12 @@ function getSafetyRelationshipBreakdown(
   const holder = state.players.find((player) => player.id === holderId)
   const factors: Record<string, AiDecisionFactor> = {
     affinity: relationship.affinity,
-    threatPenalty: -threat * 3,
+    threatPenalty: -competitionThreat * 3,
+    socialInfluenceThreat: -socialThreat * 3,
+    observedPersuasion: socialRead?.persuasion ?? 0,
+    observedNetworkReach: socialRead?.networkReach ?? 0,
+    publicStrategicRespect: socialRead?.publicRespect ?? 0,
+    estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
     expendablePawnPenalty: -expendablePawnPenalty,
     sandbagSuspicion: competitionRead.sandbagSuspicion,
     tags: relationship.tags.join(', ') || 'none',
@@ -2246,10 +2264,17 @@ function getNominationTargetBreakdown(
   const allianceRead = getStrategicAllianceDecisionRead(state, lohId, candidate.id)
   const tags = new Set(relationship?.tags ?? [])
   const affinity = relationship?.affinity ?? 0
-  const threat = getAiThreatScore(state, candidate)
+  const threat = getAiThreatScore(state, candidate, { actorId: lohId })
+  const socialRead = state.strategicThreatReadsByActorId?.[lohId]?.[candidate.id]
+  const socialThreat = socialRead?.score ?? 0
   const knownJealousy = getKnownRomanticRivalPressure(state, lohId, candidate.id)
   const factors: Record<string, AiDecisionFactor> = {
-    threatContribution: threat * 4,
+    threatContribution: (threat - socialThreat) * 4,
+    socialInfluenceThreat: socialThreat * 4,
+    observedPersuasion: socialRead?.persuasion ?? 0,
+    observedNetworkReach: socialRead?.networkReach ?? 0,
+    publicStrategicRespect: socialRead?.publicRespect ?? 0,
+    estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
     affinityPenalty: -affinity,
     tags: [...tags].join(', ') || 'none',
     knownRomanticRivalJealousy: knownJealousy.contribution,
@@ -2309,9 +2334,16 @@ function getNominationTargetBreakdown(
   factors.voxMomentum = voxMomentum
   const loh = state.players.find((player) => player.id === lohId)
   const identityMode = getAiIdentityMode(state)
-  const identityBias = nominationIdentityBias(loh?.aiGameIdentity, identityMode)
+  const priorNominations = state.lastWeekNominationRecord
+  const wasRecentlyTargeted =
+    priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)
+  const identityBias = nominationIdentityBias(loh?.aiGameIdentity, identityMode, {
+    affinity,
+    tags: [...tags],
+    targetIdentity: candidate.aiGameIdentity,
+  })
   score += identityBias
-  factors.identityBias = identityBias
+  factors.personalityTargetBias = identityBias
   if (identityMode === 'vox_populi' && loh?.aiGameIdentity) {
     // Vox players who care about their public image prefer a house-consensus
     // nomination over a conspicuous personal feud. Media strategists still
@@ -2325,11 +2357,14 @@ function getNominationTargetBreakdown(
       factors.mediaStrategistThreat = mediaThreat
     }
   }
-  const priorNominations = state.lastWeekNominationRecord
-  if (priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)) {
-    // Revenge matters, but alliances and stronger strategic reasons can still outweigh it.
-    score += 32
-    factors.revenge = 32
+  if (wasRecentlyTargeted) {
+    // A recent nomination creates a grievance, with stronger reactions from
+    // volatile or impulsive holders while calm holders stay focused on other reasons.
+    const volatility = loh?.aiGameIdentity?.emotionalVolatility ?? 0.86
+    const impulsiveBoost = loh?.aiGameIdentity?.temperament === 'impulsive' ? 6 : 0
+    const revenge = Math.round(8 + volatility * 26 + impulsiveBoost)
+    score += revenge
+    factors.revenge = revenge
   }
   factors.total = score
   return { total: score, factors }
@@ -3128,6 +3163,7 @@ function pickStrategicAiPlayer(
   mode: 'highest' | 'lowest',
   options: {
     preferLoh?: boolean
+    actorId?: string
     debug?: {
       actorId?: string
       kind: 'replacement_nominee'
@@ -4971,7 +5007,9 @@ export function chooseAiEvictionVote(
     const allianceRead = getStrategicAllianceDecisionRead(state, voterId, nomineeId)
     const tags = new Set(relationship?.tags ?? [])
     const affinity = relationship?.affinity ?? 0
-    const threat = nominee ? getAiThreatScore(state, nominee) : 0
+    const threat = nominee ? getAiThreatScore(state, nominee, { actorId: voterId }) : 0
+    const socialRead = state.strategicThreatReadsByActorId?.[voterId]?.[nomineeId]
+    const socialThreat = socialRead?.score ?? 0
     const rng = mulberry32(
       (gameSeed ^ hashString(`vote:${state.week}:${voterId}:${nomineeId}`)) >>> 0
     )
@@ -4984,7 +5022,12 @@ export function chooseAiEvictionVote(
     // can still outweigh it.
     const backdoorTargetContribution = nomineeId === executedBackdoorTargetId ? 30 : 0
     const factors: Record<string, AiDecisionFactor> = {
-      threatContribution: threat * 8,
+      threatContribution: (threat - socialThreat) * 8,
+      socialInfluenceThreat: socialThreat * 8,
+      observedPersuasion: socialRead?.persuasion ?? 0,
+      observedNetworkReach: socialRead?.networkReach ?? 0,
+      publicStrategicRespect: socialRead?.publicRespect ?? 0,
+      estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
       affinityPenalty: -affinity,
       randomContribution: randomDraw * 4,
       earlyHumanGrace: -grace * 1.35,
@@ -5382,6 +5425,12 @@ const gameSlice = createSlice({
           state.bellaWill.lastHeirUpdateWeek = state.week
         }
       }
+    },
+    syncStrategicThreatReads(
+      state,
+      action: PayloadAction<NonNullable<GameState['strategicThreatReadsByActorId']>>
+    ) {
+      state.strategicThreatReadsByActorId = action.payload
     },
     syncStrategicAlliances(
       state,
@@ -10722,7 +10771,15 @@ const gameSlice = createSlice({
         const nominees = state.players.filter((p) => state.nomineeIds.includes(p.id))
         const finalHoh = state.players.find((p) => p.id === state.lohId)
         if (nominees.length > 0) {
-          const evictee = seededPick(rng, nominees)
+          const decision = chooseFinalThreeEvictee({
+            holderId: state.lohId,
+            holder: finalHoh,
+            nominees,
+            relationships: state.strategicRelationships,
+            alliances: state.strategicAlliances,
+            threatReads: state.strategicThreatReadsByActorId,
+          })
+          const evictee = decision?.player ?? seededPick(rng, nominees)
           assignSeasonPlacementOnExit(state, evictee.id)
           evictee.status = evictedStatus(state, evictee)
           state.nomineeIds = state.nomineeIds.filter((id) => id !== evictee.id)
@@ -13235,6 +13292,7 @@ export const {
   updatePlayer,
   recordConfessionalMisconduct,
   syncStrategicRelationships,
+  syncStrategicThreatReads,
   syncStrategicAlliances,
   setLohSocialPlan,
   recordHoldTheWallSafetyDeal,
@@ -13870,6 +13928,44 @@ function resolveDebugBlockers(
     return true
   }
 
+  if ((game.aiReplacementStep ?? 0) > 0) {
+    if (game.aiReplacementWaiting) dispatch(aiReplacementRendered())
+    else dispatch(advance())
+    return true
+  }
+
+  // Headless season simulations do not mount the presentation components that
+  // normally dismiss these UI-only pauses after the reducer has resolved them.
+  if (game.voteResults) {
+    dispatch(dismissVoteResults())
+    return true
+  }
+
+  if (game.evictionSplashId) {
+    dispatch(dismissEvictionSplash())
+    return true
+  }
+
+  if (game.evictionOverlayPlayerId) {
+    dispatch(clearEvictionOverlay(game.evictionOverlayPlayerId))
+    return true
+  }
+
+  if (game.twinShock?.pendingRevealAnimation) {
+    dispatch(completeTwinShockRevealAnimation())
+    return true
+  }
+
+  if (game.twinShock?.promptStage) {
+    dispatch(submitTwinShockAnswer('I give up'))
+    return true
+  }
+
+  if (game.weekendInterlude?.active) {
+    dispatch(setWeekendsEnabledForSeason(false))
+    return true
+  }
+
   if (game.dayStartShock) {
     dispatch(confirmDayStartShock())
     return true
@@ -13913,6 +14009,35 @@ function resolveDebugBlockers(
     } else {
       dispatch(clearBlockingFlags())
     }
+    return true
+  }
+
+  if (game.awaitingNominations && game.phase === 'nomination_results') {
+    const loh = game.players.find((player) => player.id === game.lohId)
+    const decisionMaker = getCupidHumanCoholder(game, game.lohId) ?? loh
+    const nomineeCount = game.doubleEviction?.weekActive === true ? 3 : 2
+    const eligible = decisionMaker ? getEligibleNominationTargets(game, decisionMaker.id) : []
+    const selected = pickStrategicAiPlayers(game, eligible, nomineeCount, rng, {
+      actorId: decisionMaker?.id,
+    })
+    if (selected.length === nomineeCount) {
+      dispatch(commitNominees(selected.map((player) => player.id)))
+    } else {
+      dispatch(clearBlockingFlags())
+    }
+    return true
+  }
+
+  if (
+    game.phase === 'pos_ceremony_results' &&
+    !game.awaitingPovDecision &&
+    !game.awaitingPovSaveTarget &&
+    !game.replacementNeeded &&
+    game.aiReplacementStep === 0
+  ) {
+    // The live UI advances after the holder's choice and replacement sequence.
+    // In a headless run, move into the vote window once those choices are settled.
+    dispatch(setPhase('social_2'))
     return true
   }
 
@@ -14099,6 +14224,21 @@ function resolveDebugBlockers(
     return true
   }
 
+  if (
+    game.phase === 'final3_comp1_minigame' ||
+    game.phase === 'final3_comp2_minigame' ||
+    game.phase === 'final3_comp3_minigame'
+  ) {
+    const participants = game.minigameContext?.participants ?? getFinalThreeActiveIds(game)
+    const candidates = participants
+      .map((id) => game.players.find((player) => player.id === id))
+      .filter((player): player is Player => Boolean(player))
+    const winner = pickStrategicAiPlayer(game, candidates, rng, 'highest')
+    if (winner) dispatch(applyF3MinigameWinner(winner.id))
+    else dispatch(clearBlockingFlags())
+    return true
+  }
+
   return false
 }
 
@@ -14141,7 +14281,7 @@ export const fastForwardToEviction = () => (dispatch: AppDispatch, getState: () 
  * until the game stabilises on the next week or a terminal endgame beat.
  */
 export const simulateImmediateEliminationCycle =
-  () => (dispatch: AppDispatch, getState: () => RootState) => {
+  (onSocialPhase?: () => void) => (dispatch: AppDispatch, getState: () => RootState) => {
     const initialWeek = getState().game.week
     const cycleSeed =
       (getState().game.seed ^
@@ -14149,6 +14289,7 @@ export const simulateImmediateEliminationCycle =
         (getState().game.players.length << 8)) >>>
       0
     const rng = mulberry32(cycleSeed)
+    const completedSocialPhases = new Set<string>()
 
     seedDebugCycleNoise(dispatch, getState(), rng)
 
@@ -14166,6 +14307,16 @@ export const simulateImmediateEliminationCycle =
         break
       }
 
+      if (onSocialPhase && (game.phase === 'social_1' || game.phase === 'social_2')) {
+        const phaseKey = `${game.week}:${game.phase}`
+        if (!completedSocialPhases.has(phaseKey)) {
+          completedSocialPhases.add(phaseKey)
+          onSocialPhase()
+          steps++
+          continue
+        }
+      }
+
       if (resolveDebugBlockers(dispatch, rootState, rng)) {
         steps++
         continue
@@ -14181,6 +14332,13 @@ export const simulateImmediateEliminationCycle =
         nextState.week === prevWeek &&
         !nextState.pendingEviction
       ) {
+        // Advancing can queue a UI prompt without changing phase (for example,
+        // the Day 4 twin-shock confessional). Resolve newly created blockers
+        // before treating an unchanged phase as a true stall.
+        if (resolveDebugBlockers(dispatch, getState(), rng)) {
+          steps++
+          continue
+        }
         dispatch(clearBlockingFlags())
         break
       }

@@ -1,4 +1,4 @@
-import { appendRealityEvent } from './events'
+import { appendRealityEvent, retainAllianceRequestHistory } from './events'
 import type { RealityDomainState, RealityAllianceRequest, RealityClock } from './types'
 
 /** Record decisions independently of the rolling feed; pre-approval votes exclude the candidate. */
@@ -12,6 +12,7 @@ export function recordAllianceRequestEvent(
 ): void {
   const allianceId = request.allianceId ?? request.resultAllianceId
   const invitationSent = Boolean(request.candidateInvitedAt)
+  const response = request.responsesByActorId?.[actorId]
   const participantIds = [
     ...new Set(
       [
@@ -33,13 +34,14 @@ export function recordAllianceRequestEvent(
       candidateId: request.candidateId,
       proposedName: request.proposedName,
       accepted,
+      ...(response ? { responseStyle: response.style, responseReason: response.reason } : {}),
     },
     targetIds: request.candidateId ? [request.candidateId] : [],
     participantIds,
     witnessIds: [],
     visibility: 'GROUP_VISIBLE',
     outcome: accepted === false || request.status === 'DECLINED' ? 'FAILURE' : 'SYSTEM',
-    reason: request.reason ?? request.purpose,
+    reason: response?.reason ?? request.reason ?? request.purpose,
     tags: ['ALLIANCE', 'REQUEST'],
     relatedFactIds: [],
     relatedPromiseIds: [],
@@ -49,4 +51,5 @@ export function recordAllianceRequestEvent(
   })
   request.history ??= []
   request.history.push(entry)
+  request.history = retainAllianceRequestHistory(request.history)
 }
