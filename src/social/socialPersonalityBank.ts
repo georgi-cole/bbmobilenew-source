@@ -10,6 +10,7 @@ export interface SocialPersonality {
   socialEnergy: number
   deceptionComfort: number
   publicConflictComfort: number
+  dramaSeeking: number
 }
 
 /**
@@ -30,6 +31,7 @@ export const SOCIAL_PERSONALITY_BANK: Record<string, Partial<SocialPersonality>>
     socialEnergy: 0.42,
     deceptionComfort: 0.57,
     publicConflictComfort: 0.3,
+    dramaSeeking: 0.14,
   },
   mimi: {
     warmth: 0.82,
@@ -43,6 +45,7 @@ export const SOCIAL_PERSONALITY_BANK: Record<string, Partial<SocialPersonality>>
     socialEnergy: 0.58,
     deceptionComfort: 0.24,
     publicConflictComfort: 0.2,
+    dramaSeeking: 0.06,
   },
   rae: {
     warmth: 0.55,
@@ -56,6 +59,7 @@ export const SOCIAL_PERSONALITY_BANK: Record<string, Partial<SocialPersonality>>
     socialEnergy: 0.82,
     deceptionComfort: 0.52,
     publicConflictComfort: 0.8,
+    dramaSeeking: 0.68,
   },
   nova: {
     warmth: 0.74,
@@ -69,6 +73,7 @@ export const SOCIAL_PERSONALITY_BANK: Record<string, Partial<SocialPersonality>>
     socialEnergy: 0.9,
     deceptionComfort: 0.5,
     publicConflictComfort: 0.54,
+    dramaSeeking: 0.32,
   },
   leo: {
     warmth: 0.48,
@@ -82,6 +87,7 @@ export const SOCIAL_PERSONALITY_BANK: Record<string, Partial<SocialPersonality>>
     socialEnergy: 0.85,
     deceptionComfort: 0.74,
     publicConflictComfort: 0.67,
+    dramaSeeking: 0.54,
   },
 }
 
@@ -108,6 +114,8 @@ function generatedProfile(playerId: string): SocialPersonality {
     socialEnergy: 0.4 + hashUnit(playerId, 9) * 0.5,
     deceptionComfort: 0.1 + hashUnit(playerId, 10) * 0.85,
     publicConflictComfort: 0.1 + hashUnit(playerId, 11) * 0.85,
+    // Generated profiles can be spirited, but do not default to conflict-seeking.
+    dramaSeeking: 0.08 + hashUnit(playerId, 12) * 0.32,
   }
 }
 

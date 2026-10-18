@@ -503,6 +503,8 @@ export interface RealityReentryAllianceSnapshot {
 export interface RealityReentryProfile {
   evictedAt: RealityClock
   alliances: RealityReentryAllianceSnapshot[]
+  /** Public nomination sources the evicted player can remember if they return. */
+  conflictTargetIds?: RealityActorId[]
 }
 
 export interface RealityRomance {

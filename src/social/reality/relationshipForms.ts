@@ -623,7 +623,23 @@ export function captureRealityReentryProfile(
   const alliances = Object.values(state.alliances)
     .filter((alliance) => alliance.status !== 'DISSOLVED' && alliance.memberIds.includes(playerId))
     .map(snapshotRealityAlliance)
-  state.reentryProfiles[playerId] = { evictedAt: { ...evictedAt }, alliances }
+  const latestNomination = state.events
+    .slice(-128)
+    .reverse()
+    .find(
+      (event) => event.type === 'CEREMONY_NOMINATIONS_LOCKED' && event.targetIds.includes(playerId)
+    )
+  const conflictTargetIds =
+    latestNomination?.actorId &&
+    latestNomination.actorId !== playerId &&
+    !latestNomination.tags.includes('automatic_nominee:' + playerId)
+      ? [latestNomination.actorId]
+      : []
+  state.reentryProfiles[playerId] = {
+    evictedAt: { ...evictedAt },
+    alliances,
+    conflictTargetIds,
+  }
 }
 
 export function reconcileRealityBattleBackReturn(
@@ -641,7 +657,7 @@ export function reconcileRealityBattleBackReturn(
       ...input.at,
       type: 'ALLIANCE_REENTRY_RECONCILED',
       actorId: input.playerId,
-      targetIds: [],
+      targetIds: profile.conflictTargetIds ?? [],
       participantIds: [input.playerId],
       witnessIds: [],
       visibility: 'PRIVATE',
