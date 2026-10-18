@@ -1359,12 +1359,14 @@ function candidateForPlayer(
           povProtectedIds: state.game.povProtectedIds,
         })
       : null
+  const causalConflictMove = dramaMove?.reason.startsWith('conflict:') ? dramaMove : null
 
   const policyActionId =
     strategicNemesisAction ??
     allianceCampaign?.actionId ??
     pregnancyTestCandidate?.actionId ??
     pregnancyCandidate?.actionId ??
+    causalConflictMove?.actionId ??
     relationshipCandidate?.actionId ??
     dramaMove?.actionId ??
     chooseActionFor(player.id, {
@@ -1414,6 +1416,9 @@ function candidateForPlayer(
     targetIds = pregnancyTestCandidate.targetIds
   } else if (pregnancyCandidate) {
     targetIds = pregnancyCandidate.targetIds
+  } else if (causalConflictMove) {
+    targetIds = [causalConflictMove.targetId]
+    subjectId = causalConflictMove.subjectId
   } else if (relationshipCandidate) {
     targetIds = relationshipCandidate.targetIds
   } else if (dramaMove) {

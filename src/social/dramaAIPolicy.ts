@@ -5,7 +5,13 @@ import { DRAMA_MODE_CONFIG } from './dramaModeConfig'
 import { getSocialExperienceRead, getSocialMotivePreferences } from './socialDecisionPreferences'
 import { getSocialPersonality } from './socialPersonalityBank'
 import { getSocialRuntimeConfig } from './socialRuntimeConfig'
+import { getPublicDramaActionAvailability, isPublicDramaAction } from './dramaPacing'
+import type { SocialActionLogEntry } from './types'
 import { isExposableRealitySecretType, resolveRealityAllianceIdForFact } from './reality/knowledge'
+
+const RECENT_ACTION_WINDOW = 64
+const RECENT_CONFLICT_EVENT_WINDOW = 48
+const CONFLICT_ACTIONS = new Set(['confront', 'startFight', 'public_callout'])
 
 interface DramaCandidate extends DramaAIMove {
   utility: number
@@ -33,8 +39,23 @@ function hashUnit(seed: string): number {
   return (Math.abs(hash) % 1_000_003) / 1_000_003
 }
 
+function recentActionTail(input: DramaAIMoveInput): SocialActionLogEntry[] {
+  return (input.recentActions ?? []).slice(-RECENT_ACTION_WINDOW)
+}
+
+function conflictCooldownOpen(input: DramaAIMoveInput): boolean {
+  const recent = recentActionTail(input)
+  for (let index = recent.length - 1; index >= 0; index -= 1) {
+    const entry = recent[index]
+    if (entry.actorId !== input.actorId || !CONFLICT_ACTIONS.has(entry.actionId)) continue
+    if (entry.week === undefined) continue
+    return input.week - entry.week >= 2
+  }
+  return true
+}
+
 function repeatedThisWeek(input: DramaAIMoveInput, actionId: string, targetId: string): number {
-  return (input.recentActions ?? []).filter(
+  return recentActionTail(input).filter(
     (entry) =>
       entry.actorId === input.actorId &&
       entry.actionId === actionId &&
@@ -45,7 +66,7 @@ function repeatedThisWeek(input: DramaAIMoveInput, actionId: string, targetId: s
 
 function usedThisWeek(input: DramaAIMoveInput, actionId: string, limit: number): boolean {
   return (
-    (input.recentActions ?? []).filter(
+    recentActionTail(input).filter(
       (entry) =>
         entry.actorId === input.actorId && entry.actionId === actionId && entry.week === input.week
     ).length >= limit
@@ -147,12 +168,320 @@ function bestExposureTarget(
   )[0]
 }
 
+interface RecentConflictSignal {
+  targetId: string
+  reason: string
+  pressure: number
+  leadingCausePressure: number
+}
+
+function isRecentConflictEvent(
+  input: DramaAIMoveInput,
+  event: NonNullable<DramaAIMoveInput['reality']>['events'][number],
+  maxAge = 14
+): boolean {
+  const age = input.week - event.day
+  return age >= 0 && age <= maxAge
+}
+
+function isKnownToActor(
+  event: NonNullable<DramaAIMoveInput['reality']>['events'][number],
+  actorId: string
+): boolean {
+  return (
+    event.participantIds.includes(actorId) ||
+    event.witnessIds.includes(actorId) ||
+    (event.publicEligible && ['HOUSE_PUBLIC', 'CEREMONY_PUBLIC'].includes(event.visibility))
+  )
+}
+
+function addConflictSignal(
+  signals: Map<string, RecentConflictSignal>,
+  targetId: string | undefined,
+  reason: string,
+  pressure: number
+): void {
+  if (!targetId) return
+  const current = signals.get(targetId)
+  if (!current) {
+    signals.set(targetId, { targetId, reason, pressure, leadingCausePressure: pressure })
+    return
+  }
+  current.pressure = Math.min(1.3, current.pressure + Math.min(0.16, pressure * 0.18))
+  if (pressure >= current.leadingCausePressure) {
+    current.reason = reason
+    current.leadingCausePressure = pressure
+  }
+}
+
+function recentKnownConflictSignals(
+  input: DramaAIMoveInput,
+  nominees: Set<string>
+): RecentConflictSignal[] {
+  const events = input.reality?.events.slice(-RECENT_CONFLICT_EVENT_WINDOW) ?? []
+  const signals = new Map<string, RecentConflictSignal>()
+  const targetingDaysByHoh = new Map<string, Set<number>>()
+  const latestNominationByTarget = new Map<string, (typeof events)[number]>()
+  for (const event of events) {
+    if (event.type !== 'CEREMONY_NOMINATIONS_LOCKED' || !event.actorId) continue
+    for (const targetId of event.targetIds) {
+      latestNominationByTarget.set(targetId, event)
+    }
+  }
+  for (const event of events) {
+    if (
+      event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+      isRecentConflictEvent(input, event) &&
+      event.actorId &&
+      event.targetIds.includes(input.actorId) &&
+      !event.tags.includes('automatic_nominee:' + input.actorId) &&
+      isKnownToActor(event, input.actorId)
+    ) {
+      const days = targetingDaysByHoh.get(event.actorId) ?? new Set<number>()
+      if (!days.has(event.day)) {
+        days.add(event.day)
+        targetingDaysByHoh.set(event.actorId, days)
+        addConflictSignal(
+          signals,
+          event.actorId,
+          days.size > 1
+            ? 'they repeatedly kept you as a target'
+            : 'their nomination put you on the block',
+          0.68
+        )
+      }
+    }
+    if (
+      event.type === 'ALLIANCE_BETRAYAL' &&
+      isRecentConflictEvent(input, event) &&
+      event.actorId &&
+      event.actorId !== input.actorId &&
+      event.targetIds.includes(input.actorId) &&
+      isKnownToActor(event, input.actorId)
+    ) {
+      addConflictSignal(signals, event.actorId, 'they betrayed your alliance directly', 0.94)
+    }
+    if (
+      event.type === 'ALLIANCE_PLAN_DEFIED' &&
+      isRecentConflictEvent(input, event) &&
+      event.actorId &&
+      event.actorId !== input.actorId &&
+      isKnownToActor(event, input.actorId)
+    ) {
+      addConflictSignal(signals, event.actorId, 'their vote broke a plan you were part of', 0.82)
+    }
+  }
+
+  const returnEvents = events.filter(
+    (event) =>
+      event.type === 'ALLIANCE_REENTRY_RECONCILED' &&
+      event.actorId === input.actorId &&
+      isRecentConflictEvent(input, event)
+  )
+  for (const returnEvent of returnEvents) {
+    for (const targetId of returnEvent.targetIds.slice(0, 2)) {
+      addConflictSignal(signals, targetId, 'you returned after they publicly targeted you', 0.94)
+    }
+    if (returnEvent.targetIds.length === 0) {
+      const nomination = latestNominationByTarget.get(input.actorId)
+      if (
+        nomination?.actorId &&
+        isRecentConflictEvent(input, nomination) &&
+        !nomination.tags.includes('automatic_nominee:' + input.actorId) &&
+        isKnownToActor(nomination, input.actorId)
+      ) {
+        addConflictSignal(
+          signals,
+          nomination.actorId,
+          'you returned after they publicly targeted you',
+          0.88
+        )
+      }
+    }
+  }
+
+  for (let index = 0; index < events.length; index += 1) {
+    const eviction = events[index]
+    if (
+      eviction.type !== 'CEREMONY_EVICTION' ||
+      !isRecentConflictEvent(input, eviction, 7) ||
+      !isKnownToActor(eviction, input.actorId)
+    )
+      continue
+    const evicteeId = eviction.targetIds.find((id) => id !== input.actorId)
+    if (!evicteeId) continue
+    const romanticArc = input.network.arcs.find(
+      (arc) =>
+        arc.type === 'romance' &&
+        (arc.public || ['established', 'climax'].includes(arc.stage)) &&
+        arc.participantIds.includes(input.actorId) &&
+        arc.participantIds.includes(evicteeId)
+    )
+    if (!romanticArc) continue
+    const nomination = latestNominationByTarget.get(evicteeId)
+    if (
+      nomination?.actorId &&
+      nomination.actorId !== input.actorId &&
+      isRecentConflictEvent(input, nomination) &&
+      !nomination.tags.includes('automatic_nominee:' + evicteeId) &&
+      isKnownToActor(nomination, input.actorId)
+    ) {
+      addConflictSignal(
+        signals,
+        nomination.actorId,
+        'the HOH nominated your partner before they were evicted',
+        0.86
+      )
+    }
+  }
+
+  if (
+    input.phase === 'social_2' &&
+    nominees.has(input.actorId) &&
+    input.posWinnerId &&
+    input.posWinnerId !== input.actorId &&
+    !(input.povProtectedIds ?? []).includes(input.actorId) &&
+    input.lohId &&
+    input.lohId !== input.actorId
+  ) {
+    const nomination = latestNominationByTarget.get(input.actorId)
+    const stillTargetedByLoh =
+      nomination?.actorId === input.lohId &&
+      isRecentConflictEvent(input, nomination) &&
+      !nomination.tags.includes('automatic_nominee:' + input.actorId) &&
+      isKnownToActor(nomination, input.actorId)
+    if (stillTargetedByLoh) {
+      addConflictSignal(signals, input.lohId, 'you are still nominated after missing Safety', 0.94)
+    }
+  }
+
+  const activeIds = new Set(
+    input.players
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
+  return [...signals.values()]
+    .filter((signal) => activeIds.has(signal.targetId))
+    .sort(
+      (left, right) =>
+        right.pressure - left.pressure ||
+        relation(input, input.actorId, left.targetId) -
+          relation(input, input.actorId, right.targetId) ||
+        left.targetId.localeCompare(right.targetId)
+    )
+}
+
+function addCausalConflictCandidates(
+  candidates: DramaCandidate[],
+  input: DramaAIMoveInput,
+  nominees: Set<string>,
+  personality: ReturnType<typeof getSocialPersonality>
+): void {
+  const identity = input.players.find((player) => player.id === input.actorId)?.aiGameIdentity
+  const archetypeBias =
+    identity?.archetype === 'chaos_agent'
+      ? 0.16
+      : ['aggressive_competitor', 'antihero', 'opportunist', 'risk_taker'].includes(
+            identity?.archetype ?? ''
+          )
+        ? 0.07
+        : 0
+  const temperamentBias =
+    identity?.temperament === 'impulsive' ? 0.1 : identity?.temperament === 'emotional' ? 0.06 : 0
+  const willingness =
+    personality.dramaSeeking * 0.42 +
+    personality.assertiveness * 0.2 +
+    personality.emotionalReactivity * 0.16 +
+    (1 - personality.forgiveness) * 0.1 +
+    personality.publicConflictComfort * 0.12 +
+    archetypeBias +
+    temperamentBias
+  const signals = recentKnownConflictSignals(input, nominees)
+  const canGoPublic = getPublicDramaActionAvailability(input.network, input.week).available
+  for (const signal of signals.slice(0, 2)) {
+    const resentment = input.memory[input.actorId]?.[signal.targetId]?.resentment ?? 0
+    const pressure = Math.min(1.4, signal.pressure + Math.max(0, Math.min(0.16, resentment / 250)))
+    if (willingness < 0.46 && pressure < 0.94) continue
+    const actionId =
+      canGoPublic &&
+      pressure >= 1.08 &&
+      personality.emotionalReactivity >= 0.82 &&
+      personality.assertiveness >= 0.76 &&
+      personality.publicConflictComfort >= 0.78
+        ? 'startFight'
+        : canGoPublic &&
+            pressure >= 0.94 &&
+            personality.dramaSeeking >= 0.5 &&
+            personality.publicConflictComfort >= 0.7
+          ? 'public_callout'
+          : 'confront'
+    addCandidate(candidates, input, {
+      actionId,
+      targetId: signal.targetId,
+      reason: signal.reason + '; pressure ' + pressure.toFixed(2),
+      motive: 'conflict',
+      utility:
+        0.36 +
+        pressure * 0.64 +
+        personality.dramaSeeking * 0.34 +
+        personality.assertiveness * 0.18 +
+        personality.emotionalReactivity * 0.15 +
+        personality.publicConflictComfort * 0.1 -
+        personality.forgiveness * 0.16,
+    })
+  }
+
+  if (willingness >= 0.66 && personality.publicConflictComfort >= 0.6) {
+    const activeIds = new Set(
+      input.players
+        .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+        .map((player) => player.id)
+    )
+    const opportunity = input.reality?.events
+      .slice(-RECENT_CONFLICT_EVENT_WINDOW)
+      .reverse()
+      .find(
+        (event) =>
+          event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+          isRecentConflictEvent(input, event, 7) &&
+          event.actorId !== input.actorId &&
+          Boolean(event.actorId && activeIds.has(event.actorId)) &&
+          !event.targetIds.includes(input.actorId) &&
+          event.targetIds.some((id) => !event.tags.includes('automatic_nominee:' + id)) &&
+          event.visibility === 'CEREMONY_PUBLIC' &&
+          event.publicEligible
+      )
+    if (opportunity?.actorId) {
+      const actionId =
+        canGoPublic && personality.publicConflictComfort >= 0.72 ? 'public_callout' : 'confront'
+      addCandidate(candidates, input, {
+        actionId,
+        targetId: opportunity.actorId,
+        reason: 'stirring up a public nomination dispute for the fun of it',
+        motive: 'conflict',
+        utility:
+          0.62 +
+          willingness * 0.55 +
+          personality.dramaSeeking * 0.28 +
+          personality.gossipPropensity * 0.1,
+      })
+    }
+  }
+}
+
 function addCandidate(
   candidates: DramaCandidate[],
   input: DramaAIMoveInput,
   candidate: Omit<DramaCandidate, 'utility'> & { utility: number }
 ): void {
   if (!candidate.targetId || candidate.targetId === input.actorId) return
+  if (candidate.motive === 'conflict' && !conflictCooldownOpen(input)) return
+  if (
+    isPublicDramaAction(candidate.actionId) &&
+    !getPublicDramaActionAvailability(input.network, input.week).available
+  ) {
+    return
+  }
   const repeats = repeatedThisWeek(input, candidate.actionId, candidate.targetId)
   const repetitionPenalty = getSocialRuntimeConfig().ai.repetitionPenalty
   const noise =
@@ -526,7 +855,28 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
     })
   }
 
-  if (nominees.has(input.actorId) && input.posWinnerId && input.posWinnerId !== input.actorId) {
+  const safetyDecisionAlreadyMissed =
+    input.phase === 'social_2' &&
+    Boolean(
+      input.lohId &&
+      input.reality?.events
+        .slice(-RECENT_CONFLICT_EVENT_WINDOW)
+        .some(
+          (event) =>
+            event.type === 'CEREMONY_NOMINATIONS_LOCKED' &&
+            event.actorId === input.lohId &&
+            event.targetIds.includes(input.actorId) &&
+            !event.tags.includes('automatic_nominee:' + input.actorId) &&
+            isKnownToActor(event, input.actorId)
+        )
+    )
+  if (
+    nominees.has(input.actorId) &&
+    input.posWinnerId &&
+    input.posWinnerId !== input.actorId &&
+    !safetyDecisionAlreadyMissed &&
+    !usedThisWeek(input, 'ask_use_safety', 1)
+  ) {
     addCandidate(candidates, input, {
       actionId: 'ask_use_safety',
       targetId: input.posWinnerId,
@@ -643,6 +993,8 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
         personality.gossipPropensity * 0.18,
     })
   }
+
+  addCausalConflictCandidates(candidates, input, nominees, personality)
 
   const selected = weightedChoice(input, candidates)
   return selected

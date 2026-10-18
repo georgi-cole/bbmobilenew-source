@@ -10,6 +10,8 @@ export const DRAMA_MODE_CONFIG = {
     maxPublicEventsPerWeek: 1,
     publicEventCooldownWeeks: 2,
     maxStoredEvents: 40,
+    maxStoredArcs: 32,
+    maxStoredRumours: 64,
     rumourLifetimeWeeks: 4,
   },
   arcs: {

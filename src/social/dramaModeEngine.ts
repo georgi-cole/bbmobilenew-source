@@ -1,4 +1,5 @@
 import { normalizeAffinity } from './affinityUtils'
+import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import { DRAMA_DIALOGUE_BANK, DRAMA_MODE_CONFIG, pickDramaCopy } from './dramaModeConfig'
 import { areSocialFamilyMembers } from './socialRuntimeConfig'
 import { getPublicDramaActionAvailability, isPublicDramaAction } from './dramaPacing'
@@ -21,7 +22,6 @@ import type {
   SocialMemoryMap,
 } from './types'
 import type { RealityDomainState } from './reality/types'
-import type { AiGameIdentity } from '../ai/aiGameIdentity'
 
 export interface DramaPlayer {
   id: string
@@ -96,6 +96,22 @@ export interface DramaAIMove {
   reason: string
 }
 
+function pruneStoredDramaArcs(arcs: DramaArc[]): DramaArc[] {
+  const activeIds = new Set(
+    arcs
+      .filter((arc) => arc.status === 'active')
+      .slice(-DRAMA_MODE_CONFIG.pacing.maxActiveArcs)
+      .map((arc) => arc.id)
+  )
+  const resolvedIds = new Set(
+    arcs
+      .filter((arc) => arc.status !== 'active')
+      .slice(-DRAMA_MODE_CONFIG.pacing.maxStoredArcs)
+      .map((arc) => arc.id)
+  )
+  return arcs.filter((arc) => activeIds.has(arc.id) || resolvedIds.has(arc.id))
+}
+
 export function createInitialDramaSocialNetwork(): DramaSocialNetwork {
   return {
     arcs: [],
@@ -121,11 +137,11 @@ export function normalizeDramaSocialNetwork(
   const base = createInitialDramaSocialNetwork()
   if (!value) return base
   return {
-    arcs: value.arcs ?? [],
+    arcs: pruneStoredDramaArcs(value.arcs ?? []),
     alliances: value.alliances ?? [],
-    rumours: value.rumours ?? [],
+    rumours: (value.rumours ?? []).slice(-DRAMA_MODE_CONFIG.pacing.maxStoredRumours),
     beliefs: value.beliefs ?? [],
-    events: value.events ?? [],
+    events: (value.events ?? []).slice(-DRAMA_MODE_CONFIG.pacing.maxStoredEvents),
     pacing: { ...base.pacing, ...(value.pacing ?? {}) },
   }
 }
@@ -253,6 +269,7 @@ function startOrAdvanceArc(
       status: 'active',
     }
     network.arcs.push(arc)
+    network.arcs = pruneStoredDramaArcs(network.arcs)
   } else {
     arc.intensity = clamp(arc.intensity + amount)
     arc.stage = stageFor(arc.intensity)
@@ -402,6 +419,7 @@ function makeRumour(
     sourceChain: [actorId],
   }
   network.rumours.push(rumour)
+  network.rumours = network.rumours.slice(-DRAMA_MODE_CONFIG.pacing.maxStoredRumours)
   // Hearing a claim always creates a belief record. `believed` describes
   // whether it currently clears the listener's confidence threshold; the
   // lower-confidence representation remains available for later evidence.
@@ -430,11 +448,9 @@ export function applyDramaActionEffect(
   ) {
     return network
   }
-  if (
-    isPublicDramaAction(input.actionId) &&
-    !getPublicDramaActionAvailability(network, input.week).available
-  ) {
-    return network
+  if (input.actionId === 'startFight') {
+    network.pacing.publicEventsThisWeek += 1
+    network.pacing.lastPublicEventWeek = input.week
   }
   if (input.actionId === 'proposeAlliance')
     upsertAlliance(network, input.actorId, input.targetId, input.week, 'proposal')
