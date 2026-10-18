@@ -96,6 +96,30 @@
   color: var(--rw-muted);
 }
 
+.rw-loading--backdrop {
+  gap: 12px;
+  background: #040615;
+}
+
+.rw-loading--backdrop p {
+  margin: 0;
+}
+
+.rw-preloader-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: var(--rw-gold);
+  border-radius: 50%;
+  animation: rw-preloader-spin 700ms linear infinite;
+}
+
+@keyframes rw-preloader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Replaces the previous rapid 0.18 s flicker with one slow cinematic pulse. */
 .rw-devil-mode {
   background:
@@ -1058,6 +1082,42 @@
   font-size: 0.84rem;
   background: rgba(119, 31, 47, 0.24);
   border: 1px solid rgba(255, 99, 117, 0.17);
+}
+
+.rw-summary-tiebreak-msg {
+  width: 100%;
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 11px;
+  text-align: center;
+  color: #a7f3d0;
+  font-size: 0.84rem;
+  background: rgba(87, 67, 25, 0.26);
+  border: 1px solid rgba(255, 201, 87, 0.22);
+}
+
+.rw-tiebreak-status {
+  color: #ffe39a;
+  background: rgba(121, 82, 19, 0.38);
+  border: 1px solid rgba(255, 201, 87, 0.3);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rw-tiebreak-instructions {
+  width: min(100%, 460px);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #ffe9b2;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(121, 82, 19, 0.23);
+  border: 1px solid rgba(255, 201, 87, 0.19);
 }
 
 .rw-summary-footer {
