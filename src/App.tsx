@@ -20,6 +20,10 @@ import { getAudioRouteHash, subscribeToAudioRoute } from './services/sound/audio
 import AudioGate from './components/AudioGate/AudioGate'
 import { loadRemoteConfig } from './remoteConfig/remoteConfigSlice'
 import { refreshSeasonDirectorPlan } from './store/gameSlice'
+import {
+  applyStoryIconRotation,
+  resetStoryIconRotationForNextActivation,
+} from './services/storyIconRotation'
 import { installGameDiagnostics } from './services/diagnostics/gameDiagnostics'
 import LiveOpsController from './components/LiveOpsController/LiveOpsController'
 import VipEntitlementSync from './components/VipEntitlementSync/VipEntitlementSync'
@@ -69,13 +73,43 @@ export default function App() {
   useEffect(() => {
     installGameDiagnostics()
     void SoundManager.init()
+    let remoteConfigReady = false
+    let rotationEnabled = true
+    let wasVisible = document.visibilityState === 'visible'
+
+    const rotateIconIfReady = () => {
+      if (!remoteConfigReady || document.visibilityState !== 'visible') return
+      void applyStoryIconRotation(rotationEnabled)
+    }
+
     const refreshRemoteConfig = async () => {
       await store.dispatch(loadRemoteConfig())
+      rotationEnabled = store.getState().remoteConfig.config?.iconRotation?.enabled !== false
+      remoteConfigReady = true
+      rotateIconIfReady()
       // A fresh install creates the initial Season 1 state before the async
       // live-config request returns. Attach the Director only while that season
       // is still untouched; active/saved seasons keep their original snapshot.
       store.dispatch(refreshSeasonDirectorPlan())
     }
+
+    const handleVisibilityChange = () => {
+      const isVisible = document.visibilityState === 'visible'
+      if (isVisible === wasVisible) return
+      wasVisible = isVisible
+
+      if (isVisible) {
+        if (remoteConfigReady) {
+          void refreshRemoteConfig()
+        } else {
+          rotateIconIfReady()
+        }
+      } else {
+        resetStoryIconRotationForNextActivation()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     void refreshRemoteConfig()
     const refreshId = window.setInterval(
       () => {
@@ -83,7 +117,10 @@ export default function App() {
       },
       5 * 60 * 1000
     )
-    return () => window.clearInterval(refreshId)
+    return () => {
+      window.clearInterval(refreshId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [])
 
   return (

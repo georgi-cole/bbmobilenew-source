@@ -1,6 +1,10 @@
 {
   "_comment": "Copy this file to live-config.json and edit values to control the app centrally.",
   "_comment2": "All fields are optional. Remove any field to use the built-in default.",
+  "iconRotation": {
+    "_comment": "Native launcher icon progression. Set enabled to false to return to stage 1 and stop advancing.",
+    "enabled": true
+  },
   "season": {
     "theme": {
       "_comment": "Override CSS accent colours. Any valid CSS color string.",

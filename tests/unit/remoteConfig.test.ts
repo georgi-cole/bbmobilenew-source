@@ -58,6 +58,13 @@ describe('sanitiseRemoteConfig', () => {
     expect(sanitiseRemoteConfig({})).toEqual({})
   })
 
+  it('keeps the native app icon rotation kill switch and drops invalid values', () => {
+    expect(sanitiseRemoteConfig({ iconRotation: { enabled: false, stage: 99 } })).toEqual({
+      iconRotation: { enabled: false },
+    })
+    expect(sanitiseRemoteConfig({ iconRotation: { enabled: 'yes' } })).toEqual({})
+  })
+
   it('keeps valid string fields', () => {
     const raw = {
       season: {
