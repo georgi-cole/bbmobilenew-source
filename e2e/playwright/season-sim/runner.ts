@@ -398,9 +398,9 @@ async function resolveConfessional(page: Page): Promise<boolean> {
     else if (!selectedAnOption) return false
   }
   const session = page.getByTestId('required-confessional-session')
-  const returnHome = session.getByRole('button', { name: 'Return to the Hub' })
-  await expect(returnHome).toBeVisible({ timeout: UI_TIMEOUT })
-  await returnHome.click()
+  const sessionReturnHome = session.getByRole('button', { name: 'Return to the Hub' })
+  await expect(sessionReturnHome).toBeVisible({ timeout: UI_TIMEOUT })
+  await sessionReturnHome.click()
   // Vote announcements pause their auto-dismiss timer while hovered. Keep the
   // simulated pointer clear of the overlay so the eviction flow can continue.
   await movePointerOutsideViewport(page)
