@@ -164,7 +164,8 @@ export function evaluateSocialActionEligibility({
     actorId &&
     reality &&
     action.id === 'consult_alliance' &&
-    targets.some((id) => !findRealityAllianceForConsultation(reality, actorId, id))
+    (targets.length === 0 ||
+      targets.some((id) => !findRealityAllianceForConsultation(reality, actorId, id)))
   )
     return unavailable('This commitment is not ready for a strategy meeting')
 

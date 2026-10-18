@@ -177,6 +177,7 @@ export default function ActionGrid({
   function hasContextVisibility(action: SocialActionDefinition): boolean {
     return (
       (!allianceContext || action.id === 'consult_alliance') &&
+      (action.id !== 'consult_alliance' || (consultationTargetIds?.size ?? 0) > 0) &&
       action.enabled !== false &&
       isActionAllowedForRealityPreset(action, realityModePreset) &&
       isHumanSocialActionVisible(action, dramaMode ? 'drama' : 'normal') &&
