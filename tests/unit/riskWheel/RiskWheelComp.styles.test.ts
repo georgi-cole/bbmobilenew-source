@@ -41,7 +41,7 @@ describe('RiskWheelComp styles', () => {
     const stagePath = resolve(process.cwd(), 'public/assets/minigames/risk-wheel-vip/stage.webp')
     const vipBackgroundPath = resolve(
       process.cwd(),
-      'src/features/riskWheel/risk_wheel_background.png'
+      'src/features/riskWheel/risk_wheel_background_low.webp'
     )
     const generatedAssets = [
       'wheel-frame.webp',
@@ -53,8 +53,8 @@ describe('RiskWheelComp styles', () => {
     expect(css).toContain('.rw-root--vip {')
     expect(source).toContain('data-testid="rw-vip-showroom"')
     expect(source).toContain('data-testid="rw-vip-showroom-bg"')
-    expect(source).toContain('risk_wheel_background.png')
-    expect(source).toContain('riskWheelBackground')
+    expect(source).toContain('risk_wheel_background_low.webp')
+    expect(source).toContain('riskWheelBackgroundLow')
     expect(css).toContain('.rw-vip-showroom-bg')
     expect(css).toContain('.rw-wheel-sector--vip')
     expect(css).toContain('.rw-vip-result-halo')
@@ -78,7 +78,7 @@ describe('RiskWheelComp styles', () => {
     generatedAssets.forEach((assetPath) => {
       expect(statSync(assetPath).size).toBeLessThan(50_000)
     })
-    expect(statSync(vipBackgroundPath).size).toBeGreaterThan(0)
+    expect(statSync(vipBackgroundPath).size).toBeLessThan(75_000)
     const premiumPackSize = [stagePath, ...generatedAssets].reduce(
       (sum, assetPath) => sum + statSync(assetPath).size,
       0

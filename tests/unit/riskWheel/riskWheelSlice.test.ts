@@ -206,27 +206,23 @@ describe('computeEliminatedPlayers', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('handles tie at cutoff: deterministically picks from tied players', () => {
-    // a=0, b=0, c=100 — eliminate 1 from tie between a and b
+  it('keeps cutoff ties for the one-spin tie-breaker', () => {
+    // a=0, b=0, c=100 — neither tied player is eliminated before the playoff
     const scores = { a: 0, b: 0, c: 100 };
     const result1 = computeEliminatedPlayers(['a', 'b', 'c'], scores, 1, 42);
     const result2 = computeEliminatedPlayers(['a', 'b', 'c'], scores, 1, 42);
-    expect(result1).toHaveLength(1);
-    expect(['a', 'b']).toContain(result1[0]);
-    // deterministic: same seed → same result
+    expect(result1).toEqual([]);
     expect(result1).toEqual(result2);
   });
 
-  it('different seeds produce potentially different tie-break results', () => {
+  it('does not use the game seed to split a cutoff tie', () => {
     const scores = { a: 0, b: 0, c: 100, d: 200 };
     const results = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {
       const r = computeEliminatedPlayers(['a', 'b', 'c', 'd'], scores, 1, seed);
-      results.add(r[0]);
+      results.add(r.join(','));
     }
-    // Over many seeds we should see both 'a' and 'b' chosen
-    expect(results.has('a')).toBe(true);
-    expect(results.has('b')).toBe(true);
+    expect(results).toEqual(new Set(['']));
   });
 
   it('eliminates everyone if count >= length', () => {
