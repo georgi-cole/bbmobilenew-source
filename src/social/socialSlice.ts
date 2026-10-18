@@ -62,6 +62,7 @@ import type {
   RealitySecret,
   RealityThread,
 } from './reality'
+import { pruneEvictedAiPrivateState as pruneEvictedAiPrivateRealityState } from './reality/evictedAiRetention'
 import {
   addRealityFact,
   applyLegacyRelationshipUpdateToReality,
@@ -640,6 +641,24 @@ const socialSlice = createSlice({
     replaceRealityDomain(state, action: PayloadAction<RealityDomainState>) {
       state.reality = normalizeRealityDomainState(action.payload, state.relationships)
       projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+    },
+    /** Remove operational cognition for AIs who can no longer affect the season. */
+    pruneEvictedAiPrivateState(state, action: PayloadAction<string[]>) {
+      state.reality = pruneEvictedAiPrivateRealityState(
+        state.reality as RealityDomainState,
+        action.payload
+      )
+      const actorIds = new Set(action.payload)
+      for (const actorId of actorIds) {
+        delete state.energyBank[actorId]
+        delete state.influenceBank[actorId]
+        delete state.infoBank[actorId]
+        delete state.influenceWeights[actorId]
+        delete state.socialMemory[actorId]
+      }
+      for (const targets of Object.values(state.socialMemory)) {
+        for (const actorId of actorIds) delete targets[actorId]
+      }
     },
     /** Commits an orchestrator-produced domain that already shares unchanged branches. */
     commitRealityDomainUpdate(
@@ -1447,6 +1466,7 @@ export const {
   initializeRealitySimulation,
   replaceRealitySimulation,
   replaceRealityDomain,
+  pruneEvictedAiPrivateState,
   commitRealityDomainUpdate,
   commitRealityOutcome,
   ensureRealityDomainActors,
