@@ -1,4 +1,4 @@
-﻿/**
+/**
  * socialMiddleware — Redux middleware that hooks the SocialEngine into the
  * game phase lifecycle and dispatches social resource deltas for game events.
  *
@@ -71,6 +71,7 @@ import type {
   SocialMemoryMap,
 } from './types'
 import { buildKnownRomanticRivalEvidence } from './reality/knownRomanticRivalEvidence'
+import { buildStrategicThreatSnapshot } from './strategicThreat'
 import { advanceDramaNetwork, normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { seedWeekRelationships } from './weekSocialSeed'
 import { DEFAULT_ENERGY, HUMAN_SOCIAL_ALLOWANCE } from './constants'
@@ -1868,6 +1869,13 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
   if (type === 'game/advance') {
     const prevState = api.getState() as StateWithGame
     api.dispatch({
+      type: 'game/syncStrategicThreatReads',
+      payload: buildStrategicThreatSnapshot({
+        reality: prevState.social?.reality,
+        players: prevState.game?.players ?? [],
+      }),
+    })
+    api.dispatch({
       type: 'game/syncStrategicRelationships',
       payload: buildStrategicRelationshipSnapshot(prevState),
     })
@@ -2353,6 +2361,13 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
         })
       )
       const reconciledState = api.getState() as StateWithGame
+      api.dispatch({
+        type: 'game/syncStrategicThreatReads',
+        payload: buildStrategicThreatSnapshot({
+          reality: reconciledState.social?.reality,
+          players: reconciledState.game?.players ?? [],
+        }),
+      })
       api.dispatch({
         type: 'game/syncStrategicRelationships',
         payload: buildStrategicRelationshipSnapshot(reconciledState),

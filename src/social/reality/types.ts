@@ -425,6 +425,13 @@ export type RealityAllianceRequestStatus =
   | 'WITHDRAWN'
   | 'INVALIDATED'
 
+export type RealityAllianceResponseStyle = 'ENTHUSIASTIC' | 'HESITANT' | 'LIMITED' | 'DECLINED'
+
+export interface RealityAllianceResponse {
+  style: RealityAllianceResponseStyle
+  reason: string
+}
+
 export interface RealityAllianceRequest {
   id: string
   history?: RealitySocialEvent[]
@@ -440,6 +447,8 @@ export interface RealityAllianceRequest {
   /** Member admission ballot outcome with names and any leader tie-break. */
   voteSummary?: string
   consents: Record<RealityActorId, boolean>
+  /** AI members explain the terms they accept or decline, including conditional buy-in. */
+  responsesByActorId?: Record<RealityActorId, RealityAllianceResponse>
   rosterRevision?: number
   governanceRevision?: number
   leaderId?: RealityActorId
@@ -640,6 +649,8 @@ export interface RealitySocialEvent extends RealityClock {
     candidateId?: RealityActorId
     proposedName?: string
     accepted?: boolean
+    responseStyle?: RealityAllianceResponseStyle
+    responseReason?: string
   }
   /** A durable snapshot for alliance-history events, even after the live roster is cleared. */
   allianceSnapshot?: {

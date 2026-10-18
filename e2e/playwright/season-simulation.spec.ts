@@ -1,6 +1,10 @@
 import { expect, test } from './support/test'
 import { defaultSimulationConfig, runSeasonSimulation } from './season-sim/runner'
 
+// Long journeys are better diagnosed through the structured auditor report
+// than through a multi-hundred-megabyte trace.
+test.use({ trace: 'off' })
+
 test.describe('Human-like season simulation @season-sim', () => {
   test('strategic player starts Day 1 through the visible UI and reports coverage @smoke @mobile', async ({
     page,

@@ -181,6 +181,8 @@ export function allianceEventText(
     case 'ALLIANCE_INVITATION_SENT':
       return `${name} approved ${candidate === 'You' ? 'your' : `${candidate}'s`} admission and sent an invitation.`
     case 'ALLIANCE_REQUEST_CONSENT':
+      if (request?.responseReason)
+        return `${actor} ${request.accepted ? 'accepted' : 'declined'}: “${request.responseReason}”`
       return `${actor} ${request?.accepted ? 'accepted' : 'declined'} ${request?.kind === 'ADMIT' ? `the invitation to ${name}` : `the proposal for ${name}`}.`
     case 'ALLIANCE_REQUEST_ACCEPTED':
       return `${name}'s ${request?.kind === 'ADMIT' ? 'admission' : 'proposal'} was agreed.`

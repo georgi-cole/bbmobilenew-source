@@ -1,5 +1,6 @@
 import { expect, test as base, type ConsoleMessage, type Page } from '@playwright/test'
 import type { RootState } from '../../../src/store/store'
+import { seedsForRepeat } from '../season-sim/seeds'
 
 type BrowserErrorSource = 'console' | 'page'
 
@@ -33,7 +34,10 @@ function consoleError(message: ConsoleMessage): BrowserError | null {
   return message.type() === 'error' ? { source: 'console', message: message.text() } : null
 }
 
-async function installUnhandledRejectionReporter(page: Page): Promise<void> {
+async function installUnhandledRejectionReporter(
+  page: Page,
+  newSeasonFixture = E2E_NEW_SEASON_FIXTURE
+): Promise<void> {
   await page.addInitScript(
     ({ newSeasonFixture, skipUnloadAutosave }) => {
       Object.defineProperty(window, '__E2E__', {
@@ -86,7 +90,7 @@ async function installUnhandledRejectionReporter(page: Page): Promise<void> {
       })
     },
     {
-      newSeasonFixture: E2E_NEW_SEASON_FIXTURE,
+      newSeasonFixture,
       skipUnloadAutosave: process.env.SEASON_SIM_SKIP_UNLOAD_AUTOSAVE === '1',
     }
   )
@@ -307,7 +311,21 @@ export const test = base.extend<{ browserErrors: BrowserErrorCollector }>({
           status: 200,
         })
       })
-      await installUnhandledRejectionReporter(page)
+      const repeatedSeeds = process.env.SEASON_SIM_BATCH_ID
+        ? seedsForRepeat(
+            {
+              ...E2E_NEW_SEASON_FIXTURE,
+              actor: optionalSeed('SEASON_SIM_ACTOR_SEED', 0x7a11ce42),
+            },
+            testInfo.repeatEachIndex
+          )
+        : null
+      await installUnhandledRejectionReporter(
+        page,
+        repeatedSeeds
+          ? { rosterSeed: repeatedSeeds.roster, seasonSeed: repeatedSeeds.season }
+          : E2E_NEW_SEASON_FIXTURE
+      )
 
       await use({ errors })
 
