@@ -23,6 +23,26 @@ export function allianceManagementContext(
       .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
       .map((player) => player.id),
     humanActorIds: state.game.players.filter((player) => player.isUser).map((player) => player.id),
+    atRiskActorIds: [...(state.game.nomineeIds ?? [])],
+    juryActorIds: state.game.players
+      .filter((player) => player.status === 'jury')
+      .map((player) => player.id),
+    competitionThreatByActorId: Object.fromEntries(
+      state.game.players.map((player) => {
+        const observed = state.game.competitionSeasonStateByPlayerId?.[player.id]
+        const samples = Math.max(0, observed?.performanceSamples ?? 0)
+        const observedStrength = observed?.observedStrength ?? 50
+        const observedResults =
+          samples > 0
+            ? Math.min(2.2, Math.max(0, observedStrength - 50) * 0.055 + samples * 0.18)
+            : 0
+        const publicWins = Math.min(
+          1.8,
+          ((player.stats?.lohWins ?? 0) + (player.stats?.posWins ?? 0)) * 0.55
+        )
+        return [player.id, observedResults + publicWins]
+      })
+    ),
     displayNames: Object.fromEntries(state.game.players.map((player) => [player.id, player.name])),
     viewerActorId: state.game.players.find((player) => player.isUser)?.id,
     seed: state.game.seed ?? 0,

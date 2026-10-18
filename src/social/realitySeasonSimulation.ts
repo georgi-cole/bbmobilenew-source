@@ -173,6 +173,7 @@ export function simulateRealitySeason(
         at: { day, phase },
         activeActorIds: activeIds,
         humanActorIds: [humanId],
+        atRiskActorIds: nominees,
         seed,
       }
       advanceAllianceRequests(domain, managementContext)

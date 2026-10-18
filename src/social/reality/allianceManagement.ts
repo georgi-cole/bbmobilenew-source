@@ -9,6 +9,7 @@ import {
   rememberAllianceRoster,
   synchronizeAllianceOfficers,
 } from './allianceIdentity'
+import { getRealityAllianceKnowledgeView } from './allianceKnowledge'
 import { compareSocialClock, nextAllianceDeadline } from './clock'
 import { appendRealityEvent } from './events'
 import {
@@ -22,6 +23,8 @@ import type {
   RealityAlliance,
   RealityAllianceRequest,
   RealityAllianceRequestKind,
+  RealityAllianceResponse,
+  RealityAllianceResponseStyle,
   RealityClock,
   RealityDomainState,
 } from './types'
@@ -30,6 +33,12 @@ export interface AllianceManagementContext {
   at: RealityClock
   activeActorIds: readonly string[]
   humanActorIds: readonly string[]
+  /** Publicly known nomination state available to autonomous faction planning. */
+  atRiskActorIds?: readonly string[]
+  /** Jurors whose witnessed relationships can inform an endgame threat read. */
+  juryActorIds?: readonly string[]
+  /** Publicly observed competition results, scaled to a small strategic-threat bonus. */
+  competitionThreatByActorId?: Readonly<Record<string, number>>
   displayNames?: Readonly<Record<string, string>>
   viewerActorId?: string
   seed: number
@@ -193,11 +202,16 @@ function recordAllianceDecision(
   request: RealityAllianceRequest,
   actorId: string,
   accept: boolean,
-  at: RealityClock
+  at: RealityClock,
+  response?: RealityAllianceResponse
 ): void {
   const voting = request.status === 'VOTING'
   if (voting) request.votes[actorId] = accept
   else request.consents[actorId] = accept
+  if (response) {
+    request.responsesByActorId ??= {}
+    request.responsesByActorId[actorId] = response
+  }
   recordAllianceRequestEvent(
     state,
     request,
@@ -341,6 +355,33 @@ function finalize(
         base.supersededById = created.id
       }
     }
+    if (kind === 'PACT') {
+      for (const [actorId, response] of Object.entries(request.responsesByActorId ?? {})) {
+        const commitment =
+          response.style === 'ENTHUSIASTIC'
+            ? 0.68
+            : response.style === 'LIMITED'
+              ? 0.32
+              : response.style === 'HESITANT'
+                ? 0.44
+                : undefined
+        if (commitment !== undefined && created.memberIds.includes(actorId))
+          created.memberCommitment[actorId] = commitment
+      }
+      const aiResponse = request.memberIds
+        .filter((actorId) => actorId !== request.proposerId)
+        .map((actorId) => ({ actorId, response: request.responsesByActorId?.[actorId] }))
+        .find(({ response }) => response && response.style !== 'ENTHUSIASTIC')
+      if (aiResponse?.response) {
+        const respondentName =
+          aiResponse.actorId === context.viewerActorId
+            ? 'You'
+            : (context.displayNames?.[aiResponse.actorId] ?? aiResponse.actorId)
+        const responseLabel =
+          aiResponse.response.style === 'LIMITED' ? 'agreed with limits' : 'agreed cautiously'
+        successReason = `${respondentName} ${responseLabel}: “${aiResponse.response.reason}” ${successReason}`
+      }
+    }
   } else if (alliance && request.kind === 'ADMIT' && request.candidateId) {
     const counts = currentAllianceCounts(state, request.candidateId)
     if (
@@ -435,15 +476,154 @@ function finalize(
   refreshRealityAllianceOverlaps(state)
 }
 
-function aiConsent(
+function allianceDecisionRoll(
+  request: RealityAllianceRequest,
+  actorId: string,
+  seed: number
+): number {
+  let hash = seed >>> 0
+  for (const character of `${request.id}:${actorId}:${request.status}`)
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0
+  return hash / 0x1_0000_0000
+}
+
+function pactDecision(
   state: RealityDomainState,
   request: RealityAllianceRequest,
   actorId: string,
   seed: number
-): boolean {
-  let hash = seed >>> 0
-  for (const character of `${request.id}:${actorId}:${request.status}`)
-    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0
+): { accepted: boolean; response: RealityAllianceResponse } {
+  const proposerId = request.memberIds.find((id) => id !== actorId) ?? request.proposerId
+  const relationship = state.relationships[actorId]?.[proposerId]
+  const trust = relationship?.trust ?? 0
+  const reliability = relationship?.reliability ?? 0
+  const suspicion = relationship?.suspicion ?? 0
+  const resentment = relationship?.resentment ?? 0
+  const warmth = relationship?.warmth ?? 0
+  const loyalty = relationship?.loyalty ?? 0
+  const respect = relationship?.respect ?? 0
+  const strategicValue = relationship?.strategicValue ?? 0
+
+  const proposerNetwork = new Set<string>()
+  for (const alliance of Object.values(state.alliances)) {
+    if (!isCurrentAlliance(alliance) || !alliance.memberIds.includes(proposerId)) continue
+    const knowledge = getRealityAllianceKnowledgeView(state, alliance.id, actorId)
+    if (knowledge.level === 'UNKNOWN') continue
+    for (const memberId of knowledge.knownMemberIds) {
+      if (memberId !== actorId && memberId !== proposerId) proposerNetwork.add(memberId)
+    }
+  }
+  const networkBenefit = Math.min(0.16, proposerNetwork.size * 0.04)
+
+  const knownPromises = Object.values(state.promises).filter(
+    (promise) =>
+      promise.promisorId === proposerId &&
+      (promise.beneficiaryIds.includes(actorId) ||
+        promise.witnessIds.includes(actorId) ||
+        promise.visibility === 'HOUSE_PUBLIC' ||
+        promise.visibility === 'CEREMONY_PUBLIC')
+  )
+  const keptPromises = Math.min(
+    3,
+    knownPromises.filter((promise) => promise.status === 'KEPT').length
+  )
+  const brokenPromises = Math.min(
+    3,
+    knownPromises.filter((promise) => promise.status === 'BROKEN').length
+  )
+
+  const existingAlliances = Object.values(state.alliances).filter(
+    (alliance) => isCurrentAlliance(alliance) && alliance.memberIds.includes(actorId)
+  )
+  const otherAlliances = existingAlliances.filter(
+    (alliance) => !alliance.memberIds.includes(proposerId)
+  )
+  const allianceCommitmentPressure = otherAlliances.reduce((pressure, alliance) => {
+    const allyCare = alliance.memberIds
+      .filter((memberId) => memberId !== actorId)
+      .map((memberId) => {
+        const edge = state.relationships[actorId]?.[memberId]
+        return Math.max(edge?.trust ?? 0, edge?.loyalty ?? 0, edge?.warmth ?? 0) / 100
+      })
+    const commitment = Math.max(alliance.memberCommitment[actorId] ?? 0.5, ...allyCare)
+    return pressure + Math.max(0, commitment - 0.5) * 0.3
+  }, 0)
+  const activePromises = Object.values(state.promises).filter(
+    (promise) =>
+      promise.promisorId === actorId &&
+      promise.status === 'ACTIVE' &&
+      promise.beneficiaryIds.some((id) => id !== proposerId) &&
+      /(vote|protect|safety|alliance|loyal|final two)/i.test(promise.kind)
+  ).length
+  const commitmentPressure = Math.min(0.3, allianceCommitmentPressure + activePromises * 0.06)
+
+  const contestant = state.contestants[actorId]
+  const isolated = existingAlliances.length === 0
+  const survivalNeed =
+    (contestant?.primaryGoalId === 'SURVIVE_THE_VOTE' ? 0.14 : 0) +
+    (isolated ? 0.07 : existingAlliances.length === 1 ? 0.025 : 0) +
+    Math.min(0.05, Math.max(0, contestant?.loneliness ?? 0) / 1000) +
+    Math.min(0.04, Math.max(0, contestant?.emotions.fear ?? 0) / 1500)
+
+  const chance = Math.max(
+    0.04,
+    Math.min(
+      0.92,
+      0.44 +
+        trust * 0.0012 +
+        reliability * 0.0014 +
+        warmth * 0.0006 +
+        loyalty * 0.0005 +
+        respect * 0.0003 +
+        strategicValue * 0.0008 -
+        suspicion * 0.0007 -
+        resentment * 0.0006 +
+        networkBenefit +
+        survivalNeed +
+        keptPromises * 0.035 -
+        brokenPromises * 0.09 -
+        commitmentPressure
+    )
+  )
+  const accepted = allianceDecisionRoll(request, actorId, seed) < chance
+
+  let style: RealityAllianceResponseStyle
+  let reason: string
+  if (!accepted) {
+    style = 'DECLINED'
+    if (brokenPromises > 0)
+      reason = 'You have broken deals I knew about, so I cannot rely on this protection.'
+    else if (commitmentPressure >= 0.08)
+      reason =
+        'I already have people I am committed to protecting, so I will not promise to turn on them.'
+    else if (chance < 0.3) reason = 'We do not have enough trust for me to risk this pact.'
+    else reason = 'I do not see enough protection in this pact to commit.'
+  } else if (commitmentPressure >= 0.08) {
+    style = 'LIMITED'
+    reason = 'I can work with you, but I will not break my existing commitments for this pact.'
+  } else if (chance >= 0.72 && brokenPromises === 0) {
+    style = 'ENTHUSIASTIC'
+    reason =
+      networkBenefit >= 0.08 && reliability >= 25
+        ? 'You have useful connections, and I trust you to follow through for both of us.'
+        : survivalNeed >= 0.14
+          ? 'Working together gives me a real chance to stay safe, and protection goes both ways.'
+          : reliability >= 35
+            ? 'I trust you to follow through, and this gives us both useful protection.'
+            : 'This gives us both something useful. Let us make the protection count.'
+  } else {
+    style = 'HESITANT'
+    reason = 'I will agree for now, but I need to see us follow through for each other.'
+  }
+  return { accepted, response: { style, reason } }
+}
+
+function aiDecision(
+  state: RealityDomainState,
+  request: RealityAllianceRequest,
+  actorId: string,
+  seed: number
+): { accepted: boolean; response?: RealityAllianceResponse } {
   const otherIds =
     request.kind === 'ADMIT' && request.status === 'VOTING'
       ? [request.candidateId!]
@@ -451,11 +631,16 @@ function aiConsent(
   const trust =
     otherIds.reduce((sum, id) => sum + (state.relationships[actorId]?.[id]?.trust ?? 0), 0) /
     Math.max(1, otherIds.length)
+  if (request.kind === 'PACT') return pactDecision(state, request, actorId, seed)
   if (request.kind === 'REMOVE_SUGGESTION')
-    return (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10
+    return { accepted: (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10 }
   if (request.kind === 'RENAME_SUGGESTION')
-    return (state.relationships[actorId]?.[request.proposerId]?.trust ?? 0) >= 0
-  return hash / 0x1_0000_0000 < Math.max(0.12, Math.min(0.92, 0.62 + trust / 200))
+    return { accepted: (state.relationships[actorId]?.[request.proposerId]?.trust ?? 0) >= 0 }
+  return {
+    accepted:
+      allianceDecisionRoll(request, actorId, seed) <
+      Math.max(0.12, Math.min(0.92, 0.62 + trust / 200)),
+  }
 }
 
 function admissionVoteSummary(
@@ -519,8 +704,14 @@ export function allianceRequestDecisionActors(request: RealityAllianceRequest): 
 export function advanceAllianceRequests(
   state: RealityDomainState,
   context: AllianceManagementContext
-): void {
+): boolean {
+  const initialSequence = state.nextSequence
+  const initialRequests = state.allianceManagement?.requests
+  const initialReceipts = state.allianceManagement?.processedCommands
   normalizeAllianceManagement(state)
+  const normalizedRecordsChanged =
+    initialRequests !== state.allianceManagement.requests ||
+    initialReceipts !== state.allianceManagement.processedCommands
   for (const request of Object.values(state.allianceManagement.requests)) {
     if (!isPendingAllianceRequest(request)) continue
     const problem = requestProblem(state, request, context)
@@ -530,8 +721,15 @@ export function advanceAllianceRequests(
     }
     for (const actorId of allianceRequestDecisionActors(request)) {
       if (context.humanActorIds.includes(actorId)) continue
-      const consent = aiConsent(state, request, actorId, context.seed)
-      recordAllianceDecision(state, request, actorId, consent, context.at)
+      const decision = aiDecision(state, request, actorId, context.seed)
+      recordAllianceDecision(
+        state,
+        request,
+        actorId,
+        decision.accepted,
+        context.at,
+        decision.response
+      )
     }
     const overdue = compareSocialClock(request.deadline, context.at) < 0
     if (request.status === 'VOTING') {
@@ -561,14 +759,17 @@ export function advanceAllianceRequests(
         coLeaderId: alliance.coLeaderId,
       }
       // Candidate consent is a separate stage with its own complete window.
-      if (!context.humanActorIds.includes(request.candidateId!))
+      if (!context.humanActorIds.includes(request.candidateId!)) {
+        const decision = aiDecision(state, request, request.candidateId!, context.seed)
         recordAllianceDecision(
           state,
           request,
           request.candidateId!,
-          aiConsent(state, request, request.candidateId!, context.seed),
-          context.at
+          decision.accepted,
+          context.at,
+          decision.response
         )
+      }
     }
     if (request.status === 'CONSENT') {
       const answers = Object.values(request.consents)
@@ -608,7 +809,10 @@ export function advanceAllianceRequests(
           'DECLINED',
           request.kind === 'ADMIT'
             ? 'The invited candidate declined and was not added to the group.'
-            : 'The proposed terms were declined.',
+            : (request.memberIds
+                .map((actorId) => request.responsesByActorId?.[actorId])
+                .find((response) => response?.style === 'DECLINED')?.reason ??
+                'The proposed terms were declined.'),
           context.at
         )
         continue
@@ -627,6 +831,7 @@ export function advanceAllianceRequests(
         )
     }
   }
+  return normalizedRecordsChanged || state.nextSequence !== initialSequence
 }
 
 function propose(

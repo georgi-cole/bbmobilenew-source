@@ -8,6 +8,7 @@ import type {
   SeasonPerformanceCheckpoint,
   SimulationContext,
   SimulationFinding,
+  SimulationSeasonOutcome,
   TimelineEntry,
 } from './types'
 
@@ -16,6 +17,79 @@ type StateSnapshot = Awaited<ReturnType<typeof readAppState>>
 
 function gameDay(game: Awaited<ReturnType<typeof readAppState>>['game']): number {
   return game.modeSpecific?.kind === 'survival' ? game.modeSpecific.currentDay : game.week
+}
+
+function seasonOutcome(state: StateSnapshot, terminal: string): SimulationSeasonOutcome {
+  const { game } = state
+  const human = game.players.find((player) => player.isUser)
+  const humanId = human?.id ?? null
+  const winner = game.players.find((player) => player.isWinner || player.finalRank === 1)
+  const reality = state.social.reality
+  const alliances = Object.values(reality.alliances)
+  const requests = Object.values(reality.allianceManagement.requests)
+  const socialEvents = [
+    ...reality.events,
+    ...alliances.flatMap((alliance) => alliance.history ?? []),
+    ...requests.flatMap((request) => request.history ?? []),
+  ]
+  const uniqueSocialEvents = [...new Map(socialEvents.map((event) => [event.id, event])).values()]
+  const aiOnlyParticipants = (participantIds: string[]) =>
+    humanId !== null && participantIds.length > 0 && participantIds.every((id) => id !== humanId)
+  const aiOnlyEvents = uniqueSocialEvents.filter((event) =>
+    aiOnlyParticipants(event.participantIds)
+  )
+  const hasAiOnlyAlliance = (alliance: (typeof alliances)[number]) =>
+    alliance.status !== 'DISSOLVED' &&
+    alliance.memberIds.length >= 2 &&
+    aiOnlyParticipants(alliance.memberIds)
+  const activePlayerCount = game.players.filter(
+    (player) => player.status !== 'evicted' && player.status !== 'jury'
+  ).length
+  const humanPlacement = human?.finalRank ?? human?.seasonPlacement ?? null
+  const humanWon = Boolean(human && (human.isWinner || human.finalRank === 1))
+  const humanIsActive = Boolean(human && human.status !== 'evicted' && human.status !== 'jury')
+  const seasonComplete = game.seasonFinale?.phase === 'seasonComplete' || game.status !== 'active'
+  const humanExited = human?.status === 'evicted' || human?.status === 'jury'
+
+  return {
+    resolved: humanWon || seasonComplete || Boolean(humanExited && humanPlacement !== null),
+    terminal,
+    humanId: human?.id ?? null,
+    humanName: human?.name ?? null,
+    humanStatus: human?.status ?? null,
+    humanPlacement,
+    humanWon,
+    humanMadeJury: human?.status === 'jury',
+    humanReachedFinalThree:
+      humanPlacement !== null && humanPlacement <= 3
+        ? true
+        : humanIsActive && activePlayerCount <= 3,
+    winnerId: winner?.id ?? null,
+    winnerName: winner?.name ?? null,
+    humanLohWins: human?.stats?.lohWins ?? 0,
+    humanPosWins: human?.stats?.posWins ?? 0,
+    humanNominations: human?.stats?.timesNominated ?? 0,
+    aiOnlyFactionCount: alliances.filter(
+      (alliance) => (alliance.kind ?? 'GROUP') !== 'PACT' && hasAiOnlyAlliance(alliance)
+    ).length,
+    aiOnlyPactCount: alliances.filter(
+      (alliance) => alliance.kind === 'PACT' && hasAiOnlyAlliance(alliance)
+    ).length,
+    aiStrategyMeetings: aiOnlyEvents.filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
+      .length,
+    aiCoordinatedTargetMoves: aiOnlyEvents.filter(
+      (event) => event.type === 'ALLIANCE_TARGET_COORDINATED'
+    ).length,
+    aiAllianceDefections: aiOnlyEvents.filter(
+      (event) => event.type === 'ALLIANCE_PLAN_DEFIED' || event.type === 'ALLIANCE_BETRAYAL'
+    ).length,
+    aiAllianceLeaks: aiOnlyEvents.filter((event) => event.type === 'ALLIANCE_LEAKED').length,
+    aiRomances: Object.values(reality.romances).filter(
+      (romance) => romance.status !== 'ENDED' && aiOnlyParticipants(romance.participantIds)
+    ).length,
+    activePlayerCount,
+    week: game.week,
+  }
 }
 
 export class SeasonAuditor {
@@ -64,6 +138,11 @@ export class SeasonAuditor {
     this.performanceCheckpoints.push(checkpoint)
   }
 
+  /** Persist the currently executing UI step so long runs remain diagnosable. */
+  async markProgress(lastAction: string, state?: StateSnapshot): Promise<void> {
+    await this.writeProgress(state ?? (await readAppState(this.context.page)), lastAction)
+  }
+
   private async writeProgress(state: StateSnapshot, lastAction: string): Promise<void> {
     const game = state.game
     const payload = {
@@ -71,6 +150,8 @@ export class SeasonAuditor {
       elapsedMs: Date.now() - this.context.startedAtMs,
       mode: this.context.config.mode,
       persona: this.context.config.personaId,
+      batchId: this.context.config.batchId,
+      runIndex: this.context.config.runIndex,
       seed: this.context.config.seeds,
       day: gameDay(game),
       phase: game.phase,
@@ -91,13 +172,17 @@ export class SeasonAuditor {
   async attachReport(name: string, terminal: string): Promise<void> {
     const state = await readAppState(this.context.page)
     const economySample = buildSimulationEyeoleanSample(state.game)
+    const outcome = seasonOutcome(state, terminal)
     const compactEconomyReport = this.context.config.compactEconomyReport === true
     const report = {
       schemaVersion: 1,
       config: this.context.config,
       startedAt: new Date(this.context.startedAtMs).toISOString(),
       finishedAt: new Date().toISOString(),
+      durationMs: Date.now() - this.context.startedAtMs,
+      actionCount: this.timeline.length,
       terminal,
+      outcome,
       findings: this.findings,
       ...(economySample ? { economySample } : {}),
       ...(this.performanceCheckpoints.length > 0
@@ -126,6 +211,8 @@ export class SeasonAuditor {
       `# Season simulation: ${this.context.config.id}`,
       '',
       `Terminal: ${terminal}`,
+      `Human result: ${outcome.humanWon ? 'won' : outcome.resolved ? 'lost' : 'unresolved'}${outcome.humanPlacement !== null ? ` · ${outcome.humanPlacement}${outcome.humanPlacement === 1 ? 'st' : outcome.humanPlacement === 2 ? 'nd' : outcome.humanPlacement === 3 ? 'rd' : 'th'} place` : ''}`,
+      ...(outcome.winnerName ? [`Winner: ${outcome.winnerName}`] : []),
       `Seed: roster=${this.context.config.seeds.roster}, season=${this.context.config.seeds.season}, actor=${this.context.config.seeds.actor}`,
       ...(economySample
         ? [
@@ -253,26 +340,60 @@ export class SeasonAuditor {
   }
 
   private async auditLayout(checkpoint: string): Promise<void> {
-    const layout = await this.context.page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-      buttons: [...document.querySelectorAll('button:not([disabled])')]
-        .slice(0, 120)
-        .map((element) => {
-          const rect = element.getBoundingClientRect()
-          return {
-            label: element.getAttribute('aria-label') || element.textContent?.trim() || 'unnamed',
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-          }
-        }),
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }))
+    const page = this.context.page
+    let layout:
+      | {
+          scrollWidth: number
+          clientWidth: number
+          buttons: Array<{
+            label: string
+            left: number
+            top: number
+            right: number
+            bottom: number
+            width: number
+            height: number
+          }>
+          width: number
+          height: number
+        }
+      | undefined
+    for (let attempt = 0; attempt < 3 && !layout; attempt += 1) {
+      try {
+        layout = await page.evaluate(() => ({
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+          buttons: [...document.querySelectorAll('button:not([disabled])')]
+            .slice(0, 120)
+            .map((element) => {
+              const rect = element.getBoundingClientRect()
+              return {
+                label:
+                  element.getAttribute('aria-label') || element.textContent?.trim() || 'unnamed',
+                left: rect.left,
+                top: rect.top,
+                right: rect.right,
+                bottom: rect.bottom,
+                width: rect.width,
+                height: rect.height,
+              }
+            }),
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const pageIsTransitioning =
+          /execution context was destroyed|cannot find context with specified id|most likely because of a navigation/i.test(
+            message
+          )
+        if (!pageIsTransitioning) throw error
+        if (attempt === 2) return
+        await page.waitForLoadState('domcontentloaded', { timeout: 3_000 }).catch(() => undefined)
+        await page.waitForTimeout(100)
+      }
+    }
+    if (!layout) return
     if (layout.scrollWidth > layout.clientWidth + 1) {
       this.finding('error', 'ui', 'Document has horizontal overflow.', { checkpoint, ...layout })
     }

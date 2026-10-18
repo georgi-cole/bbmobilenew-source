@@ -51,6 +51,81 @@ describe('Classic Final Three ceremony routing', () => {
     expect(next.awaitingFinal3Eviction).toBe(false)
     expect(next.players.filter((player) => player.status === 'evicted')).toHaveLength(0)
   })
+
+  it('uses the strategic Final Three choice when the AI-holder fallback resolves the decision', () => {
+    const { state, finalists } = createClassicFinalThreeState()
+    const holder = finalists.find((player) => !player.isUser)
+    if (!holder) throw new Error('Expected an AI Final Power holder')
+    const nominees = finalists.filter((player) => player.id !== holder.id)
+    const likelyWinner = nominees[0]
+    const easierOpponent = nominees[1]
+
+    holder.aiGameIdentity = {
+      archetype: 'strategic_operator',
+      temperament: 'calm',
+      competitionDrive: 0.8,
+      emotionalVolatility: 0.2,
+      audienceFocus: 0.5,
+      survivalFocus: 0.7,
+    }
+    state.players = state.players.map((player) =>
+      player.id === holder.id
+        ? { ...player, status: 'loh' }
+        : nominees.some((nominee) => nominee.id === player.id)
+          ? { ...player, status: 'nominated' }
+          : { ...player, status: 'jury' }
+    )
+    state.lohId = holder.id
+    state.nomineeIds = nominees.map((player) => player.id)
+    state.phase = 'final3_decision'
+    state.awaitingFinal3Plea = false
+    state.strategicThreatReadsByActorId = {
+      [holder.id]: {
+        [likelyWinner.id]: {
+          persuasion: 0.7,
+          networkReach: 0.7,
+          publicRespect: 0.7,
+          juryAppeal: 0.95,
+          score: 9,
+        },
+        [easierOpponent.id]: {
+          persuasion: 0.1,
+          networkReach: 0.1,
+          publicRespect: 0.1,
+          juryAppeal: 0.15,
+          score: 1,
+        },
+      },
+    }
+    state.strategicRelationships = {
+      ...state.strategicRelationships,
+      [holder.id]: {
+        [likelyWinner.id]: { affinity: 80, tags: ['alliance', 'romance'] },
+      },
+    }
+    state.strategicAlliances = [
+      {
+        id: 'holder-pact',
+        memberIds: [holder.id, likelyWinner.id],
+        leaderIds: [holder.id],
+        status: 'ACTIVE',
+        cohesion: 0.9,
+        fractureRisk: 0.05,
+        currentTargetIds: [],
+        fallbackTargetIds: [],
+        memberCommitment: { [holder.id]: 0.95, [likelyWinner.id]: 0.95 },
+        memberPerceivedStatus: { [holder.id]: 'CORE', [likelyWinner.id]: 'CORE' },
+        memberPlanBeliefs: { [holder.id]: [], [likelyWinner.id]: [] },
+        infiltratorIds: [],
+      },
+    ]
+
+    const next = gameReducer(state, advance())
+
+    expect(next.players.find((player) => player.id === likelyWinner.id)?.status).toBe('evicted')
+    expect(next.nomineeIds).toEqual([easierOpponent.id])
+    expect(next.finalThree?.evicteeId).toBe(likelyWinner.id)
+  })
 })
 
 describe('Final Three durable controller', () => {
