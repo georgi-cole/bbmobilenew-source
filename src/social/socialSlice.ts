@@ -1106,13 +1106,21 @@ const socialSlice = createSlice({
         interactionId: string
         resolvedWith: IncomingInteractionResponseType
         resolvedLabel?: string
+        reactionText?: string
         outcomeText?: string
         resolvedAt?: number
         resolvedWeek?: number
       }>
     ) {
-      const { interactionId, resolvedWith, resolvedLabel, outcomeText, resolvedAt, resolvedWeek } =
-        action.payload
+      const {
+        interactionId,
+        resolvedWith,
+        resolvedLabel,
+        reactionText,
+        outcomeText,
+        resolvedAt,
+        resolvedWeek,
+      } = action.payload
       const entry = state.incomingInteractions.find(
         (interaction) => interaction.id === interactionId
       )
@@ -1123,6 +1131,7 @@ const socialSlice = createSlice({
       entry.resolvedWeek = resolvedWeek
       entry.resolvedWith = resolvedWith
       entry.resolvedLabel = resolvedLabel
+      entry.reactionText = reactionText
       entry.outcomeText = outcomeText
     },
     /** Save a pact-offer conversation step while keeping the offer unresolved. */

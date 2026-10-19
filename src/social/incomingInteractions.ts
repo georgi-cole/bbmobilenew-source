@@ -1,6 +1,7 @@
 import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
 import { getIncomingInteractionTone } from './incomingInteractionPresentation'
+import { getIncomingDialogueBeat } from './incomingDialogueOutcomeBank'
 import {
   getIncomingResponseLogCopy,
   getIncomingResponseRelationshipDelta,
@@ -92,6 +93,46 @@ const ALLIANCE_STRATEGY_SCENARIOS = new Set([
 
 function isAllianceStrategyScenario(value: unknown): boolean {
   return typeof value === 'string' && ALLIANCE_STRATEGY_SCENARIOS.has(value)
+}
+
+function buildIncomingReactionText(
+  interaction: IncomingInteraction,
+  responseType: IncomingInteractionResponseType,
+  responseLabel: string | undefined,
+  fromName: string,
+  subjectName: string | undefined,
+  phase: string
+): string | undefined {
+  const scenarioKey = interaction.payload?.scenarioKey
+  if (typeof scenarioKey !== 'string') return undefined
+
+  const variantId =
+    typeof interaction.payload?.variantId === 'string'
+      ? interaction.payload.variantId
+      : interaction.id
+  const seedSource = [
+    interaction.fromId,
+    scenarioKey,
+    variantId,
+    responseType,
+    responseLabel ?? '',
+    phase,
+  ].join(':')
+  let seed = 2166136261
+  for (const character of seedSource) {
+    seed ^= character.charCodeAt(0)
+    seed = Math.imul(seed, 16777619)
+  }
+
+  const beat = getIncomingDialogueBeat({
+    scenarioKey,
+    responseType,
+    responseLabel,
+    fromName,
+    subjectName,
+    seed: seed >>> 0,
+  })
+  return beat ? `${fromName} replies: ${beat}` : undefined
 }
 
 export function buildAllianceGroupRead(
@@ -795,7 +836,7 @@ function applyIncomingChoiceConsequences({
   responseLabel?: string
   source: ResolutionSource
   resolvedAt: number
-}): { outcomeText?: string; logText: string } | null {
+}): { reactionText?: string; outcomeText?: string; logText: string } | null {
   const humanPlayer = state.game.players.find((player) => player.isUser)
   if (!humanPlayer) return null
 
@@ -879,6 +920,14 @@ function applyIncomingChoiceConsequences({
       responseLabel,
       state.game.players
     ) ?? contextualResolution.outcomeText
+  const reactionText = buildIncomingReactionText(
+    interaction,
+    responseType,
+    responseLabel,
+    fromName,
+    subjectName,
+    state.game.phase
+  )
   const acceptedAlliance = interaction.type === 'alliance_proposal' && responseType === 'accept'
 
   if (
@@ -1081,6 +1130,7 @@ function applyIncomingChoiceConsequences({
     : ''
 
   return {
+    reactionText,
     outcomeText: `${outcomeText}${sharedIntelOutcome}${
       shouldRippleCupidConversation && cupidPartnerId
         ? ` Their Cupid partner, ${
@@ -1287,12 +1337,22 @@ export function respondToIncomingInteraction({
           : responseType === 'decline'
             ? 'You declined the personal pact offer. No pact was formed.'
             : 'The personal pact offer was closed without a decision. No pact was formed.'
+      const reactionText = buildIncomingReactionText(
+        interaction,
+        responseType,
+        responseLabel,
+        state.game.players.find((player) => player.id === interaction.fromId)?.name ??
+          interaction.fromId,
+        undefined,
+        state.game.phase
+      )
       settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
       dispatch(
         resolveIncomingInteraction({
           interactionId,
           resolvedWith: responseType,
           resolvedLabel: responseLabel,
+          reactionText,
           outcomeText,
           resolvedAt,
           resolvedWeek: currentWeek,
@@ -1328,6 +1388,7 @@ export function respondToIncomingInteraction({
         interactionId,
         resolvedWith: responseType,
         resolvedLabel: responseLabel,
+        reactionText: result.reactionText,
         outcomeText: result.outcomeText,
         resolvedAt,
         resolvedWeek: currentWeek,

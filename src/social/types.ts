@@ -319,6 +319,8 @@ export interface IncomingInteraction {
   resolvedWeek?: number
   resolvedWith?: IncomingInteractionResponseType
   resolvedLabel?: string
+  /** Short authored character reaction shown beside the action consequence. */
+  reactionText?: string
   outcomeText?: string
 }
 

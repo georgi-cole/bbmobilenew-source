@@ -78,6 +78,25 @@ const ALLIANCE_BEATS: BeatSet = {
   ],
 }
 
+const CO_NOMINEE_BEATS: BeatSet = {
+  positive: [
+    '"Thanks. I will keep comparing what I hear with you, but neither of us can promise how the others vote."',
+    '"I appreciate that. Let us focus on the voters we can still reach; we cannot change the block for each other."',
+  ],
+  neutral: [
+    '"That is fair. I will share what I know, but I will not mistake this for a vote promise."',
+    '"We can compare notes and still make our own cases. Neither of us controls the block."',
+  ],
+  negative: [
+    '"I understand. I will stop asking you to carry my campaign and focus on the votes I can still reach."',
+    '"Fair enough. We are both on the block, so I need to make my own case."',
+  ],
+  dismiss: [
+    '"All right. I will take my campaign to someone else and leave this conversation here."',
+    '"I hear you. I will keep working the room on my own."',
+  ],
+}
+
 const REPAIR_BEATS: BeatSet = {
   positive: [
     '"Thank you for saying that. I did not need a perfect apology; I needed to know you saw why it landed badly."',
@@ -164,7 +183,7 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
     ],
   },
   week_start_alliance_lock: ALLIANCE_BEATS,
-  co_nominee_check_in: ALLIANCE_BEATS,
+  co_nominee_check_in: CO_NOMINEE_BEATS,
   alliance_reassurance: ALLIANCE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,

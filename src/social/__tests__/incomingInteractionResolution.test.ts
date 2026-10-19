@@ -174,6 +174,40 @@ describe('incoming interaction contextual resolution', () => {
     )
   })
 
+  it('keeps co-nominee reactions grounded in what either player can control', () => {
+    const reactions = {
+      positive: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'positive',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      neutral: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'neutral',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      negative: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'negative',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      dismiss: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'dismiss',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+    }
+
+    expect(reactions.positive).toContain('neither of us can promise how the others vote')
+    expect(reactions.neutral).toContain('not mistake this for a vote promise')
+    expect(reactions.negative).toContain('stop asking you to carry my campaign')
+    expect(reactions.dismiss).toContain('take my campaign to someone else')
+  })
+
   it('keeps constructive automatic nominee replies constructive', () => {
     const interaction = makeInteraction({
       type: 'check_in',
