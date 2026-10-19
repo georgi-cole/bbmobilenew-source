@@ -407,11 +407,16 @@ function InteractionItem({
 
       <p className="inbox-item__text">{interaction.text}</p>
 
-      {interaction.reactionText && (
-        <p className="inbox-item__reaction">{interaction.reactionText}</p>
+      {(interaction.reactionText || interaction.outcomeText) && (
+        <div className="inbox-item__feedback" aria-label="Response">
+          {interaction.reactionText && (
+            <p className="inbox-item__reaction">{interaction.reactionText}</p>
+          )}
+          {interaction.outcomeText && (
+            <p className="inbox-item__outcome">{interaction.outcomeText}</p>
+          )}
+        </div>
       )}
-
-      {interaction.outcomeText && <p className="inbox-item__outcome">{interaction.outcomeText}</p>}
 
       {interactionDramaMode && commitment && (
         <div className={`inbox-item__promise inbox-item__promise--${commitment.status}`}>

@@ -340,7 +340,7 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.outcomeText).not.toMatch(/your choice/i)
   })
 
-  it('shows a varied authored reaction separately from the action-specific outcome', () => {
+  it('groups the authored reaction and action-specific consequence into one response card', () => {
     const store = makeStore()
     store.dispatch(setPhase('week_start'))
     store.dispatch(openIncomingInbox())
@@ -374,6 +374,15 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.outcomeText).toContain('appreciate the direct answer')
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
     expect(screen.getByText(entry!.outcomeText!)).toBeInTheDocument()
+    const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
+    expect(responseCard).not.toBeNull()
+    expect(responseCard).toContainElement(screen.getByText(entry!.outcomeText!))
+    expect(
+      screen
+        .getByText(entry!.reactionText!)
+        .closest('[role="listitem"]')
+        ?.querySelectorAll('.inbox-item__feedback')
+    ).toHaveLength(1)
   })
 
   it('keeps an answered check-in visible with a concrete outcome', () => {

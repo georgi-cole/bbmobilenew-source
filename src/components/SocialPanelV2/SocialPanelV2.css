@@ -2403,15 +2403,19 @@
   width: auto;
   max-width: none;
   min-width: 0;
-  min-height: 31px;
-  padding: 0.18rem 0.5rem;
-  border-radius: 0.56rem;
-  font-size: 0.62rem;
+  min-height: 29px;
+  padding: 0.16rem 0.46rem;
+  border-radius: 0.52rem;
+  font-size: 0.59rem;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .sp2-footer--unified .ra-header__actions {
+  margin-right: 3.3rem;
+}
+
+.sp2-footer--unified .ra-action-control {
   margin-right: 3.3rem;
 }
 
