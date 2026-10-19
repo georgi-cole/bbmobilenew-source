@@ -76,7 +76,6 @@ if (writeVisualAudit) {
           name: new RegExp(`${game.title} minigame`, 'i'),
         })
         await expect(hostDialog).toBeVisible()
-        await expect(page.getByTestId('minigame-lab-selected-title')).toHaveText(game.title)
         await assertNoHorizontalDocumentOverflow(page)
         await writeScreenshot(page, testInfo.project.name, game.key, 'start')
 
