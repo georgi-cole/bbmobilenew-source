@@ -9,7 +9,7 @@ import {
 } from '../reality/humanFlow'
 
 function makeBackdoorState(
-  disclosureOutcome: 'truthful' | 'false' = 'truthful',
+  disclosureOutcome: 'truthful' | 'false' | 'vague' = 'truthful',
   disclosedTargetId = 'lux'
 ): RootState {
   return {
@@ -56,6 +56,33 @@ function makeBackdoorState(
 }
 
 describe('LOH consultation summary', () => {
+  it.each(['loh_results', 'social_1', 'nominations'] as const)(
+    'keeps a vague %s answer about opening nominations, even if the engine preselected nominees',
+    (phase) => {
+      const state = makeBackdoorState('vague')
+      state.game.phase = phase
+      state.game.nomineeIds = ['remy', 'nova']
+      const summary = buildLohConsultationSummary(
+        state,
+        { actorId: 'human', targetId: 'echo', actionId: 'ask_loh_target' },
+        'fallback'
+      )
+      expect(summary).toBe('Echo kept the opening nomination plan vague.')
+      expect(summary).not.toContain('Lux')
+    }
+  )
+
+  it('keeps the replacement stage meaningful after nominations are revealed', () => {
+    const state = makeBackdoorState('vague')
+    state.game.phase = 'nomination_results'
+    expect(
+      buildLohConsultationSummary(
+        state,
+        { actorId: 'human', targetId: 'echo', actionId: 'ask_loh_target' },
+        'fallback'
+      )
+    ).toBe('Echo kept the replacement plan vague.')
+  })
   it('flags a protection promise that contradicts the current target plan', () => {
     const state = makeBackdoorState()
 
@@ -71,7 +98,7 @@ describe('LOH consultation summary', () => {
     )
 
     expect(summary).toBe(
-      'Lux is my backdoor target if Safety opens a replacement seat. My opening nominees are Remy and Nova.'
+      'My planned opening nominees are Remy and Nova. If Safety changes the block, Lux is my replacement option. I want to try to get them out, but Safety and the vote decide what happens.'
     )
   })
 
@@ -102,7 +129,7 @@ describe('LOH consultation summary', () => {
     )
 
     expect(summary).toBe(
-      'The block is locked with Remy and Nova. Lux was my backdoor target, but Safety did not open a replacement seat, so I can only vote to evict someone on this block.'
+      'The block is locked with Remy and Nova. Lux was my replacement target, but Safety did not open a replacement seat, so I can only vote to eliminate someone on this block.'
     )
   })
 
@@ -139,7 +166,7 @@ describe('LOH consultation summary', () => {
 
     expect(consultation?.agenda).toBe('block_strategy')
     expect(consultation?.summary).toMatch(
-      /Echo recommends (Remy|Nova) for eviction\. You have not chosen a position, so no alliance vote is set yet\./
+      /Echo recommends (Remy|Nova) for elimination\. You have not chosen a position, so no alliance vote is set yet\./
     )
     expect(consultation?.summary).not.toContain('→')
   })

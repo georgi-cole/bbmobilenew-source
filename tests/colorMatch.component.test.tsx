@@ -121,4 +121,18 @@ describe('Color Match round standings', () => {
     expect(screen.queryByText(/round 1 standings/i)).not.toBeInTheDocument();
     expect(screen.getByText(/resolving the rest of the round/i)).toBeInTheDocument();
   });
+
+  it('keeps the user, leader, and eliminated score visible in the compact summary', () => {
+    const { container } = renderCompetitionAndPlay();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit match/i }));
+
+    const prioritySummary = container.querySelector('.cm__round-standings-priority');
+    expect(prioritySummary?.querySelectorAll(':scope > div')).toHaveLength(3);
+    expect(prioritySummary?.textContent).toContain('You');
+    expect(prioritySummary?.textContent).toContain('Top');
+    expect(prioritySummary?.textContent).toContain('Eliminated');
+    expect(prioritySummary?.textContent?.match(/\d+(?:[.,]\d+)?%/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText('Show all round scores')).toBeInTheDocument();
+  });
 });

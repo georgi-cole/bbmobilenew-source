@@ -58,14 +58,13 @@ const EXIT_HISTORY: GameHistoryEvent[] = [
   },
 ];
 
-function renderRecap(onComplete = vi.fn(), completedWeekendDays: number[] = []) {
+function renderRecap(onComplete = vi.fn()) {
   render(
     <SeasonRecapCinematic
       season={9}
       week={12}
       players={PLAYERS}
       history={EXIT_HISTORY}
-      completedWeekendDays={completedWeekendDays}
       publicOpinion={PUBLIC_OPINION}
       onComplete={onComplete}
     />,
@@ -116,7 +115,6 @@ describe('Season recap archive', () => {
 
     expect(screen.getByLabelText(/event legend/i)).toBeTruthy();
     expect(screen.getByLabelText(/12-day season/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Weekend Day/i })).toBeNull()
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.queryByRole('button', { name: /day 13:/i })).toBeNull();
     const drewCheckpoint = screen.getByRole('button', { name: /day 6: drew, exit/i });
@@ -135,25 +133,34 @@ describe('Season recap archive', () => {
     expect(screen.getByText('Why it mattered')).toBeTruthy();
   });
 
-  it('shows completed weekend days in chronological left-to-right order', () => {
-    renderRecap(undefined, [5, 10]);
+  it('keeps a fourth-place finisher visible when another moment shares their exit day', () => {
+    const players = PLAYERS.map((player) =>
+      player.id === 'e1'
+        ? { ...player, status: 'active' as const, isUser: true, seasonPlacement: 4, evictedAtWeek: 5 }
+        : player,
+    );
+    render(
+      <SeasonRecapCinematic
+        season={9}
+        week={12}
+        players={players}
+        history={EXIT_HISTORY}
+        publicOpinion={PUBLIC_OPINION}
+        onComplete={vi.fn()}
+      />,
+    );
     skipOpening();
     fireEvent.click(screen.getByRole('button', { name: /open calendar/i }));
 
-    expect(screen.getByLabelText(/12-day season · 4 weekend days/i)).toBeInTheDocument();
-    const rows = screen.getAllByRole('group').filter((row) =>
-      row.classList.contains('src-finale-calendar__timeline-row')
-    );
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every((row) => row.getAttribute('data-direction') === 'forward')).toBe(true);
-    expect(rows[1]?.textContent).toContain('05');
-    expect(rows[1]?.textContent).toContain('Weekend 1');
-    expect(rows[1]?.textContent).toContain('Weekend 2');
-    expect(rows[1]?.textContent).toContain('06');
+    const sharedDay = screen.getByRole('button', {
+      name: /day 5: drew, exit, 1 more moment: midseason turn/i,
+    });
+    expect(sharedDay.querySelector('em')).toHaveAttribute('title', '+1 other moment: Midseason turn');
+    fireEvent.click(sharedDay);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Weekend Day 1 after Game Day 5' }));
-    expect(screen.getByText('Weekend Day 1 · after Game Day 5')).toBeInTheDocument();
-    expect(screen.getByText('The season paused after Game Day 5 for Weekend Day 1.')).toBeInTheDocument();
+    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy();
+    expect(screen.getByText(/Finished #4/i)).toBeTruthy();
+    expect(screen.getByText('Midseason turn · Milestone')).toBeTruthy();
   });
 
   it('keeps the original category data and makes the comp result explicit', () => {

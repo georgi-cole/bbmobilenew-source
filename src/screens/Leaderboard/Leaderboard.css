@@ -105,7 +105,21 @@
   cursor: pointer;
 }
 
-.hall-of-fame-screen__season-header {
+.hall-of-fame-screen__season-copy,
+.hall-of-fame-screen__season-rating {
+  margin-top: 3px;
+  color: rgba(199, 181, 255, 0.84);
+  font-variant-numeric: tabular-nums;
+}
+
+.hall-of-fame-screen__season-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.hall-of-fame-screen__winner-block {
   min-width: 0;
   display: flex;
   align-items: center;

@@ -10,6 +10,33 @@ export interface LohNominationPlanCopySource {
   isDoubleElimination?: boolean
 }
 
+/**
+ * Resolve the LOH's two intended exits against the live block. A saved or
+ * replacement nominee can invalidate one of the original preferences, so
+ * fill the open priority from the remaining nominees while respecting the
+ * nominee the LOH most wants to keep.
+ */
+export function getLohEliminationPriorityIds(
+  plan: LohNominationPlanCopySource,
+  eligibleNomineeIds?: readonly string[]
+): string[] {
+  const limit = plan.isDoubleElimination ? 2 : 1
+  const eligible = eligibleNomineeIds ? new Set(eligibleNomineeIds) : null
+  const priorities = (
+    plan.eliminationPriorityIds?.length ? plan.eliminationPriorityIds : [plan.targetId]
+  ).filter((id, index, ids) => ids.indexOf(id) === index && (!eligible || eligible.has(id)))
+
+  if (eligibleNomineeIds && plan.isDoubleElimination) {
+    for (const nomineeId of eligibleNomineeIds) {
+      if (priorities.length >= limit) break
+      if (nomineeId === plan.preferredSurvivorId || priorities.includes(nomineeId)) continue
+      priorities.push(nomineeId)
+    }
+  }
+
+  return priorities.slice(0, limit)
+}
+
 function formatNames(names: readonly string[]): string {
   if (names.length <= 1) return names[0] ?? 'the eligible nominees'
   if (names.length === 2) return `${names[0]} and ${names[1]}`
@@ -35,9 +62,7 @@ export function formatLohNominationPlanCopy(
   const lines = [`My planned opening nominees are ${openingNominees}.`]
 
   if (plan.isDoubleElimination) {
-    const priorities = (plan.eliminationPriorityIds ?? [plan.targetId])
-      .filter((id, index, ids) => ids.indexOf(id) === index)
-      .map(resolveName)
+    const priorities = getLohEliminationPriorityIds(plan).map(resolveName)
     if (priorities.length > 0) {
       const dependsOnSafety = plan.strategy === 'backdoor' && !targetIsOnOpeningBlock
       const survivorClause = plan.preferredSurvivorId

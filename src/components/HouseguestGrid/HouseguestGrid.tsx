@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import AvatarTile from './AvatarTile'
 import ReunionGuestInteractionDialog from './ReunionGuestInteractionDialog'
@@ -167,7 +167,12 @@ export default function HouseguestGrid({
   const game = useAppSelector((s) => s.game, houseguestGridGameEquality)
   const reunionReturnIds = useMemo(() => {
     const weekend = game.weekendInterlude
-    if (weekend?.reunionPreview) {
+    if (
+      weekend?.debug === true &&
+      weekend.stage === 'finale_reunion' &&
+      weekend.reunionPreview &&
+      weekend.reunionPreviewEnded !== true
+    ) {
       return new Set(weekend.reunionPreview.guestIds)
     }
 
@@ -178,6 +183,7 @@ export default function HouseguestGrid({
       (weekend.stage === 'finale_reunion_social' ||
         weekend.stage === 'finale_sequester_announcement' ||
         weekend.stage === 'finale_battle_ready' ||
+        (weekend.stage === 'tribunal_invitation' && weekend.tribunalGlimpse?.opened === true) ||
         ((weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse') &&
           weekend.tribunalGlimpse?.opened === true)) &&
       weekend.reunionPreviewEnded !== true &&
@@ -185,6 +191,7 @@ export default function HouseguestGrid({
       (weekend.stage === 'finale_reunion_social' ||
         weekend.stage === 'finale_sequester_announcement' ||
         weekend.stage === 'finale_battle_ready' ||
+        (weekend.stage === 'tribunal_invitation' && weekend.tribunalGlimpse?.opened === true) ||
         ((weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse') &&
           weekend.tribunalGlimpse?.opened === true) ||
         weekend.reunionDepartureActive === true)
@@ -224,8 +231,11 @@ export default function HouseguestGrid({
     setReunionSelection({ eligible: canInteractWithReunionGuests, guestId: null })
   }
   const selectedReunionGuestId = reunionSelection.guestId
-  const setSelectedReunionGuestId = (guestId: string | null) =>
-    setReunionSelection({ eligible: canInteractWithReunionGuests, guestId })
+  const setSelectedReunionGuestId = useCallback(
+    (guestId: string | null) =>
+      setReunionSelection({ eligible: canInteractWithReunionGuests, guestId }),
+    [canInteractWithReunionGuests]
+  )
   useEffect(() => {
     const wasRevealed = previousCupidVisualsRevealedRef.current
     previousCupidVisualsRevealedRef.current = cupidVisualsRevealed
@@ -260,6 +270,12 @@ export default function HouseguestGrid({
     },
     []
   )
+
+  useEffect(() => {
+    if (canInteractWithReunionGuests) return
+    const resetTimer = window.setTimeout(() => setSelectedReunionGuestId(null), 0)
+    return () => window.clearTimeout(resetTimer)
+  }, [canInteractWithReunionGuests, setSelectedReunionGuestId])
 
   const focusCupidPair = (pairId: string | null, hold = false) => {
     if (!cupidVisualsRevealed || !pairId) return
@@ -444,6 +460,7 @@ export default function HouseguestGrid({
               type="button"
               className={styles.rosterLogLauncher}
               aria-label="Open game log"
+              data-onboarding-target="game-log"
               onClick={() => {
                 if (onOpenGameLog) {
                   onOpenGameLog()

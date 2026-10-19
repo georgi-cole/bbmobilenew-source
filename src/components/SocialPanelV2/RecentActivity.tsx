@@ -1,36 +1,64 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useAppSelector } from '../../store/hooks'
 import { selectSessionLogs } from '../../social/socialSlice'
 import { getActionById } from '../../social/SocialManeuvers'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
-import { getSocialNarrative } from './socialNarratives'
+import { getSocialNarrative, type SocialNarrativeOptions } from './socialNarratives'
+import { formatVagueLohPlan } from '../../social/lohConsultationCopy'
 import type { Player } from '../../types'
-import type { RelationshipsMap } from '../../social/types'
+import type { SocialActionLogEntry } from '../../social/types'
 import './RecentActivity.css'
 
 export interface RecentActivityProps {
   players?: readonly Player[]
   maxEntries?: number
-  dramaMode?: boolean
-  humanId?: string
-  relationships?: RelationshipsMap
   /** Shows a single clear receipt with an optional expandable history. */
   compact?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  /** Feedback for attempts that do not produce a gameplay log entry. */
+  feedback?: string | null
+  actionControl?: ReactNode
 }
 
-function getOutcomeIcon(entry: { outcome: 'success' | 'failure' }): string {
-  return entry.outcome === 'success' ? '✓' : '✗'
-}
+const GENERIC_OUTCOME_PREFIXES = [
+  'landed exactly as intended',
+  'struck the right chord',
+  'brought you noticeably closer',
+  'paid off socially',
+  'changed the temperature between you',
+  'became a small win with real social value',
+  'fell flat and the silence said everything',
+  'did not land the way you hoped',
+  'created distance instead of momentum',
+  'met a cold reception',
+  'left the conversation worse than it found it',
+  'felt rehearsed and backfired',
+  'was one move too many',
+  'crossed from charming into suspicious',
+  'triggered the exact opposite reaction',
+  'reopened an irritation you should have left alone',
+  'was accepted',
+  'made things worse',
+  'succeeded',
+  'backfired',
+  'failed',
+  'was successful',
+  'was unsuccessful',
+]
 
-function getOutcomeClass(entry: { outcome: 'success' | 'failure' }): 'positive' | 'negative' {
-  return entry.outcome === 'success' ? 'positive' : 'negative'
-}
-
-function getRelationshipClass(delta: number): 'positive' | 'negative' | 'neutral' {
-  if (delta > 0) return 'positive'
-  if (delta < 0) return 'negative'
-  return 'neutral'
+function isGenericOutcomeSummary(summary: string, actionTitle: string): boolean {
+  if (
+    /^You brought \d+ hubmates into one conversation; each reacted according to your history/i.test(
+      summary
+    )
+  ) {
+    return true
+  }
+  const prefix = `${actionTitle} `
+  if (!summary.startsWith(prefix)) return false
+  const outcome = summary.slice(prefix.length).trimStart().toLowerCase()
+  return GENERIC_OUTCOME_PREFIXES.some((phrase) => outcome.startsWith(phrase))
 }
 
 function getRelativeTime(timestamp: number): string {
@@ -41,6 +69,44 @@ function getRelativeTime(timestamp: number): string {
   return `${Math.floor(minutes / 60)}h ago`
 }
 
+/** Keep one UI receipt for a batch while retaining every gameplay log. */
+function groupActivityReceipts(entries: SocialActionLogEntry[]): SocialActionLogEntry[] {
+  const groups = new Map<string | SocialActionLogEntry, SocialActionLogEntry[]>()
+  for (const entry of entries) {
+    const key = entry.receipt?.groupId ?? entry
+    const group = groups.get(key) ?? []
+    group.push(entry)
+    groups.set(key, group)
+  }
+  return [...groups.values()].map((group) => {
+    if (group.length === 1) return group[0]
+    const latest = group[group.length - 1]
+    return {
+      ...latest,
+      targetIds: [...new Set(group.flatMap((entry) => entry.targetIds ?? [entry.targetId]))],
+      targetDeltas: Object.assign(
+        {},
+        ...group.map((entry) => entry.targetDeltas ?? { [entry.targetId]: entry.delta })
+      ),
+      costs: group.reduce(
+        (sum, entry) => ({
+          energy: sum.energy + (entry.costs?.energy ?? entry.cost),
+          influence: sum.influence + (entry.costs?.influence ?? 0),
+          info: sum.info + (entry.costs?.info ?? 0),
+        }),
+        { energy: 0, influence: 0, info: 0 }
+      ),
+      yieldsApplied: group.reduce(
+        (sum, entry) => ({
+          influence: sum.influence + (entry.yieldsApplied?.influence ?? 0),
+          info: sum.info + (entry.yieldsApplied?.info ?? 0),
+        }),
+        { influence: 0, info: 0 }
+      ),
+    }
+  })
+}
+
 /**
  * Shows panel-session actions. Technical outcome and relationship direction are
  * intentionally separate: a successful confrontation may correctly damage a
@@ -48,17 +114,15 @@ function getRelativeTime(timestamp: number): string {
  */
 export default function RecentActivity({
   players,
-  maxEntries = 6,
-  dramaMode = false,
-  humanId,
-  relationships,
+  maxEntries,
   compact = false,
   onExpandedChange,
+  feedback,
+  actionControl,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
-  const game = useAppSelector((state) => state.game)
   const [clearedBefore, setClearedBefore] = useState(0)
-  const listRef = useRef<HTMLUListElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const [highlightedKeys, setHighlightedKeys] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState(false)
   const prevNewestTimestampRef = useRef(0)
@@ -68,24 +132,16 @@ export default function RecentActivity({
     [players]
   )
   const visibleLogs = useMemo(() => {
-    const entries = sessionLogs.filter(
-      (entry) =>
-        entry.timestamp > clearedBefore &&
-        (entry.source !== 'system' || entry.actionId === 'alliance_admit_result')
-    )
-    return entries
-      .filter(
-        (entry, index) =>
-          entry.actionId !== 'ask_loh_target' ||
-          !entries
-            .slice(index + 1)
-            .some(
-              (later) => later.actionId === 'ask_loh_target' && later.targetId === entry.targetId
-            )
+    const entries = groupActivityReceipts(
+      sessionLogs.filter(
+        (entry) =>
+          entry.timestamp > clearedBefore &&
+          (entry.source !== 'system' || entry.actionId === 'alliance_admit_result')
       )
-      .slice(-maxEntries)
+    )
+    return maxEntries === undefined ? entries : entries.slice(-maxEntries)
   }, [sessionLogs, clearedBefore, maxEntries])
-  const displayedLogs = compact && !expanded ? visibleLogs.slice(-1) : visibleLogs
+  const displayedLogs = compact && !expanded ? (feedback ? [] : visibleLogs.slice(-1)) : visibleLogs
 
   function toggleHistory() {
     const next = !expanded
@@ -94,8 +150,9 @@ export default function RecentActivity({
   }
 
   useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight
-  }, [visibleLogs.length])
+    if (contentRef.current)
+      contentRef.current.scrollTop = expanded ? contentRef.current.scrollHeight : 0
+  }, [visibleLogs, expanded, feedback])
 
   useEffect(() => {
     const newestTimestamp = visibleLogs.at(-1)?.timestamp ?? 0
@@ -104,7 +161,8 @@ export default function RecentActivity({
       for (const entry of visibleLogs) {
         if (entry.timestamp > prevNewestTimestampRef.current) {
           newKeys.add(
-            `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
+            entry.id ??
+              `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
           )
         }
       }
@@ -128,14 +186,32 @@ export default function RecentActivity({
   }, [visibleLogs])
 
   return (
-    <div className="ra-container" aria-label="Recent Activity">
-      {visibleLogs.length > 0 && (
+    <div
+      className={`ra-container${!compact || expanded ? ' ra-container--expanded' : ''}`}
+      aria-label="Recent Activity"
+    >
+      {(visibleLogs.length > 0 || feedback || actionControl) && (
         <div className="ra-header">
           <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
-            {compact && visibleLogs.length > 1 && (
-              <button className="ra-history-btn" type="button" onClick={toggleHistory}>
-                {expanded ? 'Latest' : `History · ${visibleLogs.length}`}
+            {compact && (visibleLogs.length > 1 || (feedback && visibleLogs.length > 0)) && (
+              <button
+                className="ra-history-btn"
+                type="button"
+                aria-label={expanded ? 'Show latest activity' : `History · ${visibleLogs.length}`}
+                aria-expanded={expanded}
+                onClick={toggleHistory}
+              >
+                {expanded ? (
+                  'Latest'
+                ) : (
+                  <>
+                    <span>History</span>
+                    <span className="ra-history-btn__count" aria-hidden="true">
+                      {visibleLogs.length}
+                    </span>
+                  </>
+                )}
               </button>
             )}
             {(!compact || expanded) && (
@@ -143,131 +219,184 @@ export default function RecentActivity({
                 className="ra-clear-btn"
                 type="button"
                 aria-label="Clear recent activity"
-                onClick={() => setClearedBefore(Date.now())}
+                onClick={() => {
+                  setClearedBefore(Date.now())
+                  setExpanded(false)
+                  onExpandedChange?.(false)
+                }}
               >
                 Clear
               </button>
             )}
+            {actionControl}
           </span>
         </div>
       )}
 
-      {visibleLogs.length === 0 ? (
-        <span className="ra-empty">No recent actions.</span>
-      ) : (
-        <ul className="ra-list" ref={listRef} aria-label="Recent actions">
-          {displayedLogs.map((entry) => {
-            const action = getActionById(entry.actionId)
-            const actionTitle = action
-              ? getSocialActionPresentation(action).title
-              : entry.actionId.replace(/_/g, ' ')
-            const targetName = playerById.get(entry.targetId)?.name ?? entry.targetId
-            const targetNames = (entry.targetIds ?? [entry.targetId]).map(
-              (targetId) => playerById.get(targetId)?.name ?? targetId
-            )
-            const audienceName = targetNames.join(', ')
-            const subjectName = entry.subjectId
-              ? (playerById.get(entry.subjectId)?.name ??
-                (entry.subjectId === 'user'
-                  ? players?.find((player) => player.isUser)?.name
+      <div className="ra-content" ref={contentRef}>
+        {feedback && (
+          <p className="ra-feedback" role="status">
+            {feedback}
+          </p>
+        )}
+        {visibleLogs.length === 0 && !feedback ? (
+          <span className="ra-empty">No recent actions.</span>
+        ) : displayedLogs.length > 0 ? (
+          <ul
+            className="ra-list"
+            aria-label="Recent actions"
+            role={compact && !expanded ? 'status' : undefined}
+            aria-live={compact && !expanded ? 'polite' : 'off'}
+          >
+            {displayedLogs.map((entry) => {
+              const action = getActionById(entry.actionId)
+              const actionTitle = action
+                ? getSocialActionPresentation(action).title
+                : entry.actionId.replace(/_/g, ' ')
+              const outcomeActionTitle = action?.title ?? actionTitle
+              const targetName = playerById.get(entry.targetId)?.name ?? entry.targetId
+              const targetNames = (entry.targetIds ?? [entry.targetId]).map(
+                (targetId) => playerById.get(targetId)?.name ?? targetId
+              )
+              const audienceName = targetNames.join(', ')
+              const subjectName = entry.subjectId
+                ? (playerById.get(entry.subjectId)?.name ??
+                  (entry.subjectId === 'user'
+                    ? players?.find((player) => player.isUser)?.name
+                    : undefined) ??
+                  entry.subjectId)
+                : null
+              const subjectIsHuman = entry.subjectId
+                ? playerById.get(entry.subjectId)?.isUser === true || entry.subjectId === 'user'
+                : false
+              const narrativeTargetName =
+                action?.needsTargets === false ||
+                action?.targetMode === 'none' ||
+                entry.targetId === entry.actorId
+                  ? ''
+                  : targetName
+              const narrativeOptions: SocialNarrativeOptions = {
+                outcome: entry.outcome,
+                ...(action?.category ? { category: action.category } : {}),
+                ...(subjectName ? { subjectName } : {}),
+                ...(entry.id ? { variantKey: entry.id } : {}),
+              }
+              const outcomeClass =
+                entry.receipt?.tone ?? (entry.outcome === 'success' ? 'positive' : 'negative')
+              const outcomeLabel =
+                entry.receipt?.outcomeLabel ??
+                (entry.outcome === 'success' ? 'Succeeded' : 'Failed')
+              const receiptSummary = entry.receipt?.summary
+              // The receipt is the final player-facing response. Keep it even
+              // when it resembles a short outcome label; the log narrative may
+              // be an earlier or incomplete version of the same action.
+              const useDetailedReceipt = Boolean(receiptSummary?.trim())
+              const loggedNarrative =
+                entry.narrative && !isGenericOutcomeSummary(entry.narrative, outcomeActionTitle)
+                  ? entry.narrative
+                  : undefined
+              const narrative =
+                (useDetailedReceipt ? receiptSummary : undefined) ??
+                (entry.actionId === 'group_chat'
+                  ? getSocialNarrative(
+                      entry.actionId,
+                      audienceName,
+                      entry.timestamp,
+                      narrativeOptions
+                    )
+                  : loggedNarrative) ??
+                (entry.actionId === 'ask_loh_target' &&
+                entry.context?.lohDisclosureOutcome === 'vague'
+                  ? formatVagueLohPlan(targetName, entry.phase)
                   : undefined) ??
-                entry.subjectId)
-              : null
-            const subjectIsHuman = entry.subjectId
-              ? playerById.get(entry.subjectId)?.isUser === true || entry.subjectId === 'user'
-              : false
-            const narrativeContext = subjectName
-              ? `${targetName} about ${subjectName}`
-              : audienceName
-            const outcomeClass = getOutcomeClass(entry)
-            const relationshipClass = getRelationshipClass(entry.delta)
-            const deltaText = entry.delta === 0 ? '' : `${entry.delta > 0 ? '+' : ''}${entry.delta}`
-            const outward = humanId
-              ? relationships?.[humanId]?.[entry.targetId]?.affinity
-              : undefined
-            const inward = humanId
-              ? relationships?.[entry.targetId]?.[humanId]?.affinity
-              : undefined
-            const currentRelationship =
-              outward !== undefined || inward !== undefined
-                ? Math.round(((outward ?? 0) + (inward ?? 0)) / 2)
-                : undefined
-            const currentRelationshipText =
-              currentRelationship === undefined
-                ? ''
-                : ` · current ${currentRelationship > 0 ? '+' : ''}${currentRelationship}`
-            const narrative =
-              (entry.actionId === 'ask_loh_target' &&
-              game.lohId === entry.targetId &&
-              game.lohSocialPlan?.week === game.week &&
-              game.lohSocialPlan.lohId === game.lohId &&
-              game.lohSocialPlan.disclosureOutcomeByPlayerId?.[entry.actorId] === 'vague'
-                ? `${targetName} kept the replacement plan vague.`
-                : undefined) ??
-              entry.narrative ??
-              (entry.actionId === 'ask_loh_target' && subjectName
-                ? entry.context?.lohPlanType === 'backup_plan'
-                  ? subjectIsHuman
-                    ? `${targetName} told you that you are their backup plan if nominations change.`
-                    : `${targetName} told you ${subjectName} is their backup plan if nominations change.`
-                  : subjectIsHuman
-                    ? `${targetName} told you that you are their current target.`
-                    : `${targetName} told you ${subjectName} is their current target.`
-                : dramaMode
-                  ? getSocialNarrative(entry.actionId, narrativeContext, entry.timestamp)
-                  : `You targeted ${narrativeContext}.`)
-            const displayNarrative = narrative.startsWith('You performed')
-              ? `${actionTitle} with ${audienceName}.`
-              : narrative
-            const resourceParts = dramaMode
-              ? [
-                  entry.yieldsApplied?.influence
-                    ? `Influence ${entry.yieldsApplied.influence > 0 ? '+' : ''}${entry.yieldsApplied.influence}`
-                    : null,
-                  entry.yieldsApplied?.info
-                    ? `Intel ${entry.yieldsApplied.info > 0 ? '+' : ''}${entry.yieldsApplied.info}`
-                    : null,
-                ].filter(Boolean)
-              : []
-            const key = `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
+                (entry.actionId === 'ask_loh_target' && subjectName
+                  ? entry.context?.lohPlanType === 'backup_plan'
+                    ? subjectIsHuman
+                      ? `${targetName} told you that you are their backup plan if nominations change.`
+                      : `${targetName} told you ${subjectName} is their backup plan if nominations change.`
+                    : subjectIsHuman
+                      ? `${targetName} told you that you are their current target.`
+                      : `${targetName} told you ${subjectName} is their current target.`
+                  : getSocialNarrative(
+                      entry.actionId,
+                      narrativeTargetName,
+                      entry.timestamp,
+                      narrativeOptions
+                    ))
+              const displayNarrative = narrative.startsWith('You performed')
+                ? `${actionTitle} with ${audienceName}.`
+                : narrative
+              const key =
+                entry.id ??
+                `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
+              const relationshipDeltas = entry.targetDeltas ?? { [entry.targetId]: entry.delta }
+              const relationshipChanges = Object.entries(relationshipDeltas)
+                .filter(([, delta]) => delta !== 0)
+                .map(([targetId, delta]) => {
+                  const name = playerById.get(targetId)?.name ?? targetId
+                  return `${name} ${delta > 0 ? '+' : ''}${delta}`
+                })
+              const relationshipDetail =
+                relationshipChanges.length > 1
+                  ? `Relationship changes: ${relationshipChanges.join(' · ')}`
+                  : relationshipChanges.length === 1
+                    ? `Relationship change ${relationshipChanges[0].slice(relationshipChanges[0].lastIndexOf(' ') + 1)}`
+                    : null
+              const energyCost = entry.costs?.energy ?? entry.cost
+              const influenceCost = entry.costs?.influence ?? 0
+              const infoCost = entry.costs?.info ?? 0
+              const resourceDetails = [
+                energyCost > 0 ? `⚡${energyCost} spent` : null,
+                influenceCost > 0 ? `Influence ${influenceCost} spent` : null,
+                infoCost > 0 ? `Intel ${infoCost} spent` : null,
+                relationshipDetail,
+                entry.yieldsApplied?.influence
+                  ? `Influence ${entry.yieldsApplied.influence > 0 ? '+' : ''}${entry.yieldsApplied.influence}`
+                  : null,
+                entry.yieldsApplied?.info
+                  ? `Intel ${entry.yieldsApplied.info > 0 ? '+' : ''}${entry.yieldsApplied.info}`
+                  : null,
+              ].filter((detail): detail is string => detail !== null)
 
-            return (
-              <li
-                key={key}
-                className={`ra-entry${highlightedKeys.has(key) ? ' ra-entry--new' : ''}`}
-              >
-                <span
-                  className={`ra-entry__icon ra-entry__icon--${outcomeClass}`}
-                  aria-label={entry.outcome === 'success' ? 'Action succeeded' : 'Action failed'}
+              return (
+                <li
+                  key={key}
+                  className={`ra-entry${highlightedKeys.has(key) ? ' ra-entry--new' : ''}`}
                 >
-                  {getOutcomeIcon(entry)}
-                </span>
-                <span className="ra-entry__body">
-                  <span className="ra-entry__action-tag">
-                    {actionTitle} · {entry.outcome === 'success' ? 'Succeeded' : 'Failed'}
+                  <span
+                    className={`ra-entry__icon ra-entry__icon--${outcomeClass}`}
+                    aria-label={outcomeLabel}
+                  >
+                    {outcomeClass === 'positive' ? '✓' : outcomeClass === 'negative' ? '✗' : '◷'}
                   </span>
-                  <span className="ra-entry__narrative">{displayNarrative}</span>
-                  {deltaText && (
-                    <span className={`ra-entry__delta ra-entry__delta--${relationshipClass}`}>
-                      Relationship change {deltaText}
-                      {currentRelationshipText}
+                  <span className="ra-entry__body">
+                    <span className="ra-entry__action-tag">
+                      {actionTitle}
+                      {entry.targetIds && entry.targetIds.length > 1
+                        ? ` · ${audienceName}`
+                        : ''} · {outcomeLabel}
                     </span>
-                  )}
-                  {resourceParts.length > 0 && (
-                    <span className="ra-entry__resources">{resourceParts.join(' | ')}</span>
-                  )}
-                </span>
-                <span
-                  className="ra-entry__time"
-                  aria-label={`Time: ${getRelativeTime(entry.timestamp)}`}
-                >
-                  {getRelativeTime(entry.timestamp)}
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                    <span className="ra-entry__narrative">{displayNarrative}</span>
+                    {resourceDetails.length > 0 && (
+                      <span className="ra-entry__details">
+                        {resourceDetails.map((detail) => (
+                          <span key={detail}>{detail}</span>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    className="ra-entry__time"
+                    aria-label={`Time: ${getRelativeTime(entry.timestamp)}`}
+                  >
+                    {getRelativeTime(entry.timestamp)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : null}
+      </div>
     </div>
   )
 }

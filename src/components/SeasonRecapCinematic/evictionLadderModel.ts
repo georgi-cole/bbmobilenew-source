@@ -46,12 +46,12 @@ export function getEvictionLadderStatusLabel(entry: EvictionLadderEntry): string
     case 'winner':
       return 'WINNER';
     case 'lastHouseguest':
-      return 'LAST HOUSEGUEST';
+      return 'LAST HUBMATE';
     case 'finalist':
       return 'FINALIST';
     case 'evicted':
     default:
-      return 'EVICTED';
+      return 'ELIMINATED';
   }
 }
 

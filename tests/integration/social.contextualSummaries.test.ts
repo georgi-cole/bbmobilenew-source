@@ -73,6 +73,38 @@ function run(actionId: string, subjectId?: string) {
 }
 
 describe('context-aware social conversation summaries', () => {
+  it('persists a vague opening-nomination conversation without a hidden target or replacement wording', () => {
+    const store = makeContextStore({ trust: -15 })
+    const game = store.getState().game
+    store.dispatch(
+      hydrateGame({
+        ...game,
+        phase: 'nominations',
+        posWinnerId: null,
+        nomineeIds: [],
+        players: game.players.map((player) => ({
+          ...player,
+          status: player.id === 'holder' ? 'loh' : 'active',
+        })),
+        lohSocialPlan: {
+          week: game.week,
+          lohId: 'holder',
+          currentTargetId: 'nominee-1',
+          backupTargetId: 'nominee-2',
+          askCountsByPlayerId: {},
+          disclosedTargetByPlayerId: {},
+        },
+      })
+    )
+    const result = run('ask_loh_target')
+    expect(result.success).toBe(true)
+    expect(result.summary).toBe('Harper kept the opening nomination plan vague.')
+    const entry = store.getState().social.sessionLogs.at(-1)
+    expect(entry?.narrative).toBe(result.summary)
+    expect(entry?.context?.lohDisclosureOutcome).toBe('vague')
+    expect(entry?.phase).toBe('nominations')
+    expect(entry?.subjectId).toBeUndefined()
+  })
   it('explains automatic, strategic, distrustful, and neutral nominations differently', () => {
     const scenarios = [
       { autoNomineeId: 'actor', expected: 'entered danger automatically' },
@@ -91,7 +123,7 @@ describe('context-aware social conversation summaries', () => {
   })
 
   it('tailors Safety-plan disclosure to nomination status, trust, and available nominees', () => {
-    let store = makeContextStore({ holderStatus: 'nominated' })
+    let store = makeContextStore({ holderStatus: 'nominated', nomineeIds: ['holder', 'nominee-1'] })
     expect(run('ask_safety_plan').summary).toContain('use Safety on themselves')
     expect(store.getState().social.sessionLogs).toHaveLength(1)
 
@@ -101,10 +133,10 @@ describe('context-aware social conversation summaries', () => {
     store = makeContextStore({ trust: 25 })
     store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-1', delta: 20 }))
     store.dispatch(updateRelationship({ source: 'holder', target: 'nominee-2', delta: 10 }))
-    expect(run('ask_safety_plan').summary).toContain('using Safety on Nico')
+    expect(run('ask_safety_plan').summary).toContain('Nico is the nominee they seem closest to')
 
     makeContextStore({ trust: 25, nomineeIds: [] })
-    expect(run('ask_safety_plan').summary).toContain('leaving the nominations unchanged')
+    expect(run('ask_safety_plan').summary).toContain('have not settled on a Safety choice')
   })
 
   it('keeps LOH target disclosure on the persisted canonical plan instead of affinity guesses', () => {

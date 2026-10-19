@@ -1860,7 +1860,7 @@ function renderRoom(
     ctx.textBaseline = 'top'
     ctx.fillText(
       isSequel
-        ? '🖼️ HOUSEMATE GALLERY — collect Eyeoleans among the portraits!'
+        ? '🖼️ HUBMATE GALLERY — collect Eyeoleans among the portraits!'
         : room.type === 'bonus'
           ? '✨ MEMORY WALL — collect Eyeoleans among four familiar faces!'
           : '⚔️ AMBUSH! Stomp enemies or escape through the exit pipe.',
@@ -2019,13 +2019,6 @@ const MAX_SCALE = 2
  * Must be ≥ touch button max height (90) + 2 × vertical padding (8px each side) + gap = 116 px.
  */
 const CTRL_H_PORTRAIT = 116
-/**
- * Pixels reserved for the control strip in landscape mode (beside canvas).
- * Must be ≥ touch button max width (90) + horizontal padding (16px each side) + gap = 122 px;
- * rounded up to 134 for breathing room.
- */
-const CTRL_W_LANDSCAPE = 134
-
 interface LayoutState {
   scale: number
   landscape: boolean
@@ -2035,7 +2028,8 @@ function computeLayout(vw: number, vh: number): LayoutState {
   const landscape = vw > vh
   let scale: number
   if (landscape) {
-    scale = Math.min((vw - CTRL_W_LANDSCAPE) / CW, vh / CH)
+    // Landscape controls overlay the stage, so they do not consume a side column.
+    scale = Math.min(vw / CW, vh / CH)
   } else {
     scale = Math.min(vw / CW, (vh - CTRL_H_PORTRAIT) / CH)
   }
@@ -2284,7 +2278,7 @@ export default function CastleRescueGame({
       if (!gs) {
         // Idle splash
         ctx.clearRect(0, 0, CW, CH)
-        ctx.fillStyle = '#111827'
+        ctx.fillStyle = '#17132b'
         ctx.fillRect(0, 0, CW, CH)
         ctx.fillStyle = '#f3f4f6'
         ctx.font = 'bold 36px serif'
@@ -2390,15 +2384,17 @@ export default function CastleRescueGame({
 
   const { scale, landscape } = layout
 
-  // Responsive button size: clamp between 72–90px, scaled from base 72px.
-  const btnSize = Math.min(90, Math.max(72, Math.round(72 * (scale || 1))))
+  // Landscape controls are compact overlays; portrait keeps full touch targets.
+  const btnSize = landscape
+    ? Math.min(64, Math.max(48, Math.round(64 * (scale || 1))))
+    : Math.min(90, Math.max(72, Math.round(72 * (scale || 1))))
 
   // ── Controls: portrait = row below canvas, landscape = LEFT group on left
   //   edge and RIGHT group on right edge (fixed to viewport corners)
   const ctrlGroupStyle: CSSProperties = {
     display: 'flex',
     flexDirection: 'row',
-    gap: 16,
+    gap: landscape ? Math.min(10, Math.max(5, Math.round(10 * scale))) : 16,
     alignItems: 'center',
     userSelect: 'none',
     flexShrink: 0,
@@ -2424,8 +2420,12 @@ export default function CastleRescueGame({
   )
 
   // Displayed canvas dimensions (CSS pixels)
-  const canvasCssW = Math.round(CW * scale)
-  const canvasCssH = Math.round(CH * scale)
+  const canvasCssW = landscape
+    ? Math.round(window.visualViewport?.width ?? window.innerWidth)
+    : Math.round(CW * scale)
+  const canvasCssH = landscape
+    ? Math.round(window.visualViewport?.height ?? window.innerHeight)
+    : Math.round(CH * scale)
 
   return (
     <div
@@ -2452,13 +2452,13 @@ export default function CastleRescueGame({
             }
       }
     >
-      {/* Landscape: LEFT/RIGHT buttons anchored to bottom-left of viewport */}
-      {landscape && (
+      {/* Landscape controls float over the stage and leave its full width available. */}
+      {landscape && phase !== 'complete' && (
         <div
           style={{
             position: 'fixed',
-            bottom: 16,
-            left: 16,
+            bottom: 'max(10px, env(safe-area-inset-bottom))',
+            left: 'max(10px, env(safe-area-inset-left))',
             ...ctrlGroupStyle,
             zIndex: 10,
           }}
@@ -2487,12 +2487,12 @@ export default function CastleRescueGame({
         </div>
       )}
       {/* Landscape: JUMP/DOWN buttons anchored to bottom-right of viewport */}
-      {landscape && (
+      {landscape && phase !== 'complete' && (
         <div
           style={{
             position: 'fixed',
-            bottom: 16,
-            right: 16,
+            bottom: 'max(10px, env(safe-area-inset-bottom))',
+            right: 'max(10px, env(safe-area-inset-right))',
             ...ctrlGroupStyle,
             zIndex: 10,
           }}
@@ -2539,6 +2539,7 @@ export default function CastleRescueGame({
             width: canvasCssW,
             height: canvasCssH,
             flexShrink: 0,
+            containerType: 'size',
           }}
         >
           <canvas
@@ -2549,7 +2550,8 @@ export default function CastleRescueGame({
               display: 'block',
               width: canvasCssW,
               height: canvasCssH,
-              border: `2px solid ${remastered ? '#dfb97a' : variant === 'benny-lenny' ? '#a78bfa' : '#1e3a8a'}`,
+              boxSizing: 'border-box',
+              border: `2px solid ${remastered ? '#dfb97a' : '#a78bfa'}`,
               borderRadius: 8,
               // Prevent default touch scroll/zoom gestures on the game canvas.
               touchAction: 'none',
@@ -2572,40 +2574,46 @@ export default function CastleRescueGame({
 
           {/* End-of-run result — overlaid on the scaled canvas */}
           {phase === 'complete' && endStats && (
-            <div
-              style={
-                endStats.endReason === 'rescued'
-                  ? {
-                      ...endOverlayStyle,
-                      top: 54,
-                      transform: 'translateX(-50%)',
-                      padding: '10px 22px',
-                    }
-                  : endOverlayStyle
-              }
-            >
-              <p style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>
-                {endStats.endReason === 'rescued'
-                  ? /* i18n-ignore: Existing English-only result copy for this canvas minigame. */
-                    variant === 'benny-lenny'
-                    ? '🎉 Benny Found Lenny!'
-                    : '🎉 Twin Found!'
-                  : endStats.endReason === 'out_of_lives'
-                    ? '💔 Out of lives!'
-                    : "⏱ Time's Up!"}
-              </p>
-              <p style={{ fontSize: 18, fontWeight: 600, color: '#fbbf24', margin: '0 0 12px' }}>
-                Final Score: {endStats.score}
-              </p>
-              <button onClick={handleContinue} style={btnCss('#1d4ed8')}>
-                {onFinish ? '▶ Continue' : '🔁 Play Again'}
-              </button>
+            <div style={endOverlayStyle} data-testid="castle-rescue-results">
+              <div style={endContentStyle}>
+                <p
+                  style={{
+                    fontSize: 'clamp(16px, 3cqw, 22px)',
+                    fontWeight: 700,
+                    margin: '0 0 4px',
+                  }}
+                >
+                  {endStats.endReason === 'rescued'
+                    ? /* i18n-ignore: Existing English-only result copy for this canvas minigame. */
+                      variant === 'benny-lenny'
+                      ? '🎉 Benny Found Lenny!'
+                      : '🎉 Twin Found!'
+                    : endStats.endReason === 'out_of_lives'
+                      ? '💔 Out of lives!'
+                      : "⏱ Time's Up!"}
+                </p>
+                <p
+                  style={{
+                    fontSize: 'clamp(14px, 2.5cqw, 18px)',
+                    fontWeight: 600,
+                    color: '#ddd6fe',
+                    margin: 0,
+                  }}
+                >
+                  Final Score: {endStats.score}
+                </p>
+              </div>
+              <div style={endActionsStyle}>
+                <button onClick={handleContinue} style={btnCss('#6d42b8')}>
+                  {onFinish ? '▶ Continue' : '🔁 Play Again'}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* Portrait: touch controls below canvas — LEFT/RIGHT on left, JUMP/DOWN on right */}
-        {!landscape && (
+        {!landscape && phase !== 'complete' && (
           <div style={portraitCtrlsStyle} aria-label="Game controls">
             <div style={ctrlGroupStyle}>
               {btnWrap(
@@ -2681,7 +2689,7 @@ function TouchBtn({
   code,
   label,
   ariaLabel,
-  color = '#374151',
+  color = '#2b1e45',
   onPress,
   onRelease,
 }: TouchBtnProps) {
@@ -2715,7 +2723,7 @@ const outerStyle: CSSProperties = {
   width: '100vw',
   height: '100dvh',
   overflow: 'hidden',
-  background: '#111827',
+  background: 'radial-gradient(circle at 50% 0%, #231747 0%, #0b0816 62%)',
 }
 
 const endOverlayStyle: CSSProperties = {
@@ -2723,13 +2731,36 @@ const endOverlayStyle: CSSProperties = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
+  width: 'min(92%, 560px)',
+  maxHeight: 'calc(100% - 20px)',
+  boxSizing: 'border-box',
+  display: 'grid',
+  gridTemplateRows: 'minmax(0, 1fr) auto',
   textAlign: 'center',
   color: '#f3f4f6',
-  background: 'rgba(17,24,39,0.88)',
-  borderRadius: 12,
-  padding: '18px 28px',
+  background: 'linear-gradient(145deg, rgba(32,23,54,.96), rgba(10,12,26,.97))',
+  border: '1px solid rgba(196,181,253,.5)',
+  borderRadius: 16,
+  padding: 'clamp(12px, 2.8cqw, 24px)',
+  boxShadow: '0 18px 54px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.08)',
+  overflow: 'hidden',
   pointerEvents: 'auto',
   zIndex: 10,
+}
+
+const endContentStyle: CSSProperties = {
+  minHeight: 0,
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
+  alignContent: 'center',
+}
+
+const endActionsStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  paddingTop: 10,
+  borderTop: '1px solid rgba(196,181,253,.3)',
+  background: 'linear-gradient(180deg, rgba(32,23,54,.98), rgba(15,14,30,.99))',
 }
 
 /** Style for the on-screen touch control buttons (large touch targets). */
@@ -2739,9 +2770,9 @@ function touchBtnCss(bg: string): CSSProperties {
     height: '100%',
     background: bg,
     color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    fontSize: 15,
+    border: '1px solid rgba(196,181,253,.55)',
+    borderRadius: 12,
+    fontSize: 'clamp(13px, 1.8cqw, 15px)',
     fontWeight: 700,
     cursor: 'pointer',
     touchAction: 'none',

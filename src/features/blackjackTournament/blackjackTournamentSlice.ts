@@ -314,6 +314,11 @@ export function aiShouldHit(total: number, rngValue: number): boolean {
   return rngValue < AI_HIT_PROBABILITY
 }
 
+/** An AI stops drawing once its opponent has already busted. */
+export function aiShouldHitDuel(total: number, rngValue: number, opponentBust: boolean): boolean {
+  return !opponentBust && aiShouldHit(total, rngValue)
+}
+
 /**
  * Get the AI decision RNG value for a specific player and decision index.
  * Keyed separately from card deals so hit/stand decisions are independent
@@ -594,9 +599,10 @@ function simulateAiFinals(state: BlackjackTournamentState): void {
         const isA = duel.duelTurn === 'fighterA'
         const playerId = isA ? pair.fighterAId : pair.fighterBId
         const cards = isA ? duel.fighterACards : duel.fighterBCards
-        const shouldHit = aiShouldHit(
+        const shouldHit = aiShouldHitDuel(
           computeTotal(cards),
-          aiDecisionRng(state.seed, state.duelIndex, playerId, decisions[playerId]++)
+          aiDecisionRng(state.seed, state.duelIndex, playerId, decisions[playerId]++),
+          isA ? duel.fighterBBust : duel.fighterABust
         )
         if (shouldHit) {
           cards.push(dealDuelCard(state.seed, state.duelIndex, duel.rngCallCount++, rematch))

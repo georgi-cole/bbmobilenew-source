@@ -4,6 +4,7 @@
 
 import type { Houseguest } from '../types/houseguest'
 import type { CompetitionSkillProfile } from '../ai/competition/types'
+import { BELLA_PROFILE } from './specialHouseguestProfiles'
 import { RESERVE_HOUSEGUESTS } from './reserveHouseguests'
 
 const DEFAULT_COMPETITION_PROFILE: CompetitionSkillProfile = {
@@ -718,7 +719,8 @@ export function getById(id: string): Houseguest | undefined {
   const normalized = id.toLowerCase()
   return (
     HOUSEGUESTS.find((houseguest) => houseguest.id === normalized) ??
-    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.id === normalized)
+    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.id === normalized) ??
+    (BELLA_PROFILE.id === normalized ? BELLA_PROFILE : undefined)
   )
 }
 
@@ -726,6 +728,7 @@ export function findByName(name: string): Houseguest | undefined {
   const lower = name.toLowerCase()
   return (
     HOUSEGUESTS.find((houseguest) => houseguest.name.toLowerCase() === lower) ??
-    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.name.toLowerCase() === lower)
+    RESERVE_HOUSEGUESTS.find((houseguest) => houseguest.name.toLowerCase() === lower) ??
+    (BELLA_PROFILE.name.toLowerCase() === lower ? BELLA_PROFILE : undefined)
   )
 }

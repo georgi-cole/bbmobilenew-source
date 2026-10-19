@@ -41,14 +41,14 @@ import {
   cardRank,
   cardSuit,
   aiPickFighters,
-  aiShouldHit,
+  aiShouldHitDuel,
   aiDecisionRng,
 } from '../../features/blackjackTournament/blackjackTournamentSlice'
 import type { BlackjackTournamentCompetitionType } from '../../features/blackjackTournament/blackjackTournamentSlice'
 import { resolveBlackjackTournamentOutcome } from '../../features/blackjackTournament/thunks'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
 import { resolvePresentationAvatar } from '../../utils/presentationAvatar'
-import HOUSEGUESTS from '../../data/houseguests'
+import { getById } from '../../data/houseguests'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import './BlackjackTournamentComp.css'
@@ -79,7 +79,7 @@ function resolveTournamentAvatar(id: string, participants?: ParticipantProp[]): 
       resolveAvatar({ id, name: participant.name, avatar: participant.avatar })
     )
   }
-  const hg = HOUSEGUESTS.find((h) => h.id === id)
+  const hg = getById(id)
   if (hg) return resolvePresentationAvatar(resolveAvatar({ id: hg.id, name: hg.name, avatar: '' }))
   return getDicebear(id)
 }
@@ -87,7 +87,7 @@ function resolveTournamentAvatar(id: string, participants?: ParticipantProp[]): 
 function displayName(id: string, participants?: Array<{ id: string; name: string }>): string {
   const part = participants?.find((p) => p.id === id)
   if (part) return part.name
-  const hg = HOUSEGUESTS.find((h) => h.id === id)
+  const hg = getById(id)
   return hg?.name ?? id
 }
 
@@ -456,6 +456,7 @@ export default function BlackjackTournamentComp({
 
     const activeId = duel.duelTurn === 'fighterA' ? duel.fighterAId : duel.fighterBId
     const activeCards = duel.duelTurn === 'fighterA' ? duel.fighterACards : duel.fighterBCards
+    const opponentBust = duel.duelTurn === 'fighterA' ? duel.fighterBBust : duel.fighterABust
     const decisionIndex = activeCards.length - 2 // 0 for first decision
 
     // Human active player: wait for button press, no timer needed.
@@ -463,7 +464,7 @@ export default function BlackjackTournamentComp({
 
     // AI active player: auto-decide after a short delay.
     const rngVal = aiDecisionRng(bt.seed, bt.duelIndex, activeId, decisionIndex)
-    const shouldHit = aiShouldHit(computeTotal(activeCards), rngVal)
+    const shouldHit = aiShouldHitDuel(computeTotal(activeCards), rngVal, opponentBust)
 
     const delay = bt.isSpectating ? SPECTATOR_ADVANCE_MS : applySpeed(TIMER_AI_ACTION_MS)
     aiActionTimerRef.current = window.setTimeout(() => {

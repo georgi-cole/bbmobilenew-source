@@ -180,8 +180,20 @@ export interface SocialPhaseReport {
   timestamp: number
 }
 
+/** The player-visible result, finalized after action-specific processing. */
+export interface SocialActionReceipt {
+  /** Groups compatibility logs belonging to one multi-recipient move. */
+  groupId?: string
+  summary: string
+  outcomeLabel: string
+  tone: 'positive' | 'negative' | 'neutral'
+}
+
 /** A single recorded social action executed during a phase. */
 export interface SocialActionLogEntry {
+  /** Stable identity for finalizing display copy without recording the action twice. */
+  id?: string
+  receipt?: SocialActionReceipt
   actionId: string
   actorId: string
   targetId: string
@@ -369,6 +381,8 @@ export interface SocialState {
   sessionLogs: SocialActionLogEntry[]
   /** Bounded gameplay history retained after the panel closes. */
   actionHistory?: SocialActionLogEntry[]
+  /** Monotonic display identity; never consumes the gameplay random stream. */
+  actionLogSequence?: number
   /** Schema version used by backward-compatible social save migration. */
   socialStateVersion?: number
   /**

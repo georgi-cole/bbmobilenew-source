@@ -4,9 +4,11 @@ import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import RiskWheelComp from '../../../src/components/RiskWheelComp/RiskWheelComp'
 import riskWheelReducer, {
+  initRiskWheel,
   performSpin,
   WHEEL_SECTORS,
   pickSectorIndex,
+  type RiskWheelState,
 } from '../../../src/features/riskWheel/riskWheelSlice'
 import gameReducer from '../../../src/store/gameSlice'
 
@@ -48,6 +50,75 @@ function findPositivePointsSeed(): number {
 }
 
 describe('RiskWheelComp', () => {
+  it('shows tied players and explains the live tie-break before starting it', async () => {
+    const initialized = riskWheelReducer(
+      undefined,
+      initRiskWheel({
+        participantIds: ['human', 'ai-1', 'safe-player'],
+        competitionType: 'POS',
+        seed: 42,
+        humanPlayerId: 'human',
+      })
+    )
+    const pendingTie: RiskWheelState = {
+      ...initialized,
+      phase: 'round_summary',
+      roundScores: { human: 0, 'ai-1': 0, 'safe-player': 20 },
+      tieBreaker: {
+        originalActivePlayerIds: ['human', 'ai-1', 'safe-player'],
+        originalRoundScores: { human: 0, 'ai-1': 0, 'safe-player': 20 },
+        eliminatedBeforeTieBreaker: [],
+        candidatePlayerIds: ['human', 'ai-1'],
+        eliminatedTieBreakerIds: [],
+        round: 1,
+        pendingStart: true,
+      },
+      eliminatedThisRound: [],
+    }
+    const testRiskWheelReducer = (
+      state: RiskWheelState | undefined,
+      action: Parameters<typeof riskWheelReducer>[1]
+    ) => {
+      if (action.type === 'test/force-pending-tie') return pendingTie
+      return riskWheelReducer(state, action)
+    }
+    const store = configureStore({
+      reducer: { riskWheel: testRiskWheelReducer, game: gameReducer },
+    })
+
+    render(
+      <Provider store={store}>
+        <RiskWheelComp
+          participantIds={['human', 'ai-1', 'safe-player']}
+          participants={[
+            { id: 'human', name: 'Human', isHuman: true },
+            { id: 'ai-1', name: 'AI 1', isHuman: false },
+            { id: 'safe-player', name: 'Safe Player', isHuman: false },
+          ]}
+          prizeType="POS"
+          seed={42}
+          standalone
+        />
+      </Provider>
+    )
+
+    await act(async () => {
+      store.dispatch({ type: 'test/force-pending-tie' })
+    })
+
+    expect(screen.getByText(/score tie at the elimination line/i)).toBeInTheDocument()
+    expect(screen.getAllByText('⚖ TIED')).toHaveLength(2)
+    expect(screen.getByText(/will each spin once/i)).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /start tie-break round 1/i }))
+    })
+
+    expect(screen.getByRole('button', { name: /take your tie-break spin/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('0 of 1 spins used')).toBeInTheDocument()
+    expect(store.getState().riskWheel.activePlayerIds).toEqual(['human', 'ai-1'])
+  })
+
   it('keeps the classic skin by default and enables the VIP skin only when requested', async () => {
     const classicStore = makeStore()
     const classic = render(
@@ -177,11 +248,10 @@ describe('RiskWheelComp', () => {
     render(
       <Provider store={store}>
         <RiskWheelComp
-          participantIds={['human', 'ai-1', 'ai-2']}
+          participantIds={['human', 'ai-1']}
           participants={[
             { id: 'human', name: 'Human', isHuman: true },
             { id: 'ai-1', name: 'AI 1', isHuman: false },
-            { id: 'ai-2', name: 'AI 2', isHuman: false },
           ]}
           prizeType="LOH"
           seed={seed}

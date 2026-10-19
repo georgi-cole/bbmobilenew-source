@@ -1,10 +1,25 @@
-export type TutorialGuide = 'game' | 'social'
+export type TutorialGuide = 'game' | 'social' | 'loh-rules' | 'pos-rules'
 export type SocialTutorialVariant = 'normal' | 'reality' | 'reality-upgrade'
 export type SocialGuideLevel = 0 | 1 | 2
 
 type TutorialReplayState = {
   gamePending: boolean
   socialPending: boolean
+  lohRulesPending: boolean
+  posRulesPending: boolean
+}
+
+const GUIDE_KEYS = {
+  game: 'gamePending',
+  social: 'socialPending',
+  'loh-rules': 'lohRulesPending',
+  'pos-rules': 'posRulesPending',
+} as const
+const INITIAL_REPLAY_STATE: TutorialReplayState = {
+  gamePending: true,
+  socialPending: true,
+  lohRulesPending: true,
+  posRulesPending: true,
 }
 
 const REPLAY_VERSION = 'v1'
@@ -49,7 +64,7 @@ function migratedReplayState(
   profileId: string | null,
   isGuest: boolean
 ): TutorialReplayState {
-  if (!storage) return { gamePending: true, socialPending: true }
+  if (!storage) return { ...INITIAL_REPLAY_STATE }
 
   const legacySetting = storage.getItem(legacySeasonTutorialEnabledStorageKey(profileId))
   const legacyGameEnabled = isGuest
@@ -64,12 +79,14 @@ function migratedReplayState(
   return {
     gamePending: legacyGameEnabled,
     socialPending: !legacyRealityHandled,
+    lohRulesPending: legacySetting !== 'disabled',
+    posRulesPending: legacySetting !== 'disabled',
   }
 }
 
 function readReplayState(profileId: string | null, isGuest: boolean): TutorialReplayState {
   const storage = tutorialStorage(isGuest)
-  if (!storage) return { gamePending: true, socialPending: true }
+  if (!storage) return { ...INITIAL_REPLAY_STATE }
 
   try {
     const raw = storage.getItem(tutorialReplayStorageKey(profileId))
@@ -82,6 +99,8 @@ function readReplayState(profileId: string | null, isGuest: boolean): TutorialRe
     return {
       gamePending: parsed.gamePending,
       socialPending: parsed.socialPending,
+      lohRulesPending: parsed.lohRulesPending !== false,
+      posRulesPending: parsed.posRulesPending !== false,
     }
   } catch {
     return migratedReplayState(storage, profileId, isGuest)
@@ -109,16 +128,16 @@ export function isTutorialGuidePending(
   guide: TutorialGuide
 ): boolean {
   const state = readReplayState(profileId, isGuest)
-  return guide === 'game' ? state.gamePending : state.socialPending
+  return state[GUIDE_KEYS[guide]]
 }
 
 export function isTutorialReplayEnabled(profileId: string | null, isGuest: boolean): boolean {
   const state = readReplayState(profileId, isGuest)
-  return state.gamePending || state.socialPending
+  return Object.values(state).some(Boolean)
 }
 
 /**
- * The single Settings toggle arms or cancels both onboarding guides together.
+ * The single Settings toggle arms or cancels all onboarding guides together.
  * Each guide consumes only its own pending bit when completed or skipped.
  */
 export function setTutorialReplayEnabled(
@@ -129,6 +148,8 @@ export function setTutorialReplayEnabled(
   writeReplayState(profileId, isGuest, {
     gamePending: enabled,
     socialPending: enabled,
+    lohRulesPending: enabled,
+    posRulesPending: enabled,
   })
 }
 
@@ -138,13 +159,9 @@ export function markTutorialGuideHandled(
   guide: TutorialGuide
 ): void {
   const state = readReplayState(profileId, isGuest)
-  if (guide === 'game') {
-    if (!state.gamePending) return
-    writeReplayState(profileId, isGuest, { ...state, gamePending: false })
-    return
-  }
-  if (!state.socialPending) return
-  writeReplayState(profileId, isGuest, { ...state, socialPending: false })
+  const key = GUIDE_KEYS[guide]
+  if (!state[key]) return
+  writeReplayState(profileId, isGuest, { ...state, [key]: false })
 }
 
 export function getSocialGuideLevel(profileId: string | null, isGuest: boolean): SocialGuideLevel {

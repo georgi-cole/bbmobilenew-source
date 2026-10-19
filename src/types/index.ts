@@ -34,6 +34,8 @@ export interface Player {
     canBecomePregnant?: boolean
     canCausePregnancy?: boolean
   }
+  /** Gameplay day this contestant joined; absent means they entered on Day 1. */
+  enteredAtDay?: number
   status: PlayerStatus
   /** False when the player left outside a standard eviction and cannot join the Tribunal. */
   tribunalEligible?: boolean
@@ -87,8 +89,6 @@ export interface Player {
   twinMode?: 'combined'
   /** True for housemates inserted after the starting roster. */
   lateEntrant?: boolean
-  /** Game day the contestant entered, used when tracking late arrivals. */
-  enteredAtDay?: number
 }
 
 // ─── Minigame types ───────────────────────────────────────────────────────────
@@ -148,10 +148,10 @@ export interface CompleteMinigamePayload {
    * so the results UI and nomination logic share the same authoritative source.
    */
   lastPlaceId?: string
-  /** Complete game-supplied standings, highest place first. */
-  authoritativeRankedIds?: string[]
-  /** Game-supplied raw scores keyed by participant ID. */
+  /** Actual per-player values reported by games with round-based outcomes. */
   rawResults?: Record<string, number>
+  /** Best-to-worst tournament order when placement differs from score order. */
+  authoritativeRankedIds?: string[]
 }
 
 /** Active minigame session stored in game state while waiting for player input. */

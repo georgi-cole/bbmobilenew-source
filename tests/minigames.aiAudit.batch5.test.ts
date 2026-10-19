@@ -83,6 +83,7 @@ describe('Registry coverage', () => {
     expect(minigameAiRegistry.capitalization).toBeDefined();
     expect(minigameAiRegistry.crystal_path_shattered).toBeDefined();
     expect(minigameAiRegistry.gridOfLuck).toBeDefined();
+    expect(minigameAiRegistry.mysticChamber).toBeDefined();
   });
 });
 

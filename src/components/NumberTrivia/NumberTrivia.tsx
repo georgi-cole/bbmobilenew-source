@@ -707,6 +707,53 @@ export default function NumberTrivia({
                   </p>
                 </div>
 
+                {humanStillActive && (
+                  <>
+                    <label className="number-trivia__input-label" htmlFor="number-trivia-answer">
+                      Enter your answer
+                    </label>
+                    <div className="number-trivia__controls">
+                      <input
+                        id="number-trivia-answer"
+                        className="number-trivia__input"
+                        inputMode="numeric"
+                        pattern="[0-9-]*"
+                        type="number"
+                        value={answerInput}
+                        disabled={!answeringOpen}
+                        onChange={(event) => setAnswerInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') submitAnswer()
+                        }}
+                        aria-label="Answer input"
+                      />
+                      <button
+                        className="number-trivia__button number-trivia__button--primary"
+                        type="button"
+                        onClick={submitAnswer}
+                        disabled={!answeringOpen}
+                      >
+                        Submit
+                      </button>
+                      <button
+                        className="number-trivia__button number-trivia__button--secondary"
+                        type="button"
+                        onClick={skipQuestion}
+                        disabled={!answeringOpen}
+                      >
+                        Skip
+                      </button>
+                    </div>
+                    <p
+                      className={`number-trivia__error ${inputError ? '' : 'number-trivia__error--reserved'}`}
+                      role={inputError ? 'alert' : undefined}
+                      aria-hidden={!inputError}
+                    >
+                      {inputError ?? '\u00a0'}
+                    </p>
+                  </>
+                )}
+
                 {!humanStillActive && (
                   <div className="number-trivia__spectator-card">
                     <p>
@@ -722,7 +769,13 @@ export default function NumberTrivia({
           {scoreboard && (
             <section
               className="number-trivia__scoreboard"
-              aria-label={scoreboard.final ? 'Final scoreboard' : 'Round scoreboard'}
+              aria-label={
+                scoreboard.final
+                  ? 'Final scoreboard'
+                  : scoreboard.phase === 'duel'
+                    ? `Duel ${scoreboard.duelNumber} scoreboard`
+                    : `Round ${scoreboard.roundNumber} scoreboard`
+              }
             >
               <div className="number-trivia__question-card number-trivia__question-card--compact">
                 <p className="number-trivia__question-label">
@@ -821,100 +874,53 @@ export default function NumberTrivia({
           )}
         </main>
 
-        <footer className="number-trivia__footer" aria-label="Game actions">
-          {!scoreboard ? (
-            <>
-              <label className="number-trivia__input-label" htmlFor="number-trivia-answer">
-                Enter your answer
-              </label>
-              <div className="number-trivia__controls">
-                <input
-                  id="number-trivia-answer"
-                  className="number-trivia__input"
-                  inputMode="numeric"
-                  pattern="[0-9-]*"
-                  type="number"
-                  value={answerInput}
-                  disabled={!answeringOpen || !humanStillActive}
-                  onChange={(event) => setAnswerInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') submitAnswer()
-                  }}
-                  aria-label="Answer input"
-                />
-                <button
-                  className="number-trivia__button number-trivia__button--primary"
-                  type="button"
-                  onClick={submitAnswer}
-                  disabled={!answeringOpen || !humanStillActive}
-                >
-                  Submit
-                </button>
+        {scoreboard && (
+          <footer className="number-trivia__footer" aria-label="Game actions">
+            <p className="number-trivia__footer-text">
+              {scoreboard.final
+                ? `🏆 ${winner?.participantName ?? 'Winner'} takes Number Trivia.`
+                : scoreboard.phase === 'duel'
+                  ? 'Accuracy decides first; response time breaks ties.'
+                  : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
+                    ? `The finalists begin with ${NUMBER_TRIVIA_DUEL_STARTING_LIVES} lives each.`
+                    : 'Review the standings before continuing.'}
+            </p>
+            {!scoreboard.final && humanStanding?.eliminatedRound !== null ? (
+              <div
+                className="number-trivia__spectator-actions"
+                role="group"
+                aria-label="Eliminated player options"
+              >
                 <button
                   className="number-trivia__button number-trivia__button--secondary"
                   type="button"
-                  onClick={skipQuestion}
-                  disabled={!answeringOpen || !humanStillActive}
-                >
-                  Skip
-                </button>
-              </div>
-              <p
-                className={`number-trivia__error ${inputError ? '' : 'number-trivia__error--reserved'}`}
-                role={inputError ? 'alert' : undefined}
-                aria-hidden={!inputError}
-              >
-                {inputError ?? '\u00a0'}
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="number-trivia__footer-text">
-                {scoreboard.final
-                  ? `🏆 ${winner?.participantName ?? 'Winner'} takes Number Trivia.`
-                  : scoreboard.phase === 'duel'
-                    ? 'Accuracy decides first; response time breaks ties.'
-                    : scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
-                      ? `The finalists begin with ${NUMBER_TRIVIA_DUEL_STARTING_LIVES} lives each.`
-                      : 'Review the standings before continuing.'}
-              </p>
-              {!scoreboard.final && humanStanding?.eliminatedRound !== null ? (
-                <div
-                  className="number-trivia__spectator-actions"
-                  role="group"
-                  aria-label="Eliminated player options"
-                >
-                  <button
-                    className="number-trivia__button number-trivia__button--secondary"
-                    type="button"
-                    onClick={continueFromScoreboard}
-                  >
-                    Keep watching
-                  </button>
-                  <button
-                    className="number-trivia__button number-trivia__button--primary"
-                    type="button"
-                    onClick={fastForwardToResults}
-                  >
-                    Fast-forward to results
-                  </button>
-                </div>
-              ) : (
-                <button
-                  className="number-trivia__button number-trivia__button--primary number-trivia__continue"
-                  type="button"
                   onClick={continueFromScoreboard}
                 >
-                  {scoreboard.phase === 'qualifier' &&
-                  scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
-                    ? 'Start three-life final'
-                    : 'Continue'}
+                  Keep watching
                 </button>
-              )}
-              <span aria-hidden="true" />
-            </>
-          )}
-        </footer>
+                <button
+                  className="number-trivia__button number-trivia__button--primary"
+                  type="button"
+                  onClick={fastForwardToResults}
+                >
+                  Fast-forward to results
+                </button>
+              </div>
+            ) : (
+              <button
+                className="number-trivia__button number-trivia__button--primary number-trivia__continue"
+                type="button"
+                onClick={continueFromScoreboard}
+              >
+                {scoreboard.phase === 'qualifier' &&
+                scoreboard.roundNumber === NUMBER_TRIVIA_TOTAL_ROUNDS
+                  ? 'Start three-life final'
+                  : 'Continue'}
+              </button>
+            )}
+            <span aria-hidden="true" />
+          </footer>
+        )}
       </div>
     </div>
   )

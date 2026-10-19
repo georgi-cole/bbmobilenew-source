@@ -47,7 +47,7 @@ export const BELLA_WILL_HINTS = [
   'A promise kept can outlive the game that created it.',
   'Some bonds leave more behind than memories.',
   'Loyalty has value. So does knowing when to show it.',
-  'The House remembers who protects whom.',
+  'The Hub remembers who protects whom.',
 ] as const
 
 const BELLA_WILL_REWARDS: readonly BellaWillReward[] = [

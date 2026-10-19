@@ -394,6 +394,12 @@ export function evaluateRealityCandidate({
     const tags = relationshipTagsForReality(reality, actor.id, targetId)
     const affinity = projectedAffinity(reality, actor.id, targetId)
     if (
+      ['apologize', 'repair_bond'].includes(action.id) &&
+      !isRepairableRelationship({ reality, actorId: actor.id, targetId, day: context.day })
+    ) {
+      blockedReasons.push('relationship_repair_not_needed')
+    }
+    if (
       action.id === 'consult_alliance' &&
       !findRealityAllianceForConsultation(reality, actor.id, targetId)
     )
@@ -401,7 +407,7 @@ export function evaluateRealityCandidate({
     if (
       requiredRelationshipTags.length > 0 &&
       !(action.id === 'repair_bond'
-        ? isRepairableRelationship({ reality, actorId: actor.id, targetId })
+        ? isRepairableRelationship({ reality, actorId: actor.id, targetId, day: context.day })
         : requiredRelationshipTags.some((tag) => tags.has(tag)))
     ) {
       blockedReasons.push('relationship_required')

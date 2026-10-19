@@ -1,4 +1,4 @@
-/**
+﻿/**
  * socialAIDriver — budget-aware social decision loop for AI housemates.
  *
  * Normal Mode uses the compact utility policy. Drama Mode first asks the
@@ -37,11 +37,9 @@ import { createDeterministicSocialRandom, validateSocialExecution } from './soci
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import { getEffectiveSocialMode } from './socialMode'
 import { getSocialResourceEffect } from './socialResourceEconomy'
-import { selectIntelActionFact, selectIntelFactForActor } from './intelligenceSystem'
 import { isIncomingInteractionActionable } from './socialRuntimeConfig'
 import type {
   DramaSocialNetwork,
-  IntelligenceDelivery,
   IncomingInteraction,
   IncomingInteractionDeliveryState,
   IncomingInteractionType,
@@ -138,7 +136,6 @@ interface DriverState {
     incomingInteractions?: IncomingInteraction[]
     scheduledIncomingInteractions?: ScheduledIncomingInteraction[]
     incomingInteractionDelivery?: IncomingInteractionDeliveryState
-    intelligenceDeliveries?: IntelligenceDelivery[]
     reality: RealityDomainState
     realitySimulation: RealitySimulationState
   }
@@ -353,48 +350,11 @@ function executeRealityCandidate(
   }
   const costs = normalizeActionCosts(action, candidate.targetIds.length, dramaMode)
   const compatibilityOutcome = result.event.outcome === 'SUCCESS' ? 'success' : 'failure'
-  const observationFact =
-    compatibilityOutcome === 'success' &&
-    state.game.mode !== 'survival' &&
-    ['observe', 'read_the_room', 'snoop_around', 'eavesdrop'].includes(candidate.actionId)
-      ? selectIntelActionFact(
-          state.social.reality,
-          state.social.intelligenceDeliveries,
-          player.id,
-          state.game.week,
-          candidate.actionId,
-          state.game.players
-        )
-      : null
   const resourceEffect = getSocialResourceEffect(
     action,
     compatibilityOutcome,
     candidate.targetIds.length
   )
-  const hasTradeInformation =
-    candidate.actionId === 'trade_secrets' &&
-    compatibilityOutcome === 'success' &&
-    candidate.targetIds.some(
-      (targetId) =>
-        selectIntelFactForActor(
-          state.social.reality,
-          player.id,
-          targetId,
-          state.game.week,
-          state.game.players
-        ) ||
-        selectIntelFactForActor(
-          state.social.reality,
-          targetId,
-          player.id,
-          state.game.week,
-          state.game.players
-        )
-    )
-  const adjustedResourceEffect =
-    candidate.actionId === 'trade_secrets' && !hasTradeInformation && resourceEffect.info > 0
-      ? { ...resourceEffect, info: 0 }
-      : resourceEffect
   const compatibilityDeltas = Object.fromEntries(
     candidate.targetIds.map((targetId) => [
       targetId,
@@ -413,8 +373,8 @@ function executeRealityCandidate(
       actorId: player.id,
       energyDelta: -costs.energy,
       changedRelationshipPairs: result.changedRelationshipPairs,
-      influenceDelta: -costs.influence + adjustedResourceEffect.influence,
-      infoDelta: -costs.info + adjustedResourceEffect.info,
+      influenceDelta: -costs.influence + resourceEffect.influence,
+      infoDelta: -costs.info + resourceEffect.info,
     })
   )
   const latestState = _store.getState() as DriverState
@@ -426,11 +386,6 @@ function executeRealityCandidate(
         targetId: primaryTargetId,
         targetIds: candidate.targetIds,
         ...(candidate.subjectId ? { subjectId: candidate.subjectId } : {}),
-        ...(compatibilityOutcome === 'success' &&
-        state.game.mode !== 'survival' &&
-        ['observe', 'read_the_room', 'snoop_around', 'eavesdrop'].includes(candidate.actionId)
-          ? { context: { intelFactId: observationFact?.id ?? null } }
-          : {}),
         cost: costs.energy,
         costs,
         delta: compatibilityDelta,
@@ -445,13 +400,11 @@ function executeRealityCandidate(
         week: state.game.week,
         phase: state.game.phase,
         source: 'system',
-        ...(adjustedResourceEffect.influence !== 0 || adjustedResourceEffect.info !== 0
+        ...(resourceEffect.influence !== 0 || resourceEffect.info !== 0
           ? {
               yieldsApplied: {
-                ...(adjustedResourceEffect.influence !== 0
-                  ? { influence: adjustedResourceEffect.influence }
-                  : {}),
-                ...(adjustedResourceEffect.info !== 0 ? { info: adjustedResourceEffect.info } : {}),
+                ...(resourceEffect.influence !== 0 ? { influence: resourceEffect.influence } : {}),
+                ...(resourceEffect.info !== 0 ? { info: resourceEffect.info } : {}),
               },
             }
           : {}),
@@ -469,7 +422,6 @@ interface CandidateMove {
   actionId: string
   targetIds: string[]
   subjectId?: string
-  intelFactId?: string
   reason: string
   relationshipIntent?: RealityRelationshipIntentKind
 }
@@ -601,49 +553,7 @@ export function getStatus(): {
   return { running: _running, tickCount: _tickCount, actionsExecuted: _actionsExecuted }
 }
 
-/** Drain the current phase's AI social work synchronously for seeded simulations. */
-export function runCurrentPhaseSynchronously(): number {
-  if (!_store) return 0
-
-  const state = _store.getState() as DriverState
-  if (!_running) {
-    const aiPlayers = getAIPlayers(state)
-    const budgets = state.social?.energyBank ?? {}
-    if (!hasAvailableAiWork(state, aiPlayers, budgets)) return 0
-
-    _running = true
-    _tickCount = 0
-    _actionsExecuted = 0
-    _epoch += 1
-    _activePhaseKey = getPhaseKey(state)
-  }
-
-  clearTimer()
-  cancelScheduledWork()
-  _pausedForBackground = false
-  if (_cycle) processTickSlice(_cycle, true)
-
-  const actionsBefore = _actionsExecuted
-  let drainedTicks = 0
-  while (_running && drainedTicks < MAX_TICKS()) {
-    const previousTickCount = _tickCount
-    tick(true)
-    if (_tickCount === previousTickCount) break
-    drainedTicks += 1
-  }
-
-  const actionsExecuted = _actionsExecuted - actionsBefore
-  stop()
-  return actionsExecuted
-}
-
-export const socialAIDriver = {
-  setStore,
-  start,
-  stop,
-  getStatus,
-  runCurrentPhaseSynchronously,
-}
+export const socialAIDriver = { setStore, start, stop, getStatus }
 
 function getAIPlayers(state: DriverState): DriverPlayer[] {
   return (state.game?.players ?? []).filter(
@@ -698,11 +608,10 @@ function finishTickCycle(cycle: AiTickCycle): void {
   }
 }
 
-function processTickSlice(cycle: AiTickCycle, synchronous = false): void {
+function processTickSlice(cycle: AiTickCycle): void {
   if (!isCycleCurrent(cycle) || !_store) return
-  const deadline = synchronous
-    ? Number.POSITIVE_INFINITY
-    : (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
+  const deadline =
+    (typeof performance !== 'undefined' ? performance.now() : Date.now()) + AI_SLICE_BUDGET_MS
 
   while (_store && _running && cycle.epoch === _epoch && cycle === _cycle) {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -789,7 +698,6 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
   proposeAlliance: 'alliance_proposal',
   compliment: 'compliment',
   protect: 'deal_offer',
-  trade_secrets: 'deal_offer',
   whisper: 'gossip',
   share_intel: 'gossip',
   rumor: 'warning',
@@ -817,12 +725,8 @@ const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
     'The way you carried yourself today stood out—in a good way.',
   ],
   protect: [
-    'I can keep your name off the block this week. If I end up nominated, I need your vote to keep me.',
-    'I have a way to protect you this week. If I am in danger, I need to know you will return the favor.',
-  ],
-  trade_secrets: [
-    'I have a lead that could matter. If we compare notes, I will share what I know and hear what you have learned.',
-    'There is something useful moving around the house. Want to trade what we each know?',
+    'I may be able to keep heat off you this week, but I need to know we are working together.',
+    'Your name is vulnerable. I can help, if we can trust each other.',
   ],
   whisper: [
     'I heard something privately that could change how you read this week.',
@@ -879,8 +783,7 @@ const HUMAN_FACING_ACTION_SCENARIOS: Partial<Record<string, string>> = {
   ally: 'week_start_alliance_lock',
   proposeAlliance: 'week_start_alliance_lock',
   compliment: 'generic_check_in',
-  protect: 'protection_deal',
-  trade_secrets: 'trade_secrets_offer',
+  protect: 'alliance_reassurance',
   whisper: 'generic_gossip',
   share_intel: 'generic_gossip',
   rumor: 'betrayal_warning',
@@ -939,8 +842,7 @@ function routeHumanFacingAction(
   actionId: string,
   subjectId: string | undefined,
   costs: { energy: number; influence: number; info: number },
-  sceneTargetIds?: string[],
-  intelFactId?: string
+  sceneTargetIds?: string[]
 ): HumanRouteResult {
   if (!_store) return 'blocked'
   const type = HUMAN_FACING_ACTION_TYPES[actionId] ?? 'other'
@@ -989,72 +891,22 @@ function routeHumanFacingAction(
 
   const mode = getEffectiveSocialMode(current)
   const content = pickHumanFacingText(actionId, actorId, textName, week, phase)
-  const tradeLead =
-    actionId === 'trade_secrets'
-      ? selectIntelFactForActor(
-          current.social.reality,
-          actorId,
-          human.id,
-          week,
-          current.game.players
-        )
-      : null
-  if (actionId === 'trade_secrets' && !tradeLead) return 'blocked'
-  const protectionLead =
-    actionId === 'protect' && intelFactId
-      ? selectIntelFactForActor(
-          current.social.reality,
-          actorId,
-          human.id,
-          week,
-          current.game.players
-        )
-      : null
-  const disclosedFact =
-    protectionLead && protectionLead.fact.id === intelFactId ? protectionLead.fact : undefined
-  const safetyRescue =
-    actionId === 'protect' &&
-    current.game.posWinnerId === actorId &&
-    (current.game.nomineeIds ?? []).includes(human.id)
-  const scenarioKey =
-    actionId === 'protect'
-      ? safetyRescue
-        ? 'protection_deal_future_vote'
-        : 'protection_deal'
-      : content.scenarioKey
-  const protectionText =
-    actionId === 'protect'
-      ? `${disclosedFact ? 'I have a private lead that could help you. ' : ''}${
-          safetyRescue
-            ? 'I can use Safety on you now. If I am nominated next week, I need your vote to keep me.'
-            : 'I can keep your name off the block this week. If I am nominated, I need your vote to keep me.'
-        } Will you take that deal?`
-      : undefined
   const interaction = createIncomingInteraction({
     id: `ai-action-${actionId}-${actorId}-${deterministicSequence}`,
     fromId: actorId,
     type,
-    text: protectionText ?? content.text,
+    text: content.text,
     week,
     phase,
     mode,
     payload: {
       originActionId: actionId,
-      scenarioKey,
+      scenarioKey: content.scenarioKey,
       variantFamilyId: content.variantFamilyId,
       variantId: content.variantId,
       source: 'background_social',
       ...(actionId === 'group_chat' ? { groupScene: true } : {}),
       ...(subjectId ? { subjectId } : {}),
-      ...(disclosedFact
-        ? {
-            intelFactId: disclosedFact.id,
-            intelConfidence: protectionLead?.belief.confidence,
-            intelSourceChain: protectionLead?.belief.sourceChain ?? [],
-            evidence: (protectionLead?.belief.confidence ?? 0) >= 0.64 ? 'credible' : 'weak',
-            truth: 'uncertain',
-          }
-        : {}),
     },
   })
   const priority = getIncomingInteractionPriority(type)
@@ -1347,7 +1199,6 @@ function candidateForPlayer(
           relationships: state.social.relationships,
           memory: state.social.socialMemory,
           network: normalizeDramaSocialNetwork(state.social.dramaNetwork),
-          reality: state.social.reality,
           recentActions: history,
           week: state.game.week ?? 0,
           phase: state.game.phase ?? '',
@@ -1356,17 +1207,14 @@ function candidateForPlayer(
           lohId: state.game.lohId,
           posWinnerId: state.game.posWinnerId,
           nomineeIds: state.game.nomineeIds,
-          povProtectedIds: state.game.povProtectedIds,
         })
       : null
-  const causalConflictMove = dramaMove?.reason.startsWith('conflict:') ? dramaMove : null
 
   const policyActionId =
     strategicNemesisAction ??
     allianceCampaign?.actionId ??
     pregnancyTestCandidate?.actionId ??
     pregnancyCandidate?.actionId ??
-    causalConflictMove?.actionId ??
     relationshipCandidate?.actionId ??
     dramaMove?.actionId ??
     chooseActionFor(player.id, {
@@ -1416,9 +1264,6 @@ function candidateForPlayer(
     targetIds = pregnancyTestCandidate.targetIds
   } else if (pregnancyCandidate) {
     targetIds = pregnancyCandidate.targetIds
-  } else if (causalConflictMove) {
-    targetIds = [causalConflictMove.targetId]
-    subjectId = causalConflictMove.subjectId
   } else if (relationshipCandidate) {
     targetIds = relationshipCandidate.targetIds
   } else if (dramaMove) {
@@ -1464,7 +1309,6 @@ function candidateForPlayer(
       dramaMove?.reason ??
       `contextual policy attempt ${attempt + 1}`,
     relationshipIntent: relationshipCandidate?.relationshipIntent,
-    intelFactId: dramaMove?.intelFactId,
   }
 }
 
@@ -1487,8 +1331,7 @@ function executeCandidate(
       candidate.actionId,
       candidate.subjectId,
       costs,
-      [primaryTarget.id],
-      candidate.intelFactId
+      [primaryTarget.id]
     )
     if (route === 'scheduled') return true
     if (route === 'blocked' || route === 'deferred') return false
@@ -1505,8 +1348,7 @@ function executeCandidate(
       candidate.actionId,
       candidate.subjectId,
       costs,
-      candidate.targetIds,
-      candidate.intelFactId
+      candidate.targetIds
     )
     if (route === 'scheduled') return true
     if (route === 'blocked' || route === 'deferred') return false
@@ -1530,7 +1372,7 @@ function executeCandidate(
   ).success
 }
 
-function tick(synchronous = false): void {
+function tick(): void {
   if (!_store || !_running || _pausedForBackground) {
     clearTimer()
     return
@@ -1595,7 +1437,7 @@ function tick(synchronous = false): void {
     playerIndex: 0,
     attempt: 0,
   }
-  processTickSlice(_cycle, synchronous)
+  processTickSlice(_cycle)
 }
 
 if (typeof window !== 'undefined') {

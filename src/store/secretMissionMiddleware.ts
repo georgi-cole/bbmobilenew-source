@@ -31,6 +31,8 @@ interface RootLike {
     } | null
     secretMission?: {
       status: string
+      missionNumber?: number
+      triggeredDay: number
       endDay: number
       reward?: {
         type: string
@@ -365,6 +367,8 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
           forceOnTv: true,
           broadcastPriority: 'critical',
           major: 'secret_mission_complete',
+          secretMissionNumber: game.secretMission.missionNumber,
+          secretMissionTriggeredDay: game.secretMission.triggeredDay,
           announcementTitle: 'Secret Mission Complete',
           announcementSubtitle: 'Visit the Confessional to choose your reward.',
         },

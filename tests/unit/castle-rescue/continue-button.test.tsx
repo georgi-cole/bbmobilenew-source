@@ -159,6 +159,48 @@ describe('CastleRescueGame — Continue / Play Again button', () => {
     expect(canvas).toHaveStyle({ pointerEvents: 'none' });
   });
 
+  it('keeps the Continue action in a dedicated results footer', async () => {
+    await renderCompleted(vi.fn());
+    const results = screen.getByTestId('castle-rescue-results');
+    const button = screen.getByRole('button', { name: /continue/i });
+    const footer = button.parentElement;
+
+    expect(footer).not.toBeNull();
+    expect(results).toContainElement(footer);
+    expect(footer?.style.borderTop).not.toBe('');
+  });
+
+  it('lets the landscape canvas use the viewport width with floating controls', () => {
+    const originalWidth = window.innerWidth;
+    const originalHeight = window.innerHeight;
+    const originalVisualViewport = window.visualViewport;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1000 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 600 });
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: {
+        width: 1000,
+        height: 600,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+    });
+
+    try {
+      renderActiveGame();
+      const canvas = screen.getByLabelText('Find Your Twin platformer game');
+
+      expect(canvas.parentElement).toHaveStyle({ width: '1000px', height: '600px' });
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth });
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
+      Object.defineProperty(window, 'visualViewport', {
+        configurable: true,
+        value: originalVisualViewport,
+      });
+    }
+  });
+
   it('renders touch controls with selection and callout suppression styles', () => {
     renderActiveGame();
     const moveLeftBtn = screen.getByRole('button', { name: /move left/i });

@@ -56,7 +56,11 @@ import {
   resolveTribunalSize,
 } from '../rules/tribunalPolicy'
 import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
-import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
+import {
+  getTwinShockActivationSeason,
+  MAX_SEASON_ARCHIVES,
+  type SeasonArchive,
+} from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
@@ -195,6 +199,7 @@ import {
   decideCompetitionIntent,
   type CompetitionIntent,
 } from '../social/intelligenceSystem'
+import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 import {
   traceAiDecision,
   type AiDecisionCandidate,
@@ -245,6 +250,7 @@ const AI_LOH_WIN_THREAT_WEIGHT = 4
 const AI_POS_WIN_THREAT_WEIGHT = 3
 const AI_NEVER_NOMINATED_THREAT_WEIGHT = 1
 const AI_CURRENT_LOH_POWER_THREAT_WEIGHT = 2
+const AI_HOLD_THE_WALL_DEAL_WEIGHT = 108
 const EARLY_HUMAN_EVICTION_GRACE_BY_WEEK = [0, 16, 12, 6] as const
 
 function getPhaseOrderIndex(phase: Phase): number {
@@ -786,11 +792,8 @@ export function createInitialGameState(options?: {
   // every later phase. This makes edits, disabling, and mixed built-in/custom
   // ordering effective before the first Play press as well.
   const seasonStartBuiltIns = [
-    {
-      id: cupidArrowIsScheduled ? 'season.welcome-cupid' : 'season.welcome',
-      variables: [String(season)],
-      include: true,
-    },
+    // SeasonStartOnboardingController owns the single opening welcome.
+    // Retired welcome templates remain readable only for saved-game migration.
     { id: 'season.public-mode-rule', variables: [publicModeEnabled ? 'ON' : 'OFF'], include: true },
     { id: 'season.vox-populi-intro', variables: [], include: voxPopuliIsScheduled },
   ].flatMap(({ id, variables, include }) => {
@@ -1303,7 +1306,9 @@ function pushEvent(
   const observed =
     template || authoredTemplateId ? null : inferObservedBroadcastSource(state, hintedPhase, text)
   const templateId = template?.id ?? authoredTemplateId ?? observed?.id
-  const isDeclaredSource = Boolean(template || authoredTemplateId || meta?.customBroadcastId)
+  const isDeclaredSource = Boolean(
+    template || authoredTemplateId || meta?.customBroadcastId || typeof meta?.major === 'string'
+  )
   const variables = matched?.variables ?? observed?.variables ?? []
   const override = templateId ? state.broadcastOverrides?.[templateId] : undefined
   if (override?.disabled) return undefined
@@ -1414,6 +1419,47 @@ function pushEvent(
   state.tvFeed = [event, ...state.tvFeed].slice(0, MAX_GAME_HISTORY_EVENTS)
   enqueueManagedBroadcast(state, event)
   return event
+}
+
+/** Publish Bella's inheritance disclosure from every eviction path. */
+function publishBellaWillOnEviction(
+  state: GameState,
+  evicteeId: string,
+  excludedHeirIds: readonly string[] = []
+): void {
+  const will = state.bellaWill
+  if (evicteeId !== BELLA_ID || !will?.active || will.inherited) return
+
+  expireBellaWillAtEndgame(state)
+  const excluded = new Set(excludedHeirIds)
+  const heir = will.heirId ? state.players.find((player) => player.id === will.heirId) : null
+  const heirIsEligible =
+    heir != null &&
+    heir.id !== BELLA_ID &&
+    heir.status !== 'evicted' &&
+    heir.status !== 'jury' &&
+    !excluded.has(heir.id)
+  if (!heirIsEligible) will.heirId = chooseBellaHeir(state, excludedHeirIds)
+
+  const selectedHeir = state.players.find((player) => player.id === will.heirId)
+  if (!selectedHeir || !will.reward) return
+
+  activateBellaInheritance(state)
+  if (will.inherited) {
+    pushEvent(
+      state,
+      `Bella's Will is now in effect. ${selectedHeir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[will.reward]}.`,
+      'game',
+      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+    )
+  } else if (will.expiredAtEndgame) {
+    pushEvent(
+      state,
+      `Bella's Will is revealed. ${selectedHeir.name} is named heir, but the reward (${BELLA_WILL_REWARD_LABELS[will.reward]}) expired when the House reached the Final 4.`,
+      'game',
+      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+    )
+  }
 }
 
 function pushDetoxEvent(state: GameState, text: string) {
@@ -2366,6 +2412,19 @@ function getNominationTargetBreakdown(
     score += revenge
     factors.revenge = revenge
   }
+  const wallDeal = state.holdTheWallSafetyDeal
+  if (
+    wallDeal?.week === state.week &&
+    wallDeal.promisorId === lohId &&
+    wallDeal.beneficiaryId === candidate.id
+  ) {
+    const disposition = getHoldTheWallDealDisposition(state, wallDeal)
+    const contribution =
+      disposition === 'honor' ? -AI_HOLD_THE_WALL_DEAL_WEIGHT : AI_HOLD_THE_WALL_DEAL_WEIGHT
+    score += contribution
+    factors.holdTheWallDealDisposition = disposition
+    factors.holdTheWallDealContribution = contribution
+  }
   factors.total = score
   return { total: score, factors }
 }
@@ -2437,13 +2496,14 @@ export function chooseStrategicEliminationCandidates(
     // A current, explicit protection promise weighs heavily, but remains
     // defeasible when stronger threats or betrayal evidence point the other way.
     const taggedPromiseProtection = tags.has('safety_promise') ? -92 : 0
-    const wallDealProtection =
-      state.holdTheWallSafetyDeal?.week === state.week &&
-      state.holdTheWallSafetyDeal.promisorId === decisionMakerId &&
-      state.holdTheWallSafetyDeal.beneficiaryId === candidate.id
-        ? -108
-        : 0
-    const promiseProtection = Math.min(taggedPromiseProtection, wallDealProtection)
+    // The nomination read already includes the wall bargain's honor/betrayal
+    // decision. Add only protection not already covered by that bargain.
+    const wallDealProtection = Math.min(
+      0,
+      Number(nomination.factors.holdTheWallDealContribution ?? 0)
+    )
+    const promiseProtection =
+      Math.min(taggedPromiseProtection, wallDealProtection) - wallDealProtection
     total += promiseProtection
     factors.promiseProtection = promiseProtection
 
@@ -3175,7 +3235,10 @@ function pickStrategicAiPlayer(
   if (candidates.length === 0) return null
   const scored = candidates.map((player) => ({
     player,
-    score: getAiThreatScore(state, player, options),
+    score: getAiThreatScore(state, player, {
+      ...options,
+      actorId: options.actorId ?? options.debug?.actorId,
+    }),
   }))
   const targetScore =
     mode === 'highest'
@@ -6001,6 +6064,18 @@ const gameSlice = createSlice({
         }
       }
 
+      // Some elimination tournaments report actual per-round averages and a
+      // bracket order that is distinct from sorting those averages. Preserve
+      // both when supplied instead of mixing them with precomputed AI scores.
+      if (payload.rawResults) {
+        for (const id of session.participants) {
+          const reportedScore = payload.rawResults[id]
+          if (typeof reportedScore === 'number' && Number.isFinite(reportedScore)) {
+            scores[id] = reportedScore
+          }
+        }
+      }
+
       // Prefer a canonical winner supplied by the UI component so the
       // displayed leaderboard and the applied state transition stay aligned.
       // When using the hybrid resolver the component also calls it with the
@@ -6051,18 +6126,16 @@ const gameSlice = createSlice({
         winnerId,
       })
 
-      const scorePlacements = [...session.participants].sort(
-        (left, right) => (scores[right] ?? 0) - (scores[left] ?? 0) || left.localeCompare(right)
+      const reportedPlacements = payload.authoritativeRankedIds?.filter(
+        (id, index, allIds) => session.participants.includes(id) && allIds.indexOf(id) === index
       )
-      const suppliedPlacements = payload.authoritativeRankedIds?.filter(
-        (id, index, ids) => session.participants.includes(id) && ids.indexOf(id) === index
-      )
-      const placements = suppliedPlacements
-        ? [
-            ...suppliedPlacements,
-            ...scorePlacements.filter((id) => !suppliedPlacements.includes(id)),
-          ]
-        : scorePlacements
+      const placements =
+        reportedPlacements?.length === session.participants.length
+          ? reportedPlacements
+          : [...session.participants].sort(
+              (left, right) =>
+                (scores[right] ?? 0) - (scores[left] ?? 0) || left.localeCompare(right)
+            )
       state.lastCompetitionResolution = {
         runId: `${session.key}:${session.seed}`,
         gameKey: session.key,
@@ -7626,29 +7699,7 @@ const gameSlice = createSlice({
           ...(sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []),
           ...unresolvedDoubleBoundaryIds,
         ]
-        const currentHeir = state.bellaWill.heirId
-          ? state.players.find((player) => player.id === state.bellaWill?.heirId)
-          : null
-        const currentHeirIsValid =
-          currentHeir != null &&
-          currentHeir.id !== BELLA_ID &&
-          currentHeir.status !== 'evicted' &&
-          currentHeir.status !== 'jury' &&
-          !excludedHeirIds.includes(currentHeir.id)
-        if (!currentHeirIsValid) {
-          state.bellaWill.heirId = chooseBellaHeir(state, excludedHeirIds)
-        }
-        activateBellaInheritance(state)
-        const heir = state.players.find((player) => player.id === state.bellaWill?.heirId)
-        const reward = state.bellaWill?.reward
-        if (state.bellaWill.inherited && heir && reward) {
-          pushEvent(
-            state,
-            `Bella's Will is now in effect. ${heir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[reward]}.`,
-            'game',
-            { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
-          )
-        }
+        publishBellaWillOnEviction(state, evicteeId, excludedHeirIds)
       }
 
       const cupidEvictionTemplateId = msg.includes(
@@ -7901,6 +7952,7 @@ const gameSlice = createSlice({
         `${finalHoh.name} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
         'game'
       )
+      publishBellaWillOnEviction(state, evicteeId)
       state.phase = 'week_end'
       pushEvent(
         state,
@@ -8729,6 +8781,7 @@ const gameSlice = createSlice({
         `${hoh?.name ?? hohWinnerId} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
         'game'
       )
+      publishBellaWillOnEviction(state, evicteeId)
       pushEvent(
         state,
         `The Final 2 is set! The Tribunal will now vote for the winner of The Big Eye. 🏆`,
@@ -9435,8 +9488,23 @@ const gameSlice = createSlice({
       // When an explicit archives array is provided (e.g. on profile switch) use it;
       // otherwise preserve the current in-memory archives so a regular game restart
       // does not lose season history.
+      const existingArchives = state.seasonArchives ?? []
+      const inferredTwinShockSeason = getTwinShockActivationSeason(
+        existingArchives,
+        state.twinShockActivatedSeason
+      )
       const seasonArchives =
-        action.payload !== undefined ? action.payload : (state.seasonArchives ?? [])
+        action.payload !== undefined
+          ? action.payload
+          : inferredTwinShockSeason === null
+            ? existingArchives
+            : existingArchives.map((archive) => ({
+                ...archive,
+                // Older builds copied the save-wide flag into later seasons.
+                // The Twin Shock can be consumed once, so keep only its known
+                // activation season when normalizing a legacy save.
+                twinShockConsumed: archive.seasonIndex === inferredTwinShockSeason,
+              }))
       // Derive the next season number from the maximum archived seasonIndex so the
       // result is stable even after the 1000-entry archive cap or non-contiguous entries.
       const season = nextSeasonNumber(seasonArchives)
@@ -10787,9 +10855,10 @@ const gameSlice = createSlice({
           completeFinalThreeController(state, evictee.id)
           pushEvent(
             state,
-            `${finalHoh?.name ?? 'The Final Power holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
+            `${finalHoh?.name ?? 'The Final Power holder'} has chosen to eliminate ${evictee.name}${decision?.reason ? ` — ${decision.reason}` : ''}. ${evictee.name} finishes in 3rd place. 🥉`,
             'game'
           )
+          publishBellaWillOnEviction(state, evictee.id)
           pushEvent(
             state,
             `The Final 2 is set! The Tribunal will now vote for the winner of The Big Eye. 🏆`,
@@ -11455,7 +11524,8 @@ const gameSlice = createSlice({
               )
               if (coPool.length > 0) {
                 const nominee =
-                  pickStrategicAiPlayer(state, coPool, rng, 'highest') ?? seededPick(rng, coPool)
+                  pickStrategicAiPlayer(state, coPool, rng, 'highest', { actorId: coLohId }) ??
+                  seededPick(rng, coPool)
                 state.nomineeIds.push(nominee.id)
                 const np = state.players.find((pl) => pl.id === nominee.id)
                 if (np) np.status = 'nominated'
@@ -11937,7 +12007,7 @@ const gameSlice = createSlice({
                 eligible,
                 Math.min(2, eligible.length),
                 rng,
-                { preferLoh: true }
+                { preferLoh: true, actorId: posWinner.id }
               )
               if (replacements.length > 0) {
                 replacements.forEach((replacement) => appendNominee(state, replacement.id))
@@ -12973,6 +13043,30 @@ const gameSlice = createSlice({
       sm.status = 'rewardClaimed'
       state.secretMissionLastResolvedDay =
         typeof action.payload === 'string' ? state.week : action.payload.claimDay
+
+      // The Confessional is the canonical place to claim the mission reward.
+      // Retire its pending faux-TV reminder now so it cannot tell the player to
+      // claim a reward they have already opened. Keep the event in log history.
+      const retiredMissionBroadcastIds = new Set<string>()
+      for (const event of state.tvFeed) {
+        if (
+          event.meta?.major !== 'secret_mission_complete' ||
+          event.meta.broadcastConsumed === true
+        ) {
+          continue
+        }
+        const eventMissionNumber = event.meta.secretMissionNumber
+        if (typeof eventMissionNumber === 'number' && eventMissionNumber !== sm.missionNumber) {
+          continue
+        }
+        event.meta = { ...event.meta, broadcastConsumed: true, rewardClaimed: true }
+        retiredMissionBroadcastIds.add(event.id)
+      }
+      if (retiredMissionBroadcastIds.size > 0) {
+        state.broadcastQueue = (state.broadcastQueue ?? []).filter(
+          (id) => !retiredMissionBroadcastIds.has(id)
+        )
+      }
     },
 
     /**
@@ -14290,7 +14384,6 @@ export const simulateImmediateEliminationCycle =
       0
     const rng = mulberry32(cycleSeed)
     const completedSocialPhases = new Set<string>()
-
     seedDebugCycleNoise(dispatch, getState(), rng)
 
     let steps = 0

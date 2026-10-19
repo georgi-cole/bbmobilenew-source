@@ -904,6 +904,8 @@ export default function RiskWheelComp({
 
   // ── Phase: round_summary ─────────────────────────────────────────────────
   if (phase === 'round_summary') {
+    const tieBreakPending = tieBreaker?.pendingStart === true
+    const tieBreakCandidates = new Set(tieBreaker?.candidatePlayerIds ?? [])
     const sortedActive = [...activePlayerIds].sort(
       (a, b) => (roundScores[b] ?? 0) - (roundScores[a] ?? 0)
     )
@@ -936,6 +938,7 @@ export default function RiskWheelComp({
         <ul className="rw-summary-list" aria-label="Round scoreboard">
           {sortedActive.map((id, rank) => {
             const isOut = eliminatedThisRound.includes(id)
+            const isTiedForCutoff = tieBreakPending && tieBreakCandidates.has(id)
             const score = roundScores[id] ?? 0
             return (
               <li
@@ -960,6 +963,14 @@ export default function RiskWheelComp({
                     🚪 OUT
                   </span>
                 )}
+                {isTiedForCutoff && (
+                  <span
+                    className="rw-summary-badge rw-summary-badge--tie"
+                    aria-label="Tied for elimination cutoff"
+                  >
+                    ⚖ TIED
+                  </span>
+                )}
                 {!isOut && rank === 0 && (
                   <span className="rw-summary-badge rw-summary-badge--top">⭐ TOP</span>
                 )}
@@ -967,11 +978,18 @@ export default function RiskWheelComp({
             )
           })}
         </ul>
+        {tieBreakPending && (
+          <p className="rw-summary-tiebreak-msg" role="status">
+            ⚖ Score tie at the elimination line:{' '}
+            {tieBreaker.candidatePlayerIds.map((id) => getName(id, participants)).join(' and ')}{' '}
+            will each spin once in a tie-break round before anyone is eliminated.
+          </p>
+        )}
         <div className="rw-summary-footer">
           {isHumanEliminated ? (
             <>
               <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
-                Continue as spectator
+                {tieBreakPending ? 'Continue to tie-break as spectator' : 'Continue as spectator'}
               </button>
               <button className="rw-btn rw-btn--secondary rw-btn--lg" onClick={handleSkipToResults}>
                 Skip to results
@@ -979,7 +997,11 @@ export default function RiskWheelComp({
             </>
           ) : (
             <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
-              {isLastRound ? '🏆 See Winner' : `▶ Start Round ${round + 1}`}
+              {tieBreakPending
+                ? `⚖ Start tie-break round ${tieBreaker.round}`
+                : isLastRound
+                  ? '🏆 See Winner'
+                  : `▶ Start Round ${round + 1}`}
             </button>
           )}
           {tieBreakerSummary && (
@@ -1010,7 +1032,9 @@ export default function RiskWheelComp({
   )
 
   return (
-    <div className={`rw-root rw-game${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}`}>
+    <div
+      className={`rw-root rw-game${isTieBreaker ? ' rw-tiebreak-game' : ''}${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}`}
+    >
       {premiumPresentation ? (
         <div className="rw-vip-showroom" aria-hidden="true" data-testid="rw-vip-showroom">
           <img
@@ -1027,7 +1051,7 @@ export default function RiskWheelComp({
         </div>
       ) : null}
       {/* Header */}
-      <header className="rw-header">
+      <header className={`rw-header${isTieBreaker ? ' rw-header--tiebreak' : ''}`}>
         <div className="rw-header-left">
           {premiumPresentation && (
             <div className="rw-vip-brand" aria-label="VIP Risk Wheel">
@@ -1158,7 +1182,7 @@ export default function RiskWheelComp({
               className="rw-btn rw-btn--spin"
               onClick={handleHumanSpin}
               disabled={spinning}
-              aria-label="Spin the wheel"
+              aria-label={isTieBreaker ? 'Take your tie-break spin' : 'Spin the wheel'}
             >
               {isTieBreaker ? '⚖ Tie-break Spin' : '🎡 Spin'}
             </button>

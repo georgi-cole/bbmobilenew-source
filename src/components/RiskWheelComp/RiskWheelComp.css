@@ -1072,6 +1072,12 @@
   border: 1px solid rgba(157, 166, 255, 0.25);
 }
 
+.rw-summary-badge--tie {
+  color: #ffe6a1;
+  background: rgba(151, 111, 39, 0.34);
+  border: 1px solid rgba(245, 201, 106, 0.42);
+}
+
 .rw-summary-elim-msg {
   width: 100%;
   margin: 0;
@@ -1118,6 +1124,40 @@
   font-weight: 700;
   background: rgba(121, 82, 19, 0.23);
   border: 1px solid rgba(255, 201, 87, 0.19);
+}
+
+/* Keep tie-break context on its own line on narrow portrait screens. */
+.rw-tiebreak-game .rw-header--tiebreak {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 8px;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-left,
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-center {
+  justify-content: center;
+  width: 100%;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-left {
+  flex-wrap: wrap;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-tiebreak-status {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.rw-tiebreak-game .rw-main--tiebreaker {
+  gap: 9px;
+  padding: 10px 12px 18px;
+}
+
+.rw-root--vip.rw-tiebreak-game .rw-wheel-outer {
+  width: min(70vw, 248px);
+  height: min(70vw, 248px);
 }
 
 .rw-summary-footer {

@@ -36,6 +36,7 @@ import reducer, {
   cardRank,
   resolveDuelOutcome,
   aiShouldHit,
+  aiShouldHitDuel,
   aiDecisionRng,
   aiPickFighters,
   AI_STAND_THRESHOLD,
@@ -220,6 +221,17 @@ describe('aiShouldHit', () => {
     // At total 14 (between thresholds): low rng = hit, high rng = stand
     expect(aiShouldHit(14, 0.0)).toBe(true);  // rng < AI_HIT_PROBABILITY
     expect(aiShouldHit(14, 1.0)).toBe(false); // rng >= AI_HIT_PROBABILITY
+  });
+});
+
+describe('aiShouldHitDuel', () => {
+  it('stands immediately after the opponent busts, regardless of hand total', () => {
+    expect(aiShouldHitDuel(8, 0, true)).toBe(false);
+    expect(aiShouldHitDuel(16, 0, true)).toBe(false);
+  });
+
+  it('uses the normal strategy while the opponent is still live', () => {
+    expect(aiShouldHitDuel(8, 0, false)).toBe(true);
   });
 });
 

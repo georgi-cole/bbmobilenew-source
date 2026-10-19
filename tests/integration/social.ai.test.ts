@@ -200,7 +200,7 @@ describe('socialAIDriver – Reality resource settlement', () => {
     vi.restoreAllMocks()
   })
 
-  it('applies the same outcome-sensitive Information gain to a resolved AI Reality action', () => {
+  it('settles and records Information and Influence earned by a resolved AI Reality action', () => {
     const store = makeRealityAiStore()
     initManeuvers(store as never)
     setStore(store as never)
@@ -218,7 +218,9 @@ describe('socialAIDriver – Reality resource settlement', () => {
     expect(getStatus().actionsExecuted).toBe(1)
     expect(store.getState().social.energyBank.ai1).toBe(8)
     expect(store.getState().social.infoBank.ai1).toBe(100)
+    expect(store.getState().social.influenceBank.ai1).toBe(1)
     expect(store.getState().social.actionHistory.at(-1)?.yieldsApplied).toEqual({
+      influence: 1,
       info: 100,
     })
   })
@@ -227,27 +229,27 @@ describe('socialAIDriver – Reality resource settlement', () => {
 // ── normalizeActionCosts integration with canAfford ───────────────────────
 
 describe('normalizeActionCosts + canAfford integration', () => {
-  it('proposeAlliance is unaffordable without info (costs info:200)', () => {
+  it('a personal pact is affordable with two Energy and empty Influence and Information banks', () => {
     const store = makeStore()
     initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
-    // infoBank not set → 0 < 200 required
+    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 2 }))
 
     const action = getActionById('proposeAlliance')!
     const costs = normalizeActionCosts(action)
-    expect(costs).toEqual({ energy: 3, influence: 0, info: 200 })
-    expect(canAfford('p1', costs)).toBe(false)
+    expect(costs).toEqual({ energy: 2, influence: 0, info: 0 })
+    expect(canAfford('p1', costs)).toBe(true)
   })
 
-  it('proposeAlliance becomes affordable when info is provisioned (200+ pts)', () => {
+  it('a personal pact still requires enough Energy even when auxiliary banks are funded', () => {
     const store = makeStore()
     initManeuvers(store)
-    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 10 }))
+    store.dispatch(setEnergyBankEntry({ playerId: 'p1', value: 1 }))
+    store.dispatch(setInfluenceBankEntry({ playerId: 'p1', value: 20 }))
     store.dispatch(setInfoBankEntry({ playerId: 'p1', value: 200 }))
 
     const action = getActionById('proposeAlliance')!
     const costs = normalizeActionCosts(action)
-    expect(canAfford('p1', costs)).toBe(true)
+    expect(canAfford('p1', costs)).toBe(false)
   })
 
   it('rumor is unaffordable without info (costs info:100)', () => {

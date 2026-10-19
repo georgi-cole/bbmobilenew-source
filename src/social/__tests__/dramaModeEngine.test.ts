@@ -158,7 +158,7 @@ describe('Drama Mode story network', () => {
       phase: 'nomination_results',
       seed: 2,
     })
-    expect(result.publicAnnouncement).toContain('HOUSE EXPOSED')
+    expect(result.publicAnnouncement).toContain('HUB EXPOSED')
     expect(result.network.pacing.lastPublicEventWeek).toBe(3)
     expect(
       result.relationshipEffects.some(

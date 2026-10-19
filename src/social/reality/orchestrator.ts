@@ -15,6 +15,7 @@ import {
 import { remember } from './memory'
 import { applyRealityRelationshipChange } from './relationships'
 import { resolveRealityTargetResponse, type RealityResponseResolution } from './response'
+import { isSafetyProtectionOffer } from '../protectionOffer'
 import { scoreRealityAction, type RealityScoreBreakdown } from './scoring'
 import { addRealityFact, learnRealityFact, resolveRealityAllianceIdForFact } from './knowledge'
 import { recordRealityAllianceInvitation } from './allianceKnowledge'
@@ -439,17 +440,31 @@ function applyRealityLifecycle(input: {
       event.relatedPromiseIds.push(promiseId)
     }
   } else if (action.purposes.includes('COMMITMENT') && acceptedTargets.length > 0) {
+    const safetySave =
+      action.id === 'protect' &&
+      acceptedTargets.every((targetId) =>
+        isSafetyProtectionOffer({
+          phase: interaction.contextSnapshot.phase,
+          actorHoldsSafety:
+            interaction.contextSnapshot.rolesByActor[interaction.actorId]?.some((role) =>
+              role.split('+').includes('pos')
+            ) === true,
+          targetIsNominated: interaction.contextSnapshot.atRiskActorIds.includes(targetId),
+        })
+      )
     const promiseId = `promise:${interaction.id}`
     upsertRealityPromise(domain, {
       id: promiseId,
-      kind: action.id,
+      kind: safetySave ? 'use_safety_on_player' : action.id,
       promisorId: interaction.actorId,
       beneficiaryIds: acceptedTargets,
       witnessIds: event.witnessIds,
       createdAt: at,
-      deadline: action.purposes.includes('PROTECT')
-        ? { day: event.day, phase: 'eviction_results' }
-        : undefined,
+      deadline: safetySave
+        ? { day: event.day, phase: 'pos_ceremony_results' }
+        : action.purposes.includes('PROTECT')
+          ? { day: event.day, phase: 'eviction_results' }
+          : undefined,
       stakes: Math.min(1, 0.45 + (action.baseWeight ?? 0) * 0.1),
       scope: {
         actionId: action.id,

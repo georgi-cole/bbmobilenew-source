@@ -118,6 +118,8 @@ export interface RiskWheelTieBreakerState {
   candidatePlayerIds: string[]
   eliminatedTieBreakerIds: string[]
   round: number
+  /** Keep the main-round results visible until the player starts the playoff. */
+  pendingStart?: boolean
 }
 
 export interface RiskWheelTieBreakerSummary {
@@ -684,17 +686,11 @@ function startTieBreaker(
     candidatePlayerIds: [...candidatePlayerIds],
     eliminatedTieBreakerIds: [],
     round: 1,
+    pendingStart: true,
   }
   state.tieBreakerSummary = null
-  state.activePlayerIds = [...candidatePlayerIds]
-  state.roundScores = Object.fromEntries(candidatePlayerIds.map((id) => [id, 0]))
-  state.playersCompletedThisRound = []
-  state.currentPlayerIndex = 0
-  state.currentSpinCount = MAX_SPINS_PER_TURN - 1
-  state.lastSectorIndex = null
-  state.last666Effect = null
-  state.eliminatedThisRound = []
-  state.phase = 'awaiting_spin'
+  state.eliminatedThisRound = [...eliminatedBeforeTieBreaker]
+  state.phase = 'round_summary'
 }
 
 /** Resolve a one-spin playoff wave, repeating only a tie for the highest score. */
@@ -1010,6 +1006,21 @@ const riskWheelSlice = createSlice({
      */
     advanceFromRoundSummary(state) {
       if (state.phase !== 'round_summary') return
+
+      if (state.tieBreaker?.pendingStart) {
+        const tieBreaker = state.tieBreaker
+        tieBreaker.pendingStart = false
+        state.activePlayerIds = [...tieBreaker.candidatePlayerIds]
+        state.roundScores = Object.fromEntries(tieBreaker.candidatePlayerIds.map((id) => [id, 0]))
+        state.playersCompletedThisRound = []
+        state.currentPlayerIndex = 0
+        state.currentSpinCount = MAX_SPINS_PER_TURN - 1
+        state.lastSectorIndex = null
+        state.last666Effect = null
+        state.eliminatedThisRound = []
+        state.phase = 'awaiting_spin'
+        return
+      }
 
       // Apply eliminations
       for (const id of state.eliminatedThisRound) {

@@ -50,31 +50,6 @@ const SUPPORTIVE_ACTIONS = new Set([
   'share_personal_story',
 ])
 
-type ActionHistoryByActor = Map<string, SocialActionLogEntry[]>
-
-const actionHistoryByActorIndexes = new WeakMap<
-  readonly SocialActionLogEntry[],
-  ActionHistoryByActor
->()
-
-function actionsByActor(
-  recentActions: readonly SocialActionLogEntry[] | undefined,
-  actorId: string
-): readonly SocialActionLogEntry[] {
-  if (!recentActions?.length) return []
-  let index = actionHistoryByActorIndexes.get(recentActions)
-  if (!index) {
-    index = new Map()
-    for (const event of recentActions) {
-      const actorEvents = index.get(event.actorId) ?? []
-      actorEvents.push(event)
-      index.set(event.actorId, actorEvents)
-    }
-    actionHistoryByActorIndexes.set(recentActions, index)
-  }
-  return index.get(actorId) ?? []
-}
-
 function clampUnit(value: number): number {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
 }
@@ -240,10 +215,7 @@ export function getSocialExperienceRead(
 ): SocialExperienceRead {
   const read: SocialExperienceRead = { help: 0, grievance: 0, humiliation: 0, betrayal: 0 }
 
-  // The actor of each historical action is the only history dimension used
-  // for this pair. Indexing by actor avoids rescanning the full season log for
-  // every candidate pair while preserving the original event order.
-  for (const event of actionsByActor(input.recentActions, targetId)) {
+  for (const event of input.recentActions ?? []) {
     const directTarget = event.targetId === actorId || event.targetIds?.includes(actorId) === true
     const namedAsSubject = event.subjectId === actorId
     if (event.actorId !== targetId || (!directTarget && !namedAsSubject)) continue

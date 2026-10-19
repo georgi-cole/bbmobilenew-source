@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createInitialGameState, getNominationTargetScore } from '../gameSlice'
+import { chooseStrategicEliminationCandidates, createInitialGameState } from '../gameSlice'
 import type { GameState, Player } from '../../types'
 
 function prepareSocialThreatState(): {
@@ -44,12 +44,20 @@ function prepareSocialThreatState(): {
 
 describe('social routes to winning', () => {
   it('lets an AI target witnessed social dominance even without competition wins', () => {
-    const { state, decider, socialThreat } = prepareSocialThreatState()
+    const { state, decider, socialThreat, ordinaryTarget } = prepareSocialThreatState()
 
-    const socialThreatScore = getNominationTargetScore(state, decider.id, socialThreat)
-    const withoutObservedRead = { ...state, strategicThreatReadsByActorId: undefined }
-    const baselineScore = getNominationTargetScore(withoutObservedRead, decider.id, socialThreat)
+    const decision = chooseStrategicEliminationCandidates(
+      state,
+      decider.id,
+      [ordinaryTarget.id, socialThreat.id],
+      1,
+      'ordinary_tie',
+      72
+    )
 
-    expect(socialThreatScore - baselineScore).toBe(36)
+    expect(decision.selectedIds).toEqual([socialThreat.id])
+    expect(
+      decision.rankedCandidates.find((candidate) => candidate.id === socialThreat.id)?.factors
+    ).toMatchObject({ socialInfluenceThreat: 36 })
   })
 })

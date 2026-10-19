@@ -1,4 +1,5 @@
-import HOUSEGUESTS from '../../data/houseguests';
+import HOUSEGUESTS from '../../data/houseguests'
+import { BELLA_PROFILE } from '../../data/specialHouseguestProfiles'
 
 export type HousemateBackdrop =
   | 'athletics-studio'
@@ -10,14 +11,14 @@ export type HousemateBackdrop =
   | 'music-archive'
   | 'outback-camp'
   | 'strategy-room'
-  | 'technology-lab';
+  | 'technology-lab'
 
 interface HousematePresentation {
-  accent: string;
-  backdrop: HousemateBackdrop;
-  portraitFile: string;
-  prizePlan: string;
-  portraitPosition?: string;
+  accent: string
+  backdrop: HousemateBackdrop
+  portraitFile: string
+  prizePlan: string
+  portraitPosition?: string
 }
 
 const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
@@ -31,13 +32,15 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     accent: '#ffba72',
     backdrop: 'outback-camp',
     portraitFile: 'Ash_informal.png',
-    prizePlan: 'I’m here to face my anxiety. The prize would build wilderness retreats for people learning to breathe again.',
+    prizePlan:
+      'I’m here to face my anxiety. The prize would build wilderness retreats for people learning to breathe again.',
   },
   bea: {
     accent: '#ffe47a',
     backdrop: 'athletics-studio',
     portraitFile: 'Bea_informal.png',
-    prizePlan: 'I want to stop running from hard feelings—and pay for the training that can take me international.',
+    prizePlan:
+      'I want to stop running from hard feelings—and pay for the training that can take me international.',
   },
   blue: {
     accent: '#89d8ff',
@@ -49,7 +52,8 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     accent: '#c9ffde',
     backdrop: 'design-studio',
     portraitFile: 'Dex_informal.webp',
-    prizePlan: 'I want to make room for real life. I’d launch affordable, beautiful furniture for small homes.',
+    prizePlan:
+      'I want to make room for real life. I’d launch affordable, beautiful furniture for small homes.',
   },
   echo: {
     accent: '#d5bbff',
@@ -68,31 +72,36 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     accent: '#d6ff8c',
     backdrop: 'technology-lab',
     portraitFile: 'Ivy_informal.png',
-    prizePlan: 'I want to understand people from the inside. I’d fund more inclusive technology research.',
+    prizePlan:
+      'I want to understand people from the inside. I’d fund more inclusive technology research.',
   },
   jax: {
     accent: '#ff997a',
     backdrop: 'athletics-studio',
     portraitFile: 'Jax_informal.png',
-    prizePlan: 'I want to prove strength isn’t a mirror. I’d open a welcoming community training studio.',
+    prizePlan:
+      'I want to prove strength isn’t a mirror. I’d open a welcoming community training studio.',
   },
   kai: {
     accent: '#7de7ff',
     backdrop: 'technology-lab',
     portraitFile: 'Kai_informal.png',
-    prizePlan: 'I want to choose connection over optimization. I’d support human-centered AI education.',
+    prizePlan:
+      'I want to choose connection over optimization. I’d support human-centered AI education.',
   },
   kian: {
     accent: '#a8ffbf',
     backdrop: 'design-studio',
     portraitFile: 'Kian_informal2.png',
-    prizePlan: 'I want collaboration to win. I’d help redesign neighborhoods without pushing residents out.',
+    prizePlan:
+      'I want collaboration to win. I’d help redesign neighborhoods without pushing residents out.',
   },
   lux: {
     accent: '#ff9ed8',
     backdrop: 'fashion-atelier',
     portraitFile: 'Lux_informal.png',
-    prizePlan: 'I want to own my story. I’d create a safe studio for talent fashion tried to silence.',
+    prizePlan:
+      'I want to own my story. I’d create a safe studio for talent fashion tried to silence.',
   },
   mimi: {
     accent: '#ffb7e6',
@@ -110,19 +119,22 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     accent: '#ffad8f',
     backdrop: 'film-suite',
     portraitFile: 'Nova_informal.png',
-    prizePlan: 'I want to stop playing assistant in my own life. I’d make my first science-fiction film.',
+    prizePlan:
+      'I want to stop playing assistant in my own life. I’d make my first science-fiction film.',
   },
   quinn: {
     accent: '#b9b1ff',
     backdrop: 'strategy-room',
     portraitFile: 'Quinn_informal.png',
-    prizePlan: 'I want to risk being known. I’d create free cyber-safety workshops for young people.',
+    prizePlan:
+      'I want to risk being known. I’d create free cyber-safety workshops for young people.',
   },
   rae: {
     accent: '#6ff2bd',
     backdrop: 'strategy-room',
     portraitFile: 'Rae_informal.png',
-    prizePlan: 'I want ambition to build, not just cost. I’d fund scholarships like the one that changed my life.',
+    prizePlan:
+      'I want ambition to build, not just cost. I’d fund scholarships like the one that changed my life.',
   },
   remy: {
     accent: '#ffd086',
@@ -140,13 +152,15 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     accent: '#ffc178',
     backdrop: 'film-suite',
     portraitFile: 'Sol_informal.png',
-    prizePlan: 'I want to find light in people, not only sunsets. I’d revive my father’s dream as a creative workshop.',
+    prizePlan:
+      'I want to find light in people, not only sunsets. I’d revive my father’s dream as a creative workshop.',
   },
   vee: {
     accent: '#9de3b2',
     backdrop: 'strategy-room',
     portraitFile: 'Vee_informal.png',
-    prizePlan: 'I want to trust my own plan. I’d open a calm coffee studio that mentors young strategists.',
+    prizePlan:
+      'I want to trust my own plan. I’d open a calm coffee studio that mentors young strategists.',
   },
   zed: {
     accent: '#83caff',
@@ -154,44 +168,56 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
     portraitFile: 'Zed_informal.png',
     prizePlan: 'I want to play from the heart. I’d create a chess and data academy for Lagos kids.',
   },
-};
+}
 
 export interface HousematesBioCard {
-  id: string;
-  name: string;
-  fullName: string;
-  age: number;
-  location: string;
-  profession: string;
-  introduction: string;
-  prizePlan: string;
-  accent: string;
-  backdrop: HousemateBackdrop;
-  portraitFile: string;
-  portraitPosition?: string;
+  id: string
+  name: string
+  fullName: string
+  age: number
+  location: string
+  profession: string
+  introduction: string
+  prizePlan: string
+  accent: string
+  backdrop: HousemateBackdrop
+  portraitFile: string
+  portraitPosition?: string
 }
 
 export type MysteryWildcardUnlock =
   | { kind: 'twin-shock'; label: string }
   | { kind: 'first-cast'; label: string }
-  | { kind: 'unavailable'; label: string };
+  | { kind: 'unavailable'; label: string }
 
 export interface MysteryWildcardBio {
-  id: 'lia' | 'ali' | 'noa' | 'pax' | 'rey' | 'bella';
-  name: string;
-  fullName: string;
-  age: number;
-  location: string;
-  profession: string;
-  introduction: string;
-  prizePlan: string;
-  privateDetail: string;
-  accent: string;
-  backdrop: HousemateBackdrop;
-  portraitPath: string;
-  avatarPath: string;
-  portraitPosition?: string;
-  unlock: MysteryWildcardUnlock;
+  id: 'lia' | 'ali' | 'noa' | 'pax' | 'rey' | 'bella'
+  name: string
+  fullName: string
+  age: number
+  sex: string
+  location: string
+  sexuality: string
+  education: string
+  profession: string
+  familyStatus: string
+  kids: string
+  pets: string
+  zodiacSign: string
+  religion: string
+  motto: string
+  funFact: string
+  allies: string[]
+  enemies: string[]
+  introduction: string
+  prizePlan: string
+  privateDetail: string
+  accent: string
+  backdrop: HousemateBackdrop
+  portraitPath: string
+  avatarPath: string
+  portraitPosition?: string
+  unlock: MysteryWildcardUnlock
 }
 
 /**
@@ -205,10 +231,24 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     name: 'Lia',
     fullName: 'Lia Petrov',
     age: 28,
+    sex: 'Female',
     location: 'Plovdiv, Bulgaria',
+    sexuality: 'Straight',
+    education: 'Emergency Communications Certification',
     profession: 'Emergency Dispatcher',
-    introduction: 'Hi, I\'m Lia from Plovdiv. I stay calm when every second matters, but I came here to discover who I am when I am not rescuing somebody else.',
-    prizePlan: 'I would create a free resilience program for emergency workers and finally give my mother the quiet home she has always deserved.',
+    familyStatus: 'Single',
+    kids: 'None',
+    pets: 'None',
+    zodiacSign: 'Virgo',
+    religion: 'Non-religious',
+    motto: 'Stay calm; find the next step.',
+    funFact: 'Can identify a caller’s neighborhood by its background sounds.',
+    allies: [],
+    enemies: [],
+    introduction:
+      "Hi, I'm Lia from Plovdiv. I stay calm when every second matters, but I came here to discover who I am when I am not rescuing somebody else.",
+    prizePlan:
+      'I would create a free resilience program for emergency workers and finally give my mother the quiet home she has always deserved.',
     privateDetail: 'Her identical twin is the one person who can imitate her composure perfectly.',
     accent: '#8fdcff',
     backdrop: 'strategy-room',
@@ -221,11 +261,26 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     name: 'Ali',
     fullName: 'Ali Petrov',
     age: 28,
+    sex: 'Female',
     location: 'Plovdiv, Bulgaria',
+    sexuality: 'Bisexual',
+    education: 'Bachelor of Visual Arts',
     profession: 'Documentary Photographer',
-    introduction: 'I\'m Ali, Lia\'s twin. I usually live behind the camera, where I can catch the instant somebody stops performing and becomes real.',
-    prizePlan: 'I would fund a travelling documentary lab that teaches young people to record overlooked stories in their own communities.',
-    privateDetail: 'She can copy Lia\'s walk and voice, but never her habit of counting exits in a room.',
+    familyStatus: 'Single',
+    kids: 'None',
+    pets: 'None',
+    zodiacSign: 'Virgo',
+    religion: 'Non-religious',
+    motto: 'Wait for the honest moment.',
+    funFact: 'Keeps a camera loaded with black-and-white film for difficult conversations.',
+    allies: [],
+    enemies: [],
+    introduction:
+      "I'm Ali, Lia's twin. I usually live behind the camera, where I can catch the instant somebody stops performing and becomes real.",
+    prizePlan:
+      'I would fund a travelling documentary lab that teaches young people to record overlooked stories in their own communities.',
+    privateDetail:
+      "She can copy Lia's walk and voice, but never her habit of counting exits in a room.",
     accent: '#b99cff',
     backdrop: 'film-suite',
     portraitPath: '/assets/skins/Ali_avatar.webp',
@@ -234,12 +289,8 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     unlock: { kind: 'twin-shock', label: 'Reveal the Twin Shock' },
   },
   {
+    ...BELLA_PROFILE,
     id: 'bella',
-    name: 'Bella',
-    fullName: 'Bella',
-    age: 68,
-    location: 'Monte Carlo, Monaco',
-    profession: 'Private Investor',
     introduction:
       "I'm Bella. I have spent enough years in rooms where everyone wanted something to know the difference between charm and loyalty.",
     prizePlan:
@@ -250,18 +301,33 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     backdrop: 'fashion-atelier',
     portraitPath: '/assets/Informal_attires/Bella_informal.webp',
     avatarPath: '/assets/skins/Bella_avatar.webp',
-    unlock: { kind: 'first-cast', label: "Encounter Bella" },
+    unlock: { kind: 'first-cast', label: 'Encounter Bella' },
   },
   {
     id: 'noa',
     name: 'Noa',
     fullName: 'Noa Ben-Ari',
     age: 31,
+    sex: 'Female',
     location: 'Haifa, Israel',
+    sexuality: 'Straight',
+    education: 'Bachelor of Environmental Science',
     profession: 'Rooftop Farmer',
-    introduction: 'Hi, I\'m Noa from Haifa. I turn forgotten rooftops into gardens, so I know that the most unlikely places can grow something extraordinary.',
-    prizePlan: 'I would build food gardens above public schools and train local families to run them as neighborhood cooperatives.',
-    privateDetail: 'Noa secretly names every difficult plant after somebody who once underestimated her.',
+    familyStatus: 'Partnered',
+    kids: 'None',
+    pets: 'Two rescue cats',
+    zodiacSign: 'Cancer',
+    religion: 'Jewish',
+    motto: 'Give overlooked things room to grow.',
+    funFact: 'Can tell whether a tomato needs water by its leaves before touching the soil.',
+    allies: [],
+    enemies: [],
+    introduction:
+      "Hi, I'm Noa from Haifa. I turn forgotten rooftops into gardens, so I know that the most unlikely places can grow something extraordinary.",
+    prizePlan:
+      'I would build food gardens above public schools and train local families to run them as neighborhood cooperatives.',
+    privateDetail:
+      'Noa secretly names every difficult plant after somebody who once underestimated her.',
     accent: '#7ee6bd',
     backdrop: 'outback-camp',
     portraitPath: '/assets/Informal_attires/Noa_informal.png',
@@ -273,11 +339,27 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     name: 'Pax',
     fullName: 'Pax Rivera',
     age: 29,
+    sex: 'Non-binary',
     location: 'Austin, USA',
+    sexuality: 'Queer',
+    education: 'Bachelor of Social Work',
     profession: 'Community Mediator',
-    introduction: 'I\'m Pax from Austin. My job is helping people hear each other when a room gets loud, which sounds useful in a house built for conflict.',
-    prizePlan: 'I would open a free mediation center for young people and families who cannot afford professional support.',
-    privateDetail: 'Pax can settle anybody else\'s argument, but has avoided one conversation with their father for six years.',
+    familyStatus: 'Single',
+    kids: 'None',
+    pets: 'Dog named Miso',
+    zodiacSign: 'Libra',
+    religion: 'Agnostic',
+    motto: 'Listen long enough to find the real question.',
+    funFact:
+      'Can remember the exact wording of an argument long after everyone else has cooled down.',
+    allies: [],
+    enemies: [],
+    introduction:
+      "I'm Pax from Austin. My job is helping people hear each other when a room gets loud, which sounds useful in a Hub built for conflict.",
+    prizePlan:
+      'I would open a free mediation center for young people and families who cannot afford professional support.',
+    privateDetail:
+      "Pax can settle anybody else's argument, but has avoided one conversation with their father for six years.",
     accent: '#ffd17d',
     backdrop: 'design-studio',
     portraitPath: '/assets/Informal_attires/Pax_informal.png',
@@ -289,29 +371,44 @@ export const MYSTERY_WILDCARD_BIOS: MysteryWildcardBio[] = [
     name: 'Rey',
     fullName: 'Rey Santos',
     age: 36,
+    sex: 'Male',
     location: 'Manila, Philippines',
+    sexuality: 'Straight',
+    education: 'Master of Food Studies',
     profession: 'Culinary Historian',
-    introduction: 'Hi, I\'m Rey from Manila. I preserve family recipes and the memories hidden inside them, but I am ready to write a story that belongs entirely to me.',
-    prizePlan: 'I would create a public archive and teaching kitchen where elders can preserve recipes before they disappear.',
-    privateDetail: 'Rey enters every competition carrying a handwritten recipe from his grandmother in his wallet.',
+    familyStatus: 'Single',
+    kids: 'None',
+    pets: 'None',
+    zodiacSign: 'Pisces',
+    religion: 'Catholic',
+    motto: 'A recipe is a memory you can share.',
+    funFact: 'Can recreate a dish from a single bite and a few questions about its history.',
+    allies: [],
+    enemies: [],
+    introduction:
+      "Hi, I'm Rey from Manila. I preserve family recipes and the memories hidden inside them, but I am ready to write a story that belongs entirely to me.",
+    prizePlan:
+      'I would create a public archive and teaching kitchen where elders can preserve recipes before they disappear.',
+    privateDetail:
+      'Rey enters every competition carrying a handwritten recipe from his grandmother in his wallet.',
     accent: '#ff9fca',
     backdrop: 'music-archive',
     portraitPath: '/assets/Informal_attires/Rey_informal.png',
     avatarPath: '/assets/skins/Rey_avatar.webp',
     unlock: { kind: 'unavailable', label: 'Unknown' },
   },
-];
+]
 
 function indefiniteArticle(profession: string): 'a' | 'an' {
-  return /^[aeiou]/i.test(profession.trim()) ? 'an' : 'a';
+  return /^[aeiou]/i.test(profession.trim()) ? 'an' : 'a'
 }
 
-export const HOUSEMATES_BIO_CARDS: HousematesBioCard[] = HOUSEGUESTS
-  .map<HousematesBioCard | null>((houseguest) => {
-    const presentation = PRESENTATION_BY_ID[houseguest.id];
-    if (!presentation) return null;
+export const HOUSEMATES_BIO_CARDS: HousematesBioCard[] = HOUSEGUESTS.map<HousematesBioCard | null>(
+  (houseguest) => {
+    const presentation = PRESENTATION_BY_ID[houseguest.id]
+    if (!presentation) return null
 
-    const hometown = houseguest.location.split(',')[0]?.trim() || houseguest.location;
+    const hometown = houseguest.location.split(',')[0]?.trim() || houseguest.location
     const card: HousematesBioCard = {
       id: houseguest.id,
       name: houseguest.name,
@@ -325,12 +422,13 @@ export const HOUSEMATES_BIO_CARDS: HousematesBioCard[] = HOUSEGUESTS
       backdrop: presentation.backdrop,
       portraitFile: presentation.portraitFile,
       portraitPosition: presentation.portraitPosition,
-    };
-    return card;
-  })
+    }
+    return card
+  }
+)
   .filter((card): card is HousematesBioCard => card != null)
-  .sort((a, b) => a.name.localeCompare(b.name));
+  .sort((a, b) => a.name.localeCompare(b.name))
 
 export const HOUSEMATES_BIO_BACKDROPS = Array.from(
-  new Set(HOUSEMATES_BIO_CARDS.map((card) => card.backdrop)),
-);
+  new Set(HOUSEMATES_BIO_CARDS.map((card) => card.backdrop))
+)

@@ -689,6 +689,11 @@
 .src-finale-calendar__focus-cast small { color: rgba(255, 255, 255, 0.78); font-size: 0.56rem; font-weight: 800; }
 .src-finale-calendar__focus-impact { position: relative; z-index: 1; margin: 18px 0 0; padding: 12px 14px; border-left: 2px solid rgba(255, 240, 189, 0.6); border-radius: 0 14px 14px 0; color: rgba(255, 255, 255, 0.72); background: rgba(4, 5, 11, 0.2); font-size: 0.68rem; line-height: 1.4; }
 .src-finale-calendar__focus-impact strong { display: block; margin-bottom: 4px; color: #f3d48f; font-size: 0.46rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.src-finale-calendar__focus-other-events { position: relative; z-index: 1; display: grid; gap: 8px; margin-top: 16px; }
+.src-finale-calendar__focus-other-events > p { margin: 0; color: #f2d28e; font-size: 0.48rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+.src-finale-calendar__focus-other-events > article { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 13px; background: rgba(4, 5, 11, 0.25); }
+.src-finale-calendar__focus-other-events strong { color: rgba(255, 255, 255, 0.88); font-size: 0.62rem; }
+.src-finale-calendar__focus-other-events span { color: rgba(255, 255, 255, 0.68); font-size: 0.58rem; line-height: 1.4; }
 
 @media (max-width: 410px) {
   .src-finale-calendar__stage[data-mode='calendar'] { min-height: clamp(390px, 54dvh, 480px); flex: 1 1 auto; }

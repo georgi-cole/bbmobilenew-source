@@ -32,7 +32,13 @@ export const skipRiskWheelToResults =
       if (humanPlayerId && activePlayerIds.includes(humanPlayerId) && !humanEliminatedThisRound) return;
 
       if (phase === 'round_summary') {
-        dispatch(advanceFromRoundSummary());
+        const riskWheel = getState().riskWheel;
+        if (riskWheel.tieBreaker?.pendingStart) {
+          dispatch(advanceFromRoundSummary());
+          dispatch(resolveAllAiTurns());
+        } else {
+          dispatch(advanceFromRoundSummary());
+        }
       } else {
         dispatch(resolveAllAiTurns());
       }

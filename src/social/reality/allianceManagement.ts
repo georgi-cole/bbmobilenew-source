@@ -81,6 +81,7 @@ export type AllianceManagementCommand =
     }
 
 export interface AllianceManagementResult {
+  receiptRecorded?: boolean
   status: 'APPLIED' | 'NO_OP' | 'REJECTED'
   reason: string
   allianceId?: string

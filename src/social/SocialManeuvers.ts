@@ -38,13 +38,11 @@ import {
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
-import type { RealityFact } from './reality/types'
-import {
-  formatIntelLeadText,
-  selectIntelActionFact,
-  selectIntelFactForActor,
-} from './intelligenceSystem'
 import { isLohReplacementPending } from './lohReplacementWindow'
+import { formatVagueLohPlan } from './lohConsultationCopy'
+import { isSafetyProtectionOffer } from './protectionOffer'
+import { getCupidPartnerId } from '../features/twists/cupidArrow'
+import { formatLohSafetyConsultation } from './lohSafetyConsultation'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
   getRuntimeSocialActionById,
@@ -72,7 +70,6 @@ type PartialSocialState = {
   infoBank?: Record<string, number>
   relationships: SocialState['relationships']
   reality?: SocialState['reality']
-  intelligenceDeliveries?: SocialState['intelligenceDeliveries']
   sessionLogs: SocialActionLogEntry[]
   actionHistory?: SocialActionLogEntry[]
 }
@@ -96,7 +93,6 @@ interface ManeuverPlayer {
 
 interface ManeuverGameState {
   players: ManeuverPlayer[]
-  mode?: string
   week?: number
   phase?: string
   lohId?: string | null
@@ -161,7 +157,6 @@ const ALLIANCE_REJECTION_DELTA = -6
 const ALLIANCE_GASLIGHT_DELTA = -10
 const ALLIANCE_BETRAYAL_DELTA = -8
 const ALLIANCE_GASLIGHT_AFFINITY_THRESHOLD = 0
-const INTEL_ACTION_IDS = new Set(['observe', 'read_the_room', 'snoop_around', 'eavesdrop'])
 
 function getWeekendWallet(
   state: Pick<StateForManeuvers, 'game'> | null | undefined,
@@ -315,26 +310,6 @@ function buildSnoopNarrative(
     return `You caught ${names[0]} and ${names[1]} slipping away together after lights-out. Their secret romance is now yours to keep, trade or expose.`
   }
   return `You overheard ${names[0]} and ${names[1]} making a private loyalty pact. You now know their bromance is more strategic than it looks.`
-}
-
-function buildIntelActionNarrative(
-  actionId: string,
-  fact: RealityFact | null,
-  players: ManeuverPlayer[]
-): string | null {
-  if (!INTEL_ACTION_IDS.has(actionId)) return null
-  if (fact) {
-    const lead = formatIntelLeadText(
-      fact,
-      players.map((player) => ({ id: player.id, name: player.name ?? player.id }))
-    )
-    if (actionId === 'eavesdrop') return `You heard a possible lead: ${lead}`
-    if (actionId === 'snoop_around') return `You picked up a possible lead: ${lead}`
-    return `Your read: ${lead}`
-  }
-  if (actionId === 'snoop_around') return null
-  if (actionId === 'eavesdrop') return 'No clear story reached you this time.'
-  return 'You watched the room, but no clear lead surfaced.'
 }
 
 function buildLohTargetNarrative(
@@ -618,6 +593,9 @@ function getContextualActionSummary({
   recipientTrust: number
   game?: {
     week?: number
+    phase?: string
+    posWinnerId?: string | null
+    cupidArrow?: import('../types').GameState['cupidArrow']
     players?: Array<{ id: string; name?: string; status: string }>
     nomineeIds?: string[]
     lohId?: string | null
@@ -633,6 +611,13 @@ function getContextualActionSummary({
   if (actionId === 'protect') {
     const targetName = name(targetId)
     const atRisk = (game?.nomineeIds ?? []).includes(targetId)
+    const safetySave = isSafetyProtectionOffer({
+      phase: game?.phase,
+      actorHoldsSafety:
+        game?.posWinnerId === actorId ||
+        getCupidPartnerId(game ?? {}, game?.posWinnerId) === actorId,
+      targetIsNominated: atRisk,
+    })
     const plan = game?.lohSocialPlan
     const actorStillTargetsThem = Boolean(
       plan &&
@@ -641,10 +626,14 @@ function getContextualActionSummary({
       [plan.currentTargetId, plan.backupTargetId].includes(targetId)
     )
     if (outcome === 'success') {
+      if (safetySave)
+        return `${targetName} welcomes your offer to use Safety on them. You have promised to save them at the Safety Ceremony.`
       return atRisk
         ? `${targetName} believes your promise to vote to keep them. You have made your position clear.`
         : `${targetName} believes you will use your vote or power to protect them when you can.`
     }
+    if (safetySave)
+      return `${targetName} wants the Safety save, but your current plan still names them as a target.`
     return actorStillTargetsThem
       ? `${targetName} is wary of your offer because your current plan still names them as a target.`
       : `${targetName} heard your promise but is not ready to rely on it yet.`
@@ -657,7 +646,13 @@ function getContextualActionSummary({
     const disclosure = resolveNominationDisclosure(game, actorId, targetId, recipientTrust)
     const reason = disclosure.reason
     if (!reason) {
-      return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
+      if (recipientTrust >= 30) {
+        return `${lohName} said they respect you, but your competition potential made you too dangerous to leave comfortable.`
+      }
+      if (recipientTrust < 0) {
+        return `${lohName} admitted they do not trust your position and wanted to force you to show your hand.`
+      }
+      return `${lohName} said they needed options to build a viable block, but did not give you a clearer strategic explanation.`
     }
     const relationshipPrefix = disclosure.closeBond
       ? `They acknowledged that you were their ${disclosure.tier.toLowerCase().replaceAll('_', ' ')}. `
@@ -895,11 +890,11 @@ export interface ExecuteActionOptions {
    * accepted and rejected recipients from receiving the same relationship delta.
    */
   targetOutcomes?: Readonly<Record<string, 'success' | 'failure'>>
-  /** Concise outcome text supplied by the authoritative Reality resolver. */
-  narrative?: string
 }
 
 export interface ExecuteActionResult {
+  /** The complete player-visible response is already saved in Hub Wire. */
+  receiptRecorded?: boolean
   /** False when the actor lacks energy or the action is unknown. */
   success: boolean
   /** Affinity delta applied to the source→target relationship. */
@@ -1424,29 +1419,6 @@ export function executeAction(
   const infoSpend = Math.min(costs.info, currentInfo)
   const postSpendInfluenceBalance = currentInfluence - influenceSpend
   const postSpendInfoBalance = currentInfo - infoSpend
-  const tradeIntelAvailability =
-    actionId === 'trade_secrets' && outcome === 'success'
-      ? {
-          actorCanShare: Boolean(
-            selectIntelFactForActor(
-              state.social.reality,
-              actorId,
-              targetId,
-              state.game?.week ?? 0,
-              state.game?.players ?? []
-            )
-          ),
-          targetCanShare: Boolean(
-            selectIntelFactForActor(
-              state.social.reality,
-              targetId,
-              actorId,
-              state.game?.week ?? 0,
-              state.game?.players ?? []
-            )
-          ),
-        }
-      : null
   if (weekendWallet) {
     _store.dispatch({
       type: 'game/spendWeekendSocialResources',
@@ -1478,17 +1450,10 @@ export function executeAction(
           info: didBackfire ? -scaledYields.info : repetitionMissed ? 0 : scaledYields.info,
         }
       : { influence: 0, info: 0 }
-  const adjustedResourceEffect =
-    tradeIntelAvailability &&
-    !tradeIntelAvailability.actorCanShare &&
-    !tradeIntelAvailability.targetCanShare &&
-    resourceEffect.info > 0
-      ? { ...resourceEffect, info: 0 }
-      : resourceEffect
   const appliedYields = { influence: 0, info: 0 }
-  if (adjustedResourceEffect.influence !== 0) {
+  if (resourceEffect.influence !== 0) {
     const appliedInfluenceDelta = clampResourceAdjustment(
-      adjustedResourceEffect.influence,
+      resourceEffect.influence,
       postSpendInfluenceBalance
     )
     if (appliedInfluenceDelta !== 0) {
@@ -1503,11 +1468,8 @@ export function executeAction(
     }
     appliedYields.influence = appliedInfluenceDelta
   }
-  if (adjustedResourceEffect.info !== 0) {
-    const appliedInfoDelta = clampResourceAdjustment(
-      adjustedResourceEffect.info,
-      postSpendInfoBalance
-    )
+  if (resourceEffect.info !== 0) {
+    const appliedInfoDelta = clampResourceAdjustment(resourceEffect.info, postSpendInfoBalance)
     if (appliedInfoDelta !== 0) {
       if (weekendWallet) {
         _store.dispatch({
@@ -1532,65 +1494,48 @@ export function executeAction(
   const newEnergy = balancesAfter.energy
 
   const subjectId = options?.subjectId ?? lohTargetPlan?.targetId
-  const tradeSummary =
-    actionId === 'trade_secrets' && outcome === 'success' && tradeIntelAvailability
-      ? (() => {
-          const targetName =
-            state.game?.players?.find((player) => player.id === targetId)?.name ?? 'your partner'
-          if (tradeIntelAvailability.actorCanShare && tradeIntelAvailability.targetCanShare) {
-            return `You and ${targetName} traded fresh leads.`
-          }
-          if (tradeIntelAvailability.actorCanShare) {
-            return `You shared a lead with ${targetName}, but they had no new information to trade.`
-          }
-          if (tradeIntelAvailability.targetCanShare) {
-            return `${targetName} shared a lead with you; you had nothing new to offer.`
-          }
-          return `You and ${targetName} compared notes, but neither had a new lead to share.`
-        })()
+  const contextualSummary = getContextualActionSummary({
+    actionId,
+    actorId,
+    targetId,
+    subjectId: options?.subjectId,
+    recipientTrust,
+    game: rootState.game,
+    relationships: state.social.relationships,
+    outcome,
+  })
+  const lohSafetySummary =
+    actionId === 'ask_loh_target' && priorLohAsks < 2
+      ? formatLohSafetyConsultation(rootState.game, actorId)
       : null
 
-  const intelActor = state.game?.players.find((player) => player.id === actorId)
-  const canDiscoverIntel =
-    (options?.source === 'manual' ||
-      ((options?.source ?? 'system') === 'system' &&
-        intelActor !== undefined &&
-        !intelActor.isUser)) &&
-    outcome === 'success' &&
-    state.game?.mode !== 'survival' &&
-    INTEL_ACTION_IDS.has(actionId)
-  const intelFact =
-    canDiscoverIntel && state.social.reality
-      ? selectIntelActionFact(
-          state.social.reality,
-          state.social.intelligenceDeliveries,
-          actorId,
-          state.game?.week ?? 0,
-          actionId,
-          state.game?.players ?? []
-        )
-      : null
-  const intelNarrative =
-    canDiscoverIntel && options?.source === 'manual'
-      ? buildIntelActionNarrative(actionId, intelFact, state.game?.players ?? [])
-      : null
   const narrative =
-    options?.narrative ??
-    (outcome !== 'success'
-      ? undefined
-      : actionId === 'snoop_around'
-        ? (intelNarrative ?? buildSnoopNarrative(state.social, actorId, state.game?.players ?? []))
-        : (intelNarrative ??
-          (actionId === 'ask_loh_target' && !safetyAdviceOpen
-            ? buildLohTargetNarrative(
-                state.game,
-                targetId,
-                priorRepeats,
-                lohTargetPlan
-                  ? { targetName: lohTargetPlan.targetName, isBackdoor: lohTargetPlan.isBackdoor }
-                  : null
-              )
-            : (tradeSummary ?? undefined))))
+    actionId === 'protect'
+      ? (contextualSummary ?? undefined)
+      : outcome !== 'success'
+        ? undefined
+        : actionId === 'snoop_around'
+          ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
+          : lohSafetySummary
+            ? lohSafetySummary
+            : actionId === 'ask_loh_target' && !safetyAdviceOpen
+              ? lohDisclosure.outcome === 'vague' && priorRepeats < 2
+                ? formatVagueLohPlan(
+                    state.game?.players.find((player) => player.id === targetId)?.name ?? 'The LOH',
+                    state.game?.phase
+                  )
+                : buildLohTargetNarrative(
+                    state.game,
+                    targetId,
+                    priorRepeats,
+                    lohTargetPlan
+                      ? {
+                          targetName: lohTargetPlan.targetName,
+                          isBackdoor: lohTargetPlan.isBackdoor,
+                        }
+                      : null
+                  )
+              : undefined
 
   const entry: SocialActionLogEntry = {
     actionId,
@@ -1598,18 +1543,13 @@ export function executeAction(
     targetId,
     ...(subjectId ? { subjectId } : {}),
     ...(narrative ? { narrative } : {}),
-    ...(lohTargetPlan || canDiscoverIntel
+    ...(actionId === 'ask_loh_target'
       ? {
           context: {
-            ...(lohTargetPlan
-              ? {
-                  lohPlanType: lohTargetPlan.isBackdoor
-                    ? ('backup_plan' as const)
-                    : ('current_target' as const),
-                  lohDisclosureOutcome: lohDisclosure.outcome,
-                }
-              : {}),
-            ...(canDiscoverIntel ? { intelFactId: intelFact?.id ?? null } : {}),
+            lohPlanType: lohTargetPlan?.isBackdoor
+              ? ('backup_plan' as const)
+              : ('current_target' as const),
+            lohDisclosureOutcome: lohDisclosure.outcome,
           },
         }
       : {}),
@@ -1746,18 +1686,7 @@ export function executeAction(
   const sign = relationshipDelta > 0 ? '+' : ''
   const lohName =
     rootState.game?.players?.find((player) => player.id === targetId)?.name ?? 'The LOH'
-  const contextualSummary = getContextualActionSummary({
-    actionId,
-    actorId,
-    targetId,
-    subjectId: options?.subjectId,
-    recipientTrust,
-    game: rootState.game,
-    relationships: state.social.relationships,
-    outcome,
-  })
   const standardSummary =
-    tradeSummary ??
     contextualSummary ??
     (actionId === 'ask_loh_target' && priorLohAsks >= 3
       ? `${lohName} shut the conversation down after being asked repeatedly.`
@@ -1805,7 +1734,6 @@ export function executeAction(
       newEnergy,
       summary:
         narrative ??
-        tradeSummary ??
         contextualSummary ??
         getSocialOutcomeCopy({
           actionId,

@@ -225,6 +225,39 @@ describe('computeEliminatedPlayers', () => {
     expect(results).toEqual(new Set(['']));
   });
 
+  it('shows the main-round results before starting a cutoff tie-break', () => {
+    const initialized = reducer(
+      undefined,
+      initRiskWheel({
+        participantIds: ['a', 'b', 'c'],
+        competitionType: 'LOH',
+        seed: 42,
+        humanPlayerId: 'a',
+      })
+    );
+    const lastTurn: RiskWheelState = {
+      ...initialized,
+      phase: 'turn_complete',
+      activePlayerIds: ['a', 'b', 'c'],
+      currentPlayerIndex: 2,
+      playersCompletedThisRound: ['a', 'b'],
+      roundScores: { a: 0, b: 0, c: 20 },
+    };
+
+    const results = reducer(lastTurn, advanceFromTurnComplete());
+    expect(results.phase).toBe('round_summary');
+    expect(results.tieBreaker?.pendingStart).toBe(true);
+    expect(results.tieBreaker?.candidatePlayerIds).toEqual(['a', 'b']);
+    expect(results.activePlayerIds).toEqual(['a', 'b', 'c']);
+    expect(results.roundScores).toEqual({ a: 0, b: 0, c: 20 });
+
+    const playoff = reducer(results, advanceFromRoundSummary());
+    expect(playoff.phase).toBe('awaiting_spin');
+    expect(playoff.tieBreaker?.pendingStart).toBe(false);
+    expect(playoff.activePlayerIds).toEqual(['a', 'b']);
+    expect(playoff.roundScores).toEqual({ a: 0, b: 0 });
+  });
+
   it('eliminates everyone if count >= length', () => {
     const scores = { a: 10, b: 20 };
     const result = computeEliminatedPlayers(['a', 'b'], scores, 5, 99);

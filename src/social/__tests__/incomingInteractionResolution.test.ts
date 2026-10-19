@@ -101,14 +101,14 @@ describe('incoming interaction contextual resolution', () => {
         payload: { scenarioKey: 'alliance_reassurance' },
       })
     )
-    const labels = choices?.map((choice) => choice.label) ?? []
 
-    expect(labels).toHaveLength(4)
-    expect(labels[0]).toBe('Reassure them')
-    expect(labels[2]).toBe('Set a boundary')
-    expect(labels[3]).toBe('End the check-in')
-    expect(labels[1]).toMatch(/Ask what changed|Compare your plans/)
-    expect(labels.join(' ')).not.toMatch(/renew.*pact|new terms/i)
+    expect(choices?.map((choice) => choice.label)).toEqual([
+      'Reassure them fully',
+      'Compare your plans',
+      'Admit your doubts',
+      'Avoid the subject',
+    ])
+    expect(choices?.map((choice) => choice.label).join(' ')).not.toMatch(/renew.*pact|new terms/i)
   })
 
   it('keeps pact decisions formal while plan and time requests remain pending actions', () => {

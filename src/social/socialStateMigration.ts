@@ -129,8 +129,10 @@ export function migrateSocialState(raw: SocialState): SocialState {
       input.influenceWeights && typeof input.influenceWeights === 'object'
         ? input.influenceWeights
         : {},
-    panelOpen: input.panelOpen === true,
-    incomingInboxOpen: input.incomingInboxOpen === true,
+    // Panel visibility is transient UI state. Never resurrect an open overlay
+    // from a saved season; the player can open either module again themselves.
+    panelOpen: false,
+    incomingInboxOpen: false,
     weekStartRelSnapshot:
       input.weekStartRelSnapshot && typeof input.weekStartRelSnapshot === 'object'
         ? input.weekStartRelSnapshot

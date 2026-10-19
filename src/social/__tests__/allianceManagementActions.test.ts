@@ -83,6 +83,11 @@ describe('alliance proposal resource costs', () => {
     expect(narrative).toContain('The Shield is voting on inviting Lia.')
     expect(narrative).toContain('Votes so far: You yes; Kian not voted; Rae yes.')
     expect(narrative).toContain('A majority passes; the leader breaks a tie.')
+    expect((receipt?.payload as { entry: { receipt: unknown } }).entry.receipt).toMatchObject({
+      summary: narrative,
+      outcomeLabel: 'Pending approval',
+      tone: 'neutral',
+    })
   })
 
   it('charges two energy for a new personal pact proposal, only once', () => {
@@ -99,6 +104,22 @@ describe('alliance proposal resource costs', () => {
 
     expect(first.result.status).toBe('APPLIED')
     expect(first.result.reason).toContain('Spent ⚡2 to submit.')
+    expect(first.result.receiptRecorded).toBe(true)
+    const logged = first.dispatch.mock.calls
+      .map(([action]) => action)
+      .find((action) => action.type === recordSocialAction.type)?.payload as {
+      entry: {
+        receipt: { summary: string; outcomeLabel: string; tone: string }
+        costs: { energy: number }
+      }
+    }
+    const request = state.social.reality.allianceManagement.requests[first.result.requestId!]
+    expect(logged.entry.receipt.summary).toContain(request.reason)
+    expect(logged.entry.receipt.summary).not.toContain('Spent')
+    expect(logged.entry.costs.energy).toBe(2)
+    if (request.status === 'DECLINED') {
+      expect(logged.entry.receipt).toMatchObject({ outcomeLabel: 'Declined', tone: 'negative' })
+    }
     expect(state.social.energyBank.u).toBe(1)
     expect(second.result.status).toBe('NO_OP')
     expect(state.social.energyBank.u).toBe(1)

@@ -13,6 +13,7 @@ import {
   type AllianceManagementContext,
 } from './reality/allianceManagement'
 import { normalizeRealityDomainState } from './reality/state'
+import type { SocialActionReceipt } from './types'
 
 export function allianceManagementContext(
   state: Pick<RootState, 'game'>
@@ -111,6 +112,24 @@ function allianceProposalReceipt(
   if (request.status === 'VOTING')
     return `${allianceName} is voting on your proposal. Follow the result in Hub Wire.`
   return request.reason ?? 'Alliance proposal submitted. Track its decision in Hub Wire.'
+}
+
+function allianceProposalOutcome(
+  request: RootState['social']['reality']['allianceManagement']['requests'][string] | undefined
+): Pick<SocialActionReceipt, 'outcomeLabel' | 'tone'> {
+  if (!request || request.status === 'VOTING' || request.status === 'CONSENT')
+    return { outcomeLabel: 'Pending approval', tone: 'neutral' }
+  if (request.status === 'DECLINED') return { outcomeLabel: 'Declined', tone: 'negative' }
+  if (request.status !== 'ACCEPTED') return { outcomeLabel: 'Ended', tone: 'neutral' }
+  const responses = Object.values(request.responsesByActorId ?? {})
+  return {
+    outcomeLabel: responses.some((response) => response.style === 'LIMITED')
+      ? 'Accepted with limits'
+      : responses.some((response) => response.style === 'HESITANT')
+        ? 'Accepted cautiously'
+        : 'Accepted',
+    tone: 'positive',
+  }
 }
 
 /** Charge only a newly submitted player proposal; decisions and exits remain free. */
@@ -224,9 +243,16 @@ export function executeAllianceManagementCommand(
             phase: latest.game.phase,
             source: 'manual',
             narrative: allianceProposalReceipt(domain, result.requestId, latest),
+            receipt: {
+              summary: allianceProposalReceipt(domain, result.requestId, latest),
+              ...allianceProposalOutcome(
+                result.requestId ? domain.allianceManagement.requests[result.requestId] : undefined
+              ),
+            },
           },
         })
       )
+      result.receiptRecorded = true
     }
 
     if (JSON.stringify(domain) !== JSON.stringify(state.social.reality))

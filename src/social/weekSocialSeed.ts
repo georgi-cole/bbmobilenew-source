@@ -14,7 +14,7 @@ import {
   updateRelationship,
 } from './socialSlice'
 import type { WeekSeedBatch, WeekSeedOperation } from './socialSlice'
-import HOUSEGUESTS from '../data/houseguests'
+import { getAll } from '../data/houseguests'
 import type { SocialMemoryEntry, SocialMemoryMap } from './types'
 import { getEffectiveSocialMode } from './socialMode'
 import { BELLA_ID } from '../features/twists/bellasWill'
@@ -62,7 +62,7 @@ function makeLcg(seed: number): () => number {
 }
 
 const HOUSEGUEST_PROFILE_BY_ID = Object.fromEntries(
-  HOUSEGUESTS.map((houseguest) => [houseguest.id, houseguest])
+  getAll().map((houseguest) => [houseguest.id, houseguest])
 )
 
 function seedStaticRelationshipChemistry(

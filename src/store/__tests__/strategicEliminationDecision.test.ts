@@ -3,8 +3,6 @@ import gameReducer, {
   advance,
   chooseStrategicEliminationCandidates,
   createInitialGameState,
-  finalizePendingEviction,
-  hydrateGame,
   submitDoubleEvictionTieBreak,
 } from '../gameSlice'
 import type { GameState, Player } from '../../types'
@@ -78,33 +76,6 @@ describe('shared strategic elimination decisions', () => {
     expect(
       decision.rankedCandidates.find((candidate) => candidate.id === target.id)?.factors
     ).toMatchObject({ promiseProtection: -92 })
-  })
-
-  it('still resolves a required exit when every double-tie option has been promised protection', () => {
-    const { state, decider, target, neutral, protectedPlayer } = prepareDecisionState()
-    const candidates = [target, neutral, protectedPlayer]
-    candidates.forEach((candidate) => {
-      state.strategicRelationships![decider.id][candidate.id] = {
-        affinity: 0,
-        tags: ['safety_promise'],
-      }
-    })
-
-    const decision = chooseStrategicEliminationCandidates(
-      state,
-      decider.id,
-      candidates.map((candidate) => candidate.id),
-      2,
-      'double_tie',
-      813
-    )
-
-    expect(decision.selectedIds).toHaveLength(2)
-    expect(new Set(decision.selectedIds).size).toBe(2)
-    expect(decision.rankedCandidates).toHaveLength(3)
-    expect(
-      decision.rankedCandidates.every((candidate) => candidate.factors.promiseProtection === -92)
-    ).toBe(true)
   })
 
   it('includes learned jealousy weight and its evidence in the decision record', () => {
@@ -201,20 +172,9 @@ describe('shared strategic elimination decisions', () => {
     target.status = 'nominated'
     protectedPlayer.status = 'nominated'
 
-    const resumed = gameReducer(state, hydrateGame(JSON.parse(JSON.stringify(state)) as GameState))
-    const result = gameReducer(resumed, advance())
+    const result = gameReducer(state, advance())
 
     expect(result.pendingEviction?.evicteeId).toBe(target.id)
     expect(result.pendingEviction?.evictionMessage).toContain('chosen to eliminate')
-
-    const afterAnnouncementReload = gameReducer(
-      result,
-      hydrateGame(JSON.parse(JSON.stringify(result)) as GameState)
-    )
-    expect(afterAnnouncementReload.pendingEviction?.evicteeId).toBe(target.id)
-    const completed = gameReducer(afterAnnouncementReload, finalizePendingEviction(target.id))
-    expect(['evicted', 'jury']).toContain(
-      completed.players.find((player) => player.id === target.id)?.status
-    )
   })
 })

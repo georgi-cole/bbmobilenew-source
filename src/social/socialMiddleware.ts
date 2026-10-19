@@ -1,4 +1,4 @@
-/**
+﻿/**
  * socialMiddleware — Redux middleware that hooks the SocialEngine into the
  * game phase lifecycle and dispatches social resource deltas for game events.
  *
@@ -37,7 +37,6 @@ import {
   applyDramaAction,
   replaceDramaNetwork,
   recordRealityActualVote,
-  recordRealityActualVotes,
   recordRealityAllianceBetrayal,
   reconcileRealityBattleBackReturn,
   setEnergyBankEntry,
@@ -149,7 +148,21 @@ interface GameState {
     weekendNumber?: 1 | 2 | 3
     finaleWeekend?: true
     weekendDay: 1 | 2
-    stage: NonNullable<FullGameState['weekendInterlude']>['stage']
+    stage:
+      | 'intro'
+      | 'instructions'
+      | 'day_two_intro'
+      | 'hub_says'
+      | 'party'
+      | 'season_so_far'
+      | 'social'
+      | 'day_transition'
+      | 'finale_reunion'
+      | 'finale_reunion_social'
+      | 'finale_sequester_announcement'
+      | 'tribunal_invitation'
+      | 'tribunal_glimpse'
+      | 'finale_battle_ready'
     episode: 'hub_says' | 'party' | 'season_so_far'
   } | null
   dramaSocialMode?: boolean
@@ -1329,9 +1342,9 @@ function recordActualVotes(api: MiddlewareAPI): void {
       .find(
         (event) => event.day === afterCeremony.game.week && event.type === 'CEREMONY_VOTES_REVEALED'
       )?.id ?? `vote:${afterCeremony.game.week}`
-  api.dispatch(
-    recordRealityActualVotes(
-      Object.entries(votes).map(([actorId, targetId]) => ({
+  for (const [actorId, targetId] of Object.entries(votes)) {
+    api.dispatch(
+      recordRealityActualVote({
         actorId,
         targetId,
         day: afterCeremony.game.week ?? 1,
@@ -1339,9 +1352,9 @@ function recordActualVotes(api: MiddlewareAPI): void {
         eventId,
         eligibleTargetIds: [...afterCeremony.game.nomineeIds],
         revealed: false,
-      }))
+      })
     )
-  )
+  }
 }
 
 function recordPhaseCeremony(

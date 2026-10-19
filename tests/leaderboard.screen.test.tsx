@@ -114,11 +114,15 @@ describe('Hall of Fame screen', () => {
           ],
         },
       ],
+      twinShockActivatedSeason: 4,
     })
 
     renderHallOfFame(store)
 
     expect(screen.getByText('Season 4')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Season 4/ })).toHaveAccessibleName(
+      /Season 4.*Vox Populi.*Twin Shock.*31 days.*You: 3rd.*Winner.*Mimi Tanaka/
+    )
     expect(screen.getByText('🏆 Mimi Tanaka')).toBeInTheDocument()
     expect(screen.getByText('Your finish')).toBeInTheDocument()
     expect(screen.getByText('3rd')).toBeInTheDocument()
@@ -136,6 +140,54 @@ describe('Hall of Fame screen', () => {
     expect(
       card.querySelector('.hall-of-fame-screen__season-header .hall-of-fame-screen__chevron')
     ).not.toBeNull()
+  })
+
+  it('does not label a later season with a Twin Shock consumed in an earlier season', () => {
+    const store = makeStore({
+      season: 5,
+      twinShockConsumed: true,
+      twinShockActivatedSeason: 3,
+      seasonArchives: [
+        {
+          seasonIndex: 4,
+          seasonId: 'season-4',
+          twinShockConsumed: true,
+          playerSummaries: [{ playerId: 'user', displayName: 'You', finalPlacement: 4 }],
+        },
+      ],
+    })
+
+    renderHallOfFame(store)
+
+    expect(screen.getByText('Classic')).toBeInTheDocument()
+    expect(screen.queryByText('Classic · Twin Shock')).toBeNull()
+  })
+
+  it('assigns duplicated legacy Twin Shock flags to the earliest recorded season', () => {
+    const store = makeStore({
+      season: 5,
+      twinShockConsumed: true,
+      twinShockActivatedSeason: null,
+      seasonArchives: [
+        {
+          seasonIndex: 3,
+          seasonId: 'season-3',
+          twinShockConsumed: true,
+          playerSummaries: [{ playerId: 'user', displayName: 'You', finalPlacement: 4 }],
+        },
+        {
+          seasonIndex: 4,
+          seasonId: 'season-4',
+          twinShockConsumed: true,
+          playerSummaries: [{ playerId: 'user', displayName: 'You', finalPlacement: 4 }],
+        },
+      ],
+    })
+
+    renderHallOfFame(store)
+
+    expect(screen.getByRole('button', { name: /Season 3/ })).toHaveAccessibleName(/Twin Shock/)
+    expect(screen.getByRole('button', { name: /Season 4/ })).not.toHaveAccessibleName(/Twin Shock/)
   })
 
   it('expands a season to show runner-up, Public Favorite, finish and season titles', () => {

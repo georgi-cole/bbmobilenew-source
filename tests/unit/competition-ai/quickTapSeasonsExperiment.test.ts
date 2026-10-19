@@ -9,6 +9,7 @@ import {
   simulateSeasonsStrategicPlayer,
 } from '../../../src/experiments/quickTapSeasons/quickTapSeasons'
 import { simulateMinigameAiScore } from '../../../src/ai/competition'
+import { assignAiGameIdentities } from '../../../src/ai/aiGameIdentity'
 import { getGame } from '../../../src/minigames/registryBase'
 
 describe('Quick Tap Race 2: Seasons', () => {
@@ -60,6 +61,27 @@ describe('Quick Tap Race 2: Seasons', () => {
       )
       expect(hostedScore).toBe(standaloneScore)
     }
+  })
+  it('preserves Quick Tap Seasons identity-adjusted scores above 320', () => {
+    const seed = 20260802
+    const roster = Array.from({ length: 15 }, (_, index) => ({
+      id: `ai-${index}`,
+      isUser: false,
+    }))
+    const identifiedRoster = assignAiGameIdentities(roster, seed, 'classic')
+    const scores = identifiedRoster.map((player, participantIndex) =>
+      simulateMinigameAiScore({
+        gameKey: 'quickTapSeasons',
+        seed,
+        playerId: player.id,
+        participantIndex,
+        aiGameIdentity: player.aiGameIdentity,
+        identityMode: 'classic',
+      })
+    )
+
+    expect(scores.some((score) => score > 320)).toBe(true)
+    expect(new Set(scores).size).toBeGreaterThan(8)
   })
   it('benchmarks modelled 10-taps/second strategic play over 1,000 seeds', () => {
     const wins = { threeAverageAis: 0, elevenAverageAis: 0 }

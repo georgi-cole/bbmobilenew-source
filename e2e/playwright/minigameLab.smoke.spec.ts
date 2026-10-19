@@ -15,6 +15,7 @@ async function openLab(page: Page, game: GameRegistryEntry): Promise<void> {
     `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1`
   )
   await closeDebugPanelIfOpen(page)
+  await page.getByRole('button', { name: 'Restore minigame lab' }).click()
 }
 
 async function attachSnapshot(page: Page, testInfo: TestInfo, name: string): Promise<void> {

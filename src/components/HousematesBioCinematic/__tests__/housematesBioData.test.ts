@@ -42,6 +42,20 @@ describe('Housemates biography cinematic', () => {
     expect(MYSTERY_WILDCARD_BIOS.every((card) => card.unlock.kind.length > 0)).toBe(true);
     expect(new Set(MYSTERY_WILDCARD_BIOS.map((card) => card.prizePlan)).size).toBe(6);
 
+    for (const card of MYSTERY_WILDCARD_BIOS) {
+      expect(card.fullName).toBeTruthy();
+      expect(card.introduction.length).toBeGreaterThan(45);
+      expect(card.prizePlan.length).toBeGreaterThan(45);
+      expect(card.privateDetail.length).toBeGreaterThan(20);
+      expect(card.education).toBeTruthy();
+      expect(card.sexuality).toBeTruthy();
+      expect(card.familyStatus).toBeTruthy();
+      expect(card.motto).toBeTruthy();
+      expect(card.funFact).toBeTruthy();
+      expect(card.portraitPath).toMatch(/^\/assets\//);
+      expect(card.avatarPath).toMatch(/^\/assets\/skins\//);
+    }
+
     const canonicalIds = new Set(HOUSEMATES_BIO_CARDS.map((card) => card.id));
     expect(MYSTERY_WILDCARD_BIOS.every((card) => !canonicalIds.has(card.id))).toBe(true);
   });

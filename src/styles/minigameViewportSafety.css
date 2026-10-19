@@ -42,6 +42,38 @@
   min-height: min-content;
 }
 
+/* Keep Color Match controls in a compact, centered stack on tall phones. The
+   play row used to stretch to fill the viewport and space-between then turned
+   that spare height into large gaps between the title, swatches, and sliders. */
+.minigame-host .cm__card--play {
+  box-sizing: border-box;
+  min-height: 100%;
+  grid-template-rows: auto auto auto auto;
+  align-content: center;
+  gap: clamp(14px, 2.2vh, 20px);
+}
+
+.minigame-host .cm__play-body {
+  flex: 0 0 auto;
+  min-height: min-content;
+  justify-content: flex-start;
+  gap: clamp(12px, 1.8vh, 16px);
+  overflow: visible;
+}
+
+.minigame-host .cm__swatches {
+  padding: clamp(8px, 1.5vh, 14px);
+}
+
+.minigame-host .cm__swatch {
+  width: clamp(78px, 28vw, 112px);
+  height: clamp(78px, 28vw, 112px);
+}
+
+.minigame-host .cm__sliders {
+  gap: clamp(8px, 1.3vh, 12px);
+}
+
 /* Hold the Wall: the mobile rule previously forced a 33rem minimum wall inside
    an already-full viewport. Let the arena flex into the actual remaining space
    instead, and compact the HUD/roster enough that the full wall stays visible. */

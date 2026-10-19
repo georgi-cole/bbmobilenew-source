@@ -193,6 +193,17 @@ describe('Social premium hardening', () => {
     expect(migrated.sessionLogs).toHaveLength(1)
   })
 
+  it('closes transient social overlays when restoring a saved season', () => {
+    const migrated = migrateSocialState({
+      ...SOCIAL_INITIAL_STATE,
+      panelOpen: true,
+      incomingInboxOpen: true,
+    })
+
+    expect(migrated.panelOpen).toBe(false)
+    expect(migrated.incomingInboxOpen).toBe(false)
+  })
+
   it('bounds oversized legacy logs while hydrating a long-running season', () => {
     const historyLimit = getSocialRuntimeConfig().history.maxActionHistory
     const incomingLogLimit = socialConfig.incomingInteractionDebugConfig.maxLogEntries
