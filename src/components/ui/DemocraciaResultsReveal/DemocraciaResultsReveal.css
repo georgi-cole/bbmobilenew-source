@@ -73,6 +73,15 @@
   line-height: 1.25;
 }
 
+.democracia-results__continue {
+  margin: 0;
+  color: rgba(255, 247, 237, 0.62);
+  font-size: clamp(0.68rem, 2vw, 0.8rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .democracia-results__participants {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

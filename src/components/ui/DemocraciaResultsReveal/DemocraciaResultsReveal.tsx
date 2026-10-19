@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Player } from '../../../types'
 import PlayerAvatar from '../../PlayerAvatar/PlayerAvatar'
 import './DemocraciaResultsReveal.css'
@@ -13,27 +13,17 @@ type DemocraciaResultsRevealProps = {
   title: string
   subtitle: string
   participants: DemocraciaResultsRevealParticipant[]
-  onDone: () => void
-  countdownMs?: number
 }
-
-const DEFAULT_COUNTDOWN_MS = 2600
 
 export default function DemocraciaResultsReveal({
   mode,
+  title,
   subtitle,
   participants,
-  onDone,
-  countdownMs = DEFAULT_COUNTDOWN_MS,
 }: DemocraciaResultsRevealProps) {
   const safeAreaRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [contentScale, setContentScale] = useState(1)
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => onDone(), countdownMs)
-    return () => window.clearTimeout(timeoutId)
-  }, [countdownMs, onDone])
 
   useLayoutEffect(() => {
     const safeArea = safeAreaRef.current
@@ -93,7 +83,7 @@ export default function DemocraciaResultsReveal({
       resizeObserver?.disconnect()
       window.removeEventListener('resize', scheduleRecalculation)
     }
-  }, [mode, participants, subtitle])
+  }, [mode, participants, subtitle, title])
 
   const badgeLabel = mode === 'winner' ? 'Winner' : mode === 'tie' ? 'Tie' : 'Revote'
 
@@ -107,6 +97,7 @@ export default function DemocraciaResultsReveal({
         <div className="democracia-results__content" ref={contentRef} style={contentStyle}>
           <div className="democracia-results__badge">{badgeLabel}</div>
           <div className="democracia-results__body">
+            <h2 className="democracia-results__title">{title}</h2>
             <p className="democracia-results__subtitle">{subtitle}</p>
             {participants.length > 0 && (
               <div
@@ -130,6 +121,7 @@ export default function DemocraciaResultsReveal({
               </div>
             )}
           </div>
+          <p className="democracia-results__continue">Press Play to continue.</p>
         </div>
       </div>
     </section>

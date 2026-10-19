@@ -11,6 +11,7 @@ export const gameScreenGameEquality = createGameFieldEquality([
   'cupidArrow',
   'depressionShock',
   'doubleEviction',
+  'democracia',
   'evictionOverlayPlayerId',
   'expansionMode',
   'favoritePlayer',
