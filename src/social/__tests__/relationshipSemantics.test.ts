@@ -50,6 +50,40 @@ describe('canonical relationship presentation', () => {
     expect(getCanonicalRelationshipLabel(unknown, true)).toBe('Ally')
   })
 
+  it('keeps unknown reads provisional through day three, then gives a signal-led first impression', () => {
+    const friendly = createDirectedRelationship('human', 'rune')
+    friendly.familiarity = 2
+    friendly.warmth = 20
+    friendly.trust = 10
+
+    const cautious = createDirectedRelationship('human', 'lia')
+    cautious.suspicion = 25
+    cautious.trust = 10
+
+    const strategic = createDirectedRelationship('human', 'kai')
+    strategic.strategicValue = 40
+
+    const romantic = createDirectedRelationship('human', 'vee')
+    romantic.attraction = 36
+
+    const familiar = createDirectedRelationship('human', 'bea')
+    familiar.familiarity = 10
+    familiar.perceivedLabel = 'ACQUAINTANCE'
+
+    const friendlyRead = createDirectedRelationship('human', 'dex')
+    friendlyRead.warmth = 20
+    friendlyRead.perceivedLabel = 'FRIENDLY'
+
+    expect(getCanonicalRelationshipLabel(friendly, false, 3)).toBe('Still forming')
+    expect(getCanonicalRelationshipLabel(friendly, false, 4)).toBe('Good banter')
+    expect(getCanonicalRelationshipLabel(cautious, false, 7)).toBe('Side-eye')
+    expect(getCanonicalRelationshipLabel(strategic, false, 7)).toBe('All business')
+    expect(getCanonicalRelationshipLabel(romantic, false, 7)).toBe('Uh-oh, sparks')
+    expect(getCanonicalRelationshipLabel(familiar, false, 7)).toBe('No tea')
+    expect(getCanonicalRelationshipLabel(friendlyRead, false, 7)).toBe('Good banter')
+    expect(getCanonicalRelationshipLabel(undefined, false, 7)).toBe('No tea')
+  })
+
   it('shows an enemy after a fight as rivalry, without inventing betrayal', () => {
     const reality = createInitialRealityDomainState()
     const edge = createDirectedRelationship('human', 'rune')

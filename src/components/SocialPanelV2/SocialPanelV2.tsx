@@ -1902,7 +1902,11 @@ export default function SocialPanelV2() {
   const focusedRelationship = !focusedPlayer
     ? null
     : dramaMode
-      ? getRealityRelationshipLabel(focusedRealityEdge, focusedCanonical?.alliance?.operational)
+      ? getRealityRelationshipLabel(
+          focusedRealityEdge,
+          focusedCanonical?.alliance?.operational,
+          game.week
+        )
       : focusedAffinity === undefined
         ? null
         : getRelationshipLabel(focusedAffinity)
@@ -2242,6 +2246,7 @@ export default function SocialPanelV2() {
                 cupidPartners={cupidPartners}
                 playerLimitedRead={dramaMode}
                 reality={socialState.reality}
+                currentDay={game.week}
               />
             )}
           </section>

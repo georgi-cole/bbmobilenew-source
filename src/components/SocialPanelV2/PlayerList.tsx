@@ -47,6 +47,8 @@ interface PlayerListProps {
   /** Reality Mode hides the reverse housemate→human edge as private information. */
   playerLimitedRead?: boolean
   reality?: RealityDomainState
+  /** Current game day, used to move unknown reads past the opening impression window. */
+  currentDay?: number
 }
 
 /**
@@ -75,6 +77,7 @@ export default function PlayerList({
   cupidPartners,
   playerLimitedRead = false,
   reality,
+  currentDay,
 }: PlayerListProps) {
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set())
   const lastFocusedIndexRef = useRef<number>(-1)
@@ -174,7 +177,11 @@ export default function PlayerList({
                 edge.familiarity > 0 ||
                 edge.lastMeaningfulInteraction !== undefined)
             affinity = hasRelationshipEvidence ? projectRealityAffinity(edge) : undefined
-            relationshipLabel = getRealityRelationshipLabel(edge, view.alliance?.operational)
+            relationshipLabel = getRealityRelationshipLabel(
+              edge,
+              view.alliance?.operational,
+              currentDay
+            )
             relationshipTags = [...view.visibleTags]
           } else if (playerLimitedRead) {
             // Reality Social is a player-limited read. The reverse

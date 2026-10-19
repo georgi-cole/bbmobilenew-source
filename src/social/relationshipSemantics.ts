@@ -11,6 +11,7 @@ import type {
 
 const LIVE_ALLIANCE_STATUSES = new Set(['ACTIVE', 'PROBATIONARY'])
 const REPAIRABLE_LEGACY_TAGS = new Set(['betrayal', 'broken_alliance', 'rivalry', 'strained'])
+export const RELATIONSHIP_FORMING_GRACE_DAYS = 3
 const ALLIANCE_STATUS_PRIORITY: Record<RealityAllianceStatus, number> = {
   ACTIVE: 4,
   PROBATIONARY: 3,
@@ -57,10 +58,22 @@ const RELATIONSHIP_LABELS_WITH_PRIORITY = new Set<RealityRelationshipLabel>([
 /** The Reality edge, rather than its compatibility affinity projection, owns the visible label. */
 export function getCanonicalRelationshipLabel(
   edge: DirectedRelationship | undefined,
-  hasOperationalAlliance = false
+  hasOperationalAlliance = false,
+  currentDay?: number
 ): string {
-  if (hasOperationalAlliance && (!edge || edge.perceivedLabel === 'UNKNOWN')) return 'Ally'
-  if (!edge || edge.perceivedLabel === 'UNKNOWN') return 'Still forming'
+  const isEarlyRead =
+    !edge ||
+    edge.perceivedLabel === 'UNKNOWN' ||
+    edge.perceivedLabel === 'ACQUAINTANCE' ||
+    edge.perceivedLabel === 'FRIENDLY'
+
+  if (hasOperationalAlliance && isEarlyRead) return 'Ally'
+  if (isEarlyRead && currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS) {
+    return getFirstImpressionLabel(edge)
+  }
+  if (!edge || edge.perceivedLabel === 'UNKNOWN') {
+    return 'Still forming'
+  }
   if (RELATIONSHIP_LABELS_WITH_PRIORITY.has(edge.perceivedLabel)) {
     return RELATIONSHIP_LABEL_COPY[edge.perceivedLabel]
   }
@@ -72,6 +85,31 @@ export function getCanonicalRelationshipLabel(
   if (affinity <= -45) return 'Hostile'
   if (affinity <= -15) return 'Tense'
   return RELATIONSHIP_LABEL_COPY[edge?.perceivedLabel ?? 'UNKNOWN']
+}
+
+/**
+ * Once the opening days have passed, an unknown edge should read as an early
+ * impression rather than remaining provisional forever. This is presentation
+ * only: it does not create or mutate relationship state.
+ */
+function getFirstImpressionLabel(edge: DirectedRelationship | undefined): string {
+  if (!edge) return 'No tea'
+
+  const affinity = projectRealityAffinity(edge)
+  if (
+    (edge.resentment >= 24 && edge.trust <= 10) ||
+    ((edge.suspicion >= 22 || (edge.acuteTension ?? 0) >= 24) && edge.trust <= 18)
+  ) {
+    return edge.resentment >= 24 ? 'Thin ice' : 'Side-eye'
+  }
+  if (affinity <= -15) return 'Bad vibes'
+  if (affinity >= 55) return 'Same wavelength'
+  if (edge.attraction >= 32) return 'Uh-oh, sparks'
+  if (edge.warmth >= 15 || affinity >= 20) return 'Good banter'
+  if (edge.trust >= 20 && edge.reliability >= 18) return 'Solid-ish'
+  if (edge.respect >= 20 || edge.gratitude >= 20) return 'Points earned'
+  if (edge.strategicValue >= 35 && edge.warmth < 20) return 'All business'
+  return 'No tea'
 }
 
 /**
