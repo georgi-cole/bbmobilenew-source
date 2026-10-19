@@ -19,7 +19,10 @@ import {
   relationshipEventLabel,
   relationshipMetricStatus,
 } from './relationshipRead'
-import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
+import {
+  RELATIONSHIP_FORMING_GRACE_DAYS,
+  selectCanonicalRelationshipView,
+} from '../../social/relationshipSemantics'
 import { getRealityRelationshipLabel } from '../SocialPanelV2/relationshipUtils'
 import './RealityLedger.css'
 
@@ -274,7 +277,8 @@ export default function RealityLedger({
           reality,
           actorId: humanId,
           targetId: selectedRelationship.toId,
-        }).alliance?.operational
+        }).alliance?.operational,
+        currentDay
       )
     : null
   const recentRelationshipShift = selectedRelationship?.lastMeaningfulInteraction
@@ -604,7 +608,11 @@ export default function RealityLedger({
           <>
             <h3>Your relationship reads</h3>
             {relationships.length === 0 ? (
-              <p className="reality-ledger__empty">Your relationships are still forming.</p>
+              <p className="reality-ledger__empty">
+                {currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS
+                  ? 'No detailed relationship reads to show yet. Personal interactions will shape them.'
+                  : 'Your relationships are still forming.'}
+              </p>
             ) : (
               <>
                 {!focusPlayerId && (
@@ -618,7 +626,8 @@ export default function RealityLedger({
                       })
                       const relationshipDisplay = getRealityRelationshipLabel(
                         edge,
-                        relationshipView.alliance?.operational
+                        relationshipView.alliance?.operational,
+                        currentDay
                       )
                       return (
                         <button

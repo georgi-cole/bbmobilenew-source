@@ -359,6 +359,22 @@ describe('PlayerList', () => {
     expect(screen.queryByText(/\d+%/)).toBeNull()
   })
 
+  it('shows a short no-signal read after the opening days', () => {
+    render(
+      <PlayerList
+        players={[players[0]]}
+        humanPlayerId="human"
+        selectedIds={new Set(['a'])}
+        playerLimitedRead
+        reality={createInitialRealityDomainState()}
+        currentDay={7}
+      />
+    )
+
+    expect(screen.getByText('No tea')).toBeInTheDocument()
+    expect(screen.queryByText('Still forming')).toBeNull()
+  })
+
   it('preserves the mutual relationship summary outside Reality Mode', () => {
     render(
       <PlayerList

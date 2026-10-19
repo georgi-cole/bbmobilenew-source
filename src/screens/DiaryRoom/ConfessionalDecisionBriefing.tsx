@@ -84,12 +84,11 @@ function ReadSheet({
   const live = combinedLiveRelationship(social.relationships, humanId, target.id)
   const edge = social.reality.relationships[humanId]?.[target.id]
   const affinity = realityMode ? live?.affinity : relationship.affinity
-  const label =
-    realityMode && edge
-      ? getCanonicalRelationshipLabel(edge, relationship.alliance?.operational)
-      : affinity === undefined
-        ? 'Still forming'
-        : getRelationshipLabel(affinity).label
+  const label = realityMode
+    ? getCanonicalRelationshipLabel(edge, relationship.alliance?.operational, game.week)
+    : affinity === undefined
+      ? 'Still forming'
+      : getRelationshipLabel(affinity).label
   const alliance = relationship.alliance?.operational
     ? getRealityAllianceKnowledgeView(social.reality, relationship.alliance.id, humanId)
     : null

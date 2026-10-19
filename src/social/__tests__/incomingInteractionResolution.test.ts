@@ -80,6 +80,43 @@ describe('incoming interaction contextual resolution', () => {
     }
   })
 
+  it('rotates check-in dialogue away from recently used lines', () => {
+    const recentLines: string[] = []
+    for (let index = 0; index < 6; index += 1) {
+      const beat = getIncomingDialogueBeat({
+        scenarioKey: 'relationship_friendship_check_in',
+        responseType: 'positive',
+        fromName: 'Nico',
+        seed: 7,
+        recentLines,
+      })
+      expect(beat).toBeTruthy()
+      expect(recentLines).not.toContain(beat)
+      recentLines.push(beat!)
+    }
+
+    expect(new Set(recentLines).size).toBe(6)
+  })
+
+  it('uses dialogue that fits celebrations and competition taunts', () => {
+    const celebration = getIncomingDialogueBeat({
+      scenarioKey: 'hoh_congratulations',
+      responseType: 'positive',
+      fromName: 'Nico',
+      seed: 0,
+    })
+    const taunt = getIncomingDialogueBeat({
+      scenarioKey: 'competition_low_finish_taunt',
+      responseType: 'negative',
+      fromName: 'Nico',
+      seed: 0,
+    })
+
+    expect(celebration).toMatch(/win|celebrate/i)
+    expect(taunt).toMatch(/cheap shot|joke|jab/i)
+    expect(celebration).not.toBe(taunt)
+  })
+
   it('gives a nomination plea scene-specific player actions', () => {
     const choices = getContextualIncomingChoices(makeInteraction())
 
@@ -102,12 +139,11 @@ describe('incoming interaction contextual resolution', () => {
       })
     )
 
-    expect(choices?.map((choice) => choice.label)).toEqual([
-      'Reassure them fully',
-      'Compare your plans',
-      'Admit your doubts',
-      'Avoid the subject',
-    ])
+    expect(choices).toHaveLength(4)
+    expect(choices?.[0]?.label).toMatch(/reassure/i)
+    expect(choices?.[1]?.label).toMatch(/compare your plans/i)
+    expect(choices?.[2]?.label).toMatch(/doubts|boundary/i)
+    expect(choices?.[3]?.label).toMatch(/avoid|end the check-in/i)
     expect(choices?.map((choice) => choice.label).join(' ')).not.toMatch(/renew.*pact|new terms/i)
   })
 

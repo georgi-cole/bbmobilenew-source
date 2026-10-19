@@ -207,15 +207,6 @@
   overflow-wrap: anywhere;
 }
 
-.ra-entry__details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.16rem 0.48rem;
-  color: rgba(211, 194, 238, 0.78);
-  font-size: 0.64rem;
-  line-height: 1.3;
-}
-
 /* ── Timestamp ───────────────────────────────────────────────────────────── */
 .ra-entry__time {
   color: rgba(255, 255, 255, 0.3);

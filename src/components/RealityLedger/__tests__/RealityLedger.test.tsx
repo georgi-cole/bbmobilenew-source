@@ -19,6 +19,25 @@ const players = [
 ] as Player[]
 
 describe('RealityLedger privacy projection', () => {
+  it('does not describe all relationships as still forming after the opening days', () => {
+    render(
+      <RealityLedger
+        reality={createInitialRealityDomainState()}
+        players={players}
+        humanId="human"
+        currentDay={7}
+        section="relationships"
+      />
+    )
+
+    expect(
+      screen.getByText(
+        'No detailed relationship reads to show yet. Personal interactions will shape them.'
+      )
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Your relationships are still forming.')).toBeNull()
+  })
+
   it('shows learned claims and the player’s own relationship read without leaking hidden facts', () => {
     const reality = createInitialRealityDomainState()
     reality.relationships.human = {
@@ -167,7 +186,9 @@ describe('RealityLedger privacy projection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Known' }))
 
     expect(screen.getByText('Suspected pact')).toBeInTheDocument()
-    expect(screen.getByText(/Known links: Lia · Kai · other members unknown/)).toBeInTheDocument()
+    expect(
+      screen.getByText('Known links: Lia · Kai. The full roster has not been confirmed.')
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Nova/)).toBeNull()
     expect(screen.queryByText(/cohesion/i)).toBeNull()
     expect(screen.queryByText(alliance.name ?? 'not-a-name')).toBeNull()
@@ -192,7 +213,7 @@ describe('RealityLedger privacy projection', () => {
     expect(screen.queryByText('Night Shift')).toBeNull()
     expect(screen.queryByText(/cohesion/i)).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'House stories' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hub stories' }))
     expect(screen.queryByText(/You \(Leader\)/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Rename alliance' })).toBeNull()
   })

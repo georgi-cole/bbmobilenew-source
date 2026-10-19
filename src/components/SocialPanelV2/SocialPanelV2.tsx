@@ -1902,7 +1902,11 @@ export default function SocialPanelV2() {
   const focusedRelationship = !focusedPlayer
     ? null
     : dramaMode
-      ? getRealityRelationshipLabel(focusedRealityEdge, focusedCanonical?.alliance?.operational)
+      ? getRealityRelationshipLabel(
+          focusedRealityEdge,
+          focusedCanonical?.alliance?.operational,
+          game.week
+        )
       : focusedAffinity === undefined
         ? null
         : getRelationshipLabel(focusedAffinity)
@@ -2242,6 +2246,7 @@ export default function SocialPanelV2() {
                 cupidPartners={cupidPartners}
                 playerLimitedRead={dramaMode}
                 reality={socialState.reality}
+                currentDay={game.week}
               />
             )}
           </section>
@@ -2358,58 +2363,63 @@ export default function SocialPanelV2() {
             id="sp2-alliance-actions"
             data-reality-tutorial="actions"
           >
-            <div className="sp2-moves__heading">
-              <div>
-                <span className="sp2-section-heading__eyebrow">Your move</span>
-                <span className="sp2-section-heading__title">
-                  {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
-                </span>
+            <div className="sp2-moves__top">
+              <div className="sp2-moves__heading">
+                <div>
+                  <span className="sp2-section-heading__eyebrow">Your move</span>
+                  <span className="sp2-section-heading__title">
+                    {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
+                  </span>
+                </div>
+                <button
+                  className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
+                  type="button"
+                  disabled={!canExecute}
+                  aria-label={executeCopy}
+                  aria-busy={executing}
+                  onClick={handleExecute}
+                >
+                  {executeCopy}
+                </button>
               </div>
-              <span className="sp2-moves__selection">
-                {selectedReunionGuest
-                  ? `With ${selectedReunionGuest.name}`
-                  : selectedAction
-                    ? getSocialActionPresentation(selectedAction).title
-                    : 'Choose a move'}
-              </span>
-            </div>
-            {!selectedReunionGuest && (
-              <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
-                {MOVE_FILTERS.map((filter) => (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={moveFilter === filter.id}
-                    className={moveFilter === filter.id ? 'is-active' : ''}
-                    data-reality-tutorial={
-                      filter.id === 'alliances' ? 'alliance-actions' : undefined
-                    }
-                    onClick={() => {
-                      setMoveFilter(filter.id)
-                      if (filter.id !== 'alliances') {
-                        setSelectedAllianceId(null)
-                        setSelectedAllianceHistoryEventId(null)
+              {!selectedReunionGuest && (
+                <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
+                  {MOVE_FILTERS.map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={moveFilter === filter.id}
+                      className={moveFilter === filter.id ? 'is-active' : ''}
+                      data-reality-tutorial={
+                        filter.id === 'alliances' ? 'alliance-actions' : undefined
                       }
-                      setMultiSelectActive(false)
-                      setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
-                      setSelectedActionId(null)
-                      setSelectedSubjectId(null)
-                    }}
-                  >
-                    {filter.label}
-                    {filter.id === 'alliances' && pendingAllianceDecisionCount > 0 && (
-                      <span
-                        className="sp2-move-filters__badge"
-                        aria-label="Pending alliance decisions"
-                      >
-                        {pendingAllianceDecisionCount}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
+                      onClick={() => {
+                        setMoveFilter(filter.id)
+                        if (filter.id !== 'alliances') {
+                          setSelectedAllianceId(null)
+                          setSelectedAllianceHistoryEventId(null)
+                        }
+                        setMultiSelectActive(false)
+                        setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
+                        setSelectedActionId(null)
+                        setSelectedSubjectId(null)
+                      }}
+                    >
+                      {filter.label}
+                      {filter.id === 'alliances' && pendingAllianceDecisionCount > 0 && (
+                        <span
+                          className="sp2-move-filters__badge"
+                          aria-label="Pending alliance decisions"
+                        >
+                          {pendingAllianceDecisionCount}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <ActionGrid
               selectedId={selectedActionId}
               onActionClick={handleActionClick}
@@ -2541,18 +2551,6 @@ export default function SocialPanelV2() {
                 (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
               }
               onExpandedChange={setHistoryOpen}
-              actionControl={
-                <button
-                  className={`sp2-footer__execute${successPulse ? ' sp2-footer__execute--pulse' : ''}`}
-                  type="button"
-                  disabled={!canExecute}
-                  aria-label={executeCopy}
-                  aria-busy={executing}
-                  onClick={handleExecute}
-                >
-                  {executeCopy}
-                </button>
-              }
             />
           </div>
         </footer>

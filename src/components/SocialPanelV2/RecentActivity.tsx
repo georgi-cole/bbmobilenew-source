@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useAppSelector } from '../../store/hooks'
 import { selectSessionLogs } from '../../social/socialSlice'
 import { getActionById } from '../../social/SocialManeuvers'
@@ -18,7 +17,6 @@ export interface RecentActivityProps {
   onExpandedChange?: (expanded: boolean) => void
   /** Feedback for attempts that do not produce a gameplay log entry. */
   feedback?: string | null
-  actionControl?: ReactNode
 }
 
 const GENERIC_OUTCOME_PREFIXES = [
@@ -118,7 +116,6 @@ export default function RecentActivity({
   compact = false,
   onExpandedChange,
   feedback,
-  actionControl,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
   const [clearedBefore, setClearedBefore] = useState(0)
@@ -190,7 +187,7 @@ export default function RecentActivity({
       className={`ra-container${!compact || expanded ? ' ra-container--expanded' : ''}`}
       aria-label="Recent Activity"
     >
-      {(visibleLogs.length > 0 || feedback || actionControl) && (
+      {(visibleLogs.length > 0 || feedback) && (
         <div className="ra-header">
           <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
@@ -228,7 +225,6 @@ export default function RecentActivity({
                 Clear
               </button>
             )}
-            {actionControl}
           </span>
         </div>
       )}
@@ -287,10 +283,13 @@ export default function RecentActivity({
                 entry.receipt?.outcomeLabel ??
                 (entry.outcome === 'success' ? 'Succeeded' : 'Failed')
               const receiptSummary = entry.receipt?.summary
-              // The receipt is the final player-facing response. Keep it even
-              // when it resembles a short outcome label; the log narrative may
-              // be an earlier or incomplete version of the same action.
-              const useDetailedReceipt = Boolean(receiptSummary?.trim())
+              // Detailed receipts carry important context (for example, a LOH
+              // read). Generic outcome copy should give way to the authored
+              // action and reaction already in the narrative bank.
+              const useDetailedReceipt = Boolean(
+                receiptSummary?.trim() &&
+                !isGenericOutcomeSummary(receiptSummary, outcomeActionTitle)
+              )
               const loggedNarrative =
                 entry.narrative && !isGenericOutcomeSummary(entry.narrative, outcomeActionTitle)
                   ? entry.narrative
@@ -329,35 +328,6 @@ export default function RecentActivity({
               const key =
                 entry.id ??
                 `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
-              const relationshipDeltas = entry.targetDeltas ?? { [entry.targetId]: entry.delta }
-              const relationshipChanges = Object.entries(relationshipDeltas)
-                .filter(([, delta]) => delta !== 0)
-                .map(([targetId, delta]) => {
-                  const name = playerById.get(targetId)?.name ?? targetId
-                  return `${name} ${delta > 0 ? '+' : ''}${delta}`
-                })
-              const relationshipDetail =
-                relationshipChanges.length > 1
-                  ? `Relationship changes: ${relationshipChanges.join(' · ')}`
-                  : relationshipChanges.length === 1
-                    ? `Relationship change ${relationshipChanges[0].slice(relationshipChanges[0].lastIndexOf(' ') + 1)}`
-                    : null
-              const energyCost = entry.costs?.energy ?? entry.cost
-              const influenceCost = entry.costs?.influence ?? 0
-              const infoCost = entry.costs?.info ?? 0
-              const resourceDetails = [
-                energyCost > 0 ? `⚡${energyCost} spent` : null,
-                influenceCost > 0 ? `Influence ${influenceCost} spent` : null,
-                infoCost > 0 ? `Intel ${infoCost} spent` : null,
-                relationshipDetail,
-                entry.yieldsApplied?.influence
-                  ? `Influence ${entry.yieldsApplied.influence > 0 ? '+' : ''}${entry.yieldsApplied.influence}`
-                  : null,
-                entry.yieldsApplied?.info
-                  ? `Intel ${entry.yieldsApplied.info > 0 ? '+' : ''}${entry.yieldsApplied.info}`
-                  : null,
-              ].filter((detail): detail is string => detail !== null)
-
               return (
                 <li
                   key={key}
@@ -377,13 +347,6 @@ export default function RecentActivity({
                         : ''} · {outcomeLabel}
                     </span>
                     <span className="ra-entry__narrative">{displayNarrative}</span>
-                    {resourceDetails.length > 0 && (
-                      <span className="ra-entry__details">
-                        {resourceDetails.map((detail) => (
-                          <span key={detail}>{detail}</span>
-                        ))}
-                      </span>
-                    )}
                   </span>
                   <span
                     className="ra-entry__time"

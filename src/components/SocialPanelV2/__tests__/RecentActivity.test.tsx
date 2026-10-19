@@ -137,7 +137,7 @@ describe('RecentActivity – entry rendering', () => {
     const store = makeStore([makeEntry({ delta: -1 })])
     renderActivity(store)
     expect(screen.getByText('✓')).toBeDefined()
-    expect(screen.getByText('Relationship change -1')).toBeDefined()
+    expect(screen.queryByText('Relationship change -1')).toBeNull()
   })
 
   it('keeps a success icon when a successful action has a neutral relationship result', () => {
@@ -146,16 +146,17 @@ describe('RecentActivity – entry rendering', () => {
     expect(screen.getByText('✓')).toBeDefined()
   })
 
-  it('renders the delta value with sign when delta is positive', () => {
-    const store = makeStore([makeEntry({ delta: 3 })])
+  it('keeps relationship and resource mechanics out of player-facing receipts', () => {
+    const store = makeStore([
+      makeEntry({
+        delta: 3,
+        costs: { energy: 1, influence: 2, info: 3 },
+        yieldsApplied: { influence: 4, info: 5 },
+      }),
+    ])
     renderActivity(store)
-    expect(screen.getByText('Relationship change +3')).toBeDefined()
-  })
-
-  it('renders the delta value without extra sign when delta is negative', () => {
-    const store = makeStore([makeEntry({ delta: -2 })])
-    renderActivity(store)
-    expect(screen.getByText('Relationship change -2')).toBeDefined()
+    expect(screen.queryByText(/Relationship change/)).toBeNull()
+    expect(screen.queryByText(/spent|Influence|Intel/)).toBeNull()
   })
 
   it('does not render a delta element when delta is 0', () => {
@@ -216,8 +217,8 @@ describe('RecentActivity – unified receipts', () => {
       }
     )
     expect(screen.getAllByText('Reached 2 hubmates.')).toHaveLength(1)
-    expect(screen.getByText('⚡2 spent')).toBeVisible()
-    expect(screen.getByText('Relationship changes: Dex +2 · Lux -1')).toBeVisible()
+    expect(screen.queryByText('⚡2 spent')).toBeNull()
+    expect(screen.queryByText(/Relationship changes:/)).toBeNull()
   })
   it('shows the full final response and actual spending instead of the shorter log narrative', () => {
     const summary =
@@ -234,7 +235,7 @@ describe('RecentActivity – unified receipts', () => {
     )
     expect(screen.getByText(summary)).toBeVisible()
     expect(screen.queryByText('Rune told you Dex is the current target.')).toBeNull()
-    expect(screen.getByText('⚡1 spent')).toBeVisible()
+    expect(screen.queryByText('⚡1 spent')).toBeNull()
     expect(screen.queryByRole('button', { name: /full response/i })).toBeNull()
   })
 
@@ -255,7 +256,7 @@ describe('RecentActivity – unified receipts', () => {
     )
     expect(screen.getByLabelText('Declined')).toHaveTextContent('✗')
     expect(screen.queryByText('✓')).toBeNull()
-    expect(screen.getByText('⚡2 spent')).toBeVisible()
+    expect(screen.queryByText('⚡2 spent')).toBeNull()
   })
 
   it('keeps earlier LOH answers and full effects available in History', () => {
@@ -281,9 +282,29 @@ describe('RecentActivity – unified receipts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'History · 2' }))
     expect(screen.getByText('Rune kept the opening nomination plan vague.')).toBeVisible()
     expect(screen.getByText('Dex is my target, with Sol as the replacement.')).toBeVisible()
-    expect(screen.getByText('Relationship change +3')).toBeVisible()
-    expect(screen.getByText('Intel +2')).toBeVisible()
+    expect(screen.queryByText('Relationship change +3')).toBeNull()
+    expect(screen.queryByText('Intel +2')).toBeNull()
     expect(screen.getByLabelText('Recent Activity')).toHaveClass('ra-container--expanded')
+  })
+
+  it('uses the authored action story when the final receipt is generic', () => {
+    const store = makeStore([
+      makeEntry({
+        id: 'compliment-receipt',
+        outcome: 'success',
+        receipt: {
+          summary: 'Compliment landed exactly as intended. Relationship +2.',
+          outcomeLabel: 'Completed',
+          tone: 'positive',
+        },
+      }),
+    ])
+    renderActivity(store, {
+      compact: true,
+      players: [{ id: 'p1', name: 'Lia', avatar: '', status: 'active' }],
+    })
+    expect(screen.getByText(/^You .+Lia/)).toBeVisible()
+    expect(screen.queryByText(/landed exactly as intended|Relationship \+2/)).toBeNull()
   })
 
   it('shows unlogged feedback in the same panel and preserves the previous result in History', () => {
@@ -313,12 +334,10 @@ describe('RecentActivity – auto-scroll', () => {
     expect(list).toBeDefined()
   })
 
-  it('sets scrollTop to scrollHeight on the list after entries are added', () => {
+  it('uses the content wrapper as the scrollable container', () => {
     const store = makeStore([makeEntry()])
     renderActivity(store)
-    const list = screen.getByRole('list', { name: 'Recent actions' }) as HTMLUListElement
-    // JSDOM sets scrollHeight to 0; scrollTop is clamped to scrollHeight.
-    // Verify the property is assignable (i.e. the ref is wired to the <ul>).
-    expect(list.scrollTop).toBe(0)
+    const list = screen.getByRole('list', { name: 'Recent actions' })
+    expect(list.parentElement).toHaveClass('ra-content')
   })
 })
