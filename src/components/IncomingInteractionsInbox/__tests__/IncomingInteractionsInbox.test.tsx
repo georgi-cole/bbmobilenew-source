@@ -340,6 +340,42 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.outcomeText).not.toMatch(/your choice/i)
   })
 
+  it('shows a varied authored reaction separately from the action-specific outcome', () => {
+    const store = makeStore()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'authored-reaction-check-in',
+        fromId: otherPlayer.id,
+        type: 'check_in',
+        text: 'Can we talk about where we stand?',
+        payload: { scenarioKey: 'generic_check_in', variantId: 'generic_check_in_direct:1' },
+        createdAt: 301,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Be honest' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'authored-reaction-check-in'
+      )
+    expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} replies:`))
+    expect(entry?.reactionText).toContain('"')
+    expect(entry?.outcomeText).toContain('appreciate the direct answer')
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.getByText(entry!.outcomeText!)).toBeInTheDocument()
+  })
+
   it('keeps an answered check-in visible with a concrete outcome', () => {
     const store = makeStore()
     store.dispatch(openIncomingInbox())

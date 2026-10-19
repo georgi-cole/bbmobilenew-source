@@ -5,6 +5,7 @@ import { SCENE_CHOICES } from '../incomingSceneChoiceBank'
 describe('incoming outcome matrix', () => {
   it('covers every offered action with a short distinct result', () => {
     const outcomes: string[] = []
+    const uniqueActionKeys = new Set<string>()
 
     for (const [scenarioKey, variants] of Object.entries(SCENE_CHOICES)) {
       for (const labels of variants) {
@@ -20,17 +21,16 @@ describe('incoming outcome matrix', () => {
 
           expect(outcome, `${scenarioKey} / ${responseLabel}`).toBeTruthy()
           expect(outcome!.length, `${scenarioKey} / ${responseLabel}`).toBeLessThanOrEqual(120)
-          outcomes.push(outcome!)
+          const actionKey = `${scenarioKey}:${responseLabel.trim().toLowerCase()}`
+          if (!uniqueActionKeys.has(actionKey)) {
+            uniqueActionKeys.add(actionKey)
+            outcomes.push(outcome!)
+          }
         }
       }
     }
 
-    expect(outcomes).toHaveLength(
-      Object.values(SCENE_CHOICES).reduce(
-        (count, variants) => count + variants.reduce((total, labels) => total + labels.length, 0),
-        0
-      )
-    )
+    expect(outcomes).toHaveLength(uniqueActionKeys.size)
     expect(new Set(outcomes).size).toBe(outcomes.length)
   })
 
@@ -55,6 +55,28 @@ describe('incoming outcome matrix', () => {
     )
     expect(liveVote).toBe('Rune says keeping them gives you a vote that is still open.')
     expect(campaign).not.toBe(liveVote)
+  })
+
+  it('keeps co-nominee reassurance separate from a vote promise', () => {
+    const compareVoteReads = getIncomingActionOutcome({
+      scenarioKey: 'co_nominee_check_in',
+      responseLabel: 'Compare vote reads',
+      fromName: 'Nico',
+      phase: 'social_2',
+      senderIsNominated: true,
+    })
+    const reassureBond = getIncomingActionOutcome({
+      scenarioKey: 'co_nominee_check_in',
+      responseLabel: 'Reassure the bond',
+      fromName: 'Nico',
+      phase: 'social_2',
+      senderIsNominated: true,
+    })
+
+    expect(compareVoteReads).toContain('neither of you can promise how others will vote')
+    expect(reassureBond).toContain('neither of you can change the block for the other')
+    expect(reassureBond).not.toMatch(/promise.*vote|vote.*promise/i)
+    expect(compareVoteReads).not.toBe(reassureBond)
   })
 
   it('changes check-in information with the current game timing', () => {
@@ -82,7 +104,7 @@ describe('incoming outcome matrix', () => {
 
     expect(beforeNominations).toBe('Kian says they are worried about the upcoming nominations.')
     expect(beforeSafety).toBe('Kian says they are worried they are being kept as the pawn.')
-    expect(beforeEviction).toBe('Kian says they feel the house is against them.')
+    expect(beforeEviction).toBe('Kian says they feel the Hub is against them.')
   })
 
   it('uses the named subject for gossip instead of a vague generic claim', () => {
@@ -95,6 +117,6 @@ describe('incoming outcome matrix', () => {
         phase: 'social_2',
         senderIsNominated: false,
       })
-    ).toBe('Bea says the claim about Dex came through house talk they cannot verify.')
+    ).toBe('Bea says the claim about Dex came through Hub talk they cannot verify.')
   })
 })

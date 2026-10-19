@@ -7,6 +7,30 @@ import {
 import type { ScenarioOutcomeMatrix } from './incomingOutcomeMatrixUtils'
 
 export const RELATIONSHIP_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
+  co_nominee_check_in: {
+    'compare vote reads': says(
+      'they have heard the same two names, but neither of you can promise how others will vote.'
+    ),
+    'reassure the bond': says(
+      'they are glad you checked in, even though neither of you can change the block for the other.'
+    ),
+    'protect your own game': says(
+      'they understand you need to protect your position and stop asking you to campaign with them.'
+    ),
+    'end the check-in': acts(
+      'returns to their own campaign without treating the exchange as a deal.'
+    ),
+    'share what you heard': says(
+      'they compare your reads and flag one vote that may still be movable.'
+    ),
+    'keep it measured': says(
+      'they agree to share information, but neither of you commits to the other’s campaign.'
+    ),
+    'create some distance': says(
+      'they give you space and shift their effort toward voters they can still influence.'
+    ),
+    'leave it there': acts('takes the unanswered concern to another voter.'),
+  },
   generic_check_in: {
     'make them explain': says('they felt shut out and wanted a direct answer.'),
     'be honest': says('they appreciate the direct answer and give you their own read in return.'),

@@ -18,7 +18,9 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
       'accepts your hesitation without making a Safety promise or receiving a vote promise for next week.'
     ),
     'refuse clearly': acts('withdraws the Safety offer after you decline the bargain.'),
-    'end the pitch': acts('ends the conversation without either of you making a promise.'),
+    'end the pitch': acts(
+      'ends the Safety-for-next-week vote pitch without either of you making a promise.'
+    ),
   },
   trade_secrets_offer: {
     'take the trade': says(
