@@ -93,13 +93,33 @@ function isAllianceStrategyScenario(value: unknown): boolean {
   return typeof value === 'string' && ALLIANCE_STRATEGY_SCENARIOS.has(value)
 }
 
+function getRecentIncomingReactionLines(
+  state: RootState,
+  currentInteraction: IncomingInteraction
+): string[] {
+  return state.social.incomingInteractions
+    .filter(
+      (interaction) =>
+        interaction.id !== currentInteraction.id &&
+        interaction.resolved &&
+        typeof interaction.reactionText === 'string'
+    )
+    .slice(-12)
+    .map((interaction) => {
+      const reactionText = interaction.reactionText ?? ''
+      const replyStart = reactionText.indexOf(' replies: ')
+      return replyStart >= 0 ? reactionText.slice(replyStart + ' replies: '.length) : reactionText
+    })
+}
+
 function buildIncomingReactionText(
   interaction: IncomingInteraction,
   responseType: IncomingInteractionResponseType,
   responseLabel: string | undefined,
   fromName: string,
   subjectName: string | undefined,
-  phase: string
+  phase: string,
+  recentLines: readonly string[] = []
 ): string | undefined {
   const scenarioKey = interaction.payload?.scenarioKey
   if (typeof scenarioKey !== 'string') return undefined
@@ -110,6 +130,8 @@ function buildIncomingReactionText(
       : interaction.id
   const seedSource = [
     interaction.fromId,
+    interaction.id,
+    interaction.createdAt,
     scenarioKey,
     variantId,
     responseType,
@@ -129,6 +151,7 @@ function buildIncomingReactionText(
     fromName,
     subjectName,
     seed: seed >>> 0,
+    recentLines,
   })
   return beat ? `${fromName} replies: ${beat}` : undefined
 }
@@ -885,7 +908,8 @@ function applyIncomingChoiceConsequences({
     responseLabel,
     fromName,
     subjectName,
-    state.game.phase
+    state.game.phase,
+    getRecentIncomingReactionLines(state, interaction)
   )
   const acceptedAlliance = interaction.type === 'alliance_proposal' && responseType === 'accept'
 
@@ -1282,7 +1306,8 @@ export function respondToIncomingInteraction({
         getState().game.players.find((player) => player.id === interaction.fromId)?.name ??
           interaction.fromId,
         undefined,
-        state.game.phase
+        state.game.phase,
+        getRecentIncomingReactionLines(getState(), interaction)
       )
       settleBackgroundSocialAction(dispatch, getState, interaction, resolvedAt)
       dispatch(

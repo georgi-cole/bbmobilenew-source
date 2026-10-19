@@ -38,13 +38,6 @@
   margin-left: auto;
 }
 
-.ra-action-control {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-top: 0.18rem;
-}
-
 .ra-history-btn {
   display: inline-flex;
   align-items: center;

@@ -16,6 +16,7 @@ export interface IncomingDialogueBeatInput {
   fromName: string
   subjectName?: string
   seed: number
+  recentLines?: readonly string[]
 }
 
 type Stance = 'positive' | 'neutral' | 'negative' | 'dismiss'
@@ -139,18 +140,150 @@ const CONNECTION_BEATS: BeatSet = {
   positive: [
     '"That is the first honest answer I have had all day. I do not need us to agree on everything; I needed to know I was not guessing alone."',
     '"Thank you for meeting me halfway. It makes it easier to bring the next concern to you instead of carrying it around the Hub."',
+    '"I came here expecting to leave with more questions. I am glad we actually talked about where we stand."',
+    '"You could have given me an easy answer. You gave me a real one, and I can meet you there."',
+    '"We do not have to solve everything tonight. I just wanted us to stop guessing at each other."',
+    '"I was ready to read your silence as an answer. I am glad I asked instead."',
+    '"That gives me something solid to carry into our next conversation."',
+    '"I can hold on to my own plans and still be straight with you. That feels better than playing it cool."',
   ],
   neutral: [
     '"I can live with careful. Just do not ask me to read between the lines and call it trust."',
     '"That tells me where you are today. I will watch what happens next before I decide what it means for us."',
+    '"I hear you. I will leave room for this to change, but I am not going to fill in the blanks myself."',
+    '"We can keep talking. I just need to see whether this feels the same when the room gets tense."',
+    '"That is enough for now. I would rather have a careful answer than a promise neither of us can keep."',
   ],
   negative: [
     '"I hear the boundary. I will stop reaching for an answer you do not want to give."',
     '"Okay. I was hoping for more, but I would rather know the distance is real than keep inventing reasons for it."',
+    '"I do not like hearing it, but I will respect what you are asking for."',
+    '"Then I will keep this between us and stop expecting the conversation to go further."',
+    '"I understand. I will take care of my side of this without asking you to carry it."',
   ],
   dismiss: [
     '"Then we can leave it there. I will take the lack of an answer into account the next time I decide who to trust."',
     '"I will give you space. It does not mean the question goes away for me."',
+    '"All right. I will stop asking tonight and let your next move speak for itself."',
+    '"We can drop it. I will make my own read until you feel like talking."',
+    '"I will leave you to it. I am not going to force a conversation you do not want."',
+  ],
+}
+
+const COMPETITION_SUPPORT_BEATS: BeatSet = {
+  positive: [
+    '"It was one rough round, not the whole week. Thanks for checking on me without making it a spectacle."',
+    '"I needed a minute after that result. It helps that you asked instead of turning it into a joke."',
+    '"I know where I slipped. I will come back sharper, and I appreciate you saying something."',
+  ],
+  neutral: [
+    '"I am all right. One result does not tell me what the next one will look like."',
+    '"I hear you. I am still deciding what that round means for my week."',
+    '"It was not my best showing. I would rather focus on what comes next."',
+  ],
+  negative: [
+    '"I can handle a bad result without turning it into a conversation about my limits."',
+    '"I know you mean well, but I do not need a pep talk every time I fall short."',
+    '"Let me be disappointed for a minute before we turn it into a lesson."',
+  ],
+  dismiss: [
+    '"I am going to cool off and think about the next round on my own."',
+    '"Thanks, but I would rather leave the competition out of this conversation."',
+    '"I hear you. I am going to get back to the Hub."',
+  ],
+}
+
+const COMPETITION_TAUNT_BEATS: BeatSet = {
+  positive: [
+    '"If that was meant to rattle me, nice try. I am still in this."',
+    '"I will give you the point for timing. The next result can speak for itself."',
+    '"You got your joke in. I am not giving you the reaction you came for."',
+  ],
+  neutral: [
+    '"I heard you. I am not spending the rest of the day arguing about one round."',
+    '"Say what you want. I know what I need to work on."',
+    '"Maybe. I am more interested in the next result than this conversation."',
+  ],
+  negative: [
+    '"That was a cheap shot. Do not confuse one result with my place in this game."',
+    '"If you have something to say about my game, say it without the victory lap."',
+    '"You can keep the joke. I will remember who enjoyed making it."',
+  ],
+  dismiss: [
+    '"Enjoy the moment. I have somewhere else to be."',
+    '"I am not giving this any more of my time."',
+    '"Keep talking if you want. I am done here."',
+  ],
+}
+
+const CELEBRATION_BEATS: BeatSet = {
+  positive: [
+    '"Thank you. A win changes the room fast, so it means something that you came to me as a person first."',
+    '"I am trying to enjoy the moment before everyone turns it into a strategy meeting."',
+    '"I appreciate you sharing this with me. I will remember who could be happy for me without asking for something."',
+    '"That means a lot. Let me have one minute to celebrate before the game takes over again."',
+  ],
+  neutral: [
+    '"Thanks. I am keeping my head clear until I know what this win actually changes."',
+    '"I appreciate it. I am still working out how much of this I want the Hub to know."',
+    '"It is a good moment. I am trying not to get ahead of what comes next."',
+  ],
+  negative: [
+    '"I know there is a game attached to this, but I would rather not turn the whole moment into a pitch."',
+    '"I am not ready to trade the celebration for a conversation about what you need."',
+    '"You can ask me about strategy later. Right now I am not making promises."',
+  ],
+  dismiss: [
+    '"I am going to enjoy the moment with someone else. We can talk game later."',
+    '"Not right now. I have enough people trying to get a read on me today."',
+    '"Let me have this one without turning it into a conversation."',
+  ],
+}
+
+const GRATITUDE_BEATS: BeatSet = {
+  positive: [
+    '"You put something real on the line for me. I will remember that when it is my turn to make a hard choice."',
+    '"I do not take that kind of help lightly. You gave me room to keep playing, and I know what that cost you."',
+    '"I was not sure anyone would come through. You did, and I will make sure it matters."',
+    '"Thank you for showing me where I stand with you. I will try to answer that with actions."',
+  ],
+  neutral: [
+    '"I appreciate the help. I am not ready to call it a deal, but I will remember the choice you made."',
+    '"Thank you. I know the game is still moving, so let us see what this means after the next decision."',
+    '"That mattered to me. I just need a little time before I know what I can offer back."',
+  ],
+  negative: [
+    '"I am grateful, but I do not want either of us pretending this settles everything between us."',
+    '"I will remember what you did. I still need to make my own decisions from here."',
+    '"Thank you for the help. I cannot promise that it changes where my game has to go."',
+  ],
+  dismiss: [
+    '"I have said thank you. Let us leave the rest of this for another time."',
+    '"I appreciate it, but I need a moment before I talk about what comes next."',
+    '"I will remember the help. I am going to get back to the Hub now."',
+  ],
+}
+
+const SNARK_BEATS: BeatSet = {
+  positive: [
+    '"I can take a joke. Just do not mistake me laughing for missing the point."',
+    '"Fair shot. I am not going to let one jab decide how the rest of this conversation goes."',
+    '"I know what you were testing. You can ask me directly next time."',
+  ],
+  neutral: [
+    '"I heard the point underneath the joke. I am not sure I agree with your read."',
+    '"Maybe there is something to what you said. I am not giving you a full answer in the middle of the Hub."',
+    '"I am going to let that sit before I decide whether it was funny or useful."',
+  ],
+  negative: [
+    '"If you have a real problem with me, say it without hiding behind a joke."',
+    '"That was not playful. Do not expect me to pretend it landed that way."',
+    '"You made your point. I am not giving you another opening to take a shot at me."',
+  ],
+  dismiss: [
+    '"I am not giving the jab an audience. Find someone else to try it on."',
+    '"I have nothing to add to that."',
+    '"Keep the punchline. I am leaving."',
   ],
 }
 
@@ -198,13 +331,13 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   hoh_safety_request: POWER_BEATS,
   player_nominated_support: POWER_BEATS,
   player_nominated_tension: POWER_BEATS,
-  competition_low_finish_support: CONNECTION_BEATS,
-  competition_low_finish_taunt: CONNECTION_BEATS,
-  hoh_congratulations: CONNECTION_BEATS,
-  safety_win_congratulations: CONNECTION_BEATS,
-  post_veto_gratitude: CONNECTION_BEATS,
-  survivor_gratitude: CONNECTION_BEATS,
-  targeted_snark: CONNECTION_BEATS,
+  competition_low_finish_support: COMPETITION_SUPPORT_BEATS,
+  competition_low_finish_taunt: COMPETITION_TAUNT_BEATS,
+  hoh_congratulations: CELEBRATION_BEATS,
+  safety_win_congratulations: CELEBRATION_BEATS,
+  post_veto_gratitude: GRATITUDE_BEATS,
+  survivor_gratitude: GRATITUDE_BEATS,
+  targeted_snark: SNARK_BEATS,
   generic_check_in: CONNECTION_BEATS,
   week_start_ally_check_in: CONNECTION_BEATS,
   relationship_friendship_check_in: CONNECTION_BEATS,
@@ -224,11 +357,19 @@ function replaceTokens(line: string, input: IncomingDialogueBeatInput): string {
   return line.replaceAll('{subject}', subject)
 }
 
-/** Returns a stable in-character reply for the selected player action. */
+/** Returns a stable in-character reply, rotating past recently used dialogue where possible. */
 export function getIncomingDialogueBeat(input: IncomingDialogueBeatInput): string | null {
   const beats = input.scenarioKey ? BEATS_BY_SCENE[input.scenarioKey] : undefined
   if (!beats) return null
   const options = beats[stanceForResponse(input.responseType)]
   if (!options.length) return null
-  return replaceTokens(options[input.seed % options.length] ?? options[0], input)
+  const startIndex = input.seed % options.length
+  for (let offset = 0; offset < options.length; offset += 1) {
+    const candidate = replaceTokens(
+      options[(startIndex + offset) % options.length] ?? options[0],
+      input
+    )
+    if (!input.recentLines?.includes(candidate)) return candidate
+  }
+  return replaceTokens(options[startIndex] ?? options[0], input)
 }

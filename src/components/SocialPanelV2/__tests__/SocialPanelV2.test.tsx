@@ -650,10 +650,15 @@ describe('SocialPanelV2 – execute flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
-    const receipt = store.getState().social.sessionLogs.at(-1)?.receipt
+    const entry = store.getState().social.sessionLogs.at(-1)
+    const receipt = entry?.receipt
     expect(receipt?.summary).toBeTruthy()
-    expect(screen.getAllByText(receipt!.summary)).toHaveLength(1)
-    expect(screen.getByLabelText('Recent Activity')).toHaveTextContent(receipt!.summary)
+    const activity = screen.getByLabelText('Recent Activity')
+    const displayedNarrative = activity.querySelector('.ra-entry__narrative')
+    expect(displayedNarrative?.textContent?.trim()).toBeTruthy()
+    expect(activity.querySelectorAll('.ra-entry__narrative')).toHaveLength(1)
+    expect(activity).not.toHaveTextContent(receipt!.summary)
+    expect(document.querySelector('.sp2-moves__selection')).toBeNull()
     expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
     expect(
@@ -745,7 +750,14 @@ describe('SocialPanelV2 – success pulse', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
     const btn = screen.getByRole('button', { name: 'Execute' })
-    expect((btn as HTMLElement).className).toContain('sp2-footer__execute--pulse')
+    const frozenMoveControls = btn.closest('.sp2-moves__top')
+    expect(frozenMoveControls).not.toBeNull()
+    expect(
+      within(frozenMoveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
+    ).toBeVisible()
+    expect(btn.closest('.sp2-footer')).toBeNull()
+    expect(document.querySelector('.ra-action-control')).toBeNull()
+    expect((btn as HTMLElement).className).toContain('sp2-execute--pulse')
   })
 
   it('execute button pulse class is removed after 850 ms', () => {
@@ -765,7 +777,7 @@ describe('SocialPanelV2 – success pulse', () => {
     })
 
     const btn = screen.getByRole('button', { name: 'Execute' })
-    expect((btn as HTMLElement).className).not.toContain('sp2-footer__execute--pulse')
+    expect((btn as HTMLElement).className).not.toContain('sp2-execute--pulse')
   })
 })
 

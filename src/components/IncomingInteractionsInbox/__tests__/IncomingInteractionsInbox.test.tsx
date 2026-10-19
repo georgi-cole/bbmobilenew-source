@@ -385,6 +385,80 @@ describe('IncomingInteractionsInbox', () => {
     ).toHaveLength(1)
   })
 
+  it('hides an emotional outcome that only repeats the spoken relationship reaction', () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'relationship-check-in-no-duplicate',
+        fromId: otherPlayer.id,
+        type: 'check_in',
+        text: 'Can we talk about how close we have become?',
+        payload: {
+          scenarioKey: 'relationship_friendship_check_in',
+          variantId: 'relationship_friendship_check_in:1',
+        },
+        createdAt: 302,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Let them in' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'relationship-check-in-no-duplicate'
+      )
+    expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} replies:`))
+    expect(entry?.outcomeText).toContain('same closeness and trust')
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
+    const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
+  })
+
+  it('hides a summary that restates uncertainty already expressed in the reply', () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'social-momentum-no-paraphrase',
+        fromId: otherPlayer.id,
+        type: 'warning',
+        text: 'The Hub is paying attention to how much ground you are covering.',
+        payload: { scenarioKey: 'social_momentum_notice', variantId: 'social-momentum:1' },
+        createdAt: 303,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Play it cool' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'social-momentum-no-paraphrase'
+      )
+    expect(entry?.outcomeText).toContain('helping you or making you a target')
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
+  })
+
   it('keeps an answered check-in visible with a concrete outcome', () => {
     const store = makeStore()
     store.dispatch(openIncomingInbox())

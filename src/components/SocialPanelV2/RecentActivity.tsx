@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useAppSelector } from '../../store/hooks'
 import { selectSessionLogs } from '../../social/socialSlice'
 import { getActionById } from '../../social/SocialManeuvers'
@@ -18,7 +17,6 @@ export interface RecentActivityProps {
   onExpandedChange?: (expanded: boolean) => void
   /** Feedback for attempts that do not produce a gameplay log entry. */
   feedback?: string | null
-  actionControl?: ReactNode
 }
 
 const GENERIC_OUTCOME_PREFIXES = [
@@ -118,7 +116,6 @@ export default function RecentActivity({
   compact = false,
   onExpandedChange,
   feedback,
-  actionControl,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
   const [clearedBefore, setClearedBefore] = useState(0)
@@ -190,7 +187,7 @@ export default function RecentActivity({
       className={`ra-container${!compact || expanded ? ' ra-container--expanded' : ''}`}
       aria-label="Recent Activity"
     >
-      {(visibleLogs.length > 0 || feedback || actionControl) && (
+      {(visibleLogs.length > 0 || feedback) && (
         <div className="ra-header">
           <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
@@ -363,7 +360,6 @@ export default function RecentActivity({
           </ul>
         ) : null}
       </div>
-      {actionControl && <div className="ra-action-control">{actionControl}</div>}
     </div>
   )
 }

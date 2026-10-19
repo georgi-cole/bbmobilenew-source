@@ -74,6 +74,16 @@ function formatResponseLabel(interaction: IncomingInteraction): string {
   )}`
 }
 
+function shouldShowOutcomeText(interaction: IncomingInteraction): boolean {
+  const outcomeText = interaction.outcomeText?.trim()
+  if (!outcomeText) return false
+  if (!interaction.reactionText) return true
+
+  return /\b(?:plan|vote|voters?|campaign|ceremony|nominations?|nominee|block|pact|alliance|promise|deadline|source|lead|rumou?r|information|intel|warning|offer|safety|power|commit(?:ment)?|share|compare|read)\b|\bshared target\b|\btarget (?:before|is|was|will be|named) [A-Z][a-z]+/i.test(
+    outcomeText
+  )
+}
+
 function relationshipContextLabel(interaction: IncomingInteraction): string | null {
   const intent = interaction.payload?.relationshipIntent
   if (typeof intent !== 'string') return null
@@ -291,6 +301,7 @@ function InteractionItem({
     isIncomingInteractionUrgent(interaction, { day: currentWeek, phase: currentPhase })
   const expiryLabel = getExpiryLabel(interaction, currentWeek, currentPhase, policy)
   const shouldShowActions = showActions && policy !== 'readOnly' && !interaction.resolved
+  const showOutcomeText = shouldShowOutcomeText(interaction)
 
   useEffect(() => {
     if (!isUnread || !itemRef.current) return
@@ -412,7 +423,7 @@ function InteractionItem({
           {interaction.reactionText && (
             <p className="inbox-item__reaction">{interaction.reactionText}</p>
           )}
-          {interaction.outcomeText && (
+          {showOutcomeText && interaction.outcomeText && (
             <p className="inbox-item__outcome">{interaction.outcomeText}</p>
           )}
         </div>

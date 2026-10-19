@@ -307,17 +307,6 @@ describe('RecentActivity – unified receipts', () => {
     expect(screen.queryByText(/landed exactly as intended|Relationship \+2/)).toBeNull()
   })
 
-  it('places Execute below the receipt instead of beside the Hub wire heading', () => {
-    const store = makeStore([makeEntry({ narrative: 'The conversation warmed.' })])
-    renderActivity(store, {
-      compact: true,
-      actionControl: <button type="button">Execute</button>,
-    })
-    const execute = screen.getByRole('button', { name: 'Execute' })
-    expect(execute.closest('.ra-header')).toBeNull()
-    expect(execute.closest('.ra-action-control')).not.toBeNull()
-  })
-
   it('shows unlogged feedback in the same panel and preserves the previous result in History', () => {
     renderActivity(makeStore([makeEntry({ narrative: 'Your pact is live.' })]), {
       compact: true,
