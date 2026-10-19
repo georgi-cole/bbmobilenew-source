@@ -58,6 +58,46 @@ interface RichPolicyContext extends PolicyContext {
   availableActionIds?: readonly string[]
 }
 
+type RecentActionCountIndex = Map<string, number>
+
+const recentActionCountIndexes = new WeakMap<
+  readonly SocialActionLogEntry[],
+  RecentActionCountIndex
+>()
+
+function recentActionCountKey(
+  actorId: string,
+  week: number | null,
+  actionId: string | null,
+  targetId: string | null
+): string {
+  return JSON.stringify([actorId, week, actionId, targetId])
+}
+
+function getRecentActionCountIndex(
+  recentActions: readonly SocialActionLogEntry[]
+): RecentActionCountIndex {
+  const cached = recentActionCountIndexes.get(recentActions)
+  if (cached) return cached
+
+  const index: RecentActionCountIndex = new Map()
+  for (const entry of recentActions) {
+    const weeks = entry.week === undefined ? [null] : [null, entry.week]
+    const actionIds = entry.actionId ? [null, entry.actionId] : [null]
+    const targetIds = entry.targetId ? [null, entry.targetId] : [null]
+    for (const week of weeks) {
+      for (const actionId of actionIds) {
+        for (const targetId of targetIds) {
+          const key = recentActionCountKey(entry.actorId, week, actionId, targetId)
+          index.set(key, (index.get(key) ?? 0) + 1)
+        }
+      }
+    }
+  }
+  recentActionCountIndexes.set(recentActions, index)
+  return index
+}
+
 function hashUnit(seed: string): number {
   let hash = 2166136261
   for (let index = 0; index < seed.length; index += 1) {
@@ -77,13 +117,13 @@ function recentCount(
   actionId?: string,
   targetId?: string
 ): number {
-  return (context.recentActions ?? []).filter(
-    (entry) =>
-      entry.actorId === actorId &&
-      (context.week === undefined || entry.week === context.week) &&
-      (!actionId || entry.actionId === actionId) &&
-      (!targetId || entry.targetId === targetId)
-  ).length
+  const recentActions = context.recentActions
+  if (!recentActions?.length) return 0
+  return (
+    getRecentActionCountIndex(recentActions).get(
+      recentActionCountKey(actorId, context.week ?? null, actionId || null, targetId || null)
+    ) ?? 0
+  )
 }
 
 /**

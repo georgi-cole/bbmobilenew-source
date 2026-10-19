@@ -1,11 +1,11 @@
 import { evaluateAllianceAutonomy } from './reality/allianceAutonomy'
+import { createDraft, finishDraft } from 'immer'
 import type { Middleware } from '@reduxjs/toolkit'
 import type { RootState } from '../store/store'
 import { allianceManagementContext } from './allianceManagementActions'
 import { advanceAllianceRequests } from './reality/allianceManagement'
 import { isCurrentAlliance } from './reality/allianceIdentity'
-import { normalizeRealityDomainState } from './reality/state'
-import { recordSocialAction, replaceRealityDomain } from './socialSlice'
+import { commitRealityDomainUpdate, recordSocialAction } from './socialSlice'
 import { hasCanonicalLiveAlliance } from './relationshipSemantics'
 import { canSeeAllianceRequest } from './reality/allianceManagement'
 import type { RealityAllianceRequest } from './reality/types'
@@ -44,10 +44,23 @@ export const allianceManagementMiddleware: Middleware = (api) => (next) => (acti
   if (type === 'game/advance') {
     const state = api.getState() as RootState
     const context = allianceManagementContext(state)
-    const domain = normalizeRealityDomainState(state.social.reality)
-    const requestsChanged = advanceAllianceRequests(domain, context)
-    const autonomyChanged = evaluateAllianceAutonomy(domain, context)
-    if (requestsChanged || autonomyChanged) api.dispatch(replaceRealityDomain(domain))
+    // The in-memory domain has already passed hydration normalization. A draft
+    // keeps untouched Reality branches shared while these time-based systems
+    // update requests and alliance autonomy, avoiding a full structured clone
+    // and a second full normalization on every game advance.
+    const domainDraft = createDraft(state.social.reality)
+    const requestsChanged = advanceAllianceRequests(domainDraft, context)
+    const autonomyChanged = evaluateAllianceAutonomy(domainDraft, context)
+    if (requestsChanged || autonomyChanged) {
+      api.dispatch(
+        commitRealityDomainUpdate({
+          domain: finishDraft(domainDraft),
+          projectAllRelationships: true,
+        })
+      )
+    } else {
+      finishDraft(domainDraft)
+    }
   }
   if (
     [

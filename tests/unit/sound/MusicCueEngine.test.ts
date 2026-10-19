@@ -3,34 +3,52 @@ import { MusicCueEngine } from '../../../src/services/sound/MusicCueEngine'
 import { createDefaultMusicCue } from '../../../src/services/sound/musicCue'
 
 function installAudioContextMock() {
-  const source = { connect: vi.fn() }
-  const gain = { gain: { value: 1 }, connect: vi.fn() }
-  // Match the browser BiquadFilter default that caused effectPreset='none' to
-  // sound low-passed before the engine explicitly neutralised the graph.
-  const filter = {
-    type: 'lowpass',
-    frequency: { value: 350 },
-    Q: { value: 1 },
-    gain: { value: 0 },
-    connect: vi.fn(),
-  }
+  const gains: Array<{ gain: { value: number }; connect: ReturnType<typeof vi.fn> }> = []
+  const filters: Array<{
+    type: string
+    frequency: { value: number }
+    Q: { value: number }
+    gain: { value: number }
+    connect: ReturnType<typeof vi.fn>
+  }> = []
+  const createMediaElementSourceMock = vi.fn(() => ({ connect: vi.fn() }))
+
+  const createGainMock = vi.fn(() => {
+    const gain = { gain: { value: 1 }, connect: vi.fn() }
+    gains.push(gain)
+    return gain
+  })
+  const createBiquadFilterMock = vi.fn(() => {
+    // Match the browser default that caused clear cues to sound low-passed
+    // before the engine explicitly neutralised the graph.
+    const filter = {
+      type: 'lowpass',
+      frequency: { value: 350 },
+      Q: { value: 1 },
+      gain: { value: 0 },
+      connect: vi.fn(),
+    }
+    filters.push(filter)
+    return filter
+  })
 
   class FakeAudioContext {
     state = 'running'
     destination = {}
     resume = vi.fn(async () => undefined)
-    createMediaElementSource = vi.fn(() => source)
-    createGain = vi.fn(() => gain)
-    createBiquadFilter = vi.fn(() => filter)
+    createMediaElementSource = createMediaElementSourceMock
+    createGain = createGainMock
+    createBiquadFilter = createBiquadFilterMock
   }
 
   vi.stubGlobal('AudioContext', FakeAudioContext)
-  return { filter, gain }
+  return { filters, gains, createMediaElementSource: createMediaElementSourceMock }
 }
 
 beforeEach(() => {
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
   vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+  vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {})
 })
 
 afterEach(() => {
@@ -74,7 +92,7 @@ describe('MusicCueEngine', () => {
   })
 
   it('keeps effectPreset none acoustically transparent while using the Web Audio gain graph', async () => {
-    const { filter, gain } = installAudioContextMock()
+    const { filters, gains } = installAudioContextMock()
     const engine = new MusicCueEngine()
 
     await engine.play(
@@ -82,13 +100,13 @@ describe('MusicCueEngine', () => {
       { ...createDefaultMusicCue('nominations'), id: 'clear' }
     )
 
-    expect(filter.type).toBe('allpass')
-    expect(gain.gain.value).toBe(0.8)
+    expect(filters[0]?.type).toBe('allpass')
+    expect(gains[0]?.gain.value).toBe(0.8)
     expect(engine.currentElement?.volume).toBe(1)
   })
 
   it('still applies the distant-room low-pass preset when requested', async () => {
-    const { filter } = installAudioContextMock()
+    const { filters } = installAudioContextMock()
     const engine = new MusicCueEngine()
 
     await engine.play(
@@ -100,8 +118,45 @@ describe('MusicCueEngine', () => {
       }
     )
 
-    expect(filter.type).toBe('lowpass')
-    expect(filter.frequency.value).toBe(900)
+    expect(filters[0]?.type).toBe('lowpass')
+    expect(filters[0]?.frequency.value).toBe(900)
+  })
+
+  it('clears a prior effect preset when a pooled deck plays a clear cue', async () => {
+    const { filters } = installAudioContextMock()
+    const engine = new MusicCueEngine()
+    const asset = {
+      key: 'music:test',
+      track: 'nominations' as const,
+      src: '/test.mp3',
+      volume: 1,
+      loop: true,
+    }
+
+    await engine.play(asset, {
+      ...createDefaultMusicCue('nominations'),
+      id: 'muffled-first',
+      effectPreset: 'muffled',
+      crossfadeMs: 0,
+    })
+    expect(filters[0]?.type).toBe('lowpass')
+
+    await engine.play(asset, {
+      ...createDefaultMusicCue('nominations'),
+      id: 'radio-second',
+      effectPreset: 'radio',
+      crossfadeMs: 0,
+    })
+    expect(filters[1]?.type).toBe('bandpass')
+
+    await engine.play(asset, {
+      ...createDefaultMusicCue('nominations'),
+      id: 'clear-third',
+      effectPreset: 'none',
+      crossfadeMs: 0,
+    })
+    expect(filters[0]?.type).toBe('allpass')
+    expect(filters[0]?.frequency.value).toBe(350)
   })
 
   it('uses a second deck for a configured crossfade', async () => {
@@ -125,6 +180,31 @@ describe('MusicCueEngine', () => {
     await vi.runAllTimersAsync()
     await pending
     expect(engine.currentElement).not.toBe(first)
+  })
+
+  it('reuses two media elements and Web Audio graphs across many cue changes', async () => {
+    const { createMediaElementSource } = installAudioContextMock()
+    const createElement = vi.spyOn(document, 'createElement')
+    const engine = new MusicCueEngine()
+    const asset = {
+      key: 'music:test',
+      track: 'competition' as const,
+      src: '/test.mp3',
+      volume: 1,
+      loop: true,
+    }
+
+    for (let index = 0; index < 60; index += 1) {
+      await engine.play(asset, {
+        ...createDefaultMusicCue('competition'),
+        id: `cue-${index}`,
+        crossfadeMs: 0,
+      })
+    }
+
+    expect(createElement.mock.calls.filter(([tagName]) => tagName === 'audio')).toHaveLength(2)
+    expect(createMediaElementSource).toHaveBeenCalledTimes(2)
+    engine.stop()
   })
 
   it('uses an external entry fade when crossing from legacy music', async () => {

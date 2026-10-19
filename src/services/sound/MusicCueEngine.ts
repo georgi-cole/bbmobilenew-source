@@ -29,6 +29,8 @@ interface CueDeck {
   cleanup: () => void
 }
 
+const MAX_REUSABLE_DECKS = 2
+
 export interface MusicCueEngineHooks {
   onEnded?: (signature: string) => void
 }
@@ -66,6 +68,8 @@ export class MusicCueEngine {
   private _standby: CueDeck | null = null
   private _masterVolume = 1
   private _resumePositions = new Map<string, number>()
+  private _reusableElements: HTMLAudioElement[] = []
+  private _retiring = new Set<CueDeck>()
   private _completedSignature: string | null = null
   private _audioContext: AudioContext | null = null
   private _effectGraphs = new WeakMap<HTMLAudioElement, EffectGraph>()
@@ -153,6 +157,10 @@ export class MusicCueEngine {
     // from an older request is stopped immediately so two async element.play()
     // calls can never leave separate orphaned audio elements audible.
     const generation = ++this._playGeneration
+    // A superseded crossfade can otherwise leave its outgoing deck alive while
+    // another cue transition starts. Reclaim those decks before allocating or
+    // reusing the next standby element.
+    for (const retiringDeck of this._retiring) this._stopDeck(retiringDeck, 'superseded')
     if (this._standby && this._standby !== this._active) {
       const staleStandby = this._standby
       this._standby = null
@@ -211,6 +219,7 @@ export class MusicCueEngine {
     if (this._standby === incoming) this._standby = null
 
     if (outgoing && cue.crossfadeMs > 0) {
+      this._retiring.add(outgoing)
       await Promise.all([
         this._fadeDeck(outgoing, 0, cue.crossfadeMs),
         this._fadeDeck(incoming, 1, cue.crossfadeMs),
@@ -235,6 +244,7 @@ export class MusicCueEngine {
 
   async fadeOut(durationMs: number): Promise<void> {
     const generation = ++this._playGeneration
+    for (const retiringDeck of this._retiring) this._stopDeck(retiringDeck, 'cancelled')
     if (this._standby && this._standby !== this._active) {
       const staleStandby = this._standby
       this._standby = null
@@ -254,6 +264,7 @@ export class MusicCueEngine {
 
   stop(): void {
     this._playGeneration += 1
+    for (const retiringDeck of this._retiring) this._stopDeck(retiringDeck, 'cancelled')
     if (this._active) this._stopDeck(this._active, 'cancelled')
     if (this._standby) this._stopDeck(this._standby, 'cancelled')
     this._active = null
@@ -283,7 +294,7 @@ export class MusicCueEngine {
     signature: string,
     initialTime: number
   ): CueDeck {
-    const element = document.createElement('audio')
+    const element = this._reusableElements.pop() ?? document.createElement('audio')
     element.src = asset.src
     element.preload = 'auto'
     element.loop =
@@ -363,6 +374,7 @@ export class MusicCueEngine {
     }
     deck.stopped = true
     deck.stopCause = cause
+    this._retiring.delete(deck)
     this._cancelFade(deck)
     if (deck.cue.restartPolicy === 'resume') {
       this._resumePositions.set(deck.cue.id, deck.element.currentTime)
@@ -370,6 +382,18 @@ export class MusicCueEngine {
     deck.cleanup()
     deck.element.pause()
     resetTime(deck.element, deck.cue.startAtSec)
+    // Keep at most two media elements and their Web Audio source graphs for
+    // crossfades. Reusing a MediaElementAudioSourceNode is required because a
+    // browser only permits one source node per media element and context.
+    try {
+      deck.element.removeAttribute('src')
+      deck.element.load()
+    } catch {
+      // Releasing a media resource is best-effort; playback has already stopped.
+    }
+    if (this._reusableElements.length < MAX_REUSABLE_DECKS) {
+      this._reusableElements.push(deck.element)
+    }
   }
 
   private _applyDeckVolume(deck: CueDeck): void {
@@ -443,12 +467,15 @@ export class MusicCueEngine {
       if (context.state !== 'running') return
 
       const graph = this._ensureEffectGraph(element, context)
-      if (!graph || preset === 'none') return
+      if (!graph) return
 
       const filter = graph.filter
       filter.gain.value = 0
       filter.Q.value = 0.7
-      if (preset === 'muffled') {
+      if (preset === 'none') {
+        filter.type = 'allpass'
+        filter.frequency.value = 350
+      } else if (preset === 'muffled') {
         filter.type = 'lowpass'
         filter.frequency.value = 900
       } else if (preset === 'radio') {

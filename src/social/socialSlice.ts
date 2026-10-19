@@ -459,6 +459,45 @@ function projectRealityEdgeIntoLegacy(
   }
 }
 
+function projectRealityPairsIntoLegacy(
+  reality: RealityDomainState,
+  relationships: SocialState['relationships'],
+  pairs: readonly ProjectedRelationshipPair[],
+  allianceRecords: RealityDomainState['alliances'][string][] = Object.values(reality.alliances)
+): void {
+  const projectedPairs: RelationshipPairSet = new Map()
+  const uniquePairs: ProjectedRelationshipPair[] = []
+  for (const { sourceId, targetId } of pairs) {
+    if (sourceId === targetId || hasRelationshipPair(projectedPairs, sourceId, targetId)) continue
+    addRelationshipPair(projectedPairs, sourceId, targetId)
+    uniquePairs.push({ sourceId, targetId })
+  }
+  if (uniquePairs.length === 0) return
+
+  projectRealityPairSetIntoLegacy(
+    reality,
+    relationships,
+    uniquePairs,
+    projectedPairs,
+    allianceRecords
+  )
+}
+
+function projectRealityPairSetIntoLegacy(
+  reality: RealityDomainState,
+  relationships: SocialState['relationships'],
+  pairs: readonly ProjectedRelationshipPair[],
+  projectedPairs: RelationshipPairSet,
+  allianceRecords: RealityDomainState['alliances'][string][]
+): void {
+  if (pairs.length === 0) return
+
+  const projectionIndex = createRealityProjectionIndex(reality, allianceRecords, projectedPairs)
+  for (const { sourceId, targetId } of pairs) {
+    projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId, projectionIndex)
+  }
+}
+
 function projectRealityRelationshipsIntoLegacy(
   reality: RealityDomainState,
   relationships: SocialState['relationships']
@@ -490,10 +529,7 @@ function projectRealityRelationshipsIntoLegacy(
     for (const targetId of Object.keys(targets)) addProjectedPair(sourceId, targetId)
   }
 
-  const projectionIndex = createRealityProjectionIndex(reality, allianceRecords, projectedPairs)
-  for (const { sourceId, targetId } of pairs) {
-    projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId, projectionIndex)
-  }
+  projectRealityPairSetIntoLegacy(reality, relationships, pairs, projectedPairs, allianceRecords)
 }
 
 type WeekSeedRelationshipUpdate = {
@@ -639,8 +675,9 @@ const socialSlice = createSlice({
       state.realitySimulation = normalizeRealitySimulationState(action.payload)
     },
     replaceRealityDomain(state, action: PayloadAction<RealityDomainState>) {
-      state.reality = normalizeRealityDomainState(action.payload, state.relationships)
-      projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+      const domain = normalizeRealityDomainState(action.payload, state.relationships)
+      state.reality = domain
+      projectRealityRelationshipsIntoLegacy(domain, state.relationships)
     },
     /** Remove operational cognition for AIs who can no longer affect the season. */
     pruneEvictedAiPrivateState(state, action: PayloadAction<string[]>) {
@@ -666,13 +703,16 @@ const socialSlice = createSlice({
       action: PayloadAction<{
         domain: RealityDomainState
         changedRelationshipPairs?: Array<{ sourceId: string; targetId: string }>
+        projectAllRelationships?: boolean
       }>
     ) {
-      const { domain, changedRelationshipPairs } = action.payload
-      state.reality = retainResolvedRealityInteractionHistory(domain)
-      for (const { sourceId, targetId } of changedRelationshipPairs ?? []) {
-        projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
-      }
+      const { domain, changedRelationshipPairs, projectAllRelationships } = action.payload
+      const retainedDomain = retainResolvedRealityInteractionHistory(domain)
+      state.reality = retainedDomain
+      if (changedRelationshipPairs)
+        projectRealityPairsIntoLegacy(retainedDomain, state.relationships, changedRelationshipPairs)
+      else if (projectAllRelationships)
+        projectRealityRelationshipsIntoLegacy(retainedDomain, state.relationships)
     },
     /**
      * Commit one autonomous Reality outcome in a single reducer pass. The
@@ -708,13 +748,12 @@ const socialSlice = createSlice({
       // normalized in-memory domain. Keep its structural sharing instead of
       // normalizing/copying every collection again. Hydration and migrations
       // still use replaceRealityDomain's full normalization/projection path.
-      state.reality = retainResolvedRealityInteractionHistory(domain)
+      const retainedDomain = retainResolvedRealityInteractionHistory(domain)
+      state.reality = retainedDomain
       if (changedRelationshipPairs) {
-        for (const { sourceId, targetId } of changedRelationshipPairs) {
-          projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
-        }
+        projectRealityPairsIntoLegacy(retainedDomain, state.relationships, changedRelationshipPairs)
       } else {
-        projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+        projectRealityRelationshipsIntoLegacy(retainedDomain, state.relationships)
       }
       state.realitySimulation = normalizeRealitySimulationState(simulation)
       state.energyBank[actorId] = clampSocialResource(
@@ -738,13 +777,11 @@ const socialSlice = createSlice({
       ensureRealityActors(state.reality as RealityDomainState, action.payload.actorIds)
     },
     applyRealityRelationshipDelta(state, action: PayloadAction<RealityRelationshipChange>) {
-      applyRealityRelationshipChange(state.reality as RealityDomainState, action.payload)
-      projectRealityEdgeIntoLegacy(
-        state.reality as RealityDomainState,
-        state.relationships,
-        action.payload.sourceId,
-        action.payload.targetId
-      )
+      const reality = state.reality as RealityDomainState
+      applyRealityRelationshipChange(reality, action.payload)
+      projectRealityPairsIntoLegacy(reality, state.relationships, [
+        { sourceId: action.payload.sourceId, targetId: action.payload.targetId },
+      ])
     },
     applyRealityAmbientMood(state, action: PayloadAction<WeekSeedMoodUpdate>) {
       const { actorId, valenceDelta, arousalDelta, stressDelta, socialEnergyDelta } = action.payload
@@ -814,12 +851,9 @@ const socialSlice = createSlice({
         updatedEdge.lastAmbientFamiliarityDay ?? day,
         day
       )
-      projectRealityEdgeIntoLegacy(
-        state.reality as RealityDomainState,
-        state.relationships,
-        sourceId,
-        targetId
-      )
+      projectRealityPairsIntoLegacy(state.reality as RealityDomainState, state.relationships, [
+        { sourceId, targetId },
+      ])
     },
     /** Apply deterministic week-start relationship and mood changes in one store update. */
     applyWeekSeedBatch(state, action: PayloadAction<WeekSeedBatch>) {

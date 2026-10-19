@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import socialReducer, {
+  commitRealityDomainUpdate,
   commitRealityOutcome,
   recordRealityActualVote,
   recordRealityActualVotes,
@@ -114,6 +115,30 @@ describe('Reality domain migration and directed relationships', () => {
       initial.relationships.ava.lia?.affinity ?? 0
     )
     expect(next.relationships.kai?.human).toBe(untouchedLegacyProjection)
+  })
+
+  it('keeps the full legacy projection when committing a copy-on-write Reality update', () => {
+    const domain = createInitialRealityDomainState()
+    domain.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
+    domain.relationships.lia = { ava: createDirectedRelationship('lia', 'ava') }
+    const alliance = createRealityAlliance(domain, {
+      id: 'shared-projection-pair',
+      founderIds: ['ava'],
+      memberIds: ['lia'],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+
+    const normalized = socialReducer(undefined, replaceRealityDomain(domain))
+    const committed = socialReducer(
+      undefined,
+      commitRealityDomainUpdate({ domain, projectAllRelationships: true })
+    )
+
+    expect(committed.relationships).toEqual(normalized.relationships)
+    expect(committed.relationships.ava.lia.tags).toContain('alliance')
+    expect(committed.relationships.lia.ava.tags).toContain('alliance')
   })
 
   it('clears the complete social simulation when a new game is started', () => {
