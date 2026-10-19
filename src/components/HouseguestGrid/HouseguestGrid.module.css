@@ -1335,10 +1335,12 @@
   height: 100%;
   pointer-events: none;
   display: block;
-  object-fit: contain;
   z-index: 5;
-  /* The strike is permanent; animation only controls its one-time entrance. */
-  opacity: 1;
+  /* Use the original brush mark as an alpha mask for a richer, darker finish. */
+  background: linear-gradient(135deg, #700b18 0%, #851126 72%, #4a285f 100%);
+  -webkit-mask: var(--eviction-mark-mask) center / contain no-repeat;
+  mask: var(--eviction-mark-mask) center / contain no-repeat;
+  opacity: 0.86;
 }
 
 .crossAnimated {
@@ -1576,8 +1578,20 @@
   border-color: rgba(239, 68, 68, 0.4);
 }
 .badge_jury {
-  background: rgba(156, 163, 175, 0.18);
-  border-color: rgba(156, 163, 175, 0.3);
+  width: 20px;
+  height: 18px;
+  padding: 2px 3px;
+  background: linear-gradient(145deg, rgba(86, 68, 112, 0.58), rgba(34, 27, 47, 0.48));
+  border: 1px solid rgba(218, 203, 244, 0.3);
+  border-radius: 5px;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 247, 226, 0.12);
+}
+.badge_jury .statusBadgeImage {
+  width: 14px;
+  height: 14px;
+  filter: drop-shadow(0 1px 1px rgba(9, 5, 18, 0.66));
 }
 .badge_first {
   background: rgba(251, 191, 36, 0.3);
@@ -1884,6 +1898,257 @@
   animation: battleBackReturnStrike 1.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Finale reunion visitors return in their real roster tiles. Their gameplay
+   status remains eliminated; this is only the one-night visual treatment. */
+.reunionReturning {
+  z-index: 2;
+  animation: finaleReunionTileEntry 560ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionReturning .avatarWrap {
+  border-color: rgba(230, 218, 255, 0.58);
+  box-shadow:
+    0 0 16px rgba(192, 156, 255, 0.3),
+    inset 0 0 14px rgba(220, 199, 255, 0.13);
+}
+
+.reunionReturning .avatar,
+.reunionReturning .avatarPlaceholder {
+  transform-origin: center;
+  animation: finaleReunionPortraitEntry 900ms ease-out both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionDeparting {
+  z-index: 2;
+  animation: finaleReunionTileDeparture 560ms cubic-bezier(0.55, 0, 0.8, 0.35) both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionDeparting .avatarWrap {
+  animation: finaleReunionWrapDeparture 560ms ease-in both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionDeparting .avatar,
+.reunionDeparting .avatarPlaceholder {
+  transform-origin: center;
+  animation: finaleReunionPortraitDeparture 560ms ease-in both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionReturnBurst {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(226, 212, 255, 0.28), transparent 68%);
+  mix-blend-mode: screen;
+  filter: none;
+  opacity: 0;
+  pointer-events: none;
+  animation: finaleReunionGlow 900ms ease-out both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionReturnSweep {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.reunionReturnSweep::before {
+  position: absolute;
+  top: 46%;
+  left: -38%;
+  width: 176%;
+  height: 9%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(113, 13, 35, 0.3) 20%,
+    rgba(211, 45, 82, 0.86) 52%,
+    rgba(122, 16, 47, 0.46) 76%,
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(185, 35, 71, 0.42);
+  content: '';
+  opacity: 0;
+  transform: rotate(34deg) translateX(75%);
+  animation: finaleReunionReturnSweep 760ms cubic-bezier(0.2, 0.75, 0.3, 1) both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionDepartureWave {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.reunionDepartureWave::before {
+  position: absolute;
+  top: 46%;
+  left: -38%;
+  width: 176%;
+  height: 9%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(113, 13, 35, 0.3) 20%,
+    rgba(211, 45, 82, 0.86) 52%,
+    rgba(122, 16, 47, 0.46) 76%,
+    transparent
+  );
+  box-shadow: 0 0 10px rgba(185, 35, 71, 0.42);
+  content: '';
+  opacity: 0;
+  transform: rotate(34deg) translateX(-70%);
+  animation: finaleReunionDepartureSweep 560ms ease-in both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+}
+
+.reunionDeparting .badgeStack {
+  animation: finaleReunionBadgeReturn 560ms ease-out both;
+  animation-delay: var(--reunion-entry-delay, 0ms);
+  transform-origin: top left;
+}
+
+@keyframes finaleReunionTileEntry {
+  0% {
+    opacity: 0.22;
+    transform: translateY(12px) scale(0.84);
+  }
+  52% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes finaleReunionPortraitEntry {
+  0% {
+    filter: grayscale(100%) brightness(0.34) saturate(0.35);
+    transform: scale(0.76);
+  }
+  48% {
+    filter: grayscale(72%) brightness(0.72) saturate(0.62);
+    transform: scale(0.9);
+  }
+  78% {
+    filter: grayscale(0%) brightness(1.22) saturate(1.18);
+    transform: scale(1.07);
+  }
+  100% {
+    filter: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes finaleReunionGlow {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  24% {
+    opacity: 0.28;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.16);
+  }
+}
+
+@keyframes finaleReunionReturnSweep {
+  0% {
+    opacity: 0.92;
+    transform: rotate(34deg) translateX(75%);
+  }
+  42% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(34deg) translateX(-70%);
+  }
+}
+
+@keyframes finaleReunionBadgeReturn {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(-3px);
+  }
+  58% {
+    opacity: 0.6;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes finaleReunionTileDeparture {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes finaleReunionWrapDeparture {
+  0% {
+    border-color: rgba(214, 202, 242, 0.38);
+    box-shadow: 0 0 10px rgba(192, 173, 228, 0.22);
+  }
+  100% {
+    border-color: rgba(92, 108, 140, 0.3);
+    box-shadow: 0 0 0 transparent;
+  }
+}
+
+@keyframes finaleReunionPortraitDeparture {
+  0% {
+    filter: none;
+    transform: scale(1);
+  }
+  22% {
+    filter: brightness(1.08) saturate(1.04);
+    transform: scale(1.01);
+  }
+  100% {
+    filter: grayscale(82%) brightness(0.5) opacity(0.64);
+    transform: scale(0.84) translateY(-5px);
+  }
+}
+
+@keyframes finaleReunionDepartureSweep {
+  0% {
+    opacity: 0;
+    transform: rotate(34deg) translateX(-70%);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(34deg) translateX(75%);
+  }
+}
+
 @keyframes battleBackReturnPortrait {
   0% {
     filter: grayscale(100%) brightness(0.62) opacity(0.76);
@@ -1933,6 +2198,27 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .reunionReturning,
+  .reunionReturning .avatarWrap,
+  .reunionReturnBurst,
+  .reunionReturnSweep::before,
+  .reunionDeparting,
+  .reunionDeparting .avatar,
+  .reunionDeparting .avatarPlaceholder,
+  .reunionDeparting .avatarWrap,
+  .reunionDepartureWave::before,
+  .reunionDeparting .badgeStack {
+    animation: none;
+    transform: none;
+  }
+
+  .reunionReturning .avatar,
+  .reunionReturning .avatarPlaceholder {
+    animation: finaleReunionPortraitColorEntry 900ms ease-out both;
+    animation-delay: var(--reunion-entry-delay, 0ms);
+    transform: none;
+  }
+
   .returning .avatar,
   .returning .avatarPlaceholder,
   .returning .avatarWrap {
@@ -1944,5 +2230,14 @@
   .returningCross {
     display: none;
     animation: none;
+  }
+}
+
+@keyframes finaleReunionPortraitColorEntry {
+  0% {
+    filter: grayscale(100%) brightness(0.42) saturate(0.4);
+  }
+  100% {
+    filter: none;
   }
 }

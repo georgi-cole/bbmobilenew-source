@@ -52,6 +52,13 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
       shock: true,
       announcement: liveCard('SHOCK ANNOUNCEMENT', ''),
     },
+    secret_mission_complete: {
+      eventMajor: true,
+      announcement: liveCard(
+        'SECRET MISSION COMPLETE',
+        'Your reward is waiting in the Confessional.'
+      ),
+    },
     depression_shock_start: {
       eventMajor: true,
       shock: true,

@@ -7,6 +7,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { createPortal } from 'react-dom'
+import useSpotlightTarget, { findSpotlightTarget } from './useSpotlightTarget'
 
 const TOOLTIP_GAP_PX = 14
 const TOOLTIP_MAX_WIDTH_PX = 320
@@ -45,7 +46,7 @@ const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'log',
     title: 'Game Log',
     body: 'Missed something? The Log keeps a timeline of announcements, results and important game events.',
-    selector: 'button[aria-label^="Open game log"], [aria-label="Game event log"]',
+    selector: '[data-onboarding-target="game-log"]',
     padding: 5,
     shape: 'rounded',
   },
@@ -68,7 +69,7 @@ const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'public',
     title: 'Public',
-    body: 'See the audience’s current read of the house and any public pressure or requests affecting your game.',
+    body: 'See the audience’s current read of the Hub and any public pressure or requests affecting your game.',
     selector: '.game-control-dock__icon.stats, button[aria-label^="Public meter"]',
     padding: 10,
     shape: 'circle',
@@ -109,58 +110,8 @@ const TUTORIAL_STEPS: readonly TutorialStep[] = [
 
 const TUTORIAL_STEPS_WITHOUT_PUBLIC = TUTORIAL_STEPS.filter((step) => step.id !== 'public')
 
-type TargetRect = {
-  left: number
-  top: number
-  width: number
-  height: number
-  right: number
-  bottom: number
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
-}
-
-function findTourTarget(step: TutorialStep): HTMLElement | null {
-  const candidates = Array.from(document.querySelectorAll<HTMLElement>(step.selector))
-  return (
-    candidates.find((candidate) => {
-      const rect = candidate.getBoundingClientRect()
-      if (rect.width < 2 || rect.height < 2) return false
-      const style = window.getComputedStyle(candidate)
-      return style.display !== 'none' && style.visibility !== 'hidden'
-    }) ?? null
-  )
-}
-
-function measureTarget(element: HTMLElement, padding: number): TargetRect {
-  const rect = element.getBoundingClientRect()
-  const offsetLeft = window.visualViewport?.offsetLeft ?? 0
-  const offsetTop = window.visualViewport?.offsetTop ?? 0
-  const left = rect.left + offsetLeft - padding
-  const top = rect.top + offsetTop - padding
-  const width = rect.width + padding * 2
-  const height = rect.height + padding * 2
-  return {
-    left,
-    top,
-    width,
-    height,
-    right: left + width,
-    bottom: top + height,
-  }
-}
-
-function targetRectsEqual(left: TargetRect | null, right: TargetRect): boolean {
-  return (
-    left?.left === right.left &&
-    left?.top === right.top &&
-    left?.width === right.width &&
-    left?.height === right.height &&
-    left?.right === right.right &&
-    left?.bottom === right.bottom
-  )
 }
 
 export default function SeasonTutorialTour({
@@ -174,16 +125,14 @@ export default function SeasonTutorialTour({
 }) {
   const tutorialSteps = showPublicStep ? TUTORIAL_STEPS : TUTORIAL_STEPS_WITHOUT_PUBLIC
   const [stepIndex, setStepIndex] = useState(0)
-  const [targetRect, setTargetRect] = useState<TargetRect | null>(null)
-  const [measuredStepId, setMeasuredStepId] = useState<string | null>(null)
   const [finishing, setFinishing] = useState(false)
   const currentStep = tutorialSteps[stepIndex]
+  const targetRect = useSpotlightTarget(currentStep.selector, currentStep.padding)
   const tooltipRef = useRef<HTMLElement | null>(null)
   const finishTimerRef = useRef<number | null>(null)
 
   const moveToStep = useCallback(
     (nextIndex: number) => {
-      setMeasuredStepId(null)
       setStepIndex(clamp(nextIndex, 0, tutorialSteps.length - 1))
     },
     [tutorialSteps.length]
@@ -220,81 +169,21 @@ export default function SeasonTutorialTour({
   }, [currentStep.id])
 
   useLayoutEffect(() => {
-    let frame = 0
-    let missingTargetTimer: number | null = null
-    let observedElement: HTMLElement | null = null
-    const resizeObserver =
-      typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => {
-            window.cancelAnimationFrame(frame)
-            frame = window.requestAnimationFrame(findAndMeasure)
-          })
-        : null
-
-    function findAndMeasure() {
-      const element = findTourTarget(currentStep)
-      if (!element) {
-        setMeasuredStepId(null)
-        return false
+    if (findSpotlightTarget(currentStep.selector)) return
+    const missingTargetTimer = window.setTimeout(() => {
+      if (findSpotlightTarget(currentStep.selector)) return
+      if (stepIndex < tutorialSteps.length - 1) {
+        moveToStep(stepIndex + 1)
+      } else {
+        completeWithHandoff()
       }
-
-      if (element !== observedElement) {
-        if (observedElement) resizeObserver?.unobserve(observedElement)
-        observedElement = element
-        resizeObserver?.observe(element)
-      }
-
-      const rawRect = element.getBoundingClientRect()
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
-      if (rawRect.bottom < 10 || rawRect.top > viewportHeight - 10) {
-        element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
-      }
-      const nextRect = measureTarget(element, currentStep.padding)
-      setTargetRect((current) => (targetRectsEqual(current, nextRect) ? current : nextRect))
-      setMeasuredStepId(currentStep.id)
-      return true
-    }
-
-    if (!findAndMeasure()) {
-      missingTargetTimer = window.setTimeout(() => {
-        if (findTourTarget(currentStep)) {
-          findAndMeasure()
-        } else if (stepIndex < tutorialSteps.length - 1) {
-          moveToStep(stepIndex + 1)
-        } else {
-          completeWithHandoff()
-        }
-      }, 650)
-    }
-
-    const update = () => {
-      window.cancelAnimationFrame(frame)
-      frame = window.requestAnimationFrame(findAndMeasure)
-    }
-    window.addEventListener('resize', update)
-    window.addEventListener('orientationchange', update)
-    window.addEventListener('scroll', update, true)
-    window.visualViewport?.addEventListener('resize', update)
-    window.visualViewport?.addEventListener('scroll', update)
-    const observer = new MutationObserver(update)
-    observer.observe(document.body, { childList: true, subtree: true })
-
-    return () => {
-      if (missingTargetTimer != null) window.clearTimeout(missingTargetTimer)
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', update)
-      window.removeEventListener('orientationchange', update)
-      window.removeEventListener('scroll', update, true)
-      window.visualViewport?.removeEventListener('resize', update)
-      window.visualViewport?.removeEventListener('scroll', update)
-      observer.disconnect()
-      resizeObserver?.disconnect()
-    }
+    }, 650)
+    return () => window.clearTimeout(missingTargetTimer)
   }, [completeWithHandoff, currentStep, moveToStep, stepIndex, tutorialSteps.length])
 
   useEffect(() => {
-    tooltipRef.current?.focus()
-  }, [stepIndex, targetRect])
+    tooltipRef.current?.focus({ preventScroll: true })
+  }, [stepIndex])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -354,7 +243,7 @@ export default function SeasonTutorialTour({
       } as CSSProperties)
 
   const isLastStep = stepIndex === tutorialSteps.length - 1
-  const focusSettled = measuredStepId === currentStep.id
+  const focusSettled = targetRect !== null
 
   return createPortal(
     <div

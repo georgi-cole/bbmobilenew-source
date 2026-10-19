@@ -431,7 +431,6 @@ export const SOCIAL_ACTIONS: SocialActionDefinition[] = [
     dramaCost: 2,
     targetMode: 'primary',
     successWeight: 2,
-    dramaMaxAffinity: 25,
     yields: { influence: 0.02 },
   },
   {

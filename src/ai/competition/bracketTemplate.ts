@@ -70,7 +70,7 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'chainOfGreed',
   'batteryLow',
   'houseOfDarkness',
-  'gridOfLuck',
+  'mysticChamber',
   'finalThreeCircuit',
   'downMemoryLane',
 ] as const
@@ -367,7 +367,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {
@@ -402,7 +402,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {
@@ -437,7 +437,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'quickTap',
       'colorMatch',
       'tiltLabyrinth',
-      'gridOfLuck',
+      'mysticChamber',
     ],
   },
   {
@@ -473,6 +473,51 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     pos: [],
   },
 ]
+
+/**
+ * CAMPAIGN MAP — BASE CHALLENGE-SELECTION ODDS (not player win odds)
+ *
+ * These are scheduler probabilities calculated from the current map's eligible
+ * pools and each game's registry weight; they are not empirical frequencies.
+ * The requested games' registry weights were each reduced by 10%.
+ * No aggregated production draw log is available in the repo. Days 10-12 also
+ * include the scheduler's late-season category bias at the target cast size
+ * (5, 5, and 4). They are baseline odds for a clean history: recent-category
+ * filtering and recency multipliers, unique-mode season history, roster
+ * eligibility, story prerequisites, and Game Manager / remote overrides can
+ * change a live draw. Find Your Twin 2 requires Find Your Twin to have appeared
+ * earlier. Percentages are rounded to one decimal place.
+ *
+ * | Day / target cast | Comp | Game and baseline chance |
+ * | --- | --- | --- |
+ * | 1 / premiere | LOH | Majority Rules 100% (fixed) |
+ * | 1 / premiere | POS | Quick Tap Race 66.7%; Risk Wheel 33.3% |
+ * | 2 / 15 (±1) | LOH | Hold the Wall 12.8%; Blackjack Tournament 12.8%; Famous Figures 12.8%; Majority Rules 12.8%; Battery Low 23.1%; Trap Auction 25.6% |
+ * | 2 / 15 (±1) | POS | Quick Tap Race 29.0%; Risk Wheel 14.5%; Color Match 14.5%; House of Cards 14.5%; Don't Go Over 14.5%; Tilt Labyrinth 13.0% |
+ * | 3 / 14 (±1) | LOH | Blackjack Tournament 12.8%; Famous Figures 12.8%; Majority Rules 12.8%; Silent Saboteur 12.8%; Battery Low 23.1%; Trap Auction 25.6% |
+ * | 3 / 14 (±1) | POS | Quick Tap Race 22.5%; Color Match 11.2%; House of Cards 11.2%; Risk Wheel 11.2%; Don't Go Over 11.2%; Tilt Labyrinth 10.1%; Number Trivia 11.2%; Vault Cracker 11.2% |
+ * | 4 / 13 (±1) | LOH | Blackjack Tournament 12.8%; Famous Figures 12.8%; Silent Saboteur 12.8%; Majority Rules 12.8%; Battery Low 23.1%; Trap Auction 25.6% |
+ * | 4 / 13 (±1) | POS | Quick Tap Race 22.5%; Color Match 11.2%; House of Cards 11.2%; Vault Cracker 11.2%; Risk Wheel 11.2%; Tilt Labyrinth 10.1%; Don't Go Over 11.2%; Number Trivia 11.2% |
+ * | 5 / 12 (±1) | LOH | Serpentine 17.0%; Blackjack Tournament 9.4%; Famous Figures 9.4%; Silent Saboteur 9.4%; Chain of Greed 18.9%; Battery Low 17.0%; Trap Auction 18.9% |
+ * | 5 / 12 (±1) | POS | Quick Tap Race 22.5%; Color Match 11.2%; House of Cards 11.2%; Vault Cracker 11.2%; Risk Wheel 11.2%; Number Trivia 11.2%; Don't Go Over 11.2%; Tilt Labyrinth 10.1% |
+ * | 6 / 11 (±1) | LOH | Serpentine 17.0%; Blackjack Tournament 9.4%; Famous Figures 9.4%; Silent Saboteur 9.4%; Chain of Greed 18.9%; Battery Low 17.0%; Trap Auction 18.9% |
+ * | 6 / 11 (±1) | POS | Quick Tap Race 22.5%; Color Match 11.2%; House of Cards 11.2%; Vault Cracker 11.2%; Risk Wheel 11.2%; Number Trivia 11.2%; Don't Go Over 11.2%; Tilt Labyrinth 10.1% |
+ * | 7 / 9 (±1) | LOH | Serpentine 13.2%; Blackjack Tournament 7.4%; Famous Figures 7.4%; Silent Saboteur 7.4%; Battery Low 13.2%; Chain of Greed 14.7%; Trap Auction 14.7%; The Crystal Path 7.4%; Crystal Path: Infinity 7.4%; Wildcard Western 7.4% |
+ * | 7 / 9 (±1) | POS | Quick Tap Race 2: Seasons 10.5%; Vault Cracker 10.5%; Risk Wheel 10.5%; Tilt Labyrinth 9.5%; Minesweeps 9.5%; Don't Go Over 10.5%; Big Spender: Closing Time 9.5%; Number Trivia 10.5%; Fit Me In 18.9% |
+ * | 8 / 8 (±1) | LOH | Find Your Twin 7.4%; Blackjack Tournament 7.4%; Famous Figures 7.4%; Majority Rules 7.4%; Timing Bar 7.4%; Estimation 6.7%; Hold the Wall 7.4%; Pressure Plank 6.7%; Capitalization 7.4%; Chain of Greed 14.8%; Battery Low 13.3%; House of Darkness 6.7% |
+ * | 8 / 8 (±1) | POS | Quick Tap Race 2: Seasons 11.6%; Big Spender: Closing Time 10.5%; Vault Cracker 11.6%; Risk Wheel 11.6%; Minesweeps 10.5%; Fit Me In 20.9%; Number Trivia 11.6%; Don't Go Over 11.6% |
+ * | 9 / 7 (±1) | LOH | Find Your Twin 2: Lost Again 8.6%; Blackjack Tournament 8.6%; Famous Figures 8.6%; Timing Bar 8.6%; Hold the Wall 8.6%; Pressure Plank 7.8%; Capitalization 8.6%; Chain of Greed 17.2%; Battery Low 15.5%; House of Darkness 7.8% |
+ * | 9 / 7 (±1) | POS | Quick Tap Race 2: Seasons 8.0%; Big Spender: Closing Time 7.2%; Vault Cracker 8.0%; Risk Wheel 8.0%; Minesweeps 7.2%; Fit Me In 14.4%; Number Trivia 8.0%; Don't Go Over 8.0%; Quick Tap Race 16.0%; Color Match 8.0%; Tilt Labyrinth 7.2% |
+ * | 10 / 5 | LOH | Find Your Twin 8.1%; Find Your Twin 2: Lost Again 8.1%; Blackjack Tournament 7.5%; Timing Bar 8.4%; Estimation 7.6%; Hold the Wall 7.2%; Pressure Plank 6.5%; Capitalization 8.4%; Chain of Greed 16.9%; Battery Low 13.6%; House of Darkness 7.6% |
+ * | 10 / 5 | POS | Quick Tap Race 2: Seasons 5.9%; Big Spender: Closing Time 6.6%; Vault Cracker 7.3%; Risk Wheel 6.6%; Minesweeps 6.6%; Fit Me In 13.2%; Number Trivia 7.3%; Don't Go Over 6.6%; Quick Tap Race 11.8%; Color Match 7.3%; Tilt Labyrinth 6.6%; Mystic Chamber 14.2% |
+ * | 11 / 5 | LOH | Find Your Twin 2: Lost Again 7.5%; Blackjack Tournament 6.9%; Famous Figures 7.8%; Timing Bar 7.8%; Estimation 7.0%; Hold the Wall 6.6%; Pressure Plank 6.0%; Number Trivia 7.8%; Capitalization 7.8%; Chain of Greed 15.5%; Battery Low 12.5%; House of Darkness 7.0% |
+ * | 11 / 5 | POS | Quick Tap Race 2: Seasons 5.9%; Big Spender: Closing Time 6.6%; Vault Cracker 7.3%; Risk Wheel 6.6%; Minesweeps 6.6%; Fit Me In 13.2%; Number Trivia 7.3%; Don't Go Over 6.6%; Quick Tap Race 11.8%; Color Match 7.3%; Tilt Labyrinth 6.6%; Mystic Chamber 14.2% |
+ * | 12 / 4 (±1) | LOH | Find Your Twin 2: Lost Again 7.5%; Blackjack Tournament 6.9%; Famous Figures 7.8%; Timing Bar 7.8%; Estimation 7.0%; Hold the Wall 6.6%; Pressure Plank 6.0%; Number Trivia 7.8%; Capitalization 7.8%; Chain of Greed 15.5%; Battery Low 12.5%; House of Darkness 7.0% |
+ * | 12 / 4 (±1) | POS | Quick Tap Race 2: Seasons 5.9%; Big Spender: Closing Time 6.6%; Vault Cracker 7.3%; Risk Wheel 6.6%; Minesweeps 6.6%; Fit Me In 13.2%; Number Trivia 7.3%; Don't Go Over 6.6%; Quick Tap Race 11.8%; Color Match 7.3%; Tilt Labyrinth 6.6%; Mystic Chamber 14.2% |
+ * | Final 3 · Part 1 | LOH | Final Three Circuit 100% (fixed) |
+ * | Final 3 · Part 2 | LOH | Final Three Circuit 100% (fixed) |
+ * | Final 3 · Part 3 | LOH | Down Memory Lane 100% (fixed) |
+ */
 
 function matchesCampaignContext(band: BracketBand, context: ClassicCampaignContext): boolean {
   if (context.playerCount < band.minPlayers || context.playerCount > band.maxPlayers) return false

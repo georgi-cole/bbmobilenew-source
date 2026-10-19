@@ -3,6 +3,7 @@ export interface IncomingInteractionValidityRule {
   senderMustBeReplacementNominee?: boolean
   senderMustBeHoh?: boolean
   senderMustHoldSafety?: boolean
+  senderMustBeEligibleVoter?: boolean
   humanMustBeHoh?: boolean
   humanMustHoldSafety?: boolean
   humanMustBeOffBlock?: boolean
@@ -62,6 +63,16 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
     senderMustBeNominee: false,
     humanMustBeHoh: true,
   },
+  allied_loh_plan_check_in: {
+    senderMustBeNominee: false,
+    humanMustBeHoh: true,
+    allowedPhases: ['social_1', 'nominations', 'loh_results'],
+  },
+  co_nominee_check_in: {
+    senderMustBeNominee: true,
+    humanMustBeNominee: true,
+    allowedPhases: ['social_2', 'live_vote'],
+  },
   safety_holder_consults_loh: {
     senderMustHoldSafety: true,
     humanMustBeHoh: true,
@@ -110,6 +121,7 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
     allowedPhases: ['pos_results'],
   },
   alliance_vote_pitch: {
+    senderMustBeEligibleVoter: true,
     humanMustBeEligibleVoter: true,
     subjectMustBeInHouse: true,
     allowedPhases: ['social_2', 'live_vote'],

@@ -3,9 +3,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
+import HOUSEGUESTS, { findByName, getById } from '../src/data/houseguests'
 import gameReducer from '../src/store/gameSlice'
 import settingsReducer from '../src/store/settingsSlice'
 import Houseguests from '../src/screens/Houseguests/Houseguests'
+import HouseguestInfoDialog from '../src/components/HouseguestGrid/HouseguestInfoDialog'
 import {
   AVATAR_TILE_LONG_PRESS_DELAY_MS,
   LONG_PRESS_CLICK_SUPPRESSION_MS,
@@ -43,7 +45,7 @@ describe('Houseguests screen', () => {
     vi.useRealTimers()
   })
 
-  it('renders the Housemates title and occupancy chip', () => {
+  it('renders the Hubmates title and occupancy chip', () => {
     const store = makeStore()
     const playerCount = store.getState().game.players.length
 
@@ -53,8 +55,8 @@ describe('Houseguests screen', () => {
       </Provider>
     )
 
-    expect(screen.getByRole('heading', { level: 1, name: /Housemates/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(`${playerCount}/${playerCount} housemates`)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: /Hubmates/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(`${playerCount}/${playerCount} hubmates`)).toBeInTheDocument()
   })
 
   it('uses the grey-backed presentation portrait for built-in players', () => {
@@ -90,9 +92,33 @@ describe('Houseguests screen', () => {
 
     expect(
       screen.getByRole('button', {
-        name: new RegExp(`${protectedPlayer.name}.*Veto Safe`, 'i'),
+        name: new RegExp(`${protectedPlayer.name}.*Safety Safe`, 'i'),
       })
     ).toBeInTheDocument()
+  })
+
+  it('loads Bella’s story-cast biography in the player details dialog without adding her to the default cast', () => {
+    const basePlayer = makeStore()
+      .getState()
+      .game.players.find((candidate) => !candidate.isUser)
+    if (!basePlayer) throw new Error('Expected a player to use for Bella profile details')
+    const bella = {
+      ...basePlayer,
+      id: 'bella',
+      name: 'Bella',
+      avatar: 'assets/skins/Bella_avatar.webp',
+    }
+
+    render(<HouseguestInfoDialog player={bella} onClose={() => {}} />)
+
+    expect(screen.getByRole('dialog', { name: 'Bella details' })).toBeInTheDocument()
+    expect(screen.getByText('68')).toBeInTheDocument()
+    expect(screen.getByText('Monaco')).toBeInTheDocument()
+    expect(screen.getByText('Private Investor')).toBeInTheDocument()
+    expect(enrichPlayer(bella).story).toContain('financial independence programs')
+    expect(getById('bella')?.profession).toBe('Private Investor')
+    expect(findByName('Bella')?.location).toBe('Monte Carlo, Monaco')
+    expect(HOUSEGUESTS.some((houseguest) => houseguest.id === 'bella')).toBe(false)
   })
 
   it('opens the compact player info dialog on avatar tap', async () => {

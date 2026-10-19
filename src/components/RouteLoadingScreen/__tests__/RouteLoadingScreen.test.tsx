@@ -9,7 +9,7 @@ describe('RouteLoadingScreen', () => {
     const view = render(<RouteLoadingScreen />)
 
     expect(screen.getByRole('status', { name: 'Loading screen' })).toHaveTextContent(
-      'Preparing the house…'
+      'Preparing the Hub…'
     )
     expect(document.documentElement).toHaveClass('route-loading-active')
 

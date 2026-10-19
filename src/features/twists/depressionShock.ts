@@ -456,6 +456,10 @@ export function decorateDepressionShockFauxTvText(
 ): string {
   if (phase !== 'day1' && phase !== 'day2') return text
 
+  // Long authored broadcasts already set the scene. An added mood line makes
+  // those messages spill beyond the fixed Faux TV text area on phones.
+  if (text.length > 110) return text
+
   const cacheKey = `${phase}:${messageKey}`
   if (fauxTvSuffixByMessageKey.has(cacheKey)) {
     const cachedSuffix = fauxTvSuffixByMessageKey.get(cacheKey)

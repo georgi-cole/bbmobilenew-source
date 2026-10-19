@@ -6,7 +6,9 @@ import {
   type AllianceManagementContext,
 } from '../reality/allianceManagement'
 import { currentAllianceCounts, isCurrentAlliance } from '../reality/allianceIdentity'
+import { allianceEventText } from '../reality/allianceHistory'
 import {
+  createDirectedRelationship,
   createInitialRealityDomainState,
   ensureRealityActors,
   normalizeRealityDomainState,
@@ -668,6 +670,126 @@ describe('explicit alliance management', () => {
     expect(second.requestId).toBe(first.requestId)
     respond(state, first.requestId!, 'k')
     expect(currentAllianceCounts(state, 'u')).toEqual({ groups: 1, pacts: 1 })
+  })
+  it('lets an isolated AI accept a useful pact from a reliable, visibly connected proposer', () => {
+    const state = setup()
+    state.relationships.k = { u: createDirectedRelationship('k', 'u', 65) }
+    Object.assign(state.relationships.k.u, {
+      trust: 65,
+      reliability: 80,
+      warmth: 55,
+      loyalty: 50,
+      strategicValue: 55,
+    })
+    state.contestants.k.primaryGoalId = 'SURVIVE_THE_VOTE'
+    state.contestants.k.loneliness = 65
+    const proposerGroup = group(state, ['u', 'r', 'x'], 'proposer-network')
+    proposerGroup.rosterKnowledgeByActor!.k = {
+      memberIds: ['u', 'r', 'x'],
+      rosterRevision: proposerGroup.rosterRevision ?? 0,
+    }
+
+    const proposal = manageAlliance(
+      state,
+      { type: 'PROPOSE', kind: 'PACT', actorId: 'u', candidateId: 'k' },
+      { ...context, humanActorIds: ['u'] }
+    )
+    const request = state.allianceManagement.requests[proposal.requestId!]
+    const pactId = request.resultAllianceId!
+
+    expect(request.status).toBe('ACCEPTED')
+    expect(request.responsesByActorId?.k).toEqual({
+      style: 'ENTHUSIASTIC',
+      reason: 'You have useful connections, and I trust you to follow through for both of us.',
+    })
+    expect(state.alliances[pactId].memberCommitment.k).toBe(0.68)
+  })
+  it('allows a well-connected AI to accept a pact while limiting what it will promise existing allies', () => {
+    const state = setup()
+    state.relationships.k = { u: createDirectedRelationship('k', 'u', 50) }
+    Object.assign(state.relationships.k.u, {
+      trust: 70,
+      reliability: 70,
+      warmth: 40,
+      loyalty: 50,
+      strategicValue: 40,
+    })
+    const existing = pact(state, 'k', 'r')
+    existing.memberCommitment.k = 0.95
+
+    const proposal = manageAlliance(
+      state,
+      { type: 'PROPOSE', kind: 'PACT', actorId: 'u', candidateId: 'k' },
+      { ...context, humanActorIds: ['u'], displayNames: { u: 'Player', k: 'Kian' } }
+    )
+    const request = state.allianceManagement.requests[proposal.requestId!]
+
+    expect(request.status).toBe('ACCEPTED')
+    expect(request.responsesByActorId?.k).toEqual({
+      style: 'LIMITED',
+      reason: 'I can work with you, but I will not break my existing commitments for this pact.',
+    })
+    expect(state.alliances[request.resultAllianceId!].memberCommitment.k).toBe(0.32)
+    expect(request.reason).toContain('agreed with limits')
+    expect(request.reason).toContain('Kian')
+    expect(request.reason).toContain('existing commitments')
+    const consentEvent = request.history?.find(
+      (entry) => entry.type === 'ALLIANCE_REQUEST_CONSENT' && entry.actorId === 'k'
+    )
+    expect(consentEvent?.allianceRequestSnapshot).toMatchObject({
+      accepted: true,
+      responseStyle: 'LIMITED',
+      responseReason:
+        'I can work with you, but I will not break my existing commitments for this pact.',
+    })
+    expect(allianceEventText(state, consentEvent!, 'u', (id) => (id === 'k' ? 'Kian' : id))).toBe(
+      'Kian accepted: “I can work with you, but I will not break my existing commitments for this pact.”'
+    )
+  })
+  it('makes known broken promises reduce pact acceptance and gives the AI a clear reason', () => {
+    const makeScenario = (withBrokenPromises: boolean) => {
+      const state = setup()
+      state.relationships.k = { u: createDirectedRelationship('k', 'u', 60) }
+      Object.assign(state.relationships.k.u, {
+        trust: 60,
+        reliability: 80,
+        warmth: 50,
+        loyalty: 40,
+        strategicValue: 40,
+      })
+      const existing = pact(state, 'k', 'r')
+      existing.memberCommitment.k = 0.95
+      if (withBrokenPromises) {
+        for (let index = 0; index < 3; index += 1) {
+          upsertRealityPromise(state, {
+            id: `broken-deal-${index}`,
+            kind: 'protection vote',
+            promisorId: 'u',
+            beneficiaryIds: ['k'],
+            witnessIds: [],
+            createdAt: context.at,
+            stakes: 1,
+            scope: {},
+            status: 'BROKEN',
+            visibility: 'PAIR_ONLY',
+          })
+        }
+      }
+      const proposal = manageAlliance(
+        state,
+        { type: 'PROPOSE', kind: 'PACT', actorId: 'u', candidateId: 'k' },
+        { ...context, seed: 6, humanActorIds: ['u'] }
+      )
+      return state.allianceManagement.requests[proposal.requestId!]
+    }
+
+    const trustedHistory = makeScenario(false)
+    const damagedHistory = makeScenario(true)
+
+    expect(trustedHistory.status).toBe('ACCEPTED')
+    expect(damagedHistory.status).toBe('DECLINED')
+    expect(damagedHistory.reason).toContain('broken deals I knew about')
+    expect(damagedHistory.responsesByActorId?.k?.style).toBe('DECLINED')
   })
   it('does not reset duplicate deadlines and cannot revive an expired response', () => {
     const state = setup()

@@ -217,16 +217,6 @@ export function useTwistFlow({
     dispatch,
   ])
 
-  const democraciaAwaitingVoteRef = useRef(Boolean(game.democracia?.awaitingHumanVote))
-  useEffect(() => {
-    const wasAwaitingVote = democraciaAwaitingVoteRef.current
-    const isAwaitingVote = Boolean(game.democracia?.awaitingHumanVote)
-    democraciaAwaitingVoteRef.current = isAwaitingVote
-    if (game.phase !== 'democracia_vote') return
-    if (!wasAwaitingVote || isAwaitingVote) return
-    dispatch(advance())
-  }, [dispatch, game.democracia?.awaitingHumanVote, game.phase])
-
   const final4ExpiryFiredRef = useRef<number | null>(null)
   useEffect(() => {
     if (game.phase !== 'final4_eviction') return
@@ -388,6 +378,14 @@ export function useTwistFlow({
 
   const democraciaResultDisplay = game.democracia?.resultDisplay ?? null
   const showDemocraciaResults = democraciaResultDisplay !== null
+  const democraciaVoteRecorded = Boolean(
+    game.phase === 'democracia_vote' &&
+    humanPlayer &&
+    game.democracia?.votesByVoterId[humanPlayer.id] &&
+    !game.democracia.awaitingHumanVote &&
+    !game.democracia.resultDisplay &&
+    !game.democracia.awaitingPublicBreaker
+  )
   const democraciaResultsParticipants = useMemo(
     () =>
       (democraciaResultDisplay?.participantIds ?? [])
@@ -681,6 +679,7 @@ export function useTwistFlow({
     democraciaVoteOptions,
     democraciaResultDisplay,
     showDemocraciaResults,
+    democraciaVoteRecorded,
     democraciaResultsParticipants,
     handleDemocraciaResultsDone,
     dayStartShock,

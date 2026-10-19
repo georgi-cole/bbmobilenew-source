@@ -12,6 +12,13 @@ export type SocialEnergyBank = Record<string, number>
 export interface RelationshipEntry {
   affinity: number
   tags: string[]
+  /** Relationship evidence an AI has personally learned, mirrored only into game decision snapshots. */
+  knownRomanticRival?: {
+    partnerId: string
+    evidenceDay: number
+    confidence: number
+    source: 'witnessed' | 'public' | 'reported' | 'inferred'
+  }
 }
 
 /** Full relationship graph: outer key = source player ID, inner key = target player ID. */
@@ -173,8 +180,20 @@ export interface SocialPhaseReport {
   timestamp: number
 }
 
+/** The player-visible result, finalized after action-specific processing. */
+export interface SocialActionReceipt {
+  /** Groups compatibility logs belonging to one multi-recipient move. */
+  groupId?: string
+  summary: string
+  outcomeLabel: string
+  tone: 'positive' | 'negative' | 'neutral'
+}
+
 /** A single recorded social action executed during a phase. */
 export interface SocialActionLogEntry {
+  /** Stable identity for finalizing display copy without recording the action twice. */
+  id?: string
+  receipt?: SocialActionReceipt
   actionId: string
   actorId: string
   targetId: string
@@ -311,6 +330,8 @@ export interface IncomingInteraction {
   resolvedWeek?: number
   resolvedWith?: IncomingInteractionResponseType
   resolvedLabel?: string
+  /** Short authored character reaction shown beside the action consequence. */
+  reactionText?: string
   outcomeText?: string
 }
 
@@ -359,6 +380,8 @@ export interface SocialState {
   sessionLogs: SocialActionLogEntry[]
   /** Bounded gameplay history retained after the panel closes. */
   actionHistory?: SocialActionLogEntry[]
+  /** Monotonic display identity; never consumes the gameplay random stream. */
+  actionLogSequence?: number
   /** Schema version used by backward-compatible social save migration. */
   socialStateVersion?: number
   /**

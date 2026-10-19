@@ -52,17 +52,17 @@ interface NumberTriviaAiDifficultyProfile {
 const NUMBER_TRIVIA_AI_PROFILES: Record<NumberTriviaDifficulty, NumberTriviaAiDifficultyProfile> = {
   easy: {
     accuracyRange: [0.9, 0.98],
-    delayRangeMs: [2_200, 6_000],
-    maxCorrectAttempts: 3,
+    delayRangeMs: [350, 1_300],
+    maxCorrectAttempts: 2,
     maxWrongAttempts: 3,
-    hesitationChance: 0.38,
+    hesitationChance: 0.16,
     nearMissChance: 0.3,
     giveUpChance: 0.08,
     confidentWrongChance: 0.12,
   },
   medium: {
     accuracyRange: [0.7, 0.86],
-    delayRangeMs: [3_000, 8_500],
+    delayRangeMs: [1_800, 4_800],
     maxCorrectAttempts: 4,
     maxWrongAttempts: 4,
     hesitationChance: 0.52,
@@ -72,7 +72,7 @@ const NUMBER_TRIVIA_AI_PROFILES: Record<NumberTriviaDifficulty, NumberTriviaAiDi
   },
   hard: {
     accuracyRange: [0.45, 0.65],
-    delayRangeMs: [4_000, 12_000],
+    delayRangeMs: [3_000, 8_000],
     maxCorrectAttempts: 5,
     maxWrongAttempts: 5,
     hesitationChance: 0.64,
@@ -82,7 +82,7 @@ const NUMBER_TRIVIA_AI_PROFILES: Record<NumberTriviaDifficulty, NumberTriviaAiDi
   },
   'very-hard': {
     accuracyRange: [0.22, 0.46],
-    delayRangeMs: [5_000, 16_000],
+    delayRangeMs: [4_000, 11_000],
     maxCorrectAttempts: 6,
     maxWrongAttempts: 6,
     hesitationChance: 0.76,
@@ -141,7 +141,10 @@ export function simulateNumberTriviaAiPerformance(
   const fatiguePenalty = Math.max(0, context.roundNumber - 3) * 0.015;
   const baseAccuracy = (profile.accuracyRange[0] + profile.accuracyRange[1]) / 2;
   const accuracy = clamp(baseAccuracy + skillOffset - fatiguePenalty, 0.05, 0.985);
-  const baseDelayMs = randomBetween(profile.delayRangeMs[0], profile.delayRangeMs[1], rng);
+  const normalizedSkill = clamp((context.precomputedScore - 30) / 70, 0, 1);
+  const responseSpeedMultiplier = 1.1 - normalizedSkill * 0.25;
+  const baseDelayMs =
+    randomBetween(profile.delayRangeMs[0], profile.delayRangeMs[1], rng) * responseSpeedMultiplier;
   const guessed = rng() < accuracy;
 
   if (guessed) {

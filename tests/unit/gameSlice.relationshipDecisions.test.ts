@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
   advance,
+  chooseStrategicEliminationCandidates,
   chooseAiEvictionVote,
   getNominationTargetScore,
   getSafetyRelationshipScore,
   getStrategicAllianceDecisionRead,
   setDramaSocialMode,
 } from '../../src/store/gameSlice'
+import { buildLohNominationPlan } from '../../src/store/lohNominationPlanning'
 import type { GameState, Player, StrategicAllianceSnapshot } from '../../src/types'
 
 function player(id: string): Player {
@@ -213,6 +215,85 @@ describe('Reality alliance strategic influence', () => {
 })
 
 describe('Hold the Wall nomination bargains', () => {
+  function nominationState(): GameState {
+    return {
+      ...gameReducer(undefined, { type: 'test/init' }),
+      gameId: 'hold-wall-deal-score',
+      seed: 1,
+      week: 4,
+      phase: 'nominations',
+      mode: 'classic',
+      publicModeEnabled: false,
+      lohId: 'loh',
+      players: [
+        player('loh'),
+        userPlayer('human'),
+        player('other'),
+        player('pawn-a'),
+        player('pawn-b'),
+      ],
+      strategicRelationships: {
+        loh: {
+          human: { affinity: 80, tags: [] },
+          other: { affinity: 0, tags: [] },
+        },
+      },
+      holdTheWallSafetyDeal: {
+        week: 4,
+        promisorId: 'loh',
+        beneficiaryId: 'human',
+        source: 'hold_the_wall',
+        affinityAtDeal: 80,
+        tagsAtDeal: [],
+      },
+    } as GameState
+  }
+
+  it('protects an honored bargain even without an alliance, only for its day and participants', () => {
+    const state = nominationState()
+    const human = state.players.find((candidate) => candidate.id === 'human')!
+    const withoutDeal = { ...state, holdTheWallSafetyDeal: null }
+    const ordinaryScore = getNominationTargetScore(withoutDeal, 'loh', human)
+
+    expect(getNominationTargetScore(state, 'loh', human)).toBeLessThan(ordinaryScore - 100)
+    for (const overrides of [{ week: 3 }, { promisorId: 'other' }, { beneficiaryId: 'other' }]) {
+      expect(
+        getNominationTargetScore(
+          { ...state, holdTheWallSafetyDeal: { ...state.holdTheWallSafetyDeal!, ...overrides } },
+          'loh',
+          human
+        )
+      ).toBe(ordinaryScore)
+    }
+  })
+
+  it('can turn the same honored bargain into an actual ambush plan after trust deteriorates', () => {
+    const close = nominationState()
+    const honoredPlan = buildLohNominationPlan(close, getNominationTargetScore)
+    expect(honoredPlan).not.toBeNull()
+    expect(honoredPlan?.targetId).not.toBe('human')
+    expect(honoredPlan?.initialNomineeIds).not.toContain('human')
+
+    const damaged = {
+      ...close,
+      strategicRelationships: {
+        loh: {
+          human: { affinity: -50, tags: ['rivalry', 'strained'] },
+          other: { affinity: 0, tags: [] },
+        },
+      },
+    }
+    expect(buildLohNominationPlan(damaged, getNominationTargetScore)).toMatchObject({
+      targetId: 'human',
+      replacementTargetId: 'human',
+      strategy: 'backdoor',
+    })
+    expect(
+      chooseStrategicEliminationCandidates(damaged, 'loh', ['human', 'other'], 1, 'ordinary_tie', 1)
+        .selectedIds
+    ).toEqual(['human'])
+  })
+
   it('strongly protects an unchanged promise and can turn damaged trust into a target', () => {
     const loh = player('loh')
     const human = userPlayer('human')

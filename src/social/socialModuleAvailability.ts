@@ -21,7 +21,7 @@ interface GameLike {
   phase?: Phase | null
   players?: ReadonlyArray<HumanPlayerLike>
   voxPopuli?: { status?: string } | null
-  weekendInterlude?: { active?: boolean; stage?: string } | null
+  weekendInterlude?: { active?: boolean; stage?: string; finaleWeekend?: boolean } | null
 }
 
 export interface SocialModuleAvailability {
@@ -90,7 +90,16 @@ export function getSocialModuleAvailability(
     }
   }
 
-  if (game.weekendInterlude?.active && game.weekendInterlude.stage !== 'social') {
+  const finaleTribunalPeekOpen =
+    game.weekendInterlude?.finaleWeekend === true &&
+    (game.weekendInterlude.stage === 'tribunal_invitation' ||
+      game.weekendInterlude.stage === 'tribunal_glimpse' ||
+      game.weekendInterlude.stage === 'finale_reunion_social')
+  if (
+    game.weekendInterlude?.active &&
+    game.weekendInterlude.stage !== 'social' &&
+    !finaleTribunalPeekOpen
+  ) {
     return {
       canOpen: false,
       reason: 'The weekend Faux TV moment is still playing.',

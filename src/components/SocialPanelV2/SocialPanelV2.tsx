@@ -92,6 +92,8 @@ const MOVE_FILTERS = [
   { id: 'drama', label: 'Drama' },
   { id: 'alliances', label: 'Alliances' },
 ] as const
+const REUNION_ACTION_IDS = ['compliment', 'apologize'] as const
+const REUNION_ACTION_COSTS = { energy: 0, influence: 0, info: 0 }
 
 interface AllianceQuickAction {
   action: SocialActionDefinition
@@ -156,6 +158,7 @@ function formatPlayerStatus(status: Player['status']): string {
       if (part === 'nominated') return 'Nominated'
       if (part === 'active') return 'Active'
       if (part === 'jury') return 'Tribunal'
+      if (part === 'evicted') return 'Eliminated'
       return part[0]?.toUpperCase() + part.slice(1)
     })
     .join(' + ')
@@ -245,9 +248,40 @@ export default function SocialPanelV2() {
     () => buildEffectiveSocialActions(settings?.social?.actionOverrides ?? {}),
     [settings?.social?.actionOverrides]
   )
+  const reunionActionCards = useMemo(
+    () =>
+      REUNION_ACTION_IDS.flatMap((actionId) => {
+        const action = socialActions.find((candidate) => candidate.id === actionId)
+        return action
+          ? [{ action, costs: REUNION_ACTION_COSTS, disabled: action.enabled === false }]
+          : []
+      }),
+    [socialActions]
+  )
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const weekendActive = game.weekendInterlude?.active === true
+  const finaleReunionSocialOpen =
+    weekendActive &&
+    game.weekendInterlude?.finaleWeekend === true &&
+    game.weekendInterlude.weekendDay === 2 &&
+    game.weekendInterlude.stage === 'finale_reunion_social' &&
+    game.weekendInterlude.reunionDepartureActive !== true &&
+    game.weekendInterlude.reunionDeparted !== true
+  const reunionGuestIds = useMemo(
+    () =>
+      new Set(
+        finaleReunionSocialOpen
+          ? game.players
+              .filter(
+                (player) =>
+                  !player.isUser && (player.status === 'evicted' || player.status === 'jury')
+              )
+              .map((player) => player.id)
+          : []
+      ),
+    [finaleReunionSocialOpen, game.players]
+  )
   const consultationAlliances = useMemo(() => {
     if (!humanPlayer) return []
     const activePlayerIds = new Set(
@@ -324,6 +358,10 @@ export default function SocialPanelV2() {
 
   const [selectedTargets, setSelectedTargets] = useState<Set<string>>(new Set())
   const [primaryTargetId, setPrimaryTargetId] = useState<string | null>(null)
+  const selectedReunionGuestId =
+    finaleReunionSocialOpen && primaryTargetId && reunionGuestIds.has(primaryTargetId)
+      ? primaryTargetId
+      : null
   const [selectedActionId, setSelectedActionId] = useState<string | null>(null)
   const [allianceNameDraft, setAllianceNameDraft] = useState('')
   const [initialAllianceNameDraftState, setInitialAllianceNameDraftState] = useState<{
@@ -338,7 +376,6 @@ export default function SocialPanelV2() {
   >(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
-  const [feedbackExpanded, setFeedbackExpanded] = useState(false)
   const [pregnancyCelebration, setPregnancyCelebration] = useState(false)
   const [successPulse, setSuccessPulse] = useState(false)
   const [relationshipPulseDeltas, setRelationshipPulseDeltas] = useState<
@@ -950,7 +987,11 @@ export default function SocialPanelV2() {
     : isAllianceConsultation
       ? consultationAlliances
       : activeGroups
-  const showPlayerRoster = !selectedAlliance && !isAllianceConsultation
+  // Keep the full roster available while a group is selected: members can be
+  // targeted for group controls, while non-members can be selected for invites.
+  // A consultation is the one alliance action that intentionally clears the
+  // person selection and uses the chosen group's representative instead.
+  const showPlayerRoster = !isAllianceConsultation
   const selectedConsultationAlliance =
     consultationAlliances.find((alliance) => alliance.id === selectedAllianceId) ?? null
   const consultationRepresentativeId = selectedConsultationAlliance?.memberIds.find(
@@ -1180,40 +1221,9 @@ export default function SocialPanelV2() {
     weekendActive,
   ])
 
-  const canExecute =
-    hasExecutableSelection && (executionEligibility.eligible || !executionEligibility.reason)
-
-  const selectedScopeLabel = selectedAction
-    ? selectedActionId === 'idle' ||
-      selectedActionId === 'pregnancy_test_self' ||
-      selectedActionId === 'paternity_test_self'
-      ? 'You'
-      : isAllianceInvitation
-        ? `${game.players.find((player) => player.id === primaryTargetId)?.name ?? 'Candidate'} → ${selectedAlliance?.name ?? 'choose alliance'}`
-        : selectedActionId === 'consult_alliance'
-          ? (selectedConsultationAlliance?.name ??
-            selectedConsultationAlliance?.purpose ??
-            'Alliance')
-          : targetMode === 'none'
-            ? weekendActive
-              ? 'Hub'
-              : 'Hub'
-            : usesMultipleTargets
-              ? 'Group'
-              : effectivePrimaryTargetId
-                ? (game.players.find((player) => player.id === effectivePrimaryTargetId)?.name ??
-                  'Target')
-                : 'Choose target'
-    : null
-
-  const selectedCostLabel =
-    totalCosts && (totalCosts.energy || totalCosts.influence || totalCosts.info)
-      ? `⚡${totalCosts.energy}${totalCosts.influence ? ` · 🤝${totalCosts.influence}` : ''}${
-          totalCosts.info ? ` · 💡${totalCosts.info}` : ''
-        }`
-      : selectedAllianceAction
-        ? 'No resource cost'
-        : null
+  const canExecute = selectedReunionGuestId
+    ? REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
+    : hasExecutableSelection && (executionEligibility.eligible || !executionEligibility.reason)
 
   const hiddenContextualActionIds = useMemo(() => {
     const hidden = new Set<string>()
@@ -1380,6 +1390,19 @@ export default function SocialPanelV2() {
 
   const handleSelectionChange = useCallback(
     (ids: Set<string>, details: { primaryTargetId: string | null }) => {
+      const selectedReunionGuest = finaleReunionSocialOpen
+        ? Array.from(ids).find((id) => reunionGuestIds.has(id))
+        : undefined
+      if (selectedReunionGuest) {
+        setSelectedTargets(new Set([selectedReunionGuest]))
+        setPrimaryTargetId(selectedReunionGuest)
+        setSelectedActionId(null)
+        setSelectedSubjectId(null)
+        setMultiSelectActive(false)
+        setFeedbackMsg(null)
+        return
+      }
+
       if (usesMultipleTargets) {
         setSelectedTargets(new Set(ids))
         setPrimaryTargetId(details.primaryTargetId)
@@ -1410,7 +1433,14 @@ export default function SocialPanelV2() {
         }
       }
     },
-    [dramaMode, game.players, selectedAction, usesMultipleTargets]
+    [
+      dramaMode,
+      finaleReunionSocialOpen,
+      game.players,
+      reunionGuestIds,
+      selectedAction,
+      usesMultipleTargets,
+    ]
   )
 
   const finishInitialAllianceNaming = useCallback(
@@ -1442,6 +1472,22 @@ export default function SocialPanelV2() {
   )
 
   const handleExecute = useCallback(() => {
+    if (
+      selectedReunionGuestId &&
+      REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
+    ) {
+      const targetName =
+        game.players.find((player) => player.id === selectedReunionGuestId)?.name ??
+        'Your former Hubmate'
+      setFeedbackMsg(
+        selectedActionId === 'apologize'
+          ? `${targetName} appreciates your apology. Some of the old tension finally lifts.`
+          : `${targetName} smiles at the kind words. It feels good to end the night warmly.`
+      )
+      setSelectedActionId(null)
+      return
+    }
+
     if (
       !hasExecutableSelection ||
       !humanPlayer ||
@@ -1508,8 +1554,7 @@ export default function SocialPanelV2() {
             totalCosts ?? undefined
           )
         )
-        setFeedbackMsg(managed.reason)
-        setFeedbackExpanded(false)
+        setFeedbackMsg(managed.receiptRecorded ? '' : managed.reason)
         if (managed.status !== 'REJECTED') {
           setSelectedActionId(null)
           setAllianceNameDraft('')
@@ -1629,22 +1674,9 @@ export default function SocialPanelV2() {
       const successfulResults = results.filter((result) => result.success)
       const firstResult = results[0]
       setPregnancyCelebration(firstResult.label === 'Positive')
-      const reachedTargetCount =
-        Object.keys(firstResult.targetDeltas ?? {}).length || successfulResults.length
-      setFeedbackMsg(
-        targetMode === 'multi'
-          ? firstResult.summary
-          : usesMultipleTargets
-            ? reachedTargetCount === targetIds.length
-              ? `${getSocialActionPresentation(selectedAction).title} reached all ${
-                  targetIds.length
-                } selected Hubmates.`
-              : `${getSocialActionPresentation(selectedAction).title} reached ${
-                  reachedTargetCount
-                } of ${targetIds.length} selected Hubmates.`
-            : firstResult.summary
-      )
-      setFeedbackExpanded(false)
+      // An empty string keeps the saved result visible even if spending the
+      // last resource makes the selected action unavailable for another try.
+      setFeedbackMsg(firstResult.receiptRecorded ? '' : firstResult.summary)
 
       if (successfulResults.length > 0) {
         const targetNames = targetIds.map(
@@ -1708,7 +1740,6 @@ export default function SocialPanelV2() {
       setFeedbackMsg(
         'That move was interrupted. Check your activity and resources before retrying.'
       )
-      setFeedbackExpanded(false)
       setSelectedActionId(null)
       setMultiSelectActive(false)
       if (executeGuardTimerRef.current !== null) {
@@ -1731,6 +1762,7 @@ export default function SocialPanelV2() {
     selectedAction,
     selectedActionId,
     selectedAllianceAction,
+    selectedReunionGuestId,
     minimumTargetCount,
     selectedConsultationAlliance,
     selectedSubjectId,
@@ -1757,7 +1789,13 @@ export default function SocialPanelV2() {
         })
       : [...activePlayers, ...juryPlayers]
   ) as Player[]
-  const disabledPlayerIds = juryPlayers.map((player) => player.id)
+  const reunionGuests = finaleReunionSocialOpen
+    ? game.players.filter((player) => player.status === 'evicted' && reunionGuestIds.has(player.id))
+    : []
+  const rosterPlayers = finaleReunionSocialOpen
+    ? [...orderedPlayers, ...reunionGuests]
+    : orderedPlayers
+  const disabledPlayerIds = finaleReunionSocialOpen ? [] : juryPlayers.map((player) => player.id)
 
   const deltasByTargetId = new Map<string, number>()
   const currentRels = relationships?.[humanPlayer.id] ?? {}
@@ -1785,7 +1823,10 @@ export default function SocialPanelV2() {
   // should not erase the context the player just chose.
   const focusedTargetId = primaryTargetId
   const focusedPlayer = focusedTargetId
-    ? (game.players.find((player) => player.id === focusedTargetId) ?? null)
+    ? (rosterPlayers.find((player) => player.id === focusedTargetId) ?? null)
+    : null
+  const selectedReunionGuest = selectedReunionGuestId
+    ? (rosterPlayers.find((player) => player.id === selectedReunionGuestId) ?? null)
     : null
   const focusedOutward = focusedPlayer
     ? relationships?.[humanPlayer.id]?.[focusedPlayer.id]
@@ -1816,6 +1857,15 @@ export default function SocialPanelV2() {
     : focusedOutward?.affinity !== undefined || focusedInward?.affinity !== undefined
       ? Math.round(((focusedOutward?.affinity ?? 0) + (focusedInward?.affinity ?? 0)) / 2)
       : undefined
+  const focusedRelationshipPulseDelta = focusedPlayer
+    ? relationshipPulseDeltas.get(focusedPlayer.id)
+    : undefined
+  const focusedMeterPulseClass =
+    focusedRelationshipPulseDelta === undefined || focusedRelationshipPulseDelta === 0
+      ? ''
+      : focusedRelationshipPulseDelta > 0
+        ? 'sp2-focus__meter--pulse-up'
+        : 'sp2-focus__meter--pulse-down'
   const focusedRelationship = !focusedPlayer
     ? null
     : dramaMode
@@ -2034,6 +2084,11 @@ export default function SocialPanelV2() {
                 <span className="sp2-section-heading__title">
                   {showPlayerRoster ? 'Choose a hubmate' : 'Choose an alliance'}
                 </span>
+                {showPlayerRoster && finaleReunionSocialOpen && reunionGuestIds.size > 0 && (
+                  <span className="sp2-reunion-roster-note">
+                    Former Hubmates are back for one last conversation.
+                  </span>
+                )}
               </span>
               {showPlayerRoster && !usesMultipleTargets && (
                 <span
@@ -2141,7 +2196,7 @@ export default function SocialPanelV2() {
               )}
             {showPlayerRoster && (
               <PlayerList
-                players={orderedPlayers}
+                players={rosterPlayers}
                 humanPlayerId={humanPlayer.id}
                 relationships={relationships}
                 disabledIds={disabledPlayerIds}
@@ -2193,7 +2248,7 @@ export default function SocialPanelV2() {
                     <span className="sp2-focus__eyebrow">Your read on</span>
                     <h2>{focusedPlayer.name}</h2>
                     <div className="sp2-focus__status-line">
-                      {focusedRelationship && (
+                      {focusedRelationship && !selectedReunionGuest && (
                         <span
                           className={`sp2-focus__relationship sp2-focus__relationship--${focusedRelationship.key}`}
                         >
@@ -2220,7 +2275,9 @@ export default function SocialPanelV2() {
                     )}
                     {focusedAffinity !== undefined && (
                       <div
-                        className="sp2-focus__meter"
+                        className={['sp2-focus__meter', focusedMeterPulseClass]
+                          .filter(Boolean)
+                          .join(' ')}
                         aria-label={`${focusedRelationship?.label ?? 'Relationship'} relationship`}
                       >
                         <span
@@ -2271,47 +2328,55 @@ export default function SocialPanelV2() {
             <div className="sp2-moves__heading">
               <div>
                 <span className="sp2-section-heading__eyebrow">Your move</span>
-                <span className="sp2-section-heading__title">Set the tone</span>
+                <span className="sp2-section-heading__title">
+                  {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
+                </span>
               </div>
               <span className="sp2-moves__selection">
-                {selectedAction
-                  ? getSocialActionPresentation(selectedAction).title
-                  : 'Choose a move'}
+                {selectedReunionGuest
+                  ? `With ${selectedReunionGuest.name}`
+                  : selectedAction
+                    ? getSocialActionPresentation(selectedAction).title
+                    : 'Choose a move'}
               </span>
             </div>
-            <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
-              {MOVE_FILTERS.map((filter) => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={moveFilter === filter.id}
-                  className={moveFilter === filter.id ? 'is-active' : ''}
-                  data-reality-tutorial={filter.id === 'alliances' ? 'alliance-actions' : undefined}
-                  onClick={() => {
-                    setMoveFilter(filter.id)
-                    if (filter.id !== 'alliances') {
-                      setSelectedAllianceId(null)
-                      setSelectedAllianceHistoryEventId(null)
+            {!selectedReunionGuest && (
+              <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
+                {MOVE_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={moveFilter === filter.id}
+                    className={moveFilter === filter.id ? 'is-active' : ''}
+                    data-reality-tutorial={
+                      filter.id === 'alliances' ? 'alliance-actions' : undefined
                     }
-                    setMultiSelectActive(false)
-                    setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
-                    setSelectedActionId(null)
-                    setSelectedSubjectId(null)
-                  }}
-                >
-                  {filter.label}
-                  {filter.id === 'alliances' && pendingAllianceDecisionCount > 0 && (
-                    <span
-                      className="sp2-move-filters__badge"
-                      aria-label="Pending alliance decisions"
-                    >
-                      {pendingAllianceDecisionCount}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
+                    onClick={() => {
+                      setMoveFilter(filter.id)
+                      if (filter.id !== 'alliances') {
+                        setSelectedAllianceId(null)
+                        setSelectedAllianceHistoryEventId(null)
+                      }
+                      setMultiSelectActive(false)
+                      setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
+                      setSelectedActionId(null)
+                      setSelectedSubjectId(null)
+                    }}
+                  >
+                    {filter.label}
+                    {filter.id === 'alliances' && pendingAllianceDecisionCount > 0 && (
+                      <span
+                        className="sp2-move-filters__badge"
+                        aria-label="Pending alliance decisions"
+                      >
+                        {pendingAllianceDecisionCount}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
             <ActionGrid
               selectedId={selectedActionId}
               onActionClick={handleActionClick}
@@ -2335,33 +2400,39 @@ export default function SocialPanelV2() {
               dramaMode={dramaMode}
               currentPhase={weekendActive ? 'social_2' : game.phase}
               dramaNetwork={dramaNetwork}
-              hiddenActionIds={hiddenContextualActionIds}
+              hiddenActionIds={
+                selectedReunionGuest
+                  ? new Set(socialActions.map((action) => action.id))
+                  : hiddenContextualActionIds
+              }
               allianceContext={Boolean(selectedAlliance)}
               energyCostOverrides={
                 selectedActionId && totalCosts
                   ? { [selectedActionId]: totalCosts.energy }
                   : undefined
               }
-              categoryFilter={moveFilter}
+              categoryFilter={selectedReunionGuest ? 'connect' : moveFilter}
               supplementalActions={
-                moveFilter === 'alliances' || moveFilter === 'all'
-                  ? allianceQuickActions
-                      .filter(
-                        (entry) =>
-                          moveFilter === 'alliances' ||
-                          entry.action.id.startsWith('alliance:invite:')
-                      )
-                      .map(({ action, allowWithoutTarget, buildCommand }) => ({
-                        action,
-                        allowWithoutTarget,
-                        costs:
-                          allianceProposalPrice(buildCommand([...selectedTargets])) ??
-                          normalizeActionCosts(action, selectedTargetCount, dramaMode),
-                      }))
-                  : undefined
+                selectedReunionGuest
+                  ? reunionActionCards
+                  : moveFilter === 'alliances' || moveFilter === 'all'
+                    ? allianceQuickActions
+                        .filter(
+                          (entry) =>
+                            moveFilter === 'alliances' ||
+                            entry.action.id.startsWith('alliance:invite:')
+                        )
+                        .map(({ action, allowWithoutTarget, buildCommand }) => ({
+                          action,
+                          allowWithoutTarget,
+                          costs:
+                            allianceProposalPrice(buildCommand([...selectedTargets])) ??
+                            normalizeActionCosts(action, selectedTargetCount, dramaMode),
+                        }))
+                    : undefined
               }
             />
-            {selectedAllianceAction?.namePrompt && (
+            {!selectedReunionGuest && selectedAllianceAction?.namePrompt && (
               <div className="sp2-alliance-name-field">
                 <label htmlFor="sp2-alliance-name-input">
                   {selectedAllianceAction.namePrompt.label}
@@ -2417,58 +2488,38 @@ export default function SocialPanelV2() {
           </div>
         )}
 
-        <div
-          className={`sp2-recent${historyOpen ? ' sp2-recent--expanded' : ''}`}
-          aria-label="Recent Activity log"
-        >
-          <RecentActivity
-            players={game.players.filter((player) => !player.isUser)}
-            dramaMode={dramaMode}
-            humanId={humanPlayer.id}
-            relationships={relationships}
-            compact
-            onExpandedChange={setHistoryOpen}
-          />
-        </div>
-
-        <footer className="sp2-footer" data-reality-tutorial="footer">
+        <footer className="sp2-footer sp2-footer--unified" data-reality-tutorial="footer">
           {pregnancyCelebration && (
             <span className="sp2-pregnancy-burst" aria-hidden="true">
               🤰 ✨ 🍼 💜 ✨
             </span>
           )}
-          {feedbackMsg ? (
-            <button
-              type="button"
-              className={`sp2-footer__feedback${feedbackExpanded ? ' sp2-footer__feedback--expanded' : ''}`}
-              aria-live="polite"
-              aria-expanded={feedbackExpanded}
-              onClick={() => setFeedbackExpanded((expanded) => !expanded)}
-              title="Tap to expand the full result"
-            >
-              {feedbackMsg}
-            </button>
-          ) : executionEligibility.reason && selectedActionId ? (
-            <span className="sp2-footer__feedback sp2-footer__feedback--hint">
-              {executionEligibility.reason}
-            </span>
-          ) : (
-            <span className="sp2-footer__cost">
-              {selectedCostLabel
-                ? `Cost: ${selectedScopeLabel ? `${selectedScopeLabel} · ` : ''}${selectedCostLabel}`
-                : 'Cost: —'}
-            </span>
-          )}
-          <button
-            className={`sp2-footer__execute${successPulse ? ' sp2-footer__execute--pulse' : ''}`}
-            type="button"
-            disabled={!canExecute}
-            aria-label={executeCopy}
-            aria-busy={executing}
-            onClick={handleExecute}
+          <div
+            className={`sp2-recent sp2-recent--unified${historyOpen ? ' sp2-recent--expanded' : ''}`}
+            aria-label="Recent Activity log"
           >
-            {executeCopy}
-          </button>
+            <RecentActivity
+              players={game.players}
+              compact
+              feedback={
+                feedbackMsg ??
+                (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
+              }
+              onExpandedChange={setHistoryOpen}
+              actionControl={
+                <button
+                  className={`sp2-footer__execute${successPulse ? ' sp2-footer__execute--pulse' : ''}`}
+                  type="button"
+                  disabled={!canExecute}
+                  aria-label={executeCopy}
+                  aria-busy={executing}
+                  onClick={handleExecute}
+                >
+                  {executeCopy}
+                </button>
+              }
+            />
+          </div>
         </footer>
       </div>
       {pregnancyRolePromptOpen && (

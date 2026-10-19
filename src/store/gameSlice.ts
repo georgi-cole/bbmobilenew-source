@@ -8,6 +8,7 @@ import type {
   Player,
   StrategicAllianceSnapshot,
   WeekendInterludeState,
+  WeekendTribunalSpeech,
   WeekendPartyBeat,
   Phase,
   TvEvent,
@@ -26,6 +27,7 @@ import type {
 } from '../types'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
+import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
 import {
@@ -41,7 +43,7 @@ import {
 import { isHybridScoredGame, resolveHybridAiScores } from '../ai/competition/hybridScoreResolver'
 import { simulateSnakeAiScore } from '../ai/competition/snakeAiSimulator'
 import { rankPressurePlankResults } from '../components/PressurePlank/pressurePlankLogic'
-import HOUSEGUESTS from '../data/houseguests'
+import HOUSEGUESTS, { getById } from '../data/houseguests'
 import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from './profilesSlice'
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
@@ -54,7 +56,11 @@ import {
   resolveTribunalSize,
 } from '../rules/tribunalPolicy'
 import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
-import { MAX_SEASON_ARCHIVES, type SeasonArchive } from './seasonArchive'
+import {
+  getTwinShockActivationSeason,
+  MAX_SEASON_ARCHIVES,
+  type SeasonArchive,
+} from './seasonArchive'
 import { loadSeasonArchives } from './archivePersistence'
 import { resolveSkinAssetPathWithFallback } from '../utils/skinAssets'
 import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
@@ -193,6 +199,7 @@ import {
   decideCompetitionIntent,
   type CompetitionIntent,
 } from '../social/intelligenceSystem'
+import { getHoldTheWallDealDisposition } from '../features/holdTheWall/deal'
 import {
   traceAiDecision,
   type AiDecisionCandidate,
@@ -204,6 +211,12 @@ import {
   isSeasonDirectorKillSwitched,
   isWithinDirectorWindow,
 } from '../features/twists/seasonDirector'
+import {
+  chooseWildcardOpportunity,
+  getWildcardAdmissionEligibility,
+  getWildcardQaQueueEligibility,
+  WILDCARD_LAST_TRIGGER_DAY,
+} from '../features/reserveEntrants/wildcardReplacement'
 
 // ─── Canonical phase order ────────────────────────────────────────────────────
 const PHASE_ORDER: Phase[] = [
@@ -237,6 +250,7 @@ const AI_LOH_WIN_THREAT_WEIGHT = 4
 const AI_POS_WIN_THREAT_WEIGHT = 3
 const AI_NEVER_NOMINATED_THREAT_WEIGHT = 1
 const AI_CURRENT_LOH_POWER_THREAT_WEIGHT = 2
+const AI_HOLD_THE_WALL_DEAL_WEIGHT = 108
 const EARLY_HUMAN_EVICTION_GRACE_BY_WEEK = [0, 16, 12, 6] as const
 
 function getPhaseOrderIndex(phase: Phase): number {
@@ -364,18 +378,22 @@ function activeHousemateCount(state: GameState): number {
 
 function createWeekendInterlude(
   state: GameState,
-  afterDay: 5 | 10 | 15,
-  debug = false
+  afterDay: number,
+  debug = false,
+  weekendNumber: 1 | 2 | 3 = afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+  finaleWeekend = false
 ): WeekendInterludeState {
   const base = {
     active: true as const,
     afterDay,
+    weekendNumber,
     weekendDay: 1 as const,
     wallet: { energy: 30, influence: 999, info: 999 },
+    ...(finaleWeekend ? { finaleWeekend: true as const } : {}),
     ...(debug ? { debug: true as const } : {}),
   }
 
-  if (afterDay === 5) {
+  if (weekendNumber === 1) {
     return {
       ...base,
       episode: 'hub_says',
@@ -390,7 +408,7 @@ function createWeekendInterlude(
     }
   }
 
-  if (afterDay === 10) {
+  if (weekendNumber === 2) {
     return {
       ...base,
       episode: 'party',
@@ -405,6 +423,68 @@ function createWeekendInterlude(
     stage: 'intro',
     seasonSoFar: { facts: buildSeasonSoFarFacts(state), currentFactIndex: 0 },
   }
+}
+
+function createFinaleTribunalSpeeches(state: GameState): WeekendTribunalSpeech[] {
+  const finalists = state.players
+    .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+    .sort((left, right) => {
+      const leftWins = (left.stats?.lohWins ?? 0) + (left.stats?.posWins ?? 0)
+      const rightWins = (right.stats?.lohWins ?? 0) + (right.stats?.posWins ?? 0)
+      return rightWins - leftWins
+    })
+  const tribunal = state.players
+    .filter((player) => player.status === 'jury' && player.tribunalEligible !== false)
+    .sort((left, right) => (right.evictedAtWeek ?? 0) - (left.evictedAtWeek ?? 0))
+    .slice(0, 3)
+
+  if (tribunal.length === 0) {
+    return [
+      {
+        speakerName: 'THE BIG EYE',
+        stance: 'neutral',
+        text: 'The Tribunal is settling into sequester. The finalists are all they can talk about tonight.',
+      },
+    ]
+  }
+
+  const defenses = [
+    (name: string) =>
+      `I’ll defend ${name}: making it to the Final Three takes more than luck. If I had to pick a winner tonight, they’d be in my top spot.`,
+    (name: string) =>
+      `People keep underestimating ${name}. They’re my dark horse to take the crown if they keep their nerve.`,
+    (name: string) =>
+      `${name} has a real shot. One last competition could turn them into my pick to win.`,
+  ]
+  const challenges = [
+    (name: string) =>
+      `But what is ${name}’s defining move? Getting here is one thing; I’m not ready to put them at the top of my ballot.`,
+    (name: string) =>
+      `I’m not convinced by ${name} yet. If they coast through these last days, I can’t see the jury choosing them.`,
+    (name: string) =>
+      `${name} is still in it, but surviving isn’t the same as leading. They could win the last battle and still need a stronger case.`,
+  ]
+
+  if (finalists.length === 0) return []
+
+  return finalists.slice(0, 3).flatMap((finalist, index) => {
+    const defender = tribunal[index % tribunal.length]
+    const skeptic = tribunal[(index + 1) % tribunal.length]
+    return [
+      {
+        speakerId: defender.id,
+        speakerName: defender.name,
+        stance: 'defend' as const,
+        text: defenses[index % defenses.length](finalist.name),
+      },
+      {
+        speakerId: skeptic.id,
+        speakerName: skeptic.name,
+        stance: 'challenge' as const,
+        text: challenges[index % challenges.length](finalist.name),
+      },
+    ]
+  })
 }
 
 // ─── Houseguest pool ─────────────────────────────────────────────────────────
@@ -712,11 +792,8 @@ export function createInitialGameState(options?: {
   // every later phase. This makes edits, disabling, and mixed built-in/custom
   // ordering effective before the first Play press as well.
   const seasonStartBuiltIns = [
-    {
-      id: cupidArrowIsScheduled ? 'season.welcome-cupid' : 'season.welcome',
-      variables: [String(season)],
-      include: true,
-    },
+    // SeasonStartOnboardingController owns the single opening welcome.
+    // Retired welcome templates remain readable only for saved-game migration.
     { id: 'season.public-mode-rule', variables: [publicModeEnabled ? 'ON' : 'OFF'], include: true },
     { id: 'season.vox-populi-intro', variables: [], include: voxPopuliIsScheduled },
   ].flatMap(({ id, variables, include }) => {
@@ -813,6 +890,10 @@ export function createInitialGameState(options?: {
         left.id.localeCompare(right.id)
     )
     .map((event) => event.id)
+  const wildcardOpportunity =
+    initialBroadcastCampaign === 'classic' && playersWithIdentity.length === 16
+      ? chooseWildcardOpportunity(seed)
+      : { status: 'none' as const }
   return {
     gameId: crypto.randomUUID(),
     expansionMode: null,
@@ -821,6 +902,9 @@ export function createInitialGameState(options?: {
     phase: 'season_start',
     weekendsEnabledForSeason: true,
     completedWeekendDays: [],
+    finaleWeekendCompleted: false,
+    wildcardOpportunity,
+    wildcardAdmissions: [],
     weekendInterlude: null,
     seed,
     seasonDirectorPlan,
@@ -1222,7 +1306,9 @@ function pushEvent(
   const observed =
     template || authoredTemplateId ? null : inferObservedBroadcastSource(state, hintedPhase, text)
   const templateId = template?.id ?? authoredTemplateId ?? observed?.id
-  const isDeclaredSource = Boolean(template || authoredTemplateId || meta?.customBroadcastId)
+  const isDeclaredSource = Boolean(
+    template || authoredTemplateId || meta?.customBroadcastId || typeof meta?.major === 'string'
+  )
   const variables = matched?.variables ?? observed?.variables ?? []
   const override = templateId ? state.broadcastOverrides?.[templateId] : undefined
   if (override?.disabled) return undefined
@@ -1333,6 +1419,47 @@ function pushEvent(
   state.tvFeed = [event, ...state.tvFeed].slice(0, MAX_GAME_HISTORY_EVENTS)
   enqueueManagedBroadcast(state, event)
   return event
+}
+
+/** Publish Bella's inheritance disclosure from every eviction path. */
+function publishBellaWillOnEviction(
+  state: GameState,
+  evicteeId: string,
+  excludedHeirIds: readonly string[] = []
+): void {
+  const will = state.bellaWill
+  if (evicteeId !== BELLA_ID || !will?.active || will.inherited) return
+
+  expireBellaWillAtEndgame(state)
+  const excluded = new Set(excludedHeirIds)
+  const heir = will.heirId ? state.players.find((player) => player.id === will.heirId) : null
+  const heirIsEligible =
+    heir != null &&
+    heir.id !== BELLA_ID &&
+    heir.status !== 'evicted' &&
+    heir.status !== 'jury' &&
+    !excluded.has(heir.id)
+  if (!heirIsEligible) will.heirId = chooseBellaHeir(state, excludedHeirIds)
+
+  const selectedHeir = state.players.find((player) => player.id === will.heirId)
+  if (!selectedHeir || !will.reward) return
+
+  activateBellaInheritance(state)
+  if (will.inherited) {
+    pushEvent(
+      state,
+      `Bella's Will is now in effect. ${selectedHeir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[will.reward]}.`,
+      'game',
+      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+    )
+  } else if (will.expiredAtEndgame) {
+    pushEvent(
+      state,
+      `Bella's Will is revealed. ${selectedHeir.name} is named heir, but the reward (${BELLA_WILL_REWARD_LABELS[will.reward]}) expired when the House reached the Final 4.`,
+      'game',
+      { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
+    )
+  }
 }
 
 function pushDetoxEvent(state: GameState, text: string) {
@@ -1817,7 +1944,7 @@ function appendNominee(state: GameState, playerId: string) {
 function getAiThreatScore(
   state: GameState,
   player: Player,
-  options: { preferLoh?: boolean } = {}
+  options: { preferLoh?: boolean; actorId?: string } = {}
 ): number {
   const lohWins = player.stats?.lohWins ?? 0
   const posWins = player.stats?.posWins ?? 0
@@ -1827,6 +1954,10 @@ function getAiThreatScore(
     state.competitionSeasonStateByPlayerId?.[player.id]
   )
   let score = competitionRead.threatBonus
+  score +=
+    (options.actorId
+      ? state.strategicThreatReadsByActorId?.[options.actorId]?.[player.id]?.score
+      : undefined) ?? 0
   if (player.id === state.lohId) {
     score += options.preferLoh === true ? AI_LOH_REVENGE_THREAT_WEIGHT : AI_LOH_BASE_THREAT_WEIGHT
   }
@@ -1841,6 +1972,33 @@ function getAiThreatScore(
 
 function getStrategicRelationship(state: GameState, actorId: string, targetId: string) {
   return state.strategicRelationships?.[actorId]?.[targetId] ?? null
+}
+
+function getKnownRomanticRivalPressure(
+  state: GameState,
+  actorId: string,
+  targetId: string
+): {
+  contribution: number
+  partnerId: string | null
+  evidenceDay: number | null
+  confidence: number
+  source: string | null
+} {
+  const evidence = state.dramaSocialMode
+    ? getStrategicRelationship(state, actorId, targetId)?.knownRomanticRival
+    : undefined
+  if (!evidence) {
+    return { contribution: 0, partnerId: null, evidenceDay: null, confidence: 0, source: null }
+  }
+  const confidence = Math.max(0, Math.min(1, evidence.confidence))
+  return {
+    contribution: Math.round(44 * confidence),
+    partnerId: evidence.partnerId,
+    evidenceDay: evidence.evidenceDay,
+    confidence,
+    source: evidence.source,
+  }
 }
 
 export interface StrategicAllianceDecisionRead {
@@ -1996,12 +2154,17 @@ function getSafetyRelationshipBreakdown(
 ): { total: number; factors: Record<string, AiDecisionFactor> } {
   const relationship = getStrategicRelationship(state, holderId, nominee.id)
   const allianceRead = getStrategicAllianceDecisionRead(state, holderId, nominee.id)
-  const threat = getAiThreatScore(state, nominee)
+  const threat = getAiThreatScore(state, nominee, { actorId: holderId })
+  const socialRead = state.strategicThreatReadsByActorId?.[holderId]?.[nominee.id]
+  const socialThreat = socialRead?.score ?? 0
+  const competitionThreat = threat - socialThreat
   const competitionRead = getCompetitionPerceptionRead(
     nominee.competitionProfile,
     state.competitionSeasonStateByPlayerId?.[nominee.id]
   )
   const expendablePawnPenalty = competitionRead.pawnSuitability
+  const knownJealousy = getKnownRomanticRivalPressure(state, holderId, nominee.id)
+  const knownJealousyPenalty = -knownJealousy.contribution
   const realityAllianceContribution = state.dramaSocialMode
     ? allianceRead.sharedProtection * 82 -
       allianceRead.currentTargetPressure * 58 -
@@ -2011,16 +2174,31 @@ function getSafetyRelationshipBreakdown(
   const bellaSaveBonus = nominee.id === BELLA_ID ? 18 : 0
 
   if (!relationship) {
-    const total = -threat * 3 - expendablePawnPenalty + realityAllianceContribution + bellaSaveBonus
+    const total =
+      -threat * 3 -
+      expendablePawnPenalty +
+      realityAllianceContribution +
+      bellaSaveBonus +
+      knownJealousyPenalty
     return {
       total,
       factors: {
-        threatContribution: -threat * 3,
+        threatContribution: -competitionThreat * 3,
+        socialInfluenceThreat: -socialThreat * 3,
+        observedPersuasion: socialRead?.persuasion ?? 0,
+        observedNetworkReach: socialRead?.networkReach ?? 0,
+        publicStrategicRespect: socialRead?.publicRespect ?? 0,
+        estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
         expendablePawnPenalty: -expendablePawnPenalty,
         sandbagSuspicion: competitionRead.sandbagSuspicion,
         relationship: 'none',
         realityAllianceContribution,
         bellaSaveBonus,
+        knownJealousyPenalty,
+        knownRomanticPartnerId: knownJealousy.partnerId,
+        jealousyEvidenceDay: knownJealousy.evidenceDay,
+        jealousyEvidenceConfidence: knownJealousy.confidence,
+        jealousyEvidenceSource: knownJealousy.source,
       },
     }
   }
@@ -2028,12 +2206,27 @@ function getSafetyRelationshipBreakdown(
   const holder = state.players.find((player) => player.id === holderId)
   const factors: Record<string, AiDecisionFactor> = {
     affinity: relationship.affinity,
-    threatPenalty: -threat * 3,
+    threatPenalty: -competitionThreat * 3,
+    socialInfluenceThreat: -socialThreat * 3,
+    observedPersuasion: socialRead?.persuasion ?? 0,
+    observedNetworkReach: socialRead?.networkReach ?? 0,
+    publicStrategicRespect: socialRead?.publicRespect ?? 0,
+    estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
     expendablePawnPenalty: -expendablePawnPenalty,
     sandbagSuspicion: competitionRead.sandbagSuspicion,
     tags: relationship.tags.join(', ') || 'none',
+    knownJealousyPenalty,
+    knownRomanticPartnerId: knownJealousy.partnerId,
+    jealousyEvidenceDay: knownJealousy.evidenceDay,
+    jealousyEvidenceConfidence: knownJealousy.confidence,
+    jealousyEvidenceSource: knownJealousy.source,
   }
-  let score = relationship.affinity - threat * 3 - expendablePawnPenalty + bellaSaveBonus
+  let score =
+    relationship.affinity -
+    threat * 3 -
+    expendablePawnPenalty +
+    bellaSaveBonus +
+    knownJealousyPenalty
   factors.bellaSaveBonus = bellaSaveBonus
   const identityContribution =
     allianceIdentityBias(holder?.aiGameIdentity) *
@@ -2117,13 +2310,26 @@ function getNominationTargetBreakdown(
   const allianceRead = getStrategicAllianceDecisionRead(state, lohId, candidate.id)
   const tags = new Set(relationship?.tags ?? [])
   const affinity = relationship?.affinity ?? 0
-  const threat = getAiThreatScore(state, candidate)
+  const threat = getAiThreatScore(state, candidate, { actorId: lohId })
+  const socialRead = state.strategicThreatReadsByActorId?.[lohId]?.[candidate.id]
+  const socialThreat = socialRead?.score ?? 0
+  const knownJealousy = getKnownRomanticRivalPressure(state, lohId, candidate.id)
   const factors: Record<string, AiDecisionFactor> = {
-    threatContribution: threat * 4,
+    threatContribution: (threat - socialThreat) * 4,
+    socialInfluenceThreat: socialThreat * 4,
+    observedPersuasion: socialRead?.persuasion ?? 0,
+    observedNetworkReach: socialRead?.networkReach ?? 0,
+    publicStrategicRespect: socialRead?.publicRespect ?? 0,
+    estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
     affinityPenalty: -affinity,
     tags: [...tags].join(', ') || 'none',
+    knownRomanticRivalJealousy: knownJealousy.contribution,
+    jealousyPartnerId: knownJealousy.partnerId,
+    jealousyEvidenceDay: knownJealousy.evidenceDay,
+    jealousyEvidenceConfidence: knownJealousy.confidence,
+    jealousyEvidenceSource: knownJealousy.source,
   }
-  let score = threat * 4 - affinity
+  let score = threat * 4 - affinity + knownJealousy.contribution
   if (tags.has('betrayal')) {
     score += 125
     factors.betrayal = 125
@@ -2174,9 +2380,16 @@ function getNominationTargetBreakdown(
   factors.voxMomentum = voxMomentum
   const loh = state.players.find((player) => player.id === lohId)
   const identityMode = getAiIdentityMode(state)
-  const identityBias = nominationIdentityBias(loh?.aiGameIdentity, identityMode)
+  const priorNominations = state.lastWeekNominationRecord
+  const wasRecentlyTargeted =
+    priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)
+  const identityBias = nominationIdentityBias(loh?.aiGameIdentity, identityMode, {
+    affinity,
+    tags: [...tags],
+    targetIdentity: candidate.aiGameIdentity,
+  })
   score += identityBias
-  factors.identityBias = identityBias
+  factors.personalityTargetBias = identityBias
   if (identityMode === 'vox_populi' && loh?.aiGameIdentity) {
     // Vox players who care about their public image prefer a house-consensus
     // nomination over a conspicuous personal feud. Media strategists still
@@ -2190,11 +2403,27 @@ function getNominationTargetBreakdown(
       factors.mediaStrategistThreat = mediaThreat
     }
   }
-  const priorNominations = state.lastWeekNominationRecord
-  if (priorNominations?.lohId === candidate.id && priorNominations.nomineeIds.includes(lohId)) {
-    // Revenge matters, but alliances and stronger strategic reasons can still outweigh it.
-    score += 32
-    factors.revenge = 32
+  if (wasRecentlyTargeted) {
+    // A recent nomination creates a grievance, with stronger reactions from
+    // volatile or impulsive holders while calm holders stay focused on other reasons.
+    const volatility = loh?.aiGameIdentity?.emotionalVolatility ?? 0.86
+    const impulsiveBoost = loh?.aiGameIdentity?.temperament === 'impulsive' ? 6 : 0
+    const revenge = Math.round(8 + volatility * 26 + impulsiveBoost)
+    score += revenge
+    factors.revenge = revenge
+  }
+  const wallDeal = state.holdTheWallSafetyDeal
+  if (
+    wallDeal?.week === state.week &&
+    wallDeal.promisorId === lohId &&
+    wallDeal.beneficiaryId === candidate.id
+  ) {
+    const disposition = getHoldTheWallDealDisposition(state, wallDeal)
+    const contribution =
+      disposition === 'honor' ? -AI_HOLD_THE_WALL_DEAL_WEIGHT : AI_HOLD_THE_WALL_DEAL_WEIGHT
+    score += contribution
+    factors.holdTheWallDealDisposition = disposition
+    factors.holdTheWallDealContribution = contribution
   }
   factors.total = score
   return { total: score, factors }
@@ -2206,6 +2435,234 @@ export function getNominationTargetScore(
   candidate: Player
 ): number {
   return getNominationTargetBreakdown(state, lohId, candidate).total
+}
+
+const ELIMINATION_CLOSE_SCORE_MARGIN = 4
+
+export interface StrategicEliminationCandidate {
+  id: string
+  label: string
+  total: number
+  factors: Record<string, AiDecisionFactor>
+}
+
+export interface StrategicEliminationChoice {
+  selectedIds: string[]
+  rankedCandidates: StrategicEliminationCandidate[]
+  publicRationale: string | null
+}
+
+/**
+ * Resolve a decisive elimination choice from the same actor-specific read for
+ * ordinary vote ties, double-elimination ties, and the Final Four sole vote.
+ * The score uses current relationships, alliance plans, promises, competition
+ * threat, and the LOH's persisted plan. Seeded variation only orders candidates
+ * whose scores are within a narrow margin.
+ */
+export function chooseStrategicEliminationCandidates(
+  state: GameState,
+  decisionMakerId: string,
+  candidateIds: string[],
+  selectionCount: number,
+  decisionType: 'ordinary_tie' | 'double_tie' | 'final_four',
+  gameSeed: number
+): StrategicEliminationChoice {
+  const candidates = candidateIds
+    .map((id) => state.players.find((player) => player.id === id))
+    .filter((player): player is Player => Boolean(player))
+  const plan =
+    state.lohNominationPlan?.week === state.week &&
+    state.lohNominationPlan.lohId === decisionMakerId &&
+    !['failed', 'compromised'].includes(state.lohNominationPlan.status)
+      ? state.lohNominationPlan
+      : null
+  const scored = candidates.map((candidate) => {
+    const nomination = getNominationTargetBreakdown(state, decisionMakerId, candidate)
+    const relationship = getStrategicRelationship(state, decisionMakerId, candidate.id)
+    const allianceRead = getStrategicAllianceDecisionRead(state, decisionMakerId, candidate.id)
+    const tags = new Set(relationship?.tags ?? [])
+    const factors: Record<string, AiDecisionFactor> = { ...nomination.factors }
+    let total = nomination.total
+
+    // Keep a live alliance plan in the model in both classic and Reality saves.
+    // Reality mode already includes this pressure in getNominationTargetBreakdown.
+    const alliancePlanContribution = state.dramaSocialMode
+      ? 0
+      : allianceRead.currentTargetPressure * 52 + allianceRead.fallbackTargetPressure * 23
+    total += alliancePlanContribution
+    factors.alliancePlanContribution = alliancePlanContribution
+    factors.sharedAllianceProtection = allianceRead.sharedProtection
+
+    // A current, explicit protection promise weighs heavily, but remains
+    // defeasible when stronger threats or betrayal evidence point the other way.
+    const taggedPromiseProtection = tags.has('safety_promise') ? -92 : 0
+    // The nomination read already includes the wall bargain's honor/betrayal
+    // decision. Add only protection not already covered by that bargain.
+    const wallDealProtection = Math.min(
+      0,
+      Number(nomination.factors.holdTheWallDealContribution ?? 0)
+    )
+    const promiseProtection =
+      Math.min(taggedPromiseProtection, wallDealProtection) - wallDealProtection
+    total += promiseProtection
+    factors.promiseProtection = promiseProtection
+
+    // Preserve the LOH's stated priorities as meaningful evidence, not a forced
+    // outcome. A promise, alliance decision, or current threat can still outweigh it.
+    let currentPlanContribution = 0
+    if (plan) {
+      const priorities = plan.eliminationPriorityIds?.length
+        ? plan.eliminationPriorityIds
+        : [plan.targetId]
+      const priorityIndex = priorities.indexOf(candidate.id)
+      if (priorityIndex >= 0) currentPlanContribution = priorityIndex === 0 ? 48 : 34
+      if (plan.preferredSurvivorId === candidate.id) currentPlanContribution -= 58
+      const replacementTargetId =
+        plan.replacementTargetOverrideId ?? plan.replacementTargetId ?? plan.backupTargetId
+      if (replacementTargetId === candidate.id) currentPlanContribution += 22
+    }
+    total += currentPlanContribution
+    factors.currentPlanContribution = currentPlanContribution
+    factors.total = total
+
+    return { id: candidate.id, label: candidate.name, total, factors }
+  })
+
+  const scoreOrdered = [...scored].sort(
+    (left, right) => right.total - left.total || left.id.localeCompare(right.id)
+  )
+  const rankedCandidates: StrategicEliminationCandidate[] = []
+  for (let index = 0; index < scoreOrdered.length; ) {
+    const topScore = scoreOrdered[index].total
+    let clusterEnd = index + 1
+    while (
+      clusterEnd < scoreOrdered.length &&
+      topScore - scoreOrdered[clusterEnd].total <= ELIMINATION_CLOSE_SCORE_MARGIN
+    ) {
+      clusterEnd += 1
+    }
+    const closeCandidates = scoreOrdered.slice(index, clusterEnd).sort((left, right) => {
+      const rankFor = (candidateId: string) =>
+        mulberry32(
+          (gameSeed ^
+            hashString(`${state.week}:${decisionType}:${decisionMakerId}:${candidateId}`)) >>>
+            0
+        )()
+      return rankFor(right.id) - rankFor(left.id) || left.id.localeCompare(right.id)
+    })
+    rankedCandidates.push(...closeCandidates)
+    index = clusterEnd
+  }
+
+  const selectedIds = rankedCandidates
+    .slice(0, Math.max(0, Math.min(selectionCount, rankedCandidates.length)))
+    .map((candidate) => candidate.id)
+  const humanId = state.players.find((player) => player.isUser)?.id
+  const disclosedTargetId =
+    humanId &&
+    state.lohSocialPlan?.week === state.week &&
+    state.lohSocialPlan.lohId === decisionMakerId &&
+    state.lohSocialPlan.disclosureOutcomeByPlayerId?.[humanId] !== 'false'
+      ? state.lohSocialPlan.disclosedTargetByPlayerId?.[humanId]
+      : undefined
+  const publicRationale =
+    disclosedTargetId && !selectedIds.includes(disclosedTargetId) && selectedIds.length > 0
+      ? buildKnownPlanDepartureRationale(
+          state,
+          decisionMakerId,
+          disclosedTargetId,
+          selectedIds[0],
+          scored
+        )
+      : null
+
+  return { selectedIds, rankedCandidates, publicRationale }
+}
+
+function buildKnownPlanDepartureRationale(
+  state: GameState,
+  decisionMakerId: string,
+  disclosedTargetId: string,
+  selectedId: string,
+  candidates: StrategicEliminationCandidate[]
+): string | null {
+  const previousTarget = state.players.find((player) => player.id === disclosedTargetId)
+  const selected = state.players.find((player) => player.id === selectedId)
+  const actor = state.players.find((player) => player.id === decisionMakerId)
+  const selectedScore = candidates.find((candidate) => candidate.id === selectedId)
+  const previousScore = candidates.find((candidate) => candidate.id === disclosedTargetId)
+  if (!previousTarget || !selected || !actor || !selectedScore) return null
+
+  const selectedPublicWins = (selected.stats?.lohWins ?? 0) + (selected.stats?.posWins ?? 0)
+  const previousPublicWins =
+    (previousTarget.stats?.lohWins ?? 0) + (previousTarget.stats?.posWins ?? 0)
+  const threatLead =
+    Number(selectedScore.factors.threatContribution ?? 0) -
+    Number(previousScore?.factors.threatContribution ?? 0)
+  if (selectedPublicWins > previousPublicWins && threatLead >= 4) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name}; ${selected.name}'s stronger competition record weighed in.`
+  }
+
+  const originalNomineeIds = new Set(state.currentWeekNominationRecord?.nomineeIds ?? [])
+  if (
+    state.nomineeIds.includes(selectedId) &&
+    !originalNomineeIds.has(selectedId) &&
+    state.povSavedId != null
+  ) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} after Safety changed the block.`
+  }
+
+  const humanId = state.players.find((player) => player.isUser)?.id
+  const sharedAlliancePlan = (state.strategicAlliances ?? []).some(
+    (alliance) =>
+      alliance.status !== 'DISSOLVED' &&
+      alliance.memberIds.includes(decisionMakerId) &&
+      Boolean(humanId && alliance.memberIds.includes(humanId)) &&
+      alliance.currentTargetIds.includes(selectedId)
+  )
+  if (sharedAlliancePlan) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} as the shared alliance plan shifted.`
+  }
+
+  const scoreGap = Math.abs(selectedScore.total - (previousScore?.total ?? selectedScore.total))
+  if (scoreGap <= ELIMINATION_CLOSE_SCORE_MARGIN) {
+    return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name}; the tied choices were closely matched.`
+  }
+  return `${actor.name} changed the earlier call from ${previousTarget.name} to ${selected.name} after reassessing the live nominees.`
+}
+
+function traceStrategicEliminationChoice(
+  state: GameState,
+  actorId: string,
+  choice: StrategicEliminationChoice,
+  decisionType: 'ordinary_tie' | 'double_tie' | 'final_four',
+  seed: number
+): void {
+  traceAiDecision({
+    kind: 'eviction_decision',
+    actorId,
+    actorName: state.players.find((player) => player.id === actorId)?.name,
+    chosenId: choice.selectedIds[0] ?? null,
+    chosenIds: choice.selectedIds,
+    week: state.week,
+    phase: state.phase,
+    seed,
+    reason: choice.publicRationale ?? 'highest explainable strategic elimination score',
+    context: {
+      decisionType,
+      selectedCount: choice.selectedIds.length,
+      candidateIds: choice.rankedCandidates.map((candidate) => candidate.id),
+    },
+    candidates: choice.rankedCandidates.map((candidate) => ({
+      id: candidate.id,
+      label: candidate.label,
+      total: candidate.total,
+      factors: {
+        ...candidate.factors,
+        selected: choice.selectedIds.includes(candidate.id),
+      },
+    })),
+  })
 }
 
 /**
@@ -2233,7 +2690,11 @@ export function getStrategicReplacementNomineeBreakdown(
       ? state.lohSocialPlan
       : null
   const nominationPlan = isLohDecision ? state.lohNominationPlan : null
-  const canonicalBackupPressure = socialPlan?.backupTargetId === candidate.id ? 78 : 0
+  const canonicalReplacementTargetId =
+    nominationPlan?.replacementTargetOverrideId ??
+    nominationPlan?.replacementTargetId ??
+    socialPlan?.backupTargetId
+  const canonicalBackupPressure = canonicalReplacementTargetId === candidate.id ? 78 : 0
   const hiddenAmbushPressure =
     nominationPlan?.strategy === 'backdoor' &&
     nominationPlan.status !== 'executed' &&
@@ -2762,6 +3223,7 @@ function pickStrategicAiPlayer(
   mode: 'highest' | 'lowest',
   options: {
     preferLoh?: boolean
+    actorId?: string
     debug?: {
       actorId?: string
       kind: 'replacement_nominee'
@@ -2773,7 +3235,10 @@ function pickStrategicAiPlayer(
   if (candidates.length === 0) return null
   const scored = candidates.map((player) => ({
     player,
-    score: getAiThreatScore(state, player, options),
+    score: getAiThreatScore(state, player, {
+      ...options,
+      actorId: options.actorId ?? options.debug?.actorId,
+    }),
   }))
   const targetScore =
     mode === 'highest'
@@ -3468,10 +3933,9 @@ type CommitPublicSavePayload =
 /**
  * Decide Tribunal membership at the moment an exit is committed.
  *
- * The season boundary is locked to the starting cast. The standard 16-player
- * Classic format therefore has five pre-Tribunal exits and nine Tribunal
- * seats. Extraordinary removals never join, and a filled Tribunal never grows
- * just because a replacement shock introduced an extra contestant.
+ * The Tribunal seat target stays locked to the starting cast. A committed
+ * reserve entrant adds one pre-Tribunal exit without changing the original
+ * cast-size record or the number of Tribunal seats.
  */
 function evictedStatus(state: GameState, evictee: Player): 'evicted' | 'jury' {
   if (isVoxPopuliActive(state) || evictee.tribunalEligible === false) return 'evicted'
@@ -3485,11 +3949,72 @@ function evictedStatus(state: GameState, evictee: Player): 'evicted' | 'jury' {
   const committedExits = state.players.filter(
     (player) => player.status === 'evicted' || player.status === 'jury'
   ).length
-  const preTribunalExits = preTribunalExitCount(startingCastSize, tribunalSize)
+  const admittedContestants = state.wildcardAdmissions?.length ?? 0
+  const preTribunalExits = preTribunalExitCount(
+    startingCastSize + admittedContestants,
+    tribunalSize
+  )
   return committedExits < preTribunalExits ? 'evicted' : 'jury'
 }
 
-function archiveSeasonExitContext(state: GameState, playerId: string) {
+type WildcardTriggerType = 'double_elimination' | 'morning_shock' | 'self_elimination'
+
+function queueWildcardArrivalFromTrigger(state: GameState, triggerType: WildcardTriggerType) {
+  const opportunity = state.wildcardOpportunity
+  if (opportunity?.status !== 'selected' || !opportunity.playerId) return
+
+  const cancel = (reason: string) => {
+    state.wildcardOpportunity = { ...opportunity, status: 'cancelled', reason }
+  }
+  const startingCastSize = state.cfg?.tribunalStartingCastSize ?? state.players.length
+  if (startingCastSize !== 16 || state.mode === 'survival' || state.expansionMode != null) {
+    cancel('This reserve route is limited to standard 16-player Classic seasons.')
+    return
+  }
+  if (
+    state.cupidArrow?.status === 'scheduled' ||
+    state.cupidArrow?.status === 'active' ||
+    state.voxPopuli?.status === 'scheduled' ||
+    state.voxPopuli?.status === 'active'
+  ) {
+    cancel('This season has a separate format or arrival story.')
+    return
+  }
+  if (
+    state.twinShockConsumed !== true &&
+    state.players.some((player) => player.id === 'lia' || player.id === 'lia_ali')
+  ) {
+    cancel('Resolve the separate Twin Shock story before a reserve entry.')
+    return
+  }
+  if (state.wildcardAdmissions?.length) {
+    cancel('A reserve entrant has already joined this season.')
+    return
+  }
+  if (state.players.some((player) => player.status === 'jury') || state.tribunalPhaseAnnounced) {
+    cancel('The Tribunal has already begun.')
+    return
+  }
+  if (state.week > WILDCARD_LAST_TRIGGER_DAY) {
+    cancel('Reserve opportunities close after the first half of the season.')
+    return
+  }
+  const selectedProfile = getById(opportunity.playerId)
+  if (!selectedProfile?.avatar) {
+    cancel('The selected reserve does not have a complete profile and portrait.')
+    return
+  }
+
+  state.wildcardOpportunity = {
+    ...opportunity,
+    status: 'pending',
+    triggerType,
+    triggerDay: state.week,
+    arrivalDay: state.week + 1,
+  }
+}
+
+function archiveSeasonExitContext(state: GameState, playerId: string, exitMethodOverride?: string) {
   const alreadyArchived = (state.history ?? []).some(
     (event) =>
       event.type === 'seasonExit' && event.week === state.week && event.data.playerId === playerId
@@ -3514,8 +4039,12 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
     ? []
     : (roundSnapshot?.leaderIds ??
       (state.coLohIds?.length ? [...state.coLohIds] : state.lohId ? [state.lohId] : []))
+  const pendingExitMethod =
+    state.pendingEviction?.evicteeId === playerId ? state.pendingEviction.exitMethod : undefined
   const exitMethod =
-    state.dayStartShock?.targetId === playerId
+    exitMethodOverride ??
+    pendingExitMethod ??
+    (state.dayStartShock?.targetId === playerId
       ? 'shock'
       : isCupidArrowActive(state) && state.cupidArrow?.pendingPartnerEvictionId === playerId
         ? 'linkedExit'
@@ -3523,7 +4052,7 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
           ? 'directDecision'
           : state.doubleEviction?.weekActive
             ? 'doubleExit'
-            : 'vote'
+            : 'vote')
 
   state.history = [
     ...(state.history ?? []),
@@ -3546,6 +4075,7 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
         voteCounts: roundSnapshot?.voteCounts ?? { ...(state.voteResults ?? {}) },
         decisionMakerId,
         exitMethod,
+        doubleElimination: state.doubleEviction?.weekActive === true,
         voxPopuli: isVoxPopuliActive(state),
         nominationVoteCounts: isVoxPopuliActive(state)
           ? { ...(state.voxPopuli?.nominationVoteCounts ?? {}) }
@@ -3560,6 +4090,24 @@ function archiveSeasonExitContext(state: GameState, playerId: string) {
       timestamp: Date.now(),
     },
   ]
+
+  const exit = state.history[state.history.length - 1]
+  const exitingPlayer = state.players.find((player) => player.id === playerId)
+  if (exitMethod === 'shock') {
+    queueWildcardArrivalFromTrigger(state, 'morning_shock')
+  } else if (exitMethod === 'selfEviction' && exitingPlayer && !exitingPlayer.isUser) {
+    queueWildcardArrivalFromTrigger(state, 'self_elimination')
+  } else if (exit?.data.doubleElimination === true) {
+    const sameDayDoubleExits = state.history.filter(
+      (event) =>
+        event.type === 'seasonExit' &&
+        event.week === state.week &&
+        event.data.doubleElimination === true
+    )
+    if (sameDayDoubleExits.length >= 2) {
+      queueWildcardArrivalFromTrigger(state, 'double_elimination')
+    }
+  }
 }
 
 /**
@@ -3591,6 +4139,92 @@ function assignSeasonPlacementOnExit(state: GameState, playerId: string) {
     (p) => p.status !== 'evicted' && p.status !== 'jury'
   ).length
   player.seasonPlacement = aliveCount
+}
+
+function applyWildcardAdmission(state: GameState, wildcardId: string): boolean {
+  const eligibility = getWildcardAdmissionEligibility(state, wildcardId)
+  if (!eligibility.eligible || !eligibility.displacedPlayer || eligibility.rosterIndex == null) {
+    return false
+  }
+
+  const profile = getById(wildcardId)
+  if (!profile?.avatar) return false
+  const entrant: Player = {
+    id: profile.id,
+    name: profile.name,
+    avatar: profile.avatar,
+    sex: profile.sex,
+    age: profile.age,
+    status: 'active',
+    tribunalEligible: true,
+    lateEntrant: true,
+    enteredAtDay: state.week,
+    competitionProfile: profile.competitionProfile ?? getDefaultCompetitionProfile(),
+    stats: { lohWins: 0, posWins: 0, timesNominated: 0 },
+  }
+  const [identifiedEntrant] = assignAiGameIdentities(
+    [entrant],
+    state.seed,
+    getAiIdentityMode(state)
+  )
+
+  // A new contestant increases the field by one, so previously recorded
+  // placements shift down while each original exit record stays attached to
+  // its original identity.
+  for (const player of state.players) {
+    if (typeof player.seasonPlacement === 'number') player.seasonPlacement += 1
+    if (typeof player.firstExitPlacement === 'number') player.firstExitPlacement += 1
+  }
+
+  state.players.push(identifiedEntrant)
+  state.competitionSeasonStateByPlayerId = {
+    ...(state.competitionSeasonStateByPlayerId ?? {}),
+    [wildcardId]: getDefaultCompetitionSeasonState(),
+  }
+  state.wildcardAdmissions = [
+    ...(state.wildcardAdmissions ?? []),
+    {
+      playerId: wildcardId,
+      displacedPlayerId: eligibility.displacedPlayer.id,
+      rosterIndex: eligibility.rosterIndex,
+      enteredAtDay: state.week,
+      ...(state.wildcardOpportunity?.qaForced ? { forcedByQa: true } : {}),
+    },
+  ]
+  state.wildcardOpportunity = {
+    ...(state.wildcardOpportunity ?? { status: 'pending' as const }),
+    status: 'admitted',
+    playerId: wildcardId,
+  }
+  state.history = [
+    ...(state.history ?? []),
+    {
+      type: 'wildcardAdmission',
+      week: state.week,
+      data: {
+        playerId: wildcardId,
+        displacedPlayerId: eligibility.displacedPlayer.id,
+        triggerType: state.wildcardOpportunity.triggerType ?? 'qa',
+        triggerDay: state.wildcardOpportunity.triggerDay ?? state.week - 1,
+        forcedByQa: state.wildcardOpportunity.qaForced === true,
+      },
+      timestamp: Date.now(),
+    },
+  ]
+  pushEvent(
+    state,
+    `${profile.name} has entered The Hub as a reserve contestant. Their game begins today.`,
+    'game',
+    {
+      major: 'wildcard_arrival',
+      key: `wildcard_arrival_${wildcardId}_${state.week}`,
+      phase: 'week_start',
+      forceOnTv: true,
+      broadcastPriority: 'critical',
+      announcementTitle: 'A New Player Enters',
+    }
+  )
+  return true
 }
 
 /**
@@ -4436,7 +5070,9 @@ export function chooseAiEvictionVote(
     const allianceRead = getStrategicAllianceDecisionRead(state, voterId, nomineeId)
     const tags = new Set(relationship?.tags ?? [])
     const affinity = relationship?.affinity ?? 0
-    const threat = nominee ? getAiThreatScore(state, nominee) : 0
+    const threat = nominee ? getAiThreatScore(state, nominee, { actorId: voterId }) : 0
+    const socialRead = state.strategicThreatReadsByActorId?.[voterId]?.[nomineeId]
+    const socialThreat = socialRead?.score ?? 0
     const rng = mulberry32(
       (gameSeed ^ hashString(`vote:${state.week}:${voterId}:${nomineeId}`)) >>> 0
     )
@@ -4449,12 +5085,23 @@ export function chooseAiEvictionVote(
     // can still outweigh it.
     const backdoorTargetContribution = nomineeId === executedBackdoorTargetId ? 30 : 0
     const factors: Record<string, AiDecisionFactor> = {
-      threatContribution: threat * 8,
+      threatContribution: (threat - socialThreat) * 8,
+      socialInfluenceThreat: socialThreat * 8,
+      observedPersuasion: socialRead?.persuasion ?? 0,
+      observedNetworkReach: socialRead?.networkReach ?? 0,
+      publicStrategicRespect: socialRead?.publicRespect ?? 0,
+      estimatedTribunalAppeal: socialRead?.juryAppeal ?? 0,
       affinityPenalty: -affinity,
       randomContribution: randomDraw * 4,
       earlyHumanGrace: -grace * 1.35,
       tags: [...tags].join(', ') || 'none',
     }
+    const knownJealousy = getKnownRomanticRivalPressure(state, voterId, nomineeId)
+    factors.knownRomanticRivalJealousy = knownJealousy.contribution
+    factors.jealousyPartnerId = knownJealousy.partnerId
+    factors.jealousyEvidenceDay = knownJealousy.evidenceDay
+    factors.jealousyEvidenceConfidence = knownJealousy.confidence
+    factors.jealousyEvidenceSource = knownJealousy.source
     if (backdoorTargetContribution > 0) {
       factors.backdoorTargetContribution = backdoorTargetContribution
     }
@@ -4466,7 +5113,8 @@ export function chooseAiEvictionVote(
     let score =
       threat * 8 -
       affinity +
-      randomDraw * 4 -
+      randomDraw * 4 +
+      knownJealousy.contribution -
       grace * 1.35 +
       backdoorTargetContribution +
       alliancePlanContribution
@@ -4685,12 +5333,32 @@ function applyOneVoteDeductionToHuman(state: GameState): boolean {
     } else {
       state.awaitingTieBreak = false
       state.awaitingPosTieBreak = false
-      const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
-      const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
+      const decisionSeed = (state.seed ^ 0xdeadbeef) >>> 0
+      const decisionMakerId = tieBreakerPlayerId ?? state.lohId ?? state.posWinnerId
+      const decision = decisionMakerId
+        ? chooseStrategicEliminationCandidates(
+            state,
+            decisionMakerId,
+            topNominees,
+            1,
+            'ordinary_tie',
+            decisionSeed
+          )
+        : null
+      if (decisionMakerId && decision) {
+        traceStrategicEliminationChoice(
+          state,
+          decisionMakerId,
+          decision,
+          'ordinary_tie',
+          decisionSeed
+        )
+      }
+      const evicteeId = decision?.selectedIds[0] ?? topNominees[0]
       const evicted = state.players.find((player) => player.id === evicteeId)
       if (evicted) {
         const evictionMessage = tieBreakerPlayer
-          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`
+          ? `${tieBreakerPlayer.name} breaks the tie, voting to eliminate ${evicted.name}.${decision?.publicRationale ? ` ${decision.publicRationale}` : ''} ${evicted.name} has been eliminated from the Hub. 🗳️`
           : `${evicted.name} has been eliminated from the Hub. 🚪`
         state.pendingEviction = { evicteeId: evicted.id, evictionMessage }
       }
@@ -4821,6 +5489,12 @@ const gameSlice = createSlice({
         }
       }
     },
+    syncStrategicThreatReads(
+      state,
+      action: PayloadAction<NonNullable<GameState['strategicThreatReadsByActorId']>>
+    ) {
+      state.strategicThreatReadsByActorId = action.payload
+    },
     syncStrategicAlliances(
       state,
       action: PayloadAction<NonNullable<GameState['strategicAlliances']>>
@@ -4895,6 +5569,7 @@ const gameSlice = createSlice({
         return
       }
       plan.replacementTargetOverrideId = target.id
+      plan.replacementTargetId = target.id
       if (state.lohSocialPlan?.week === state.week && state.lohSocialPlan.lohId === state.lohId) {
         state.lohSocialPlan.backupTargetId = target.id
       }
@@ -5379,6 +6054,18 @@ const gameSlice = createSlice({
         }
       }
 
+      // Some elimination tournaments report actual per-round averages and a
+      // bracket order that is distinct from sorting those averages. Preserve
+      // both when supplied instead of mixing them with precomputed AI scores.
+      if (payload.rawResults) {
+        for (const id of session.participants) {
+          const reportedScore = payload.rawResults[id]
+          if (typeof reportedScore === 'number' && Number.isFinite(reportedScore)) {
+            scores[id] = reportedScore
+          }
+        }
+      }
+
       // Prefer a canonical winner supplied by the UI component so the
       // displayed leaderboard and the applied state transition stay aligned.
       // When using the hybrid resolver the component also calls it with the
@@ -5429,9 +6116,16 @@ const gameSlice = createSlice({
         winnerId,
       })
 
-      const placements = [...session.participants].sort(
-        (left, right) => (scores[right] ?? 0) - (scores[left] ?? 0) || left.localeCompare(right)
+      const reportedPlacements = payload.authoritativeRankedIds?.filter(
+        (id, index, allIds) => session.participants.includes(id) && allIds.indexOf(id) === index
       )
+      const placements =
+        reportedPlacements?.length === session.participants.length
+          ? reportedPlacements
+          : [...session.participants].sort(
+              (left, right) =>
+                (scores[right] ?? 0) - (scores[left] ?? 0) || left.localeCompare(right)
+            )
       state.lastCompetitionResolution = {
         runId: `${session.key}:${session.seed}`,
         gameKey: session.key,
@@ -6514,11 +7208,44 @@ const gameSlice = createSlice({
         ? (state.players.find((player) => player.id === state.posWinnerId)?.name ??
           'The Safety holder')
         : (state.players.find((player) => player.id === state.lohId)?.name ?? 'The LOH')
+      const tieBreakerId = state.awaitingPosTieBreak
+        ? state.posWinnerId
+        : (getClassicEvictionTieBreakerId(state) ?? state.lohId ?? state.posWinnerId)
+      const tieBreaker = state.players.find((player) => player.id === tieBreakerId)
+      const aiDecision =
+        tieBreaker && !tieBreaker.isUser && !state.publicModeEnabled
+          ? chooseStrategicEliminationCandidates(
+              state,
+              tieBreaker.id,
+              tied,
+              slotsRequired,
+              'double_tie',
+              (state.seed ^ 0xdeadbeef) >>> 0
+            )
+          : null
+      if (tieBreaker && aiDecision) {
+        traceStrategicEliminationChoice(
+          state,
+          tieBreaker.id,
+          aiDecision,
+          'double_tie',
+          (state.seed ^ 0xdeadbeef) >>> 0
+        )
+      }
+      const resolvedSelectedIds = aiDecision?.selectedIds ?? selectedIds
       const selectedPlayers = selectedIds
         .map((id) => state.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
 
       if (selectedPlayers.length !== selectedIds.length) return
+
+      // The model is authoritative for an AI decider. The UI uses this same
+      // deterministic resolver, while recomputing here keeps the game rule
+      // correct if the state changed during the presentation delay.
+      const resolvedPlayers = resolvedSelectedIds
+        .map((id) => state.players.find((player) => player.id === id))
+        .filter((player): player is Player => Boolean(player))
+      if (resolvedPlayers.length !== slotsRequired) return
 
       state.awaitingTieBreak = false
       state.awaitingPosTieBreak = false
@@ -6528,8 +7255,8 @@ const gameSlice = createSlice({
       const tiedNames = tied
         .map((id) => state.players.find((player) => player.id === id)?.name)
         .filter((name): name is string => Boolean(name))
-      const selectedNames = selectedPlayers.map((player) => player.name)
-      const tieResolutionMessage = buildDoubleEvictionTieResolutionMessage({
+      const selectedNames = resolvedPlayers.map((player) => player.name)
+      const tieResolutionBaseMessage = buildDoubleEvictionTieResolutionMessage({
         deciderName: tieBreakerName,
         tiedNames,
         selectedNames,
@@ -6537,6 +7264,7 @@ const gameSlice = createSlice({
         secondEvictionOnly: Boolean(state.pendingEviction),
         includeEliminationClause: true,
       })
+      const tieResolutionMessage = `${tieResolutionBaseMessage}${aiDecision?.publicRationale ? ` ${aiDecision.publicRationale}` : ''}`
       const buildFollowUpMessage = (player: Player) =>
         state.publicModeEnabled
           ? `${player.name} had the lower public approval and has been eliminated from the Hub. 📉`
@@ -6544,21 +7272,21 @@ const gameSlice = createSlice({
 
       if (state.pendingEviction && !state.doubleEviction.pendingSecondEviction) {
         state.doubleEviction.pendingSecondEviction = {
-          evicteeId: selectedPlayers[0].id,
+          evicteeId: resolvedPlayers[0].id,
           evictionMessage: tieResolutionMessage,
         }
         return
       }
 
       state.pendingEviction = {
-        evicteeId: selectedPlayers[0].id,
+        evicteeId: resolvedPlayers[0].id,
         evictionMessage: tieResolutionMessage,
       }
 
-      if (selectedPlayers[1]) {
+      if (resolvedPlayers[1]) {
         state.doubleEviction.pendingSecondEviction = {
-          evicteeId: selectedPlayers[1].id,
-          evictionMessage: buildFollowUpMessage(selectedPlayers[1]),
+          evicteeId: resolvedPlayers[1].id,
+          evictionMessage: buildFollowUpMessage(resolvedPlayers[1]),
         }
       }
     },
@@ -6961,29 +7689,7 @@ const gameSlice = createSlice({
           ...(sameDoubleEvicteeId ? [sameDoubleEvicteeId] : []),
           ...unresolvedDoubleBoundaryIds,
         ]
-        const currentHeir = state.bellaWill.heirId
-          ? state.players.find((player) => player.id === state.bellaWill?.heirId)
-          : null
-        const currentHeirIsValid =
-          currentHeir != null &&
-          currentHeir.id !== BELLA_ID &&
-          currentHeir.status !== 'evicted' &&
-          currentHeir.status !== 'jury' &&
-          !excludedHeirIds.includes(currentHeir.id)
-        if (!currentHeirIsValid) {
-          state.bellaWill.heirId = chooseBellaHeir(state, excludedHeirIds)
-        }
-        activateBellaInheritance(state)
-        const heir = state.players.find((player) => player.id === state.bellaWill?.heirId)
-        const reward = state.bellaWill?.reward
-        if (state.bellaWill.inherited && heir && reward) {
-          pushEvent(
-            state,
-            `Bella's Will is now in effect. ${heir.name} is named heir: ${BELLA_WILL_REWARD_LABELS[reward]}.`,
-            'game',
-            { major: 'bellas_will', broadcastPriority: 'critical', forceOnTv: true }
-          )
-        }
+        publishBellaWillOnEviction(state, evicteeId, excludedHeirIds)
       }
 
       const cupidEvictionTemplateId = msg.includes(
@@ -7033,7 +7739,32 @@ const gameSlice = createSlice({
           { major: 'vox_populi_final_two', broadcastPriority: 'critical' }
         )
       } else if (isFinal4) {
-        state.phase = 'final3'
+        const activePlayers = activeHousemateCount(state)
+        const human = getHumanPlayer(state)
+        if (
+          state.weekendsEnabledForSeason === true &&
+          !state.finaleWeekendCompleted &&
+          activePlayers === 3 &&
+          Boolean(human) &&
+          state.mode !== 'survival'
+        ) {
+          // Keep the Final 4 phase mounted until the interlude ends. The weekend
+          // owns the pause; completing it hands the same run into the Final 3.
+          state.weekendInterlude = createWeekendInterlude(state, state.week, false, 3, true)
+          pushEvent(
+            state,
+            'One last weekend before the Final Three. Take a breath, make your plans, and get ready for the fight ahead.',
+            'game',
+            {
+              major: 'weekend_3',
+              weekendDay: 1,
+              weekendEpisode: 'season_so_far',
+              forceOnTv: true,
+            }
+          )
+        } else {
+          state.phase = 'final3'
+        }
       } else if (state.doubleEviction?.pendingSecondEviction) {
         // Double Eviction: promote the second eviction to the main pending slot.
         state.pendingEviction = state.doubleEviction.pendingSecondEviction
@@ -7097,6 +7828,7 @@ const gameSlice = createSlice({
       selfEvictionIds.forEach((id) => {
         const exitingPlayer = state.players.find((candidate) => candidate.id === id)
         if (!exitingPlayer) return
+        archiveSeasonExitContext(state, id, id === playerId ? 'selfEviction' : 'linkedExit')
         assignSeasonPlacementOnExit(state, id)
         exitingPlayer.status = 'evicted'
       })
@@ -7210,6 +7942,7 @@ const gameSlice = createSlice({
         `${finalHoh.name} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
         'game'
       )
+      publishBellaWillOnEviction(state, evicteeId)
       state.phase = 'week_end'
       pushEvent(
         state,
@@ -7663,6 +8396,7 @@ const gameSlice = createSlice({
       state.pendingEviction = {
         evicteeId: targetId,
         evictionMessage: reason,
+        exitMethod: 'shock',
       }
       state.dayStartShock = null
     },
@@ -8037,6 +8771,7 @@ const gameSlice = createSlice({
         `${hoh?.name ?? hohWinnerId} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
         'game'
       )
+      publishBellaWillOnEviction(state, evicteeId)
       pushEvent(
         state,
         `The Final 2 is set! The Tribunal will now vote for the winner of The Big Eye. 🏆`,
@@ -8304,6 +9039,55 @@ const gameSlice = createSlice({
       // TvZone's phase broadcast is the single, prominent Final Three
       // announcement. Do not append a near-identical feed event underneath
       // it, which otherwise reads as the same news twice.
+    },
+    /**
+     * Debug-only Classic Final Four entry point. Keeps the human plus three
+     * active AI players and seeds the sole-vote setup so the real Final Four
+     * pleas and eviction flow can be tested directly.
+     */
+    prepareClassicFinalFourTest(state) {
+      if (isVoxPopuliActive(state)) return
+      const human = state.players.find((player) => player.isUser)
+      if (!human) return
+      const activeAi = state.players.filter(
+        (player) => !player.isUser && player.status !== 'evicted' && player.status !== 'jury'
+      )
+      const fallbackAi = state.players.filter(
+        (player) => !player.isUser && !activeAi.some((candidate) => candidate.id === player.id)
+      )
+      const finalists = [human, ...activeAi, ...fallbackAi].slice(0, 4)
+      if (finalists.length !== 4) return
+
+      resetVoxFinalThreeRound(state)
+      const finalistIds = new Set(finalists.map((player) => player.id))
+      state.players.forEach((player) => {
+        player.isWinner = false
+        player.finalRank = undefined
+        player.seasonPlacement = undefined
+        if (finalistIds.has(player.id)) {
+          player.status = 'active'
+          player.evictedAtWeek = undefined
+        } else {
+          player.status = 'jury'
+          player.evictedAtWeek ??= state.week
+        }
+      })
+
+      state.lohId = null
+      state.posWinnerId = human.id
+      state.nomineeIds = finalists.slice(1, 3).map((player) => player.id)
+      human.status = 'pos'
+      state.nomineeIds.forEach((nomineeId) => {
+        const nominee = state.players.find((player) => player.id === nomineeId)
+        if (nominee) nominee.status = 'nominated'
+      })
+      state.tvFeed = []
+      state.broadcastQueue = []
+      state.evictionSplashId = null
+      state.evictionOverlayPlayerId = null
+      state.weekendInterlude = null
+      state.finaleWeekendCompleted = false
+      state.phase = 'final4_eviction'
     },
     /** Force entry into Final 4 eviction phase (debug only). */
     forcePhase(state, action: PayloadAction<Phase>) {
@@ -8694,8 +9478,23 @@ const gameSlice = createSlice({
       // When an explicit archives array is provided (e.g. on profile switch) use it;
       // otherwise preserve the current in-memory archives so a regular game restart
       // does not lose season history.
+      const existingArchives = state.seasonArchives ?? []
+      const inferredTwinShockSeason = getTwinShockActivationSeason(
+        existingArchives,
+        state.twinShockActivatedSeason
+      )
       const seasonArchives =
-        action.payload !== undefined ? action.payload : (state.seasonArchives ?? [])
+        action.payload !== undefined
+          ? action.payload
+          : inferredTwinShockSeason === null
+            ? existingArchives
+            : existingArchives.map((archive) => ({
+                ...archive,
+                // Older builds copied the save-wide flag into later seasons.
+                // The Twin Shock can be consumed once, so keep only its known
+                // activation season when normalizing a legacy save.
+                twinShockConsumed: archive.seasonIndex === inferredTwinShockSeason,
+              }))
       // Derive the next season number from the maximum archived seasonIndex so the
       // result is stable even after the 1000-entry archive cap or non-contiguous entries.
       const season = nextSeasonNumber(seasonArchives)
@@ -8772,6 +9571,7 @@ const gameSlice = createSlice({
         // Saves created before weekends existed keep the original uninterrupted calendar.
         weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
         completedWeekendDays: action.payload.completedWeekendDays ?? [],
+        finaleWeekendCompleted: action.payload.finaleWeekendCompleted ?? false,
         weekendInterlude: action.payload.weekendInterlude ?? null,
         // Season archives are persisted independently from in-progress runs.
         // New snapshots omit them to stay small, so retain the active profile's
@@ -9112,7 +9912,123 @@ const gameSlice = createSlice({
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
       weekend.weekendDay = 2
-      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      if (weekend.finaleWeekend) {
+        // Sunday opens with the reunion first. Tribunal remarks are generated
+        // only after the returning players have had their chance to talk.
+        weekend.tribunalGlimpse = undefined
+        weekend.stage = 'tribunal_invitation'
+      } else {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      }
+    },
+
+    beginWeekendTribunalGlimpse(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        (weekend.stage !== 'social' && weekend.stage !== 'finale_reunion_social')
+      ) {
+        return
+      }
+      weekend.tribunalGlimpse = {
+        speeches: createFinaleTribunalSpeeches(state),
+        opened: false,
+      }
+      weekend.stage = 'finale_sequester_announcement'
+    },
+
+    /** Show the returned players on the roster and deliver their reunion messages. */
+    beginFinaleReunionSocial(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        weekend.tribunalGlimpse?.opened === true ||
+        weekend.reunionDeparted
+      ) {
+        return
+      }
+      weekend.stage = 'finale_reunion_social'
+    },
+
+    beginWeekendReunionDeparture(state) {
+      const weekend = state.weekendInterlude
+      const isDebugReunionPreview =
+        weekend?.debug === true &&
+        weekend.reunionPreview !== undefined &&
+        weekend.stage === 'finale_reunion'
+      const isLiveFarewell =
+        weekend?.debug !== true &&
+        weekend?.stage === 'finale_battle_ready' &&
+        weekend.tribunalGlimpse !== undefined
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        (!isLiveFarewell && !isDebugReunionPreview) ||
+        weekend.reunionDeparted
+      ) {
+        return
+      }
+      weekend.reunionDepartureActive = true
+    },
+
+    finishWeekendReunionDeparture(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.reunionDepartureActive) return
+      weekend.reunionDepartureActive = undefined
+      weekend.reunionDeparted = true
+    },
+
+    /** Skip the optional Tribunal footage and continue to the finale farewell. */
+    skipWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        weekend.stage !== 'finale_sequester_announcement' ||
+        !weekend.tribunalGlimpse ||
+        weekend.tribunalGlimpse.opened
+      ) {
+        return
+      }
+      weekend.stage = 'finale_battle_ready'
+    },
+
+    openWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        ![
+          'finale_sequester_announcement',
+          'finale_battle_ready',
+          'tribunal_invitation',
+          'tribunal_glimpse',
+        ].includes(weekend.stage) ||
+        !weekend.tribunalGlimpse
+      ) {
+        return
+      }
+      weekend.stage = 'tribunal_invitation'
+      weekend.tribunalGlimpse.opened = true
+    },
+
+    returnFromWeekendTribunalStream(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.finaleWeekend ||
+        !['tribunal_invitation', 'tribunal_glimpse'].includes(weekend.stage) ||
+        !weekend.tribunalGlimpse?.opened
+      ) {
+        return
+      }
+      weekend.stage = 'finale_battle_ready'
     },
 
     spendWeekendSocialResources(
@@ -9159,14 +10075,28 @@ const gameSlice = createSlice({
 
     completeWeekendInterlude(state) {
       const weekend = state.weekendInterlude
-      if (!weekend?.active || weekend.stage !== 'social' || weekend.weekendDay !== 2) return
+      if (!weekend?.active || weekend.weekendDay !== 2) return
+      if (
+        weekend.finaleWeekend
+          ? !['tribunal_invitation', 'tribunal_glimpse', 'finale_battle_ready'].includes(
+              weekend.stage
+            ) || !weekend.tribunalGlimpse
+          : weekend.stage !== 'social'
+      ) {
+        return
+      }
       if (state.pregnancyStory && !weekend.debug) {
         state.pregnancyStory = advancePregnancyStoryWeekendDay(state.pregnancyStory)
       }
       if (!weekend.debug) {
-        state.completedWeekendDays = Array.from(
-          new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
-        ).sort((left, right) => left - right)
+        if (weekend.finaleWeekend) {
+          state.finaleWeekendCompleted = true
+          state.phase = 'final3'
+        } else if (weekend.afterDay === 5 || weekend.afterDay === 10) {
+          state.completedWeekendDays = Array.from(
+            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+          ).sort((left, right) => left - right)
+        }
       } else if (weekend.debugOriginalHumanStatus) {
         const human = getHumanPlayer(state)
         if (human) human.status = weekend.debugOriginalHumanStatus
@@ -9179,9 +10109,14 @@ const gameSlice = createSlice({
       if (!action.payload && state.weekendInterlude?.active) {
         const weekend = state.weekendInterlude
         if (!weekend.debug) {
-          state.completedWeekendDays = Array.from(
-            new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
-          ).sort((left, right) => left - right)
+          if (weekend.finaleWeekend) {
+            state.finaleWeekendCompleted = true
+            state.phase = 'final3'
+          } else if (weekend.afterDay === 5 || weekend.afterDay === 10) {
+            state.completedWeekendDays = Array.from(
+              new Set([...(state.completedWeekendDays ?? []), weekend.afterDay])
+            ).sort((left, right) => left - right)
+          }
         } else if (weekend.debugOriginalHumanStatus) {
           const human = getHumanPlayer(state)
           if (human) human.status = weekend.debugOriginalHumanStatus
@@ -9190,8 +10125,25 @@ const gameSlice = createSlice({
       }
     },
 
+    /** QA-only override: queue a selected reserve for the next numbered day. */
+    forceWildcardEntryForQa(state, action: PayloadAction<string>) {
+      const eligibility = getWildcardQaQueueEligibility(state, action.payload)
+      if (!eligibility.eligible) return
+      state.wildcardOpportunity = {
+        status: 'pending',
+        playerId: action.payload,
+        triggerType: 'qa',
+        triggerDay: state.week,
+        arrivalDay: state.week + 1,
+        qaForced: true,
+      }
+    },
+
     /** Open a self-contained weekend preview from Settings without changing the season calendar. */
-    debugActivateWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+    debugActivateWeekendInterlude(
+      state,
+      action: PayloadAction<5 | 10 | 15 | 'finale' | 'tribunal'>
+    ) {
       if (
         state.weekendsEnabledForSeason === false ||
         state.weekendInterlude?.active ||
@@ -9200,8 +10152,24 @@ const gameSlice = createSlice({
         return
       }
 
-      const afterDay = action.payload
-      state.weekendInterlude = createWeekendInterlude(state, afterDay, true)
+      const isTribunalVisit = action.payload === 'tribunal'
+      const isFinaleWeekend = action.payload === 'finale' || isTribunalVisit
+      const afterDay = typeof action.payload === 'number' ? action.payload : state.week
+      state.weekendInterlude = createWeekendInterlude(
+        state,
+        afterDay,
+        true,
+        isFinaleWeekend ? 3 : afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+        isFinaleWeekend
+      )
+      if (isTribunalVisit && state.weekendInterlude) {
+        state.weekendInterlude.weekendDay = 2
+        state.weekendInterlude.stage = 'tribunal_invitation'
+        state.weekendInterlude.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+      }
       const human = getHumanPlayer(state)
       if (human && (human.status === 'evicted' || human.status === 'jury')) {
         state.weekendInterlude.debugOriginalHumanStatus = human.status
@@ -9209,11 +10177,31 @@ const gameSlice = createSlice({
       }
     },
 
-    debugRestartWeekendInterlude(state, action: PayloadAction<5 | 10 | 15>) {
+    debugRestartWeekendInterlude(
+      state,
+      action: PayloadAction<5 | 10 | 15 | 'finale' | 'tribunal'>
+    ) {
       const weekend = state.weekendInterlude
       if (!weekend?.active || !weekend.debug) return
       const originalHumanStatus = weekend.debugOriginalHumanStatus
-      state.weekendInterlude = createWeekendInterlude(state, action.payload, true)
+      const isTribunalVisit = action.payload === 'tribunal'
+      const isFinaleWeekend = action.payload === 'finale' || isTribunalVisit
+      const afterDay = typeof action.payload === 'number' ? action.payload : state.week
+      state.weekendInterlude = createWeekendInterlude(
+        state,
+        afterDay,
+        true,
+        isFinaleWeekend ? 3 : afterDay === 5 ? 1 : afterDay === 10 ? 2 : 3,
+        isFinaleWeekend
+      )
+      if (isTribunalVisit && state.weekendInterlude) {
+        state.weekendInterlude.weekendDay = 2
+        state.weekendInterlude.stage = 'tribunal_invitation'
+        state.weekendInterlude.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+      }
       if (originalHumanStatus) {
         state.weekendInterlude.debugOriginalHumanStatus = originalHumanStatus
       }
@@ -9223,7 +10211,71 @@ const gameSlice = createSlice({
       const weekend = state.weekendInterlude
       if (!weekend?.active || !weekend.debug) return
       weekend.weekendDay = 2
-      weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      if (weekend.finaleWeekend) {
+        weekend.tribunalGlimpse = {
+          speeches: createFinaleTribunalSpeeches(state),
+          opened: false,
+        }
+        weekend.stage = 'tribunal_invitation'
+      } else {
+        weekend.stage = weekend.episode === 'party' ? 'party' : 'social'
+      }
+    },
+
+    /** Prepare an isolated Sunday reunion scene for the reversible QA preview. */
+    debugPrepareFinaleReunionPreview(state) {
+      const weekend = state.weekendInterlude
+      if (!weekend?.active || !weekend.debug || !weekend.finaleWeekend) return
+
+      const human = state.players.find((player) => player.isUser)
+      if (human && weekend.debugOriginalHumanStatus) {
+        human.status = weekend.debugOriginalHumanStatus
+        weekend.debugOriginalHumanStatus = undefined
+      }
+      const currentFinalists = state.players.filter(
+        (player) => player.status !== 'evicted' && player.status !== 'jury'
+      )
+      const finalists = Array.from(
+        new Map(
+          [...currentFinalists, ...state.players].map((player) => [player.id, player])
+        ).values()
+      ).slice(0, 3)
+      if (finalists.length < 3) return
+
+      const finalistIds = new Set(finalists.map((player) => player.id))
+      weekend.weekendDay = 2
+      weekend.stage = 'finale_reunion'
+      weekend.tribunalGlimpse = undefined
+      weekend.reunionPreviewEnded = undefined
+      weekend.reunionDeparted = undefined
+      weekend.reunionPreview = {
+        finalistIds: [...finalistIds],
+        guestIds: state.players
+          .filter((player) => !finalistIds.has(player.id))
+          .map((player) => player.id),
+      }
+    },
+
+    /** Leave the QA-only visit and continue to the existing Tribunal invitation. */
+    debugEndFinaleReunionPreview(state) {
+      const weekend = state.weekendInterlude
+      if (
+        !weekend?.active ||
+        !weekend.debug ||
+        !weekend.finaleWeekend ||
+        weekend.weekendDay !== 2 ||
+        weekend.stage !== 'finale_reunion'
+      ) {
+        return
+      }
+      weekend.reunionPreview = undefined
+      weekend.reunionPreviewEnded = true
+      weekend.reunionDeparted = true
+      weekend.tribunalGlimpse = {
+        speeches: createFinaleTribunalSpeeches(state),
+        opened: false,
+      }
+      weekend.stage = 'tribunal_invitation'
     },
 
     debugExitWeekendInterlude(state) {
@@ -9310,10 +10362,9 @@ const gameSlice = createSlice({
         return
       }
 
-      // Weekend interludes are layered over week_end without incrementing game.week.
-      // Every episode reuses the same pause/resume wrapper; only its presentation content differs.
-      const weekendMilestone =
-        state.week === 5 ? 5 : state.week === 10 ? 10 : state.week === 15 ? 15 : null
+      // The first two weekend interludes follow numbered week ends without
+      // incrementing game.week. The finale weekend is opened at the Final Four exit.
+      const weekendMilestone = state.week === 5 ? 5 : state.week === 10 ? 10 : null
       if (
         state.phase === 'week_end' &&
         state.weekendsEnabledForSeason === true &&
@@ -9330,18 +10381,11 @@ const gameSlice = createSlice({
         const intro =
           weekendMilestone === 5
             ? 'The weekend has begun. No competitions. No nominations. The Hub has other plans.'
-            : weekendMilestone === 10
-              ? 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
-              : 'The season is slowing down for one weekend. The Big Eye is looking back at how everyone still here got this far.'
+            : 'The Hub Party is open. No competitions tonight. No nominations. Try not to say anything you will regret tomorrow.'
         pushEvent(state, intro, 'game', {
-          major: `weekend_${weekendMilestone === 5 ? 1 : weekendMilestone === 10 ? 2 : 3}`,
+          major: `weekend_${weekendMilestone === 5 ? 1 : 2}`,
           weekendDay: 1,
-          weekendEpisode:
-            weekendMilestone === 5
-              ? 'hub_says'
-              : weekendMilestone === 10
-                ? 'party'
-                : 'season_so_far',
+          weekendEpisode: weekendMilestone === 5 ? 'hub_says' : 'party',
           forceOnTv: true,
         })
         return
@@ -9428,18 +10472,37 @@ const gameSlice = createSlice({
           return
         }
 
-        // AI POS holder casts the sole vote deterministically
+        // AI POS holder uses the same explainable strategic choice as the
+        // ordinary and double-elimination tie-breaks.
+        const decisionSeed = state.seed
         const seedRng = mulberry32(state.seed)
         state.seed = (seedRng() * 0x100000000) >>> 0
-        const rng = mulberry32(state.seed)
 
         if (nominees.length > 0) {
-          const evictee = seededPick(rng, nominees)
+          const decision = chooseStrategicEliminationCandidates(
+            state,
+            povHolder?.id ?? state.posWinnerId,
+            nominees.map((nominee) => nominee.id),
+            1,
+            'final_four',
+            decisionSeed
+          )
+          if (povHolder) {
+            traceStrategicEliminationChoice(
+              state,
+              povHolder.id,
+              decision,
+              'final_four',
+              decisionSeed
+            )
+          }
+          const evictee = state.players.find((player) => player.id === decision.selectedIds[0])
+          if (!evictee) return
           // Defer the eviction commit — overlay (finalizePendingEviction) will
           // set evictee.status and transition to final3 after the cinematic plays.
           state.pendingEviction = {
             evicteeId: evictee.id,
-            evictionMessage: `${povHolder?.name ?? 'The Power of Safety holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} has been eliminated from the Hub. 🚪`,
+            evictionMessage: `${povHolder?.name ?? 'The Power of Safety holder'} has chosen to eliminate ${evictee.name}.${decision.publicRationale ? ` ${decision.publicRationale}` : ''} ${evictee.name} has been eliminated from the Hub. 🚪`,
           }
         }
         return
@@ -9766,7 +10829,15 @@ const gameSlice = createSlice({
         const nominees = state.players.filter((p) => state.nomineeIds.includes(p.id))
         const finalHoh = state.players.find((p) => p.id === state.lohId)
         if (nominees.length > 0) {
-          const evictee = seededPick(rng, nominees)
+          const decision = chooseFinalThreeEvictee({
+            holderId: state.lohId,
+            holder: finalHoh,
+            nominees,
+            relationships: state.strategicRelationships,
+            alliances: state.strategicAlliances,
+            threatReads: state.strategicThreatReadsByActorId,
+          })
+          const evictee = decision?.player ?? seededPick(rng, nominees)
           assignSeasonPlacementOnExit(state, evictee.id)
           evictee.status = evictedStatus(state, evictee)
           state.nomineeIds = state.nomineeIds.filter((id) => id !== evictee.id)
@@ -9774,9 +10845,10 @@ const gameSlice = createSlice({
           completeFinalThreeController(state, evictee.id)
           pushEvent(
             state,
-            `${finalHoh?.name ?? 'The Final Power holder'} has chosen to eliminate ${evictee.name}. ${evictee.name} finishes in 3rd place. 🥉`,
+            `${finalHoh?.name ?? 'The Final Power holder'} has chosen to eliminate ${evictee.name}${decision?.reason ? ` — ${decision.reason}` : ''}. ${evictee.name} finishes in 3rd place. 🥉`,
             'game'
           )
+          publishBellaWillOnEviction(state, evictee.id)
           pushEvent(
             state,
             `The Final 2 is set! The Tribunal will now vote for the winner of The Big Eye. 🏆`,
@@ -10442,7 +11514,8 @@ const gameSlice = createSlice({
               )
               if (coPool.length > 0) {
                 const nominee =
-                  pickStrategicAiPlayer(state, coPool, rng, 'highest') ?? seededPick(rng, coPool)
+                  pickStrategicAiPlayer(state, coPool, rng, 'highest', { actorId: coLohId }) ??
+                  seededPick(rng, coPool)
                 state.nomineeIds.push(nominee.id)
                 const np = state.players.find((pl) => pl.id === nominee.id)
                 if (np) np.status = 'nominated'
@@ -10525,13 +11598,18 @@ const gameSlice = createSlice({
           //
           // Keeping selection atomic prevents the ceremony from ever capturing the
           // base reducer's provisional pair while Faux TV is rewritten to the plan.
+          const nominationPlan = state.lohNominationPlan
+          const planMatchesRules = isDoubleEviction
+            ? nominationPlan?.isDoubleElimination === true
+            : nominationPlan?.isDoubleElimination !== true
           const plannedNomineeIds =
-            !state.publicModeEnabled &&
-            state.lohNominationPlan?.week === state.week &&
-            state.lohNominationPlan.lohId === state.lohId &&
-            state.lohNominationPlan.status === 'planned' &&
-            state.lohNominationPlan.initialNomineeIds.length === nomineeCount
-              ? state.lohNominationPlan.initialNomineeIds
+            (!publicModeEnabled || isDoubleEviction) &&
+            planMatchesRules &&
+            nominationPlan?.week === state.week &&
+            nominationPlan?.lohId === state.lohId &&
+            nominationPlan?.status === 'planned' &&
+            nominationPlan?.initialNomineeIds.length === nomineeCount
+              ? (nominationPlan?.initialNomineeIds ?? null)
               : null
           const plannedNominees = plannedNomineeIds
             ? plannedNomineeIds
@@ -10919,7 +11997,7 @@ const gameSlice = createSlice({
                 eligible,
                 Math.min(2, eligible.length),
                 rng,
-                { preferLoh: true }
+                { preferLoh: true, actorId: posWinner.id }
               )
               if (replacements.length > 0) {
                 replacements.forEach((replacement) => appendNominee(state, replacement.id))
@@ -11616,16 +12694,33 @@ const gameSlice = createSlice({
                 )
               }
             } else if (tieBreakerPlayer) {
-              // AI tiebreaker: deterministically pick among tied nominees — defer commit
-              const aiRng = mulberry32((state.seed ^ 0xdeadbeef) >>> 0)
-              const evicteeId = topNominees[Math.floor(aiRng() * topNominees.length)]
+              // AI tiebreaker uses the same relationship-aware model as double
+              // ties and the Final Four sole vote. Seeded choice only separates
+              // nominees whose strategic scores are genuinely close.
+              const decisionSeed = (state.seed ^ 0xdeadbeef) >>> 0
+              const decision = chooseStrategicEliminationCandidates(
+                state,
+                tieBreakerPlayer.id,
+                topNominees,
+                1,
+                'ordinary_tie',
+                decisionSeed
+              )
+              traceStrategicEliminationChoice(
+                state,
+                tieBreakerPlayer.id,
+                decision,
+                'ordinary_tie',
+                decisionSeed
+              )
+              const evicteeId = decision.selectedIds[0]
               const evicted = state.players.find((p) => p.id === evicteeId)
               if (evicted) {
                 state.voteResults = { ...voteCounts }
                 const breakerLabel = usesPosTieBreaker ? 'The POS holder' : 'The LOH'
                 state.pendingEviction = {
                   evicteeId: evicted.id,
-                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}. ${evicted.name} has been eliminated from the Hub. 🗳️`,
+                  evictionMessage: `${tieBreakerPlayer.name ?? breakerLabel} breaks the tie, voting to eliminate ${evicted.name}.${decision.publicRationale ? ` ${decision.publicRationale}` : ''} ${evicted.name} has been eliminated from the Hub. 🗳️`,
                 }
               }
             } else {
@@ -11655,6 +12750,26 @@ const gameSlice = createSlice({
 
       finishPhaseBroadcastSequence(state)
       state.phase = nextPhase
+      const wildcardOpportunity = state.wildcardOpportunity
+      if (
+        nextPhase === 'week_start' &&
+        wildcardOpportunity?.status === 'pending' &&
+        wildcardOpportunity.arrivalDay === state.week
+      ) {
+        const wildcardId = wildcardOpportunity.playerId
+        const eligibility = wildcardId
+          ? getWildcardAdmissionEligibility(state, wildcardId)
+          : { eligible: false, reason: 'No reserve contestant was selected.' }
+        if (wildcardId && eligibility.eligible) {
+          applyWildcardAdmission(state, wildcardId)
+        } else {
+          state.wildcardOpportunity = {
+            ...wildcardOpportunity,
+            status: 'cancelled',
+            reason: eligibility.reason,
+          }
+        }
+      }
     },
 
     // ── Secret Mission reducers ────────────────────────────────────────────
@@ -11918,6 +13033,30 @@ const gameSlice = createSlice({
       sm.status = 'rewardClaimed'
       state.secretMissionLastResolvedDay =
         typeof action.payload === 'string' ? state.week : action.payload.claimDay
+
+      // The Confessional is the canonical place to claim the mission reward.
+      // Retire its pending faux-TV reminder now so it cannot tell the player to
+      // claim a reward they have already opened. Keep the event in log history.
+      const retiredMissionBroadcastIds = new Set<string>()
+      for (const event of state.tvFeed) {
+        if (
+          event.meta?.major !== 'secret_mission_complete' ||
+          event.meta.broadcastConsumed === true
+        ) {
+          continue
+        }
+        const eventMissionNumber = event.meta.secretMissionNumber
+        if (typeof eventMissionNumber === 'number' && eventMissionNumber !== sm.missionNumber) {
+          continue
+        }
+        event.meta = { ...event.meta, broadcastConsumed: true, rewardClaimed: true }
+        retiredMissionBroadcastIds.add(event.id)
+      }
+      if (retiredMissionBroadcastIds.size > 0) {
+        state.broadcastQueue = (state.broadcastQueue ?? []).filter(
+          (id) => !retiredMissionBroadcastIds.has(id)
+        )
+      }
     },
 
     /**
@@ -12237,6 +13376,7 @@ export const {
   updatePlayer,
   recordConfessionalMisconduct,
   syncStrategicRelationships,
+  syncStrategicThreatReads,
   syncStrategicAlliances,
   setLohSocialPlan,
   recordHoldTheWallSafetyDeal,
@@ -12368,6 +13508,7 @@ export const {
   forcePlayerStatus,
   prepareVoxFinalThreeTest,
   prepareClassicFinalThreeTest,
+  prepareClassicFinalFourTest,
   forcePhase,
   clearBlockingFlags,
   archiveSeason,
@@ -12389,6 +13530,13 @@ export const {
   continueHubSays,
   continueWeekendFeature,
   advanceWeekendSeasonFact,
+  beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
+  beginWeekendReunionDeparture,
+  finishWeekendReunionDeparture,
+  skipWeekendTribunalStream,
+  openWeekendTribunalStream,
+  returnFromWeekendTribunalStream,
   recordWeekendPartyBeat,
   beginWeekendDayTransition,
   advanceWeekendDay,
@@ -12397,8 +13545,11 @@ export const {
   completeWeekendInterlude,
   debugActivateWeekendInterlude,
   setWeekendsEnabledForSeason,
+  forceWildcardEntryForQa,
   debugRestartWeekendInterlude,
   debugSkipToWeekendDayTwo,
+  debugPrepareFinaleReunionPreview,
+  debugEndFinaleReunionPreview,
   debugExitWeekendInterlude,
   submitTwinShockAnswer,
   completeTwinShockRevealAnimation,
@@ -13140,7 +14291,6 @@ export const simulateImmediateEliminationCycle =
         (getState().game.players.length << 8)) >>>
       0
     const rng = mulberry32(cycleSeed)
-
     seedDebugCycleNoise(dispatch, getState(), rng)
 
     let steps = 0

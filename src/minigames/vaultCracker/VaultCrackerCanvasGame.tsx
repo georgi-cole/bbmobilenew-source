@@ -320,7 +320,7 @@ export default function VaultCrackerCanvasGame({
 
   if (phase === 'results') {
     return (
-      <div className="cb">
+      <div className="cb cb--results">
         <div className="cb__header">
           <h2 className="cb__title">Vault Cracker</h2>
           <div className="cb__stats-panel cb__stats-panel--results">
@@ -395,7 +395,7 @@ export default function VaultCrackerCanvasGame({
   }
 
   return (
-    <div className="cb">
+    <div className="cb cb--play">
       <div className="cb__header">
         <h2 className="cb__title">Vault Cracker</h2>
         <div className="cb__stats-panel" aria-label="Vault status">
@@ -433,28 +433,29 @@ export default function VaultCrackerCanvasGame({
           )}
         </div>
 
-        {(statusText !== null || hintText !== null) && (
-          <div className="cb__status-card" aria-live="polite">
-            {statusText !== null && (
-              <p className={`cb__status${snapshot.validationMessage ? ' cb__status--fail' : ''}`}>
-                {statusText}
-              </p>
-            )}
-            {hintText !== null && <p className="cb__hint">{hintText}</p>}
-          </div>
-        )}
+        <div className="cb__status-card" aria-live="polite">
+          {statusText !== null && (
+            <p className={`cb__status${snapshot.validationMessage ? ' cb__status--fail' : ''}`}>
+              {statusText}
+            </p>
+          )}
+          {hintText !== null && <p className="cb__hint">{hintText}</p>}
+        </div>
       </div>
 
-      {snapshot.guessHistory.length > 0 && (
-        <div className="cb__history">
+      <div className="cb__history">
+        {snapshot.guessHistory.length > 0 && (
           <div className="cb__history-head">
             <span className="cb__history-label">Attempt History</span>
             <span className="cb__history-count">
               {snapshot.guessHistory.length} {snapshot.guessHistory.length === 1 ? 'attempt' : 'attempts'}
             </span>
           </div>
-          <div className="cb__history-list">
-            {[...snapshot.guessHistory].reverse().map((guess, index) => {
+        )}
+        <div className="cb__history-list">
+            {snapshot.guessHistory.length === 0 ? (
+              <div className="cb__history-empty">Your attempts and clues will appear here.</div>
+            ) : [...snapshot.guessHistory].reverse().map((guess, index) => {
               const originalIndex = snapshot.guessHistory.length - 1 - index;
               const attemptNum = originalIndex + 1;
               return (
@@ -472,9 +473,8 @@ export default function VaultCrackerCanvasGame({
                 </div>
               );
             })}
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -111,6 +111,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.hall-of-fame-screen__season-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .hall-of-fame-screen__winner-block {
   min-width: 0;
   display: flex;

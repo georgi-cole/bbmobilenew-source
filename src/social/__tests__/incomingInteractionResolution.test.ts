@@ -6,6 +6,7 @@ import {
 import { INCOMING_SCENE_OUTCOME_BANK } from '../incomingSceneOutcomeBank'
 import { getIncomingDialogueBeat } from '../incomingDialogueOutcomeBank'
 import { SCENARIO_VARIANT_POOLS } from '../interactionVariantBank'
+import { getCommitmentKindForInteraction } from '../socialCommitments'
 import type { IncomingInteraction } from '../types'
 
 function makeInteraction(overrides: Partial<IncomingInteraction> = {}): IncomingInteraction {
@@ -93,6 +94,23 @@ describe('incoming interaction contextual resolution', () => {
     ])
   })
 
+  it('keeps alliance reassurance choices accurate when no personal pact exists', () => {
+    const choices = getContextualIncomingChoices(
+      makeInteraction({
+        type: 'check_in',
+        payload: { scenarioKey: 'alliance_reassurance' },
+      })
+    )
+
+    expect(choices?.map((choice) => choice.label)).toEqual([
+      'Reassure them fully',
+      'Compare your plans',
+      'Admit your doubts',
+      'Avoid the subject',
+    ])
+    expect(choices?.map((choice) => choice.label).join(' ')).not.toMatch(/renew.*pact|new terms/i)
+  })
+
   it('keeps pact decisions formal while plan and time requests remain pending actions', () => {
     const interaction = makeInteraction({
       type: 'alliance_proposal',
@@ -122,6 +140,25 @@ describe('incoming interaction contextual resolution', () => {
     ).toEqual(['Accept', 'Decline'])
   })
 
+  it('does not turn an allied LOH check-in into an automatic protection or vote promise', () => {
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'check_in',
+          payload: { scenarioKey: 'allied_loh_plan_check_in' },
+        })
+      )
+    ).toBeNull()
+    expect(
+      getCommitmentKindForInteraction(
+        makeInteraction({
+          type: 'deal_offer',
+          payload: { scenarioKey: 'live_vote_pitch' },
+        })
+      )
+    ).toBe('vote_to_keep')
+  })
+
   it('gives co-nominees choices that do not pretend either can cast a saving vote', () => {
     const choices = getContextualIncomingChoices(
       makeInteraction({
@@ -135,6 +172,40 @@ describe('incoming interaction contextual resolution', () => {
     expect(choices?.some((choice) => /promise your vote|vote with them/i.test(choice.label))).toBe(
       false
     )
+  })
+
+  it('keeps co-nominee reactions grounded in what either player can control', () => {
+    const reactions = {
+      positive: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'positive',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      neutral: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'neutral',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      negative: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'negative',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+      dismiss: getIncomingDialogueBeat({
+        scenarioKey: 'co_nominee_check_in',
+        responseType: 'dismiss',
+        fromName: 'Rae',
+        seed: 0,
+      }),
+    }
+
+    expect(reactions.positive).toContain('neither of us can promise how the others vote')
+    expect(reactions.neutral).toContain('not mistake this for a vote promise')
+    expect(reactions.negative).toContain('stop asking you to carry my campaign')
+    expect(reactions.dismiss).toContain('take my campaign to someone else')
   })
 
   it('keeps constructive automatic nominee replies constructive', () => {

@@ -25,6 +25,7 @@ import {
   playerSpinAgain,
   advanceFromTurnComplete,
   resolveAllAiTurns,
+  startRiskWheelTieBreak,
   advanceFromRoundSummary,
   WHEEL_SECTORS,
   computeEliminationCount,
@@ -35,7 +36,7 @@ import {
 import { resolveRiskWheelOutcome, skipRiskWheelToResults } from '../../features/riskWheel/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
-import HOUSEGUESTS from '../../data/houseguests'
+import { getAll } from '../../data/houseguests'
 import { useRiskWheelAudio } from '../../hooks/useRiskWheelAudio'
 import { publishMinigameMusicVariant } from '../../services/sound/minigameMusicVariant'
 import riskWheelBackground from '../../features/riskWheel/risk_wheel_background.png'
@@ -134,7 +135,10 @@ function classifyRewardSound(
  * per-render calls (mini-scoreboard, summary rows, winner screen) are cheap.
  */
 const HOUSEGUEST_AVATAR_MAP: Map<string, string> = new Map(
-  HOUSEGUESTS.map((hg) => [hg.id, resolveAvatar({ id: hg.id, name: hg.name, avatar: '' })])
+  getAll().map((hg) => [
+    hg.id,
+    resolveAvatar({ id: hg.id, name: hg.name, avatar: hg.avatar ?? '' }),
+  ])
 )
 
 /** Resolve a player avatar URL from the houseguest database, falling back to dicebear. */
@@ -758,6 +762,12 @@ export default function RiskWheelComp({
     dispatch(advanceFromRoundSummary())
   }, [dispatch, playClickSound])
 
+  const handleStartTieBreak = useCallback(() => {
+    playClickSound()
+    dispatch(startRiskWheelTieBreak())
+    dispatch(resolveAllAiTurns())
+  }, [dispatch, playClickSound])
+
   const handleSkipToResults = useCallback(() => {
     playClickSound()
     dispatch(skipRiskWheelToResults())
@@ -797,6 +807,11 @@ export default function RiskWheelComp({
     winnerId,
     initialPlayerCount,
     allPlayerIds,
+    tieBreakPlayerIds,
+    tieBreakPending,
+    tieBreakRound,
+    tieBreakOutcome,
+    isTieBreakRound,
   } = rw
   const isHumanEliminated =
     humanId !== null &&
@@ -889,11 +904,13 @@ export default function RiskWheelComp({
         <ul className="rw-summary-list" aria-label="Round scoreboard">
           {sortedActive.map((id, rank) => {
             const isOut = eliminatedThisRound.includes(id)
+            const isTieCandidate = tieBreakPending && tieBreakPlayerIds.includes(id)
+            const survivedTieBreak = tieBreakOutcome?.survivedPlayerIds.includes(id) ?? false
             const score = roundScores[id] ?? 0
             return (
               <li
                 key={id}
-                className={`rw-summary-row${isOut ? ' rw-summary-row--out' : ''}${rank === 0 ? ' rw-summary-row--top' : ''}`}
+                className={`rw-summary-row${isOut ? ' rw-summary-row--out' : ''}${rank === 0 ? ' rw-summary-row--top' : ''}${isTieCandidate ? ' rw-summary-row--tie' : ''}`}
               >
                 <span className="rw-summary-rank">#{rank + 1}</span>
                 <img
@@ -904,7 +921,14 @@ export default function RiskWheelComp({
                     ;(e.target as HTMLImageElement).src = getDicebear(id)
                   }}
                 />
-                <span className="rw-summary-name">{getName(id, participants)}</span>
+                <span className="rw-summary-name">
+                  {getName(id, participants)}
+                  {tieBreakOutcome && tieBreakOutcome.spinScores[id] !== undefined && (
+                    <small className="rw-summary-tiebreak-score">
+                      Tie-break: {formatScore(tieBreakOutcome.spinScores[id])}
+                    </small>
+                  )}
+                </span>
                 <span className={`rw-summary-score${score < 0 ? ' rw-summary-score--neg' : ''}`}>
                   {formatScore(score)}
                 </span>
@@ -913,15 +937,57 @@ export default function RiskWheelComp({
                     🚪 OUT
                   </span>
                 )}
-                {!isOut && rank === 0 && (
+                {isTieCandidate && (
+                  <span className="rw-summary-badge rw-summary-badge--tie">⚖ TIED</span>
+                )}
+                {!isOut && survivedTieBreak && (
+                  <span className="rw-summary-badge rw-summary-badge--survived">✓ SURVIVED</span>
+                )}
+                {!isOut && !survivedTieBreak && rank === 0 && (
                   <span className="rw-summary-badge rw-summary-badge--top">⭐ TOP</span>
                 )}
               </li>
             )
           })}
         </ul>
+        {tieBreakPending && (
+          <div className="rw-tie-summary" role="status">
+            <strong>Score tie at the elimination line</strong>
+            <span>
+              {tieBreakPlayerIds.map((id) => getName(id, participants)).join(', ')} will each spin
+              once. The highest score survives; if the lead is tied, only those players spin again.
+            </span>
+          </div>
+        )}
+        {tieBreakOutcome && (
+          <div className="rw-tie-summary rw-tie-summary--resolved" role="status">
+            <strong>Tie-break complete</strong>
+            <span>
+              {tieBreakOutcome.survivedPlayerIds.map((id) => getName(id, participants)).join(', ')}{' '}
+              survived.{' '}
+              {tieBreakOutcome.eliminatedPlayerIds
+                .map((id) => getName(id, participants))
+                .join(', ')}{' '}
+              eliminated.
+            </span>
+          </div>
+        )}
         <div className="rw-summary-footer">
-          {isHumanEliminated ? (
+          {tieBreakPending ? (
+            <>
+              <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleStartTieBreak}>
+                ⚖ Start Tie-break Round {tieBreakRound + 1}
+              </button>
+              {isHumanEliminated && (
+                <button
+                  className="rw-btn rw-btn--secondary rw-btn--lg"
+                  onClick={handleSkipToResults}
+                >
+                  Skip to results
+                </button>
+              )}
+            </>
+          ) : isHumanEliminated ? (
             <>
               <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
                 Continue as spectator
@@ -941,15 +1007,21 @@ export default function RiskWheelComp({
   }
 
   // ── Phase: active turn ───────────────────────────────────────────────────
-  const elimCount = computeEliminationCount(initialPlayerCount, round, activePlayerIds.length)
+  const elimCount = isTieBreakRound
+    ? 0
+    : computeEliminationCount(initialPlayerCount, round, activePlayerIds.length)
   const roundCap = getRoundCap(initialPlayerCount)
   const isDevil = phase === 'six_six_six'
 
   // Build score summary for non-current players (mini scoreboard)
-  const otherPlayers = allPlayerIds.filter((id) => id !== currentId)
+  const otherPlayers = (isTieBreakRound ? activePlayerIds : allPlayerIds).filter(
+    (id) => id !== currentId
+  )
 
   return (
-    <div className={`rw-root rw-game${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}`}>
+    <div
+      className={`rw-root rw-game${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}${isTieBreakRound ? ' rw-tiebreak-game' : ''}`}
+    >
       {premiumPresentation ? (
         <div className="rw-vip-showroom" aria-hidden="true" data-testid="rw-vip-showroom">
           <img
@@ -963,7 +1035,7 @@ export default function RiskWheelComp({
         </div>
       ) : null}
       {/* Header */}
-      <header className="rw-header">
+      <header className={`rw-header${isTieBreakRound ? ' rw-header--tiebreak' : ''}`}>
         <div className="rw-header-left">
           {premiumPresentation && (
             <div className="rw-vip-brand" aria-label="VIP Risk Wheel">
@@ -971,12 +1043,19 @@ export default function RiskWheelComp({
               <span>VIP SHOW</span>
             </div>
           )}
-          <span className="rw-round-badge" aria-label={`Round ${round} of ${roundCap}`}>
-            R{round}/{roundCap}
+          <span
+            className="rw-round-badge"
+            aria-label={
+              isTieBreakRound ? `Tie-break round ${tieBreakRound}` : `Round ${round} of ${roundCap}`
+            }
+          >
+            {isTieBreakRound ? `TB ${tieBreakRound}` : `R${round}/${roundCap}`}
           </span>
-          <span className="rw-prize-badge">{prizeType}</span>
+          <span className="rw-prize-badge">
+            {isTieBreakRound ? 'One spin each · winner survives' : prizeType}
+          </span>
         </div>
-        {elimCount > 0 && (
+        {!isTieBreakRound && elimCount > 0 && (
           <div className="rw-header-center">
             <span
               className="rw-elim-warn"
@@ -997,15 +1076,20 @@ export default function RiskWheelComp({
           </span>
           <ScoreDisplay score={currentScore} animating={!spinning} />
           {/* Spin counter pips */}
-          <div className="rw-spins-row" aria-label={`${currentSpinCount} of 3 spins used`}>
-            {[0, 1, 2].map((i) => (
+          <div
+            className="rw-spins-row"
+            aria-label={`${currentSpinCount} of ${isTieBreakRound ? 1 : 3} spins used`}
+          >
+            {Array.from({ length: isTieBreakRound ? 1 : 3 }, (_, i) => (
               <span
                 key={i}
                 className={`rw-spin-dot${i < currentSpinCount ? ' rw-spin-dot--used' : ''}`}
                 aria-hidden="true"
               />
             ))}
-            <span className="rw-spins-label">{currentSpinCount}/3</span>
+            <span className="rw-spins-label">
+              {currentSpinCount}/{isTieBreakRound ? 1 : 3}
+            </span>
           </div>
         </div>
 
@@ -1068,9 +1152,9 @@ export default function RiskWheelComp({
               className="rw-btn rw-btn--spin"
               onClick={handleHumanSpin}
               disabled={spinning}
-              aria-label="Spin the wheel"
+              aria-label={isTieBreakRound ? 'Take your tie-break spin' : 'Spin the wheel'}
             >
-              🎡 Spin
+              {isTieBreakRound ? '⚖ Tie-break Spin' : '🎡 Spin'}
             </button>
           )}
 

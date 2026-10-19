@@ -134,9 +134,9 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     scoreDirection: 'higher-is-better',
     volatility: VOLATILITY_HYBRID,
     weights: WEIGHTS_PHYSICAL_TAP,
-    minScore: 120,
-    maxScore: 320,
-    notes: 'Season effects add strategic volatility to a 40-second tapping race.',
+    notes:
+      'Season effects add strategic volatility to a 40-second tapping race. ' +
+      'The specialist simulator owns the native score range; identity scaling does not clamp it.',
   },
   laneRacers: {
     key: 'laneRacers',
@@ -562,6 +562,21 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       'Grid of Luck — cinematic elimination board with heavy variance, ' +
       'but AI still leans on mental/nerve choices for target selection.',
   },
+  mysticChamber: {
+    key: 'mysticChamber',
+    category: 'hybrid',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_HYBRID,
+    weights: {
+      physical: 0,
+      mental: 0.35,
+      precision: 0.05,
+      nerve: 0.25,
+      luck: 0.35,
+    },
+    notes:
+      'Mystic Chamber rewards strategic power choices, relationship-aware targeting, and measured risk.',
+  },
   chainOfGreed: {
     key: 'chainOfGreed',
     category: 'mental',
@@ -608,8 +623,40 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       'Trap Auction — secret bidding game; AI balances nerve to avoid the ' +
       'lowest bid while accounting for luck in reading opponent ranges.',
   },
-  bigSpender: {
-    key: 'bigSpender',
+  finalThreeCircuit: {
+    key: 'finalThreeCircuit',
+    category: 'hybrid',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_HYBRID,
+    weights: {
+      physical: 0.1,
+      mental: 0.45,
+      precision: 0.3,
+      nerve: 0.15,
+      luck: 0,
+    },
+    notes:
+      'Final Three Circuit combines signal recognition, puzzle solving, precision, and risk management. Native total-score bounds come from the game registry.',
+  },
+  downMemoryLane: {
+    key: 'downMemoryLane',
+    category: 'mental',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_TRIVIA,
+    weights: {
+      physical: 0,
+      mental: 0.56,
+      precision: 0,
+      nerve: 0.12,
+      consistency: 0.16,
+      clutch: 0.16,
+      luck: 0,
+    },
+    notes:
+      'Down Memory Lane rewards season recall and composure. The interactive duel owns question-by-question decisions; generic simulation uses the registry lives range.',
+  },
+  bigSpenderClassic: {
+    key: 'bigSpenderClassic',
     category: 'luck',
     scoreDirection: 'higher-is-better',
     volatility: VOLATILITY_LUCK,
@@ -620,7 +667,22 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       nerve: 0.4,
       luck: 0.35,
     },
-    notes: 'Big Spender combines wallet variance with nerve-led risk management.',
+    notes: 'The retired Big Spender combines wallet variance with nerve-led risk management.',
+  },
+  bigSpender: {
+    key: 'bigSpender',
+    category: 'mental',
+    scoreDirection: 'higher-is-better',
+    volatility: 0.24,
+    weights: {
+      physical: 0,
+      mental: 0.55,
+      precision: 0.3,
+      nerve: 0.15,
+      luck: 0,
+    },
+    notes:
+      'Big Spender rewards budget planning, collection strategy, and reading limited market stock. Shopper styles and relationship context shape simultaneous AI plans.',
   },
   batteryLow: {
     key: 'batteryLow',

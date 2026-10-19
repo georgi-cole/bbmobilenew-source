@@ -147,7 +147,8 @@ export interface MusicResolverContext {
   finalePhase?: string | null
   spectatorActive: boolean
   socialOpen: boolean
-  weekendAfterDay?: 5 | 10 | 15 | null
+  weekendAfterDay?: number | null
+  weekendNumber?: 1 | 2 | 3 | null
   finalThreeComplete?: boolean
   minigame?: {
     gameKey?: string | null
@@ -916,13 +917,11 @@ export function resolveMusicCue(
     if (routeCue) return routeCue
   }
 
-  if (context.weekendAfterDay != null) {
-    const weekendKey =
-      context.weekendAfterDay === 5
-        ? 'weekend1'
-        : context.weekendAfterDay === 10
-          ? 'weekend2'
-          : 'weekend3'
+  if (context.weekendAfterDay != null || context.weekendNumber != null) {
+    const weekendNumber =
+      context.weekendNumber ??
+      (context.weekendAfterDay === 5 ? 1 : context.weekendAfterDay === 10 ? 2 : 3)
+    const weekendKey = `weekend${weekendNumber}` as 'weekend1' | 'weekend2' | 'weekend3'
     const weekendCue = resolveSelection(
       config.contextMusic[weekendKey],
       `context.${weekendKey}`,

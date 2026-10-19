@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppSelector } from '../../store/hooks'
+import { getTwinShockActivationSeason } from '../../store/seasonArchive'
 import { findByName, getById } from '../../data/houseguests'
 import { buildAchievementSummary, findArchiveUserSummary } from '../../store/achievementSummary'
 import type { SeasonArchive } from '../../store/seasonArchive'
@@ -61,7 +62,12 @@ export default function Leaderboard() {
   const week = useAppSelector((state) => state.game.week)
   const phase = useAppSelector((state) => state.game.phase)
   const seasonArchives = useAppSelector((state) => state.game.seasonArchives ?? [])
+  const twinShockActivatedSeason = useAppSelector((state) => state.game.twinShockActivatedSeason)
   const userPlayer = players.find((player) => player.isUser) ?? null
+  const archivedTwinShockSeason = getTwinShockActivationSeason(
+    seasonArchives,
+    twinShockActivatedSeason
+  )
 
   const seasonHistory = useMemo(
     () =>
@@ -85,9 +91,11 @@ export default function Leaderboard() {
             userSummary,
             duration,
             formatLabel: seasonFormatLabel(archive),
+            twinShockOccurred:
+              archive.twinShockConsumed === true && archivedTwinShockSeason === archive.seasonIndex,
           }
         }),
-    [seasonArchives, userPlayer]
+    [archivedTwinShockSeason, seasonArchives, userPlayer]
   )
 
   const achievementSummary = useMemo(
@@ -147,6 +155,7 @@ export default function Leaderboard() {
                   userSummary,
                   duration,
                   formatLabel,
+                  twinShockOccurred,
                 }) => {
                   const isExpanded = expandedSeasonId === archive.seasonId
                   const userTitles = userSummary?.titlesWon?.filter(Boolean) ?? []
@@ -168,7 +177,7 @@ export default function Leaderboard() {
                           </span>
                           <span className="hall-of-fame-screen__season-meta">
                             {formatLabel}
-                            {archive.twinShockConsumed ? ' · Twin Shock' : ''}
+                            {twinShockOccurred ? ' · Twin Shock' : ''}
                             {duration ? ` · ${duration} days` : ''}
                           </span>
                           <span className="hall-of-fame-screen__your-finish">

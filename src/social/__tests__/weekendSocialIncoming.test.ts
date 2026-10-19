@@ -1,14 +1,21 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import gameReducer, {
+  advanceWeekendDay,
+  advanceWeekendSeasonFact,
+  beginWeekendDayTransition,
+  beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
   chooseHubSaysPlayer,
   continueHubSays,
   continueWeekendFeature,
   debugActivateWeekendInterlude,
+  hydrateGame,
   submitHubSaysVote,
 } from '../../store/gameSlice'
 import socialReducer, { recordSocialAction } from '../socialSlice'
 import { socialMiddleware } from '../socialMiddleware'
+import { isIncomingInteractionInvalidated } from '../incomingInteractionValidity'
 
 function makeStore() {
   return configureStore({
@@ -72,6 +79,83 @@ describe('weekend incoming social activity', () => {
         }),
       ])
     )
+  })
+
+  it('delivers temporary messages from returning jurors after the Sunday announcement', () => {
+    const store = makeStore()
+    const initialGame = store.getState().game
+    const human = initialGame.players.find((player) => player.isUser)!
+    const activeIds = new Set([
+      human.id,
+      ...initialGame.players
+        .filter((player) => !player.isUser)
+        .slice(0, 2)
+        .map((player) => player.id),
+    ])
+    let jurorCount = 0
+    store.dispatch(
+      hydrateGame({
+        ...initialGame,
+        players: initialGame.players.map((player) => {
+          if (activeIds.has(player.id)) return { ...player, status: 'active' as const }
+          if (jurorCount < 6) {
+            jurorCount += 1
+            return { ...player, status: 'jury' as const }
+          }
+          return { ...player, status: 'evicted' as const }
+        }),
+      })
+    )
+    store.dispatch(debugActivateWeekendInterlude('finale'))
+    store.dispatch(continueWeekendFeature())
+    store.dispatch(continueWeekendFeature())
+    while (store.getState().game.weekendInterlude?.stage === 'season_so_far') {
+      store.dispatch(advanceWeekendSeasonFact())
+    }
+    store.dispatch(beginWeekendDayTransition())
+    store.dispatch(advanceWeekendDay())
+
+    expect(store.getState().game.weekendInterlude).toMatchObject({
+      weekendDay: 2,
+      stage: 'tribunal_invitation',
+    })
+    expect(
+      store
+        .getState()
+        .social.incomingInteractions.filter(
+          (interaction) =>
+            ['weekend_arrival', 'weekend_buzz'].includes(
+              String(interaction.payload?.scenarioKey ?? '')
+            ) && interaction.payload?.weekendDay === 2
+        )
+    ).toHaveLength(0)
+
+    store.dispatch(beginFinaleReunionSocial())
+    const partyMessages = store
+      .getState()
+      .social.incomingInteractions.filter(
+        (interaction) => interaction.payload?.scenarioKey === 'finale_reunion_guest'
+      )
+    expect(store.getState().game.weekendInterlude?.stage).toBe('finale_reunion_social')
+    expect(partyMessages).toHaveLength(3)
+    expect(new Set(partyMessages.map((message) => message.fromId))).toHaveProperty('size', 3)
+    partyMessages.forEach((message) => {
+      const sender = store.getState().game.players.find((player) => player.id === message.fromId)!
+      expect(['evicted', 'jury']).toContain(sender.status)
+      expect(message.resolved).not.toBe(true)
+      expect(isIncomingInteractionInvalidated(message, store.getState().game)).toBe(false)
+    })
+
+    store.dispatch(beginWeekendTribunalGlimpse())
+    expect(store.getState().game.weekendInterlude?.stage).toBe('finale_sequester_announcement')
+    expect(
+      store
+        .getState()
+        .social.incomingInteractions.filter(
+          (interaction) => interaction.payload?.scenarioKey === 'finale_reunion_guest'
+        )
+        .every((interaction) => interaction.resolved)
+    ).toBe(true)
   })
 
   it('dedupes routine weekend replies, caps the open routine queue, and still allows conflict reactions', () => {

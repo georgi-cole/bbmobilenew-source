@@ -39,6 +39,10 @@ import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
 import { getEffectiveSocialMode } from './socialMode'
 import { isLohReplacementPending } from './lohReplacementWindow'
+import { formatVagueLohPlan } from './lohConsultationCopy'
+import { isSafetyProtectionOffer } from './protectionOffer'
+import { getCupidPartnerId } from '../features/twists/cupidArrow'
+import { formatLohSafetyConsultation } from './lohSafetyConsultation'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
   getRuntimeSocialActionById,
@@ -589,6 +593,9 @@ function getContextualActionSummary({
   recipientTrust: number
   game?: {
     week?: number
+    phase?: string
+    posWinnerId?: string | null
+    cupidArrow?: import('../types').GameState['cupidArrow']
     players?: Array<{ id: string; name?: string; status: string }>
     nomineeIds?: string[]
     lohId?: string | null
@@ -604,6 +611,13 @@ function getContextualActionSummary({
   if (actionId === 'protect') {
     const targetName = name(targetId)
     const atRisk = (game?.nomineeIds ?? []).includes(targetId)
+    const safetySave = isSafetyProtectionOffer({
+      phase: game?.phase,
+      actorHoldsSafety:
+        game?.posWinnerId === actorId ||
+        getCupidPartnerId(game ?? {}, game?.posWinnerId) === actorId,
+      targetIsNominated: atRisk,
+    })
     const plan = game?.lohSocialPlan
     const actorStillTargetsThem = Boolean(
       plan &&
@@ -612,10 +626,14 @@ function getContextualActionSummary({
       [plan.currentTargetId, plan.backupTargetId].includes(targetId)
     )
     if (outcome === 'success') {
+      if (safetySave)
+        return `${targetName} welcomes your offer to use Safety on them. You have promised to save them at the Safety Ceremony.`
       return atRisk
         ? `${targetName} believes your promise to vote to keep them. You have made your position clear.`
         : `${targetName} believes you will use your vote or power to protect them when you can.`
     }
+    if (safetySave)
+      return `${targetName} wants the Safety save, but your current plan still names them as a target.`
     return actorStillTargetsThem
       ? `${targetName} is wary of your offer because your current plan still names them as a target.`
       : `${targetName} heard your promise but is not ready to rely on it yet.`
@@ -628,7 +646,13 @@ function getContextualActionSummary({
     const disclosure = resolveNominationDisclosure(game, actorId, targetId, recipientTrust)
     const reason = disclosure.reason
     if (!reason) {
-      return `${lohName} said they needed a viable block, but did not give you a clearer strategic explanation.`
+      if (recipientTrust >= 30) {
+        return `${lohName} said they respect you, but your competition potential made you too dangerous to leave comfortable.`
+      }
+      if (recipientTrust < 0) {
+        return `${lohName} admitted they do not trust your position and wanted to force you to show your hand.`
+      }
+      return `${lohName} said they needed options to build a viable block, but did not give you a clearer strategic explanation.`
     }
     const relationshipPrefix = disclosure.closeBond
       ? `They acknowledged that you were their ${disclosure.tier.toLowerCase().replaceAll('_', ' ')}. `
@@ -869,6 +893,8 @@ export interface ExecuteActionOptions {
 }
 
 export interface ExecuteActionResult {
+  /** The complete player-visible response is already saved in Hub Wire. */
+  receiptRecorded?: boolean
   /** False when the actor lacks energy or the action is unknown. */
   success: boolean
   /** Affinity delta applied to the source→target relationship. */
@@ -1468,22 +1494,48 @@ export function executeAction(
   const newEnergy = balancesAfter.energy
 
   const subjectId = options?.subjectId ?? lohTargetPlan?.targetId
+  const contextualSummary = getContextualActionSummary({
+    actionId,
+    actorId,
+    targetId,
+    subjectId: options?.subjectId,
+    recipientTrust,
+    game: rootState.game,
+    relationships: state.social.relationships,
+    outcome,
+  })
+  const lohSafetySummary =
+    actionId === 'ask_loh_target' && priorLohAsks < 2
+      ? formatLohSafetyConsultation(rootState.game, actorId)
+      : null
 
   const narrative =
-    outcome !== 'success'
-      ? undefined
-      : actionId === 'snoop_around'
-        ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
-        : actionId === 'ask_loh_target' && !safetyAdviceOpen
-          ? buildLohTargetNarrative(
-              state.game,
-              targetId,
-              priorRepeats,
-              lohTargetPlan
-                ? { targetName: lohTargetPlan.targetName, isBackdoor: lohTargetPlan.isBackdoor }
-                : null
-            )
-          : undefined
+    actionId === 'protect'
+      ? (contextualSummary ?? undefined)
+      : outcome !== 'success'
+        ? undefined
+        : actionId === 'snoop_around'
+          ? buildSnoopNarrative(state.social, actorId, state.game?.players ?? [])
+          : lohSafetySummary
+            ? lohSafetySummary
+            : actionId === 'ask_loh_target' && !safetyAdviceOpen
+              ? lohDisclosure.outcome === 'vague' && priorRepeats < 2
+                ? formatVagueLohPlan(
+                    state.game?.players.find((player) => player.id === targetId)?.name ?? 'The LOH',
+                    state.game?.phase
+                  )
+                : buildLohTargetNarrative(
+                    state.game,
+                    targetId,
+                    priorRepeats,
+                    lohTargetPlan
+                      ? {
+                          targetName: lohTargetPlan.targetName,
+                          isBackdoor: lohTargetPlan.isBackdoor,
+                        }
+                      : null
+                  )
+              : undefined
 
   const entry: SocialActionLogEntry = {
     actionId,
@@ -1491,10 +1543,10 @@ export function executeAction(
     targetId,
     ...(subjectId ? { subjectId } : {}),
     ...(narrative ? { narrative } : {}),
-    ...(lohTargetPlan
+    ...(actionId === 'ask_loh_target'
       ? {
           context: {
-            lohPlanType: lohTargetPlan.isBackdoor
+            lohPlanType: lohTargetPlan?.isBackdoor
               ? ('backup_plan' as const)
               : ('current_target' as const),
             lohDisclosureOutcome: lohDisclosure.outcome,
@@ -1634,16 +1686,6 @@ export function executeAction(
   const sign = relationshipDelta > 0 ? '+' : ''
   const lohName =
     rootState.game?.players?.find((player) => player.id === targetId)?.name ?? 'The LOH'
-  const contextualSummary = getContextualActionSummary({
-    actionId,
-    actorId,
-    targetId,
-    subjectId: options?.subjectId,
-    recipientTrust,
-    game: rootState.game,
-    relationships: state.social.relationships,
-    outcome,
-  })
   const standardSummary =
     contextualSummary ??
     (actionId === 'ask_loh_target' && priorLohAsks >= 3

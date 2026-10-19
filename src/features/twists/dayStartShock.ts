@@ -23,7 +23,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'panic-attack',
-    text: '{{name}} suffered a panic attack after a tense overnight exchange and needed to leave the house.',
+    text: '{{name}} suffered a panic attack after a tense overnight exchange and needed to leave the Hub.',
   },
   {
     id: 'aggressive-argument',
@@ -31,7 +31,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'medical-issue',
-    text: '{{name}} woke up with a medical issue that the house cameras could not ignore, and producers sent them out for care.',
+    text: '{{name}} woke up with a medical issue that the Hub cameras could not ignore, and producers sent them out for care.',
   },
   {
     id: 'family-call',
@@ -43,7 +43,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'dehydration',
-    text: '{{name}} was taken out for dehydration after a rough night and will not return to the house.',
+    text: '{{name}} was taken out for dehydration after a rough night and will not return to the Hub.',
   },
   {
     id: 'doctor-order',
@@ -51,7 +51,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'crossed-line',
-    text: '{{name}} lost their cool during a confrontation, crossed the line, and was expelled from the house.',
+    text: '{{name}} lost their cool during a confrontation, crossed the line, and was expelled from the Hub.',
   },
   {
     id: 'heatwave',
@@ -83,7 +83,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'fever',
-    text: '{{name}} woke up with a nasty fever and the game could not risk keeping them in the house.',
+    text: '{{name}} woke up with a nasty fever and the game could not risk keeping them in the Hub.',
   },
   {
     id: 'tears',
@@ -91,7 +91,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'stomach-bug',
-    text: '{{name}} got a serious stomach bug after the house buffet and was sent home on medical advice.',
+    text: '{{name}} got a serious stomach bug after the Hub buffet and was sent home on medical advice.',
   },
   {
     id: 'missing-charger',
@@ -103,7 +103,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'loved-one-news',
-    text: '{{name}} received crushing news about a loved one and left the house immediately.',
+    text: '{{name}} received crushing news about a loved one and left the Hub immediately.',
   },
   {
     id: 'sleep-debt',
@@ -119,7 +119,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'coffee-meltdown',
-    text: '{{name}} broke down after realizing the house had run out of their favorite coffee, and that was the final straw.',
+    text: '{{name}} broke down after realizing the Hub had run out of their favorite coffee, and that was the final straw.',
   },
   {
     id: 'toaster-war',
@@ -131,7 +131,7 @@ const DAY_START_SHOCK_TEMPLATES: ShockTemplate[] = [
   },
   {
     id: 'crushing-call',
-    text: '{{name}} tried to keep it together after a brutal call from home, but the house finally got to them.',
+    text: '{{name}} tried to keep it together after a brutal call from home, but the Hub finally got to them.',
   },
 ];
 

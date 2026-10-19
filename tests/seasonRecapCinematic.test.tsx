@@ -133,6 +133,36 @@ describe('Season recap archive', () => {
     expect(screen.getByText('Why it mattered')).toBeTruthy();
   });
 
+  it('keeps a fourth-place finisher visible when another moment shares their exit day', () => {
+    const players = PLAYERS.map((player) =>
+      player.id === 'e1'
+        ? { ...player, status: 'active' as const, isUser: true, seasonPlacement: 4, evictedAtWeek: 5 }
+        : player,
+    );
+    render(
+      <SeasonRecapCinematic
+        season={9}
+        week={12}
+        players={players}
+        history={EXIT_HISTORY}
+        publicOpinion={PUBLIC_OPINION}
+        onComplete={vi.fn()}
+      />,
+    );
+    skipOpening();
+    fireEvent.click(screen.getByRole('button', { name: /open calendar/i }));
+
+    const sharedDay = screen.getByRole('button', {
+      name: /day 5: drew, exit, 1 more moment: midseason turn/i,
+    });
+    expect(sharedDay.querySelector('em')).toHaveAttribute('title', '+1 other moment: Midseason turn');
+    fireEvent.click(sharedDay);
+
+    expect(screen.getByText(/Drew's season ended here/i)).toBeTruthy();
+    expect(screen.getByText(/Finished #4/i)).toBeTruthy();
+    expect(screen.getByText('Midseason turn · Milestone')).toBeTruthy();
+  });
+
   it('keeps the original category data and makes the comp result explicit', () => {
     const data = buildSeasonRecapData(PLAYERS, 12, PUBLIC_OPINION);
     expect(data.categories.map((category) => category.id)).toEqual([

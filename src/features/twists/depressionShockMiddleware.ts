@@ -119,7 +119,7 @@ function announceSurpriseDecision(
       .filter((name): name is string => Boolean(name))
     const actorName =
       after.voxPopuli?.status === 'active'
-        ? 'The house'
+        ? 'The Hub'
         : (after.players.find((player) => player.id === after.lohId)?.name ?? 'The LOH')
     api.dispatch({
       type: 'game/addTvEvent',
@@ -155,7 +155,7 @@ function announceSurpriseDecision(
     payload: {
       text: `${holderName} made an unexpectedly erratic Safety choice${
         savedNames.length > 0 ? `, saving ${savedNames.join(' and ')}` : ''
-      }. The house is struggling to read the decision.`,
+      }. The Hub is struggling to read the decision.`,
       type: 'twist',
       source: 'system',
       channels: ['tv', 'mainLog'],
@@ -217,7 +217,7 @@ function maybeTriggerRandomFight(
   api.dispatch({
     type: 'game/addTvEvent',
     payload: {
-      text: `Out of nowhere, ${leftName} and ${rightName} erupted into a fight. The argument seemed to start over almost nothing — the mood in the House is getting volatile.`,
+      text: `Out of nowhere, ${leftName} and ${rightName} erupted into a fight. The argument seemed to start over almost nothing — the mood in the Hub is getting volatile.`,
       type: 'social',
       source: 'system',
       channels: ['tv', 'mainLog'],

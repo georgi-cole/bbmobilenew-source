@@ -36,7 +36,7 @@ function buildPublicOpinionHighlights(
 
       return {
         id: `public-${item.id}`,
-        eyebrow: positive ? 'The audience leaned in' : 'The mood in the house shifted',
+        eyebrow: positive ? 'The audience leaned in' : 'The mood in the Hub shifted',
         title: positive
           ? `${player.name} became part of the season.`
           : `${player.name} changed the conversation.`,

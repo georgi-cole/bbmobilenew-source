@@ -1,5 +1,6 @@
 import { normalizeAffinity } from './affinityUtils'
 import type { DramaAIMove, DramaAIMoveInput } from './dramaModeEngine'
+import { getSocialExperienceRead, getSocialMotivePreferences } from './socialDecisionPreferences'
 import { getSocialPersonality } from './socialPersonalityBank'
 import { getSocialRuntimeConfig } from './socialRuntimeConfig'
 
@@ -103,6 +104,7 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
   if (alive.length === 0) return null
 
   const personality = getSocialPersonality(input.actorId)
+  const motives = getSocialMotivePreferences(input.actorId, input.aiGameIdentity)
   const candidates: DramaCandidate[] = []
   const nominees = new Set(input.nomineeIds ?? [])
   const byAffinity = [...alive].sort(
@@ -112,6 +114,13 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
   )
   const closest = byAffinity[0]
   const rival = byAffinity.at(-1) ?? alive[0]
+  const handledConflictTargets = new Set<string>()
+  const experienceFor = (targetId: string) =>
+    getSocialExperienceRead(input.actorId, targetId, {
+      recentActions: input.recentActions,
+      socialMemory: input.memory,
+      week: input.week,
+    })
 
   for (const arc of input.network.arcs.filter(
     (entry) => entry.status === 'active' && entry.participantIds.includes(input.actorId)
@@ -122,6 +131,8 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
     const intensity = arc.intensity / 100
 
     if (arc.type === 'rivalry' || arc.type === 'betrayal') {
+      handledConflictTargets.add(otherId)
+      const experience = experienceFor(otherId)
       if (personality.forgiveness > 0.62 && intensity < 0.72) {
         addCandidate(candidates, input, {
           actionId: 'repair_bond',
@@ -143,6 +154,9 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
           intensity * 0.72 +
           personality.assertiveness * 0.28 +
           personality.emotionalReactivity * 0.2 +
+          experience.grievance * (0.18 + motives.revenge * 0.3) +
+          experience.humiliation * (0.2 + motives.revenge * 0.45) +
+          experience.betrayal * (0.18 + motives.revenge * 0.28) +
           (publicConflict ? personality.publicConflictComfort * 0.2 : 0),
       })
     }
@@ -186,6 +200,27 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
     }
   }
 
+  // A recent public slight can provoke an impulsive response even before a
+  // formal rivalry arc has had time to form. Forgiving contestants still see
+  // the option, but it competes with their other motives instead of taking over.
+  for (const target of alive) {
+    if (handledConflictTargets.has(target.id)) continue
+    const experience = experienceFor(target.id)
+    if (experience.humiliation < 0.2) continue
+    const publicCallout = personality.publicConflictComfort >= 0.62
+    addCandidate(candidates, input, {
+      actionId: publicCallout ? 'public_callout' : 'confront',
+      targetId: target.id,
+      reason: 'answering a recent public slight',
+      motive: 'conflict',
+      utility:
+        0.34 +
+        experience.humiliation * (0.2 + motives.revenge * 0.62) +
+        experience.grievance * (0.12 + motives.revenge * 0.3) +
+        personality.assertiveness * 0.16,
+    })
+  }
+
   const knownRumours = input.network.rumours.filter(
     (rumour) =>
       rumour.status === 'circulating' &&
@@ -214,6 +249,7 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
         0.4 +
         confidence * 0.42 +
         personality.gossipPropensity * 0.32 +
+        motives.ambition * 0.12 +
         (expose
           ? personality.publicConflictComfort * 0.24
           : personality.strategicCalculation * 0.2),
@@ -242,7 +278,8 @@ export function chooseUtilityDramaAIMove(input: DramaAIMoveInput): DramaAIMove |
         utility:
           0.72 +
           personality.strategicCalculation * 0.36 +
-          Math.max(0, relation(input, input.actorId, nomineeId)) * 0.2,
+          Math.max(0, relation(input, input.actorId, nomineeId)) * 0.2 +
+          motives.fear * 0.18,
       })
     }
   }

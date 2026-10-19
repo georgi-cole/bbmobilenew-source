@@ -20,12 +20,14 @@ import type {
   SocialActionLogEntry,
   SocialMemoryMap,
 } from './types'
+import type { AiGameIdentity } from '../ai/aiGameIdentity'
 
 export interface DramaPlayer {
   id: string
   name: string
   status: string
   isUser?: boolean
+  aiGameIdentity?: AiGameIdentity
 }
 export interface DramaRelationshipEffect {
   source: string
@@ -67,6 +69,7 @@ export interface DramaIncomingResponseEffect {
 }
 export interface DramaAIMoveInput {
   actorId: string
+  aiGameIdentity?: AiGameIdentity
   players: DramaPlayer[]
   relationships: RelationshipsMap
   memory: SocialMemoryMap

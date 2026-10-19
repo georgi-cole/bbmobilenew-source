@@ -94,4 +94,30 @@ describe('BlackjackTournamentComp styles', () => {
     const roster = getRuleDeclarations(css, '.bjt-complete .bjt-roster-wrap');
     expect(roster.position).toBe('static');
   });
+
+  it('keeps live hands, turn controls, and standings inside one table stage', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/BlackjackTournamentComp/BlackjackTournamentComp.css'),
+      'utf8',
+    );
+    const component = readFileSync(
+      resolve(process.cwd(), 'src/components/BlackjackTournamentComp/BlackjackTournamentComp.tsx'),
+      'utf8',
+    );
+
+    expect(component).toContain('bjt-duel-layout');
+    expect(component).toContain('bjt-table-surface');
+    expect(component).toContain('bjt-standings-card');
+    expect(component).toContain('bjt-duel-action-slot');
+    expect(css).toContain('height: 100dvh;');
+    expect(css).toContain('max-height: 100dvh;');
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr) clamp(12rem, 22vw, 17rem);');
+
+    const tableDeclarations = getRuleDeclarations(css, '.bjt-table-surface');
+    expect(tableDeclarations.display).toBe('grid');
+    expect(tableDeclarations['grid-template-rows']).toBe('auto minmax(0, 1fr) auto');
+
+    const rosterDeclarations = getRuleDeclarations(css, '.bjt-duel .bjt-standings-roster');
+    expect(rosterDeclarations.position).toBe('relative');
+  });
 });

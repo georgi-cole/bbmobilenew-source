@@ -13,6 +13,7 @@ import {
   type AllianceManagementContext,
 } from './reality/allianceManagement'
 import { normalizeRealityDomainState } from './reality/state'
+import type { SocialActionReceipt } from './types'
 
 export function allianceManagementContext(
   state: Pick<RootState, 'game'>
@@ -23,6 +24,26 @@ export function allianceManagementContext(
       .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
       .map((player) => player.id),
     humanActorIds: state.game.players.filter((player) => player.isUser).map((player) => player.id),
+    atRiskActorIds: [...(state.game.nomineeIds ?? [])],
+    juryActorIds: state.game.players
+      .filter((player) => player.status === 'jury')
+      .map((player) => player.id),
+    competitionThreatByActorId: Object.fromEntries(
+      state.game.players.map((player) => {
+        const observed = state.game.competitionSeasonStateByPlayerId?.[player.id]
+        const samples = Math.max(0, observed?.performanceSamples ?? 0)
+        const observedStrength = observed?.observedStrength ?? 50
+        const observedResults =
+          samples > 0
+            ? Math.min(2.2, Math.max(0, observedStrength - 50) * 0.055 + samples * 0.18)
+            : 0
+        const publicWins = Math.min(
+          1.8,
+          ((player.stats?.lohWins ?? 0) + (player.stats?.posWins ?? 0)) * 0.55
+        )
+        return [player.id, observedResults + publicWins]
+      })
+    ),
     displayNames: Object.fromEntries(state.game.players.map((player) => [player.id, player.name])),
     viewerActorId: state.game.players.find((player) => player.isUser)?.id,
     seed: state.game.seed ?? 0,
@@ -91,6 +112,24 @@ function allianceProposalReceipt(
   if (request.status === 'VOTING')
     return `${allianceName} is voting on your proposal. Follow the result in Hub Wire.`
   return request.reason ?? 'Alliance proposal submitted. Track its decision in Hub Wire.'
+}
+
+function allianceProposalOutcome(
+  request: RootState['social']['reality']['allianceManagement']['requests'][string] | undefined
+): Pick<SocialActionReceipt, 'outcomeLabel' | 'tone'> {
+  if (!request || request.status === 'VOTING' || request.status === 'CONSENT')
+    return { outcomeLabel: 'Pending approval', tone: 'neutral' }
+  if (request.status === 'DECLINED') return { outcomeLabel: 'Declined', tone: 'negative' }
+  if (request.status !== 'ACCEPTED') return { outcomeLabel: 'Ended', tone: 'neutral' }
+  const responses = Object.values(request.responsesByActorId ?? {})
+  return {
+    outcomeLabel: responses.some((response) => response.style === 'LIMITED')
+      ? 'Accepted with limits'
+      : responses.some((response) => response.style === 'HESITANT')
+        ? 'Accepted cautiously'
+        : 'Accepted',
+    tone: 'positive',
+  }
 }
 
 /** Charge only a newly submitted player proposal; decisions and exits remain free. */
@@ -204,9 +243,16 @@ export function executeAllianceManagementCommand(
             phase: latest.game.phase,
             source: 'manual',
             narrative: allianceProposalReceipt(domain, result.requestId, latest),
+            receipt: {
+              summary: allianceProposalReceipt(domain, result.requestId, latest),
+              ...allianceProposalOutcome(
+                result.requestId ? domain.allianceManagement.requests[result.requestId] : undefined
+              ),
+            },
           },
         })
       )
+      result.receiptRecorded = true
     }
 
     if (JSON.stringify(domain) !== JSON.stringify(state.social.reality))

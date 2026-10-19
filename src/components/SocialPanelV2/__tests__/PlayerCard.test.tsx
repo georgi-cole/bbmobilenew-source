@@ -62,6 +62,18 @@ describe('PlayerCard', () => {
     expect(screen.getByText('Nom')).toBeDefined()
   })
 
+  it('labels eliminated players clearly', () => {
+    const player = makePlayer({ status: 'evicted' })
+    render(<PlayerCard player={player} selected={false} disabled={false} onSelect={() => {}} />)
+    expect(screen.getByText('Eliminated')).toBeDefined()
+  })
+
+  it('labels Tribunal members clearly', () => {
+    const player = makePlayer({ status: 'jury' })
+    render(<PlayerCard player={player} selected={false} disabled={false} onSelect={() => {}} />)
+    expect(screen.getByText('⚖ Tribunal')).toBeDefined()
+  })
+
   it('has role="button" and aria-pressed=false when not selected', () => {
     const player = makePlayer()
     render(<PlayerCard player={player} selected={false} disabled={false} onSelect={() => {}} />)

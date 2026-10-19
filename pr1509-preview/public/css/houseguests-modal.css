@@ -344,6 +344,17 @@
   overflow: hidden;
 }
 
+.houseguests-detail__avatar--full-figure {
+  width: min(100%, 320px);
+  height: 420px;
+  border-radius: 14px;
+  background-size: contain;
+  background-position: var(--houseguest-portrait-position, center 20%);
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
 .houseguests-detail__name {
   margin: 0;
   font-size: 24px;
@@ -472,6 +483,11 @@
     width: 100px;
     height: 100px;
     font-size: 40px;
+  }
+
+  .houseguests-detail__avatar--full-figure {
+    width: min(100%, 260px);
+    height: 340px;
   }
 }
 

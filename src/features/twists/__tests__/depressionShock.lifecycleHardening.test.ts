@@ -100,4 +100,13 @@ describe('Depression Shock lifecycle hardening', () => {
       expect(suffixes.slice(Math.max(0, index - 3), index)).not.toContain(suffix)
     })
   })
+
+  it('does not append a mood line to a long broadcast that needs the Faux TV viewport', () => {
+    const longBroadcast =
+      'The rain has swallowed the usual noise. Conversations start softly and end before anyone says what they mean. A low rumble rolls beyond the walls, and the room answers with another long pause.'
+
+    expect(decorateDepressionShockFauxTvText(longBroadcast, 'day1', 'long-storm-broadcast')).toBe(
+      longBroadcast
+    )
+  })
 })

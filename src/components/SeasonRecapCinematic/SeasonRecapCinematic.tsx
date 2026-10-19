@@ -382,7 +382,11 @@ function buildTimelineCheckpoints(recapData: RecapData, week: number, t: Transla
   // The Final 3 public verdict gets its own bronze-medalist moment instead of
   // being mistaken for a double elimination when it shares finale night.
   const evictions = recapData.evictionLadder.filter(
-    (player) => player.seasonPlacement !== 2 && player.finalRank !== 2,
+    (player) =>
+      player.seasonPlacement !== 2 &&
+      player.finalRank !== 2 &&
+      ((player.status === 'evicted' || player.status === 'jury') ||
+        (player.seasonPlacement ?? player.finalRank ?? 0) > 2),
   );
   const checkpoints = evictions.map((player, index) => {
     const inferredDay = Math.round(((index + 1) / (evictions.length + 1)) * totalDays);
@@ -472,7 +476,7 @@ function buildTimelineCheckpoints(recapData: RecapData, week: number, t: Transla
   ].sort((a, b) => a.day - b.day || (a.kind === 'twist' ? -1 : 1));
 }
 
-function FinaleCalendarFocus({
+export function FinaleCalendarFocus({
   day,
   events,
   history,
@@ -486,6 +490,7 @@ function FinaleCalendarFocus({
   onClose: () => void;
 }) {
   const leadEvent = events.find((event) => event.kind === 'twist')
+    ?? events.find((event) => event.kind === 'eviction')
     ?? events.find((event) => event.kind === 'milestone')
     ?? events.find((event) => event.kind === 'finale')
     ?? events[0];
@@ -501,6 +506,7 @@ function FinaleCalendarFocus({
         ? `#${player.finalRank}`
         : '—';
   const impact = getMajorEventImpact(leadEvent);
+  const otherEvents = events.filter((event) => event.id !== leadEvent.id);
   const involvedPlayers = [...new Map(
     events
       .flatMap((event) => [
@@ -742,6 +748,27 @@ function FinaleCalendarFocus({
           ))}
         </dl>
       )}
+      {otherEvents.length > 0 && (
+        <section
+          className="src-finale-calendar__focus-other-events"
+          aria-label={`Other moments on Day ${day}`}
+        >
+          <p>Other moments this day</p>
+          {otherEvents.map((event) => {
+            const eventPlayer = event.player;
+            const eventPlacement = eventPlayer?.seasonPlacement ?? eventPlayer?.finalRank;
+            return (
+              <article key={event.id}>
+                <strong>
+                  {eventPlayer ? `${eventPlayer.name} · ${event.label}` : `${event.title} · ${event.label}`}
+                  {eventPlacement && eventPlacement > 2 ? ` · Finished #${eventPlacement}` : ''}
+                </strong>
+                <span>{event.detail}</span>
+              </article>
+            );
+          })}
+        </section>
+      )}
       {!player && involvedPlayers.length > 0 && (
         <div className="src-finale-calendar__focus-cast">
           <p>Players involved</p>
@@ -907,10 +934,17 @@ function FinaleTimeline({
                       {rowDays.map((day) => {
                         const dayEvents = eventsByDay.get(day) ?? [];
                         const primaryEvent = dayEvents.find((event) => event.kind === 'twist')
+                          ?? dayEvents.find((event) => event.kind === 'eviction')
                           ?? dayEvents.find((event) => event.kind === 'milestone')
                           ?? dayEvents.find((event) => event.kind === 'finale')
                           ?? dayEvents[0];
                         const meta = primaryEvent ? CALENDAR_EVENT_META[primaryEvent.kind] : null;
+                        const additionalEventNames = dayEvents
+                          .filter((event) => event.id !== primaryEvent?.id)
+                          .map((event) => event.player?.name ?? event.title);
+                        const additionalEventLabel = additionalEventNames.length > 0
+                          ? `, ${additionalEventNames.length} more moment${additionalEventNames.length === 1 ? '' : 's'}: ${additionalEventNames.join(', ')}`
+                          : '';
                         return (
                           <motion.button
                             key={day}
@@ -919,7 +953,9 @@ function FinaleTimeline({
                             data-event={primaryEvent ? 'true' : 'false'}
                             data-kind={primaryEvent?.kind}
                             layoutId={primaryEvent ? `finale-day-${day}` : undefined}
-                            aria-label={primaryEvent ? `Day ${day}: ${primaryEvent.title}, ${primaryEvent.label}` : `Day ${day}: no major event recorded`}
+                            aria-label={primaryEvent
+                              ? `Day ${day}: ${primaryEvent.title}, ${primaryEvent.label}${additionalEventLabel}. Activate to review ${dayEvents.length} moment${dayEvents.length === 1 ? '' : 's'}.`
+                              : `Day ${day}: no major event recorded`}
                             disabled={dayEvents.length === 0}
                             whileTap={primaryEvent ? { scale: 0.92 } : undefined}
                             onClick={() => setSelectedDay(day)}
@@ -932,7 +968,14 @@ function FinaleTimeline({
                             )}
                             {meta && !primaryEvent?.player && <i aria-hidden="true">{meta.icon}</i>}
                             {meta && <small>{meta.label}</small>}
-                            {dayEvents.length > 1 && <em aria-hidden="true">+{dayEvents.length - 1}</em>}
+                            {dayEvents.length > 1 && (
+                              <em
+                                aria-hidden="true"
+                                title={`+${dayEvents.length - 1} other moment${dayEvents.length === 2 ? '' : 's'}: ${additionalEventNames.join(', ')}`}
+                              >
+                                +{dayEvents.length - 1}
+                              </em>
+                            )}
                           </motion.button>
                         );
                       })}

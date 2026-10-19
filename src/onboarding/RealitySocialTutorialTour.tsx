@@ -197,7 +197,7 @@ const REALITY_UPGRADE_STEPS: readonly TutorialStep[] = [
   {
     id: 'upgrade-pulse',
     title: 'Meet My Pulse',
-    body: 'Follow developments that actually reached your player — not hidden activity happening elsewhere in the house.',
+    body: 'Follow developments that actually reached your player — not hidden activity happening elsewhere in the Hub.',
     selector: '[data-reality-tutorial="pulse-stream"]',
     padding: 5,
     shape: 'panel',

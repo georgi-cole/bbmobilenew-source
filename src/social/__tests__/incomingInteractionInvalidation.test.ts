@@ -13,6 +13,7 @@ import socialReducer, {
 } from '../socialSlice'
 import { socialMiddleware } from '../socialMiddleware'
 import { respondToIncomingInteraction } from '../incomingInteractions'
+import { deliverScheduledIncomingInteractionsForPhase } from '../incomingInteractionScheduler'
 import { isIncomingInteractionInvalidated } from '../incomingInteractionValidity'
 import {
   createInitialRealityDomainState,
@@ -173,6 +174,216 @@ describe('incoming interaction invalidation', () => {
         game
       )
     ).toBe(true)
+  })
+
+  it('allows a nominee to campaign to an eligible voter but rejects alliance ballot claims', () => {
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    loh.status = 'loh'
+    human.status = 'active'
+    nominee.status = 'nominated'
+    otherNominee.status = 'nominated'
+    game.nomineeIds = [nominee.id, otherNominee.id]
+
+    expect(
+      isIncomingInteractionInvalidated(
+        makeInteraction({
+          fromId: nominee.id,
+          type: 'deal_offer',
+          payload: { scenarioKey: 'live_vote_pitch', phase: 'live_vote' },
+        }),
+        game
+      )
+    ).toBe(false)
+    expect(
+      isIncomingInteractionInvalidated(
+        makeInteraction({
+          fromId: nominee.id,
+          type: 'deal_offer',
+          payload: {
+            scenarioKey: 'alliance_vote_pitch',
+            phase: 'live_vote',
+            subjectId: otherNominee.id,
+          },
+        }),
+        game
+      )
+    ).toBe(true)
+  })
+
+  it('rejects an alliance ballot pitch when the human recipient cannot vote', () => {
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    const sender = game.players.find(
+      (player) =>
+        !player.isUser &&
+        player.id !== nominee.id &&
+        player.id !== otherNominee.id &&
+        player.id !== loh.id
+    )
+    if (!sender) throw new Error('Expected another eligible AI voter')
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    loh.status = 'loh'
+    sender.status = 'active'
+    otherNominee.status = 'nominated'
+    human.status = 'nominated'
+    game.nomineeIds = [human.id, otherNominee.id]
+    const pitch = makeInteraction({
+      fromId: sender.id,
+      type: 'deal_offer',
+      payload: {
+        scenarioKey: 'alliance_vote_pitch',
+        phase: 'live_vote',
+        subjectId: otherNominee.id,
+      },
+    })
+
+    expect(isIncomingInteractionInvalidated(pitch, game)).toBe(true)
+
+    human.status = 'active'
+    game.nomineeIds = [otherNominee.id]
+    game.lohId = human.id
+    human.status = 'loh'
+    expect(isIncomingInteractionInvalidated(pitch, game)).toBe(true)
+  })
+
+  it('rechecks ballot eligibility after scheduling when either participant gains a blocked role', () => {
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    loh.status = 'loh'
+    human.status = 'active'
+    nominee.status = 'active'
+    otherNominee.status = 'nominated'
+    game.nomineeIds = [otherNominee.id]
+    const interaction = makeInteraction({
+      fromId: nominee.id,
+      type: 'deal_offer',
+      payload: {
+        scenarioKey: 'alliance_vote_pitch',
+        phase: 'live_vote',
+        subjectId: otherNominee.id,
+      },
+    })
+
+    expect(isIncomingInteractionInvalidated(interaction, game)).toBe(false)
+
+    nominee.status = 'nominated'
+    game.nomineeIds = [nominee.id, otherNominee.id]
+    expect(isIncomingInteractionInvalidated(interaction, game)).toBe(true)
+
+    nominee.status = 'active'
+    game.nomineeIds = [otherNominee.id]
+    human.status = 'loh'
+    game.lohId = human.id
+    expect(isIncomingInteractionInvalidated(interaction, game)).toBe(true)
+  })
+
+  it('drops a role-invalid vote claim at interaction creation', () => {
+    const store = makeStore()
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    loh.status = 'loh'
+    human.status = 'active'
+    nominee.status = 'nominated'
+    otherNominee.status = 'nominated'
+    game.nomineeIds = [nominee.id, otherNominee.id]
+    store.dispatch(hydrateGame(game))
+
+    store.dispatch(
+      pushIncomingInteraction(
+        makeInteraction({
+          fromId: nominee.id,
+          type: 'deal_offer',
+          payload: {
+            scenarioKey: 'alliance_vote_pitch',
+            phase: 'live_vote',
+            subjectId: otherNominee.id,
+          },
+        })
+      )
+    )
+
+    expect(store.getState().social.incomingInteractions).toHaveLength(0)
+
+    const eligibleSender = game.players.find(
+      (player) =>
+        !player.isUser &&
+        player.id !== nominee.id &&
+        player.id !== otherNominee.id &&
+        player.id !== loh.id
+    )
+    if (!eligibleSender) throw new Error('Expected another eligible AI voter')
+    const humanNominatedGame = structuredClone(game)
+    humanNominatedGame.nomineeIds = [human.id, otherNominee.id]
+    const nominatedHuman = humanNominatedGame.players.find((player) => player.id === human.id)
+    if (!nominatedHuman) throw new Error('Expected the human in the roster')
+    nominatedHuman.status = 'nominated'
+    store.dispatch(hydrateGame(humanNominatedGame))
+    store.dispatch(
+      pushIncomingInteraction(
+        makeInteraction({
+          id: 'ineligible-human-voter',
+          fromId: eligibleSender.id,
+          type: 'deal_offer',
+          payload: {
+            scenarioKey: 'alliance_vote_pitch',
+            phase: 'live_vote',
+            subjectId: otherNominee.id,
+          },
+        })
+      )
+    )
+    expect(store.getState().social.incomingInteractions).toHaveLength(0)
+  })
+
+  it('drops a scheduled vote claim if the sender becomes a nominee before it appears', () => {
+    const store = makeStore()
+    const { game, human, nominee, otherNominee, loh } = buildGameState()
+    game.week = 2
+    game.phase = 'live_vote'
+    game.lohId = loh.id
+    loh.status = 'loh'
+    human.status = 'active'
+    nominee.status = 'active'
+    otherNominee.status = 'nominated'
+    game.nomineeIds = [otherNominee.id]
+    store.dispatch(hydrateGame(game))
+    const interaction = makeInteraction({
+      id: 'eligible-when-scheduled',
+      fromId: nominee.id,
+      type: 'deal_offer',
+      createdWeek: game.week,
+      payload: {
+        scenarioKey: 'alliance_vote_pitch',
+        phase: 'live_vote',
+        subjectId: otherNominee.id,
+      },
+    })
+    store.dispatch(
+      scheduleIncomingInteraction({
+        interaction,
+        priority: 'high',
+        scheduledAt: 100,
+        scheduledForWeek: game.week,
+        scheduledForPhase: 'live_vote',
+      })
+    )
+
+    const changedGame = {
+      ...game,
+      nomineeIds: [nominee.id, otherNominee.id],
+      players: game.players.map((player) =>
+        player.id === nominee.id ? { ...player, status: 'nominated' as const } : player
+      ),
+    }
+    store.dispatch(hydrateGame(changedGame))
+    deliverScheduledIncomingInteractionsForPhase('live_vote', store)
+
+    expect(store.getState().social.incomingInteractions).toHaveLength(0)
+    expect(store.getState().social.scheduledIncomingInteractions).toHaveLength(0)
   })
 
   it('invalidates a campaign tied to a previous nomination block', () => {
@@ -521,7 +732,7 @@ describe('incoming interaction invalidation', () => {
     nominee.status = 'nominated'
     otherNominee.status = 'nominated'
     game.week = 4
-    game.phase = 'week_end'
+    game.phase = 'social_2'
     game.nomineeIds = [nominee.id, otherNominee.id]
     game.pendingEviction = {
       evicteeId: nominee.id,
@@ -633,8 +844,9 @@ describe('incoming interaction invalidation', () => {
     const store = makeStore()
     const { game, human, nominee } = buildGameState()
 
-    nominee.status = 'evicted'
+    nominee.status = 'active'
     game.week = 5
+    game.phase = 'social_2'
     store.dispatch(hydrateGame(game))
     store.dispatch(
       pushIncomingInteraction(
@@ -645,6 +857,12 @@ describe('incoming interaction invalidation', () => {
         })
       )
     )
+
+    const evictedGame = structuredClone(game)
+    const evictedNominee = evictedGame.players.find((player) => player.id === nominee.id)
+    if (!evictedNominee) throw new Error('Expected the interaction sender in the roster')
+    evictedNominee.status = 'evicted'
+    store.dispatch(hydrateGame(evictedGame))
 
     const tvCountBefore = store.getState().game.tvFeed.length
     store.dispatch(

@@ -285,7 +285,75 @@ export function isRepairableRelationship(input: {
   reality?: RealityDomainState
   actorId: string
   targetId: string
+  day?: number
 }): boolean {
-  const tags = getCanonicalRelationshipTags(input)
-  return [...REPAIRABLE_LEGACY_TAGS].some((tag) => tags.has(tag))
+  const { actorId, targetId, reality, relationships } = input
+  const isPair = (left: string, right: string) =>
+    (left === actorId && right === targetId) || (left === targetId && right === actorId)
+  if (
+    Object.values(reality?.grievances ?? {}).some(
+      (grievance) =>
+        isPair(grievance.holderId, grievance.againstId) &&
+        grievance.status !== 'RESOLVED' &&
+        grievance.repairDebt > 0
+    )
+  )
+    return true
+  if (
+    Object.values(reality?.relationshipAutonomy.nemeses ?? {}).some(
+      (nemesis) => nemesis.status === 'ACTIVE' && isPair(nemesis.ownerId, nemesis.targetId)
+    )
+  )
+    return true
+
+  const edges = [
+    reality?.relationships[actorId]?.[targetId],
+    reality?.relationships[targetId]?.[actorId],
+  ].filter((edge) => edge !== undefined)
+  if (
+    edges.some(
+      (edge) =>
+        ['RIVAL', 'ENEMY', 'ESTRANGED'].includes(edge.perceivedLabel) ||
+        edge.warmth < -5 ||
+        edge.trust < -5 ||
+        edge.resentment >= 12 ||
+        (edge.acuteTension ?? 0) >= 20 ||
+        (edge.suspicion >= 18 && edge.trust <= 18)
+    )
+  )
+    return true
+
+  const events = (reality?.events ?? []).filter(
+    (event) => event.participantIds.includes(actorId) && event.participantIds.includes(targetId)
+  )
+  const lastRepair = events.reduce(
+    (latest, event) =>
+      event.outcome === 'SUCCESS' && ['apologize', 'repair_bond'].includes(event.actionId ?? '')
+        ? Math.max(latest, event.sequence)
+        : latest,
+    -1
+  )
+  const day = input.day ?? Math.max(0, ...events.map((event) => event.day))
+  if (
+    events.some(
+      (event) =>
+        event.sequence > lastRepair &&
+        event.day >= day - 1 &&
+        (event.tags.some((tag) =>
+          ['CONFLICT', 'BETRAYAL', 'RUMOUR', 'RUMOR'].includes(tag.toUpperCase())
+        ) ||
+          ['ALLIANCE_BETRAYAL', 'RUMOUR_SPREAD', 'PROMISE_BROKEN'].includes(event.type))
+    )
+  )
+    return true
+
+  // Current Reality edges own the relationship. Historical betrayal/alliance
+  // tags must not keep advertising an apology after the tension has healed.
+  if (edges.length > 0) return false
+  const legacyEdges = [relationships?.[actorId]?.[targetId], relationships?.[targetId]?.[actorId]]
+  if (legacyEdges.some((edge) => (edge?.affinity ?? 0) < 0)) return true
+  return (
+    lastRepair < 0 &&
+    legacyEdges.some((edge) => edge?.tags.some((tag) => REPAIRABLE_LEGACY_TAGS.has(tag)))
+  )
 }

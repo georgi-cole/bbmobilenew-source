@@ -17,7 +17,7 @@ export default function RouteLoadingScreen() {
           <span />
           <span />
         </div>
-        <p>Preparing the house…</p>
+        <p>Preparing the Hub…</p>
       </div>
     </div>
   )

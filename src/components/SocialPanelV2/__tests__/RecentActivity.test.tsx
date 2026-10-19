@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import socialReducer, { recordSocialAction } from '../../../social/socialSlice'
@@ -78,6 +78,20 @@ describe('RecentActivity – empty state', () => {
 })
 
 describe('RecentActivity – entry rendering', () => {
+  it('renders a vague LOH receipt using the phase and disclosure saved with that conversation', () => {
+    const store = makeStore([
+      makeEntry({
+        actionId: 'ask_loh_target',
+        phase: 'nominations',
+        context: { lohDisclosureOutcome: 'vague' },
+        subjectId: 'secret-target',
+      }),
+    ])
+    renderActivity(store, { players: [{ id: 'p1', name: 'Dex', avatar: '😀', status: 'active' }] })
+    expect(screen.getByText('Dex kept the opening nomination plan vague.')).toBeDefined()
+    expect(screen.queryByText(/secret-target/)).toBeNull()
+    expect(screen.queryByText(/replacement/)).toBeNull()
+  })
   it('renders known action title for a recognised action id', () => {
     const store = makeStore([makeEntry({ actionId: 'compliment' })])
     renderActivity(store)
@@ -144,18 +158,6 @@ describe('RecentActivity – entry rendering', () => {
     expect(screen.getByText('Relationship change -2')).toBeDefined()
   })
 
-  it('shows both the action change and the resulting current score', () => {
-    const store = makeStore([makeEntry({ delta: 4, targetId: 'p1' })])
-    renderActivity(store, {
-      humanId: 'p0',
-      relationships: {
-        p0: { p1: { affinity: 3, tags: [] } },
-        p1: { p0: { affinity: -1, tags: [] } },
-      },
-    })
-    expect(screen.getByText('Relationship change +4 · current +1')).toBeDefined()
-  })
-
   it('does not render a delta element when delta is 0', () => {
     const store = makeStore([makeEntry({ delta: 0 })])
     renderActivity(store)
@@ -189,6 +191,116 @@ describe('RecentActivity – maxEntries', () => {
     // Should show exactly 3 list items
     const items = screen.getAllByRole('listitem')
     expect(items).toHaveLength(3)
+  })
+})
+
+describe('RecentActivity – unified receipts', () => {
+  it('groups a batch into one receipt with its full price and each recipient’s change', () => {
+    const receipt = {
+      groupId: 'one-move',
+      summary: 'Reached 2 hubmates.',
+      outcomeLabel: 'Completed',
+      tone: 'positive' as const,
+    }
+    renderActivity(
+      makeStore([
+        makeEntry({ id: 'first', targetId: 'p1', cost: 2, delta: 2, receipt }),
+        makeEntry({ id: 'second', targetId: 'p2', cost: 0, delta: -1, receipt }),
+      ]),
+      {
+        compact: true,
+        players: [
+          { id: 'p1', name: 'Dex', avatar: '', status: 'active' },
+          { id: 'p2', name: 'Lux', avatar: '', status: 'active' },
+        ],
+      }
+    )
+    expect(screen.getAllByText('Reached 2 hubmates.')).toHaveLength(1)
+    expect(screen.getByText('⚡2 spent')).toBeVisible()
+    expect(screen.getByText('Relationship changes: Dex +2 · Lux -1')).toBeVisible()
+  })
+  it('shows the full final response and actual spending instead of the shorter log narrative', () => {
+    const summary =
+      'The block is locked. Dex is my main target; Sol is on the block as the replacement.'
+    renderActivity(
+      makeStore([
+        makeEntry({
+          narrative: 'Rune told you Dex is the current target.',
+          receipt: { summary, outcomeLabel: 'Completed', tone: 'positive' },
+          costs: { energy: 1, influence: 0, info: 0 },
+        }),
+      ]),
+      { compact: true }
+    )
+    expect(screen.getByText(summary)).toBeVisible()
+    expect(screen.queryByText('Rune told you Dex is the current target.')).toBeNull()
+    expect(screen.getByText('⚡1 spent')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /full response/i })).toBeNull()
+  })
+
+  it('labels a declined paid proposal as declined even though submission succeeded', () => {
+    renderActivity(
+      makeStore([
+        makeEntry({
+          outcome: 'success',
+          receipt: {
+            summary: 'I do not see enough protection in this pact to commit.',
+            outcomeLabel: 'Declined',
+            tone: 'negative',
+          },
+          costs: { energy: 2, influence: 0, info: 0 },
+        }),
+      ]),
+      { compact: true }
+    )
+    expect(screen.getByLabelText('Declined')).toHaveTextContent('✗')
+    expect(screen.queryByText('✓')).toBeNull()
+    expect(screen.getByText('⚡2 spent')).toBeVisible()
+  })
+
+  it('keeps earlier LOH answers and full effects available in History', () => {
+    const now = Date.now()
+    renderActivity(
+      makeStore([
+        makeEntry({
+          actionId: 'ask_loh_target',
+          timestamp: now - 1000,
+          narrative: 'Rune kept the opening nomination plan vague.',
+        }),
+        makeEntry({
+          actionId: 'ask_loh_target',
+          timestamp: now,
+          narrative: 'Dex is my target, with Sol as the replacement.',
+          delta: 3,
+          yieldsApplied: { info: 2 },
+        }),
+      ]),
+      { compact: true }
+    )
+    expect(screen.queryByText('Rune kept the opening nomination plan vague.')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 2' }))
+    expect(screen.getByText('Rune kept the opening nomination plan vague.')).toBeVisible()
+    expect(screen.getByText('Dex is my target, with Sol as the replacement.')).toBeVisible()
+    expect(screen.getByText('Relationship change +3')).toBeVisible()
+    expect(screen.getByText('Intel +2')).toBeVisible()
+    expect(screen.getByLabelText('Recent Activity')).toHaveClass('ra-container--expanded')
+  })
+
+  it('shows unlogged feedback in the same panel and preserves the previous result in History', () => {
+    renderActivity(makeStore([makeEntry({ narrative: 'Your pact is live.' })]), {
+      compact: true,
+      feedback: 'That move was interrupted. Nothing was spent.',
+    })
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'That move was interrupted. Nothing was spent.'
+    )
+    expect(screen.queryByText('Your pact is live.')).toBeNull()
+    // A single stored result still needs a route back when feedback overlays it.
+    expect(
+      within(screen.getByLabelText('Recent Activity')).getByRole('button', { name: 'History · 1' })
+    ).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 1' }))
+    expect(screen.getByText('Your pact is live.')).toBeVisible()
   })
 })
 

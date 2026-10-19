@@ -1,5 +1,36 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VaultCrackerCanvasEngine } from '../../../src/minigames/vaultCracker/engine/vaultCrackerCanvasEngine';
+import { createVaultCrackerLayout } from '../../../src/minigames/vaultCracker/engine/layout';
+
+describe('createVaultCrackerLayout', () => {
+  it.each([
+    [390, 320],
+    [360, 280],
+    [844, 420],
+  ])('keeps the combination controls and submit button inside a %i×%i stage', (width, height) => {
+    const layout = createVaultCrackerLayout(width, height, 1);
+
+    expect(layout.headerRect.y + layout.headerRect.height).toBeLessThan(layout.vaultCenterY - layout.vaultRadius);
+    expect(layout.digitRackRect.y + layout.digitRackRect.height).toBeLessThanOrEqual(height);
+    expect(layout.submitRect.y + layout.submitRect.height).toBeLessThanOrEqual(height);
+    expect(layout.dialSlots).toHaveLength(4);
+    expect(layout.dialSlots.every((slot) => slot.y + slot.height <= layout.digitRackRect.y + layout.digitRackRect.height)).toBe(true);
+  });
+
+  it('lays out the dial controls, submit action, and vault side by side in landscape', () => {
+    const width = 540
+    const height = 132
+    const layout = createVaultCrackerLayout(width, height, 1)
+
+    expect(layout.dialSlots).toHaveLength(4)
+    expect(layout.dialSlots.every((slot) => slot.x >= 0 && slot.x + slot.width <= width)).toBe(true)
+    expect(layout.dialSlots.every((slot) => slot.y >= 0 && slot.y + slot.height <= height)).toBe(true)
+    expect(layout.digitRackRect.x + layout.digitRackRect.width).toBeLessThanOrEqual(width)
+    expect(layout.submitRect.x).toBeGreaterThan(layout.digitRackRect.x + layout.digitRackRect.width)
+    expect(layout.submitRect.x + layout.submitRect.width).toBeLessThanOrEqual(width)
+    expect(layout.submitRect.y + layout.submitRect.height).toBeLessThanOrEqual(height)
+  });
+});
 
 function makeGradientStub() {
   return {

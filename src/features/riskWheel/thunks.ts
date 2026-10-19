@@ -18,6 +18,7 @@ import {
   advanceFromRoundSummary,
   markRiskWheelOutcomeResolved,
   resolveAllAiTurns,
+  startRiskWheelTieBreak,
 } from './riskWheelSlice';
 import type { RiskWheelState } from './riskWheelSlice';
 
@@ -32,7 +33,13 @@ export const skipRiskWheelToResults =
       if (humanPlayerId && activePlayerIds.includes(humanPlayerId) && !humanEliminatedThisRound) return;
 
       if (phase === 'round_summary') {
-        dispatch(advanceFromRoundSummary());
+        const riskWheel = getState().riskWheel;
+        if (riskWheel.tieBreakPending) {
+          dispatch(startRiskWheelTieBreak());
+          dispatch(resolveAllAiTurns());
+        } else {
+          dispatch(advanceFromRoundSummary());
+        }
       } else {
         dispatch(resolveAllAiTurns());
       }

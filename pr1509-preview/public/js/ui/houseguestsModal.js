@@ -27,6 +27,12 @@
     return assetUrl(`assets/skins/${file}`)
   }
 
+  function portraitUrlFor(housemate) {
+    return housemate.isMysteryWildcard && housemate.portraitPath
+      ? assetUrl(housemate.portraitPath)
+      : avatarUrlFor(housemate)
+  }
+
   function renderAvatar(avatar, housemate) {
     avatar.textContent = ''
     avatar.style.backgroundImage = ''
@@ -40,7 +46,9 @@
 
     avatar.classList.remove('houseguests-list__avatar--mystery')
     avatar.classList.add('houseguests-list__avatar--loading')
-    const avatarUrl = avatarUrlFor(housemate)
+    const avatarUrl = avatar.classList.contains('houseguests-detail__avatar')
+      ? portraitUrlFor(housemate)
+      : avatarUrlFor(housemate)
     const img = new Image()
     img.onload = () => {
       avatar.classList.remove('houseguests-list__avatar--loading')
@@ -250,6 +258,13 @@
 
     const avatar = document.createElement('div')
     avatar.className = 'houseguests-detail__avatar'
+    if (selectedHouseguest.isMysteryWildcard) {
+      avatar.classList.add('houseguests-detail__avatar--full-figure')
+      avatar.style.setProperty(
+        '--houseguest-portrait-position',
+        selectedHouseguest.portraitPosition || 'center 20%'
+      )
+    }
     renderAvatar(avatar, selectedHouseguest)
 
     const nameLabel = document.createElement('h3')
@@ -301,8 +316,32 @@
     ]
     const wildcardFields = [
       { label: 'Age', value: selectedHouseguest.age },
+      { label: 'Sex', value: selectedHouseguest.sex },
       { label: 'Location', value: selectedHouseguest.location },
+      { label: 'Sexuality', value: selectedHouseguest.sexuality },
+      { label: 'Education', value: selectedHouseguest.education },
       { label: 'Profession', value: selectedHouseguest.profession },
+      { label: 'Family Status', value: selectedHouseguest.familyStatus },
+      { label: 'Kids', value: selectedHouseguest.kids },
+      { label: 'Pets', value: selectedHouseguest.pets },
+      { label: 'Zodiac Sign', value: selectedHouseguest.zodiacSign },
+      { label: 'Religion', value: selectedHouseguest.religion },
+      { label: 'Motto', value: selectedHouseguest.motto },
+      { label: 'Fun Fact', value: selectedHouseguest.funFact },
+      {
+        label: 'Allies',
+        value:
+          selectedHouseguest.allies && selectedHouseguest.allies.length > 0
+            ? selectedHouseguest.allies.join(', ')
+            : 'None',
+      },
+      {
+        label: 'Enemies',
+        value:
+          selectedHouseguest.enemies && selectedHouseguest.enemies.length > 0
+            ? selectedHouseguest.enemies.join(', ')
+            : 'None',
+      },
       { label: 'Why They Want to Win', value: selectedHouseguest.prizePlan },
       { label: 'Private File', value: selectedHouseguest.privateDetail },
     ]

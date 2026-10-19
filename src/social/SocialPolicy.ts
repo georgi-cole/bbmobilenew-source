@@ -12,7 +12,14 @@ import {
   getActionScoreEffects,
   getRuntimeSocialActionById,
 } from './socialActionManager'
-import type { PolicyContext, RelationshipsMap, SocialActionLogEntry } from './types'
+import type {
+  PolicyContext,
+  RelationshipsMap,
+  SocialActionLogEntry,
+  SocialMemoryMap,
+} from './types'
+import { getSocialExperienceRead, getSocialMotivePreferences } from './socialDecisionPreferences'
+import type { AiGameIdentity } from '../ai/aiGameIdentity'
 
 // ── Evaluator configuration ───────────────────────────────────────────────
 
@@ -43,9 +50,11 @@ export interface EvaluateOutcomeParams {
 }
 
 interface RichPolicyContext extends PolicyContext {
+  players: Array<PolicyContext['players'][number] & { aiGameIdentity?: AiGameIdentity }>
   phase?: string
   decisionIndex?: number
   recentActions?: readonly SocialActionLogEntry[]
+  socialMemory?: SocialMemoryMap
   availableActionIds?: readonly string[]
 }
 
@@ -98,10 +107,24 @@ export function chooseActionFor(playerId: string, rawContext: PolicyContext): st
   const actor = context.players.find((player) => player.id === playerId)
   const actorStatus = actor?.status ?? ''
   const personality = getSocialPersonality(playerId)
+  const motives = getSocialMotivePreferences(playerId, actor?.aiGameIdentity)
   const relationships = context.relationships[playerId] ?? {}
   const affinities = Object.values(relationships).map((entry) => normalizeAffinity(entry.affinity))
   const strongest = affinities.length > 0 ? Math.max(...affinities) : 0
   const weakest = affinities.length > 0 ? Math.min(...affinities) : 0
+  const recentEmotionalPressure = Math.max(
+    0,
+    ...context.players
+      .filter((player) => player.id !== playerId)
+      .map((player) => {
+        const experience = getSocialExperienceRead(playerId, player.id, {
+          recentActions: context.recentActions,
+          socialMemory: context.socialMemory,
+          week: context.week,
+        })
+        return Math.max(experience.grievance, experience.humiliation, experience.betrayal)
+      })
+  )
   const { friendlyActions, aggressiveActions } = socialConfig.actionCategories
 
   const candidates = configuredEntries
@@ -116,6 +139,7 @@ export function chooseActionFor(playerId: string, rawContext: PolicyContext): st
 
       if (friendlyActions.includes(actionId)) {
         utility *= 0.65 + personality.warmth * 0.55 + Math.max(0, strongest) * 0.8
+        utility *= 0.88 + motives.affection * 0.18 + motives.loyalty * 0.16
       }
       if (aggressiveActions.includes(actionId)) {
         utility *=
@@ -123,23 +147,37 @@ export function chooseActionFor(playerId: string, rawContext: PolicyContext): st
           personality.assertiveness * 0.35 +
           personality.riskTolerance * 0.35 +
           Math.max(0, -weakest) * 0.9
+        utility *= 1 + recentEmotionalPressure * (0.12 + motives.revenge * 0.42)
+      }
+      if (actionId === 'betray' || actionId === 'break_alliance') {
+        utility *= Math.max(
+          0.25,
+          Math.min(
+            1.35,
+            0.58 + motives.ambition * 0.42 + motives.revenge * 0.28 - motives.loyalty * 0.3
+          )
+        )
       }
       if (actionId === 'whisper' || actionId === 'rumor' || actionId === 'share_intel') {
         utility *= 0.55 + personality.gossipPropensity * 0.75
       }
       if (actionId === 'proposeAlliance' || actionId === 'ally') {
-        utility *= strongest >= 0.15 ? 1 + personality.loyalty * 0.4 : 0.15
+        utility *= strongest >= 0.15 ? 0.82 + motives.loyalty * 0.3 + motives.ambition * 0.22 : 0.15
+      }
+      if (actionId === 'protect' || actionId === 'ride_or_die') {
+        utility *= 0.86 + motives.loyalty * 0.38 + motives.affection * 0.14
       }
       if (actionId === 'idle') {
         utility *= 1.1 - personality.socialEnergy * 0.75
       }
 
       if (actorStatus.includes('nominated')) {
-        if (actionId === 'ask_use_safety' || actionId === 'protect') utility *= 2.2
-        if (actionId === 'reassure' || actionId === 'compliment') utility *= 1.25
+        if (actionId === 'ask_use_safety') utility *= 1.35 + motives.fear * 1.3
+        if (actionId === 'protect') utility *= 1.25 + motives.loyalty * 0.55
+        if (actionId === 'reassure' || actionId === 'compliment') utility *= 1 + motives.fear * 0.35
       }
       if (actorStatus.includes('loh')) {
-        if (actionId === 'nominate') utility *= 2.4
+        if (actionId === 'nominate') utility *= 1.55 + motives.ambition * 0.85
         if (actionId === 'whisper' || actionId === 'protect') utility *= 1.35
       }
       if (actorStatus.includes('pos')) {
@@ -230,10 +268,18 @@ export function chooseTargetsFor(
   const { friendlyActions, aggressiveActions } = socialConfig.actionCategories
   const rels = relationships[playerId] ?? {}
   const actorStatus = players.find((player) => player.id === playerId)?.status ?? ''
+  const actor = players.find((player) => player.id === playerId)
+  const motives = getSocialMotivePreferences(playerId, actor?.aiGameIdentity)
   const seed = `${context.seed ?? 0}:${context.week ?? 0}:${context.phase ?? ''}:${playerId}:${actionId}`
   const repeatPenalty = getSocialRuntimeConfig().ai.repetitionPenalty
 
   const relationshipScore = (targetId: string) => normalizeAffinity(rels[targetId]?.affinity ?? 0)
+  const experienceFor = (targetId: string) =>
+    getSocialExperienceRead(playerId, targetId, {
+      recentActions: context.recentActions,
+      socialMemory: context.socialMemory,
+      week: context.week,
+    })
   const novelty = (targetId: string) =>
     1 / (1 + recentCount(context, playerId, actionId, targetId) * repeatPenalty)
 
@@ -251,7 +297,16 @@ export function chooseTargetsFor(
     })
     const target = sortedByScore(
       strainedAlliances,
-      (player) => -relationshipScore(player.id) + roleValue(player.status) + novelty(player.id),
+      (player) => {
+        const experience = experienceFor(player.id)
+        return (
+          -relationshipScore(player.id) +
+          roleValue(player.status) * (0.45 + motives.ambition * 0.75) +
+          experience.grievance * (0.2 + motives.revenge * 0.6) +
+          experience.betrayal * (0.25 + motives.ambition * 0.35) +
+          novelty(player.id)
+        )
+      },
       seed
     )[0]
     return target ? [target.id] : []
@@ -264,11 +319,25 @@ export function chooseTargetsFor(
     const credible = prospects.filter((player) => {
       const affinity = relationshipScore(player.id)
       const strategicPressure = /loh|hoh|pos|pov|nominated/i.test(`${actorStatus} ${player.status}`)
-      return affinity >= allyThreshold || (affinity >= 0.15 && strategicPressure)
+      const rememberedHelp = experienceFor(player.id).help
+      return (
+        affinity >= allyThreshold ||
+        (affinity >= 0.15 && strategicPressure) ||
+        (affinity > -0.2 && rememberedHelp >= 0.2)
+      )
     })
     const target = sortedByScore(
       credible,
-      (player) => relationshipScore(player.id) + roleValue(player.status) + novelty(player.id),
+      (player) => {
+        const experience = experienceFor(player.id)
+        return (
+          relationshipScore(player.id) +
+          roleValue(player.status) * (0.45 + motives.ambition * 0.65) +
+          experience.help * (0.2 + motives.loyalty * 0.4 + motives.affection * 0.2) -
+          experience.grievance * (0.15 + motives.fear * 0.2) +
+          novelty(player.id)
+        )
+      },
       seed
     )[0]
     return target ? [target.id] : []
@@ -276,22 +345,62 @@ export function chooseTargetsFor(
 
   if (friendlyActions.includes(actionId)) {
     const allies = eligible.filter((player) => relationshipScore(player.id) >= allyThreshold)
-    const pool = allies.length > 0 ? allies : eligible
+    const gratefulProspects = eligible.filter((player) => experienceFor(player.id).help >= 0.2)
+    const pool =
+      allies.length > 0 || gratefulProspects.length > 0
+        ? [
+            ...new Map(
+              [...allies, ...gratefulProspects].map((player) => [player.id, player])
+            ).values(),
+          ]
+        : eligible
     const target = sortedByScore(
       pool,
-      (player) =>
-        relationshipScore(player.id) + roleValue(player.status) * 0.35 + novelty(player.id),
+      (player) => {
+        const experience = experienceFor(player.id)
+        const vulnerability = player.status.includes('nominated') ? 0.18 : 0
+        return (
+          relationshipScore(player.id) * (0.8 + motives.affection * 0.2 + motives.loyalty * 0.2) +
+          roleValue(player.status) * (0.2 + motives.ambition * 0.35) +
+          vulnerability * (0.35 + motives.loyalty * 0.65) +
+          experience.help * (0.2 + motives.loyalty * 0.4 + motives.affection * 0.2) -
+          experience.grievance * (0.15 + motives.fear * 0.2) +
+          novelty(player.id)
+        )
+      },
       seed
     )[0]
     return target ? [target.id] : []
   }
 
   if (aggressiveActions.includes(actionId)) {
-    const enemies = eligible.filter((player) => relationshipScore(player.id) <= enemyThreshold)
+    const enemies = eligible.filter((player) => {
+      const experience = experienceFor(player.id)
+      const tags = new Set(rels[player.id]?.tags ?? [])
+      return (
+        relationshipScore(player.id) <= enemyThreshold ||
+        experience.grievance >= 0.15 ||
+        experience.humiliation >= 0.15 ||
+        experience.betrayal >= 0.15 ||
+        tags.has('rivalry') ||
+        tags.has('betrayal') ||
+        tags.has('target')
+      )
+    })
     const pool = enemies.length > 0 ? enemies : eligible
     const target = sortedByScore(
       pool,
-      (player) => -relationshipScore(player.id) + roleValue(player.status) + novelty(player.id),
+      (player) => {
+        const experience = experienceFor(player.id)
+        return (
+          -relationshipScore(player.id) +
+          roleValue(player.status) * (0.2 + motives.ambition * 0.55 + motives.fear * 0.3) +
+          experience.grievance * (0.2 + motives.revenge * 0.45 + motives.ambition * 0.2) +
+          experience.humiliation * (0.2 + motives.revenge * 0.7) +
+          experience.betrayal * (0.25 + motives.revenge * 0.3 + motives.ambition * 0.2) +
+          novelty(player.id)
+        )
+      },
       seed
     )[0]
     return target ? [target.id] : []
@@ -299,7 +408,15 @@ export function chooseTargetsFor(
 
   const target = sortedByScore(
     eligible,
-    (player) => roleValue(player.status) + novelty(player.id),
+    (player) => {
+      const experience = experienceFor(player.id)
+      return (
+        roleValue(player.status) * (0.2 + motives.ambition * 0.45) +
+        experience.help * (0.15 + motives.affection * 0.25) -
+        experience.grievance * (0.15 + motives.fear * 0.25) +
+        novelty(player.id)
+      )
+    },
     seed
   )[0]
   return target ? [target.id] : []

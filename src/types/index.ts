@@ -34,6 +34,8 @@ export interface Player {
     canBecomePregnant?: boolean
     canCausePregnancy?: boolean
   }
+  /** Gameplay day this contestant joined; absent means they entered on Day 1. */
+  enteredAtDay?: number
   status: PlayerStatus
   /** False when the player left outside a standard eviction and cannot join the Tribunal. */
   tribunalEligible?: boolean
@@ -146,6 +148,10 @@ export interface CompleteMinigamePayload {
    * so the results UI and nomination logic share the same authoritative source.
    */
   lastPlaceId?: string
+  /** Actual per-player values reported by games with round-based outcomes. */
+  rawResults?: Record<string, number>
+  /** Best-to-worst tournament order when placement differs from score order. */
+  authoritativeRankedIds?: string[]
 }
 
 /** Active minigame session stored in game state while waiting for player input. */
@@ -814,10 +820,21 @@ export interface WeekendSeasonFact {
   text: string
 }
 
+export interface WeekendTribunalSpeech {
+  speakerId?: string
+  speakerName: string
+  stance?: 'defend' | 'challenge' | 'neutral'
+  text: string
+}
+
 export interface WeekendInterludeState {
   active: true
-  /** Numbered gameplay day that has already completed. The weekend never increments this value. */
-  afterDay: 5 | 10 | 15
+  /** Numbered gameplay day when the interlude starts. The weekend never increments it. */
+  afterDay: number
+  /** Stable episode identity; it is independent of the numbered day for the finale weekend. */
+  weekendNumber?: 1 | 2 | 3
+  /** The final weekend runs between the Final Four eviction and Final Three opening. */
+  finaleWeekend?: true
   /** Presentation-only day inside the interlude. It is deliberately not GameState.week. */
   weekendDay: 1 | 2
   /** A preview launched from Settings. It returns to the current game state when finished. */
@@ -839,6 +856,13 @@ export interface WeekendInterludeState {
     | 'season_so_far'
     | 'social'
     | 'day_transition'
+    | 'finale_reunion'
+    | 'finale_reunion_social'
+    | 'finale_sequester_announcement'
+    | 'tribunal_invitation'
+    | 'finale_battle_ready'
+    /** Legacy persisted stage; now rendered as the invitation rather than TV dialogue. */
+    | 'tribunal_glimpse'
   wallet: WeekendResourceWallet
   hubSays?: {
     questionIds: string[]
@@ -856,6 +880,22 @@ export interface WeekendInterludeState {
     /** Zero-based TV-card index. Older saves begin at the first fact. */
     currentFactIndex?: number
   }
+  /** Short, presentation-only predictions shown between the Final Four and Final Three. */
+  tribunalGlimpse?: {
+    speeches: WeekendTribunalSpeech[]
+    opened?: boolean
+  }
+  /** Temporary visitor identities used only by the reversible reunion QA preview. */
+  reunionPreview?: {
+    guestIds: string[]
+    finalistIds: string[]
+  }
+  /** Prevents the Sunday roster return from replaying after its isolated QA preview ends. */
+  reunionPreviewEnded?: true
+  /** The returning roster tiles are animating out before the Tribunal opens. */
+  reunionDepartureActive?: true
+  /** All eliminated players have left the reunion before the finale competition. */
+  reunionDeparted?: true
 }
 
 export interface GameState {
@@ -868,7 +908,27 @@ export interface GameState {
   weekendsEnabledForSeason?: boolean
   /** Numbered days whose weekend interlude has already been completed. */
   completedWeekendDays?: number[]
-  /** Active non-numbered weekend interlude layered over week_end. */
+  /** Whether the one-time weekend between the Final Four and Final Three has completed. */
+  finaleWeekendCompleted?: boolean
+  /** One saved season-level reserve chance, waiting for a qualifying exit event. */
+  wildcardOpportunity?: {
+    status: 'selected' | 'none' | 'pending' | 'admitted' | 'cancelled'
+    playerId?: string
+    reason?: string
+    triggerType?: 'double_elimination' | 'morning_shock' | 'self_elimination' | 'qa'
+    triggerDay?: number
+    arrivalDay?: number
+    qaForced?: boolean
+  }
+  /** New participants and the eliminated roster slots they visually occupy. */
+  wildcardAdmissions?: Array<{
+    playerId: string
+    displacedPlayerId: string
+    rosterIndex: number
+    enteredAtDay: number
+    forcedByQa?: boolean
+  }>
+  /** Active non-numbered weekend interlude between numbered gameplay beats. */
   weekendInterlude?: WeekendInterludeState | null
   players: Player[]
   /** Persisted Reality pregnancy attempts and resolved pregnancies. */
@@ -1302,7 +1362,12 @@ export interface GameState {
    * (by the overlay's `onDone` callback) to commit the eviction.
    * Cleared by `finalizePendingEviction`.
    */
-  pendingEviction?: { evicteeId: string; evictionMessage: string } | null
+  pendingEviction?: {
+    evicteeId: string
+    evictionMessage: string
+    /** Preserves the originating event through the deferred eviction animation. */
+    exitMethod?: string
+  } | null
   /**
    * ID of the player currently shown in a fullscreen eviction overlay
    * (SpotlightEvictionOverlay).  Set when any eviction overlay mounts and
@@ -1400,6 +1465,8 @@ export interface GameState {
   secretMissionTaskSetHistory?: string[]
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
+  /** Contestant-specific estimates of social and Tribunal threat, synced at phase boundaries. */
+  strategicThreatReadsByActorId?: import('../social/strategicThreat').StrategicThreatSnapshot
   /**
    * Compact Reality-alliance snapshot captured alongside strategicRelationships.
    * It lets the synchronous game reducer consume commitment, hierarchy, overlap,

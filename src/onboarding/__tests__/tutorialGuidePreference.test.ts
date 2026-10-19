@@ -18,7 +18,7 @@ describe('tutorial guide preference', () => {
     window.sessionStorage.clear()
   })
 
-  it('starts with both guides pending and turns off only after both are handled', () => {
+  it('keeps each guide pending until that guide is handled', () => {
     expect(isTutorialReplayEnabled('profile-a', false)).toBe(true)
     expect(isTutorialGuidePending('profile-a', false, 'game')).toBe(true)
     expect(isTutorialGuidePending('profile-a', false, 'social')).toBe(true)
@@ -31,18 +31,40 @@ describe('tutorial guide preference', () => {
 
     markSocialTutorialHandled('profile-a', false, 'normal')
 
+    expect(isTutorialReplayEnabled('profile-a', false)).toBe(true)
+    markTutorialGuideHandled('profile-a', false, 'loh-rules')
+    expect(isTutorialGuidePending('profile-a', false, 'pos-rules')).toBe(true)
+    markTutorialGuideHandled('profile-a', false, 'pos-rules')
+
     expect(isTutorialReplayEnabled('profile-a', false)).toBe(false)
   })
 
-  it('re-arms both guides together from the centralized toggle', () => {
+  it('re-arms all guides together from the centralized toggle', () => {
     markTutorialGuideHandled('profile-a', false, 'game')
     markSocialTutorialHandled('profile-a', false, 'reality')
+    markTutorialGuideHandled('profile-a', false, 'loh-rules')
+    markTutorialGuideHandled('profile-a', false, 'pos-rules')
     expect(isTutorialReplayEnabled('profile-a', false)).toBe(false)
 
     setTutorialReplayEnabled('profile-a', false, true)
 
     expect(isTutorialGuidePending('profile-a', false, 'game')).toBe(true)
     expect(isTutorialGuidePending('profile-a', false, 'social')).toBe(true)
+    expect(isTutorialGuidePending('profile-a', false, 'loh-rules')).toBe(true)
+    expect(isTutorialGuidePending('profile-a', false, 'pos-rules')).toBe(true)
+  })
+
+  it('migrates old progress and scopes competition rules to the current profile', () => {
+    window.localStorage.setItem(
+      tutorialReplayStorageKey('profile-a'),
+      JSON.stringify({ gamePending: false, socialPending: false })
+    )
+    expect(isTutorialGuidePending('profile-a', false, 'game')).toBe(false)
+    expect(isTutorialGuidePending('profile-a', false, 'loh-rules')).toBe(true)
+    markTutorialGuideHandled('profile-a', false, 'loh-rules')
+    expect(isTutorialGuidePending('profile-b', false, 'loh-rules')).toBe(true)
+    setTutorialReplayEnabled('profile-a', false, false)
+    expect(isTutorialGuidePending('profile-a', false, 'pos-rules')).toBe(false)
   })
 
   it('branches from Normal Social into the Reality-only upgrade chapter', () => {
@@ -76,6 +98,9 @@ describe('tutorial guide preference', () => {
   it('keeps guest tutorial state session-scoped', () => {
     markTutorialGuideHandled(null, true, 'game')
     markSocialTutorialHandled(null, true, 'normal')
+    markTutorialGuideHandled(null, true, 'loh-rules')
+    expect(isTutorialGuidePending(null, true, 'loh-rules')).toBe(false)
+    expect(isTutorialGuidePending(null, false, 'loh-rules')).toBe(true)
 
     expect(window.sessionStorage.getItem(tutorialReplayStorageKey(null))).not.toBeNull()
     expect(window.sessionStorage.getItem(socialGuideLevelStorageKey(null))).toBe('1')

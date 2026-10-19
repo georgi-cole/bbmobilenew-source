@@ -48,6 +48,7 @@ import {
 } from '../store/gameSlice'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import { planRelationshipStoryBeat, reserveRelationshipBeat } from './reality/relationshipAutonomy'
+import { formatLohNominationPlanCopy } from './lohNominationPlanCopy'
 import type {
   IncomingInteraction,
   IncomingInteractionDeliveryState,
@@ -160,6 +161,7 @@ type InteractionScenarioKey =
   | 'competition_low_finish_taunt'
   | 'social_momentum_notice'
   | 'hoh_safety_request'
+  | 'allied_loh_plan_check_in'
   | 'nominee_hoh_plea'
   | 'nominee_veto_pitch'
   | 'nominee_campaign'
@@ -207,9 +209,18 @@ interface InteractionPlan {
   allianceMemberTargetPreferences?: Record<string, string>
   allianceMemberFallbackPreferences?: Record<string, string>
   lohNominationPlanContext?: {
+    week: number
+    lohId: string
+    revision: number
     strategy: 'direct' | 'backdoor'
     targetId: string
-    openingNomineeIds: string[]
+    initialNomineeIds: string[]
+    eliminationPriorityIds: string[]
+    preferredSurvivorId: string | null
+    replacementTargetId: string | null
+    replacementTargetOverrideId: string | null
+    backupTargetId: string | null
+    isDoubleElimination: boolean
   }
 }
 
@@ -336,19 +347,45 @@ function describeCanonicalLohNominationPlan(
 ): string | null {
   const nominationPlan = plan.lohNominationPlanContext
   if (!nominationPlan) return null
+  const copy = formatLohNominationPlanCopy(nominationPlan, (playerId) =>
+    getPlayerName(context, playerId, playerId)
+  )
+  return plan.scenarioKey === 'alliance_power_nomination_huddle'
+    ? `${copy} I want the alliance's read before I lock nominations.`
+    : copy
+}
 
-  const targetName = getPlayerName(context, nominationPlan.targetId, nominationPlan.targetId)
-  const openingNomineeNames = nominationPlan.openingNomineeIds
-    .map((id) => context.players.find((player) => player.id === id))
-    .filter((player): player is AutonomyPlayer => Boolean(player))
-    .map((player) => player.name ?? player.id)
-  const openingNominees = formatNameList(openingNomineeNames)
-
-  if (nominationPlan.strategy === 'backdoor') {
-    return `${targetName} is my replacement target if Safety opens a replacement seat. My planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
+function getCurrentLohNominationPlanContext(
+  game: GameState,
+  lohId: string
+): NonNullable<InteractionPlan['lohNominationPlanContext']> | null {
+  const nominationPlan = game.lohNominationPlan
+  if (
+    !nominationPlan ||
+    nominationPlan.week !== game.week ||
+    nominationPlan.lohId !== lohId ||
+    nominationPlan.status !== 'planned' ||
+    (nominationPlan.isDoubleElimination === true) !== (game.doubleEviction?.weekActive === true)
+  ) {
+    return null
   }
 
-  return `${targetName} is my current target, and my planned opening nominees are ${openingNominees}. I want the alliance's read before I lock nominations.`
+  return {
+    week: nominationPlan.week,
+    lohId: nominationPlan.lohId,
+    revision: nominationPlan.revision ?? 1,
+    strategy: nominationPlan.strategy,
+    targetId: nominationPlan.targetId,
+    initialNomineeIds: [...nominationPlan.initialNomineeIds],
+    eliminationPriorityIds: [
+      ...(nominationPlan.eliminationPriorityIds ?? [nominationPlan.targetId]),
+    ],
+    preferredSurvivorId: nominationPlan.preferredSurvivorId ?? null,
+    replacementTargetId: nominationPlan.replacementTargetId ?? null,
+    replacementTargetOverrideId: nominationPlan.replacementTargetOverrideId ?? null,
+    backupTargetId: nominationPlan.backupTargetId,
+    isDoubleElimination: nominationPlan.isDoubleElimination === true,
+  }
 }
 
 function shouldInitiateLohSafetyConsult(
@@ -727,8 +764,18 @@ function resolveAllianceInteractionPlan(
   const player = game.players.find((candidate) => candidate.id === playerId)
   if (!actor || !player) return null
 
-  const actorIsLoh = game.lohId === actorId || getCupidPartnerId(game, game.lohId) === actorId
-  const playerIsLoh = game.lohId === playerId || getCupidPartnerId(game, game.lohId) === playerId
+  const actorIsLoh =
+    game.lohId === actorId ||
+    (game.lohId === undefined && actor.status.includes('loh')) ||
+    getCupidPartnerId(game, game.lohId) === actorId
+  const playerIsLoh =
+    game.lohId === playerId ||
+    (game.lohId === undefined && player.status.includes('loh')) ||
+    getCupidPartnerId(game, game.lohId) === playerId
+  const actorIsNominee = game.nomineeIds.includes(actorId)
+  const playerIsNominee = game.nomineeIds.includes(playerId)
+  const actorCanVote = !context.voxPopuliActive && !actorIsNominee && !actorIsLoh
+  const playerCanVote = !context.voxPopuliActive && !playerIsNominee && !playerIsLoh
   const actorHasSafety =
     game.posWinnerId === actorId || getCupidPartnerId(game, game.posWinnerId) === actorId
   const playerHasSafety =
@@ -741,7 +788,7 @@ function resolveAllianceInteractionPlan(
   const phase = context.phase
 
   if (
-    !context.voxPopuliActive &&
+    (!context.voxPopuliActive || game.doubleEviction?.weekActive === true) &&
     actorIsLoh &&
     ['loh_results', 'social_1', 'nominations'].includes(phase)
   ) {
@@ -753,13 +800,8 @@ function resolveAllianceInteractionPlan(
       activeStrategists,
       candidates
     )
-    const nominationPlan =
-      game.lohNominationPlan?.week === game.week && game.lohNominationPlan.lohId === actorId
-        ? game.lohNominationPlan
-        : null
-    const canonicalTargetId = nominationPlan
-      ? candidates.find((candidate) => candidate.id === nominationPlan.targetId)?.id
-      : undefined
+    const nominationPlan = getCurrentLohNominationPlanContext(game, actorId)
+    const canonicalTargetId = nominationPlan?.targetId
     if (canonicalTargetId) allianceMemberTargetPreferences[actorId] = canonicalTargetId
     const subjectId =
       canonicalTargetId ??
@@ -775,15 +817,7 @@ function resolveAllianceInteractionPlan(
       allianceGroupMemberIds: activeMembers,
       allianceGroupHuddle: true,
       allianceMemberTargetPreferences,
-      ...(canonicalTargetId && nominationPlan
-        ? {
-            lohNominationPlanContext: {
-              strategy: nominationPlan.strategy,
-              targetId: nominationPlan.targetId,
-              openingNomineeIds: [...nominationPlan.initialNomineeIds],
-            },
-          }
-        : {}),
+      ...(nominationPlan ? { lohNominationPlanContext: nominationPlan } : {}),
     }
   }
 
@@ -837,7 +871,11 @@ function resolveAllianceInteractionPlan(
 
   if (actorId !== spokespersonId) return null
 
-  if (context.voxPopuliActive && ['social_1', 'nominations'].includes(phase)) {
+  if (
+    context.voxPopuliActive &&
+    game.doubleEviction?.weekActive !== true &&
+    ['social_1', 'nominations'].includes(phase)
+  ) {
     const subjectId = bestStrategicTarget(
       game,
       actorId,
@@ -856,17 +894,14 @@ function resolveAllianceInteractionPlan(
   }
 
   if (
-    !context.voxPopuliActive &&
+    (!context.voxPopuliActive || game.doubleEviction?.weekActive === true) &&
     playerIsLoh &&
     ['loh_results', 'social_1', 'nominations'].includes(phase)
   ) {
-    const subjectId = bestStrategicTarget(
-      game,
-      actorId,
-      getEligibleNominationTargets(game, playerId).filter(
-        (candidate) => !isAllianceProtectedGameUnit(game, alliance, candidate.id)
-      )
+    const candidates = getEligibleNominationTargets(game, playerId).filter(
+      (candidate) => !isAllianceProtectedGameUnit(game, alliance, candidate.id)
     )
+    const subjectId = bestStrategicTarget(game, actorId, candidates)
     if (!subjectId) return null
     return {
       type: 'deal_offer',
@@ -899,8 +934,8 @@ function resolveAllianceInteractionPlan(
     !context.voxPopuliActive &&
     phase === 'social_2' &&
     game.nomineeIds.length > 1 &&
-    !player.status.includes('nominated') &&
-    !playerIsLoh
+    actorCanVote &&
+    playerCanVote
   ) {
     const eligibleNomineeIds = game.nomineeIds.filter(
       (nomineeId) => !isAllianceProtectedGameUnit(game, alliance, nomineeId)
@@ -996,7 +1031,14 @@ function resolveIncomingInteractionPlan(
   if (!constraints || constraints.actorIsPendingEvictee) return null
 
   const signals = buildRelationshipSignals(actorId, playerId, context)
-  let plan: InteractionPlan | null = resolveAllianceInteractionPlan(actorId, playerId, context)
+  const establishedAllyAsLoh =
+    constraints.playerIsHoh &&
+    !constraints.actorIsNominee &&
+    ['loh_results', 'social_1', 'nominations'].includes(context.phase) &&
+    (signals.isAlliance || signals.tags.has('alliance'))
+  let plan: InteractionPlan | null = establishedAllyAsLoh
+    ? { type: 'check_in', scenarioKey: 'allied_loh_plan_check_in' }
+    : resolveAllianceInteractionPlan(actorId, playerId, context)
 
   if (!plan) {
     if (
@@ -1110,9 +1152,11 @@ function resolveIncomingInteractionPlan(
       !constraints.actorIsNominee &&
       !constraints.actorIsCurrentHoh
     ) {
-      if (signals.isStrongAlly || signals.isAlliance) {
+      if (signals.isAlliance || signals.tags.has('alliance')) {
+        plan = { type: 'check_in', scenarioKey: 'allied_loh_plan_check_in' }
+      } else if (signals.isStrongAlly) {
         plan = {
-          type: signals.isAlliance ? 'check_in' : 'compliment',
+          type: 'compliment',
           scenarioKey: 'hoh_safety_request',
         }
       } else {
@@ -1566,6 +1610,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I know you have a lot to weigh, {hoh}. I just want you to know I am not coming after you.',
     'With you holding power, I wanted to check in early and keep things clear between us.',
     'If names are flying around, I hope mine is not one of them. I can be good for your game.',
+  ],
+  allied_loh_plan_check_in: [
+    'Before nominations lock, can we compare our reads on this week’s plan? I want to know where you are leaning.',
+    'Let’s compare the names we are considering before the ceremony. Who is on your list, and who should I keep clear?',
+    'We should talk through this week’s likely targets before the ceremony. Is there anyone you need me to keep clear?',
   ],
   nominee_hoh_plea: [
     'I know you have the power this week, {hoh}. Please give me a chance to stay off the block.',
@@ -2213,6 +2262,15 @@ export function scheduleIncomingInteractionsForPhase(
           : {}),
         ...(plan.allianceMemberFallbackPreferences
           ? { allianceMemberFallbackPreferences: plan.allianceMemberFallbackPreferences }
+          : {}),
+        ...(plan.lohNominationPlanContext
+          ? {
+              lohNominationPlanSnapshot: {
+                week: plan.lohNominationPlanContext.week,
+                lohId: plan.lohNominationPlanContext.lohId,
+                revision: plan.lohNominationPlanContext.revision,
+              },
+            }
           : {}),
         ...(intelLead
           ? {

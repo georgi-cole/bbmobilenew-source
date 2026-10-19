@@ -25,6 +25,18 @@ describe('RiskWheelComp styles', () => {
     expect(rootRuleBody).toContain('-webkit-overflow-scrolling: touch;')
   })
 
+  it('gives the tie-break header and wheel a compact non-overlapping layout', () => {
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/RiskWheelComp/RiskWheelComp.css'),
+      'utf8'
+    )
+
+    expect(css).toContain('.rw-tiebreak-game .rw-header--tiebreak')
+    expect(css).toContain('grid-template-columns: minmax(0, 1fr);')
+    expect(css).toContain('.rw-root--vip.rw-tiebreak-game .rw-wheel-outer')
+    expect(css).toContain('white-space: normal;')
+  })
+
   it('keeps VIP presentation additive and lightweight', () => {
     const css = readFileSync(
       resolve(process.cwd(), 'src/components/RiskWheelComp/RiskWheelComp.css'),

@@ -4,6 +4,7 @@ import {
   selectCanonicalRelationshipView,
 } from '../relationshipSemantics'
 import type { RealityContext, RealityDomainState, RealityResponseResolution } from './types'
+import { isSafetyProtectionOffer } from '../protectionOffer'
 
 export type { RealityResponseKind, RealityResponseResolution } from './types'
 
@@ -12,7 +13,8 @@ export function resolveRealityTargetResponse(input: {
   actorId: string
   targetId: string
   reality: RealityDomainState
-  context?: Pick<RealityContext, 'atRiskActorIds' | 'day'>
+  context?: Pick<RealityContext, 'atRiskActorIds' | 'day'> &
+    Partial<Pick<RealityContext, 'phase' | 'rolesByActor'>>
   draw: number
   acceptanceChanceOverride?: number
   /** The promisor's current plan contradicts the protection promise. */
@@ -65,6 +67,24 @@ export function resolveRealityTargetResponse(input: {
   let acceptance =
     0.42 + trust / 260 + warmth / 360 + loyalty / 420 - suspicion / 250 - resentment / 300
   if (input.action.id === 'protect') {
+    const safetySave = isSafetyProtectionOffer({
+      phase: input.context?.phase,
+      actorHoldsSafety:
+        input.context?.rolesByActor?.[input.actorId]?.some((role) =>
+          role.split('+').includes('pos')
+        ) === true,
+      targetIsNominated: input.context?.atRiskActorIds.includes(input.targetId) === true,
+    })
+    // A nominee can welcome an available save without already trusting or
+    // befriending its holder. The promise is judged when Safety is played.
+    if (safetySave && !input.promiseContradicted) {
+      return {
+        kind: 'ACCEPT',
+        utility: 1,
+        reason: 'nominee_welcomes_available_safety_save',
+        accepted: true,
+      }
+    }
     const relationshipTags = getCanonicalRelationshipTags({
       reality: input.reality,
       actorId: input.actorId,

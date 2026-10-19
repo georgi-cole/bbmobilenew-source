@@ -144,8 +144,35 @@ describe('NumberTrivia helpers', () => {
       attempts: 1,
       closestDistance: 0,
     });
-    expect(performance.timeMs).toBeGreaterThanOrEqual(2_200);
-    expect(performance.timeMs).toBeLessThanOrEqual(6_000);
+    expect(performance.timeMs).toBeGreaterThan(0);
+    expect(performance.timeMs).toBeLessThanOrEqual(2_200);
+  });
+
+  it('lets stronger housemates answer faster without making easy questions certain', () => {
+    const question = { prompt: 'How many days are in a week?', answer: 7, difficulty: 'easy' as const };
+    const performanceFor = (precomputedScore: number) =>
+      simulateNumberTriviaAiPerformance(
+        { precomputedScore, roundNumber: 1, question },
+        sequenceRng([0.5, 0.1, 0.9]),
+      );
+
+    const developing = performanceFor(30);
+    const strong = performanceFor(100);
+
+    expect(strong.guessed).toBe(true);
+    expect(developing.guessed).toBe(true);
+    expect(strong.timeMs).toBeLessThan(developing.timeMs);
+
+    const outcomes = Array.from({ length: 200 }, (_, seed) =>
+      simulateNumberTriviaAiPerformance(
+        { precomputedScore: 100, roundNumber: 1, question },
+        createNumberTriviaAiRng({ seed, roundNumber: 1, participantId: 'strong-ai' }),
+      ),
+    );
+    expect(outcomes.some((outcome) => !outcome.guessed)).toBe(true);
+    expect(outcomes.some((outcome) => outcome.guessed)).toBe(true);
+    expect(outcomes.some((outcome) => outcome.timeMs < 500)).toBe(true);
+    expect(outcomes.some((outcome) => outcome.timeMs >= 500)).toBe(true);
   });
 
   it('lets harder questions create hesitant but correct AI runs', () => {

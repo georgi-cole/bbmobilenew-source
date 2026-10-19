@@ -32,16 +32,16 @@ function renderDial(
   glow: number,
 ): void {
   ctx.save();
-  ctx.fillStyle = 'rgba(5, 16, 31, 0.92)';
+  ctx.fillStyle = 'rgba(16, 10, 28, 0.94)';
   fillRoundedRect(ctx, slot.x, slot.y, slot.width, slot.height, 16);
 
   const glowGradient = ctx.createLinearGradient(slot.x, slot.y, slot.x, slot.y + slot.height);
-  glowGradient.addColorStop(0, `rgba(128, 224, 255, ${0.22 + glow * 0.2})`);
-  glowGradient.addColorStop(1, 'rgba(28, 51, 79, 0.18)');
+  glowGradient.addColorStop(0, `rgba(196, 164, 255, ${0.22 + glow * 0.2})`);
+  glowGradient.addColorStop(1, 'rgba(67, 40, 104, 0.22)');
   ctx.fillStyle = glowGradient;
   fillRoundedRect(ctx, slot.x + 2, slot.y + 2, slot.width - 4, slot.height - 4, 14);
 
-  ctx.strokeStyle = `rgba(116, 175, 255, ${0.35 + glow * 0.35})`;
+  ctx.strokeStyle = `rgba(196, 164, 255, ${0.35 + glow * 0.35})`;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(slot.x + 1.5, slot.y + 1.5, slot.width - 3, slot.height - 3);
 
@@ -58,7 +58,7 @@ function renderDial(
     const alpha = clamp(1 - distanceFromCenter * 0.6, 0.2, 1);
     const size = 26 - distanceFromCenter * 8;
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = value === digit ? '#effbff' : 'rgba(203, 229, 255, 0.55)';
+    ctx.fillStyle = value === digit ? '#fffaff' : 'rgba(221, 205, 250, 0.58)';
     ctx.font = `700 ${size}px Inter, system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -82,21 +82,21 @@ export function renderVault(
 
   const outerGradient = ctx.createRadialGradient(0, -layout.vaultRadius * 0.22, layout.vaultRadius * 0.1, 0, 0, layout.vaultRadius);
   outerGradient.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
-  outerGradient.addColorStop(0.35, '#52667c');
-  outerGradient.addColorStop(0.75, '#1f2f42');
-  outerGradient.addColorStop(1, '#0c1522');
+  outerGradient.addColorStop(0.35, '#765e96');
+  outerGradient.addColorStop(0.75, '#322442');
+  outerGradient.addColorStop(1, '#140e1f');
   ctx.fillStyle = outerGradient;
   ctx.beginPath();
   ctx.arc(0, 0, layout.vaultRadius, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = `rgba(124, 208, 255, ${0.24 + state.glow * 0.38})`;
+  ctx.strokeStyle = `rgba(196, 164, 255, ${0.28 + state.glow * 0.38})`;
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(0, 0, layout.vaultRadius + 2, 0, Math.PI * 2);
   ctx.stroke();
 
-  ctx.strokeStyle = 'rgba(202, 222, 255, 0.18)';
+  ctx.strokeStyle = 'rgba(221, 205, 250, 0.2)';
   ctx.lineWidth = 1.5;
   ctx.setLineDash([4, 7]);
   ctx.beginPath();
@@ -104,7 +104,7 @@ export function renderVault(
   ctx.stroke();
   ctx.setLineDash([]);
 
-  ctx.fillStyle = '#0d1b2c';
+  ctx.fillStyle = '#1b1228';
   ctx.beginPath();
   ctx.arc(0, 0, layout.vaultInnerRadius, 0, Math.PI * 2);
   ctx.fill();
@@ -113,16 +113,16 @@ export function renderVault(
   ctx.rotate(-rotation * 2.2 + state.successPulse * 0.42);
   for (let index = 0; index < 6; index += 1) {
     ctx.rotate((Math.PI * 2) / 6);
-    ctx.fillStyle = 'rgba(214, 230, 255, 0.18)';
+    ctx.fillStyle = 'rgba(221, 205, 250, 0.2)';
     fillRoundedRect(ctx, -6, -layout.vaultInnerRadius + 8, 12, layout.vaultInnerRadius * 0.58, 6);
   }
   ctx.restore();
 
   const coreGradient = ctx.createRadialGradient(0, -10, 2, 0, 0, layout.vaultInnerRadius * 0.52);
-  coreGradient.addColorStop(0, '#edf8ff');
-  coreGradient.addColorStop(0.28, '#7aa5cf');
-  coreGradient.addColorStop(0.65, '#24364c');
-  coreGradient.addColorStop(1, '#09111d');
+  coreGradient.addColorStop(0, '#fffaff');
+  coreGradient.addColorStop(0.28, '#d5b6ff');
+  coreGradient.addColorStop(0.65, '#49345f');
+  coreGradient.addColorStop(1, '#100a19');
   ctx.fillStyle = coreGradient;
   ctx.beginPath();
   ctx.arc(0, 0, layout.vaultInnerRadius * 0.46, 0, Math.PI * 2);
@@ -130,7 +130,7 @@ export function renderVault(
 
   ctx.restore();
 
-  ctx.fillStyle = 'rgba(5, 13, 24, 0.9)';
+  ctx.fillStyle = 'rgba(14, 9, 24, 0.94)';
   fillRoundedRect(
     ctx,
     layout.digitRackRect.x,
@@ -140,7 +140,7 @@ export function renderVault(
     24,
   );
 
-  ctx.strokeStyle = 'rgba(117, 178, 255, 0.16)';
+  ctx.strokeStyle = 'rgba(192, 132, 252, 0.22)';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(
     layout.digitRackRect.x + 1,

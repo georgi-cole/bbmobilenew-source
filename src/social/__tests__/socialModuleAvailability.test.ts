@@ -76,4 +76,29 @@ describe('socialModuleAvailability', () => {
     expect(getSocialModuleAvailability(game).canOpen).toBe(false)
     expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(false)
   })
+
+  it('keeps weekend social modules open for finale reunion messages', () => {
+    const game = {
+      phase: 'final4_eviction' as const,
+      players: activeHuman,
+      weekendInterlude: {
+        active: true,
+        finaleWeekend: true,
+        stage: 'finale_reunion_social',
+      },
+    }
+
+    expect(getSocialModuleAvailability(game).canOpen).toBe(true)
+    expect(getIncomingSocialModuleAvailability(game).canOpen).toBe(true)
+
+    const sequesterAnnouncement = {
+      ...game,
+      weekendInterlude: {
+        ...game.weekendInterlude,
+        stage: 'finale_sequester_announcement' as const,
+      },
+    }
+    expect(getSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
+    expect(getIncomingSocialModuleAvailability(sequesterAnnouncement).canOpen).toBe(false)
+  })
 })

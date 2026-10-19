@@ -86,3 +86,20 @@ export interface SeasonArchive {
    */
   tripleEvictionWeeks?: number[]
 }
+
+/** Resolve the one season in which the lifetime Twin Shock was activated. */
+export function getTwinShockActivationSeason(
+  archives: readonly Pick<SeasonArchive, 'seasonIndex' | 'twinShockConsumed'>[],
+  activationSeason?: number | null
+): number | null {
+  if (typeof activationSeason === 'number' && Number.isFinite(activationSeason)) {
+    return activationSeason
+  }
+  return (
+    archives
+      .filter((archive) => archive.twinShockConsumed === true)
+      .map((archive) => archive.seasonIndex)
+      .filter((season) => Number.isFinite(season))
+      .sort((left, right) => left - right)[0] ?? null
+  )
+}

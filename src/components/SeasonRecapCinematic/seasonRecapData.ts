@@ -140,7 +140,11 @@ function buildFinalists(players: Player[]): Player[] {
 function buildEvictionList(players: Player[]): Player[] {
   return players
     .map((player, index) => ({ player, index }))
-    .filter(({ player }) => player.status === 'evicted' || player.status === 'jury')
+    .filter(({ player }) =>
+      player.status === 'evicted' ||
+      player.status === 'jury' ||
+      (getPlacementValue(player) ?? 0) > 2,
+    )
     .sort((a, b) => {
       const aPlacement = getPlacementValue(a.player);
       const bPlacement = getPlacementValue(b.player);

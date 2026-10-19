@@ -247,6 +247,17 @@ export function evaluateSocialActionEligibility({
   const requiredRelationshipTags = dramaMode
     ? (action.dramaRequiredRelationshipTags ?? action.requiredRelationshipTags)
     : action.requiredRelationshipTags
+  if (
+    ['apologize', 'repair_bond'].includes(action.id) &&
+    (!actorId ||
+      targets.length === 0 ||
+      targets.some(
+        (targetId) =>
+          !isRepairableRelationship({ relationships, reality, actorId, targetId, day: week })
+      ))
+  ) {
+    return unavailable('There is no unresolved tension to repair with this hubmate')
+  }
   const excludedRelationshipTags = dramaMode
     ? (action.dramaExcludedRelationshipTags ?? action.excludedRelationshipTags)
     : action.excludedRelationshipTags
@@ -276,7 +287,7 @@ export function evaluateSocialActionEligibility({
       if (
         requiredRelationshipTags &&
         !(action.id === 'repair_bond'
-          ? isRepairableRelationship({ relationships, reality, actorId, targetId })
+          ? isRepairableRelationship({ relationships, reality, actorId, targetId, day: week })
           : requiredRelationshipTags.some((tag) =>
               hasCanonicalRelationshipTag({ relationships, reality, actorId, targetId, tag })
             ))

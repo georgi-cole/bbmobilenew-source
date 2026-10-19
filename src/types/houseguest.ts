@@ -6,6 +6,8 @@ export interface Houseguest {
   id: string;
   name: string;
   fullName: string;
+  /** Optional canonical portrait used by reserve entrants outside the default cast. */
+  avatar?: string;
   age: number;
   sex: string;
   location: string;
@@ -29,11 +31,17 @@ export interface Houseguest {
 // Static profile fields that enrich a live Player object
 interface HouseguestProfileFields {
   fullName?: string;
+  sexuality?: string;
+  education?: string;
   age?: number;
   sex?: string;
   location?: string;
   profession?: string;
+  familyStatus?: string;
+  kids?: string;
+  pets?: string;
   zodiacSign?: string;
+  religion?: string;
   motto?: string;
   funFact?: string;
   story?: string;

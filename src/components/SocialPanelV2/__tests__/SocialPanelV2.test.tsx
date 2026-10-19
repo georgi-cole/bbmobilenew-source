@@ -447,15 +447,22 @@ describe('SocialPanelV2 – execute flow', () => {
 
   it('execute button is enabled when a targetless action (idle) is selected', () => {
     fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
-    expect(screen.getByText(/You.*⚡0/)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Lay Low/i })).getByLabelText('Energy cost: 0')
+    ).toBeVisible()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
   })
 
-  it('execute button stays disabled when a target-requiring action is selected without a player', () => {
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+  it('execute stays disabled until a target and action have both been selected', () => {
+    expect(screen.queryByRole('button', { name: /Compliment/i })).toBeNull()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(true)
+    const player = store.getState().game.players.find((p) => !p.isUser)!
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
+    expect(btn).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+    expect(btn).toBeEnabled()
   })
 
   it('group chat requires two people and its cost grows with the group', () => {
@@ -463,18 +470,21 @@ describe('SocialPanelV2 – execute flow', () => {
       .getState()
       .game.players.filter((p) => !p.isUser)
       .slice(0, 3)
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
-    expect((btn as HTMLButtonElement).disabled).toBe(true)
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[1].name, 'i') })[0])
     expect((btn as HTMLButtonElement).disabled).toBe(false)
-    expect(screen.getByText(/Group.*⚡2/)).toBeDefined()
+    expect(
+      within(screen.getByRole('button', { name: /Group Chat/i })).getByLabelText('Energy cost: 2')
+    ).toBeVisible()
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[2].name, 'i') })[0])
-    expect(screen.getByText(/Group.*⚡3/)).toBeDefined()
+    expect(
+      within(screen.getByRole('button', { name: /Group Chat/i })).getByLabelText('Energy cost: 3')
+    ).toBeVisible()
   })
 
   it('does not execute any group target when the aggregate price is unaffordable', () => {
@@ -483,8 +493,9 @@ describe('SocialPanelV2 – execute flow', () => {
       .game.players.filter((p) => !p.isUser)
       .slice(0, 6)
     act(() => store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 3 })))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
-    players.forEach((player) => {
+    players.slice(1).forEach((player) => {
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
     })
 
@@ -501,12 +512,15 @@ describe('SocialPanelV2 – execute flow', () => {
       .game.players.filter((p) => !p.isUser)
       .slice(0, 3)
     act(() => store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 })))
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(players[0].name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
-    players.forEach((player) => {
+    players.slice(1).forEach((player) => {
       fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
     })
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
-    expect(screen.getByText(/Group.*⚡3/)).toBeDefined()
+    expect(
+      within(screen.getByRole('button', { name: /Compliment/i })).getByLabelText('Energy cost: 3')
+    ).toBeVisible()
 
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
@@ -521,8 +535,8 @@ describe('SocialPanelV2 – execute flow', () => {
 
   it('clears action and player selection after closing and reopening the panel', () => {
     const player = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       false
     )
@@ -533,9 +547,7 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       true
     )
-    expect(screen.getByRole('button', { name: /Compliment/i }).getAttribute('aria-pressed')).toBe(
-      'false'
-    )
+    expect(screen.queryByRole('button', { name: /Compliment/i })).toBeNull()
   })
 
   it('keeps target-dependent actions visible when a targetless move is selected', () => {
@@ -550,14 +562,16 @@ describe('SocialPanelV2 – execute flow', () => {
     const target = store.getState().game.players.find((player) => !player.isUser)!
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(target.name, 'i') })[0])
 
-    expect(screen.getByRole('button', { name: /Propose Alliance/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Propose Personal Pact/i })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Watch Room/i }))
 
-    expect(screen.getByText(/House.*⚡2/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Propose Alliance/i })).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: /Propose Alliance/i }).getAttribute('aria-pressed')
+      within(screen.getByRole('button', { name: /Watch Room/i })).getByLabelText('Energy cost: 2')
+    ).toBeVisible()
+    expect(screen.getByRole('button', { name: /Propose Personal Pact/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Propose Personal Pact/i }).getAttribute('aria-pressed')
     ).toBe('false')
     expect(screen.getByRole('button', { name: /Watch Room/i }).getAttribute('aria-pressed')).toBe(
       'true'
@@ -576,9 +590,8 @@ describe('SocialPanelV2 – execute flow', () => {
       .getState()
       .game.players.filter((player) => !player.isUser)
       .slice(0, 3)
-    fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
-
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(people[0].name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Group Chat/i }))
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       true
     )
@@ -587,29 +600,35 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       false
     )
-    expect(screen.getByText(/Group.*⚡2/)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Group Chat/i })).getByLabelText('Energy cost: 2')
+    ).toBeVisible()
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(people[2].name, 'i') })[0])
     expect((screen.getByRole('button', { name: 'Execute' }) as HTMLButtonElement).disabled).toBe(
       false
     )
-    expect(screen.getByText(/Group.*⚡3/)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Group Chat/i })).getByLabelText('Energy cost: 3')
+    ).toBeVisible()
   })
 
   it('execute button is enabled when action and a player are both selected', () => {
     const nonUserPlayer = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(nonUserPlayer.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
 
-    expect(screen.getByText(new RegExp(`${nonUserPlayer.name}.*⚡1`))).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('button', { name: /Compliment/i })).getByLabelText('Energy cost: 1')
+    ).toBeVisible()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
   })
 
   it('charges energy and records the action only once after two rapid execute taps', () => {
     const nonUserPlayer = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(nonUserPlayer.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
 
     const execute = screen.getByRole('button', { name: 'Execute' })
     fireEvent.click(execute)
@@ -627,10 +646,25 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(screen.getByRole('status')).toBeDefined()
   })
 
+  it('shows the complete saved response once in Hub Wire without a repeated selected-action row', () => {
+    fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+
+    const receipt = store.getState().social.sessionLogs.at(-1)?.receipt
+    expect(receipt?.summary).toBeTruthy()
+    expect(screen.getAllByText(receipt!.summary)).toHaveLength(1)
+    expect(screen.getByLabelText('Recent Activity')).toHaveTextContent(receipt!.summary)
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
+    expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: /full response|expand the full result/i })
+    ).toBeNull()
+  })
+
   it('targetless actions ignore previously selected non-user targets when executing', () => {
     const nonUserPlayer = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(nonUserPlayer.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
@@ -644,8 +678,8 @@ describe('SocialPanelV2 – execute flow', () => {
       store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 0 }))
     })
     const nonUserPlayer = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(nonUserPlayer.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
     expect(screen.getByRole('status').textContent).toContain('Insufficient resources')
   })
@@ -679,8 +713,8 @@ describe('SocialPanelV2 – execute flow', () => {
     const firstTarget = players[0]
     const secondTarget = players[1]
 
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(secondTarget.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(firstTarget.name, 'i') })[0], {
       shiftKey: true,
     })
@@ -949,8 +983,8 @@ describe('SocialPanelV2 – subject picker', () => {
 
   it('subject picker is not rendered for primary-mode actions', () => {
     const nonUserPlayer = store.getState().game.players.find((p) => !p.isUser)!
-    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(nonUserPlayer.name, 'i') })[0])
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect(screen.queryByLabelText('Choose subject')).toBeNull()
   })
 
@@ -1097,7 +1131,9 @@ describe('LOH target question integration', () => {
     fireEvent.click(execute)
 
     const recentActivity = screen.getByLabelText('Recent Activity')
-    expect(recentActivity).toHaveTextContent(`${loh.name}:`)
+    const receipt = store.getState().social.sessionLogs.at(-1)?.receipt
+    expect(receipt?.summary).toBeTruthy()
+    expect(recentActivity).toHaveTextContent(receipt!.summary)
     expect(recentActivity).not.toHaveTextContent('You performed')
   })
 })
@@ -1176,9 +1212,9 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
         screen.getAllByRole('button', { name: new RegExp(candidate.name, 'i') })[0]
       ).toHaveClass('pc--selected')
     }
-    expect(
-      screen.getByText((_, element) => element?.classList.contains('sp2-footer__cost') ?? false)
-    ).toHaveTextContent('Cost: Group · ⚡3 · 🤝5')
+    expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
+    expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
     const formedReality = structuredClone(store.getState().social.reality)
@@ -1445,6 +1481,27 @@ describe('SocialPanelV2 – alliance context and history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
     expect(screen.queryByRole('region', { name: 'Selected alliance' })).toBeNull()
     expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
+  })
+
+  it('keeps the full roster available for consultation, invitations, and member management', () => {
+    const { a, candidate } = contextPanel()
+    fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
+    const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
+    fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
+
+    const roster = within(screen.getByRole('region', { name: 'Player roster' }))
+    const grid = within(screen.getByRole('group', { name: 'Action grid' }))
+    expect(grid.getByRole('button', { name: /Consult Alliance/i })).toBeInTheDocument()
+
+    fireEvent.click(roster.getByText(candidate.name, { exact: true }).closest('button')!)
+    expect(
+      grid.getByRole('button', { name: new RegExp(`Invite ${candidate.name} to an alliance`, 'i') })
+    ).toBeInTheDocument()
+
+    fireEvent.click(roster.getByText(a.name, { exact: true }).closest('button')!)
+    expect(
+      grid.getByRole('button', { name: new RegExp(`Remove ${a.name}`, 'i') })
+    ).toBeInTheDocument()
   })
 
   it('clears a prepared rename when switching groups and displays the founding day and history', () => {

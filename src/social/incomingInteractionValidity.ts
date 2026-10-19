@@ -22,13 +22,30 @@ export interface InteractionValidityGameState {
   awaitingTieBreak?: boolean
   awaitingPosTieBreak?: boolean
   replacementNomineeIds?: string[]
+  doubleEviction?: { weekActive?: boolean }
+  lohNominationPlan?: {
+    week?: number
+    lohId?: string | null
+    revision?: number
+    isDoubleElimination?: boolean
+  } | null
   awaitingPovDecision?: boolean
   awaitingPovSaveTarget?: boolean
+  voxPopuliActive?: boolean
+  voxPopuli?: { status?: string } | null
   povProtectedIds?: string[]
   cupidArrow?: {
     status?: 'inactive' | 'scheduled' | 'active' | 'broken'
     pairs?: Array<{ memberIds: [string, string] }>
   }
+  weekendInterlude?: {
+    active?: boolean
+    finaleWeekend?: boolean
+    stage?: string
+    weekendNumber?: number | null
+    afterDay?: number
+    weekendDay?: number
+  } | null
   players?: InteractionValidityPlayer[]
 }
 
@@ -72,6 +89,33 @@ function violatesNominationBlockContext(
     return typeof subjectId !== 'string' || !(game.nomineeIds ?? []).includes(subjectId)
   }
   return false
+}
+
+function violatesLohNominationPlanContext(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState
+): boolean {
+  if (getScenarioKey(interaction) !== 'alliance_power_nomination_huddle') return false
+  const snapshot = interaction.payload?.lohNominationPlanSnapshot
+  if (!snapshot || typeof snapshot !== 'object') return false
+
+  const planSnapshot = snapshot as Record<string, unknown>
+  if (
+    typeof planSnapshot.week !== 'number' ||
+    typeof planSnapshot.lohId !== 'string' ||
+    typeof planSnapshot.revision !== 'number'
+  ) {
+    return true
+  }
+
+  const currentPlan = game.lohNominationPlan
+  return Boolean(
+    !currentPlan ||
+    currentPlan.week !== planSnapshot.week ||
+    currentPlan.lohId !== planSnapshot.lohId ||
+    (currentPlan.isDoubleElimination === true) !== (game.doubleEviction?.weekActive === true) ||
+    (currentPlan.revision ?? 1) !== planSnapshot.revision
+  )
 }
 
 function isAllianceProtectedGameUnit(
@@ -166,11 +210,48 @@ function isEvictedOrGone(player: InteractionValidityPlayer | null): boolean {
   return player.status === 'evicted' || player.status === 'jury'
 }
 
+function isFinaleReunionGuestMessage(
+  interaction: IncomingInteraction,
+  game: InteractionValidityGameState,
+  sender: InteractionValidityPlayer | null
+): boolean {
+  const weekend = game.weekendInterlude
+  return Boolean(
+    getScenarioKey(interaction) === 'finale_reunion_guest' &&
+    weekend?.active === true &&
+    weekend.finaleWeekend === true &&
+    weekend.weekendDay === 2 &&
+    weekend.stage === 'finale_reunion_social' &&
+    interaction.payload?.weekendDay === weekend.weekendDay &&
+    (interaction.payload?.weekendNumber ?? null) === (weekend.weekendNumber ?? null) &&
+    interaction.payload?.weekendAfterDay === weekend.afterDay &&
+    sender &&
+    isEvictedOrGone(sender)
+  )
+}
+
 function isNominee(game: InteractionValidityGameState, playerId: string): boolean {
   // Status is a presentation/history field and can legitimately lag the live
   // block (for example, a former nominee who won Safety). Strategic dialogue
   // must only use the canonical ceremony result.
   return (game.nomineeIds ?? []).includes(playerId)
+}
+
+function isCurrentLoh(game: InteractionValidityGameState, playerId: string): boolean {
+  if (game.lohId !== undefined) return game.lohId === playerId
+  return getPlayer(game, playerId)?.status.includes('loh') === true
+}
+
+function isEligibleVoter(game: InteractionValidityGameState, playerId: string): boolean {
+  const player = getPlayer(game, playerId)
+  return Boolean(
+    player &&
+    !isEvictedOrGone(player) &&
+    !game.voxPopuliActive &&
+    game.voxPopuli?.status !== 'active' &&
+    !isNominee(game, playerId) &&
+    !isCurrentLoh(game, playerId)
+  )
 }
 
 function holdsSafety(game: InteractionValidityGameState, playerId: string): boolean {
@@ -185,7 +266,7 @@ function humanPlayer(game: InteractionValidityGameState): InteractionValidityPla
 function isHumanHoh(game: InteractionValidityGameState): boolean {
   const human = humanPlayer(game)
   if (!human) return false
-  return game.lohId === human.id || human.status.includes('loh')
+  return isCurrentLoh(game, human.id)
 }
 
 function isHumanVetoActionable(game: InteractionValidityGameState): boolean {
@@ -200,6 +281,14 @@ function violatesDeclarativeRule(
 ): boolean {
   const rule = getIncomingInteractionValidityRule(getScenarioKey(interaction))
   if (!rule) return false
+
+  const senderIsRoleBound =
+    rule.senderMustBeNominee !== undefined ||
+    rule.senderMustBeReplacementNominee !== undefined ||
+    rule.senderMustBeHoh === true ||
+    rule.senderMustHoldSafety === true ||
+    rule.senderMustBeEligibleVoter === true
+  if (senderIsRoleBound && !getPlayer(game, interaction.fromId)) return true
 
   const phase = game.phase ?? ''
   if (rule.allowedPhases && !rule.allowedPhases.includes(phase)) return true
@@ -223,6 +312,7 @@ function violatesDeclarativeRule(
     if (game.lohId !== interaction.fromId && sender?.status.includes('loh') !== true) return true
   }
   if (rule.senderMustHoldSafety && !holdsSafety(game, interaction.fromId)) return true
+  if (rule.senderMustBeEligibleVoter && !isEligibleVoter(game, interaction.fromId)) return true
   if (rule.humanMustBeHoh && !isHumanHoh(game)) return true
   if (rule.humanMustHoldSafety && !isHumanVetoActionable(game)) return true
   if (rule.humanMustBeOffBlock) {
@@ -235,14 +325,7 @@ function violatesDeclarativeRule(
   }
   if (rule.humanMustBeEligibleVoter) {
     const human = humanPlayer(game)
-    if (
-      !human ||
-      isNominee(game, human.id) ||
-      game.lohId === human.id ||
-      human.status.includes('loh')
-    ) {
-      return true
-    }
+    if (!human || !isEligibleVoter(game, human.id)) return true
   }
   if (rule.humanMustBreakTie) {
     const human = humanPlayer(game)
@@ -277,10 +360,13 @@ export function isIncomingInteractionInvalidated(
   const sender = getPlayer(game, interaction.fromId)
   const human = humanPlayer(game)
   const activePlayers = (game.players ?? []).filter((player) => !isEvictedOrGone(player))
+  const temporaryReunionGuest = isFinaleReunionGuestMessage(interaction, game, sender)
   // Production interactions always have a roster sender, but scheduler tests
   // and migrated saves can contain legacy/unknown IDs. Do not discard those
-  // solely because the current roster cannot resolve the sender.
-  if (sender && isEvictedOrGone(sender)) return true
+  // solely because the current roster cannot resolve the sender. Role-bound
+  // scenarios above still require an actual sender at creation and delivery.
+  if (sender && isEvictedOrGone(sender) && !temporaryReunionGuest) return true
+  if (human && isEvictedOrGone(human)) return true
   if (human && interaction.fromId === human.id) return true
   if (activePlayers.length <= 2) return true
 
@@ -307,6 +393,7 @@ export function isIncomingInteractionInvalidated(
   return (
     violatesDeclarativeRule(interaction, game) ||
     violatesNominationBlockContext(interaction, game) ||
+    violatesLohNominationPlanContext(interaction, game) ||
     violatesRealityAllianceContext(interaction, game, reality)
   )
 }
