@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import AvatarTile from './AvatarTile'
 import ReunionGuestInteractionDialog from './ReunionGuestInteractionDialog'
@@ -231,8 +231,11 @@ export default function HouseguestGrid({
     setReunionSelection({ eligible: canInteractWithReunionGuests, guestId: null })
   }
   const selectedReunionGuestId = reunionSelection.guestId
-  const setSelectedReunionGuestId = (guestId: string | null) =>
-    setReunionSelection({ eligible: canInteractWithReunionGuests, guestId })
+  const setSelectedReunionGuestId = useCallback(
+    (guestId: string | null) =>
+      setReunionSelection({ eligible: canInteractWithReunionGuests, guestId }),
+    [canInteractWithReunionGuests]
+  )
   useEffect(() => {
     const wasRevealed = previousCupidVisualsRevealedRef.current
     previousCupidVisualsRevealedRef.current = cupidVisualsRevealed
@@ -272,7 +275,7 @@ export default function HouseguestGrid({
     if (canInteractWithReunionGuests) return
     const resetTimer = window.setTimeout(() => setSelectedReunionGuestId(null), 0)
     return () => window.clearTimeout(resetTimer)
-  }, [canInteractWithReunionGuests])
+  }, [canInteractWithReunionGuests, setSelectedReunionGuestId])
 
   const focusCupidPair = (pairId: string | null, hold = false) => {
     if (!cupidVisualsRevealed || !pairId) return

@@ -999,7 +999,9 @@ export default function SocialPanelV2() {
       )
     : null
   const selectedConsultationMemberId = selectedAllianceConsultationTargets
-    ? (consultationTargetCandidates.find((id) => selectedAllianceConsultationTargets.includes(id)) ??
+    ? (consultationTargetCandidates.find((id) =>
+        selectedAllianceConsultationTargets.includes(id)
+      ) ??
       selectedAllianceConsultationTargets[0] ??
       null)
     : (consultationTargetCandidates[0] ?? null)

@@ -18,7 +18,6 @@ import {
   advanceFromRoundSummary,
   markRiskWheelOutcomeResolved,
   resolveAllAiTurns,
-  startRiskWheelTieBreak,
 } from './riskWheelSlice';
 import type { RiskWheelState } from './riskWheelSlice';
 
@@ -34,8 +33,8 @@ export const skipRiskWheelToResults =
 
       if (phase === 'round_summary') {
         const riskWheel = getState().riskWheel;
-        if (riskWheel.tieBreakPending) {
-          dispatch(startRiskWheelTieBreak());
+        if (riskWheel.tieBreaker?.pendingStart) {
+          dispatch(advanceFromRoundSummary());
           dispatch(resolveAllAiTurns());
         } else {
           dispatch(advanceFromRoundSummary());

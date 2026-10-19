@@ -980,9 +980,8 @@ export default function RiskWheelComp({
         </ul>
         {tieBreakPending && (
           <p className="rw-summary-tiebreak-msg" role="status">
-            ⚖ Score tie at the elimination line: {tieBreaker.candidatePlayerIds
-              .map((id) => getName(id, participants))
-              .join(' and ')}{' '}
+            ⚖ Score tie at the elimination line:{' '}
+            {tieBreaker.candidatePlayerIds.map((id) => getName(id, participants)).join(' and ')}{' '}
             will each spin once in a tie-break round before anyone is eliminated.
           </p>
         )}

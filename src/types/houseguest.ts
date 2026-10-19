@@ -3,51 +3,51 @@ import type { Player } from './index'
 
 // Houseguest static profile type (canonical dataset from houseguests.ts)
 export interface Houseguest {
-  id: string;
-  name: string;
-  fullName: string;
+  id: string
+  name: string
+  fullName: string
   /** Optional canonical portrait used by reserve entrants outside the default cast. */
-  avatar?: string;
-  age: number;
-  sex: string;
-  location: string;
-  sexuality?: string;
-  education?: string;
-  profession: string;
-  familyStatus?: string;
-  kids?: string;
-  pets?: string;
-  zodiacSign?: string;
-  religion?: string;
-  motto: string;
-  funFact: string;
-  allies: string[];
-  enemies: string[];
-  story: string;
+  avatar?: string
+  age: number
+  sex: string
+  location: string
+  sexuality?: string
+  education?: string
+  profession: string
+  familyStatus?: string
+  kids?: string
+  pets?: string
+  zodiacSign?: string
+  religion?: string
+  motto: string
+  funFact: string
+  allies: string[]
+  enemies: string[]
+  story: string
   /** Optional competition skill profile for AI simulations. */
   competitionProfile?: CompetitionSkillProfile
 }
 
 // Static profile fields that enrich a live Player object
 interface HouseguestProfileFields {
-  fullName?: string;
-  sexuality?: string;
-  education?: string;
-  age?: number;
-  sex?: string;
-  location?: string;
-  profession?: string;
-  familyStatus?: string;
-  kids?: string;
-  pets?: string;
-  zodiacSign?: string;
-  religion?: string;
-  motto?: string;
-  funFact?: string;
-  story?: string;
-  allies?: string[];
-  enemies?: string[];
-  competitionProfile?: CompetitionSkillProfile;
+  fullName?: string
+  sexuality?: string
+  education?: string
+  age?: number
+  sex?: string
+  location?: string
+  profession?: string
+  familyStatus?: string
+  kids?: string
+  pets?: string
+  zodiacSign?: string
+  religion?: string
+  motto?: string
+  funFact?: string
+  story?: string
+  allies?: string[]
+  enemies?: string[]
+  competitionProfile?: CompetitionSkillProfile
 }
 
 // Houseguest enriched with live Player state — extends Player directly so

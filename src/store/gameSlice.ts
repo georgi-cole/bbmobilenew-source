@@ -14383,6 +14383,7 @@ export const simulateImmediateEliminationCycle =
         (getState().game.players.length << 8)) >>>
       0
     const rng = mulberry32(cycleSeed)
+    const completedSocialPhases = new Set<string>()
     seedDebugCycleNoise(dispatch, getState(), rng)
 
     let steps = 0

@@ -296,7 +296,7 @@ function chooseRecruitment(
 export function evaluateAllianceAutonomy(
   domain: RealityDomainState,
   context: AllianceManagementContext
-): void {
+): boolean {
   const phaseReceipt = `ai-alliance:${context.at.day}:${context.at.phase}`
   if (
     context.disabled ||
@@ -304,7 +304,7 @@ export function evaluateAllianceAutonomy(
     !['social_1', 'social_2'].includes(context.at.phase) ||
     domain.allianceManagement.processedCommands[phaseReceipt]
   )
-    return
+    return false
 
   domain.allianceManagement.processedCommands[phaseReceipt] = {
     status: 'APPLIED',
@@ -382,4 +382,5 @@ export function evaluateAllianceAutonomy(
     if (exhausted)
       manageAlliance(domain, { type: 'LEAVE', actorId, allianceId: exhausted.id }, context)
   }
+  return true
 }

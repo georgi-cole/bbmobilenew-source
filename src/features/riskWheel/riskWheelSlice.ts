@@ -1011,9 +1011,7 @@ const riskWheelSlice = createSlice({
         const tieBreaker = state.tieBreaker
         tieBreaker.pendingStart = false
         state.activePlayerIds = [...tieBreaker.candidatePlayerIds]
-        state.roundScores = Object.fromEntries(
-          tieBreaker.candidatePlayerIds.map((id) => [id, 0])
-        )
+        state.roundScores = Object.fromEntries(tieBreaker.candidatePlayerIds.map((id) => [id, 0]))
         state.playersCompletedThisRound = []
         state.currentPlayerIndex = 0
         state.currentSpinCount = MAX_SPINS_PER_TURN - 1
