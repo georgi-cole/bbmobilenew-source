@@ -323,15 +323,22 @@ describe('Democracia twist', () => {
       expect(store.getState().game.phase).toBe(phaseBefore) // phase unchanged
     })
 
-    it('human can cast a vote and advance unblocks', () => {
+    it('records the human vote and waits for Play to reveal results', () => {
       const { store } = makeVoteStore()
       // Human p0 votes for p4
       store.dispatch(submitDemocraciaVote('p4'))
       expect(store.getState().game.democracia?.awaitingHumanVote).toBe(false)
-      // Now advance can proceed — p4 has 4 votes total, clear winner
+      expect(store.getState().game.phase).toBe('democracia_vote')
+      expect(store.getState().game.democracia?.resultDisplay).toBeNull()
+      expect(selectIsWaitingForInput(store.getState() as ReturnType<typeof store.getState>)).toBe(
+        false
+      )
+
+      // Play explicitly reveals the tally — p4 has 4 votes total, a clear winner.
       store.dispatch(advance())
       expect(store.getState().game.phase).toBe('democracia_results')
       expect(store.getState().game.lohId).toBe('p4')
+      expect(store.getState().game.democracia?.resultDisplay).not.toBeNull()
     })
 
     it('Bella nomination immunity does not block Democracia LOH votes', () => {
@@ -709,7 +716,7 @@ describe('Democracia twist', () => {
   })
 
   describe('Democracia result display state', () => {
-    it('dismissDemocraciaResultDisplay clears the reveal and selector gating', () => {
+    it('keeps results available for Play and dismisses them before advancing', () => {
       const store = makeStore({
         phase: 'democracia_results',
         democracia: {
@@ -726,7 +733,7 @@ describe('Democracia twist', () => {
       })
 
       expect(selectIsWaitingForInput(store.getState() as ReturnType<typeof store.getState>)).toBe(
-        true
+        false
       )
 
       store.dispatch(dismissDemocraciaResultDisplay())
@@ -734,6 +741,38 @@ describe('Democracia twist', () => {
       expect(store.getState().game.democracia?.resultDisplay).toBeNull()
       expect(selectIsWaitingForInput(store.getState() as ReturnType<typeof store.getState>)).toBe(
         false
+      )
+    })
+
+    it('reopens ballot entry after Play dismisses a tie result', () => {
+      const store = makeStore({
+        phase: 'democracia_vote',
+        democracia: {
+          ...DEFAULT_DEMOCRACIA,
+          active: true,
+          round: 2,
+          candidateIds: ['p0', 'p1'],
+          eligibleVoterIds: ['p2', 'p3', 'p4'],
+          awaitingHumanVote: true,
+          resultDisplay: {
+            mode: 'tie',
+            participantIds: ['p0', 'p1'],
+            voteCountsByCandidateId: { p0: 2, p1: 2 },
+            title: 'TIED VOTE',
+            subtitle: 'Player 0 and Player 1 are tied.',
+          },
+        },
+      })
+
+      expect(selectIsWaitingForInput(store.getState() as ReturnType<typeof store.getState>)).toBe(
+        false
+      )
+
+      store.dispatch(dismissDemocraciaResultDisplay())
+
+      expect(store.getState().game.democracia?.resultDisplay).toBeNull()
+      expect(selectIsWaitingForInput(store.getState() as ReturnType<typeof store.getState>)).toBe(
+        true
       )
     })
   })

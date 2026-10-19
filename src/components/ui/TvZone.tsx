@@ -321,7 +321,6 @@ type TvZoneDemocraciaResultsReveal = {
     player: Player
     voteCount: number
   }>
-  onDone: () => void
 }
 
 type LiveVoteBackdropMetrics = {
@@ -1976,7 +1975,6 @@ export default function TvZone(props: TvZoneProps) {
                 title={props.democraciaResultsReveal.title}
                 subtitle={props.democraciaResultsReveal.subtitle}
                 participants={props.democraciaResultsReveal.participants}
-                onDone={props.democraciaResultsReveal.onDone}
               />
             )}
             {props.voteResultsReveal && (

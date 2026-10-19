@@ -910,6 +910,7 @@ export default function GameScreen() {
     showDemocraciaResults,
     democraciaResultsParticipants,
     handleDemocraciaResultsDone,
+    democraciaVoteRecorded,
     dayStartShock,
     dayStartShockPlayer,
     handleDayStartShockConfirm,
@@ -1570,7 +1571,6 @@ export default function GameScreen() {
               title: democraciaResultDisplay.title,
               subtitle: democraciaResultDisplay.subtitle,
               participants: democraciaResultsParticipants,
-              onDone: handleDemocraciaResultsDone,
             }}
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
@@ -1642,7 +1642,9 @@ export default function GameScreen() {
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
-                : null
+                : democraciaVoteRecorded
+                  ? 'Vote recorded. Press Play to reveal the results.'
+                  : null
             }
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
@@ -1933,7 +1935,6 @@ export default function GameScreen() {
             subtitle={`${humanPlayer?.name}, vote for the hubmate you want to become Leader of the Hub. You cannot vote for yourself.`}
             options={democraciaVoteOptions}
             onSelect={(id) => dispatch(submitDemocraciaVote(id))}
-            stingerMessage="VOTE CAST"
           />
         )}
 
@@ -2818,6 +2819,8 @@ export default function GameScreen() {
             finaleInlinePlayActive={finalPowerBattleIntroActive}
             finalePlayAvailable={finalePlayAvailable}
             finaleDockOnTop={finaleOverlayActive && finalePlayAvailable}
+            democraciaVoteRecorded={democraciaVoteRecorded}
+            onDemocraciaResultsDone={handleDemocraciaResultsDone}
           />
         )}
 

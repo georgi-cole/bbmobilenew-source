@@ -592,6 +592,52 @@ describe('FloatingActionBar – layout', () => {
     expect(store.getState().game.phase).toBe('week_start')
   })
 
+  it('uses Play to reveal Democracia results without a TV card consuming the press', () => {
+    const initial = makeStore().getState().game
+    const players = initial.players.slice(0, 6).map((player, index) => ({
+      ...player,
+      isUser: index === 0,
+      status: 'active' as const,
+    }))
+    const playerIds = players.map((player) => player.id)
+    const votesByVoterId = Object.fromEntries([
+      [playerIds[0], playerIds[4]],
+      [playerIds[1], playerIds[4]],
+      [playerIds[2], playerIds[4]],
+      [playerIds[3], playerIds[5]],
+      [playerIds[4], playerIds[5]],
+      [playerIds[5], playerIds[4]],
+    ])
+    const store = makeStore(true, {
+      phase: 'democracia_vote',
+      players,
+      democracia: {
+        ...initial.democracia!,
+        active: true,
+        round: 1,
+        candidateIds: playerIds,
+        eligibleVoterIds: playerIds,
+        votesByVoterId,
+        awaitingHumanVote: false,
+        awaitingPublicBreaker: false,
+        resultDisplay: null,
+      },
+    })
+    const consumePlay = vi.fn((event: Event) => event.preventDefault())
+    window.addEventListener('ui:playPressed', consumePlay, { capture: true })
+    renderFAB(store, '/game', { democraciaVoteRecorded: true })
+
+    const playButton = screen.getByRole('button', { name: 'Reveal results' })
+    expect(playButton).toBeEnabled()
+    act(() => playButton.click())
+
+    expect(consumePlay).not.toHaveBeenCalled()
+    expect(store.getState().game.phase).toBe('democracia_results')
+    expect(store.getState().game.democracia?.resultDisplay).not.toBeNull()
+
+    window.removeEventListener('ui:playPressed', consumePlay, { capture: true })
+  })
+
   it('lets a blocking Faux TV card consume Play before advancing the reducer', () => {
     const store = makeStore(true, { phase: 'week_end', week: 1 })
     const consumePlay = (event: Event) => event.preventDefault()

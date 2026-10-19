@@ -27,11 +27,13 @@ import {
  * - tie-break (eviction_results)
  * - Final 4 plea / sole-vote / eviction cinematic
  * - Final 3 LOH eviction (awaitingFinal3Eviction)
- * - timed Democracia results reveal before play resumes
+ * - Democracia vote entry and public tie-breaks
  */
 export const selectIsWaitingForInput = (state: RootState): boolean => {
   const game = state.game
   const sv = game.specialVeto
+  const democraciaResultsReadyForPlay =
+    game.democracia?.resultDisplay != null && !game.democracia.awaitingPublicBreaker
   const voxFinalThreeVerdictCanAdvance =
     game.voxPopuli?.status === 'active' &&
     game.voxPopuli.publicVoteContext === 'final3' &&
@@ -56,9 +58,9 @@ export const selectIsWaitingForInput = (state: RootState): boolean => {
     Boolean(sv?.awaitingCoupReplacement2) ||
     Boolean(sv?.awaitingVipSecondUseDecision) ||
     Boolean(sv?.awaitingVipSecondSaveTarget) ||
-    Boolean(game.democracia?.awaitingHumanVote) ||
+    (Boolean(game.democracia?.awaitingHumanVote) && !democraciaResultsReadyForPlay) ||
     Boolean(game.democracia?.awaitingPublicBreaker) ||
-    Boolean(game.democracia?.resultDisplay) ||
+    (Boolean(game.democracia?.resultDisplay) && !democraciaResultsReadyForPlay) ||
     Boolean(game.awaitingCoLohNomination) ||
     Boolean(game.awaitingPosTieBreak) ||
     Boolean(game.twinShock?.promptStage)
