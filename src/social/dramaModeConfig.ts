@@ -10,6 +10,8 @@ export const DRAMA_MODE_CONFIG = {
     maxPublicEventsPerWeek: 1,
     publicEventCooldownWeeks: 2,
     maxStoredEvents: 40,
+    maxStoredArcs: 32,
+    maxStoredRumours: 64,
     rumourLifetimeWeeks: 4,
   },
   arcs: {
@@ -20,6 +22,16 @@ export const DRAMA_MODE_CONFIG = {
     climaxIntensity: 86,
   },
   rumours: { beliefThreshold: 0.48, exposureListenerCount: 3, exposureConfidence: 0.58 },
+  intelligenceStrategy: {
+    maxTradesPerWeek: 1,
+    maxExposuresPerWeek: 1,
+    maxProtectionDealsPerWeek: 1,
+    maxShareRecipients: 3,
+    minShareAffinity: 0.12,
+    minExposureConfidence: 0.58,
+    minExposureUtility: 0.92,
+    exposurePhases: ['social_1', 'nomination_results', 'pos_ceremony_results', 'social_2'],
+  },
 } as const
 
 /** Premium actions are catalog data, so future packs can append actions without UI rewrites. */
@@ -335,12 +347,11 @@ export const DRAMA_SOCIAL_ACTIONS: SocialActionDefinition[] = [
     id: 'trade_secrets',
     title: 'Trade Secrets',
     icon: '\uD83E\uDD2B',
-    description: 'Exchange named information and create an obligation.',
+    description: 'Automatically exchange one fresh lead each way when available.',
     category: 'strategic',
     kind: 'intel_spend',
     baseCost: { energy: 2, info: 1 },
-    targetMode: 'primaryPlusSubject',
-    subjectPool: 'houseguests',
+    targetMode: 'primary',
     successWeight: 2,
     outcomeTag: 'information_bond',
     yields: { influence: 0.05, info: 0.5 },

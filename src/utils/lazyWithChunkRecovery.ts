@@ -156,12 +156,18 @@ function reloadWithFreshEntryBundle(): Promise<boolean> {
  * React.lazy with one automatic recovery attempt for stale hashed chunks.
  * Ordinary module errors still reach the route error boundary unchanged.
  */
-export function lazyWithChunkRecovery<T extends ComponentType<object>>(
-  loader: () => Promise<{ default: T }>
-): LazyExoticComponent<T> {
-  return lazy(async () => {
+export function lazyWithChunkRecovery<P extends object>(
+  loader: () => Promise<{ default: ComponentType<P> }>
+): LazyExoticComponent<ComponentType<P>> & { preload: () => Promise<void> } {
+  let modulePromise: Promise<{ default: ComponentType<P> }> | null = null
+  const load = () => {
+    modulePromise ??= Promise.resolve().then(loader)
+    return modulePromise
+  }
+
+  const component = lazy(async () => {
     try {
-      const result = await loader()
+      const result = await load()
       clearRecoveryState()
       return result
     } catch (error) {
@@ -172,5 +178,9 @@ export function lazyWithChunkRecovery<T extends ComponentType<object>>(
       }
       throw error
     }
+  })
+
+  return Object.assign(component, {
+    preload: () => load().then(() => undefined),
   })
 }

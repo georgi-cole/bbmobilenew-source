@@ -748,7 +748,7 @@ describe('DiaryRoom', () => {
     expect(doorImages).toHaveLength(2)
     doorImages.forEach((doorImage) => {
       expect(doorImage.getAttribute('src')).toContain(
-        '/assets/diary-room/confessional-locked-door.png'
+        '/assets/diary-room/confessional-locked-door.webp'
       )
     })
 
@@ -975,7 +975,7 @@ describe('DiaryRoom', () => {
 
     expect(screen.getByTestId('confessional-locked-door')).toBeTruthy()
     expect(screen.getByTestId('confessional-locked-door-image').getAttribute('src')).toContain(
-      '/assets/diary-room/confessional-locked-door.png'
+      '/assets/diary-room/confessional-locked-door.webp'
     )
     expect(screen.getByText('The door is locked.')).toBeTruthy()
     expect(screen.queryByLabelText(/confessional chat/i)).toBeNull()

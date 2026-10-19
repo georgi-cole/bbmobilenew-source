@@ -24,6 +24,7 @@ export interface RealityAllianceKnowledgeView {
   level: RealityAllianceKnowledgeLevel
   confidence: number
   knownMemberIds: string[]
+  historicalMemberIds: string[]
   fullMembershipKnown: boolean
   displayName?: string
   status?: RealityAllianceStatus
@@ -75,6 +76,7 @@ export function getRealityAllianceKnowledgeView(
       level: 'UNKNOWN',
       confidence: 0,
       knownMemberIds: [],
+      historicalMemberIds: [],
       fullMembershipKnown: false,
     }
   }
@@ -85,6 +87,7 @@ export function getRealityAllianceKnowledgeView(
       level: 'MEMBER',
       confidence: 1,
       knownMemberIds: [...alliance.memberIds],
+      historicalMemberIds: [],
       fullMembershipKnown: true,
       ...(alliance.name ? { displayName: alliance.name } : {}),
       status: alliance.status,
@@ -105,12 +108,23 @@ export function getRealityAllianceKnowledgeView(
   )
 
   const knownRoster = alliance.rosterKnowledgeByActor?.[observerId]
-  const knownMemberIds = unique([
+  const knownIds = unique([
     ...(knownRoster?.memberIds ?? []),
-    ...publicFacts.flatMap((fact) => fact.subjectIds),
+    ...publicFacts.flatMap((fact) => fact.disclosedMemberIds ?? fact.subjectIds),
     ...beliefs.filter((belief) => belief.confidence >= 0.35).flatMap((belief) => belief.subjectIds),
+    ...(alliance.status === 'DISSOLVED' && alliance.memberIds.includes(observerId)
+      ? alliance.memberIds
+      : []),
   ])
+  const currentRosterIds = alliance.status === 'DISSOLVED' ? [] : alliance.memberIds
+  const knownMemberIds = knownIds.filter((id) => currentRosterIds.includes(id))
+  const historicalMemberIds = knownIds.filter((id) => !currentRosterIds.includes(id))
   const confidence = Math.max(
+    alliance.status === 'DISSOLVED' &&
+      (alliance.memberIds.includes(observerId) ||
+        Boolean(knownRoster?.memberIds.includes(observerId)))
+      ? 1
+      : 0,
     publicFacts.length > 0 || knownRoster ? 1 : 0,
     ...beliefs.map((belief) => belief.confidence),
     0
@@ -121,11 +135,28 @@ export function getRealityAllianceKnowledgeView(
       fact.propositionType === 'ALLIANCE_EXPOSED' &&
       (fact.rosterRevision !== undefined
         ? fact.rosterRevision === (alliance.rosterRevision ?? 0)
-        : [...fact.subjectIds].sort().join('~') === [...alliance.memberIds].sort().join('~'))
+        : [...(fact.disclosedMemberIds ?? fact.subjectIds)].sort().join('~') ===
+          [...alliance.memberIds].sort().join('~'))
   )
+  const hasFullPrivateRosterDisclosure = beliefs.some((belief) => {
+    if (belief.confidence < 0.35) return false
+    const factId = belief.id.replace(`belief:${observerId}:`, '')
+    const fact = state.facts[factId]
+    return Boolean(
+      (fact?.fullMembershipKnown ||
+        (fact?.rosterRevision !== undefined &&
+          fact.rosterRevision === (alliance.rosterRevision ?? 0))) &&
+      (alliance.status === 'DISSOLVED' ||
+        alliance.memberIds.every((id) => fact.subjectIds.includes(id)))
+    )
+  })
+  const isFormerDissolvedMember =
+    alliance.status === 'DISSOLVED' &&
+    (alliance.memberIds.includes(observerId) ||
+      Boolean(knownRoster?.memberIds.includes(observerId)))
   const level: RealityAllianceKnowledgeLevel = isPublic
     ? 'PUBLIC'
-    : confidence >= 0.82
+    : isFormerDissolvedMember || confidence >= 0.82
       ? 'CONFIRMED'
       : confidence > 0 || alliance.suspectedByIds.includes(observerId)
         ? 'SUSPECTED'
@@ -134,7 +165,9 @@ export function getRealityAllianceKnowledgeView(
   // it must never prove by omission that nobody else belongs to the pact.
   const fullMembershipKnown =
     hasFullPublicExposure ||
-    Boolean(knownRoster && knownRoster.rosterRevision === alliance.rosterRevision)
+    hasFullPrivateRosterDisclosure ||
+    Boolean(knownRoster && knownRoster.rosterRevision === alliance.rosterRevision) ||
+    isFormerDissolvedMember
   const publicName = publicFacts
     .filter((fact) => fact.propositionType === 'ALLIANCE_EXPOSED')
     .map((fact) => (typeof fact.value === 'string' ? fact.value : undefined))
@@ -145,6 +178,7 @@ export function getRealityAllianceKnowledgeView(
     level,
     confidence,
     knownMemberIds,
+    historicalMemberIds,
     fullMembershipKnown,
     ...(publicName || knownRoster?.name ? { displayName: publicName ?? knownRoster?.name } : {}),
   }
@@ -153,15 +187,16 @@ export function getRealityAllianceKnowledgeView(
 function discoveryMemory(input: {
   ownerId: string
   fact: RealityFact
+  eventId: string
   sourceType: RealityMemorySource
   sourceChain: string[]
   confidence: number
   at: RealityClock
 }): RealityMemory {
   return {
-    id: `memory:alliance-discovery:${input.ownerId}:${input.fact.id}`,
+    id: `memory:alliance-discovery:${input.ownerId}:${input.fact.id}:${input.eventId}`,
     ownerId: input.ownerId,
-    eventId: input.fact.sourceEventId,
+    eventId: input.eventId,
     day: input.at.day,
     phase: input.at.phase,
     participantIds: [...input.fact.participantIds],
@@ -193,18 +228,32 @@ export function recordRealityAllianceDiscovery(
     sourceEventId: string
     sourceId?: string
     sourceType?: RealityMemorySource
+    maximumMembers?: number
+    fullMembershipKnown?: boolean
+    allowHistoricalMembers?: boolean
+    allowCurrentMemberSnapshot?: boolean
   }
 ): RealityBelief | null {
   const alliance = state.alliances[input.allianceId]
-  if (!alliance || alliance.memberIds.includes(input.observerId)) return null
+  if (
+    !alliance ||
+    (alliance.memberIds.includes(input.observerId) && !input.allowCurrentMemberSnapshot)
+  ) {
+    return null
+  }
 
+  const maximumMembers = Math.max(2, Math.floor(input.maximumMembers ?? 3))
   const revealed = unique(input.revealedMemberIds)
-    .filter((id) => alliance.memberIds.includes(id))
-    .slice(0, 3)
+    .filter((id) => input.allowHistoricalMembers || alliance.memberIds.includes(id))
+    .slice(0, maximumMembers)
   if (revealed.length < 2) return null
 
   const confidence = Math.max(0.2, Math.min(0.96, input.confidence))
-  const factId = `fact:alliance-discovery:${alliance.id}:${input.observerId}:${input.sourceEventId}`
+  const rosterKey = [...revealed]
+    .sort()
+    .map((id) => `${id.length}-${id}`)
+    .join('_')
+  const factId = `fact:alliance-discovery:${alliance.id}:${input.observerId}:${rosterKey}`
   if (!state.facts[factId]) {
     addRealityFact(state, {
       id: factId,
@@ -221,7 +270,12 @@ export function recordRealityAllianceDiscovery(
       publicVisible: false,
       juryVisible: false,
       sourceEventId: input.sourceEventId,
+      ...(input.fullMembershipKnown ? { fullMembershipKnown: true } : {}),
     })
+  } else {
+    const fact = state.facts[factId]
+    fact.participantIds = unique([...fact.participantIds, input.observerId, input.sourceId ?? ''])
+    if (input.fullMembershipKnown) fact.fullMembershipKnown = true
   }
 
   const fact = state.facts[factId]
@@ -232,6 +286,7 @@ export function recordRealityAllianceDiscovery(
     memory: discoveryMemory({
       ownerId: input.observerId,
       fact,
+      eventId: input.sourceEventId,
       sourceType: input.sourceType ?? (input.sourceId ? 'HEARSAY' : 'INFERRED'),
       sourceChain: input.sourceId ? [input.sourceId] : [input.observerId],
       confidence,
@@ -276,6 +331,70 @@ export function recordRealityAllianceLeakDiscovery(
       sourceEventId: input.sourceEventId,
       sourceId: input.leakerId,
       sourceType: 'HEARSAY',
+    })
+  }
+}
+
+export function recordRealityAllianceInvitation(
+  state: RealityDomainState,
+  input: {
+    allianceId: string
+    inviterId: string
+    inviteeId: string
+    at: RealityClock
+    sourceEventId: string
+  }
+): RealityBelief | null {
+  const alliance = state.alliances[input.allianceId]
+  if (
+    !alliance ||
+    (alliance.status !== 'ACTIVE' && alliance.status !== 'PROBATIONARY') ||
+    !alliance.memberIds.includes(input.inviterId) ||
+    alliance.memberPerceivedStatus[input.inviterId] === 'PERIPHERAL' ||
+    alliance.memberIds.includes(input.inviteeId)
+  ) {
+    return null
+  }
+
+  return recordRealityAllianceDiscovery(state, {
+    allianceId: alliance.id,
+    observerId: input.inviteeId,
+    revealedMemberIds: [...alliance.memberIds],
+    maximumMembers: alliance.memberIds.length,
+    fullMembershipKnown: true,
+    confidence: 0.92,
+    at: input.at,
+    sourceEventId: input.sourceEventId,
+    sourceId: input.inviterId,
+    sourceType: 'DIRECT',
+  })
+}
+
+export function preserveRealityAllianceRosterForMembers(
+  state: RealityDomainState,
+  allianceId: string,
+  at: RealityClock,
+  sourceEventId: string,
+  ownerIds?: readonly string[]
+): void {
+  const alliance = state.alliances[allianceId]
+  if (!alliance) return
+  const roster = [...alliance.memberIds]
+  const owners = unique(ownerIds ? [...ownerIds] : roster).filter((id) => roster.includes(id))
+
+  for (const ownerId of owners) {
+    recordRealityAllianceDiscovery(state, {
+      allianceId: alliance.id,
+      observerId: ownerId,
+      revealedMemberIds: roster,
+      maximumMembers: roster.length,
+      fullMembershipKnown: true,
+      allowHistoricalMembers: true,
+      allowCurrentMemberSnapshot: true,
+      confidence: 0.96,
+      at,
+      sourceEventId,
+      sourceType: 'DIRECT',
     })
   }
 }

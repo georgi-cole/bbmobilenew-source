@@ -4,6 +4,8 @@ import gameReducer, {
   advanceWeekendSeasonFact,
   advanceWeekendDay,
   beginWeekendDayTransition,
+  beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
   completeWeekendInterlude,
   continueHubSays,
   continueWeekendFeature,
@@ -14,8 +16,11 @@ import gameReducer, {
   debugSkipToWeekendDayTwo,
   recordWeekendPartyBeat,
   hydrateGame,
+  finalizePendingEviction,
   chooseHubSaysPlayer,
   submitHubSaysVote,
+  openWeekendTribunalStream,
+  returnFromWeekendTribunalStream,
 } from '../gameSlice'
 
 describe('Weekend 1 interlude', () => {
@@ -183,8 +188,8 @@ describe('Weekend 1 interlude', () => {
     expect(state.phase).toBe('week_start')
   })
 
-  it('starts Weekend 3 after Day 15 with one grounded season fact per remaining player', () => {
-    const initial = {
+  it('starts the dynamic Weekend 3 after the Final Four and resumes the Final Three', () => {
+    const dayFifteen = {
       ...createInitialGameState({ seed: 1515 }),
       week: 15,
       phase: 'week_end' as const,
@@ -193,21 +198,56 @@ describe('Weekend 1 interlude', () => {
       weekendInterlude: null,
       finalThree: null,
     }
-    const activeCount = initial.players.filter(
-      (player) => player.status !== 'evicted' && player.status !== 'jury'
-    ).length
+    expect(gameReducer(dayFifteen, advance()).weekendInterlude).toBeNull()
 
-    let state = gameReducer(initial, advance())
+    const initial = createInitialGameState({ seed: 1516 })
+    const human = initial.players.find((player) => player.isUser)!
+    const finalists = [human, ...initial.players.filter((player) => !player.isUser).slice(0, 2)]
+    const fourthPlace = initial.players.find(
+      (player) => !finalists.some((finalist) => finalist.id === player.id)
+    )!
+    const existingJurors = initial.players
+      .filter((player) => !finalists.some((finalist) => finalist.id === player.id))
+      .slice(1, 3)
+    const existingJurorIds = new Set(existingJurors.map((player) => player.id))
+    const finalFourIds = new Set([...finalists.map((player) => player.id), fourthPlace.id])
+    const finalFourState = {
+      ...initial,
+      players: initial.players.map((player) => ({
+        ...player,
+        status: finalFourIds.has(player.id)
+          ? ('active' as const)
+          : existingJurorIds.has(player.id)
+            ? ('jury' as const)
+            : ('evicted' as const),
+      })),
+      week: 18,
+      phase: 'final4_eviction' as const,
+      weekendsEnabledForSeason: true,
+      completedWeekendDays: [5, 10],
+      finaleWeekendCompleted: false,
+      weekendInterlude: null,
+      finalThree: null,
+      pendingEviction: {
+        evicteeId: fourthPlace.id,
+        evictionMessage: `${fourthPlace.name} has been eliminated from the Hub.`,
+      },
+    }
+
+    let state = gameReducer(finalFourState, finalizePendingEviction(fourthPlace.id))
     expect(state.weekendInterlude).toMatchObject({
-      afterDay: 15,
+      afterDay: 18,
+      weekendNumber: 3,
+      finaleWeekend: true,
       weekendDay: 1,
       episode: 'season_so_far',
       stage: 'intro',
     })
-    expect(state.weekendInterlude?.seasonSoFar?.facts).toHaveLength(activeCount)
+    expect(state.phase).toBe('final4_eviction')
+    expect(state.weekendInterlude?.seasonSoFar?.facts).toHaveLength(3)
     expect(
       new Set(state.weekendInterlude?.seasonSoFar?.facts.map((fact) => fact.playerId)).size
-    ).toBe(activeCount)
+    ).toBe(3)
 
     state = gameReducer(state, continueWeekendFeature())
     expect(state.weekendInterlude?.stage).toBe('instructions')
@@ -218,12 +258,40 @@ describe('Weekend 1 interlude', () => {
     expect(state.weekendInterlude?.stage).toBe('social')
     state = gameReducer(state, beginWeekendDayTransition())
     state = gameReducer(state, advanceWeekendDay())
-    state = gameReducer(state, continueWeekendFeature())
+    expect(state.weekendInterlude).toMatchObject({
+      weekendDay: 2,
+      stage: 'tribunal_invitation',
+    })
+    expect(state.weekendInterlude?.tribunalGlimpse).toBeUndefined()
+    state = gameReducer(state, beginFinaleReunionSocial())
+    expect(state.weekendInterlude?.stage).toBe('finale_reunion_social')
+    state = gameReducer(state, beginWeekendTribunalGlimpse())
+    expect(state.weekendInterlude).toMatchObject({
+      stage: 'finale_sequester_announcement',
+      tribunalGlimpse: { opened: false },
+    })
+    expect(state.weekendInterlude?.tribunalGlimpse?.speeches).toHaveLength(6)
+    expect(
+      new Set(state.weekendInterlude?.tribunalGlimpse?.speeches.map((speech) => speech.speakerId))
+        .size
+    ).toBeGreaterThan(1)
+    expect(
+      state.weekendInterlude?.tribunalGlimpse?.speeches.some((speech) => speech.stance === 'defend')
+    ).toBe(true)
+    expect(
+      state.weekendInterlude?.tribunalGlimpse?.speeches.some(
+        (speech) => speech.stance === 'challenge'
+      )
+    ).toBe(true)
+    state = gameReducer(state, openWeekendTribunalStream())
+    state = gameReducer(state, returnFromWeekendTribunalStream())
+    expect(state.weekendInterlude?.stage).toBe('finale_battle_ready')
     state = gameReducer(state, completeWeekendInterlude())
-    state = gameReducer(state, advance())
 
-    expect(state.week).toBe(16)
-    expect(state.phase).toBe('week_start')
+    expect(state.week).toBe(18)
+    expect(state.phase).toBe('final3')
+    expect(state.finaleWeekendCompleted).toBe(true)
+    expect(state.completedWeekendDays).toEqual([5, 10])
   })
 
   it('does not start the late weekend when only three housemates remain', () => {
@@ -291,6 +359,29 @@ describe('Weekend 1 interlude', () => {
         stage,
       })
     }
+  })
+
+  it('opens a direct Tribunal Sequester preview on the prediction beat', () => {
+    const initial = {
+      ...createInitialGameState({ seed: 5153 }),
+      week: 7,
+      phase: 'social_2' as const,
+    }
+    const preview = gameReducer(initial, debugActivateWeekendInterlude('tribunal'))
+
+    expect(preview.week).toBe(initial.week)
+    expect(preview.phase).toBe(initial.phase)
+    expect(preview.weekendInterlude).toMatchObject({
+      active: true,
+      debug: true,
+      afterDay: 7,
+      weekendNumber: 3,
+      finaleWeekend: true,
+      weekendDay: 2,
+      stage: 'tribunal_invitation',
+      tribunalGlimpse: { opened: false },
+    })
+    expect(preview.weekendInterlude?.tribunalGlimpse?.speeches.length).toBeGreaterThan(0)
   })
 
   it('does not consume a real weekend when a debug preview finishes', () => {

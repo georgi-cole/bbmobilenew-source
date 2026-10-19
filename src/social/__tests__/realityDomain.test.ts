@@ -1,8 +1,10 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { describe, expect, it } from 'vitest'
 import socialReducer, {
+  commitRealityDomainUpdate,
   commitRealityOutcome,
   recordRealityActualVote,
+  recordRealityActualVotes,
   replaceRealityDomain,
   updateRelationship,
 } from '../socialSlice'
@@ -113,6 +115,30 @@ describe('Reality domain migration and directed relationships', () => {
       initial.relationships.ava.lia?.affinity ?? 0
     )
     expect(next.relationships.kai?.human).toBe(untouchedLegacyProjection)
+  })
+
+  it('keeps the full legacy projection when committing a copy-on-write Reality update', () => {
+    const domain = createInitialRealityDomainState()
+    domain.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
+    domain.relationships.lia = { ava: createDirectedRelationship('lia', 'ava') }
+    const alliance = createRealityAlliance(domain, {
+      id: 'shared-projection-pair',
+      founderIds: ['ava'],
+      memberIds: ['lia'],
+      purpose: 'Mutual protection',
+      at: { day: 2, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+
+    const normalized = socialReducer(undefined, replaceRealityDomain(domain))
+    const committed = socialReducer(
+      undefined,
+      commitRealityDomainUpdate({ domain, projectAllRelationships: true })
+    )
+
+    expect(committed.relationships).toEqual(normalized.relationships)
+    expect(committed.relationships.ava.lia.tags).toContain('alliance')
+    expect(committed.relationships.lia.ava.tags).toContain('alliance')
   })
 
   it('clears the complete social simulation when a new game is started', () => {
@@ -238,6 +264,68 @@ describe('Reality domain migration and directed relationships', () => {
 
     expect(store.getState().social.reality.alliances['vote-fracture'].status).toBe('FRACTURED')
     expect(store.getState().social.relationships.human.lia.tags).toContain('alliance')
+  })
+
+  it('applies ordered ballot outcomes and consequences identically in one batch', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'ordered-vote-pact',
+      founderIds: ['loh', 'ally'],
+      memberIds: [],
+      purpose: 'Protect each other',
+      at: { day: 3, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    upsertRealityPromise(reality, {
+      id: 'ordered-vote-promise',
+      kind: 'protect',
+      status: 'ACTIVE',
+      promisorId: 'loh',
+      beneficiaryIds: ['ally'],
+      witnessIds: [],
+      createdAt: { day: 3, phase: 'social_1' },
+      stakes: 0.8,
+      scope: {},
+      deadline: { day: 3, phase: 'eviction_results' },
+    })
+
+    const ballots = [
+      {
+        actorId: 'outsider',
+        targetId: 'loh',
+        day: 3,
+        phase: 'eviction_results',
+        eventId: 'vote-night',
+        eligibleTargetIds: ['loh', 'ally'],
+        revealed: true,
+      },
+      {
+        actorId: 'loh',
+        targetId: 'ally',
+        day: 3,
+        phase: 'eviction_results',
+        eventId: 'vote-night',
+        eligibleTargetIds: ['loh', 'ally'],
+        revealed: true,
+      },
+    ]
+    const initialSocial = () =>
+      migrateSocialState({
+        ...SOCIAL_INITIAL_STATE,
+        reality: structuredClone(reality),
+      })
+    const sequential = ballots.reduce(
+      (state, ballot) => socialReducer(state, recordRealityActualVote(ballot)),
+      initialSocial()
+    )
+    const batched = socialReducer(initialSocial(), recordRealityActualVotes(ballots))
+
+    expect(batched).toEqual(sequential)
+    expect(Object.keys(batched.reality.voteIntents)).toEqual(['outsider', 'loh'])
+    expect(batched.reality.promises['ordered-vote-promise'].status).toBe('BROKEN')
+    expect(
+      batched.reality.events.filter((event) => event.type === 'ALLIANCE_BETRAYAL')
+    ).toHaveLength(1)
   })
 
   it('projects continuing membership for fractured and dormant pacts', () => {

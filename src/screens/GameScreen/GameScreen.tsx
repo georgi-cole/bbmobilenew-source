@@ -3,7 +3,8 @@ import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { createGameFieldEquality } from '../../store/gameFieldEquality'
+import { gameScreenGameEquality } from './gameScreenGameEquality'
+import { getPresentedRosterPlayers } from '../../features/reserveEntrants/wildcardReplacement'
 import {
   addTvEvent,
   advance,
@@ -33,7 +34,7 @@ import {
   type PendingChallenge,
 } from '../../store/challengeSlice'
 import { selectLastSocialReport } from '../../social/socialSlice'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useLocation, useNavigate, useSearchParams } from 'react-router'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
 import {
   clearSavedRun,
@@ -68,6 +69,7 @@ import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShoc
 import CeremonyOverlay from '../../components/CeremonyOverlay/CeremonyOverlay'
 import WinnerTileLiftAnimation from '../../components/WinnerTileLiftAnimation/WinnerTileLiftAnimation'
 import ChatOverlay from '../../components/ChatOverlay/ChatOverlay'
+import Final4PublicVotePanel from './Final4PublicVotePanel'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import SocialPanel from '../../components/SocialPanel/SocialPanel'
 import SocialPanelV2 from '../../components/SocialPanelV2/SocialPanelV2'
@@ -97,42 +99,6 @@ import { selectSettings } from '../../store/settingsSlice'
 import { selectHasPublicModeAccess } from '../../store/vipSlice'
 import type { RootState } from '../../store/store'
 
-const gameScreenGameEquality = createGameFieldEquality([
-  'awaitingFinal3Eviction',
-  'awaitingFinal3Plea',
-  'awaitingHumanVote',
-  'awaitingNominations',
-  'cfg',
-  'cupidArrow',
-  'depressionShock',
-  'doubleEviction',
-  'evictionOverlayPlayerId',
-  'expansionMode',
-  'favoritePlayer',
-  'gameId',
-  'lastHohCompFinisherId',
-  'lohId',
-  'mode',
-  'modeSpecific',
-  'nomineeIds',
-  'pendingMinigame',
-  'phase',
-  'players',
-  'posWinnerId',
-  'povProtectedIds',
-  'publicModeEnabled',
-  'season',
-  'seasonFinale',
-  'seed',
-  'specialVeto',
-  'status',
-  'tvFeed',
-  'voteResults',
-  'voteResultsMode',
-  'voxPopuli',
-  'week',
-  'weekendInterlude',
-])
 import {
   selectAdsState,
   clearLastCompLastPlace,
@@ -164,6 +130,7 @@ import { requestFavoriteAudienceSurge } from './favoriteAudienceSurgeRequest'
 import { useResponsiveGameLayout } from './useResponsiveGameLayout'
 import { getCeremonyTileElement, getCeremonyTileRect } from './ceremonyTileMeasurement'
 import { useRefinedGameChrome } from '../../hooks/useRefinedGameChrome'
+import { useGameScreenImagePreloads } from './useGameScreenImagePreloads'
 import {
   hasSeenVoxNominationRevealIntro,
   loadVoxNominationReveal,
@@ -172,6 +139,7 @@ import {
 } from '../../features/voxNominationRevealStorage'
 
 import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
 import { useEndgameFlow } from './flows/useEndgameFlow'
@@ -248,6 +216,7 @@ function buildAiOnlyChallengeRawResults(challenge: PendingChallenge) {
  * or add action buttons by dispatching events via useAppDispatch().
  */
 export default function GameScreen() {
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -261,6 +230,7 @@ export default function GameScreen() {
   )
   const store = useStore<RootState>()
   const gameScreenRef = useRef<HTMLDivElement | null>(null)
+  const handledConfessionalReturnKeyRef = useRef<string | null>(null)
   const refinedGameChrome = useRefinedGameChrome()
   const storeRef = useRef(store)
   const isMountedRef = useRef(true)
@@ -269,6 +239,7 @@ export default function GameScreen() {
   }, [store])
   const alivePlayers = useAppSelector(selectAlivePlayers)
   const game = useAppSelector((s) => s.game, gameScreenGameEquality)
+  const presentedRosterPlayers = useMemo(() => getPresentedRosterPlayers(game), [game])
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
   const settings = useAppSelector(selectSettings)
@@ -279,6 +250,27 @@ export default function GameScreen() {
   // and a main-TV guidance banner is shown instead.
   const selectedConfessionalDecision = useAppSelector(selectActiveConfessionalDecision)
   const activeConfessionalDecision = game.mode === 'survival' ? null : selectedConfessionalDecision
+  useEffect(() => {
+    if (handledConfessionalReturnKeyRef.current === location.key) return
+    if (
+      !shouldAutomaticallyAdvanceAfterConfessionalVote(
+        location.state,
+        game,
+        activeConfessionalDecision !== null
+      )
+    ) {
+      return
+    }
+
+    // Consume the one-shot navigation cue before advancing so revisiting this
+    // history entry cannot replay the ballot or skip a later broadcast.
+    handledConfessionalReturnKeyRef.current = location.key
+    navigate(`${location.pathname}${location.search}${location.hash}`, {
+      replace: true,
+      state: null,
+    })
+    dispatch(advance())
+  }, [activeConfessionalDecision, dispatch, game, location, navigate])
   const publicOpinionProfiles = useAppSelector(
     (s: RootState): Record<string, PlayerPublicProfile> =>
       s.publicOpinion?.profiles ?? EMPTY_PUBLIC_PROFILES
@@ -364,6 +356,15 @@ export default function GameScreen() {
   const activeConfessionalDecisionKey = activeConfessionalDecision
     ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
     : null
+  useGameScreenImagePreloads({
+    activeConfessionalDecisionKey,
+    activeConfessionalDecisionType: activeConfessionalDecision?.type,
+    finaleWeekendActive: Boolean(
+      game.weekendInterlude?.active && game.weekendInterlude.finaleWeekend
+    ),
+    phase: game.phase,
+  })
+
   const [storedConfessionalPrompt, setStoredConfessionalPrompt] = useState<{
     decisionKey: string | null
     triggered: boolean
@@ -780,7 +781,7 @@ export default function GameScreen() {
       avatarUrl: getProfilePhotoAvatarId(p.avatar)
         ? p.avatar
         : p.id === 'lia' && /\blia\s*&\s*ali\b/i.test(p.name)
-          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar.webp')
+          ? joinPublicAssetPath('assets/skins/Ali_lia_avatar_512.webp')
           : resolveAvatar(p),
       statuses,
       finalRank: (p.finalRank ?? null) as 1 | 2 | 3 | null,
@@ -868,7 +869,7 @@ export default function GameScreen() {
     final4PleaLines,
     final4AnnounceLines,
     showFinal4Chat,
-    showFinal4Modal,
+    showFinal4PublicVote,
     showFinal4AnnounceChat,
     final4Options,
     handleFinal4PleaComplete,
@@ -909,6 +910,7 @@ export default function GameScreen() {
     showDemocraciaResults,
     democraciaResultsParticipants,
     handleDemocraciaResultsDone,
+    democraciaVoteRecorded,
     dayStartShock,
     dayStartShockPlayer,
     handleDayStartShockConfirm,
@@ -1272,9 +1274,8 @@ export default function GameScreen() {
 
   /* eslint-enable react-hooks/set-state-in-effect */
   // ── Social phase panel ────────────────────────────────────────────────────
-  // Show the SocialPanel whenever the human player is alive and the game is in
-  // a non-vote interaction window. Blocked during live_vote and eviction phases
-  // where social interaction is not appropriate.
+  // Show Social while the human player is alive, including while a live ballot
+  // is waiting to be cast or resolved. The eviction presentation stays locked.
   const SOCIAL_INTERACTION_PHASES = new Set<string>([
     'week_start',
     'loh_comp_announcement',
@@ -1288,6 +1289,7 @@ export default function GameScreen() {
     'pos_ceremony',
     'pos_ceremony_results',
     'social_2',
+    'live_vote',
   ])
   // Vox Populi relies heavily on the social game before the endgame, but the
   // Final Three is a closed ceremony. Do not surface fresh social actions or
@@ -1425,7 +1427,6 @@ export default function GameScreen() {
           finalThreeBlockRevealActive,
           spectatorF3Part1Active,
           showFinal4Chat,
-          showFinal4Modal,
           showFinal4AnnounceChat,
           showFinal3Modal,
           showFinal3Ceremony,
@@ -1450,7 +1451,10 @@ export default function GameScreen() {
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
   const weekendInterludeActive = game.weekendInterlude?.active === true
   const weekendSocialAvailable =
-    !weekendInterludeActive || game.weekendInterlude?.stage === 'social'
+    !weekendInterludeActive ||
+    game.weekendInterlude?.stage === 'social' ||
+    (game.weekendInterlude?.finaleWeekend === true &&
+      game.weekendInterlude.stage === 'finale_reunion_social')
 
   function handlePublicMeterBlocked() {
     if (hasPublicModeAccess || settings.sim.publicModeAdminOverride) {
@@ -1482,7 +1486,7 @@ export default function GameScreen() {
   const responsiveGameLayout = useResponsiveGameLayout(gameScreenRef, {
     hasDock: showGameControlDock,
     unifiedActionRail: true,
-    playerCount: game.players.length,
+    playerCount: presentedRosterPlayers.length,
     userCompactRoster: settings.gameUX.compactRoster,
     inlineLogVisible: !refinedGameChrome || game.mode === 'survival' || settings.gameUX.houseFeed,
     freezeLayout: flowCoordination.activeFlow !== null,
@@ -1492,7 +1496,7 @@ export default function GameScreen() {
   // the activity affordance and the occupancy count, so the roster must not
   // render a duplicate row beside its title.
   const inlineHouseFeedVisible = gameTvLogRows > 0
-  const housemateOccupancyLabel = `${alivePlayers.length}/${game.mode === 'survival' ? 8 + (game.modeSpecific?.kind === 'survival' ? (game.modeSpecific.totalRoboContestantsEvicted ?? 0) : 0) : game.players.length}`
+  const housemateOccupancyLabel = `${alivePlayers.length}/${game.mode === 'survival' ? 8 + (game.modeSpecific?.kind === 'survival' ? (game.modeSpecific.totalRoboContestantsEvicted ?? 0) : 0) : presentedRosterPlayers.length}`
   const showSurveyevalVoteModal =
     game.mode === 'survival' && game.phase === 'live_vote' && game.awaitingHumanVote
   const surveyevalVoteOptions = game.nomineeIds
@@ -1502,7 +1506,7 @@ export default function GameScreen() {
     inlineHouseFeedVisible || responsiveGameLayout.rosterHeaderMode === 'tv-chip'
       ? {
           label: housemateOccupancyLabel,
-          ariaLabel: `Hubmates ${alivePlayers.length} of ${game.players.length}`,
+          ariaLabel: `Hubmates ${alivePlayers.length} of ${presentedRosterPlayers.length}`,
         }
       : null
 
@@ -1510,7 +1514,7 @@ export default function GameScreen() {
     <LayoutGroup id="game-layout">
       <div
         ref={gameScreenRef}
-        className={`game-screen game-screen-shell${responsiveGameLayout.compactRoster ? ' game-screen--compact-roster-balance' : ''}${isCupidArrowActive(game) ? ' game-screen--cupid-active' : ''}${game.cupidArrow?.visualsRevealed ? ' game-screen--cupid-revealed' : ''}${game.cupidArrow?.status === 'broken' ? ' game-screen--cupid-broken' : ''}${game.depressionShock?.activeDay === 2 ? ' game-screen--depression-day-two' : ''}${['live_vote', 'eviction_results'].includes(game.phase) ? ' game-screen--eviction-atmosphere' : ''}`}
+        className={`game-screen game-screen-shell${responsiveGameLayout.compactRoster ? ' game-screen--compact-roster-balance' : ''}${game.weekendInterlude?.active && game.weekendInterlude.finaleWeekend ? ' game-screen--finale-weekend' : ''}${isCupidArrowActive(game) ? ' game-screen--cupid-active' : ''}${game.cupidArrow?.visualsRevealed ? ' game-screen--cupid-revealed' : ''}${game.cupidArrow?.status === 'broken' ? ' game-screen--cupid-broken' : ''}${game.depressionShock?.activeDay === 2 ? ' game-screen--depression-day-two' : ''}${['live_vote', 'eviction_results'].includes(game.phase) ? ' game-screen--eviction-atmosphere' : ''}`}
         style={responsiveGameLayout.cssVars}
         data-layout-size={responsiveGameLayout.layoutSize}
         data-roster-mode={responsiveGameLayout.rosterMode}
@@ -1567,7 +1571,6 @@ export default function GameScreen() {
               title: democraciaResultDisplay.title,
               subtitle: democraciaResultDisplay.subtitle,
               participants: democraciaResultsParticipants,
-              onDone: handleDemocraciaResultsDone,
             }}
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
@@ -1639,7 +1642,9 @@ export default function GameScreen() {
             viewportMessageOverride={
               showBattleBackOverlay
                 ? 'Back 2 the Game is in progress. The return showdown is underway.'
-                : null
+                : democraciaVoteRecorded
+                  ? 'Vote recorded. Press Play to reveal the results.'
+                  : null
             }
             priorityAnnouncement={confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
@@ -1930,7 +1935,6 @@ export default function GameScreen() {
             subtitle={`${humanPlayer?.name}, vote for the hubmate you want to become Leader of the Hub. You cannot vote for yourself.`}
             options={democraciaVoteOptions}
             onSelect={(id) => dispatch(submitDemocraciaVote(id))}
-            stingerMessage="VOTE CAST"
           />
         )}
 
@@ -1971,24 +1975,28 @@ export default function GameScreen() {
           <ChatOverlay
             lines={final4PleaLines}
             skippable
-            header={{ title: 'Final 4 🏡', subtitle: 'Hear from the nominees before the vote.' }}
+            skipToCompletion={humanIsPosHolder}
+            skipLabel={humanIsPosHolder ? 'Skip to decision' : 'Skip'}
+            backdropVariant="finale-elimination"
+            header={{
+              title: 'Final 4 🏡',
+              subtitle: humanIsPosHolder
+                ? 'Hear the pleas, then make your choice in front of the Hub.'
+                : 'Hear from the nominees before the vote.',
+            }}
             avatarRenderer={(player) => (
               <PlayerAvatar player={player} size="sm" showEvictedStyle={false} />
             )}
             onComplete={handleFinal4PleaComplete}
+            completionContent={
+              showFinal4PublicVote ? (
+                <Final4PublicVotePanel
+                  nominees={final4Options}
+                  onSelect={(id) => dispatch(finalizeFinal4Eviction(id))}
+                />
+              ) : undefined
+            }
             ariaLabel="Final 4 plea chat"
-          />
-        )}
-
-        {/* ── Final 4 eviction vote (human POS holder) ────────────────────── */}
-        {showFinal4Modal && (
-          <TvDecisionModal
-            title="Final 4 — Cast Your Vote"
-            subtitle={`${humanPlayer?.name}, you hold the sole vote to eliminate. Choose wisely.`}
-            options={final4Options}
-            onSelect={(id) => dispatch(finalizeFinal4Eviction(id))}
-            danger
-            stingerMessage="VOTE RECORDED"
           />
         )}
 
@@ -1997,6 +2005,7 @@ export default function GameScreen() {
           <ChatOverlay
             lines={final4AnnounceLines}
             skippable
+            backdropVariant="finale-elimination"
             header={{ title: 'Final 4 🚪', subtitle: 'The decision has been made.' }}
             avatarRenderer={(player) => (
               <PlayerAvatar player={player} size="sm" showEvictedStyle={false} />
@@ -2810,12 +2819,14 @@ export default function GameScreen() {
             finaleInlinePlayActive={finalPowerBattleIntroActive}
             finalePlayAvailable={finalePlayAvailable}
             finaleDockOnTop={finaleOverlayActive && finalePlayAvailable}
+            democraciaVoteRecorded={democraciaVoteRecorded}
+            onDemocraciaResultsDone={handleDemocraciaResultsDone}
           />
         )}
 
         {/* ── Houseguest grid (alive + evicted in one grid) ────────────────── */}
         <HouseguestGrid
-          houseguests={game.players.map(playerToHouseguest)}
+          houseguests={presentedRosterPlayers.map(playerToHouseguest)}
           headerSelector=".tv-zone"
           footerSelector=".nav-bar"
           overlaySelector=".game-control-dock"

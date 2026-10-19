@@ -163,6 +163,32 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
   background-attachment: local;
 }
 
+/* Finale-weekend colour belongs to the purple set behind the TV and roster.
+   Keep it in the shell's own background stack so it cannot disappear beneath
+   the gameplay texture or the isolated game-screen stacking context. */
+.game-screen--finale-weekend {
+  background-color: #171020;
+  background-image:
+    radial-gradient(ellipse at 8% 24%, rgba(246, 126, 190, 0.2), transparent 46%),
+    radial-gradient(ellipse at 92% 22%, rgba(255, 214, 133, 0.16), transparent 44%),
+    radial-gradient(ellipse at 14% 88%, rgba(111, 221, 194, 0.16), transparent 46%),
+    radial-gradient(ellipse at 88% 82%, rgba(143, 157, 255, 0.2), transparent 46%),
+    url('../../assets/bb-gameplay-bg.svg');
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    cover;
+  background-position:
+    center,
+    center,
+    center,
+    center,
+    center top;
+  background-repeat: no-repeat;
+}
+
 .game-screen--cupid-active {
   --color-accent: #c66e91;
   --color-accent-2: #9274bd;
@@ -170,6 +196,29 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
   /* The TV/roster rhythm has a deliberate 8px gutter. Give the parent the
      same midnight surface so Cupid's app-shell wash cannot shine through it. */
   background: linear-gradient(180deg, #120f1c 0%, #0c0b15 100%);
+}
+
+.game-screen--cupid-active.game-screen--finale-weekend {
+  background-color: #171020;
+  background-image:
+    radial-gradient(ellipse at 8% 24%, rgba(246, 126, 190, 0.2), transparent 46%),
+    radial-gradient(ellipse at 92% 22%, rgba(255, 214, 133, 0.16), transparent 44%),
+    radial-gradient(ellipse at 14% 88%, rgba(111, 221, 194, 0.16), transparent 46%),
+    radial-gradient(ellipse at 88% 82%, rgba(143, 157, 255, 0.2), transparent 46%),
+    url('../../assets/bb-gameplay-bg.svg');
+  background-size:
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    cover;
+  background-position:
+    center,
+    center,
+    center,
+    center,
+    center top;
+  background-repeat: no-repeat;
 }
 
 .game-screen--cupid-active::before,

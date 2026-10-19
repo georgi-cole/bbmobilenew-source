@@ -46,12 +46,12 @@ const BASE_SEGMENTS: Record<Exclude<GoodbyeSegment, 'shoutout'>, readonly string
     'Crazy ride.',
     'Not gonna lie—this was intense.',
     'From day one to now…',
-    'House lights are getting real low.',
+    'Hub lights are getting real low.',
     'That finale hit fast.',
     'No one glides out of this place untouched.',
   ],
   reflection: [
-    'This house changes you.',
+    'This Hub changes you.',
     'Nothing about this was easy.',
     'Every move mattered.',
     'This game is brutal.',
@@ -119,7 +119,7 @@ const PERSONALITY_SEGMENTS: Record<
       'I am still trying to take this in.',
     ],
     reflection: [
-      'This house got under my skin.',
+      'This Hub got under my skin.',
       'The emotional part was harder than the strategy.',
       'You carry every goodbye with you in here.',
     ],
@@ -272,7 +272,7 @@ const SHOUTOUT_TEMPLATES: Record<GoodbyePersonality, readonly ((name: string) =>
 const FALLBACK_LINES = [
   'No regrets. That was real.',
   'It was a lot, and I am good with how I went through it.',
-  'This house takes something out of you, but it gives something back too.',
+  'This Hub takes something out of you, but it gives something back too.',
   'I left a piece of myself in this game.',
   'That is my goodbye, and I mean it.',
 ] as const;

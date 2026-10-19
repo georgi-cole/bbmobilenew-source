@@ -6,10 +6,9 @@ import {
   buildIntelFactFromSocialAction,
   formatFauxTvWhisper,
   makeIntelMemory,
-  selectDiscoverableFact,
+  selectIntelActionFact,
   selectFauxTvFact,
 } from './intelligenceSystem'
-import { createIntelligenceEligibility } from './intelligenceEligibility'
 import { learnRealityKnowledge, recordIntelligenceDelivery, recordRealityFact } from './socialSlice'
 import type { RealityFact, RealityMemorySource } from './reality/types'
 import type { SocialActionLogEntry, SocialState } from './types'
@@ -90,61 +89,79 @@ function revealFactFromIntelAction(
   state: IntelligenceRootState,
   entry: SocialActionLogEntry
 ) {
+  const actor = state.game.players.find((player) => player.id === entry.actorId)
+  const eligibleSource =
+    entry.source === 'manual' || (entry.source === 'system' && Boolean(actor && !actor.isUser))
   if (
-    entry.source !== 'manual' ||
+    !eligibleSource ||
     entry.outcome !== 'success' ||
     !INTEL_ACTIONS.has(entry.actionId) ||
     (entry.week ?? state.game.week) < 3
   ) {
     return
   }
+  if (
+    entry.context &&
+    Object.prototype.hasOwnProperty.call(entry.context, 'intelFactId') &&
+    !entry.context.intelFactId
+  ) {
+    return
+  }
   const day = entry.week ?? state.game.week
-  const privateDeliveriesToday = (state.social.intelligenceDeliveries ?? []).filter(
-    (item) =>
-      item.day === day &&
-      item.recipientId === entry.actorId &&
-      (item.channel === 'social_action' || item.channel === 'incoming')
-  ).length
-  if (privateDeliveriesToday >= 2) return
-  const delivered = new Set(
-    (state.social.intelligenceDeliveries ?? [])
-      .filter((item) => item.channel === 'social_action' && item.recipientId === entry.actorId)
-      .map((item) => item.factId)
-  )
-  const fact = selectDiscoverableFact(
+  const fact = selectIntelActionFact(
     state.social.reality,
+    state.social.intelligenceDeliveries,
     entry.actorId,
     day,
-    delivered,
+    entry.actionId,
     state.game.players,
-    entry.actionId === 'observe' || entry.actionId === 'read_the_room'
+    entry.context?.intelFactId ?? undefined
   )
   if (!fact) return
-  const sourceType: RealityMemorySource =
-    entry.actionId === 'snoop_around'
-      ? 'WITNESSED'
-      : entry.actionId === 'eavesdrop'
-        ? 'HEARSAY'
-        : 'INFERRED'
-  const confidence =
-    entry.actionId === 'snoop_around' ? 0.8 : entry.actionId === 'eavesdrop' ? 0.6 : 0.66
-  learnFact(
-    api,
+  deliverIntelActionFact(
+    api.dispatch,
     fact,
     entry.actorId,
-    sourceType,
-    sourceType === 'HEARSAY' ? fact.witnessIds.slice(0, 1) : [entry.actorId],
-    confidence,
+    entry.actionId,
     day,
-    entry.phase ?? state.game.phase
+    entry.phase ?? state.game.phase ?? 'social'
   )
-  api.dispatch(
+}
+
+export function deliverIntelActionFact(
+  dispatch: Dispatch<UnknownAction>,
+  fact: RealityFact,
+  actorId: string,
+  actionId: string,
+  day: number,
+  phase: string
+): void {
+  const sourceType: RealityMemorySource =
+    actionId === 'snoop_around' ? 'WITNESSED' : actionId === 'eavesdrop' ? 'HEARSAY' : 'INFERRED'
+  const confidence = actionId === 'snoop_around' ? 0.8 : actionId === 'eavesdrop' ? 0.6 : 0.66
+  dispatch(
+    learnRealityKnowledge({
+      ownerId: actorId,
+      factId: fact.id,
+      confidence,
+      memory: makeIntelMemory({
+        ownerId: actorId,
+        fact,
+        sourceType,
+        sourceChain: sourceType === 'HEARSAY' ? fact.witnessIds.slice(0, 1) : [actorId],
+        confidence,
+        day,
+        phase,
+      }),
+    })
+  )
+  dispatch(
     recordIntelligenceDelivery({
-      id: `intel-delivery:action:${entry.actorId}:${fact.id}`,
+      id: `intel-delivery:action:${actorId}:${fact.id}`,
       factId: fact.id,
       channel: 'social_action',
       day,
-      recipientId: entry.actorId,
+      recipientId: actorId,
     })
   )
 }
@@ -240,18 +257,23 @@ function maybeBroadcastPublicAllianceExposure(
       .filter((item) => item.channel === 'faux_tv')
       .map((item) => item.factId)
   )
-  const eligibility = createIntelligenceEligibility(state.game.players)
   const fact = Object.values(state.social.reality.facts)
     .filter(
       (candidate) =>
         !beforeFactIds.has(candidate.id) &&
         candidate.propositionType === 'ALLIANCE_EXPOSED' &&
         candidate.publicVisible &&
-        eligibility.isFactEligible(candidate) &&
         !deliveredFactIds.has(candidate.id)
     )
     .sort((left, right) => right.day - left.day || left.id.localeCompare(right.id))[0]
   if (!fact) return
+
+  const activeIds = new Set(
+    state.game.players
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
+  if (fact.subjectIds.some((id) => !activeIds.has(id))) return
 
   api.dispatch(
     addTvEvent({
@@ -313,6 +335,17 @@ function maybeBroadcastWhisper(
     state.game.players
   )
   if (!fact) return
+  const activeIds = new Set(
+    state.game.players
+      .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+      .map((player) => player.id)
+  )
+  if (
+    fact.subjectIds.some((id) => !activeIds.has(id)) ||
+    (fact.propositionType === 'TARGETING' && fact.objectId && !activeIds.has(fact.objectId))
+  ) {
+    return
+  }
 
   api.dispatch(
     addTvEvent({

@@ -9,7 +9,7 @@
  *   idle           → not started
  *   order_selection → players pick numbers; AI picks automatically
  *   order_reveal    → shuffled order is shown
- *   playing         → sequential gameplay loop
+ *   playing         → strict turn-by-turn crossing
  *   complete        → final rankings determined
  *
  * All randomness is provided by the Mulberry32 seeded RNG; Math.random() is
@@ -48,17 +48,21 @@ export interface GlassBridgePlayerProgress {
   firstStepAtMs?: number
   /** 1-based row number of the furthest safely-crossed row (0 = none). */
   furthestRowReached: number
-  /** Elapsed ms since challengeStartTimeMs when the player first reached
+  /** Elapsed ms since firstStepAtMs when the player first reached
    *  furthestRowReached.  0 when furthestRowReached is 0. */
   timeReachedFurthestRowMs: number
   eliminated: boolean
-  /** Elapsed ms since challengeStartTimeMs when the player finished.
+  /** Elapsed ms since firstStepAtMs when the player finished.
    *  Only set when the player has successfully crossed all rows. */
   finishTimeMs?: number
   /** Cumulative penalty in ms added for hint usage (30 000 ms per hint). */
   hintPenaltyMs: number
   /** Tile currently occupied after the player's latest safe step. */
   currentSide?: TileSide
+  /** Start of the current decision window; waiting in the queue does not count. */
+  moveStartedAtMs?: number
+  /** Inactivity forfeits rank below every competitive run, regardless of distance. */
+  forfeited?: boolean
 }
 
 export type GlassBridgePhase = 'idle' | 'order_selection' | 'order_reveal' | 'playing' | 'complete'
@@ -83,9 +87,6 @@ export interface GlassBridgeState {
 
   /** Bridge rows (0-indexed internally; UI should present as 1-based). */
   rows: BridgeRow[]
-
-  /** Global timer limit in ms. */
-  globalTimeLimitMs: number
 
   /** Timestamp (ms, from Date.now()) when the first player started. */
   challengeStartTimeMs: number | null
@@ -122,58 +123,28 @@ export interface GlassBridgeState {
   /** Whether the outcome has been applied to the game engine. */
   outcomeResolved: boolean
 
-  /** When true, the global timer has expired. */
-  timerExpired: boolean
-
   /** The human player's id (null = no human). */
   humanPlayerId: string | null
 
   /** Whether the human is currently spectating (eliminated but watching). */
   humanSpectating: boolean
-
-  /** Unstarted players released onto the bridge once less than a minute remains. */
-  parallelPlayerIds: string[]
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_ROWS_COUNT = 16
-const TIME_LIMIT_PER_PLAYER_MS = 16_000
-const DEFAULT_TIME_LIMIT_MS = 10 * TIME_LIMIT_PER_PLAYER_MS
-
 /** Penalty applied to finish time for each hint used by a player (30 seconds). */
 export const HINT_PENALTY_MS = 30_000
 /** Maximum number of hints a player may use in a single run. */
 export const MAX_HINTS_PER_RUN = 3
 
-export function buildGlassBridgeTimeLimitMs(participantCount: number): number {
-  return Math.max(1, participantCount) * TIME_LIMIT_PER_PLAYER_MS
-}
+export const MOVE_TIME_LIMIT_MS = 12_000
 
-export const PARALLEL_START_THRESHOLD_MS = 60_000
-export const COLLISION_OVERRIDE_THRESHOLD_MS = 15_000
-export const MAX_PARALLEL_MOVERS = 3
-export const PARALLEL_RELEASE_INTERVAL_MS = 4_000
-
-export function shouldStartParallelPlayers(remainingMs: number): boolean {
-  return remainingMs <= PARALLEL_START_THRESHOLD_MS
-}
-
-/** Respect occupied tiles while time permits, but stop waiting in the final 15 seconds. */
-export function chooseParallelAiSide(
-  row: BridgeRow,
-  occupiedSides: TileSide[],
-  remainingMs: number,
-  rng: () => number,
-  profile?: CompetitionSkillProfile
-): TileSide {
-  const preferred = aiDecideStep(row, rng, profile)
-  if (remainingMs < COLLISION_OVERRIDE_THRESHOLD_MS || !occupiedSides.includes(preferred)) {
-    return preferred
-  }
-  const alternative: TileSide = preferred === 'left' ? 'right' : 'left'
-  const alternativeBroken = alternative === 'left' ? row.leftBroken : row.rightBroken
-  return !alternativeBroken && !occupiedSides.includes(alternative) ? alternative : preferred
+function startNextTurn(state: GlassBridgeState, now: number) {
+  state.currentTurnIndex += 1
+  state.currentPlayerRow = 1
+  const next = state.progress[state.turnOrder[state.currentTurnIndex]]
+  if (next && !next.eliminated && next.finishTimeMs === undefined) next.moveStartedAtMs ??= now
 }
 
 /**
@@ -230,7 +201,7 @@ export function deriveAiObviousSafeAccuracy(profile?: CompetitionSkillProfile): 
  *
  * Decision priority:
  *  1. If a previous player safely crossed this row (revealedSafeSide set):
- *     choose that side with 95% probability (remembers what was revealed).
+ *     choose that side with at least 99.9% probability.
  *  2. Else if one tile is broken: use deriveAiObviousSafeAccuracy (≥ 99.9%) to
  *     choose the obviously safe side.
  *  3. Else: pure 50/50 guess.
@@ -248,9 +219,9 @@ export function aiDecideStep(
   const { leftBroken, rightBroken, revealedSafeSide } = row
 
   // Priority 1: a previous player already revealed the safe side by safely crossing.
-  if (revealedSafeSide) {
+  if (revealedSafeSide && !leftBroken && !rightBroken) {
     const opposite: TileSide = revealedSafeSide === 'left' ? 'right' : 'left'
-    return rng() < 0.95 ? revealedSafeSide : opposite
+    return rng() < deriveAiObviousSafeAccuracy(profile) ? revealedSafeSide : opposite
   }
 
   if (leftBroken && rightBroken) {
@@ -306,10 +277,11 @@ export function buildPlacements(
       return aEff - bEff
     })
 
-  // Non-finishers sorted by progress then time then original turn order.
+  // Competitive non-finishers precede inactivity forfeits; then compare progress and time.
   const nonFinishers = players
     .filter((p) => p.finishTimeMs === undefined)
     .sort((a, b) => {
+      if (!!a.forfeited !== !!b.forfeited) return a.forfeited ? 1 : -1
       if (b.furthestRowReached !== a.furthestRowReached) {
         return b.furthestRowReached - a.furthestRowReached
       }
@@ -334,7 +306,6 @@ const initialState: GlassBridgeState = {
   participants: [],
   rowsCount: DEFAULT_ROWS_COUNT,
   rows: [],
-  globalTimeLimitMs: DEFAULT_TIME_LIMIT_MS,
   challengeStartTimeMs: null,
   chosenNumbers: {},
   turnOrder: [],
@@ -345,10 +316,8 @@ const initialState: GlassBridgeState = {
   winnerId: null,
   placements: [],
   outcomeResolved: false,
-  timerExpired: false,
   humanPlayerId: null,
   humanSpectating: false,
-  parallelPlayerIds: [],
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -371,7 +340,6 @@ const glassBridgeSlice = createSlice({
         competitionType: 'LOH' | 'POS'
         seed: number
         rowsCount?: number
-        globalTimeLimitMs?: number
         humanPlayerId?: string | null
       }>
     ) {
@@ -381,7 +349,6 @@ const glassBridgeSlice = createSlice({
         competitionType,
         seed,
         rowsCount = DEFAULT_ROWS_COUNT,
-        globalTimeLimitMs = buildGlassBridgeTimeLimitMs(participantIds.length),
         humanPlayerId = null,
       } = action.payload
 
@@ -427,14 +394,12 @@ const glassBridgeSlice = createSlice({
         participants: resolvedParticipants,
         rowsCount,
         rows,
-        globalTimeLimitMs,
         chosenNumbers: {},
         progress,
         eliminationOrder: [],
         winnerId: null,
         placements: [],
         outcomeResolved: false,
-        timerExpired: false,
         humanPlayerId: resolvedHumanId,
         humanSpectating: false,
       })
@@ -496,85 +461,32 @@ const glassBridgeSlice = createSlice({
       state.challengeStartTimeMs = action.payload.now
       state.currentTurnIndex = 0
       state.currentPlayerRow = 1
+      const first = state.progress[state.turnOrder[0]]
+      if (first) first.moveStartedAtMs = action.payload.now
     },
 
-    /** Release waiting players gradually; the final scramble may release everyone. */
-    startParallelPlayers(state, action: PayloadAction<{ releaseAll?: boolean } | undefined>) {
-      if (state.phase !== 'playing' || state.timerExpired) return
-      const activeId = state.turnOrder[state.currentTurnIndex]
-      const waiting = state.turnOrder.filter((playerId) => {
-        const progress = state.progress[playerId]
-        return (
-          playerId !== activeId &&
-          !state.parallelPlayerIds.includes(playerId) &&
-          progress?.firstStepAtMs === undefined &&
-          !progress.eliminated &&
-          progress.finishTimeMs === undefined
-        )
-      })
-      const activeParallelCount = state.parallelPlayerIds.filter((playerId) => {
-        const progress = state.progress[playerId]
-        return progress && !progress.eliminated && progress.finishTimeMs === undefined
-      }).length
-      const capacity = action.payload?.releaseAll
-        ? waiting.length
-        : Math.max(0, MAX_PARALLEL_MOVERS - activeParallelCount)
-      state.parallelPlayerIds.push(...waiting.slice(0, capacity))
-    },
-
-    /** Resolve an independently active player's next row without changing the main turn. */
-    resolveParallelStep(
+    /** Enforce the active player's decision window, then advance the queue. */
+    tickBridge(
       state,
-      action: PayloadAction<{
-        playerId: string
-        chosenSide: TileSide
-        now: number
-        remainingMs?: number
-      }>
+      action: PayloadAction<{ now: number; pendingPlayerId?: string; pendingChosenAtMs?: number }>
     ) {
-      if (state.phase !== 'playing' || state.timerExpired) return
-      const { playerId, chosenSide, now, remainingMs = 0 } = action.payload
-      if (!state.parallelPlayerIds.includes(playerId)) return
-      const progress = state.progress[playerId]
-      if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) return
-      const rowNumber = progress.furthestRowReached + 1
-      const row = state.rows[rowNumber - 1]
-      if (!row) return
-      if (progress.firstStepAtMs === undefined) progress.firstStepAtMs = now
-      const elapsed = state.challengeStartTimeMs === null ? 0 : now - state.challengeStartTimeMs
-      const occupiedSides = Object.entries(state.progress)
-        .filter(
-          ([otherId, other]) =>
-            otherId !== playerId &&
-            !other.eliminated &&
-            other.finishTimeMs === undefined &&
-            other.furthestRowReached === rowNumber &&
-            other.currentSide
-        )
-        .map(([, other]) => other.currentSide!)
-      let resolvedSide = chosenSide
-      if (remainingMs >= COLLISION_OVERRIDE_THRESHOLD_MS && occupiedSides.includes(resolvedSide)) {
-        const alternative: TileSide = resolvedSide === 'left' ? 'right' : 'left'
-        const alternativeBroken = alternative === 'left' ? row.leftBroken : row.rightBroken
-        if (!alternativeBroken && !occupiedSides.includes(alternative)) resolvedSide = alternative
-      }
+      if (state.phase !== 'playing') return
+      const { now, pendingPlayerId, pendingChosenAtMs } = action.payload
+      const activeId = state.turnOrder[state.currentTurnIndex]
+      const active = state.progress[activeId]
+      if (!active || active.eliminated || active.finishTimeMs !== undefined) return
+      const deadline = (active.moveStartedAtMs ?? now) + MOVE_TIME_LIMIT_MS
+      const activeChoiceIsOnTime =
+        activeId === pendingPlayerId &&
+        pendingChosenAtMs !== undefined &&
+        pendingChosenAtMs < deadline
+      if (now < deadline || activeChoiceIsOnTime) return
 
-      if (resolvedSide === row.safeSide) {
-        progress.furthestRowReached = rowNumber
-        progress.timeReachedFurthestRowMs = elapsed
-        progress.currentSide = resolvedSide
-        row.revealedSafeSide = resolvedSide
-        if (rowNumber >= state.rowsCount) {
-          progress.finishTimeMs = elapsed
-          progress.currentSide = undefined
-        }
-      } else {
-        if (resolvedSide === 'left') row.leftBroken = true
-        else row.rightBroken = true
-        progress.eliminated = true
-        progress.currentSide = undefined
-        if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
-      }
+      active.forfeited = true
+      active.eliminated = true
+      active.currentSide = undefined
+      if (!state.eliminationOrder.includes(activeId)) state.eliminationOrder.push(activeId)
+      startNextTurn(state, now)
     },
 
     /**
@@ -595,29 +507,14 @@ const glassBridgeSlice = createSlice({
       const progress = state.progress[activeId]
       if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) return
 
-      if (progress.firstStepAtMs === undefined) {
-        progress.firstStepAtMs = now
-      }
-      const elapsed = now - progress.firstStepAtMs
-
-      // If the global timer has already expired, do not process any more steps.
-      // The component's timer effect is responsible for dispatching expireTimer()/completeGame().
-      if (state.timerExpired) return
-
-      // Check if the timer just expired at this moment.
-      if (state.globalTimeLimitMs > 0 && elapsed >= state.globalTimeLimitMs) {
-        // Mark expired and eliminate remaining players; do not resolve the step.
-        state.timerExpired = true
-        for (const p of Object.values(state.progress)) {
-          if (!p.eliminated && p.finishTimeMs === undefined) {
-            p.eliminated = true
-            if (!state.eliminationOrder.includes(p.playerId)) {
-              state.eliminationOrder.push(p.playerId)
-            }
-          }
-        }
+      if (
+        progress.moveStartedAtMs !== undefined &&
+        now - progress.moveStartedAtMs >= MOVE_TIME_LIMIT_MS
+      )
         return
-      }
+      if (progress.firstStepAtMs === undefined) progress.firstStepAtMs = now
+      const elapsed = now - progress.firstStepAtMs
+      progress.moveStartedAtMs = now
 
       const rowIdx = state.currentPlayerRow - 1 // 0-based
       if (rowIdx < 0 || rowIdx >= state.rows.length) return
@@ -637,8 +534,7 @@ const glassBridgeSlice = createSlice({
           progress.finishTimeMs = elapsed
           progress.currentSide = undefined
           // Advance to next turn.
-          state.currentTurnIndex += 1
-          state.currentPlayerRow = 1
+          startNextTurn(state, now)
         } else {
           state.currentPlayerRow += 1
         }
@@ -654,111 +550,88 @@ const glassBridgeSlice = createSlice({
         state.eliminationOrder.push(activeId)
 
         // Advance to next turn.
-        state.currentTurnIndex += 1
-        state.currentPlayerRow = 1
+        startNextTurn(state, now)
       }
     },
 
     /** Advance to the next player's turn (called when a player's turn ends cleanly). */
-    advanceTurn(state) {
+    advanceTurn(state, action: PayloadAction<{ now: number } | undefined>) {
       if (state.phase !== 'playing') return
-      state.currentTurnIndex += 1
-      state.currentPlayerRow = 1
-    },
-
-    /** Mark the global timer as expired; ongoing actions should stop. */
-    expireTimer(state) {
-      // Idempotency guard — avoid duplicating entries in eliminationOrder.
-      if (state.timerExpired) return
-      state.timerExpired = true
-      // Eliminate any unfinished players.
-      for (const p of Object.values(state.progress)) {
-        if (!p.eliminated && p.finishTimeMs === undefined) {
-          p.eliminated = true
-          state.eliminationOrder.push(p.playerId)
-        }
-      }
+      startNextTurn(state, action.payload?.now ?? state.challengeStartTimeMs ?? 0)
     },
 
     /**
      * Deterministically simulate every unfinished run when the eliminated human
-     * chooses Skip to Result. Known rows are crossed with certainty, while only
-     * unresolved rows use the seeded AI decision model.
+     * chooses Skip to Result. Decisions use public evidence and the seeded AI
+     * model, preserving the normal one-player-at-a-time queue.
      */
-    fastForwardRemainingPlayers(state) {
+    fastForwardRemainingPlayers(state, action: PayloadAction<{ now: number } | undefined>) {
       if (state.phase !== 'playing') return
       const rng = mulberry32((state.seed ^ 0x5f3759df ^ state.eliminationOrder.length) >>> 0)
-      let simulatedElapsed = Math.max(
-        0,
-        ...Object.values(state.progress).flatMap((progress) => [
-          progress.timeReachedFurthestRowMs,
-          progress.finishTimeMs ?? 0,
-        ])
-      )
-      let timerExhausted = false
-
-      for (const playerId of state.turnOrder) {
-        const progress = state.progress[playerId]
-        if (!progress || progress.eliminated || progress.finishTimeMs !== undefined) continue
+      let simulatedNow =
+        action.payload?.now ??
+        Math.max(
+          state.challengeStartTimeMs ?? 0,
+          ...Object.values(state.progress).map((p) => p.moveStartedAtMs ?? 0)
+        )
+      const isUnfinished = (id: string) => {
+        const p = state.progress[id]
+        return !!p && !p.eliminated && p.finishTimeMs === undefined
+      }
+      while (state.turnOrder.some(isUnfinished)) {
+        while (
+          state.currentTurnIndex < state.turnOrder.length &&
+          !isUnfinished(state.turnOrder[state.currentTurnIndex])
+        ) {
+          startNextTurn(state, simulatedNow)
+        }
+        const playerId = state.turnOrder[state.currentTurnIndex]
+        if (!playerId) break
+        const p = state.progress[playerId]
+        const rowNumber = p.furthestRowReached + 1
+        const row = state.rows[rowNumber - 1]
+        if (!row) break
+        p.moveStartedAtMs ??= simulatedNow
+        const known = row.revealedSafeSide || row.leftBroken !== row.rightBroken
+        const decisionDelay = known ? 350 : 900 + Math.floor(rng() * 901)
+        simulatedNow = Math.max(simulatedNow, p.moveStartedAtMs) + decisionDelay
+        if (simulatedNow - (p.moveStartedAtMs ?? simulatedNow) >= MOVE_TIME_LIMIT_MS) {
+          p.forfeited = true
+          p.eliminated = true
+          p.currentSide = undefined
+          if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
+          startNextTurn(state, simulatedNow)
+          continue
+        }
         const profile = state.participants.find(
           (participant) => participant.id === playerId
         )?.competitionProfile
-        if (progress.firstStepAtMs === undefined) {
-          progress.firstStepAtMs = (state.challengeStartTimeMs ?? 0) + simulatedElapsed
-        }
-
-        while (!progress.eliminated && progress.finishTimeMs === undefined) {
-          const rowNumber = progress.furthestRowReached + 1
-          const row = state.rows[rowNumber - 1]
-          if (!row) break
-          const knownSafeSide =
-            row.revealedSafeSide ??
-            (row.leftBroken !== row.rightBroken ? (row.leftBroken ? 'right' : 'left') : null)
-          const chosenSide = knownSafeSide ?? aiDecideStep(row, rng, profile)
-          simulatedElapsed += knownSafeSide ? 180 : 900 + Math.floor(rng() * 901)
-
-          if (state.globalTimeLimitMs > 0 && simulatedElapsed >= state.globalTimeLimitMs) {
-            timerExhausted = true
-            break
+        const chosenSide = aiDecideStep(row, rng, profile)
+        p.firstStepAtMs ??= simulatedNow
+        const elapsed = simulatedNow - p.firstStepAtMs
+        p.moveStartedAtMs = simulatedNow
+        if (chosenSide === row.safeSide) {
+          p.furthestRowReached = rowNumber
+          p.timeReachedFurthestRowMs = elapsed
+          p.currentSide = chosenSide
+          row.revealedSafeSide = chosenSide
+          state.currentPlayerRow = rowNumber + 1
+          if (rowNumber >= state.rowsCount) {
+            p.finishTimeMs = elapsed
+            p.currentSide = undefined
           }
-
-          if (chosenSide === row.safeSide) {
-            progress.furthestRowReached = rowNumber
-            progress.timeReachedFurthestRowMs = simulatedElapsed
-            progress.currentSide = chosenSide
-            row.revealedSafeSide = chosenSide
-            if (rowNumber >= state.rowsCount) {
-              progress.finishTimeMs = simulatedElapsed
-              progress.currentSide = undefined
-            }
-          } else {
-            if (chosenSide === 'left') row.leftBroken = true
-            else row.rightBroken = true
-            progress.eliminated = true
-            progress.currentSide = undefined
-            if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
-          }
+        } else {
+          if (chosenSide === 'left') row.leftBroken = true
+          else row.rightBroken = true
+          p.eliminated = true
+          p.currentSide = undefined
+          if (!state.eliminationOrder.includes(playerId)) state.eliminationOrder.push(playerId)
         }
-
-        if (timerExhausted) break
-      }
-
-      if (timerExhausted) {
-        state.timerExpired = true
-        for (const progress of Object.values(state.progress)) {
-          if (!progress.eliminated && progress.finishTimeMs === undefined) {
-            progress.eliminated = true
-            progress.currentSide = undefined
-            if (!state.eliminationOrder.includes(progress.playerId)) {
-              state.eliminationOrder.push(progress.playerId)
-            }
-          }
-        }
+        if (p.eliminated || p.finishTimeMs !== undefined) startNextTurn(state, simulatedNow)
       }
 
       state.currentTurnIndex = state.turnOrder.length
       state.currentPlayerRow = 1
-      state.parallelPlayerIds = []
       state.placements = buildPlacements(state.progress, state.turnOrder)
       state.winnerId = state.placements[0] ?? null
       state.phase = 'complete'
@@ -821,11 +694,9 @@ export const {
   recordNumberChoice,
   finaliseOrderSelection,
   startPlaying,
-  startParallelPlayers,
-  resolveParallelStep,
+  tickBridge,
   resolveStep,
   advanceTurn,
-  expireTimer,
   fastForwardRemainingPlayers,
   completeGame,
   setHumanSpectating,
@@ -843,8 +714,6 @@ export function selectActivePlayerId(state: GlassBridgeState): string | null {
 }
 
 export function selectIsGameOver(state: GlassBridgeState): boolean {
-  if (state.timerExpired) return true
-  if (state.currentTurnIndex >= state.turnOrder.length) return true
   const allDone = Object.values(state.progress).every(
     (p) => p.eliminated || p.finishTimeMs !== undefined
   )

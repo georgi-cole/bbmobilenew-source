@@ -25,6 +25,46 @@
   animation: overlaySlideUp 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Let the shared-house setting show softly through the finale conversation. */
+.chat-overlay--finale-elimination .chat-overlay__panel {
+  background-color: #0d111a;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(13, 17, 26, 0.84) 0%,
+      rgba(13, 17, 26, 0.8) 54%,
+      rgba(13, 17, 26, 0.9) 100%
+    ),
+    url('../../assets/finale/elimination-living-room.webp');
+  background-position: center;
+  background-size: cover;
+}
+
+.chat-overlay--finale-elimination .chat-overlay__header {
+  background: linear-gradient(180deg, rgba(19, 23, 41, 0.78) 0%, rgba(13, 17, 26, 0.7) 100%);
+}
+
+.chat-overlay--finale-elimination .chat-overlay__footer {
+  background: rgba(13, 17, 26, 0.82);
+}
+
+.chat-overlay--finale-elimination .chat-overlay__bubble,
+.chat-overlay--finale-elimination .chat-overlay__typing {
+  background: rgba(28, 35, 64, 0.7);
+}
+
+.chat-overlay--finale-elimination .chat-overlay__line--host .chat-overlay__bubble {
+  background: transparent;
+}
+
+.chat-overlay--finale-elimination .chat-overlay__line--pov .chat-overlay__bubble {
+  background: rgba(30, 26, 48, 0.7);
+}
+
+.chat-overlay--finale-elimination .chat-overlay__line--pov-thinking .chat-overlay__bubble {
+  background: rgba(245, 158, 11, 0.07);
+}
+
 .chat-overlay--exiting .chat-overlay__panel {
   animation: overlaySlideDown 0.34s cubic-bezier(0.55, 0, 1, 0.45) both;
   pointer-events: none;
@@ -273,6 +313,11 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
   background: #0d111a;
+}
+
+.chat-overlay__footer--custom {
+  display: block;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
 }
 
 .chat-overlay--play-paced .chat-overlay__footer {

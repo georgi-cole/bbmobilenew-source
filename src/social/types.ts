@@ -211,6 +211,7 @@ export interface SocialActionLogEntry {
   context?: {
     lohPlanType?: 'current_target' | 'backup_plan'
     lohDisclosureOutcome?: 'truthful' | 'vague' | 'false'
+    intelFactId?: string | null
   }
   /** Energy deducted (backward-compatible; prefer `costs.energy`). */
   cost: number

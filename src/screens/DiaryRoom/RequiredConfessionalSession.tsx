@@ -3,6 +3,7 @@ import { useBlocker } from 'react-router'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { setConfessionalMusicMode } from '../../store/uiSlice'
+import { preloadImages } from '../../utils/preloadImages'
 import PlayerAvatar from '../../components/PlayerAvatar/PlayerAvatar'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import RequiredConfessionalDecision from './RequiredConfessionalDecision'
@@ -10,6 +11,11 @@ import {
   getRequiredConfessionalPresentation,
   type RequiredConfessionalPresentation,
 } from './requiredConfessionalPresentation'
+import {
+  CONFESSIONAL_DOOR_SRC,
+  CONFESSIONAL_PAINTING_SRC,
+  CONFESSIONAL_PAINTING_STYLE,
+} from './diaryRoomAssets'
 import './DiaryRoom.css'
 import './RequiredConfessionalSession.css'
 import './RequiredConfessionalSessionFixes.css'
@@ -30,7 +36,6 @@ interface CompletedDecisionState {
 
 const CLASSIC_ENTRY_MS = 1320
 const SURVIVAL_ENTRY_MS = 900
-const CONFESSIONAL_DOOR_SRC = `${import.meta.env.BASE_URL}assets/diary-room/confessional-locked-door.png`
 const VOTE_DECISION_TYPES = new Set<ActiveConfessionalDecision['type']>([
   'eviction_vote',
   'double_vote',
@@ -72,6 +77,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
   const entryDuration = survival ? SURVIVAL_ENTRY_MS : CLASSIC_ENTRY_MS
 
   useEffect(() => {
+    preloadImages([CONFESSIONAL_PAINTING_SRC, CONFESSIONAL_DOOR_SRC])
     dispatch(setConfessionalMusicMode('normal'))
     return () => {
       dispatch(setConfessionalMusicMode('normal'))
@@ -102,6 +108,7 @@ export default function RequiredConfessionalSession({ decision, onReturnToGame }
       data-testid="required-confessional-session"
       data-decision-type={displayDecision?.type ?? lastDecisionType ?? undefined}
       data-cupid-pairs={cupidPairsActive ? 'true' : 'false'}
+      style={CONFESSIONAL_PAINTING_STYLE}
     >
       {entryActive && (
         <div

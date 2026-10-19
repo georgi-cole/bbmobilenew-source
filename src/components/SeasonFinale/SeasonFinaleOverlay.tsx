@@ -50,7 +50,7 @@ const INTERVIEW_BANKS = [
       'How does it feel hearing those final votes go your way?',
       'Like a dream with confetti and way too much adrenaline.',
     ],
-    ['What surprised you most about your journey?', 'How fast allies became rivals in this house.'],
+    ['What surprised you most about your journey?', 'How fast allies became rivals in the Hub.'],
     ['Who helped shape your game the most?', 'Everyone did, but the pressure taught me the most.'],
     [
       'What will you remember first from this finale night?',
@@ -62,7 +62,7 @@ const INTERVIEW_BANKS = [
       'You just made it official. How are you processing this moment?',
       'One breath at a time, because this is huge.',
     ],
-    ['What tested you the most this season?', 'Staying calm when the house wanted chaos.'],
+    ['What tested you the most this season?', 'Staying calm when the Hub wanted chaos.'],
     ['What part of your game are you proudest of?', 'I kept fighting without losing myself.'],
     [
       'What do you want to say to everyone who watched you get here?',

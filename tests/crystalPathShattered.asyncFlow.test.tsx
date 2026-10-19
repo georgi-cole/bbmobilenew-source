@@ -34,6 +34,26 @@ describe('Crystal Path: Infinity async flow', () => {
     vi.useRealTimers();
   });
 
+  it('adds the Infinity Protocol environment only for the premium presentation', () => {
+    const { container } = render(
+      <Provider store={makeStore()}>
+        <CrystalPathShatteredGame
+          participantIds={['ai-1', 'human']}
+          participants={[
+            { id: 'ai-1', name: 'AI One', isHuman: false },
+            { id: 'human', name: 'Human', isHuman: true },
+          ]}
+          seed={12345}
+          premium
+        />
+      </Provider>,
+    );
+
+    expect(screen.getByLabelText('Crystal Path: Infinity').className).toContain('cps-shell--premium');
+    expect(container.querySelector('.cps-infinity-void')).not.toBeNull();
+    expect(screen.getByText('∞ Infinity Protocol')).toBeTruthy();
+  });
+
   it('starts with the human and keeps that run active after a safe step', async () => {
     const seed = 12345;
     const [firstRow, secondRow] = createRowStream(mulberry32(seed)).take(2);

@@ -46,6 +46,14 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'let it die': acts('stops pushing once the remark fails to grow into a fight.'),
   },
   alliance_reassurance: {
+    'reassure them': says('they believe the alliance still has a reliable centre.'),
+    'ask what changed': says(
+      'they explain which recent move made them unsure where the alliance stands.'
+    ),
+    'set a boundary': says(
+      'they accept the limit, but know the alliance needs clearer expectations.'
+    ),
+    'back our alliance': says('they are ready to keep coordinating with you.'),
     'reassure them fully': says('they believe the alliance is still your first strategic home.'),
     'compare your plans': says(
       'their priority is keeping the alliance off the block and aligned on one target.'
@@ -55,9 +63,6 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     ),
     'avoid the subject': acts('reads the dodge as a warning that the alliance may be slipping.'),
     'renew the pact': says('they are ready to treat the alliance as active again immediately.'),
-    'ask what changed': says(
-      'your recent distance made them unsure whether the pact still mattered.'
-    ),
     'set new terms': says('they will accept clearer boundaries if both sides follow them.'),
     'end the check-in': acts('leaves without the reassurance they were looking for.'),
   },

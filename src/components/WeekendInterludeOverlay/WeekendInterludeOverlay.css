@@ -30,6 +30,37 @@
   text-align: center;
 }
 
+.weekend-interlude__reunion-arrival {
+  animation: weekendReunionArrival 760ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.weekend-interlude__reunion-arrival::before {
+  position: absolute;
+  z-index: 0;
+  inset: -32% -15%;
+  background:
+    repeating-conic-gradient(
+      from 12deg at 50% 50%,
+      transparent 0 28deg,
+      rgba(255, 226, 151, 0.3) 29deg 33deg,
+      transparent 34deg 58deg
+    ),
+    radial-gradient(ellipse at center, rgba(255, 234, 176, 0.3), transparent 68%);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  animation: weekendReunionTvFlash 2.6s ease-out both;
+}
+
+.weekend-interlude__reunion-arrival > * {
+  position: relative;
+  z-index: 1;
+}
+
+.weekend-interlude__reunion-departure {
+  animation: weekendReunionFarewell 620ms ease-out both;
+}
+
 .weekend-interlude__eyebrow {
   display: flex;
   align-items: center;
@@ -76,6 +107,310 @@
   text-shadow:
     0 0 16px rgba(0, 0, 0, 1),
     0 1px 4px rgba(0, 0, 0, 1);
+}
+
+.weekend-interlude__finale-title {
+  margin-bottom: 2px !important;
+  color: #fff !important;
+  font-size: clamp(1.18rem, 5vw, 1.55rem) !important;
+  font-weight: 850 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.025em !important;
+  text-shadow: 0 2px 16px rgba(204, 173, 255, 0.34) !important;
+}
+
+.weekend-interlude__reunion-invitation {
+  gap: 9px;
+  max-width: 34rem;
+  margin-inline: auto;
+}
+
+.weekend-interlude__sequester-announcement {
+  gap: 7px;
+}
+
+.weekend-interlude__sequester-badge {
+  width: clamp(30px, 9vw, 42px);
+  height: auto;
+  margin: 0 auto 3px;
+  filter: grayscale(1) brightness(1.2) drop-shadow(0 0 8px rgba(225, 231, 250, 0.42));
+}
+
+.weekend-reunion-announcement {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: max(24px, env(safe-area-inset-top, 0px)) clamp(20px, 7vw, 64px)
+    calc(max(24px, env(safe-area-inset-bottom, 0px)) + 92px);
+  isolation: isolate;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(99, 55, 144, 0.35), transparent 54%),
+    linear-gradient(150deg, #11101a 0%, #090a12 54%, #191024 100%);
+  animation: weekendReunionAnnouncementIn 520ms ease-out both;
+}
+
+.weekend-reunion-announcement::before,
+.weekend-reunion-announcement::after {
+  position: absolute;
+  z-index: -1;
+  inset: -20%;
+  content: '';
+  pointer-events: none;
+}
+
+.weekend-reunion-announcement::before {
+  background: repeating-conic-gradient(
+    from -10deg at 50% 44%,
+    transparent 0 17deg,
+    rgba(255, 218, 155, 0.065) 18deg 21deg,
+    transparent 22deg 38deg
+  );
+  animation: weekendReunionAnnouncementRays 16s linear infinite;
+}
+
+.weekend-reunion-announcement::after {
+  background: radial-gradient(ellipse at 50% 45%, transparent 22%, rgba(0, 0, 0, 0.72) 78%);
+}
+
+.weekend-reunion-announcement__doors {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  perspective: 1200px;
+  pointer-events: none;
+}
+
+.weekend-reunion-announcement__doors span {
+  border-color: rgba(255, 220, 160, 0.25);
+  background:
+    linear-gradient(90deg, rgba(5, 6, 13, 0.98), rgba(18, 17, 29, 0.93)),
+    repeating-linear-gradient(0deg, transparent 0 54px, rgba(255, 255, 255, 0.025) 55px 57px);
+  box-shadow: 0 0 42px rgba(255, 207, 129, 0.08);
+  animation-duration: 1500ms;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.weekend-reunion-announcement__doors span:first-child {
+  transform-origin: left center;
+  border-right: 1px solid rgba(255, 226, 175, 0.5);
+  animation-name: weekendReunionDoorLeft;
+}
+
+.weekend-reunion-announcement__doors span:last-child {
+  transform-origin: right center;
+  border-left: 1px solid rgba(255, 226, 175, 0.5);
+  animation-name: weekendReunionDoorRight;
+}
+
+.weekend-reunion-announcement__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-height: 100%;
+  width: min(100%, 720px);
+  margin: 0;
+  text-align: center;
+  text-wrap: balance;
+  opacity: 0;
+  animation: weekendReunionAnnouncementReveal 760ms 430ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.weekend-reunion-announcement__eyebrow {
+  display: block;
+  margin-bottom: clamp(18px, 5vh, 38px);
+  color: #f5dba9;
+  font-size: clamp(0.68rem, 2.6vw, 0.84rem);
+  font-weight: 850;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(255, 206, 135, 0.64);
+}
+
+.weekend-reunion-announcement__content h1 {
+  margin: 0 0 clamp(12px, 3vh, 22px);
+  color: #fffaf0;
+  font-size: clamp(2rem, 8.6vw, 5.1rem);
+  font-weight: 880;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  text-shadow: 0 5px 38px rgba(255, 208, 133, 0.26);
+}
+
+.weekend-reunion-announcement__content p {
+  max-width: 610px;
+  margin: 0 auto;
+  color: rgba(245, 246, 255, 0.94);
+  font-size: clamp(0.9rem, 3.65vw, 1.28rem);
+  font-weight: 640;
+  line-height: 1.4;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.82);
+}
+
+.weekend-reunion-cast {
+  position: relative;
+  display: grid;
+  grid-template-rows: 0.9fr 1.1fr;
+  width: min(100%, 680px);
+  height: clamp(170px, 30vh, 250px);
+  margin: clamp(12px, 3vh, 24px) auto 0;
+  isolation: isolate;
+}
+
+.weekend-reunion-cast::after {
+  position: absolute;
+  z-index: -1;
+  right: 7%;
+  bottom: 3%;
+  left: 7%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(232, 220, 255, 0.42), transparent);
+  box-shadow: 0 0 24px rgba(209, 185, 255, 0.2);
+  content: '';
+}
+
+.weekend-reunion-cast__row {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  min-width: 0;
+}
+
+.weekend-reunion-cast__figure {
+  position: relative;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  width: min(14.2%, 82px);
+  min-width: 0;
+  height: 100%;
+  margin-inline: -0.7%;
+  filter: drop-shadow(0 7px 7px rgba(0, 0, 0, 0.32));
+  animation: weekendReunionFigureIn 460ms both;
+  animation-delay: calc(540ms + var(--cast-index, 0) * 34ms);
+}
+
+.weekend-reunion-cast__row:first-child .weekend-reunion-cast__figure {
+  opacity: 0.78;
+  transform: scale(0.9) translateY(5px);
+}
+
+.weekend-reunion-cast__figure img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+@keyframes weekendReunionDoorLeft {
+  to {
+    transform: translateX(-102%) rotateY(-12deg);
+  }
+}
+
+@keyframes weekendReunionDoorRight {
+  to {
+    transform: translateX(102%) rotateY(12deg);
+  }
+}
+
+@keyframes weekendReunionAnnouncementIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes weekendReunionAnnouncementReveal {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: none;
+  }
+}
+
+@keyframes weekendReunionAnnouncementRays {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes weekendReunionFigureIn {
+  from {
+    opacity: 0;
+    transform: translateY(9px) scale(0.96);
+  }
+  to {
+    opacity: 0.96;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes weekendReunionArrival {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.92);
+    filter: brightness(2.2);
+  }
+  36% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.025);
+    filter: brightness(1.35);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: none;
+  }
+}
+
+@keyframes weekendReunionTvFlash {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  14% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+  30% {
+    opacity: 0.14;
+    transform: scale(1.1);
+  }
+  44% {
+    opacity: 0.68;
+    transform: scale(1.24);
+  }
+}
+
+@keyframes weekendReunionFarewell {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .weekend-interlude__question {
@@ -265,18 +600,22 @@
 
 .weekend-interlude__fact {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+  text-align: center;
 }
 
 .weekend-interlude__fact p {
+  max-width: 34rem;
   margin: 0;
   color: rgba(245, 241, 251, 0.94);
   font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.55;
   text-wrap: pretty;
+  text-align: center;
 }
 
 .weekend-interlude__weather {
@@ -354,5 +693,51 @@
   .weekend-interlude__stream-copy,
   .weekend-interlude__fact p {
     font-size: 0.82rem !important;
+  }
+
+  .weekend-reunion-cast {
+    height: clamp(150px, 27vh, 205px);
+  }
+
+  .weekend-reunion-cast__figure {
+    width: min(14.8%, 52px);
+  }
+}
+
+@media (max-height: 700px) {
+  .weekend-reunion-cast {
+    height: clamp(145px, 25vh, 190px);
+    margin-top: 10px;
+  }
+
+  .weekend-reunion-announcement__eyebrow {
+    margin-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekend-interlude__reunion-arrival,
+  .weekend-interlude__reunion-arrival::before,
+  .weekend-interlude__reunion-departure {
+    animation: none;
+    filter: none;
+    transform: none;
+  }
+
+  .weekend-reunion-announcement,
+  .weekend-reunion-announcement::before,
+  .weekend-reunion-announcement__doors span,
+  .weekend-reunion-announcement__content {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .weekend-reunion-cast__figure {
+    animation: none;
+    opacity: 0.9;
+    transform: none;
+    filter: none;
   }
 }

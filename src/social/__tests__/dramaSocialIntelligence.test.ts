@@ -7,8 +7,16 @@ import {
 } from '../dramaModeEngine'
 import { DRAMA_MODE_CONFIG } from '../dramaModeConfig'
 import { isIncomingInteractionInvalidated } from '../incomingInteractionValidity'
+import {
+  addRealityFact,
+  createInitialRealityDomainState,
+  createRealityAlliance,
+  learnRealityFact,
+} from '../reality'
+import type { RealityFact } from '../reality'
 import { evaluateSocialActionEligibility } from '../socialActionEligibility'
 import { SOCIAL_ACTIONS } from '../socialActions'
+import { makeIntelMemory } from '../intelligenceSystem'
 import type { IncomingInteraction } from '../types'
 
 function action(id: string) {
@@ -86,6 +94,90 @@ describe('utility-scored Drama AI', () => {
     expect(['confront', 'public_callout']).toContain(first?.actionId)
     expect(first?.targetId).toBe('rae')
     expect(first?.reason).toMatch(/conflict:/)
+  })
+
+  it('offers nomination protection only when the AI holds the power and the player can use it', () => {
+    const input = dramaInput({
+      lohId: 'finn',
+      phase: 'social_1',
+      relationships: { finn: { user: { affinity: 60, tags: [] } } },
+    })
+
+    expect(chooseUtilityDramaAIMove(input)).toMatchObject({
+      actionId: 'protect',
+      targetId: 'user',
+    })
+    expect(chooseUtilityDramaAIMove({ ...input, povProtectedIds: ['user'] })?.actionId).not.toBe(
+      'protect'
+    )
+  })
+
+  it('uses credible alliance knowledge under pressure, at most once per week', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'rae-user-pact',
+      founderIds: ['rae'],
+      memberIds: ['user'],
+      purpose: 'Mutual protection',
+      at: { day: 3, phase: 'social_1' },
+    })
+    const fact: RealityFact = {
+      id: 'fact:rae-user-pact',
+      propositionType: 'SECRET_ALLIANCE',
+      subjectIds: ['rae', 'user'],
+      objectId: alliance.id,
+      value: true,
+      day: 3,
+      phase: 'social_1',
+      visibility: 'PRIVATE',
+      participantIds: ['rae', 'user'],
+      witnessIds: [],
+      viewerVisible: false,
+      publicVisible: false,
+      juryVisible: false,
+      sourceEventId: 'event:rae-user-pact',
+    }
+    addRealityFact(reality, fact)
+    learnRealityFact(reality, {
+      ownerId: 'finn',
+      factId: fact.id,
+      confidence: 0.82,
+      memory: makeIntelMemory({
+        ownerId: 'finn',
+        fact,
+        sourceType: 'HEARSAY',
+        sourceChain: ['nova'],
+        confidence: 0.82,
+        day: 3,
+        phase: 'social_1',
+      }),
+    })
+    const input = dramaInput({ reality, lohId: 'finn', phase: 'social_1' })
+
+    expect(chooseUtilityDramaAIMove(input)).toMatchObject({
+      actionId: 'expose_secret',
+      targetId: 'rae',
+    })
+    expect(
+      chooseUtilityDramaAIMove({
+        ...input,
+        recentActions: [
+          {
+            actionId: 'expose_secret',
+            actorId: 'finn',
+            targetId: 'rae',
+            cost: 1,
+            delta: 0,
+            outcome: 'success',
+            newEnergy: 3,
+            timestamp: 3_000_001,
+            week: 3,
+            phase: 'social_1',
+            source: 'system',
+          },
+        ],
+      })
+    ).toBeNull()
   })
 })
 
@@ -180,6 +272,39 @@ describe('declarative incoming-interaction validity', () => {
           { id: 'finn', status: 'active' },
           { id: 'rae', status: 'pos' },
         ],
+      })
+    ).toBe(true)
+  })
+
+  it('invalidates stale protection offers when the controlling power or phase changes', () => {
+    const protection = interaction('protection_deal')
+    const safetyDeal = interaction('protection_deal_future_vote')
+    const players = [
+      { id: 'user', status: 'nominated', isUser: true },
+      { id: 'finn', status: 'active' },
+      { id: 'rae', status: 'active' },
+    ]
+
+    expect(
+      isIncomingInteractionInvalidated(protection, {
+        phase: 'pos_results',
+        lohId: 'finn',
+        players,
+      })
+    ).toBe(true)
+    expect(
+      isIncomingInteractionInvalidated(safetyDeal, {
+        phase: 'pos_results',
+        posWinnerId: 'finn',
+        nomineeIds: ['user'],
+        players,
+      })
+    ).toBe(false)
+    expect(
+      isIncomingInteractionInvalidated(safetyDeal, {
+        phase: 'pos_results',
+        nomineeIds: ['user'],
+        players,
       })
     ).toBe(true)
   })

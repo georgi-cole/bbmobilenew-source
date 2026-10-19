@@ -5,6 +5,7 @@ import { SCENE_CHOICES } from '../incomingSceneChoiceBank'
 describe('incoming outcome matrix', () => {
   it('covers every offered action with a short distinct result', () => {
     const outcomes: string[] = []
+    const uniqueActionKeys = new Set<string>()
 
     for (const [scenarioKey, variants] of Object.entries(SCENE_CHOICES)) {
       for (const labels of variants) {
@@ -20,17 +21,16 @@ describe('incoming outcome matrix', () => {
 
           expect(outcome, `${scenarioKey} / ${responseLabel}`).toBeTruthy()
           expect(outcome!.length, `${scenarioKey} / ${responseLabel}`).toBeLessThanOrEqual(120)
-          outcomes.push(outcome!)
+          const actionKey = `${scenarioKey}:${responseLabel.trim().toLowerCase()}`
+          if (!uniqueActionKeys.has(actionKey)) {
+            uniqueActionKeys.add(actionKey)
+            outcomes.push(outcome!)
+          }
         }
       }
     }
 
-    expect(outcomes).toHaveLength(
-      Object.values(SCENE_CHOICES).reduce(
-        (count, variants) => count + variants.reduce((total, labels) => total + labels.length, 0),
-        0
-      )
-    )
+    expect(outcomes).toHaveLength(uniqueActionKeys.size)
     expect(new Set(outcomes).size).toBe(outcomes.length)
   })
 

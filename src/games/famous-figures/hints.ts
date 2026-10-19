@@ -7,6 +7,10 @@
 import type { FigureRow } from './model';
 
 const KNOWN_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'vi']);
+const NAME_TITLES = new Set([
+  'count', 'countess', 'dame', 'dr', 'general', 'king', 'lady', 'lord', 'miss',
+  'mr', 'mrs', 'ms', 'pope', 'prince', 'princess', 'queen', 'saint', 'sir', 'st',
+]);
 
 /**
  * Parses a canonical name into first / last components.
@@ -16,6 +20,7 @@ function parseNameParts(canonicalName: string): {
   first: string;
   last: string;
   isMononym: boolean;
+  hasTitle: boolean;
 } {
   const raw = canonicalName.trim().split(/\s+/);
 
@@ -25,10 +30,16 @@ function parseNameParts(canonicalName: string): {
       ? raw.slice(0, -1)
       : raw;
 
-  if (parts.length === 1) {
-    return { first: parts[0], last: '', isMononym: true };
+  let hasTitle = false;
+  while (parts.length > 1 && NAME_TITLES.has(parts[0].toLowerCase().replace(/\.$/, ''))) {
+    hasTitle = true;
+    parts.shift();
   }
-  return { first: parts[0], last: parts[parts.length - 1], isMononym: false };
+
+  if (parts.length === 1) {
+    return { first: parts[0], last: '', isMononym: true, hasTitle };
+  }
+  return { first: parts[0], last: parts[parts.length - 1], isMononym: false, hasTitle };
 }
 
 /**
@@ -36,11 +47,13 @@ function parseNameParts(canonicalName: string): {
  * letters preserve a small challenge while still making the last guess fair.
  */
 export function getFinalNameHintText(figure: FigureRow): string {
-  const { first, isMononym } = parseNameParts(figure.canonicalName);
+  if (/^the\s/i.test(figure.canonicalName)) {
+    return `Name starts with '${figure.canonicalName.slice(0, 2)}'`;
+  }
+  const { first, isMononym, hasTitle } = parseNameParts(figure.canonicalName);
   const prefix = first.slice(0, 2) || '?';
-  return isMononym
-    ? `Name starts with '${prefix}'`
-    : `First name starts with '${prefix}'`;
+  if (hasTitle) return `Name after the title starts with '${prefix}'`;
+  return isMononym ? `Name starts with '${prefix}'` : `First name starts with '${prefix}'`;
 }
 
 /**
@@ -79,4 +92,3 @@ export function getHintText(figure: FigureRow, hintIndex: number): string {
   const lastInitial = (last[0] ?? '?').toUpperCase();
   return `First name: ${first}. Last name starts with '${lastInitial}'.`;
 }
-

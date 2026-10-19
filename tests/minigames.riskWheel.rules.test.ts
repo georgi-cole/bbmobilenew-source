@@ -52,17 +52,14 @@ describe('Risk Wheel rules', () => {
     expect(resolve666Effect(12345, 4)).toBe(effect);
   });
 
-  it('eliminates the lowest scores with deterministic tie breaks', () => {
+  it('eliminates lower scores and keeps cutoff ties together', () => {
     const ids = ['a', 'b', 'c', 'd'];
-    const scores = { a: 10, b: 40, c: 10, d: 80 };
-    expect(computeEliminatedPlayers(ids, scores, 2, 99).sort()).toEqual(['a', 'c']);
+    const scores = { a: 10, b: 40, c: 60, d: 80 };
+    expect(computeEliminatedPlayers(ids, scores, 2, 99)).toEqual(['a', 'b']);
     expect(computeEliminatedPlayers(ids, scores, 0, 99)).toEqual([]);
     expect(computeEliminatedPlayers(ids, scores, 10, 99)).toEqual(ids);
 
-    const tied = computeEliminatedPlayers(['a', 'b', 'c'], { a: 5, b: 5, c: 30 }, 1, 7);
-    expect(tied).toHaveLength(1);
-    expect(['a', 'b']).toContain(tied[0]);
-    expect(computeEliminatedPlayers(['a', 'b', 'c'], { a: 5, b: 5, c: 30 }, 1, 7)).toEqual(tied);
+    expect(computeEliminatedPlayers(['a', 'b', 'c'], { a: 5, b: 5, c: 30 }, 1, 7)).toEqual([]);
   });
 
   it('keeps AI risk, pressure, and spin decisions bounded', () => {

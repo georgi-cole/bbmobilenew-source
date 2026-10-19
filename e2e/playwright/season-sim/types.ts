@@ -50,6 +50,12 @@ export interface PersonaDefinition {
 
 export interface SimulationRunConfig {
   id: string
+  /** Present when this run belongs to a repeatable multi-season batch. */
+  batchId?: string
+  /** One-based run number within batchId. */
+  runIndex?: number
+  /** Total number of runs requested for this batch. */
+  batchRuns?: number
   mode: SeasonSimulationMode
   entitlement: SimulationEntitlement
   personaId: string
@@ -59,12 +65,40 @@ export interface SimulationRunConfig {
   maxActions: number
   maxDays: number
   competitionSkill: SimulationSkill
+  /** Forfeit competitions through the visible game menu to speed up season runs. */
+  skipCompetitions?: boolean
+  /** Resolve required decisions, but do not open optional Confessional entries. */
+  skipOptionalConfessionals?: boolean
   /** Smoke journeys only use normal UI. Full runs may resume an audited checkpoint. */
   assistedCheckpoint?: string
   /** Skip the final full-page screenshot for high-volume calibration batches. */
   captureFinalScreenshot?: boolean
   /** Keep only calibration-relevant report data instead of the full final Redux state/timeline. */
   compactEconomyReport?: boolean
+  /** Enable bounded browser timing samples at seeded early and late season checkpoints. */
+  performanceBenchmark?: boolean
+}
+
+export interface SeasonPerformanceCheckpoint {
+  name: 'early' | 'late'
+  day: number
+  week: number
+  phase: string
+  activePlayerCount: number
+  historyCount: number
+  tvFeedCount: number
+  sampleCounts: {
+    frameGaps: number
+    inputResponses: number
+    reduxActions: number
+  }
+  metrics: {
+    frameGapP95Ms: number | null
+    inputResponseP95Ms: number | null
+    reduxActionP95Ms: number | null
+  }
+  longestFrameGapMs: number | null
+  frameGapsOver100Ms: number
 }
 
 export interface SimulationAction {
@@ -109,17 +143,48 @@ export interface SimulationEyeoleanSample {
   total: number
 }
 
+export interface SimulationSeasonOutcome {
+  resolved: boolean
+  terminal: string
+  humanId: string | null
+  humanName: string | null
+  humanStatus: string | null
+  humanPlacement: number | null
+  humanWon: boolean
+  humanMadeJury: boolean
+  humanReachedFinalThree: boolean
+  winnerId: string | null
+  winnerName: string | null
+  humanLohWins: number
+  humanPosWins: number
+  humanNominations: number
+  aiSocialActions?: number
+  aiOnlyFactionCount: number
+  aiOnlyPactCount: number
+  aiStrategyMeetings: number
+  aiCoordinatedTargetMoves: number
+  aiAllianceDefections: number
+  aiAllianceLeaks: number
+  aiRomances: number
+  activePlayerCount: number
+  week: number
+}
+
 export interface SimulationReport {
   schemaVersion: 1
   config: SimulationRunConfig
   startedAt: string
   finishedAt: string
+  durationMs?: number
+  actionCount?: number
   terminal: string
+  outcome?: SimulationSeasonOutcome
   timeline?: TimelineEntry[]
   findings: SimulationFinding[]
   objectives?: ObjectiveResult[]
   checkpoints?: Array<{ name: string; phase: string; day: number }>
   economySample?: SimulationEyeoleanSample
+  performanceCheckpoints?: SeasonPerformanceCheckpoint[]
   finalState?: Pick<RootState, 'game' | 'challenge' | 'social' | 'vip'>
 }
 

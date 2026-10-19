@@ -31,7 +31,7 @@
  * to avoid entanglement with spin outcomes.
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { mulberry32, seededPickN } from '../../store/rng'
+import { mulberry32 } from '../../store/rng'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +111,23 @@ const AI_LAST_SPIN_BANK_BIAS_WEIGHT = 0.35
 export type RiskWheelCompetitionType = 'LOH' | 'POS'
 export type RiskWheelAiPersonality = 'cautious' | 'balanced' | 'risky'
 
+export interface RiskWheelTieBreakerState {
+  originalActivePlayerIds: string[]
+  originalRoundScores: Record<string, number>
+  eliminatedBeforeTieBreaker: string[]
+  candidatePlayerIds: string[]
+  eliminatedTieBreakerIds: string[]
+  round: number
+  /** Keep the main-round results visible until the player starts the playoff. */
+  pendingStart?: boolean
+}
+
+export interface RiskWheelTieBreakerSummary {
+  survivorIds: string[]
+  eliminatedIds: string[]
+  rounds: number
+}
+
 export type RiskWheelPhase =
   | 'idle'
   | 'awaiting_spin' // current player should spin (button shown)
@@ -167,23 +184,10 @@ export interface RiskWheelState {
 
   /** Players eliminated at end of the most recent round (for animation). */
   eliminatedThisRound: string[]
-
-  /** Players tied at the elimination boundary and awaiting a one-spin tie-break. */
-  tieBreakPlayerIds: string[]
-  tieBreakOriginalPlayerIds: string[]
-  tieBreakEliminationCount: number
-  tieBreakPending: boolean
-  tieBreakRound: number
-  isTieBreakRound: boolean
-  tieBreakBaseActivePlayerIds: string[]
-  tieBreakBaseRoundScores: Record<string, number>
-  tieBreakEliminatedBeforeRound: string[]
-  tieBreakScores: Record<string, number>
-  tieBreakOutcome: {
-    survivedPlayerIds: string[]
-    eliminatedPlayerIds: string[]
-    spinScores: Record<string, number>
-  } | null
+  /** Active one-spin playoff used to resolve an elimination cutoff tie. */
+  tieBreaker: RiskWheelTieBreakerState | null
+  /** Last playoff outcome, shown with the round results. */
+  tieBreakerSummary: RiskWheelTieBreakerSummary | null
 
   /** Final winner id (set when phase === 'complete'). */
   winnerId: string | null
@@ -349,9 +353,9 @@ export function computeEliminationCount(
 }
 
 /**
- * Determine which players to eliminate at the end of a round.
- * Sorts by round score ascending. If there is a tie at the cutoff,
- * randomly picks among the tied players using a seeded RNG.
+ * Determine which players are definitely out before a cutoff playoff.
+ * Sorts by round score ascending. A score tie at the cutoff is resolved by
+ * the one-spin tie-breaker; a complete score group below the cutoff is out.
  *
  * Returns eliminated player IDs.
  */
@@ -359,7 +363,8 @@ export function computeEliminatedPlayers(
   activePlayerIds: string[],
   roundScores: Record<string, number>,
   eliminationCount: number,
-  tieBreakSeed: number
+  /** @deprecated Retained for call-site compatibility; ties are not broken. */
+  _legacyTieBreakSeed?: number
 ): string[] {
   if (eliminationCount <= 0) return []
   if (eliminationCount >= activePlayerIds.length) return [...activePlayerIds]
@@ -369,39 +374,15 @@ export function computeEliminatedPlayers(
   // Score at the cutoff boundary (the eliminationCount-th lowest)
   const cutoffScore = roundScores[sorted[eliminationCount - 1]] ?? 0
 
-  // Players with score strictly below the cutoff (definitely eliminated)
-  const definitelyOut = sorted
-    .slice(0, eliminationCount)
-    .filter((id) => (roundScores[id] ?? 0) < cutoffScore)
+  // Players with score strictly below the cutoff are definitely eliminated.
+  const definitelyOut = sorted.filter((id) => (roundScores[id] ?? 0) < cutoffScore)
+  const tiedAtCutoff = sorted.filter((id) => (roundScores[id] ?? 0) === cutoffScore)
+  const eliminationsNeededFromTie = eliminationCount - definitelyOut.length
 
-  // Players tied exactly at the cutoff score
-  const atCutoff = sorted.filter((id) => (roundScores[id] ?? 0) === cutoffScore)
-
-  const needFromTied = eliminationCount - definitelyOut.length
-
-  if (needFromTied <= 0) return definitelyOut
-  if (needFromTied >= atCutoff.length) return [...definitelyOut, ...atCutoff]
-
-  // Random selection among tied players
-  const rng = mulberry32(tieBreakSeed >>> 0)
-  const pickedFromTied = seededPickN(rng, atCutoff, needFromTied)
-  return [...definitelyOut, ...pickedFromTied]
-}
-
-/** Return a tie that crosses the elimination cutoff and needs a live spin-off. */
-export function getEliminationCutoffTie(
-  activePlayerIds: string[],
-  roundScores: Record<string, number>,
-  eliminationCount: number
-): { playerIds: string[]; eliminationCount: number; alreadyEliminatedIds: string[] } | null {
-  if (eliminationCount <= 0 || eliminationCount >= activePlayerIds.length) return null
-  const sorted = [...activePlayerIds].sort((a, b) => (roundScores[a] ?? 0) - (roundScores[b] ?? 0))
-  const cutoffScore = roundScores[sorted[eliminationCount - 1]] ?? 0
-  const alreadyEliminatedIds = sorted.filter((id) => (roundScores[id] ?? 0) < cutoffScore)
-  const playerIds = sorted.filter((id) => (roundScores[id] ?? 0) === cutoffScore)
-  const neededFromTie = eliminationCount - alreadyEliminatedIds.length
-  if (playerIds.length <= neededFromTie || neededFromTie <= 0) return null
-  return { playerIds, eliminationCount: neededFromTie, alreadyEliminatedIds }
+  // If every player in the cutoff group must go, no playoff is needed.
+  return eliminationsNeededFromTie >= tiedAtCutoff.length
+    ? [...definitelyOut, ...tiedAtCutoff]
+    : definitelyOut
 }
 
 /**
@@ -579,17 +560,8 @@ const initialState: RiskWheelState = {
   lastSectorIndex: null,
   last666Effect: null,
   eliminatedThisRound: [],
-  tieBreakPlayerIds: [],
-  tieBreakOriginalPlayerIds: [],
-  tieBreakEliminationCount: 0,
-  tieBreakPending: false,
-  tieBreakRound: 0,
-  isTieBreakRound: false,
-  tieBreakBaseActivePlayerIds: [],
-  tieBreakBaseRoundScores: {},
-  tieBreakEliminatedBeforeRound: [],
-  tieBreakScores: {},
-  tieBreakOutcome: null,
+  tieBreaker: null,
+  tieBreakerSummary: null,
   winnerId: null,
   seed: undefined,
   rngCallCount: 0,
@@ -620,7 +592,7 @@ function applySector(state: RiskWheelState, sectorIndex: number, rngCallsConsume
     state.phase = 'turn_complete'
   } else if (sector.type === 'zero') {
     // No change; decide based on spin count
-    if (state.isTieBreakRound || state.currentSpinCount >= MAX_SPINS_PER_TURN) {
+    if (state.currentSpinCount >= MAX_SPINS_PER_TURN) {
       state.phase = 'turn_complete'
     } else {
       state.phase = 'awaiting_decision'
@@ -635,7 +607,7 @@ function applySector(state: RiskWheelState, sectorIndex: number, rngCallsConsume
     state.phase = 'six_six_six'
   } else if (sector.type === 'points') {
     state.roundScores[currentId] = (state.roundScores[currentId] ?? 0) + (sector.value ?? 0)
-    if (state.isTieBreakRound || state.currentSpinCount >= MAX_SPINS_PER_TURN) {
+    if (state.currentSpinCount >= MAX_SPINS_PER_TURN) {
       state.phase = 'turn_complete'
     } else {
       state.phase = 'awaiting_decision'
@@ -663,89 +635,110 @@ function advancePlayerOrRound(state: RiskWheelState): void {
   }
 
   if (nextIndex === -1) {
-    // Tied players finish a one-spin round before the normal elimination can
-    // be committed. If the spin-off itself ties across its cutoff, show those
-    // results and let only the remaining tied players spin again.
-    if (state.isTieBreakRound) {
-      state.tieBreakScores = { ...state.tieBreakScores, ...state.roundScores }
-      const tie = getEliminationCutoffTie(
-        state.activePlayerIds,
-        state.roundScores,
-        state.tieBreakEliminationCount
-      )
-      state.phase = 'round_summary'
-      state.isTieBreakRound = false
-
-      if (tie) {
-        state.tieBreakEliminatedBeforeRound = Array.from(
-          new Set([...state.tieBreakEliminatedBeforeRound, ...tie.alreadyEliminatedIds])
-        )
-        state.tieBreakPlayerIds = tie.playerIds
-        state.tieBreakEliminationCount = tie.eliminationCount
-        state.tieBreakPending = true
-        state.eliminatedThisRound = tie.alreadyEliminatedIds
-        return
-      }
-
-      const sorted = [...state.activePlayerIds].sort(
-        (a, b) => (state.roundScores[a] ?? 0) - (state.roundScores[b] ?? 0)
-      )
-      const spinOffEliminated = sorted.slice(0, state.tieBreakEliminationCount)
-      const allEliminated = Array.from(
-        new Set([...state.tieBreakEliminatedBeforeRound, ...spinOffEliminated])
-      )
-      const originalTiePlayers = state.tieBreakOriginalPlayerIds
-      state.tieBreakOutcome = {
-        survivedPlayerIds: originalTiePlayers.filter((id) => !allEliminated.includes(id)),
-        eliminatedPlayerIds: allEliminated,
-        spinScores: { ...state.tieBreakScores },
-      }
-      state.activePlayerIds = [...state.tieBreakBaseActivePlayerIds]
-      state.roundScores = { ...state.tieBreakBaseRoundScores }
-      state.eliminatedThisRound = allEliminated
-      state.tieBreakPlayerIds = []
-      state.tieBreakPending = false
-      state.tieBreakEliminationCount = 0
-      state.tieBreakEliminatedBeforeRound = []
+    if (state.tieBreaker) {
+      advanceTieBreakerRound(state)
       return
     }
 
-    // All regular turns are done — show round results before resolving any tie.
-    state.phase = 'round_summary'
-    const elimCount = computeEliminationCount(
+    const eliminationCount = computeEliminationCount(
       state.initialPlayerCount,
       state.round,
       state.activePlayerIds.length
     )
-    const tie = getEliminationCutoffTie(state.activePlayerIds, state.roundScores, elimCount)
-    state.tieBreakOutcome = null
-    if (tie) {
-      state.tieBreakPlayerIds = tie.playerIds
-      state.tieBreakOriginalPlayerIds = [...tie.playerIds]
-      state.tieBreakEliminationCount = tie.eliminationCount
-      state.tieBreakPending = true
-      state.tieBreakRound = 0
-      state.tieBreakBaseActivePlayerIds = [...state.activePlayerIds]
-      state.tieBreakBaseRoundScores = { ...state.roundScores }
-      state.tieBreakEliminatedBeforeRound = tie.alreadyEliminatedIds
-      state.tieBreakScores = {}
-      state.eliminatedThisRound = tie.alreadyEliminatedIds
+    const sorted = [...state.activePlayerIds].sort(
+      (a, b) => (state.roundScores[a] ?? 0) - (state.roundScores[b] ?? 0)
+    )
+    const cutoffScore =
+      eliminationCount > 0 ? (state.roundScores[sorted[eliminationCount - 1]] ?? 0) : 0
+    const eliminatedBelowCutoff = sorted.filter((id) => (state.roundScores[id] ?? 0) < cutoffScore)
+    const tiedAtCutoff = sorted.filter((id) => (state.roundScores[id] ?? 0) === cutoffScore)
+    const eliminationsNeededFromTie = eliminationCount - eliminatedBelowCutoff.length
+
+    if (eliminationsNeededFromTie > 0 && eliminationsNeededFromTie < tiedAtCutoff.length) {
+      startTieBreaker(state, eliminatedBelowCutoff, tiedAtCutoff)
       return
     }
-    const tieBreakSeed = ((state.seed ?? 0) ^ (state.round * 0xabcdef12)) >>> 0
+
+    state.phase = 'round_summary'
     state.eliminatedThisRound = computeEliminatedPlayers(
       state.activePlayerIds,
       state.roundScores,
-      elimCount,
-      tieBreakSeed
+      eliminationCount
     )
   } else {
     state.currentPlayerIndex = nextIndex
-    state.currentSpinCount = 0
+    state.currentSpinCount = state.tieBreaker ? MAX_SPINS_PER_TURN - 1 : 0
     state.lastSectorIndex = null
     state.last666Effect = null
     state.phase = 'awaiting_spin'
   }
+}
+
+function startTieBreaker(
+  state: RiskWheelState,
+  eliminatedBeforeTieBreaker: string[],
+  candidatePlayerIds: string[]
+): void {
+  state.tieBreaker = {
+    originalActivePlayerIds: [...state.activePlayerIds],
+    originalRoundScores: { ...state.roundScores },
+    eliminatedBeforeTieBreaker: [...eliminatedBeforeTieBreaker],
+    candidatePlayerIds: [...candidatePlayerIds],
+    eliminatedTieBreakerIds: [],
+    round: 1,
+    pendingStart: true,
+  }
+  state.tieBreakerSummary = null
+  state.eliminatedThisRound = [...eliminatedBeforeTieBreaker]
+  state.phase = 'round_summary'
+}
+
+/** Resolve a one-spin playoff wave, repeating only a tie for the highest score. */
+function advanceTieBreakerRound(state: RiskWheelState): void {
+  const tieBreaker = state.tieBreaker
+  if (!tieBreaker) return
+
+  const highestScore = Math.max(
+    ...tieBreaker.candidatePlayerIds.map((id) => state.roundScores[id] ?? 0)
+  )
+  const tiedForLead = tieBreaker.candidatePlayerIds.filter(
+    (id) => (state.roundScores[id] ?? 0) === highestScore
+  )
+  const eliminatedThisWave = tieBreaker.candidatePlayerIds.filter(
+    (id) => (state.roundScores[id] ?? 0) < highestScore
+  )
+  tieBreaker.eliminatedTieBreakerIds.push(...eliminatedThisWave)
+
+  if (tiedForLead.length > 1) {
+    tieBreaker.candidatePlayerIds = tiedForLead
+    tieBreaker.round += 1
+    state.activePlayerIds = [...tiedForLead]
+    state.roundScores = Object.fromEntries(tiedForLead.map((id) => [id, 0]))
+    state.playersCompletedThisRound = []
+    state.currentPlayerIndex = 0
+    state.currentSpinCount = MAX_SPINS_PER_TURN - 1
+    state.lastSectorIndex = null
+    state.last666Effect = null
+    state.phase = 'awaiting_spin'
+    return
+  }
+
+  const allEliminated = [
+    ...tieBreaker.eliminatedBeforeTieBreaker,
+    ...tieBreaker.eliminatedTieBreakerIds,
+  ]
+  // Keep the full round field through the results screen; advanceFromRoundSummary
+  // applies these eliminations when the user continues.
+  state.activePlayerIds = [...tieBreaker.originalActivePlayerIds]
+  state.roundScores = { ...tieBreaker.originalRoundScores }
+  state.eliminatedThisRound = allEliminated
+  state.tieBreakerSummary = {
+    survivorIds: tiedForLead,
+    eliminatedIds: allEliminated,
+    rounds: tieBreaker.round,
+  }
+  state.tieBreaker = null
+  state.phase = 'round_summary'
 }
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -789,17 +782,8 @@ const riskWheelSlice = createSlice({
         state.lastSectorIndex = null
         state.last666Effect = null
         state.eliminatedThisRound = []
-        state.tieBreakPlayerIds = []
-        state.tieBreakOriginalPlayerIds = []
-        state.tieBreakEliminationCount = 0
-        state.tieBreakPending = false
-        state.tieBreakRound = 0
-        state.isTieBreakRound = false
-        state.tieBreakBaseActivePlayerIds = []
-        state.tieBreakBaseRoundScores = {}
-        state.tieBreakEliminatedBeforeRound = []
-        state.tieBreakScores = {}
-        state.tieBreakOutcome = null
+        state.tieBreaker = null
+        state.tieBreakerSummary = null
         state.winnerId = null
         state.rngCallCount = 0
         state.aiDecisionCallCount = 0
@@ -895,7 +879,7 @@ const riskWheelSlice = createSlice({
      */
     advanceFrom666(state) {
       if (state.phase !== 'six_six_six') return
-      if (state.isTieBreakRound || state.currentSpinCount >= MAX_SPINS_PER_TURN) {
+      if (state.currentSpinCount >= MAX_SPINS_PER_TURN) {
         state.phase = 'turn_complete'
       } else {
         state.phase = 'awaiting_decision'
@@ -959,28 +943,6 @@ const riskWheelSlice = createSlice({
       advancePlayerOrRound(state)
     },
 
-    /** Start the visible one-spin round for players tied at the elimination cutoff. */
-    startRiskWheelTieBreak(state) {
-      if (
-        state.phase !== 'round_summary' ||
-        !state.tieBreakPending ||
-        state.tieBreakPlayerIds.length < 2
-      )
-        return
-      state.activePlayerIds = [...state.tieBreakPlayerIds]
-      state.roundScores = Object.fromEntries(state.tieBreakPlayerIds.map((id) => [id, 0]))
-      state.playersCompletedThisRound = []
-      state.eliminatedThisRound = []
-      state.currentPlayerIndex = 0
-      state.currentSpinCount = 0
-      state.lastSectorIndex = null
-      state.last666Effect = null
-      state.tieBreakRound += 1
-      state.tieBreakPending = false
-      state.isTieBreakRound = true
-      state.phase = 'awaiting_spin'
-    },
-
     /**
      * Synchronously resolve ALL consecutive AI turns until a human turn,
      * round_summary, or complete state is reached.
@@ -1006,28 +968,24 @@ const riskWheelSlice = createSlice({
           // If 666 landed, immediately skip the animation phase for AI
           if (state.phase === 'six_six_six') {
             state.phase =
-              state.isTieBreakRound || state.currentSpinCount >= MAX_SPINS_PER_TURN
-                ? 'turn_complete'
-                : 'awaiting_decision'
+              state.currentSpinCount >= MAX_SPINS_PER_TURN ? 'turn_complete' : 'awaiting_decision'
           }
         } else if (phase === 'awaiting_decision') {
           // AI decides synchronously
           const score = state.roundScores[currentId] ?? 0
           const decisionIndex = state.aiDecisionCounts[currentId] ?? 0
-          const stop =
-            state.isTieBreakRound ||
-            aiShouldStop({
-              seed: state.seed ?? 0,
-              round: state.round,
-              playerId: currentId,
-              personality: state.aiPersonalities[currentId] ?? 'balanced',
-              currentScore: score,
-              activePlayerIds: state.activePlayerIds,
-              roundScores: state.roundScores,
-              spinsRemaining: Math.max(0, MAX_SPINS_PER_TURN - state.currentSpinCount),
-              initialPlayerCount: state.initialPlayerCount,
-              decisionIndex,
-            })
+          const stop = aiShouldStop({
+            seed: state.seed ?? 0,
+            round: state.round,
+            playerId: currentId,
+            personality: state.aiPersonalities[currentId] ?? 'balanced',
+            currentScore: score,
+            activePlayerIds: state.activePlayerIds,
+            roundScores: state.roundScores,
+            spinsRemaining: Math.max(0, MAX_SPINS_PER_TURN - state.currentSpinCount),
+            initialPlayerCount: state.initialPlayerCount,
+            decisionIndex,
+          })
           state.aiDecisionCallCount += 1
           state.aiDecisionCounts[currentId] = decisionIndex + 1
           state.phase = stop ? 'turn_complete' : 'awaiting_spin'
@@ -1036,9 +994,7 @@ const riskWheelSlice = createSlice({
         } else if (phase === 'six_six_six') {
           // Skip 666 animation for AI
           state.phase =
-            state.isTieBreakRound || state.currentSpinCount >= MAX_SPINS_PER_TURN
-              ? 'turn_complete'
-              : 'awaiting_decision'
+            state.currentSpinCount >= MAX_SPINS_PER_TURN ? 'turn_complete' : 'awaiting_decision'
         } else {
           break // Unknown phase, stop to avoid infinite loop
         }
@@ -1049,18 +1005,24 @@ const riskWheelSlice = createSlice({
      * Advance from round_summary to the next round or complete.
      */
     advanceFromRoundSummary(state) {
-      if (state.phase !== 'round_summary' || state.tieBreakPending) return
+      if (state.phase !== 'round_summary') return
 
-      state.tieBreakOutcome = null
-      state.tieBreakOriginalPlayerIds = []
-      state.tieBreakBaseActivePlayerIds = []
-      state.tieBreakBaseRoundScores = {}
-      state.tieBreakEliminatedBeforeRound = []
-      state.tieBreakScores = {}
-      state.tieBreakPlayerIds = []
-      state.tieBreakEliminationCount = 0
-      state.tieBreakRound = 0
-      state.isTieBreakRound = false
+      if (state.tieBreaker?.pendingStart) {
+        const tieBreaker = state.tieBreaker
+        tieBreaker.pendingStart = false
+        state.activePlayerIds = [...tieBreaker.candidatePlayerIds]
+        state.roundScores = Object.fromEntries(
+          tieBreaker.candidatePlayerIds.map((id) => [id, 0])
+        )
+        state.playersCompletedThisRound = []
+        state.currentPlayerIndex = 0
+        state.currentSpinCount = MAX_SPINS_PER_TURN - 1
+        state.lastSectorIndex = null
+        state.last666Effect = null
+        state.eliminatedThisRound = []
+        state.phase = 'awaiting_spin'
+        return
+      }
 
       // Apply eliminations
       for (const id of state.eliminatedThisRound) {
@@ -1097,6 +1059,8 @@ const riskWheelSlice = createSlice({
       state.roundScores = {}
       state.playersCompletedThisRound = []
       state.eliminatedThisRound = []
+      state.tieBreaker = null
+      state.tieBreakerSummary = null
       for (const id of state.activePlayerIds) {
         state.roundScores[id] = 0
       }
@@ -1133,7 +1097,6 @@ export const {
   aiDecide,
   advanceFromTurnComplete,
   resolveAllAiTurns,
-  startRiskWheelTieBreak,
   advanceFromRoundSummary,
   markRiskWheelOutcomeResolved,
   resetRiskWheel,

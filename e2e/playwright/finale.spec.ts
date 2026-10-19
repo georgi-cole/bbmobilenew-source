@@ -170,7 +170,7 @@ async function openDebugPanel(page: Page): Promise<void> {
 }
 
 async function configureValidFinaleRoster(page: Page): Promise<FixtureRoster> {
-  const statusSelect = page.getByRole('combobox', { name: 'Player House Status' })
+  const statusSelect = page.getByRole('combobox', { name: 'Player Hub Status' })
   const players = await statusSelect.locator('option').evaluateAll((options) =>
     options.slice(1).map((option) => ({
       id: (option as HTMLOptionElement).value,
@@ -189,7 +189,7 @@ async function configureValidFinaleRoster(page: Page): Promise<FixtureRoster> {
   }
   for (const evictee of preJury) {
     await statusSelect.selectOption(evictee.id)
-    await page.getByRole('button', { name: 'Set Pre-jury Evicted' }).click()
+    await page.getByRole('button', { name: 'Set Pre-jury Eliminated' }).click()
   }
 
   return { finalists, jurors, preJury }
@@ -259,7 +259,7 @@ test.describe('Finale / Jury flow @release', () => {
         .sort()
     ).toEqual(roster.preJury.map((player) => player.id).sort())
 
-    await page.getByRole('button', { name: '→ Force jury' }).click()
+    await page.getByRole('button', { name: '→ Force Tribunal' }).click()
     await closeDebugPanelIfOpen(page)
 
     const tribunal = page.getByRole('dialog', { name: 'Tribunal Finale' })

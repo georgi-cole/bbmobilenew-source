@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { SoundManager } from '../../services/sound/SoundManager'
+import { preloadImages } from '../../utils/preloadImages'
 import {
   createCinematicAudio,
   type CinematicAudioController,
@@ -27,8 +28,16 @@ function portraitSrc(card: HousematesBioCard): string {
 }
 
 function backdropSrc(card: HousematesBioCard): string {
-  return asset(`/assets/housemate-bio-backgrounds/${card.backdrop}.png`)
+  return asset(`/assets/housemate-bio-backgrounds/${card.backdrop}.webp`)
 }
+
+const HOUSEMATE_BACKDROP_PRELOADS = Array.from(new Set(HOUSEMATES_BIO_CARDS.map(backdropSrc)))
+const INITIAL_HOUSEMATE_BACKDROPS = Array.from(
+  new Set(HOUSEMATES_BIO_CARDS.slice(0, 2).map(backdropSrc))
+)
+const REMAINING_HOUSEMATE_BACKDROPS = HOUSEMATE_BACKDROP_PRELOADS.filter(
+  (source) => !INITIAL_HOUSEMATE_BACKDROPS.includes(source)
+)
 
 function Intro({ onExplore }: { onExplore: () => void }) {
   return (
@@ -275,6 +284,16 @@ export default function HousematesBioCinematic({ onComplete }: HousematesBioCine
   const completeRef = useRef(false)
 
   const selectedCard = HOUSEMATES_BIO_CARDS[selectedIndex]
+
+  useEffect(() => {
+    const warmHousemateBackdrops = () => {
+      preloadImages(INITIAL_HOUSEMATE_BACKDROPS)
+      preloadImages(REMAINING_HOUSEMATE_BACKDROPS, 'low')
+    }
+    warmHousemateBackdrops()
+    document.addEventListener('visibilitychange', warmHousemateBackdrops)
+    return () => document.removeEventListener('visibilitychange', warmHousemateBackdrops)
+  }, [])
 
   useEffect(() => {
     onCompleteRef.current = onComplete

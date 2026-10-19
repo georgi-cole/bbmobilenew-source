@@ -23,6 +23,7 @@ export const AUTHORITATIVE_COMPONENT_KEYS: Set<string> = new Set([
   'Minesweeps',
   'HangmanChallenge',
   'GridOfLuck',
+  'MysticChamber',
   'ChainOfGreed',
   'TrapAuction',
   'HouseOfCards',

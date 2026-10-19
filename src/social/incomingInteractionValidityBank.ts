@@ -136,6 +136,16 @@ export const INCOMING_INTERACTION_VALIDITY_BANK: Record<string, IncomingInteract
     subjectMustBeInHouse: true,
     allowedPhases: ['pos_results'],
   },
+  protection_deal: {
+    senderMustBeHoh: true,
+    humanMustBeOffBlock: true,
+    allowedPhases: ['loh_results', 'social_1', 'nominations'],
+  },
+  protection_deal_future_vote: {
+    senderMustHoldSafety: true,
+    humanMustBeNominee: true,
+    allowedPhases: ['pos_results', 'pos_ceremony'],
+  },
   betrayal_warning: {
     subjectMustBeInHouse: true,
   },

@@ -126,8 +126,6 @@ describe('DemocraciaResultsReveal', () => {
           { player: makePlayer('p1', 'Ash'), voteCount: 3 },
           { player: makePlayer('p2', 'Remy'), voteCount: 3 },
         ]}
-        onDone={vi.fn()}
-        countdownMs={100000}
       />,
     );
 
@@ -164,8 +162,6 @@ describe('DemocraciaResultsReveal', () => {
           { player: makePlayer('p1', 'Ash'), voteCount: 3 },
           { player: makePlayer('p2', 'Remy'), voteCount: 3 },
         ]}
-        onDone={vi.fn()}
-        countdownMs={100000}
       />,
     );
 
@@ -192,8 +188,6 @@ describe('DemocraciaResultsReveal', () => {
         participants={[
           { player: makePlayer('p2', 'Remy'), voteCount: 10 },
         ]}
-        onDone={vi.fn()}
-        countdownMs={100000}
       />,
     );
 

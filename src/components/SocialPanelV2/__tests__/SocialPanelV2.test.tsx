@@ -855,6 +855,22 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     })
     otherAlliance.status = 'ACTIVE'
     otherAlliance.name = 'The Winners'
+    const unrelatedAlliance = createRealityAlliance(reality, {
+      id: 'consult-scope-unrelated',
+      founderIds: [
+        humanId,
+        ...store
+          .getState()
+          .game.players.filter((player) => !player.isUser)
+          .slice(2, 4)
+          .map((player) => player.id),
+      ],
+      memberIds: [],
+      purpose: 'A separate group',
+      at: { day: 1, phase: 'social_1' },
+    })
+    unrelatedAlliance.status = 'ACTIVE'
+    unrelatedAlliance.name = 'A separate group'
     const legacyPact = createRealityAlliance(reality, {
       id: 'consult-scope-legacy-pact',
       founderIds: [humanId, allies[0].id],
@@ -872,6 +888,8 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     renderPanel(store)
 
     expect(screen.getByLabelText('Avatar rings: Nemesis, Still forming, Ally')).toBeInTheDocument()
+    const roster = screen.getByRole('region', { name: 'Player roster' })
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(allies[0].name) }))
     fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: 'Alliances' }))
@@ -917,6 +935,56 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
             event.reason.startsWith(`strategy_meeting:${otherAlliance.id}:`)
         )
     ).toBe(true)
+  })
+
+  it('only offers Consult Alliance for the selected member of an active group', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const human = store.getState().game.players.find((player) => player.isUser)!
+    const candidates = store.getState().game.players.filter((player) => !player.isUser)
+    const ally = candidates[0]!
+    const outsider = candidates[1]!
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'selected-consult-member',
+      founderIds: [human.id, ally.id, candidates[2]!.id],
+      memberIds: [],
+      purpose: 'Shared strategy',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    const roster = screen.getByRole('region', { name: 'Player roster' })
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(outsider.name) }))
+    expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
+
+    fireEvent.click(within(roster).getByRole('button', { name: new RegExp(ally.name) }))
+    expect(screen.getByRole('button', { name: /Consult Alliance/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
+    expect(
+      screen.getByRole('button', { name: alliance.name ?? alliance.purpose })
+    ).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('group', { name: 'Official alliances' })).getAllByRole('button')
+    ).toHaveLength(1)
+  })
+
+  it('hides Consult Alliance for a selected housemate when no group alliance exists', () => {
+    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const unrelated = store.getState().game.players.find((player) => !player.isUser)!
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Player roster' })).getByRole('button', {
+        name: new RegExp(unrelated.name),
+      })
+    )
+    expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
   })
 
   it('shows Pact on the focused relationship read for a personal pact', () => {

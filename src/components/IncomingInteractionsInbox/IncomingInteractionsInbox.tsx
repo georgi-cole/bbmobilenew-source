@@ -407,6 +407,10 @@ function InteractionItem({
 
       <p className="inbox-item__text">{interaction.text}</p>
 
+      {interaction.reactionText && (
+        <p className="inbox-item__reaction">{interaction.reactionText}</p>
+      )}
+
       {interaction.outcomeText && <p className="inbox-item__outcome">{interaction.outcomeText}</p>}
 
       {interactionDramaMode && commitment && (

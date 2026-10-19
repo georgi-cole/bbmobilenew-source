@@ -419,7 +419,16 @@ function createPersistenceReplacer(): (this: unknown, key: string, value: unknow
 function serialize(value: unknown): string | null {
   const startedAt = nowMs()
   try {
-    const serialized = JSON.stringify(value, createPersistenceReplacer())
+    let serialized: string | undefined
+    try {
+      // The normal saved state is JSON-safe. Let the browser's native
+      // serializer handle that hot path without invoking a replacer for every
+      // property. Keep the defensive path for runtime BigInts and cycles.
+      serialized = JSON.stringify(value)
+    } catch {
+      serialized = JSON.stringify(value, createPersistenceReplacer())
+    }
+    if (serialized === undefined) throw new TypeError('Snapshot did not produce JSON output.')
     lastSavePersistenceDiagnostics = {
       ...lastSavePersistenceDiagnostics,
       lastSnapshotBytes: byteLength(serialized),

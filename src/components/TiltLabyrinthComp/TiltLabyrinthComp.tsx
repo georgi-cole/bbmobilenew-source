@@ -35,7 +35,6 @@ import {
 } from '../../features/tiltLabyrinth/tiltLabyrinthSlice';
 import { resolveTiltLabyrinthOutcome } from '../../features/tiltLabyrinth/thunks';
 import { getDefaultCompetitionProfile } from '../../ai/competition/index';
-import type { CompetitionSkillProfile } from '../../ai/competition/types';
 import { mulberry32 } from '../../store/rng';
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper';
 import type { MinigameParticipant } from '../MinigameHost/MinigameHost';
@@ -56,6 +55,7 @@ import {
   TILT_LABYRINTH_MAX_FRAME_SCALE,
   tiltLabyrinthFrameScale,
 } from './tiltLabyrinthInput';
+import { simulateTiltLabyrinthAiRun } from './tiltLabyrinthAi';
 import './TiltLabyrinthComp.css';
 
 const EMPTY_GAME_PLAYERS: RootState['game']['players'] = [];
@@ -455,33 +455,6 @@ function buildRemainingRoute(maze: MazeCell[][], game: GameState): MazePathPoint
   return route;
 }
 
-function simulateHumanLikeAiRun(
-  profile: CompetitionSkillProfile,
-  routeCells: number,
-  rng: () => number,
-): SimulatedRun {
-  const navigationSkill =
-    profile.mental * 0.35 + profile.precision * 0.4 + profile.nerve * 0.15 + profile.consistency * 0.1;
-  const movementMs = routeCells * (180 + (100 - navigationSkill) * 1.2);
-  const hesitationMs = routeCells * (40 + (100 - profile.mental) * 0.9);
-  const mistakes = Math.floor(rng() * 3 + (100 - profile.mental) / 24);
-  let mistakeMs = 0;
-  for (let index = 0; index < mistakes; index++) mistakeMs += 3_000 + rng() * 9_000;
-  const hazardHits = Math.floor(rng() * (1 + (100 - profile.precision) / 18));
-  const recoveryMs = hazardHits * (1_000 + rng() * 3_000);
-  const startAndGateHesitationMs = 5_000 + rng() * 10_000;
-  const confusionChance = 0.03 + profile.chokeRisk / 500;
-  const confusionMs = rng() < confusionChance ? 30_000 + rng() * 330_000 : 0;
-  const rawTimeMs = Math.max(
-    15_000,
-    Math.round(movementMs + hesitationMs + mistakeMs + recoveryMs + startAndGateHesitationMs + confusionMs),
-  );
-  return {
-    rawTimeMs,
-    hazardHits,
-    adjustedTimeMs: calculateTiltAdjustedTime(rawTimeMs, hazardHits),
-  };
-}
 function traceMazeWalls(ctx: CanvasRenderingContext2D, maze: MazeCell[][]): void {
   ctx.beginPath();
   for (let row = 0; row < MAZE_ROWS; row++) {
@@ -519,7 +492,7 @@ function drawMaze(
   const { ball, finishTime, hasKey, lockOpen, keyPos, doorPos, goalPos, hazards } = game;
 
   // Background
-  ctx.fillStyle = '#10192d';
+  ctx.fillStyle = '#120d1e';
   ctx.fillRect(0, 0, MAZE_W, MAZE_H);
 
   const vignette = ctx.createRadialGradient(
@@ -530,15 +503,15 @@ function drawMaze(
     MAZE_H * VIGNETTE_CENTER_Y_RATIO,
     MAZE_W * VIGNETTE_OUTER_RADIUS_WIDTH_RATIO,
   );
-  vignette.addColorStop(0, 'rgba(22, 32, 58, 0.16)');
-  vignette.addColorStop(1, 'rgba(4, 10, 24, 0.28)');
+  vignette.addColorStop(0, 'rgba(57, 35, 84, 0.2)');
+  vignette.addColorStop(1, 'rgba(8, 5, 15, 0.3)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, MAZE_W, MAZE_H);
 
   const sheen = ctx.createLinearGradient(0, 0, 0, MAZE_H);
-  sheen.addColorStop(0, `rgba(125, 211, 252, ${BOARD_SHEEN_ALPHA})`);
-  sheen.addColorStop(0.2, 'rgba(125, 211, 252, 0.03)');
-  sheen.addColorStop(1, 'rgba(15, 23, 42, 0)');
+  sheen.addColorStop(0, `rgba(192, 132, 252, ${BOARD_SHEEN_ALPHA})`);
+  sheen.addColorStop(0.2, 'rgba(192, 132, 252, 0.035)');
+  sheen.addColorStop(1, 'rgba(18, 13, 30, 0)');
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, MAZE_W, MAZE_H);
 
@@ -550,8 +523,8 @@ function drawMaze(
     MAZE_H * 0.24,
     CELL_PX * 6,
   );
-  ambientOrb.addColorStop(0, 'rgba(96, 165, 250, 0.1)');
-  ambientOrb.addColorStop(1, 'rgba(96, 165, 250, 0)');
+  ambientOrb.addColorStop(0, 'rgba(168, 85, 247, 0.13)');
+  ambientOrb.addColorStop(1, 'rgba(168, 85, 247, 0)');
   ctx.fillStyle = ambientOrb;
   ctx.fillRect(0, 0, MAZE_W, MAZE_H);
 
@@ -635,18 +608,18 @@ function drawMaze(
 
   // Walls
   ctx.save();
-  ctx.strokeStyle = 'rgba(99, 187, 255, 0.18)';
+  ctx.strokeStyle = 'rgba(192, 132, 252, 0.2)';
   ctx.lineWidth = WALL_GLOW_WIDTH;
   ctx.lineCap = 'round';
   traceMazeWalls(ctx, maze);
   ctx.stroke();
 
-  ctx.strokeStyle = '#63bbff';
+  ctx.strokeStyle = '#c4a4ff';
   ctx.lineWidth = WALL_THICKNESS;
   ctx.lineCap = 'square';
   traceMazeWalls(ctx, maze);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(99, 187, 255, 0.16)';
+  ctx.strokeStyle = 'rgba(192, 132, 252, 0.22)';
   ctx.lineWidth = MAZE_BORDER_WIDTH;
   ctx.strokeRect(
     MAZE_BORDER_OFFSET,
@@ -780,7 +753,7 @@ export default function TiltLabyrinthComp({
       const profile = gamePlayers.find((player) => player.id === p.id)?.competitionProfile
         ?? getDefaultCompetitionProfile();
       const aiRng = makeRng((seed ^ Math.imul(idx + 1, 0x9e3779b9)) >>> 0);
-      const run = simulateHumanLikeAiRun(profile, routeCells, aiRng);
+      const run = simulateTiltLabyrinthAiRun(profile, routeCells, aiRng);
       runDetails[p.id] = run;
       aiScores[p.id] = run.adjustedTimeMs;
     });
@@ -790,7 +763,7 @@ export default function TiltLabyrinthComp({
       const fallbackRng = mulberry32((seed >>> 0) ^ 0xabcdef01);
       for (const id of participantIds) {
         if (id === humanId) continue;
-        const run = simulateHumanLikeAiRun(getDefaultCompetitionProfile(), routeCells, fallbackRng);
+        const run = simulateTiltLabyrinthAiRun(getDefaultCompetitionProfile(), routeCells, fallbackRng);
         runDetails[id] = run;
         aiScores[id] = run.adjustedTimeMs;
       }
@@ -1321,6 +1294,13 @@ export default function TiltLabyrinthComp({
   return (
     <div className="tilt-labyrinth-host" aria-label="Tilt Labyrinth">
       <div className="tilt-labyrinth-hud">
+        <div className="tilt-labyrinth-brand">
+          <span className="tilt-labyrinth-brand-mark" aria-hidden="true">✦</span>
+          <div>
+            <span className="tilt-labyrinth-brand-eyebrow">Precision course</span>
+            <strong>Tilt Labyrinth</strong>
+          </div>
+        </div>
         <div className="tilt-labyrinth-controls-hint">
           {useTilt
             ? '📱 Tilt to move • Keys also work'

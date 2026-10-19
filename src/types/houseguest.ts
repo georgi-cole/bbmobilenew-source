@@ -1,5 +1,5 @@
-import type { CompetitionSkillProfile } from '../ai/competition/types';
-import type { Player } from './index';
+import type { CompetitionSkillProfile } from '../ai/competition/types'
+import type { Player } from './index'
 
 // Houseguest static profile type (canonical dataset from houseguests.ts)
 export interface Houseguest {
@@ -25,7 +25,7 @@ export interface Houseguest {
   enemies: string[];
   story: string;
   /** Optional competition skill profile for AI simulations. */
-  competitionProfile?: CompetitionSkillProfile;
+  competitionProfile?: CompetitionSkillProfile
 }
 
 // Static profile fields that enrich a live Player object
@@ -52,4 +52,4 @@ interface HouseguestProfileFields {
 
 // Houseguest enriched with live Player state — extends Player directly so
 // all Player fields retain their precise types (e.g. status: PlayerStatus)
-export type EnrichedPlayer = Player & HouseguestProfileFields;
+export type EnrichedPlayer = Player & HouseguestProfileFields

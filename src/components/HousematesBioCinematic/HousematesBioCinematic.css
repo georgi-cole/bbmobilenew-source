@@ -103,7 +103,7 @@
   overflow: hidden;
   background:
     linear-gradient(130deg, rgba(4, 6, 13, 0.44), rgba(3, 5, 11, 0.86)),
-    url('/assets/housemate-bio-backgrounds/strategy-room.png') center / cover no-repeat;
+    url('/assets/housemate-bio-backgrounds/strategy-room.webp') center / cover no-repeat;
 }
 
 .hbc-intro::before,

@@ -18,6 +18,7 @@ export interface SeasonRecapProps {
   week: number;
   players: Player[];
   history?: GameHistoryEvent[];
+  completedWeekendDays?: number[];
   publicOpinion?: PublicOpinionState | null;
   onComplete: () => void;
 }
@@ -81,9 +82,10 @@ type RecapView = 'intro' | 'automatic-intro' | 'hub' | 'awards' | 'honor' | 'jou
 interface TimelineCheckpoint {
   id: string;
   day: number;
+  weekendDay?: 1 | 2;
   player?: Player;
   players?: Player[];
-  kind: 'eviction' | 'milestone' | 'twist' | 'finale';
+  kind: 'eviction' | 'milestone' | 'twist' | 'finale' | 'weekend';
   title: string;
   label: string;
   detail: string;
@@ -94,6 +96,7 @@ const CALENDAR_EVENT_META: Record<TimelineCheckpoint['kind'], { icon: string; na
   twist: { icon: '✦', name: 'Twist', label: 'Shock night' },
   milestone: { icon: '◇', name: 'Milestone', label: 'Season turn' },
   finale: { icon: '✺', name: 'Finale', label: 'Finale night' },
+  weekend: { icon: '☾', name: 'Weekend', label: 'Weekend' },
 };
 
 function getMajorEventImpact(event: TimelineCheckpoint): string | null {
@@ -105,6 +108,9 @@ function getMajorEventImpact(event: TimelineCheckpoint): string | null {
   }
   if (event.kind === 'finale') {
     return 'The final two entered the season’s closing decision.';
+  }
+  if (event.kind === 'weekend') {
+    return 'The game paused for two days, giving the house a little more time together.';
   }
   return null;
 }
@@ -375,7 +381,12 @@ function getSeasonDayCount(recapData: RecapData, week: number): number {
   return Math.max(1, Math.round(week), latestRecordedExit);
 }
 
-function buildTimelineCheckpoints(recapData: RecapData, week: number, t: Translate): TimelineCheckpoint[] {
+function buildTimelineCheckpoints(
+  recapData: RecapData,
+  week: number,
+  t: Translate,
+  completedWeekendDays: number[]
+): TimelineCheckpoint[] {
   const totalDays = getSeasonDayCount(recapData, week);
   const latestPreFinaleDay = Math.max(1, totalDays - 1);
   // A runner-up is announced beside the champion, not archived as an exit.
@@ -404,6 +415,17 @@ function buildTimelineCheckpoints(recapData: RecapData, week: number, t: Transla
         : `${player.name}'s season ended here.`,
     };
   });
+  const weekendCheckpoints: TimelineCheckpoint[] = [...new Set(completedWeekendDays)]
+    .filter((afterDay) => Number.isInteger(afterDay) && afterDay > 0 && afterDay < totalDays)
+    .flatMap((afterDay) => ([1, 2] as const).map((weekendDay) => ({
+      id: `weekend-${afterDay}-${weekendDay}`,
+      day: afterDay,
+      weekendDay,
+      kind: 'weekend' as const,
+      title: `Weekend Day ${weekendDay}`,
+      label: 'Weekend',
+      detail: `The season paused after Game Day ${afterDay} for Weekend Day ${weekendDay}.`,
+    })));
   const knownTwists: TimelineCheckpoint[] = [];
   const evictionsByDay = new Map<number, TimelineCheckpoint[]>();
   checkpoints.filter((checkpoint) => checkpoint.kind === 'eviction').forEach((checkpoint) => {
@@ -454,11 +476,14 @@ function buildTimelineCheckpoints(recapData: RecapData, week: number, t: Transla
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   const fallbackFinalist = finalists[0] ?? evictions.at(-1);
 
-  if (!fallbackFinalist) return [...checkpoints, ...knownTwists].sort((a, b) => a.day - b.day);
+  if (!fallbackFinalist) {
+    return [...checkpoints, ...knownTwists, ...weekendCheckpoints].sort((a, b) => a.day - b.day);
+  }
 
   return [
     ...checkpoints,
     ...knownTwists,
+    ...weekendCheckpoints,
     {
       id: `finale-${finalists.map((player) => player.id).join('-') || fallbackFinalist.id}`,
       day: totalDays,
@@ -733,7 +758,11 @@ export function FinaleCalendarFocus({
           )}
         </div>
         <div>
-          <p>Day {day} · {leadEvent.label}</p>
+          <p>
+            {leadEvent.kind === 'weekend'
+              ? `Weekend Day ${leadEvent.weekendDay} · after Game Day ${day}`
+              : `Day ${day} · ${leadEvent.label}`}
+          </p>
           <h2>{leadEvent.kind === 'eviction' && player ? player.name : leadEvent.title}</h2>
           <span>{isVoxExit ? voxPunchLine : leadEvent.detail}{player && placement !== '—' ? ` Finished ${placement}.` : ''}</span>
         </div>
@@ -796,17 +825,19 @@ function FinaleTimeline({
   recapData,
   week,
   history,
+  completedWeekendDays,
   onBack,
 }: {
   recapData: RecapData;
   week: number;
   history: GameHistoryEvent[];
+  completedWeekendDays: number[];
   onBack: () => void;
 }) {
   const t = useTranslate();
   const checkpoints = useMemo(
-    () => buildTimelineCheckpoints(recapData, week, t),
-    [recapData, t, week],
+    () => buildTimelineCheckpoints(recapData, week, t, completedWeekendDays),
+    [completedWeekendDays, recapData, t, week],
   );
   const totalDays = getSeasonDayCount(recapData, week);
   const windowSize = 28;
@@ -815,7 +846,7 @@ function FinaleTimeline({
     return { start, end: Math.min(totalDays, start + windowSize - 1) };
   });
   const [windowIndex, setWindowIndex] = useState(0);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<{ day: number; weekendDay?: 1 | 2 } | null>(null);
   const activeWindow = calendarWindows[windowIndex] ?? calendarWindows[0];
   const eventsByDay = useMemo(() => {
     const entries = new Map<number, TimelineCheckpoint[]>();
@@ -826,18 +857,43 @@ function FinaleTimeline({
     });
     return entries;
   }, [checkpoints]);
-  const selectedEvents = selectedDay == null ? [] : eventsByDay.get(selectedDay) ?? [];
+  const selectedEvents = selectedDay == null
+    ? []
+    : (eventsByDay.get(selectedDay.day) ?? []).filter((event) =>
+        selectedDay.weekendDay == null
+          ? event.kind !== 'weekend'
+          : event.kind === 'weekend' && event.weekendDay === selectedDay.weekendDay
+      );
   const calendarDays = activeWindow
     ? Array.from({ length: activeWindow.end - activeWindow.start + 1 }, (_, index) => activeWindow.start + index)
     : [];
-  const activeEventDays = calendarDays.filter((day) => (eventsByDay.get(day)?.length ?? 0) > 0).length;
-  const rangeLabel = calendarWindows.length === 1
+  const activeEventDays = calendarDays.filter((day) =>
+    (eventsByDay.get(day)?.some((event) => event.kind !== 'weekend') ?? false)
+  ).length;
+  const baseRangeLabel = calendarWindows.length === 1
     ? `${totalDays}-day season`
     : `Days ${activeWindow?.start ?? 1}–${activeWindow?.end ?? totalDays}`;
+  const weekendDaysInWindow = calendarDays.reduce(
+    (count, day) => count + (completedWeekendDays.includes(day) && day < totalDays ? 2 : 0),
+    0
+  );
+  const rangeLabel = weekendDaysInWindow > 0
+    ? `${baseRangeLabel} · ${weekendDaysInWindow} weekend days`
+    : baseRangeLabel;
+  const calendarEntries: Array<{ key: string; day: number; weekendDay?: 1 | 2 }> = calendarDays.flatMap((day) => [
+    { key: `day-${day}`, day } as const,
+    ...(completedWeekendDays.includes(day) && day < totalDays
+      ? ([1, 2] as const).map((weekendDay) => ({
+          key: `weekend-${day}-${weekendDay}`,
+          day,
+          weekendDay,
+        }))
+      : []),
+  ]);
   const daysPerTimelineRow = 4;
   const calendarRows = Array.from(
-    { length: Math.ceil(calendarDays.length / daysPerTimelineRow) },
-    (_, rowIndex) => calendarDays.slice(
+    { length: Math.ceil(calendarEntries.length / daysPerTimelineRow) },
+    (_, rowIndex) => calendarEntries.slice(
       rowIndex * daysPerTimelineRow,
       (rowIndex + 1) * daysPerTimelineRow,
     ),
@@ -887,8 +943,8 @@ function FinaleTimeline({
         <AnimatePresence initial={false} mode="popLayout">
           {selectedEvents.length > 0 && selectedDay != null ? (
             <FinaleCalendarFocus
-              key={`focus-${selectedDay}`}
-              day={selectedDay}
+              key={`focus-${selectedDay.day}-${selectedDay.weekendDay ?? 'game'}`}
+              day={selectedDay.day}
               events={selectedEvents}
               history={history}
               allPlayers={[...recapData.evictionLadder, ...recapData.finalists]}
@@ -923,16 +979,42 @@ function FinaleTimeline({
                   <strong>Season route</strong>
                   <span>Finale {String(totalDays).padStart(2, '0')}</span>
                 </div>
-                {calendarRows.map((rowDays, rowIndex) => (
+                {calendarRows.map((rowDays) => (
                   <div
                     className="src-finale-calendar__timeline-row"
-                    data-direction={rowIndex % 2 === 0 ? 'forward' : 'reverse'}
-                    key={rowDays[0]}
+                    data-direction="forward"
+                    key={rowDays[0]?.key}
                     role="group"
-                    aria-label={`Days ${rowDays[0]} to ${rowDays.at(-1)}`}
+                    aria-label={`Days ${rowDays[0]?.day} to ${rowDays.at(-1)?.day}${rowDays.some((entry) => entry.weekendDay != null) ? ', including weekend days' : ''}`}
                   >
-                      {rowDays.map((day) => {
-                        const dayEvents = eventsByDay.get(day) ?? [];
+                      {rowDays.map((entry) => {
+                        if (entry.weekendDay != null) {
+                          const weekendEvent = (eventsByDay.get(entry.day) ?? []).find(
+                            (event) => event.kind === 'weekend' && event.weekendDay === entry.weekendDay
+                          );
+                          if (!weekendEvent) return null;
+                          return (
+                            <motion.button
+                              key={entry.key}
+                              type="button"
+                              className="src-finale-calendar__day"
+                              data-event="true"
+                              data-kind="weekend"
+                              aria-label={`Weekend Day ${entry.weekendDay} after Game Day ${entry.day}`}
+                              aria-pressed={selectedDay != null && selectedDay.day === entry.day && selectedDay.weekendDay === entry.weekendDay}
+                              layoutId={`finale-day-${entry.day}-${entry.weekendDay}`}
+                              whileTap={{ scale: 0.92 }}
+                              onClick={() => setSelectedDay(entry)}
+                            >
+                              <span className="src-finale-calendar__day-number">After {String(entry.day).padStart(2, '0')}</span>
+                              <i aria-hidden="true">{CALENDAR_EVENT_META.weekend.icon}</i>
+                              <small>Weekend {entry.weekendDay}</small>
+                            </motion.button>
+                          );
+                        }
+
+                        const day = entry.day;
+                        const dayEvents = (eventsByDay.get(day) ?? []).filter((event) => event.kind !== 'weekend');
                         const primaryEvent = dayEvents.find((event) => event.kind === 'twist')
                           ?? dayEvents.find((event) => event.kind === 'eviction')
                           ?? dayEvents.find((event) => event.kind === 'milestone')
@@ -947,7 +1029,7 @@ function FinaleTimeline({
                           : '';
                         return (
                           <motion.button
-                            key={day}
+                            key={entry.key}
                             type="button"
                             className="src-finale-calendar__day"
                             data-event={primaryEvent ? 'true' : 'false'}
@@ -958,7 +1040,7 @@ function FinaleTimeline({
                               : `Day ${day}: no major event recorded`}
                             disabled={dayEvents.length === 0}
                             whileTap={primaryEvent ? { scale: 0.92 } : undefined}
-                            onClick={() => setSelectedDay(day)}
+                            onClick={() => setSelectedDay(entry)}
                           >
                             <span className="src-finale-calendar__day-number">{String(day).padStart(2, '0')}</span>
                             {primaryEvent?.player && (
@@ -996,6 +1078,7 @@ export default function SeasonRecapCinematic({
   week,
   players,
   history = [],
+  completedWeekendDays = [],
   publicOpinion,
   onComplete,
 }: SeasonRecapProps) {
@@ -1102,6 +1185,7 @@ export default function SeasonRecapCinematic({
             recapData={recapData}
             week={week}
             history={history}
+            completedWeekendDays={completedWeekendDays}
             onBack={() => setView('hub')}
           />
         )}

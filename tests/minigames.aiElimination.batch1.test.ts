@@ -269,7 +269,7 @@ describe('Batch 1 AI and elimination audit', () => {
   });
 
   describe('Risk Wheel', () => {
-    it('keeps AI stop/continue decisions and tie-break eliminations from collapsing', () => {
+    it('keeps AI stop/continue decisions varied and sends cutoff ties to the playoff', () => {
       const outcomes = new Set<boolean>();
       for (let seed = 0; seed < 24; seed++) {
         outcomes.add(
@@ -323,7 +323,6 @@ describe('Batch 1 AI and elimination audit', () => {
       expect(aiShouldSpinAgain(makeRiskContext({ currentScore: 0, spinsRemaining: 2 }))).toBe(true);
       expect(aiShouldStop(makeRiskContext({ currentScore: 900, spinsRemaining: 1, personality: 'cautious' }))).toBe(true);
 
-      const eliminated = new Set<string>();
       const activeIds = ['a', 'b', 'c', 'd'];
       const scores = {
         a: 10,
@@ -333,10 +332,9 @@ describe('Batch 1 AI and elimination audit', () => {
       };
       for (let seed = 0; seed < 200; seed++) {
         const picks = computeEliminatedPlayers(activeIds, scores, 1, seed);
-        eliminated.add(picks[0]!);
+        expect(picks).toEqual([]);
       }
 
-      expect(eliminated).toEqual(new Set(['a', 'b']));
       expect(getRoundCap(4)).toBe(3);
       expect(computeEliminationCount(5, 1, 5)).toBe(2);
       expect(computeEliminationCount(5, 3, 3)).toBe(1);

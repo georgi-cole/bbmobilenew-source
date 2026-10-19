@@ -48,6 +48,20 @@ describe('social action catalogue context contract', () => {
 })
 
 describe('evaluateSocialActionEligibility', () => {
+  it('requires a selected member before alliance consultation is eligible', () => {
+    const result = evaluateSocialActionEligibility({
+      action: action('consult_alliance'),
+      actorId: 'user',
+      targetIds: [],
+      phase: 'social_1',
+      players,
+      reality: createInitialRealityDomainState(),
+      dramaMode: true,
+    })
+
+    expect(result.eligible).toBe(false)
+  })
+
   it('keeps genuinely general actions available', () => {
     expect(
       evaluateSocialActionEligibility({

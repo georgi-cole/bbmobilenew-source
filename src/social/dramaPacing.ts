@@ -1,7 +1,7 @@
 import { DRAMA_MODE_CONFIG } from './dramaModeConfig'
 import type { DramaSocialNetwork } from './types'
 
-const PUBLIC_DRAMA_ACTIONS = new Set(['go_public', 'public_callout', 'expose_secret'])
+const PUBLIC_DRAMA_ACTIONS = new Set(['go_public', 'public_callout', 'expose_secret', 'startFight'])
 
 export interface DramaPacingAvailability {
   available: boolean

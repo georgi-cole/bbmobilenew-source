@@ -21,8 +21,11 @@ import { MemoryRouter, useLocation } from 'react-router'
 import gameReducer, {
   advance,
   continueWeekendFeature,
+  returnFromWeekendTribunalStream,
   createInitialGameState,
   debugActivateWeekendInterlude,
+  debugPrepareFinaleReunionPreview,
+  debugSkipToWeekendDayTwo,
   hydrateGame,
   triggerSecretMission,
 } from '../../../store/gameSlice'
@@ -227,6 +230,154 @@ describe('FloatingActionBar – weekend progression', () => {
     act(() => screen.getByRole('button', { name: 'Continue' }).click())
     expect(store.getState().game.weekendInterlude?.stage).toBe('social')
   })
+
+  it('ends the reunion visit before offering the Tribunal invitation', () => {
+    const initial = createInitialGameState({ seed: 81602 })
+    let preview = gameReducer(initial, debugActivateWeekendInterlude('finale'))
+    preview = gameReducer(preview, debugPrepareFinaleReunionPreview())
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude,
+    })
+    renderFAB(store)
+
+    vi.useFakeTimers()
+    try {
+      expect(screen.getByRole('button', { name: 'End visit' })).toBeEnabled()
+      act(() => screen.getByRole('button', { name: 'End visit' }).click())
+
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBe(true)
+      expect(
+        screen.getByRole('button', { name: 'The eliminated players are leaving…' })
+      ).toBeDisabled()
+
+      act(() => vi.advanceTimersByTime(1700))
+      expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+      expect(store.getState().game.weekendInterlude?.reunionPreview).toBeUndefined()
+      expect(screen.getByRole('button', { name: 'Finish preview' })).toBeEnabled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('paces Sunday through guest messages, the Tribunal, the farewell, and the Final 3 opening', () => {
+    const initial = createInitialGameState({ seed: 81603 })
+    const human = initial.players.find((player) => player.isUser)!
+    const finalists = [human, ...initial.players.filter((player) => !player.isUser).slice(0, 2)]
+    const finalistIds = new Set(finalists.map((player) => player.id))
+    const jurors = initial.players.filter((player) => !finalistIds.has(player.id)).slice(0, 3)
+    const jurorIds = new Set(jurors.map((player) => player.id))
+    let preview = gameReducer(
+      {
+        ...initial,
+        players: initial.players.map((player) => ({
+          ...player,
+          status: finalistIds.has(player.id)
+            ? ('active' as const)
+            : jurorIds.has(player.id)
+              ? ('jury' as const)
+              : ('evicted' as const),
+        })),
+      },
+      debugActivateWeekendInterlude('finale')
+    )
+    preview = gameReducer(preview, debugSkipToWeekendDayTwo())
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude
+        ? { ...preview.weekendInterlude, debug: undefined }
+        : null,
+    })
+    renderFAB(store)
+
+    expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+    expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: 'Let them in' })).toBeEnabled()
+
+    vi.useFakeTimers()
+    try {
+      act(() => screen.getByRole('button', { name: 'Let them in' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_reunion_social')
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBeUndefined()
+      expect(screen.getByRole('button', { name: /^Social/ })).toHaveAttribute(
+        'aria-disabled',
+        'false'
+      )
+      expect(screen.getByRole('button', { name: 'Announce the Sequester Footage' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Announce the Sequester Footage' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_sequester_announcement')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(false)
+      expect(screen.getByTestId('location')).toHaveTextContent('/game')
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Continue' }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_battle_ready')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(false)
+      expect(screen.getByTestId('location')).toHaveTextContent('/game')
+      expect(screen.getByRole('button', { name: 'Send the guests home' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: /^Confessional/ }).click())
+      expect(store.getState().game.weekendInterlude?.stage).toBe('tribunal_invitation')
+      expect(store.getState().game.weekendInterlude?.tribunalGlimpse?.opened).toBe(true)
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary-room?stream=finale-tribunal')
+
+      act(() => {
+        store.dispatch(returnFromWeekendTribunalStream())
+      })
+      expect(store.getState().game.weekendInterlude?.stage).toBe('finale_battle_ready')
+      expect(screen.getByRole('button', { name: 'Send the guests home' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Send the guests home' }).click())
+      expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBe(true)
+      expect(
+        screen.getByRole('button', { name: 'The eliminated players are leaving…' })
+      ).toBeDisabled()
+
+      act(() => vi.advanceTimersByTime(1700))
+      expect(store.getState().game.weekendInterlude?.reunionDeparted).toBe(true)
+      expect(screen.getByRole('button', { name: 'Begin the Final Power Battle' })).toBeEnabled()
+
+      act(() => screen.getByRole('button', { name: 'Begin the Final Power Battle' }).click())
+      expect(store.getState().game.weekendInterlude).toBeNull()
+      expect(store.getState().game.finaleWeekendCompleted).toBe(true)
+      expect(store.getState().game.phase).toBe('final3')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('locks Confessional while the full-screen reunion announcement is waiting for Play', () => {
+    const initial = createInitialGameState({ seed: 81604 })
+    let preview = gameReducer(
+      {
+        ...initial,
+        phase: 'social_2',
+        players: initial.players.map((player, index) => ({
+          ...player,
+          status: index < 3 ? ('active' as const) : ('jury' as const),
+        })),
+      },
+      debugActivateWeekendInterlude('finale')
+    )
+    preview = gameReducer(preview, debugSkipToWeekendDayTwo())
+    const store = makeStore(true, {
+      players: preview.players,
+      weekendInterlude: preview.weekendInterlude
+        ? {
+            ...preview.weekendInterlude,
+            debug: undefined,
+            tribunalGlimpse: undefined,
+          }
+        : null,
+    })
+    renderFAB(store)
+
+    const confessional = screen.getByRole('button', { name: /^Confessional/ })
+    expect(confessional).toBeDisabled()
+    expect(screen.getByTestId('location')).toHaveTextContent('/game')
+    expect(store.getState().game.weekendInterlude?.reunionDepartureActive).toBeUndefined()
+  })
 })
 
 describe('FloatingActionBar – social energy badge', () => {
@@ -293,7 +444,7 @@ describe('FloatingActionBar – social module availability', () => {
     expect(store.getState().social.incomingInboxOpen).toBe(true)
   })
 
-  it('blocks outgoing actions but keeps incoming vote pitches accessible during live vote', () => {
+  it('keeps outgoing conversations and incoming vote pitches accessible during live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore(true, { phase: 'live_vote' })
     renderFAB(store)
@@ -303,15 +454,9 @@ describe('FloatingActionBar – social module availability', () => {
       screen.getByRole('button', { name: 'Incoming requests' }).click()
     })
 
-    expect(store.getState().social.panelOpen).toBe(false)
+    expect(store.getState().social.panelOpen).toBe(true)
     expect(store.getState().social.incomingInboxOpen).toBe(true)
-    expect(warnSpy).toHaveBeenCalledTimes(1)
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Outgoing social module did not open: Outgoing social actions are blocked during the live_vote phase.'
-      ),
-      expect.objectContaining({ phase: 'live_vote', moduleKind: 'outgoing' })
-    )
+    expect(warnSpy).not.toHaveBeenCalled()
 
     warnSpy.mockRestore()
   })
@@ -445,6 +590,52 @@ describe('FloatingActionBar – layout', () => {
 
     expect(store.getState().game.week).toBe(2)
     expect(store.getState().game.phase).toBe('week_start')
+  })
+
+  it('uses Play to reveal Democracia results without a TV card consuming the press', () => {
+    const initial = makeStore().getState().game
+    const players = initial.players.slice(0, 6).map((player, index) => ({
+      ...player,
+      isUser: index === 0,
+      status: 'active' as const,
+    }))
+    const playerIds = players.map((player) => player.id)
+    const votesByVoterId = Object.fromEntries([
+      [playerIds[0], playerIds[4]],
+      [playerIds[1], playerIds[4]],
+      [playerIds[2], playerIds[4]],
+      [playerIds[3], playerIds[5]],
+      [playerIds[4], playerIds[5]],
+      [playerIds[5], playerIds[4]],
+    ])
+    const store = makeStore(true, {
+      phase: 'democracia_vote',
+      players,
+      democracia: {
+        ...initial.democracia!,
+        active: true,
+        round: 1,
+        candidateIds: playerIds,
+        eligibleVoterIds: playerIds,
+        votesByVoterId,
+        awaitingHumanVote: false,
+        awaitingPublicBreaker: false,
+        resultDisplay: null,
+      },
+    })
+    const consumePlay = vi.fn((event: Event) => event.preventDefault())
+    window.addEventListener('ui:playPressed', consumePlay, { capture: true })
+    renderFAB(store, '/game', { democraciaVoteRecorded: true })
+
+    const playButton = screen.getByRole('button', { name: 'Reveal results' })
+    expect(playButton).toBeEnabled()
+    act(() => playButton.click())
+
+    expect(consumePlay).not.toHaveBeenCalled()
+    expect(store.getState().game.phase).toBe('democracia_results')
+    expect(store.getState().game.democracia?.resultDisplay).not.toBeNull()
+
+    window.removeEventListener('ui:playPressed', consumePlay, { capture: true })
   })
 
   it('lets a blocking Faux TV card consume Play before advancing the reducer', () => {

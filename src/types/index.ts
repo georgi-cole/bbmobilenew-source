@@ -89,6 +89,8 @@ export interface Player {
   twinMode?: 'combined'
   /** True for housemates inserted after the starting roster. */
   lateEntrant?: boolean
+  /** Game day the contestant entered, used when tracking late arrivals. */
+  enteredAtDay?: number
 }
 
 // ─── Minigame types ───────────────────────────────────────────────────────────

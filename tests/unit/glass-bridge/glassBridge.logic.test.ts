@@ -33,7 +33,6 @@ import glassBridgeReducer, {
   startPlaying,
   resolveStep,
   advanceTurn,
-  expireTimer,
   completeGame,
   setHumanSpectating,
   resetGlassBridge,
@@ -42,7 +41,6 @@ import glassBridgeReducer, {
   buildPlacements,
   buildAiNumberChoices,
   aiDecideStep,
-  buildGlassBridgeTimeLimitMs,
   deriveAiObviousSafeAccuracy,
   simulateAiTurn,
   HINT_PENALTY_MS,
@@ -542,38 +540,6 @@ describe('glassBridgeSlice — completeGame', () => {
   });
 });
 
-describe('glassBridgeSlice — expireTimer', () => {
-  it('eliminates all unfinished players on timer expiry', () => {
-    const store = startGame(['a', 'b', 'c'], 42);
-    completeOrderPhase(store, 42);
-
-    store.dispatch(expireTimer());
-    const gb = store.getState().glassBridge;
-    for (const p of Object.values(gb.progress)) {
-      expect(p.eliminated).toBe(true);
-    }
-    expect(gb.timerExpired).toBe(true);
-  });
-
-  it('is idempotent — dispatching twice does not duplicate eliminationOrder', () => {
-    const store = startGame(['a', 'b'], 42);
-    completeOrderPhase(store, 42);
-
-    store.dispatch(expireTimer());
-    store.dispatch(expireTimer());
-
-    const gb = store.getState().glassBridge;
-    // Each player should appear at most once in eliminationOrder.
-    const counts: Record<string, number> = {};
-    for (const pid of gb.eliminationOrder) {
-      counts[pid] = (counts[pid] ?? 0) + 1;
-    }
-    for (const count of Object.values(counts)) {
-      expect(count).toBe(1);
-    }
-  });
-});
-
 describe('glassBridgeSlice — spectator', () => {
   it('setHumanSpectating updates humanSpectating flag', () => {
     const store = startGame(['user', 'a'], 42, 'user');
@@ -607,13 +573,6 @@ describe('glassBridgeSlice — initGlassBridge', () => {
     expect(gb.progress['a'].eliminated).toBe(false);
   });
 
-  it('derives the global timer from the starting player count', () => {
-    expect(buildGlassBridgeTimeLimitMs(1)).toBe(16_000);
-    expect(buildGlassBridgeTimeLimitMs(10)).toBe(160_000);
-
-    const store = startGame(['a', 'b', 'c', 'd'], 7);
-    expect(store.getState().glassBridge.globalTimeLimitMs).toBe(64_000);
-  });
 });
 
 describe('glassBridgeSlice — recordNumberChoice', () => {

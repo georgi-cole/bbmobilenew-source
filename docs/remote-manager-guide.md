@@ -41,6 +41,14 @@ Paste the token into the Publish tab when needed. The panel keeps it only in the
 3. Set volume between 0 and 1 and publish.
 4. Remove the override and publish again to return to the bundled track.
 
+### Control the native story icon
+
+The eight illustrated launcher icons are bundled with the iOS and Android apps in this order: **7 → 2 → 1 → 8 → 3 → 4 → 5 → 6**. Native apps advance one stage each time they enter the foreground, then wrap from stage 8 back to stage 1. The first image is also the installed default icon.
+
+In **Advanced JSON**, set `iconRotation.enabled` to `false` to stop the sequence and restore stage 1 on the next foreground activation. Set it to `true` or remove the setting to resume rotation. The change is read from live config when the app returns to the foreground, so the artwork itself cannot be replaced remotely; new icon art requires a mobile app update. Browser and PWA icons do not rotate.
+
+iOS displays its system icon-change alert whenever an alternate icon is applied. Android launchers may take a moment to refresh the displayed icon after a change.
+
 ### Schedule a competition
 
 1. Open **Game**, enable remote competition rules, and add a rule.

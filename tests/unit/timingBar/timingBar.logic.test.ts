@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getRoundDurationSeconds,
   getRoundBarSpeed,
+  getRemainingCountdownMs,
   computeRawAccuracy,
   applyAttemptPenalty,
   formatAccuracy,
@@ -57,6 +58,20 @@ describe('getRoundDurationSeconds', () => {
     expect(getRoundDurationSeconds(5)).toBe(5);
     expect(getRoundDurationSeconds(10)).toBe(5);
     expect(getRoundDurationSeconds(100)).toBe(5);
+  });
+});
+
+describe('getRemainingCountdownMs', () => {
+  it('keeps the expected time between regular timer ticks', () => {
+    expect(getRemainingCountdownMs(20_000, 1_200)).toBe(18_800);
+  });
+
+  it('catches up elapsed time after a stalled frame', () => {
+    expect(getRemainingCountdownMs(20_000, 4_350)).toBe(15_650);
+  });
+
+  it('clamps expired deadlines to zero', () => {
+    expect(getRemainingCountdownMs(20_000, 25_000)).toBe(0);
   });
 });
 
@@ -229,6 +244,17 @@ describe('assignRanks', () => {
     expect(rankB).toBe(1);
     const rankC = ranked.find((e) => e.participantId === 'c')?.rank;
     expect(rankC).toBe(3);
+  });
+
+  it('uses a seeded, distinct rank to resolve a complete final-duel tie', () => {
+    const entries = [makeEntry('alpha', 80, 5000, 1), makeEntry('beta', 80, 5000, 1)];
+    const firstRun = assignRanks(entries, 42);
+    const secondRun = assignRanks(entries, 42);
+
+    expect(firstRun.map((entry) => entry.participantId)).toEqual(
+      secondRun.map((entry) => entry.participantId)
+    );
+    expect(firstRun.map((entry) => entry.rank).sort()).toEqual([1, 2]);
   });
 });
 
@@ -407,6 +433,34 @@ describe('buildTimingRoundResult — final sudden-death round', () => {
     // The better player (p1 at centre) should survive
     expect(result.advancingIds[0]).toBe('p1');
     expect(result.eliminatedIds[0]).toBe('p2');
+  });
+
+  it('does not eliminate the winner when every final-duel metric ties', () => {
+    const participants: TimingParticipant[] = [
+      { id: 'p1', name: 'Alice', avatar: '🧑', isHuman: true },
+      { id: 'p2', name: 'Bob', avatar: '🤖', isHuman: false },
+    ];
+    const submissions: TimingSubmission[] = participants.map(({ id }) => ({
+      participantId: id,
+      lockedPosition: 50,
+      timeRemainingMs: 5000,
+      nonLockingAttempts: 0,
+      timedOut: false,
+    }));
+
+    const result = buildTimingRoundResult({
+      roundNumber: 1,
+      activeParticipants: participants,
+      submissions,
+      allPlayers: [],
+      seed: 42,
+    });
+    const winner = getTimingRoundWinner(result);
+
+    expect(result.advancingIds).toHaveLength(1);
+    expect(result.eliminatedIds).toHaveLength(1);
+    expect(winner?.participantId).toBe(result.advancingIds[0]);
+    expect(winner?.participantId).not.toBe(result.eliminatedIds[0]);
   });
 });
 

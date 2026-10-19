@@ -25,7 +25,6 @@ import {
   playerSpinAgain,
   advanceFromTurnComplete,
   resolveAllAiTurns,
-  startRiskWheelTieBreak,
   advanceFromRoundSummary,
   WHEEL_SECTORS,
   computeEliminationCount,
@@ -36,10 +35,10 @@ import {
 import { resolveRiskWheelOutcome, skipRiskWheelToResults } from '../../features/riskWheel/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
-import { getAll } from '../../data/houseguests'
+import HOUSEGUESTS from '../../data/houseguests'
 import { useRiskWheelAudio } from '../../hooks/useRiskWheelAudio'
 import { publishMinigameMusicVariant } from '../../services/sound/minigameMusicVariant'
-import riskWheelBackground from '../../features/riskWheel/risk_wheel_background.png'
+import riskWheelBackgroundLow from '../../features/riskWheel/risk_wheel_background_low.webp'
 import './RiskWheelComp.css'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -135,10 +134,7 @@ function classifyRewardSound(
  * per-render calls (mini-scoreboard, summary rows, winner screen) are cheap.
  */
 const HOUSEGUEST_AVATAR_MAP: Map<string, string> = new Map(
-  getAll().map((hg) => [
-    hg.id,
-    resolveAvatar({ id: hg.id, name: hg.name, avatar: hg.avatar ?? '' }),
-  ])
+  HOUSEGUESTS.map((hg) => [hg.id, resolveAvatar({ id: hg.id, name: hg.name, avatar: '' })])
 )
 
 /** Resolve a player avatar URL from the houseguest database, falling back to dicebear. */
@@ -458,6 +454,9 @@ export default function RiskWheelComp({
   const rw = useSelector((s: RootState) => s.riskWheel)
   const gamePhase = useSelector((s: RootState) => s.game.phase)
   const isFinal3HostedMinigame = !standalone && isFinal3HostedPhase(gamePhase)
+  const backgroundSrc = riskWheelBackgroundLow
+  const [backgroundReady, setBackgroundReady] = useState(false)
+  const assetsReady = !premiumPresentation || backgroundReady
 
   // ── Audio ────────────────────────────────────────────────────────────────
   const {
@@ -540,6 +539,7 @@ export default function RiskWheelComp({
 
   // ── Initialise on mount ──────────────────────────────────────────────────
   useEffect(() => {
+    if (!assetsReady) return
     if (isInitialisedRef.current) return
     isInitialisedRef.current = true
     // Only forward a seed when it is explicitly non-zero (dev/test pages).
@@ -564,13 +564,40 @@ export default function RiskWheelComp({
         humanPlayerId: participants?.find((p) => p.isHuman)?.id ?? null,
       })
     )
-    // Only run once on mount; participantIds/prizeType/seed are stable for the
-    // lifetime of this game session and dispatch is a stable Redux reference.
+    // participantIds/prizeType/seed are stable for the lifetime of this session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [assetsReady])
+
+  // ── Preload the compact VIP backdrop before starting the game ────────────
+  useEffect(() => {
+    if (!premiumPresentation) return
+
+    let cancelled = false
+    const source = riskWheelBackgroundLow
+    const image = new Image()
+    const markReady = () => {
+      if (!cancelled) setBackgroundReady(true)
+    }
+    image.onload = () => {
+      if (typeof image.decode === 'function') {
+        void image.decode().then(markReady, markReady)
+      } else {
+        markReady()
+      }
+    }
+    // A missing decorative backdrop should not block the competition forever.
+    image.onerror = markReady
+    image.src = source
+
+    if (image.complete && image.naturalWidth > 0) image.onload?.(new Event('load'))
+    return () => {
+      cancelled = true
+    }
+  }, [premiumPresentation])
 
   // ── Outcome resolved callback ────────────────────────────────────────────
   useEffect(() => {
+    if (!assetsReady) return
     if (!shouldResolveHostedOutcome) return
     // resolveRiskWheelOutcome marks outcomeResolved AND dispatches applyMinigameWinner.
     // This ensures featureAppliedWinner is set in game state before onComplete fires.
@@ -578,16 +605,17 @@ export default function RiskWheelComp({
     // Effect is intentionally driven only by shouldResolveHostedOutcome, which
     // encapsulates the underlying phase/standalone state needed to trigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldResolveHostedOutcome])
+  }, [assetsReady, shouldResolveHostedOutcome])
 
   useEffect(() => {
+    if (!assetsReady) return
     if (!shouldNotifyHostedCompletion) return
     completionReportedRef.current = true
     onCompleteRef.current?.(buildCompletion())
     // Effect is intentionally driven only by shouldNotifyHostedCompletion, which
     // encapsulates the outcomeResolved signal and other prerequisites.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldNotifyHostedCompletion])
+  }, [assetsReady, shouldNotifyHostedCompletion])
 
   const prevPhaseRef = useRef<string | null>(null)
   useEffect(() => {
@@ -632,7 +660,7 @@ export default function RiskWheelComp({
   // When an AI player's turn is active, resolve all AI turns synchronously
   // after a brief pause (so the UI can update before scores populate).
   useEffect(() => {
-    if (!rw || spinning) return
+    if (!assetsReady || !rw || spinning) return
     const { phase } = rw
     const activeId = rw.activePlayerIds[rw.currentPlayerIndex] ?? null
     const isAiTurn = activeId !== null && activeId !== rw.humanPlayerId
@@ -648,7 +676,7 @@ export default function RiskWheelComp({
 
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rw?.phase, rw?.currentPlayerIndex])
+  }, [assetsReady, rw?.phase, rw?.currentPlayerIndex])
 
   // ── Human 666 animation ───────────────────────────────────────────────────
   // After landing on 666 on a human turn, auto-advance after showing
@@ -762,18 +790,25 @@ export default function RiskWheelComp({
     dispatch(advanceFromRoundSummary())
   }, [dispatch, playClickSound])
 
-  const handleStartTieBreak = useCallback(() => {
-    playClickSound()
-    dispatch(startRiskWheelTieBreak())
-    dispatch(resolveAllAiTurns())
-  }, [dispatch, playClickSound])
-
   const handleSkipToResults = useCallback(() => {
     playClickSound()
     dispatch(skipRiskWheelToResults())
   }, [dispatch, playClickSound])
 
   // ─────────────────────────────────────────────────────────────────────────
+  if (!assetsReady) {
+    return (
+      <div
+        className={`rw-root rw-loading rw-loading--backdrop${premiumRootClass}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="rw-preloader-spinner" aria-hidden="true" />
+        <p>Preparing the game…</p>
+      </div>
+    )
+  }
+
   if (!rw || rw.phase === 'idle') {
     return (
       <div className={`rw-root rw-loading${premiumRootClass}`}>
@@ -804,14 +839,11 @@ export default function RiskWheelComp({
     lastSectorIndex,
     last666Effect,
     eliminatedThisRound,
+    tieBreaker,
+    tieBreakerSummary,
     winnerId,
     initialPlayerCount,
     allPlayerIds,
-    tieBreakPlayerIds,
-    tieBreakPending,
-    tieBreakRound,
-    tieBreakOutcome,
-    isTieBreakRound,
   } = rw
   const isHumanEliminated =
     humanId !== null &&
@@ -872,6 +904,8 @@ export default function RiskWheelComp({
 
   // ── Phase: round_summary ─────────────────────────────────────────────────
   if (phase === 'round_summary') {
+    const tieBreakPending = tieBreaker?.pendingStart === true
+    const tieBreakCandidates = new Set(tieBreaker?.candidatePlayerIds ?? [])
     const sortedActive = [...activePlayerIds].sort(
       (a, b) => (roundScores[b] ?? 0) - (roundScores[a] ?? 0)
     )
@@ -904,13 +938,12 @@ export default function RiskWheelComp({
         <ul className="rw-summary-list" aria-label="Round scoreboard">
           {sortedActive.map((id, rank) => {
             const isOut = eliminatedThisRound.includes(id)
-            const isTieCandidate = tieBreakPending && tieBreakPlayerIds.includes(id)
-            const survivedTieBreak = tieBreakOutcome?.survivedPlayerIds.includes(id) ?? false
+            const isTiedForCutoff = tieBreakPending && tieBreakCandidates.has(id)
             const score = roundScores[id] ?? 0
             return (
               <li
                 key={id}
-                className={`rw-summary-row${isOut ? ' rw-summary-row--out' : ''}${rank === 0 ? ' rw-summary-row--top' : ''}${isTieCandidate ? ' rw-summary-row--tie' : ''}`}
+                className={`rw-summary-row${isOut ? ' rw-summary-row--out' : ''}${rank === 0 ? ' rw-summary-row--top' : ''}`}
               >
                 <span className="rw-summary-rank">#{rank + 1}</span>
                 <img
@@ -921,14 +954,7 @@ export default function RiskWheelComp({
                     ;(e.target as HTMLImageElement).src = getDicebear(id)
                   }}
                 />
-                <span className="rw-summary-name">
-                  {getName(id, participants)}
-                  {tieBreakOutcome && tieBreakOutcome.spinScores[id] !== undefined && (
-                    <small className="rw-summary-tiebreak-score">
-                      Tie-break: {formatScore(tieBreakOutcome.spinScores[id])}
-                    </small>
-                  )}
-                </span>
+                <span className="rw-summary-name">{getName(id, participants)}</span>
                 <span className={`rw-summary-score${score < 0 ? ' rw-summary-score--neg' : ''}`}>
                   {formatScore(score)}
                 </span>
@@ -937,13 +963,15 @@ export default function RiskWheelComp({
                     🚪 OUT
                   </span>
                 )}
-                {isTieCandidate && (
-                  <span className="rw-summary-badge rw-summary-badge--tie">⚖ TIED</span>
+                {isTiedForCutoff && (
+                  <span
+                    className="rw-summary-badge rw-summary-badge--tie"
+                    aria-label="Tied for elimination cutoff"
+                  >
+                    ⚖ TIED
+                  </span>
                 )}
-                {!isOut && survivedTieBreak && (
-                  <span className="rw-summary-badge rw-summary-badge--survived">✓ SURVIVED</span>
-                )}
-                {!isOut && !survivedTieBreak && rank === 0 && (
+                {!isOut && rank === 0 && (
                   <span className="rw-summary-badge rw-summary-badge--top">⭐ TOP</span>
                 )}
               </li>
@@ -951,46 +979,18 @@ export default function RiskWheelComp({
           })}
         </ul>
         {tieBreakPending && (
-          <div className="rw-tie-summary" role="status">
-            <strong>Score tie at the elimination line</strong>
-            <span>
-              {tieBreakPlayerIds.map((id) => getName(id, participants)).join(', ')} will each spin
-              once. The highest score survives; if the lead is tied, only those players spin again.
-            </span>
-          </div>
-        )}
-        {tieBreakOutcome && (
-          <div className="rw-tie-summary rw-tie-summary--resolved" role="status">
-            <strong>Tie-break complete</strong>
-            <span>
-              {tieBreakOutcome.survivedPlayerIds.map((id) => getName(id, participants)).join(', ')}{' '}
-              survived.{' '}
-              {tieBreakOutcome.eliminatedPlayerIds
-                .map((id) => getName(id, participants))
-                .join(', ')}{' '}
-              eliminated.
-            </span>
-          </div>
+          <p className="rw-summary-tiebreak-msg" role="status">
+            ⚖ Score tie at the elimination line: {tieBreaker.candidatePlayerIds
+              .map((id) => getName(id, participants))
+              .join(' and ')}{' '}
+            will each spin once in a tie-break round before anyone is eliminated.
+          </p>
         )}
         <div className="rw-summary-footer">
-          {tieBreakPending ? (
-            <>
-              <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleStartTieBreak}>
-                ⚖ Start Tie-break Round {tieBreakRound + 1}
-              </button>
-              {isHumanEliminated && (
-                <button
-                  className="rw-btn rw-btn--secondary rw-btn--lg"
-                  onClick={handleSkipToResults}
-                >
-                  Skip to results
-                </button>
-              )}
-            </>
-          ) : isHumanEliminated ? (
+          {isHumanEliminated ? (
             <>
               <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
-                Continue as spectator
+                {tieBreakPending ? 'Continue to tie-break as spectator' : 'Continue as spectator'}
               </button>
               <button className="rw-btn rw-btn--secondary rw-btn--lg" onClick={handleSkipToResults}>
                 Skip to results
@@ -998,8 +998,20 @@ export default function RiskWheelComp({
             </>
           ) : (
             <button className="rw-btn rw-btn--primary rw-btn--lg" onClick={handleNextRound}>
-              {isLastRound ? '🏆 See Winner' : `▶ Start Round ${round + 1}`}
+              {tieBreakPending
+                ? `⚖ Start tie-break round ${tieBreaker.round}`
+                : isLastRound
+                  ? '🏆 See Winner'
+                  : `▶ Start Round ${round + 1}`}
             </button>
+          )}
+          {tieBreakerSummary && (
+            <p className="rw-summary-tiebreak-msg">
+              ⚖ One-spin tie-break winner:{' '}
+              {tieBreakerSummary.survivorIds.map((id) => getName(id, participants)).join(', ')}{' '}
+              survived after {tieBreakerSummary.rounds} round
+              {tieBreakerSummary.rounds === 1 ? '' : 's'}.
+            </p>
           )}
         </div>
       </div>
@@ -1007,35 +1019,40 @@ export default function RiskWheelComp({
   }
 
   // ── Phase: active turn ───────────────────────────────────────────────────
-  const elimCount = isTieBreakRound
+  const isTieBreaker = tieBreaker !== null
+  const elimCount = isTieBreaker
     ? 0
     : computeEliminationCount(initialPlayerCount, round, activePlayerIds.length)
   const roundCap = getRoundCap(initialPlayerCount)
   const isDevil = phase === 'six_six_six'
+  const displayedSpinCount = isTieBreaker ? (phase === 'awaiting_spin' ? 0 : 1) : currentSpinCount
 
   // Build score summary for non-current players (mini scoreboard)
-  const otherPlayers = (isTieBreakRound ? activePlayerIds : allPlayerIds).filter(
+  const otherPlayers = (isTieBreaker ? activePlayerIds : allPlayerIds).filter(
     (id) => id !== currentId
   )
 
   return (
     <div
-      className={`rw-root rw-game${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}${isTieBreakRound ? ' rw-tiebreak-game' : ''}`}
+      className={`rw-root rw-game${isTieBreaker ? ' rw-tiebreak-game' : ''}${premiumRootClass}${isDevil ? ' rw-devil-mode' : ''}`}
     >
       {premiumPresentation ? (
         <div className="rw-vip-showroom" aria-hidden="true" data-testid="rw-vip-showroom">
           <img
             className="rw-vip-showroom-bg"
-            src={riskWheelBackground}
+            src={backgroundSrc}
             alt=""
             draggable={false}
             data-testid="rw-vip-showroom-bg"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none'
+            }}
           />
           <div className="rw-vip-showroom-vignette" />
         </div>
       ) : null}
       {/* Header */}
-      <header className={`rw-header${isTieBreakRound ? ' rw-header--tiebreak' : ''}`}>
+      <header className={`rw-header${isTieBreaker ? ' rw-header--tiebreak' : ''}`}>
         <div className="rw-header-left">
           {premiumPresentation && (
             <div className="rw-vip-brand" aria-label="VIP Risk Wheel">
@@ -1046,29 +1063,43 @@ export default function RiskWheelComp({
           <span
             className="rw-round-badge"
             aria-label={
-              isTieBreakRound ? `Tie-break round ${tieBreakRound}` : `Round ${round} of ${roundCap}`
+              isTieBreaker ? `Tie-break round ${tieBreaker.round}` : `Round ${round} of ${roundCap}`
             }
           >
-            {isTieBreakRound ? `TB ${tieBreakRound}` : `R${round}/${roundCap}`}
+            {isTieBreaker ? `TB ${tieBreaker.round}` : `R${round}/${roundCap}`}
           </span>
-          <span className="rw-prize-badge">
-            {isTieBreakRound ? 'One spin each · winner survives' : prizeType}
-          </span>
+          <span className="rw-prize-badge">{prizeType}</span>
         </div>
-        {!isTieBreakRound && elimCount > 0 && (
+        {isTieBreaker ? (
+          <div className="rw-header-center">
+            <span className="rw-tiebreak-status">⚖ One spin each · winner survives</span>
+          </div>
+        ) : elimCount > 0 ? (
           <div className="rw-header-center">
             <span
               className="rw-elim-warn"
-              aria-label={`${elimCount} player${elimCount === 1 ? '' : 's'} eliminated this round`}
+              aria-label={`${elimCount} target elimination${elimCount === 1 ? '' : 's'} this round`}
             >
-              ⚠ {elimCount} out this round
+              ⚠ Target: {elimCount} out
             </span>
           </div>
-        )}
+        ) : null}
       </header>
 
       {/* Main play area */}
-      <main className="rw-main" aria-label={`${currentName}'s turn`}>
+      <main
+        className={`rw-main${isTieBreaker ? ' rw-main--tiebreaker' : ''}`}
+        aria-label={
+          isTieBreaker
+            ? `Tie-break round ${tieBreaker.round}, ${currentName}'s turn`
+            : `${currentName}'s turn`
+        }
+      >
+        {isTieBreaker && (
+          <p className="rw-tiebreak-instructions">
+            Highest score survives. If players tie for the lead, only they spin again.
+          </p>
+        )}
         {/* Current player info */}
         <div className="rw-current-player">
           <span className="rw-current-label">
@@ -1078,17 +1109,17 @@ export default function RiskWheelComp({
           {/* Spin counter pips */}
           <div
             className="rw-spins-row"
-            aria-label={`${currentSpinCount} of ${isTieBreakRound ? 1 : 3} spins used`}
+            aria-label={`${displayedSpinCount} of ${isTieBreaker ? 1 : 3} spins used`}
           >
-            {Array.from({ length: isTieBreakRound ? 1 : 3 }, (_, i) => (
+            {Array.from({ length: isTieBreaker ? 1 : 3 }, (_, i) => i).map((i) => (
               <span
                 key={i}
-                className={`rw-spin-dot${i < currentSpinCount ? ' rw-spin-dot--used' : ''}`}
+                className={`rw-spin-dot${i < displayedSpinCount ? ' rw-spin-dot--used' : ''}`}
                 aria-hidden="true"
               />
             ))}
             <span className="rw-spins-label">
-              {currentSpinCount}/{isTieBreakRound ? 1 : 3}
+              {displayedSpinCount}/{isTieBreaker ? 1 : 3}
             </span>
           </div>
         </div>
@@ -1152,9 +1183,9 @@ export default function RiskWheelComp({
               className="rw-btn rw-btn--spin"
               onClick={handleHumanSpin}
               disabled={spinning}
-              aria-label={isTieBreakRound ? 'Take your tie-break spin' : 'Spin the wheel'}
+              aria-label={isTieBreaker ? 'Take your tie-break spin' : 'Spin the wheel'}
             >
-              {isTieBreakRound ? '⚖ Tie-break Spin' : '🎡 Spin'}
+              {isTieBreaker ? '⚖ Tie-break Spin' : '🎡 Spin'}
             </button>
           )}
 

@@ -22,7 +22,8 @@
  *   - Auto-steps with realistic delay using decision logic from glassBridgeSlice.
  */
 
-import { useEffect, useRef, useCallback, useMemo, useState } from 'react'
+import { useEffect, useRef, useCallback, useMemo, useState, type CSSProperties } from 'react'
+import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
 import {
@@ -30,10 +31,8 @@ import {
   recordNumberChoice,
   finaliseOrderSelection,
   startPlaying,
-  startParallelPlayers,
-  resolveParallelStep,
+  tickBridge,
   resolveStep,
-  expireTimer,
   fastForwardRemainingPlayers,
   completeGame,
   getGlassBridgeLastPlace,
@@ -45,22 +44,20 @@ import {
   selectIsGameOver,
   HINT_PENALTY_MS,
   MAX_HINTS_PER_RUN,
-  shouldStartParallelPlayers,
-  chooseParallelAiSide,
-  COLLISION_OVERRIDE_THRESHOLD_MS,
-  MAX_PARALLEL_MOVERS,
-  PARALLEL_RELEASE_INTERVAL_MS,
+  MOVE_TIME_LIMIT_MS,
   type BridgeRow,
   type TileSide,
 } from '../../features/glassBridge/glassBridgeSlice'
 import { resolveGlassBridgeOutcome } from '../../features/glassBridge/thunks'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import { mulberry32 } from '../../store/rng'
+import type { CompetitionSkillProfile } from '../../ai/competition/types'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
 import { useGlassBridgeAudio } from '../../hooks/useGlassBridgeAudio'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
-import './GlassBridgeComp.css'
+import premiumStyles from './GlassBridgeComp.css?inline'
+import standardStyles from './GlassBridgeComp.standard.css?inline'
 
 // ─── Timing constants ─────────────────────────────────────────────────────────
 
@@ -92,10 +89,6 @@ const DEATH_FLASH_MS = 120
 const DEATH_MARKER_DURATION_MS = 750
 /** Landing animation duration for a finisher reaching the safe platform (ms). Aligned with gb-player-land (0.55s), plus a short grace period. */
 const LANDING_ANIM_DURATION_MS = 600
-/** Stagger between timeout-triggered bridge rows collapsing. */
-const TIMEOUT_ROW_BREAK_STAGGER_MS = 60
-/** Small offset so the two tiles in a row do not break at the exact same moment. */
-const TIMEOUT_SIDE_BREAK_OFFSET_MS = 24
 /** Keeps 1–2 letter initials comfortably inside the circular fallback avatars. */
 const AVATAR_INITIALS_FONT_SIZE_RATIO = 0.42
 const STATUS_FLASH_MS = 1_900
@@ -165,16 +158,125 @@ function GlassBridgeAvatar({ id, name, size, alt }: GlassBridgeAvatarProps) {
   )
 }
 
+const GLASS_SHARDS = [
+  {
+    points: '0,0 50,0 50,50',
+    dx: '-34px',
+    dy: '34px',
+    rotation: '-24deg',
+    fill: 'rgba(222, 240, 251, 0.3)',
+  },
+  {
+    points: '50,0 100,0 50,50',
+    dx: '20px',
+    dy: '30px',
+    rotation: '18deg',
+    fill: 'rgba(190, 224, 243, 0.28)',
+  },
+  {
+    points: '100,0 100,50 50,50',
+    dx: '42px',
+    dy: '24px',
+    rotation: '31deg',
+    fill: 'rgba(225, 242, 251, 0.32)',
+  },
+  {
+    points: '100,50 100,100 50,50',
+    dx: '39px',
+    dy: '50px',
+    rotation: '26deg',
+    fill: 'rgba(174, 214, 238, 0.3)',
+  },
+  {
+    points: '100,100 50,100 50,50',
+    dx: '13px',
+    dy: '56px',
+    rotation: '-18deg',
+    fill: 'rgba(225, 242, 251, 0.27)',
+  },
+  {
+    points: '50,100 0,100 50,50',
+    dx: '-19px',
+    dy: '52px',
+    rotation: '-28deg',
+    fill: 'rgba(184, 220, 241, 0.31)',
+  },
+  {
+    points: '0,100 0,50 50,50',
+    dx: '-42px',
+    dy: '39px',
+    rotation: '24deg',
+    fill: 'rgba(223, 241, 251, 0.28)',
+  },
+  {
+    points: '0,50 0,0 50,50',
+    dx: '-30px',
+    dy: '25px',
+    rotation: '-20deg',
+    fill: 'rgba(174, 214, 238, 0.3)',
+  },
+] as const
+
+function GlassShatterOverlay() {
+  return (
+    <svg
+      className="gb-shatter-overlay"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {GLASS_SHARDS.map((shard, index) => (
+        <g
+          key={shard.points}
+          className="gb-shard-fragment"
+          style={
+            {
+              '--gb-shard-x': shard.dx,
+              '--gb-shard-y': shard.dy,
+              '--gb-shard-rotation': shard.rotation,
+              '--gb-shard-delay': `${index * 12}ms`,
+            } as CSSProperties
+          }
+        >
+          <polygon
+            points={shard.points}
+            fill={shard.fill}
+            stroke="rgba(228, 243, 252, 0.58)"
+            strokeWidth="0.62"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
+      ))}
+      <path
+        className="gb-fracture-lines"
+        d="M50 50 L35 0 M50 50 L76 0 M50 50 L100 24 M50 50 L100 76 M50 50 L72 100 M50 50 L27 100 M50 50 L0 70 M50 50 L0 30 M50 50 L43 39 L47 31 L41 23 M50 50 L59 43 L66 45 L75 39 M50 50 L57 59 L54 67 L62 77 M50 50 L41 58 L34 56 L25 64"
+        fill="none"
+        stroke="rgba(237, 248, 255, 0.68)"
+        strokeWidth="0.48"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        className="gb-fracture-glint"
+        d="M49 49 L35 0 M51 50 L76 0 M51 51 L100 24 M49 51 L100 76 M49 51 L27 100 M49 50 L0 30"
+        fill="none"
+        stroke="rgba(195, 232, 248, 0.42)"
+        strokeWidth="1.15"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
+
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000)
   const m = Math.floor(s / 60)
   const ss = String(s % 60).padStart(2, '0')
   return `${m}:${ss}`
-}
-
-function formatTimeRemaining(remaining: number): string {
-  if (remaining <= 0) return '0:00'
-  return formatElapsed(remaining)
 }
 
 function areAnimationsDisabled(): boolean {
@@ -187,13 +289,6 @@ function prefersReducedMotion(): boolean {
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
-}
-
-function getTimeoutCollapseDuration(rowsCount: number, noAnimations: boolean): number {
-  if (noAnimations) return 0
-  const finalTileDelay =
-    Math.max(0, rowsCount - 1) * TIMEOUT_ROW_BREAK_STAGGER_MS + TIMEOUT_SIDE_BREAK_OFFSET_MS
-  return finalTileDelay + SHATTER_ANIM_MS + POST_SHATTER_DELAY_MS
 }
 
 /**
@@ -221,7 +316,8 @@ function getHintUses(hintPenaltyMs: number | undefined): number {
 
 function getAiDecisionDelayMs(
   row: Pick<BridgeRow, 'leftBroken' | 'rightBroken' | 'revealedSafeSide'>,
-  rng: () => number
+  rng: () => number,
+  profile?: CompetitionSkillProfile
 ): number {
   const [minDelay, maxDelay] =
     row.leftBroken !== row.rightBroken
@@ -229,21 +325,29 @@ function getAiDecisionDelayMs(
       : row.revealedSafeSide
         ? [AI_REVEALED_ROW_DELAY_MIN_MS, AI_REVEALED_ROW_DELAY_MAX_MS]
         : [AI_UNKNOWN_ROW_DELAY_MIN_MS, AI_UNKNOWN_ROW_DELAY_MAX_MS]
-  return minDelay + Math.floor(rng() * (maxDelay - minDelay))
+  const nerve = Math.max(0, Math.min(100, profile?.nerve ?? 50))
+  const hesitation =
+    row.revealedSafeSide || row.leftBroken !== row.rightBroken ? 1 : 1.3 - nerve / 200
+  return Math.max(250, Math.round((minDelay + rng() * (maxDelay - minDelay)) * hesitation))
 }
 
 function shouldAiUseHint(
   rowIdx: number,
   rowsCount: number,
   hintsUsed: number,
-  rng: () => number
+  rng: () => number,
+  profile?: CompetitionSkillProfile
 ): boolean {
   if (hintsUsed >= MAX_HINTS_PER_RUN) return false
   const rowPressure = rowIdx / Math.max(1, rowsCount - 1)
   // Base 18% chance, with pressure increasing as the bridge gets deeper and a
   // small extra bump after prior hint usage. Cap at 62% so AI still guess
   // naturally instead of over-optimizing every unknown row.
-  const chance = Math.min(0.62, 0.18 + rowPressure * 0.34 + hintsUsed * 0.06)
+  const nerve = Math.max(0, Math.min(100, profile?.nerve ?? 50))
+  const chance = Math.max(
+    0.08,
+    Math.min(0.62, 0.18 + rowPressure * 0.34 + hintsUsed * 0.06 + (50 - nerve) / 500)
+  )
   return rng() < chance
 }
 
@@ -275,10 +379,6 @@ function formatHintUsage(hintUses: number): string {
   return `${hintUses} hint${hintUses === 1 ? '' : 's'}`
 }
 
-function hasOneBrokenTile(row: Pick<BridgeRow, 'leftBroken' | 'rightBroken'>): boolean {
-  return row.leftBroken !== row.rightBroken
-}
-
 function getCompletionBannerMessage(
   isHuman: boolean,
   isRecord: boolean,
@@ -294,12 +394,6 @@ function getCompletionBannerMessage(
   return isRecord
     ? pickRandom(newRecordMessages)(name, time)
     : pickRandom(finishMessages)(name, time)
-}
-
-function getBrokenPlatformFallMessage(isHuman: boolean, name: string): string {
-  return isHuman
-    ? pickRandom(humanBrokenPlatformFallMessages)
-    : pickRandom(brokenPlatformFallMessages)(name)
 }
 
 // ─── Randomized status-bar message pools ─────────────────────────────────────
@@ -343,24 +437,6 @@ const humanClearMessages: ReadonlyArray<(row: number) => string> = [
   (row) => `You survive row ${row}.`,
   (row) => `You cross row ${row} unbroken.`,
   (row) => `Row ${row} yields to you.`,
-]
-
-const brokenPlatformFallMessages: ReadonlyArray<(name: string) => string> = [
-  (name) => `${name} slips onto the broken platform.`,
-  (name) => `${name} loses balance and falls through the broken platform.`,
-  (name) => `${name} stumbles and drops through the hole in the path.`,
-]
-
-const humanBrokenPlatformFallMessages: ReadonlyArray<string> = [
-  'You slip onto the broken platform.',
-  'You lose balance and fall through the broken platform.',
-  'You stumble and drop through the hole in the path.',
-]
-
-const timesUpMessages: ReadonlyArray<string> = [
-  'Time is over. The path is collapsing.',
-  'The clock has died — the path is collapsing!',
-  'No time remains. The bridge is breaking apart!',
 ]
 
 const stepPromptMessages: ReadonlyArray<string> = [
@@ -427,6 +503,7 @@ interface ParticipantProp {
   id: string
   name: string
   isHuman: boolean
+  competitionProfile?: CompetitionSkillProfile
 }
 
 interface Props {
@@ -435,6 +512,8 @@ interface Props {
   prizeType?: 'LOH' | 'POS'
   seed?: number
   onComplete?: (completion?: ReactMinigameCompletion) => void
+  /** Activates the premium Crystal Path presentation and refined rules. */
+  premium?: boolean
 }
 
 type BannerVariant = 'info' | 'success' | 'danger' | 'record' | 'warning'
@@ -447,8 +526,10 @@ export default function GlassBridgeComp({
   prizeType = 'LOH',
   seed,
   onComplete,
+  premium = false,
 }: Props) {
   const dispatch = useAppDispatch()
+  const reduxStore = useStore<RootState>()
   const gb = useAppSelector((s: RootState) => s.glassBridge)
   const [sessionSeed] = useState<number>(() =>
     seed !== undefined && seed !== 0 ? seed : cryptoSeed()
@@ -461,6 +542,10 @@ export default function GlassBridgeComp({
     if (participantIds.includes('user')) return 'user'
     return null
   }, [participantIds, participants])
+
+  const waitingForSpectatorDecision = Boolean(
+    humanId && gb.phase === 'playing' && gb.progress[humanId]?.eliminated && !gb.humanSpectating
+  )
 
   const buildHostedCompletion = useCallback(
     (): ReactMinigameCompletion => ({
@@ -483,6 +568,7 @@ export default function GlassBridgeComp({
   // ── Local UI state ────────────────────────────────────────────────────────
   const [showSpectatorModal, setShowSpectatorModal] = useState(false)
   const [revealedCount, setRevealedCount] = useState(0)
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now())
   const [pendingStep, setPendingStep] = useState<{
     actorId: string
     rowIdx: number
@@ -496,7 +582,6 @@ export default function GlassBridgeComp({
   } | null>(null)
   const [showEliminationFlash, setShowEliminationFlash] = useState(false)
   const [showScreenShake, setShowScreenShake] = useState(false)
-  const [timerDisplay, setTimerDisplay] = useState<number>(gb.globalTimeLimitMs)
   /** Tile where the most recent player fell — shows the 💀 death marker. */
   const [deathMarkerTile, setDeathMarkerTile] = useState<{
     rowIdx: number
@@ -504,10 +589,6 @@ export default function GlassBridgeComp({
   } | null>(null)
   /** IDs of players currently playing the safe-landing animation. */
   const [landingPlayerIds, setLandingPlayerIds] = useState<string[]>([])
-  /** IDs of players eliminated specifically by the time-expired bridge collapse. */
-  const [timedOutPlayerIds, setTimedOutPlayerIds] = useState<string[]>([])
-  /** While true, the remaining bridge tiles shatter before results are shown. */
-  const [timeoutCollapseActive, setTimeoutCollapseActive] = useState(false)
   /** Current hint message from The Expert (null = no active hint). */
   const [currentHintMessage, setCurrentHintMessage] = useState<string | null>(null)
   /** Number of hints the human has requested for the current row this turn. */
@@ -520,10 +601,7 @@ export default function GlassBridgeComp({
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const timerIntervalRef = useRef<number | null>(null)
-  const timerDisplayRef = useRef(timerDisplay)
   const aiStepTimerRef = useRef<number | null>(null)
-  const parallelStepTimersRef = useRef<Map<string, number>>(new Map())
-  const parallelReleaseTimerRef = useRef<number | null>(null)
   const autoAdvanceRef = useRef<number | null>(null)
   const revealTimerRef = useRef<number | null>(null)
   const pendingStepRef = useRef<number | null>(null)
@@ -531,15 +609,13 @@ export default function GlassBridgeComp({
   const flashResetRef = useRef<number | null>(null)
   const deathMarkerClearRef = useRef<number | null>(null)
   const landingTimersRef = useRef<number[]>([])
-  const timeoutCollapseResolveRef = useRef<number | null>(null)
   const statusBannerResetRef = useRef<number | null>(null)
   const playingScrollRef = useRef<HTMLDivElement | null>(null)
-  const floatingUiRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
   const timerScaleRef = useRef<{
     anchorRealMs: number
     elapsedMsAtAnchor: number
-    speed: 1 | 2 | 3
+    speed: 0 | 1 | 2 | 3
   } | null>(null)
   const initParamsRef = useRef({
     participantIds,
@@ -570,18 +646,10 @@ export default function GlassBridgeComp({
   const prevFinishersRef = useRef<Set<string>>(new Set())
   /** Tracks the last (phase, currentTurnIndex) combo that triggered a new-turn sound. */
   const lastNewTurnSoundRef = useRef<string>('')
-  /** Tracks unfinished players before timer expiry so the timeout death sequence can animate them. */
-  const unfinishedPlayerIdsRef = useRef<string[]>([])
-  /** One-shot guard for the timer-expiry collapse sequence. */
-  const timeoutSequenceStartedRef = useRef(false)
   const bestFinishTimeRef = useRef<number | null>(null)
 
   // Stable RNG for AI step timing (different sub-seed so it doesn't affect bridge layout).
   const aiRngRef = useRef(mulberry32(sessionSeed + 9999))
-
-  useEffect(() => {
-    timerDisplayRef.current = timerDisplay
-  }, [timerDisplay])
 
   function clearAllTimers() {
     if (timerIntervalRef.current !== null) {
@@ -592,10 +660,6 @@ export default function GlassBridgeComp({
       window.clearTimeout(aiStepTimerRef.current)
       aiStepTimerRef.current = null
     }
-    for (const timer of parallelStepTimersRef.current.values()) {
-      window.clearTimeout(timer)
-    }
-    parallelStepTimersRef.current.clear()
     if (autoAdvanceRef.current !== null) {
       window.clearTimeout(autoAdvanceRef.current)
       autoAdvanceRef.current = null
@@ -624,10 +688,6 @@ export default function GlassBridgeComp({
       window.clearTimeout(deathMarkerClearRef.current)
       deathMarkerClearRef.current = null
     }
-    if (timeoutCollapseResolveRef.current !== null) {
-      window.clearTimeout(timeoutCollapseResolveRef.current)
-      timeoutCollapseResolveRef.current = null
-    }
     if (statusBannerResetRef.current !== null) {
       window.clearTimeout(statusBannerResetRef.current)
       statusBannerResetRef.current = null
@@ -640,9 +700,13 @@ export default function GlassBridgeComp({
   const { playSafeStep, playDeath, playWinner, playNewTurn } = useGlassBridgeAudio(
     gb.phase !== 'idle'
   )
-  const effectivePlaybackSpeed = gb.humanSpectating ? playbackSpeed : 1
+  const effectivePlaybackSpeed = waitingForSpectatorDecision
+    ? 0
+    : gb.humanSpectating
+      ? playbackSpeed
+      : 1
   const scaleSpectatorDelay = useCallback(
-    (ms: number) => Math.max(0, Math.round(ms / effectivePlaybackSpeed)),
+    (ms: number) => Math.max(0, Math.round(ms / Math.max(1, effectivePlaybackSpeed))),
     [effectivePlaybackSpeed]
   )
   const getEffectiveElapsedMs = useCallback(
@@ -689,10 +753,20 @@ export default function GlassBridgeComp({
       humanId: hId,
       participants: parts,
     } = initParamsRef.current
+    const gamePlayers = reduxStore.getState().game?.players ?? []
     dispatch(
       initGlassBridge({
         participantIds: pIds,
-        participants: parts?.map((p) => ({ ...p, isHuman: p.isHuman })),
+        participants: pIds.map((id) => {
+          const supplied = parts?.find((p) => p.id === id)
+          const player = gamePlayers.find((p) => p.id === id)
+          return {
+            id,
+            name: supplied?.name ?? player?.name ?? id,
+            isHuman: supplied?.isHuman ?? id === hId,
+            competitionProfile: supplied?.competitionProfile ?? player?.competitionProfile,
+          }
+        }),
         competitionType: pt ?? 'LOH',
         seed: s,
         humanPlayerId: hId,
@@ -702,7 +776,7 @@ export default function GlassBridgeComp({
       clearAllTimers()
       dispatch(resetGlassBridge())
     }
-  }, [dispatch])
+  }, [dispatch, reduxStore])
 
   // ── 1b. Keep currentChosenNumbersRef in sync (used by AI timer callbacks). ─
   useEffect(() => {
@@ -885,13 +959,10 @@ export default function GlassBridgeComp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gb.phase])
 
-  // ── 5. Global timer display ───────────────────────────────────────────────
+  // ── 5. Personal turn clock ────────────────────────────────────────────────
   useEffect(() => {
     if (gb.phase !== 'playing' || gb.challengeStartTimeMs === null) {
       timerScaleRef.current = null
-      if (gb.phase !== 'playing') {
-        setTimerDisplay(gb.globalTimeLimitMs)
-      }
       return
     }
 
@@ -906,189 +977,42 @@ export default function GlassBridgeComp({
       elapsedMsAtAnchor: elapsedMs,
       speed: effectivePlaybackSpeed,
     }
-    setTimerDisplay(Math.max(0, gb.globalTimeLimitMs - elapsedMs))
-  }, [effectivePlaybackSpeed, gb.phase, gb.challengeStartTimeMs, gb.globalTimeLimitMs])
+  }, [effectivePlaybackSpeed, gb.phase, gb.challengeStartTimeMs])
 
   useEffect(() => {
-    if (gb.phase !== 'playing' || gb.challengeStartTimeMs === null) return
-    if (gb.globalTimeLimitMs <= 0) return
-    const challengeStartTimeMs = gb.challengeStartTimeMs
+    if (gb.phase !== 'playing') return
 
     function tick() {
-      const elapsed = getEffectiveElapsedMs()
-      const remaining = Math.max(0, gb.globalTimeLimitMs - elapsed)
-      setTimerDisplay(remaining)
-
-      const pendingSelectedBeforeExpiry =
-        !!pendingStep && pendingStep.chosenAt < challengeStartTimeMs + gb.globalTimeLimitMs
-
-      // Preserve the logical selection moment for a tile that was chosen before time expired,
-      // even if its suspense animation is still playing.
-      if (remaining <= 0 && !gb.timerExpired && !pendingSelectedBeforeExpiry) {
-        dispatch(expireTimer())
-      }
+      const now = getEffectiveNowMs()
+      setClockNowMs(now)
+      dispatch(
+        tickBridge({
+          now,
+          pendingPlayerId: pendingStep?.actorId,
+          pendingChosenAtMs: pendingStep?.chosenAt,
+        })
+      )
     }
 
-    // Prime the HUD immediately so players see the correct remaining time from
-    // the first frame instead of a brief visual delay before the 250 ms interval.
     tick()
-    timerIntervalRef.current = window.setInterval(tick, 250)
+    timerIntervalRef.current = window.setInterval(tick, 100)
     return () => {
       if (timerIntervalRef.current !== null) {
         window.clearInterval(timerIntervalRef.current)
         timerIntervalRef.current = null
       }
     }
-  }, [
-    gb.phase,
-    gb.challengeStartTimeMs,
-    gb.timerExpired,
-    pendingStep,
-    dispatch,
-    gb.globalTimeLimitMs,
-    getEffectiveElapsedMs,
-  ])
-
-  // ── 5b. Track unfinished players before timer expiry for the collapse sequence ─
-  useEffect(() => {
-    if (gb.phase !== 'playing') {
-      unfinishedPlayerIdsRef.current = []
-      return
-    }
-    if (gb.timerExpired) return
-    unfinishedPlayerIdsRef.current = gb.turnOrder.filter((pid) => {
-      const progress = gb.progress[pid]
-      return !!progress && !progress.eliminated && progress.finishTimeMs === undefined
-    })
-  }, [gb.phase, gb.progress, gb.timerExpired, gb.turnOrder])
-
-  // ── 6. AI step automation ──────────────────────────────────────────────────
-  useEffect(() => {
-    if (gb.phase !== 'playing' || gb.timerExpired) return
-    if (!shouldStartParallelPlayers(timerDisplay)) return
-    const activeId = selectActivePlayerId(gb)
-    const waiting = gb.turnOrder.filter(
-      (playerId) =>
-        playerId !== activeId &&
-        !gb.parallelPlayerIds.includes(playerId) &&
-        gb.progress[playerId]?.firstStepAtMs === undefined
-    )
-    if (waiting.length === 0) return
-    if (timerDisplay <= COLLISION_OVERRIDE_THRESHOLD_MS) {
-      dispatch(startParallelPlayers({ releaseAll: true }))
-      return
-    }
-    const activeParallelCount = gb.parallelPlayerIds.filter((playerId) => {
-      const progress = gb.progress[playerId]
-      return progress && !progress.eliminated && progress.finishTimeMs === undefined
-    }).length
-    if (activeParallelCount >= MAX_PARALLEL_MOVERS) return
-    if (gb.parallelPlayerIds.length > 0) {
-      parallelReleaseTimerRef.current = window.setTimeout(() => {
-        dispatch(startParallelPlayers())
-        parallelReleaseTimerRef.current = null
-      }, PARALLEL_RELEASE_INTERVAL_MS)
-      return () => {
-        if (parallelReleaseTimerRef.current !== null) {
-          window.clearTimeout(parallelReleaseTimerRef.current)
-          parallelReleaseTimerRef.current = null
-        }
-      }
-    }
-    const hasUnstartedPlayers = gb.turnOrder.some(
-      (playerId) => playerId !== activeId && gb.progress[playerId]?.firstStepAtMs === undefined
-    )
-    if (hasUnstartedPlayers) {
-      dispatch(startParallelPlayers())
-      flashStatusBanner(
-        'Less than a minute remains — waiting players are entering the path now!',
-        'warning'
-      )
-    }
-  }, [dispatch, flashStatusBanner, gb, timerDisplay])
-
-  // Independently advance every released AI while the original active turn continues.
-  useEffect(() => {
-    const waitingForHumanSpectatorDecision = Boolean(
-      humanId &&
-      !gb.humanSpectating &&
-      (gb.progress[humanId]?.eliminated ||
-        (pendingStep?.actorId === humanId && pendingStep.isBreak))
-    )
-    if (
-      gb.phase !== 'playing' ||
-      gb.timerExpired ||
-      gb.parallelPlayerIds.length === 0 ||
-      waitingForHumanSpectatorDecision
-    ) {
-      for (const timer of parallelStepTimersRef.current.values()) window.clearTimeout(timer)
-      parallelStepTimersRef.current.clear()
-      return
-    }
-    const candidates = gb.parallelPlayerIds
-      .filter((playerId) => playerId !== humanId)
-      .map((playerId) => ({ playerId, progress: gb.progress[playerId] }))
-      .filter(
-        ({ progress }) => progress && !progress.eliminated && progress.finishTimeMs === undefined
-      )
-    const candidateIds = new Set(candidates.map(({ playerId }) => playerId))
-    for (const [playerId, timer] of parallelStepTimersRef.current) {
-      if (!candidateIds.has(playerId)) {
-        window.clearTimeout(timer)
-        parallelStepTimersRef.current.delete(playerId)
-      }
-    }
-
-    candidates.forEach((candidate, index) => {
-      if (parallelStepTimersRef.current.has(candidate.playerId)) return
-      const rowNumber = candidate.progress.furthestRowReached + 1
-      const row = gb.rows[rowNumber - 1]
-      if (!row) return
-      const occupiedSides = Object.entries(gb.progress)
-        .filter(
-          ([playerId, progress]) =>
-            playerId !== candidate.playerId &&
-            !progress.eliminated &&
-            progress.finishTimeMs === undefined &&
-            progress.furthestRowReached === rowNumber &&
-            progress.currentSide
-        )
-        .map(([, progress]) => progress.currentSide!)
-      const participant = gb.participants.find((entry) => entry.id === candidate.playerId)
-      const chosenSide = chooseParallelAiSide(
-        row,
-        occupiedSides,
-        timerDisplayRef.current,
-        aiRngRef.current,
-        participant?.competitionProfile
-      )
-      const delay = scaleSpectatorDelay(900 + index * 90)
-      const timer = window.setTimeout(() => {
-        parallelStepTimersRef.current.delete(candidate.playerId)
-        dispatch(
-          resolveParallelStep({
-            playerId: candidate.playerId,
-            chosenSide,
-            now: getEffectiveNowMs(),
-            remainingMs: timerDisplayRef.current,
-          })
-        )
-      }, delay)
-      parallelStepTimersRef.current.set(candidate.playerId, timer)
-    })
-  }, [dispatch, gb, getEffectiveNowMs, humanId, pendingStep, scaleSpectatorDelay])
+  }, [gb.phase, pendingStep, dispatch, getEffectiveNowMs])
 
   useEffect(() => {
     if (gb.phase !== 'playing') return
+    if (waitingForSpectatorDecision) return
 
     const activeId = selectActivePlayerId(gb)
     if (!activeId) return
-    if (gb.parallelPlayerIds.includes(activeId)) return
-
     const isHumanTurn = activeId === humanId && !gb.humanSpectating
     if (isHumanTurn) return // human controls their own steps
 
-    if (gb.timerExpired) return
     if (pendingStep) return
 
     // Check if already done.
@@ -1099,12 +1023,21 @@ export default function GlassBridgeComp({
     if (rowIdx < 0 || rowIdx >= gb.rows.length) return
     const row = gb.rows[rowIdx]
     const hintsUsed = getHintUses(progress.hintPenaltyMs)
+    const participant = gb.participants.find((p) => p.id === activeId)
     const willUseHint =
       !row.leftBroken &&
       !row.rightBroken &&
       !row.revealedSafeSide &&
-      shouldAiUseHint(rowIdx, gb.rowsCount, hintsUsed, aiRngRef.current)
-    const delay = scaleSpectatorDelay(getAiDecisionDelayMs(row, aiRngRef.current))
+      shouldAiUseHint(
+        rowIdx,
+        gb.rowsCount,
+        hintsUsed,
+        aiRngRef.current,
+        participant?.competitionProfile
+      )
+    const delay = scaleSpectatorDelay(
+      getAiDecisionDelayMs(row, aiRngRef.current, participant?.competitionProfile)
+    )
 
     if (aiStepTimerRef.current !== null) {
       window.clearTimeout(aiStepTimerRef.current)
@@ -1112,7 +1045,7 @@ export default function GlassBridgeComp({
 
     aiStepTimerRef.current = window.setTimeout(() => {
       // Double-check the game is still in playing state.
-      if (gb.phase !== 'playing' || gb.timerExpired) return
+      if (gb.phase !== 'playing') return
 
       // Find the active participant's profile.
       const participant = gb.participants.find((p) => p.id === activeId)
@@ -1198,7 +1131,6 @@ export default function GlassBridgeComp({
     gb.phase,
     gb.currentTurnIndex,
     gb.currentPlayerRow,
-    gb.timerExpired,
     humanId,
     pendingStep,
     gb,
@@ -1209,94 +1141,17 @@ export default function GlassBridgeComp({
     flashStatusBanner,
     getName,
     getEffectiveNowMs,
-  ])
-
-  // ── 7. Timer expiry sequence — collapse the bridge before showing results ─
-  useEffect(() => {
-    if (gb.phase !== 'playing') {
-      timeoutSequenceStartedRef.current = false
-      setTimeoutCollapseActive(false)
-      setTimedOutPlayerIds([])
-      bestFinishTimeRef.current = null
-      return
-    }
-    if (!gb.timerExpired || timeoutSequenceStartedRef.current) return
-
-    timeoutSequenceStartedRef.current = true
-
-    const doomedIds = unfinishedPlayerIdsRef.current
-    if (doomedIds.length === 0) {
-      dispatch(completeGame())
-      return
-    }
-
-    const noAnimations = areAnimationsDisabled()
-    const collapseDuration = scaleSpectatorDelay(
-      getTimeoutCollapseDuration(gb.rows.length, noAnimations)
-    )
-    const activeId = gb.turnOrder[gb.currentTurnIndex] ?? null
-    const activeRow =
-      activeId && gb.currentPlayerRow > 0 && gb.currentPlayerRow <= gb.rows.length
-        ? gb.rows[gb.currentPlayerRow - 1]
-        : null
-
-    setShowSpectatorModal(false)
-    setTimedOutPlayerIds(doomedIds)
-    setTimeoutCollapseActive(true)
-    setShowEliminationFlash(true)
-    setShowScreenShake(true)
-    playDeath()
-    if (
-      activeId &&
-      activeRow &&
-      gb.progress[activeId]?.firstStepAtMs !== undefined &&
-      hasOneBrokenTile(activeRow)
-    ) {
-      flashStatusBanner(
-        getBrokenPlatformFallMessage(activeId === humanId, getName(activeId)),
-        'danger'
-      )
-    }
-
-    if (flashResetRef.current !== null) {
-      window.clearTimeout(flashResetRef.current)
-    }
-    flashResetRef.current = window.setTimeout(
-      () => {
-        setShowEliminationFlash(false)
-        setShowScreenShake(false)
-      },
-      noAnimations ? 0 : DEATH_FLASH_MS
-    )
-
-    timeoutCollapseResolveRef.current = window.setTimeout(() => {
-      dispatch(completeGame())
-    }, collapseDuration)
-  }, [
-    gb.currentPlayerRow,
-    gb.currentTurnIndex,
-    gb.phase,
-    gb.progress,
-    gb.rows,
-    gb.timerExpired,
-    gb.turnOrder,
-    dispatch,
-    playDeath,
-    scaleSpectatorDelay,
-    flashStatusBanner,
-    getName,
-    humanId,
+    waitingForSpectatorDecision,
   ])
 
   // ── 8. Detect end-of-game conditions ──────────────────────────────────────
   useEffect(() => {
     if (gb.phase !== 'playing') return
-    if (timeoutSequenceStartedRef.current) return
     if (selectIsGameOver(gb)) {
       dispatch(completeGame())
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gb.currentTurnIndex, gb.timerExpired, gb.progress])
+  }, [gb.currentTurnIndex, gb.progress])
 
   // ── 9. Resolve outcome when complete ─────────────────────────────────────
   useEffect(() => {
@@ -1311,6 +1166,10 @@ export default function GlassBridgeComp({
 
   // ── 11. Human eliminated → show spectator modal ───────────────────────────
   useEffect(() => {
+    if (gb.phase !== 'playing') {
+      setShowSpectatorModal(false)
+      return
+    }
     if (!humanId) return
     const progress = gb.progress[humanId]
     if (progress?.eliminated && !gb.humanSpectating && gb.phase === 'playing') {
@@ -1379,7 +1238,7 @@ export default function GlassBridgeComp({
   useEffect(() => {
     setCurrentHintMessage(null)
     setHintRequestsForCurrentRow(0)
-  }, [gb.phase, gb.currentPlayerRow, gb.currentTurnIndex])
+  }, [gb.phase, gb.currentPlayerRow])
 
   useEffect(() => {
     if (gb.phase !== 'playing') return
@@ -1389,10 +1248,18 @@ export default function GlassBridgeComp({
     const currentRowEl = rowRefs.current[gb.currentPlayerRow - 1]
     if (!scrollContainer || !currentRowEl) return
 
+    // A player's first move always starts at the near end of the bridge. Reset
+    // the scroller immediately so earlier AI movement can't leave Row 1 above
+    // the viewport when the human gets their turn.
+    if (gb.currentPlayerRow === 1) {
+      scrollContainer.scrollTo?.({ top: 0, behavior: 'auto' })
+      if (typeof scrollContainer.scrollTo !== 'function') scrollContainer.scrollTop = 0
+      return
+    }
+
     const scrollRect = scrollContainer.getBoundingClientRect()
     const rowRect = currentRowEl.getBoundingClientRect()
-    const floatingOffset = floatingUiRef.current?.getBoundingClientRect().height ?? 0
-    const visibleTop = scrollRect.top + floatingOffset + 12
+    const visibleTop = scrollRect.top + 12
     const visibleBottom = scrollRect.bottom - 12
     const availableHeight = Math.max(1, visibleBottom - visibleTop)
     const rowHeight = rowRect.bottom - rowRect.top
@@ -1434,16 +1301,14 @@ export default function GlassBridgeComp({
     (side: TileSide) => {
       if (!humanId) return
       if (gb.phase !== 'playing') return
-      if (gb.timerExpired) return
       if (pendingStep) return
+      if (gb.progress[humanId]?.eliminated || gb.progress[humanId]?.finishTimeMs !== undefined)
+        return
 
       const activeId = selectActivePlayerId(gb)
-      const isParallelHuman = gb.parallelPlayerIds.includes(humanId)
-      if (activeId !== humanId && !isParallelHuman) return
+      if (activeId !== humanId) return
 
-      const rowIdx = isParallelHuman
-        ? (gb.progress[humanId]?.furthestRowReached ?? 0)
-        : gb.currentPlayerRow - 1
+      const rowIdx = gb.currentPlayerRow - 1
       if (rowIdx < 0 || rowIdx >= gb.rows.length) return
       const row = gb.rows[rowIdx]
 
@@ -1487,11 +1352,7 @@ export default function GlassBridgeComp({
           shatterResolveRef.current = window.setTimeout(() => {
             setShatteringTile(null)
             setPendingStep(null)
-            dispatch(
-              isParallelHuman
-                ? resolveParallelStep({ playerId: humanId, chosenSide: side, now: chosenAt })
-                : resolveStep({ chosenSide: side, now: chosenAt })
-            )
+            dispatch(resolveStep({ chosenSide: side, now: chosenAt }))
           }, shatterDelay)
           return
         }
@@ -1501,11 +1362,7 @@ export default function GlassBridgeComp({
         if (rowIdx + 1 < gb.rowsCount) {
           flashStatusBanner(pickRandom(humanClearMessages)(rowIdx + 1), 'success')
         }
-        dispatch(
-          isParallelHuman
-            ? resolveParallelStep({ playerId: humanId, chosenSide: side, now: chosenAt })
-            : resolveStep({ chosenSide: side, now: chosenAt })
-        )
+        dispatch(resolveStep({ chosenSide: side, now: chosenAt }))
       }, suspenseDelay)
     },
     [
@@ -1528,8 +1385,8 @@ export default function GlassBridgeComp({
 
   const handleSkipToResult = useCallback(() => {
     setShowSpectatorModal(false)
-    dispatch(fastForwardRemainingPlayers())
-  }, [dispatch])
+    dispatch(fastForwardRemainingPlayers({ now: getEffectiveNowMs() }))
+  }, [dispatch, getEffectiveNowMs])
 
   const handleRequestHelp = useCallback(() => {
     if (!humanId) return
@@ -1538,9 +1395,7 @@ export default function GlassBridgeComp({
     const hintsUsed = getHintUses(humanProgress.hintPenaltyMs)
     if (hintsUsed >= MAX_HINTS_PER_RUN) return
 
-    const rowIdx = gb.parallelPlayerIds.includes(humanId)
-      ? humanProgress.furthestRowReached
-      : gb.currentPlayerRow - 1
+    const rowIdx = gb.currentPlayerRow - 1
     if (rowIdx < 0 || rowIdx >= gb.rows.length) return
     const row = gb.rows[rowIdx]
 
@@ -1558,24 +1413,36 @@ export default function GlassBridgeComp({
     setCurrentHintMessage(pickRandom(hintMessages)(chance))
     setHintRequestsForCurrentRow(sameRowHintCount)
     dispatch(recordHintUsed({ playerId: humanId }))
-  }, [
-    humanId,
-    gb.progress,
-    gb.currentPlayerRow,
-    gb.parallelPlayerIds,
-    gb.rows,
-    dispatch,
-    hintRequestsForCurrentRow,
-  ])
+  }, [humanId, gb.progress, gb.currentPlayerRow, gb.rows, dispatch, hintRequestsForCurrentRow])
 
   // ── Derived values ────────────────────────────────────────────────────────
 
   const activeId = selectActivePlayerId(gb)
-  const humanIsParallel = humanId ? gb.parallelPlayerIds.includes(humanId) : false
-  const isHumanTurn = (activeId === humanId || humanIsParallel) && !gb.humanSpectating
   const humanProgress = humanId ? gb.progress[humanId] : null
-  const currentRowForDisplay =
-    humanIsParallel && humanProgress ? humanProgress.furthestRowReached + 1 : gb.currentPlayerRow
+  const isHumanTurn = Boolean(
+    humanId &&
+    activeId === humanId &&
+    !gb.humanSpectating &&
+    humanProgress &&
+    !humanProgress.eliminated &&
+    humanProgress.finishTimeMs === undefined
+  )
+  const currentRowForDisplay = gb.currentPlayerRow
+  const moveRemainingMs =
+    humanProgress?.moveStartedAtMs === undefined
+      ? MOVE_TIME_LIMIT_MS
+      : Math.min(
+          MOVE_TIME_LIMIT_MS,
+          Math.max(0, MOVE_TIME_LIMIT_MS - (clockNowMs - humanProgress.moveStartedAtMs))
+        )
+  const deathClockStage =
+    moveRemainingMs > MOVE_TIME_LIMIT_MS * 0.75
+      ? 'green'
+      : moveRemainingMs > MOVE_TIME_LIMIT_MS * 0.5
+        ? 'yellow'
+        : moveRemainingMs > MOVE_TIME_LIMIT_MS * 0.25
+          ? 'orange'
+          : 'red'
   const isHumanEliminated = !!humanProgress?.eliminated
   const pendingActorId = pendingStep?.actorId ?? null
   const hintsUsed = getHintUses(humanProgress?.hintPenaltyMs)
@@ -1585,18 +1452,18 @@ export default function GlassBridgeComp({
     isHumanTurn &&
     !isHumanEliminated &&
     !pendingStep &&
-    !gb.timerExpired &&
     hintsRemaining > 0
 
-  const timerClass =
-    timerDisplay <= 10_000 ? 'gb-timer-critical' : timerDisplay <= 30_000 ? 'gb-timer-warning' : ''
-  const isTimeoutPlayer = (playerId: string) => timedOutPlayerIds.includes(playerId)
+  const leadingPlayerId = gb.turnOrder.reduce<string | null>((leader, id) => {
+    const p = gb.progress[id]
+    if (!p || p.eliminated || p.finishTimeMs !== undefined) return leader
+    return !leader || p.furthestRowReached > gb.progress[leader].furthestRowReached ? id : leader
+  }, null)
   const defaultBannerText = useMemo(() => {
-    if (timeoutCollapseActive) return pickRandom(timesUpMessages)
     if (isHumanTurn && !pendingStep) return pickRandom(stepPromptMessages)
     if (activeId) return pickRandom(activePlayerMessages)(getName(activeId))
     return pickRandom(waitingMessages)
-  }, [timeoutCollapseActive, isHumanTurn, pendingStep, activeId, getName])
+  }, [isHumanTurn, pendingStep, activeId, getName])
   const bannerText = statusBanner?.message ?? defaultBannerText
   const nextPlaybackSpeed = getNextPlaybackSpeed(playbackSpeed)
   const canFastForward = gb.humanSpectating && isHumanEliminated && gb.phase === 'playing'
@@ -1629,267 +1496,287 @@ export default function GlassBridgeComp({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className={`glass-bridge${gb.phase === 'playing' ? ' gb-phase-playing' : ''}${showScreenShake ? ' gb-screen-shake' : ''}`}
-      role="main"
-      aria-label="The Crystal Path"
-    >
-      {/* HUD */}
-      {(gb.phase === 'playing' || gb.phase === 'complete') && (
-        <div className="gb-hud" role="banner">
-          <span className="gb-hud-title">The Crystal Path</span>
-          {gb.phase === 'playing' &&
-            gb.challengeStartTimeMs !== null &&
-            gb.globalTimeLimitMs > 0 && (
-              <span className={`gb-hud-timer ${timerClass}`} aria-label="Time remaining">
-                ⏱ {formatTimeRemaining(timerDisplay)}
+    <>
+      <style data-crystal-path-theme={premium ? 'premium' : 'standard'}>
+        {premium ? premiumStyles : standardStyles}
+      </style>
+      <div
+        className={`glass-bridge${gb.phase === 'playing' ? ' gb-phase-playing' : ''}${showScreenShake ? ' gb-screen-shake' : ''}`}
+        role="main"
+        aria-label="The Crystal Path"
+      >
+        {/* HUD */}
+        {(gb.phase === 'playing' || gb.phase === 'complete') && (
+          <div className="gb-hud" role="banner">
+            <span className="gb-hud-title">The Crystal Path</span>
+            {gb.phase === 'playing' && (
+              <span className="gb-hud-turn" aria-label="Current turn">
+                {isHumanTurn ? 'Your turn' : activeId ? `${getName(activeId)}'s turn` : 'Waiting…'}
+                {isHumanTurn && pendingStep?.actorId !== humanId && (
+                  <span
+                    className={`gb-death-clock gb-death-clock-${deathClockStage}${moveRemainingMs <= MOVE_TIME_LIMIT_MS * 0.25 ? ' gb-death-clock-critical' : ''}`}
+                    role="progressbar"
+                    aria-label="Your turn clock"
+                    aria-valuemin={0}
+                    aria-valuemax={MOVE_TIME_LIMIT_MS}
+                    aria-valuenow={moveRemainingMs}
+                  >
+                    <span
+                      className="gb-death-clock-fill"
+                      style={{ width: `${(moveRemainingMs / MOVE_TIME_LIMIT_MS) * 100}%` }}
+                    />
+                  </span>
+                )}
               </span>
             )}
-          {gb.phase === 'playing' && (
-            <span className="gb-hud-turn" aria-label="Current turn">
-              {activeId
-                ? activeId === humanId
-                  ? 'Your turn'
-                  : `${getName(activeId)}'s turn`
-                : 'Waiting…'}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* ── Order Selection ── */}
-      {gb.phase === 'order_selection' && (
-        <div className="gb-order-selection">
-          <h2>Choose Your Number</h2>
-          <p>
-            Pick a number from 1 to {gb.participants.length}.<br />
-            The reveal order will determine who crosses first.
-          </p>
-          <div className="gb-number-grid" role="group" aria-label="Number selection">
-            {Array.from({ length: gb.participants.length }, (_, i) => i + 1).map((num) => {
-              const takenByOther = Object.entries(gb.chosenNumbers).some(
-                ([pid, n]) => n === num && pid !== humanId
-              )
-              const takenByMe = humanId ? gb.chosenNumbers[humanId] === num : false
-              const isTaken = takenByOther
-              const isDisabled = isTaken || !!humanProgress?.eliminated || !humanId
-              const alreadyChose = humanId ? gb.chosenNumbers[humanId] !== undefined : true
-
-              return (
-                <button
-                  key={num}
-                  className={`gb-number-btn${isTaken ? ' gb-number-taken' : ''}${takenByMe ? ' gb-number-mine' : ''}`}
-                  disabled={isDisabled || alreadyChose}
-                  onClick={() => handleHumanNumberPick(num)}
-                  aria-label={`Pick number ${num}${isTaken ? ' (taken)' : ''}${takenByMe ? ' (your pick)' : ''}`}
-                >
-                  {num}
-                </button>
-              )
-            })}
           </div>
+        )}
 
-          {/* Status of who has chosen */}
-          <div className="gb-order-waiting-list" aria-label="Selection status">
-            {gb.participants.map((p) => {
-              const chosen = gb.chosenNumbers[p.id]
-              const isYou = p.id === humanId
-              return (
+        {/* ── Order Selection ── */}
+        {gb.phase === 'order_selection' && (
+          <div className="gb-order-selection">
+            <h2>Choose Your Number</h2>
+            <p>
+              Pick a number from 1 to {gb.participants.length}.<br />
+              The reveal order will determine who crosses first.
+            </p>
+            <p className="gb-rules-summary">
+              When it is your turn, choose a platform on the next row before the clock runs out.
+            </p>
+            <div className="gb-number-grid" role="group" aria-label="Number selection">
+              {Array.from({ length: gb.participants.length }, (_, i) => i + 1).map((num) => {
+                const takenByOther = Object.entries(gb.chosenNumbers).some(
+                  ([pid, n]) => n === num && pid !== humanId
+                )
+                const takenByMe = humanId ? gb.chosenNumbers[humanId] === num : false
+                const isTaken = takenByOther
+                const isDisabled = isTaken || !!humanProgress?.eliminated || !humanId
+                const alreadyChose = humanId ? gb.chosenNumbers[humanId] !== undefined : true
+
+                return (
+                  <button
+                    key={num}
+                    className={`gb-number-btn${isTaken ? ' gb-number-taken' : ''}${takenByMe ? ' gb-number-mine' : ''}`}
+                    disabled={isDisabled || alreadyChose}
+                    onClick={() => handleHumanNumberPick(num)}
+                    aria-label={`Pick number ${num}${isTaken ? ' (taken)' : ''}${takenByMe ? ' (your pick)' : ''}`}
+                  >
+                    {num}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Status of who has chosen */}
+            <div className="gb-order-waiting-list" aria-label="Selection status">
+              {gb.participants.map((p) => {
+                const chosen = gb.chosenNumbers[p.id]
+                const isYou = p.id === humanId
+                return (
+                  <div
+                    key={p.id}
+                    className={`gb-order-waiting-item${chosen !== undefined ? ' gb-waiting-done' : ''}`}
+                  >
+                    <span>{isYou ? 'You' : getName(p.id)}</span>
+                    <span>{chosen !== undefined ? `#${chosen} ✓` : 'Choosing…'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Order Reveal ── */}
+        {gb.phase === 'order_reveal' && (
+          <div className="gb-order-reveal">
+            <h2>Turn Order Revealed</h2>
+            <div className="gb-reveal-list" role="list" aria-label="Turn order">
+              {gb.turnOrder.slice(0, revealedCount).map((playerId, idx) => {
+                const isYou = playerId === humanId
+                return (
+                  <div
+                    key={playerId}
+                    className={`gb-reveal-item${isYou ? ' gb-reveal-you gb-reveal-spotlight' : ''}`}
+                    role="listitem"
+                    style={{ animationDelay: `${idx * 0.05}s` }}
+                  >
+                    <span className="gb-reveal-pos">{idx + 1}.</span>
+                    <span className="gb-reveal-name">{isYou ? '⭐ You' : getName(playerId)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Playing ── */}
+        {gb.phase === 'playing' && (
+          <div className="gb-playing">
+            <div className="gb-floating-ui">
+              <div className="gb-active-banner-row">
                 <div
-                  key={p.id}
-                  className={`gb-order-waiting-item${chosen !== undefined ? ' gb-waiting-done' : ''}`}
+                  className={`gb-active-banner${statusBanner ? ` gb-active-banner-flash gb-active-banner-${statusBanner.variant}` : ''}`}
+                  aria-live="polite"
                 >
-                  <span>{isYou ? 'You' : getName(p.id)}</span>
-                  <span>{chosen !== undefined ? `#${chosen} ✓` : 'Choosing…'}</span>
+                  {bannerText}
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Order Reveal ── */}
-      {gb.phase === 'order_reveal' && (
-        <div className="gb-order-reveal">
-          <h2>Turn Order Revealed</h2>
-          <div className="gb-reveal-list" role="list" aria-label="Turn order">
-            {gb.turnOrder.slice(0, revealedCount).map((playerId, idx) => {
-              const isYou = playerId === humanId
-              return (
-                <div
-                  key={playerId}
-                  className={`gb-reveal-item${isYou ? ' gb-reveal-you gb-reveal-spotlight' : ''}`}
-                  role="listitem"
-                  style={{ animationDelay: `${idx * 0.05}s` }}
-                >
-                  <span className="gb-reveal-pos">{idx + 1}.</span>
-                  <span className="gb-reveal-name">{isYou ? '⭐ You' : getName(playerId)}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Playing ── */}
-      {gb.phase === 'playing' && (
-        <div className="gb-playing" ref={playingScrollRef}>
-          <div className="gb-floating-ui" ref={floatingUiRef}>
-            <div className="gb-active-banner-row">
-              <div
-                className={`gb-active-banner${statusBanner ? ` gb-active-banner-flash gb-active-banner-${statusBanner.variant}` : ''}`}
-                aria-live="polite"
-              >
-                {bannerText}
+                {canFastForward && (
+                  <button
+                    type="button"
+                    className="gb-ffwd-btn"
+                    onClick={handleTogglePlaybackSpeed}
+                    aria-label={`Playback speed ${playbackSpeed}x. Tap to switch to ${nextPlaybackSpeed}x`}
+                  >
+                    <svg className="gb-speed-icon" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M2.5 3.2 7.1 8l-4.6 4.8V3.2Z" />
+                      <path d="M7.5 3.2 12.1 8l-4.6 4.8V3.2Z" />
+                      <path d="M14 3.2v9.6" />
+                    </svg>
+                    <span>{playbackSpeed}×</span>
+                  </button>
+                )}
               </div>
-              {canFastForward && (
-                <button
-                  type="button"
-                  className="gb-ffwd-btn"
-                  onClick={handleTogglePlaybackSpeed}
-                  aria-label={`Playback speed ${playbackSpeed}x. Tap to switch to ${nextPlaybackSpeed}x`}
-                >
-                  ⏩ {playbackSpeed}×
-                </button>
+              {isHumanTurn && !isHumanEliminated && (
+                <div className="gb-hint-area">
+                  {currentHintMessage && (
+                    <div className="gb-hint-message" role="status" aria-live="polite">
+                      🔮 {currentHintMessage}
+                    </div>
+                  )}
+                  <button
+                    className="gb-btn-help"
+                    onClick={handleRequestHelp}
+                    disabled={!canRequestHelp}
+                    aria-label={helpAriaLabel}
+                  >
+                    {helpButtonText}
+                  </button>
+                </div>
               )}
             </div>
-            {isHumanTurn && !isHumanEliminated && !gb.timerExpired && (
-              <div className="gb-hint-area">
-                {currentHintMessage && (
-                  <div className="gb-hint-message" role="status" aria-live="polite">
-                    🔮 {currentHintMessage}
-                  </div>
-                )}
-                <button
-                  className="gb-btn-help"
-                  onClick={handleRequestHelp}
-                  disabled={!canRequestHelp}
-                  aria-label={helpAriaLabel}
-                >
-                  {helpButtonText}
-                </button>
-              </div>
-            )}
-          </div>
-          {/* Bridge */}
-          <div className="gb-bridge-container" role="region" aria-label="Crystal path">
-            {/* LED accent rails — decorative outer edge lighting */}
-            <div className="gb-led-rail gb-led-rail-left gb-side-led" aria-hidden="true" />
-            <div className="gb-led-rail gb-led-rail-right gb-side-led" aria-hidden="true" />
-            {gb.rows.map((row, rowIdx) => {
-              const rowNum = rowIdx + 1
-              const isCurrentRow = currentRowForDisplay === rowNum
-              const rowDepthScale = Math.max(0.82, 1 - rowIdx * 0.015)
+            <div className="gb-bridge-scroll" ref={playingScrollRef}>
+              {/* Bridge */}
+              <div className="gb-bridge-container" role="region" aria-label="Crystal path">
+                {/* LED accent rails — decorative outer edge lighting */}
+                <div className="gb-led-rail gb-led-rail-left gb-side-led" aria-hidden="true" />
+                <div className="gb-led-rail gb-led-rail-right gb-side-led" aria-hidden="true" />
+                {gb.rows.map((row, rowIdx) => {
+                  const rowNum = rowIdx + 1
+                  const isCurrentRow = currentRowForDisplay === rowNum
+                  const rowDepth = gb.rows.length > 1 ? rowIdx / (gb.rows.length - 1) : 0
+                  const rowDepthScale = 1 - rowDepth * 0.15
 
-              // Find players on this row (those who have reached exactly this row and are active).
-              const playersOnRow = gb.turnOrder.filter((pid) => {
-                const p = gb.progress[pid]
-                const isParallelPlayer = gb.parallelPlayerIds.includes(pid)
-                const parallelPlayerOnRow = Boolean(
-                  isParallelPlayer &&
-                  p?.firstStepAtMs !== undefined &&
-                  Math.max(1, p.furthestRowReached) === rowNum
-                )
-                const mainPlayerOnRow =
-                  activeId === pid && !isParallelPlayer && gb.currentPlayerRow === rowNum
-                const timedOutOnBridge =
-                  timeoutCollapseActive &&
-                  isTimeoutPlayer(pid) &&
-                  (mainPlayerOnRow || parallelPlayerOnRow)
-                return (
-                  p &&
-                  p.finishTimeMs === undefined &&
-                  (mainPlayerOnRow || parallelPlayerOnRow) &&
-                  (!p.eliminated || timedOutOnBridge)
-                )
-              })
+                  // Only the active player occupies the current row during their turn.
+                  const playersOnRow = gb.turnOrder.filter((pid) => {
+                    const p = gb.progress[pid]
+                    const mainPlayerOnRow = activeId === pid && gb.currentPlayerRow === rowNum
+                    return p && p.finishTimeMs === undefined && mainPlayerOnRow && !p.eliminated
+                  })
 
-              return (
-                <div
-                  key={rowIdx}
-                  className={`gb-row${isCurrentRow ? ' gb-row-current' : ' gb-row-dimmed'}`}
-                  ref={(node) => {
-                    rowRefs.current[rowIdx] = node
-                  }}
-                  style={{
-                    transform: `scale(${rowDepthScale})`,
-                    opacity: isCurrentRow ? 1 : Math.max(0.46, 1 - rowIdx * 0.03),
-                  }}
-                >
-                  <span className="gb-row-label">{rowNum}</span>
-                  <div className="gb-tiles">
-                    {(['left', 'right'] as TileSide[]).map((side) => {
-                      const isBroken = side === 'left' ? row.leftBroken : row.rightBroken
-                      const isShatterAnim =
-                        shatteringTile?.rowIdx === rowIdx && shatteringTile?.side === side
-                      const isPendingTile =
-                        pendingStep?.rowIdx === rowIdx && pendingStep?.side === side
-                      const canActivate =
-                        isHumanTurn &&
-                        isCurrentRow &&
-                        !isBroken &&
-                        !pendingStep &&
-                        !timeoutCollapseActive
-                      const timeoutDelayMs =
-                        rowIdx * TIMEOUT_ROW_BREAK_STAGGER_MS +
-                        (side === 'right' ? TIMEOUT_SIDE_BREAK_OFFSET_MS : 0)
-
-                      let tileClass = 'gb-tile'
-                      if (isBroken || isShatterAnim) tileClass += ' gb-tile-broken'
-                      if (isShatterAnim) tileClass += ' gb-tile-shatter'
-                      if (timeoutCollapseActive && !isBroken && !isShatterAnim) {
-                        tileClass += ' gb-tile-timeout-break'
+                  return (
+                    <div
+                      key={rowIdx}
+                      className={`gb-row${isCurrentRow ? ' gb-row-current' : ' gb-row-dimmed'}`}
+                      ref={(node) => {
+                        rowRefs.current[rowIdx] = node
+                      }}
+                      style={
+                        {
+                          '--glass-surface-alpha': (0.24 - rowDepth * 0.12).toFixed(3),
+                          '--glass-edge-alpha': (0.47 - rowDepth * 0.16).toFixed(3),
+                          transform: `scale(${rowDepthScale})`,
+                          opacity: isCurrentRow ? 1 : 1 - rowDepth * 0.13,
+                        } as CSSProperties
                       }
-                      if (canActivate && !isBroken) tileClass += ' gb-tile-active'
-                      if (isCurrentRow) tileClass += ' gb-tile-current-row'
-                      if (!isCurrentRow) tileClass += ' gb-tile-inactive'
-                      if (isPendingTile) tileClass += ' gb-tile-selected'
+                    >
+                      <span className="gb-row-label">{rowNum}</span>
+                      <div className="gb-tiles">
+                        {(['left', 'right'] as TileSide[]).map((side) => {
+                          const isBroken = side === 'left' ? row.leftBroken : row.rightBroken
+                          const isShatterAnim =
+                            shatteringTile?.rowIdx === rowIdx && shatteringTile?.side === side
+                          const isPendingTile =
+                            pendingStep?.rowIdx === rowIdx && pendingStep?.side === side
+                          const canActivate =
+                            isHumanTurn && isCurrentRow && !isBroken && !pendingStep
 
-                      return (
-                        <div
-                          key={side}
-                          className={tileClass}
-                          style={
-                            timeoutCollapseActive && !isBroken && !isShatterAnim
-                              ? { animationDelay: `${timeoutDelayMs}ms` }
-                              : undefined
-                          }
-                          onClick={canActivate ? () => handleHumanStep(side) : undefined}
-                          role={canActivate ? 'button' : undefined}
-                          tabIndex={canActivate ? 0 : undefined}
-                          onKeyDown={
-                            canActivate
-                              ? (e) => {
-                                  if (e.key === 'Enter' || e.key === ' ') {
-                                    if (e.key === ' ') {
-                                      e.preventDefault()
+                          let tileClass = 'gb-tile'
+                          if (isBroken || isShatterAnim) tileClass += ' gb-tile-broken'
+                          if (isShatterAnim) tileClass += ' gb-tile-shatter'
+                          if (canActivate && !isBroken) tileClass += ' gb-tile-active'
+                          if (isCurrentRow) tileClass += ' gb-tile-current-row'
+                          if (!isCurrentRow) tileClass += ' gb-tile-inactive'
+                          if (isPendingTile) tileClass += ' gb-tile-selected'
+                          return (
+                            <div
+                              key={side}
+                              className={tileClass}
+                              onClick={canActivate ? () => handleHumanStep(side) : undefined}
+                              role={canActivate ? 'button' : undefined}
+                              tabIndex={canActivate ? 0 : undefined}
+                              onKeyDown={
+                                canActivate
+                                  ? (e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        if (e.key === ' ') {
+                                          e.preventDefault()
+                                        }
+                                        handleHumanStep(side)
+                                      }
                                     }
-                                    handleHumanStep(side)
-                                  }
-                                }
-                              : undefined
-                          }
-                          aria-label={`${side} tile${isBroken ? ' (broken)' : ''}${canActivate ? ' — step here' : ''}`}
-                          aria-disabled={isBroken || !canActivate}
-                        >
-                          <span className="gb-tile-label">{side}</span>
-                          {/* Death marker — shown briefly at the tile where a player fell */}
-                          {deathMarkerTile?.rowIdx === rowIdx && deathMarkerTile?.side === side && (
-                            <div className="gb-death-marker" aria-hidden="true">
-                              💀
+                                  : undefined
+                              }
+                              aria-label={`${side} tile${isBroken ? ' (broken)' : ''}${canActivate ? ' — step here' : ''}`}
+                              aria-disabled={isBroken || !canActivate}
+                            >
+                              {!isBroken && !isShatterAnim && (
+                                <span
+                                  className={`gb-tile-label gb-tile-label-${side}`}
+                                  aria-hidden="true"
+                                >
+                                  {side === 'left' ? 'L' : 'R'}
+                                </span>
+                              )}
+                              {isShatterAnim && <GlassShatterOverlay />}
+                              {/* Death marker — shown briefly at the tile where a player fell */}
+                              {deathMarkerTile?.rowIdx === rowIdx &&
+                                deathMarkerTile?.side === side && (
+                                  <div className="gb-death-marker" aria-hidden="true">
+                                    💀
+                                  </div>
+                                )}
                             </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                          )
+                        })}
+                      </div>
 
-                  {/* Players currently on this row */}
-                  <div className="gb-row-players">
-                    {playersOnRow.map((pid) => (
+                      {/* Players currently on this row */}
+                      <div className="gb-row-players">
+                        {playersOnRow.map((pid) => (
+                          <div
+                            key={pid}
+                            className={`gb-player-marker${pid === activeId ? ' gb-player-active' : ''}${pid === humanId ? ' gb-player-you' : ''}${pendingActorId === pid && shatteringTile ? ' gb-player-falling' : ''}`}
+                            title={getName(pid)}
+                          >
+                            <GlassBridgeAvatar
+                              id={pid}
+                              name={getName(pid)}
+                              alt={getName(pid)}
+                              size={18}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Safe platform — finishers land here with a bounce animation */}
+                {landingPlayerIds.length > 0 && (
+                  <div className="gb-safe-platform">
+                    {landingPlayerIds.map((pid) => (
                       <div
                         key={pid}
-                        className={`gb-player-marker${pid === activeId ? ' gb-player-active' : ''}${pid === humanId ? ' gb-player-you' : ''}${pendingActorId === pid && shatteringTile ? ' gb-player-falling' : ''}${timeoutCollapseActive && isTimeoutPlayer(pid) ? ' gb-player-falling' : ''}`}
+                        className="gb-player-marker gb-player-landing"
                         title={getName(pid)}
                       >
                         <GlassBridgeAvatar
@@ -1901,163 +1788,152 @@ export default function GlassBridgeComp({
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* Compact active-player avatar bar — remaining active players in turn order */}
+              <div className="gb-avatar-bar" role="list" aria-label="Active players">
+                {gb.turnOrder
+                  .filter((pid) => {
+                    const p = gb.progress[pid]
+                    return !!p && p.finishTimeMs === undefined && !p.eliminated
+                  })
+                  .map((pid) => {
+                    const isActive = activeId === pid
+                    const isLeader = pid === leadingPlayerId
+                    const isYou = pid === humanId
+                    return (
+                      <div
+                        key={pid}
+                        className={`gb-avatar-bar-item${isActive ? ' gb-avatar-bar-active' : ''}${isYou ? ' gb-avatar-bar-you' : ''}`}
+                        title={getName(pid)}
+                        role="listitem"
+                        aria-label={`${getName(pid)}${isActive ? ' — current turn' : ''}${isLeader ? ', leader' : ''}`}
+                      >
+                        {isLeader && (
+                          <span className="gb-avatar-bar-crown" aria-hidden="true">
+                            👑
+                          </span>
+                        )}
+                        <GlassBridgeAvatar
+                          id={pid}
+                          name={getName(pid)}
+                          alt={getName(pid)}
+                          size={32}
+                        />
+                        {isYou && (
+                          <span className="gb-avatar-bar-you-badge" aria-hidden="true">
+                            YOU
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Complete ── */}
+        {gb.phase === 'complete' && (
+          <MinigameCompleteWrapper
+            className="gb-complete"
+            onContinue={() => {
+              if (onComplete) {
+                onComplete(buildHostedCompletion())
+              } else {
+                dispatch(resolveGlassBridgeOutcome())
+              }
+            }}
+            continueLabel="Continue"
+            continueButtonClassName="gb-btn-primary"
+            placementsClassName="gb-placement-list"
+            placementsRole="list"
+            placementsAriaLabel="Final placements"
+            placementsNode={gb.placements.map((pid, idx) => {
+              const p = gb.progress[pid]
+              const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+              const isYou = pid === humanId
+              const hintUses = getHintUses(p?.hintPenaltyMs)
+
+              const detail: string = p?.forfeited
+                ? `Forfeit · time limit · row ${p.furthestRowReached}`
+                : p?.finishTimeMs !== undefined
+                  ? (() => {
+                      const penalty = p.hintPenaltyMs ?? 0
+                      const effective = p.finishTimeMs + penalty
+                      const base = `Finished ${formatElapsed(effective)}`
+                      return hintUses > 0
+                        ? `${base} (${formatHintUsage(hintUses)}, +${penalty / 1000}s)`
+                        : base
+                    })()
+                  : p?.furthestRowReached
+                    ? `Row ${p.furthestRowReached}${hintUses > 0 ? ` • ${formatHintUsage(hintUses)}` : ''}`
+                    : 'Row 0'
+
+              return (
+                <div key={pid} className="gb-placement-item" role="listitem">
+                  <span className="gb-placement-rank">{medal}</span>
+                  <span className="gb-placement-name">{isYou ? 'You' : getName(pid)}</span>
+                  <span className="gb-placement-detail">{detail}</span>
                 </div>
               )
             })}
-            {/* Safe platform — finishers land here with a bounce animation */}
-            {landingPlayerIds.length > 0 && (
-              <div className="gb-safe-platform">
-                {landingPlayerIds.map((pid) => (
-                  <div
-                    key={pid}
-                    className="gb-player-marker gb-player-landing"
-                    title={getName(pid)}
-                  >
-                    <GlassBridgeAvatar id={pid} name={getName(pid)} alt={getName(pid)} size={18} />
-                  </div>
-                ))}
+          >
+            <div className="gb-complete-hero">
+              <h2>Path Complete</h2>
+              <div className="gb-winner-badge">🏆</div>
+              {gb.winnerId && (
+                <div className="gb-winner-name">
+                  {gb.winnerId === humanId ? 'You win!' : `${getName(gb.winnerId)} wins!`}
+                </div>
+              )}
+            </div>
+          </MinigameCompleteWrapper>
+        )}
+
+        {/* ── Spectator modal ── */}
+        {showSpectatorModal && (
+          <div
+            className="gb-spectator-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Eliminated"
+          >
+            <div className="gb-spectator-card">
+              <div className="gb-spectator-icon" aria-hidden="true">
+                💀
               </div>
-            )}
-          </div>
-
-          {/* Compact active-player avatar bar — remaining active players in turn order */}
-          <div className="gb-avatar-bar" role="list" aria-label="Active players">
-            {gb.turnOrder
-              .filter((pid) => {
-                const p = gb.progress[pid]
-                return (
-                  !!p &&
-                  p.finishTimeMs === undefined &&
-                  (!p.eliminated || (timeoutCollapseActive && isTimeoutPlayer(pid)))
-                )
-              })
-              .map((pid, idx) => {
-                const isActive = activeId === pid
-                const isLeader = idx === 0
-                const isYou = pid === humanId
-                return (
-                  <div
-                    key={pid}
-                    className={`gb-avatar-bar-item${isActive ? ' gb-avatar-bar-active' : ''}${isYou ? ' gb-avatar-bar-you' : ''}${timeoutCollapseActive && isTimeoutPlayer(pid) ? ' gb-avatar-bar-timeout' : ''}`}
-                    title={getName(pid)}
-                    role="listitem"
-                    aria-label={`${getName(pid)}${isActive ? ' — current turn' : ''}${isLeader ? ', leader' : ''}`}
-                  >
-                    {isLeader && (
-                      <span className="gb-avatar-bar-crown" aria-hidden="true">
-                        👑
-                      </span>
-                    )}
-                    <GlassBridgeAvatar id={pid} name={getName(pid)} alt={getName(pid)} size={32} />
-                    {isYou && (
-                      <span className="gb-avatar-bar-you-badge" aria-hidden="true">
-                        YOU
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
-
-          {isHumanTurn && !isHumanEliminated && (
-            <div className="gb-step-hint" aria-live="polite">
-              Choose directly on the path.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Complete ── */}
-      {gb.phase === 'complete' && (
-        <MinigameCompleteWrapper
-          className="gb-complete"
-          onContinue={() => {
-            if (onComplete) {
-              onComplete(buildHostedCompletion())
-            } else {
-              dispatch(resolveGlassBridgeOutcome())
-            }
-          }}
-          continueLabel="Continue"
-          continueButtonClassName="gb-btn-primary"
-          placementsClassName="gb-placement-list"
-          placementsRole="list"
-          placementsAriaLabel="Final placements"
-          placementsNode={gb.placements.map((pid, idx) => {
-            const p = gb.progress[pid]
-            const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
-            const isYou = pid === humanId
-            const hintUses = getHintUses(p?.hintPenaltyMs)
-
-            const detail: string =
-              p?.finishTimeMs !== undefined
-                ? (() => {
-                    const penalty = p.hintPenaltyMs ?? 0
-                    const effective = p.finishTimeMs + penalty
-                    const base = `Finished ${formatElapsed(effective)}`
-                    return hintUses > 0
-                      ? `${base} (${formatHintUsage(hintUses)}, +${penalty / 1000}s)`
-                      : base
-                  })()
-                : p?.furthestRowReached
-                  ? `Row ${p.furthestRowReached}${hintUses > 0 ? ` • ${formatHintUsage(hintUses)}` : ''}`
-                  : 'Row 0'
-
-            return (
-              <div key={pid} className="gb-placement-item" role="listitem">
-                <span className="gb-placement-rank">{medal}</span>
-                <span className="gb-placement-name">{isYou ? 'You' : getName(pid)}</span>
-                <span className="gb-placement-detail">{detail}</span>
+              <h2>You have been eliminated.</h2>
+              <p>
+                {humanProgress?.forfeited
+                  ? 'You did not choose a move within the time limit, so your run is forfeited. '
+                  : ''}
+                You can continue watching the remaining players cross the path.
+              </p>
+              <div className="gb-spectator-actions">
+                <button
+                  className="gb-btn-watch"
+                  onClick={handleContinueWatching}
+                  aria-label="Continue watching"
+                >
+                  Continue Watching
+                </button>
+                <button
+                  className="gb-btn-skip"
+                  onClick={handleSkipToResult}
+                  aria-label="Skip to result"
+                >
+                  Skip to Result
+                </button>
               </div>
-            )
-          })}
-        >
-          <div className="gb-complete-hero">
-            <h2>Path Complete</h2>
-            <div className="gb-winner-badge">🏆</div>
-            {gb.winnerId && (
-              <div className="gb-winner-name">
-                {gb.winnerId === humanId ? 'You win!' : `${getName(gb.winnerId)} wins!`}
-              </div>
-            )}
-            <div className="gb-complete-subtitle">
-              Finishers are ranked by time. Everyone else is ranked by progress.
             </div>
           </div>
-        </MinigameCompleteWrapper>
-      )}
+        )}
 
-      {/* ── Spectator modal ── */}
-      {showSpectatorModal && (
-        <div className="gb-spectator-modal" role="dialog" aria-modal="true" aria-label="Eliminated">
-          <div className="gb-spectator-card">
-            <div className="gb-spectator-icon" aria-hidden="true">
-              💀
-            </div>
-            <h2>You have been eliminated.</h2>
-            <p>You can continue watching the remaining players cross the path.</p>
-            <div className="gb-spectator-actions">
-              <button
-                className="gb-btn-watch"
-                onClick={handleContinueWatching}
-                aria-label="Continue watching"
-              >
-                Continue Watching
-              </button>
-              <button
-                className="gb-btn-skip"
-                onClick={handleSkipToResult}
-                aria-label="Skip to result"
-              >
-                Skip to Result
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Elimination flash ── */}
-      {showEliminationFlash && <div className="gb-elimination-flash" aria-hidden="true" />}
-    </div>
+        {/* ── Elimination flash ── */}
+        {showEliminationFlash && <div className="gb-elimination-flash" aria-hidden="true" />}
+      </div>
+    </>
   )
 }

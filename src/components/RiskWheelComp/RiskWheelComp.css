@@ -96,6 +96,30 @@
   color: var(--rw-muted);
 }
 
+.rw-loading--backdrop {
+  gap: 12px;
+  background: #040615;
+}
+
+.rw-loading--backdrop p {
+  margin: 0;
+}
+
+.rw-preloader-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-top-color: var(--rw-gold);
+  border-radius: 50%;
+  animation: rw-preloader-spin 700ms linear infinite;
+}
+
+@keyframes rw-preloader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Replaces the previous rapid 0.18 s flicker with one slow cinematic pulse. */
 .rw-devil-mode {
   background:
@@ -1008,22 +1032,11 @@
 .rw-summary-name {
   min-width: 0;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.93rem;
   font-weight: 700;
-}
-
-.rw-summary-tiebreak-score {
-  color: #e6cf9e;
-  font-size: 0.58rem;
-  font-weight: 650;
-  line-height: 1.2;
-  white-space: normal;
 }
 
 .rw-summary-score {
@@ -1059,51 +1072,10 @@
   border: 1px solid rgba(157, 166, 255, 0.25);
 }
 
-.rw-summary-row--tie {
-  border-color: rgba(255, 218, 128, 0.72);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 218, 128, 0.12),
-    0 0 16px rgba(255, 190, 82, 0.1);
-}
-
 .rw-summary-badge--tie {
-  color: #ffe2a0;
-  background: rgba(128, 85, 20, 0.48);
-  border: 1px solid rgba(255, 212, 119, 0.35);
-}
-
-.rw-summary-badge--survived {
-  color: #b8ffe0;
-  background: rgba(26, 120, 82, 0.4);
-  border: 1px solid rgba(99, 239, 183, 0.3);
-}
-
-.rw-tie-summary {
-  width: 100%;
-  flex-shrink: 0;
-  display: grid;
-  gap: 5px;
-  padding: 11px 14px;
-  border: 1px solid rgba(255, 212, 119, 0.34);
-  border-radius: 13px;
-  color: #f8e8c1;
-  text-align: center;
-  background: linear-gradient(135deg, rgba(104, 70, 27, 0.46), rgba(54, 38, 68, 0.68));
-}
-
-.rw-tie-summary strong {
-  font-size: 0.91rem;
-}
-
-.rw-tie-summary span {
-  color: #d9d0c5;
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.rw-tie-summary--resolved {
-  border-color: rgba(99, 239, 183, 0.32);
-  background: linear-gradient(135deg, rgba(22, 87, 69, 0.44), rgba(38, 33, 69, 0.68));
+  color: #ffe6a1;
+  background: rgba(151, 111, 39, 0.34);
+  border: 1px solid rgba(245, 201, 106, 0.42);
 }
 
 .rw-summary-elim-msg {
@@ -1116,6 +1088,76 @@
   font-size: 0.84rem;
   background: rgba(119, 31, 47, 0.24);
   border: 1px solid rgba(255, 99, 117, 0.17);
+}
+
+.rw-summary-tiebreak-msg {
+  width: 100%;
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 11px;
+  text-align: center;
+  color: #a7f3d0;
+  font-size: 0.84rem;
+  background: rgba(87, 67, 25, 0.26);
+  border: 1px solid rgba(255, 201, 87, 0.22);
+}
+
+.rw-tiebreak-status {
+  color: #ffe39a;
+  background: rgba(121, 82, 19, 0.38);
+  border: 1px solid rgba(255, 201, 87, 0.3);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rw-tiebreak-instructions {
+  width: min(100%, 460px);
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: #ffe9b2;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  background: rgba(121, 82, 19, 0.23);
+  border: 1px solid rgba(255, 201, 87, 0.19);
+}
+
+/* Keep tie-break context on its own line on narrow portrait screens. */
+.rw-tiebreak-game .rw-header--tiebreak {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  gap: 8px;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-left,
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-center {
+  justify-content: center;
+  width: 100%;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-header-left {
+  flex-wrap: wrap;
+}
+
+.rw-tiebreak-game .rw-header--tiebreak .rw-tiebreak-status {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.rw-tiebreak-game .rw-main--tiebreaker {
+  gap: 9px;
+  padding: 10px 12px 18px;
+}
+
+.rw-root--vip.rw-tiebreak-game .rw-wheel-outer {
+  width: min(70vw, 248px);
+  height: min(70vw, 248px);
 }
 
 .rw-summary-footer {
@@ -3327,132 +3369,5 @@ body.no-animations .rw-root--vip .rw-btn--spin::after {
   .rw-root--vip .rw-result-chip {
     min-height: 36px;
     padding-block: 6px;
-  }
-}
-
-.rw-tiebreak-game .rw-header--tiebreak {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  gap: 7px;
-  padding-block: 9px;
-}
-
-.rw-header--tiebreak .rw-header-left {
-  max-width: 100%;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-
-.rw-header--tiebreak .rw-prize-badge {
-  max-width: 100%;
-  min-height: 30px;
-  padding: 5px 10px;
-  white-space: normal;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.rw-root--vip.rw-tiebreak-game .rw-header {
-  min-height: 0;
-  padding-block: 9px;
-}
-
-.rw-root--vip.rw-tiebreak-game .rw-main {
-  gap: 10px;
-  padding-top: 9px;
-  padding-bottom: 14px;
-}
-
-.rw-root--vip.rw-tiebreak-game .rw-wheel-outer {
-  width: clamp(250px, min(78vw, 42dvh), 320px);
-  height: clamp(250px, min(78vw, 42dvh), 320px);
-  margin-block: 0 8px;
-}
-
-.rw-root--vip.rw-tiebreak-game .rw-current-player {
-  margin-bottom: 0;
-}
-
-@media (max-width: 699px) and (orientation: portrait) and (max-height: 720px) {
-  .rw-root--vip.rw-tiebreak-game .rw-wheel-outer {
-    width: clamp(220px, min(68vw, 32dvh), 270px);
-    height: clamp(220px, min(68vw, 32dvh), 270px);
-  }
-
-  .rw-tie-summary {
-    padding: 8px 10px;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 600px) {
-  .rw-root--vip.rw-tiebreak-game {
-    overflow-y: auto;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-header--tiebreak {
-    min-height: 42px;
-    gap: 4px;
-    padding-block: 3px;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-header-left {
-    flex-wrap: nowrap;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-prize-badge {
-    min-height: 26px;
-    padding-block: 3px;
-    white-space: nowrap;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-main {
-    display: grid;
-    grid-template-columns: minmax(135px, 0.8fr) minmax(170px, 1.1fr) minmax(145px, 0.8fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    align-items: center;
-    justify-items: center;
-    gap: 5px 10px;
-    padding: 5px 12px 8px;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-current-player {
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
-    padding: 5px 12px;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-score-value {
-    font-size: clamp(1.8rem, 7dvh, 2.3rem);
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-wheel-outer {
-    grid-column: 2;
-    grid-row: 1;
-    width: clamp(150px, 48dvh, 220px);
-    height: clamp(150px, 48dvh, 220px);
-    margin: 0;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-actions {
-    grid-column: 3;
-    grid-row: 1;
-    max-width: 220px;
-    gap: 6px;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-actions .rw-btn {
-    min-height: 42px;
-    padding-block: 8px;
-  }
-
-  .rw-root--vip.rw-tiebreak-game .rw-mini-scores {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-content: center;
-    gap: 7px;
   }
 }

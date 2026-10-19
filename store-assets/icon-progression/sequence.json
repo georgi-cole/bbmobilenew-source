@@ -1,0 +1,13 @@
+{
+  "sourceOrder": [7, 2, 1, 8, 3, 4, 5, 6],
+  "stages": [
+    { "source": 7, "file": "sequence-01-from-07.png", "name": "The closer approach" },
+    { "source": 2, "file": "sequence-02-from-02.png", "name": "The distant car" },
+    { "source": 1, "file": "sequence-03-from-01.png", "name": "The witness in the road" },
+    { "source": 8, "file": "sequence-04-from-08.png", "name": "The widening pupil" },
+    { "source": 3, "file": "sequence-05-from-03.png", "name": "The car without the witness" },
+    { "source": 4, "file": "sequence-06-from-04.png", "name": "The occupants" },
+    { "source": 5, "file": "sequence-07-from-05.png", "name": "The road inside the eye" },
+    { "source": 6, "file": "sequence-08-from-06.png", "name": "The original watcher" }
+  ]
+}

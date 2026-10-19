@@ -7,45 +7,46 @@
  * their score surges to 100.
  */
 
-import type { CompetitorProgress } from './progressEngine';
+import type { CompetitorProgress } from './progressEngine'
 
 interface TriviaVariantProps {
-  competitors: CompetitorProgress[];
-  phase: 'simulating' | 'reconciling' | 'revealed';
-  simPct?: number;
-  resolveAvatar: (id: string) => string;
-  getPlayerName: (id: string | undefined) => string;
+  competitors: CompetitorProgress[]
+  phase: 'simulating' | 'reconciling' | 'revealed'
+  simPct?: number
+  resolveAvatar: (id: string) => string
+  getPlayerName: (id: string | undefined) => string
+  compact?: boolean
 }
 
-// ── Big Eye–themed trivia questions shown during simulation ───────────────
+// ── Big Eye rules and mechanics shown during simulation ────────────────────
 
 const BIG_EYE_QUESTIONS = [
   {
-    q: 'What competition decides weekly nominations?',
-    answers: ['Safety', 'Power Battle', 'Back 2 the Game', 'Have-Not'],
+    q: 'What does the Part 1 winner earn?',
+    answers: ['A direct place in Part 3', 'An extra vote', 'A reserve spot', 'A weekend advantage'],
+    ai: 0,
+  },
+  {
+    q: 'Where do players record private thoughts?',
+    answers: ['The Confessional', 'The Hub', 'The Tribunal', 'The Nomination Wall'],
+    ai: 0,
+  },
+  {
+    q: 'How many finalists compete in the Final Power Battle?',
+    answers: ['One', 'Two', 'Three', 'Four'],
     ai: 1,
   },
   {
-    q: 'In a standard 16-player Classic season, how many Tribunal members vote?',
-    answers: ['5', '7', '9', '11'],
+    q: 'How many players start a standard full-size season?',
+    answers: ['12', '14', '16', '18'],
     ai: 2,
   },
   {
-    q: 'Final 3 Part 3 is a ___ competition.',
-    answers: ['Endurance', 'Mental', 'Questions', 'Physical'],
-    ai: 2,
-  },
-  {
-    q: 'What does "POS" stand for?',
-    answers: ['Power of Safety', 'Part of Strategy', 'Player Score', 'Proof of Survival'],
+    q: 'In a Tribunal finale, who votes for the winner?',
+    answers: ['The Tribunal', 'All active Hubmates', 'The finalists', 'The audience'],
     ai: 0,
   },
-  {
-    q: 'How many exits come before the Tribunal in a standard 16-player Classic season?',
-    answers: ['5', '3', '7', '9'],
-    ai: 0,
-  },
-];
+]
 
 export default function TriviaVariant({
   competitors,
@@ -53,26 +54,28 @@ export default function TriviaVariant({
   simPct = 0,
   resolveAvatar,
   getPlayerName,
+  compact = false,
 }: TriviaVariantProps) {
-  const isSimulating = phase === 'simulating';
+  const isSimulating = phase === 'simulating'
 
   // Determine leader
-  const leaderId = isSimulating
-    ? [...competitors].sort((a, b) => b.score - a.score)[0]?.id
-    : null;
+  const leaderId = isSimulating ? [...competitors].sort((a, b) => b.score - a.score)[0]?.id : null
 
   // Cycle questions based on simPct; each question spans ~20% of sim time
   const qIdx = Math.min(
     BIG_EYE_QUESTIONS.length - 1,
-    Math.floor(simPct / (100 / BIG_EYE_QUESTIONS.length)),
-  );
-  const currentQ = BIG_EYE_QUESTIONS[qIdx];
+    Math.floor(simPct / (100 / BIG_EYE_QUESTIONS.length))
+  )
+  const currentQ = BIG_EYE_QUESTIONS[qIdx]
   // Progress within this question slot (0–100)
-  const slotSize = 100 / BIG_EYE_QUESTIONS.length;
-  const slotPct = ((simPct % slotSize) / slotSize) * 100;
+  const slotSize = 100 / BIG_EYE_QUESTIONS.length
+  const slotPct = ((simPct % slotSize) / slotSize) * 100
 
   return (
-    <div className="sv-variant sv-trivia" aria-label="Trivia competition">
+    <div
+      className={`sv-variant sv-trivia${compact ? ' sv-trivia--monitor' : ''}`}
+      aria-label="Trivia competition"
+    >
       {/* Live question panel — only during simulation */}
       {isSimulating && (
         <div className="sv-trivia__question-panel">
@@ -82,10 +85,7 @@ export default function TriviaVariant({
             </span>
             {/* Per-question countdown bar */}
             <div className="sv-trivia__qtimer-bg">
-              <div
-                className="sv-trivia__qtimer-fill"
-                style={{ width: `${100 - slotPct}%` }}
-              />
+              <div className="sv-trivia__qtimer-fill" style={{ width: `${100 - slotPct}%` }} />
             </div>
           </div>
           <p className="sv-trivia__question-text">{currentQ.q}</p>
@@ -107,15 +107,17 @@ export default function TriviaVariant({
         {[...competitors]
           .sort((a, b) => b.score - a.score)
           .map((c, rank) => {
-            const isLeader = c.id === leaderId && !c.isWinner;
+            const isLeader = c.id === leaderId && !c.isWinner
             return (
               <div
                 key={c.id}
                 className={[
                   'sv-trivia__row',
-                  c.isWinner ? 'sv-trivia__row--winner'  : '',
-                  isLeader   ? 'sv-trivia__row--leading' : '',
-                ].filter(Boolean).join(' ')}
+                  c.isWinner ? 'sv-trivia__row--winner' : '',
+                  isLeader ? 'sv-trivia__row--leading' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
                 <span className="sv-trivia__rank" aria-hidden="true">
                   {rank + 1}
@@ -126,9 +128,13 @@ export default function TriviaVariant({
                   alt=""
                   className="sv-trivia__avatar"
                   onError={(e) => {
-                    const img = e.currentTarget as HTMLImageElement;
-                    const fb = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(c.id)}`;
-                    if (img.src !== fb) { img.src = fb; } else { img.style.display = 'none'; }
+                    const img = e.currentTarget as HTMLImageElement
+                    const fb = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(c.id)}`
+                    if (img.src !== fb) {
+                      img.src = fb
+                    } else {
+                      img.style.display = 'none'
+                    }
                   }}
                 />
 
@@ -136,10 +142,7 @@ export default function TriviaVariant({
 
                 {/* Inline progress bar */}
                 <div className="sv-trivia__bar-bg" aria-hidden="true">
-                  <div
-                    className="sv-trivia__bar-fill"
-                    style={{ width: `${c.score}%` }}
-                  />
+                  <div className="sv-trivia__bar-fill" style={{ width: `${c.score}%` }} />
                 </div>
 
                 <span
@@ -155,7 +158,7 @@ export default function TriviaVariant({
                   </span>
                 )}
               </div>
-            );
+            )
           })}
       </div>
 
@@ -165,5 +168,5 @@ export default function TriviaVariant({
         </p>
       )}
     </div>
-  );
+  )
 }

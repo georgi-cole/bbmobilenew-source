@@ -24,6 +24,7 @@ import type { CompleteMinigamePayload, MinigameSession, Player } from '../../typ
 import {
   getRoundDurationSeconds,
   getRoundBarSpeed,
+  getRemainingCountdownMs,
   computeRawAccuracy,
   applyAttemptPenalty,
   formatAccuracy,
@@ -105,6 +106,9 @@ interface Props {
     completion?: {
       authoritativeWinnerId?: string | null;
       authoritativeLastPlaceId?: string | null;
+      authoritativeRankedIds?: string[];
+      rawValue?: number;
+      rawResults?: Record<string, number>;
     },
   ) => void;
   seed?: number;
@@ -297,8 +301,8 @@ export default function TimingBar({
   );
 
   // Bar animation state
-  const [barPosition, setBarPosition] = useState(0); // 0–100
   const [barStopped, setBarStopped] = useState(false); // true during soft-stop pause
+  const barElementRef = useRef<HTMLDivElement | null>(null);
   const barDirectionRef = useRef<1 | -1>(1);
   const barPositionRef = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -315,6 +319,7 @@ export default function TimingBar({
 
   const [timeRemainingMs, setTimeRemainingMs] = useState(roundDurationSeconds * 1000);
   const timeRemainingMsRef = useRef(roundDurationSeconds * 1000);
+  const timerDeadlineRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasAutoStartedRef = useRef(false);
 
@@ -330,9 +335,22 @@ export default function TimingBar({
   const [isSpectatorMode, setIsSpectatorMode] = useState(false);
   const [spectatorQueue, setSpectatorQueue] = useState<TimingRoundResult[]>([]);
 
-  // Human's accumulated score (sum for averaging later; ref-only for stability)
-  const humanTotalScoreRef = useRef(0);
-  const humanRoundsPlayedRef = useRef(0);
+  // Keep actual round accuracy for every entrant, plus elimination batches,
+  // so the final outcome can report both a tournament order and honest scores.
+  const accuracyHistoryRef = useRef(new Map<string, { total: number; rounds: number }>());
+  const eliminationBatchesRef = useRef<string[][]>([]);
+  const recordRoundHistory = useCallback((result: TimingRoundResult) => {
+    for (const entry of result.entries) {
+      const previous = accuracyHistoryRef.current.get(entry.participantId) ?? { total: 0, rounds: 0 };
+      accuracyHistoryRef.current.set(entry.participantId, {
+        total: previous.total + entry.finalAccuracy,
+        rounds: previous.rounds + 1,
+      });
+    }
+    if (!result.isFinalRound && result.eliminatedIds.length > 0) {
+      eliminationBatchesRef.current.push([...result.eliminatedIds]);
+    }
+  }, []);
 
   // ── Bar animation ──────────────────────────────────────────────────────────
 
@@ -364,7 +382,9 @@ export default function TimingBar({
         barDirectionRef.current = 1;
       }
 
-      setBarPosition(barPositionRef.current);
+      if (barElementRef.current) {
+        barElementRef.current.style.left = `${barPositionRef.current}%`;
+      }
       rafRef.current = requestAnimationFrame(tick);
     }
 
@@ -375,7 +395,7 @@ export default function TimingBar({
   const startBarAnimation = useCallback(() => {
     barPositionRef.current = 0;
     barDirectionRef.current = 1;
-    setBarPosition(0);
+    if (barElementRef.current) barElementRef.current.style.left = '0%';
     setBarStopped(false);
     resumeBarAnimation();
   }, [resumeBarAnimation]);
@@ -395,18 +415,19 @@ export default function TimingBar({
       clearInterval(timerIntervalRef.current);
       timerIntervalRef.current = null;
     }
-    timeRemainingMsRef.current = roundDurationSeconds * 1000;
-    setTimeRemainingMs(roundDurationSeconds * 1000);
+    const durationMs = roundDurationSeconds * 1000;
+    timerDeadlineRef.current = performance.now() + durationMs;
+    timeRemainingMsRef.current = durationMs;
+    setTimeRemainingMs(durationMs);
 
     const TICK_MS = 100;
     timerIntervalRef.current = setInterval(() => {
-      timeRemainingMsRef.current -= TICK_MS;
-      if (timeRemainingMsRef.current <= 0) {
-        timeRemainingMsRef.current = 0;
-        setTimeRemainingMs(0);
-      } else {
-        setTimeRemainingMs(timeRemainingMsRef.current);
-      }
+      const deadline = timerDeadlineRef.current;
+      const remainingMs = deadline === null
+        ? 0
+        : getRemainingCountdownMs(deadline, performance.now());
+      timeRemainingMsRef.current = remainingMs;
+      setTimeRemainingMs(remainingMs);
     }, TICK_MS);
   }, [roundDurationSeconds]);
 
@@ -479,12 +500,8 @@ export default function TimingBar({
       seed: effectiveSeed,
     });
 
-    // Accumulate human's accuracy for final average score
+    recordRoundHistory(result);
     const humanEntry = result.entries.find((e) => e.isHuman);
-    if (humanEntry) {
-      humanTotalScoreRef.current += humanEntry.finalAccuracy;
-      humanRoundsPlayedRef.current += 1;
-    }
 
     setRoundResult(result);
     setGamePhase(result.isFinalRound && !!humanEntry?.isEliminated ? 'final_results' : 'round_results');
@@ -495,6 +512,7 @@ export default function TimingBar({
     defaultAiProfile,
     effectivePlayers,
     effectiveSeed,
+    recordRoundHistory,
     roundNumber,
     softAttempts.length,
   ]);
@@ -518,6 +536,13 @@ export default function TimingBar({
    */
   const handleStop = useCallback(() => {
     if (gamePhase !== 'playing') return;
+    const deadline = timerDeadlineRef.current;
+    if (deadline !== null && getRemainingCountdownMs(deadline, performance.now()) <= 0) {
+      timeRemainingMsRef.current = 0;
+      setTimeRemainingMs(0);
+      handleRoundTimeout();
+      return;
+    }
 
     if (!barStopped) {
       // Pause the bar and record this soft attempt position.
@@ -530,19 +555,28 @@ export default function TimingBar({
       setBarStopped(false);
       resumeBarAnimation();
     }
-  }, [barStopped, gamePhase, resumeBarAnimation, stopBarAnimation]);
+  }, [barStopped, gamePhase, handleRoundTimeout, resumeBarAnimation, stopBarAnimation]);
 
   /** Lock in the current bar position as the final answer. */
   const handleLockIn = useCallback(() => {
     if (gamePhase !== 'playing' || isLocked) return;
     const pos = barPositionRef.current;
+    const deadline = timerDeadlineRef.current;
+    if (deadline !== null) {
+      timeRemainingMsRef.current = getRemainingCountdownMs(deadline, performance.now());
+      setTimeRemainingMs(timeRemainingMsRef.current);
+      if (timeRemainingMsRef.current <= 0) {
+        handleRoundTimeout();
+        return;
+      }
+    }
     lockedPositionRef.current = pos;
     setLockedPosition(pos);
     setIsLocked(true);
     stopBarAnimation();
     stopTimer();
     setGamePhase('locked');
-  }, [gamePhase, isLocked, stopBarAnimation, stopTimer]);
+  }, [gamePhase, handleRoundTimeout, isLocked, stopBarAnimation, stopTimer]);
 
   /** Start the round from the intro card. */
   const handleStartRound = useCallback(() => {
@@ -553,7 +587,7 @@ export default function TimingBar({
     setBarStopped(false);
     lockedPositionRef.current = null;
     barPositionRef.current = 0;
-    setBarPosition(0);
+    if (barElementRef.current) barElementRef.current.style.left = '0%';
     barDirectionRef.current = 1;
     lastFrameTimeRef.current = null;
     timeRemainingMsRef.current = roundDurationSeconds * 1000;
@@ -593,12 +627,13 @@ export default function TimingBar({
       startingRoundNumber: roundResult.roundNumber + 1,
       seed: effectiveSeed,
     });
+    remaining.forEach(recordRoundHistory);
     setFinalResults(remaining);
     setSpectatorQueue(remaining);
     setIsSpectatorMode(true);
     setActiveParticipantIds(roundResult.advancingIds);
     setGamePhase('spectating');
-  }, [aiSubmissionFn, allParticipants, effectiveSeed, roundResult]);
+  }, [aiSubmissionFn, allParticipants, effectiveSeed, recordRoundHistory, roundResult]);
 
   /** Human was eliminated — skip to final results. */
   const handleSkipToFinal = useCallback(() => {
@@ -610,9 +645,10 @@ export default function TimingBar({
       startingRoundNumber: roundResult.roundNumber + 1,
       seed: effectiveSeed,
     });
+    remaining.forEach(recordRoundHistory);
     setFinalResults(remaining);
     setGamePhase('final_results');
-  }, [aiSubmissionFn, allParticipants, effectiveSeed, roundResult]);
+  }, [aiSubmissionFn, allParticipants, effectiveSeed, recordRoundHistory, roundResult]);
 
   /** Done — dispatch outcome or call onFinish. */
   const handleDone = useCallback(() => {
@@ -625,20 +661,30 @@ export default function TimingBar({
       ? finalResults[finalResults.length - 1]
       : roundResult ?? null;
 
-    // Average accuracy across all rounds the human played (0–100 envelope).
-    const averageScore = humanRoundsPlayedRef.current > 0
-      ? Math.round(humanTotalScoreRef.current / humanRoundsPlayedRef.current)
-      : 0;
-
-    const lastEntries = lastResult?.entries ?? [];
-    const winner = getTimingRoundWinner(lastResult) ?? lastResult?.entries[0];
-    const lastPlace = lastEntries[lastEntries.length - 1];
+    const finalRoundOrder = getRankedTimingEntries(lastResult).map((entry) => entry.participantId);
+    const earlierEliminations = [...eliminationBatchesRef.current]
+      .reverse()
+      .flatMap((batch) => [...batch].reverse());
+    const authoritativeRankedIds = [...new Set([...finalRoundOrder, ...earlierEliminations])];
+    const rawResults = Object.fromEntries(
+      authoritativeRankedIds.map((id) => {
+        const history = accuracyHistoryRef.current.get(id);
+        const average = history && history.rounds > 0 ? history.total / history.rounds : 0;
+        return [id, Math.round(average * 10) / 10];
+      }),
+    );
+    const averageScore = rawResults[effectiveHumanId ?? challengeParticipantId] ?? 0;
+    const winnerId = authoritativeRankedIds[0] ?? getTimingRoundWinner(lastResult)?.participantId;
+    const lastPlaceId = authoritativeRankedIds.at(-1);
 
     if (!session) {
       if (onFinish) {
         onFinish(averageScore, undefined, {
-          authoritativeWinnerId: winner?.participantId ?? null,
-          authoritativeLastPlaceId: lastPlace?.participantId ?? null,
+          authoritativeWinnerId: winnerId ?? null,
+          authoritativeLastPlaceId: lastPlaceId ?? null,
+          authoritativeRankedIds,
+          rawValue: averageScore,
+          rawResults,
         });
       }
       return;
@@ -646,11 +692,13 @@ export default function TimingBar({
 
     const payload: CompleteMinigamePayload = {
       humanScore: averageScore,
-      winnerId: winner?.participantId,
-      lastPlaceId: lastPlace?.participantId,
+      winnerId,
+      lastPlaceId,
+      authoritativeRankedIds,
+      rawResults,
     };
     dispatch(completeMinigame(payload));
-  }, [dispatch, finalResults, onFinish, roundResult, session]);
+  }, [challengeParticipantId, dispatch, effectiveHumanId, finalResults, onFinish, roundResult, session]);
 
   // ── Spectator auto-advance ────────────────────────────────────────────────
 
@@ -932,7 +980,8 @@ export default function TimingBar({
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={{ left: `${barPosition}%`, width: `${BAR_WIDTH_PCT}%` }}
+                  ref={barElementRef}
+                  style={{ left: '0%', width: `${BAR_WIDTH_PCT}%` }}
                   aria-hidden="true"
                 />
               </div>

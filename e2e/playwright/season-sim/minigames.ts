@@ -48,8 +48,7 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   crystal_path_shattered: { kind: 'path', primaryInput: 'bridge path choice' },
   rescueTheKing: { kind: 'board', primaryInput: 'board movement' },
   trapAuction: { kind: 'choice', primaryInput: 'bid and target choice' },
-  gridOfLuck: { kind: 'choice', primaryInput: 'grid selection' },
-  bigSpender: { kind: 'choice', primaryInput: 'spend or bank choice' },
+  mysticChamber: { kind: 'choice', primaryInput: 'power, target, and turn-continuation choices' },
   chainOfGreed: { kind: 'choice', primaryInput: 'split, steal, vote, or duel choice' },
   batteryLow: { kind: 'choice', primaryInput: 'reserve and bank choices' },
   houseOfDarkness: { kind: 'memory', primaryInput: 'memory-card selection' },
@@ -88,10 +87,12 @@ async function acknowledgeHostIntro(host: Locator): Promise<void> {
     const button = await firstVisibleEnabled(rules.first().getByRole('button'))
     if (button) await button.click()
   }
-  const demo = host.locator('[role="dialog"]').filter({ hasText: /example turn/i })
+  const demo = host.getByRole('dialog', { name: /example turn/i })
   if (await demo.isVisible().catch(() => false)) {
-    const interactive = await firstVisibleEnabled(demo.getByRole('button'))
-    if (interactive) await interactive.click()
+    const interactive = await firstVisibleEnabled(
+      demo.getByRole('button').filter({ hasNotText: /Got it|Try it yourself first/i })
+    )
+    if (interactive) await interactive.click({ force: true, timeout: 5_000 })
     const continueButton = await firstVisibleEnabled(demo.getByRole('button', { name: /got it/i }))
     if (continueButton) await continueButton.click()
   }
@@ -125,6 +126,98 @@ async function clickMeaningfulButton(host: Locator, random: SeededRandom): Promi
   return true
 }
 
+async function playMysticChamberTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const finish = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Continue to results' })
+  )
+  if (finish) {
+    await finish.click()
+    return true
+  }
+
+  const skip = await firstVisibleEnabled(host.getByRole('button', { name: 'Skip to results' }))
+  if (skip) {
+    await skip.click()
+    return true
+  }
+
+  const resultContinue = await firstVisibleEnabled(
+    host.getByRole('button', { name: /^(?:Continue|Show final standings)$/ })
+  )
+  if (resultContinue) {
+    await resultContinue.click()
+    return true
+  }
+
+  const nextRound = await firstVisibleEnabled(host.getByRole('button', { name: /^Start round / }))
+  if (nextRound) {
+    await nextRound.click()
+    return true
+  }
+
+  const selectRival = async (): Promise<boolean> => {
+    const players = host.locator(
+      'section[aria-label="Players and Power standings"] button.mystic-chamber__player'
+    )
+    const rivals: Locator[] = []
+    for (let index = 0; index < (await players.count()); index += 1) {
+      const player = players.nth(index)
+      if (
+        (await player.isVisible()) &&
+        (await player.isEnabled()) &&
+        !(await player.getAttribute('class'))?.split(/\s+/).includes('is-active')
+      ) {
+        rivals.push(player)
+      }
+    }
+    if (rivals.length === 0) return false
+    await rivals[random.int(0, rivals.length - 1)]!.click()
+    return true
+  }
+
+  const release = await firstVisibleEnabled(host.getByRole('button', { name: 'Release power' }))
+  if (release) {
+    if (await selectRival()) {
+      await expect(release).toBeEnabled({ timeout: 2_000 })
+      await release.click()
+      return true
+    }
+    return false
+  }
+
+  const confirmChoice = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Confirm choice' })
+  )
+  if (confirmChoice) {
+    if (await selectRival()) {
+      await expect(confirmChoice).toBeEnabled({ timeout: 2_000 })
+      await confirmChoice.click()
+      return true
+    }
+    return false
+  }
+
+  const confirmPower = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Confirm power' })
+  )
+  if (confirmPower) {
+    await confirmPower.click()
+    return true
+  }
+
+  const offers = host.locator('button.mystic-chamber__offer').filter({
+    hasNotText: /Forbidden Box/i,
+  })
+  const preferred = await firstVisibleEnabled(offers.filter({ hasText: /Gather power/i }))
+  const offer = preferred ?? (await firstVisibleEnabled(offers))
+  if (offer) {
+    await offer.click({ delay: random.int(20, 85) })
+    return true
+  }
+
+  return false
+}
+
 /**
  * Uses only visible player controls. It deliberately does not dispatch scores,
  * inject winners, or call a game engine API. The caller decides whether a
@@ -142,33 +235,62 @@ export async function playVisibleMinigame(
   const host = page.getByRole('dialog', { name: /minigame/i }).last()
   await expect(host).toBeVisible()
   await acknowledgeHostIntro(host)
-  let interacted = false
 
-  if (gameKey === 'majorityRules') {
-    const answer = await firstVisibleEnabled(host.getByRole('button', { name: /^SELECT [A-Z]\b/i }))
-    if (answer) {
-      await answer.click({ delay: random.int(20, 85) })
-      const lock = await firstVisibleEnabled(host.getByRole('button', { name: 'Lock in answer' }))
-      if (lock) await lock.click({ delay: random.int(20, 85) })
+  const closeResults = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Close results', exact: true })
+  )
+  if (closeResults) {
+    // Resolve a finished result before sending any game-specific input. In
+    // particular, a time-machine overlay also offers a retry action that must
+    // not be mistaken for a gameplay control.
+    await closeResults.click({ force: true })
+    await host.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => undefined)
+    return { interacted: true, completed: true, primaryInput: profile.primaryInput }
+  }
+
+  let interacted = false
+  let completedByFinalVerdict = false
+
+  if (gameKey === 'mysticChamber') {
+    interacted = await playMysticChamberTurn(host, random)
+  } else if (gameKey === 'majorityRules') {
+    const finish = await firstVisibleEnabled(
+      host.getByRole('button', { name: 'Finish', exact: true })
+    )
+    if (finish) {
+      // The last-player-standing reveal is the terminal state for Majority Rules.
+      // Advancing it closes the minigame and returns control to the season flow.
+      await finish.click({ delay: random.int(20, 85) })
       interacted = true
+      completedByFinalVerdict = true
     } else {
-      const continueButton = host
-        .getByRole('button', { name: /^(?:Continue|Continue watching|Skip to results)$/i })
-        .first()
-      if (await continueButton.isVisible().catch(() => false)) {
-        await page.waitForTimeout(350)
-        const stableContinue = await firstVisibleEnabled(
-          host.getByRole('button', {
-            name: /^(?:Continue|Continue watching|Skip to results)$/i,
-          })
-        )
-        if (stableContinue) {
-          try {
-            await stableContinue.click({ delay: random.int(20, 85), timeout: 2_000 })
-            interacted = true
-          } catch {
-            // The game may replace the result card during its animation;
-            // retry from the next bounded simulation action.
+      const answer = await firstVisibleEnabled(
+        host.getByRole('button', { name: /^SELECT [A-Z]\b/i })
+      )
+      if (answer) {
+        await answer.click({ delay: random.int(20, 85) })
+        const lock = await firstVisibleEnabled(host.getByRole('button', { name: 'Lock in answer' }))
+        if (lock) await lock.click({ delay: random.int(20, 85) })
+        interacted = true
+      } else {
+        const continueButton = host
+          .getByRole('button', { name: /^(?:Continue|Continue watching|Skip to results)$/i })
+          .first()
+        if (await continueButton.isVisible().catch(() => false)) {
+          await page.waitForTimeout(350)
+          const stableContinue = await firstVisibleEnabled(
+            host.getByRole('button', {
+              name: /^(?:Continue|Continue watching|Skip to results)$/i,
+            })
+          )
+          if (stableContinue) {
+            try {
+              await stableContinue.click({ delay: random.int(20, 85), timeout: 2_000 })
+              interacted = true
+            } catch {
+              // The game may replace the result card during its animation;
+              // retry from the next bounded simulation action.
+            }
           }
         }
       }
@@ -209,13 +331,17 @@ export async function playVisibleMinigame(
     }
   }
 
-  const results = host.getByRole('heading', { name: /finished|results|wins|exited early/i })
+  const results = host.getByRole('heading', {
+    name: /finished|results|wins|exited early|final verdict|last player standing/i,
+  })
   return {
     interacted,
-    completed: await results
-      .first()
-      .isVisible()
-      .catch(() => false),
+    completed:
+      completedByFinalVerdict ||
+      (await results
+        .first()
+        .isVisible()
+        .catch(() => false)),
     primaryInput: profile.primaryInput,
   }
 }

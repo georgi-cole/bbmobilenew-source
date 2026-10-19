@@ -365,6 +365,15 @@ export function simulateAiRun(
         break;
       }
       elapsedMs += MYSTERY_REVEAL_MS;
+      if (mystery.spDelta >= 20) {
+        feed.push({
+          playerId: state.id,
+          playerName: state.name,
+          row: row.index + 1,
+          atMs: elapsedMs,
+          message: `${state.name} uncovered a +${mystery.spDelta} SP crystal bonus.`,
+        });
+      }
     }
 
     const useHint = aiShouldUseHint(personality, state.sp, state.hints, rng);

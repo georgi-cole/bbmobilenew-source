@@ -210,7 +210,6 @@ export default function HouseguestGrid({
   const [cupidRevealAnimating, setCupidRevealAnimating] = useState(false)
   const [cupidReturnAnimating, setCupidReturnAnimating] = useState(false)
   const [focusedCupidPairId, setFocusedCupidPairId] = useState<string | null>(null)
-  const [selectedReunionGuestId, setSelectedReunionGuestId] = useState<string | null>(null)
   const challengeHistory = useAppSelector((s) => s.challenge?.history ?? [])
   const weekend = game.weekendInterlude
   const canInteractWithReunionGuests =
@@ -224,6 +223,16 @@ export default function HouseguestGrid({
         weekend.reunionPreview !== undefined &&
         weekend.stage === 'finale_reunion'))
 
+  const [reunionSelection, setReunionSelection] = useState<{
+    eligible: boolean
+    guestId: string | null
+  }>(() => ({ eligible: canInteractWithReunionGuests, guestId: null }))
+  if (reunionSelection.eligible !== canInteractWithReunionGuests) {
+    setReunionSelection({ eligible: canInteractWithReunionGuests, guestId: null })
+  }
+  const selectedReunionGuestId = reunionSelection.guestId
+  const setSelectedReunionGuestId = (guestId: string | null) =>
+    setReunionSelection({ eligible: canInteractWithReunionGuests, guestId })
   useEffect(() => {
     const wasRevealed = previousCupidVisualsRevealedRef.current
     previousCupidVisualsRevealedRef.current = cupidVisualsRevealed

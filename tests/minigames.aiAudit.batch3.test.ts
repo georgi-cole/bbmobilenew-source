@@ -53,17 +53,17 @@ import {
 import glassBridgeReducer, {
   advanceTurn,
   buildAiNumberChoices,
-  buildGlassBridgeTimeLimitMs,
   buildPlacements,
   completeGame,
-  expireTimer,
   finaliseOrderSelection,
   generateBridgeRows,
   initGlassBridge,
+  MOVE_TIME_LIMIT_MS,
   recordNumberChoice,
   resolveStep,
   startPlaying,
   simulateAiTurn,
+  tickBridge,
   type GlassBridgePlayerProgress,
 } from '../src/features/glassBridge/glassBridgeSlice';
 
@@ -341,8 +341,8 @@ describe('Wildcard Western audit', () => {
 });
 
 describe('Glass Bridge audit', () => {
-  it('builds the timer from player count and generates deterministic bridge rows', () => {
-    expect(buildGlassBridgeTimeLimitMs(4)).toBe(64_000);
+  it('uses a fixed per-turn decision clock and generates deterministic bridge rows', () => {
+    expect(MOVE_TIME_LIMIT_MS).toBe(12_000);
 
     const rowsA = generateBridgeRows(mulberry32(5), 6);
     const rowsB = generateBridgeRows(mulberry32(5), 6);
@@ -417,7 +417,7 @@ describe('Glass Bridge audit', () => {
     expect(updated.rows[0].revealedSafeSide).toBe(row.safeSide);
   });
 
-  it('completes the game when the timer expires or the final state is resolved', () => {
+  it('forfeits timed-out players in turn order before completing the game', () => {
     const store = makeGlassStore();
     store.dispatch(
       initGlassBridge({
@@ -432,7 +432,16 @@ describe('Glass Bridge audit', () => {
     store.dispatch(recordNumberChoice({ playerId: 'bob', number: 2 }));
     store.dispatch(finaliseOrderSelection());
     store.dispatch(startPlaying({ now: T0 }));
-    store.dispatch(expireTimer());
+
+    const firstActiveId = store.getState().glassBridge.turnOrder[0];
+    store.dispatch(tickBridge({ now: T0 + MOVE_TIME_LIMIT_MS }));
+    const afterFirstTimeout = store.getState().glassBridge;
+    const secondActiveId = afterFirstTimeout.turnOrder[afterFirstTimeout.currentTurnIndex];
+    expect(afterFirstTimeout.progress[firstActiveId].forfeited).toBe(true);
+    expect(secondActiveId).not.toBe(firstActiveId);
+    expect(afterFirstTimeout.progress[secondActiveId].forfeited).not.toBe(true);
+
+    store.dispatch(tickBridge({ now: T0 + MOVE_TIME_LIMIT_MS * 2 }));
     store.dispatch(completeGame());
 
     const final = store.getState().glassBridge;
@@ -440,6 +449,7 @@ describe('Glass Bridge audit', () => {
     expect(final.placements).toHaveLength(2);
     expect(final.winnerId).not.toBeNull();
     expect(final.currentTurnIndex).toBeGreaterThanOrEqual(0);
+    expect(final.progress[secondActiveId].forfeited).toBe(true);
   });
 
   it('keeps the state machine deterministic across repeated simulation runs', () => {

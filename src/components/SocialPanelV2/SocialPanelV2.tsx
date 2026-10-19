@@ -982,10 +982,40 @@ export default function SocialPanelV2() {
   const isAllianceInvitation = selectedActionId?.startsWith('alliance:invite:') === true
   const showAlliancePicker =
     dramaMode && (moveFilter === 'alliances' || isAllianceInvitation || isAllianceConsultation)
+  const consultationTargetCandidates = [
+    ...(primaryTargetId && (selectedTargets.size === 0 || selectedTargets.has(primaryTargetId))
+      ? [primaryTargetId]
+      : []),
+    ...selectedTargets,
+  ]
+  const selectedAllianceConsultationTargets = selectedAlliance
+    ? selectedAlliance.memberIds.filter(
+        (memberId) =>
+          memberId !== humanPlayer?.id &&
+          game.players.some(
+            (player) =>
+              player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+          )
+      )
+    : null
+  const selectedConsultationMemberId = selectedAllianceConsultationTargets
+    ? (consultationTargetCandidates.find((id) => selectedAllianceConsultationTargets.includes(id)) ??
+      selectedAllianceConsultationTargets[0] ??
+      null)
+    : (consultationTargetCandidates[0] ?? null)
+  const eligibleConsultationAlliances = useMemo(
+    () =>
+      selectedConsultationMemberId
+        ? consultationAlliances.filter((alliance) =>
+            alliance.memberIds.includes(selectedConsultationMemberId)
+          )
+        : [],
+    [consultationAlliances, selectedConsultationMemberId]
+  )
   const displayedGroups = isAllianceInvitation
     ? invitationGroups
     : isAllianceConsultation
-      ? consultationAlliances
+      ? eligibleConsultationAlliances
       : activeGroups
   // Keep the full roster available while a group is selected: members can be
   // targeted for group controls, while non-members can be selected for invites.
@@ -993,25 +1023,20 @@ export default function SocialPanelV2() {
   // person selection and uses the chosen group's representative instead.
   const showPlayerRoster = !isAllianceConsultation
   const selectedConsultationAlliance =
-    consultationAlliances.find((alliance) => alliance.id === selectedAllianceId) ?? null
-  const consultationRepresentativeId = selectedConsultationAlliance?.memberIds.find(
-    (memberId) =>
-      memberId !== humanPlayer?.id &&
-      game.players.some(
-        (player) =>
-          player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
-      )
-  )
-  const consultationPreviewTargetId = (
-    selectedAllianceId ? selectedConsultationAlliance : consultationAlliances[0]
-  )?.memberIds.find(
-    (memberId) =>
-      memberId !== humanPlayer?.id &&
-      game.players.some(
-        (player) =>
-          player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
-      )
-  )
+    eligibleConsultationAlliances.find((alliance) => alliance.id === selectedAllianceId) ?? null
+  const consultationRepresentativeId = selectedConsultationAlliance
+    ? selectedConsultationMemberId &&
+      selectedConsultationAlliance.memberIds.includes(selectedConsultationMemberId)
+      ? selectedConsultationMemberId
+      : selectedConsultationAlliance.memberIds.find(
+          (memberId) =>
+            memberId !== humanPlayer?.id &&
+            game.players.some(
+              (player) =>
+                player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+            )
+        )
+    : null
   const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
   // A social visit always starts with the roster unselected. Contextual calls
   // can highlight an action, but never choose a housemate on the player's behalf.
@@ -1022,14 +1047,12 @@ export default function SocialPanelV2() {
       : primaryTargetId
   const selectedPlayerIds = useMemo(
     () =>
-      isAllianceConsultation
-        ? new Set<string>()
-        : selectedTargets.size > 0
-          ? selectedTargets
-          : effectivePrimaryTargetId
-            ? new Set([effectivePrimaryTargetId])
-            : selectedTargets,
-    [effectivePrimaryTargetId, isAllianceConsultation, selectedTargets]
+      selectedTargets.size > 0
+        ? selectedTargets
+        : effectivePrimaryTargetId
+          ? new Set([effectivePrimaryTargetId])
+          : selectedTargets,
+    [effectivePrimaryTargetId, selectedTargets]
   )
   const selectedTargetCount = selectedTargets.size
   const minimumTargetCount = Math.max(1, selectedAction?.minTargets ?? 2)
@@ -1341,8 +1364,8 @@ export default function SocialPanelV2() {
         actionId !== 'consult_alliance'
       const needsAllianceChoice =
         (actionId === 'consult_alliance' &&
-          consultationAlliances.length > 0 &&
-          !consultationAlliances.some((alliance) => alliance.id === selectedAllianceId)) ||
+          eligibleConsultationAlliances.length > 1 &&
+          !eligibleConsultationAlliances.some((alliance) => alliance.id === selectedAllianceId)) ||
         (actionId.startsWith('alliance:invite:') &&
           invitationGroups.length > 0 &&
           !invitationGroups.some((alliance) => alliance.id === selectedAllianceId))
@@ -1365,8 +1388,16 @@ export default function SocialPanelV2() {
       if (actionId === 'consult_alliance' || actionId.startsWith('alliance:invite:')) {
         setMoveFilter('alliances')
         if (actionId === 'consult_alliance') {
-          setSelectedTargets(new Set())
-          setPrimaryTargetId(null)
+          const currentAllianceIsEligible = eligibleConsultationAlliances.some(
+            (alliance) => alliance.id === selectedAllianceId
+          )
+          setSelectedAllianceId(
+            currentAllianceIsEligible
+              ? selectedAllianceId
+              : eligibleConsultationAlliances.length === 1
+                ? eligibleConsultationAlliances[0].id
+                : null
+          )
         } else {
           setSelectedTargets(primaryTargetId ? new Set([primaryTargetId]) : new Set())
         }
@@ -1384,7 +1415,7 @@ export default function SocialPanelV2() {
       primaryTargetId,
       selectedActionId,
       selectedAllianceId,
-      consultationAlliances,
+      eligibleConsultationAlliances,
     ]
   )
 
@@ -2383,7 +2414,9 @@ export default function SocialPanelV2() {
               onPremiumLockedClick={handleRealityUpgrade}
               selectedTargetIds={selectedPlayerIds}
               consultationTargetIds={
-                consultationPreviewTargetId ? new Set([consultationPreviewTargetId]) : new Set()
+                eligibleConsultationAlliances.length > 0 && selectedConsultationMemberId
+                  ? new Set([selectedConsultationMemberId])
+                  : new Set()
               }
               players={orderedPlayers}
               actorId={humanPlayer.id}

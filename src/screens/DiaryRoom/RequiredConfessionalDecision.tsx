@@ -67,6 +67,7 @@ function PlayerCard({
       className={`rcd-player${selected ? ' rcd-player--selected' : ''}${danger ? ' rcd-player--danger' : ''}`}
       type="button"
       onClick={onSelect}
+      aria-label={tag ? `${player.name}, ${tag}` : player.name}
       aria-pressed={selected}
       disabled={disabled}
     >
@@ -78,7 +79,7 @@ function PlayerCard({
         <PlayerAvatar player={player} size="md" showRelationshipOutline={false} />
       </span>
       <span className="rcd-player__copy">
-        <strong>{player.name}</strong>
+        <strong title={player.name}>{player.name}</strong>
         {tag && <small>{tag}</small>}
       </span>
       <span className="rcd-player__check" aria-hidden="true">

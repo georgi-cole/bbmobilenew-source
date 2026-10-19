@@ -48,7 +48,7 @@ describe('saveStatePersistence survivor progression', () => {
       social: {},
     } as unknown as SavedSeasonSnapshot
 
-    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+    const setItemSpy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
     })
 
@@ -241,6 +241,7 @@ describe('saveStatePersistence survivor progression', () => {
           phase: 'loh_results',
           status: 'active',
           week: 1,
+          tvFeed: [],
           players: [],
           seasonArchives: [{ seasonIndex: 1, seasonId: 'season-1', playerSummaries: [] }],
           broadcastOverrides: { 'loh.winner': { text: 'Custom copy' } },
@@ -274,7 +275,7 @@ describe('saveStatePersistence survivor progression', () => {
   })
 
   it('saves a resumable LOH result even when runtime data contains a circular reference', () => {
-    const runtimeData: Record<string, unknown> = { label: 'leader result' }
+    const runtimeData: Record<string, unknown> = { label: 'leader result', sequence: 42n }
     runtimeData.self = runtimeData
     const snapshot = {
       version: 1,
@@ -299,9 +300,9 @@ describe('saveStatePersistence survivor progression', () => {
 
     const restoredGame = loadSavedRunProfile('profile-1').runs.classic?.game as unknown as {
       phase: string
-      runtimeData: { label: string; self?: unknown }
+      runtimeData: { label: string; sequence: string; self?: unknown }
     }
     expect(restoredGame.phase).toBe('loh_results')
-    expect(restoredGame.runtimeData).toEqual({ label: 'leader result' })
+    expect(restoredGame.runtimeData).toEqual({ label: 'leader result', sequence: '42' })
   })
 })

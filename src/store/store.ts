@@ -32,6 +32,7 @@ import { relationshipResourcePolicyMiddleware } from '../social/relationshipReso
 import { intelligenceMiddleware } from '../social/intelligenceMiddleware'
 import { socialStrategyMiddleware } from '../social/socialStrategyMiddleware'
 import { realityIntegrityMiddleware } from '../social/realityIntegrityMiddleware'
+import { evictedAiStateRetentionMiddleware } from '../social/evictedAiStateRetentionMiddleware'
 import { survivorMiddleware } from '../modes/survivorMiddleware'
 import { depressionShockMiddleware } from '../features/twists/depressionShockMiddleware'
 import { bellaProgressMiddleware } from '../features/twists/bellaProgressMiddleware'
@@ -164,6 +165,7 @@ export const store = configureStore({
         bellaProgressMiddleware,
         eliminatedSeasonResolutionMiddleware,
         tribunalEligibilityMiddleware,
+        evictedAiStateRetentionMiddleware,
         realityIntegrityMiddleware,
         depressionShockMiddleware,
         backdoorPresentationMiddleware,

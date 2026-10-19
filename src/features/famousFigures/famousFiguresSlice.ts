@@ -5,7 +5,7 @@
  *   idle â†’ round_active â†’ round_reveal â†’ round_active  (repeat for each round)
  *                                      â†’ complete       (after all rounds)
  *
- * Three rounds per match. Each round players guess a historical figure from
+ * Six rounds per match. Each round players guess a famous figure from
  * progressive clues. Fewer hints used means more points. The player with the
  * highest total score after all rounds wins.
  */
@@ -52,6 +52,8 @@ export interface FamousFiguresState {
   seed: number
   outcomeResolved: boolean
   winnerId: string | null
+  /** Seeded tiebreak priority, generated once per match. */
+  tieBreakOrder: string[]
   /** round (0-indexed) â†’ playerId â†’ whether AI answered correctly */
   aiSubmissions: Record<number, Record<string, boolean>>
   timerPhase: FamousFiguresTimerPhase
@@ -109,6 +111,7 @@ const initialState: FamousFiguresState = {
   seed: 0,
   outcomeResolved: false,
   winnerId: null,
+  tieBreakOrder: [],
   aiSubmissions: {},
   timerPhase: 'clue',
   roundComplete: false,
@@ -277,7 +280,8 @@ export function buildAiSubmissionsForRound(
 function determineWinner(
   participantIds: string[],
   playerScores: Record<string, number>,
-  playerRoundScores: Record<string, number[]>
+  playerRoundScores: Record<string, number[]>,
+  tieBreakOrder: string[]
 ): string | null {
   if (participantIds.length === 0) return null
 
@@ -309,7 +313,8 @@ function determineWinner(
     }
   }
 
-  return tiedWinners[0]
+  const priority = new Map(tieBreakOrder.map((id, index) => [id, index]))
+  return tiedWinners.sort((a, b) => (priority.get(a) ?? Number.MAX_SAFE_INTEGER) - (priority.get(b) ?? Number.MAX_SAFE_INTEGER))[0]
 }
 
 /** Initialise per-round player state. */
@@ -378,11 +383,20 @@ const famousFiguresSlice = createSlice({
         participantIds: string[]
         competitionType: FamousFiguresPrizeType
         seed: number
+        /** Recent canonical names to skip until the rest of the deck is used. */
+        recentFigureNames?: string[]
       }>
     ) {
-      const { participantIds, competitionType, seed } = action.payload
+      const { participantIds, competitionType, seed, recentFigureNames = [] } = action.payload
       const rng = mulberry32(seed)
-      const order = shuffleIndices(rng, FAMOUS_FIGURES.length)
+      const recentNames = new Set(recentFigureNames)
+      const freshIndices = FAMOUS_FIGURES.flatMap((figure, index) =>
+        recentNames.has(figure.canonicalName) ? [] : [index]
+      )
+      const candidateIndices = freshIndices.length >= 6
+        ? freshIndices
+        : FAMOUS_FIGURES.map((_, index) => index)
+      const order = shuffleIndices(rng, candidateIndices.length).map((index) => candidateIndices[index])
 
       state.competitionType = competitionType
       state.status = 'round_active'
@@ -398,6 +412,7 @@ const famousFiguresSlice = createSlice({
       state.seed = seed
       state.outcomeResolved = false
       state.winnerId = null
+      state.tieBreakOrder = shuffleIndices(rng, participantIds.length).map((index) => participantIds[index])
       state.correctPlayers = []
       state.roundComplete = false
       state.timerPhase = 'clue'
@@ -651,7 +666,7 @@ const famousFiguresSlice = createSlice({
       if (nextRoundIndex >= state.totalRounds) {
         // All rounds complete â€” determine winner
         state.status = 'complete'
-        state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores)
+        state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
         return
       }
 
@@ -788,7 +803,9 @@ const famousFiguresSlice = createSlice({
           const fig = FAMOUS_FIGURES[figIdx]
           if (!fig) continue
 
-          const points = getPointsForHintsUsed(state.hintsRevealed)
+          const plan = getFamousFiguresAiPlan(state.seed, roundIdx, id, fig.difficulty)
+          const simulatedHints = Math.max(state.hintsRevealed, plan.clueNumber - 1)
+          const points = getPointsForHintsUsed(simulatedHints)
           state.playerScores[id] = (state.playerScores[id] ?? 0) + points
           state.playerCorrect[id] = true
           state.correctPlayers = [...state.correctPlayers, id]
@@ -807,7 +824,7 @@ const famousFiguresSlice = createSlice({
         // If this was the last round, determine winner and finish.
         if (roundIdx + 1 >= state.totalRounds) {
           state.status = 'complete'
-          state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores)
+          state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
           return
         }
         // Otherwise, prepare state for the next iteration of the loop.
@@ -816,7 +833,7 @@ const famousFiguresSlice = createSlice({
 
       // Fallback: ensure we always end in complete state.
       state.status = 'complete'
-      state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores)
+      state.winnerId = determineWinner(allIds, state.playerScores, state.playerRoundScores, state.tieBreakOrder)
     },
 
     /** Idempotency guard â€” prevents outcome thunk from firing twice. */
@@ -871,4 +888,3 @@ export function getPlayerFigureIndex(
 }
 
 export default famousFiguresSlice.reducer
-

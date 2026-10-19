@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Player } from '../../types'
-import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
+import backyardPlayfield from '../../assets/finale/final-power-battle-backyard.webp'
+import FullSizeCutoutImage from '../FullSizeCutoutImage/FullSizeCutoutImage'
 import './FinalPowerBattle.css'
 
 interface Props {
@@ -74,17 +75,13 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
       aria-live="polite"
       data-beat={beat}
     >
-      <div className="fpb-intro__scan" aria-hidden="true" />
-      <p className="fpb-intro__network">THE BIG EYE · FINALE NIGHT</p>
-      <div className="fpb-intro__finalists" aria-label="Finalists">
-        {finalists.slice(0, 3).map((player, index) => (
-          <div className={`fpb-intro__finalist fpb-intro__finalist--${index + 1}`} key={player.id}>
-            <PlayerAvatar player={player} size="sm" showEvictedStyle={false} />
-            <span>{player.name}</span>
-          </div>
-        ))}
-      </div>
-
+      <div
+        className="fpb-intro__backdrop"
+        style={{ backgroundImage: `url("${backyardPlayfield}")` }}
+        aria-hidden="true"
+      />
+      <div className="fpb-intro__atmosphere" aria-hidden="true" />
+      <p className="fpb-intro__network">LIVE FROM THE BACKYARD · THE BIG EYE</p>
       <div className="fpb-intro__copy" key={`beat-${beat}`}>
         <p className="fpb-intro__eyebrow">{currentBeat.label}</p>
         <h2>{currentBeat.title}</h2>
@@ -95,14 +92,26 @@ export default function FinalPowerBattleIntro({ finalists, mode, onComplete }: P
         </p>
       </div>
 
-      <div className="fpb-intro__progress" aria-label={`Finale introduction beat ${beat + 1} of 5`}>
-        {BEATS.map((item, index) => (
-          <span className={index <= beat ? 'is-active' : ''} key={item.label} aria-hidden="true" />
+      <div className="fpb-intro__stage" role="list" aria-label="Finalists">
+        {finalists.slice(0, 3).map((player, index) => (
+          <div
+            className={`fpb-intro__panel fpb-intro__panel--${index + 1}`}
+            key={player.id}
+            aria-label={player.name}
+            role="listitem"
+          >
+            <span className="fpb-intro__panel-light" aria-hidden="true" />
+            <FullSizeCutoutImage
+              player={player}
+              attire="informal"
+              className="fpb-intro__cutout"
+              alt=""
+              draggable={false}
+            />
+            <span className="fpb-intro__name">{player.name}</span>
+          </div>
         ))}
       </div>
-      <p className="fpb-intro__play-cue">
-        {beat === READY_BEAT ? 'Press Play to begin Part 1.' : 'Press Play to continue.'}
-      </p>
     </section>
   )
 }

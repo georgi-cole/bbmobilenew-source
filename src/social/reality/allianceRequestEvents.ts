@@ -1,4 +1,4 @@
-import { appendRealityEvent } from './events'
+import { appendRealityEvent, retainAllianceRequestHistory } from './events'
 import type { RealityDomainState, RealityAllianceRequest, RealityClock } from './types'
 
 /** Record decisions independently of the rolling feed; pre-approval votes exclude the candidate. */
@@ -51,4 +51,5 @@ export function recordAllianceRequestEvent(
   })
   request.history ??= []
   request.history.push(entry)
+  request.history = retainAllianceRequestHistory(request.history)
 }

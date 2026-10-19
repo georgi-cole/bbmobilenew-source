@@ -1,0 +1,182 @@
+.diary-room__tribunal-stream {
+  min-height: 100%;
+  background:
+    linear-gradient(180deg, rgba(7, 12, 20, 0.22), rgba(5, 9, 15, 0.44)),
+    var(--diary-room-tribunal-backdrop) center / cover no-repeat,
+    linear-gradient(180deg, #0b111a, #070b12 68%);
+}
+
+.diary-room__tribunal-stream .diary-room__shell {
+  min-height: 0;
+}
+
+.diary-room__tribunal-stream .diary-room__body::before {
+  content: none;
+}
+
+.diary-room__tribunal-stream .diary-room__body::after {
+  background: radial-gradient(ellipse at 50% 28%, rgba(160, 190, 220, 0.08), transparent 64%);
+}
+
+.diary-room__tribunal-header {
+  gap: 12px;
+}
+
+.diary-room__tribunal-heading {
+  min-width: 0;
+}
+
+.diary-room__tribunal-eyebrow {
+  color: rgba(219, 207, 243, 0.68);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.diary-room__tribunal-intro {
+  width: min(100%, 680px);
+  flex: 0 0 auto;
+  margin: 0 auto 14px;
+  color: rgba(231, 224, 242, 0.78);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.diary-room__tribunal-chat {
+  width: min(100%, 720px);
+  align-self: center;
+  gap: 12px;
+  padding: 4px 8px 18px;
+}
+
+.diary-room__tribunal-message {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  animation: tribunal-message-arrive 320ms ease-out both;
+}
+
+.diary-room__tribunal-message--challenge {
+  margin-left: clamp(0px, 5vw, 36px);
+}
+
+.diary-room__tribunal-message--defend {
+  margin-right: clamp(0px, 5vw, 36px);
+}
+
+.diary-room__tribunal-message > .player-avatar,
+.diary-room__tribunal-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+}
+
+.diary-room__tribunal-avatar-fallback {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(216, 198, 239, 0.28);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #514460, #211b2b);
+  color: #eee5fb;
+}
+
+.diary-room__tribunal-bubble {
+  max-width: min(84%, 620px);
+  padding: 10px 13px 11px;
+}
+
+.diary-room__tribunal-message--defend .diary-room__tribunal-bubble {
+  border-color: rgba(199, 181, 226, 0.2);
+}
+
+.diary-room__tribunal-message--challenge .diary-room__tribunal-bubble {
+  border-color: rgba(211, 151, 184, 0.22);
+  background: linear-gradient(145deg, rgba(43, 28, 42, 0.96), rgba(25, 18, 28, 0.98));
+}
+
+.diary-room__tribunal-bubble .diary-room__bubble-author {
+  color: #d9c8f3;
+  font-size: 0.68rem;
+}
+
+.diary-room__tribunal-bubble .diary-room__bubble-text {
+  display: block;
+  line-height: 1.45;
+}
+
+.diary-room__tribunal-typing {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin: 0 0 3px 43px;
+  padding: 12px 15px;
+  border: 1px solid rgba(216, 198, 239, 0.16);
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(29, 24, 36, 0.88);
+}
+
+.diary-room__tribunal-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c8b3e7;
+  animation: tribunal-typing 900ms ease-in-out infinite alternate;
+}
+
+.diary-room__tribunal-typing span:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.diary-room__tribunal-typing span:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes tribunal-message-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tribunal-typing {
+  from {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (max-width: 440px) {
+  .diary-room__tribunal-intro,
+  .diary-room__tribunal-chat {
+    width: 100%;
+  }
+
+  .diary-room__tribunal-message--challenge {
+    margin-left: 0;
+  }
+
+  .diary-room__tribunal-message--defend {
+    margin-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diary-room__tribunal-message {
+    animation: none;
+  }
+
+  .diary-room__tribunal-typing span {
+    animation: none;
+  }
+}

@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isDynamicImportFailure } from '../src/utils/lazyWithChunkRecovery'
+import { describe, expect, it, vi } from 'vitest'
+import { isDynamicImportFailure, lazyWithChunkRecovery } from '../src/utils/lazyWithChunkRecovery'
 
 describe('lazy route chunk recovery', () => {
   it('recognizes the browser error shown when a hashed route chunk is missing', () => {
@@ -12,5 +12,14 @@ describe('lazy route chunk recovery', () => {
 
   it('does not treat ordinary route errors as stale-bundle failures', () => {
     expect(isDynamicImportFailure(new Error('Profile data could not be loaded'))).toBe(false)
+  })
+
+  it('preloads a lazy module only once when requested repeatedly', async () => {
+    const loader = vi.fn(async () => ({ default: () => null }))
+    const component = lazyWithChunkRecovery(loader)
+
+    await Promise.all([component.preload(), component.preload()])
+
+    expect(loader).toHaveBeenCalledTimes(1)
   })
 })

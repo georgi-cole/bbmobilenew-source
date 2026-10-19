@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
-import { finishWeekendDebugPreview } from '../../features/weekend/weekendDebugPreview'
+import {
+  endFinaleReunionDebugPreview,
+  finishWeekendDebugPreview,
+} from '../../features/weekend/weekendDebugPreview'
 import {
   advance,
   advanceWeekendSeasonFact,
   advanceWeekendDay,
+  beginWeekendTribunalGlimpse,
+  beginFinaleReunionSocial,
+  beginWeekendReunionDeparture,
+  finishWeekendReunionDeparture,
+  skipWeekendTribunalStream,
+  openWeekendTribunalStream,
   beginWeekendDayTransition,
   completeWeekendInterlude,
   continueHubSays,
@@ -72,6 +81,7 @@ import type { RootState } from '../../store/store'
 
 const CONFESSIONAL_FLASH_DURATION_MS = 1800
 const SURVIVOR_DISABLED_MESSAGE_MS = 5000
+const FINALE_REUNION_DEPARTURE_WAVE_MS = 1700
 
 type FloatingActionBarProps = {
   /** Called when the player activates Public Meter while public mode is disabled. */
@@ -85,6 +95,10 @@ type FloatingActionBarProps = {
   finalePlayAvailable?: boolean
   /** Show the shared dock above spectator broadcasts that wait for Play input. */
   finaleDockOnTop?: boolean
+  /** The human ballot is committed and Play should reveal the Democracia tally. */
+  democraciaVoteRecorded?: boolean
+  /** Continue from the currently displayed Democracia result card. */
+  onDemocraciaResultsDone?: () => void
 }
 
 /**
@@ -105,9 +119,12 @@ export default function FloatingActionBar({
   finaleInlinePlayActive = false,
   finalePlayAvailable = false,
   finaleDockOnTop = false,
+  democraciaVoteRecorded = false,
+  onDemocraciaResultsDone,
 }: FloatingActionBarProps) {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const location = useLocation()
   const reduxStore = useStore<RootState>()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
@@ -129,10 +146,41 @@ export default function FloatingActionBar({
   const isGuest = useAppSelector(selectIsGuest)
   const game = useAppSelector((s) => s.game)
   const weekend = game.weekendInterlude
+  const reunionDepartureInProgress = weekend?.reunionDepartureActive === true
+  const hasReunionGuests =
+    weekend?.debug && weekend.reunionPreview
+      ? weekend.reunionPreview.guestIds.length > 0
+      : game.players.some((player) => player.status === 'evicted' || player.status === 'jury')
+  const isWeekendTribunalInvitation =
+    weekend?.stage === 'tribunal_invitation' || weekend?.stage === 'tribunal_glimpse'
+  const weekendReunionAnnouncementActive = Boolean(
+    weekend?.active &&
+    weekend.finaleWeekend &&
+    !weekend.debug &&
+    weekend.weekendDay === 2 &&
+    isWeekendTribunalInvitation &&
+    weekend.reunionDeparted !== true &&
+    weekend.tribunalGlimpse?.opened !== true
+  )
+  const weekendTribunalStreamAvailable = Boolean(
+    weekend?.active &&
+    weekend.finaleWeekend &&
+    (isWeekendTribunalInvitation ||
+      weekend.stage === 'finale_sequester_announcement' ||
+      weekend.stage === 'finale_battle_ready') &&
+    weekend.tribunalGlimpse &&
+    !weekend.tribunalGlimpse.opened
+  )
   const canPersistActiveRun = !isGuest && Boolean(activeProfileId) && weekend?.debug !== true
-  const weekendSocialActive = weekend?.active === true && weekend.stage === 'social'
+  const weekendSocialActive =
+    weekend?.active === true &&
+    !reunionDepartureInProgress &&
+    (weekend.stage === 'social' ||
+      weekend.stage === 'finale_reunion_social' ||
+      (weekend.finaleWeekend &&
+        (weekend.stage === 'tribunal_invitation' || weekend.stage === 'tribunal_glimpse')))
   const weekendSocialSpotlightKey = weekendSocialActive
-    ? `${game.gameId ?? game.season}:${weekend.afterDay}`
+    ? `${game.gameId ?? game.season}:${weekend.weekendNumber ?? weekend.afterDay}:${weekend.afterDay}`
     : null
   const hubSaysBeat = weekend?.hubSays?.beat ?? 'question'
   const weekendPlayReady =
@@ -154,6 +202,7 @@ export default function FloatingActionBar({
     weekend?.active ? `${weekend.afterDay}:${weekend.stage}:${weekend.weekendDay}` : 'no-weekend',
   ].join(':')
   const advancedProgressRef = useRef<string | null>(null)
+  const reunionDepartureIntentRef = useRef<'farewell' | 'preview' | 'preview-end' | null>(null)
   useEffect(() => {
     advancedProgressRef.current = null
   }, [advanceProgressKey])
@@ -189,9 +238,12 @@ export default function FloatingActionBar({
     () => getIncomingSocialModuleAvailability(game),
     [game]
   )
-  const socialModulesUnavailable = !canUseSocialModules || (weekend?.active && !weekendSocialActive)
+  const socialModulesUnavailable =
+    reunionDepartureInProgress || !canUseSocialModules || (weekend?.active && !weekendSocialActive)
   const incomingSocialModuleUnavailable =
-    !canUseIncomingSocialModule || (weekend?.active && !weekendSocialActive)
+    reunionDepartureInProgress ||
+    !canUseIncomingSocialModule ||
+    (weekend?.active && !weekendSocialActive)
   const survivorDay = getSurvivorCurrentDay(game)
   const bestSurvivorRecord = useMemo(
     () =>
@@ -345,7 +397,7 @@ export default function FloatingActionBar({
     activeConfessionalDecisionKey !== null &&
     triggeredConfessionalDecisionKey === activeConfessionalDecisionKey
   const primaryDisabled = weekend?.active
-    ? !weekendPlayReady
+    ? !weekendPlayReady || reunionDepartureInProgress
     : finaleOverlayActive
       ? !finalePlayAvailable
       : finaleInlinePlayActive
@@ -364,7 +416,7 @@ export default function FloatingActionBar({
       : survivorTerminalActive
         ? false
         : weekend?.active
-          ? weekendPlayReady
+          ? weekendPlayReady && !reunionDepartureInProgress
           : hasPendingConfessionalDecision
             ? !confessionalPromptActivated
             : survivorReplacementPending || (canAdvance && !isWaiting)
@@ -477,6 +529,48 @@ export default function FloatingActionBar({
         dispatch(advanceWeekendDay())
         return
       }
+      if (weekend.stage === 'finale_reunion' && weekend.debug) {
+        if (reunionDepartureInProgress) return
+        if (hasReunionGuests) {
+          reunionDepartureIntentRef.current = 'preview-end'
+          dispatch(beginWeekendReunionDeparture())
+          return
+        }
+        dispatch(endFinaleReunionDebugPreview())
+        return
+      }
+      if (isWeekendTribunalInvitation) {
+        if (weekend.debug) {
+          dispatch(finishWeekendDebugPreview())
+        } else {
+          dispatch(beginFinaleReunionSocial())
+        }
+        return
+      }
+      if (weekend.stage === 'finale_reunion_social') {
+        dispatch(beginWeekendTribunalGlimpse())
+        return
+      }
+      if (weekend.stage === 'finale_sequester_announcement') {
+        dispatch(skipWeekendTribunalStream())
+        return
+      }
+      if (weekend.stage === 'finale_battle_ready') {
+        if (weekend.debug) {
+          dispatch(finishWeekendDebugPreview())
+          return
+        }
+        if (reunionDepartureInProgress) return
+        if (hasReunionGuests && !weekend.reunionDeparted) {
+          reunionDepartureIntentRef.current = 'farewell'
+          dispatch(beginWeekendReunionDeparture())
+          return
+        }
+        // The farewell is now a separate Play beat. This hands off to the
+        // existing Final 3 opening, whose own Play gate begins competition.
+        dispatch(completeWeekendInterlude())
+        return
+      }
       if (
         weekend.stage === 'intro' ||
         weekend.stage === 'instructions' ||
@@ -489,7 +583,9 @@ export default function FloatingActionBar({
         dispatch(beginWeekendDayTransition())
         return
       }
-      if (weekend.debug) {
+      if (weekend.finaleWeekend) {
+        dispatch(beginWeekendTribunalGlimpse())
+      } else if (weekend.debug) {
         dispatch(finishWeekendDebugPreview())
       } else {
         dispatch(completeWeekendInterlude())
@@ -498,6 +594,14 @@ export default function FloatingActionBar({
       return
     }
     if (survivorTerminalActive) return
+    if (democraciaVoteRecorded) {
+      dispatch(advance())
+      return
+    }
+    if (game.democracia?.resultDisplay) {
+      onDemocraciaResultsDone?.()
+      return
+    }
     if (finaleInlinePlayActive) {
       dispatchPlayPressedEvent()
       return
@@ -550,16 +654,22 @@ export default function FloatingActionBar({
     battleBackAnnouncementActive,
     dispatch,
     dispatchPlayPressedEvent,
+    democraciaVoteRecorded,
+    game.democracia?.resultDisplay,
+    hasReunionGuests,
     finaleInlinePlayActive,
     finaleOverlayActive,
     hasPendingConfessionalDecision,
     hasSeenConfessionalSpotlight,
+    onDemocraciaResultsDone,
     survivorReplacementPending,
     survivorTerminalActive,
     voxPopuliActive,
     voxTransitionOwnsPlay,
     weekend,
+    isWeekendTribunalInvitation,
     hubSaysBeat,
+    reunionDepartureInProgress,
   ])
 
   const handleToolClick = useCallback(() => {
@@ -567,6 +677,16 @@ export default function FloatingActionBar({
       showSurvivorBlockedMessage(
         'The confessional is now being used as a storage room for the robotic players parts. Access is denied.'
       )
+      return
+    }
+    if (weekendTribunalStreamAvailable) {
+      if (weekend?.reunionDepartureActive) return
+      dispatch(openWeekendTribunalStream())
+      navigate('/diary-room?stream=finale-tribunal', {
+        state: {
+          returnTo: `${location.pathname}${location.search}${location.hash}`,
+        },
+      })
       return
     }
     if (confessionalSpotlightEligible) {
@@ -578,10 +698,36 @@ export default function FloatingActionBar({
   }, [
     completeConfessionalSpotlight,
     confessionalSpotlightEligible,
+    dispatch,
     isSurvivorMode,
+    location.hash,
+    location.pathname,
+    location.search,
     navigate,
+    weekend?.reunionDepartureActive,
+    weekendTribunalStreamAvailable,
     showSurvivorBlockedMessage,
   ])
+
+  useEffect(() => {
+    if (!reunionDepartureInProgress) return undefined
+    const prefersReducedMotion =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    const timer = window.setTimeout(
+      () => {
+        const intent = reunionDepartureIntentRef.current
+        reunionDepartureIntentRef.current = null
+        dispatch(finishWeekendReunionDeparture())
+        if (intent === 'preview') {
+          dispatch(finishWeekendDebugPreview())
+        } else if (intent === 'preview-end') {
+          dispatch(endFinaleReunionDebugPreview())
+        }
+      },
+      prefersReducedMotion ? 0 : FINALE_REUNION_DEPARTURE_WAVE_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [dispatch, reunionDepartureInProgress])
 
   const handlePublicMeterClick = useCallback(() => {
     if (game.publicModeEnabled !== true) {
@@ -828,42 +974,70 @@ export default function FloatingActionBar({
         onToolClick={handleToolClick}
         onHomeClick={handleReturnHome}
         onMoreClick={handleMoreClick}
-        disabled={survivorTerminalActive || finaleOverlayActive}
+        disabled={survivorTerminalActive || finaleOverlayActive || reunionDepartureInProgress}
+        navigationDisabled={weekendReunionAnnouncementActive}
         primaryDisabled={primaryDisabled}
-        elevatedDuringOverlay={finaleDockOnTop}
+        elevatedDuringOverlay={finaleDockOnTop || weekendReunionAnnouncementActive}
         primaryLabel={
           finaleOverlayActive
             ? 'Play finale scene'
-            : weekend?.active
-              ? weekend.stage === 'intro'
-                ? 'Continue'
-                : weekend.stage === 'instructions'
-                  ? 'Let’s go'
-                  : weekend.stage === 'day_two_intro'
+            : game.democracia?.resultDisplay
+              ? 'Continue'
+              : democraciaVoteRecorded
+                ? 'Reveal results'
+                : weekend?.active
+                  ? weekend.stage === 'intro'
                     ? 'Continue'
-                    : weekend.stage === 'hub_says'
-                      ? hubSaysBeat === 'result'
-                        ? 'Next question'
-                        : weekend.hubSays?.selectedPlayerId
-                          ? 'Reveal the answers'
-                          : 'Choose a Hubmate'
-                      : weekend.stage === 'party'
+                    : weekend.stage === 'instructions'
+                      ? 'Let’s go'
+                      : weekend.stage === 'day_two_intro'
                         ? 'Continue'
-                        : weekend.stage === 'season_so_far'
-                          ? 'Next story'
-                          : weekend.stage === 'day_transition'
-                            ? 'Start Day 2'
-                            : weekend.weekendDay === 1
-                              ? 'Finish the day'
-                              : weekend.debug
-                                ? 'Finish preview'
-                                : `Start Day ${weekend.afterDay + 1}`
-              : 'Advance to next phase'
+                        : weekend.stage === 'hub_says'
+                          ? hubSaysBeat === 'result'
+                            ? 'Next question'
+                            : weekend.hubSays?.selectedPlayerId
+                              ? 'Reveal the answers'
+                              : 'Choose a Hubmate'
+                          : weekend.stage === 'party'
+                            ? 'Continue'
+                            : weekend.stage === 'season_so_far'
+                              ? 'Next story'
+                              : weekend.stage === 'day_transition'
+                                ? 'Start Day 2'
+                                : weekend.stage === 'finale_reunion'
+                                  ? reunionDepartureInProgress
+                                    ? 'The eliminated players are leaving…'
+                                    : 'End visit'
+                                  : weekend.stage === 'finale_reunion_social'
+                                    ? 'Announce the Sequester Footage'
+                                    : weekend.stage === 'finale_sequester_announcement'
+                                      ? 'Continue'
+                                      : isWeekendTribunalInvitation ||
+                                          weekend.stage === 'finale_battle_ready'
+                                        ? weekend.debug
+                                          ? 'Finish preview'
+                                          : reunionDepartureInProgress
+                                            ? 'The eliminated players are leaving…'
+                                            : weekend.stage === 'finale_battle_ready'
+                                              ? weekend.reunionDeparted
+                                                ? 'Begin the Final Power Battle'
+                                                : 'Send the guests home'
+                                              : 'Let them in'
+                                        : weekend.weekendDay === 1
+                                          ? 'Finish the day'
+                                          : weekend.finaleWeekend
+                                            ? 'Meet the Tribunal'
+                                            : weekend.debug
+                                              ? 'Finish preview'
+                                              : `Start Day ${weekend.afterDay + 1}`
+                  : 'Advance to next phase'
         }
         socialDisabled={socialModulesUnavailable}
         incomingRequestsDisabled={incomingSocialModuleUnavailable}
         publicMeterDisabled={game.publicModeEnabled !== true}
-        confessionalDisabled={isSurvivorMode}
+        confessionalDisabled={
+          isSurvivorMode || reunionDepartureInProgress || weekend?.stage === 'finale_reunion_social'
+        }
         chatBadgeCount={
           !socialModulesUnavailable
             ? weekendSocialActive
@@ -897,6 +1071,7 @@ export default function FloatingActionBar({
         confessionalFlash={isConfessionalFlashing}
         confessionalFlashTick={confessionalFlashTick}
         confessionalPersistentFlash={confessionalPersistentFlash}
+        confessionalSpecialStream={weekendTribunalStreamAvailable}
         confessionalIconRef={confessionalIconRef}
         socialIconRef={socialIconRef}
       />

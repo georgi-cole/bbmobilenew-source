@@ -61,6 +61,8 @@ function makeRiskWheelState(overrides: Partial<RiskWheelState> = {}): RiskWheelS
     lastSectorIndex: 0,
     last666Effect: null,
     eliminatedThisRound: [],
+    tieBreaker: null,
+    tieBreakerSummary: null,
     winnerId: 'p0',
     seed: 123,
     rngCallCount: 1,

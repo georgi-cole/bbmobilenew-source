@@ -321,7 +321,6 @@ type TvZoneDemocraciaResultsReveal = {
     player: Player
     voteCount: number
   }>
-  onDone: () => void
 }
 
 type LiveVoteBackdropMetrics = {
@@ -1603,6 +1602,10 @@ export default function TvZone(props: TvZoneProps) {
         gameState.weekendInterlude?.active && gameState.weekendInterlude.episode === 'party'
           ? 'tv-zone--party-led'
           : '',
+        gameState.weekendInterlude?.active &&
+        gameState.weekendInterlude.stage === 'finale_battle_ready'
+          ? 'tv-zone--finale-power-ready'
+          : '',
         isDeSpotlight ? 'tv-zone--de-spotlight' : '',
         isCupidOutlinePulse ? 'tv-zone--cupid-outline-pulse' : '',
         isWeekendElectricPulse ? 'tv-zone--weekend-electric-pulse' : '',
@@ -1972,7 +1975,6 @@ export default function TvZone(props: TvZoneProps) {
                 title={props.democraciaResultsReveal.title}
                 subtitle={props.democraciaResultsReveal.subtitle}
                 participants={props.democraciaResultsReveal.participants}
-                onDone={props.democraciaResultsReveal.onDone}
               />
             )}
             {props.voteResultsReveal && (

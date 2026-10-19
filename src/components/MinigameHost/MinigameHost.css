@@ -238,6 +238,16 @@
   touch-action: none;
 }
 
+.minigame-host-loading {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #f1d291;
+  font-weight: 800;
+  text-align: center;
+}
+
 .minigame-host-playing input,
 .minigame-host-playing textarea,
 .minigame-host-playing select,
@@ -318,8 +328,15 @@
 }
 
 .minigame-host-playing > .cm {
-  padding: calc(12px + var(--minigame-stage-top-padding)) calc(8px + var(--minigame-safe-right))
-    calc(20px + var(--minigame-safe-bottom)) calc(8px + var(--minigame-safe-left));
+  padding: var(--minigame-stage-top-padding) var(--minigame-safe-padding-right)
+    var(--minigame-safe-padding-bottom) var(--minigame-safe-padding-left);
+}
+
+.minigame-host-playing > .cb {
+  padding-top: var(--minigame-stage-top-padding);
+  padding-right: var(--minigame-safe-padding-right);
+  padding-bottom: var(--minigame-safe-padding-bottom);
+  padding-left: var(--minigame-safe-padding-left);
 }
 
 .minigame-host-playing > .tilt-labyrinth-host {
@@ -328,8 +345,8 @@
 }
 
 .minigame-host-playing > .mc-host {
-  padding: calc(14px + var(--minigame-stage-top-padding)) calc(10px + var(--minigame-safe-right))
-    calc(24px + var(--minigame-safe-bottom)) calc(10px + var(--minigame-safe-left));
+  padding: var(--minigame-stage-top-padding) var(--minigame-safe-padding-right)
+    var(--minigame-safe-padding-bottom) var(--minigame-safe-padding-left);
 }
 
 .minigame-host-playing > .ta-root {

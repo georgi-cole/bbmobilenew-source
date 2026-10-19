@@ -170,6 +170,8 @@ export interface RealityFact {
   publicVisible: boolean
   juryVisible: boolean
   sourceEventId: string
+  /** True when this evidence disclosed the complete alliance roster at the time. */
+  fullMembershipKnown?: boolean
   /** The roster disclosed by this evidence, not a promise of future disclosure. */
   rosterRevision?: number
   disclosedMemberIds?: RealityActorId[]
@@ -353,6 +355,9 @@ export interface RealityAlliance {
   /** The player who created a group; distinct from its founding roster. */
   createdById?: RealityActorId
   createdAt?: RealityClock
+  /** Durable identity facts retained after old detailed events are compacted. */
+  creatorPreviouslyLeft?: boolean
+  leadershipTransferApproved?: boolean
   /** Alliance records survive the rolling social event feed. Visibility still applies per event. */
   history?: RealitySocialEvent[]
   /** Missing only in a pre-management save; normalization supplies it. */
@@ -510,6 +515,8 @@ export interface RealityReentryAllianceSnapshot {
 export interface RealityReentryProfile {
   evictedAt: RealityClock
   alliances: RealityReentryAllianceSnapshot[]
+  /** Public nomination sources the evicted player can remember if they return. */
+  conflictTargetIds?: RealityActorId[]
 }
 
 export interface RealityRomance {

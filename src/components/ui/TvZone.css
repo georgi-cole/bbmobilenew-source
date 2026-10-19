@@ -1218,11 +1218,10 @@ body.mode-surveyeval .tv-zone__head-pills .game-top-chip--neutral {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
-/* Depression Shock can use all four rows of the faux-TV copy area. Give the
-   last line room for its descenders instead of clipping it at the clamp edge. */
+/* Leave room for longer storm broadcasts while preserving their last line. */
 .tv-zone__daily-card .tv-zone__now--depression-shock {
   max-width: 32rem;
-  max-height: calc(1.24em * 5 + 0.45rem);
+  max-height: calc(1.24em * 8 + 0.45rem);
   padding-block: 0.28rem;
   font-size: clamp(0.72rem, 3cqw, 0.94rem);
   line-height: 1.28;
@@ -1945,6 +1944,37 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
   animation: deSpotlightPulse var(--de-spotlight-ms, 1700ms) ease-out forwards;
 }
 
+/* The return from the Tribunal uses the same short, whole-TV spotlight beat,
+   warmed to orange for the Final Power Battle handoff. */
+.tv-zone--finale-power-ready {
+  position: relative;
+  z-index: 9999;
+  animation: finalePowerReadyPulse var(--de-spotlight-ms, 1700ms) ease-out forwards;
+}
+
+@keyframes finalePowerReadyPulse {
+  0% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    transform: scale(1);
+  }
+  22% {
+    box-shadow:
+      0 0 0 3px rgba(255, 174, 74, 0.96),
+      0 0 44px rgba(255, 132, 40, 0.7),
+      0 0 96px rgba(232, 91, 26, 0.48),
+      0 12px 44px rgba(0, 0, 0, 0.76);
+    transform: scale(1.018);
+  }
+  100% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.04);
+    transform: scale(1);
+  }
+}
+
 @keyframes deSpotlightPulse {
   0% {
     box-shadow:
@@ -2051,6 +2081,9 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
     animation: none;
   }
   .tv-zone--weekend-electric-pulse {
+    animation: none;
+  }
+  .tv-zone--finale-power-ready {
     animation: none;
   }
 }

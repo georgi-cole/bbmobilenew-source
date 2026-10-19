@@ -23,7 +23,6 @@ import reducer, {
   advanceFromRoundSummary,
   computeEliminationCount,
   computeEliminatedPlayers,
-  getEliminationCutoffTie,
   getRoundCap,
   EXTENDED_MAX_ROUNDS,
   MAX_ROUNDS,
@@ -36,7 +35,6 @@ import reducer, {
   aiShouldStop,
   resolve666Effect,
   pickSectorIndex,
-  startRiskWheelTieBreak,
   WHEEL_SECTORS,
   type RiskWheelAiPersonality,
   type RiskWheelState,
@@ -208,147 +206,62 @@ describe('computeEliminatedPlayers', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('handles tie at cutoff: deterministically picks from tied players', () => {
-    // a=0, b=0, c=100 — eliminate 1 from tie between a and b
+  it('keeps cutoff ties for the one-spin tie-breaker', () => {
+    // a=0, b=0, c=100 — neither tied player is eliminated before the playoff
     const scores = { a: 0, b: 0, c: 100 };
     const result1 = computeEliminatedPlayers(['a', 'b', 'c'], scores, 1, 42);
     const result2 = computeEliminatedPlayers(['a', 'b', 'c'], scores, 1, 42);
-    expect(result1).toHaveLength(1);
-    expect(['a', 'b']).toContain(result1[0]);
-    // deterministic: same seed → same result
+    expect(result1).toEqual([]);
     expect(result1).toEqual(result2);
   });
 
-  it('different seeds produce potentially different tie-break results', () => {
+  it('does not use the game seed to split a cutoff tie', () => {
     const scores = { a: 0, b: 0, c: 100, d: 200 };
     const results = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {
       const r = computeEliminatedPlayers(['a', 'b', 'c', 'd'], scores, 1, seed);
-      results.add(r[0]);
+      results.add(r.join(','));
     }
-    // Over many seeds we should see both 'a' and 'b' chosen
-    expect(results.has('a')).toBe(true);
-    expect(results.has('b')).toBe(true);
+    expect(results).toEqual(new Set(['']));
+  });
+
+  it('shows the main-round results before starting a cutoff tie-break', () => {
+    const initialized = reducer(
+      undefined,
+      initRiskWheel({
+        participantIds: ['a', 'b', 'c'],
+        competitionType: 'LOH',
+        seed: 42,
+        humanPlayerId: 'a',
+      })
+    );
+    const lastTurn: RiskWheelState = {
+      ...initialized,
+      phase: 'turn_complete',
+      activePlayerIds: ['a', 'b', 'c'],
+      currentPlayerIndex: 2,
+      playersCompletedThisRound: ['a', 'b'],
+      roundScores: { a: 0, b: 0, c: 20 },
+    };
+
+    const results = reducer(lastTurn, advanceFromTurnComplete());
+    expect(results.phase).toBe('round_summary');
+    expect(results.tieBreaker?.pendingStart).toBe(true);
+    expect(results.tieBreaker?.candidatePlayerIds).toEqual(['a', 'b']);
+    expect(results.activePlayerIds).toEqual(['a', 'b', 'c']);
+    expect(results.roundScores).toEqual({ a: 0, b: 0, c: 20 });
+
+    const playoff = reducer(results, advanceFromRoundSummary());
+    expect(playoff.phase).toBe('awaiting_spin');
+    expect(playoff.tieBreaker?.pendingStart).toBe(false);
+    expect(playoff.activePlayerIds).toEqual(['a', 'b']);
+    expect(playoff.roundScores).toEqual({ a: 0, b: 0 });
   });
 
   it('eliminates everyone if count >= length', () => {
     const scores = { a: 10, b: 20 };
     const result = computeEliminatedPlayers(['a', 'b'], scores, 5, 99);
     expect(result).toHaveLength(2);
-  });
-});
-
-describe('elimination tie-break round', () => {
-  it('identifies only a score tie that crosses the elimination cutoff', () => {
-    expect(getEliminationCutoffTie(['a', 'b', 'c', 'd'], { a: 0, b: 0, c: 8, d: 20 }, 1)).toEqual({
-      playerIds: ['a', 'b'],
-      eliminationCount: 1,
-      alreadyEliminatedIds: [],
-    });
-    expect(getEliminationCutoffTie(['a', 'b', 'c', 'd'], { a: 0, b: 0, c: 8, d: 20 }, 2)).toBeNull();
-    expect(getEliminationCutoffTie(['a', 'b', 'c', 'd'], { a: -3, b: 0, c: 0, d: 20 }, 2)).toEqual({
-      playerIds: ['b', 'c'],
-      eliminationCount: 1,
-      alreadyEliminatedIds: ['a'],
-    });
-  });
-
-  it('starts a one-spin round for only the tied contestants and prevents a second spin', () => {
-    const initialized = reducer(undefined, initRiskWheel({
-      participantIds: ['a', 'b', 'c'],
-      competitionType: 'POS',
-      seed: 12,
-      humanPlayerId: null,
-    }));
-    const pendingTie: RiskWheelState = {
-      ...initialized,
-      phase: 'round_summary',
-      activePlayerIds: ['a', 'b', 'c'],
-      roundScores: { a: 0, b: 0, c: 20 },
-      eliminatedThisRound: [],
-      tieBreakPlayerIds: ['a', 'b'],
-      tieBreakOriginalPlayerIds: ['a', 'b'],
-      tieBreakEliminationCount: 1,
-      tieBreakPending: true,
-      tieBreakBaseActivePlayerIds: ['a', 'b', 'c'],
-      tieBreakBaseRoundScores: { a: 0, b: 0, c: 20 },
-      tieBreakEliminatedBeforeRound: [],
-    };
-
-    const started = reducer(pendingTie, startRiskWheelTieBreak());
-    expect(started.phase).toBe('awaiting_spin');
-    expect(started.activePlayerIds).toEqual(['a', 'b']);
-    expect(started.tieBreakRound).toBe(1);
-    expect(started.isTieBreakRound).toBe(true);
-
-    let afterSpin = reducer(started, performSpin());
-    if (afterSpin.phase === 'six_six_six') afterSpin = reducer(afterSpin, advanceFrom666());
-    expect(afterSpin.phase).toBe('turn_complete');
-    expect(afterSpin.currentSpinCount).toBe(1);
-  });
-
-  it('resolves the low scorer after a clear tie-break and restores round standings', () => {
-    const initialized = reducer(undefined, initRiskWheel({
-      participantIds: ['a', 'b', 'safe'],
-      competitionType: 'LOH',
-      seed: 12,
-      humanPlayerId: null,
-    }));
-    const finalTieTurn: RiskWheelState = {
-      ...initialized,
-      phase: 'turn_complete',
-      activePlayerIds: ['a', 'b'],
-      currentPlayerIndex: 1,
-      playersCompletedThisRound: ['a'],
-      roundScores: { a: 0, b: 14 },
-      isTieBreakRound: true,
-      tieBreakRound: 1,
-      tieBreakOriginalPlayerIds: ['a', 'b'],
-      tieBreakEliminationCount: 1,
-      tieBreakBaseActivePlayerIds: ['a', 'b', 'safe'],
-      tieBreakBaseRoundScores: { a: 3, b: 3, safe: 30 },
-    };
-
-    const resolved = reducer(finalTieTurn, advanceFromTurnComplete());
-    expect(resolved.phase).toBe('round_summary');
-    expect(resolved.activePlayerIds).toEqual(['a', 'b', 'safe']);
-    expect(resolved.roundScores).toEqual({ a: 3, b: 3, safe: 30 });
-    expect(resolved.eliminatedThisRound).toEqual(['a']);
-    expect(resolved.tieBreakOutcome).toEqual({
-      survivedPlayerIds: ['b'],
-      eliminatedPlayerIds: ['a'],
-      spinScores: { a: 0, b: 14 },
-    });
-  });
-
-  it('asks only the still-tied leaders to spin again after a tied tie-break', () => {
-    const initialized = reducer(undefined, initRiskWheel({
-      participantIds: ['a', 'b', 'safe'],
-      competitionType: 'LOH',
-      seed: 12,
-      humanPlayerId: null,
-    }));
-    const tiedTieBreakTurn: RiskWheelState = {
-      ...initialized,
-      phase: 'turn_complete',
-      activePlayerIds: ['a', 'b'],
-      currentPlayerIndex: 1,
-      playersCompletedThisRound: ['a'],
-      roundScores: { a: 0, b: 0 },
-      isTieBreakRound: true,
-      tieBreakRound: 1,
-      tieBreakOriginalPlayerIds: ['a', 'b'],
-      tieBreakEliminationCount: 1,
-      tieBreakBaseActivePlayerIds: ['a', 'b', 'safe'],
-      tieBreakBaseRoundScores: { a: 0, b: 0, safe: 30 },
-    };
-
-    const repeatedTie = reducer(tiedTieBreakTurn, advanceFromTurnComplete());
-    expect(repeatedTie.phase).toBe('round_summary');
-    expect(repeatedTie.tieBreakPending).toBe(true);
-    expect(repeatedTie.tieBreakPlayerIds).toEqual(['a', 'b']);
-    expect(repeatedTie.tieBreakRound).toBe(1);
-    expect(repeatedTie.eliminatedThisRound).toEqual([]);
   });
 });
 
@@ -1235,11 +1148,7 @@ describe('finalScores', () => {
       else if (s.phase === 'six_six_six') store.dispatch(advanceFrom666());
       else if (s.phase === 'awaiting_decision') store.dispatch(playerStop());
       else if (s.phase === 'turn_complete') store.dispatch(advanceFromTurnComplete());
-      else if (s.phase === 'round_summary') {
-        store.dispatch(
-          s.tieBreakPending ? startRiskWheelTieBreak() : advanceFromRoundSummary(),
-        );
-      }
+      else if (s.phase === 'round_summary') store.dispatch(advanceFromRoundSummary());
       else break;
     }
   }
@@ -1339,11 +1248,7 @@ describe('optional seed', () => {
       else if (s.phase === 'six_six_six') store.dispatch(advanceFrom666());
       else if (s.phase === 'awaiting_decision') store.dispatch(playerStop());
       else if (s.phase === 'turn_complete') store.dispatch(advanceFromTurnComplete());
-      else if (s.phase === 'round_summary') {
-        store.dispatch(
-          s.tieBreakPending ? startRiskWheelTieBreak() : advanceFromRoundSummary(),
-        );
-      }
+      else if (s.phase === 'round_summary') store.dispatch(advanceFromRoundSummary());
       else break;
     }
     expect(getState(store).phase).toBe('complete');

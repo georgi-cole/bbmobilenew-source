@@ -108,6 +108,7 @@ describe('Hall of Fame screen', () => {
               finalPlacement: 3,
               daysAlive: 29,
               timesNominated: 2,
+              finalPublicApproval: 42,
               titlesWon: ['GHOST_MODE'],
             },
           ],
@@ -123,8 +124,22 @@ describe('Hall of Fame screen', () => {
       /Season 4.*Vox Populi.*Twin Shock.*31 days.*You: 3rd.*Winner.*Mimi Tanaka/
     )
     expect(screen.getByText('🏆 Mimi Tanaka')).toBeInTheDocument()
-    expect(screen.getByText('You: 3rd')).toBeInTheDocument()
+    expect(screen.getByText('Your finish')).toBeInTheDocument()
+    expect(screen.getByText('3rd')).toBeInTheDocument()
+    expect(screen.getByText('Public rating')).toBeInTheDocument()
+    expect(screen.getByText('★ 42%')).toBeInTheDocument()
     expect(screen.getByText('Vox Populi · Twin Shock · 31 days')).toBeInTheDocument()
+
+    const card = screen.getByRole('button', { name: /Season 4/i })
+    expect(Array.from(card.children).map((element) => element.className)).toEqual([
+      'hall-of-fame-screen__season-header',
+      'hall-of-fame-screen__season-meta',
+      'hall-of-fame-screen__season-facts',
+      'hall-of-fame-screen__winner-block',
+    ])
+    expect(
+      card.querySelector('.hall-of-fame-screen__season-header .hall-of-fame-screen__chevron')
+    ).not.toBeNull()
   })
 
   it('does not label a later season with a Twin Shock consumed in an earlier season', () => {

@@ -1,6 +1,10 @@
 import { recordAllianceRequestEvent } from './allianceRequestEvents'
 import type { DramaAlliance } from '../types'
-import { maybeExposeRealityAlliance, recordRealityAllianceLeakDiscovery } from './allianceKnowledge'
+import {
+  maybeExposeRealityAlliance,
+  preserveRealityAllianceRosterForMembers,
+  recordRealityAllianceLeakDiscovery,
+} from './allianceKnowledge'
 import { appendRealityEvent } from './events'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
@@ -458,6 +462,9 @@ export function removeRealityAllianceMember(
     juryEligible: true,
   })
 
+  // Keep the complete roster available to a member who later leaves or is removed.
+  preserveRealityAllianceRosterForMembers(state, alliance.id, input.at, event.id, formerMemberIds)
+
   alliance.memberIds = alliance.memberIds.filter((id) => id !== input.memberId)
   alliance.rosterRevision = (alliance.rosterRevision ?? 0) + 1
   alliance.leaderIds = alliance.leaderIds.filter((id) => id !== input.memberId)
@@ -616,7 +623,23 @@ export function captureRealityReentryProfile(
   const alliances = Object.values(state.alliances)
     .filter((alliance) => alliance.status !== 'DISSOLVED' && alliance.memberIds.includes(playerId))
     .map(snapshotRealityAlliance)
-  state.reentryProfiles[playerId] = { evictedAt: { ...evictedAt }, alliances }
+  const latestNomination = state.events
+    .slice(-128)
+    .reverse()
+    .find(
+      (event) => event.type === 'CEREMONY_NOMINATIONS_LOCKED' && event.targetIds.includes(playerId)
+    )
+  const conflictTargetIds =
+    latestNomination?.actorId &&
+    latestNomination.actorId !== playerId &&
+    !latestNomination.tags.includes('automatic_nominee:' + playerId)
+      ? [latestNomination.actorId]
+      : []
+  state.reentryProfiles[playerId] = {
+    evictedAt: { ...evictedAt },
+    alliances,
+    conflictTargetIds,
+  }
 }
 
 export function reconcileRealityBattleBackReturn(
@@ -634,7 +657,7 @@ export function reconcileRealityBattleBackReturn(
       ...input.at,
       type: 'ALLIANCE_REENTRY_RECONCILED',
       actorId: input.playerId,
-      targetIds: [],
+      targetIds: profile.conflictTargetIds ?? [],
       participantIds: [input.playerId],
       witnessIds: [],
       visibility: 'PRIVATE',
@@ -1631,6 +1654,7 @@ export function leakRealityAlliance(
     alliance.status = 'DISSOLVED'
     alliance.currentTargetIds = []
     alliance.fallbackTargetIds = []
+    preserveRealityAllianceRosterForMembers(state, alliance.id, at, event.id)
     refreshRealityAllianceOverlaps(state)
   } else if (alliance.fractureRisk >= 0.72) {
     alliance.status = 'FRACTURED'

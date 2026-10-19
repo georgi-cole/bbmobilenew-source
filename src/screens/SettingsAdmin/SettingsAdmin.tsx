@@ -93,7 +93,7 @@ export default function SettingsAdmin() {
   const [castSizeInput, setCastSizeInput] = useState<string>(String(settings.gameUX.castSize))
   const [showRestartModal, setShowRestartModal] = useState(false)
 
-  function launchWeekendPreview(afterDay: 5 | 10 | 15) {
+  function launchWeekendPreview(afterDay: 5 | 10 | 15 | 'finale' | 'tribunal') {
     dispatch(startWeekendDebugPreview(afterDay))
     navigate('/game')
   }
@@ -669,9 +669,16 @@ export default function SettingsAdmin() {
                 <button
                   type="button"
                   disabled={!settings.gameUX.weekendsEnabled}
-                  onClick={() => launchWeekendPreview(15)}
+                  onClick={() => launchWeekendPreview('finale')}
                 >
-                  Play Weekend 3
+                  Play Finale Weekend
+                </button>
+                <button
+                  type="button"
+                  disabled={!settings.gameUX.weekendsEnabled}
+                  onClick={() => launchWeekendPreview('tribunal')}
+                >
+                  Play Tribunal Sequester
                 </button>
               </div>
               <p className="settings-helper-text" style={{ color: '#f97316' }}>

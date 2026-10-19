@@ -8,12 +8,21 @@ const finalists = createInitialGameState({ seed: 315 }).players.slice(0, 3)
 describe('FinalPowerBattleIntro', () => {
   it('shows one separate beat at a time and advances only when Play is pressed', () => {
     const onComplete = vi.fn()
-    render(<FinalPowerBattleIntro finalists={finalists} mode="classic" onComplete={onComplete} />)
+    const { container } = render(
+      <FinalPowerBattleIntro finalists={finalists} mode="classic" onComplete={onComplete} />
+    )
 
     expect(screen.getByRole('region', { name: 'Final Power Battle introduction' })).toBeTruthy()
+    expect(screen.getByRole('list', { name: 'Finalists' }).children).toHaveLength(3)
+    expect(container.querySelectorAll('.fpb-intro__cutout')).toHaveLength(3)
+    expect(container.querySelector('.fpb-intro__backdrop')?.getAttribute('style')).toContain(
+      'background-image'
+    )
+    expect(container.querySelector('.fpb-intro__progress')).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('heading', { name: 'The Final Power Battle' })).toBeTruthy()
-    expect(screen.getByText('Press Play to continue.')).toBeTruthy()
+    expect(container.querySelector('.fpb-intro__play-cue')).toBeNull()
+    expect(screen.queryByText(/Press Play/i)).toBeNull()
 
     expect(screen.queryByRole('heading', { name: 'One advances' })).toBeNull()
     expect(onComplete).not.toHaveBeenCalled()
@@ -29,7 +38,7 @@ describe('FinalPowerBattleIntro', () => {
     expect(screen.getByRole('heading', { name: 'Power changes everything' })).toBeTruthy()
 
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))
-    expect(screen.getByText('Press Play to begin Part 1.')).toBeTruthy()
+    expect(screen.queryByText(/Press Play/i)).toBeNull()
     expect(onComplete).not.toHaveBeenCalled()
 
     act(() => window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true })))

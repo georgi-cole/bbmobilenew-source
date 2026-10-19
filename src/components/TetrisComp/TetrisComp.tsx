@@ -16,7 +16,10 @@ import {
   type TetrisPrizeType,
 } from '../../features/tetris/tetrisSlice'
 import { resolveTetrisOutcome } from '../../features/tetris/thunks'
-import { simulateTetrisAiScores } from '../../ai/competition/tetrisSimulation'
+import {
+  simulateTetrisAiRun,
+  simulateTetrisAiRunsInSlices,
+} from '../../ai/competition/tetrisSimulation'
 import { mulberry32 } from '../../store/rng'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import ResolvedAvatarImage from '../ResolvedAvatarImage/ResolvedAvatarImage'
@@ -29,45 +32,39 @@ import {
   type TetrisRoundPlan,
   type TetrisRoundSplit,
 } from './tournament'
+import {
+  BUFFER_ROWS,
+  buildBag,
+  clearFullLines,
+  collides,
+  COLS,
+  dropIntervalMs,
+  emptyBoard,
+  ghostY,
+  HARD_DROP_PER_ROW,
+  LINES_PER_LEVEL,
+  LINE_CLEAR_POINTS,
+  lockPiece,
+  makePiece,
+  rotateShape,
+  ROWS,
+  SHAPES,
+  spawnFalling,
+  WALL_KICK_OFFSETS,
+  boardStackHeight,
+} from './tetrisEngine'
+import type { Board, BoardCell, FallingPiece, Piece, PieceKey } from './tetrisEngine'
 import './TetrisComp.css'
 import './TetrisTournament.css'
 
-const COLS = 10
-const ROWS = 20
-const BUFFER_ROWS = 2
-const TOTAL_ROWS = ROWS + BUFFER_ROWS
 const CELL_PX = 28
 const DANGER_ROW = 4
-const LINE_CLEAR_POINTS = [0, 100, 300, 500, 800]
 const SOFT_DROP_PER_ROW = 1
-const HARD_DROP_PER_ROW = 2
-const LINES_PER_LEVEL = 10
-const WALL_KICK_OFFSETS = [0, -1, 1, -2, 2]
 const MEDALS = ['🥇', '🥈', '🥉']
 
-type PieceKey = 'I' | 'O' | 'T' | 'S' | 'Z' | 'J' | 'L'
 type GamePhase = 'playing' | 'gameover'
 type TournamentScreen = 'playing' | 'roundResults' | 'finalResults'
 type RoundEndReason = 'time' | 'topout'
-
-interface Piece {
-  key: PieceKey
-  shape: number[][]
-  color: string
-}
-
-interface FallingPiece extends Piece {
-  x: number
-  y: number
-  rotationIndex: number
-}
-
-interface BoardCell {
-  color: string
-  avatarId?: string
-}
-
-type Board = (BoardCell | null)[][]
 
 interface DisplayCell extends BoardCell {
   kind: 'locked' | 'active' | 'ghost'
@@ -100,149 +97,13 @@ interface FinalResult {
   humanScore: number
 }
 
-const SHAPES: Record<PieceKey, number[][]> = {
-  I: [[1, 1, 1, 1]],
-  O: [
-    [1, 1],
-    [1, 1],
-  ],
-  T: [
-    [0, 1, 0],
-    [1, 1, 1],
-  ],
-  S: [
-    [0, 1, 1],
-    [1, 1, 0],
-  ],
-  Z: [
-    [1, 1, 0],
-    [0, 1, 1],
-  ],
-  J: [
-    [1, 0, 0],
-    [1, 1, 1],
-  ],
-  L: [
-    [0, 0, 1],
-    [1, 1, 1],
-  ],
-}
-
-const COLORS: Record<PieceKey, string> = {
-  I: '#00d4ff',
-  O: '#ffe000',
-  T: '#c855f5',
-  S: '#44ee66',
-  Z: '#ff4444',
-  J: '#4477ff',
-  L: '#ff9000',
-}
-
-const PIECE_KEYS: PieceKey[] = ['I', 'O', 'T', 'S', 'Z', 'J', 'L']
 let effectIdCounter = 0
-
-function emptyBoard(): Board {
-  return Array.from({ length: TOTAL_ROWS }, () => Array<BoardCell | null>(COLS).fill(null))
-}
-
-function rotateShape(shape: number[][]): number[][] {
-  return shape[0].map((_, column) => shape.map((row) => row[column]).reverse())
-}
-
-function collides(board: Board, shape: number[][], x: number, y: number): boolean {
-  for (let row = 0; row < shape.length; row++) {
-    for (let column = 0; column < shape[row].length; column++) {
-      if (!shape[row][column]) continue
-      const nextX = x + column
-      const nextY = y + row
-      if (nextX < 0 || nextX >= COLS) return true
-      if (nextY >= TOTAL_ROWS) return true
-      if (nextY >= 0 && board[nextY][nextX] !== null) return true
-    }
-  }
-  return false
-}
-
-function ghostY(board: Board, piece: FallingPiece): number {
-  let y = piece.y
-  while (!collides(board, piece.shape, piece.x, y + 1)) y++
-  return y
-}
-
-function buildBag(rng: () => number): PieceKey[] {
-  const bag = [...PIECE_KEYS]
-  for (let index = bag.length - 1; index > 0; index--) {
-    const swapIndex = Math.floor(rng() * (index + 1))
-    ;[bag[index], bag[swapIndex]] = [bag[swapIndex], bag[index]]
-  }
-  return bag
-}
-
-function makePiece(key: PieceKey): Piece {
-  return { key, shape: SHAPES[key].map((row) => [...row]), color: COLORS[key] }
-}
-
-function spawnFalling(key: PieceKey): FallingPiece {
-  const piece = makePiece(key)
-  return {
-    ...piece,
-    x: Math.floor((COLS - piece.shape[0].length) / 2),
-    y: BUFFER_ROWS - piece.shape.length,
-    rotationIndex: 0,
-  }
-}
-
-function lockPiece(
-  board: Board,
-  piece: FallingPiece,
-  createCell: (color: string) => BoardCell
-): Board {
-  const next = board.map((row) => [...row])
-  for (let row = 0; row < piece.shape.length; row++) {
-    for (let column = 0; column < piece.shape[row].length; column++) {
-      if (!piece.shape[row][column]) continue
-      const boardY = piece.y + row
-      const boardX = piece.x + column
-      if (boardY >= 0 && boardY < TOTAL_ROWS && boardX >= 0 && boardX < COLS) {
-        next[boardY][boardX] = createCell(piece.color)
-      }
-    }
-  }
-  return next
-}
-
-function clearFullLines(board: Board): { clearedBoard: Board; clearedRows: number[] } {
-  const clearedRows: number[] = []
-  let remaining = board.filter((row, index) => {
-    const full = row.every((cell) => cell !== null)
-    if (full) clearedRows.push(index)
-    return !full
-  })
-
-  while (remaining.length < TOTAL_ROWS) {
-    remaining = [Array<BoardCell | null>(COLS).fill(null), ...remaining]
-  }
-
-  return { clearedBoard: remaining, clearedRows }
-}
 
 function boardInDanger(board: Board): boolean {
   for (let row = BUFFER_ROWS; row < BUFFER_ROWS + DANGER_ROW; row++) {
     if (board[row].some((cell) => cell !== null)) return true
   }
   return false
-}
-
-function boardStackHeight(board: Board): number {
-  for (let row = BUFFER_ROWS; row < TOTAL_ROWS; row++) {
-    if (board[row].some((cell) => cell !== null)) return TOTAL_ROWS - row
-  }
-  return 0
-}
-
-function dropIntervalMs(level: number, speedMultiplier: number): number {
-  const standardInterval = 1000 - (Math.min(level, 20) - 1) * 47
-  return Math.max(65, Math.round(standardInterval * speedMultiplier))
 }
 
 function hashString(value: string): number {
@@ -297,7 +158,7 @@ export default function TetrisComp({
           id,
           name: id,
           isHuman: false,
-          precomputedScore: 0,
+          precomputedScore: 50,
           previousPR: null,
         }
     )
@@ -360,6 +221,7 @@ export default function TetrisComp({
   const roundEndingRef = useRef(false)
   const previousRoundScoresRef = useRef<Record<string, number>>({})
   const humanLastScoreRef = useRef(0)
+  const simulationGenerationRef = useRef(0)
 
   boardRef.current = board
   currentRef.current = current
@@ -388,6 +250,7 @@ export default function TetrisComp({
     )
 
     return () => {
+      simulationGenerationRef.current += 1
       dispatch(resetTetris())
     }
     // Competition inputs are immutable for the mounted minigame instance.
@@ -436,36 +299,62 @@ export default function TetrisComp({
   const simulateAiRound = useCallback(
     (ids: readonly string[], roundIndex: number): TetrisRoundPerformance[] => {
       const round = tournamentPlan[roundIndex]
-      const durationScale = round.durationMs / 60_000
-      const minimumScore = Math.round(320 * durationScale)
-      const maximumScore = Math.round(2700 * durationScale * (1 + round.tensionLevel * 0.025))
       const roundSeed = (seed ^ Math.imul(roundIndex + 1, 0x9e3779b1)) >>> 0
-      const simulatedScores = simulateTetrisAiScores({
-        seed: roundSeed,
-        minScore: minimumScore,
-        maxScore: maximumScore,
-        participants: ids.map((playerId) => ({
-          id: playerId,
-          baselineScore: participantById.get(playerId)?.precomputedScore,
-        })),
-      })
-
       return ids.map((playerId) => {
         const detailRng = mulberry32((roundSeed ^ hashString(playerId) ^ 0x51a7e) >>> 0)
-        const scoreValue = simulatedScores[playerId] ?? minimumScore
-        const linesValue = Math.max(0, Math.floor(scoreValue / (235 + detailRng() * 95)))
-        const piecesValue = Math.max(
-          linesValue * 3,
-          Math.floor(scoreValue / (43 + detailRng() * 16))
-        )
-        const maxStackHeight = Math.max(2, Math.min(18, Math.round(5 + detailRng() * 10)))
+        const simulated = simulateTetrisAiRun({
+          id: playerId,
+          baselineScore: participantById.get(playerId)?.precomputedScore,
+          seed: roundSeed,
+          durationMs: round.durationMs,
+          speedMultiplier: round.speedMultiplier,
+          tensionLevel: round.tensionLevel,
+        })
 
         return {
           playerId,
-          score: scoreValue,
-          lines: linesValue,
-          pieces: piecesValue,
-          maxStackHeight,
+          score: simulated.score,
+          lines: simulated.lines,
+          pieces: simulated.pieces,
+          maxStackHeight: simulated.maxStackHeight,
+          previousScore: previousRoundScoresRef.current[playerId] ?? 0,
+          tieBreaker: detailRng(),
+        }
+      })
+    },
+    [participantById, seed, tournamentPlan]
+  )
+
+  const simulateAiRoundInSlices = useCallback(
+    async (
+      ids: readonly string[],
+      roundIndex: number,
+      simulationGeneration: number
+    ): Promise<TetrisRoundPerformance[] | null> => {
+      const round = tournamentPlan[roundIndex]
+      const roundSeed = (seed ^ Math.imul(roundIndex + 1, 0x9e3779b1)) >>> 0
+      const simulations = await simulateTetrisAiRunsInSlices(
+        ids.map((playerId) => ({
+          id: playerId,
+          baselineScore: participantById.get(playerId)?.precomputedScore,
+          seed: roundSeed,
+          durationMs: round.durationMs,
+          speedMultiplier: round.speedMultiplier,
+          tensionLevel: round.tensionLevel,
+        })),
+        { shouldCancel: () => simulationGenerationRef.current !== simulationGeneration }
+      )
+      if (simulations === null) return null
+
+      return ids.map((playerId, index) => {
+        const detailRng = mulberry32((roundSeed ^ hashString(playerId) ^ 0x51a7e) >>> 0)
+        const simulated = simulations[index]
+        return {
+          playerId,
+          score: simulated.score,
+          lines: simulated.lines,
+          pieces: simulated.pieces,
+          maxStackHeight: simulated.maxStackHeight,
           previousScore: previousRoundScoresRef.current[playerId] ?? 0,
           tieBreaker: detailRng(),
         }
@@ -851,14 +740,23 @@ export default function TetrisComp({
     return () => window.removeEventListener('keydown', handleKey)
   }, [gamePhase, hardDrop, holdPiece, screen, softDrop, tryMove, tryRotate])
 
-  const simulateRemainingTournament = useCallback(() => {
+  const simulateRemainingTournament = useCallback(async () => {
+    const simulationGeneration = simulationGenerationRef.current + 1
+    simulationGenerationRef.current = simulationGeneration
     setSimulatingRemainder(true)
     let simulatedActiveIds = [...activeIds]
     let simulatedEliminations = [...eliminationOrderWorstFirst]
 
     for (let roundIndex = currentRoundIndex + 1; roundIndex < tournamentPlan.length; roundIndex++) {
       const round = tournamentPlan[roundIndex]
-      const performances = simulateAiRound(simulatedActiveIds, roundIndex)
+      const performances = await simulateAiRoundInSlices(
+        simulatedActiveIds,
+        roundIndex,
+        simulationGeneration
+      )
+      if (performances === null || simulationGenerationRef.current !== simulationGeneration) {
+        return
+      }
       const split = splitTetrisRound(performances, round.survivorCount)
       for (const performance of performances) {
         previousRoundScoresRef.current[performance.playerId] = performance.score
@@ -877,7 +775,7 @@ export default function TetrisComp({
     commitTournamentOutcome,
     currentRoundIndex,
     eliminationOrderWorstFirst,
-    simulateAiRound,
+    simulateAiRoundInSlices,
     tournamentPlan,
   ])
 
@@ -885,7 +783,7 @@ export default function TetrisComp({
     if (!roundResult) return
     const humanStillActive = humanId ? activeIds.includes(humanId) : false
     if (!humanStillActive) {
-      simulateRemainingTournament()
+      void simulateRemainingTournament()
       return
     }
 

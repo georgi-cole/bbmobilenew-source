@@ -52,7 +52,7 @@ describe('Vault Cracker registry wiring', () => {
 
   it('is registered in the generic React minigame map', () => {
     expect(reactComponents.CodeBreaker).toBeDefined();
-    expect(typeof reactComponents.CodeBreaker).toBe('function');
+    expect(reactComponents.CodeBreaker).toHaveProperty('$$typeof', Symbol.for('react.lazy'));
   });
 });
 

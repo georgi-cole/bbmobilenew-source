@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   advance,
+  advanceWeek,
+  setWeekendsEnabledForSeason,
   setPhase,
   forceHoH,
   forceNominees,
@@ -11,6 +13,7 @@ import {
   forcePlayerStatus,
   prepareVoxFinalThreeTest,
   prepareClassicFinalThreeTest,
+  prepareClassicFinalFourTest,
   forcePhase,
   finalizeFinal4Eviction,
   clearBlockingFlags,
@@ -35,7 +38,11 @@ import {
   debugActivateBellaInheritance,
   debugRestartWeekendInterlude,
   debugSkipToWeekendDayTwo,
+  forceWildcardEntryForQa,
 } from '../../store/gameSlice'
+import { getById } from '../../data/houseguests'
+import { RESERVE_WILDCARD_IDS } from '../../data/reserveHouseguests'
+import { getWildcardQaQueueEligibility } from '../../features/reserveEntrants/wildcardReplacement'
 import {
   finishWeekendDebugPreview,
   startWeekendDebugPreview,
@@ -228,6 +235,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
   const [nominee2, setNominee2] = useState('')
   const [selectedPov, setSelectedPov] = useState('')
   const [selectedStatusPlayer, setSelectedStatusPlayer] = useState('')
+  const [selectedWildcardId, setSelectedWildcardId] = useState<string>(RESERVE_WILDCARD_IDS[0])
   const [selectedF4Evictee, setSelectedF4Evictee] = useState('')
   const [selectedForcedShock, setSelectedForcedShock] = useState<ForcedShockType>('doubleEviction')
   const [cupidSeasonInput, setCupidSeasonInput] = useState(
@@ -271,6 +279,8 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
   const f4Nominees = game.players.filter((p) => game.nomineeIds.includes(p.id))
   const canSeedInteraction = aiPlayers.length > 0 && !!humanPlayer
   const memoryCaps = socialConfig.socialMemoryConfig.caps
+  const wildcardQaQueueEligibility = getWildcardQaQueueEligibility(game, selectedWildcardId)
+  const canForceWildcardEntry = wildcardQaQueueEligibility.eligible
 
   function handleSeedIncomingInteraction() {
     if (!canSeedInteraction || !humanPlayer) return
@@ -507,7 +517,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               <div className="dbg-row dbg-row--col">
                 <span className="dbg-label">Weekend previews</span>
                 <div className="dbg-row">
-                  {([5, 10, 15] as const).map((afterDay, index) => (
+                  {([5, 10, 'finale', 'tribunal'] as const).map((afterDay, index) => (
                     <button
                       key={afterDay}
                       className="dbg-btn dbg-btn--wide"
@@ -526,9 +536,49 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                         setIsOpen(false)
                       }}
                     >
-                      {game.weekendInterlude?.debug ? 'Restart' : 'Play'} Weekend {index + 1}
+                      {game.weekendInterlude?.debug ? 'Restart' : 'Play'}{' '}
+                      {afterDay === 'finale'
+                        ? 'Finale Weekend'
+                        : afterDay === 'tribunal'
+                          ? 'Tribunal Sequester'
+                          : `Weekend ${index + 1}`}
                     </button>
                   ))}
+                </div>
+                <div className="dbg-row">
+                  <label className="dbg-label" htmlFor="dbg-wildcard-select">
+                    Reserve Player
+                  </label>
+                  <select
+                    id="dbg-wildcard-select"
+                    className="dbg-select"
+                    value={selectedWildcardId}
+                    onChange={(event) => setSelectedWildcardId(event.target.value)}
+                  >
+                    {RESERVE_WILDCARD_IDS.map((id) => (
+                      <option key={id} value={id}>
+                        {getById(id)?.name ?? id}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="dbg-btn dbg-btn--wide"
+                    type="button"
+                    disabled={!canForceWildcardEntry}
+                    onClick={() => {
+                      dispatch(forceWildcardEntryForQa(selectedWildcardId))
+                      setIsOpen(false)
+                    }}
+                  >
+                    Queue for Next Day
+                  </button>
+                </div>
+                <div className="dbg-help">
+                  {game.wildcardOpportunity?.status === 'pending'
+                    ? `${getById(game.wildcardOpportunity.playerId ?? '')?.name ?? 'A reserve'} is queued for Day ${game.wildcardOpportunity.arrivalDay}.`
+                    : wildcardQaQueueEligibility.eligible
+                      ? `${getById(selectedWildcardId)?.name} will enter at the start of Day ${game.week + 1}, occupying ${wildcardQaQueueEligibility.displacedPlayer?.name ?? 'the earliest eligible eliminated player'}’s roster slot. A Tribunal member is never displaced.`
+                      : wildcardQaQueueEligibility.reason}
                 </div>
                 {game.weekendInterlude?.debug && (
                   <div className="dbg-row">
@@ -577,6 +627,15 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
               <div className="dbg-row">
                 <button className="dbg-btn dbg-btn--wide" onClick={() => dispatch(advance())}>
                   Advance Phase
+                </button>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  onClick={() => dispatch(setWeekendsEnabledForSeason(false))}
+                >
+                  Disable Weekends (debug)
+                </button>
+                <button className="dbg-btn dbg-btn--wide" onClick={() => dispatch(advanceWeek())}>
+                  Advance Day (debug)
                 </button>
                 <button
                   className="dbg-btn dbg-btn--wide"
@@ -1059,18 +1118,14 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                 >
                   Prepare Vox Final 3 Test
                 </button>
-                <button
-                  className="dbg-btn dbg-btn--wide"
-                  onClick={() => dispatch(forcePhase('final4_eviction'))}
-                >
-                  Force Final 4
-                </button>
-                <button
-                  className="dbg-btn dbg-btn--wide"
-                  onClick={() => dispatch(forcePhase('final3'))}
-                >
-                  Force Final 3
-                </button>
+                {game.voxPopuli?.status !== 'active' && (
+                  <button
+                    className="dbg-btn dbg-btn--wide"
+                    onClick={() => dispatch(prepareClassicFinalFourTest())}
+                  >
+                    Prepare Classic Final 4 Test
+                  </button>
+                )}
               </div>
 
               <div className="dbg-row">

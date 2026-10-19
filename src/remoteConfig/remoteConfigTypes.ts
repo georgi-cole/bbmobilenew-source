@@ -247,6 +247,13 @@ export interface RemoteSeasonDirectorConfig {
 // ── Root config ───────────────────────────────────────────────────────────────
 
 export interface RemoteConfig {
+  /**
+   * Whether the native launcher icon should advance one bundled story stage
+   * on each app launch. Omitted fields use the enabled bundled default.
+   */
+  iconRotation?: {
+    enabled?: boolean
+  }
   /** Versioned Big Eye language, comprehension and character tuning. */
   confessional?: RemoteConfessionalConfig
   /** Remote orchestration policy snapshotted when a new season starts. */

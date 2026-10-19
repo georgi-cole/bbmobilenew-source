@@ -223,6 +223,7 @@ export default function AvatarTile({
   const isHoldActiveRef = React.useRef(false)
   const [statsOpen, setStatsOpen] = React.useState(false)
   const [animateEvictionMark, setAnimateEvictionMark] = React.useState(false)
+  const [evictionMarkUnavailable, setEvictionMarkUnavailable] = React.useState(false)
   const evictionMarkAnimationTimerRef = React.useRef<ReturnType<typeof window.setTimeout> | null>(
     null
   )
@@ -686,6 +687,8 @@ export default function AvatarTile({
           {(isEvicted || isReturning) &&
             (pairLabel && isEvicted && !isReturning ? (
               <CupidEvictionMark />
+            ) : evictionMarkUnavailable ? (
+              <span className={`${styles.cross} ${styles.crossFallback}`} aria-hidden="true" />
             ) : (
               <span
                 aria-hidden="true"
@@ -696,7 +699,14 @@ export default function AvatarTile({
                   } as React.CSSProperties
                 }
                 onAnimationEnd={animateEvictionMark ? finishEvictionMarkAnimation : undefined}
-              />
+              >
+                <img
+                  src={`${(import.meta.env.BASE_URL ?? '').replace(/\/$/, '')}/evictionmark/evictionmark.png`}
+                  alt=""
+                  hidden
+                  onError={() => setEvictionMarkUnavailable(true)}
+                />
+              </span>
             ))}
         </motion.div>
 
