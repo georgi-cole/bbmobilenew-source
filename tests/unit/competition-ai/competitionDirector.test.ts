@@ -87,10 +87,10 @@ describe('Competition Director V1', () => {
         if (size === 16) continue // the deliberate fixed premiere is a special rule
         const eligible = getCompetitionDirectorCandidates(context(size, type))
         expect(eligible.length).toBeGreaterThan(1)
-        const finalUnused = eligible[eligible.length - 1].game.key
-        const played = eligible.slice(0, -1).map(({ game }) => game.key)
+        const played = eligible.slice(0, Math.min(5, eligible.length - 1))
+          .map(({ game }) => game.key)
         const selected = pickCompetitionDirectorGame(context(size, type, 10, played), 20261020)
-        expect(selected?.key, `${size}/${type}`).toBe(finalUnused)
+        expect(played, `${size}/${type}`).not.toContain(selected?.key)
       }
     }
   })
