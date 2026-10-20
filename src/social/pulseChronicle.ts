@@ -24,6 +24,7 @@ interface StoryMoment {
   text: string
   actorId?: string
   targetId?: string
+  outcome?: 'success' | 'failure'
 }
 
 const phaseOrder: Record<string, number> = {
@@ -166,6 +167,16 @@ function chronicleEvent(
       if (!event.participantIds.includes(humanId)) return null
       return { ...base, category: 'social', importance: 105,
         text: 'Trouble reached an alliance close to you. In the Hub, loyalty can have a very short shelf life.' }
+    case 'ALLIANCE_ENDED':
+    case 'ALLIANCE_DISSOLVED':
+      if (!event.participantIds.includes(humanId)) return null
+      return { ...base, category: 'social', importance: 90,
+        text: 'The ' + safeName(event.allianceSnapshot?.name ?? 'alliance') +
+          ' alliance came to an end. Even strong partnerships have an expiry date in the Hub.' }
+    case 'ALLIANCE_REQUEST_ACCEPTED':
+      if (!event.participantIds.includes(humanId)) return null
+      return { ...base, category: 'social', importance: 72,
+        text: 'A new alliance request was accepted. A quiet agreement today could change tomorrow’s vote.' }
     case 'ALLIANCE_STRATEGY_MEETING':
       if (!event.participantIds.includes(humanId)) return null
       return { ...base, category: 'social', importance: 35,
@@ -204,7 +215,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
       if (!text) return null
       return { id: action.id ?? 'action:' + index, category: 'social' as const, importance: 78,
         sequence: (phaseOrder[action.phase ?? ''] ?? 4) * 1000000 + 500000 + index,
-        text, actorId: action.actorId, targetId: action.targetId }
+        text, actorId: action.actorId, targetId: action.targetId, outcome: action.outcome }
     })
     .filter((moment): moment is NonNullable<typeof moment> => moment !== null)
   moments.push(...actionMoments)
@@ -244,8 +255,14 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   let note = ''
   const personals = all.filter((moment) => moment.category === 'social' && moment.actorId === input.humanId)
   const exits = all.filter((moment) => moment.category === 'eviction')
-  if (personals.length >= 2)
-    note = 'You have been busy building your place in the Hub. Just remember: every connection also comes with expectations.'
+  if (personals.some((moment) => moment.outcome === 'failure') &&
+      personals.some((moment) => moment.outcome === 'success')) {
+    const failed = personals.find((moment) => moment.outcome === 'failure')
+    const succeeded = personals.find((moment) => moment.outcome === 'success')
+    note = name(failed?.targetId) + ' was not persuaded, but ' + name(succeeded?.targetId) +
+      ' proved more receptive. Not every door in the Hub opens with the same key.'
+  } else if (personals.length >= 2)
+    note = 'You have been busy working on your place in the Hub. The results of those efforts may matter tomorrow.'
   else if (all.some((moment) => moment.category === 'nominations' && moment.actorId === input.humanId))
     note = 'You held the power today. Now comes the tricky part: living with the choices you made.'
   else if (all.some((moment) => moment.category === 'safety' && moment.actorId === input.humanId))
