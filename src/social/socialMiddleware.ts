@@ -90,6 +90,8 @@ import { createIncomingInteraction } from './incomingInteractionFactory'
 import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
+import { composePulseChronicle } from './pulseChronicle'
+import { resolveWeatherDay } from '../weather/weatherEngine'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
@@ -114,6 +116,7 @@ interface GameState {
   gameId: string
   season: number
   seed: number
+  pulseChronicles?: import('../types').PulseChronicle[]
   phase: string
   week: number
   mode?: 'classic' | 'survival'
@@ -206,12 +209,36 @@ interface StateWithGame {
     dramaNetwork?: DramaSocialNetwork
     commitments?: import('./types').SocialCommitment[]
     socialMemory?: SocialMemoryMap
+    actionHistory?: import('./types').SocialActionLogEntry[]
     realitySimulation?: RealitySimulationState
     reality?: import('./reality').RealityDomainState
   }
 }
 
 type MiddlewareAPI = { dispatch: (a: unknown) => unknown; getState: () => unknown }
+
+/** Finalize once at day end, before the rolling social history can lose older events. */
+function archiveCompletedPulseDay(api: MiddlewareAPI, day: number): void {
+  const state = api.getState() as StateWithGame
+  if (getEffectiveSocialMode(state) !== 'drama' || !state.social?.reality) return
+  if (state.game.pulseChronicles?.some((entry) =>
+    entry.season === state.game.season && entry.day === day)) return
+  const human = state.game.players.find((player) => player.isUser)
+  if (!human) return
+  const chronicle = composePulseChronicle({
+    gameId: state.game.gameId,
+    season: state.game.season,
+    day,
+    humanId: human.id,
+    players: state.game.players.map((player) => ({ id: player.id, name: player.name ?? '' })),
+    reality: state.social.reality,
+    actionHistory: state.social.actionHistory ?? [],
+    weather: resolveWeatherDay(state.game.gameId, day).condition,
+    complete: true,
+  })
+  api.dispatch({ type: 'game/archivePulseChronicle', payload: chronicle })
+}
+
 
 const CUPID_PAIR_INITIAL_AFFINITY = 55
 
@@ -1641,6 +1668,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     if (nextPhase === 'week_end' && prevPhase !== nextPhase) {
       api.dispatch(settleSecretMissionDay({ day: day }) as never)
+      archiveCompletedPulseDay(api as unknown as MiddlewareAPI, day)
     }
     if (prevPhase !== nextPhase) {
       runDramaPhase(api as unknown as MiddlewareAPI, nextPhase)
@@ -2000,6 +2028,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     if (newPhase === 'week_end' && prevPhase !== newPhase) {
       api.dispatch(settleSecretMissionDay({ day: afterState.game?.week ?? 1 }) as never)
+      archiveCompletedPulseDay(api as unknown as MiddlewareAPI, afterState.game?.week ?? 1)
     }
 
     return result
