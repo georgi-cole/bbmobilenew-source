@@ -63,6 +63,7 @@ import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
+import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShockPopup'
@@ -1450,6 +1451,7 @@ export default function GameScreen() {
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
   const weekendInterludeActive = game.weekendInterlude?.active === true
+  const weekendVisualTheme = resolveWeekendVisualTheme(game.weekendInterlude)
   const weekendSocialAvailable =
     !weekendInterludeActive ||
     game.weekendInterlude?.stage === 'social' ||
@@ -1522,10 +1524,12 @@ export default function GameScreen() {
         data-layout-revision={responsiveGameLayout.revision}
         data-active-flow={flowCoordination.activeFlow ?? undefined}
         data-game-mode={game.mode}
+        data-weekend-theme={weekendVisualTheme ?? undefined}
       >
         <WeekendPartyAtmosphere
           active={weekendInterludeActive && game.weekendInterlude?.episode === 'party'}
           animate={settings.gameUX.animations && !settings.display.reduceMotion}
+          theme={weekendVisualTheme}
         />
         {showPublicSaveReveal && publicSaveWinnerId ? (
           <TvZone

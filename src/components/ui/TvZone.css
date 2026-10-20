@@ -2023,9 +2023,9 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
   }
   22% {
     box-shadow:
-      0 0 0 3px rgba(56, 189, 248, 0.96),
-      0 0 44px rgba(14, 165, 233, 0.62),
-      0 0 96px rgba(37, 99, 235, 0.46),
+      0 0 0 3px var(--weekend-pulse-core, rgba(56, 189, 248, 0.96)),
+      0 0 44px var(--weekend-pulse-mid, rgba(14, 165, 233, 0.62)),
+      0 0 96px var(--weekend-pulse-outer, rgba(37, 99, 235, 0.46)),
       0 12px 44px rgba(0, 0, 0, 0.76);
     transform: scale(1.018);
   }

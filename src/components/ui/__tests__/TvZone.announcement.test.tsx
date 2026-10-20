@@ -30,6 +30,7 @@ import gameReducer, {
   activateSpecialVeto,
   addTvEvent,
   consumeBroadcastEvent,
+  debugActivateWeekendInterlude,
   setPhase,
   updatePlayer,
 } from '../../../store/gameSlice'
@@ -136,6 +137,22 @@ describe('TvZone — announcement overlay', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()
+  })
+
+  it('uses the fireside screen artwork and ambient firelight during Weekend 1', () => {
+    const store = makeStore()
+    renderTvZone(store)
+
+    act(() => {
+      store.dispatch(debugActivateWeekendInterlude(5))
+    })
+
+    const tv = document.querySelector('.tv-zone')
+    expect(tv?.classList.contains('tv-zone--weekend-fireside')).toBe(true)
+    expect(document.querySelector('.weekend-artwork-cover--tv')?.getAttribute('data-artwork')).toBe(
+      'fireside-tv'
+    )
+    expect(document.querySelector('.tv-zone__firelight')).not.toBeNull()
   })
 
   it('shows the overlay when the latest event has meta.major set to a recognised key', () => {
