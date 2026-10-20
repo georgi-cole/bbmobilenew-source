@@ -271,7 +271,7 @@ export const startChallenge =
       competition: competitionType,
     })
     const eligibleForRoster = (game: GameRegistryEntry) =>
-      supportsPlayerCount(game, scheduledPlayerCount)
+      supportsPlayerCount(game, scheduledPlayerCount) && game.key !== 'capitalization'
     const lateSeasonBias =
       activeCompetitorCount > 0 && activeCompetitorCount <= LATE_SEASON_PLAYER_THRESHOLD
     const selectFromPool = (pool: GameRegistryEntry[]) =>
@@ -541,6 +541,12 @@ export const startChallenge =
     // and any future scheduler branch added above.
     if (state.game.mode === 'survival' && gameEntry.key === 'rescueTheKing') {
       gameEntry = pickSurvivorGame(opts.category, [...(opts.excludeKeys ?? []), 'rescueTheKing'])
+    }
+    // The Back 2 the Game returnee flow mounts Capitalization directly; the
+    // ordinary LOH/Safety scheduler must never select it, even from saved or
+    // forced competition settings.
+    if (gameEntry.key === 'capitalization') {
+      gameEntry = pickFromRegistry(opts.category, [...(opts.excludeKeys ?? []), 'capitalization'])
     }
     // Derive a per-challenge seed from the base seed + game key hash.
     const challengeSeed = deriveSeed(gameSeed, gameEntry.key)

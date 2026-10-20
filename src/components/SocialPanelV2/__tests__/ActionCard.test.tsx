@@ -212,10 +212,15 @@ describe('ActionCard – hover / focus preview', () => {
 });
 
 describe('ActionCard – availabilityHint badge', () => {
-  it('renders availability hint badge when action.availabilityHint is set', () => {
-    render(<ActionCard action={hintAction} />);
+  it('renders availability hint only when the action needs an explanation', () => {
+    render(<ActionCard action={hintAction} disabled />);
     expect(screen.getByLabelText('Requirement: Requires positive affinity')).toBeDefined();
     expect(screen.getByText('Requires positive affinity')).toBeDefined();
+  });
+
+  it('does not repeat the requirement under an available action', () => {
+    render(<ActionCard action={hintAction} />);
+    expect(screen.queryByText('Requires positive affinity')).toBeNull();
   });
 
   it('does not render availability hint badge when action.availabilityHint is absent', () => {

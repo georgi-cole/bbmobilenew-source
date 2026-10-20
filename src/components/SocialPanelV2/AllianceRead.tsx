@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Player } from '../../types'
+import { formatPlayerFacingPhase } from '../../social/reality/presentation'
 import {
   allianceEventText,
   allianceHistory,
@@ -225,7 +226,7 @@ export default function AllianceRead({
                       className={event.id === focusEventId ? 'is-highlighted' : undefined}
                     >
                       <small>
-                        Day {event.day} · {event.phase.replaceAll('_', ' ')}
+                        Day {event.day} · {formatPlayerFacingPhase(event.phase)}
                       </small>
                       <span>{allianceEventText(reality, event, humanId, playerName)}</span>
                     </li>

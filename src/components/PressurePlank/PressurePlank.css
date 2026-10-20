@@ -395,6 +395,17 @@
   letter-spacing: 0.03em;
 }
 
+.pp--playing,
+.pp--playing * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pp--playing {
+  -webkit-touch-callout: none;
+}
+
 .pp__btn:active {
   transform: scale(0.93);
 }

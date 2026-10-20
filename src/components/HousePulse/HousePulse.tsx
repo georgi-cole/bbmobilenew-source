@@ -14,7 +14,6 @@ import {
   allianceForEvent,
   allianceKind,
   canReadAllianceEvent,
-  isFormerAllianceMember,
 } from '../../social/reality'
 import {
   getSocialCommitmentDueCopy,
@@ -98,7 +97,39 @@ function titleCase(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-type PulseStoryBeat = SocialStoryBeat & { allianceId?: string }
+type PulseStoryBeat = SocialStoryBeat & { allianceId?: string; sourceEventId?: string }
+
+function buildRealityPulseDaySummary(
+  beats: PulseStoryBeat[],
+  humanId: string,
+  currentWeek: number
+): PulseStoryBeat[] {
+  if (beats.length === 0) return []
+  const allianceUpdates = beats.filter((beat) => beat.eventType?.startsWith('ALLIANCE_')).length
+  const relationshipUpdates = beats.length - allianceUpdates
+  const details = [
+    allianceUpdates ? `${allianceUpdates} alliance update${allianceUpdates === 1 ? '' : 's'}` : '',
+    relationshipUpdates
+      ? `${relationshipUpdates} relationship update${relationshipUpdates === 1 ? '' : 's'}`
+      : '',
+  ].filter(Boolean)
+  const latest = beats.find((beat) => beat.eventType?.startsWith('ALLIANCE_')) ?? beats[0]
+  const totalUpdates = allianceUpdates + relationshipUpdates
+  return [
+    {
+      ...latest,
+      id: `reality-day-summary-${currentWeek}`,
+      title: 'Today’s alliance and relationship summary',
+      text: `${details.join(' · ')} ${totalUpdates === 1 ? 'was' : 'were'} recorded today. ${allianceUpdates ? 'Open the full alliance read' : 'Open Intel'} for event details.`,
+      eventType: 'DAY_SUMMARY',
+      participantIds: [humanId],
+      week: currentWeek,
+      phase: 'social',
+      dedupeKey: `reality-day-summary-${currentWeek}`,
+      sourceEventId: latest.id,
+    },
+  ]
+}
 
 /** Today is a concise, chronological feed of only events the player could know. */
 function buildRealityPulseStream(
@@ -195,12 +226,7 @@ function buildRealityPulseStream(
         title,
         text: consultationDetail,
         eventType: event.type,
-        allianceId:
-          alliance &&
-          allianceKind(alliance) === 'GROUP' &&
-          isFormerAllianceMember(alliance, humanId)
-            ? allianceId
-            : undefined,
+        allianceId: alliance && allianceKind(alliance) === 'GROUP' ? allianceId : undefined,
         participantIds: event.participantIds,
         week: event.day,
         phase: event.phase,
@@ -228,6 +254,7 @@ export default function HousePulse({
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<PulseTab>('today')
   const [earlierOpen, setEarlierOpen] = useState(false)
+  const [intelFocusEventId, setIntelFocusEventId] = useState<string | undefined>()
 
   useEffect(() => {
     const openPulse = () => {
@@ -236,6 +263,13 @@ export default function HousePulse({
       setOpen(true)
     }
     const closePulse = () => setOpen(false)
+    const openIntelEvent = (event: Event) => {
+      const eventId = (event as CustomEvent<string>).detail
+      if (!eventId) return
+      setIntelFocusEventId(eventId)
+      setTab('intel')
+      setOpen(true)
+    }
     const setPulseTab = (event: Event) => {
       const nextTab = (event as CustomEvent<string>).detail
       if (
@@ -256,10 +290,12 @@ export default function HousePulse({
     window.addEventListener('reality-social-tutorial:open-pulse', openPulse)
     window.addEventListener('reality-social-tutorial:close-pulse', closePulse)
     window.addEventListener('reality-social-tutorial:set-pulse-tab', setPulseTab)
+    window.addEventListener('reality-social:open-intel-event', openIntelEvent)
     return () => {
       window.removeEventListener('reality-social-tutorial:open-pulse', openPulse)
       window.removeEventListener('reality-social-tutorial:close-pulse', closePulse)
       window.removeEventListener('reality-social-tutorial:set-pulse-tab', setPulseTab)
+      window.removeEventListener('reality-social:open-intel-event', openIntelEvent)
     }
   }, [reality])
 
@@ -313,7 +349,9 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const todayBeats = storyBeats
+  const todayBeats = reality
+    ? buildRealityPulseDaySummary(storyBeats, humanId, currentWeek)
+    : storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
     (commitment) =>
@@ -462,15 +500,15 @@ export default function HousePulse({
                           className="house-pulse__link"
                           onClick={() => {
                             setOpen(false)
-                            onOpenAlliances(beat.allianceId, beat.id)
+                            onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                           }}
                         >
                           View alliance history
                         </button>
                       )}
-                      {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
-                        <p>{beat.text}</p>
-                      )}
+                      {reality &&
+                        (beat.eventType === 'ALLIANCE_STRATEGY_MEETING' ||
+                          beat.eventType === 'DAY_SUMMARY') && <p>{beat.text}</p>}
                     </article>
                   ))}
                   {todayBeats.length > 3 && (
@@ -499,7 +537,7 @@ export default function HousePulse({
                                 className="house-pulse__link"
                                 onClick={() => {
                                   setOpen(false)
-                                  onOpenAlliances(beat.allianceId, beat.id)
+                                  onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                                 }}
                               >
                                 View alliance history
@@ -616,6 +654,7 @@ export default function HousePulse({
               relationships={relationships}
               section="knowledge"
               currentDay={currentWeek}
+              focusEventId={intelFocusEventId}
               compact
             />
           )}

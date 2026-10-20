@@ -13,15 +13,18 @@ export function simulateTiltLabyrinthAiRun(
     profile.precision * 0.4 +
     profile.nerve * 0.15 +
     profile.consistency * 0.1
-  const movementMs = routeCells * (1_240 + (100 - navigationSkill) * 4.2)
-  const hesitationMs = routeCells * (240 + (100 - profile.mental) * 1.2)
+  // A cell represents roughly one short, continuous steering segment in this
+  // maze. Keep the baseline near measured player traversal speed and reserve
+  // meaningful variance for navigation errors and hazards below.
+  const movementMs = routeCells * (360 + (100 - navigationSkill) * 1.8)
+  const hesitationMs = routeCells * (24 + (100 - profile.mental) * 0.35)
   const mistakes = Math.floor(rng() * 2 + (100 - profile.mental) / 35)
   let mistakeMs = 0
   for (let index = 0; index < mistakes; index += 1) mistakeMs += 8_000 + rng() * 12_000
 
   const hazardHits = Math.floor(rng() * (1 + (100 - profile.precision) / 18))
   const recoveryMs = hazardHits * (1_000 + rng() * 3_000)
-  const fatigueMs = Math.max(0, routeCells - 30) * (150 + (100 - profile.consistency) * 1.2)
+  const fatigueMs = Math.max(0, routeCells - 30) * (18 + (100 - profile.consistency) * 0.25)
   const pauses = Math.floor(rng() * (1 + (100 - profile.nerve) / 60))
   let pauseMs = 0
   for (let index = 0; index < pauses; index += 1) pauseMs += 5_000 + rng() * 10_000

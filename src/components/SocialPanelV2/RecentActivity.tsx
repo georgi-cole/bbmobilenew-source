@@ -337,7 +337,13 @@ export default function RecentActivity({
                     className={`ra-entry__icon ra-entry__icon--${outcomeClass}`}
                     aria-label={outcomeLabel}
                   >
-                    {outcomeClass === 'positive' ? '✓' : outcomeClass === 'negative' ? '✗' : '◷'}
+                    {outcomeClass === 'positive'
+                      ? '✓'
+                      : outcomeClass === 'negative'
+                        ? '✗'
+                        : outcomeClass === 'warning'
+                          ? '⚠'
+                          : '◷'}
                   </span>
                   <span className="ra-entry__body">
                     <span className="ra-entry__action-tag">

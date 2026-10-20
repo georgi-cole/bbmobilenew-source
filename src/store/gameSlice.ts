@@ -67,6 +67,7 @@ import { resolvePublicSaveNominee } from '../publicOpinion/PublicSaveService'
 import {
   createInitialPregnancyStoryState,
   normalizePregnancyStoryState,
+  getActivePregnancyAttempt,
   recordPregnancyNewsShare as recordPregnancyStoryNewsShare,
   revealPregnancyNewsLeak as revealPregnancyStoryNewsLeak,
   processPregnancyStoryDay,
@@ -167,6 +168,7 @@ import {
   renderBroadcastTemplate,
 } from '../broadcasting/broadcastTemplateCatalog'
 import { loadBroadcastConfig } from '../broadcasting/broadcastConfigPersistence'
+import { isRecognizedBroadcastMajorKey } from '../broadcasting/broadcastPresentationRegistry'
 import { loadDepressionShockState } from '../features/twists/depressionShock'
 import {
   BELLA_ID,
@@ -1245,7 +1247,14 @@ function refreshManagedBroadcastDefinition(state: GameState, event: TvEvent) {
     ? custom.forceOnTv !== false
     : (override?.forceOnTv ?? template?.forceOnTv ?? event.meta?.forceOnTv === true)
   const configuredMajor =
-    custom?.major ?? (override?.major === null ? undefined : (override?.major ?? template?.major))
+    custom?.major ??
+    (override?.major === null
+      ? undefined
+      : (override?.major ??
+        template?.major ??
+        (typeof eventMajor === 'string' && isRecognizedBroadcastMajorKey(eventMajor)
+          ? eventMajor
+          : undefined)))
   const major =
     level === 'critical'
       ? (configuredMajor ?? 'custom_critical')
@@ -1974,6 +1983,35 @@ function getStrategicRelationship(state: GameState, actorId: string, targetId: s
   return state.strategicRelationships?.[actorId]?.[targetId] ?? null
 }
 
+/** Pregnancy protection applies only to a live pregnancy the decision-maker knows about. */
+function getKnownPregnancyBondContribution(
+  state: GameState,
+  actorId: string,
+  targetId: string
+): number {
+  const story = state.pregnancyStory
+  if (!story) return 0
+  for (const carrierId of [actorId, targetId]) {
+    const attempt = getActivePregnancyAttempt(story, carrierId)
+    if (
+      !attempt?.pregnant ||
+      attempt.status !== 'POSITIVE' ||
+      !attempt.participantIds.includes(actorId) ||
+      !attempt.participantIds.includes(targetId)
+    ) {
+      continue
+    }
+    const decisionMakerKnows =
+      (carrierId === actorId && attempt.resultKnown) ||
+      attempt.pregnancyPublicRevealed === true ||
+      attempt.pregnancyNewsSharedWithIds?.includes(actorId) === true ||
+      (attempt.paternityResultKnown === true && attempt.biologicalFatherId === actorId) ||
+      attempt.paternityPublicRevealed === true
+    if (decisionMakerKnows) return -125
+  }
+  return 0
+}
+
 function getKnownRomanticRivalPressure(
   state: GameState,
   actorId: string,
@@ -2314,6 +2352,7 @@ function getNominationTargetBreakdown(
   const socialRead = state.strategicThreatReadsByActorId?.[lohId]?.[candidate.id]
   const socialThreat = socialRead?.score ?? 0
   const knownJealousy = getKnownRomanticRivalPressure(state, lohId, candidate.id)
+  const pregnancyBondContribution = getKnownPregnancyBondContribution(state, lohId, candidate.id)
   const factors: Record<string, AiDecisionFactor> = {
     threatContribution: (threat - socialThreat) * 4,
     socialInfluenceThreat: socialThreat * 4,
@@ -2324,12 +2363,13 @@ function getNominationTargetBreakdown(
     affinityPenalty: -affinity,
     tags: [...tags].join(', ') || 'none',
     knownRomanticRivalJealousy: knownJealousy.contribution,
+    knownPregnancyBond: pregnancyBondContribution,
     jealousyPartnerId: knownJealousy.partnerId,
     jealousyEvidenceDay: knownJealousy.evidenceDay,
     jealousyEvidenceConfidence: knownJealousy.confidence,
     jealousyEvidenceSource: knownJealousy.source,
   }
-  let score = threat * 4 - affinity + knownJealousy.contribution
+  let score = threat * 4 - affinity + knownJealousy.contribution + pregnancyBondContribution
   if (tags.has('betrayal')) {
     score += 125
     factors.betrayal = 125
@@ -8357,7 +8397,7 @@ const gameSlice = createSlice({
           state,
           'The Hub is still very depressed. Colour drains from the rooms as the storm refuses to lift. 🌫️',
           'twist',
-          { major: 'depression_shock_day_two' }
+          { major: 'depression_shock_day_2' }
         )
         // DepressionShockController owns the day-two chocolate broadcast.
         // Keeping a second legacy event here caused the same live card to be

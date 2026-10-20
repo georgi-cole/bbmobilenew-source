@@ -138,6 +138,7 @@ describe('AllianceRead', () => {
     expect(document.getElementById(`alliance-history-event-${event.id}`)).toHaveClass(
       'is-highlighted'
     )
+    expect(screen.getByText('Day 2 · Before the vote')).toBeInTheDocument()
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledOnce())
   })
 })

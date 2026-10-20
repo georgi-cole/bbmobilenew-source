@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createInitialDramaSocialNetwork } from '../../../social/dramaModeEngine'
 import {
@@ -16,7 +16,7 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
-  it('keeps earlier developments available without rendering them while collapsed', async () => {
+  it('summarizes the day once instead of repeating each alliance development', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'the-winners',
@@ -64,8 +64,8 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.queryByText('Huddle 0.')).toBeNull()
-    fireEvent.click(screen.getByText('Earlier today · 2'))
-    await waitFor(() => expect(screen.getByText('Huddle 0.')).toBeInTheDocument())
+    expect(screen.getByText(/5 alliance updates were recorded today/)).toBeInTheDocument()
+    expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
   it('keeps a personal pact development out of the group-alliance selection flow', () => {
@@ -93,8 +93,9 @@ describe('HousePulse', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(
-      screen.getByRole('heading', { name: 'You formed a personal pact with Lia.' })
+      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
     ).toBeInTheDocument()
+    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'View alliance' })).toBeNull()
   })
 
@@ -166,12 +167,11 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByRole('heading', { name: 'You consulted The Winners.' })).toBeInTheDocument()
     expect(
-      screen.getByText(
-        'Lia recommends Remy for eviction. You have not chosen a position, so no alliance vote is set yet.'
-      )
+      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
     ).toBeInTheDocument()
+    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.queryByText(/Lia recommends Remy for eviction/)).toBeNull()
     expect(screen.queryByText('You · Consult Alliance · Lia.')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
@@ -387,7 +387,11 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByRole('heading', { name: 'Kai dissolved The Shield.' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
+    ).toBeInTheDocument()
+    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.queryByText('Kai dissolved The Shield.')).toBeNull()
     expect(screen.queryByText('An alliance ended')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
     expect(onOpenAlliances).toHaveBeenCalledWith('alliance:shield', 'alliance-ended')

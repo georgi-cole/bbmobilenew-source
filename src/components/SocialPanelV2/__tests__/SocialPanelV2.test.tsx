@@ -949,7 +949,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     ).toBe(true)
   })
 
-  it('only offers Consult Alliance for the selected member of an active group', () => {
+  it('consults a current fractured alliance after the returning member is readmitted', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const candidates = store.getState().game.players.filter((player) => !player.isUser)
@@ -963,8 +963,9 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
       purpose: 'Shared strategy',
       at: { day: 1, phase: 'social_1' },
     })
-    alliance.status = 'ACTIVE'
+    alliance.status = 'FRACTURED'
     store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 10 }))
     store.dispatch(openSocialPanel())
     initManeuvers(store)
     renderPanel(store)
@@ -979,6 +980,16 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     expect(
       screen.getByRole('button', { name: alliance.name ?? alliance.purpose })
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+    expect(
+      store
+        .getState()
+        .social.reality.events.some(
+          (event) =>
+            event.type === 'ALLIANCE_STRATEGY_MEETING' &&
+            event.reason.startsWith(`strategy_meeting:${alliance.id}:`)
+        )
+    ).toBe(true)
     expect(
       within(screen.getByRole('group', { name: 'Official alliances' })).getAllByRole('button')
     ).toHaveLength(1)
@@ -1651,10 +1662,10 @@ describe('SocialPanelV2 – alliance context and history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
     fireEvent.click(screen.getByRole('button', { name: /My Pulse/i }))
     const pulse = within(screen.getByRole('dialog', { name: 'My Pulse' }))
-    const dissolution = pulse
-      .getByRole('heading', { name: 'You dissolved The Shield.' })
+    const dailySummary = pulse
+      .getByRole('heading', { name: 'Today’s alliance and relationship summary' })
       .closest('article')!
-    fireEvent.click(within(dissolution).getByRole('button', { name: 'View alliance history' }))
+    fireEvent.click(within(dailySummary).getByRole('button', { name: 'View alliance history' }))
     expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent(
       'The Shield'
     )

@@ -55,6 +55,26 @@ const RELATIONSHIP_LABELS_WITH_PRIORITY = new Set<RealityRelationshipLabel>([
   'ESTRANGED',
 ])
 
+/** A betrayal belongs to its actor and harmed target, never every alliance witness. */
+export function isBetrayalBetween(
+  event: RealityDomainState['events'][number],
+  firstId: string,
+  secondId: string
+): boolean {
+  if (
+    event.type !== 'ALLIANCE_BETRAYAL' &&
+    event.actionId !== 'betray' &&
+    !event.tags.some((tag) => tag.toLowerCase() === 'betrayal')
+  ) {
+    return false
+  }
+  return Boolean(
+    event.actorId &&
+    ((event.actorId === firstId && event.targetIds.includes(secondId)) ||
+      (event.actorId === secondId && event.targetIds.includes(firstId)))
+  )
+}
+
 /** The Reality edge, rather than its compatibility affinity projection, owns the visible label. */
 export function getCanonicalRelationshipLabel(
   edge: DirectedRelationship | undefined,
@@ -246,14 +266,7 @@ export function getCanonicalRelationshipTags(input: {
     // A hostile read or an ordinary grievance is not proof that trust was broken.
     tags.delete('betrayal')
     if (
-      input.reality.events.some(
-        (event) =>
-          event.participantIds.includes(input.actorId) &&
-          event.participantIds.includes(input.targetId) &&
-          (event.type === 'ALLIANCE_BETRAYAL' ||
-            event.actionId === 'betray' ||
-            event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
-      )
+      input.reality.events.some((event) => isBetrayalBetween(event, input.actorId, input.targetId))
     ) {
       tags.add('betrayal')
     }

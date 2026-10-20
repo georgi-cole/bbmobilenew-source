@@ -34,6 +34,7 @@ interface PlayerCardProps {
   relationshipTags?: readonly string[]
   /** Human-readable labels derived from current formal pact/group records. */
   relationshipBondLabels?: readonly string[]
+  onOpenBetrayalEvent?: () => void
   cupidPartner?: {
     name: string
     color: string
@@ -77,6 +78,7 @@ export default function PlayerCard({
   relationshipPulseDelta,
   relationshipTags = [],
   relationshipBondLabels,
+  onOpenBetrayalEvent,
   cupidPartner,
 }: PlayerCardProps) {
   const { t } = useI18n()
@@ -131,106 +133,115 @@ export default function PlayerCard({
   }
 
   return (
-    <button
-      type="button"
-      className={classes}
-      tabIndex={disabled ? -1 : 0}
-      aria-pressed={selected}
-      aria-disabled={disabled}
-      aria-expanded={selected}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-    >
-      {/* ── Compact header row (always visible) ── */}
-      <div className="pc__row">
-        <PlayerAvatar
-          player={player}
-          size="sm"
-          affinity={affinity}
-          relationshipScale="signed"
-          relationshipTags={relationshipTags}
-        />
-        <span className="pc__identity">
-          <span className="pc__name">{player.name}</span>
-          <span className={`pc__status pc__status--${player.status.split('+')[0]}`}>
-            {formatStatus(player.status)}
-          </span>
-          {cupidPartner && (
-            <span
-              className="pc__cupid-pair"
-              style={{ '--cupid-pair-color': cupidPartner.color } as React.CSSProperties}
-              title={`${player.name} is paired with ${cupidPartner.name} for Cupid's Arrow`}
-            >
-              💘 {cupidPartner.isYourPartner ? 'Your pair' : 'Paired'}: {cupidPartner.name}
+    <div className="pc-container">
+      <button
+        type="button"
+        className={classes}
+        tabIndex={disabled ? -1 : 0}
+        aria-pressed={selected}
+        aria-disabled={disabled}
+        aria-expanded={selected}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+      >
+        {/* ── Compact header row (always visible) ── */}
+        <div className="pc__row">
+          <PlayerAvatar
+            player={player}
+            size="sm"
+            affinity={affinity}
+            relationshipScale="signed"
+            relationshipTags={relationshipTags}
+          />
+          <span className="pc__identity">
+            <span className="pc__name">{player.name}</span>
+            <span className={`pc__status pc__status--${player.status.split('+')[0]}`}>
+              {formatStatus(player.status)}
             </span>
-          )}
-        </span>
-      </div>
-
-      {relationshipPulseDelta !== undefined && relationshipPulseDelta !== 0 && (
-        <span className="pc__relationship-shift" aria-hidden="true">
-          <span>{relationshipPulseDelta > 0 ? 'Connection strengthened' : 'Tension rising'}</span>
-          <b>{relationshipPulseDelta > 0 ? '↑' : '↓'}</b>
-        </span>
-      )}
-
-      {/* ── Expanded detail panel (visible when selected, no repeated info) ── */}
-      {selected && (
-        <div className="pc__expanded" aria-label={`${player.name} relationship details`}>
-          {rel && <span className={`pc__rel-label pc__rel-label--${rel.key}`}>{rel.label}</span>}
-          <span
-            className="pc__expanded-affinity"
-            title="Current relationship percentage. Directional private opinions remain internal."
-          >
-            {affinityDisplay}
-          </span>
-          {affinityDelta !== undefined && affinityDelta !== 0 && (
-            <span
-              className={`pc__delta-arrow pc__delta-arrow--${affinityDelta > 0 ? 'up' : 'down'}`}
-              aria-label={affinityDelta > 0 ? 'Relationship improved' : 'Relationship declined'}
-            >
-              ({affinityDelta > 0 ? '↑' : '↓'})
-            </span>
-          )}
-          <span className={`pc__mood pc__mood--${moodClass}`}>{mood}</span>
-          {positiveBondIsCurrent &&
-            bondLabels.map((label) => (
-              <span key={label} className="pc__bond-chip pc__bond-chip--ally">
-                {'\uD83E\uDD1D '}
-                {label}
+            {cupidPartner && (
+              <span
+                className="pc__cupid-pair"
+                style={{ '--cupid-pair-color': cupidPartner.color } as React.CSSProperties}
+                title={`${player.name} is paired with ${cupidPartner.name} for Cupid's Arrow`}
+              >
+                💘 {cupidPartner.isYourPartner ? 'Your pair' : 'Paired'}: {cupidPartner.name}
               </span>
-            ))}
-          {positiveBondIsCurrent && relationshipTags.includes('cupid_partner') && (
-            <span className="pc__bond-chip pc__bond-chip--romance">
-              {'\uD83D\uDC98 Cupid pair'}
-            </span>
-          )}
-          {positiveBondIsCurrent && relationshipTags.includes(ROMANCE_TAG) && (
-            <span className="pc__bond-chip pc__bond-chip--romance">{'\uD83D\uDC95 Romance'}</span>
-          )}
-          {positiveBondIsCurrent && relationshipTags.includes(BROMANCE_TAG) && (
-            <span className="pc__bond-chip pc__bond-chip--bromance">
-              {'\uD83E\uDD1D Ride-or-die'}
-            </span>
-          )}
-          {(relationshipTags.includes('rivalry') || relationshipTags.includes('target')) && (
-            <span className="pc__bond-chip pc__bond-chip--rival">{'\u26A1 Rival'}</span>
-          )}
-          {hasBrokenRomance && (
-            <span className="pc__bond-chip pc__bond-chip--betrayal">
-              {t('social.relationship.ex')}
-            </span>
-          )}
-          {!hasBrokenRomance && hasBrokenAlliance && (
-            <span className="pc__bond-chip pc__bond-chip--betrayal">
-              {t('social.relationship.brokenAlliance')}
-            </span>
-          )}
-          {hasBetrayal && (
-            <span className="pc__bond-chip pc__bond-chip--betrayal">{'\uD83D\uDDE1 Betrayed'}</span>
-          )}
+            )}
+          </span>
         </div>
+
+        {relationshipPulseDelta !== undefined && relationshipPulseDelta !== 0 && (
+          <span className="pc__relationship-shift" aria-hidden="true">
+            <span>{relationshipPulseDelta > 0 ? 'Connection strengthened' : 'Tension rising'}</span>
+            <b>{relationshipPulseDelta > 0 ? '↑' : '↓'}</b>
+          </span>
+        )}
+
+        {/* ── Expanded detail panel (visible when selected, no repeated info) ── */}
+        {selected && (
+          <div className="pc__expanded" aria-label={`${player.name} relationship details`}>
+            {rel && <span className={`pc__rel-label pc__rel-label--${rel.key}`}>{rel.label}</span>}
+            <span
+              className="pc__expanded-affinity"
+              title="Current relationship percentage. Directional private opinions remain internal."
+            >
+              {affinityDisplay}
+            </span>
+            {affinityDelta !== undefined && affinityDelta !== 0 && (
+              <span
+                className={`pc__delta-arrow pc__delta-arrow--${affinityDelta > 0 ? 'up' : 'down'}`}
+                aria-label={affinityDelta > 0 ? 'Relationship improved' : 'Relationship declined'}
+              >
+                ({affinityDelta > 0 ? '↑' : '↓'})
+              </span>
+            )}
+            <span className={`pc__mood pc__mood--${moodClass}`}>{mood}</span>
+            {positiveBondIsCurrent &&
+              bondLabels.map((label) => (
+                <span key={label} className="pc__bond-chip pc__bond-chip--ally">
+                  {'\uD83E\uDD1D '}
+                  {label}
+                </span>
+              ))}
+            {positiveBondIsCurrent && relationshipTags.includes('cupid_partner') && (
+              <span className="pc__bond-chip pc__bond-chip--romance">
+                {'\uD83D\uDC98 Cupid pair'}
+              </span>
+            )}
+            {positiveBondIsCurrent && relationshipTags.includes(ROMANCE_TAG) && (
+              <span className="pc__bond-chip pc__bond-chip--romance">{'\uD83D\uDC95 Romance'}</span>
+            )}
+            {positiveBondIsCurrent && relationshipTags.includes(BROMANCE_TAG) && (
+              <span className="pc__bond-chip pc__bond-chip--bromance">
+                {'\uD83E\uDD1D Ride-or-die'}
+              </span>
+            )}
+            {(relationshipTags.includes('rivalry') || relationshipTags.includes('target')) && (
+              <span className="pc__bond-chip pc__bond-chip--rival">{'\u26A1 Rival'}</span>
+            )}
+            {hasBrokenRomance && (
+              <span className="pc__bond-chip pc__bond-chip--betrayal">
+                {t('social.relationship.ex')}
+              </span>
+            )}
+            {!hasBrokenRomance && hasBrokenAlliance && (
+              <span className="pc__bond-chip pc__bond-chip--betrayal">
+                {t('social.relationship.brokenAlliance')}
+              </span>
+            )}
+          </div>
+        )}
+      </button>
+      {selected && hasBetrayal && (
+        <button
+          type="button"
+          className="pc__betrayal-link"
+          disabled={!onOpenBetrayalEvent}
+          onClick={onOpenBetrayalEvent}
+        >
+          {'\uD83D\uDDE1 Betrayed'} · View event
+        </button>
       )}
-    </button>
+    </div>
   )
 }

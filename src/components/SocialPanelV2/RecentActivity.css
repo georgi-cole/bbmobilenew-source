@@ -178,6 +178,9 @@
 .ra-entry__icon--negative {
   color: #ef4444;
 }
+.ra-entry__icon--warning {
+  color: #f2bd55;
+}
 .ra-entry__icon--neutral {
   color: rgba(255, 255, 255, 0.35);
 }

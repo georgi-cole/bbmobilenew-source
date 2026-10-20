@@ -23,7 +23,6 @@ import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
 import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
-import { buildDrSessionSummary } from '../../services/activityService'
 import {
   getSocialModuleAvailability,
   logBlockedSocialModuleOpen,
@@ -292,7 +291,7 @@ export default function SocialPanelV2() {
     return Object.values(socialState.reality.alliances)
       .filter(
         (alliance) =>
-          (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+          isCurrentAlliance(alliance) &&
           allianceKind(alliance) === 'GROUP' &&
           alliance.memberIds.includes(humanPlayer.id) &&
           alliance.memberIds.some(
@@ -946,21 +945,8 @@ export default function SocialPanelV2() {
       dispatch(closeSocialPanel())
       return
     }
-    const userLogs = sessionLogs.filter((log) => log.actorId === humanPlayer.id)
-    if (userLogs.length > 0) {
-      const successCount = userLogs.filter((log) => log.outcome === 'success').length
-      const failCount = userLogs.length - successCount
-      dispatch(
-        addTvEvent({
-          text: buildDrSessionSummary(game.week, userLogs.length, successCount, failCount),
-          type: 'diary',
-          source: 'manual',
-          channels: ['dr'],
-        })
-      )
-    }
-    // actionHistory remains intact in the social slice; only this panel session
-    // is cleared after its Diary Room summary is transferred.
+    // The action-level receipts already appear in Hub Wire. A second session
+    // tally is redundant in the permanent game log.
     if (sessionLogs.length > 0) dispatch(clearSessionLogs())
     resetPanelSelection()
     dispatch(closeSocialPanel())
@@ -2247,6 +2233,11 @@ export default function SocialPanelV2() {
                 playerLimitedRead={dramaMode}
                 reality={socialState.reality}
                 currentDay={game.week}
+                onOpenBetrayalEvent={(eventId) =>
+                  window.dispatchEvent(
+                    new CustomEvent('reality-social:open-intel-event', { detail: eventId })
+                  )
+                }
               />
             )}
           </section>

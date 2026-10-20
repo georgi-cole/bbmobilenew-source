@@ -671,17 +671,19 @@ export default function DiaryRoom() {
 
     const alliances = formalAlliances
 
-    const publicFeed = gameState.tvFeed.slice(-12).map((event) => event.text.slice(0, 280))
+    // tvFeed is newest-first; keep the current board context instead of stale
+    // events from the beginning of a long season.
+    const publicFeed = gameState.tvFeed.slice(0, 12).map((event) => event.text.slice(0, 280))
     const recentEvictedNames: string[] = []
     const pendingEvicteeName = nameFor(gameState.pendingEviction?.evicteeId)
     if (pendingEvicteeName) recentEvictedNames.push(pendingEvicteeName)
-    for (const eventText of [...publicFeed].reverse()) {
+    for (const eventText of publicFeed) {
       const normalized = eventText.toLowerCase()
       if (
         !normalized.includes('evicted') &&
         !normalized.includes('eliminated') &&
         !normalized.includes('went home') &&
-        !normalized.includes('left the Hub')
+        !normalized.includes('left the hub')
       ) {
         continue
       }
@@ -710,7 +712,17 @@ export default function DiaryRoom() {
       closestRelationships: relationshipRows,
       alliances,
       recentEvictedNames,
-      recentPublicEvents: publicFeed.slice(-8),
+      recentPublicEvents: publicFeed.slice(0, 8),
+      secretMission: gameState.secretMission
+        ? {
+            status: gameState.secretMission.status,
+            endDay: gameState.secretMission.endDay,
+            tasks: gameState.secretMission.tasks.map((task) => ({
+              description: task.description,
+              completed: task.completed,
+            })),
+          }
+        : null,
     }
   }, [
     gameState.lohId,
@@ -719,6 +731,7 @@ export default function DiaryRoom() {
     gameState.phase,
     gameState.posWinnerId,
     gameState.season,
+    gameState.secretMission,
     gameState.tvFeed,
     gameState.week,
     playerId,

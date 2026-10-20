@@ -13,6 +13,7 @@ import {
   selectCanonicalRelationshipView,
   selectCanonicalAlliance,
 } from '../relationshipSemantics'
+import socialReducer, { replaceRealityDomain } from '../socialSlice'
 
 function addAlliance(
   reality: ReturnType<typeof createInitialRealityDomainState>,
@@ -221,7 +222,14 @@ describe('canonical relationship presentation', () => {
 
   it('still exposes a real alliance betrayal from the Reality event record', () => {
     const reality = createInitialRealityDomainState()
-    addAlliance(reality, 'trusted-pact', 'ACTIVE')
+    const alliance = createRealityAlliance(reality, {
+      id: 'trusted-pact',
+      founderIds: ['human', 'rune'],
+      memberIds: ['witness'],
+      purpose: 'Work together',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
     recordRealityAllianceBetrayal(reality, {
       actorId: 'human',
       targetId: 'rune',
@@ -232,5 +240,17 @@ describe('canonical relationship presentation', () => {
 
     const view = pairView(reality)
     expect(view.visibleTags.has('betrayal')).toBe(true)
+
+    const witnessView = selectCanonicalRelationshipView({
+      relationships: {},
+      reality,
+      actorId: 'human',
+      targetId: 'witness',
+    })
+    expect(witnessView.visibleTags.has('betrayal')).toBe(false)
+
+    const projected = socialReducer(undefined, replaceRealityDomain(reality))
+    expect(projected.relationships.human?.witness?.tags).not.toContain('betrayal')
+    expect(projected.relationships.human?.rune?.tags).toContain('betrayal')
   })
 })

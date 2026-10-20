@@ -186,7 +186,7 @@ export interface SocialActionReceipt {
   groupId?: string
   summary: string
   outcomeLabel: string
-  tone: 'positive' | 'negative' | 'neutral'
+  tone: 'positive' | 'negative' | 'neutral' | 'warning'
 }
 
 /** A single recorded social action executed during a phase. */

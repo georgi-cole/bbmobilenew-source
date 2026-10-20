@@ -1135,6 +1135,7 @@ export default function TvZone(props: TvZoneProps) {
       setPhaseAnnouncement(null)
     } else if (eventAnnouncementSource) {
       setDismissedEventId(eventAnnouncementSource.id)
+      dispatch(consumeBroadcastEvent(eventAnnouncementSource.id))
     }
   }, [
     activeAnnouncement,

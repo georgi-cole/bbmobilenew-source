@@ -313,6 +313,51 @@ describe('localBigEyeDirector', () => {
     expect(text).toContain('confirmed eviction')
   })
 
+  it('answers group-chat and secret-mission questions with usable steps', () => {
+    const groupChat = directLocalBigEyeReply({
+      diaryText: 'How do I make a group chat?',
+      playerName: 'Alex',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world,
+    })
+    const mission = directLocalBigEyeReply({
+      diaryText: 'How can I complete my secret mission?',
+      playerName: 'Alex',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world: {
+        ...world,
+        secretMission: {
+          status: 'accepted',
+          endDay: 6,
+          tasks: [
+            { description: 'Talk to two hubmates', completed: true },
+            { description: 'Win a safety challenge', completed: false },
+          ],
+        },
+      },
+    })
+
+    expect(groupChat).toContain('Open Social')
+    expect(groupChat).toContain('Group Chat')
+    expect(mission).toContain('completed 1 of 2 objectives')
+    expect(mission).toContain('Win a safety challenge')
+    expect(mission).toContain('Day 6')
+  })
+
+  it('answers a named recent eviction from the current public game record', () => {
+    const text = directLocalBigEyeReply({
+      diaryText: 'Nico left',
+      playerName: 'Alex',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world: { ...world, recentEvictedNames: ['Nico'] },
+    })
+
+    expect(text).toContain('Nico is the most recent confirmed eviction')
+  })
+
   it('does not persist a trust belief just because the player asks about trust', () => {
     const memory = updateLocalBigEyeMemory({
       diaryText: 'Can I trust Nico?',

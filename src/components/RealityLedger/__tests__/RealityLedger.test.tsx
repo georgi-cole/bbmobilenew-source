@@ -6,6 +6,7 @@ import {
   createInitialRealityDomainState,
   createRealityAlliance,
   learnRealityFact,
+  recordRealityAllianceBetrayal,
   recordRealityAllianceDiscovery,
 } from '../../../social/reality'
 import type { Player } from '../../../types'
@@ -135,10 +136,47 @@ describe('RealityLedger privacy projection', () => {
       />
     )
 
-    expect(screen.getByText('Your relationship reads')).toBeInTheDocument()
+    expect(screen.queryByText('Your relationship reads')).toBeNull()
+    expect(screen.getByRole('article', { name: 'Lia relationship details' })).toBeInTheDocument()
     expect(screen.getByText('Trust')).toBeInTheDocument()
     expect(screen.getByText('Warmth')).toBeInTheDocument()
     expect(screen.queryByText('Friendly')).toBeNull()
+  })
+
+  it('opens the exact player-readable betrayal cause from the Intel event focus', () => {
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'human-and-lia',
+      founderIds: ['human', 'lia'],
+      memberIds: [],
+      purpose: 'Work together',
+      at: { day: 1, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    recordRealityAllianceBetrayal(reality, {
+      actorId: 'lia',
+      targetId: 'human',
+      kind: 'VOTE',
+      at: { day: 3, phase: 'social_2' },
+      sourceEventId: 'vote-record-3',
+    })
+    const event = reality.events.find((entry) => entry.type === 'ALLIANCE_BETRAYAL')!
+
+    render(
+      <RealityLedger
+        reality={reality}
+        players={players}
+        humanId="human"
+        section="knowledge"
+        focusEventId={event.id}
+      />
+    )
+
+    expect(screen.getByLabelText('Betrayal event evidence')).toHaveTextContent(
+      'Day 3 · Before the vote'
+    )
+    expect(screen.getByText('Lia · Alliance vote defiance')).toBeInTheDocument()
+    expect(screen.getByText(/Affected: You\./)).toBeInTheDocument()
   })
 
   it('uses the Reality category when the legacy affinity projects to Neutral', () => {

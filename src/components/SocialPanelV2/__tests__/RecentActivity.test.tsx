@@ -259,6 +259,28 @@ describe('RecentActivity – unified receipts', () => {
     expect(screen.queryByText('⚡2 spent')).toBeNull()
   })
 
+  it('uses a warning marker when an action succeeds but strains the relationship', () => {
+    renderActivity(
+      makeStore([
+        makeEntry({
+          outcome: 'success',
+          receipt: {
+            summary: 'The promise worked, but Rae is still hurt by the choice.',
+            outcomeLabel: 'Succeeded with relationship strain',
+            tone: 'warning',
+          },
+        }),
+      ]),
+      { compact: true }
+    )
+
+    expect(screen.getByLabelText('Succeeded with relationship strain')).toHaveTextContent('⚠')
+    expect(screen.queryByText('✓')).toBeNull()
+    expect(
+      screen.getByText('The promise worked, but Rae is still hurt by the choice.')
+    ).toBeVisible()
+  })
+
   it('keeps earlier LOH answers and full effects available in History', () => {
     const now = Date.now()
     renderActivity(
