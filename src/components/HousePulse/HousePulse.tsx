@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Player } from '../../types'
+import type { Player, PulseChronicle } from '../../types'
+import { composePulseChronicle } from '../../social/pulseChronicle'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -33,6 +34,11 @@ interface HousePulseProps {
   relationships: RelationshipsMap
   weekStartRelSnapshot: Record<string, Record<string, number>>
   currentWeek: number
+  season?: number
+  gameId?: string
+  gamePhase?: string
+  pulseChronicles?: readonly PulseChronicle[]
+  weatherCondition?: string | null
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
@@ -98,38 +104,6 @@ function titleCase(value: string): string {
 }
 
 type PulseStoryBeat = SocialStoryBeat & { allianceId?: string; sourceEventId?: string }
-
-function buildRealityPulseDaySummary(
-  beats: PulseStoryBeat[],
-  humanId: string,
-  currentWeek: number
-): PulseStoryBeat[] {
-  if (beats.length === 0) return []
-  const allianceUpdates = beats.filter((beat) => beat.eventType?.startsWith('ALLIANCE_')).length
-  const relationshipUpdates = beats.length - allianceUpdates
-  const details = [
-    allianceUpdates ? `${allianceUpdates} alliance update${allianceUpdates === 1 ? '' : 's'}` : '',
-    relationshipUpdates
-      ? `${relationshipUpdates} relationship update${relationshipUpdates === 1 ? '' : 's'}`
-      : '',
-  ].filter(Boolean)
-  const latest = beats.find((beat) => beat.eventType?.startsWith('ALLIANCE_')) ?? beats[0]
-  const totalUpdates = allianceUpdates + relationshipUpdates
-  return [
-    {
-      ...latest,
-      id: `reality-day-summary-${currentWeek}`,
-      title: 'Today’s alliance and relationship summary',
-      text: `${details.join(' · ')} ${totalUpdates === 1 ? 'was' : 'were'} recorded today. ${allianceUpdates ? 'Open the full alliance read' : 'Open Intel'} for event details.`,
-      eventType: 'DAY_SUMMARY',
-      participantIds: [humanId],
-      week: currentWeek,
-      phase: 'social',
-      dedupeKey: `reality-day-summary-${currentWeek}`,
-      sourceEventId: latest.id,
-    },
-  ]
-}
 
 /** Today is a concise, chronological feed of only events the player could know. */
 function buildRealityPulseStream(
@@ -245,6 +219,11 @@ export default function HousePulse({
   relationships,
   weekStartRelSnapshot,
   currentWeek,
+  season = 1,
+  gameId = 'legacy',
+  gamePhase,
+  pulseChronicles = [],
+  weatherCondition,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -349,9 +328,22 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const todayBeats = reality
-    ? buildRealityPulseDaySummary(storyBeats, humanId, currentWeek)
-    : storyBeats
+  const dayChronicle = useMemo(
+    () => reality
+      ? pulseChronicles.find((entry) => entry.season === season && entry.day === currentWeek) ??
+        composePulseChronicle({
+          gameId, season, day: currentWeek, humanId, players, reality, actionHistory,
+          weather: weatherCondition, complete: gamePhase === 'week_end',
+        })
+      : null,
+    [reality, pulseChronicles, season, currentWeek, gameId, humanId, players, actionHistory,
+      weatherCondition, gamePhase]
+  )
+  const earlierChronicles = pulseChronicles
+    .filter((entry) => entry.season === season && entry.day < currentWeek)
+    .slice()
+    .sort((left, right) => right.day - left.day)
+  const todayBeats = reality ? [] : storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
     (commitment) =>
@@ -478,7 +470,57 @@ export default function HousePulse({
                   </button>
                 </article>
               )}
-              {todayBeats.length ? (
+              {reality && dayChronicle ? (
+                <>
+                  {dayChronicle.sourceEventIds.length ? (
+                    <article className="house-pulse__chronicle" aria-label="The Hub Chronicles">
+                      <div className="house-pulse__chronicle-eyebrow">
+                        <span>The Hub Chronicles</span>
+                        <span>Day {dayChronicle.day} · {dayChronicle.complete ? 'Episode complete' : 'The story so far'}</span>
+                      </div>
+                      <h3>{dayChronicle.title}</h3>
+                      <div className="house-pulse__chronicle-story">
+                        {dayChronicle.paragraphs.map((paragraph, index) => (
+                          <p key={index}>{paragraph}</p>
+                        ))}
+                      </div>
+                      {dayChronicle.note && (
+                        <aside className="house-pulse__producer">
+                          <strong>Producer’s Note</strong>
+                          <p>{dayChronicle.note}</p>
+                        </aside>
+                      )}
+                    </article>
+                  ) : (
+                    <p className="house-pulse__empty">
+                      No major developments have reached your radar today. Your story is still unfolding.
+                    </p>
+                  )}
+                  {earlierChronicles.length > 0 && (
+                    <details className="house-pulse__history house-pulse__chronicle-archive">
+                      <summary>Previous episodes · {earlierChronicles.length}</summary>
+                      {earlierChronicles.map((entry) => (
+                        <article className="house-pulse__chronicle" key={entry.season + ':' + entry.day}>
+                          <div className="house-pulse__chronicle-eyebrow">
+                            <span>The Hub Chronicles</span>
+                            <span>Day {entry.day}</span>
+                          </div>
+                          <h3>{entry.title}</h3>
+                          <div className="house-pulse__chronicle-story">
+                            {entry.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+                          </div>
+                          {entry.note && (
+                            <aside className="house-pulse__producer">
+                              <strong>Producer’s Note</strong>
+                              <p>{entry.note}</p>
+                            </aside>
+                          )}
+                        </article>
+                      ))}
+                    </details>
+                  )}
+                </>
+              ) : todayBeats.length ? (
                 <>
                   {todayBeats.slice(0, 3).map((beat) => (
                     <article
@@ -691,7 +733,7 @@ export default function HousePulse({
           <strong>My Pulse</strong>
           <small>
             {reality
-              ? `Today · ${storyBeats.length} development${storyBeats.length === 1 ? '' : 's'}`
+              ? `Day ${currentWeek} · The Hub Chronicles`
               : `Today · ${storyBeats.length} visible shift${storyBeats.length === 1 ? '' : 's'}`}
           </small>
         </span>
@@ -701,7 +743,7 @@ export default function HousePulse({
               ? `${pendingActionCount} alliance decision${pendingActionCount === 1 ? '' : 's'} need your attention.`
               : pendingPromiseCount > 0
                 ? `${pendingPromiseCount} commitment${pendingPromiseCount === 1 ? '' : 's'} need your attention.`
-                : (latest?.title ?? 'Your latest Hub developments and commitments.')
+                : (dayChronicle?.title ?? 'Your story in the Hub is unfolding.')
             : (latest?.text ?? 'The Hub is still reading the room.')}
         </em>
         <b>{reality ? 'Open My Pulse' : 'Open My Game'}</b>
