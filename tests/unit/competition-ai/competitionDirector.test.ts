@@ -56,9 +56,7 @@ describe('Competition Director V1', () => {
     expect(withoutOriginal).not.toContain('crystal_path_shattered')
     expect(withoutOriginal).not.toContain('castleRescue2')
 
-    const withOriginals = keys(
-      context(8, 'LOH', 9, ['glass_bridge_brutal', 'castleRescue'])
-    )
+    const withOriginals = keys(context(8, 'LOH', 9, ['glass_bridge_brutal', 'castleRescue']))
     expect(withOriginals).toContain('crystal_path_shattered')
     expect(withOriginals).not.toContain('castleRescue2')
 
