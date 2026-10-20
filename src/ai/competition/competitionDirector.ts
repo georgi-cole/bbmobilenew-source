@@ -1,10 +1,7 @@
 import type { GameRegistryEntry } from '../../minigames/registry'
 import { getGame, supportsPlayerCount } from '../../minigames/registry'
 import { selectNextCompetitionGame } from './scheduling'
-import {
-  CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
-  DEFAULT_BRACKET_TEMPLATE,
-} from './bracketTemplate'
+import { CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS, DEFAULT_BRACKET_TEMPLATE } from './bracketTemplate'
 
 type CompetitionType = 'LOH' | 'POS'
 type PreferredGames = Record<CompetitionType, readonly string[]>
@@ -18,18 +15,66 @@ type PreferredGames = Record<CompetitionType, readonly string[]>
  */
 export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = {
   16: { LOH: ['majorityRules'], POS: ['quickTap'] },
-  15: { LOH: ['trapAuction', 'batteryLow', 'holdWall'], POS: ['riskWheel', 'cardClash'] },
-  14: { LOH: ['batteryLow', 'trapAuction', 'hangman'], POS: ['colorMatch', 'logicLocks'] },
-  13: { LOH: ['silentSaboteur', 'hangman', 'trapAuction'], POS: ['cardClash', 'dontGoOver'] },
-  12: { LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'], POS: ['riskWheel', 'threeDigitsQuiz'] },
-  11: { LOH: ['hangman', 'chainOfGreed', 'batteryLow'], POS: ['logicLocks', 'quickTapSeasons'] },
-  10: { LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'], POS: ['tetris', 'quickTapSeasons'] },
-   9: { LOH: ['glass_bridge_brutal', 'crystal_path_shattered', 'chainOfGreed', 'trapAuction'], POS: ['tetris', 'minesweeps'] },
-   8: { LOH: ['castleRescue', 'glass_bridge_brutal', 'crystal_path_shattered', 'wildcardWestern', 'trapAuction'], POS: ['minesweeps', 'tetris'] },
-   7: { LOH: ['wildcardWestern', 'glass_bridge_brutal', 'crystal_path_shattered', 'castleRescue', 'houseOfDarkness'], POS: ['quickTapSeasons', 'tiltLabyrinth'] },
-   6: { LOH: ['wildcardWestern', 'houseOfDarkness', 'castleRescue2'], POS: ['tetris', 'minesweeps'] },
-   5: { LOH: ['castleRescue2', 'houseOfDarkness', 'pressurePlank'], POS: ['mysticChamber', 'tetris'] },
-   4: { LOH: ['houseOfDarkness', 'castleRescue2', 'holdWall'], POS: ['mysticChamber', 'logicLocks'] },
+  15: {
+    LOH: ['trapAuction', 'batteryLow', 'holdWall'],
+    POS: ['riskWheel', 'cardClash'],
+  },
+  14: {
+    LOH: ['batteryLow', 'trapAuction', 'hangman'],
+    POS: ['colorMatch', 'logicLocks'],
+  },
+  13: {
+    LOH: ['silentSaboteur', 'hangman', 'trapAuction'],
+    POS: ['cardClash', 'dontGoOver'],
+  },
+  12: {
+    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'],
+    POS: ['riskWheel', 'threeDigitsQuiz'],
+  },
+  11: {
+    LOH: ['hangman', 'chainOfGreed', 'batteryLow'],
+    POS: ['logicLocks', 'quickTapSeasons'],
+  },
+  10: {
+    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'],
+    POS: ['tetris', 'quickTapSeasons'],
+  },
+  9: {
+    LOH: ['glass_bridge_brutal', 'crystal_path_shattered', 'chainOfGreed', 'trapAuction'],
+    POS: ['tetris', 'minesweeps'],
+  },
+  8: {
+    LOH: [
+      'castleRescue',
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'wildcardWestern',
+      'trapAuction',
+    ],
+    POS: ['minesweeps', 'tetris'],
+  },
+  7: {
+    LOH: [
+      'wildcardWestern',
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'castleRescue',
+      'houseOfDarkness',
+    ],
+    POS: ['quickTapSeasons', 'tiltLabyrinth'],
+  },
+  6: {
+    LOH: ['wildcardWestern', 'houseOfDarkness', 'castleRescue2'],
+    POS: ['tetris', 'minesweeps'],
+  },
+  5: {
+    LOH: ['castleRescue2', 'houseOfDarkness', 'pressurePlank'],
+    POS: ['mysticChamber', 'tetris'],
+  },
+  4: {
+    LOH: ['houseOfDarkness', 'castleRescue2', 'holdWall'],
+    POS: ['mysticChamber', 'logicLocks'],
+  },
 }
 
 /** Pacing limits are narrower than the technical roster limits when necessary. */
@@ -63,16 +108,29 @@ const REQUIRES_ORIGINAL: Readonly<Record<string, string>> = {
 
 const SPECIAL_PURPOSE = new Set(['capitalization', 'finalThreeCircuit', 'downMemoryLane'])
 const SIGNATURE_GAMES = new Set([
-  'trapAuction', 'silentSaboteur', 'chainOfGreed', 'glass_bridge_brutal',
-  'crystal_path_shattered', 'wildcardWestern', 'castleRescue', 'castleRescue2',
-  'houseOfDarkness', 'mysticChamber', 'batteryLow', 'hangman',
+  'trapAuction',
+  'silentSaboteur',
+  'chainOfGreed',
+  'glass_bridge_brutal',
+  'crystal_path_shattered',
+  'wildcardWestern',
+  'castleRescue',
+  'castleRescue2',
+  'houseOfDarkness',
+  'mysticChamber',
+  'batteryLow',
+  'hangman',
 ])
 
 /** Approval and LOH/POS separation are inherited from the existing campaign map. */
 const APPROVED = new Set<string>(CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)
 const BY_PRIZE: Record<CompetitionType, Set<string>> = {
-  LOH: new Set(DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.loh)),
-  POS: new Set(DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.pos)),
+  LOH: new Set(
+    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.loh)
+  ),
+  POS: new Set(
+    DEFAULT_BRACKET_TEMPLATE.filter((band) => band.minDay !== undefined).flatMap((band) => band.pos)
+  ),
 }
 
 export interface DirectorContext {
@@ -91,7 +149,8 @@ export interface DirectorCandidate {
 }
 
 function isEligible(key: string, context: DirectorContext, played: Set<string>): boolean {
-  if (!APPROVED.has(key) || !BY_PRIZE[context.compType].has(key) || SPECIAL_PURPOSE.has(key)) return false
+  if (!APPROVED.has(key) || !BY_PRIZE[context.compType].has(key) || SPECIAL_PURPOSE.has(key))
+    return false
   if (context.day < (STORY_MIN_DAY[key] ?? 1)) return false
   const original = REQUIRES_ORIGINAL[key]
   if (original && !played.has(original)) return false
@@ -107,26 +166,34 @@ export function getCompetitionDirectorCandidates(context: DirectorContext): Dire
   const played = new Set(context.playedGameKeys)
   // Preserve the premiere. No reserve pool is used on Day 1.
   const preferred = COMPETITION_DIRECTOR_PREFERENCES[context.playerCount]?.[context.compType] ?? []
-  const keys = context.day === 1
-    ? (context.compType === 'LOH' ? ['majorityRules'] : ['quickTap'])
-    : [...BY_PRIZE[context.compType]]
+  const keys =
+    context.day === 1
+      ? context.compType === 'LOH'
+        ? ['majorityRules']
+        : ['quickTap']
+      : [...BY_PRIZE[context.compType]]
 
-  const carry = context.compType === 'LOH' &&
-    context.democraciaCarry?.day === context.day - 1
-    ? COMPETITION_DIRECTOR_PREFERENCES[context.democraciaCarry.playerCount]?.LOH ?? []
-    : []
+  const carry =
+    context.compType === 'LOH' && context.democraciaCarry?.day === context.day - 1
+      ? (COMPETITION_DIRECTOR_PREFERENCES[context.democraciaCarry.playerCount]?.LOH ?? [])
+      : []
   const carriedKeys = new Set(carry)
 
-  return keys.filter((key) => isEligible(key, context, played)).map((key) => {
-    const game = getGame(key)!
-    const pacing = COMPETITION_PACING_LIMITS[key]
-    const isPreferred = preferred.includes(key)
-    const finalSuitableCast = pacing && context.playerCount === pacing.min
-    const weight = carriedKeys.has(key) || (finalSuitableCast && SIGNATURE_GAMES.has(key))
-      ? 3
-      : isPreferred ? 2 : 1
-    return { game, weight }
-  })
+  return keys
+    .filter((key) => isEligible(key, context, played))
+    .map((key) => {
+      const game = getGame(key)!
+      const pacing = COMPETITION_PACING_LIMITS[key]
+      const isPreferred = preferred.includes(key)
+      const finalSuitableCast = pacing && context.playerCount === pacing.min
+      const weight =
+        carriedKeys.has(key) || (finalSuitableCast && SIGNATURE_GAMES.has(key))
+          ? 3
+          : isPreferred
+            ? 2
+            : 1
+      return { game, weight }
+    })
 }
 
 /**
