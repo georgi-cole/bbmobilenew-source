@@ -84,10 +84,12 @@ export function useCompetitionFlow({
   // games may receive a priority boost (no deferred minigame is queued).
   useEffect(() => {
     if (game.democracia?.active && game.democracia.activatedDay === game.week) {
-      dispatch(noteDemocraciaSkippedLoh({
-        day: game.week,
-        playerCount: hohCompParticipants.length || aliveIds.length,
-      }))
+      dispatch(
+        noteDemocraciaSkippedLoh({
+          day: game.week,
+          playerCount: hohCompParticipants.length || aliveIds.length,
+        })
+      )
     }
   }, [
     game.democracia?.active,

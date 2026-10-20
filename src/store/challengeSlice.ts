@@ -542,7 +542,7 @@ export const startChallenge =
               democraciaCarry: state.challenge?.democraciaCarry,
             },
             selectionSeed,
-            historyGameKeys,
+            historyGameKeys
           )
           gameEntry = picked ?? pickFromRegistry(opts.category, opts.excludeKeys)
           break

@@ -245,7 +245,9 @@ export default function MysticChamber(props: GenericMinigameProps) {
         ? BOX_IMPACT_DELAY_MS
         : isOpeningBox
           ? BOX_OPENING_DELAY_MS
-          : actor.isHuman ? POWER_ACTIVATION_DELAY_MS : AI_POWER_ACTIVATION_DELAY_MS
+          : actor.isHuman
+            ? POWER_ACTIVATION_DELAY_MS
+            : AI_POWER_ACTIVATION_DELAY_MS
     const timer = window.setTimeout(() => {
       if (isBoxImpact) {
         if (!pendingBoxTargetId) {
