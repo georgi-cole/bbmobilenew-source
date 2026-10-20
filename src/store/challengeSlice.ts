@@ -16,6 +16,7 @@ import {
 } from '../ai/competition'
 import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import { getClassicCampaignPoolForContext } from '../ai/competition/bracketTemplate'
+import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
 import {
   pickRandomGame,
@@ -90,6 +91,8 @@ export interface ChallengeState {
   history: ChallengeRun[]
   /** Monotonically-increasing nonce used to differentiate per-invocation seeds. */
   nextNonce: number
+  /** Last skipped Democracia LOH day and its eligible roster size (one-day priority only). */
+  democraciaCarry?: { day: number; playerCount: number }
   /** Debug overrides. */
   debug: {
     forceGameKey?: string
@@ -155,6 +158,12 @@ const challengeSlice = createSlice({
       if (state.pending) state.pending.musicVariant = action.payload
     },
 
+    noteDemocraciaSkippedLoh(state, action: PayloadAction<{ day: number; playerCount: number }>) {
+      if (state.democraciaCarry?.day !== action.payload.day) {
+        state.democraciaCarry = action.payload
+      }
+    },
+
     incrementNonce(state) {
       state.nextNonce = (state.nextNonce + 1) >>> 0 || 1
     },
@@ -198,6 +207,7 @@ export const {
   setPendingPhase,
   setPendingMusicVariant,
   incrementNonce,
+  noteDemocraciaSkippedLoh,
   recordRun,
   setDebugOverrides,
   clearDebugOverrides,
@@ -515,14 +525,26 @@ export const startChallenge =
         }
 
         case 'competition-map': {
-          // The campaign map is intentionally ordered. Pick the first eligible
-          // unused entry rather than passing it through the seeded random pool.
-          // Once the contextual lane is exhausted, start that lane again from
-          // its first entry while retaining the map's order.
-          const bracketPool = getBracketTemplatePool(opts.excludeKeys)
-          const unusedPool = bracketPool.filter((game) => !allHistoryGameKeys.includes(game.key))
-          gameEntry =
-            unusedPool[0] ?? bracketPool[0] ?? pickFromRegistry(opts.category, opts.excludeKeys)
+          // Finale minigames have phase-owned fixed rules, outside the regular
+          // cast-aware director. The Circuit intentionally appears twice.
+          const isFinale = state.game.phase.startsWith('final3_')
+          if (isFinale) {
+            const finalePool = getBracketTemplatePool(opts.excludeKeys)
+            gameEntry = finalePool[0] ?? pickFromRegistry(opts.category, opts.excludeKeys)
+            break
+          }
+          const picked = pickCompetitionDirectorGame(
+            {
+              day: state.game.week,
+              playerCount: scheduledPlayerCount,
+              compType: competitionType,
+              playedGameKeys: allHistoryGameKeys,
+              democraciaCarry: state.challenge?.democraciaCarry,
+            },
+            selectionSeed,
+            historyGameKeys,
+          )
+          gameEntry = picked ?? pickFromRegistry(opts.category, opts.excludeKeys)
           break
         }
 
