@@ -8,6 +8,7 @@ import { getPresentedRosterPlayers } from '../../features/reserveEntrants/wildca
 import {
   addTvEvent,
   advance,
+  acknowledgeTribunalInvitation,
   applyMinigameWinner,
   finalizeFinal4Eviction,
   finalizeFinal3Eviction,
@@ -1354,6 +1355,7 @@ export default function GameScreen() {
     showBattleBackReturn ||
     showFavoriteVoting ||
     showMinigameHost ||
+    (humanPlayer?.status === 'jury' && game.tribunalInvitationAcknowledged !== true) ||
     showQuickTapRace ||
     showLaneRacers ||
     showPressurePlank ||
@@ -1510,6 +1512,54 @@ export default function GameScreen() {
         }
       : null
 
+  // Present the one-time Tribunal invitation only after all eviction and return
+  // presentations settle. Never steal the screen from a playable Battle Back.
+  const showTribunalInvitation =
+    game.mode !== 'survival' &&
+    humanPlayer?.status === 'jury' &&
+    game.tribunalInvitationAcknowledged !== true &&
+    !game.pendingEviction &&
+    !game.doubleEviction?.pendingSecondEviction &&
+    !game.battleBack?.active &&
+    !game.battleBack?.returnAnimationPending &&
+    !showBattleBackReturn &&
+    !battleBackReturnAnnouncement &&
+    !showBattleBackOverlay &&
+    !showEvictionSplash &&
+    !showVoteResults &&
+    !showVoteBreakdownPrompt &&
+    !postEvictionVoteBreakdown &&
+    !postVoteAnnouncement &&
+    !aiTiebreakAnnouncement &&
+    !showFinal4Chat &&
+    !showFinal4AnnounceChat &&
+    !finaleOverlayActive &&
+    !showPublicSaveReveal &&
+    !weekendInterludeActive &&
+    !game.dayStartShock &&
+    !game.seasonFinale &&
+    game.phase !== 'jury' &&
+    game.phase !== 'jury_announcement' &&
+    game.phase !== 'jury_cinematic'
+  const futureReturnPossible =
+    game.seasonDirectorPlan?.policy.battleBack.enabled === true &&
+    game.seasonDirectorPlan.policy.battleBack.human.guaranteedOpportunityAfterEviction === true &&
+    game.seasonDirectorHumanReturnUsed !== true &&
+    game.battleBack?.used !== true &&
+    settings.sim.enableTwists === true
+  const tribunalInvitationAnnouncement = showTribunalInvitation
+    ? {
+        key: 'tribunal_invitation',
+        title: "Your Story Isn't Over",
+        subtitle: futureReturnPossible
+          ? 'You\'re on the Tribunal. Your vote helps crown the winner. Rewards and a possible comeback still await.'
+          : 'You\'re on the Tribunal. Your vote helps crown the winner, and you can still earn rewards.',
+        isLive: false,
+        autoDismissMs: null,
+      }
+    : null
+  const acknowledgeTribunalInvitationMessage = () => dispatch(acknowledgeTribunalInvitation())
+
   return (
     <LayoutGroup id="game-layout">
       <div
@@ -1646,8 +1696,12 @@ export default function GameScreen() {
                   ? 'Vote recorded. Press Play to reveal the results.'
                   : null
             }
-            priorityAnnouncement={confessionalTvAnnouncement}
-            onPriorityAnnouncementDismiss={dismissConfessionalTvPrompt}
+            priorityAnnouncement={tribunalInvitationAnnouncement ?? confessionalTvAnnouncement}
+            onPriorityAnnouncementDismiss={
+              tribunalInvitationAnnouncement
+                ? acknowledgeTribunalInvitationMessage
+                : dismissConfessionalTvPrompt
+            }
             externalAnnouncement={
               socialModuleUnavailableAnnouncement ??
               battleBackReturnAnnouncement ??
