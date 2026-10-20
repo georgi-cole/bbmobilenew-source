@@ -38,7 +38,6 @@ const descriptors: Record<string, string> = {
   snowy: 'snow', snow_showers: 'snow',
 }
 const safeName = (name: string) => name.replace(/[\r\n<>]/g, '').trim().slice(0, 48) || 'a housemate'
-const titled = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 
 function hash(value: string): number {
   let result = 2166136261
@@ -93,7 +92,7 @@ function chronicleEvent(
   const actor = event.actorId === humanId ? 'you' : name(event.actorId)
   const target = name(event.targetIds[0])
   const targets = event.targetIds.map(name).join(' and ')
-  const base = { id: event.id, sequence: event.sequence, actorId: event.actorId, targetId: event.targetIds[0] }
+  const base = { id: event.id, sequence: (phaseOrder[event.phase] ?? 5) * 1000000 + event.sequence, actorId: event.actorId, targetId: event.targetIds[0] }
   switch (event.type) {
     case 'CEREMONY_POWER_WON':
       if (event.tags.includes('loh'))
@@ -200,15 +199,11 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const actionMoments = input.actionHistory
     .filter((action) => action.week === input.day && action.actorId === input.humanId && action.targetId &&
       (action.source === 'manual' || !action.source))
-    .filter((action) => !events.some((event) =>
-      event.type === 'SOCIAL_INTERACTION_RESOLVED' && event.actorId === action.actorId &&
-      event.actionId === action.actionId && event.targetIds.includes(action.targetId) &&
-      ((event.outcome === 'SUCCESS') === (action.outcome === 'success'))))
     .map((action, index) => {
       const text = describeAction(action, name(action.targetId), seed + ':action:' + (action.id ?? String(index)))
       if (!text) return null
       return { id: action.id ?? 'action:' + index, category: 'social' as const, importance: 78,
-        sequence: 1000 + (phaseOrder[action.phase ?? ''] ?? 4) * 10 + index,
+        sequence: (phaseOrder[action.phase ?? ''] ?? 4) * 1000000 + 500000 + index,
         text, actorId: action.actorId, targetId: action.targetId }
     })
     .filter((moment): moment is NonNullable<typeof moment> => moment !== null)
