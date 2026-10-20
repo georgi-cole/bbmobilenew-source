@@ -8,6 +8,7 @@ import {
 } from '../../../store/gameSlice'
 import {
   completeChallenge,
+  noteDemocraciaSkippedLoh,
   selectPendingChallenge,
   startChallenge,
 } from '../../../store/challengeSlice'
@@ -77,6 +78,27 @@ export function useCompetitionFlow({
     pendingWinnerDispatchRef.current = null
     setPendingWinnerCeremony(null)
   }, [])
+
+  // Democracia substitutes the entire LOH competition. Persist only the skipped
+  // day and its would-be LOH roster size so next day's eligible signature
+  // games may receive a priority boost (no deferred minigame is queued).
+  useEffect(() => {
+    if (game.democracia?.active && game.democracia.activatedDay === game.week) {
+      dispatch(
+        noteDemocraciaSkippedLoh({
+          day: game.week,
+          playerCount: hohCompParticipants.length || aliveIds.length,
+        })
+      )
+    }
+  }, [
+    game.democracia?.active,
+    game.democracia?.activatedDay,
+    game.week,
+    hohCompParticipants.length,
+    aliveIds.length,
+    dispatch,
+  ])
 
   // ── Auto-start challenge on competition phase transitions ─────────────────
   // The challenge system (startChallenge / MinigameHost) is the sole owner of
