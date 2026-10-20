@@ -3,17 +3,104 @@
   z-index: -1;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
-  background:
-    radial-gradient(ellipse at 22% 10%, rgba(153, 166, 185, 0.15), transparent 48%),
-    radial-gradient(ellipse at 82% 80%, rgba(94, 106, 125, 0.1), transparent 50%),
-    repeating-linear-gradient(112deg, rgba(192, 204, 222, 0.018) 0 1px, transparent 1px 4px),
-    linear-gradient(128deg, #050608 0%, #1b1f25 36%, #080a0e 61%, #151920 82%, #040508 100%);
-  transition: opacity 1400ms ease-in-out;
+  opacity: 0.96;
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
 }
 
-.weekend-party-backdrop--active {
+.weekend-artwork-cover {
+  position: absolute;
+  inset: 0;
+  background-image: var(--weekend-artwork-preview);
+  background-repeat: no-repeat;
   opacity: 1;
+  pointer-events: none;
+  transition: opacity 720ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.weekend-artwork-cover[data-full-ready='true'] {
+  opacity: 0;
+}
+
+.weekend-artwork-cover--page {
+  z-index: 0;
+  background-position: center top;
+  background-size: cover;
+}
+
+.weekend-party-backdrop[data-theme='fireside'] > .weekend-artwork-cover--page {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(12, 5, 17, 0.08), rgba(12, 5, 17, 0.28)),
+    var(--weekend-artwork-preview);
+  background-blend-mode: soft-light, multiply, normal;
+}
+
+.weekend-party-backdrop[data-theme='party'] > .weekend-artwork-cover--page {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(8, 5, 18, 0.12), rgba(8, 5, 18, 0.28)),
+    var(--weekend-artwork-preview);
+  background-blend-mode: soft-light, multiply, normal;
+}
+
+.weekend-party-backdrop[data-theme='reunion'] > .weekend-artwork-cover--page {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(39, 17, 49, 0.22), rgba(11, 12, 27, 0.48)),
+    var(--weekend-artwork-preview);
+  background-blend-mode: soft-light, color, normal;
+}
+
+.weekend-party-backdrop--enter {
+  animation: weekendThemeFadeIn 1050ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.weekend-party-backdrop--leave {
+  animation: weekendThemeFadeOut 1050ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes weekendThemeFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.96;
+  }
+}
+
+@keyframes weekendThemeFadeOut {
+  from {
+    opacity: 0.96;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.weekend-party-backdrop[data-theme='fireside'] {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(12, 5, 17, 0.08), rgba(12, 5, 17, 0.28)),
+    url('../../assets/weekend/weekend-fireside-background-v3.webp');
+  background-blend-mode: soft-light, multiply, normal;
+}
+
+.weekend-party-backdrop[data-theme='party'] {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(8, 5, 18, 0.12), rgba(8, 5, 18, 0.28)),
+    url('../../assets/weekend/weekend-party-v2.webp');
+  background-blend-mode: soft-light, multiply, normal;
+}
+
+.weekend-party-backdrop[data-theme='reunion'] {
+  background-image:
+    url('../../assets/bb-gameplay-bg.svg'),
+    linear-gradient(180deg, rgba(39, 17, 49, 0.22), rgba(11, 12, 27, 0.48)),
+    url('../../assets/weekend/weekend-reunion-memorabilia-v2.webp');
+  background-blend-mode: soft-light, color, normal;
 }
 
 .weekend-party-disco {
@@ -120,8 +207,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .weekend-party-backdrop {
-    transition: none;
+  .weekend-party-backdrop--enter,
+  .weekend-party-backdrop--leave {
+    animation-duration: 1ms;
   }
   .weekend-party-disco {
     display: none;
@@ -131,4 +219,16 @@
 body.no-animations .weekend-party-disco,
 body.reduce-motion .weekend-party-disco {
   display: none;
+}
+
+body.no-animations .weekend-party-backdrop--enter,
+body.reduce-motion .weekend-party-backdrop--enter {
+  animation: none;
+  opacity: 0.96;
+}
+
+body.no-animations .weekend-party-backdrop--leave,
+body.reduce-motion .weekend-party-backdrop--leave {
+  animation: none;
+  opacity: 0;
 }

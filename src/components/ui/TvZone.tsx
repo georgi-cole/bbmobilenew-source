@@ -103,8 +103,11 @@ import VoxAudiencePulseReveal, {
   type VoxAudiencePulseExit,
 } from '../VoxAudiencePulseReveal/VoxAudiencePulseReveal'
 import WeekendInterludeOverlay from '../WeekendInterludeOverlay/WeekendInterludeOverlay'
+import { WeekendArtworkCover } from '../WeekendPartyAtmosphere/WeekendPartyAtmosphere'
+import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
 import './TvZone.css'
 import './TvZoneEnhancements.css'
+import './WeekendTvAtmosphere.css'
 import './ShockDangerMode.css'
 import {
   decorateDepressionShockFauxTvText,
@@ -1485,6 +1488,7 @@ export default function TvZone(props: TvZoneProps) {
   }, [])
 
   const activeWeekend = gameState.weekendInterlude
+  const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
   const phaseLabel = activeWeekend?.active
     ? 'WEEKEND'
     : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
@@ -1603,6 +1607,7 @@ export default function TvZone(props: TvZoneProps) {
         gameState.weekendInterlude?.active && gameState.weekendInterlude.episode === 'party'
           ? 'tv-zone--party-led'
           : '',
+        weekendVisualTheme ? `tv-zone--weekend-${weekendVisualTheme}` : '',
         gameState.weekendInterlude?.active &&
         gameState.weekendInterlude.stage === 'finale_battle_ready'
           ? 'tv-zone--finale-power-ready'
@@ -1828,6 +1833,15 @@ export default function TvZone(props: TvZoneProps) {
             aria-atomic="true"
           >
             {gameState.weekendInterlude?.active && <WeekendInterludeOverlay />}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'fireside' && (
+              <WeekendArtworkCover artwork="fireside-tv" surface="tv" />
+            )}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'reunion' && (
+              <WeekendArtworkCover artwork="reunion-tv" surface="tv" />
+            )}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'fireside' && (
+              <div className="tv-zone__firelight" aria-hidden="true" />
+            )}
             {((visualDailyTransitionPhase && presentedDailyAtmosphere) ||
               depressionShockRainyTv ||
               depressionShockSunnyTv) && (
