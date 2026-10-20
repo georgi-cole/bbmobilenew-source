@@ -328,11 +328,7 @@ export default function TvAnnouncementOverlay({
           )}
           {subtitle && <p className="tv-announcement__subtitle">{subtitle}</p>}
           {isTribunalInvitation && (
-            <button
-              type="button"
-              className="tv-announcement__tribunal-action"
-              onClick={onDismiss}
-            >
+            <button type="button" className="tv-announcement__tribunal-action" onClick={onDismiss}>
               Continue as Tribunal Member
             </button>
           )}
