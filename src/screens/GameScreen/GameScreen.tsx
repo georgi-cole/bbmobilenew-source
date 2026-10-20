@@ -1327,6 +1327,35 @@ export default function GameScreen() {
   const favoriteAnnouncementPending =
     game.favoritePlayer?.active === true && game.favoritePlayer?.votingStarted !== true
 
+  // Present the one-time Tribunal invitation only after all eviction and return
+  // presentations settle. Never steal the screen from a playable Battle Back.
+  const showTribunalInvitation =
+    game.mode !== 'survival' &&
+    humanPlayer?.status === 'jury' &&
+    game.tribunalInvitationAcknowledged !== true &&
+    !game.pendingEviction &&
+    !game.doubleEviction?.pendingSecondEviction &&
+    !game.battleBack?.active &&
+    !game.battleBack?.returnAnimationPending &&
+    !showBattleBackReturn &&
+    !battleBackReturnAnnouncement &&
+    !showBattleBackOverlay &&
+    !showEvictionSplash &&
+    !showVoteResults &&
+    !showVoteBreakdownPrompt &&
+    !postEvictionVoteBreakdown &&
+    !postVoteAnnouncement &&
+    !aiTiebreakAnnouncement &&
+    !showFinal4Chat &&
+    !showFinal4AnnounceChat &&
+    !finaleOverlayActive &&
+    !showPublicSaveReveal &&
+    !game.weekendInterlude?.active &&
+    !game.dayStartShock &&
+    !game.seasonFinale &&
+    game.phase !== 'jury' &&
+    game.phase !== 'jury_announcement' &&
+    game.phase !== 'jury_cinematic'
   // Condition-driven prompts (approval, energy, unlocked reveals, etc.) must
   // never cover a ceremony or cinematic that is already active or queued by
   // the game state. Keeping their state pending lets them appear immediately
@@ -1355,11 +1384,7 @@ export default function GameScreen() {
     showBattleBackReturn ||
     showFavoriteVoting ||
     showMinigameHost ||
-    (humanPlayer?.status === 'jury' &&
-      game.tribunalInvitationAcknowledged !== true &&
-      game.battleBack?.active !== true &&
-      !game.pendingEviction &&
-      !game.doubleEviction?.pendingSecondEviction) ||
+    showTribunalInvitation ||
     showQuickTapRace ||
     showLaneRacers ||
     showPressurePlank ||
@@ -1516,35 +1541,6 @@ export default function GameScreen() {
         }
       : null
 
-  // Present the one-time Tribunal invitation only after all eviction and return
-  // presentations settle. Never steal the screen from a playable Battle Back.
-  const showTribunalInvitation =
-    game.mode !== 'survival' &&
-    humanPlayer?.status === 'jury' &&
-    game.tribunalInvitationAcknowledged !== true &&
-    !game.pendingEviction &&
-    !game.doubleEviction?.pendingSecondEviction &&
-    !game.battleBack?.active &&
-    !game.battleBack?.returnAnimationPending &&
-    !showBattleBackReturn &&
-    !battleBackReturnAnnouncement &&
-    !showBattleBackOverlay &&
-    !showEvictionSplash &&
-    !showVoteResults &&
-    !showVoteBreakdownPrompt &&
-    !postEvictionVoteBreakdown &&
-    !postVoteAnnouncement &&
-    !aiTiebreakAnnouncement &&
-    !showFinal4Chat &&
-    !showFinal4AnnounceChat &&
-    !finaleOverlayActive &&
-    !showPublicSaveReveal &&
-    !weekendInterludeActive &&
-    !game.dayStartShock &&
-    !game.seasonFinale &&
-    game.phase !== 'jury' &&
-    game.phase !== 'jury_announcement' &&
-    game.phase !== 'jury_cinematic'
   const futureReturnPossible =
     game.seasonDirectorPlan?.policy.battleBack.enabled === true &&
     game.seasonDirectorPlan.policy.battleBack.human.guaranteedOpportunityAfterEviction === true &&
