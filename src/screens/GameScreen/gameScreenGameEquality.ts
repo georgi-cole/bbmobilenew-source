@@ -2,6 +2,7 @@ import { createGameFieldEquality } from '../../store/gameFieldEquality'
 
 /** Game fields that can change visible gameplay or control availability. */
 export const gameScreenGameEquality = createGameFieldEquality([
+  'battleBack',
   'awaitingFinal3Eviction',
   'awaitingFinal3Plea',
   'awaitingHumanVote',

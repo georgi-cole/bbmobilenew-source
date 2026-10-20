@@ -31,6 +31,8 @@ const TEST_I18N: I18nContextValue = {
 
 const CHOCOLATE_TEXT =
   'The Big Eye has left chocolates for everyone. Wrappers open in the quiet, but the rain keeps speaking louder. 🍫'
+const FIGHT_TEXT =
+  'A sudden argument breaks out over nothing at all. The storm has everyone on edge. ⚡'
 
 function makeStore() {
   const store = configureStore({
@@ -151,5 +153,67 @@ describe('Depression Shock chocolate presentation', () => {
     })
 
     window.removeEventListener('depression-shock:chocolate-presented', chocolatePresented)
+  })
+
+  it('consumes the recognized fight source once when a major card jumps ahead of a minor', async () => {
+    const store = makeStore()
+    const week = store.getState().game.week
+    act(() => {
+      store.dispatch(
+        addTvEvent({
+          text: 'An ordinary conversation is waiting on the Faux TV.',
+          type: 'social',
+          source: 'system',
+          channels: ['tv', 'mainLog'],
+          meta: {
+            week,
+            phase: 'social_1',
+            forceOnTv: true,
+            broadcastLevel: 'minor',
+            broadcastOrder: -100,
+          },
+        })
+      )
+      store.dispatch(
+        addTvEvent({
+          text: FIGHT_TEXT,
+          type: 'social',
+          source: 'system',
+          channels: ['tv', 'mainLog'],
+          meta: {
+            week,
+            phase: 'social_1',
+            major: 'depression_shock_fight',
+            broadcastCampaign: 'depression_shock',
+            broadcastLevel: 'major',
+            forceOnTv: true,
+            depressionShockQueued: true,
+          },
+        })
+      )
+    })
+
+    const fightEventId = store.getState().game.tvFeed.find((event) => event.text === FIGHT_TEXT)?.id
+    expect(fightEventId).toBeTruthy()
+    renderHarness(store)
+
+    expect(screen.getByRole('dialog')).toHaveTextContent(FIGHT_TEXT)
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
+    await waitFor(() => {
+      expect(
+        store.getState().game.tvFeed.find((event) => event.id === fightEventId)?.meta
+          ?.broadcastConsumed
+      ).toBe(true)
+    })
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('ui:playPressed', { cancelable: true }))
+    })
+    await waitFor(() => {
+      const nextDialog = screen.queryByRole('dialog')
+      if (nextDialog) expect(nextDialog).not.toHaveTextContent(FIGHT_TEXT)
+    })
   })
 })

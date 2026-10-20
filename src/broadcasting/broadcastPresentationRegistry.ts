@@ -89,6 +89,13 @@ export const BROADCAST_PRESENTATION_REGISTRY: Readonly<Record<string, BroadcastP
         'The storm continues to press against every room and every conversation.'
       ),
     },
+    depression_shock_fight: {
+      eventMajor: true,
+      announcement: liveCard(
+        'The storm is getting to everyone',
+        'A small disagreement has turned into a sudden argument. Depression Shock is affecting the house.'
+      ),
+    },
     depression_shock_end: {
       eventMajor: true,
       announcement: liveCard(

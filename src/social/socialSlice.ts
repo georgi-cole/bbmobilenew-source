@@ -1,4 +1,5 @@
 import { isCurrentAlliance } from './reality/allianceIdentity'
+import { isBetrayalBetween } from './relationshipSemantics'
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type {
@@ -248,9 +249,13 @@ function createRealityProjectionIndex(
       event.actionId === 'betray' ||
       event.tags.some((tag) => tag.toLowerCase() === 'betrayal')
     ) {
-      forEachProjectedPairInGroup(event.participantIds, projectedPairs, (sourceId, targetId) => {
-        addRelationshipPair(index.betrayals, sourceId, targetId)
-      })
+      if (event.actorId) {
+        for (const targetId of event.targetIds) {
+          if (!hasRelationshipPair(projectedPairs, event.actorId, targetId)) continue
+          addRelationshipPair(index.betrayals, event.actorId, targetId)
+          addRelationshipPair(index.betrayals, targetId, event.actorId)
+        }
+      }
     }
   }
 
@@ -362,14 +367,7 @@ function projectRealityTags(
   if (
     projectionIndex
       ? hasRelationshipPair(projectionIndex.betrayals, sourceId, targetId)
-      : reality.events.some(
-          (event) =>
-            event.participantIds.includes(sourceId) &&
-            event.participantIds.includes(targetId) &&
-            (event.type === 'ALLIANCE_BETRAYAL' ||
-              event.actionId === 'betray' ||
-              event.tags.some((tag) => tag.toLowerCase() === 'betrayal'))
-        )
+      : reality.events.some((event) => isBetrayalBetween(event, sourceId, targetId))
   ) {
     tags.push('betrayal')
   }

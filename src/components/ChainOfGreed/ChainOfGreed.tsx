@@ -159,6 +159,7 @@ const FAST_FINAL_BANK_PIPELINE_DURATIONS: Record<TurnPipelineStage, number> = {
 
 const STANDARD_ROUND_COUNT = 5;
 const ROUND_INTRO_DURATION_MS = 5_000;
+const SKIP_TO_RESULTS_STEP_MS = 8;
 
 function emitSoundCue(cue: string) {
   if (typeof window === 'undefined') return;
@@ -293,9 +294,18 @@ function isDramaticAiTurn(turn: PendingTurnPipeline) {
   );
 }
 
-function shouldFastWatchTurn(turn: PendingTurnPipeline, players: ChainOfGreedPlayerState[]) {
+function shouldFastWatchTurn(
+  turn: PendingTurnPipeline,
+  players: ChainOfGreedPlayerState[],
+  skipToResults = false
+) {
   const actor = getPlayer(players, turn.actorId);
-  return Boolean(actor && !actor.isHuman && turn.kind !== 'final' && !isDramaticAiTurn(turn));
+  return Boolean(
+    actor &&
+      !actor.isHuman &&
+      turn.kind !== 'final' &&
+      (skipToResults || !isDramaticAiTurn(turn))
+  );
 }
 
 function getPipelineDuration(turn: PendingTurnPipeline) {
@@ -915,9 +925,13 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       }
 
       setPendingTurn((previous) => previous ? { ...previous, stage: TURN_PIPELINE_STAGE_ORDER[previous.stage as Exclude<TurnPipelineStage, 'settle'>] } : previous);
-    }, shouldFastWatchTurn(pendingTurn, state.players) ? FAST_AI_PIPELINE_DURATIONS[pendingTurn.stage] : getPipelineDuration(pendingTurn));
+    }, state.spectatorMode === 'skipping'
+      ? SKIP_TO_RESULTS_STEP_MS
+      : shouldFastWatchTurn(pendingTurn, state.players)
+        ? FAST_AI_PIPELINE_DURATIONS[pendingTurn.stage]
+        : getPipelineDuration(pendingTurn));
     return () => window.clearTimeout(timer);
-  }, [commitIndividualTurn, commitStandardTurn, pendingTurn, state.players]);
+  }, [commitIndividualTurn, commitStandardTurn, pendingTurn, state.players, state.spectatorMode]);
 
   useEffect(() => {
     if (state.phase !== 'playerTurn' || !currentTurnPlayer || currentTurnPlayer.isHuman || pendingTurn) return;
@@ -934,9 +948,13 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
         activePlayers,
         bankAvailable,
       }));
-    }, bankAvailable ? 220 + Math.round(rngRef.current.rng() * 180) : 160);
+    }, state.spectatorMode === 'skipping'
+      ? SKIP_TO_RESULTS_STEP_MS
+      : bankAvailable
+        ? 220 + Math.round(rngRef.current.rng() * 180)
+        : 160);
     return () => window.clearTimeout(timer);
-  }, [activePlayers, bankedTurn, currentTurnPlayer, pendingTurn, resolveStandardAction, state.chain, state.phase, state.roundNumber, state.turnIndex, state.turnsRemaining]);
+  }, [activePlayers, bankedTurn, currentTurnPlayer, pendingTurn, resolveStandardAction, state.chain, state.phase, state.roundNumber, state.spectatorMode, state.turnIndex, state.turnsRemaining]);
 
   useEffect(() => {
     if (state.phase !== 'voting') return;
@@ -965,15 +983,48 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
         statusText: `${previous.pendingVotes[previous.revealedVotes]?.voterName ?? 'House'} votes ${previous.pendingVotes[previous.revealedVotes]?.targetName ?? ''}.`,
         helperText: previous.pendingVotes[previous.revealedVotes]?.reason ?? 'The weakest link is not always the weakest player.',
       }));
-    }, 420);
+    }, state.spectatorMode === 'skipping' ? SKIP_TO_RESULTS_STEP_MS : 420);
     return () => window.clearTimeout(timer);
-  }, [state.pendingVotes, state.phase, state.revealedVotes]);
+  }, [state.pendingVotes, state.phase, state.revealedVotes, state.spectatorMode]);
 
   useEffect(() => {
     if (state.phase !== 'roundIntro') return;
-    const timer = window.setTimeout(dismissRoundIntro, ROUND_INTRO_DURATION_MS);
+    const timer = window.setTimeout(
+      dismissRoundIntro,
+      state.spectatorMode === 'skipping' ? SKIP_TO_RESULTS_STEP_MS : ROUND_INTRO_DURATION_MS
+    );
     return () => window.clearTimeout(timer);
-  }, [dismissRoundIntro, state.phase]);
+  }, [dismissRoundIntro, state.phase, state.spectatorMode]);
+
+  const skipFlowRef = useRef({ continueAfterElimination, setPhase, startFinal, startSemifinal });
+  skipFlowRef.current = { continueAfterElimination, setPhase, startFinal, startSemifinal };
+
+  useEffect(() => {
+    if (state.spectatorMode !== 'skipping') return undefined;
+
+    let advance: (() => void) | null = null;
+    if (state.phase === 'roundSummary') {
+      advance = () => skipFlowRef.current.setPhase('voting', {
+        statusText: 'Vote for the weakest link.',
+        helperText: 'Who cost the team its momentum?',
+      });
+    } else if (state.phase === 'eliminationReveal') {
+      advance = () => skipFlowRef.current.continueAfterElimination();
+    } else if (state.phase === 'semifinalIntro') {
+      advance = () => skipFlowRef.current.startSemifinal();
+    } else if (state.phase === 'semifinalReveal') {
+      advance = () => skipFlowRef.current.setPhase('finalIntro', {
+        statusText: 'Two players remain.',
+        helperText: 'One player wins everything.',
+      });
+    } else if (state.phase === 'finalIntro') {
+      advance = () => skipFlowRef.current.startFinal();
+    }
+
+    if (!advance) return undefined;
+    const timer = window.setTimeout(advance, SKIP_TO_RESULTS_STEP_MS);
+    return () => window.clearTimeout(timer);
+  }, [state.phase, state.spectatorMode]);
 
   useEffect(() => {
     if (state.phase !== 'semifinalTurn' || !semifinalPlayer || semifinalPlayer.isHuman || pendingTurn) return;
@@ -992,9 +1043,13 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
         playerScore: state.semifinalScores[semifinalPlayer.id] ?? 0,
         bankAvailable,
       }));
-    }, bankAvailable ? 240 + Math.round(rngRef.current.rng() * 160) : 160);
+    }, state.spectatorMode === 'skipping'
+      ? SKIP_TO_RESULTS_STEP_MS
+      : bankAvailable
+        ? 240 + Math.round(rngRef.current.rng() * 160)
+        : 160);
     return () => window.clearTimeout(timer);
-  }, [activePlayers, bankedTurn, pendingTurn, resolveIndividualAction, semifinalPlayer, state.phase, state.semifinalChains, state.semifinalOrder, state.semifinalScores, state.semifinalTurnIndex]);
+  }, [activePlayers, bankedTurn, pendingTurn, resolveIndividualAction, semifinalPlayer, state.phase, state.semifinalChains, state.semifinalOrder, state.semifinalScores, state.semifinalTurnIndex, state.spectatorMode]);
 
   useEffect(() => {
     if (state.phase !== 'finalTurn' || !finalPlayer || finalPlayer.isHuman || pendingTurn) return;
@@ -1007,9 +1062,11 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     const currentScore = state.finalScores[finalPlayer.id] ?? 0;
     const timer = window.setTimeout(() => {
       simulateFinalAiRound(finalPlayer, currentChain, currentScore);
-    }, CHAIN_TURN_PIPELINE_DURATIONS.settle);
+    }, state.spectatorMode === 'skipping'
+      ? SKIP_TO_RESULTS_STEP_MS
+      : CHAIN_TURN_PIPELINE_DURATIONS.settle);
     return () => window.clearTimeout(timer);
-  }, [finalPlayer, pendingTurn, simulateFinalAiRound, state.finalChains, state.finalScores, state.finalTimerExpiry, state.finalTurnIndex, state.phase]);
+  }, [finalPlayer, pendingTurn, simulateFinalAiRound, state.finalChains, state.finalScores, state.finalTimerExpiry, state.finalTurnIndex, state.phase, state.spectatorMode]);
 
   // Human final timer: auto-advance when 30 seconds expire
   useEffect(() => {
@@ -1693,7 +1750,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                       continueAfterElimination();
                     }}
                   >
-                    Fast watch
+                    Skip to Results
                   </button>
                 </div>
               </div>

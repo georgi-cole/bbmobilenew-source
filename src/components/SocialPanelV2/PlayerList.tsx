@@ -4,6 +4,8 @@ import type { RelationshipsMap } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality/types'
 import { selectCanonicalRelationshipView } from '../../social/relationshipSemantics'
 import { projectRealityAffinity } from '../../social/reality/relationships'
+import { isBetrayalBetween } from '../../social/relationshipSemantics'
+import { canReadAllianceEvent } from '../../social/reality/allianceHistory'
 import { getRealityRelationshipLabel, type RelationshipLabel } from './relationshipUtils'
 import {
   allianceDisplayLabel,
@@ -49,6 +51,7 @@ interface PlayerListProps {
   reality?: RealityDomainState
   /** Current game day, used to move unknown reads past the opening impression window. */
   currentDay?: number
+  onOpenBetrayalEvent?: (eventId: string) => void
 }
 
 /**
@@ -78,6 +81,7 @@ export default function PlayerList({
   playerLimitedRead = false,
   reality,
   currentDay,
+  onOpenBetrayalEvent,
 }: PlayerListProps) {
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set())
   const lastFocusedIndexRef = useRef<number>(-1)
@@ -155,6 +159,16 @@ export default function PlayerList({
       {players.map((player, index) => {
         const disabled = disabledIds.includes(player.id)
         const isSelected = displaySelectedIds.has(player.id)
+        const betrayalEvent =
+          humanPlayerId && reality
+            ? reality.events
+                .filter(
+                  (event) =>
+                    canReadAllianceEvent(event, humanPlayerId) &&
+                    isBetrayalBetween(event, humanPlayerId, player.id)
+                )
+                .sort((left, right) => right.sequence - left.sequence)[0]
+            : undefined
 
         let affinity: number | undefined
         let relationshipLabel: RelationshipLabel | undefined
@@ -239,6 +253,11 @@ export default function PlayerList({
               relationshipPulseDelta={relationshipPulseDeltas?.get(player.id)}
               relationshipTags={relationshipTags}
               relationshipBondLabels={relationshipBondLabels}
+              onOpenBetrayalEvent={
+                betrayalEvent && onOpenBetrayalEvent
+                  ? () => onOpenBetrayalEvent(betrayalEvent.id)
+                  : undefined
+              }
               cupidPartner={cupidPartners?.[player.id]}
             />
           </div>

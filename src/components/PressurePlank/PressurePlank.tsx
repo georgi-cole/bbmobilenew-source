@@ -501,6 +501,12 @@ export default function PressurePlank({
       role="dialog"
       aria-modal="true"
       aria-label="Pressure Plank Competition"
+      onContextMenu={(event) => {
+        if (gamePhase === 'playing') event.preventDefault()
+      }}
+      onDragStart={(event) => {
+        if (gamePhase === 'playing') event.preventDefault()
+      }}
     >
       <div className="pp__card">
         {/* ── Header ────────────────────────────────────────────────────── */}

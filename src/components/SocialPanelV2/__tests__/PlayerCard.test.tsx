@@ -88,6 +88,23 @@ describe('PlayerCard', () => {
     expect(card.getAttribute('aria-pressed')).toBe('true')
   })
 
+  it('opens the recorded betrayal evidence from the selected relationship card', () => {
+    const onOpenBetrayalEvent = vi.fn()
+    render(
+      <PlayerCard
+        player={makePlayer()}
+        selected
+        disabled={false}
+        onSelect={() => {}}
+        relationshipTags={['betrayal']}
+        onOpenBetrayalEvent={onOpenBetrayalEvent}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Betrayed · View event/i }))
+    expect(onOpenBetrayalEvent).toHaveBeenCalledOnce()
+  })
+
   it('calls onSelect with (id, false, false) on plain click', () => {
     const onSelect = vi.fn()
     const player = makePlayer({ id: 'p99', name: 'Alice' })

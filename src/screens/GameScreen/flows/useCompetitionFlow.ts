@@ -361,7 +361,7 @@ export function useCompetitionFlow({
         : isVoxImmunityComp
           ? 'Immunity'
           : isHohComp
-            ? 'Leader of the House'
+            ? 'Leader of the Hub'
             : 'Power of Safety'
       const winBadgeCode = isVoxFinalFourComp
         ? undefined

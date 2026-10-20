@@ -9,6 +9,8 @@ import {
   type ConfessionalKnowledgeQuery,
 } from './confessionalComprehension'
 import { getConfessionalRuntimeConfig } from './confessionalRuntimeConfig'
+import type { Phase } from '../types'
+import { formatPhaseLabel } from '../utils/gameStatusLanguage'
 
 export interface LocalBigEyeHistoryTurn {
   role: 'user' | 'bb'
@@ -42,6 +44,11 @@ export interface LocalBigEyeWorld {
   }
   recentPublicEvents?: string[]
   historicalFacts?: string[]
+  secretMission?: {
+    status: string
+    endDay: number
+    tasks: Array<{ description: string; completed: boolean }>
+  } | null
 }
 
 export interface LocalBigEyeDirectorInput {
@@ -160,7 +167,7 @@ function getSceneFacts(input: LocalBigEyeDirectorInput): SceneFacts {
   return {
     name,
     week: world?.week ?? null,
-    phase: (world?.phase ?? input.state.lastIntent ?? 'the game').replaceAll('_', ' '),
+    phase: world?.phase ? formatPhaseLabel(world.phase as Phase) : 'the game',
     leader: world?.leaderName ?? null,
     ally: world?.closestRelationships[0]?.name ?? null,
     mentionedHousemate,
@@ -417,8 +424,30 @@ function resolveKnowledgeReply(
     case 'recent_eviction': {
       const names = world.recentEvictedNames ?? []
       return names.length
-        ? `${names[0]} is the most recent confirmed elimination I can see.`
+        ? `${names[0]} is the most recent confirmed eviction I can see. If you mean another event, tell me the day or name.`
         : 'I do not have a confirmed recent elimination in the current game record, so I will not invent one.'
+    }
+    case 'group_chat_help':
+      return 'Open Social, choose Group Chat, select at least two active housemates, then send the conversation. I will keep the individual relationship reactions visible in your action receipt.'
+    case 'secret_mission_help': {
+      const mission = world.secretMission
+      if (!mission) return 'You do not have a secret mission available in this season record.'
+      if (mission.status === 'offered') {
+        return 'Your secret mission is waiting in the Confessional. Accept it there first; the objective list shows exactly what will count and when it ends.'
+      }
+      if (mission.status === 'rewardPending') {
+        return 'Your secret mission is complete. Open the Confessional and claim the reward by choosing one of the boxes.'
+      }
+      if (mission.status === 'rewardClaimed') {
+        return 'You completed the secret mission and already claimed its reward. The Confessional keeps the mission record.'
+      }
+      if (mission.status !== 'accepted') {
+        return 'There is no active secret mission to complete right now. Check the Confessional for a new offer.'
+      }
+      const incomplete = mission.tasks.filter((task) => !task.completed)
+      const completed = mission.tasks.length - incomplete.length
+      const next = incomplete.slice(0, 2).map((task) => task.description)
+      return `You have completed ${completed} of ${mission.tasks.length} objectives. ${next.length ? `Next: ${next.join('; ')}. ` : ''}The mission ends on Day ${mission.endDay}; open the Confessional mission panel for your full progress.`
     }
     case 'eviction_outlook':
       if (world.nomineeNames.length === 0) {
@@ -460,7 +489,7 @@ function resolveKnowledgeReply(
       }
       return `Your record: ${world.playerStats.leaderWins} Leader win${world.playerStats.leaderWins === 1 ? '' : 's'}, ${world.playerStats.safetyWins} Safety win${world.playerStats.safetyWins === 1 ? '' : 's'}, and ${world.playerStats.timesNominated} nomination${world.playerStats.timesNominated === 1 ? '' : 's'}.`
     case 'recent_events': {
-      const events = world.recentPublicEvents?.slice(-2) ?? []
+      const events = world.recentPublicEvents?.slice(0, 2) ?? []
       return events.length
         ? `Most recently: ${events.join(' ')}`
         : 'Nothing recent is recorded strongly enough for me to recap.'
@@ -547,7 +576,8 @@ function groundedSemanticReply(
   if (
     focus &&
     focusedStatement?.stances.includes('distrust') &&
-    focusedStatement.stances.includes('depend')
+    (focusedStatement.stances.includes('depend') ||
+      /\b(?:need|rely on|depend on)\s+(?:him|her|them|their vote)\b/.test(text))
   ) {
     return `You do not trust ${focus}, but you still need them. That is leverage, not loyalty. Use the relationship if it protects you; do not confuse usefulness with safety.`
   }
@@ -631,7 +661,13 @@ export function directLocalBigEyeReply(input: LocalBigEyeDirectorInput): string 
     })
   const config = getConfessionalRuntimeConfig()
 
-  if (config.features.deterministicKnowledge && frame.knowledgeQuery) {
+  if (
+    frame.knowledgeQuery &&
+    (config.features.deterministicKnowledge ||
+      frame.knowledgeQuery === 'group_chat_help' ||
+      frame.knowledgeQuery === 'secret_mission_help' ||
+      frame.knowledgeQuery === 'recent_eviction')
+  ) {
     return resolveKnowledgeReply(frame.knowledgeQuery, { ...input, frame }, facts)
   }
 

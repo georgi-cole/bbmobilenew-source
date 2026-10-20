@@ -56,6 +56,17 @@ function formatEventAge(timestamp: number): string {
   return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`
 }
 
+function isRedundantSocialSessionTally(event: TvEvent): boolean {
+  return (
+    event.type === 'diary' &&
+    event.source === 'manual' &&
+    event.channels?.includes('dr') === true &&
+    /^📋\s*Day\s+\d+:\s+\d+\s+social action\(s\)\s+—\s+\d+ successes?,\s+\d+ failures?\.$/i.test(
+      event.text.trim()
+    )
+  )
+}
+
 export default function TVLog({
   entries,
   mainTVMessage,
@@ -85,12 +96,13 @@ export default function TVLog({
 
   const visible = useMemo(() => {
     const normalizedMainTvMessage = mainTVMessage ? normalizeGameCopy(mainTVMessage) : undefined
+    const withoutSessionTallies = entries.filter((entry) => !isRedundantSocialSessionTally(entry))
     const deduplicated =
       !normalizedMainTvMessage || entries.length <= 1
-        ? entries
-        : normalizeGameCopy(entries[0].text) === normalizedMainTvMessage
-          ? entries.slice(1)
-          : entries
+        ? withoutSessionTallies
+        : normalizeGameCopy(withoutSessionTallies[0]?.text ?? '') === normalizedMainTvMessage
+          ? withoutSessionTallies.slice(1)
+          : withoutSessionTallies
     return activityFilter === 'all'
       ? deduplicated
       : deduplicated.filter((entry) => entry.type === activityFilter)

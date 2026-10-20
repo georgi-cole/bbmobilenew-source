@@ -68,7 +68,7 @@ export function allianceHistory(
       )
       .flatMap((request) => request.history ?? []),
   ]
-  return [
+  const visible = [
     ...new Map(
       records
         .filter(
@@ -78,6 +78,35 @@ export function allianceHistory(
         .map((event) => [event.id, event])
     ).values(),
   ].sort((left, right) => right.sequence - left.sequence)
+  const commitments = new Map<string, RealitySocialEvent>()
+  const result: RealitySocialEvent[] = []
+  for (const event of visible) {
+    if (event.type !== 'ALLIANCE_COMMITMENT_CHANGED') {
+      result.push(event)
+      continue
+    }
+    const key = [
+      event.day,
+      event.phase,
+      event.actorId ?? '',
+      event.allianceCommitmentSnapshot?.kind ?? '',
+      event.allianceCommitmentSnapshot?.status ?? '',
+      [...event.targetIds].sort().join(','),
+    ].join(':')
+    const prior = commitments.get(key)
+    if (!prior) {
+      commitments.set(key, event)
+      result.push(event)
+      continue
+    }
+    const combined: RealitySocialEvent = {
+      ...prior,
+      relatedPromiseIds: [...new Set([...prior.relatedPromiseIds, ...event.relatedPromiseIds])],
+    }
+    commitments.set(key, combined)
+    result[result.indexOf(prior)] = combined
+  }
+  return result.sort((left, right) => right.sequence - left.sequence)
 }
 
 export function isFormerAllianceMember(alliance: RealityAlliance, actorId: string): boolean {
@@ -119,8 +148,20 @@ export function allianceEventText(
   const candidate = request?.candidateId ? person(request.candidateId) : target
   const kind = event.allianceSnapshot?.kind ?? group?.kind
   switch (event.type) {
-    case 'ALLIANCE_COMMITMENT_CHANGED':
-      return `${actor} · ${event.allianceCommitmentSnapshot?.kind.toLowerCase().replaceAll('_', ' ') ?? 'commitment'} in ${name} · ${event.allianceCommitmentSnapshot?.status.toLowerCase() ?? 'updated'}.`
+    case 'ALLIANCE_COMMITMENT_CHANGED': {
+      const promises = event.relatedPromiseIds
+        .map((promiseId) => state.promises[promiseId])
+        .filter((promise) => Boolean(promise))
+      const beneficiaryIds = [...new Set(promises.flatMap((promise) => promise.beneficiaryIds))]
+      const kind =
+        promises[0]?.kind ??
+        event.allianceCommitmentSnapshot?.kind.toLowerCase().replaceAll('_', ' ') ??
+        'commitment'
+      const count = event.relatedPromiseIds.length
+      const countLabel = count > 1 ? ` (${count} commitments)` : ''
+      const recipient = beneficiaryIds.length ? ` for ${names(beneficiaryIds, listedPerson)}` : ''
+      return `${actor} · ${kind.toLowerCase().replaceAll('_', ' ')}${recipient} in ${name} · ${event.allianceCommitmentSnapshot?.status.toLowerCase() ?? 'updated'}${countLabel}.`
+    }
     case 'ALLIANCE_FORMED':
       return kind === 'PACT'
         ? `${actor} formed a personal pact with ${names(

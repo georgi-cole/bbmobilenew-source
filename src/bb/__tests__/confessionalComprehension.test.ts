@@ -240,6 +240,39 @@ describe('Big Eye comprehension frame', () => {
     expect(person.focusPlayer).toBe('Finn')
   })
 
+  it('recognizes direct group-chat, mission-progress and named eviction questions', () => {
+    const groupChat = buildBigEyeComprehensionFrame({
+      text: 'How do I make a group chat?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world,
+    })
+    const mission = buildBigEyeComprehensionFrame({
+      text: 'How can I complete my secret mission?',
+      intent: 'curiosity',
+      state: createInitialBigEyeState(),
+      world: {
+        ...world,
+        secretMission: {
+          status: 'accepted',
+          endDay: 6,
+          tasks: [{ description: 'Talk to two players', completed: false }],
+        },
+      },
+    })
+    const eviction = buildBigEyeComprehensionFrame({
+      text: 'Nico left',
+      intent: 'unknown',
+      state: createInitialBigEyeState(),
+      world: { ...world, recentEvictedNames: ['Nico'] },
+    })
+
+    expect(groupChat.knowledgeQuery).toBe('group_chat_help')
+    expect(mission.knowledgeQuery).toBe('secret_mission_help')
+    expect(eviction.knowledgeQuery).toBe('recent_eviction')
+    expect(eviction.focusPlayer).toBe('Nico')
+  })
+
   it('stores the exact Eye question and statement in the semantic thread', () => {
     const state = createInitialBigEyeState()
     const frame = buildBigEyeComprehensionFrame({

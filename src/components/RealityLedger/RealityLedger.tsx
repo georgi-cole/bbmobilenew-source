@@ -6,6 +6,9 @@ import {
   getSocialCommitmentLabel,
 } from '../../social/socialCommitments'
 import { getIntelLeadViews } from '../../social/intelligenceSystem'
+import { canReadAllianceEvent } from '../../social/reality/allianceHistory'
+import { formatPlayerFacingPhase } from '../../social/reality/presentation'
+import { isBetrayalBetween } from '../../social/relationshipSemantics'
 import {
   allianceKind,
   canHumanKnowFact,
@@ -40,12 +43,26 @@ export interface RealityLedgerProps {
   compact?: boolean
   focusPlayerId?: string
   currentDay?: number
+  /** Scroll target opened from a betrayed relationship badge. */
+  focusEventId?: string
 }
 
 function confidenceLabel(confidence: number): string {
   if (confidence >= 0.82) return 'High confidence'
   if (confidence >= 0.55) return 'Plausible'
   return 'Uncertain'
+}
+
+function betrayalCauseLabel(event: RealityDomainState['events'][number]): string {
+  if (event.actionId) return event.actionId.replaceAll('_', ' ')
+  const kind = event.reason.split(':', 1)[0]
+  const labels: Readonly<Record<string, string>> = {
+    nomination: 'Alliance nomination defiance',
+    vote: 'Alliance vote defiance',
+    safety_abandon: 'Alliance Safety defiance',
+    social_betrayal: 'Social betrayal',
+  }
+  return labels[kind] ?? 'Recorded alliance betrayal'
 }
 
 function titleCase(value: string): string {
@@ -99,6 +116,7 @@ export default function RealityLedger({
   compact = false,
   focusPlayerId,
   currentDay,
+  focusEventId,
 }: RealityLedgerProps) {
   const [tab, setTab] = useState<LedgerTab>('relationships')
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
@@ -118,6 +136,16 @@ export default function RealityLedger({
   )
   const playerName = (id: string) =>
     id === humanId ? 'You' : (players.find((player) => player.id === id)?.name ?? 'Unknown')
+  const focusedBetrayalEvent = useMemo(() => {
+    if (!focusEventId) return undefined
+    const event = reality.events.find((entry) => entry.id === focusEventId)
+    return event &&
+      canReadAllianceEvent(event, humanId) &&
+      (isBetrayalBetween(event, humanId, event.actorId ?? '') ||
+        event.targetIds.some((id) => isBetrayalBetween(event, humanId, id)))
+      ? event
+      : undefined
+  }, [focusEventId, humanId, reality.events])
 
   const knownFacts = useMemo(
     () =>
@@ -330,6 +358,31 @@ export default function RealityLedger({
       <div className="reality-ledger__content">
         {activeTab === 'knowledge' && (
           <>
+            {focusedBetrayalEvent && (
+              <article
+                className="reality-ledger__item reality-ledger__item--focused"
+                id={`intel-event-${focusedBetrayalEvent.id}`}
+                aria-label="Betrayal event evidence"
+              >
+                <div>
+                  <span className="reality-ledger__badge reality-ledger__badge--claim">
+                    Betrayal event
+                  </span>
+                  <small>
+                    Day {focusedBetrayalEvent.day} ·{' '}
+                    {formatPlayerFacingPhase(focusedBetrayalEvent.phase)}
+                  </small>
+                </div>
+                <strong>
+                  {playerName(focusedBetrayalEvent.actorId ?? '')} ·{' '}
+                  {betrayalCauseLabel(focusedBetrayalEvent)}
+                </strong>
+                <p>
+                  Affected: {focusedBetrayalEvent.targetIds.map(playerName).join(' and ') || 'You'}.{' '}
+                  This is the recorded event behind the betrayed label.
+                </p>
+              </article>
+            )}
             <h3>Leads and discoveries</h3>
             <p className="reality-ledger__hint">
               Signals your player has learned, with their source and confidence.
@@ -606,7 +659,7 @@ export default function RealityLedger({
 
         {activeTab === 'relationships' && (
           <>
-            <h3>Your relationship reads</h3>
+            {!compact && <h3>Your relationship reads</h3>}
             {relationships.length === 0 ? (
               <p className="reality-ledger__empty">
                 {currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS
@@ -645,9 +698,12 @@ export default function RealityLedger({
                   </div>
                 )}
                 {selectedRelationship && (
-                  <article className="reality-ledger__relationship">
+                  <article
+                    className="reality-ledger__relationship"
+                    aria-label={`${playerName(selectedRelationship.toId)} relationship details`}
+                  >
                     <div>
-                      <strong>{playerName(selectedRelationship.toId)}</strong>
+                      {!compact && <strong>{playerName(selectedRelationship.toId)}</strong>}
                       {!focusPlayerId && selectedRelationshipDisplay && (
                         <span>{selectedRelationshipDisplay.label}</span>
                       )}

@@ -268,6 +268,18 @@ describe('challenge flow – startChallenge thunk', () => {
     expect(state.challenge.pending?.phase).toBe('rules')
   })
 
+  it('keeps Capitalization exclusive to the Back 2 the Game return flow', () => {
+    const store = makeStoreWithCompSelection({
+      mode: 'single-game',
+      selectedGameId: 'capitalization',
+      enabledIds: [],
+    })
+
+    dispatchThunk(store, startChallenge(42, ['p1', 'p2'], { forceGameKey: 'capitalization' }))
+
+    expect(store.getState().challenge.pending?.game.key).not.toBe('capitalization')
+  })
+
   it('forces Find your twin for an activated but unresolved Day 5 Twin Shock', () => {
     const initialGame = gameReducer(undefined, { type: '@@INIT' })
     const store = makeStoreWithGame({
@@ -557,6 +569,7 @@ describe('startChallenge – compSelection modes', () => {
     const availableKeys = getPoolByFilter({ retired: false })
       .filter((game) => supportsPlayerCount(game, playerCount))
       .filter((game) => game.key !== 'rescueTheKing')
+      .filter((game) => game.key !== 'capitalization')
       .map((game) => game.key)
     const classicKeys = new Set(getApprovedCompetitionGameKeys())
     const survivorOnlyKeys = availableKeys.filter((key) => !classicKeys.has(key))

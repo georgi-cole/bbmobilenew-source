@@ -188,7 +188,7 @@ export default function ActionCard({
 
       {resolvedDescription && <span className="ac-card__description">{resolvedDescription}</span>}
 
-      {availabilityHint && (
+      {availabilityHint && (isDisabled || id === 'ask_loh_target') && (
         <span className="ac-badge" aria-label={`Requirement: ${availabilityHint}`}>
           {availabilityHint}
         </span>

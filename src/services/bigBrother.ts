@@ -74,6 +74,12 @@ export interface BigEyeWorldContext {
   recentPublicEvents: string[]
   /** Per-question retrieved facts; the full history is intentionally not sent. */
   historicalFacts?: string[]
+  /** Private mission progress belongs only to the player asking Big Eye. */
+  secretMission?: {
+    status: string
+    endDay: number
+    tasks: Array<{ description: string; completed: boolean }>
+  } | null
 }
 
 export interface BigBrotherPayload {

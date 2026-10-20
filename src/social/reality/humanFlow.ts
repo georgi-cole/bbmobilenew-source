@@ -12,7 +12,7 @@ import {
   updateRelationship,
 } from '../socialSlice'
 import { ALLIANCE_TAG } from '../socialAlliance'
-import { allianceKind } from './allianceIdentity'
+import { allianceKind, isCurrentAlliance } from './allianceIdentity'
 import { getEffectiveSocialMode } from '../socialMode'
 import { resolveActionTargetMode } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
@@ -1603,6 +1603,14 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       // dialogue. Other actions need the final summary, including LOH advice
       // and any Cupid consequences added after the compatibility log was saved.
       if (entry.receipt || !entry.id) continue
+      const relationshipStrain = Object.values(entry.targetDeltas ?? {}).some((delta) => delta < 0)
+      const tone = mixedOutcome
+        ? 'neutral'
+        : entry.outcome === 'failure'
+          ? 'negative'
+          : relationshipStrain
+            ? 'warning'
+            : 'positive'
       dispatch(
         finalizeSocialActionReceipt({
           entryId: entry.id,
@@ -1613,8 +1621,10 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
               ? 'Mixed result'
               : entry.outcome === 'failure'
                 ? 'Failed'
-                : 'Completed',
-            tone: mixedOutcome ? 'neutral' : entry.outcome === 'failure' ? 'negative' : 'positive',
+                : relationshipStrain
+                  ? 'Succeeded with relationship strain'
+                  : 'Completed',
+            tone,
           },
         })
       )
@@ -1828,7 +1838,7 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
           ? (() => {
               const alliance = state.social.reality.alliances[input.consultationAllianceId]
               return alliance &&
-                (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+                isCurrentAlliance(alliance) &&
                 allianceKind(alliance) === 'GROUP' &&
                 alliance.memberIds.includes(input.actorId) &&
                 alliance.memberIds.includes(input.targetId)

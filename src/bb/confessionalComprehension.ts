@@ -40,6 +40,8 @@ export type ConfessionalKnowledgeQuery =
   | 'historical_events'
   | 'phase'
   | 'memory'
+  | 'group_chat_help'
+  | 'secret_mission_help'
 
 export type RelationshipStance = 'trust' | 'distrust' | 'target' | 'protect' | 'depend'
 
@@ -76,6 +78,11 @@ export interface ConfessionalWorldContext {
   recentEvictedNames?: string[]
   recentPublicEvents?: string[]
   historicalFacts?: string[]
+  secretMission?: {
+    status: string
+    endDay: number
+    tasks: Array<{ description: string; completed: boolean }>
+  } | null
 }
 
 export interface BigEyeComprehensionFrame {
@@ -109,8 +116,24 @@ function unique<T>(values: T[]): T[] {
 
 function detectKnowledgeQuery(
   text: string,
-  focusPlayer: string | null
+  focusPlayer: string | null,
+  world?: ConfessionalWorldContext
 ): ConfessionalKnowledgeQuery | null {
+  if (/\bgroup chat\b/.test(text) && /\b(how|start|make|create|open|use)\b/.test(text)) {
+    return 'group_chat_help'
+  }
+  if (
+    /\bsecret mission\b/.test(text) &&
+    /\b(how|complete|finish|do|progress|objective|reward)\b/.test(text)
+  ) {
+    return 'secret_mission_help'
+  }
+  if (
+    world?.recentEvictedNames?.some((name) => text.includes(normalizeInput(name))) &&
+    /\b(left|leave|gone|evicted|eliminated|went home)\b/.test(text)
+  ) {
+    return 'recent_eviction'
+  }
   if (
     /\b(?:day|week|round)\s*\d+\b/.test(text) &&
     /\b(?:how much|what happened|what was|who received|who got|how many|what were|tell me about)\b/.test(
@@ -202,6 +225,7 @@ function findEntities(text: string, world?: ConfessionalWorldContext): string[] 
     ...world.remainingHousemates,
     ...world.nomineeNames,
     ...world.closestRelationships.map((row) => row.name),
+    ...(world.recentEvictedNames ?? []),
     ...(world.leaderName ? [world.leaderName] : []),
     ...(world.safetyWinnerName ? [world.safetyWinnerName] : []),
   ])
@@ -429,7 +453,7 @@ export function buildBigEyeComprehensionFrame(input: {
   if (containsAny(text, config.comprehension.protectTerms)) relationshipStances.push('protect')
   if (containsAny(text, config.comprehension.dependencyTerms)) relationshipStances.push('depend')
 
-  const knowledgeQuery = detectKnowledgeQuery(text, focusPlayer)
+  const knowledgeQuery = detectKnowledgeQuery(text, focusPlayer, input.world)
   const predictedWinner = config.features.predictions ? detectPrediction(text, input.world) : null
   const speechAct = inferSpeechAct(
     text,
