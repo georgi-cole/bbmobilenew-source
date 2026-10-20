@@ -16,7 +16,7 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
-  it('summarizes the day once instead of repeating each alliance development', () => {
+  it('writes a short producer-style daily chapter rather than reporting counts', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'the-winners',
@@ -64,7 +64,8 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.queryByText('Huddle 0.')).toBeNull()
-    expect(screen.getByText(/5 alliance updates were recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Whispers in the Hub|Friends, Favors & Question Marks/ })).toBeInTheDocument()
     expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
@@ -92,10 +93,8 @@ describe('HousePulse', () => {
       />
     )
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/A new alliance entered your story/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'View alliance' })).toBeNull()
   })
 
@@ -129,7 +128,7 @@ describe('HousePulse', () => {
       publicEligible: false,
       juryEligible: false,
     })
-    const meeting = appendRealityEvent(reality, {
+    appendRealityEvent(reality, {
       day: 2,
       phase: 'social_2',
       type: 'ALLIANCE_STRATEGY_MEETING',
@@ -167,15 +166,13 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/allies compared plans/)).toBeInTheDocument()
     expect(screen.queryByText(/Lia recommends Remy for eviction/)).toBeNull()
     expect(screen.queryByText('You · Consult Alliance · Lia.')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
-    expect(onOpenAlliances).toHaveBeenCalledWith(alliance.id, meeting.id)
+    // Details stay in Intel / alliance history; Today is the narrative, not a second ledger.
+    expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })
   it('opens a short Today briefing with direct Intel and Commitments sections', () => {
     render(
@@ -192,7 +189,7 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
+    expect(screen.getByText(/No major developments have reached your radar today/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Today' })).toHaveClass('is-active')
     expect(screen.getByRole('button', { name: 'Intel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Commitments' })).toBeInTheDocument()
@@ -220,7 +217,7 @@ describe('HousePulse', () => {
       window.dispatchEvent(new Event('reality-social-tutorial:open-pulse'))
     })
     expect(screen.getByRole('dialog', { name: 'My Pulse' })).toBeInTheDocument()
-    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
+    expect(screen.getByText(/No major developments have reached your radar today/i)).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(
@@ -387,13 +384,9 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/The Shield alliance came to an end/)).toBeInTheDocument()
     expect(screen.queryByText('Kai dissolved The Shield.')).toBeNull()
-    expect(screen.queryByText('An alliance ended')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
-    expect(onOpenAlliances).toHaveBeenCalledWith('alliance:shield', 'alliance-ended')
+    expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })
 })
