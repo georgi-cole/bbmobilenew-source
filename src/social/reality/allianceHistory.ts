@@ -204,6 +204,10 @@ export function allianceEventText(
         )}.`
       if (reason === 'TOO_FEW_MEMBERS')
         return `${name} dissolved after ${target === 'You' ? 'you' : target} ${event.allianceSnapshot?.exitKind === 'EXPELLED' ? 'was removed' : event.allianceSnapshot?.exitKind === 'ELIMINATED' ? 'left the game' : 'left'}; too few members remained.`
+      if (reason === 'DUPLICATE_ROSTER') {
+        const survivingName = event.allianceSnapshot?.supersededByName ?? 'the matching alliance'
+        return `${name} closed because its roster matched ${survivingName}; ${survivingName} remains active.`
+      }
       return `${name} ended${reason === 'SUPERSEDED' ? ' when it was replaced' : reason === 'RECONCILED' ? ' when the pact was renewed' : ''}.`
     }
     case 'ALLIANCE_REQUEST_SUBMITTED':

@@ -36,12 +36,65 @@ const doublePlan: LohNominationPlan = {
 }
 
 describe('double-elimination social planning', () => {
+  it('uses disclosed replacement intel while the seat is open, then switches to vote planning', () => {
+    const initialGame = gameReducer(undefined, { type: '@@test/init' })
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'safety-alliance',
+      founderIds: ['human', 'ally', 'safety'],
+      memberIds: [],
+      purpose: 'Coordinate the block',
+      at: { day: 4, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    const state = {
+      game: {
+        ...initialGame,
+        players: cast,
+        week: 4,
+        phase: 'pos_ceremony_results',
+        lohId: 'loh',
+        posWinnerId: 'safety',
+        nomineeIds: ['nominee-b', 'nominee-c'],
+        povSavedId: 'nominee-a',
+        replacementNeeded: true,
+        aiReplacementStep: 1,
+        lohSocialPlan: {
+          week: 4,
+          lohId: 'loh',
+          currentTargetId: 'nominee-a',
+          backupTargetId: 'nominee-b',
+          askCountsByPlayerId: {},
+          disclosedTargetByPlayerId: { human: 'nominee-c' },
+          disclosureOutcomeByPlayerId: { human: 'truthful' as const },
+        },
+      },
+      social: { ...socialReducer(undefined, { type: '@@test/init' }), reality },
+    } as unknown as RootState
+
+    const replacementRead = buildAllianceConsultationPlan(state, alliance, 'human')
+
+    expect(replacementRead?.agenda).toBe('replacement_intel')
+    expect(replacementRead?.summary).toContain('You have heard Ash named as a possible replacement')
+    expect(replacementRead?.summary).toContain('no group vote or final nominee is recorded')
+
+    state.game.phase = 'social_2'
+    state.game.replacementNeeded = false
+    state.game.aiReplacementStep = 0
+    state.game.nomineeIds = ['nominee-b', 'nominee-c']
+    const voteRead = buildAllianceConsultationPlan(state, alliance, 'human')
+
+    expect(voteRead?.agenda).toBe('eviction_vote')
+    expect(voteRead?.summary).toMatch(/Elimination vote|Vote consensus/)
+  })
+
   it('gives alliance consultations two elimination priorities during the block strategy phase', () => {
     const initialGame = gameReducer(undefined, { type: '@@test/init' })
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'alliance',
-      founderIds: ['human', 'ally'],
+      kind: 'GROUP',
+      founderIds: ['human', 'ally', 'loh'],
       memberIds: [],
       purpose: 'Coordinate the block',
       at: { day: 4, phase: 'pos_results' },
@@ -68,7 +121,9 @@ describe('double-elimination social planning', () => {
     expect(plan?.targetIds).toHaveLength(2)
     expect(plan?.summary).toContain('Double elimination strategy')
     expect(plan?.summary).toContain('2 of 2 exit spots planned')
-    expect(plan?.memberPlanBeliefs.human).toHaveLength(2)
+    expect(
+      plan?.memberPlanBeliefs.human.filter((belief) => belief.startsWith('target:'))
+    ).toHaveLength(2)
   })
 
   it('states both planned exits and the preferred survivor in a truthful locked-block read', () => {

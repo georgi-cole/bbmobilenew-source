@@ -280,6 +280,27 @@ describe('incoming interaction invalidation', () => {
     expect(isIncomingInteractionInvalidated(interaction, game)).toBe(true)
   })
 
+  it('retires a stale private vote pitch when Vox Populi gives the decision to the audience', () => {
+    const { game } = buildGameState()
+    game.phase = 'social_2'
+    game.nomineeIds = [game.players[1]!.id, game.players[2]!.id]
+    game.voxPopuli = { status: 'active' } as typeof game.voxPopuli
+
+    expect(
+      isIncomingInteractionInvalidated(
+        makeInteraction({
+          type: 'deal_offer',
+          payload: {
+            scenarioKey: 'alliance_vox_ballot_pitch',
+            phase: 'social_2',
+            subjectId: game.nomineeIds[0],
+          },
+        }),
+        game
+      )
+    ).toBe(true)
+  })
+
   it('drops a role-invalid vote claim at interaction creation', () => {
     const store = makeStore()
     const { game, human, nominee, otherNominee, loh } = buildGameState()

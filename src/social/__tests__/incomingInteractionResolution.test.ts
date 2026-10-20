@@ -176,6 +176,53 @@ describe('incoming interaction contextual resolution', () => {
     ).toEqual(['Accept', 'Decline'])
   })
 
+  it('makes alliance vote replies name the proposed target without implying a promise to keep the sender', () => {
+    const choices = getContextualIncomingChoices(
+      makeInteraction({
+        type: 'deal_offer',
+        payload: {
+          scenarioKey: 'alliance_vote_pitch',
+          subjectId: 'nova',
+          subjectName: 'Nova',
+        },
+      })
+    )
+
+    expect(choices?.[0]?.label).toMatch(/Nova/)
+    expect(choices?.[1]?.label).toMatch(/Nova/)
+    expect(choices?.map((choice) => choice.label).join(' ')).not.toMatch(
+      /promise to keep|commit to keeping/i
+    )
+  })
+
+  it('uses alliance roles and target names in strategy replies', () => {
+    const huddle = makeInteraction({
+      type: 'deal_offer',
+      payload: {
+        scenarioKey: 'alliance_power_safety_huddle',
+        subjectId: 'nova',
+        subjectName: 'Nova',
+        secondarySubjectId: 'remy',
+        secondarySubjectName: 'Remy',
+      },
+    })
+    const choices = getContextualIncomingChoices(huddle)
+    const spokenReply = getIncomingDialogueBeat({
+      scenarioKey: 'alliance_power_safety_huddle',
+      responseType: 'accept',
+      fromName: 'Rae',
+      subjectName: 'Nova',
+      secondarySubjectName: 'Remy',
+      seed: 0,
+    })
+
+    expect(choices?.[0]?.label).toContain('Nova')
+    expect(choices?.[0]?.label).toContain('Remy')
+    expect(spokenReply).toContain('Nova')
+    expect(spokenReply).toContain('Remy')
+    expect(spokenReply).toMatch(/Safety decision/i)
+  })
+
   it('does not turn an allied LOH check-in into an automatic protection or vote promise', () => {
     expect(
       getCommitmentKindForInteraction(

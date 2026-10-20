@@ -15,6 +15,7 @@ export interface IncomingDialogueBeatInput {
   responseLabel?: string
   fromName: string
   subjectName?: string
+  secondarySubjectName?: string
   seed: number
   recentLines?: readonly string[]
 }
@@ -133,6 +134,63 @@ const POWER_BEATS: BeatSet = {
   dismiss: [
     '"I will not chase you for an answer. I just wish I had not spent the time pretending there was a conversation to have."',
     '"All right. I will read the decision when it happens and adjust from there."',
+  ],
+}
+
+const ALLIANCE_NOMINATION_BEATS: BeatSet = {
+  positive: [
+    '"I hear you. {subject} is the target we are recommending, but the LOH still owns the final slate."',
+    '"That gives me a clear alliance read. I will treat {subject} as our recommendation, not a guaranteed nominee."',
+  ],
+  neutral: [
+    '"You heard my slate without backing it. I will keep your position open and make my own decision."',
+    '"Fair. {subject} is my preference, but I know you have not joined that plan."',
+  ],
+  negative: [
+    '"I hear the pushback. I will reconsider {subject}, but the final slate is still mine to set."',
+    '"Then we do not share a read on {subject}. I will weigh that before I lock the nominations."',
+  ],
+  dismiss: [
+    '"I will set the slate without your read, then. I wanted to ask before I locked it."',
+    '"All right. I will make the nomination call on the information I have."',
+  ],
+}
+
+const ALLIANCE_SAFETY_BEATS: BeatSet = {
+  positive: [
+    '"I have your read: save {subject}, with {secondary} as the replacement recommendation. I still make the Safety decision."',
+    '"That helps. I will weigh saving {subject} and using {secondary} for the open seat; the choice is still mine."',
+  ],
+  neutral: [
+    '"You heard my Safety read, but you have not backed it. I will make the call with that in mind."',
+    '"Fair. I will keep {subject} and {secondary} in view while I decide."',
+  ],
+  negative: [
+    '"I hear your objection. I will reconsider the plan before I use Safety."',
+    '"Then we disagree on this Safety move. I will decide after weighing your concern."',
+  ],
+  dismiss: [
+    '"I will make the Safety call without your read, then."',
+    '"All right. The decision is mine to make, and I will do that now."',
+  ],
+}
+
+const ALLIANCE_VOTE_BEATS: BeatSet = {
+  positive: [
+    '"Good, we are reading the vote the same way on {subject}. We still each cast our own ballot."',
+    '"That is the same target I had in mind: {subject}. Let us see how the rest of the Hub moves."',
+  ],
+  neutral: [
+    '"You heard my vote read, but I will not count you as part of it."',
+    '"That is fair. {subject} is my choice; yours is still yours."',
+  ],
+  negative: [
+    '"Then we disagree about {subject}. I will cast my own ballot."',
+    '"I hear you. I will not pretend the alliance has one shared vote when it does not."',
+  ],
+  dismiss: [
+    '"I will leave your ballot out of my count and make my own choice."',
+    '"All right. We can leave the vote conversation there."',
   ],
 }
 
@@ -318,6 +376,11 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   week_start_alliance_lock: ALLIANCE_BEATS,
   co_nominee_check_in: CO_NOMINEE_BEATS,
   alliance_reassurance: ALLIANCE_BEATS,
+  alliance_nomination_pitch: ALLIANCE_NOMINATION_BEATS,
+  alliance_power_nomination_huddle: ALLIANCE_NOMINATION_BEATS,
+  alliance_safety_pitch: ALLIANCE_SAFETY_BEATS,
+  alliance_power_safety_huddle: ALLIANCE_SAFETY_BEATS,
+  alliance_vote_pitch: ALLIANCE_VOTE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,
   nominee_understands_loh: REPAIR_BEATS,
@@ -354,7 +417,8 @@ function stanceForResponse(responseType: IncomingInteractionResponseType): Stanc
 
 function replaceTokens(line: string, input: IncomingDialogueBeatInput): string {
   const subject = input.subjectName ?? 'the person at the centre of it'
-  return line.replaceAll('{subject}', subject)
+  const secondary = input.secondarySubjectName ?? 'the replacement option'
+  return line.replaceAll('{subject}', subject).replaceAll('{secondary}', secondary)
 }
 
 /** Returns a stable in-character reply, rotating past recently used dialogue where possible. */

@@ -18,6 +18,7 @@ import {
   migrateDramaAlliances,
   reconcileRealityBattleBackReturn,
   refreshRealityAllianceDynamics,
+  removeRealityAllianceMember,
   removeRealityAllianceMembers,
   renameRealityAlliance,
 } from '../reality/relationshipForms'
@@ -819,9 +820,56 @@ describe('explicit alliance management', () => {
     expect(compareRealityClock(earlier, later)).toBeLessThan(0)
     expect(compareRealityClock(earlier, later)).toBe(compareIncomingClock(earlier, later))
   })
+  it('keeps the pre-existing alliance when a departure makes another roster identical', () => {
+    const state = setup()
+    const original = group(state, ['u', 'k', 'r'], 'original')
+    const expanded = group(state, ['u', 'k', 'r', 'x'], 'expanded')
+    original.name = 'The Core'
+    expanded.name = 'The Expanded Core'
+
+    removeRealityAllianceMember(state, {
+      allianceId: expanded.id,
+      memberId: 'x',
+      actorId: 'x',
+      kind: 'VOLUNTARY',
+      at: { day: 2, phase: 'social_1' },
+    })
+
+    expect(original.status).toBe('PROBATIONARY')
+    expect(original.memberIds).toEqual(['u', 'k', 'r'])
+    expect(expanded.status).toBe('DISSOLVED')
+    expect(expanded.memberIds).toEqual([])
+    expect(expanded.supersededById).toBe(original.id)
+    const ended = state.events.find(
+      (event) => event.type === 'ALLIANCE_ENDED' && event.allianceId === expanded.id
+    )
+    expect(ended?.allianceSnapshot?.endReason).toBe('DUPLICATE_ROSTER')
+    expect(
+      allianceEventText(
+        state,
+        ended!,
+        'u',
+        (id) => ({ u: 'You', k: 'Kian', r: 'Jax', x: 'Lux' })[id] ?? id
+      )
+    ).toBe('The Expanded Core closed because its roster matched The Core; The Core remains active.')
+  })
 })
 
 describe('alliance save migration', () => {
+  it('collapses legacy duplicate group rosters deterministically and idempotently', () => {
+    const state = setup()
+    const original = group(state, ['u', 'k', 'r'], 'original')
+    const duplicate = group(state, ['u', 'k', 'r'], 'duplicate')
+    original.createdAt = { day: 1, phase: 'social_1' }
+    duplicate.createdAt = { day: 2, phase: 'social_1' }
+
+    const normalized = normalizeRealityDomainState(state)
+
+    expect(normalized.alliances.original.status).toBe('PROBATIONARY')
+    expect(normalized.alliances.duplicate.status).toBe('DISSOLVED')
+    expect(normalized.alliances.duplicate.supersededById).toBe('original')
+    expect(normalizeRealityDomainState(normalized)).toEqual(normalized)
+  })
   it('upgrades a detached old save idempotently while retaining scoped promises and ambiguous pair sources', () => {
     const state = setup()
     const original = pact(state)

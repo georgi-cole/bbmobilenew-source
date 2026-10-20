@@ -85,11 +85,109 @@ export function getContextualIncomingChoices(
 
   const scenarioKey = interaction.payload?.scenarioKey
   if (typeof scenarioKey !== 'string') return null
+  const subjectName =
+    typeof interaction.payload?.subjectName === 'string'
+      ? interaction.payload.subjectName
+      : typeof interaction.payload?.subjectId === 'string'
+        ? interaction.payload.subjectId
+        : 'that name'
+  const secondarySubjectName =
+    typeof interaction.payload?.secondarySubjectName === 'string'
+      ? interaction.payload.secondarySubjectName
+      : typeof interaction.payload?.secondarySubjectId === 'string'
+        ? interaction.payload.secondarySubjectId
+        : 'the backup option'
+  const dealResponses = responseTypesFor(interaction.type)
+  const strategicChoices: Record<string, readonly (readonly [string, string, string, string])[]> = {
+    alliance_power_nomination_huddle: [
+      [
+        `Back targeting ${subjectName}`,
+        `Ask why ${subjectName} is the priority`,
+        `Push back on ${subjectName} as target`,
+        'Sit this huddle out',
+      ],
+      [
+        `Support ${subjectName} as the target`,
+        'Ask how firm the slate is',
+        `Challenge the case against ${subjectName}`,
+        'Let them discuss it without me',
+      ],
+    ],
+    alliance_power_safety_huddle: [
+      [
+        `Back saving ${subjectName} and replacing with ${secondarySubjectName}`,
+        `Ask why ${secondarySubjectName} is the replacement`,
+        'Push back on this Safety plan',
+        'Sit this huddle out',
+      ],
+      [
+        `Support the plan for ${subjectName} and ${secondarySubjectName}`,
+        'Ask what changes if the replacement shifts',
+        'Challenge the proposed Safety move',
+        'Let them discuss it without me',
+      ],
+    ],
+    alliance_nomination_pitch: [
+      [
+        `Consider targeting ${subjectName}`,
+        `Ask why ${subjectName} is the priority`,
+        'Keep my nomination read private',
+        'End the strategy pitch',
+      ],
+      [
+        `Hear the case against ${subjectName}`,
+        'Ask what changed',
+        'Make no nomination commitment',
+        'Leave the conversation',
+      ],
+    ],
+    alliance_safety_pitch: [
+      [
+        `Consider replacing with ${subjectName}`,
+        `Ask why ${subjectName} is the backup`,
+        'Keep my Safety read private',
+        'End the strategy pitch',
+      ],
+      [
+        `Hear the case for ${subjectName}`,
+        'Ask what the LOH has disclosed',
+        'Make no replacement commitment',
+        'Leave the conversation',
+      ],
+    ],
+    alliance_vote_pitch: [
+      [
+        `Vote with me on ${subjectName}`,
+        `Ask why ${subjectName} is the vote`,
+        'Keep your ballot private',
+        'End the vote conversation',
+      ],
+      [
+        `Support ${subjectName} as the vote target`,
+        `Ask what changed their read on ${subjectName}`,
+        'Make no voting commitment',
+        'Leave the conversation',
+      ],
+    ],
+  }
+  const strategicVariants = strategicChoices[scenarioKey]
+  if (strategicVariants?.length) {
+    const labels =
+      strategicVariants[hash(`${interaction.id}:${scenarioKey}`) % strategicVariants.length]
+    return labels.map((label, index) => ({
+      label,
+      responseType: dealResponses[index] ?? 'dismiss',
+      style: styleForResponse(dealResponses[index] ?? 'dismiss'),
+    }))
+  }
+
   const variants = SCENE_CHOICES[scenarioKey]
   if (!variants?.length) return null
   const labels =
     variants[
-      hash(`${interaction.fromId}:${interaction.createdWeek}:${scenarioKey}`) % variants.length
+      hash(
+        `${interaction.id}:${interaction.fromId}:${scenarioKey}:${String(interaction.payload?.subjectId ?? '')}`
+      ) % variants.length
     ]
   const responseTypes = responseTypesFor(interaction.type)
   return labels.map((label, index) => ({

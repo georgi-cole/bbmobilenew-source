@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAllianceGroupRead } from '../incomingInteractions'
+import { buildAllianceGroupRead, buildAllianceHuddleDecisionOutcome } from '../incomingInteractions'
 import type { IncomingInteraction } from '../types'
 
 function interaction(payload: Record<string, unknown>): IncomingInteraction {
@@ -73,5 +73,51 @@ describe('buildAllianceGroupRead', () => {
 
     expect(read).toContain('Lia: save Maya → replacement Kian')
     expect(read).toContain('Ava: save Kian → replacement Maya')
+  })
+
+  it('reports a huddle recommendation only when it has member majority support', () => {
+    const huddle = interaction({
+      allianceGroupHuddle: true,
+      allianceStrategyKind: 'NOMINATION',
+      allianceGroupMemberIds: ['leader', 'user', 'ally-a'],
+      subjectId: 'target-a',
+      allianceMemberTargetPreferences: {
+        leader: 'target-a',
+        'ally-a': 'target-b',
+      },
+    })
+
+    expect(buildAllianceHuddleDecisionOutcome(huddle, 'neutral', players)).toContain(
+      'No target reached a member majority.'
+    )
+    expect(buildAllianceHuddleDecisionOutcome(huddle, 'accept', players)).toContain(
+      'a majority recommendation to target Maya'
+    )
+    expect(buildAllianceHuddleDecisionOutcome(huddle, 'accept', players)).toContain(
+      'the LOH sets the slate'
+    )
+  })
+
+  it('reports saving and replacement recommendations as separate Safety decisions', () => {
+    const huddle = interaction({
+      allianceGroupHuddle: true,
+      allianceStrategyKind: 'SAFETY',
+      allianceGroupMemberIds: ['leader', 'user', 'ally-a'],
+      subjectId: 'target-a',
+      secondarySubjectId: 'target-b',
+      allianceMemberTargetPreferences: {
+        leader: 'target-a',
+        'ally-a': 'target-a',
+      },
+      allianceMemberFallbackPreferences: {
+        leader: 'target-b',
+        'ally-a': 'target-b',
+      },
+    })
+
+    const outcome = buildAllianceHuddleDecisionOutcome(huddle, 'neutral', players)
+    expect(outcome).toContain('a majority recommends saving Maya')
+    expect(outcome).toContain('a majority recommends Kian for the replacement seat')
+    expect(outcome).toContain('Safety holder makes the final decision')
   })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ELIGIBLE_PHASES,
   chooseIncomingInteractionType,
+  evaluateIncomingInteractionEnqueueDecision,
   scheduleIncomingInteractionsForPhase,
   type AutonomyContext,
   type AutonomyStore,
@@ -609,14 +610,16 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       const reality = createInitialRealityDomainState()
       createRealityAlliance(reality, {
         id: 'loh-alliance',
-        founderIds: ['echo'],
-        memberIds: ['user'],
+        kind: 'GROUP',
+        founderIds: ['echo', 'user', 'ally'],
+        memberIds: [],
         purpose: 'Coordinate nominations',
         at: { day: 4, phase: 'social_1' },
       })
       const players = [
         { id: 'user', name: 'You', status: 'active', isUser: true },
         { id: 'echo', name: 'Echo', status: 'loh' },
+        { id: 'ally', name: 'Ally', status: 'active' },
         { id: 'lux', name: 'Lux', status: 'active' },
         { id: 'remy', name: 'Remy', status: 'active' },
         { id: 'nova', name: 'Nova', status: 'active' },
@@ -660,16 +663,70 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       const store = buildStore(context)
 
       scheduleIncomingInteractionsForPhase('social_1', store, context)
+      scheduleIncomingInteractionsForPhase('social_1', store, context)
 
-      const huddle = store.social.scheduledIncomingInteractions.find(
-        (entry) => entry.interaction.fromId === 'echo'
-      )?.interaction
+      const huddles = store.social.scheduledIncomingInteractions.filter(
+        (entry) => entry.interaction.payload?.allianceGroupHuddle === true
+      )
+      const huddle = huddles.find((entry) => entry.interaction.fromId === 'echo')?.interaction
+      expect(huddles).toHaveLength(1)
       expect(huddle?.payload?.scenarioKey).toBe('alliance_power_nomination_huddle')
       expect(huddle?.payload?.subjectId).toBe(targetId)
       expect(huddle?.text).toContain(expectedText)
       expect(huddle?.payload?.allianceMemberTargetPreferences).toMatchObject({ echo: targetId })
     }
   )
+
+  it('does not create private alliance elimination pitches when Vox Populi owns the vote', () => {
+    const reality = createInitialRealityDomainState()
+    createRealityAlliance(reality, {
+      id: 'public-vote-alliance',
+      kind: 'GROUP',
+      founderIds: ['echo', 'user', 'ally'],
+      memberIds: [],
+      purpose: 'Coordinate the week',
+      at: { day: 4, phase: 'social_1' },
+    })
+    const players = [
+      { id: 'user', name: 'You', status: 'active', isUser: true },
+      { id: 'echo', name: 'Echo', status: 'loh' },
+      { id: 'ally', name: 'Ally', status: 'active' },
+      { id: 'target', name: 'Target', status: 'active' },
+    ]
+    const context = buildContext({
+      phase: 'social_1',
+      week: 4,
+      dramaMode: true,
+      voxPopuliActive: true,
+      lohId: 'echo',
+      reality,
+      players,
+      gameState: {
+        week: 4,
+        phase: 'social_1',
+        seed: 13,
+        gameId: 'public-vote-regression',
+        dramaSocialMode: true,
+        lohId: 'echo',
+        nomineeIds: [],
+        voxPopuli: { status: 'active' },
+        doubleEviction: { weekActive: false },
+        players: players.map((player) => ({
+          ...player,
+          stats: { lohWins: 0, posWins: 0, timesNominated: 0 },
+        })),
+        strategicRelationships: {},
+      } as unknown as AutonomyContext['gameState'],
+      random: () => 0,
+    })
+
+    for (const actorId of ['echo', 'ally']) {
+      const decision = evaluateIncomingInteractionEnqueueDecision(actorId, 'user', context, [])
+      expect(decision.plan?.scenarioKey).not.toMatch(
+        /^alliance_(nomination|vox_ballot|vote)_pitch$/
+      )
+    }
+  })
 
   it('treats gratitude after a save or survival as thanks rather than an alliance offer', () => {
     const relationships = { ally: { user: { affinity: 85, tags: [] } } }

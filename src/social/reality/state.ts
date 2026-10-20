@@ -2,6 +2,7 @@ import type { RelationshipsMap } from '../types'
 import { MAX_REALITY_MEMORIES_PER_ACTOR } from './memory'
 import { importLegacyPairMemberships, normalizeAllianceManagement } from './allianceIdentity'
 import { allianceForEvent } from './allianceHistory'
+import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { retainAllianceHistory, retainAllianceRequestHistory } from './events'
 import type {
   DirectedRelationship,
@@ -341,6 +342,10 @@ export function normalizeRealityDomainState(
     if (alliance && !alliance.history!.some((entry) => entry.id === event.id))
       alliance.history!.push(event)
   }
+  // Old saves can contain duplicate groups created before the managed
+  // founding guard existed. Reconcile once at hydration without inventing a
+  // historical day when the save has no current clock available.
+  reconcileConvergedAllianceRosters(normalized)
   for (const alliance of Object.values(normalized.alliances))
     alliance.history = retainAllianceHistory(alliance.history ?? [])
   return normalized

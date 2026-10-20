@@ -133,7 +133,7 @@ describe('LOH consultation summary', () => {
     )
   })
 
-  it('explains that a two-member alliance needs the caller to choose before a vote is set', () => {
+  it('reports member advice without claiming a group decision before the block strategy is set', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'two-person-alliance',
@@ -166,7 +166,7 @@ describe('LOH consultation summary', () => {
 
     expect(consultation?.agenda).toBe('block_strategy')
     expect(consultation?.summary).toMatch(
-      /Echo recommends (Remy|Nova) for elimination\. You have not chosen a position, so no alliance vote is set yet\./
+      /Block strategy: Echo recommends (Remy|Nova)\. You have not chosen a position, so the alliance has no decision yet\./
     )
     expect(consultation?.summary).not.toContain('→')
   })
