@@ -1355,7 +1355,11 @@ export default function GameScreen() {
     showBattleBackReturn ||
     showFavoriteVoting ||
     showMinigameHost ||
-    (humanPlayer?.status === 'jury' && game.tribunalInvitationAcknowledged !== true) ||
+    (humanPlayer?.status === 'jury' &&
+      game.tribunalInvitationAcknowledged !== true &&
+      game.battleBack?.active !== true &&
+      !game.pendingEviction &&
+      !game.doubleEviction?.pendingSecondEviction) ||
     showQuickTapRace ||
     showLaneRacers ||
     showPressurePlank ||
