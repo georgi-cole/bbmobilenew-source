@@ -6,6 +6,7 @@ import {
   recordRealityAllianceLeakDiscovery,
 } from './allianceKnowledge'
 import { appendRealityEvent } from './events'
+import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import { remember } from './memory'
 import { applyRealityRelationshipChange, getRealityRelationship } from './relationships'
 import { recordGroundedJealousy } from './relationshipAutonomy'
@@ -419,6 +420,17 @@ export function removeRealityAllianceMember(
   if (!alliance.memberIds.includes(input.memberId))
     throw new Error('Player is not an alliance member')
 
+  const resultingRoster = alliance.memberIds.filter((id) => id !== input.memberId).sort()
+  const preferredSurvivorIds = Object.values(state.alliances)
+    .filter(
+      (candidate) =>
+        candidate.id !== alliance.id &&
+        isCurrentAlliance(candidate) &&
+        allianceKind(candidate) === 'GROUP' &&
+        [...candidate.memberIds].sort().join('~') === resultingRoster.join('~')
+    )
+    .map((candidate) => candidate.id)
+
   if (input.kind === 'EXPELLED') {
     if (input.actorId === input.memberId) throw new Error('A member cannot expel themself')
     if (!alliance.leaderIds.includes(input.actorId)) {
@@ -537,6 +549,8 @@ export function removeRealityAllianceMember(
       rememberAllianceRoster(alliance)
     }
   }
+  if (!input.deferSuccession)
+    reconcileConvergedAllianceRosters(state, input.at, preferredSurvivorIds)
   refreshRealityAllianceOverlaps(state)
   return alliance
 }
@@ -545,6 +559,16 @@ export function removeRealityAllianceMembers(
   state: RealityDomainState,
   input: { memberIds: readonly string[]; at: RealityClock; sourceEventId?: string }
 ): void {
+  const preferredSurvivorIds = Object.values(state.alliances)
+    .filter((alliance) => isCurrentAlliance(alliance) && allianceKind(alliance) === 'GROUP')
+    .filter((alliance) => {
+      const nextRoster = alliance.memberIds.filter((id) => !input.memberIds.includes(id)).sort()
+      return (
+        nextRoster.length === alliance.memberIds.length &&
+        nextRoster.join('~') === [...alliance.memberIds].sort().join('~')
+      )
+    })
+    .map((alliance) => alliance.id)
   for (const alliance of Object.values(state.alliances)) {
     if (!isCurrentAlliance(alliance)) continue
     const departingIds = alliance.memberIds.filter((id) => input.memberIds.includes(id))
@@ -581,6 +605,7 @@ export function removeRealityAllianceMembers(
       recordAllianceRequestEvent(state, request, 'ALLIANCE_REQUEST_INVALIDATED', input.at)
     }
   }
+  reconcileConvergedAllianceRosters(state, input.at, preferredSurvivorIds)
   refreshRealityAllianceOverlaps(state)
 }
 

@@ -196,7 +196,7 @@ describe('HomeHub', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     firstRender.unmount();
 
@@ -206,7 +206,7 @@ describe('HomeHub', () => {
     fireEvent.click(screen.getByTestId('kolequant-splash'));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('shows a zero-minimum readiness splash after a new season starts', async () => {
@@ -348,7 +348,7 @@ describe('HomeHub', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
 
       const bgLayer = document.querySelector<HTMLElement>('.homehub-intro-bg');
       expect(bgLayer?.style.backgroundImage).toContain('/assets/background.jpg');

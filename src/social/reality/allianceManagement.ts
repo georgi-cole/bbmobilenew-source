@@ -12,6 +12,7 @@ import {
 import { getRealityAllianceKnowledgeView } from './allianceKnowledge'
 import { compareSocialClock, nextAllianceDeadline } from './clock'
 import { appendRealityEvent } from './events'
+import { reconcileConvergedAllianceRosters } from './allianceRosterConvergence'
 import {
   createRealityAlliance,
   refreshRealityAllianceOverlaps,
@@ -399,6 +400,16 @@ function finalize(
       return
     }
     const candidateId = request.candidateId
+    const resultingRoster = [...alliance.memberIds, candidateId].sort()
+    const existingRosterIds = Object.values(state.alliances)
+      .filter(
+        (candidate) =>
+          candidate.id !== alliance.id &&
+          isCurrentAlliance(candidate) &&
+          allianceKind(candidate) === 'GROUP' &&
+          [...candidate.memberIds].sort().join('~') === resultingRoster.join('~')
+      )
+      .map((candidate) => candidate.id)
     const priorMemberIds = [...alliance.memberIds]
     alliance.memberIds.push(candidateId)
     alliance.memberJoinSequence ??= {}
@@ -424,6 +435,13 @@ function finalize(
     request.resultAllianceId = alliance.id
     const candidateName = displayMemberNames([candidateId], context)
     successReason = `${candidateName === 'You' ? "You're in" : `${candidateName} is in`}! ${alliance.name ?? 'The alliance'} now has ${alliance.memberIds.length} members.`
+    const converged = reconcileConvergedAllianceRosters(state, context.at, existingRosterIds)
+    const closedGroup = converged.find((entry) => entry.id === alliance.id)
+    if (closedGroup?.supersededById) {
+      const survivor = state.alliances[closedGroup.supersededById]
+      request.resultAllianceId = survivor?.id ?? closedGroup.supersededById
+      successReason = `${candidateName === 'You' ? "You're in" : `${candidateName} is in`}! ${survivor?.name ?? 'The matching alliance'} already has this exact roster, so it remains the active group.`
+    }
   } else if (
     alliance &&
     (request.kind === 'APPOINT' || request.kind === 'TRANSFER') &&

@@ -118,6 +118,7 @@ function buildIncomingReactionText(
   responseLabel: string | undefined,
   fromName: string,
   subjectName: string | undefined,
+  secondarySubjectName: string | undefined,
   phase: string,
   recentLines: readonly string[] = []
 ): string | undefined {
@@ -150,6 +151,7 @@ function buildIncomingReactionText(
     responseLabel,
     fromName,
     subjectName,
+    secondarySubjectName,
     seed: seed >>> 0,
     recentLines,
   })
@@ -217,6 +219,81 @@ export function buildAllianceGroupRead(
       ]
     })
   return reads.length > 0 ? `Alliance reads — ${reads.join('; ')}.` : null
+}
+
+export function buildAllianceHuddleDecisionOutcome(
+  interaction: IncomingInteraction,
+  responseType: IncomingInteractionResponseType,
+  players: readonly { id: string; name: string; status: string; isUser?: boolean }[]
+): string | null {
+  if (interaction.payload?.allianceGroupHuddle !== true) return null
+  const humanId = players.find((player) => player.isUser)?.id
+  const byId = new Map(players.map((player) => [player.id, player] as const))
+  const authoredIds = Array.isArray(interaction.payload.allianceGroupMemberIds)
+    ? interaction.payload.allianceGroupMemberIds.filter(
+        (id): id is string => typeof id === 'string'
+      )
+    : []
+  const activeIds = new Set(
+    [...new Set([interaction.fromId, ...authoredIds, ...(humanId ? [humanId] : [])])].filter(
+      (id) => {
+        const player = byId.get(id)
+        return player && player.status !== 'evicted' && player.status !== 'jury'
+      }
+    )
+  )
+  const humanAttends = responseType !== 'dismiss' && responseType !== 'ignore'
+  const attendeeIds = [...activeIds].filter((id) => id !== humanId || humanAttends)
+  const majority = Math.floor(attendeeIds.length / 2) + 1
+  const targetId =
+    typeof interaction.payload.subjectId === 'string' ? interaction.payload.subjectId : undefined
+  const fallbackId =
+    typeof interaction.payload.secondarySubjectId === 'string'
+      ? interaction.payload.secondarySubjectId
+      : undefined
+  const rawPreferences = interaction.payload.allianceMemberTargetPreferences
+  const preferences =
+    rawPreferences && typeof rawPreferences === 'object' && !Array.isArray(rawPreferences)
+      ? (rawPreferences as Record<string, unknown>)
+      : null
+  const rawFallbacks = interaction.payload.allianceMemberFallbackPreferences
+  const fallbacks =
+    rawFallbacks && typeof rawFallbacks === 'object' && !Array.isArray(rawFallbacks)
+      ? (rawFallbacks as Record<string, unknown>)
+      : null
+  const humanSupports = responseType === 'accept' || responseType === 'positive'
+  const supportFor = (candidateId: string | undefined, map: Record<string, unknown> | null) =>
+    candidateId
+      ? attendeeIds.filter((memberId) =>
+          memberId === humanId ? humanSupports : map ? map[memberId] === candidateId : true
+        ).length
+      : 0
+  const nameFor = (id: string | undefined) => (id ? (byId.get(id)?.name ?? id) : undefined)
+  const strategy = interaction.payload.allianceStrategyKind
+  const clauses: string[] = []
+  if (strategy === 'SAFETY') {
+    if (targetId && supportFor(targetId, preferences) >= majority)
+      clauses.push(`a majority recommends saving ${nameFor(targetId)}`)
+    if (fallbackId && supportFor(fallbackId, fallbacks) >= majority)
+      clauses.push(`a majority recommends ${nameFor(fallbackId)} for the replacement seat`)
+    if (clauses.length === 0) {
+      const read = buildAllianceGroupRead(interaction, players)
+      return `No Safety choice reached a member majority. ${read ?? 'The members did not record a shared Safety preference.'} The Safety holder makes the final decision.`
+    }
+    return `The huddle recorded ${clauses.join(' and ')}. The Safety holder makes the final decision.`
+  }
+
+  if (strategy === 'NOMINATION') {
+    if (targetId && supportFor(targetId, preferences) >= majority)
+      return `The huddle recorded a majority recommendation to target ${nameFor(targetId)}. This does not guarantee a nomination; the LOH sets the slate.`
+    const read = buildAllianceGroupRead(interaction, players)
+    return `No target reached a member majority. ${read ?? 'The members did not record a shared nomination preference.'} The LOH sets the slate.`
+  }
+
+  if (targetId && supportFor(targetId, preferences) >= majority)
+    return `The alliance recorded a majority read for ${nameFor(targetId)}. Each eligible member still casts their own ballot.`
+  const read = buildAllianceGroupRead(interaction, players)
+  return `The huddle did not reach a majority vote read. ${read ?? 'No shared vote preference was recorded.'} Each eligible member still casts their own ballot.`
 }
 
 function resolveRealityIncomingInteraction(
@@ -707,30 +784,37 @@ function buildResponseOutcomeText(
 
   const scenarioKey = interaction.payload?.scenarioKey
   if (isAllianceStrategyScenario(scenarioKey)) {
-    if (interaction.payload?.allianceGroupHuddle === true && responseType === 'neutral') {
-      const concreteRead = buildAllianceGroupRead(interaction, players)
-      if (concreteRead) {
-        return `You heard the alliance without committing. ${concreteRead}`
+    if (interaction.payload?.allianceGroupHuddle === true) {
+      const decisionOutcome =
+        buildAllianceHuddleDecisionOutcome(interaction, responseType, players) ??
+        'No group plan was recorded.'
+      if (responseType === 'accept' || responseType === 'positive') {
+        return `You backed the alliance huddle. ${decisionOutcome}`
       }
+      if (responseType === 'neutral') {
+        return `You asked for the alliance's read without committing. ${decisionOutcome}`
+      }
+      if (responseType === 'decline' || responseType === 'negative') {
+        return `You pushed back on the alliance proposal. ${decisionOutcome}`
+      }
+      return `You sat out of the alliance huddle. ${decisionOutcome}`
     }
     if (responseType === 'accept' || responseType === 'positive') {
-      return interaction.payload?.allianceGroupHuddle === true
-        ? `Your position joined ${fromName}'s alliance huddle. Any majority-backed plan is now recorded.`
-        : `${fromName} took your answer as strategic alignment. The shared alliance plan is now live.`
+      if (scenarioKey === 'alliance_nomination_pitch')
+        return `You and ${fromName} recorded ${subjectName ?? 'the proposed target'} as an alliance recommendation. The LOH still sets the slate.`
+      if (scenarioKey === 'alliance_safety_pitch')
+        return `You and ${fromName} recorded ${subjectName ?? 'the proposed player'} as a replacement recommendation. The Safety holder still makes the final decision.`
+      if (scenarioKey === 'alliance_vote_pitch')
+        return `You and ${fromName} recorded ${subjectName ?? 'the proposed nominee'} as a shared vote read. Each eligible member still casts their own ballot.`
+      return `${fromName} took your answer as strategic alignment. The shared alliance recommendation is now recorded.`
     }
     if (responseType === 'neutral') {
-      return interaction.payload?.allianceGroupHuddle === true
-        ? `You heard ${fromName}'s alliance read without committing. Your position was recorded, and the room may still settle on a majority-backed plan.`
-        : `You heard ${fromName}'s alliance read without committing to it. No shared plan was locked.`
+      return `You heard ${fromName}'s alliance read without committing to it. No shared plan was locked.`
     }
     if (responseType === 'decline' || responseType === 'negative') {
-      return interaction.payload?.allianceGroupHuddle === true
-        ? `You pushed back on ${fromName}'s proposed move. Your dissent was recorded, though the alliance can still lock a majority-backed plan.`
-        : `You pushed back on ${fromName}'s proposed move. The alliance remains intact, but this target was not agreed.`
+      return `You pushed back on ${fromName}'s proposed move. The alliance remains intact, but the recommendation was not agreed.`
     }
-    return interaction.payload?.allianceGroupHuddle === true
-      ? `You stepped out of ${fromName}'s alliance huddle. The remaining members may still reach a plan without you.`
-      : `You stepped out of ${fromName}'s strategy conversation. No alliance plan was locked from your response.`
+    return `You stepped out of ${fromName}'s strategy conversation. No alliance recommendation was recorded from your response.`
   }
   if (scenarioKey === 'safety_holder_consults_loh') {
     const choice = getDeclaredSafetyChoice(interaction, responseLabel)
@@ -908,6 +992,9 @@ function applyIncomingChoiceConsequences({
     responseLabel,
     fromName,
     subjectName,
+    typeof interaction.payload?.secondarySubjectName === 'string'
+      ? interaction.payload.secondarySubjectName
+      : undefined,
     state.game.phase,
     getRecentIncomingReactionLines(state, interaction)
   )
@@ -1305,6 +1392,7 @@ export function respondToIncomingInteraction({
         responseLabel,
         getState().game.players.find((player) => player.id === interaction.fromId)?.name ??
           interaction.fromId,
+        undefined,
         undefined,
         state.game.phase,
         getRecentIncomingReactionLines(getState(), interaction)

@@ -936,43 +936,102 @@ function buildConsultationMemberPlanBeliefs(
 
 function getAllianceConsultationAgenda(
   state: RootState,
-  actorId: string
-): AllianceConsultationPlan['agenda'] {
-  const actorIsLoh =
-    state.game.lohId === actorId || getCupidPartnerId(state.game, state.game.lohId) === actorId
-  const actorHasSafety =
-    state.game.posWinnerId === actorId ||
-    getCupidPartnerId(state.game, state.game.posWinnerId) === actorId
-  const nomineesExist = state.game.nomineeIds.length > 0
-
-  if (actorIsLoh && ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)) {
-    return 'nominations'
-  }
-  if (!nomineesExist && ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)) {
-    return 'loh_intel'
-  }
+  actorId: string,
+  alliance: RealityAlliance,
+  attendeeIds: readonly string[]
+): AllianceConsultationPlan['agenda'] | null {
+  const actor = state.game.players.find((player) => player.id === actorId)
   if (
-    actorHasSafety &&
+    !alliance.memberIds.includes(actorId) ||
+    !actor ||
+    actor.status === 'evicted' ||
+    actor.status === 'jury'
+  ) {
+    return null
+  }
+  const attendeeSet = new Set(attendeeIds)
+  const lohId = state.game.lohId
+  const safetyHolderId = state.game.posWinnerId
+  const attendeeHasLoh = Boolean(
+    lohId && (attendeeSet.has(lohId) || attendeeSet.has(getCupidPartnerId(state.game, lohId) ?? ''))
+  )
+  const attendeeHasSafety = Boolean(
+    safetyHolderId &&
+    (attendeeSet.has(safetyHolderId) ||
+      attendeeSet.has(getCupidPartnerId(state.game, safetyHolderId) ?? ''))
+  )
+  const hasCurrentLohPlan = Boolean(
+    state.game.lohSocialPlan?.week === state.game.week && state.game.lohSocialPlan.lohId === lohId
+  )
+  const hasDisclosedLohPlan = Boolean(
+    hasCurrentLohPlan &&
+    attendeeIds.some((id) => state.game.lohSocialPlan?.disclosedTargetByPlayerId?.[id])
+  )
+  const nomineesExist = state.game.nomineeIds.length > 0
+  const beforeNominations = ['loh_results', 'social_1', 'nominations'].includes(state.game.phase)
+  const voxDecides = state.game.voxPopuli?.status === 'active'
+
+  if (
+    attendeeHasSafety &&
     ['pos_results', 'pos_ceremony'].includes(state.game.phase) &&
-    nomineesExist
+    nomineesExist &&
+    !state.game.povSavedId
   ) {
     return 'safety'
   }
+  if (isLohReplacementPending(state.game)) {
+    if (attendeeHasLoh) return 'replacement'
+    return hasDisclosedLohPlan ? 'replacement_intel' : null
+  }
+
+  if (beforeNominations && attendeeHasLoh) {
+    return 'nominations'
+  }
+  if (beforeNominations && hasDisclosedLohPlan) {
+    return 'loh_intel'
+  }
   if (
-    state.game.voxPopuli?.status !== 'active' &&
+    voxDecides &&
     nomineesExist &&
     ['nomination_results', 'pos_results', 'pos_ceremony'].includes(state.game.phase)
   ) {
-    return 'block_strategy'
+    return 'audience_read'
   }
   if (
-    state.game.voxPopuli?.status !== 'active' &&
+    ['nomination_results', 'pos_results', 'pos_ceremony'].includes(state.game.phase) &&
     nomineesExist &&
-    ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.game.phase)
+    !voxDecides
   ) {
-    return 'eviction_vote'
+    const activeStrategist = alliance.memberIds.some((memberId) => {
+      const member = state.game.players.find((player) => player.id === memberId)
+      return (
+        attendeeSet.has(memberId) &&
+        member &&
+        member.status !== 'evicted' &&
+        member.status !== 'jury' &&
+        !state.game.nomineeIds.includes(memberId)
+      )
+    })
+    if (activeStrategist) return 'block_strategy'
   }
-  return 'strategy'
+  const voteWindow = ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.game.phase)
+  if (nomineesExist && voteWindow && voxDecides) return 'audience_read'
+  if (nomineesExist && voteWindow && !voxDecides) {
+    const activeIds = new Set(
+      state.game.players
+        .filter((player) => player.status !== 'evicted' && player.status !== 'jury')
+        .map((player) => player.id)
+    )
+    const hasEligibleAllyVoter = alliance.memberIds.some(
+      (memberId) =>
+        attendeeSet.has(memberId) &&
+        activeIds.has(memberId) &&
+        !state.game.nomineeIds.includes(memberId) &&
+        memberId !== lohId
+    )
+    if (hasEligibleAllyVoter || attendeeHasSafety) return 'eviction_vote'
+  }
+  return null
 }
 
 export function buildAllianceConsultationPlan(
@@ -992,8 +1051,104 @@ export function buildAllianceConsultationPlan(
   // A scoped consultation is a private subset meeting. Members who were not
   // invited are not treated as having skipped an alliance meeting.
   const excusedAbsentIds = alliance.memberIds.filter((id) => !attendeeSet.has(id))
-  const agenda = getAllianceConsultationAgenda(state, actorId)
+  const agenda = getAllianceConsultationAgenda(state, actorId, alliance, attendeeIds)
+  if (!agenda) return null
   const nominees = state.game.players.filter((player) => state.game.nomineeIds.includes(player.id))
+
+  if (agenda === 'replacement') {
+    const candidates = getEligibleReplacementNominees(state.game, state.game.lohId).filter(
+      (candidate) => !isAllianceProtectedGameUnit(state, alliance, candidate.id)
+    )
+    if (candidates.length === 0) return null
+    const preferences = advisors
+      .map((advisorId) => {
+        const ranked = candidates
+          .filter((candidate) => candidate.id !== advisorId)
+          .map((candidate) => ({
+            advisorId,
+            targetId: candidate.id,
+            score: getNominationTargetScore(state.game, advisorId, candidate),
+          }))
+          .sort(
+            (left, right) => right.score - left.score || left.targetId.localeCompare(right.targetId)
+          )
+        return ranked[0]
+      })
+      .filter((entry): entry is { advisorId: string; targetId: string; score: number } =>
+        Boolean(entry)
+      )
+    const read = summarizeAlliancePreferences(state, preferences, 'Replacement advice')
+    const canonicalPlan = state.game.lohNominationPlan
+    const lohAttending = Boolean(state.game.lohId && attendeeIds.includes(state.game.lohId))
+    const disclosedReplacementId =
+      canonicalPlan?.week === state.game.week &&
+      canonicalPlan.lohId === state.game.lohId &&
+      canonicalPlan.status === 'planned' &&
+      lohAttending
+        ? (canonicalPlan.replacementTargetOverrideId ??
+          canonicalPlan.backupTargetId ??
+          canonicalPlan.replacementTargetId)
+        : undefined
+    const disclosedCandidate = candidates.find(
+      (candidate) => candidate.id === disclosedReplacementId
+    )
+    const summary = disclosedCandidate
+      ? `${playerName(state, state.game.lohId)} shares ${disclosedCandidate.name} as the current replacement choice. The alliance's independent advice is: ${read.summary} The LOH makes the final selection.`
+      : `${read.summary} The replacement seat is open, and the LOH makes the final selection.`
+    const targetId = read.targetIds[0]
+    return {
+      allianceId: alliance.id,
+      attendeeIds,
+      targetIds: targetId ? [targetId] : [],
+      fallbackTargetIds: [],
+      planIds: targetId ? [`replacement:${targetId}`] : [],
+      agenda: 'replacement',
+      summary,
+      excusedAbsentIds,
+      memberPlanBeliefs: buildConsultationMemberPlanBeliefs(attendeeIds, actorId, read),
+    }
+  }
+
+  if (agenda === 'replacement_intel') {
+    const plan = state.game.lohSocialPlan
+    const knownBy = attendeeIds.flatMap((memberId) => {
+      const targetId = plan?.disclosedTargetByPlayerId?.[memberId]
+      return targetId ? [{ memberId, targetId }] : []
+    })
+    const known = knownBy.find(({ targetId }) =>
+      state.game.players.some(
+        (player) =>
+          player.id === targetId && player.status !== 'evicted' && player.status !== 'jury'
+      )
+    )
+    if (!known) return null
+    return {
+      allianceId: alliance.id,
+      attendeeIds,
+      targetIds: [],
+      fallbackTargetIds: [],
+      planIds: [],
+      agenda: 'replacement_intel',
+      summary: `${known.memberId === actorId ? 'You have heard' : `${playerName(state, known.memberId)} has heard`} ${playerName(state, known.targetId)} named as a possible replacement. The seat is still open; no group vote or final nominee is recorded.`,
+      excusedAbsentIds,
+      memberPlanBeliefs: {},
+    }
+  }
+
+  if (agenda === 'audience_read') {
+    return {
+      allianceId: alliance.id,
+      attendeeIds,
+      targetIds: [],
+      fallbackTargetIds: [],
+      planIds: [],
+      agenda: 'audience_read',
+      summary:
+        'The audience decides who leaves. The alliance can compare what it knows and plan how to make its case, but it cannot lock a private vote.',
+      excusedAbsentIds,
+      memberPlanBeliefs: {},
+    }
+  }
 
   if (agenda === 'loh_intel') {
     const lohPlan =
@@ -1265,7 +1420,11 @@ export function buildAllianceConsultationPlan(
       : summarizeAlliancePreferences(
           state,
           preferences,
-          agenda === 'eviction_vote' ? 'Vote consensus' : 'Elimination vote',
+          agenda === 'eviction_vote'
+            ? 'Vote consensus'
+            : agenda === 'block_strategy'
+              ? 'Block strategy'
+              : 'Elimination vote',
           new Set(alliance.memberIds)
         )
     return {
@@ -1869,10 +2028,24 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       }
     }
     if (consultationAlliance) {
-      const agenda = getAllianceConsultationAgenda(state, input.actorId)
       const invitedIds = selectedConsultationAdvisorIds
         ? [input.actorId, ...selectedConsultationAdvisorIds]
         : [input.actorId, ...activeAllianceAdvisors(state, consultationAlliance, input.actorId)]
+      const agenda = getAllianceConsultationAgenda(
+        state,
+        input.actorId,
+        consultationAlliance,
+        invitedIds
+      )
+      if (!agenda) {
+        return result(
+          false,
+          'No alliance member has a useful read or decision role for the current game moment.',
+          energy,
+          0,
+          'No useful consultation'
+        )
+      }
       const invited = new Set(invitedIds)
       const alreadyMet = state.social.reality.events.some(
         (event) =>

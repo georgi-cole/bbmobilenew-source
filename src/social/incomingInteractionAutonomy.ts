@@ -38,6 +38,7 @@ import { getEffectiveSocialMode } from './socialMode'
 import { getRemoteScenarioLines, isIncomingInteractionActionable } from './socialRuntimeConfig'
 import { formatIncomingIntel, selectIntelFactForActor } from './intelligenceSystem'
 import type { RealityAlliance, RealityDomainState } from './reality/types'
+import { allianceKind, isCurrentAlliance } from './reality/allianceIdentity'
 import type { GameState, Player } from '../types'
 import {
   chooseAiEvictionVote,
@@ -662,7 +663,8 @@ function sharedLiveAlliance(
     Object.values(context.reality.alliances)
       .filter(
         (alliance) =>
-          (alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY') &&
+          isCurrentAlliance(alliance) &&
+          allianceKind(alliance) === 'GROUP' &&
           alliance.memberIds.includes(actorId) &&
           alliance.memberIds.includes(playerId)
       )
@@ -870,28 +872,6 @@ function resolveAllianceInteractionPlan(
   }
 
   if (actorId !== spokespersonId) return null
-
-  if (
-    context.voxPopuliActive &&
-    game.doubleEviction?.weekActive !== true &&
-    ['social_1', 'nominations'].includes(phase)
-  ) {
-    const subjectId = bestStrategicTarget(
-      game,
-      actorId,
-      getEligibleNominationTargets(game, playerId).filter(
-        (candidate) => !isAllianceProtectedGameUnit(game, alliance, candidate.id)
-      )
-    )
-    if (!subjectId) return null
-    return {
-      type: 'deal_offer',
-      scenarioKey: 'alliance_vox_ballot_pitch',
-      allianceId: alliance.id,
-      allianceStrategyKind: 'NOMINATION',
-      subjectId,
-    }
-  }
 
   if (
     (!context.voxPopuliActive || game.doubleEviction?.weekActive === true) &&
@@ -1408,6 +1388,9 @@ export function evaluateIncomingInteractionEnqueueDecision(
     'alliance_power_nomination_huddle',
     'alliance_power_safety_huddle',
   ].includes(plan.scenarioKey)
+  const isAllianceGroupHuddle =
+    plan.scenarioKey === 'alliance_power_nomination_huddle' ||
+    plan.scenarioKey === 'alliance_power_safety_huddle'
 
   const globalActive = pendingInteractions.filter(
     (interaction) => !interaction.resolved && isIncomingInteractionActionable(interaction)
@@ -1439,7 +1422,7 @@ export function evaluateIncomingInteractionEnqueueDecision(
       !interaction.resolved &&
       isIncomingInteractionActionable(interaction)
   ).length
-  if (perAiActive >= cfg.maxPerAI && !isCriticalConsultation) {
+  if (perAiActive >= cfg.maxPerAI && !(isCriticalConsultation && !isAllianceGroupHuddle)) {
     if (socialConfig.verbose) {
       console.debug(
         `[autonomy] skip ${actorId}: per-AI cap reached (${perAiActive}/${cfg.maxPerAI})`
@@ -1456,7 +1439,11 @@ export function evaluateIncomingInteractionEnqueueDecision(
   )
   if (
     recencyPenalty >= 0.5 &&
-    !((context.dramaMode || context.voxPopuliActive) && isCriticalEventScenario(plan))
+    !(
+      (context.dramaMode || context.voxPopuliActive) &&
+      isCriticalEventScenario(plan) &&
+      !isAllianceGroupHuddle
+    )
   ) {
     if (socialConfig.verbose) {
       console.debug(`[autonomy] skip ${actorId}: on cooldown (recencyPenalty=${recencyPenalty})`)
@@ -2092,6 +2079,8 @@ export function scheduleIncomingInteractionsForPhase(
   const criticalDecisionCount = rankedDecisions.filter(
     (entry) =>
       (context.dramaMode || context.voxPopuliActive) &&
+      entry.decision.plan?.scenarioKey !== 'alliance_power_nomination_huddle' &&
+      entry.decision.plan?.scenarioKey !== 'alliance_power_safety_huddle' &&
       entry.decision.allowed &&
       isCriticalEventScenario(entry.decision.plan)
   ).length
@@ -2242,7 +2231,21 @@ export function scheduleIncomingInteractionsForPhase(
             }
           : {}),
         ...(plan.allianceId
-          ? { dedupeGroup: `alliance_strategy:${plan.allianceId}:${plan.scenarioKey}` }
+          ? {
+              dedupeGroup: `alliance_strategy:${plan.allianceId}:${plan.scenarioKey}`,
+              ...(plan.allianceGroupHuddle
+                ? {
+                    allianceDecisionKey: [
+                      plan.allianceId,
+                      plan.allianceStrategyKind ?? 'STRATEGY',
+                      week,
+                      plan.allianceStrategyKind === 'NOMINATION'
+                        ? `plan:${plan.lohNominationPlanContext?.revision ?? 1}:${context.isDoubleEviction === true}`
+                        : `block:${[...(context.nomineeIds ?? [])].sort().join(',')}:${context.gameState?.posWinnerId ?? ''}`,
+                    ].join(':'),
+                  }
+                : {}),
+            }
           : {}),
         ...(plan.relationshipIntent ? { relationshipIntent: plan.relationshipIntent } : {}),
         ...(plan.relationshipBeatId ? { relationshipBeatId: plan.relationshipBeatId } : {}),
@@ -2250,7 +2253,9 @@ export function scheduleIncomingInteractionsForPhase(
         variantId: textResult.variantId,
         actorStatus: actor.status,
         subjectId: subject?.id,
+        ...(subjectName ? { subjectName } : {}),
         ...(plan.secondarySubjectId ? { secondarySubjectId: plan.secondarySubjectId } : {}),
+        ...(secondarySubjectName ? { secondarySubjectName } : {}),
         ...(plan.allianceId ? { allianceId: plan.allianceId } : {}),
         ...(plan.allianceStrategyKind ? { allianceStrategyKind: plan.allianceStrategyKind } : {}),
         ...(plan.allianceGroupMemberIds
@@ -2307,19 +2312,22 @@ export function scheduleIncomingInteractionsForPhase(
           ? `score=${decision.score.toFixed(3)};scenario=${plan.scenarioKey}`
           : `scenario=${plan.scenarioKey}`,
     })
-    const mustDeliverConsultationNow = [
-      'loh_consults_safety_holder',
-      'alliance_power_nomination_huddle',
-      'alliance_power_safety_huddle',
-    ].includes(plan.scenarioKey)
+    const mustDeliverConsultationNow = plan.scenarioKey === 'loh_consults_safety_holder'
     const candidateDedupeReason = getInteractionDedupeReason({
       interaction,
       priority,
       pendingInteractions,
       week,
     })
-    const dedupeReason =
-      mustDeliverConsultationNow && candidateDedupeReason !== 'deduped_same_scenario'
+    const allianceDecisionKey = interaction.payload?.allianceDecisionKey
+    const duplicateAllianceDecision =
+      typeof allianceDecisionKey === 'string' &&
+      pendingInteractions.some(
+        (entry) => entry.payload?.allianceDecisionKey === allianceDecisionKey
+      )
+    const dedupeReason = duplicateAllianceDecision
+      ? 'deduped_alliance_decision'
+      : mustDeliverConsultationNow && candidateDedupeReason !== 'deduped_same_scenario'
         ? null
         : candidateDedupeReason
     if (dedupeReason) {

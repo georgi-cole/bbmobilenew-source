@@ -991,15 +991,13 @@ export default function SocialPanelV2() {
       selectedAllianceConsultationTargets[0] ??
       null)
     : (consultationTargetCandidates[0] ?? null)
-  const eligibleConsultationAlliances = useMemo(
-    () =>
-      selectedConsultationMemberId
-        ? consultationAlliances.filter((alliance) =>
-            alliance.memberIds.includes(selectedConsultationMemberId)
-          )
-        : [],
-    [consultationAlliances, selectedConsultationMemberId]
-  )
+  const eligibleConsultationAlliances = useMemo(() => {
+    if (selectedAlliance && !isCurrentAlliance(selectedAlliance)) return []
+    if (!selectedConsultationMemberId) return consultationAlliances
+    return consultationAlliances.filter((alliance) =>
+      alliance.memberIds.includes(selectedConsultationMemberId)
+    )
+  }, [consultationAlliances, selectedAlliance, selectedConsultationMemberId])
   const displayedGroups = isAllianceInvitation
     ? invitationGroups
     : isAllianceConsultation
@@ -1025,6 +1023,23 @@ export default function SocialPanelV2() {
             )
         )
     : null
+  const consultationEligibilityTargetId =
+    (selectedConsultationMemberId &&
+    eligibleConsultationAlliances.some((alliance) =>
+      alliance.memberIds.includes(selectedConsultationMemberId)
+    )
+      ? selectedConsultationMemberId
+      : null) ??
+    (selectedConsultationAlliance ? consultationRepresentativeId : null) ??
+    eligibleConsultationAlliances[0]?.memberIds.find(
+      (memberId) =>
+        memberId !== humanPlayer?.id &&
+        game.players.some(
+          (player) =>
+            player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+        )
+    ) ??
+    null
   const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
   // A social visit always starts with the roster unselected. Contextual calls
   // can highlight an action, but never choose a housemate on the player's behalf.
@@ -2417,8 +2432,8 @@ export default function SocialPanelV2() {
               onPremiumLockedClick={handleRealityUpgrade}
               selectedTargetIds={selectedPlayerIds}
               consultationTargetIds={
-                eligibleConsultationAlliances.length > 0 && selectedConsultationMemberId
-                  ? new Set([selectedConsultationMemberId])
+                eligibleConsultationAlliances.length > 0 && consultationEligibilityTargetId
+                  ? new Set([consultationEligibilityTargetId])
                   : new Set()
               }
               players={orderedPlayers}
@@ -2458,13 +2473,52 @@ export default function SocialPanelV2() {
                             moveFilter === 'alliances' ||
                             entry.action.id.startsWith('alliance:invite:')
                         )
-                        .map(({ action, allowWithoutTarget, buildCommand }) => ({
-                          action,
-                          allowWithoutTarget,
-                          costs:
-                            allianceProposalPrice(buildCommand([...selectedTargets])) ??
-                            normalizeActionCosts(action, selectedTargetCount, dramaMode),
-                        }))
+                        .map(({ action, allowWithoutTarget, buildCommand }) => {
+                          const command = buildCommand([...selectedTargets])
+                          const costs =
+                            allianceProposalPrice(command) ??
+                            normalizeActionCosts(action, selectedTargetCount, dramaMode)
+                          if (command.type !== 'PROPOSE' || command.kind !== 'FOUND') {
+                            return { action, allowWithoutTarget, costs }
+                          }
+
+                          const proposedRoster = [...new Set(command.memberIds ?? [])].sort()
+                          const rosterKey = proposedRoster.join('~')
+                          const existingGroups = Object.values(
+                            socialState.reality.alliances
+                          ).filter(
+                            (alliance) =>
+                              isCurrentAlliance(alliance) && allianceKind(alliance) === 'GROUP'
+                          )
+                          const exactMatch = existingGroups.find(
+                            (alliance) => [...alliance.memberIds].sort().join('~') === rosterKey
+                          )
+                          if (exactMatch) {
+                            return {
+                              action,
+                              allowWithoutTarget,
+                              costs,
+                              disabled: true,
+                              availabilityReason: `An alliance with these hubmates already exists: ${exactMatch.name ?? 'the existing alliance'}.`,
+                            }
+                          }
+
+                          const nestedMatch = existingGroups.find(
+                            (alliance) =>
+                              alliance.memberIds.length < proposedRoster.length &&
+                              alliance.memberIds.every((id) => proposedRoster.includes(id))
+                          )
+                          return {
+                            action,
+                            allowWithoutTarget,
+                            costs,
+                            ...(nestedMatch
+                              ? {
+                                  availabilityReason: `You already have ${nestedMatch.name ?? 'an alliance'} with some of this group. You can invite the additional hubmate into it, or form this separate alliance.`,
+                                }
+                              : {}),
+                          }
+                        })
                     : undefined
               }
             />

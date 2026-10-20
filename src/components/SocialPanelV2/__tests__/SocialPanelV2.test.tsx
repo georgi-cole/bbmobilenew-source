@@ -842,12 +842,19 @@ describe('SocialPanelV2 – accessibility', () => {
 
 describe('SocialPanelV2 – scoped alliance consultation', () => {
   it('consults one selected official alliance as a group and keeps pacts out of the picker', () => {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const seedStore = makeStore({ phase: 'social_1', dramaMode: true })
+    const lohId = seedStore.getState().game.players.filter((player) => !player.isUser)[0]!.id
+    const store = makeStore({
+      phase: 'social_1',
+      dramaMode: true,
+      lohId,
+      playerStatusOverrides: { [lohId]: 'loh' },
+    })
     const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     const allies = store
       .getState()
       .game.players.filter((player) => !player.isUser)
-      .slice(0, 2)
+      .slice(0, 3)
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'consult-scope-ui',
@@ -861,7 +868,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     const otherAlliance = createRealityAlliance(reality, {
       id: 'consult-scope-ui-overlap',
       founderIds: [humanId, allies[0].id],
-      memberIds: [allies[1].id],
+      memberIds: [allies[2].id],
       purpose: 'Mutual protection',
       at: { day: 1, phase: 'social_1' },
     })
@@ -949,11 +956,18 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     ).toBe(true)
   })
 
-  it('consults a current fractured alliance after the returning member is readmitted', () => {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+  it('consults a current fractured alliance after the returning LOH member is readmitted', () => {
+    const seedStore = makeStore({ phase: 'social_1', dramaMode: true })
+    const lohId = seedStore.getState().game.players.find((player) => !player.isUser)!.id
+    const store = makeStore({
+      phase: 'social_1',
+      dramaMode: true,
+      lohId,
+      playerStatusOverrides: { [lohId]: 'loh' },
+    })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const candidates = store.getState().game.players.filter((player) => !player.isUser)
-    const ally = candidates[0]!
+    const ally = candidates.find((player) => player.id === lohId)!
     const outsider = candidates[1]!
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
@@ -1358,19 +1372,19 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
   it('invites a selected player from All moves only after selecting one eligible alliance', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
-    const [allyA, allyB, candidate] = store
+    const [allyA, allyB, candidate, otherAlly] = store
       .getState()
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
-      .slice(0, 3)
+      .slice(0, 4)
     const reality = createInitialRealityDomainState()
-    for (const [id, name] of [
-      ['compact-shield', 'The Shield'],
-      ['compact-circle', 'The Circle'],
+    for (const [id, name, thirdMemberId] of [
+      ['compact-shield', 'The Shield', allyB.id],
+      ['compact-circle', 'The Circle', otherAlly.id],
     ]) {
       const group = createRealityAlliance(reality, {
         id,
         founderIds: [human.id, allyA.id],
-        memberIds: [allyB.id],
+        memberIds: [thirdMemberId],
         purpose: 'Mutual protection',
         at: { day: 1, phase: 'social_1' },
       })
@@ -1514,17 +1528,17 @@ describe('SocialPanelV2 – alliance context and history', () => {
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
       .slice(0, 3)
     const reality = createInitialRealityDomainState()
-    for (const [id, name, leaderId] of [
-      ['scope-shield', 'The Shield', human.id],
-      ['scope-circle', 'The Circle', a.id],
+    for (const [id, name, leaderId, thirdMemberId] of [
+      ['scope-shield', 'The Shield', human.id, b.id],
+      ['scope-circle', 'The Circle', a.id, candidate.id],
     ]) {
       createRealityAlliance(reality, {
         id,
         name,
         kind: 'GROUP',
         leaderId,
-        founderIds: [human.id, a.id, b.id],
-        memberIds: [],
+        founderIds: [human.id, a.id],
+        memberIds: [thirdMemberId],
         purpose: 'Protection',
         at: { day: 1, phase: 'social_1' },
       }).status = 'ACTIVE'

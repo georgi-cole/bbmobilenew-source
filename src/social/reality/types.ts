@@ -669,6 +669,8 @@ export interface RealitySocialEvent extends RealityClock {
     memberIds: RealityActorId[]
     endReason?: string
     exitKind?: 'VOLUNTARY' | 'EXPELLED' | 'DEFECTION' | 'ELIMINATED'
+    supersededById?: string
+    supersededByName?: string
   }
   publicEligible: boolean
   juryEligible: boolean
