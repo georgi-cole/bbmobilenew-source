@@ -80,8 +80,9 @@ const DEFAULT_CHAMBER_PARTICIPANTS = [
   { id: 'ai-4', name: 'Orion', isHuman: false, avatar: '☄️' },
 ]
 
-const AI_CHOICE_DELAY_MS = 1900
-const AI_AUTO_ADVANCE_DELAY_MS = 5600
+const AI_CHOICE_DELAY_MS = 450
+const AI_AUTO_ADVANCE_DELAY_MS = 850
+const AI_POWER_ACTIVATION_DELAY_MS = 650
 const POWER_ACTIVATION_DELAY_MS = 1800
 const BOX_OPENING_DELAY_MS = 2600
 const BOX_REVEAL_DELAY_MS = 1800
@@ -149,7 +150,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     createChamberState(participants, sessionSeed)
   )
   const [view, setView] = useState<ChamberView>('choice')
-  const [autoplay, setAutoplay] = useState(false)
+  const [autoplay, setAutoplay] = useState(true)
   const [selectedAction, setSelectedAction] = useState<ChamberAction | null>(null)
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<{
@@ -244,7 +245,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
         ? BOX_IMPACT_DELAY_MS
         : isOpeningBox
           ? BOX_OPENING_DELAY_MS
-          : POWER_ACTIVATION_DELAY_MS
+          : actor.isHuman ? POWER_ACTIVATION_DELAY_MS : AI_POWER_ACTIVATION_DELAY_MS
     const timer = window.setTimeout(() => {
       if (isBoxImpact) {
         if (!pendingBoxTargetId) {
