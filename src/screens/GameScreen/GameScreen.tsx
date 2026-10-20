@@ -1356,6 +1356,7 @@ export default function GameScreen() {
     game.phase !== 'jury' &&
     game.phase !== 'jury_announcement' &&
     game.phase !== 'jury_cinematic'
+
   // Condition-driven prompts (approval, energy, unlocked reveals, etc.) must
   // never cover a ceremony or cinematic that is already active or queued by
   // the game state. Keeping their state pending lets them appear immediately
@@ -1552,8 +1553,8 @@ export default function GameScreen() {
         key: 'tribunal_invitation',
         title: "Your Story Isn't Over",
         subtitle: futureReturnPossible
-          ? 'You\'re on the Tribunal. Your vote helps crown the winner. Rewards and a possible comeback still await.'
-          : 'You\'re on the Tribunal. Your vote helps crown the winner, and you can still earn rewards.',
+          ? "You're on the Tribunal. Your vote helps crown the winner. Rewards and a possible comeback still await."
+          : "You're on the Tribunal. Your vote helps crown the winner, and you can still earn rewards.",
         isLive: false,
         autoDismissMs: null,
       }
