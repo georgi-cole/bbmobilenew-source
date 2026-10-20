@@ -1575,6 +1575,9 @@ export default function TvZone(props: TvZoneProps) {
   // Distinguish the double-eviction spotlight from the live-vote focus state.
   const isDeSpotlight = deSpotlightActive
   const isTribunalSpotlight = isDeSpotlight && activeAnnouncement?.key === 'tribunal_invitation'
+  const spotlightBackdropClass = isTribunalSpotlight
+    ? 'tv-zone-de-backdrop tv-zone-de-backdrop--tribunal'
+    : 'tv-zone-de-backdrop'
   const isCupidOutlinePulse = cupidOutlinePulseActive
   // Mounting the Day 1 → Day 2 weather handoff starts this one-shot CSS pulse.
   const isWeekendElectricPulse = weekendDayTransitionActive
@@ -1632,7 +1635,7 @@ export default function TvZone(props: TvZoneProps) {
       {isDeSpotlight &&
         createPortal(
           <div
-            className={`tv-zone-de-backdrop${isTribunalSpotlight ? ' tv-zone-de-backdrop--tribunal' : ''}`}
+            className={spotlightBackdropClass}
             aria-hidden="true"
           />,
           document.body
@@ -1938,7 +1941,10 @@ export default function TvZone(props: TvZoneProps) {
                 paused={modalOpen}
                 infoButtonRef={announcementInfoButtonRef}
                 hideTitle={cupidFollowUpVisible}
-                showInfoButton={activeAnnouncement.key !== 'tribunal_invitation' && (cupidFollowUpVisible || activeAnnouncement.key !== 'cupid_arrow')}
+                showInfoButton={
+                  activeAnnouncement.key !== 'tribunal_invitation' &&
+                  (cupidFollowUpVisible || activeAnnouncement.key !== 'cupid_arrow')
+                }
                 // The pair reveal belongs to the avatar storm. Keeping the
                 // follow-up copy short prevents the TV body from colliding
                 // with the roster below it.
