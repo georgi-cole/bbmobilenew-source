@@ -1634,10 +1634,7 @@ export default function TvZone(props: TvZoneProps) {
       {/* ── Double Eviction spotlight backdrop (portal to body) ──────────── */}
       {isDeSpotlight &&
         createPortal(
-          <div
-            className={spotlightBackdropClass}
-            aria-hidden="true"
-          />,
+          <div className={spotlightBackdropClass} aria-hidden="true" />,
           document.body
         )}
       {isLiveVoteFocus &&
