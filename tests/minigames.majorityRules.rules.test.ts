@@ -86,9 +86,7 @@ describe('Majority Rules', () => {
 
   it('never re-votes a 6–6–0 tie; zero-vote answers do not count as a minority', () => {
     const activeIds = Array.from({ length: 12 }, (_, i) => `p${i + 1}`)
-    const answers = Object.fromEntries(
-      activeIds.map((id, i) => [id, i < 6 ? 'a' : 'b'])
-    )
+    const answers = Object.fromEntries(activeIds.map((id, i) => [id, i < 6 ? 'a' : 'b']))
     const result = resolveMajorityRulesBallot({
       activeIds,
       answers,
@@ -107,7 +105,10 @@ describe('Majority Rules', () => {
       activeIds.map((id, i) => [id, i < 4 ? 'a' : i < 8 ? 'b' : 'c'])
     )
     const result = resolveMajorityRulesBallot({
-      activeIds, answers, question: QUESTION, eliminationCount: 1,
+      activeIds,
+      answers,
+      question: QUESTION,
+      eliminationCount: 1,
     })
     expect(result.kind).toBe('split')
     expect(result.eliminatedIds).toEqual([])
@@ -119,7 +120,12 @@ describe('Majority Rules', () => {
       const answers = Object.fromEntries(
         activeIds.map((id, i) => [id, i < a ? 'a' : i < a + b ? 'b' : 'c'])
       )
-      return resolveMajorityRulesBallot({ activeIds, answers, question: QUESTION, eliminationCount: 1 })
+      return resolveMajorityRulesBallot({
+        activeIds,
+        answers,
+        question: QUESTION,
+        eliminationCount: 1,
+      })
     }
     const oneOut = election(6, 5)
     expect(oneOut.kind).toBe('elimination')
