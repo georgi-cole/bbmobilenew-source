@@ -2,6 +2,7 @@ import { finalizeAcceptedPersonalPact } from './reality/allianceManagement'
 import { getCurrentPact } from './reality/allianceIdentity'
 import { getIncomingInteractionTone } from './incomingInteractionPresentation'
 import { getIncomingDialogueBeat } from './incomingDialogueOutcomeBank'
+import { getIncomingActionContent } from './incomingActionContentBank'
 import {
   getIncomingResponseLogCopy,
   getIncomingResponseRelationshipDelta,
@@ -108,8 +109,11 @@ function getRecentIncomingReactionLines(
     .slice(-12)
     .map((interaction) => {
       const reactionText = interaction.reactionText ?? ''
-      const replyStart = reactionText.indexOf(' replies: ')
-      return replyStart >= 0 ? reactionText.slice(replyStart + ' replies: '.length) : reactionText
+      const reactionPrefix = reactionText.match(/ (?:replies|reacts): /)
+      const reactionStart = reactionPrefix?.index
+      return reactionPrefix && reactionStart !== undefined
+        ? reactionText.slice(reactionStart + reactionPrefix[0].length)
+        : reactionText
     })
 }
 
@@ -147,7 +151,15 @@ function buildIncomingReactionText(
   }
 
   const beat = getIncomingDialogueBeat({
+    actionId:
+      typeof interaction.payload?.originActionId === 'string'
+        ? interaction.payload.originActionId
+        : undefined,
     scenarioKey,
+    variantFamilyId:
+      typeof interaction.payload?.variantFamilyId === 'string'
+        ? interaction.payload.variantFamilyId
+        : undefined,
     responseType,
     responseLabel,
     fromName,
@@ -156,7 +168,11 @@ function buildIncomingReactionText(
     seed: seed >>> 0,
     recentLines,
   })
-  return beat ? `${fromName} replies: ${beat}` : undefined
+  if (!beat) return undefined
+  const isActionReaction =
+    typeof interaction.payload?.originActionId === 'string' &&
+    Boolean(getIncomingActionContent(interaction.payload.originActionId))
+  return `${fromName} ${isActionReaction ? 'reacts' : 'replies'}: ${beat}`
 }
 
 export function buildAllianceGroupRead(

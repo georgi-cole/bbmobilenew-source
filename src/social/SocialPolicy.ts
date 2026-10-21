@@ -56,6 +56,7 @@ interface RichPolicyContext extends PolicyContext {
   recentActions?: readonly SocialActionLogEntry[]
   socialMemory?: SocialMemoryMap
   availableActionIds?: readonly string[]
+  dramaMode?: boolean
 }
 
 type RecentActionCountIndex = Map<string, number>
@@ -286,7 +287,17 @@ export function chooseTargetsFor(
   if (actionId === 'ask_use_safety') {
     const posHolder = eligible.find((player) => player.status.includes('pos'))
     if (!posHolder) return []
-    if (posHolder.status.includes('nominated')) return [posHolder.id, posHolder.id]
+    if (posHolder.status.includes('nominated')) {
+      const otherNominees = eligible.filter(
+        (player) => player.id !== posHolder.id && player.status.includes('nominated')
+      )
+      const preferredNominee = sortedByScore(
+        otherNominees,
+        (player) => normalizeAffinity(relationships[posHolder.id]?.[player.id]?.affinity ?? 0),
+        `${context.seed ?? 0}:safety:${posHolder.id}`
+      )[0]
+      return preferredNominee ? [posHolder.id, preferredNominee.id] : []
+    }
 
     const actor = players.find((player) => player.id === playerId)
     if (actor?.status.includes('nominated')) return [posHolder.id, playerId]
@@ -322,6 +333,83 @@ export function chooseTargetsFor(
     })
   const novelty = (targetId: string) =>
     1 / (1 + recentCount(context, playerId, actionId, targetId) * repeatPenalty)
+
+  const action = getRuntimeSocialActionById(actionId)
+  if (
+    action &&
+    (context.dramaMode ? (action.dramaTargetMode ?? action.targetMode) : action.targetMode) ===
+      'primaryPlusSubject'
+  ) {
+    const requiredTargetStatus = context.dramaMode
+      ? (action.dramaRequiredTargetStatus ?? action.requiredTargetStatus)
+      : action.requiredTargetStatus
+    const primaryPool = requiredTargetStatus
+      ? eligible.filter((candidate) =>
+          requiredTargetStatus.some((status) => status === candidate.status)
+        )
+      : eligible
+    const primary = sortedByScore(
+      primaryPool,
+      (candidate) => {
+        const experience = experienceFor(candidate.id)
+        return (
+          roleValue(candidate.status) * (0.45 + motives.ambition * 0.45) +
+          relationshipScore(candidate.id) * 0.35 +
+          experience.help * 0.15 -
+          experience.grievance * 0.1 +
+          novelty(candidate.id)
+        )
+      },
+      `${seed}:primary`
+    )[0]
+    if (!primary) return []
+
+    const subjectPool = action.subjectPool ?? 'houseguests'
+    const subjectCandidates = players.filter((candidate) => {
+      if (
+        candidate.id === primary.id ||
+        candidate.status === 'evicted' ||
+        candidate.status === 'jury' ||
+        (candidate.id === playerId && !action.allowActorAsSubject)
+      ) {
+        return false
+      }
+      const nominated = candidate.status.includes('nominated')
+      if (subjectPool === 'nominees') return nominated
+      if (subjectPool === 'non_nominees') return !nominated
+      if (subjectPool === 'allies') {
+        const tags = [
+          ...(relationships[playerId]?.[candidate.id]?.tags ?? []),
+          ...(relationships[candidate.id]?.[playerId]?.tags ?? []),
+        ]
+        return (
+          hasAllianceBetween(relationships, playerId, candidate.id) ||
+          tags.some((tag) => ['alliance', 'bromance', 'romance'].includes(tag)) ||
+          relationshipScore(candidate.id) > 0
+        )
+      }
+      if (subjectPool === 'voters') {
+        return !nominated && candidate.status !== 'loh' && candidate.status !== 'loh+pos'
+      }
+      return true
+    })
+    const subject = sortedByScore(
+      subjectCandidates,
+      (candidate) => {
+        const experience = experienceFor(candidate.id)
+        const affinity = relationshipScore(candidate.id)
+        const prefersBond = subjectPool === 'allies'
+        return (
+          affinity * (prefersBond ? 0.65 : -0.35) +
+          roleValue(candidate.status) * (0.2 + motives.ambition * 0.25) +
+          experience.grievance * (prefersBond ? -0.1 : 0.15) +
+          novelty(candidate.id)
+        )
+      },
+      `${seed}:subject`
+    )[0]
+    return subject ? [primary.id, subject.id] : []
+  }
 
   if (actionId === 'betray') {
     const strainedAlliances = eligible.filter((player) => {

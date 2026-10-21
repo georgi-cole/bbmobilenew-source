@@ -340,7 +340,7 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.outcomeText).not.toMatch(/your choice/i)
   })
 
-  it('groups the authored reaction and action-specific consequence into one response card', () => {
+  it('prefers the authored reply over a second relationship summary', () => {
     const store = makeStore()
     store.dispatch(setPhase('week_start'))
     store.dispatch(openIncomingInbox())
@@ -373,16 +373,69 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.reactionText).toContain('"')
     expect(entry?.outcomeText).toContain('appreciate the direct answer')
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
-    expect(screen.getByText(entry!.outcomeText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
     const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
     expect(responseCard).not.toBeNull()
-    expect(responseCard).toContainElement(screen.getByText(entry!.outcomeText!))
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
     expect(
       screen
         .getByText(entry!.reactionText!)
         .closest('[role="listitem"]')
         ?.querySelectorAll('.inbox-item__feedback')
     ).toHaveLength(1)
+  })
+
+  it('hides a campaign paraphrase but keeps a concrete pact outcome beside the reply', () => {
+    const store = makeStore()
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    const campaignReply = `${otherPlayer.name} replies: "My case is that I am a number you can work with. If you keep me safe, I will show you that in the next decision."`
+    const campaignSummary = `${otherPlayer.name} says they need one firm vote before they can pressure the fence-sitters.`
+    const pactReply = `${otherPlayer.name} replies: "I will remember that you chose to work with me."`
+    const pactOutcome = `The alliance with ${otherPlayer.name} is now active. Later votes and nominations will show whether it holds.`
+    const resolvedBase = {
+      fromId: otherPlayer.id,
+      createdWeek: 1,
+      expiresAtWeek: 1,
+      read: true,
+      requiresResponse: true,
+      resolved: true,
+      resolvedAt: 200,
+      resolvedWeek: 1,
+      resolvedWith: 'positive' as const,
+    }
+
+    store.dispatch(
+      pushIncomingInteraction({
+        ...resolvedBase,
+        id: 'campaign-response-summary',
+        type: 'check_in',
+        text: 'Keep me over the other nominee and you will not regret it.',
+        payload: { scenarioKey: 'nominee_campaign' },
+        createdAt: 200,
+        reactionText: campaignReply,
+        outcomeText: campaignSummary,
+      })
+    )
+    store.dispatch(
+      pushIncomingInteraction({
+        ...resolvedBase,
+        id: 'pact-response-state-change',
+        type: 'alliance_proposal',
+        text: 'Want to make a pact?',
+        createdAt: 201,
+        reactionText: pactReply,
+        outcomeText: pactOutcome,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByText('History · 2'))
+
+    expect(screen.getByText(campaignReply)).toBeInTheDocument()
+    expect(screen.queryByText(campaignSummary)).not.toBeInTheDocument()
+    expect(screen.getByText(pactReply)).toBeInTheDocument()
+    expect(screen.getByText(pactOutcome)).toBeInTheDocument()
   })
 
   it('hides an emotional outcome that only repeats the spoken relationship reaction', () => {
@@ -425,6 +478,48 @@ describe('IncomingInteractionsInbox', () => {
     expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
   })
 
+  it('shows an action-specific reaction once without repeating its relationship paraphrase', () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'action-specific-apology-reaction',
+        fromId: otherPlayer.id,
+        type: 'check_in',
+        text: 'I owe you an apology. I handled that badly, and I want to own it.',
+        payload: {
+          originActionId: 'apologize',
+          scenarioKey: 'relationship_repair_follow_up',
+          variantId: 'apologize:repair:1',
+        },
+        createdAt: 304,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Try to repair it' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'action-specific-apology-reaction'
+      )
+    expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} reacts:`))
+    expect(entry?.reactionText).not.toContain('"')
+    expect(entry?.outcomeText).toMatch(/willing to reset|pause the feud/i)
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
+    const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
+  })
+
   it('hides a summary that restates uncertainty already expressed in the reply', () => {
     const store = makeStoreWithSocialMiddleware()
     store.dispatch(setPhase('week_start'))
@@ -447,14 +542,14 @@ describe('IncomingInteractionsInbox', () => {
     )
 
     renderInbox(store)
-    fireEvent.click(screen.getByRole('button', { name: 'Play it cool' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Compare what they saw' }))
 
     const entry = store
       .getState()
       .social.incomingInteractions.find(
         (interaction) => interaction.id === 'social-momentum-no-paraphrase'
       )
-    expect(entry?.outcomeText).toContain('helping you or making you a target')
+    expect(entry?.outcomeText).toContain('watching who approaches you')
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
     expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
   })

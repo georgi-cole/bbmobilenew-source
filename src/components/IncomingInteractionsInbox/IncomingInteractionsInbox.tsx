@@ -79,7 +79,11 @@ function shouldShowOutcomeText(interaction: IncomingInteraction): boolean {
   if (!outcomeText) return false
   if (!interaction.reactionText) return true
 
-  return /\b(?:plan|vote|voters?|campaign|ceremony|nominations?|nominee|block|pact|alliance|promise|deadline|source|lead|rumou?r|information|intel|warning|offer|safety|power|commit(?:ment)?|share|compare|read)\b|\bshared target\b|\btarget (?:before|is|was|will be|named) [A-Z][a-z]+/i.test(
+  // When authored dialogue is present, only keep a second line for a concrete
+  // game-state consequence. Keywords like "vote" or "plan" also appear in
+  // paraphrases of what the houseguest just said, which creates a long double
+  // response without adding useful information.
+  return /\b(?:is now active|is now live|was formed|was recorded|remains open|stays open|made a promise|unconfirmed lead|remains unconfirmed|no (?:shared|alliance) plan was locked|target was not agreed|alliance remains intact|offer closes? day|will close on day)\b/i.test(
     outcomeText
   )
 }

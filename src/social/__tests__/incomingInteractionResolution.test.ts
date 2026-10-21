@@ -4,6 +4,7 @@ import {
   resolveIncomingResponse,
 } from '../incomingInteractionResolution'
 import { INCOMING_SCENE_OUTCOME_BANK } from '../incomingSceneOutcomeBank'
+import { SCENE_FAMILY_CHOICES } from '../incomingSceneChoiceBank'
 import { getIncomingDialogueBeat } from '../incomingDialogueOutcomeBank'
 import { SCENARIO_VARIANT_POOLS } from '../interactionVariantBank'
 import { getCommitmentKindForInteraction } from '../socialCommitments'
@@ -129,6 +130,105 @@ describe('incoming interaction contextual resolution', () => {
       'negative',
       'dismiss',
     ])
+  })
+
+  it('matches nomination-aftershock choices and replies to the incoming message family', () => {
+    const familyCases = [
+      {
+        familyId: 'na_processing',
+        incoming: 'I am still trying to process seeing my name up there.',
+        replyPattern: /stay with me|what would help|still shaken/i,
+      },
+      {
+        familyId: 'na_trust_check',
+        incoming: 'Now that the block is real, I need to know who I can still trust.',
+        replyPattern: /trust|compare|share what i know/i,
+      },
+      {
+        familyId: 'na_strategic',
+        incoming: 'I am nominated. Now I figure out what my next move is.',
+        replyPattern: /plan|compare|strategy|trade reads|keep my options open/i,
+      },
+      {
+        familyId: 'na_followup',
+        incoming: 'You made me feel less alone earlier.',
+        replyPattern: /holding up|less isolating|came back to talk|check in/i,
+      },
+    ] as const
+
+    for (const { familyId, incoming, replyPattern } of familyCases) {
+      const interaction = makeInteraction({
+        type: 'check_in',
+        text: incoming,
+        payload: { scenarioKey: 'nomination_aftershock', variantFamilyId: familyId },
+      })
+      const choices = getContextualIncomingChoices(interaction)
+
+      expect(choices?.map(({ label }) => label)).toEqual(SCENE_FAMILY_CHOICES[familyId])
+      expect(choices?.[1]?.responseType).toBe('neutral')
+
+      const reply = getIncomingDialogueBeat({
+        scenarioKey: 'nomination_aftershock',
+        variantFamilyId: familyId,
+        responseType: 'neutral',
+        responseLabel: choices?.[1]?.label,
+        fromName: 'Sol',
+        seed: 1,
+      })
+      expect(reply).toMatch(replyPattern)
+    }
+
+    const followUpChoices = SCENE_FAMILY_CHOICES.na_followup
+    expect(followUpChoices.join(' ')).not.toMatch(/anger|apolog|fault/i)
+    const followUpReply = getIncomingDialogueBeat({
+      scenarioKey: 'nomination_aftershock',
+      variantFamilyId: 'na_followup',
+      responseType: 'neutral',
+      responseLabel: 'Ask how they are holding up',
+      fromName: 'Sol',
+      seed: 0,
+    })
+    expect(followUpReply).not.toMatch(/explanation|pretending nothing changed|blame/i)
+  })
+
+  it('uses replies that fit support, tension, and nomination-confrontation scenes', () => {
+    const cases = [
+      {
+        scenarioKey: 'player_nominated_support',
+        responseType: 'positive',
+        expected: /glad you checked in|thank you/i,
+        wrong: /keeping options open/i,
+      },
+      {
+        scenarioKey: 'player_nominated_tension',
+        responseType: 'neutral',
+        expected: /keep this calm|talk through the tension/i,
+        wrong: /keeping options open/i,
+      },
+      {
+        scenarioKey: 'nominee_confronts_loh',
+        responseType: 'neutral',
+        expected: /angry|hear you out|listen to the calculation/i,
+        wrong: /not ready to call it fixed/i,
+      },
+      {
+        scenarioKey: 'replacement_nominee_reacts_to_loh',
+        responseType: 'neutral',
+        expected: /hear how you reached|listen to the logic/i,
+        wrong: /not ready to call it fixed/i,
+      },
+    ] as const
+
+    for (const { scenarioKey, responseType, expected, wrong } of cases) {
+      const reply = getIncomingDialogueBeat({
+        scenarioKey,
+        responseType,
+        fromName: 'Sol',
+        seed: 0,
+      })
+      expect(reply).toMatch(expected)
+      expect(reply).not.toMatch(wrong)
+    }
   })
 
   it('keeps alliance reassurance choices accurate when no personal pact exists', () => {
