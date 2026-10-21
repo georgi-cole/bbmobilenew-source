@@ -83,6 +83,7 @@ interface TiltLabyrinthPoint {
 
 interface TiltLabyrinthDriveState {
   route: TiltLabyrinthPoint[]
+  keyPoint: TiltLabyrinthPoint
   maze: TiltLabyrinthMazeGraph
   waypointIndex: number
   ball: { x: number; y: number }
@@ -102,6 +103,7 @@ type TiltLabyrinthMazeGraph = Map<string, TiltLabyrinthPoint[]>
 
 interface TiltLabyrinthVisibleBoard {
   route: TiltLabyrinthPoint[]
+  keyPoint: TiltLabyrinthPoint
   maze: TiltLabyrinthMazeGraph
 }
 
@@ -229,7 +231,11 @@ async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisib
     return { candidates, maze, keyPoint }
   })
   const maze = new Map<string, TiltLabyrinthPoint[]>(Object.entries(board.maze))
-  return { route: buildVisibleTiltRoute(board.candidates, maze, board.keyPoint), maze }
+  return {
+    route: buildVisibleTiltRoute(board.candidates, maze, board.keyPoint),
+    keyPoint: board.keyPoint,
+    maze,
+  }
 }
 
 async function readTiltBallPosition(
@@ -309,7 +315,11 @@ export function tiltLabyrinthDriverDiagnostic(page: Page): string {
   return (
     'Visible hint route: ' +
     state.route.length +
-    ' cells; progress ' +
+    '; key waypoint ' +
+    state.keyPoint.col +
+    ',' +
+    state.keyPoint.row +
+    '; route progress ' +
     state.waypointIndex +
     '/' +
     (state.route.length - 1) +
@@ -377,6 +387,7 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
       }
       state = {
         route: board.route,
+        keyPoint: board.keyPoint,
         maze: board.maze,
         waypointIndex: 0,
         ball: { x: 12.5, y: 12.5 },
@@ -462,28 +473,7 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
   const targetY = (targetPoint.row + 0.5) * 25
   const deltaX = targetX - state.ball.x
   const deltaY = targetY - state.ball.y
-  const magnitude = Math.hypot(deltaX, deltaY) || 1
-  const bounds = await canvas.boundingBox()
-  if (!bounds) return false
-  const dragStartX = bounds.x + bounds.width / 2
-  const dragStartY = bounds.y + bounds.height / 2
-  const dragDistance = 45
-  await page.mouse.move(dragStartX, dragStartY)
-  await page.mouse.down()
-  await page.mouse.move(
-    dragStartX + (deltaX / magnitude) * dragDistance,
-    dragStartY + (deltaY / magnitude) * dragDistance,
-    { steps: 2 }
-  )
-  const movementMs = Math.min(
-    1_200,
-    220 + Math.max(0, straightCells - 1) * 130 + state.stallCount * 180
-  )
-  if (TILT_LABYRINTH_CLOCK.has(page)) await page.clock.runFor(movementMs)
-  else await page.waitForTimeout(movementMs)
-  await page.mouse.up().catch(() => undefined)
-  await page.waitForTimeout(30)
-  state.lastDirection =
+  const direction =
     Math.abs(deltaX) > Math.abs(deltaY)
       ? deltaX >= 0
         ? 'ArrowRight'
@@ -491,6 +481,16 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
       : deltaY >= 0
         ? 'ArrowDown'
         : 'ArrowUp'
+  state.lastDirection = direction
+  const movementMs = Math.min(
+    1_200,
+    450 + Math.max(0, straightCells - 1) * 130 + state.stallCount * 180
+  )
+  await page.keyboard.down(direction)
+  if (TILT_LABYRINTH_CLOCK.has(page)) await page.clock.runFor(movementMs)
+  else await page.waitForTimeout(movementMs)
+  await page.keyboard.up(direction).catch(() => undefined)
+  await page.waitForTimeout(30)
   const finishedContinue = await firstVisibleEnabled(
     host.getByRole('button', { name: /^Continue$/ })
   )
