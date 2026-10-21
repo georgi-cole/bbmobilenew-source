@@ -238,8 +238,12 @@ function chronicleEvent(
         ...base,
         category: 'safety',
         importance: 96,
-        text: event.targetIds.length
+        text: event.targetIds.length === 1 && event.targetIds[0] === event.actorId
           ? actor === 'you'
+            ? 'You used Safety to save yourself. Sometimes the smartest rescue is your own.'
+            : name(event.actorId) + ' used Safety to escape the block. One less reason to panic.'
+          : event.targetIds.length
+            ? actor === 'you'
             ? 'You used Safety to pull ' +
               targets +
               ' out of danger. Someone owes you a very good thank-you.'
@@ -471,10 +475,11 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     const failed = personals.find((moment) => moment.outcome === 'failure')
     const succeeded = personals.find((moment) => moment.outcome === 'success')
     note =
+      'Your move involving ' +
       name(failed?.targetId) +
-      ' was not persuaded, but ' +
+      ' fell flat, while things went better with ' +
       name(succeeded?.targetId) +
-      ' proved more receptive. Not every door in the Hub opens with the same key.'
+      '. The Hub rarely gives every plan the same welcome.'
   } else if (personals.length >= 2)
     note =
       'You have been busy working on your place in the Hub. The results of those efforts may matter tomorrow.'
