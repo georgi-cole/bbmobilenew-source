@@ -1,0 +1,46 @@
+name: Pulse Chronicle one-time formatting
+
+on:
+  push:
+    branches:
+      - feature/my-pulse-hub-chronicles
+    paths:
+      - .github/workflows/pulse-chronicle-autofmt.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/my-pulse-hub-chronicles
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked project dependencies
+        run: npm ci
+      - name: Format only the Pulse Chronicle change
+        run: |
+          npx prettier --write \
+            src/components/HousePulse/HousePulse.css \
+            src/components/HousePulse/HousePulse.tsx \
+            src/components/HousePulse/__tests__/HousePulse.test.tsx \
+            src/components/SocialPanelV2/SocialPanelV2.tsx \
+            src/social/__tests__/pulseChronicle.test.ts \
+            src/social/pulseChronicle.ts \
+            src/social/socialMiddleware.ts \
+            src/store/gameSlice.ts \
+            src/types/index.ts
+      - name: Commit formatting and remove this temporary workflow
+        run: |
+          rm .github/workflows/pulse-chronicle-autofmt.yml
+          git add src/components/HousePulse/HousePulse.css src/components/HousePulse/HousePulse.tsx src/components/HousePulse/__tests__/HousePulse.test.tsx src/components/SocialPanelV2/SocialPanelV2.tsx src/social/__tests__/pulseChronicle.test.ts src/social/pulseChronicle.ts src/social/socialMiddleware.ts src/store/gameSlice.ts src/types/index.ts .github/workflows/pulse-chronicle-autofmt.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "style(pulse): apply project Prettier formatting and remove temporary workflow"
+          git -c core.hooksPath=/dev/null push origin HEAD:feature/my-pulse-hub-chronicles
