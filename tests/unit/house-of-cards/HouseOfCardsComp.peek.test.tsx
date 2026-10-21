@@ -22,7 +22,7 @@ function makeStore() {
   });
 }
 
-function renderGame(seed = 42) {
+function renderGame(seed = 42, premiumPresentation = false) {
   const store = makeStore();
   render(
     <Provider store={store}>
@@ -31,8 +31,9 @@ function renderGame(seed = 42) {
         participants={[{ id: 'human', name: 'You', isHuman: true }]}
         prizeType="LOH"
         seed={seed}
+        premiumPresentation={premiumPresentation}
       />
-    </Provider>,
+    </Provider>
   );
   return store;
 }
@@ -45,7 +46,7 @@ function getPairIndexes(seed: number, pairCount: number): number[][] {
   return [...bySymbol.values()];
 }
 
-describe('HouseOfCardsComp — five-round tournament', () => {
+describe('Deck of Light — four preliminaries and a finale', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
@@ -58,6 +59,7 @@ describe('HouseOfCardsComp — five-round tournament', () => {
   it('uses the requested board sizes and has an elapsed timer with no cutoff', () => {
     expect(HOUSE_OF_CARDS_TILE_COUNTS).toEqual([8, 12, 16, 20, 24]);
     renderGame();
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }));
 
     expect(screen.getByText('Round 1/5')).toBeInTheDocument();
     expect(screen.getByText('8 tiles')).toBeInTheDocument();
@@ -69,9 +71,50 @@ describe('HouseOfCardsComp — five-round tournament', () => {
     expect(screen.getByLabelText('Round 1 card grid')).toBeInTheDocument();
   });
 
+  it('expands the chosen premium charm before it deals the board', () => {
+    renderGame(42, true);
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }));
+
+    expect(document.querySelector('.hoc-root')).toHaveAttribute('data-tool-transition', 'expand');
+    expect(
+      screen.getByText('Use the glimpse to plan your next match before the card turns back.')
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Shield/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Round 1 card grid')).not.toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(620));
+    expect(screen.getByLabelText('Round 1 card grid')).toBeInTheDocument();
+    expect(document.querySelector('.hoc-board-wrap')).toHaveAttribute(
+      'data-tool-transition',
+      'deal'
+    );
+    expect(document.querySelectorAll('.hoc-charm-clone')).toHaveLength(8);
+    expect(document.querySelector('.hoc-charm-clone-layer')).toHaveAttribute('aria-hidden', 'true');
+    expect(document.querySelectorAll('.hoc-charm-copy')).toHaveLength(8);
+    expect(document.querySelectorAll('.hoc-charm-clone__back-face')).toHaveLength(8);
+    expect(
+      screen.getAllByText('Use the glimpse to plan your next match before the card turns back.')
+    ).toHaveLength(8);
+    expect(document.querySelectorAll('.hoc-board > .hoc-card')).toHaveLength(8);
+    expect(
+      (document.querySelector('.hoc-charm-clone') as HTMLElement).style.getPropertyValue(
+        '--charm-start-x'
+      )
+    ).toMatch(/^-?\d+(\.\d+)?px$/);
+
+    act(() => vi.advanceTimersByTime(1_200));
+    expect(document.querySelector('.hoc-root')).toHaveAttribute('data-tool-transition', 'landed');
+    expect(document.querySelectorAll('.hoc-charm-clone')).toHaveLength(0);
+    expect(screen.getAllByRole('gridcell')).toHaveLength(8);
+    expect(
+      screen.getAllByRole('gridcell').every((card) => !(card as HTMLButtonElement).disabled)
+    ).toBe(true);
+  });
+
   it('advances from the 8-tile first round to the 12-tile second round', async () => {
     const seed = 42;
     renderGame(seed);
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }));
     const pairs = getPairIndexes(seed, 4);
 
     for (const pair of pairs) {
@@ -86,21 +129,26 @@ describe('HouseOfCardsComp — five-round tournament', () => {
 
     expect(screen.getByText('Round 1 complete')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next round' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Peek/ }));
     expect(screen.getByText('Round 2/5')).toBeInTheDocument();
     expect(screen.getAllByRole('gridcell')).toHaveLength(12);
   });
 
   it('uses preliminary totals only when final pair points are tied', () => {
-    expect(chooseHouseOfCardsFinalWinner(
-      ['alice', 'bob'],
-      { alice: 7, bob: 6 },
-      { alice: 100, bob: 900 },
-    )).toBe('alice');
-    expect(chooseHouseOfCardsFinalWinner(
-      ['alice', 'bob'],
-      { alice: 7, bob: 7 },
-      { alice: 100, bob: 900 },
-    )).toBe('bob');
+    expect(
+      chooseHouseOfCardsFinalWinner(
+        ['alice', 'bob'],
+        { alice: 7, bob: 6 },
+        { alice: 100, bob: 900 }
+      )
+    ).toBe('alice');
+    expect(
+      chooseHouseOfCardsFinalWinner(
+        ['alice', 'bob'],
+        { alice: 7, bob: 7 },
+        { alice: 100, bob: 900 }
+      )
+    ).toBe('bob');
   });
 
   it('makes a finalist discover a fresh board instead of reading hidden matches', () => {
@@ -138,6 +186,6 @@ describe('HouseOfCardsComp — five-round tournament', () => {
     }
 
     expect(matches / 500).toBeGreaterThan(0.25);
-    expect(matches / 500).toBeLessThan(0.60);
+    expect(matches / 500).toBeLessThan(0.6);
   });
 });

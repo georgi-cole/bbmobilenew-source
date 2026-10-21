@@ -713,6 +713,6 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       luck: 0.05,
     },
     notes:
-      'House of Darkness rewards memory, precision, and composure while preserving a small amount of board variance.',
+      'Deck of Darkness rewards memory and risk management across rising boards, changing omens, charms, and survival pressure.',
   },
 }

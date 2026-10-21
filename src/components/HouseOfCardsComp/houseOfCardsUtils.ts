@@ -4,13 +4,98 @@ import { mulberry32 } from '../../store/rng';
 export interface HouseOfCardsBoardCard {
   index: number;
   symbol: string;
+  portraitPlayerId?: string;
+  portraitName?: string;
+  portraitAvatar?: string;
+  portraitBadge?: string;
   isFlipped: boolean;
   isMatched: boolean;
   isMismatch: boolean;
 }
 
-/** Base symbol pool used to build the House of Cards board. */
+/** Base symbol pool used to build the Deck of Cards board. */
 export const HOUSE_OF_CARDS_SYMBOLS = ['🌙', '⚡', '🎭', '🔮', '🃏', '♠️', '♥️', '♦️', '🌟', '💎', '👑', '🔥'];
+
+export interface HouseOfCardsPortraitPlayer {
+  id: string;
+  name: string;
+  avatar?: string;
+}
+
+export type HouseOfCardsRoundToolId = 'peek' | 'shield' | 'bonus-bet';
+
+export function resolveHouseOfCardsRoundScore(params: {
+  pairCount: number;
+  matchedPairs?: number;
+  mistakes: number;
+  scoringMistakes?: number;
+  timeMs: number;
+  bestStreak: number;
+  toolBonus?: number;
+  brightPairBonus?: number;
+}): number {
+  const { pairCount, mistakes, timeMs, bestStreak } = params;
+  const matchedPairs = Math.min(pairCount, Math.max(0, params.matchedPairs ?? pairCount));
+  const scoringMistakes = params.scoringMistakes ?? mistakes;
+  return Math.max(1, matchedPairs * 1_000 - scoringMistakes * 90 - Math.floor(timeMs / 1_000)
+    + bestStreak * 15 + (params.toolBonus ?? 0) + (params.brightPairBonus ?? 0));
+}
+
+export function chooseHouseOfCardsBrightPairSymbol(
+  sessionSeed: number,
+  round: number,
+  board: HouseOfCardsBoardCard[],
+): string {
+  const symbols = [...new Set(board.map((card) => card.symbol))]
+  const rng = mulberry32((sessionSeed ^ Math.imul(round, 0x27d4eb2d) ^ 0x6270a91) >>> 0)
+  return symbols[Math.floor(rng() * symbols.length)] ?? ''
+}
+
+/** Draw a board with exactly two copies of every portrait identity. If the
+ * roster is smaller than the requested pair count, labelled variants keep the
+ * board size and make every match identity unambiguous. */
+export function buildPortraitPairBoard(
+  seed: number,
+  pairCount: number,
+  players: HouseOfCardsPortraitPlayer[],
+  priorityIds: string[] = [],
+): HouseOfCardsBoardCard[] {
+  const roster = [...new Map(players.filter((player) => player.id).map((player) => [player.id, player])).values()];
+  if (roster.length === 0 || pairCount < 1) return buildHouseOfCardsBoard(seed, Math.max(1, pairCount));
+  const byId = new Map(roster.map((player) => [player.id, player]));
+  const ordered = [
+    ...priorityIds.map((id) => byId.get(id)).filter((player): player is HouseOfCardsPortraitPlayer => !!player),
+    ...roster.filter((player) => !priorityIds.includes(player.id)),
+  ];
+  const unique = [...new Map(ordered.map((player) => [player.id, player])).values()];
+  const identities = Array.from({ length: pairCount }, (_unused, index) => {
+    const player = unique[index % unique.length]!;
+    const variant = Math.floor(index / unique.length);
+    const badge = variant > 0 ? `Variant ${String.fromCharCode(65 + variant)}` : undefined;
+    return {
+      id: `${player.id}${variant > 0 ? `:variant-${variant}` : ''}`,
+      player,
+      badge,
+    };
+  });
+  const rng = mulberry32((seed ^ 0xdeadbeef) >>> 0);
+  const cards = [...identities, ...identities].map((identity) => identity);
+  for (let index = cards.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(rng() * (index + 1));
+    [cards[index], cards[swapIndex]] = [cards[swapIndex]!, cards[index]!];
+  }
+  return cards.map(({ id, player, badge }, index) => ({
+    index,
+    symbol: id,
+    portraitPlayerId: player.id,
+    portraitName: player.name,
+    portraitAvatar: player.avatar,
+    portraitBadge: badge,
+    isFlipped: false,
+    isMatched: false,
+    isMismatch: false,
+  }));
+}
 
 /** Duration of streak-triggered Peek reveal (ms). */
 export const PEEK_DURATION_MS = 1000;
@@ -109,4 +194,12 @@ export function buildHouseOfCardsBoard(seed: number, pairCount: number = TOTAL_P
     isMatched: false,
     isMismatch: false,
   }));
+}
+
+/** Use one portrait pair per contestant, keeping the finale legible in small fields. */
+export function buildHouseOfCardsPortraitBoard(
+  seed: number,
+  players: HouseOfCardsPortraitPlayer[],
+): HouseOfCardsBoardCard[] {
+  return buildPortraitPairBoard(seed, Math.min(HOUSE_OF_CARDS_SYMBOLS.length, players.length), players);
 }
