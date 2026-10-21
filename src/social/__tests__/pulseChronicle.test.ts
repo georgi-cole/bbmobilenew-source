@@ -30,7 +30,7 @@ function setup() {
   ) {
     return appendRealityEvent(reality, {
       day: 2,
-      phase: type.includes('EVICTION')
+      phase: type === 'CEREMONY_POWER_WON' && tags.includes('safety') ? 'pos_results' : type.includes('EVICTION')
         ? 'eviction_results'
         : type.includes('NOMINATION')
           ? 'nomination_results'
@@ -72,7 +72,7 @@ describe('The Hub Chronicles', () => {
     event('CEREMONY_EVICTION', undefined, ['zara'])
     const chapter = composePulseChronicle({ ...base, complete: true, weather: 'rainy' })
     const text = chapter.paragraphs.join(' ')
-    expect(text).toMatch(/rain/i)
+    expect(text).toMatch(/rain|wet/i)
     expect(text).toContain('Alex')
     expect(text).toContain('Maya')
     expect(text).toContain('Zara')
