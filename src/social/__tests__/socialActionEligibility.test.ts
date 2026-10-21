@@ -98,6 +98,41 @@ describe('evaluateSocialActionEligibility', () => {
     ).toBe(true)
   })
 
+  it('limits nomination advice to the LOH and requires an opinion subject distinct from the respondent', () => {
+    const advice = action('ask_nomination_advice')
+    const adviceInput = {
+      action: advice,
+      targetIds: ['ally'],
+      phase: 'social_1',
+      players,
+      relationships: {},
+      ignoreRealityModeGate: true,
+      requireCompleteSelection: true,
+    }
+    expect(evaluateSocialActionEligibility({ ...adviceInput, actorId: 'loh' }).eligible).toBe(true)
+    expect(evaluateSocialActionEligibility({ ...adviceInput, actorId: 'user' }).eligible).toBe(
+      false
+    )
+
+    const opinionInput = {
+      action: action('ask_player_opinion'),
+      actorId: 'user',
+      targetIds: ['ally'],
+      phase: 'social_1',
+      players,
+      relationships: {},
+      ignoreRealityModeGate: true,
+      requireCompleteSelection: true,
+    }
+    expect(evaluateSocialActionEligibility(opinionInput).eligible).toBe(false)
+    expect(
+      evaluateSocialActionEligibility({ ...opinionInput, subjectId: 'nominee' }).eligible
+    ).toBe(true)
+    expect(evaluateSocialActionEligibility({ ...opinionInput, subjectId: 'ally' }).eligible).toBe(
+      false
+    )
+  })
+
   it('requires an active alliance before a Drama Mode betrayal', () => {
     const base = {
       action: action('betray'),

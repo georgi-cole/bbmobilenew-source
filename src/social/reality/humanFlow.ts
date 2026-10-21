@@ -17,6 +17,12 @@ import { getEffectiveSocialMode } from '../socialMode'
 import { resolveActionTargetMode } from '../socialActions'
 import { normalizeActionCosts } from '../smExecNormalize'
 import {
+  getDynamicInquiryCosts,
+  getInquiryAttempts,
+  getInquiryKind,
+  getInquiryTopicKey,
+} from '../socialInquiry'
+import {
   createInitialRealitySimulationState,
   deriveRealitySimulationSeed,
 } from '../realitySimulation'
@@ -1051,6 +1057,20 @@ export function buildAllianceConsultationPlan(
     if (candidates.length === 0) return null
     const nominationSeats = state.game.doubleEviction?.weekActive ? 3 : 2
     const preferences = advisors.flatMap((advisorId) => {
+      const topicKey = getInquiryTopicKey('ask_nomination_advice', undefined, state.game.week)
+      const priorAdvice = getInquiryAttempts(
+        state.social.inquiryHistory,
+        actorId,
+        advisorId,
+        topicKey
+      ).at(-1)
+      if (priorAdvice) {
+        const eligibleIds = new Set(candidates.map((candidate) => candidate.id))
+        return priorAdvice.answerTargetIds
+          .filter((targetId) => targetId !== advisorId && eligibleIds.has(targetId))
+          .slice(0, nominationSeats)
+          .map((targetId, index) => ({ advisorId, targetId, score: 100 - index }))
+      }
       const ranked = candidates
         .filter((candidate) => candidate.id !== advisorId)
         .map((candidate) => ({
@@ -1079,6 +1099,25 @@ export function buildAllianceConsultationPlan(
             playerName(state, id)
           )}” The alliance's independent nomination advice is: ${read.summary} That advice does not replace your planned slate.`
         : read.summary
+    const priorAdviceSummary = advisors
+      .map((advisorId) => {
+        const topicKey = getInquiryTopicKey('ask_nomination_advice', undefined, state.game.week)
+        const priorAdvice = getInquiryAttempts(
+          state.social.inquiryHistory,
+          actorId,
+          advisorId,
+          topicKey
+        ).at(-1)
+        return priorAdvice
+          ? `${playerName(state, advisorId)} previously told you: “${priorAdvice.answerText}”`
+          : null
+      })
+      .filter((entry): entry is string => Boolean(entry))
+      .slice(0, 4)
+      .join('; ')
+    const consistentSummary = priorAdviceSummary
+      ? `${summary} Earlier private answers remain on record; the alliance slate uses each member's stated advice where that target is eligible: ${priorAdviceSummary}.`
+      : summary
     return {
       allianceId: alliance.id,
       attendeeIds,
@@ -1089,7 +1128,7 @@ export function buildAllianceConsultationPlan(
         ...read.fallbackTargetIds.map((id) => `fallback:${id}`),
       ],
       agenda: 'nominations',
-      summary,
+      summary: consistentSummary,
       excusedAbsentIds,
       memberPlanBeliefs: buildConsultationSlateBeliefs(attendeeIds, actorId, read),
     }
@@ -1709,10 +1748,18 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       }
     }
 
-    const baseExecutionCosts = normalizeActionCosts(
+    const baseExecutionCosts = getDynamicInquiryCosts(
       action,
-      actionTargetMode === 'multi' ? targetIds.length : actionTargetMode === 'none' ? 0 : 1,
-      dramaMode
+      input.actorId,
+      input.targetId,
+      input.subjectId,
+      state.game.week,
+      state.social.inquiryHistory,
+      normalizeActionCosts(
+        action,
+        actionTargetMode === 'multi' ? targetIds.length : actionTargetMode === 'none' ? 0 : 1,
+        dramaMode
+      )
     )
     const defaultExecutionCosts = isPrimaryBatch
       ? {
@@ -1933,6 +1980,48 @@ function performHumanRealityAction(input: HumanRealityActionInput) {
       info < executionCosts.info
     ) {
       return result(false, 'Insufficient resources. Nothing was spent.', energy, 0, 'Unavailable')
+    }
+
+    // Inquiry responses use their durable answer history to govern candour,
+    // repeat pressure, and walkaways. Keep that same resolution in Reality
+    // Mode, while recording a private causal event for the conversation.
+    if (getInquiryKind(input.actionId)) {
+      const inquiryResult = executeAction(input.actorId, input.targetId, input.actionId, {
+        source: 'manual',
+        subjectId: input.subjectId,
+        costOverride: executionCosts,
+      })
+      if (!inquiryResult.success) return inquiryResult
+      const latestState = getState()
+      const answer = latestState.social.inquiryHistory.at(-1)
+      if (answer?.askerId === input.actorId && answer.respondentId === input.targetId) {
+        const domain = createDraft(latestState.social.reality)
+        appendRealityEvent(domain, {
+          day: state.game.week,
+          phase: state.game.phase,
+          type: 'SOCIAL_INQUIRY_RESOLVED',
+          actionId: input.actionId,
+          actorId: input.actorId,
+          targetIds: [input.targetId],
+          participantIds: [input.actorId, input.targetId],
+          witnessIds: [],
+          visibility: 'PRIVATE',
+          outcome: answer.hardRefused
+            ? 'FAILURE'
+            : answer.tone === 'VAGUE' || answer.tone === 'REPEATED'
+              ? 'PARTIAL'
+              : 'SUCCESS',
+          reason: `inquiry:${answer.kind.toLowerCase()}:${answer.tone.toLowerCase()}`,
+          tags: ['INQUIRY', answer.kind, answer.tone],
+          relatedFactIds: [],
+          relatedPromiseIds: [],
+          relatedThreadIds: [],
+          publicEligible: false,
+          juryEligible: false,
+        })
+        dispatch(replaceRealityDomain(finishDraft(domain)))
+      }
+      return inquiryResult
     }
 
     const pregnancyResult = executePregnancyFlow(state, input, dispatch, executionCosts)

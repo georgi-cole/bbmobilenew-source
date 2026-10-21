@@ -13,6 +13,7 @@ import type {
   SocialCommitment,
   SocialMemoryEvent,
   SocialPhaseReport,
+  SocialInquiryRecord,
   SocialState,
 } from './types'
 import type { RealityDeadline } from './reality/types'
@@ -626,6 +627,9 @@ const socialSlice = createSlice({
         state.sessionLogs = state.sessionLogs.slice(-sessionLimit)
       }
       appendPersistentSocialHistory(state as unknown as SocialStateWithHistory, entry)
+    },
+    recordSocialInquiry(state, action: PayloadAction<SocialInquiryRecord>) {
+      state.inquiryHistory = [...(state.inquiryHistory ?? []), action.payload].slice(-300)
     },
     /** Enrich the display receipt without replaying gameplay or audience effects. */
     finalizeSocialActionReceipt(
@@ -1486,6 +1490,7 @@ export const {
   applyInfoDelta,
   grantSecretMissionResourceCache,
   recordSocialAction,
+  recordSocialInquiry,
   finalizeSocialActionReceipt,
   initializeRealitySimulation,
   replaceRealitySimulation,

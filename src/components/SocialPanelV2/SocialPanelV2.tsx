@@ -1064,7 +1064,8 @@ export default function SocialPanelV2() {
             effectivePrimaryTargetId ?? humanPlayer?.id ?? '',
             undefined,
             isAllianceConsultation ? 1 : selectedTargetCount,
-            dramaMode
+            dramaMode,
+            selectedSubjectId ?? undefined
           )
       : null
     if (!baseCosts) return null
@@ -1096,6 +1097,7 @@ export default function SocialPanelV2() {
     targetCount,
     isAllianceConsultation,
     usesMultipleTargets,
+    selectedSubjectId,
   ])
 
   const energy = weekendActive
@@ -1710,6 +1712,8 @@ export default function SocialPanelV2() {
           selectedActionId === 'group_chat'
             ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
             : selectedActionId === 'ask_loh_target' ||
+                selectedActionId === 'ask_nomination_advice' ||
+                selectedActionId === 'ask_player_opinion' ||
                 selectedActionId === 'share_pregnancy_news' ||
                 selectedActionId === 'pregnancy_test_self' ||
                 selectedActionId === 'paternity_test_self'
