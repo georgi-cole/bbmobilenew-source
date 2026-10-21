@@ -50,23 +50,26 @@ function formatNames(names: readonly string[]): string {
  */
 export function formatLohNominationPlanCopy(
   plan: LohNominationPlanCopySource,
-  resolveName: (playerId: string) => string
+  resolveName: (playerId: string) => string,
+  options: { listenerId?: string } = {}
 ): string {
-  const openingNominees = formatNames(plan.initialNomineeIds.map(resolveName))
+  const resolveFacingName = (playerId: string) =>
+    playerId === options.listenerId ? 'you' : resolveName(playerId)
+  const openingNominees = formatNames(plan.initialNomineeIds.map(resolveFacingName))
   const replacementId =
     plan.replacementTargetOverrideId ??
     plan.replacementTargetId ??
     (plan.strategy === 'backdoor' ? plan.targetId : plan.backupTargetId)
-  const replacementName = replacementId ? resolveName(replacementId) : null
+  const replacementName = replacementId ? resolveFacingName(replacementId) : null
   const targetIsOnOpeningBlock = plan.initialNomineeIds.includes(plan.targetId)
   const lines = [`My planned opening nominees are ${openingNominees}.`]
 
   if (plan.isDoubleElimination) {
-    const priorities = getLohEliminationPriorityIds(plan).map(resolveName)
+    const priorities = getLohEliminationPriorityIds(plan).map(resolveFacingName)
     if (priorities.length > 0) {
       const dependsOnSafety = plan.strategy === 'backdoor' && !targetIsOnOpeningBlock
       const survivorClause = plan.preferredSurvivorId
-        ? `, with ${resolveName(plan.preferredSurvivorId)} as the person I most want to keep`
+        ? `, with ${resolveFacingName(plan.preferredSurvivorId)} as the person I most want to keep`
         : ''
       const preference =
         `My preference is for ${formatNames(priorities)} to leave${survivorClause}. ` +
@@ -74,13 +77,18 @@ export function formatLohNominationPlanCopy(
       lines.push(dependsOnSafety ? `If Safety opens a replacement seat, ${preference}` : preference)
     }
   } else if (plan.strategy === 'backdoor' && !targetIsOnOpeningBlock) {
-    const target = resolveName(plan.targetId)
+    const target = resolveFacingName(plan.targetId)
+    const targetPronoun = plan.targetId === options.listenerId ? 'you' : 'them'
+    const replacementClause =
+      plan.targetId === options.listenerId
+        ? 'I would use you as my replacement option.'
+        : `${target} would be my replacement option.`
     lines.push(
-      `If Safety changes the block, ${target} is my replacement option. ` +
-        'I want to try to get them out, but Safety and the vote decide what happens.'
+      `If Safety changes the block, ${replacementClause} ` +
+        `I want to try to get ${targetPronoun} out, but Safety and the vote decide what happens.`
     )
   } else {
-    const target = resolveName(plan.targetId)
+    const target = resolveFacingName(plan.targetId)
     lines.push(`I want ${target} to leave, but I cannot guarantee how the votes will land.`)
   }
 
@@ -89,14 +97,22 @@ export function formatLohNominationPlanCopy(
     replacementId !== plan.targetId &&
     !(plan.strategy === 'backdoor' && !targetIsOnOpeningBlock && !plan.isDoubleElimination)
   ) {
-    lines.push(`If Safety changes the block, ${replacementName} is my replacement option.`)
+    lines.push(
+      replacementId === options.listenerId
+        ? 'If Safety changes the block, I would use you as my replacement option.'
+        : `If Safety changes the block, ${replacementName} would be my replacement option.`
+    )
   } else if (
     replacementName &&
     replacementId === plan.targetId &&
     plan.strategy === 'backdoor' &&
     plan.isDoubleElimination
   ) {
-    lines.push(`If Safety opens a seat, ${replacementName} is my replacement option.`)
+    lines.push(
+      replacementId === options.listenerId
+        ? 'If Safety opens a seat, I would use you as my replacement option.'
+        : `If Safety opens a seat, ${replacementName} would be my replacement option.`
+    )
   }
 
   return lines.join(' ')

@@ -405,12 +405,15 @@ function formatNameList(names: string[]): string {
 
 function describeCanonicalLohNominationPlan(
   context: AutonomyContext,
-  plan: InteractionPlan
+  plan: InteractionPlan,
+  recipientId: string
 ): string | null {
   const nominationPlan = plan.lohNominationPlanContext
   if (!nominationPlan) return null
-  const copy = formatLohNominationPlanCopy(nominationPlan, (playerId) =>
-    getPlayerName(context, playerId, playerId)
+  const copy = formatLohNominationPlanCopy(
+    nominationPlan,
+    (playerId) => getPlayerName(context, playerId, playerId),
+    { listenerId: recipientId }
   )
   return plan.scenarioKey === 'alliance_power_nomination_huddle'
     ? `${copy} I want the alliance's read before I lock nominations.`
@@ -2304,7 +2307,7 @@ export function scheduleIncomingInteractionsForPhase(
       : undefined
     const canonicalLohPlanText =
       plan.scenarioKey === 'alliance_power_nomination_huddle'
-        ? describeCanonicalLohNominationPlan(context, plan)
+        ? describeCanonicalLohNominationPlan(context, plan, playerId)
         : null
     const interactionText = (
       intelLead

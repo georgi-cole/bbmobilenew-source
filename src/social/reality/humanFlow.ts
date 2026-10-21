@@ -34,12 +34,12 @@ import {
 } from './relationshipForms'
 import { appendRealityEvent } from './events'
 import { buildPreNominationLohRead } from './allianceConsultationIntel'
-import { formatLohNominationPlanCopy, getLohEliminationPriorityIds } from '../lohNominationPlanCopy'
+import { formatLohNominationPlanCopy } from '../lohNominationPlanCopy'
 import { formatVagueLohPlan, isBeforeInitialNominations } from '../lohConsultationCopy'
 import { formatLohSafetyConsultation } from '../lohSafetyConsultation'
 import type { RealityAlliance } from './types'
 import { getRealityModeAdapter } from './modeAdapters'
-import { applyRealityRelationshipChange } from './relationships'
+import { applyRealityRelationshipChange, projectRealityAffinity } from './relationships'
 import type { RealityContext } from './types'
 import { getCupidPartnerId } from '../../features/twists/cupidArrow'
 import {
@@ -1611,6 +1611,8 @@ export function buildLohConsultationSummary(
     (nominationPlan.isDoubleElimination === true) ===
       (state.game.doubleEviction?.weekActive === true)
   )
+  const facingName = (playerId: string) =>
+    playerId === input.actorId ? 'you' : playerName(state, playerId)
 
   // Respect genuine refusal/repetition outcomes. Canonical strategy should fix
   // contradictory names, not turn a failed intel action into free information.
@@ -1632,114 +1634,75 @@ export function buildLohConsultationSummary(
     !replacementPending &&
     ['pos_ceremony_results', 'social_2', 'live_vote'].includes(state.game.phase)
 
+  const disclosedTargetId =
+    plan.disclosedTargetByPlayerId?.[input.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
+  const disclosureOutcome = plan.disclosureOutcomeByPlayerId?.[input.actorId]
+
+  if (
+    nominationPlan &&
+    nominationPlanMatchesRules &&
+    nominationPlan.status === 'planned' &&
+    disclosureOutcome === 'truthful'
+  ) {
+    return formatLohNominationPlanCopy(nominationPlan, (id) => playerName(state, id), {
+      listenerId: input.actorId,
+    })
+  }
+
+  // When the LOH gave a guarded or false answer, keep the response scoped to
+  // the disclosure recorded for this listener rather than exposing the plan.
   if (
     finalBlockLocked &&
     nominees.length > 0 &&
-    plan.disclosureOutcomeByPlayerId?.[input.actorId] !== 'false' &&
-    plan.disclosureOutcomeByPlayerId?.[input.actorId] !== 'vague'
+    disclosedTargetId &&
+    disclosureOutcome !== 'false' &&
+    disclosureOutcome !== 'vague'
   ) {
-    const doubleElimination = nominationPlanMatchesRules && nominationPlan?.isDoubleElimination
     if (
       nominationPlanMatchesRules &&
       nominationPlan?.strategy === 'backdoor' &&
       nominationPlan.status === 'initial_block_set' &&
       !nominees.includes(nominationPlan.targetId)
     ) {
-      const lockedBlock = formatPlayerNames(nominees.map((id) => playerName(state, id)))
-      if (doubleElimination) {
-        const priorities = getLohEliminationPriorityIds(nominationPlan, nominees)
-        const survivor = nominationPlan.preferredSurvivorId
-        const exitRead =
-          priorities.length > 0
-            ? `My two elimination priorities are ${formatPlayerNames(
-                priorities.map((id) => playerName(state, id))
-              )}${
-                survivor && nominees.includes(survivor)
-                  ? `; I most want ${playerName(state, survivor)} to stay`
-                  : ''
-              }.`
-            : 'Two nominees will leave, and the vote will decide who goes.'
-        return `The double-eviction block is locked with ${lockedBlock}. ${playerName(
-          state,
-          nominationPlan.targetId
-        )} was my replacement target, but Safety did not open a replacement seat. ${exitRead}`
-      }
-      return `The block is locked with ${lockedBlock}. ${playerName(
-        state,
-        nominationPlan.targetId
-      )} was my replacement target, but Safety did not open a replacement seat, so I can only vote to eliminate someone on this block.`
+      const replacementCopy =
+        nominationPlan.targetId === input.actorId
+          ? 'You were my replacement target'
+          : `${playerName(state, nominationPlan.targetId)} was my replacement target`
+      return `The block is locked with ${formatPlayerNames(
+        nominees.map((id) => playerName(state, id))
+      )}. ${replacementCopy}, but Safety did not open a replacement seat, so I can only vote to eliminate someone on this block.`
     }
-    if (doubleElimination && nominationPlan) {
-      const priorities = getLohEliminationPriorityIds(nominationPlan, nominees)
-      if (priorities.length > 1) {
-        const survivor = nominationPlan.preferredSurvivorId
-        const replacementId = [...(state.game.replacementNomineeIds ?? [])]
-          .reverse()
-          .find((id) => nominees.includes(id) && !priorities.includes(id))
-        const replacementNote = replacementId
-          ? ` ${playerName(state, replacementId)} is the replacement nominee.`
-          : ''
-        return `The double-eviction block is locked with ${formatPlayerNames(
-          nominees.map((id) => playerName(state, id))
-        )}.${replacementNote} My two elimination priorities are ${formatPlayerNames(
-          priorities.map((id) => playerName(state, id))
-        )}${
-          survivor && nominees.includes(survivor)
-            ? `; I most want ${playerName(state, survivor)} to stay`
-            : ''
-        }. The vote decides which two nominees leave.`
-      }
-    }
-    const lockedTargetId =
-      (nominationPlanMatchesRules &&
+    const executedTargetId =
+      nominationPlanMatchesRules &&
       nominationPlan?.status === 'executed' &&
       nominees.includes(nominationPlan.targetId)
         ? nominationPlan.targetId
-        : null) ??
-      (plan.currentTargetId && nominees.includes(plan.currentTargetId)
-        ? plan.currentTargetId
-        : null) ??
-      nominees[0]
-    const lockedTarget = playerName(state, lockedTargetId)
-    const replacementId =
-      [...(state.game.replacementNomineeIds ?? [])]
-        .reverse()
-        .find((id) => id !== lockedTargetId && nominees.includes(id)) ??
-      (plan.backupTargetId &&
-      plan.backupTargetId !== lockedTargetId &&
-      nominees.includes(plan.backupTargetId)
-        ? plan.backupTargetId
-        : null)
-    if (replacementId) {
-      return `The block is locked. ${lockedTarget} is my main target; ${playerName(
-        state,
-        replacementId
-      )} is on the block as the replacement.`
+        : disclosedTargetId
+    const targetName = facingName(executedTargetId)
+    if (nominees.includes(executedTargetId)) {
+      return `The block is locked. ${targetName} is the person I most want out, but the vote decides who leaves.`
     }
-    return `The block is locked. ${lockedTarget} is my main target, and that is who I want eliminated.`
+    return `The block is locked. I can only target someone on it; ${targetName} is the name I had in mind before it was set.`
   }
 
   const safetyAdvice = formatLohSafetyConsultation(state.game, input.actorId)
   if (safetyAdvice) return safetyAdvice
 
-  if (
-    nominationPlan &&
-    nominationPlanMatchesRules &&
-    (nominationPlan.status === 'planned' || nominationPlan.status === 'initial_block_set') &&
-    plan.disclosureOutcomeByPlayerId?.[input.actorId] === 'truthful'
-  ) {
-    return formatLohNominationPlanCopy(nominationPlan, (id) => playerName(state, id))
-  }
-
-  const disclosedTargetId =
-    plan.disclosedTargetByPlayerId?.[input.actorId] ?? plan.backupTargetId ?? plan.currentTargetId
-  const disclosureOutcome = plan.disclosureOutcomeByPlayerId?.[input.actorId]
   if (disclosureOutcome === 'vague')
     return formatVagueLohPlan(playerName(state, state.game.lohId), state.game.phase)
   if (!disclosedTargetId) return fallback
 
-  const disclosedName = playerName(state, disclosedTargetId)
+  const disclosedName = facingName(disclosedTargetId)
   if (disclosureOutcome === 'false') {
+    if (disclosedTargetId === input.actorId) {
+      return isBeforeInitialNominations(state.game.phase)
+        ? 'I am willing to name you for my opening nominations.'
+        : replacementPending
+          ? 'I am willing to name you for the open replacement seat.'
+          : finalBlockLocked
+            ? 'I am willing to name you as my target for the locked block.'
+            : 'I am willing to name you if Safety opens the block.'
+    }
     if (isBeforeInitialNominations(state.game.phase)) {
       return `${disclosedName} is the name I am willing to give you for my opening nominations.`
     }
@@ -1751,42 +1714,60 @@ export function buildLohConsultationSummary(
   }
   const activeBackdoorPlan =
     nominationPlan?.strategy === 'backdoor' &&
+    nominationPlanMatchesRules &&
     (nominationPlan.status === 'planned' || nominationPlan.status === 'initial_block_set')
-  if (
-    activeBackdoorPlan &&
-    nominationPlan &&
-    (disclosedTargetId === nominationPlan.targetId ||
-      nominationPlan.initialNomineeIds.includes(disclosedTargetId))
-  ) {
-    const openingNominees = nominationPlan.initialNomineeIds.map((id) => playerName(state, id))
-    const openingLabel = formatPlayerNames(openingNominees)
-    const backdoorTarget = playerName(state, nominationPlan.targetId)
+  if (activeBackdoorPlan && nominationPlan && disclosedTargetId === nominationPlan.targetId) {
+    const backdoorTarget = facingName(nominationPlan.targetId)
     if (replacementPending && disclosedTargetId === nominationPlan.targetId) {
-      return `Safety opened the seat. ${backdoorTarget} is my planned replacement nominee; ${openingLabel} were the opening nominees.`
+      return backdoorTarget === 'you'
+        ? 'Safety opened the seat. You are my planned replacement nominee.'
+        : `Safety opened the seat. ${backdoorTarget} is my planned replacement nominee.`
     }
-    return `${backdoorTarget} is my replacement target if Safety opens a replacement seat. My opening nominees are ${openingLabel}.`
+    return backdoorTarget === 'you'
+      ? 'You are my replacement target if Safety opens a replacement seat.'
+      : `${backdoorTarget} is my replacement target if Safety opens a replacement seat.`
   }
   if (nominees.includes(disclosedTargetId)) {
-    return `${disclosedName} is my current target. That is who I want the pressure on.`
+    return disclosedTargetId === input.actorId
+      ? 'You are my current target. I want the pressure on you.'
+      : `${disclosedName} is my current target. That is who I want the pressure on.`
   }
   if (isBeforeInitialNominations(state.game.phase)) {
-    return `Right now, I am considering ${disclosedName} for my opening nominations.`
+    return disclosedTargetId === input.actorId
+      ? 'Right now, I am considering you for my opening nominations.'
+      : `Right now, I am considering ${disclosedName} for my opening nominations.`
   }
   if (plan.backupTargetId === disclosedTargetId && disclosedTargetId !== plan.currentTargetId) {
-    const mainTarget = plan.currentTargetId
-      ? playerName(state, plan.currentTargetId)
-      : 'the current nominee'
     return replacementPending
-      ? `Safety opened a seat. I am considering ${disclosedName} as the backup nominee. ${mainTarget} remains my main target.`
-      : `${disclosedName} is the replacement nominee if Safety opens the block. ${mainTarget} remains my main target.`
+      ? disclosedTargetId === input.actorId
+        ? 'Safety opened a seat. I am considering you as the replacement nominee.'
+        : `Safety opened a seat. I am considering ${disclosedName} as the replacement nominee.`
+      : disclosedTargetId === input.actorId
+        ? 'You are my replacement nominee if Safety opens the block.'
+        : `${disclosedName} is my replacement nominee if Safety opens the block.`
   }
   return `Right now, ${disclosedName} is the person I am watching most closely.`
 }
 
 export function executeHumanRealityAction(input: HumanRealityActionInput) {
   return (dispatch: AppDispatch, getState: () => RootState): ExecuteActionResult => {
-    const previousIds = new Set((getState().social.sessionLogs ?? []).map((entry) => entry.id))
+    const beforeState = getState()
+    const previousIds = new Set((beforeState.social.sessionLogs ?? []).map((entry) => entry.id))
+    const relationshipBefore = getDisplayedRelationshipScores(beforeState, input.actorId)
     const outcome = dispatch(performHumanRealityAction(input))
+    const afterState = getState()
+    const relationshipAfter = getDisplayedRelationshipScores(afterState, input.actorId)
+    const relationshipShifts = Object.fromEntries(
+      [...new Set([...relationshipBefore.keys(), ...relationshipAfter.keys()])]
+        .map(
+          (playerId) =>
+            [
+              playerId,
+              (relationshipAfter.get(playerId) ?? 0) - (relationshipBefore.get(playerId) ?? 0),
+            ] as const
+        )
+        .filter(([, delta]) => delta !== 0)
+    )
     const entries = (getState().social.sessionLogs ?? []).filter(
       (entry) =>
         entry.id &&
@@ -1800,7 +1781,18 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       // Pact receipts already carry their precise consent status and cost-free
       // dialogue. Other actions need the final summary, including LOH advice
       // and any Cupid consequences added after the compatibility log was saved.
-      if (entry.receipt || !entry.id) continue
+      if (!entry.id) continue
+      if (entry.receipt) {
+        if (Object.keys(relationshipShifts).length > 0) {
+          dispatch(
+            finalizeSocialActionReceipt({
+              entryId: entry.id,
+              receipt: { ...entry.receipt, relationshipShifts },
+            })
+          )
+        }
+        continue
+      }
       const relationshipStrain = Object.values(entry.targetDeltas ?? {}).some((delta) => delta < 0)
       const tone = mixedOutcome
         ? 'neutral'
@@ -1814,6 +1806,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           entryId: entry.id,
           receipt: {
             groupId: entries[0].id,
+            ...(Object.keys(relationshipShifts).length > 0 ? { relationshipShifts } : {}),
             summary: outcome.summary,
             outcomeLabel: mixedOutcome
               ? 'Mixed result'
@@ -1827,8 +1820,40 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
         })
       )
     }
-    return { ...outcome, receiptRecorded: entries.length > 0 }
+    return {
+      ...outcome,
+      receiptRecorded: entries.length > 0,
+      ...(entries[0]?.id ? { receiptId: entries[0].receipt?.groupId ?? entries[0].id } : {}),
+    }
   }
+}
+
+/** Match the compact relationship value shown in SocialPanelV2. */
+function getDisplayedRelationshipScores(state: RootState, actorId: string): Map<string, number> {
+  const dramaMode = getEffectiveSocialMode(state) === 'drama'
+  const scores = new Map<string, number>()
+  for (const player of state.game.players) {
+    if (player.isUser || player.status === 'evicted' || player.status === 'jury') continue
+    if (dramaMode) {
+      const edge = state.social.reality.relationships[actorId]?.[player.id]
+      if (
+        !edge ||
+        (edge.perceivedLabel === 'UNKNOWN' &&
+          edge.familiarity <= 0 &&
+          edge.lastMeaningfulInteraction === undefined)
+      ) {
+        continue
+      }
+      scores.set(player.id, projectRealityAffinity(edge))
+      continue
+    }
+    const outward = state.social.relationships[actorId]?.[player.id]?.affinity
+    const inward = state.social.relationships[player.id]?.[actorId]?.affinity
+    if (outward !== undefined || inward !== undefined) {
+      scores.set(player.id, Math.round(((outward ?? 0) + (inward ?? 0)) / 2))
+    }
+  }
+  return scores
 }
 
 function performHumanRealityAction(input: HumanRealityActionInput) {

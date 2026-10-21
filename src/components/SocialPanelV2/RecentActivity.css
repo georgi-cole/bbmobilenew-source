@@ -7,7 +7,7 @@
   flex-direction: column;
   gap: 0.3rem;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -116,14 +116,12 @@
 /* ── Entry list ──────────────────────────────────────────────────────────── */
 .ra-content {
   min-height: 0;
-  max-height: min(32dvh, 20rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  max-height: none;
+  overflow: visible;
 }
 
 .ra-container--expanded .ra-content {
-  max-height: min(40dvh, 25rem);
+  max-height: none;
 }
 
 .ra-feedback {

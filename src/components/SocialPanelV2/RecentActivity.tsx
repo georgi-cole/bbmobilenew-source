@@ -17,6 +17,8 @@ export interface RecentActivityProps {
   onExpandedChange?: (expanded: boolean) => void
   /** Feedback for attempts that do not produce a gameplay log entry. */
   feedback?: string | null
+  /** Controls which completed result is shown outside the expanded history. */
+  activeReceiptId?: string | null
 }
 
 const GENERIC_OUTCOME_PREFIXES = [
@@ -116,6 +118,7 @@ export default function RecentActivity({
   compact = false,
   onExpandedChange,
   feedback,
+  activeReceiptId,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
   const [clearedBefore, setClearedBefore] = useState(0)
@@ -138,7 +141,16 @@ export default function RecentActivity({
     )
     return maxEntries === undefined ? entries : entries.slice(-maxEntries)
   }, [sessionLogs, clearedBefore, maxEntries])
-  const displayedLogs = compact && !expanded ? (feedback ? [] : visibleLogs.slice(-1)) : visibleLogs
+  const displayedLogs =
+    compact && !expanded
+      ? feedback
+        ? []
+        : activeReceiptId === undefined
+          ? visibleLogs.slice(-1)
+          : visibleLogs.filter(
+              (entry) => entry.id === activeReceiptId || entry.receipt?.groupId === activeReceiptId
+            )
+      : visibleLogs
 
   function toggleHistory() {
     const next = !expanded
@@ -191,7 +203,7 @@ export default function RecentActivity({
         <div className="ra-header">
           <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
-            {compact && (visibleLogs.length > 1 || (feedback && visibleLogs.length > 0)) && (
+            {compact && visibleLogs.length > 0 && (
               <button
                 className="ra-history-btn"
                 type="button"
@@ -211,7 +223,7 @@ export default function RecentActivity({
                 )}
               </button>
             )}
-            {(!compact || expanded) && (
+            {(!compact || (expanded && activeReceiptId === undefined)) && (
               <button
                 className="ra-clear-btn"
                 type="button"
@@ -237,6 +249,12 @@ export default function RecentActivity({
         )}
         {visibleLogs.length === 0 && !feedback ? (
           <span className="ra-empty">No recent actions.</span>
+        ) : compact &&
+          !expanded &&
+          visibleLogs.length > 0 &&
+          displayedLogs.length === 0 &&
+          !feedback ? (
+          <span className="ra-empty">No current result.</span>
         ) : displayedLogs.length > 0 ? (
           <ul
             className="ra-list"
@@ -322,9 +340,26 @@ export default function RecentActivity({
                       entry.timestamp,
                       narrativeOptions
                     ))
-              const displayNarrative = narrative.startsWith('You performed')
+              const narrativeText = narrative.startsWith('You performed')
                 ? `${actionTitle} with ${audienceName}.`
                 : narrative
+              const shiftEntries = Object.entries(entry.receipt?.relationshipShifts ?? {}).filter(
+                ([, delta]) => delta !== 0
+              )
+              const relationshipEffect =
+                shiftEntries.length === 1
+                  ? `Relationship ${shiftEntries[0][1] > 0 ? '+' : '−'}${Math.abs(shiftEntries[0][1])}.`
+                  : shiftEntries.length > 1
+                    ? `Relationship shifts: ${shiftEntries
+                        .map(([playerId, delta]) => {
+                          const name = playerById.get(playerId)?.name ?? playerId
+                          return `${name} ${delta > 0 ? '+' : '−'}${Math.abs(delta)}`
+                        })
+                        .join(', ')}.`
+                    : ''
+              const displayNarrative = relationshipEffect
+                ? `${narrativeText} ${relationshipEffect}`
+                : narrativeText
               const key =
                 entry.id ??
                 `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
