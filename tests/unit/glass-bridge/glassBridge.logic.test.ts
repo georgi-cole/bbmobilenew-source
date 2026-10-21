@@ -1,5 +1,5 @@
 /**
- * Unit tests: Glass Bridge — Brutal Mode logic.
+ * Unit tests: The Crystal Path gameplay logic.
  *
  * Covers:
  *  1. Bridge generation is deterministic given the same seed.
@@ -306,7 +306,7 @@ describe('aiDecideStep', () => {
   });
 });
 
-describe('glassBridgeSlice — resolveStep', () => {
+describe('The Crystal Path state — resolve step', () => {
   it('advances furthestRowReached on a safe step', () => {
     const store = startGame(['a', 'b'], 42);
     completeOrderPhase(store, 42);
@@ -519,7 +519,7 @@ describe('recordHintUsed reducer', () => {
   });
 });
 
-describe('glassBridgeSlice — completeGame', () => {
+describe('The Crystal Path state — complete game', () => {
   it('sets phase to complete and populates placements', () => {
     const store = startGame(['a', 'b'], 42);
     completeOrderPhase(store, 42);
@@ -540,7 +540,7 @@ describe('glassBridgeSlice — completeGame', () => {
   });
 });
 
-describe('glassBridgeSlice — spectator', () => {
+describe('The Crystal Path state — spectator', () => {
   it('setHumanSpectating updates humanSpectating flag', () => {
     const store = startGame(['user', 'a'], 42, 'user');
     store.dispatch(setHumanSpectating(true));
@@ -550,7 +550,7 @@ describe('glassBridgeSlice — spectator', () => {
   });
 });
 
-describe('glassBridgeSlice — resetGlassBridge', () => {
+describe('The Crystal Path state — reset', () => {
   it('returns to idle state', () => {
     const store = startGame(['a', 'b'], 42);
     store.dispatch(resetGlassBridge());
@@ -559,7 +559,7 @@ describe('glassBridgeSlice — resetGlassBridge', () => {
   });
 });
 
-describe('glassBridgeSlice — initGlassBridge', () => {
+describe('The Crystal Path state — initialize', () => {
   it('sets up correct initial state shape', () => {
     const store = startGame(['a', 'b', 'c'], 7);
     const gb = store.getState().glassBridge;
@@ -575,7 +575,7 @@ describe('glassBridgeSlice — initGlassBridge', () => {
 
 });
 
-describe('glassBridgeSlice — recordNumberChoice', () => {
+describe('The Crystal Path state — record number choice', () => {
   it('accepts a valid number choice', () => {
     const store = startGame(['a', 'b'], 42);
     store.dispatch(recordNumberChoice({ playerId: 'a', number: 1 }));
@@ -610,7 +610,7 @@ describe('glassBridgeSlice — recordNumberChoice', () => {
   });
 });
 
-describe('glassBridgeSlice — finaliseOrderSelection', () => {
+describe('The Crystal Path state — finalise order selection', () => {
   it('produces a valid turn order from chosen numbers', () => {
     const store = startGame(['a', 'b', 'c'], 42);
     store.dispatch(recordNumberChoice({ playerId: 'a', number: 3 }));

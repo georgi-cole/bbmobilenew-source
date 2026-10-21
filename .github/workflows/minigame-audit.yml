@@ -34,7 +34,7 @@ jobs:
           fi
 
           changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
-          if grep -Eq '^(src/minigames/|tests/.*(minigame|bullseyeBlitz|cardClash|codeBreaker|colorMatch|crystalPath|laneRacers)|e2e/playwright/minigame|scripts/run-visual-audit|playwright.config.ts|package.json|package-lock.json)' <<< "$changed_files"; then
+          if grep -Eq '^(src/|public/|tests/|e2e/playwright/|scripts/(run-minigame-tests|run-visual-audit)\.mjs$|playwright\.config\.ts$|package(-lock)?\.json$|docs/minigame-(quality-contract|test-matrix)\.md$|\.github/workflows/minigame-audit\.yml$)' <<< "$changed_files"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -63,6 +63,8 @@ jobs:
         env:
           VISUAL_AUDIT_PROJECTS: desktop-chromium,mobile-chromium,narrow-chromium
         run: npm run audit:minigames
+      - name: Run seeded complete-gameplay matrix
+        run: npx playwright test --grep @full-playthrough --project=desktop-chromium
       - name: Upload minigame evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -464,7 +464,11 @@ export default function VaultCrackerCanvasGame({
                     <span className="cb__guess-meta">Attempt #{attemptNum}</span>
                     <span className="cb__guess-digits">{guess.digits.join(' ')}</span>
                   </div>
-                  <div className="cb__guess-feedback">
+                  <div
+                    className="cb__guess-feedback"
+                    role="img"
+                    aria-label={`${guess.bulls} exact, ${guess.cows} displaced`}
+                  >
                     {Array.from({ length: CODE_LENGTH }, (_, i) => {
                       const type = i < guess.bulls ? 'bull' : i < guess.bulls + guess.cows ? 'cow' : 'miss';
                       return <span key={i} className={`cb__pip cb__pip--${type}`} />;

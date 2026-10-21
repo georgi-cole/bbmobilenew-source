@@ -326,7 +326,7 @@ const glassBridgeSlice = createSlice({
   name: 'glassBridge',
   initialState,
   reducers: {
-    /** Initialize a new Glass Bridge game. */
+    /** Initialize a new Crystal Path game. */
     initGlassBridge(
       state,
       action: PayloadAction<{

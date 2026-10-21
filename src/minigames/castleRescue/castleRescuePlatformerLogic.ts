@@ -1,7 +1,7 @@
 /**
  * castleRescuePlatformerLogic.ts
  *
- * Pure functions for the Castle Rescue platformer run:
+ * Pure functions for the Find Your Twin platformer run:
  *  - computePlatformerFinalScore — final score at run completion.
  *  - applyPipeEntry              — deterministic, idempotent pipe-entry state mutation.
  *

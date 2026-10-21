@@ -1,7 +1,7 @@
 /**
  * castleRescueRanking.ts
  *
- * Ranking logic for Castle Rescue multiplayer competitions.
+ * Ranking logic for Find Your Twin multiplayer competitions.
  *
  * Sort order (primary → tiebreak):
  *  1. Higher score → better rank.
@@ -13,7 +13,7 @@
 import type { CastleRescueResult, CastleRescueRankedResult } from './castleRescueTypes';
 
 /**
- * Rank an array of player results for Castle Rescue.
+ * Rank an array of player results for Find Your Twin.
  *
  * Returns a new array of CastleRescueRankedResult sorted from best (1) to
  * worst.  The original array is not mutated.

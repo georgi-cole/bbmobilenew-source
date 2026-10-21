@@ -1280,9 +1280,11 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'RescueTheKing',
     legacy: false,
-    weight: 1,
+    // Retired failed prototype; keep its implementation available for history,
+    // but exclude it from active challenge selection and release certification.
+    weight: 0,
     category: 'logic',
-    retired: false,
+    retired: true,
   },
 
   trapAuction: {

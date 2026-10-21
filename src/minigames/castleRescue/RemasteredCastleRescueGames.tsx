@@ -6,6 +6,7 @@ type RemasteredProps = Omit<CastleRescueGameProps, 'variant' | 'remastered'>
 function RemasteredTwin({ part, onFinish, autoStart = true }: RemasteredProps & { part: 1 | 2 }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const finished = useRef(false)
+  const gameTitle = part === 1 ? 'Find Your Twin' : 'Find Your Twin 2: Lost Again'
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== window.location.origin)
@@ -22,7 +23,7 @@ function RemasteredTwin({ part, onFinish, autoStart = true }: RemasteredProps & 
   return (
     <iframe
       ref={frame}
-      title={`Find Your Twin ${part} — Remastered`}
+      title={`${gameTitle} — VIP edition`}
       src={`${import.meta.env.BASE_URL}minigames/twin-remastered/part${part}/index.html?autostart=${autoStart ? '1' : '0'}`}
       allowFullScreen
       style={{ width: '100%', height: '100dvh', border: 0, display: 'block' }}

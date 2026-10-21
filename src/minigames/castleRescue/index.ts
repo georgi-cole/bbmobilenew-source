@@ -1,8 +1,8 @@
 /**
- * index.ts — Castle Rescue module entry point.
+ * index.ts — Find Your Twin module entry point.
  *
  * Re-exports everything the competition system (and the minigame registry)
- * needs to integrate Castle Rescue.  Import from this file rather than
+ * needs to integrate Find Your Twin. Import from this file rather than
  * from individual sub-modules to decouple callers from internal paths.
  *
  * Usage:

@@ -18,7 +18,7 @@ The repository has an unusually broad automated-test surface: 371 runnable Vites
 - TypeScript and both the web and Capacitor-targeted Vite builds pass. That demonstrates compilability, not functional correctness.
 - Playwright did not exercise the app locally because the required Chromium/WebKit binaries are absent. The suite also has inconsistent base-URL defaults. CI installs the browsers, but the audit found no recent run evidence in the repository itself.
 - Default V8 coverage reports **66.83% statements, 69.46% lines, 67.24% functions, and 56.15% branches**. There are no coverage thresholds or include-all policy. Critical orchestration is substantially weaker: `GameScreen.tsx` has 34.82% branch coverage, `store.ts` 8.33%, and save persistence 56.19%.
-- CI is fragmented. The main workflow never runs Vitest or coverage. A workflow named “Castle Rescue Tests” actually runs the entire unit suite. No native Android/iOS build or test, formatting gate, dependency audit, secret scan, or save-compatibility gate exists.
+- CI is fragmented. The main workflow never runs Vitest or coverage. A legacy game-specific workflow title implies narrow coverage even though it runs the entire unit suite. No native Android/iOS build or test, formatting gate, dependency audit, secret scan, or save-compatibility gate exists.
 
 ### Current confidence
 
@@ -76,7 +76,7 @@ Test declaration counts were extracted from source and reconciled against Vitest
 
 The 121 failures are not all equivalent. The main clusters are:
 
-1. **Potential product/state regressions (Critical/High):** TV feed no longer caps at 50; challenge phase dispatch and winner identity paths fail; POS/LOH partial-completion advancement fails; nomination, ceremony, eviction, spectator, final-four/finale recovery, special-veto activation, and jury transitions fail; social alliance/cost/targeting outcomes fail; Glass Bridge AI concurrency fails; several minigame rule/invariant tests fail.
+1. **Potential product/state regressions (Critical/High):** TV feed no longer caps at 50; challenge phase dispatch and winner identity paths fail; POS/LOH partial-completion advancement fails; nomination, ceremony, eviction, spectator, final-four/finale recovery, special-veto activation, and jury transitions fail; social alliance/cost/targeting outcomes fail; The Crystal Path AI concurrency fails; several minigame rule/invariant tests fail.
 2. **Likely stale tests after intentional UI/product changes (Medium):** Diary Room greeting copy/entry timing, Home Hub splash/Play sequence, TV labels, HUD sizing, safe-area CSS expectations, and some Social Panel action-selection expectations. These must be reconciled with an explicit current product specification; changing the assertion blindly would hide regressions.
 3. **Brittle or implementation-coupled failures (Low/Medium):** CSS source-string tests, mocked minigame-stub `toBeVisible` checks where the stub is removed from the document, exact label/copy checks, registry completeness assumptions, and full-screen tests with many mocked child components.
 4. **Harness/environment failures:** Playwright browser packages missing locally; base URL defaults are inconsistent across specs/config; jsdom logs unimplemented `HTMLMediaElement.pause()` repeatedly.

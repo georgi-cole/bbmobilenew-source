@@ -1,13 +1,13 @@
 /**
  * castleRescueTypes.ts
  *
- * All TypeScript interfaces and type aliases for the Castle Rescue minigame.
+ * All TypeScript interfaces and type aliases for the Find Your Twin minigame.
  * No runtime logic lives here — pure type definitions only.
  *
  * This file exports two groups of types:
  *
  * 1. **Platformer game types** (primary): Public data contracts for the
- *    platformer-style version of Castle Rescue. These describe the shape of
+ *    platformer-style version of Find Your Twin. These describe the shape of
  *    level geometry, physics-related data, and competition integration as seen
  *    by callers. Internal runtime structures in the platformer engine may use
  *    different field names or helper types, with conversion handled elsewhere.
@@ -24,7 +24,7 @@
 // ─── Phase / lifecycle ────────────────────────────────────────────────────────
 
 /**
- * Lifecycle phase of a single Castle Rescue play-through.
+ * Lifecycle phase of a single Find Your Twin play-through.
  *
  *  idle           – Not yet started (waiting for competition signal).
  *  intro          – Pre-game cinematic / introduction sequence.
@@ -238,7 +238,7 @@ export interface PrincessChamber {
 // ─── Platformer level map ─────────────────────────────────────────────────────
 
 /**
- * Complete platformer-level description for one Castle Rescue run.
+ * Complete platformer-level description for one Find Your Twin run.
  *
  * Generated deterministically from `seed` by the level builder.
  * Treat as immutable once built.

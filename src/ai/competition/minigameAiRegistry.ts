@@ -452,7 +452,7 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     scoreDirection: 'higher-is-better',
     volatility: VOLATILITY_HYBRID,
     weights: WEIGHTS_HYBRID,
-    // Castle Rescue has a large raw scoring economy (rescue bonus + pickups),
+    // Find Your Twin has a large raw scoring economy (rescue bonus + pickups),
     // but realistic competitive finishes cluster well below the theoretical
     // perfect route. Keep AI competitive while avoiding impossible-looking
     // 2.5k+ finishes from the generic time-scaled fallback.
@@ -468,7 +468,7 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       { minScore: 1501, maxScore: 2000, weight: 5 / 150 },
     ],
     notes:
-      'Castle Rescue — AI score bands normalized from the requested 25/25/40/25/20/10/5 ' +
+      'Find Your Twin — AI score bands normalized from the requested 25/25/40/25/20/10/5 ' +
       'ratio across 0–500, 501–600, 601–800, 801–1000, 1001–1200, 1201–1500, and 1501–2000.',
   },
   castleRescue2: {

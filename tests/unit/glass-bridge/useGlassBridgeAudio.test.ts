@@ -4,7 +4,7 @@ import { useGlassBridgeAudio } from '../../../src/hooks/useGlassBridgeAudio'
 import { SoundManager } from '../../../src/services/sound/SoundManager'
 import { SOUND_REGISTRY } from '../../../src/services/sound/sounds'
 
-describe('useGlassBridgeAudio', () => {
+describe('The Crystal Path sound effects', () => {
   beforeEach(() => {
     vi.spyOn(SoundManager, 'play').mockResolvedValue()
   })
@@ -30,7 +30,7 @@ describe('useGlassBridgeAudio', () => {
     expect(releaseSpy).not.toHaveBeenCalled()
   })
 
-  it('exposes callbacks for Glass Bridge step, death, winner, and turn sounds', () => {
+  it('exposes callbacks for Crystal Path step, death, winner, and turn sounds', () => {
     const { result } = renderHook(() => useGlassBridgeAudio(true))
 
     act(() => {
@@ -46,7 +46,7 @@ describe('useGlassBridgeAudio', () => {
     expect(SoundManager.play).toHaveBeenCalledWith('minigame:gb_new_turn')
   })
 
-  it('registers all Glass Bridge sound keys', () => {
+  it('registers all Crystal Path sound keys', () => {
     expect(SOUND_REGISTRY['music:gb_main']).toBeDefined()
     expect(SOUND_REGISTRY['minigame:gb_safe_step']).toBeDefined()
     expect(SOUND_REGISTRY['minigame:gb_death']).toBeDefined()

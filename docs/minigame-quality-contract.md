@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This is the release contract for every non-retired entry in `src/minigames/registry.ts`. The executable catalog lives in `tests/helpers/minigameQualityMatrix.ts`; `tests/minigames.qualityMatrix.test.ts` fails when the active registry and catalog differ, when cited evidence disappears, or when this documentation omits an active ID.
+This is the release contract for active entries in `src/minigames/registry.ts`. Retired and legacy games are excluded, as are inactive zero-weight entries without a direct VIP or finale route. Active VIP replacements and finale-only games remain in scope. The executable catalog lives in `tests/helpers/minigameQualityMatrix.ts`; `tests/minigames.qualityMatrix.test.ts` fails when the in-scope registry and catalog differ, when cited evidence disappears, or when this documentation omits an in-scope ID.
 
 A passing render test alone is not sufficient. Protection is only meaningful when the asserted result is the result a player sees and the season stores.
 

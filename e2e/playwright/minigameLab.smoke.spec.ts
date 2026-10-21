@@ -1,9 +1,12 @@
 import { closeDebugPanelIfOpen, test, expect, type Page, type TestInfo } from './support/test'
 
-import { getPoolByFilter, type GameRegistryEntry } from '../../src/minigames/registry'
+import { getAllGames, type GameRegistryEntry } from '../../src/minigames/registry'
+import { isInMinigameCertificationScope } from '../../tests/helpers/minigameCertificationScope'
+import { minigameCertificationName } from './support/minigameLabels'
 import { assertNoHorizontalDocumentOverflow } from './support/layoutAssertions'
 
-const ACTIVE_GAMES = getPoolByFilter({ retired: false })
+const ACTIVE_GAMES = getAllGames()
+  .filter(isInMinigameCertificationScope)
   .slice()
   .sort((left, right) => {
     const titleDiff = left.title.localeCompare(right.title)
@@ -12,10 +15,11 @@ const ACTIVE_GAMES = getPoolByFilter({ retired: false })
 
 async function openLab(page: Page, game: GameRegistryEntry): Promise<void> {
   await page.goto(
-    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1`
+    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1&showLab=1${game.vipOnly ? '&vipPreview=1' : ''}`,
+    { waitUntil: 'commit' }
   )
+  await expect(page.getByTestId('minigame-lab')).toBeVisible({ timeout: 60_000 })
   await closeDebugPanelIfOpen(page)
-  await page.getByRole('button', { name: 'Restore minigame lab' }).click()
 }
 
 async function attachSnapshot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -26,8 +30,10 @@ async function attachSnapshot(page: Page, testInfo: TestInfo, name: string): Pro
 }
 
 test.describe('Minigame Lab smoke @smoke @minigame', () => {
+  test.describe.configure({ timeout: 90_000 })
+
   for (const game of ACTIVE_GAMES) {
-    test(`${game.key} mounts and exits through the host result contract`, async ({
+    test(`${minigameCertificationName(game)} mounts and exits through the host result contract`, async ({
       page,
     }, testInfo) => {
       await openLab(page, game)

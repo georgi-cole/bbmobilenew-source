@@ -5,7 +5,7 @@ import {
   simulateMinigameAiScore,
 } from '../../../src/ai/competition';
 
-describe('castleRescue AI calibration', () => {
+describe('Find Your Twin AI calibration', () => {
   const model = getMinigameAiModel('castleRescue');
 
   it('uses the calibrated 0–2000 score range and normalized score buckets', () => {
@@ -41,7 +41,7 @@ describe('castleRescue AI calibration', () => {
     expect(first).toBeLessThanOrEqual(2000);
   });
 
-  it('uses the legal Castle Rescue simulation for real competition results', () => {
+  it('uses the legal Find Your Twin simulation for real competition results', () => {
     const first = simulateMinigameAiScore({
       gameKey: 'castleRescue',
       seed: 424242,
@@ -72,7 +72,7 @@ describe('castleRescue AI calibration', () => {
     expect(scores.some((score) => score > 1220)).toBe(true);
   });
 
-  it('roughly follows the configured Castle Rescue score bands over many samples', () => {
+  it('roughly follows the configured Find Your Twin score bands over many samples', () => {
     const scores: number[] = [];
     for (let seed = 1; seed <= 200; seed += 1) {
       for (let player = 1; player <= 6; player += 1) {
