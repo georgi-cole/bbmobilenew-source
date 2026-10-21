@@ -1,4 +1,5 @@
 import type { IncomingInteractionResponseType } from './types'
+import { pickIncomingActionReply } from './incomingActionContentBank'
 
 /**
  * The spoken beat that sits between a player's reply and its social fallout.
@@ -10,6 +11,7 @@ import type { IncomingInteractionResponseType } from './types'
  */
 
 export interface IncomingDialogueBeatInput {
+  actionId?: string
   scenarioKey?: string
   variantFamilyId?: string
   responseType: IncomingInteractionResponseType
@@ -620,6 +622,17 @@ function replaceTokens(line: string, input: IncomingDialogueBeatInput): string {
 
 /** Returns a stable in-character reply, rotating past recently used dialogue where possible. */
 export function getIncomingDialogueBeat(input: IncomingDialogueBeatInput): string | null {
+  if (input.actionId) {
+    const actionReply = pickIncomingActionReply({
+      actionId: input.actionId,
+      stance: stanceForResponse(input.responseType),
+      seed: input.seed,
+      playerName: input.fromName,
+      subjectName: input.subjectName,
+      recentLines: input.recentLines,
+    })
+    if (actionReply) return actionReply
+  }
   const familyBeats = input.variantFamilyId
     ? AFTERSHOCK_FAMILY_BEATS[input.variantFamilyId]
     : undefined

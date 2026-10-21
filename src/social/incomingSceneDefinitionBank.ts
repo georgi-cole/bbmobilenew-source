@@ -99,6 +99,21 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
     kind: 'conflict',
   },
   alliance_reassurance: { topic: 'the state of your alliance', stakes: 'meaningful', kind: 'bond' },
+  alliance_nomination_pitch: {
+    topic: 'an alliance recommendation for the nomination slate',
+    stakes: 'high',
+    kind: 'strategy',
+  },
+  alliance_safety_pitch: {
+    topic: 'an alliance recommendation for the Safety replacement',
+    stakes: 'high',
+    kind: 'strategy',
+  },
+  alliance_vote_pitch: {
+    topic: 'an alliance read on the eviction vote',
+    stakes: 'meaningful',
+    kind: 'strategy',
+  },
   generic_gossip: { topic: 'a Hub rumour', stakes: 'meaningful', kind: 'intel' },
   generic_check_in: { topic: 'where things stand', stakes: 'quiet', kind: 'bond' },
   relationship_friendship_check_in: {

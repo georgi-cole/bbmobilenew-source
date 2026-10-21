@@ -478,6 +478,48 @@ describe('IncomingInteractionsInbox', () => {
     expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
   })
 
+  it('shows an action-specific reaction once without repeating its relationship paraphrase', () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'action-specific-apology-reaction',
+        fromId: otherPlayer.id,
+        type: 'check_in',
+        text: 'I owe you an apology. I handled that badly, and I want to own it.',
+        payload: {
+          originActionId: 'apologize',
+          scenarioKey: 'relationship_repair_follow_up',
+          variantId: 'apologize:repair:1',
+        },
+        createdAt: 304,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Try to repair it' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'action-specific-apology-reaction'
+      )
+    expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} reacts:`))
+    expect(entry?.reactionText).not.toContain('"')
+    expect(entry?.outcomeText).toMatch(/willing to reset|pause the feud/i)
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
+    const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
+  })
+
   it('hides a summary that restates uncertainty already expressed in the reply', () => {
     const store = makeStoreWithSocialMiddleware()
     store.dispatch(setPhase('week_start'))

@@ -42,7 +42,6 @@ import type {
   DramaSocialNetwork,
   IncomingInteraction,
   IncomingInteractionDeliveryState,
-  IncomingInteractionType,
   RelationshipsMap,
   ScheduledIncomingInteraction,
   SocialActionLogEntry,
@@ -75,6 +74,7 @@ import { normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { chooseUtilityDramaAIMove } from './dramaAIPolicy'
 import { registerProvocateurConflict } from './seasonProvocateurs'
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
+import { getIncomingActionContent, pickIncomingActionOpening } from './incomingActionContentBank'
 import { allianceIdentityBias, type AiGameIdentity } from '../ai/aiGameIdentity'
 import {
   estimateFinalThreeDay,
@@ -119,6 +119,7 @@ interface DriverState {
     mode?: 'classic' | 'survival'
     publicModeEnabled?: boolean
     dramaSocialMode?: boolean
+    voxPopuli?: { status?: 'active' | 'complete' | 'inactive' | 'scheduled' }
     lohId?: string | null
     posWinnerId?: string | null
     nomineeIds?: string[]
@@ -722,120 +723,15 @@ function onVisibilityChange(): void {
   if (_cycle) scheduleWork(_cycle)
 }
 
-const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>> = {
-  ally: 'alliance_proposal',
-  proposeAlliance: 'alliance_proposal',
-  compliment: 'compliment',
-  protect: 'deal_offer',
-  whisper: 'gossip',
-  share_intel: 'gossip',
-  rumor: 'warning',
-  confront: 'snide_remark',
-  startFight: 'snide_remark',
-  public_callout: 'snide_remark',
-  ask_use_safety: 'deal_offer',
-  pitch_target: 'warning',
-  suggest_replacement: 'warning',
-  rally_votes_against: 'other',
-  nominate: 'warning',
-  group_chat: 'other',
-}
-
 const PROVOCATEUR_CONFLICT_ACTIONS = new Set(['confront', 'startFight', 'public_callout'])
-
-const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
-  ally: [
-    'I think our games fit together. I want to make this official—are you in?',
-    'The Hub is splitting, and I would rather have you beside me. Want to work together?',
-  ],
-  proposeAlliance: [
-    'I trust what we have been building. Are you ready to call it an alliance?',
-    'I see a real path for us if we commit now. Are you in?',
-  ],
-  compliment: [
-    'You handled the pressure well today. I wanted you to hear that directly from me.',
-    'The way you carried yourself today stood out—in a good way.',
-  ],
-  protect: [
-    'I may be able to keep heat off you this week, but I need to know we are working together.',
-    'Your name is vulnerable. I can help, if we can trust each other.',
-  ],
-  whisper: [
-    'I heard something privately that could change how you read this week.',
-    'There is a quiet conversation happening that you should know about.',
-  ],
-  share_intel: [
-    'I have information that could matter to your next move.',
-    'I learned something useful, but I need to know what you will do with it.',
-  ],
-  rumor: [
-    'Your name is coming up more than you may realize. I thought you deserved a warning.',
-    'The tone changes when you leave the room. Be careful who you trust.',
-  ],
-  confront: [
-    'We need to clear the air about how you have been moving.',
-    'Something between us is not adding up, and I want a direct answer.',
-  ],
-  startFight: [
-    'I am done pretending everything between us is fine.',
-    'You crossed a line with me, and I am not letting it slide.',
-  ],
-  public_callout: [
-    'I am saying this where everyone can hear it: your version of events does not add up.',
-    'You keep acting like the Hub should follow your lead. I do not, and people should know that.',
-  ],
-  ask_use_safety: [
-    'Before the Safety decision, I need to know whether you would use it to help me.',
-    'You hold Safety, and that makes this conversation urgent: would you save me?',
-  ],
-  pitch_target: [
-    'The alliance has been talking about your influence. They want you to put {player} on the block.',
-    'Several people are getting nervous about {player}. Are you open to hearing the alliance’s case?',
-  ],
-  suggest_replacement: [
-    'The alliance would like you to consider {player} as a replacement nominee.',
-    'If Safety is used, the group thinks {player} could be the right replacement.',
-  ],
-  rally_votes_against: [
-    'The alliance is organizing votes against {player}. Are you with the plan?',
-    'We are trying to line up votes to send {player} home. I wanted to know where you stand.',
-  ],
-  nominate: [
-    'I am considering putting your name in danger this week. Give me a reason not to.',
-    'Your name is part of my plan right now, and I wanted to hear what you would say.',
-  ],
-  group_chat: [
-    'A few of us are comparing notes. You can join in, observe, challenge the plan, or keep your distance.',
-    'There is a group conversation forming right now. How visible do you want to be in it?',
-  ],
-}
 
 /**
  * AI background moves still need to arrive as real scenes, not anonymous
  * `background_*` messages. These routes give their copy, player choices, and
  * resolution the same scenario-specific treatment as autonomous interactions.
  */
-const HUMAN_FACING_ACTION_SCENARIOS: Partial<Record<string, string>> = {
-  ally: 'week_start_alliance_lock',
-  proposeAlliance: 'week_start_alliance_lock',
-  compliment: 'generic_check_in',
-  protect: 'alliance_reassurance',
-  whisper: 'generic_gossip',
-  share_intel: 'generic_gossip',
-  rumor: 'betrayal_warning',
-  confront: 'targeted_snark',
-  startFight: 'targeted_snark',
-  public_callout: 'targeted_snark',
-  ask_use_safety: 'nominee_veto_pitch',
-  pitch_target: 'alliance_target_pitch',
-  suggest_replacement: 'alliance_replacement_pitch',
-  rally_votes_against: 'alliance_vote_rally',
-  nominate: 'nomination_aftershock',
-  group_chat: 'social_momentum_notice',
-}
-
 export function getHumanFacingActionScenario(actionId: string): string {
-  return HUMAN_FACING_ACTION_SCENARIOS[actionId] ?? 'generic_check_in'
+  return getIncomingActionContent(actionId)?.scenarioKey ?? 'generic_check_in'
 }
 
 function pickHumanFacingText(
@@ -843,12 +739,28 @@ function pickHumanFacingText(
   actorId: string,
   playerName: string,
   week: number,
-  phase: string
+  phase: string,
+  subjectName: string | undefined,
+  sequence: number
 ): { text: string; scenarioKey: string; variantFamilyId: string; variantId: string } {
   const scenarioKey = getHumanFacingActionScenario(actionId)
   const variantFamilies = SCENARIO_VARIANT_POOLS[scenarioKey]
-  const variants = HUMAN_FACING_ACTION_TEXT[actionId] ?? ['I wanted to talk to you directly.']
-  const random = createDeterministicSocialRandom([actorId, actionId, week, phase])
+  const variants = ['I wanted to talk to you directly.']
+  const random = createDeterministicSocialRandom([actorId, actionId, week, phase, sequence])
+  const actionOpening = pickIncomingActionOpening(
+    actionId,
+    Math.floor(random() * 1_000_000),
+    playerName,
+    subjectName
+  )
+  if (actionOpening) {
+    return {
+      text: actionOpening.text,
+      scenarioKey,
+      variantFamilyId: actionOpening.familyId,
+      variantId: actionOpening.variantId,
+    }
+  }
   if (variantFamilies?.length) {
     const { text, familyId, variantId } = pickVariantText(
       variantFamilies,
@@ -882,18 +794,17 @@ function routeHumanFacingAction(
   sceneTargetIds?: string[]
 ): HumanRouteResult {
   if (!_store) return 'blocked'
-  const type = HUMAN_FACING_ACTION_TYPES[actionId] ?? 'other'
+  // Pregnancy results use a dedicated game-state action and are resolved by
+  // executeRealityCandidate rather than this generic social conversation.
+  if (actionId === 'pregnancy_test') return 'blocked'
+  const type = getIncomingActionContent(actionId)?.interactionType ?? 'other'
 
   const current = _store.getState() as DriverState
   const human = current.game.players.find((player) => player.isUser)
   if (!human) return 'blocked'
   const subjectName = subjectId
     ? (current.game.players.find((player) => player.id === subjectId)?.name ?? subjectId)
-    : (human.name ?? 'you')
-  const textName =
-    subjectId && ['pitch_target', 'suggest_replacement', 'rally_votes_against'].includes(actionId)
-      ? subjectName
-      : (human.name ?? 'you')
+    : undefined
 
   if (actionId === 'nominate') {
     const isProtected =
@@ -927,7 +838,15 @@ function routeHumanFacingAction(
   }
 
   const mode = getEffectiveSocialMode(current)
-  const content = pickHumanFacingText(actionId, actorId, textName, week, phase)
+  const content = pickHumanFacingText(
+    actionId,
+    actorId,
+    human.name ?? 'you',
+    week,
+    phase,
+    subjectName,
+    deterministicSequence
+  )
   const interaction = createIncomingInteraction({
     id: `ai-action-${actionId}-${actorId}-${deterministicSequence}`,
     fromId: actorId,
@@ -1285,9 +1204,29 @@ function candidateForPlayer(
       decisionIndex: _tickCount * 5 + attempt,
       recentActions: history,
       socialMemory: state.social.socialMemory,
-      availableActionIds: Object.keys(socialConfig.actionWeights).filter((candidateId) =>
-        isAISocialActionVisible(candidateId, dramaMode ? 'drama' : 'normal')
-      ),
+      availableActionIds: Object.keys(socialConfig.actionWeights).filter((candidateId) => {
+        const candidateAction = getActionById(candidateId)
+        if (
+          !isAISocialActionVisible(
+            candidateId,
+            dramaMode ? 'drama' : 'normal',
+            state.game.voxPopuli?.status === 'active'
+          )
+        ) {
+          return false
+        }
+        if (!candidateAction) return false
+        const allowedPhases = dramaMode
+          ? (candidateAction.dramaAllowedPhases ?? candidateAction.allowedPhases)
+          : candidateAction.allowedPhases
+        if (allowedPhases && !allowedPhases.includes(state.game.phase)) return false
+        const requiredActorStatus = dramaMode
+          ? (candidateAction.dramaRequiredActorStatus ?? candidateAction.requiredActorStatus)
+          : candidateAction.requiredActorStatus
+        return (
+          !requiredActorStatus || requiredActorStatus.some((status) => status === player.status)
+        )
+      }),
     } as Parameters<typeof chooseActionFor>[1])
   const allianceBias = allianceIdentityBias(player.aiGameIdentity)
   const actionId =
@@ -1338,6 +1277,7 @@ function candidateForPlayer(
       decisionIndex: _tickCount * 5 + attempt,
       recentActions: history,
       socialMemory: state.social.socialMemory,
+      dramaMode,
     } as Parameters<typeof chooseTargetsFor>[2])
     targetIds = selected.length > 0 ? [selected[0]] : []
     subjectId = selected[1]
@@ -1383,8 +1323,9 @@ function executeCandidate(
   const costs = normalizeActionCosts(action, candidate.targetIds.length, dramaMode)
   const primaryTargetId = candidate.targetIds[0]
   const primaryTarget = state.game.players.find((target) => target.id === primaryTargetId)
+  const usesDedicatedPregnancyFlow = candidate.actionId === 'pregnancy_test'
 
-  if (primaryTarget?.isUser && mode !== 'multi') {
+  if (!usesDedicatedPregnancyFlow && primaryTarget?.isUser && mode !== 'multi') {
     const route = routeHumanFacingAction(
       player.id,
       candidate.actionId,
@@ -1397,6 +1338,7 @@ function executeCandidate(
   }
 
   if (
+    !usesDedicatedPregnancyFlow &&
     mode === 'multi' &&
     candidate.targetIds.some(
       (targetId) => state.game.players.find((target) => target.id === targetId)?.isUser
