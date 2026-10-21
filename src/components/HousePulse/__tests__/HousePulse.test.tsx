@@ -65,7 +65,9 @@ describe('HousePulse', () => {
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.queryByText('Huddle 0.')).toBeNull()
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /Whispers in the Hub|Friends, Favors & Question Marks/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Whispers in the Hub|Friends, Favors & Question Marks/ })
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
@@ -189,7 +191,9 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByText(/No major developments have reached your radar today/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/No major developments have reached your radar today/i)
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Today' })).toHaveClass('is-active')
     expect(screen.getByRole('button', { name: 'Intel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Commitments' })).toBeInTheDocument()
@@ -213,11 +217,17 @@ describe('HousePulse', () => {
         season={1}
         gameId="test-archive"
         reality={reality}
-        pulseChronicles={[{
-          season: 1, day: 3, title: 'A Surprising Goodbye',
-          paragraphs: ['Kai left the Hub after a difficult vote.'],
-          note: 'It was a memorable day.', sourceEventIds: ['eviction:3'], complete: true,
-        }]}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 3,
+            title: 'A Surprising Goodbye',
+            paragraphs: ['Kai left the Hub after a difficult vote.'],
+            note: 'It was a memorable day.',
+            sourceEventIds: ['eviction:3'],
+            complete: true,
+          },
+        ]}
       />
     )
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
@@ -244,7 +254,9 @@ describe('HousePulse', () => {
       window.dispatchEvent(new Event('reality-social-tutorial:open-pulse'))
     })
     expect(screen.getByRole('dialog', { name: 'My Pulse' })).toBeInTheDocument()
-    expect(screen.getByText(/No major developments have reached your radar today/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/No major developments have reached your radar today/i)
+    ).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(

@@ -5417,7 +5417,10 @@ const gameSlice = createSlice({
       if (!chronicle.complete || chronicle.season !== state.season) return
       const episodes = state.pulseChronicles ?? []
       // Keep the first final script stable and bound save growth to a season-sized archive.
-      if (episodes.some((entry) => entry.day === chronicle.day && entry.season === chronicle.season)) return
+      if (
+        episodes.some((entry) => entry.day === chronicle.day && entry.season === chronicle.season)
+      )
+        return
       state.pulseChronicles = [...episodes, chronicle].sort((a, b) => a.day - b.day).slice(-60)
     },
     setPhase(state, action: PayloadAction<Phase>) {

@@ -392,7 +392,6 @@
   }
 }
 
-
 /* The Hub Chronicles: editorial reading surface, not another telemetry card. */
 .house-pulse__chronicle {
   min-width: 0;
@@ -464,6 +463,10 @@
   margin-top: 10px;
 }
 @media (max-width: 400px) {
-  .house-pulse__chronicle { padding: 13px; }
-  .house-pulse__chronicle-story p { font-size: 12px; }
+  .house-pulse__chronicle {
+    padding: 13px;
+  }
+  .house-pulse__chronicle-story p {
+    font-size: 12px;
+  }
 }

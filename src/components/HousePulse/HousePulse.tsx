@@ -190,27 +190,57 @@ export default function HousePulse({
     [humanId, network.rumours]
   )
   const storyBeats = useMemo<SocialStoryBeat[]>(
-    () => reality ? [] : buildSocialStoryStream({
-      network,
+    () =>
+      reality
+        ? []
+        : buildSocialStoryStream({
+            network,
+            actionHistory,
+            relationships,
+            weekStartRelSnapshot,
+            players,
+            humanId,
+            currentWeek,
+          }),
+    [
       actionHistory,
+      currentWeek,
+      humanId,
+      network,
+      players,
+      reality,
       relationships,
       weekStartRelSnapshot,
-      players,
-      humanId,
-      currentWeek,
-    }),
-    [actionHistory, currentWeek, humanId, network, players, reality, relationships, weekStartRelSnapshot]
+    ]
   )
   const dayChronicle = useMemo(
-    () => reality
-      ? pulseChronicles.find((entry) => entry.season === season && entry.day === currentWeek) ??
-        composePulseChronicle({
-          gameId, season, day: currentWeek, humanId, players, reality, actionHistory,
-          weather: weatherCondition, complete: gamePhase === 'week_end',
-        })
-      : null,
-    [reality, pulseChronicles, season, currentWeek, gameId, humanId, players, actionHistory,
-      weatherCondition, gamePhase]
+    () =>
+      reality
+        ? (pulseChronicles.find((entry) => entry.season === season && entry.day === currentWeek) ??
+          composePulseChronicle({
+            gameId,
+            season,
+            day: currentWeek,
+            humanId,
+            players,
+            reality,
+            actionHistory,
+            weather: weatherCondition,
+            complete: gamePhase === 'week_end',
+          }))
+        : null,
+    [
+      reality,
+      pulseChronicles,
+      season,
+      currentWeek,
+      gameId,
+      humanId,
+      players,
+      actionHistory,
+      weatherCondition,
+      gamePhase,
+    ]
   )
   const earlierChronicles = pulseChronicles
     .filter((entry) => entry.season === season && entry.day < currentWeek)
@@ -349,7 +379,10 @@ export default function HousePulse({
                     <article className="house-pulse__chronicle" aria-label="The Hub Chronicles">
                       <div className="house-pulse__chronicle-eyebrow">
                         <span>The Hub Chronicles</span>
-                        <span>Day {dayChronicle.day} · {dayChronicle.complete ? 'Episode complete' : 'The story so far'}</span>
+                        <span>
+                          Day {dayChronicle.day} ·{' '}
+                          {dayChronicle.complete ? 'Episode complete' : 'The story so far'}
+                        </span>
                       </div>
                       <h3>{dayChronicle.title}</h3>
                       <div className="house-pulse__chronicle-story">
@@ -366,21 +399,27 @@ export default function HousePulse({
                     </article>
                   ) : (
                     <p className="house-pulse__empty">
-                      No major developments have reached your radar today. Your story is still unfolding.
+                      No major developments have reached your radar today. Your story is still
+                      unfolding.
                     </p>
                   )}
                   {earlierChronicles.length > 0 && (
                     <details className="house-pulse__history house-pulse__chronicle-archive">
                       <summary>Previous episodes · {earlierChronicles.length}</summary>
                       {earlierChronicles.map((entry) => (
-                        <article className="house-pulse__chronicle" key={entry.season + ':' + entry.day}>
+                        <article
+                          className="house-pulse__chronicle"
+                          key={entry.season + ':' + entry.day}
+                        >
                           <div className="house-pulse__chronicle-eyebrow">
                             <span>The Hub Chronicles</span>
                             <span>Day {entry.day}</span>
                           </div>
                           <h3>{entry.title}</h3>
                           <div className="house-pulse__chronicle-story">
-                            {entry.paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+                            {entry.paragraphs.map((paragraph, index) => (
+                              <p key={index}>{paragraph}</p>
+                            ))}
                           </div>
                           {entry.note && (
                             <aside className="house-pulse__producer">

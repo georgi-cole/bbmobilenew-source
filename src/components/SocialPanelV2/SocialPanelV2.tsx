@@ -260,7 +260,10 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
-  const pulseWeather = useMemo(() => resolveWeatherDay(game.gameId, game.week).condition, [game.gameId, game.week])
+  const pulseWeather = useMemo(
+    () => resolveWeatherDay(game.gameId, game.week).condition,
+    [game.gameId, game.week]
+  )
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
     weekendActive &&

@@ -221,8 +221,12 @@ type MiddlewareAPI = { dispatch: (a: unknown) => unknown; getState: () => unknow
 function archiveCompletedPulseDay(api: MiddlewareAPI, day: number): void {
   const state = api.getState() as StateWithGame
   if (getEffectiveSocialMode(state) !== 'drama' || !state.social?.reality) return
-  if (state.game.pulseChronicles?.some((entry) =>
-    entry.season === state.game.season && entry.day === day)) return
+  if (
+    state.game.pulseChronicles?.some(
+      (entry) => entry.season === state.game.season && entry.day === day
+    )
+  )
+    return
   const human = state.game.players.find((player) => player.isUser)
   if (!human) return
   const chronicle = composePulseChronicle({
@@ -238,7 +242,6 @@ function archiveCompletedPulseDay(api: MiddlewareAPI, day: number): void {
   })
   api.dispatch({ type: 'game/archivePulseChronicle', payload: chronicle })
 }
-
 
 const CUPID_PAIR_INITIAL_AFFINITY = 55
 
