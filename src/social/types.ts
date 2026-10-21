@@ -190,6 +190,8 @@ export interface SocialPhaseReport {
 export interface SocialActionReceipt {
   /** Groups compatibility logs belonging to one multi-recipient move. */
   groupId?: string
+  /** Change in the compact, player-visible relationship read caused by this move. */
+  relationshipShifts?: Record<string, number>
   summary: string
   outcomeLabel: string
   tone: 'positive' | 'negative' | 'neutral' | 'warning'

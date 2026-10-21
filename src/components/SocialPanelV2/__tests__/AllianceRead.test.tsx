@@ -215,11 +215,7 @@ describe('AllianceRead', () => {
     fireEvent.click(screen.getByText('See how this decision unfolded'))
     expect(screen.getByText('Kai voted to welcome Lia into The Winners.')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Read in full screen' }))
-    expect(screen.getByRole('region', { name: 'Full alliance read' })).toHaveClass(
-      'sp2-alliance-read--full-screen'
-    )
-    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('button', { name: 'Read in full screen' })).toBeNull()
     expect(screen.getByRole('region', { name: 'Selected alliance' })).toBeInTheDocument()
   })
 

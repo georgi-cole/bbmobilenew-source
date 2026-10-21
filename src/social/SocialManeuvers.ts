@@ -1034,6 +1034,8 @@ export interface ExecuteActionOptions {
 export interface ExecuteActionResult {
   /** The complete player-visible response is already saved in Hub Wire. */
   receiptRecorded?: boolean
+  /** The Hub Wire record that represents this completed move. */
+  receiptId?: string
   /** False when the actor lacks energy or the action is unknown. */
   success: boolean
   /** Affinity delta applied to the source→target relationship. */

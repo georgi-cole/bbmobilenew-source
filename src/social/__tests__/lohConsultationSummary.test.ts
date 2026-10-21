@@ -98,8 +98,28 @@ describe('LOH consultation summary', () => {
     )
 
     expect(summary).toBe(
-      'My planned opening nominees are Remy and Nova. If Safety changes the block, Lux is my replacement option. I want to try to get them out, but Safety and the vote decide what happens.'
+      'My planned opening nominees are Remy and Nova. If Safety changes the block, Lux would be my replacement option. I want to try to get them out, but Safety and the vote decide what happens.'
     )
+  })
+
+  it('addresses the listener directly when the LOH plan names them', () => {
+    const state = makeBackdoorState('truthful', 'human')
+    state.game.lohNominationPlan = {
+      ...state.game.lohNominationPlan!,
+      targetId: 'human',
+      backupTargetId: null,
+      initialNomineeIds: ['human', 'remy'],
+      strategy: 'direct',
+    }
+    const summary = buildLohConsultationSummary(
+      state,
+      { actorId: 'human', targetId: 'echo', actionId: 'ask_loh_target' },
+      'fallback'
+    )
+
+    expect(summary).toContain('you')
+    expect(summary).not.toContain('You is')
+    expect(summary).not.toContain('Your name is human')
   })
 
   it('keeps a deliberate decoy answer without leaking the canonical target', () => {

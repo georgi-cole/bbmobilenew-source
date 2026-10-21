@@ -358,7 +358,7 @@ describe('canonical LOH Ambush advice', () => {
     })
     expect(after.nomineeIds).toContain('lux')
     expect(after.lohNominationPlan?.status).toBe('executed')
-    expect(consult(after)).toContain('Lux is my main target')
+    expect(consult(after)).toContain('Lux is the person I most want out')
   })
   it('uses the executed canonical target even if an older save retained a stale social target', () => {
     const state = safetyState('backdoor')
@@ -366,7 +366,7 @@ describe('canonical LOH Ambush advice', () => {
     state.nomineeIds = ['nova', 'lux']
     state.lohSocialPlan!.currentTargetId = 'nova'
     state.lohNominationPlan!.status = 'executed'
-    expect(consult(state)).toContain('Lux is my main target')
+    expect(consult(state)).toContain('Lux is the person I most want out')
   })
   it('does not propose a plan against an immune target or put the Safety holder on the block', () => {
     const state = safetyState('backdoor')

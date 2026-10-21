@@ -3,8 +3,10 @@ import {
   executeAllianceManagementCommand,
 } from '../../social/allianceManagementActions'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useStore } from 'react-redux'
 import { useNavigate } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import type { RootState } from '../../store/store'
 import {
   clearSessionLogs,
   closeSocialPanel,
@@ -35,7 +37,12 @@ import HousePulse from '../HousePulse/HousePulse'
 import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
-import { isFormerAllianceMember } from '../../social/reality/allianceHistory'
+import {
+  allianceEventText,
+  canReadAllianceEvent,
+  isFormerAllianceMember,
+} from '../../social/reality/allianceHistory'
+import { formatPlayerFacingPhase } from '../../social/reality/presentation'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
 import { resolveActionTargetMode } from '../../social/socialActions'
@@ -210,6 +217,7 @@ function getSubjectCandidates(
 
 export default function SocialPanelV2() {
   const dispatch = useAppDispatch()
+  const appStore = useStore<RootState>()
   const navigate = useNavigate()
   const socialPanelOpenForUpdates = useAppSelector(selectSocialPanelOpen)
   const comparePanelState = useCallback(
@@ -378,17 +386,23 @@ export default function SocialPanelV2() {
   const [selectedAllianceHistoryEventId, setSelectedAllianceHistoryEventId] = useState<
     string | null
   >(null)
+  const [selectedPactHistoryEventId, setSelectedPactHistoryEventId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
+  const [activeReceiptId, setActiveReceiptId] = useState<string | null>(null)
   const [pregnancyCelebration, setPregnancyCelebration] = useState(false)
   const [successPulse, setSuccessPulse] = useState(false)
   const [relationshipPulseDeltas, setRelationshipPulseDeltas] = useState<
     ReadonlyMap<string, number>
   >(new Map())
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
-  const selectedAlliance = selectedAllianceId
+  const selectedAllianceRecord = selectedAllianceId
     ? socialState.reality.alliances[selectedAllianceId]
     : undefined
+  const selectedAlliance =
+    selectedAllianceRecord && allianceKind(selectedAllianceRecord) === 'GROUP'
+      ? selectedAllianceRecord
+      : undefined
   const activeGroups = useMemo(
     () =>
       Object.values(socialState.reality.alliances).filter(
@@ -458,7 +472,6 @@ export default function SocialPanelV2() {
     return () =>
       window.removeEventListener('reality-social-tutorial:open-alliances', openAllianceActions)
   }, [])
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
   const [pregnancyRolePromptOpen, setPregnancyRolePromptOpen] = useState(false)
   const [socialTutorialVariant, setSocialTutorialVariant] = useState<SocialTutorialVariant | null>(
@@ -563,15 +576,22 @@ export default function SocialPanelV2() {
     setSelectedActionId(null)
     setSelectedSubjectId(null)
     setFeedbackMsg(null)
+    setActiveReceiptId(null)
     setMultiSelectActive(false)
     setSelectedAllianceId(null)
     setSelectedAllianceHistoryEventId(null)
+    setSelectedPactHistoryEventId(null)
     setAllianceSelectionPulse(false)
     if (allianceSelectionPulseTimerRef.current !== null) {
       clearTimeout(allianceSelectionPulseTimerRef.current)
       allianceSelectionPulseTimerRef.current = null
     }
   }
+
+  const clearCurrentOutcome = useCallback(() => {
+    setFeedbackMsg(null)
+    setActiveReceiptId(null)
+  }, [])
 
   function selectAlliance(id: string | null) {
     setAllianceSelectionPulse(false)
@@ -581,6 +601,7 @@ export default function SocialPanelV2() {
     }
     setSelectedAllianceId(id)
     setSelectedAllianceHistoryEventId(null)
+    setSelectedPactHistoryEventId(null)
     if (
       selectedActionId !== 'consult_alliance' &&
       !selectedActionId?.startsWith('alliance:invite:')
@@ -591,7 +612,7 @@ export default function SocialPanelV2() {
     setSelectedSubjectId(null)
     setAllianceNameDraft('')
     setMultiSelectActive(false)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
   }
 
   const allianceQuickActions = useMemo<AllianceQuickAction[]>(() => {
@@ -1358,7 +1379,7 @@ export default function SocialPanelV2() {
         setSelectedSubjectId(null)
         setAllianceNameDraft('')
         setMultiSelectActive(false)
-        setFeedbackMsg(null)
+        clearCurrentOutcome()
         return
       }
 
@@ -1416,7 +1437,7 @@ export default function SocialPanelV2() {
       setSelectedActionId(actionId)
       setAllianceNameDraft(nextAllianceAction?.namePrompt?.initialValue ?? '')
       setSelectedSubjectId(null)
-      setFeedbackMsg(null)
+      clearCurrentOutcome()
     },
     [
       allianceQuickActions,
@@ -1426,6 +1447,7 @@ export default function SocialPanelV2() {
       selectedActionId,
       selectedAllianceId,
       eligibleConsultationAlliances,
+      clearCurrentOutcome,
     ]
   )
 
@@ -1439,8 +1461,9 @@ export default function SocialPanelV2() {
         setPrimaryTargetId(selectedReunionGuest)
         setSelectedActionId(null)
         setSelectedSubjectId(null)
+        setSelectedPactHistoryEventId(null)
         setMultiSelectActive(false)
-        setFeedbackMsg(null)
+        clearCurrentOutcome()
         return
       }
 
@@ -1453,7 +1476,8 @@ export default function SocialPanelV2() {
         setPrimaryTargetId(nextPrimaryTargetId)
       }
       setSelectedSubjectId(null)
-      setFeedbackMsg(null)
+      setSelectedPactHistoryEventId(null)
+      clearCurrentOutcome()
 
       if (
         ids.size === 0 &&
@@ -1481,12 +1505,14 @@ export default function SocialPanelV2() {
       reunionGuestIds,
       selectedAction,
       usesMultipleTargets,
+      clearCurrentOutcome,
     ]
   )
 
   const finishInitialAllianceNaming = useCallback(
     (keepSuggestedName: boolean) => {
       if (!pendingAllianceNaming || !humanPlayer) return
+      clearCurrentOutcome()
       const result = keepSuggestedName
         ? dispatch(
             executeAllianceManagementCommand({
@@ -1509,7 +1535,7 @@ export default function SocialPanelV2() {
       setMoveFilter('alliances')
       setInitialAllianceNameDraftState({ allianceId: null, value: '' })
     },
-    [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming]
+    [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming, clearCurrentOutcome]
   )
 
   const handleExecute = useCallback(() => {
@@ -1517,6 +1543,7 @@ export default function SocialPanelV2() {
       selectedReunionGuestId &&
       REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
     ) {
+      clearCurrentOutcome()
       const targetName =
         game.players.find((player) => player.id === selectedReunionGuestId)?.name ??
         'Your former Hubmate'
@@ -1545,13 +1572,13 @@ export default function SocialPanelV2() {
       game.pregnancyStory?.humanRoleChoice === undefined
     ) {
       setPregnancyRolePromptOpen(true)
-      setFeedbackMsg(null)
+      clearCurrentOutcome()
       return
     }
 
     isExecutingRef.current = true
     setExecuting(true)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
     setPregnancyCelebration(false)
 
     const targetIds =
@@ -1589,6 +1616,9 @@ export default function SocialPanelV2() {
         return
       }
       if (selectedAllianceAction) {
+        const previousLogIds = new Set(
+          appStore.getState().social.sessionLogs.map((entry) => entry.id)
+        )
         const managed = dispatch(
           executeAllianceManagementCommand(
             selectedAllianceAction.buildCommand(targetIds),
@@ -1596,6 +1626,15 @@ export default function SocialPanelV2() {
           )
         )
         setFeedbackMsg(managed.receiptRecorded ? '' : managed.reason)
+        const newReceipt = appStore
+          .getState()
+          .social.sessionLogs.filter(
+            (entry) => entry.id && !previousLogIds.has(entry.id) && entry.source === 'manual'
+          )
+          .at(-1)
+        setActiveReceiptId(
+          managed.receiptRecorded ? (newReceipt?.receipt?.groupId ?? newReceipt?.id ?? null) : null
+        )
         if (managed.status !== 'REJECTED') {
           setSelectedActionId(null)
           setAllianceNameDraft('')
@@ -1657,6 +1696,9 @@ export default function SocialPanelV2() {
               consultationAllianceId: selectedConsultationAlliance?.id,
             }
           : {}
+      const previousLogIds = new Set(
+        appStore.getState().social.sessionLogs.map((entry) => entry.id)
+      )
       const results: ExecuteActionResult[] =
         targetMode === 'multi'
           ? [
@@ -1718,6 +1760,13 @@ export default function SocialPanelV2() {
       // An empty string keeps the saved result visible even if spending the
       // last resource makes the selected action unavailable for another try.
       setFeedbackMsg(firstResult.receiptRecorded ? '' : firstResult.summary)
+      const newReceipt = appStore
+        .getState()
+        .social.sessionLogs.filter((entry) => entry.id && !previousLogIds.has(entry.id))
+        .at(-1)
+      setActiveReceiptId(
+        firstResult.receiptId ?? newReceipt?.receipt?.groupId ?? newReceipt?.id ?? null
+      )
 
       if (successfulResults.length > 0) {
         const targetNames = targetIds.map(
@@ -1793,6 +1842,8 @@ export default function SocialPanelV2() {
     }
   }, [
     dispatch,
+    appStore,
+    clearCurrentOutcome,
     effectivePrimaryTargetId,
     energy,
     executionEligibility,
@@ -1946,6 +1997,18 @@ export default function SocialPanelV2() {
           : (alliance.name ?? 'Alliance group')
       )
     : []
+  const selectedPactHistoryEvent = selectedPactHistoryEventId
+    ? socialState.reality.events.find((event) => event.id === selectedPactHistoryEventId)
+    : undefined
+  const canShowSelectedPactEvent = Boolean(
+    selectedPactHistoryEvent &&
+    canReadAllianceEvent(selectedPactHistoryEvent, humanPlayer.id) &&
+    (selectedPactHistoryEvent.allianceSnapshot?.kind === 'PACT' ||
+      (selectedPactHistoryEvent.allianceId &&
+        socialState.reality.alliances[selectedPactHistoryEvent.allianceId] &&
+        allianceKind(socialState.reality.alliances[selectedPactHistoryEvent.allianceId]) ===
+          'PACT'))
+  )
 
   const hasSeenAllianceGuide = hasSeenContextualGuide('alliance', activeProfileId, isGuest)
   const hasSeenAllianceConsultGuide = hasSeenContextualGuide(
@@ -1960,6 +2023,9 @@ export default function SocialPanelV2() {
   }
 
   const executeCopy = selectedAllianceAction?.executeLabel ?? 'Execute'
+  const footerFeedback =
+    feedbackMsg ??
+    (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
   const showSocialTutorialPrompt =
     socialTutorialVariant !== null && socialPanelOpen && !socialTutorialTourOpen
   const showSocialTutorialTour =
@@ -1993,7 +2059,7 @@ export default function SocialPanelV2() {
     setSelectedTargets(new Set([sample.id]))
     setSelectedActionId(null)
     setSelectedSubjectId(null)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
   }
 
   const completeSocialTutorial = () => {
@@ -2112,7 +2178,41 @@ export default function SocialPanelV2() {
                 dispatch(openIncomingInbox())
               }}
               onOpenAlliances={(allianceId, eventId) => {
+                const linkedAlliance = allianceId
+                  ? socialState.reality.alliances[allianceId]
+                  : undefined
+                const linkedEvent = eventId
+                  ? socialState.reality.events.find((event) => event.id === eventId)
+                  : undefined
+                const isPactLink = Boolean(
+                  linkedAlliance
+                    ? allianceKind(linkedAlliance) === 'PACT'
+                    : linkedEvent?.allianceSnapshot?.kind === 'PACT'
+                )
+                clearCurrentOutcome()
                 setMoveFilter('alliances')
+                if (isPactLink) {
+                  const counterpartId =
+                    linkedAlliance?.memberIds.find((id) => id !== humanPlayer.id) ??
+                    linkedEvent?.participantIds.find((id) => id !== humanPlayer.id)
+                  setSelectedAllianceId(null)
+                  setSelectedAllianceHistoryEventId(null)
+                  setSelectedPactHistoryEventId(eventId ?? null)
+                  if (counterpartId) {
+                    setPrimaryTargetId(counterpartId)
+                    setSelectedTargets(new Set([counterpartId]))
+                  }
+                  setSelectedActionId(null)
+                  setSelectedSubjectId(null)
+                  setMultiSelectActive(false)
+                  requestAnimationFrame(() => {
+                    document
+                      .querySelector('.sp2-focus__full-read')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  })
+                  return
+                }
+                setSelectedPactHistoryEventId(null)
                 selectAlliance(allianceId ?? null)
                 setSelectedAllianceHistoryEventId(eventId ?? null)
                 setSelectedActionId(null)
@@ -2285,7 +2385,8 @@ export default function SocialPanelV2() {
                 setPrimaryTargetId(id)
                 setSelectedTargets(new Set([id]))
                 setSelectedActionId(null)
-                setFeedbackMsg(null)
+                setSelectedPactHistoryEventId(null)
+                clearCurrentOutcome()
               }}
             />
           ) : (
@@ -2348,8 +2449,27 @@ export default function SocialPanelV2() {
                       </div>
                     )}
                     {dramaMode && focusedPlayer && (
-                      <details className="sp2-focus__full-read">
+                      <details
+                        className="sp2-focus__full-read"
+                        open={Boolean(selectedPactHistoryEventId)}
+                      >
                         <summary>Open full relationship read</summary>
+                        {canShowSelectedPactEvent && selectedPactHistoryEvent && (
+                          <div className="sp2-pact-history-event" role="status">
+                            <small>
+                              Day {selectedPactHistoryEvent.day} ·{' '}
+                              {formatPlayerFacingPhase(selectedPactHistoryEvent.phase)}
+                            </small>
+                            <span>
+                              {allianceEventText(
+                                socialState.reality,
+                                selectedPactHistoryEvent,
+                                humanPlayer.id,
+                                (id) => game.players.find((player) => player.id === id)?.name ?? id
+                              )}
+                            </span>
+                          </div>
+                        )}
                         <RealityLedger
                           reality={socialState.reality}
                           players={game.players}
@@ -2393,16 +2513,6 @@ export default function SocialPanelV2() {
                     {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
                   </span>
                 </div>
-                <button
-                  className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
-                  type="button"
-                  disabled={!canExecute}
-                  aria-label={executeCopy}
-                  aria-busy={executing}
-                  onClick={handleExecute}
-                >
-                  {executeCopy}
-                </button>
               </div>
               {!selectedReunionGuest && (
                 <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
@@ -2417,6 +2527,7 @@ export default function SocialPanelV2() {
                         filter.id === 'alliances' ? 'alliance-actions' : undefined
                       }
                       onClick={() => {
+                        clearCurrentOutcome()
                         setMoveFilter(filter.id)
                         if (filter.id !== 'alliances') {
                           setSelectedAllianceId(null)
@@ -2556,43 +2667,49 @@ export default function SocialPanelV2() {
                 <span id="sp2-alliance-name-hint">{selectedAllianceAction.namePrompt.hint}</span>
               </div>
             )}
-          </section>
-        </div>
-
-        {needsSubject && effectivePrimaryTargetId && (
-          <div className="sp2-subject-picker" aria-label="Choose subject">
-            <span className="sp2-subject-picker__label">Talking about:</span>
-            {subjectCandidates.length === 0 ? (
-              <span className="sp2-subject-picker__empty">No eligible targets</span>
-            ) : (
-              <div
-                className="sp2-subject-picker__chips"
-                role="group"
-                aria-label="Subject candidates"
-              >
-                {subjectCandidates.map((candidate) => (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    className={`sp2-subject-chip${
-                      selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
-                    }`}
-                    aria-pressed={selectedSubjectId === candidate.id}
-                    onClick={() => {
-                      setSelectedSubjectId((previous) =>
-                        previous === candidate.id ? null : candidate.id
-                      )
-                      setFeedbackMsg(null)
-                    }}
+            {needsSubject && effectivePrimaryTargetId && (
+              <div className="sp2-subject-picker" aria-label="Choose subject">
+                <span className="sp2-subject-picker__label">Talking about:</span>
+                {subjectCandidates.length === 0 ? (
+                  <span className="sp2-subject-picker__empty">No eligible targets</span>
+                ) : (
+                  <div
+                    className="sp2-subject-picker__chips"
+                    role="group"
+                    aria-label="Subject candidates"
                   >
-                    <PlayerAvatar player={candidate} size="sm" showRelationshipOutline={false} />
-                    <span className="sp2-subject-chip__name">{candidate.name}</span>
-                  </button>
-                ))}
+                    {subjectCandidates.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={`sp2-subject-chip${
+                          selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
+                        }`}
+                        aria-pressed={selectedSubjectId === candidate.id}
+                        onClick={() => {
+                          setSelectedSubjectId((previous) =>
+                            previous === candidate.id ? null : candidate.id
+                          )
+                          clearCurrentOutcome()
+                        }}
+                      >
+                        <PlayerAvatar
+                          player={candidate}
+                          size="sm"
+                          showRelationshipOutline={false}
+                        />
+                        <span className="sp2-subject-chip__name">{candidate.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
+            <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
+              <RecentActivity players={game.players} compact activeReceiptId={activeReceiptId} />
+            </div>
+          </section>
+        </div>
 
         <footer className="sp2-footer sp2-footer--unified" data-reality-tutorial="footer">
           {pregnancyCelebration && (
@@ -2600,19 +2717,38 @@ export default function SocialPanelV2() {
               🤰 ✨ 🍼 💜 ✨
             </span>
           )}
-          <div
-            className={`sp2-recent sp2-recent--unified${historyOpen ? ' sp2-recent--expanded' : ''}`}
-            aria-label="Recent Activity log"
-          >
-            <RecentActivity
-              players={game.players}
-              compact
-              feedback={
-                feedbackMsg ??
-                (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
-              }
-              onExpandedChange={setHistoryOpen}
-            />
+          <div className="sp2-footer__commandbar">
+            <span className="sp2-footer__cost">
+              {totalCosts && selectedAction
+                ? [
+                    totalCosts.energy ? `⚡ ${totalCosts.energy}` : null,
+                    totalCosts.influence ? `🤝 ${totalCosts.influence}` : null,
+                    totalCosts.info ? `💡 ${totalCosts.info}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'No resource cost'
+                : 'Choose a move'}
+            </span>
+            {footerFeedback && (
+              <span className="sp2-footer__feedback" role="status">
+                {footerFeedback}
+              </span>
+            )}
+            {Boolean(activeReceiptId || feedbackMsg) && (
+              <button className="sp2-clear-outcome" type="button" onClick={clearCurrentOutcome}>
+                Clear
+              </button>
+            )}
+            <button
+              className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
+              type="button"
+              disabled={!canExecute}
+              aria-label={executeCopy}
+              aria-busy={executing}
+              onClick={handleExecute}
+            >
+              {executeCopy}
+            </button>
           </div>
         </footer>
       </div>

@@ -602,7 +602,7 @@ describe('incomingInteractionAutonomy thematic routing', () => {
       strategy: 'backdoor' as const,
       targetId: 'lux',
       openingNomineeIds: ['remy', 'nova'],
-      expectedText: 'If Safety changes the block, Lux is my replacement option.',
+      expectedText: 'If Safety changes the block, Lux would be my replacement option.',
     },
   ])(
     'uses the canonical $strategy nomination plan in an AI LOH alliance huddle',
