@@ -30,13 +30,16 @@ function setup() {
   ) {
     return appendRealityEvent(reality, {
       day: 2,
-      phase: type === 'CEREMONY_POWER_WON' && tags.includes('safety') ? 'pos_results' : type.includes('EVICTION')
-        ? 'eviction_results'
-        : type.includes('NOMINATION')
-          ? 'nomination_results'
-          : type.includes('SAFETY')
-            ? 'pos_ceremony_results'
-            : 'loh_results',
+      phase:
+        type === 'CEREMONY_POWER_WON' && tags.includes('safety')
+          ? 'pos_results'
+          : type.includes('EVICTION')
+            ? 'eviction_results'
+            : type.includes('NOMINATION')
+              ? 'nomination_results'
+              : type.includes('SAFETY')
+                ? 'pos_ceremony_results'
+                : 'loh_results',
       type,
       actorId,
       targetIds,

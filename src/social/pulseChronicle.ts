@@ -238,20 +238,21 @@ function chronicleEvent(
         ...base,
         category: 'safety',
         importance: 96,
-        text: event.targetIds.length === 1 && event.targetIds[0] === event.actorId
-          ? actor === 'you'
-            ? 'You used Safety to save yourself. Sometimes the smartest rescue is your own.'
-            : name(event.actorId) + ' used Safety to escape the block. One less reason to panic.'
-          : event.targetIds.length
+        text:
+          event.targetIds.length === 1 && event.targetIds[0] === event.actorId
             ? actor === 'you'
-            ? 'You used Safety to pull ' +
-              targets +
-              ' out of danger. Someone owes you a very good thank-you.'
-            : name(event.actorId) +
-              ' used Safety to rescue ' +
-              targets +
-              '. The block was no longer what it seemed.'
-          : 'Safety changed the nominations, forcing everyone to rethink the vote.',
+              ? 'You used Safety to save yourself. Sometimes the smartest rescue is your own.'
+              : name(event.actorId) + ' used Safety to escape the block. One less reason to panic.'
+            : event.targetIds.length
+              ? actor === 'you'
+                ? 'You used Safety to pull ' +
+                  targets +
+                  ' out of danger. Someone owes you a very good thank-you.'
+                : name(event.actorId) +
+                  ' used Safety to rescue ' +
+                  targets +
+                  '. The block was no longer what it seemed.'
+              : 'Safety changed the nominations, forcing everyone to rethink the vote.',
       }
     case 'CEREMONY_SAFETY_DECLINED':
       if (event.tags.includes('safety_decision:partial')) return null
