@@ -828,18 +828,10 @@ export function resolveMajorityRulesBallot(params: {
   const tiedOptionIds = populatedOptionIds.filter(
     (optionId) => (distribution[optionId] ?? 0) === minCount
   )
+  // A tie for the smallest *populated* group is not a true minority,
+  // including a 6–6–0 vote where the zero-vote option represents nobody.
+  // Never force another ballot: keep everyone and move to a fresh question.
   if (tiedOptionIds.length !== 1) {
-    if (tiedOptionIds.length === populatedOptionIds.length) {
-      return {
-        kind: 'revote',
-        distribution,
-        answers,
-        eliminatedIds: [],
-        minorityOptionId: null,
-        tiedOptionIds,
-        eliminationCount,
-      }
-    }
     return {
       kind: 'split',
       distribution,
