@@ -1697,7 +1697,7 @@
   .cps-shell--premium .cps-bridge-track {
     width: min(354px, calc(100% - 1.65rem));
     padding-inline: 0.45rem;
-    transform: rotateX(29deg) translateY(0.35rem);
+    transform: rotateX(29deg) translateY(-0.85rem);
   }
 
   .cps-shell--premium .cps-infinity-void {
