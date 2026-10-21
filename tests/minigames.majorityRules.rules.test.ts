@@ -53,7 +53,7 @@ describe('Majority Rules', () => {
     expect(Object.values(poll).reduce((sum, value) => sum + value, 0)).toBe(100)
   })
 
-  it('resolves ballots across unanimous, elimination, and revote states', () => {
+  it('resolves ballots across unanimous, distinct-minority, and split states', () => {
     const unanimous = resolveMajorityRulesBallot({
       activeIds: ['p1', 'p2', 'p3'],
       answers: { p1: 'a', p2: 'a', p3: 'a' },
@@ -73,14 +73,65 @@ describe('Majority Rules', () => {
     expect(splitMinority.eliminatedIds).toEqual([])
     expect(splitMinority.tiedOptionIds.sort()).toEqual(['b', 'c'])
 
-    const revote = resolveMajorityRulesBallot({
+    const tiedLeaders = resolveMajorityRulesBallot({
       activeIds: ['p1', 'p2', 'p3', 'p4'],
       answers: { p1: 'a', p2: 'a', p3: 'b', p4: 'b' },
       question: QUESTION,
       eliminationCount: 1,
     })
-    expect(revote.kind).toBe('revote')
-    expect(revote.tiedOptionIds.sort()).toEqual(['a', 'b'])
+    expect(tiedLeaders.kind).toBe('split')
+    expect(tiedLeaders.eliminatedIds).toEqual([])
+    expect(tiedLeaders.tiedOptionIds.sort()).toEqual(['a', 'b'])
+  })
+
+  it('never re-votes a 6–6–0 tie; zero-vote answers do not count as a minority', () => {
+    const activeIds = Array.from({ length: 12 }, (_, i) => `p${i + 1}`)
+    const answers = Object.fromEntries(
+      activeIds.map((id, i) => [id, i < 6 ? 'a' : 'b'])
+    )
+    const result = resolveMajorityRulesBallot({
+      activeIds,
+      answers,
+      question: QUESTION,
+      eliminationCount: 1,
+    })
+    expect(result.kind).toBe('split')
+    expect(result.distribution).toEqual({ a: 6, b: 6, c: 0 })
+    expect(result.eliminatedIds).toEqual([])
+    expect(result.tiedOptionIds).toEqual(['a', 'b'])
+  })
+
+  it('moves on with no elimination when all three populated groups tie', () => {
+    const activeIds = Array.from({ length: 12 }, (_, i) => `p${i + 1}`)
+    const answers = Object.fromEntries(
+      activeIds.map((id, i) => [id, i < 4 ? 'a' : i < 8 ? 'b' : 'c'])
+    )
+    const result = resolveMajorityRulesBallot({
+      activeIds, answers, question: QUESTION, eliminationCount: 1,
+    })
+    expect(result.kind).toBe('split')
+    expect(result.eliminatedIds).toEqual([])
+  })
+
+  it('eliminates only a unique small populated minority, not a large or tied group', () => {
+    const activeIds = Array.from({ length: 12 }, (_, i) => `p${i + 1}`)
+    const election = (a: number, b: number) => {
+      const answers = Object.fromEntries(
+        activeIds.map((id, i) => [id, i < a ? 'a' : i < a + b ? 'b' : 'c'])
+      )
+      return resolveMajorityRulesBallot({ activeIds, answers, question: QUESTION, eliminationCount: 1 })
+    }
+    const oneOut = election(6, 5)
+    expect(oneOut.kind).toBe('elimination')
+    expect(oneOut.eliminatedIds).toEqual(['p12'])
+
+    const twoOut = election(7, 3)
+    expect(twoOut.kind).toBe('elimination')
+    expect(twoOut.eliminatedIds).toEqual(['p11', 'p12'])
+
+    const tiedBottom = election(10, 1)
+    expect(tiedBottom.kind).toBe('split')
+    expect(tiedBottom.eliminatedIds).toEqual([])
   })
 
   it('applies hint-aware simulation without breaking the human vote', () => {
