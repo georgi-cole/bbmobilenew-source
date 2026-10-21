@@ -2214,32 +2214,35 @@ export async function playVisibleMinigame(
       }
 
       const answer = await firstVisibleEnabled(
-        host.getByRole('button', { name: /^SELECT [A-Z]\b/i })
+        host.locator('button.majority-rules-option:not(.majority-rules-option--selected)')
       )
-      if (!roll && !numberPick && answer) {
-        await answer.click({ delay: random.int(20, 85) })
+      const selectedAnswer = await firstVisibleEnabled(
+        host.locator('button.majority-rules-option--selected')
+      )
+      if (!roll && !numberPick && (selectedAnswer || answer)) {
+        if (!selectedAnswer && answer) {
+          // These options animate into place and can be replaced when the
+          // human's selection updates. Skip Playwright's stability wait, then
+          // confirm the choice through the separate lock-in control.
+          await clickWithShortTimeout(answer, 0, true)
+        }
         const lock = await firstVisibleEnabled(host.getByRole('button', { name: 'Lock in answer' }))
-        if (lock) await lock.click({ delay: random.int(20, 85) })
-        interacted = true
-      } else if (!roll && !numberPick && !answer) {
+        if (lock) interacted = await clickWithShortTimeout(lock, random.int(20, 85), true)
+      } else if (!roll && !numberPick) {
         const continueButton = host
-          .getByRole('button', { name: /^(?:Continue|Continue watching|Skip to results)$/i })
+          .getByRole('button', {
+            name: /^(?:Continue|Continue watching|Skip to results|Start re-vote|New question)$/i,
+          })
           .first()
         if (await continueButton.isVisible().catch(() => false)) {
           await page.waitForTimeout(350)
           const stableContinue = await firstVisibleEnabled(
             host.getByRole('button', {
-              name: /^(?:Continue|Continue watching|Skip to results)$/i,
+              name: /^(?:Continue|Continue watching|Skip to results|Start re-vote|New question)$/i,
             })
           )
           if (stableContinue) {
-            try {
-              await stableContinue.click({ delay: random.int(20, 85), timeout: 2_000 })
-              interacted = true
-            } catch {
-              // The game may replace the result card during its animation;
-              // retry from the next bounded simulation action.
-            }
+            interacted = await clickWithShortTimeout(stableContinue, random.int(20, 85), true)
           }
         }
       }
