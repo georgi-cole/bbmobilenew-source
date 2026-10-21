@@ -97,6 +97,8 @@ function titleCase(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
+type PulseStoryBeat = SocialStoryBeat & { allianceId?: string; sourceEventId?: string }
+
 export default function HousePulse({
   network,
   players,
