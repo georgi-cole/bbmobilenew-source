@@ -13,6 +13,7 @@ import majorityRulesReducer, {
 import { resolveMajorityRulesOutcome } from '../../src/features/majorityRules/thunks';
 import {
   MAJORITY_RULES_QUESTIONS,
+  resolveMajorityRulesBallot,
 } from '../../src/features/majorityRules/helpers';
 import { getGame } from '../../src/minigames/registry';
 
@@ -89,13 +90,13 @@ describe('majorityRules registry entry', () => {
     expect(entry?.resultMode).toBe('placement');
   });
 
-  it('documents the updated hint and split-vote tiebreak rules in the instructions', () => {
+  it('documents the updated hint and no-revote minority rules in the instructions', () => {
     const entry = getGame('majorityRules');
     expect(entry?.instructions).toContain(
       'You get 3 hints for the whole game, and each hint can only be used once.',
     );
     expect(entry?.instructions).toContain(
-      'A tied ballot gets one re-vote. If it is still tied, that question is discarded and a new one begins.',
+      'If no distinct, small minority is found (including ties), nobody is eliminated and a new question begins.',
     );
   });
 });
@@ -249,7 +250,54 @@ describe('majorityRules initialization flow', () => {
     expect(retriedState.roundHintPollEstimate).toBeNull();
   });
 
-  it('replaces the question after one tied re-vote', () => {
+  it('advances a 6–6–0 tied ballot without evicting anyone or spending hints twice', () => {
+    const question = MAJORITY_RULES_QUESTIONS[0];
+    const activeIds = Array.from({ length: 12 }, (_, i) => `p${i + 1}`);
+    const answers = Object.fromEntries(
+      activeIds.map((id, i) => [id, i < 6 ? question.options[0].id : question.options[1].id]),
+    );
+    const result = resolveMajorityRulesBallot({
+      activeIds, answers, question, eliminationCount: 1,
+    });
+    expect(result.kind).toBe('split');
+
+    const store = makeStore({
+      phase: 'reveal',
+      participantIds: activeIds,
+      activeIds,
+      eliminatedIds: [],
+      humanPlayerId: 'p1',
+      roundNumber: 3,
+      revoteNumber: 0,
+      currentQuestion: question,
+      usedQuestionIds: [question.id],
+      winnerId: null,
+      blockedAnswers: {},
+      hintInventories: {
+        p1: { pollHintUsed: true, peekTwoUsed: false, followPlayerUsed: false },
+      },
+      roundHintUsedBy: 'p1',
+      roundHintType: 'pollHint',
+      roundHintPollEstimate: { a: 50, b: 50, c: 0 },
+      revealState: { result, revoteNumber: 0 },
+    });
+
+    store.dispatch(advanceReveal());
+
+    const next = store.getState().majorityRules;
+    expect(next.phase).toBe('question');
+    expect(next.roundNumber).toBe(4);
+    expect(next.revoteNumber).toBe(0);
+    expect(next.activeIds).toEqual(activeIds);
+    expect(next.eliminatedIds).toEqual([]);
+    expect(next.currentQuestion?.id).not.toBe(question.id);
+    expect(next.revealState).toBeNull();
+    expect(next.blockedAnswers).toEqual({});
+    expect(next.roundHintType).toBeNull();
+    expect(next.hintInventories.p1.pollHintUsed).toBe(true);
+  });
+
+  it('moves legacy saved revote results to the next question without reopening voting', () => {
     const question = MAJORITY_RULES_QUESTIONS[0];
     const store = configureStore({
       reducer: {
