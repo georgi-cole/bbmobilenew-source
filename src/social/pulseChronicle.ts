@@ -60,6 +60,21 @@ const wetWeather = new Set([
   'sun_showers',
   'stormy',
 ])
+// Decorative copy only: the seeded scene never changes game state or outcomes.
+const rainyEvictionScenes = [
+  {
+    lead: 'Rain tapped at the windows as',
+    after: 'The remaining players stayed inside for a drink afterward.',
+  },
+  {
+    lead: 'With rain sweeping over the Hub,',
+    after: 'After the vote, the players who stayed behind shared a drink indoors.',
+  },
+  {
+    lead: 'Rain kept the evening indoors as',
+    after: 'Once the vote was over, the remaining players settled in with a drink.',
+  },
+]
 const safeName = (name: string) =>
   name
     .replace(/[\r\n<>]/g, '')
@@ -784,7 +799,8 @@ function producerNote(
 function storyParagraphs(
   featured: readonly StoryMoment[],
   humanId: string,
-  weather?: string | null
+  weather: string | null | undefined,
+  seed: string
 ): string[] {
   const ceremony = featured.filter(
     (moment) =>
@@ -816,10 +832,9 @@ function storyParagraphs(
   ]
   for (const moment of closingMoments) {
     if (moment.category === 'eviction' && weather && wetWeather.has(weather)) {
-      paragraphs.push(
-        'With rain pouring outside, ' +
-          moment.text.replace(/^([A-Z])/, (firstLetter) => firstLetter.toLowerCase())
-      )
+      const scene = rainyEvictionScenes[hash(seed + ':rainy-eviction') % rainyEvictionScenes.length]
+      const eviction = moment.text.replace(/^([A-Z])/, (firstLetter) => firstLetter.toLowerCase())
+      paragraphs.push(`${scene.lead} ${eviction} ${scene.after}`)
     } else {
       paragraphs.push(moment.text)
     }
@@ -946,7 +961,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const featured = [...ceremonyHighlights, ...personalHighlights].sort(
     (a, b) => a.sequence - b.sequence
   )
-  const paragraphs = storyParagraphs(featured, input.humanId, input.weather)
+  const paragraphs = storyParagraphs(featured, input.humanId, input.weather, seed)
   return {
     season: input.season,
     day: input.day,

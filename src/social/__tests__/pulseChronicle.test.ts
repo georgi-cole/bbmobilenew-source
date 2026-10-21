@@ -472,8 +472,8 @@ describe('The Hub Chronicles', () => {
       voteResult: { mode: 'house', counts: { zara: 6, maya: 0 } },
     })
 
-    expect(chapter.paragraphs.join(' ')).toContain(
-      'With rain pouring outside, the Hub voted Zara out unanimously, 6–0.'
+    expect(chapter.paragraphs.join(' ')).toMatch(
+      /rain.+Hub voted Zara out unanimously, 6–0\..+drink/i
     )
   })
 
@@ -561,7 +561,7 @@ describe('The Hub Chronicles', () => {
     expect(output).toContain(
       'Mimi nominated you and Kian. You won Safety and saved yourself. Mimi named Kai as the replacement nominee.'
     )
-    expect(output).toContain('With rain pouring outside, the Hub voted Kai out unanimously, 6–0.')
+    expect(output).toMatch(/rain.+Hub voted Kai out unanimously, 6–0\..+drink/i)
     expect(chapter.note).toContain(
       'After Mimi nominated you, you started lining up votes against them.'
     )
