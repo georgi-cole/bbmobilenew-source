@@ -199,6 +199,33 @@ describe('HousePulse', () => {
     expect(screen.getByRole('heading', { name: 'Commitments' })).toBeInTheDocument()
   })
 
+  it('keeps completed episodes accessible after their source events are gone', () => {
+    const reality = createInitialRealityDomainState()
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={4}
+        season={1}
+        gameId="test-archive"
+        reality={reality}
+        pulseChronicles={[{
+          season: 1, day: 3, title: 'A Surprising Goodbye',
+          paragraphs: ['Kai left the Hub after a difficult vote.'],
+          note: 'It was a memorable day.', sourceEventIds: ['eviction:3'], complete: true,
+        }]}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    fireEvent.click(screen.getByText(/Previous episodes/))
+    expect(screen.getByRole('heading', { name: 'A Surprising Goodbye' })).toBeInTheDocument()
+    expect(screen.getByText(/Kai left the Hub/)).toBeInTheDocument()
+  })
+
   it('responds to the Reality Social tutorial navigation events', () => {
     render(
       <HousePulse
