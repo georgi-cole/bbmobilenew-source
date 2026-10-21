@@ -111,37 +111,44 @@ function tiltLabyrinthPointKey(point: TiltLabyrinthPoint): string {
 
 function buildVisibleTiltRoute(
   candidates: TiltLabyrinthPoint[],
-  maze: TiltLabyrinthMazeGraph
+  maze: TiltLabyrinthMazeGraph,
+  keyPoint: TiltLabyrinthPoint
 ): TiltLabyrinthPoint[] {
   const visible = new Set(candidates.map(tiltLabyrinthPointKey))
   const start = { col: 0, row: 0 }
   const goal = { col: 18, row: 24 }
   visible.add(tiltLabyrinthPointKey(start))
   visible.add(tiltLabyrinthPointKey(goal))
-  const queue = [start]
-  const previous = new Map<string, TiltLabyrinthPoint | null>([
-    [tiltLabyrinthPointKey(start), null],
-  ])
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    const currentKey = tiltLabyrinthPointKey(current)
-    if (current.col === goal.col && current.row === goal.row) {
-      const route: TiltLabyrinthPoint[] = []
-      let point: TiltLabyrinthPoint | null = current
-      while (point) {
-        route.push(point)
-        point = previous.get(tiltLabyrinthPointKey(point)) ?? null
+  visible.add(tiltLabyrinthPointKey(keyPoint))
+  const findSegment = (from: TiltLabyrinthPoint, to: TiltLabyrinthPoint) => {
+    const queue = [from]
+    const previous = new Map<string, TiltLabyrinthPoint | null>([
+      [tiltLabyrinthPointKey(from), null],
+    ])
+    while (queue.length > 0) {
+      const current = queue.shift()!
+      const currentKey = tiltLabyrinthPointKey(current)
+      if (currentKey === tiltLabyrinthPointKey(to)) {
+        const route: TiltLabyrinthPoint[] = []
+        let point: TiltLabyrinthPoint | null = current
+        while (point) {
+          route.push(point)
+          point = previous.get(tiltLabyrinthPointKey(point)) ?? null
+        }
+        return route.reverse()
       }
-      return route.reverse()
+      for (const next of maze.get(currentKey) ?? []) {
+        const nextKey = tiltLabyrinthPointKey(next)
+        if (!visible.has(nextKey) || previous.has(nextKey)) continue
+        previous.set(nextKey, current)
+        queue.push(next)
+      }
     }
-    for (const next of maze.get(currentKey) ?? []) {
-      const nextKey = tiltLabyrinthPointKey(next)
-      if (!visible.has(nextKey) || previous.has(nextKey)) continue
-      previous.set(nextKey, current)
-      queue.push(next)
-    }
+    return []
   }
-  return []
+  const toKey = findSegment(start, keyPoint)
+  const toGoal = findSegment(keyPoint, goal)
+  return toKey.length && toGoal.length ? [...toKey, ...toGoal.slice(1)] : []
 }
 
 async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisibleBoard> {
@@ -151,6 +158,8 @@ async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisib
     if (!context) return { candidates: [], maze: {} }
     const image = context.getImageData(0, 0, surface.width, surface.height)
     const candidates: Array<{ col: number; row: number }> = []
+    let keyPoint = { col: 0, row: 0 }
+    let keyScore = -1
     const isWallPixel = (x: number, y: number) => {
       if (x < 0 || y < 0 || x >= surface.width || y >= surface.height) return false
       const offset = (y * surface.width + x) * 4
@@ -172,6 +181,7 @@ async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisib
         const centerX = Math.round(((col + 0.5) * surface.width) / 19)
         const centerY = Math.round(((row + 0.5) * surface.height) / 25)
         let yellowPixels = 0
+        let goldPixels = 0
         for (let y = centerY - 5; y <= centerY + 5; y += 1) {
           for (let x = centerX - 5; x <= centerX + 5; x += 1) {
             if (x < 0 || y < 0 || x >= surface.width || y >= surface.height) continue
@@ -182,9 +192,16 @@ async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisib
             if (red > 65 && green > 50 && red > green * 1.05 && green > blue * 1.25) {
               yellowPixels += 1
             }
+            // The key marker uses a deeper gold than the pale hint line.
+            if (red > 190 && green > 110 && green < 210 && blue < 90) goldPixels += 1
           }
         }
         if (yellowPixels >= 5) candidates.push({ col, row })
+        // Ignore the player ball at the starting cell, which uses a similar gold tone.
+        if ((col !== 0 || row !== 0) && goldPixels > keyScore) {
+          keyScore = goldPixels
+          keyPoint = { col, row }
+        }
       }
     }
 
@@ -209,10 +226,10 @@ async function readVisibleTiltRoute(canvas: Locator): Promise<TiltLabyrinthVisib
         maze[col + ':' + row] = neighbors
       }
     }
-    return { candidates, maze }
+    return { candidates, maze, keyPoint }
   })
   const maze = new Map<string, TiltLabyrinthPoint[]>(Object.entries(board.maze))
-  return { route: buildVisibleTiltRoute(board.candidates, maze), maze }
+  return { route: buildVisibleTiltRoute(board.candidates, maze, board.keyPoint), maze }
 }
 
 async function readTiltBallPosition(
@@ -2220,13 +2237,13 @@ export async function playVisibleMinigame(
       if (finish) {
         // The last-player-standing reveal is the terminal state for Majority Rules.
         // Advancing it closes the minigame and returns control to the season flow.
-        await finish.click({ delay: random.int(20, 85) })
+        await clickWithShortTimeout(finish, random.int(20, 85), true)
         interacted = true
         completedByFinalVerdict = true
       } else {
         const roll = await firstVisibleEnabled(host.getByRole('button', { name: 'Roll die' }))
         if (roll) {
-          await roll.click({ delay: random.int(20, 85) })
+          await clickWithShortTimeout(roll, random.int(20, 85), true)
           interacted = true
         }
 
@@ -2234,7 +2251,7 @@ export async function playVisibleMinigame(
           host.getByRole('button', { name: /^[1-6]$/, exact: true })
         )
         if (!roll && numberPick) {
-          await numberPick.click({ delay: random.int(20, 85) })
+          await clickWithShortTimeout(numberPick, random.int(20, 85), true)
           interacted = true
         }
 
