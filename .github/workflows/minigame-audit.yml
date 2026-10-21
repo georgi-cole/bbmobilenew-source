@@ -34,7 +34,9 @@ jobs:
           fi
 
           changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
-          if grep -Eq '^(src/|public/|tests/|e2e/playwright/|scripts/(run-minigame-tests|run-visual-audit)\.mjs$|playwright\.config\.ts$|package(-lock)?\.json$|docs/minigame-(quality-contract|test-matrix)\.md$|\.github/workflows/minigame-audit\.yml$)' <<< "$changed_files"; then
+          # Keep this list scoped to minigame implementations, their shared host/gameplay
+          # infrastructure, and the tests/config/assets that certify them.
+          if grep -Eq '^(src/minigames/|src/components/Minigame[^/]*/|src/components/(QuickTapRace|TapRace|FinalThreeCircuit)/|src/store/minigame[^/]*$|src/styles/|src/(App|index)\.css$|src/ai/competition/|src/competitions/|src/features/(cwgo|riskWheel)/|src/hooks/use(Minigame|QuickTapRace)[^/]*\.|src/services/sound/minigame[^/]*\.|src/screens/(MinigameLab|MinigameTurnDemos)/|public/assets/(minigames|sounds/minigames)/|tests/(minigames\.|minigameHost\.|integration/minigame\.|unit/minigame|unit/battery-low/|unit/glass-bridge/)|e2e/playwright/(minigame[^/]*\.|mysticChamber\.mobile\.spec\.ts$|season-sim/minigames\.)|scripts/(run-minigame-tests|run-visual-audit)\.mjs$|playwright\.config\.ts$|package(-lock)?\.json$|docs/minigame-(quality-contract|test-matrix)\.md$|\.github/workflows/minigame-audit\.yml$)' <<< "$changed_files"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
