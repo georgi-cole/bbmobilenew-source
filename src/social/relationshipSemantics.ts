@@ -79,7 +79,8 @@ export function isBetrayalBetween(
 export function getCanonicalRelationshipLabel(
   edge: DirectedRelationship | undefined,
   hasOperationalAlliance = false,
-  currentDay?: number
+  currentDay?: number,
+  hasActiveNemesis = false
 ): string {
   const isEarlyRead =
     !edge ||
@@ -87,6 +88,7 @@ export function getCanonicalRelationshipLabel(
     edge.perceivedLabel === 'ACQUAINTANCE' ||
     edge.perceivedLabel === 'FRIENDLY'
 
+  if (hasActiveNemesis) return 'Nemesis'
   if (hasOperationalAlliance && isEarlyRead) return 'Ally'
   if (isEarlyRead && currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS) {
     return getFirstImpressionLabel(edge)
@@ -210,11 +212,13 @@ export function selectCanonicalRelationshipView(input: {
   affinity?: number
   visibleTags: Set<string>
   alliance: { id: string; status: string; operational: boolean } | null
+  isNemesis: boolean
 } {
   const outward = input.relationships?.[input.actorId]?.[input.targetId]
   const inward = input.relationships?.[input.targetId]?.[input.actorId]
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
+  const isNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
 
   if (formalAlliance?.status === 'PROBATIONARY') {
     visibleTags.delete('strained_alliance')
@@ -234,6 +238,7 @@ export function selectCanonicalRelationshipView(input: {
         ? Math.round(((outward?.affinity ?? 0) + (inward?.affinity ?? 0)) / 2)
         : undefined,
     visibleTags,
+    isNemesis,
     alliance: formalAlliance
       ? {
           id: formalAlliance.id,
@@ -242,6 +247,19 @@ export function selectCanonicalRelationshipView(input: {
         }
       : null,
   }
+}
+
+function hasActiveNemesisBetween(
+  reality: RealityDomainState | undefined,
+  actorId: string,
+  targetId: string
+): boolean {
+  return Object.values(reality?.relationshipAutonomy.nemeses ?? {}).some(
+    (nemesis) =>
+      nemesis.status === 'ACTIVE' &&
+      ((nemesis.ownerId === actorId && nemesis.targetId === targetId) ||
+        (nemesis.ownerId === targetId && nemesis.targetId === actorId))
+  )
 }
 
 /**
@@ -259,6 +277,7 @@ export function getCanonicalRelationshipTags(input: {
   const edge = input.reality?.relationships[input.actorId]?.[input.targetId]
   const reverseEdge = input.reality?.relationships[input.targetId]?.[input.actorId]
   const hasLiveAlliance = hasCanonicalLiveAlliance(input.reality, input.actorId, input.targetId)
+  const hasActiveNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
 
   if (input.reality) {
     tags.delete('alliance')
@@ -271,6 +290,8 @@ export function getCanonicalRelationshipTags(input: {
       tags.add('betrayal')
     }
   }
+
+  if (hasActiveNemesis) tags.add('rivalry')
 
   for (const relationship of [edge, reverseEdge]) {
     if (!relationship) continue

@@ -401,6 +401,24 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   post_veto_gratitude: GRATITUDE_BEATS,
   survivor_gratitude: GRATITUDE_BEATS,
   targeted_snark: SNARK_BEATS,
+  season_provocateur: {
+    positive: [
+      '"I will take that as a real answer. We still disagree, but I do not need to turn every conversation into a contest."',
+      '"Fine. I heard you out. I am not promising we are good, but I can leave it there for now."',
+    ],
+    neutral: [
+      '"You do not have to agree with me. I wanted you to know I am going to keep saying it when I think you are wrong."',
+      '"That is your read. Mine has not changed, and people can decide for themselves which one makes sense."',
+    ],
+    negative: [
+      '"There it is. You can dismiss me, but you cannot make me stop calling out what I see."',
+      '"Good. At least now we are being honest about where we stand. I am not dropping this."',
+    ],
+    dismiss: [
+      '"Walk away if you want. I said what I came to say, and I will say it again when it matters."',
+      '"You do not want the conversation. That is fine. The disagreement is still there."',
+    ],
+  },
   generic_check_in: CONNECTION_BEATS,
   week_start_ally_check_in: CONNECTION_BEATS,
   relationship_friendship_check_in: CONNECTION_BEATS,

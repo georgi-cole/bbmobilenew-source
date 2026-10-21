@@ -1915,7 +1915,8 @@ export default function SocialPanelV2() {
       ? getRealityRelationshipLabel(
           focusedRealityEdge,
           focusedCanonical?.alliance?.operational,
-          game.week
+          game.week,
+          focusedCanonical?.isNemesis
         )
       : focusedAffinity === undefined
         ? null

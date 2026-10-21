@@ -330,6 +330,8 @@ export function startAutonomousNemesisIfReady(
 ): RealityNemesisObjective | null {
   if (
     input.at.day < 2 ||
+    (domain.relationshipAutonomy.provocateurSeason?.targetId === input.targetId &&
+      domain.relationshipAutonomy.provocateurSeason.roles.length > 0) ||
     Object.values(domain.relationshipAutonomy.nemeses).some(
       (nemesis) => nemesis.targetId === input.targetId
     )

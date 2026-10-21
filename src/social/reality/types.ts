@@ -108,6 +108,11 @@ export interface DirectedRelationship {
   lastAmbientFamiliarityDay?: number
 }
 
+/**
+ * Canonical, directed, multidimensional relationship state in Reality Mode. The compact
+ * SocialState.relationships map is a lossy compatibility projection; keep writes synchronized
+ * through the social reducers/adapters rather than updating either representation in isolation.
+ */
 export type RealityRelationshipMap = Record<
   RealityActorId,
   Record<RealityActorId, DirectedRelationship>
@@ -339,8 +344,48 @@ export interface RealityRelationshipAutonomyState {
   boundaries: Record<string, RealityRelationshipBoundary>
   evidence: Record<string, RealityRelationshipEvidence>
   nemeses: Record<string, RealityNemesisObjective>
+  /** At most two persistent season roles that focus on the human player's game. */
+  provocateurSeason?: RealityProvocateurSeason | null
   /** Prevents two producers from scheduling the same story beat. */
   reservedBeatIds: string[]
+}
+
+export type RealityProvocateurStyle =
+  | 'ACCOUNTABILITY'
+  | 'DOMINANCE'
+  | 'SCHEMER'
+  | 'INTIMIDATOR'
+  | 'SORE_WINNER'
+  | 'SPOTLIGHT_SEEKER'
+
+export type RealityProvocateurCause =
+  | 'PERSONALITY_CLASH'
+  | 'NOMINATION'
+  | 'BETRAYAL'
+  | 'PLAN_DEFIED'
+  | 'RETURNED'
+  | 'COMPETITION_THREAT'
+  | 'SOCIAL_REACH'
+  | 'SUCCESSOR'
+
+export interface RealityProvocateurRole {
+  actorId: RealityActorId
+  style: RealityProvocateurStyle
+  introducedDay: number
+  /** Last delivered scene, so retries in another phase cannot duplicate it. */
+  lastSceneDay?: number
+  /** The player's replies change the role's next escalation step. */
+  escalation: 0 | 1 | 2
+  cause: RealityProvocateurCause
+  predecessorId?: RealityActorId
+}
+
+export interface RealityProvocateurSeason {
+  targetId: RealityActorId
+  roles: RealityProvocateurRole[]
+  lastSceneDay?: number
+  /** High-water mark into the bounded Reality event feed. */
+  observedThroughSequence: number
 }
 
 export type RealityAllianceStatus =
@@ -732,6 +777,7 @@ export interface RealityJuryEvaluation {
 export interface RealityDomainState {
   version: 1 | 2
   nextSequence: number
+  /** Canonical relationship graph; SocialState.relationships is its compact compatibility view. */
   relationships: RealityRelationshipMap
   memoriesByOwner: Record<RealityActorId, RealityMemory[]>
   beliefsByOwner: Record<RealityActorId, Record<string, RealityBelief>>
