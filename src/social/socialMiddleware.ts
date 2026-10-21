@@ -91,6 +91,7 @@ import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
 import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
+import { resolveWeatherDay } from '../weather/weatherEngine'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
@@ -290,6 +291,12 @@ function archiveCompletedPulseEpisode(
     return
   const human = state.game.players.find((player) => player.isUser)
   if (!human) return
+  const profileState = state.profiles
+  const humanPets =
+    profileState && !profileState.isGuest && profileState.activeProfileId
+      ? (profileState.profiles.find((profile) => profile.id === profileState.activeProfileId)?.bio
+          ?.pets ?? null)
+      : null
   const priorEpisodes = episodes.filter(
     (entry) => entry.season === state.game.season && entry.day === day
   )
@@ -310,6 +317,9 @@ function archiveCompletedPulseEpisode(
     players: state.game.players.map((player) => ({ id: player.id, name: player.name ?? '' })),
     reality: state.social.reality,
     actionHistory,
+    dramaNetwork: state.social.dramaNetwork,
+    weather: resolveWeatherDay(state.game.gameId, day).condition,
+    humanPets,
     voteResult: chronicleVoteResult(state.game, day),
     complete: true,
     episode: identity,

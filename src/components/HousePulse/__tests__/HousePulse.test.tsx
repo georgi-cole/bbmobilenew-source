@@ -75,6 +75,40 @@ describe('HousePulse', () => {
     expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
+  it('shows a saved Producer’s Note when the recap has a recorded personal next move', () => {
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={createInitialRealityDomainState()}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 2,
+            episodeKey: 'day:2',
+            episodeLabel: 'Day 2',
+            title: 'A Save and a Goodbye',
+            paragraphs: ['You saved yourself and Kai left the Hub.'],
+            note: 'You started building support against Lia after she nominated you.',
+            sourceEventIds: ['eviction'],
+            complete: true,
+          },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByText('Producer’s Note')).toBeInTheDocument()
+    expect(
+      screen.getByText('You started building support against Lia after she nominated you.')
+    ).toBeInTheDocument()
+  })
+
   it('keeps a personal pact development out of the group-alliance selection flow', () => {
     const reality = createInitialRealityDomainState()
     createRealityAlliance(reality, {

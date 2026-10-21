@@ -42,6 +42,8 @@ interface HousePulseProps {
   pulseChronicles?: readonly PulseChronicle[]
   weekendInterlude?: WeekendInterludeState | null
   voteResult?: ChronicleVoteResult | null
+  weatherCondition?: string | null
+  humanPets?: string | null
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
@@ -124,6 +126,8 @@ export default function HousePulse({
   pulseChronicles,
   weekendInterlude,
   voteResult,
+  weatherCondition,
+  humanPets,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -295,6 +299,9 @@ export default function HousePulse({
       players,
       reality,
       actionHistory,
+      dramaNetwork: network,
+      weather: weatherCondition,
+      humanPets,
       complete: gamePhase === 'week_end' && !activeWeekend,
       episode: episodeIdentity,
       actionHistoryAfterTimestamp,
@@ -316,6 +323,9 @@ export default function HousePulse({
     humanId,
     players,
     actionHistory,
+    network,
+    weatherCondition,
+    humanPets,
     voteResult,
     gamePhase,
   ])
@@ -507,6 +517,12 @@ export default function HousePulse({
                           <p key={index}>{paragraph}</p>
                         ))}
                       </div>
+                      {dayChronicle.note && (
+                        <aside className="house-pulse__producer">
+                          <strong>Producer’s Note</strong>
+                          <p>{dayChronicle.note}</p>
+                        </aside>
+                      )}
                       {onOpenAlliances &&
                         chronicleAllianceLinks.map((link) => (
                           <button
@@ -546,6 +562,12 @@ export default function HousePulse({
                               <p key={index}>{paragraph}</p>
                             ))}
                           </div>
+                          {entry.note && (
+                            <aside className="house-pulse__producer">
+                              <strong>Producer’s Note</strong>
+                              <p>{entry.note}</p>
+                            </aside>
+                          )}
                         </article>
                       ))}
                     </details>

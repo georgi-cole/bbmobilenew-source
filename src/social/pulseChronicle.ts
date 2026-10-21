@@ -1,7 +1,8 @@
 import type { PulseChronicle, Player } from '../types'
-import type { SocialActionLogEntry } from './types'
+import type { DramaSocialNetwork, SocialActionLogEntry } from './types'
 import type { RealityDomainState, RealitySocialEvent } from './reality/types'
 import { canReadAllianceEvent, visibleRealityEvents } from './reality'
+import { findByName, getById } from '../data/houseguests'
 export interface ChronicleInput {
   gameId: string
   season: number
@@ -10,6 +11,9 @@ export interface ChronicleInput {
   players: readonly Pick<Player, 'id' | 'name'>[]
   reality: RealityDomainState
   actionHistory: readonly SocialActionLogEntry[]
+  dramaNetwork?: Pick<DramaSocialNetwork, 'events' | 'rumours' | 'arcs'>
+  weather?: string | null
+  humanPets?: string | null
   complete?: boolean
   episode?: PulseChronicleIdentity
   actionHistoryAfterTimestamp?: number
@@ -31,7 +35,9 @@ interface StoryMoment {
   targetId?: string
   outcome?: 'success' | 'failure'
   eventType?: string
+  actionId?: string
   allianceId?: string
+  replacementNomination?: boolean
 }
 const phaseOrder: Record<string, number> = {
   week_start: 0,
@@ -46,11 +52,19 @@ const phaseOrder: Record<string, number> = {
   eviction_results: 9,
   week_end: 10,
 }
+const wetWeather = new Set([
+  'rainy',
+  'heavy_rain',
+  'drizzle',
+  'light_showers',
+  'sun_showers',
+  'stormy',
+])
 const safeName = (name: string) =>
   name
     .replace(/[\r\n<>]/g, '')
     .trim()
-    .slice(0, 48) || 'a Hubmate'
+    .slice(0, 48) || 'another player'
 function hash(value: string): number {
   let result = 2166136261
   for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619)
@@ -188,15 +202,60 @@ const actionStoryCopy: Record<ActionStoryKind, { success: string; failure: strin
 }
 function describeAction(
   action: SocialActionLogEntry,
-  name: (id: string | undefined) => string
+  name: (id: string | undefined) => string,
+  sharedPet?: string
 ): string | null {
   const kind = actionStoryKinds[action.actionId]
   if (!kind || action.actionId === 'idle') return null
+  const isBond = [
+    'compliment',
+    'group_chat',
+    'build_quiet_bond',
+    'share_personal_story',
+    'reassure',
+  ].includes(action.actionId)
+  const personalDetail =
+    isBond && action.outcome === 'success' && sharedPet
+      ? ` It turns out you both have ${sharedPet}.`
+      : ''
+  const recordedSummary = action.receipt?.summary ?? action.narrative
+  const cleanedSummary = recordedSummary
+    ?.replace(/[\r\n<>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (
+    cleanedSummary &&
+    cleanedSummary.length <= 220 &&
+    !/relationship\s*[+-]\s*\d|\b(?:energy|influence|info)\s*[+-]?\d|spent\s+\d|landed exactly as intended|struck the right chord|paid off socially/i.test(
+      cleanedSummary
+    )
+  )
+    return cleanedSummary + personalDetail
   const copy = actionStoryCopy[kind]
   const subjectName = (id: string | undefined) => name(id)
-  return (action.outcome === 'success' ? copy.success : copy.failure)
-    .replaceAll('{target}', subjectName(action.targetId))
-    .replaceAll('{subject}', subjectName(action.subjectId ?? action.targetId))
+  return (
+    (action.outcome === 'success' ? copy.success : copy.failure)
+      .replaceAll('{target}', subjectName(action.targetId))
+      .replaceAll('{subject}', subjectName(action.subjectId ?? action.targetId)) + personalDetail
+  )
+}
+
+function sharedPetKind(input: ChronicleInput, targetId: string): string | undefined {
+  if (!input.humanPets) return undefined
+  const target = input.players.find((player) => player.id === targetId)
+  if (!target) return undefined
+  const targetPets = (getById(target.id) ?? findByName(target.name))?.pets ?? ''
+  const kinds = [
+    { label: 'dogs', pattern: /\bdogs?\b/i },
+    { label: 'cats', pattern: /\bcats?\b/i },
+    { label: 'rabbits', pattern: /\brabbits?\b/i },
+    { label: 'birds', pattern: /\b(?:birds?|canary|parrot)\b/i },
+    { label: 'fish', pattern: /\bfish\b/i },
+    { label: 'horses', pattern: /\bhorses?\b/i },
+    { label: 'ferrets', pattern: /\bferrets?\b/i },
+  ]
+  return kinds.find(({ pattern }) => pattern.test(input.humanPets!) && pattern.test(targetPets))
+    ?.label
 }
 
 function voteOutcome(
@@ -209,11 +268,22 @@ function voteOutcome(
     .filter(([, count]) => Number.isFinite(count) && count >= 0)
     .map(([id, count]) => ({ id, count }))
     .sort((left, right) => right.count - left.count || left.id.localeCompare(right.id))
-  if (entries.length < 2) return undefined
+  if (entries.length === 0) return undefined
   const leaders = new Set(
     entries.filter((entry) => entry.count === entries[0].count).map((entry) => entry.id)
   )
   if (!event.targetIds.some((id) => leaders.has(id))) return undefined
+
+  if (voteResult.mode === 'house' && event.targetIds.length === 1) {
+    const evictedId = event.targetIds[0]
+    const votesForEvictee = voteResult.counts[evictedId] ?? 0
+    const votesForOthers = entries.reduce(
+      (total, entry) => total + (entry.id === evictedId ? 0 : entry.count),
+      0
+    )
+    if (votesForEvictee > 0 && votesForOthers === 0)
+      return `The Hub voted ${name(evictedId)} out unanimously, ${votesForEvictee}–0.`
+  }
 
   const formatCount = (count: number) =>
     voteResult.mode === 'audience'
@@ -331,6 +401,7 @@ function chronicleEvent(
         ...base,
         category: 'nominations',
         importance: replacement ? 98 : 96,
+        replacementNomination: replacement,
         text: replacement
           ? event.actorId === humanId
             ? 'You named ' + targets + ' as the replacement nominee.'
@@ -410,9 +481,11 @@ function chronicleEvent(
                       event.targetIds.length === 1
                         ? `${departed} was eliminated.`
                         : `${departed} were eliminated.`
-                    return tally
-                      ? `${departure} ${tally}.`
-                      : `${departed} ${verb} voted out of the Hub.`
+                    return tally?.startsWith('The Hub voted ')
+                      ? tally
+                      : tally
+                        ? `${departure} ${tally}.`
+                        : `${departed} ${verb} voted out of the Hub.`
                   })(),
       }
     }
@@ -490,8 +563,11 @@ function chronicleEvent(
 function headline(moments: StoryMoment[], seed: string): string {
   const has = (category: Category) => moments.some((moment) => moment.category === category)
   const safetyUsed = moments.some((moment) => moment.eventType === 'CEREMONY_SAFETY_USED')
-  if (has('eviction') && safetyUsed)
-    return choose(['Safety Changed the Block', 'A Save and a Goodbye'], seed)
+  if (has('eviction') && safetyUsed) return 'A Save and a Goodbye'
+  if (moments.some((moment) => moment.eventType === 'PUBLIC_EXPOSURE'))
+    return 'A Secret Comes to Light'
+  if (moments.some((moment) => moment.eventType === 'HEARD_RUMOUR')) return 'A Rumour Reaches You'
+  if (has('nominations') && has('social')) return 'A Promising Start, a Sudden Turn'
   if (has('eviction')) return 'A Goodbye in the Hub'
   if (has('nominations')) return choose(['The Nominations Are Set', 'The Block Took Shape'], seed)
   if (has('power')) {
@@ -506,13 +582,257 @@ function headline(moments: StoryMoment[], seed: string): string {
     return choose(['A Conversation Could Change Things', 'Alliances and Open Questions'], seed)
   return 'The Story Is Still Unfolding'
 }
+
+function publicExposureMoments(
+  input: ChronicleInput,
+  name: (id: string | undefined) => string
+): StoryMoment[] {
+  const network = input.dramaNetwork
+  if (!network) return []
+  const rumoursById = new Map(network.rumours.map((rumour) => [rumour.id, rumour]))
+  const arcsById = new Map(network.arcs.map((arc) => [arc.id, arc]))
+  return network.events.flatMap((event, index) => {
+    if (event.week !== input.day || !event.public || event.type !== 'exposure') return []
+    const rumour = event.relatedRumourId ? rumoursById.get(event.relatedRumourId) : undefined
+    const exposedRumour =
+      rumour?.status === 'exposed' && rumour.exposureWeek === input.day ? rumour : undefined
+    const arc = event.relatedArcId ? arcsById.get(event.relatedArcId) : undefined
+    let text = 'A private story became public.'
+    let targetId: string | undefined
+    if (exposedRumour) {
+      targetId = exposedRumour.subjectId
+      const subject = name(exposedRumour.subjectId)
+      const source = name(exposedRumour.originatorId)
+      if (exposedRumour.truth === 'false') {
+        text = `The Hub learned the rumour about ${subject} was false, putting ${source} under suspicion.`
+      } else if (exposedRumour.truth !== 'true') {
+        text = `A rumour about ${subject} reached the Hub, but its truth remains unclear.`
+      } else {
+        const exposedSecret: Record<typeof exposedRumour.kind, string> = {
+          secret_alliance: `${subject}'s hidden alliance came to light.`,
+          secret_romance: `${subject}'s secret romance came to light.`,
+          targeting: `The campaign against ${subject} became public.`,
+          fake_deal: `${subject}'s conflicting deals became public.`,
+          personal_comment: `A private comment involving ${subject} reached the whole Hub.`,
+        }
+        text = exposedSecret[exposedRumour.kind]
+      }
+    } else if (arc) {
+      const pair = arc.participantIds.map(name).join(' and ')
+      targetId = arc.participantIds.find((id) => id !== input.humanId)
+      if (event.title === 'No more hiding') {
+        text = `${pair} made their ${arc.type === 'romance' ? 'romance' : 'close bond'} public.`
+      } else {
+        text = `The Hub learned that ${pair} had been keeping their ${arc.type === 'romance' ? 'romance' : 'relationship'} private.`
+      }
+    }
+    return [
+      {
+        id: `drama:${event.id}`,
+        category: 'social',
+        sequence: (phaseOrder[event.phase] ?? 5) * 1000000 + 900000 + index,
+        importance: 112,
+        text,
+        targetId,
+        eventType: 'PUBLIC_EXPOSURE',
+      },
+    ]
+  })
+}
+
+function heardRumourMoments(
+  input: ChronicleInput,
+  name: (id: string | undefined) => string
+): StoryMoment[] {
+  const network = input.dramaNetwork
+  if (!network) return []
+  const copy = {
+    secret_alliance: (subject: string) => `You heard that ${subject} may have a hidden alliance.`,
+    secret_romance: (subject: string) =>
+      `You heard that ${subject} may be keeping a romance quiet.`,
+    targeting: (subject: string) => `You heard that ${subject} might be the next target.`,
+    fake_deal: (subject: string) =>
+      `You heard that ${subject} may have offered different deals around the Hub.`,
+    personal_comment: (subject: string) =>
+      `You heard that a private comment involving ${subject} has started to circulate.`,
+  } satisfies Record<(typeof network.rumours)[number]['kind'], (subject: string) => string>
+  return network.rumours.flatMap((rumour, index) => {
+    if (
+      rumour.status !== 'circulating' ||
+      !rumour.listeners.some(
+        (listener) => listener.playerId === input.humanId && listener.heardWeek === input.day
+      )
+    )
+      return []
+    return [
+      {
+        id: `heard-rumour:${rumour.id}`,
+        category: 'social',
+        sequence: phaseOrder.social_2 * 1000000 + 800000 + index,
+        importance: 88,
+        text: copy[rumour.kind](name(rumour.subjectId)),
+        targetId: rumour.subjectId,
+        eventType: 'HEARD_RUMOUR',
+      },
+    ]
+  })
+}
+
+function joinNarrativeMoments(moments: readonly StoryMoment[]): string {
+  if (!moments.length) return ''
+  const stories: string[] = []
+  for (let index = 0; index < moments.length; index += 1) {
+    const moment = moments[index]
+    const next = moments[index + 1]
+    const bondTarget = moment.text.match(/^You had a good conversation with ([^.]+)\./)?.[1]
+    const isBond = [
+      'compliment',
+      'group_chat',
+      'build_quiet_bond',
+      'share_personal_story',
+      'reassure',
+    ].includes(moment.actionId ?? '')
+    if (
+      isBond &&
+      bondTarget &&
+      next?.actionId &&
+      ['proposeAlliance', 'ally'].includes(next.actionId) &&
+      moment.targetId === next.targetId &&
+      moment.outcome === 'success' &&
+      next.outcome === 'failure'
+    ) {
+      const target = bondTarget
+      const sharedDetail = moment.text.match(/( It turns out you both have [^.]+\.)$/)?.[1] ?? ''
+      const fallback = `${target} turned down your alliance pitch.`
+      const allianceText = next.text === fallback ? `${target} turned down the offer.` : next.text
+      const rejection =
+        allianceText === next.text
+          ? `When you asked to work together, ${next.text}`
+          : `When you asked to work together, ${allianceText}`
+      stories.push(
+        `You and ${target} got along in your first conversation.${sharedDetail} ${rejection}`
+      )
+      index += 1
+      continue
+    }
+    stories.push(moment.text)
+  }
+  return stories.join(' ')
+}
+
+function buildCeremonyParagraph(moments: readonly StoryMoment[], humanId: string): string {
+  const nominations = moments.filter(
+    (moment) => moment.category === 'nominations' && !moment.replacementNomination
+  )
+  const replacement = moments.find((moment) => moment.replacementNomination)
+  const safetyWin = moments.find(
+    (moment) => moment.eventType === 'CEREMONY_POWER_WON' && moment.category === 'safety'
+  )
+  const safetyUse = moments.find((moment) => moment.eventType === 'CEREMONY_SAFETY_USED')
+  const safetyDeclined = moments.find((moment) => moment.eventType === 'CEREMONY_SAFETY_DECLINED')
+  const parts = nominations.map((moment) => moment.text)
+
+  if (safetyUse) {
+    if (safetyWin && safetyUse.actorId === humanId && safetyUse.targetId === humanId) {
+      parts.push('You won Safety and saved yourself.')
+    } else {
+      parts.push(safetyUse.text)
+    }
+  } else if (safetyWin) {
+    parts.push(safetyWin.text)
+  } else if (safetyDeclined) {
+    parts.push(safetyDeclined.text)
+  }
+
+  if (replacement) {
+    parts.push(replacement.text)
+  }
+  return parts.join(' ')
+}
+
+function producerNote(
+  moments: readonly StoryMoment[],
+  actions: ReadonlyMap<string, SocialActionLogEntry>,
+  humanId: string,
+  day: number,
+  name: (id: string | undefined) => string
+): string {
+  const nominatedBy = moments.find(
+    (moment) =>
+      moment.category === 'nominations' &&
+      !moment.replacementNomination &&
+      moment.actorId &&
+      moment.targetId !== undefined
+  )
+  if (!nominatedBy) return ''
+  const retaliation = moments
+    .filter((moment) => moment.eventType === 'MANUAL_ACTION')
+    .map((moment) => actions.get(moment.id))
+    .find(
+      (action) =>
+        action?.actorId === humanId &&
+        action.week === day &&
+        ['rally_votes_against', 'vote_rally'].includes(action.actionId) &&
+        (action.subjectId ?? action.targetId) === nominatedBy.actorId
+    )
+  if (!retaliation) return ''
+  return retaliation.outcome === 'success'
+    ? `After ${name(nominatedBy.actorId)} nominated you, you started lining up votes against them. Payback may already be in motion.`
+    : `After ${name(nominatedBy.actorId)} nominated you, you tried to rally votes against them, but the pitch did not land.`
+}
+
+function storyParagraphs(
+  featured: readonly StoryMoment[],
+  humanId: string,
+  weather?: string | null
+): string[] {
+  const ceremony = featured.filter(
+    (moment) =>
+      moment.category === 'nominations' ||
+      moment.category === 'safety' ||
+      (moment.category === 'power' &&
+        moment.eventType === 'CEREMONY_POWER_WON' &&
+        moment.text.includes('Safety'))
+  )
+  const closingMoments = featured
+    .filter((moment) => moment.category === 'eviction' || moment.eventType === 'PUBLIC_EXPOSURE')
+    .sort((a, b) => a.sequence - b.sequence)
+  const narrativeMoments = featured
+    .filter((moment) => !ceremony.includes(moment) && !closingMoments.includes(moment))
+    .sort((a, b) => a.sequence - b.sequence)
+  const ceremonyStart = ceremony.length
+    ? Math.min(...ceremony.map((moment) => moment.sequence))
+    : Infinity
+  const opening = ceremony.length
+    ? narrativeMoments.filter((moment) => moment.sequence < ceremonyStart)
+    : narrativeMoments
+  const later = ceremony.length
+    ? narrativeMoments.filter((moment) => moment.sequence >= ceremonyStart)
+    : []
+  const paragraphs = [
+    joinNarrativeMoments(opening),
+    buildCeremonyParagraph(ceremony, humanId),
+    joinNarrativeMoments(later),
+  ]
+  for (const moment of closingMoments) {
+    if (moment.category === 'eviction' && weather && wetWeather.has(weather)) {
+      paragraphs.push(
+        'With rain pouring outside, ' +
+          moment.text.replace(/^([A-Z])/, (firstLetter) => firstLetter.toLowerCase())
+      )
+    } else {
+      paragraphs.push(moment.text)
+    }
+  }
+  return paragraphs.filter(Boolean)
+}
 /** Pure, bounded, deterministic storytelling. Never invents events or reads undiscovered secrets. */
 export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const daySeed = input.gameId + ':' + input.season + ':' + input.day
   const seed = input.episode ? daySeed + ':' + input.episode.key : daySeed
   const byId = new Map(input.players.map((player) => [player.id, safeName(player.name)]))
   const name = (id: string | undefined) =>
-    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'a Hubmate')) : 'a Hubmate'
+    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'another player')) : 'another player'
   const eventSources = [
     ...visibleRealityEvents(input.reality, { actorId: input.humanId }),
     ...Object.values(input.reality.alliances).flatMap((alliance) => alliance.history ?? []),
@@ -543,7 +863,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
         (action.source === 'manual' || !action.source)
     )
     .map((action, index) => {
-      const text = describeAction(action, name)
+      const text = describeAction(action, name, sharedPetKind(input, action.targetId))
       if (!text) return null
       return {
         id: action.id ?? 'action:' + index,
@@ -555,6 +875,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
         targetId: action.targetId,
         outcome: action.outcome,
         eventType: 'MANUAL_ACTION',
+        actionId: action.actionId,
       }
     })
     .filter((moment): moment is NonNullable<typeof moment> => moment !== null)
@@ -591,6 +912,8 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     return true
   })
   moments.push(...distinctActionMoments)
+  moments.push(...heardRumourMoments(input, name))
+  moments.push(...publicExposureMoments(input, name))
   // Favour big beats while preserving the actual ceremony order in the final story.
   const unique = new Map<string, StoryMoment>()
   for (const moment of moments) {
@@ -617,16 +940,13 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const socialSlots = Math.min(3, Math.max(0, 8 - ceremonyHighlights.length))
   const socialPriority = priority.filter((moment) => moment.category === 'social')
   const playerAction = socialPriority.find((moment) => moment.eventType === 'MANUAL_ACTION')
-  const personalHighlights = [
-    ...(playerAction ? [playerAction] : []),
-    ...socialPriority
-      .filter((moment) => moment !== playerAction)
-      .slice(0, Math.max(0, socialSlots - (playerAction ? 1 : 0))),
-  ]
+  const personalHighlights = socialPriority.slice(0, socialSlots)
+  if (playerAction && !personalHighlights.includes(playerAction) && personalHighlights.length)
+    personalHighlights[personalHighlights.length - 1] = playerAction
   const featured = [...ceremonyHighlights, ...personalHighlights].sort(
     (a, b) => a.sequence - b.sequence
   )
-  const paragraphs = featured.map((moment) => moment.text)
+  const paragraphs = storyParagraphs(featured, input.humanId, input.weather)
   return {
     season: input.season,
     day: input.day,
@@ -634,7 +954,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     episodeLabel: input.episode?.label ?? `Day ${input.day}`,
     title: headline(featured, seed + ':headline'),
     paragraphs: paragraphs.length ? paragraphs : ['No major developments reached you today.'],
-    note: '',
+    note: producerNote(all, actionById, input.humanId, input.day, name),
     sourceEventIds: featured.map((beat) => beat.id),
     complete: input.complete === true,
   }

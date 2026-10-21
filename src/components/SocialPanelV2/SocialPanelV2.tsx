@@ -20,6 +20,7 @@ import {
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
+import { resolveWeatherDay } from '../../weather/weatherEngine'
 import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
@@ -227,6 +228,14 @@ export default function SocialPanelV2() {
     comparePanelState
   )
   const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false, comparePanelState)
+  const humanPets = useAppSelector((state) => {
+    const profiles = state.profiles
+    if (!profiles || profiles.isGuest || !profiles.activeProfileId) return null
+    return (
+      profiles.profiles.find((profile) => profile.id === profiles.activeProfileId)?.bio?.pets ??
+      null
+    )
+  }, comparePanelState)
   const energyBank = useAppSelector(selectEnergyBank, comparePanelState)
   const influenceBank = useAppSelector(selectInfluenceBank, comparePanelState)
   const infoBank = useAppSelector(selectInfoBank, comparePanelState)
@@ -259,6 +268,10 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
+  const pulseWeather = useMemo(
+    () => resolveWeatherDay(game.gameId, game.week).condition,
+    [game.gameId, game.week]
+  )
   const pulseVoteResult = useMemo(
     () =>
       game.phase === 'eviction_results' && game.voteResults
@@ -2104,6 +2117,8 @@ export default function SocialPanelV2() {
               pulseChronicles={game.pulseChronicles}
               weekendInterlude={game.weekendInterlude}
               voteResult={pulseVoteResult}
+              weatherCondition={pulseWeather}
+              humanPets={humanPets}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}
