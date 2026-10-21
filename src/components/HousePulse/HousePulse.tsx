@@ -11,12 +11,6 @@ import type {
 } from '../../social/types'
 import type { RealityDomainState } from '../../social/reality'
 import {
-  allianceEventText,
-  allianceForEvent,
-  allianceKind,
-  canReadAllianceEvent,
-} from '../../social/reality'
-import {
   getSocialCommitmentDueCopy,
   getSocialCommitmentLabel,
 } from '../../social/socialCommitments'
@@ -101,114 +95,6 @@ function titleCase(value: string): string {
     .replaceAll('_', ' ')
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
-}
-
-type PulseStoryBeat = SocialStoryBeat & { allianceId?: string; sourceEventId?: string }
-
-/** Today is a concise, chronological feed of only events the player could know. */
-function buildRealityPulseStream(
-  reality: RealityDomainState,
-  humanId: string,
-  currentWeek: number,
-  playerName: (id: string) => string
-): PulseStoryBeat[] {
-  const records = [
-    ...new Map(
-      [
-        ...reality.events.filter((event) => event.day === currentWeek),
-        ...Object.values(reality.alliances).flatMap((alliance) =>
-          (alliance.history ?? []).filter((event) => event.day === currentWeek)
-        ),
-        ...Object.values(reality.allianceManagement.requests).flatMap((request) =>
-          (request.history ?? []).filter((event) => event.day === currentWeek)
-        ),
-      ].map((event) => [event.id, event])
-    ).values(),
-  ]
-  const consultationEventIds = new Set(
-    records
-      .filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
-      .map((event) => event.reason.split(':').at(-1))
-      .filter((id): id is string => Boolean(id && id.startsWith('reality-event-')))
-  )
-  return records
-    .filter((event) => {
-      if (!canReadAllianceEvent(event, humanId)) return false
-      // The strategy meeting is the useful story record; hide its low-value
-      // interaction-log twin once the huddle has a durable outcome event.
-      if (
-        event.type === 'SOCIAL_INTERACTION_RESOLVED' &&
-        event.actionId === 'consult_alliance' &&
-        consultationEventIds.has(event.id)
-      )
-        return false
-      if (
-        ['ALLIANCE_REQUEST_VOTE', 'ALLIANCE_REQUEST_CONSENT', 'ALLIANCE_REQUEST_ACCEPTED'].includes(
-          event.type
-        )
-      )
-        return false
-      // Synchronous voting and AI acceptance produce one outcome in Today; the full read retains every step.
-      if (
-        ['ALLIANCE_REQUEST_SUBMITTED', 'ALLIANCE_INVITATION_SENT'].includes(event.type) &&
-        event.allianceRequestId
-      ) {
-        const request = reality.allianceManagement.requests[event.allianceRequestId]
-        if (request?.settledAt?.day === event.day && request.settledAt.phase === event.phase)
-          return false
-      }
-      return true
-    })
-    .sort((left, right) => right.sequence - left.sequence)
-    .map((event) => {
-      const allianceId = allianceForEvent(reality, event)
-      const alliance = allianceId ? reality.alliances[allianceId] : undefined
-      const isAllianceEvent = event.type.startsWith('ALLIANCE_')
-      const signal = `${event.type} ${event.tags.join(' ')}`.toLowerCase()
-      const kind: SocialStoryBeat['kind'] = /betray|conflict|confront|target|nomination/.test(
-        signal
-      )
-        ? 'conflict'
-        : /repair|apolog|reassure/.test(signal)
-          ? 'repair'
-          : isAllianceEvent || /deal|promise|vote|strategy/.test(signal)
-            ? 'strategy'
-            : event.publicEligible
-              ? 'public'
-              : 'bond'
-      const actor =
-        event.actorId === humanId ? 'You' : event.actorId ? playerName(event.actorId) : 'The hub'
-      const allianceName = event.allianceSnapshot?.name ?? alliance?.name ?? 'the alliance'
-      const targets = event.targetIds
-        .filter((id) => id !== event.actorId)
-        .map((id) => (id === humanId ? 'you' : playerName(id)))
-        .join(' and ')
-      const text = isAllianceEvent
-        ? allianceEventText(reality, event, humanId, playerName)
-        : `${actor} · ${titleCase(event.actionId ?? event.type)}${targets ? ` · ${targets}` : ''}.`
-      const isConsultation = event.type === 'ALLIANCE_STRATEGY_MEETING'
-      const title = isConsultation ? `${actor} consulted ${allianceName}.` : text
-      const consultationDetail = isConsultation
-        ? (event.allianceConsultationSummary ??
-          (event.targetIds.length
-            ? `The recorded huddle focused on ${event.targetIds.map((id) => (id === humanId ? 'you' : playerName(id))).join(' and ')}, but its recommendation details were not saved.`
-            : 'The outcome was not recorded for this earlier huddle.'))
-        : text
-      return {
-        id: event.id,
-        kind,
-        title,
-        text: consultationDetail,
-        eventType: event.type,
-        allianceId: alliance && allianceKind(alliance) === 'GROUP' ? allianceId : undefined,
-        participantIds: event.participantIds,
-        week: event.day,
-        phase: event.phase,
-        severity: event.visibility === 'CEREMONY_PUBLIC' ? 'major' : 'notable',
-        createdAt: event.sequence,
-        dedupeKey: event.id,
-      }
-    })
 }
 
 export default function HousePulse({
@@ -303,30 +189,17 @@ export default function HousePulse({
       ),
     [humanId, network.rumours]
   )
-  const storyBeats = useMemo<PulseStoryBeat[]>(
-    () =>
-      reality
-        ? buildRealityPulseStream(reality, humanId, currentWeek, playerName)
-        : buildSocialStoryStream({
-            network,
-            actionHistory,
-            relationships,
-            weekStartRelSnapshot,
-            players,
-            humanId,
-            currentWeek,
-          }),
-    [
-      actionHistory,
-      currentWeek,
-      humanId,
+  const storyBeats = useMemo<SocialStoryBeat[]>(
+    () => reality ? [] : buildSocialStoryStream({
       network,
-      playerName,
-      players,
-      reality,
+      actionHistory,
       relationships,
       weekStartRelSnapshot,
-    ]
+      players,
+      humanId,
+      currentWeek,
+    }),
+    [actionHistory, currentWeek, humanId, network, players, reality, relationships, weekStartRelSnapshot]
   )
   const dayChronicle = useMemo(
     () => reality
