@@ -320,9 +320,8 @@ function chronicleEvent(
         category: 'social',
         importance: 90,
         text:
-          'The ' +
-          safeName(event.allianceSnapshot?.name ?? 'alliance') +
-          ' alliance came to an end. Even strong partnerships have an expiry date in the Hub.',
+          safeName(event.allianceSnapshot?.name ?? 'An alliance') +
+          ' came to an end. Even strong partnerships have an expiry date in the Hub.',
       }
     case 'ALLIANCE_REQUEST_ACCEPTED':
       if (!event.participantIds.includes(humanId)) return null
