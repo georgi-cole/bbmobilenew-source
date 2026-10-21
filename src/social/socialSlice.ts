@@ -66,6 +66,7 @@ import type {
   RealityThread,
 } from './reality'
 import { pruneEvictedAiPrivateState as pruneEvictedAiPrivateRealityState } from './reality/evictedAiRetention'
+import { applyProvocateurResponse, recordProvocateurSceneDelivered } from './seasonProvocateurs'
 import {
   addRealityFact,
   applyLegacyRelationshipUpdateToReality,
@@ -673,6 +674,24 @@ const socialSlice = createSlice({
     replaceRealityDomain(state, action: PayloadAction<RealityDomainState>) {
       state.reality = normalizeRealityDomainState(action.payload, state.relationships)
       projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+    },
+    recordSeasonProvocateurScene(state, action: PayloadAction<{ actorId: string; day: number }>) {
+      recordProvocateurSceneDelivered(
+        state.reality.relationshipAutonomy.provocateurSeason,
+        action.payload.actorId,
+        action.payload.day
+      )
+    },
+    recordSeasonProvocateurResponse(
+      state,
+      action: PayloadAction<{ targetId: string; actorId: string; responseType: string }>
+    ) {
+      applyProvocateurResponse(
+        state.reality,
+        action.payload.targetId,
+        action.payload.actorId,
+        action.payload.responseType
+      )
     },
     /** Commits an orchestrator-produced domain that already shares unchanged branches. */
     commitRealityDomainUpdate(
@@ -1495,6 +1514,8 @@ export const {
   initializeRealitySimulation,
   replaceRealitySimulation,
   replaceRealityDomain,
+  recordSeasonProvocateurScene,
+  recordSeasonProvocateurResponse,
   pruneEvictedAiPrivateState,
   commitRealityDomainUpdate,
   commitRealityOutcome,

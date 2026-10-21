@@ -85,7 +85,12 @@ function ReadSheet({
   const edge = social.reality.relationships[humanId]?.[target.id]
   const affinity = realityMode ? live?.affinity : relationship.affinity
   const label = realityMode
-    ? getCanonicalRelationshipLabel(edge, relationship.alliance?.operational, game.week)
+    ? getCanonicalRelationshipLabel(
+        edge,
+        relationship.alliance?.operational,
+        game.week,
+        relationship.isNemesis
+      )
     : affinity === undefined
       ? 'Still forming'
       : getRelationshipLabel(affinity).label

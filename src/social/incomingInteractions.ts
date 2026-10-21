@@ -21,6 +21,7 @@ import {
   recordIncomingInteractionFollowUp,
   resolveIncomingInteractionsByDeadline,
   resolveIncomingInteraction,
+  recordSeasonProvocateurResponse,
   updateRelationship,
   updateSocialMemory,
   learnRealityKnowledge,
@@ -923,6 +924,15 @@ function applyIncomingChoiceConsequences({
         responseType,
         interactionType: interaction.type,
         week: currentWeek,
+      })
+    )
+  }
+  if (interaction.payload?.scenarioKey === 'season_provocateur') {
+    dispatch(
+      recordSeasonProvocateurResponse({
+        targetId: humanPlayer.id,
+        actorId: interaction.fromId,
+        responseType,
       })
     )
   }

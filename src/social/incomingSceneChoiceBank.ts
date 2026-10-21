@@ -143,6 +143,10 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
     ['Ask what they mean', 'Stay unreadable', 'Call it out', 'Walk away'],
     ['Defuse the jab', 'Keep your cool', 'Push back directly', 'Let it die'],
   ],
+  season_provocateur: [
+    ['Hear them out, guardedly', 'Ask what set them off', 'Push back directly', 'Walk away'],
+    ['Keep your composure', 'Ask them to be specific', 'Draw a hard boundary', 'End the exchange'],
+  ],
   alliance_reassurance: [
     ['Reassure them', 'Compare your plans', 'Set a boundary', 'End the check-in'],
     ['Reassure them', 'Ask what changed', 'Set a boundary', 'End the check-in'],

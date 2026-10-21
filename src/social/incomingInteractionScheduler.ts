@@ -135,6 +135,7 @@ export function getIncomingInteractionPriority(
       'replacement_nominee_reacts_to_loh',
       'betrayal_warning',
       'targeted_snark',
+      'season_provocateur',
       'player_nominated_tension',
       'live_vote_pitch',
       'loh_consults_safety_holder',

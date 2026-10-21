@@ -297,16 +297,20 @@ export default function RealityLedger({
   const selectedRelationship = focusPlayerId
     ? relationships.find((edge) => edge.toId === focusPlayerId)
     : (relationships.find((edge) => edge.toId === selectedPlayerId) ?? relationships[0])
+  const selectedRelationshipView = selectedRelationship
+    ? selectCanonicalRelationshipView({
+        relationships: liveRelationships,
+        reality,
+        actorId: humanId,
+        targetId: selectedRelationship.toId,
+      })
+    : null
   const selectedRelationshipDisplay = selectedRelationship
     ? getRealityRelationshipLabel(
         selectedRelationship,
-        selectCanonicalRelationshipView({
-          relationships: liveRelationships,
-          reality,
-          actorId: humanId,
-          targetId: selectedRelationship.toId,
-        }).alliance?.operational,
-        currentDay
+        selectedRelationshipView?.alliance?.operational,
+        currentDay,
+        selectedRelationshipView?.isNemesis
       )
     : null
   const recentRelationshipShift = selectedRelationship?.lastMeaningfulInteraction
@@ -680,7 +684,8 @@ export default function RealityLedger({
                       const relationshipDisplay = getRealityRelationshipLabel(
                         edge,
                         relationshipView.alliance?.operational,
-                        currentDay
+                        currentDay,
+                        relationshipView.isNemesis
                       )
                       return (
                         <button

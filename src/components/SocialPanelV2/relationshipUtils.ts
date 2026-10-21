@@ -35,7 +35,7 @@ export function getRelationshipLabel(affinity: number): RelationshipLabel {
 
 function relationshipKeyForDisplayLabel(label: string): RelationshipKey {
   const normalized = label.toLowerCase()
-  if (/enemy|hostile|rival|betray|broken alliance|\bex\b/.test(normalized)) return 'enemies'
+  if (/enemy|nemesis|hostile|rival|betray|broken alliance|\bex\b/.test(normalized)) return 'enemies'
   if (/tense|strained|uneasy|estranged|side-eye|thin ice|bad vibes/.test(normalized)) {
     return 'strained'
   }
@@ -58,9 +58,15 @@ function relationshipKeyForDisplayLabel(label: string): RelationshipKey {
 export function getRealityRelationshipLabel(
   edge: DirectedRelationship | undefined,
   hasOperationalAlliance = false,
-  currentDay?: number
+  currentDay?: number,
+  hasActiveNemesis = false
 ): RelationshipLabel {
-  const label = getCanonicalRelationshipLabel(edge, hasOperationalAlliance, currentDay)
+  const label = getCanonicalRelationshipLabel(
+    edge,
+    hasOperationalAlliance,
+    currentDay,
+    hasActiveNemesis
+  )
 
   return { label, key: relationshipKeyForDisplayLabel(label) }
 }

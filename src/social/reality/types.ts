@@ -339,8 +339,48 @@ export interface RealityRelationshipAutonomyState {
   boundaries: Record<string, RealityRelationshipBoundary>
   evidence: Record<string, RealityRelationshipEvidence>
   nemeses: Record<string, RealityNemesisObjective>
+  /** At most two persistent season roles that focus on the human player's game. */
+  provocateurSeason?: RealityProvocateurSeason | null
   /** Prevents two producers from scheduling the same story beat. */
   reservedBeatIds: string[]
+}
+
+export type RealityProvocateurStyle =
+  | 'ACCOUNTABILITY'
+  | 'DOMINANCE'
+  | 'SCHEMER'
+  | 'INTIMIDATOR'
+  | 'SORE_WINNER'
+  | 'SPOTLIGHT_SEEKER'
+
+export type RealityProvocateurCause =
+  | 'PERSONALITY_CLASH'
+  | 'NOMINATION'
+  | 'BETRAYAL'
+  | 'PLAN_DEFIED'
+  | 'RETURNED'
+  | 'COMPETITION_THREAT'
+  | 'SOCIAL_REACH'
+  | 'SUCCESSOR'
+
+export interface RealityProvocateurRole {
+  actorId: RealityActorId
+  style: RealityProvocateurStyle
+  introducedDay: number
+  /** Last delivered scene, so retries in another phase cannot duplicate it. */
+  lastSceneDay?: number
+  /** The player's replies change the role's next escalation step. */
+  escalation: 0 | 1 | 2
+  cause: RealityProvocateurCause
+  predecessorId?: RealityActorId
+}
+
+export interface RealityProvocateurSeason {
+  targetId: RealityActorId
+  roles: RealityProvocateurRole[]
+  lastSceneDay?: number
+  /** High-water mark into the bounded Reality event feed. */
+  observedThroughSequence: number
 }
 
 export type RealityAllianceStatus =
