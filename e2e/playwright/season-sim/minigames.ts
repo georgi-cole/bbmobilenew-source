@@ -88,6 +88,7 @@ interface TiltLabyrinthDriveState {
   ball: { x: number; y: number }
   lastDirection: string | null
   actions: number
+  stallCount: number
 }
 
 const TILT_LABYRINTH_DRIVE = new WeakMap<Page, TiltLabyrinthDriveState>()
@@ -321,6 +322,8 @@ export function tiltLabyrinthDriverDiagnostic(page: Page): string {
       .join(',') +
     '; steering actions ' +
     state.actions +
+    '; consecutive no-movement actions ' +
+    state.stallCount +
     '.'
   )
 }
@@ -362,6 +365,7 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
         ball: { x: 12.5, y: 12.5 },
         lastDirection: null,
         actions: 0,
+        stallCount: 0,
       }
       TILT_LABYRINTH_DRIVE.set(page, state)
       return true
@@ -454,7 +458,10 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
     dragStartY + (deltaY / magnitude) * dragDistance,
     { steps: 2 }
   )
-  const movementMs = Math.min(700, 220 + Math.max(0, straightCells - 1) * 130)
+  const movementMs = Math.min(
+    1_200,
+    220 + Math.max(0, straightCells - 1) * 130 + state.stallCount * 180
+  )
   if (TILT_LABYRINTH_CLOCK.has(page)) await page.clock.runFor(movementMs)
   else await page.waitForTimeout(movementMs)
   await page.mouse.up().catch(() => undefined)
@@ -474,8 +481,15 @@ async function playTiltLabyrinthTurn(page: Page, host: Locator): Promise<boolean
     await finishedContinue.click()
     return true
   }
-  const movedBall = await readTiltBallPosition(canvas, state.ball)
-  if (movedBall) state.ball = movedBall
+  const previousBall = state.ball
+  const movedBall = await readTiltBallPosition(canvas, previousBall)
+  if (movedBall) {
+    state.ball = movedBall
+    state.stallCount =
+      Math.hypot(movedBall.x - previousBall.x, movedBall.y - previousBall.y) < 3
+        ? Math.min(5, state.stallCount + 1)
+        : 0
+  }
   return true
 }
 
@@ -2189,61 +2203,66 @@ export async function playVisibleMinigame(
   } else if (gameKey === 'batteryLow') {
     interacted = await playBatteryLowTurn(page, host, random)
   } else if (gameKey === 'majorityRules') {
-    const finish = await firstVisibleEnabled(
-      host.getByRole('button', { name: 'Finish', exact: true })
+    const skipSpectator = await firstVisibleEnabled(
+      page.getByRole('button', { name: 'Skip to results', exact: true })
     )
-    if (finish) {
-      // The last-player-standing reveal is the terminal state for Majority Rules.
-      // Advancing it closes the minigame and returns control to the season flow.
-      await finish.click({ delay: random.int(20, 85) })
-      interacted = true
-      completedByFinalVerdict = true
+    const continueSpectating = await firstVisibleEnabled(
+      page.getByRole('button', { name: 'Continue watching', exact: true })
+    )
+    if (skipSpectator) {
+      interacted = await clickWithShortTimeout(skipSpectator, 0, true)
+    } else if (continueSpectating) {
+      interacted = await clickWithShortTimeout(continueSpectating, 0, true)
     } else {
-      const roll = await firstVisibleEnabled(host.getByRole('button', { name: 'Roll die' }))
-      if (roll) {
-        await roll.click({ delay: random.int(20, 85) })
+      const finish = await firstVisibleEnabled(
+        host.getByRole('button', { name: 'Finish', exact: true })
+      )
+      if (finish) {
+        // The last-player-standing reveal is the terminal state for Majority Rules.
+        // Advancing it closes the minigame and returns control to the season flow.
+        await finish.click({ delay: random.int(20, 85) })
         interacted = true
-      }
-
-      const numberPick = await firstVisibleEnabled(
-        host.getByRole('button', { name: /^[1-6]$/, exact: true })
-      )
-      if (!roll && numberPick) {
-        await numberPick.click({ delay: random.int(20, 85) })
-        interacted = true
-      }
-
-      const answer = await firstVisibleEnabled(
-        host.locator('button.majority-rules-option:not(.majority-rules-option--selected)')
-      )
-      const selectedAnswer = await firstVisibleEnabled(
-        host.locator('button.majority-rules-option--selected')
-      )
-      if (!roll && !numberPick && (selectedAnswer || answer)) {
-        if (!selectedAnswer && answer) {
-          // These options animate into place and can be replaced when the
-          // human's selection updates. Skip Playwright's stability wait, then
-          // confirm the choice through the separate lock-in control.
-          await clickWithShortTimeout(answer, 0, true)
+        completedByFinalVerdict = true
+      } else {
+        const roll = await firstVisibleEnabled(host.getByRole('button', { name: 'Roll die' }))
+        if (roll) {
+          await roll.click({ delay: random.int(20, 85) })
+          interacted = true
         }
-        const lock = await firstVisibleEnabled(host.getByRole('button', { name: 'Lock in answer' }))
-        if (lock) interacted = await clickWithShortTimeout(lock, random.int(20, 85), true)
-      } else if (!roll && !numberPick) {
-        const continueButton = host
-          .getByRole('button', {
-            name: /^(?:Continue|Continue watching|Skip to results|Start re-vote|New question)$/i,
-          })
-          .first()
-        if (await continueButton.isVisible().catch(() => false)) {
-          await page.waitForTimeout(350)
-          const stableContinue = await firstVisibleEnabled(
+
+        const numberPick = await firstVisibleEnabled(
+          host.getByRole('button', { name: /^[1-6]$/, exact: true })
+        )
+        if (!roll && numberPick) {
+          await numberPick.click({ delay: random.int(20, 85) })
+          interacted = true
+        }
+
+        const answer = await firstVisibleEnabled(
+          host.locator('button.majority-rules-option:not(.majority-rules-option--selected)')
+        )
+        const selectedAnswer = await firstVisibleEnabled(
+          host.locator('button.majority-rules-option--selected')
+        )
+        if (!roll && !numberPick && (selectedAnswer || answer)) {
+          if (!selectedAnswer && answer) {
+            // These options animate into place and can be replaced when the
+            // human's selection updates. Skip Playwright's stability wait, then
+            // confirm the choice through the separate lock-in control.
+            await clickWithShortTimeout(answer, 0, true)
+          }
+          const lock = await firstVisibleEnabled(
+            host.getByRole('button', { name: 'Lock in answer' })
+          )
+          if (lock) interacted = await clickWithShortTimeout(lock, random.int(20, 85), true)
+        } else if (!roll && !numberPick) {
+          const continueButton = await firstVisibleEnabled(
             host.getByRole('button', {
               name: /^(?:Continue|Continue watching|Skip to results|Start re-vote|New question)$/i,
             })
           )
-          if (stableContinue) {
-            interacted = await clickWithShortTimeout(stableContinue, random.int(20, 85), true)
-          }
+          if (continueButton)
+            interacted = await clickWithShortTimeout(continueButton, random.int(20, 85), true)
         }
       }
     }
