@@ -340,7 +340,7 @@ describe('Wildcard Western audit', () => {
   });
 });
 
-describe('Glass Bridge audit', () => {
+describe('The Crystal Path audit', () => {
   it('uses a fixed per-turn decision clock and generates deterministic bridge rows', () => {
     expect(MOVE_TIME_LIMIT_MS).toBe(12_000);
 

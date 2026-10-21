@@ -44,6 +44,18 @@ The delivered runtime includes:
 
 - Existing v2 social APIs remain available through adapters while the v3 domain
   is the canonical simulation state.
+- Relationships have two stored representations that must be treated as one connected model:
+  `state.social.reality.relationships` is the canonical, directed, multidimensional graph in
+  Reality Mode; `state.social.relationships` is the compact `{ affinity, tags }` compatibility
+  view used by older gameplay and UI consumers. The adapter between them is lossy, so affinity,
+  tags, and Reality dimensions are related but are not expected to be numerically identical.
+  Legacy-origin changes flow through `social/updateRelationship` and
+  `applyLegacyRelationshipUpdateToReality`; Reality-origin changes flow through the Reality
+  relationship helpers and are projected back by the social reducers. When adding or changing a
+  relationship mutation, use these paths and verify both the canonical state and compatibility
+  projection. Do not introduce a direct write that changes only one representation when the
+  relationship meaning should be shared. `skipRealityProjection` is an explicit exception for
+  compatibility-only effects and should be used only when that divergence is intentional.
 - Existing saves migrate on hydration; `week` remains a compatibility alias for
   the new day clock.
 - Existing store purchases and VIP entitlements continue to use the

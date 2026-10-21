@@ -220,6 +220,43 @@ describe('RecentActivity – unified receipts', () => {
     expect(screen.queryByText('⚡2 spent')).toBeNull()
     expect(screen.queryByText(/Relationship changes:/)).toBeNull()
   })
+
+  it('shows the compact visible relationship shift at the end of the action result', () => {
+    renderActivity(
+      makeStore([
+        makeEntry({
+          id: 'relationship-shift',
+          receipt: {
+            summary: 'The conversation felt more open.',
+            outcomeLabel: 'Completed',
+            tone: 'positive',
+            relationshipShifts: { p1: 4 },
+          },
+        }),
+      ]),
+      {
+        compact: true,
+        players: [{ id: 'p1', name: 'Lia', avatar: '', status: 'active' }],
+      }
+    )
+
+    expect(screen.getByText('The conversation felt more open. Relationship +4.')).toBeVisible()
+  })
+
+  it('keeps a cleared result out of the compact view while preserving the History route', () => {
+    const store = makeStore([
+      makeEntry({
+        id: 'older-result',
+        narrative: 'The earlier result remains in the log.',
+      }),
+    ])
+    renderActivity(store, { compact: true, activeReceiptId: null })
+
+    expect(screen.queryByText('The earlier result remains in the log.')).toBeNull()
+    expect(screen.getByText('No current result.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 1' }))
+    expect(screen.getByText('The earlier result remains in the log.')).toBeVisible()
+  })
   it('shows the full final response and actual spending instead of the shorter log narrative', () => {
     const summary =
       'The block is locked. Dex is my main target; Sol is on the block as the replacement.'

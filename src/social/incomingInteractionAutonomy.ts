@@ -11,7 +11,12 @@
 
 import { normalizeAffinity } from './affinityUtils'
 import { socialConfig } from './socialConfig'
-import { replaceRealityDomain, scheduleIncomingInteraction } from './socialSlice'
+import {
+  commitRealityDomainUpdate,
+  recordSeasonProvocateurScene,
+  replaceRealityDomain,
+  scheduleIncomingInteraction,
+} from './socialSlice'
 import {
   computeSocialMemoryAffinityBias,
   computeSocialMemoryIntensity,
@@ -37,7 +42,13 @@ import { getSocialPersonality } from './socialPersonalityBank'
 import { getEffectiveSocialMode } from './socialMode'
 import { getRemoteScenarioLines, isIncomingInteractionActionable } from './socialRuntimeConfig'
 import { formatIncomingIntel, selectIntelFactForActor } from './intelligenceSystem'
-import type { RealityAlliance, RealityDomainState } from './reality/types'
+import type {
+  RealityAlliance,
+  RealityDomainState,
+  RealityProvocateurRole,
+  RealityProvocateurSeason,
+} from './reality/types'
+import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import { allianceKind, isCurrentAlliance } from './reality/allianceIdentity'
 import type { GameState, Player } from '../types'
 import {
@@ -49,6 +60,12 @@ import {
 } from '../store/gameSlice'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import { planRelationshipStoryBeat, reserveRelationshipBeat } from './reality/relationshipAutonomy'
+import {
+  registerProvocateurConflict,
+  getDueProvocateurRole,
+  getProvocateurMessage,
+  getUpdatedProvocateurSeason,
+} from './seasonProvocateurs'
 import { formatLohNominationPlanCopy } from './lohNominationPlanCopy'
 import type {
   IncomingInteraction,
@@ -70,6 +87,7 @@ export interface AutonomyPlayer {
   status: string
   firstEvictedAtWeek?: number
   isUser?: boolean
+  aiGameIdentity?: AiGameIdentity
 }
 
 export interface AutonomyContext {
@@ -102,6 +120,8 @@ export interface AutonomyContext {
   intelligenceDeliveries?: IntelligenceDelivery[]
   /** Full gameplay snapshot used only by strategy-aware incoming planners. */
   gameState?: GameState
+  provocateurSeason?: RealityProvocateurSeason | null
+  provocateurPendingActorIds?: ReadonlySet<string>
 }
 
 /** Minimal Redux-like store interface required by the autonomy scheduler. */
@@ -195,6 +215,7 @@ type InteractionScenarioKey =
   | 'relationship_confidant_check_in'
   | 'relationship_frustration_follow_up'
   | 'relationship_repair_follow_up'
+  | 'season_provocateur'
 
 interface InteractionPlan {
   type: IncomingInteractionType
@@ -223,6 +244,7 @@ interface InteractionPlan {
     backupTargetId: string | null
     isDoubleElimination: boolean
   }
+  provocateurRole?: RealityProvocateurRole
 }
 
 const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
@@ -242,6 +264,45 @@ const CRITICAL_EVENT_SCENARIOS = new Set<InteractionScenarioKey>([
   'alliance_vote_pitch',
   'alliance_power_nomination_huddle',
   'alliance_power_safety_huddle',
+])
+const QUIET_PROVOCATEUR_REPLACEMENT_PLANS = new Set<InteractionScenarioKey>([
+  'week_start_ally_check_in',
+  'week_start_enemy_gossip',
+  'alliance_reassurance',
+  'generic_gossip',
+  'generic_check_in',
+  'relationship_friendship_check_in',
+  'relationship_frustration_follow_up',
+  'relationship_repair_follow_up',
+])
+const EVENT_DRIVEN_SCENARIOS = new Set<InteractionScenarioKey>([
+  'nomination_aftershock',
+  'nominee_veto_pitch',
+  'nominee_hoh_plea',
+  'safety_holder_consults_loh',
+  'nominee_understands_loh',
+  'unavoidable_nominee_reaction',
+  'automatic_nominee_reaction',
+  'nominee_confronts_loh',
+  'replacement_nominee_reacts_to_loh',
+  'nominee_campaign',
+  'co_nominee_check_in',
+  'live_vote_pitch',
+  'post_veto_campaign',
+  'post_veto_gratitude',
+  'survivor_gratitude',
+  'player_nominated_support',
+  'player_nominated_tension',
+  'safety_win_congratulations',
+  'competition_low_finish_support',
+  'competition_low_finish_taunt',
+  'alliance_nomination_pitch',
+  'alliance_vox_ballot_pitch',
+  'alliance_safety_pitch',
+  'alliance_vote_pitch',
+  'alliance_power_nomination_huddle',
+  'alliance_power_safety_huddle',
+  'season_provocateur',
 ])
 
 function isCriticalEventScenario(plan: InteractionPlan | null | undefined): boolean {
@@ -344,12 +405,15 @@ function formatNameList(names: string[]): string {
 
 function describeCanonicalLohNominationPlan(
   context: AutonomyContext,
-  plan: InteractionPlan
+  plan: InteractionPlan,
+  recipientId: string
 ): string | null {
   const nominationPlan = plan.lohNominationPlanContext
   if (!nominationPlan) return null
-  const copy = formatLohNominationPlanCopy(nominationPlan, (playerId) =>
-    getPlayerName(context, playerId, playerId)
+  const copy = formatLohNominationPlanCopy(
+    nominationPlan,
+    (playerId) => getPlayerName(context, playerId, playerId),
+    { listenerId: recipientId }
   )
   return plan.scenarioKey === 'alliance_power_nomination_huddle'
     ? `${copy} I want the alliance's read before I lock nominations.`
@@ -1240,8 +1304,33 @@ function resolveIncomingInteractionPlan(
         ? { type: 'check_in', scenarioKey: 'generic_check_in' }
         : { type: 'gossip', scenarioKey: 'generic_gossip' }
   }
+
+  const dueProvocateurRole =
+    context.dramaMode &&
+    ['week_start', 'loh_results', 'social_1', 'social_2'].includes(context.phase)
+      ? getDueProvocateurRole(
+          context.provocateurSeason,
+          context.week,
+          context.provocateurPendingActorIds
+        )
+      : null
+  if (
+    dueProvocateurRole?.actorId === actorId &&
+    context.provocateurSeason?.targetId === playerId &&
+    (!plan || QUIET_PROVOCATEUR_REPLACEMENT_PLANS.has(plan.scenarioKey))
+  ) {
+    plan = {
+      type: 'snide_remark',
+      scenarioKey: 'season_provocateur',
+      provocateurRole: dueProvocateurRole,
+    }
+  }
   if (!plan) return null
-  if (plan.allianceId || canSendInteractionType(plan.type, constraints, signals)) {
+  if (
+    plan.allianceId ||
+    plan.provocateurRole ||
+    canSendInteractionType(plan.type, constraints, signals)
+  ) {
     return plan
   }
 
@@ -1443,7 +1532,8 @@ export function evaluateIncomingInteractionEnqueueDecision(
       (context.dramaMode || context.voxPopuliActive) &&
       isCriticalEventScenario(plan) &&
       !isAllianceGroupHuddle
-    )
+    ) &&
+    plan.scenarioKey !== 'season_provocateur'
   ) {
     if (socialConfig.verbose) {
       console.debug(`[autonomy] skip ${actorId}: on cooldown (recencyPenalty=${recencyPenalty})`)
@@ -1451,34 +1541,6 @@ export function evaluateIncomingInteractionEnqueueDecision(
     return { allowed: false, reason: 'blocked_by_cooldown', recencyPenalty }
   }
 
-  const eventDrivenScenarios = new Set<InteractionScenarioKey>([
-    'nomination_aftershock',
-    'nominee_veto_pitch',
-    'nominee_hoh_plea',
-    'safety_holder_consults_loh',
-    'nominee_understands_loh',
-    'unavoidable_nominee_reaction',
-    'automatic_nominee_reaction',
-    'nominee_confronts_loh',
-    'replacement_nominee_reacts_to_loh',
-    'nominee_campaign',
-    'co_nominee_check_in',
-    'live_vote_pitch',
-    'post_veto_campaign',
-    'post_veto_gratitude',
-    'survivor_gratitude',
-    'player_nominated_support',
-    'player_nominated_tension',
-    'safety_win_congratulations',
-    'competition_low_finish_support',
-    'competition_low_finish_taunt',
-    'alliance_nomination_pitch',
-    'alliance_vox_ballot_pitch',
-    'alliance_safety_pitch',
-    'alliance_vote_pitch',
-    'alliance_power_nomination_huddle',
-    'alliance_power_safety_huddle',
-  ])
   const baseScore = computeIncomingInteractionEngagementScore(
     actorId,
     playerId,
@@ -1502,11 +1564,12 @@ export function evaluateIncomingInteractionEnqueueDecision(
       ? context.voxPopuliActive
         ? 0.96
         : 0.9
-      : eventDrivenScenarios.has(plan.scenarioKey)
+      : EVENT_DRIVEN_SCENARIOS.has(plan.scenarioKey)
         ? context.voxPopuliActive
           ? 0.34
           : 0.2
-        : 0)
+        : 0) +
+    (plan.scenarioKey === 'season_provocateur' ? 0.7 : 0)
   if (score < cfg.scoreThreshold) {
     if (socialConfig.verbose) {
       console.debug(
@@ -1763,6 +1826,11 @@ const SCENARIO_TEMPLATES: Record<InteractionScenarioKey, string[]> = {
     'I have had time to think, and I do not want one bad moment to define us if it does not have to.',
     'I am not asking us to forget it. I am asking whether there is a way back from it.',
   ],
+  season_provocateur: [
+    'We need to talk about the way you have been moving in this game.',
+    'I have a problem with how quickly everyone falls in line with you.',
+    'You and I keep landing on opposite sides. I am done pretending that is nothing.',
+  ],
 }
 
 function buildInteractionTextContext(
@@ -1833,6 +1901,23 @@ function generateInteractionText(
   pendingInteractions: IncomingInteraction[] = [],
   rng: () => number = Math.random
 ): { text: string; variantFamilyId: string; variantId: string } {
+  if (plan.provocateurRole) {
+    const message = getProvocateurMessage(
+      plan.provocateurRole,
+      getPlayerName(context, actorId, actorId),
+      getPlayerName(context, playerId, 'you'),
+      context.week,
+      context.seed ?? 0,
+      plan.provocateurRole.predecessorId
+        ? getPlayerName(context, plan.provocateurRole.predecessorId, 'the last person')
+        : undefined
+    )
+    return {
+      ...message,
+      variantFamilyId: `season_provocateur_${plan.provocateurRole.style.toLowerCase()}`,
+    }
+  }
+
   // Build context for token replacement.
   const textContext = buildInteractionTextContext(actorId, playerId, context)
 
@@ -2037,6 +2122,24 @@ export function scheduleIncomingInteractionsForPhase(
       createDeterministicSocialRandom([gameState?.seed ?? 0, week, phase, playerId]),
   }
 
+  if (context.dramaMode && context.reality) {
+    const updatedProvocateurSeason = getUpdatedProvocateurSeason(context.reality, {
+      targetId: playerId,
+      players,
+      seed: context.seed ?? 0,
+      day: week,
+    })
+    if (updatedProvocateurSeason) {
+      // Clone the world only when assigning/succeeding a role or recording a
+      // new relevant grievance. Ordinary checkpoints keep the existing state.
+      const reality = structuredClone(context.reality)
+      reality.relationshipAutonomy.provocateurSeason = updatedProvocateurSeason
+      context.reality = reality
+      store.dispatch(replaceRealityDomain(reality))
+    }
+    context.provocateurSeason = context.reality.relationshipAutonomy.provocateurSeason
+  }
+
   const scheduledQueue = socialState.scheduledIncomingInteractions ?? []
   const pendingInteractions: IncomingInteraction[] = buildPendingIncomingInteractions(
     socialState.incomingInteractions ?? [],
@@ -2049,9 +2152,19 @@ export function scheduleIncomingInteractionsForPhase(
       : 0
     : 0
   const slotCounts = buildDeliverySlotCounts(scheduledQueue, phase, week, deliveredThisPhase)
-  const visibleActiveCount = (socialState.incomingInteractions ?? []).filter(
+  const activeVisible = (socialState.incomingInteractions ?? []).filter(
     (interaction) => !interaction.resolved && isIncomingInteractionActionable(interaction)
-  ).length
+  )
+  const visibleActiveCount = activeVisible.length
+  const provocateurPendingActorIds = new Set([
+    ...activeVisible.map((interaction) => interaction.fromId),
+    ...scheduledQueue
+      .filter(
+        (entry) => !entry.interaction.resolved && isIncomingInteractionActionable(entry.interaction)
+      )
+      .map((entry) => entry.interaction.fromId),
+  ])
+  context.provocateurPendingActorIds = provocateurPendingActorIds
 
   const aiActors = players.filter(
     (player) =>
@@ -2194,7 +2307,7 @@ export function scheduleIncomingInteractionsForPhase(
       : undefined
     const canonicalLohPlanText =
       plan.scenarioKey === 'alliance_power_nomination_huddle'
-        ? describeCanonicalLohNominationPlan(context, plan)
+        ? describeCanonicalLohNominationPlan(context, plan, playerId)
         : null
     const interactionText = (
       intelLead
@@ -2224,6 +2337,15 @@ export function scheduleIncomingInteractionsForPhase(
       mode: useVoxDrama ? 'drama' : 'normal',
       payload: {
         scenarioKey: plan.scenarioKey,
+        ...(plan.provocateurRole
+          ? {
+              source: 'season_provocateur',
+              seasonProvocateur: true,
+              provocateurStyle: plan.provocateurRole.style,
+              provocateurCause: plan.provocateurRole.cause,
+              provocateurEscalation: plan.provocateurRole.escalation,
+            }
+          : {}),
         ...(interactionType === 'alliance_proposal'
           ? {
               personalPactPlan:
@@ -2405,6 +2527,25 @@ export function scheduleIncomingInteractionsForPhase(
       store.dispatch(replaceRealityDomain(domain))
     }
 
+    if (plan.provocateurRole && context.reality) {
+      const domain = structuredClone(context.reality)
+      const conflict = registerProvocateurConflict(domain, {
+        actorId: actor.id,
+        targetId: playerId,
+        at: { day: week, phase },
+        cause: plan.provocateurRole.cause,
+      })
+      if (conflict) {
+        context.reality = domain
+        store.dispatch(
+          commitRealityDomainUpdate({
+            domain,
+            changedRelationshipPairs: conflict.changedRelationshipPairs,
+          })
+        )
+      }
+    }
+
     store.dispatch(
       scheduleIncomingInteraction({
         interaction,
@@ -2415,6 +2556,10 @@ export function scheduleIncomingInteractionsForPhase(
         deliveryReason: slot.deliveryReason,
       })
     )
+
+    if (plan.provocateurRole) {
+      store.dispatch(recordSeasonProvocateurScene({ actorId: actor.id, day: week }))
+    }
 
     pendingInteractions.unshift(interaction)
     generatedThisCheckpoint += 1

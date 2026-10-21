@@ -659,7 +659,7 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(activity.querySelectorAll('.ra-entry__narrative')).toHaveLength(1)
     expect(activity).not.toHaveTextContent(receipt!.summary)
     expect(document.querySelector('.sp2-moves__selection')).toBeNull()
-    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
+    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
     expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
     expect(
       screen.queryByRole('button', { name: /full response|expand the full result/i })
@@ -751,13 +751,35 @@ describe('SocialPanelV2 – success pulse', () => {
 
     const btn = screen.getByRole('button', { name: 'Execute' })
     const frozenMoveControls = btn.closest('.sp2-moves__top')
-    expect(frozenMoveControls).not.toBeNull()
+    expect(frozenMoveControls).toBeNull()
+    const moveControls = document.querySelector('.sp2-moves__top')
+    expect(moveControls).not.toBeNull()
     expect(
-      within(frozenMoveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
+      within(moveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
     ).toBeVisible()
-    expect(btn.closest('.sp2-footer')).toBeNull()
+    expect(btn.closest('.sp2-footer')).not.toBeNull()
     expect(document.querySelector('.ra-action-control')).toBeNull()
     expect((btn as HTMLElement).className).toContain('sp2-execute--pulse')
+  })
+
+  it('clears the current action result when the player changes action tabs and keeps it in History', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+    const activity = screen.getByLabelText('Recent Activity')
+    const currentResult = activity.querySelector('.ra-entry__narrative')?.textContent
+    expect(currentResult).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
+    expect(activity.querySelector('.ra-entry__narrative')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 1' }))
+    expect(activity.querySelector('.ra-entry__narrative')?.textContent).toBe(currentResult)
   })
 
   it('execute button pulse class is removed after 850 ms', () => {
@@ -1319,7 +1341,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     }
     expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
     expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
-    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
+    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
     const formedReality = structuredClone(store.getState().social.reality)

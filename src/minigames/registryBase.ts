@@ -670,14 +670,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
 
   cardClash: {
     key: 'cardClash',
-    title: 'House of Cards',
-    description: 'A memory tournament that builds to a shared-board final.',
+    title: 'Deck of Light',
+    description:
+      'A rising memory tournament with tactical tools, a changing objective and a portrait-card duel.',
     instructions: [
-      'Rounds use 8, 12, 16, 20, then 24 tiles with an elapsed timer and no cutoff',
-      'The lowest scorer leaves after rounds 1–3; only the top two survive round 4',
-      'The finalists share one board and take turns in round 5',
-      'A correct pair scores 1 point and keeps the turn; a miss passes the turn',
-      'Final points decide the winner, with rounds 1–4 totals breaking a tie',
+      'Four rounds build from 8 to 20 tiles; the lowest scorer drops after round 3, then round 4 sends the top two to the finale',
+      'Choose one tool each round: Peek, Shield or Bonus Bet; the same choices apply to every contestant',
+      'Match the Bright Pair during the first half of the board for a bounded score bonus',
+      'The top two share a player-portrait board in the finale; every matched pair scores one point',
+      'Final turns can claim up to two pairs before passing; each finalist gets one Peek-or-Pass token',
+      'Final pairs decide the winner, with rounds 1–4 totals breaking a tie',
     ],
     metricKind: 'points',
     metricLabel: 'Clash Score',
@@ -1280,9 +1282,11 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'RescueTheKing',
     legacy: false,
-    weight: 1,
+    // Retired failed prototype; keep its implementation available for history,
+    // but exclude it from active challenge selection and release certification.
+    weight: 0,
     category: 'logic',
-    retired: false,
+    retired: true,
   },
 
   trapAuction: {
@@ -1447,13 +1451,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
 
   houseOfDarkness: {
     key: 'houseOfDarkness',
-    title: 'House of Darkness',
-    description: 'Survive a haunted memory challenge where mistakes drain your lifespan.',
+    title: 'Deck of Darkness',
+    description:
+      'A dangerous survival spinoff where memory, charms and rising damage decide who lasts.',
     instructions: [
-      'Reveal cards to find matching pairs on your haunted board.',
-      'Each mismatch costs lifespan, so remember what you have seen.',
-      'Completing a board earns some recovery, but damage can carry into the next round.',
-      'Outlast the other contestants, or finish with the most lifespan when the ritual ends.',
+      'Choose a six-round Depth Run or an Endless descent that ends with one survivor.',
+      'Pick one of three contextual charms before each board; rivals choose from the same offers.',
+      'Each descent brings a changing omen, larger boards up to 8 pairs and more dangerous mistakes.',
+      'Heal, Shield, Bargain, Peek, Curse, Cleanse and Last Chance reward different situations.',
+      'In Endless, the final two play portrait cards; Curse effects and lifespan are shown between boards.',
+      'In Depth Run, the highest remaining lifespan wins after round six.',
     ],
     resultMode: 'placement',
     metricKind: 'endurance',

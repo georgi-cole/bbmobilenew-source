@@ -1,4 +1,5 @@
-import { getPoolByFilter, type GameRegistryEntry } from '../../src/minigames/registry'
+import { getAllGames, type GameRegistryEntry } from '../../src/minigames/registry'
+import { isInMinigameCertificationScope } from './minigameCertificationScope'
 
 export type ScoringDirection =
   | 'higher'
@@ -47,12 +48,52 @@ export interface MinigameQualityRow {
 }
 
 const HOST_BROWSER_SMOKE = 'e2e/playwright/minigameLab.smoke.spec.ts'
+const HOST_GAMEPLAY_CERTIFICATION = 'e2e/playwright/minigameGameplayCertification.spec.ts'
 
 /**
  * Facts that are not safely derivable from registry metadata. A completeness
  * test requires these keys to match the active registry exactly.
  */
 export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
+  castleRescueRemastered: {
+    input: 'touch movement and platform action',
+    scoring: 'higher',
+    tie: 'Higher rescue score; then the game-owned deterministic tiebreaker.',
+    logic: 'tests/unit/castle-rescue/scoring.test.ts',
+    component: 'src/minigames/castleRescue/__tests__/remasteredRuntime.test.tsx',
+    risk: 'Remastered iframe gameplay needs success, timeout, and visible Continue coverage on phone sizes.',
+  },
+  castleRescue2Remastered: {
+    input: 'touch movement and platform action',
+    scoring: 'higher',
+    tie: 'Higher rescue score; then the game-owned deterministic tiebreaker.',
+    logic: 'tests/unit/castle-rescue/scoring.test.ts',
+    component: 'src/minigames/castleRescue/__tests__/remasteredRuntime.test.tsx',
+    risk: 'Part 2 iframe gameplay needs success, timeout, and visible Continue coverage on phone sizes.',
+  },
+  downMemoryLane: {
+    input: 'buzz, answer choice, and protect five lives',
+    scoring: 'custom',
+    tie: 'The first player to lose all five lives loses; seeded question order is replayable.',
+    logic: 'tests/unit/down-memory-lane/downMemoryLaneLogic.test.ts',
+    risk: 'The 5-life final duel needs a real-component host playthrough and season result assertion.',
+  },
+  finalThreeCircuit: {
+    input: 'six-stage finale with signals, puzzles, escapes, and risk choices',
+    scoring: 'higher',
+    tie: 'Higher total across authoritative stages; seeded game order resolves exact ties.',
+    logic: 'tests/unit/final-three-circuit/finalThreeCircuitLogic.test.ts',
+    component: 'tests/unit/final-three-circuit/FinalOverrideChallenge.test.tsx',
+    risk: 'A complete host playthrough across all finale stages needs browser evidence.',
+  },
+  mysticChamber: {
+    input: 'power choice, rival targeting, protections, and Forbidden Box decisions',
+    scoring: 'higher',
+    tie: 'Highest final Power; then Round 6 net gain; then unique seeded sigils.',
+    logic: 'tests/minigames.mysticChamber.gameplay.test.ts',
+    risk: 'Real component coverage needs a six-round UI playthrough and season result assertion.',
+  },
+
   quickTap: {
     input: 'rapid pointer/touch tapping',
     scoring: 'higher',
@@ -270,13 +311,6 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     component: 'tests/crystalPathShattered.asyncFlow.test.tsx',
     host: 'tests/integration/minigame.crystalPathShattered.integration.test.ts',
   },
-  rescueTheKing: {
-    input: 'pointer/touch board movement',
-    scoring: 'higher',
-    tie: 'Higher rescue score; then lower supplied tiebreaker.',
-    logic: 'tests/unit/rescue-the-king/logic.test.ts',
-    risk: 'Browser smoke is currently the only real-component host evidence.',
-  },
   trapAuction: {
     input: 'pointer/touch bid and target controls',
     scoring: 'custom',
@@ -327,39 +361,41 @@ function describeTimeout(game: GameRegistryEntry): string {
 }
 
 export function getMinigameQualityMatrix(): MinigameQualityRow[] {
-  return getPoolByFilter({ retired: false }).map((game) => {
-    const detail = ACTIVE_MINIGAME_QUALITY_DETAILS[game.key]
-    if (!detail) throw new Error(`Active minigame ${game.key} has no quality detail profile`)
+  return getAllGames()
+    .filter(isInMinigameCertificationScope)
+    .map((game) => {
+      const detail = ACTIVE_MINIGAME_QUALITY_DETAILS[game.key]
+      if (!detail) throw new Error(`Active minigame ${game.key} has no quality detail profile`)
 
-    return {
-      registryId: game.key,
-      displayName: game.title,
-      supportedModes: ['season competition through MinigameHost', 'registry-backed Minigame Lab'],
-      minimumParticipants: game.minPlayers ?? 1,
-      maximumParticipants: game.maxPlayers ?? null,
-      participantBoundsAreExplicit: game.minPlayers != null || game.maxPlayers != null,
-      humanPath: 'Real interactive component mounted through MinigameHost.',
-      aiPath: 'Seeded competition AI participates under the same ranking contract.',
-      spectatorPath: 'Host/spectator outcome uses the same participant and result contract.',
-      primaryInput: detail.input,
-      scoringDirection: detail.scoring,
-      tiePolicy: detail.tie,
-      timeoutPolicy: describeTimeout(game),
-      partialCompletionPolicy: 'Exit records a partial result; explicit Continue commits it.',
-      retryAndDismissalPolicy:
-        'Retry resets one attempt; dismissal/late callbacks cannot commit twice.',
-      authoritativeResultShape: game.authoritative
-        ? 'Finite raw value plus authoritativeWinnerId from the participant set; optional rawResults, last place, and tiebreaker.'
-        : 'Finite human raw value plus optional tiebreaker; MinigameHost combines it with AI results.',
-      seasonStateEffects:
-        'Parent applies result, announcement, reward, history, and phase transition exactly once.',
-      evidence: {
-        logic: [detail.logic],
-        component: detail.component ? [detail.component] : [],
-        host: detail.host ? [detail.host] : [],
-        playwright: [HOST_BROWSER_SMOKE],
-      },
-      uncoveredRisks: detail.risk ? [detail.risk] : [],
-    }
-  })
+      return {
+        registryId: game.key,
+        displayName: game.title,
+        supportedModes: ['season competition through MinigameHost', 'registry-backed Minigame Lab'],
+        minimumParticipants: game.minPlayers ?? 1,
+        maximumParticipants: game.maxPlayers ?? null,
+        participantBoundsAreExplicit: game.minPlayers != null || game.maxPlayers != null,
+        humanPath: 'Real interactive component mounted through MinigameHost.',
+        aiPath: 'Seeded competition AI participates under the same ranking contract.',
+        spectatorPath: 'Host/spectator outcome uses the same participant and result contract.',
+        primaryInput: detail.input,
+        scoringDirection: detail.scoring,
+        tiePolicy: detail.tie,
+        timeoutPolicy: describeTimeout(game),
+        partialCompletionPolicy: 'Exit records a partial result; explicit Continue commits it.',
+        retryAndDismissalPolicy:
+          'Retry resets one attempt; dismissal/late callbacks cannot commit twice.',
+        authoritativeResultShape: game.authoritative
+          ? 'Finite raw value plus authoritativeWinnerId from the participant set; optional rawResults, last place, and tiebreaker.'
+          : 'Finite human raw value plus optional tiebreaker; MinigameHost combines it with AI results.',
+        seasonStateEffects:
+          'Parent applies result, announcement, reward, history, and phase transition exactly once.',
+        evidence: {
+          logic: [detail.logic],
+          component: detail.component ? [detail.component] : [],
+          host: detail.host ? [detail.host] : [],
+          playwright: [HOST_BROWSER_SMOKE, HOST_GAMEPLAY_CERTIFICATION],
+        },
+        uncoveredRisks: detail.risk ? [detail.risk] : [],
+      }
+    })
 }

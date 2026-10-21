@@ -1,7 +1,7 @@
 /**
  * castleRescueScoring.ts
  *
- * Scoring formula for Castle Rescue.
+ * Scoring formula for Find Your Twin.
  *
  * Formula:
  *   score = MAX_SCORE

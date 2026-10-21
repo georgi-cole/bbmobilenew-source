@@ -737,10 +737,12 @@ export default function MinigameHost({
     }
 
     if (game.implementation === 'react' && game.reactComponentKey === 'HouseOfCards') {
+      const isLabPreview = import.meta.env.DEV && gameOptions?.minigameLabPreview === true
       if (import.meta.env.DEV) {
         console.log('HOUSE_OF_CARDS_NEW_SESSION', {
           source: 'MinigameHost',
-          challengeSeedIgnored: seed,
+          challengeSeedIgnored: isLabPreview ? undefined : seed,
+          labSeed: isLabPreview ? seed : undefined,
           participantIds,
           prizeType: gameOptions?.prizeType ?? 'LOH',
         })
@@ -750,6 +752,11 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as HouseOfCardsPrizeType) ?? 'LOH'}
+          seed={isLabPreview ? seed : undefined}
+          premiumPresentation={usePremiumPresentation}
+          previewStage={
+            import.meta.env.DEV && gameOptions?.previewStage === 'final' ? 'final' : undefined
+          }
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -763,6 +770,7 @@ export default function MinigameHost({
           participants={participants}
           prizeType={(gameOptions?.prizeType as TiltLabyrinthPrizeType) ?? 'LOH'}
           seed={seed}
+          labPreview={gameOptions?.labPreview === true}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -890,6 +898,13 @@ export default function MinigameHost({
         <GenericComp
           seed={seed}
           autoStart={key !== 'HangmanChallenge'}
+          premiumPresentation={usePremiumPresentation}
+          previewStage={
+            import.meta.env.DEV &&
+            (gameOptions?.previewStage === 'round6' || gameOptions?.previewStage === 'final2')
+              ? gameOptions.previewStage
+              : undefined
+          }
           voteEffectsEnabled={gameOptions?.voteEffectsEnabled !== false}
           participantIds={participantIds}
           participants={participants}

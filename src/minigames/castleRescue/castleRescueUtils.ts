@@ -1,7 +1,7 @@
 /**
  * castleRescueUtils.ts
  *
- * Pure, stateless helper functions shared across the Castle Rescue module.
+ * Pure, stateless helper functions shared across the Find Your Twin module.
  * All functions are free of side-effects and safe to call from tests.
  */
 

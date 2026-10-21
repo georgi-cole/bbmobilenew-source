@@ -13,6 +13,7 @@ import type {
   SocialCommitment,
   SocialMemoryEvent,
   SocialPhaseReport,
+  SocialInquiryRecord,
   SocialState,
 } from './types'
 import type { RealityDeadline } from './reality/types'
@@ -65,6 +66,7 @@ import type {
   RealityThread,
 } from './reality'
 import { pruneEvictedAiPrivateState as pruneEvictedAiPrivateRealityState } from './reality/evictedAiRetention'
+import { applyProvocateurResponse, recordProvocateurSceneDelivered } from './seasonProvocateurs'
 import {
   addRealityFact,
   applyLegacyRelationshipUpdateToReality,
@@ -627,6 +629,9 @@ const socialSlice = createSlice({
       }
       appendPersistentSocialHistory(state as unknown as SocialStateWithHistory, entry)
     },
+    recordSocialInquiry(state, action: PayloadAction<SocialInquiryRecord>) {
+      state.inquiryHistory = [...(state.inquiryHistory ?? []), action.payload].slice(-300)
+    },
     /** Enrich the display receipt without replaying gameplay or audience effects. */
     finalizeSocialActionReceipt(
       state,
@@ -669,6 +674,24 @@ const socialSlice = createSlice({
     replaceRealityDomain(state, action: PayloadAction<RealityDomainState>) {
       state.reality = normalizeRealityDomainState(action.payload, state.relationships)
       projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+    },
+    recordSeasonProvocateurScene(state, action: PayloadAction<{ actorId: string; day: number }>) {
+      recordProvocateurSceneDelivered(
+        state.reality.relationshipAutonomy.provocateurSeason,
+        action.payload.actorId,
+        action.payload.day
+      )
+    },
+    recordSeasonProvocateurResponse(
+      state,
+      action: PayloadAction<{ targetId: string; actorId: string; responseType: string }>
+    ) {
+      applyProvocateurResponse(
+        state.reality,
+        action.payload.targetId,
+        action.payload.actorId,
+        action.payload.responseType
+      )
     },
     /** Commits an orchestrator-produced domain that already shares unchanged branches. */
     commitRealityDomainUpdate(
@@ -1486,10 +1509,13 @@ export const {
   applyInfoDelta,
   grantSecretMissionResourceCache,
   recordSocialAction,
+  recordSocialInquiry,
   finalizeSocialActionReceipt,
   initializeRealitySimulation,
   replaceRealitySimulation,
   replaceRealityDomain,
+  recordSeasonProvocateurScene,
+  recordSeasonProvocateurResponse,
   pruneEvictedAiPrivateState,
   commitRealityDomainUpdate,
   commitRealityOutcome,

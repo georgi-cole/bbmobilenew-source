@@ -89,7 +89,7 @@ SoundManager                ← singleton BGM channel + SFX pools
 ║  social                 ← social module panel / inbox                 ║
 ║  minigame               ← active competition minigame                 ║
 ║    ├─ riskWheel         ←   Risk Wheel (track: risk_wheel)            ║
-║    ├─ glass_bridge_*    ←   Glass Bridge family (track: glass_bridge) ║
+║    ├─ glass_bridge_*    ←   Crystal Path family (track: glass_bridge) ║
 ║    ├─ quickTap / …      ←   Quick Tap family (track: quick_tap)       ║
 ║    └─ wildcardWestern   ←   Wildcard Western (track: wildcard_western)║
 ║  live_vote              ← live eviction vote (SFX only)               ║

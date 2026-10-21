@@ -1,7 +1,7 @@
 /**
  * tests/unit/castle-rescue/timeout.test.ts
  *
- * Tests for timeout / finalization logic in the Castle Rescue engine:
+ * Tests for timeout / finalization logic in the Find Your Twin engine:
  *  - finalizeRunState on an active run forces status to 'complete'.
  *  - finalizeRunState computes a score for a timed-out run.
  *  - finalizeRunState is idempotent: second call returns the same state.

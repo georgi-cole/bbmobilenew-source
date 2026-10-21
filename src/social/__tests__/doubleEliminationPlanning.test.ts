@@ -126,6 +126,65 @@ describe('double-elimination social planning', () => {
     ).toHaveLength(2)
   })
 
+  it("carries an ally's earlier private nomination advice into the LOH alliance huddle", () => {
+    const initialGame = gameReducer(undefined, { type: '@@test/init' })
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'advice-alliance',
+      founderIds: ['human'],
+      memberIds: ['ally'],
+      purpose: 'Coordinate the block',
+      at: { day: 4, phase: 'social_1' },
+    })
+    alliance.status = 'ACTIVE'
+    const baseSocial = socialReducer(undefined, { type: '@@test/init' })
+    const social = {
+      ...baseSocial,
+      inquiryHistory: [
+        {
+          id: 'inquiry:4:human:ally:nomination:4:1',
+          askerId: 'human',
+          respondentId: 'ally',
+          kind: 'NOMINATION_ADVICE',
+          topicKey: 'nomination:4',
+          day: 4,
+          phase: 'social_1',
+          answerTargetIds: ['nova', 'dex'],
+          answerText: 'My nomination advice is Nova and Dex.',
+          tone: 'CANDID',
+          hardRefused: false,
+          infoAwarded: true,
+        },
+      ],
+    }
+    const state = {
+      game: {
+        ...initialGame,
+        players: [
+          { id: 'human', name: 'You', status: 'loh', isUser: true },
+          { id: 'ally', name: 'Ally', status: 'active' },
+          { id: 'nova', name: 'Nova', status: 'active' },
+          { id: 'dex', name: 'Dex', status: 'active' },
+          { id: 'remy', name: 'Remy', status: 'active' },
+          { id: 'lux', name: 'Lux', status: 'active' },
+        ],
+        week: 4,
+        phase: 'social_1',
+        lohId: 'human',
+        nomineeIds: [],
+      },
+      social: { ...social, reality },
+    } as unknown as RootState
+
+    const plan = buildAllianceConsultationPlan(state, alliance, 'human')
+
+    expect(plan?.agenda).toBe('nominations')
+    expect(plan?.summary).toContain('Ally recommends Nova and Dex')
+    expect(plan?.summary).toContain(
+      'Ally previously told you: “My nomination advice is Nova and Dex.”'
+    )
+  })
+
   it('states both planned exits and the preferred survivor in a truthful locked-block read', () => {
     const game = {
       week: 4,

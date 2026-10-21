@@ -43,7 +43,7 @@ function startedStore(rowsCount = 16) {
   return store
 }
 
-describe('Glass Bridge turn clock', () => {
+describe('The Crystal Path turn clock', () => {
   it('keeps the crossing strictly sequential until the active player moves or forfeits', () => {
     const store = startedStore()
 

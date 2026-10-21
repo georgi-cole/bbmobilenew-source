@@ -9,6 +9,9 @@ import type {
   RealityContestantState,
   RealityDomainState,
   RealityPerception,
+  RealityProvocateurCause,
+  RealityProvocateurSeason,
+  RealityProvocateurStyle,
   RealityRelationshipLabel,
   RealityRelationshipMap,
 } from './types'
@@ -180,6 +183,7 @@ export function createInitialRealityDomainState(
       boundaries: {},
       evidence: {},
       nemeses: {},
+      provocateurSeason: null,
       reservedBeatIds: [],
     },
   }
@@ -187,6 +191,61 @@ export function createInitialRealityDomainState(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+const PROVOCATEUR_STYLES = new Set([
+  'ACCOUNTABILITY',
+  'DOMINANCE',
+  'SCHEMER',
+  'INTIMIDATOR',
+  'SORE_WINNER',
+  'SPOTLIGHT_SEEKER',
+])
+const PROVOCATEUR_CAUSES = new Set([
+  'PERSONALITY_CLASH',
+  'NOMINATION',
+  'BETRAYAL',
+  'PLAN_DEFIED',
+  'RETURNED',
+  'COMPETITION_THREAT',
+  'SOCIAL_REACH',
+  'SUCCESSOR',
+])
+
+function normalizeProvocateurSeason(value: unknown): RealityProvocateurSeason | null {
+  if (!isRecord(value) || typeof value.targetId !== 'string' || !Array.isArray(value.roles)) {
+    return null
+  }
+  const roles = value.roles
+    .filter(
+      (role): role is Record<string, unknown> =>
+        isRecord(role) &&
+        typeof role.actorId === 'string' &&
+        typeof role.style === 'string' &&
+        PROVOCATEUR_STYLES.has(role.style) &&
+        typeof role.cause === 'string' &&
+        PROVOCATEUR_CAUSES.has(role.cause)
+    )
+    .slice(0, 2)
+    .map((role) => ({
+      actorId: role.actorId as string,
+      style: role.style as RealityProvocateurStyle,
+      introducedDay: Math.max(1, Math.round(Number(role.introducedDay) || 1)),
+      ...(typeof role.lastSceneDay === 'number' && Number.isFinite(role.lastSceneDay)
+        ? { lastSceneDay: Math.max(0, Math.round(role.lastSceneDay)) }
+        : {}),
+      escalation: Math.max(0, Math.min(2, Math.round(Number(role.escalation) || 0))) as 0 | 1 | 2,
+      cause: role.cause as RealityProvocateurCause,
+      ...(typeof role.predecessorId === 'string' ? { predecessorId: role.predecessorId } : {}),
+    }))
+  return {
+    targetId: value.targetId,
+    roles,
+    ...(typeof value.lastSceneDay === 'number' && Number.isFinite(value.lastSceneDay)
+      ? { lastSceneDay: Math.max(0, Math.round(value.lastSceneDay)) }
+      : {}),
+    observedThroughSequence: Math.max(-1, Math.round(Number(value.observedThroughSequence) || 0)),
+  }
 }
 
 function cloneRealitySnapshot(value: unknown): unknown {
@@ -316,6 +375,7 @@ export function normalizeRealityDomainState(
         input.relationshipAutonomy?.nemeses && isRecord(input.relationshipAutonomy.nemeses)
           ? input.relationshipAutonomy.nemeses
           : {},
+      provocateurSeason: normalizeProvocateurSeason(input.relationshipAutonomy?.provocateurSeason),
       reservedBeatIds: Array.isArray(input.relationshipAutonomy?.reservedBeatIds)
         ? input.relationshipAutonomy.reservedBeatIds
             .slice(-240)

@@ -1,7 +1,7 @@
 /**
  * codeBreakerLogic.ts
  *
- * Pure logic utilities for the Vault Cracker (formerly Logic Locks) minigame.
+ * Pure logic utilities for the Vault Cracker minigame.
  * Exported separately so they can be tested independently of the React component.
  *
  * Scoring design (hard-puzzle model):

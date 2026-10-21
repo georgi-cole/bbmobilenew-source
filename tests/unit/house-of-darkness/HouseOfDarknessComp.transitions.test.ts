@@ -32,4 +32,16 @@ describe('House of Darkness round transitions', () => {
     expect(css).toContain('@keyframes hod-spider-drop')
     expect(css).toContain('@media (prefers-reduced-motion: reduce)')
   })
+
+  it('expands a VIP charm and clones it into the hidden board cards', () => {
+    expect(source).toContain("type CharmTransition = 'expand' | 'deal' | 'landed' | null")
+    expect(source).toContain("setCharmTransition('expand')")
+    expect(source).toContain("setCharmTransition('deal')")
+    expect(source).toContain('className="hod-charm-clone-layer"')
+    expect(source).toContain('className="hod-charm-clone"')
+    expect(css).toContain("data-charm-transition='expand'")
+    expect(css).toContain("data-charm-transition='deal'")
+    expect(css).toContain('@keyframes hod-charm-clone-flight')
+    expect(css).toContain('@keyframes hod-charm-back-reveal')
+  })
 })

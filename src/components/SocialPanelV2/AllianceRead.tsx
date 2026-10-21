@@ -80,7 +80,6 @@ export default function AllianceRead({
     focusEventId?: string
     anchorEventId: string
   } | null>(null)
-  const [fullReadOpen, setFullReadOpen] = useState(false)
   const [requestExpandedOverrides, setRequestExpandedOverrides] = useState<Record<string, boolean>>(
     {}
   )
@@ -183,27 +182,11 @@ export default function AllianceRead({
     })
     return () => cancelAnimationFrame(frame)
   }, [focusedRow, historyOpen])
-  useEffect(() => {
-    if (!fullReadOpen) return
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setFullReadOpen(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [fullReadOpen])
   return (
     <section
-      className={`sp2-focus sp2-focus--active sp2-alliance-read${fullReadOpen ? ' sp2-alliance-read--full-screen' : ''}`}
-      aria-label={fullReadOpen ? 'Full alliance read' : 'Selected alliance'}
+      className="sp2-focus sp2-focus--active sp2-alliance-read"
+      aria-label="Selected alliance"
     >
-      {fullReadOpen && (
-        <div className="sp2-alliance-read__full-screen-bar">
-          <button type="button" onClick={() => setFullReadOpen(false)}>
-            Back to Social
-          </button>
-          <span>Full alliance read</span>
-        </div>
-      )}
       <span className="sp2-alliance-read__mark" aria-hidden="true">
         ✦
       </span>
@@ -265,13 +248,6 @@ export default function AllianceRead({
           </summary>
           {historyOpen && (
             <div className="sp2-alliance-read__details">
-              <button
-                type="button"
-                className="sp2-alliance-read__full-screen-button"
-                onClick={() => setFullReadOpen(true)}
-              >
-                Read in full screen
-              </button>
               <h3>{currentMember ? 'Members' : 'Last known roster'}</h3>
               <div
                 className="sp2-consult-alliance-picker__chips"

@@ -52,7 +52,7 @@
  * │  social              Social module open (panel or inbox)                 │
  * │  minigame            Active competition minigame (sub-tracks per game)   │
  * │    ├─ riskWheel      Risk Wheel                                          │
- * │    ├─ glass_bridge_brutal / crystal_path_shattered  Glass Bridge         │
+ * │    ├─ glass_bridge_brutal / crystal_path_shattered  Crystal Path         │
  * │    ├─ quickTap / laneRacers / memoryMatch           Quick Tap family     │
  * │    └─ wildcardWestern                               Wildcard Western     │
  * │  live_vote           Live eviction vote       (Safety music ducked)      │

@@ -1,7 +1,7 @@
 /**
  * castleRescueTestData.ts
  *
- * Canned test fixtures for Castle Rescue unit tests.
+ * Canned test fixtures for Find Your Twin unit tests.
  * Using fixed maps rather than generated ones keeps tests fast and ensures
  * they never break due to changes in the generator (only changes to types/
  * engine can break test data).

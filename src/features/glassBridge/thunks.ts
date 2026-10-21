@@ -1,7 +1,7 @@
 /**
  * Thunk: resolveGlassBridgeOutcome
  *
- * Reads the completed Glass Bridge state, validates the current game phase
+ * Reads the completed Crystal Path state, validates the current game phase
  * matches the competition type, and awards LOH or POS via `applyMinigameWinner`.
  *
  * Idempotent — returns immediately if outcomeResolved is already true.

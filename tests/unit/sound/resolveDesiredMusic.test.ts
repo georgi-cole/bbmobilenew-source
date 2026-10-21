@@ -130,7 +130,7 @@ describe('resolveDesiredMusic', () => {
     expect(resolveDesiredMusic(state, '#/game')).toBe('glass_bridge')
   })
 
-  it('reuses the glass bridge music track for Crystal Path: Infinity', () => {
+  it('reuses the Crystal Path music track for Crystal Path: Infinity', () => {
     const state = makeState({
       challenge: {
         pending: {

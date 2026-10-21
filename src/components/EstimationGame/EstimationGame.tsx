@@ -493,14 +493,12 @@ export default function EstimationGame({
       setRoundIndex(nextIdx)
       startRound(nextIdx)
     } else {
-      // All 5 rounds complete — pass the final results snapshot directly to
-      // finishGame to avoid relying on stale roundResults state.
-      setRoundResults((prev) => {
-        finishGame(prev)
-        return prev
-      })
+      // The last result was committed when the feedback screen rendered, so
+      // finish directly from this click handler. Calling finishGame inside a
+      // state updater would notify MinigameHost while React is rendering.
+      finishGame(roundResults)
     }
-  }, [roundIndex, startRound, finishGame])
+  }, [roundIndex, roundResults, startRound, finishGame])
 
   // ── Done handler (dispatches to Redux) ────────────────────────────────────
 

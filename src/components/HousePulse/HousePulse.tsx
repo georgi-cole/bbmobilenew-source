@@ -14,6 +14,7 @@ import type {
   SocialCommitment,
 } from '../../social/types'
 import {
+  allianceKind,
   allianceForEvent,
   canReadAllianceEvent,
   type RealityDomainState,
@@ -340,21 +341,59 @@ export default function HousePulse({
     }
     const uniqueByName = new Map<
       string,
-      { allianceId: string; eventId: string; name: string; sequence: number }
+      {
+        allianceId: string
+        event: (typeof reality.events)[number]
+        eventId: string
+        name: string
+        sequence: number
+      }
     >()
     for (const [allianceId, event] of latestEventByAlliance) {
       const name = event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance'
       const nameKey = name.trim().replace(/\s+/g, ' ').toLowerCase()
       const current = uniqueByName.get(nameKey)
       if (!current || event.sequence > current.sequence)
-        uniqueByName.set(nameKey, { allianceId, eventId: event.id, name, sequence: event.sequence })
+        uniqueByName.set(nameKey, {
+          allianceId,
+          event,
+          eventId: event.id,
+          name,
+          sequence: event.sequence,
+        })
     }
-    return [...uniqueByName.values()].map(({ allianceId, eventId, name }) => ({
-      allianceId,
-      eventId,
-      name,
-    }))
-  }, [dayChronicle, humanId, reality])
+    return [...uniqueByName.values()].map(({ allianceId, eventId, name, event }) => {
+      const alliance = reality.alliances[allianceId]
+      const isPact =
+        (event.allianceSnapshot?.kind ?? (alliance ? allianceKind(alliance) : undefined)) === 'PACT'
+      const counterpartId =
+        alliance?.memberIds.find((id) => id !== humanId) ??
+        event.participantIds.find((id) => id !== humanId)
+      return {
+        allianceId,
+        eventId,
+        name,
+        pactCounterpartName: isPact
+          ? (players.find((player) => player.id === counterpartId)?.name ?? 'another player')
+          : null,
+      }
+    })
+  }, [dayChronicle, humanId, players, reality])
+
+  const storyLinkLabel = (allianceId: string, eventId?: string) => {
+    const alliance = reality?.alliances[allianceId]
+    const event = eventId ? reality?.events.find((entry) => entry.id === eventId) : undefined
+    const kind = alliance ? allianceKind(alliance) : event?.allianceSnapshot?.kind
+    if (kind === 'PACT') {
+      const counterpartId =
+        alliance?.memberIds.find((id) => id !== humanId) ??
+        event?.participantIds.find((id) => id !== humanId)
+      const name = players.find((player) => player.id === counterpartId)?.name ?? 'another player'
+      return `Read ${name}'s pact story`
+    }
+    const name = event?.allianceSnapshot?.name ?? alliance?.name ?? 'alliance'
+    return `Read ${name}'s alliance story`
+  }
   const earlierChronicles = useMemo(
     () =>
       savedChronicles
@@ -534,7 +573,9 @@ export default function HousePulse({
                               onOpenAlliances(link.allianceId, link.eventId)
                             }}
                           >
-                            Read {link.name}'s alliance story
+                            {link.pactCounterpartName
+                              ? `Read ${link.pactCounterpartName}'s pact story`
+                              : `Read ${link.name}'s alliance story`}
                           </button>
                         ))}
                     </article>
@@ -598,7 +639,7 @@ export default function HousePulse({
                             onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                           }}
                         >
-                          View alliance history
+                          {storyLinkLabel(beat.allianceId, beat.sourceEventId ?? beat.id)}
                         </button>
                       )}
                       {reality &&
@@ -635,7 +676,7 @@ export default function HousePulse({
                                   onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                                 }}
                               >
-                                View alliance history
+                                {storyLinkLabel(beat.allianceId, beat.sourceEventId ?? beat.id)}
                               </button>
                             )}
                             {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (

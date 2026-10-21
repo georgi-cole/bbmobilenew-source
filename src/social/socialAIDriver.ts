@@ -73,6 +73,7 @@ import {
 } from './realitySimulation'
 import { normalizeDramaSocialNetwork } from './dramaModeEngine'
 import { chooseUtilityDramaAIMove } from './dramaAIPolicy'
+import { registerProvocateurConflict } from './seasonProvocateurs'
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
 import { allianceIdentityBias, type AiGameIdentity } from '../ai/aiGameIdentity'
 import {
@@ -335,17 +336,39 @@ function executeRealityCandidate(
     _store.dispatch(replaceRealitySimulation(result.simulation))
     return false
   }
-  if (candidate.relationshipIntent && candidate.targetIds[0]) {
+  const provocateurRole = dramaMode
+    ? state.social.reality.relationshipAutonomy.provocateurSeason?.roles.find(
+        (role) => role.actorId === player.id
+      )
+    : undefined
+  const isProvocateurConflict =
+    provocateurRole !== undefined &&
+    PROVOCATEUR_CONFLICT_ACTIONS.has(candidate.actionId) &&
+    candidate.targetIds.length > 0
+  let provocateurRelationshipPairs: Array<{ sourceId: string; targetId: string }> = []
+  if ((candidate.relationshipIntent && candidate.targetIds[0]) || isProvocateurConflict) {
     const outcomeDraft = createDraft(result.domain)
-    advanceRelationshipAutonomy(outcomeDraft, {
-      ownerId: player.id,
-      targetId: candidate.targetIds[0],
-      kind: candidate.relationshipIntent,
-      at: { day: result.event.day, phase: result.event.phase },
-      eventId: result.event.id,
-      accepted: result.response?.accepted === true,
-      deferred: result.response?.kind === 'QUESTION' || result.response?.kind === 'COUNTER',
-    })
+    if (candidate.relationshipIntent && candidate.targetIds[0]) {
+      advanceRelationshipAutonomy(outcomeDraft, {
+        ownerId: player.id,
+        targetId: candidate.targetIds[0],
+        kind: candidate.relationshipIntent,
+        at: { day: result.event.day, phase: result.event.phase },
+        eventId: result.event.id,
+        accepted: result.response?.accepted === true,
+        deferred: result.response?.kind === 'QUESTION' || result.response?.kind === 'COUNTER',
+      })
+    }
+    if (provocateurRole && isProvocateurConflict) {
+      provocateurRelationshipPairs =
+        registerProvocateurConflict(outcomeDraft, {
+          actorId: player.id,
+          targetId: candidate.targetIds[0],
+          at: { day: result.event.day, phase: result.event.phase },
+          cause: provocateurRole.cause,
+          sourceEventId: result.event.id,
+        })?.changedRelationshipPairs ?? []
+    }
     result.domain = finishDraft(outcomeDraft)
   }
   const costs = normalizeActionCosts(action, candidate.targetIds.length, dramaMode)
@@ -372,7 +395,13 @@ function executeRealityCandidate(
       simulation: result.simulation,
       actorId: player.id,
       energyDelta: -costs.energy,
-      changedRelationshipPairs: result.changedRelationshipPairs,
+      changedRelationshipPairs: [
+        ...new Map(
+          [...(result.changedRelationshipPairs ?? []), ...provocateurRelationshipPairs].map(
+            (pair) => [`${pair.sourceId}\u0000${pair.targetId}`, pair] as const
+          )
+        ).values(),
+      ],
       influenceDelta: -costs.influence + resourceEffect.influence,
       infoDelta: -costs.info + resourceEffect.info,
     })
@@ -703,6 +732,7 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
   rumor: 'warning',
   confront: 'snide_remark',
   startFight: 'snide_remark',
+  public_callout: 'snide_remark',
   ask_use_safety: 'deal_offer',
   pitch_target: 'warning',
   suggest_replacement: 'warning',
@@ -710,6 +740,8 @@ const HUMAN_FACING_ACTION_TYPES: Partial<Record<string, IncomingInteractionType>
   nominate: 'warning',
   group_chat: 'other',
 }
+
+const PROVOCATEUR_CONFLICT_ACTIONS = new Set(['confront', 'startFight', 'public_callout'])
 
 const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
   ally: [
@@ -747,6 +779,10 @@ const HUMAN_FACING_ACTION_TEXT: Partial<Record<string, string[]>> = {
   startFight: [
     'I am done pretending everything between us is fine.',
     'You crossed a line with me, and I am not letting it slide.',
+  ],
+  public_callout: [
+    'I am saying this where everyone can hear it: your version of events does not add up.',
+    'You keep acting like the Hub should follow your lead. I do not, and people should know that.',
   ],
   ask_use_safety: [
     'Before the Safety decision, I need to know whether you would use it to help me.',
@@ -789,6 +825,7 @@ const HUMAN_FACING_ACTION_SCENARIOS: Partial<Record<string, string>> = {
   rumor: 'betrayal_warning',
   confront: 'targeted_snark',
   startFight: 'targeted_snark',
+  public_callout: 'targeted_snark',
   ask_use_safety: 'nominee_veto_pitch',
   pitch_target: 'alliance_target_pitch',
   suggest_replacement: 'alliance_replacement_pitch',
@@ -958,9 +995,29 @@ function routeHumanFacingAction(
     },
   })
   if (!realityResult.interaction || realityResult.event) return 'blocked'
+  let realityDomain = realityResult.domain
+  let changedRelationshipPairs: Array<{ sourceId: string; targetId: string }> = []
+  const provocateurSeason = current.social.reality.relationshipAutonomy.provocateurSeason
+  const provocateurRole = provocateurSeason?.roles.find((role) => role.actorId === actorId)
+  if (
+    mode === 'drama' &&
+    provocateurSeason?.targetId === human.id &&
+    provocateurRole &&
+    PROVOCATEUR_CONFLICT_ACTIONS.has(actionId)
+  ) {
+    const domainDraft = createDraft(realityDomain)
+    changedRelationshipPairs =
+      registerProvocateurConflict(domainDraft, {
+        actorId,
+        targetId: human.id,
+        at: { day: week, phase },
+        cause: provocateurRole.cause,
+      })?.changedRelationshipPairs ?? []
+    realityDomain = finishDraft(domainDraft)
+  }
   interaction.payload ??= {}
   interaction.payload.realityInteractionId = realityResult.interaction.id
-  _store.dispatch(commitRealityDomainUpdate({ domain: realityResult.domain }))
+  _store.dispatch(commitRealityDomainUpdate({ domain: realityDomain, changedRelationshipPairs }))
   _store.dispatch(replaceRealitySimulation(realityResult.simulation))
 
   _store.dispatch(applyEnergyDelta({ playerId: actorId, delta: -costs.energy }))
@@ -1207,6 +1264,8 @@ function candidateForPlayer(
           lohId: state.game.lohId,
           posWinnerId: state.game.posWinnerId,
           nomineeIds: state.game.nomineeIds,
+          reality: state.social.reality,
+          povProtectedIds: state.game.povProtectedIds,
         })
       : null
 
