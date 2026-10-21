@@ -14,6 +14,17 @@ test.describe('Mystic Chamber mobile decision @smoke @minigame @mobile @accessib
     const host = page.getByRole('dialog', { name: /Mystic Chamber minigame/i })
     const chamber = host.getByTestId('mystic-chamber')
     await expect(page.getByTestId('minigame-lab-selected-title')).toHaveText('Mystic Chamber')
+    await page.addStyleTag({
+      content: `
+        .minigame-lab__panel {
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+        .dbg-fab {
+          display: none !important;
+        }
+      `,
+    })
     await expect(chamber.getByRole('heading', { name: 'Mystic Chamber' })).toBeVisible()
     await expect(chamber.getByRole('heading', { name: 'Choose a power' })).toBeVisible()
     await assertNoHorizontalDocumentOverflow(page)
