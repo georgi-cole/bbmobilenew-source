@@ -880,21 +880,21 @@ export default function MajorityRulesComp({
             {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'No clear minority. Nobody falls.'
               : reveal?.result.kind === 'unanimous'
-                  ? 'A full sweep. Nobody falls this time.'
-                  : tiedMinorityLabels.length > 0
-                    ? 'Tie at the bottom. No one is eliminated.'
-                    : 'Minority found. The trap door opens.'}
+                ? 'A full sweep. Nobody falls this time.'
+                : tiedMinorityLabels.length > 0
+                  ? 'Tie at the bottom. No one is eliminated.'
+                  : 'Minority found. The trap door opens.'}
           </h2>
           <p className="majority-rules-copy">
             {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'The vote was too divided for a fair elimination. A fresh question will decide the next minority.'
               : reveal?.result.kind === 'unanimous'
-                  ? 'No elimination this round. The next question starts fresh.'
-                  : tiedMinorityLabels.length > 0
-                    ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
-                    : minorityLabel
-                      ? `The minority answer was “${minorityLabel}”.`
-                      : 'The minority has been eliminated.'}
+                ? 'No elimination this round. The next question starts fresh.'
+                : tiedMinorityLabels.length > 0
+                  ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
+                  : minorityLabel
+                    ? `The minority answer was “${minorityLabel}”.`
+                    : 'The minority has been eliminated.'}
           </p>
         </div>
 
