@@ -53,13 +53,13 @@ function choose(variants: readonly string[], seed: string): string {
 function describeAction(action: SocialActionLogEntry, target: string, seed: string): string | null {
   const success = action.outcome === 'success'
   const move = action.actionId.toLowerCase()
-  if (/flirt|charm|seduc|romanc|kiss/.test(move))
+  if (/flirt|charm|seduc|romanc|kiss|cuddle|makeout|spend_night|late_night_talk|go_public/.test(move))
     return choose(success
       ? ['Your charm found a willing audience in ' + target + '. Perhaps there is chemistry after all.',
          'Things warmed up between you and ' + target + '. The cameras certainly noticed.']
       : ['You tried to charm ' + target + ', but the sparks refused to fly.',
          'Cupid had other plans when you approached ' + target + '. Rejection is part of the game, apparently.'], seed)
-  if (/alliance|pact|deal|promise|trust|recruit/.test(move))
+  if (/alliance|pact|deal|promise|trust|recruit|ride_or_die/.test(move))
     return choose(success
       ? ['Your proposal to ' + target + ' found a receptive audience. A new understanding could prove useful.',
          'You made headway with ' + target + '. In the Hub, even a promising agreement has to survive tomorrow.']
@@ -69,7 +69,7 @@ function describeAction(action: SocialActionLogEntry, target: string, seed: stri
     return success
       ? 'You made some peace with ' + target + '. Old wounds may finally be healing.'
       : 'You tried to patch things up with ' + target + ', but the damage was not so easily forgotten.'
-  if (/confront|threaten|insult|accuse|argue|fight/.test(move))
+  if (/confront|threaten|insult|accuse|argue|fight|public_callout|stir_rivalry/.test(move))
     return success
       ? 'You confronted ' + target + ', and your words made an impression. So much for a quiet day.'
       : 'Your confrontation with ' + target + ' did not go quite as planned. The tension, however, was real.'
@@ -77,7 +77,7 @@ function describeAction(action: SocialActionLogEntry, target: string, seed: stri
     return success
       ? 'You found common ground with ' + target + '. Even in this house, a little goodwill goes a long way.'
       : 'You reached out to ' + target + ', but the connection never quite clicked.'
-  if (/gossip|rumou?r|snoop|eavesdrop|spy|observe|intel/.test(move))
+  if (/gossip|rumou?r|snoop|eavesdrop|spy|observe|intel|whisper|trade_secrets/.test(move))
     return success
       ? 'You spent some time reading the room. Knowledge is power, provided you know what to do with it.'
       : 'Your attempt to learn more about the house came up short. Not every whisper is yours to hear.'
@@ -186,7 +186,7 @@ function chronicleEvent(
   }
 }
 
-function headline(moments: StoryMoment[], day: number, seed: string): string {
+function headline(moments: StoryMoment[], seed: string): string {
   const has = (category: Category) => moments.some((moment) => moment.category === category)
   if (has('eviction') && has('safety')) return choose(['Power, Panic & a Final Goodbye', 'Safety, Schemes & a Sudden Exit'], seed)
   if (has('eviction')) return choose(['A Day of Deals and Goodbyes', 'One Less Housemate, More Unfinished Business'], seed)
@@ -277,7 +277,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   return {
     season: input.season,
     day: input.day,
-    title: headline(featured, input.day, seed + ':headline'),
+    title: headline(featured, seed + ':headline'),
     paragraphs: paragraphs.length ? paragraphs : ['Not much has reached your radar yet. Even the cameras need a quiet moment sometimes.'],
     note,
     sourceEventIds: featured.map((beat) => beat.id),
