@@ -73,7 +73,7 @@ test.describe('Minigame Lab smoke @smoke @minigame', () => {
       await page.getByRole('button', { name: 'Exit with 0' }).click()
 
       await expect(hostDialog.getByRole('heading', { name: 'Exited early' })).toBeVisible()
-      await expect(hostDialog.getByText(/You wins|AI \d+ wins/)).toBeVisible()
+      await expect(hostDialog.locator('.minigame-host-results-winner')).toContainText(/\bwins\b/i)
 
       await hostDialog.getByRole('button', { name: /Continue/ }).evaluate((element) => {
         const button = element as HTMLButtonElement
