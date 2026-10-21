@@ -585,6 +585,7 @@ const majorityRulesSlice = createSlice({
 export const {
   initMajorityRules,
   advanceIntro,
+  skipLegacyRevote,
   setHumanAnswer,
   useHint,
   lockRound,
