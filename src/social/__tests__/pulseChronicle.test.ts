@@ -142,6 +142,14 @@ describe('The Hub Chronicles', () => {
     expect(chapter.paragraphs.join(' ')).not.toMatch(/rescue/)
   })
 
+  it('narrates a self-save without claiming a contestant rescued another person', () => {
+    const { base, event } = setup()
+    event('CEREMONY_SAFETY_USED', 'maya', ['maya'])
+    const chapter = composePulseChronicle(base)
+    expect(chapter.paragraphs.join(' ')).toContain('Maya used Safety to escape the block')
+    expect(chapter.paragraphs.join(' ')).not.toContain('rescue Maya')
+  })
+
   it('does not repeat a ceremony event merely because it appears again', () => {
     const { base, event, reality } = setup()
     const first = event('CEREMONY_POWER_WON', 'alex', [], ['loh'])
