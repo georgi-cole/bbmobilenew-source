@@ -191,7 +191,7 @@ export default function HousePulse({
       ),
     [humanId, network.rumours]
   )
-  const storyBeats = useMemo<SocialStoryBeat[]>(
+  const storyBeats = useMemo<PulseStoryBeat[]>(
     () =>
       reality
         ? []
