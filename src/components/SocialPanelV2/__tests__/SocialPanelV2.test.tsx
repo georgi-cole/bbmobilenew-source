@@ -1567,7 +1567,7 @@ describe('SocialPanelV2 – alliance context and history', () => {
     expect(
       grid.queryByRole('button', { name: /Found an alliance|Propose Personal Pact/i })
     ).toBeNull()
-    fireEvent.click(screen.getByText('Open full alliance read'))
+    fireEvent.click(screen.getByText("Read your alliance's story"))
     fireEvent.click(
       within(screen.getByRole('group', { name: 'Alliance members' })).getByRole('button', {
         name: new RegExp(a.name),
@@ -1615,7 +1615,7 @@ describe('SocialPanelV2 – alliance context and history', () => {
     const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
     fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
     expect(screen.getByText('Founded Day 1')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Open full alliance read'))
+    fireEvent.click(screen.getByText("Read your alliance's story"))
     expect(screen.getByText(/You founded The Shield with/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Rename The Shield/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'New alliance name' }), {
@@ -1676,10 +1676,10 @@ describe('SocialPanelV2 – alliance context and history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
     fireEvent.click(screen.getByRole('button', { name: /My Pulse/i }))
     const pulse = within(screen.getByRole('dialog', { name: 'My Pulse' }))
-    const dailySummary = pulse
-      .getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-      .closest('article')!
-    fireEvent.click(within(dailySummary).getByRole('button', { name: 'View alliance history' }))
+    const chronicle = pulse.getByRole('article', { name: 'The Hub Chronicles' })
+    fireEvent.click(
+      within(chronicle).getByRole('button', { name: "Read The Shield's alliance story" })
+    )
     expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent(
       'The Shield'
     )

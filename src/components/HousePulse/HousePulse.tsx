@@ -9,7 +9,11 @@ import type {
   SocialActionLogEntry,
   SocialCommitment,
 } from '../../social/types'
-import type { RealityDomainState } from '../../social/reality'
+import {
+  allianceForEvent,
+  canReadAllianceEvent,
+  type RealityDomainState,
+} from '../../social/reality'
 import {
   getSocialCommitmentDueCopy,
   getSocialCommitmentLabel,
@@ -311,6 +315,21 @@ export default function HousePulse({
     weatherCondition,
     gamePhase,
   ])
+  const chronicleAllianceLinks = useMemo(() => {
+    if (!dayChronicle || !reality) return []
+    const sourceIds = new Set(dayChronicle.sourceEventIds)
+    const latestEventByAlliance = new Map<string, (typeof reality.events)[number]>()
+    for (const event of reality.events) {
+      if (!sourceIds.has(event.id) || !canReadAllianceEvent(event, humanId)) continue
+      const allianceId = allianceForEvent(reality, event)
+      if (allianceId) latestEventByAlliance.set(allianceId, event)
+    }
+    return [...latestEventByAlliance.entries()].map(([allianceId, event]) => ({
+      allianceId,
+      eventId: event.id,
+      name: event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance',
+    }))
+  }, [dayChronicle, humanId, reality])
   const earlierChronicles = useMemo(
     () =>
       savedChronicles
@@ -479,6 +498,20 @@ export default function HousePulse({
                           <p>{dayChronicle.note}</p>
                         </aside>
                       )}
+                      {onOpenAlliances &&
+                        chronicleAllianceLinks.map((link) => (
+                          <button
+                            key={link.allianceId}
+                            type="button"
+                            className="house-pulse__link"
+                            onClick={() => {
+                              setOpen(false)
+                              onOpenAlliances(link.allianceId, link.eventId)
+                            }}
+                          >
+                            Read {link.name}'s alliance story
+                          </button>
+                        ))}
                     </article>
                   ) : (
                     <p className="house-pulse__empty">

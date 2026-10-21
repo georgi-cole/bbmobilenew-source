@@ -6,6 +6,7 @@ import {
   allianceHistory,
   canSeeAllianceRequest,
   isPendingAllianceRequest,
+  type AllianceHistoryEvent,
   type RealityAlliance,
   type RealityDomainState,
 } from '../../social/reality'
@@ -22,6 +23,48 @@ interface Props {
 
 const HISTORY_PAGE_SIZE = 25
 
+interface AllianceHistoryRow {
+  event: AllianceHistoryEvent
+  eventIds: string[]
+  requestId?: string
+  requestSteps: AllianceHistoryEvent[]
+}
+
+function eventIds(event: AllianceHistoryEvent): string[] {
+  return [event.id, ...(event.mergedEventIds ?? [])]
+}
+
+function buildAllianceHistoryRows(history: readonly AllianceHistoryEvent[]): AllianceHistoryRow[] {
+  const requestEvents = new Map<string, AllianceHistoryEvent[]>()
+  for (const event of history) {
+    if (!event.allianceRequestId) continue
+    const grouped = requestEvents.get(event.allianceRequestId) ?? []
+    grouped.push(event)
+    requestEvents.set(event.allianceRequestId, grouped)
+  }
+
+  const emittedRequests = new Set<string>()
+  const rows: AllianceHistoryRow[] = []
+  for (const event of history) {
+    const requestId = event.allianceRequestId
+    const steps = requestId ? requestEvents.get(requestId) : undefined
+    if (requestId && steps && steps.length > 1) {
+      if (emittedRequests.has(requestId)) continue
+      emittedRequests.add(requestId)
+      const latest = steps[0]
+      rows.push({
+        event: latest,
+        eventIds: [...new Set(steps.flatMap(eventIds))],
+        requestId,
+        requestSteps: steps.slice(1).reverse(),
+      })
+      continue
+    }
+    rows.push({ event, eventIds: eventIds(event), requestSteps: [] })
+  }
+  return rows.sort((left, right) => right.event.sequence - left.event.sequence)
+}
+
 export default function AllianceRead({
   alliance,
   reality,
@@ -32,11 +75,17 @@ export default function AllianceRead({
   onSelectMember,
 }: Props) {
   const [manualDetails, setManualDetails] = useState<{ key: string; open: boolean } | null>(null)
-  const [historyPage, setHistoryPage] = useState<{ allianceId: string; count: number } | null>(null)
+  const [historyPage, setHistoryPage] = useState<{
+    allianceId: string
+    focusEventId?: string
+    anchorEventId: string
+  } | null>(null)
+  const [fullReadOpen, setFullReadOpen] = useState(false)
+  const [requestExpandedOverrides, setRequestExpandedOverrides] = useState<Record<string, boolean>>(
+    {}
+  )
   const detailsKey = `${alliance.id}:${focusEventId ?? ''}`
   const historyOpen = manualDetails?.key === detailsKey ? manualDetails.open : Boolean(focusEventId)
-  const loadedHistoryCount =
-    historyPage?.allianceId === alliance.id ? historyPage.count : HISTORY_PAGE_SIZE
   const playerName = (id: string) =>
     id === humanId ? 'You' : (players.find((player) => player.id === id)?.name ?? 'Hubmate')
   const currentMember = alliance.memberIds.includes(humanId) && alliance.status !== 'DISSOLVED'
@@ -45,8 +94,26 @@ export default function AllianceRead({
     () => allianceHistory(reality, alliance.id, humanId),
     [reality, alliance.id, humanId]
   )
-  const focusedIndex = focusEventId ? history.findIndex((event) => event.id === focusEventId) : -1
-  const visibleHistoryCount = Math.max(loadedHistoryCount, focusedIndex + 1)
+  const historyRows = useMemo(() => buildAllianceHistoryRows(history), [history])
+  const focusedRow = focusEventId
+    ? historyRows.find((row) => row.eventIds.includes(focusEventId))
+    : undefined
+  const focusedRowIndex = focusedRow ? historyRows.indexOf(focusedRow) : -1
+  const maxHistoryStart = Math.max(0, historyRows.length - HISTORY_PAGE_SIZE)
+  const focusWindowStart =
+    focusedRowIndex >= 0
+      ? Math.max(0, Math.min(maxHistoryStart, focusedRowIndex - Math.floor(HISTORY_PAGE_SIZE / 2)))
+      : 0
+  const savedAnchorIndex =
+    historyPage?.allianceId === alliance.id && historyPage.focusEventId === focusEventId
+      ? historyRows.findIndex((row) => row.eventIds.includes(historyPage.anchorEventId))
+      : -1
+  const visibleHistoryStart = Math.max(
+    0,
+    Math.min(maxHistoryStart, savedAnchorIndex >= 0 ? savedAnchorIndex : focusWindowStart)
+  )
+  const visibleHistoryEnd = Math.min(historyRows.length, visibleHistoryStart + HISTORY_PAGE_SIZE)
+  const visibleHistoryRows = historyRows.slice(visibleHistoryStart, visibleHistoryEnd)
   const lastKnownSnapshot = history.find((event) =>
     event.allianceSnapshot?.memberIds.includes(humanId)
   )?.allianceSnapshot
@@ -96,22 +163,47 @@ export default function AllianceRead({
       return 'Co-leader'
     return alliance.founderIds.includes(id) ? 'Founding member' : 'Member'
   }
+  const moveHistoryPage = (start: number) => {
+    const anchor = historyRows[Math.max(0, Math.min(maxHistoryStart, start))]
+    if (!anchor) return
+    setHistoryPage({
+      allianceId: alliance.id,
+      focusEventId,
+      anchorEventId: anchor.event.id,
+    })
+  }
   useEffect(() => {
-    if (!focusEventId) return
+    if (!focusedRow) return
     if (!historyOpen) return
     const frame = requestAnimationFrame(() => {
-      document.getElementById(`alliance-history-event-${focusEventId}`)?.scrollIntoView({
+      document.getElementById(`alliance-history-event-${focusedRow.event.id}`)?.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       })
     })
     return () => cancelAnimationFrame(frame)
-  }, [focusEventId, historyOpen, visibleHistoryCount])
+  }, [focusedRow, historyOpen])
+  useEffect(() => {
+    if (!fullReadOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFullReadOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [fullReadOpen])
   return (
     <section
-      className="sp2-focus sp2-focus--active sp2-alliance-read"
-      aria-label="Selected alliance"
+      className={`sp2-focus sp2-focus--active sp2-alliance-read${fullReadOpen ? ' sp2-alliance-read--full-screen' : ''}`}
+      aria-label={fullReadOpen ? 'Full alliance read' : 'Selected alliance'}
     >
+      {fullReadOpen && (
+        <div className="sp2-alliance-read__full-screen-bar">
+          <button type="button" onClick={() => setFullReadOpen(false)}>
+            Back to Social
+          </button>
+          <span>Full alliance read</span>
+        </div>
+      )}
       <span className="sp2-alliance-read__mark" aria-hidden="true">
         ✦
       </span>
@@ -169,10 +261,17 @@ export default function AllianceRead({
               setManualDetails({ key: detailsKey, open: !historyOpen })
             }}
           >
-            Open full alliance read
+            Read your alliance's story
           </summary>
           {historyOpen && (
             <div className="sp2-alliance-read__details">
+              <button
+                type="button"
+                className="sp2-alliance-read__full-screen-button"
+                onClick={() => setFullReadOpen(true)}
+              >
+                Read in full screen
+              </button>
               <h3>{currentMember ? 'Members' : 'Last known roster'}</h3>
               <div
                 className="sp2-consult-alliance-picker__chips"
@@ -216,37 +315,81 @@ export default function AllianceRead({
                   </ul>
                 </>
               )}
-              <h3>Track record</h3>
-              {history.length ? (
+              <h3>Your alliance story</h3>
+              {visibleHistoryStart > 0 && (
+                <button
+                  type="button"
+                  className="sp2-alliance-read__more"
+                  onClick={() => moveHistoryPage(visibleHistoryStart - HISTORY_PAGE_SIZE)}
+                >
+                  Show newer moments · {visibleHistoryStart} available
+                </button>
+              )}
+              {historyRows.length ? (
                 <ol className="sp2-alliance-read__history">
-                  {history.slice(0, visibleHistoryCount).map((event) => (
-                    <li
-                      key={event.id}
-                      id={`alliance-history-event-${event.id}`}
-                      className={event.id === focusEventId ? 'is-highlighted' : undefined}
-                    >
-                      <small>
-                        Day {event.day} · {formatPlayerFacingPhase(event.phase)}
-                      </small>
-                      <span>{allianceEventText(reality, event, humanId, playerName)}</span>
-                    </li>
-                  ))}
+                  {visibleHistoryRows.map((row) => {
+                    const requestExpanded = row.requestId
+                      ? (requestExpandedOverrides[row.requestId] ??
+                        row.eventIds.includes(focusEventId ?? ''))
+                      : false
+                    return (
+                      <li
+                        key={row.event.id}
+                        id={`alliance-history-event-${row.event.id}`}
+                        className={
+                          row.eventIds.includes(focusEventId ?? '') ? 'is-highlighted' : undefined
+                        }
+                      >
+                        <small>
+                          Day {row.event.day} · {formatPlayerFacingPhase(row.event.phase)}
+                        </small>
+                        <span>{allianceEventText(reality, row.event, humanId, playerName)}</span>
+                        {row.requestId && row.requestSteps.length > 0 && (
+                          <details
+                            className="sp2-alliance-read__request-steps"
+                            open={requestExpanded}
+                          >
+                            <summary
+                              onClick={(event) => {
+                                event.preventDefault()
+                                setRequestExpandedOverrides((current) => ({
+                                  ...current,
+                                  [row.requestId!]: !requestExpanded,
+                                }))
+                              }}
+                            >
+                              See how this decision unfolded
+                            </summary>
+                            {requestExpanded && (
+                              <ol>
+                                {row.requestSteps.map((step) => (
+                                  <li key={step.id}>
+                                    <small>
+                                      Day {step.day} · {formatPlayerFacingPhase(step.phase)}
+                                    </small>
+                                    <span>
+                                      {allianceEventText(reality, step, humanId, playerName)}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ol>
+                            )}
+                          </details>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ol>
               ) : (
                 <p>No recorded events yet.</p>
               )}
-              {history.length > visibleHistoryCount && (
+              {visibleHistoryEnd < historyRows.length && (
                 <button
                   type="button"
                   className="sp2-alliance-read__more"
-                  onClick={() =>
-                    setHistoryPage({
-                      allianceId: alliance.id,
-                      count: visibleHistoryCount + HISTORY_PAGE_SIZE,
-                    })
-                  }
+                  onClick={() => moveHistoryPage(visibleHistoryStart + HISTORY_PAGE_SIZE)}
                 >
-                  Show earlier events · {history.length - visibleHistoryCount} remaining
+                  Show older moments · {historyRows.length - visibleHistoryEnd} available
                 </button>
               )}
               {legacyDecisions.length > 0 && (
