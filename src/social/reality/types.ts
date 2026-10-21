@@ -108,6 +108,11 @@ export interface DirectedRelationship {
   lastAmbientFamiliarityDay?: number
 }
 
+/**
+ * Canonical, directed, multidimensional relationship state in Reality Mode. The compact
+ * SocialState.relationships map is a lossy compatibility projection; keep writes synchronized
+ * through the social reducers/adapters rather than updating either representation in isolation.
+ */
 export type RealityRelationshipMap = Record<
   RealityActorId,
   Record<RealityActorId, DirectedRelationship>
@@ -772,6 +777,7 @@ export interface RealityJuryEvaluation {
 export interface RealityDomainState {
   version: 1 | 2
   nextSequence: number
+  /** Canonical relationship graph; SocialState.relationships is its compact compatibility view. */
   relationships: RealityRelationshipMap
   memoriesByOwner: Record<RealityActorId, RealityMemory[]>
   beliefsByOwner: Record<RealityActorId, Record<string, RealityBelief>>

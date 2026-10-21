@@ -21,7 +21,13 @@ export interface RelationshipEntry {
   }
 }
 
-/** Full relationship graph: outer key = source player ID, inner key = target player ID. */
+/**
+ * Compact compatibility relationship graph: outer key = source player ID, inner key = target
+ * player ID. In Reality Mode, RealityDomainState.relationships is canonical and this map is its
+ * lossy affinity/tag projection for older consumers. Relationship mutations that affect shared
+ * game meaning must pass through the social reducers/adapters so both representations stay in
+ * step; do not add a direct write path to only one map.
+ */
 export type RelationshipsMap = Record<string, Record<string, RelationshipEntry>>
 
 export type DramaArcType = 'romance' | 'bromance' | 'rivalry' | 'betrayal'
@@ -395,6 +401,7 @@ export interface SocialState {
   influenceBank: SocialEnergyBank
   /** Info resource bank per player (💡). */
   infoBank: SocialEnergyBank
+  /** Compact compatibility view; see RealityDomainState.relationships for the canonical Reality graph. */
   relationships: RelationshipsMap
   lastReport?: SocialPhaseReport | null
   /** Actions executed during the currently open Social panel session. */
@@ -413,7 +420,10 @@ export interface SocialState {
    * paths while the new causal engine is introduced in slices.
    */
   realitySimulation: RealitySimulationState
-  /** Causal Reality Mode v3 world, perception, relationship, and lifecycle state. */
+  /**
+   * Causal Reality Mode v3 world, perception, relationship, and lifecycle state. Its relationship
+   * graph is canonical in Reality Mode and is projected to `relationships` for legacy consumers.
+   */
   reality: RealityDomainState
   /** Bounded delivery ledger used to pace and deduplicate player-facing intelligence. */
   intelligenceDeliveries?: IntelligenceDelivery[]
