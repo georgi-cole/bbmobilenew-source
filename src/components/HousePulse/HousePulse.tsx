@@ -274,29 +274,29 @@ export default function HousePulse({
   )
   const dayChronicle = useMemo(() => {
     if (!reality) return null
-    return (
-      savedChronicles.find(
-        (entry) =>
-          entry.season === season &&
-          (entry.episodeKey ?? `day:${entry.day}`) === episodeIdentity.key
-      ) ??
-      composePulseChronicle({
-        gameId,
-        season,
-        day: currentWeek,
-        humanId,
-        players,
-        reality,
-        actionHistory,
-        weather: weatherCondition,
-        complete: gamePhase === 'week_end' && !activeWeekend,
-        episode: episodeIdentity,
-        actionHistoryAfterTimestamp,
-        realityEventsAfterSequence,
-      })
+    const savedEpisode = savedChronicles.find(
+      (entry) =>
+        entry.season === season && (entry.episodeKey ?? `day:${entry.day}`) === episodeIdentity.key
     )
+    if (savedEpisode || !open || tab !== 'today') return savedEpisode ?? null
+    return composePulseChronicle({
+      gameId,
+      season,
+      day: currentWeek,
+      humanId,
+      players,
+      reality,
+      actionHistory,
+      weather: weatherCondition,
+      complete: gamePhase === 'week_end' && !activeWeekend,
+      episode: episodeIdentity,
+      actionHistoryAfterTimestamp,
+      realityEventsAfterSequence,
+    })
   }, [
     reality,
+    open,
+    tab,
     savedChronicles,
     activeWeekend,
     episodeIdentity,

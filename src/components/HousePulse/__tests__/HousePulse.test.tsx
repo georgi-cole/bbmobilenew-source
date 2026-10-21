@@ -62,6 +62,7 @@ describe('HousePulse', () => {
       />
     )
 
+    expect(screen.getByText('Your story in the Hub is unfolding.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.queryByText('Huddle 0.')).toBeNull()
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
