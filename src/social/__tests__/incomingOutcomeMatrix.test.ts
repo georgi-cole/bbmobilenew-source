@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getIncomingActionOutcome } from '../incomingOutcomeMatrix'
-import { SCENE_CHOICES } from '../incomingSceneChoiceBank'
+import { SCENE_CHOICES, SCENE_FAMILY_CHOICES } from '../incomingSceneChoiceBank'
 
 describe('incoming outcome matrix', () => {
   it('covers every offered action with a short distinct result', () => {
@@ -32,6 +32,21 @@ describe('incoming outcome matrix', () => {
 
     expect(outcomes).toHaveLength(uniqueActionKeys.size)
     expect(new Set(outcomes).size).toBe(outcomes.length)
+  })
+
+  it('covers every family-specific nomination aftershock action', () => {
+    for (const responseLabel of Object.values(SCENE_FAMILY_CHOICES).flat()) {
+      const outcome = getIncomingActionOutcome({
+        scenarioKey: 'nomination_aftershock',
+        responseLabel,
+        fromName: 'Sol',
+        phase: 'social_2',
+        senderIsNominated: true,
+      })
+
+      expect(outcome, `nomination_aftershock / ${responseLabel}`).toBeTruthy()
+      expect(outcome!.length).toBeLessThanOrEqual(120)
+    }
   })
 
   it('keeps campaign actions and scenes from collapsing into the same answer', () => {

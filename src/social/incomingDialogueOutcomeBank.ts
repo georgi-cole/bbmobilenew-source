@@ -11,6 +11,7 @@ import type { IncomingInteractionResponseType } from './types'
 
 export interface IncomingDialogueBeatInput {
   scenarioKey?: string
+  variantFamilyId?: string
   responseType: IncomingInteractionResponseType
   responseLabel?: string
   fromName: string
@@ -115,6 +116,184 @@ const REPAIR_BEATS: BeatSet = {
   dismiss: [
     '"Fine. I will take the space you are asking for, but unresolved things do not disappear just because nobody names them."',
     '"I will leave it alone for now. It still changes what I bring to you next time."',
+  ],
+}
+
+const AFTERSHOCK_PROCESSING_BEATS: BeatSet = {
+  positive: [
+    '"Thank you for sitting with me. I can breathe a little easier now."',
+    '"I needed someone to stay for a minute. That helped more than advice would have."',
+  ],
+  neutral: [
+    '"I am not sure what I need yet. Let me talk it through, and maybe I will find the answer."',
+    '"Just asking what would help gives me a moment to think. The block still feels real, though."',
+  ],
+  negative: [
+    '"I know you want to focus on the game. I am still trying to steady myself before I can do that."',
+    '"I hear you. I will find another person to talk to while I get my head back in the game."',
+  ],
+  dismiss: [
+    '"All right. I will give you room and try to get through the first shock on my own."',
+    '"I understand. I will step away for now and collect myself."',
+  ],
+}
+
+const AFTERSHOCK_TRUST_BEATS: BeatSet = {
+  positive: [
+    '"That helps. I needed to know I still had someone I could be straight with."',
+    '"I appreciate the reassurance. I will keep being honest with you about what I hear."',
+  ],
+  neutral: [
+    '"Comparing reads works for me. Let us keep each other informed without making promises we cannot control."',
+    '"I can share what I know. We can both decide what to do with it after we compare notes."',
+  ],
+  negative: [
+    '"I get that you need to protect your own position. I will do the same with mine."',
+    '"Fair enough. I will stop assuming we are sharing information and make my own read."',
+  ],
+  dismiss: [
+    '"Okay. I will not press you for reassurance right now."',
+    '"I hear you. I will take the conversation elsewhere and let this sit."',
+  ],
+}
+
+const AFTERSHOCK_STRATEGY_BEATS: BeatSet = {
+  positive: [
+    '"That gives me something useful. I will compare it with what I hear before I make a move."',
+    '"Good. I would rather build a plan from what we both know than guess alone."',
+  ],
+  neutral: [
+    '"Let us compare notes, then. I will keep my options open until the numbers are clearer."',
+    '"That is fair. We can trade reads without locking ourselves into the same move."',
+  ],
+  negative: [
+    '"Understood. I will keep my own game protected and work from the information I have."',
+    '"I will make my case on my own, then. At least I know where we stand strategically."',
+  ],
+  dismiss: [
+    '"All right. I will take my read to someone else before the room shifts again."',
+    '"I will get back to the campaign. We can talk when there is more to say."',
+  ],
+}
+
+const AFTERSHOCK_FOLLOW_UP_BEATS: BeatSet = {
+  positive: [
+    '"I could tell you meant it. I am glad I came back to talk instead of sitting with the worry alone."',
+    '"I did not forget that you showed up for me. Hearing you say it again makes this week feel less isolating."',
+  ],
+  neutral: [
+    '"I am holding up better than I was. I still have a lot to figure out, but I appreciate you asking."',
+    '"Some moments are easier than others. It helps to know I can check in without pretending I am fine."',
+  ],
+  negative: [
+    '"I understand. I will keep this focused on the game too, even if I was hoping we could talk as people."',
+    '"Fair. I will not lean on you for comfort, but I am grateful you were there earlier."',
+  ],
+  dismiss: [
+    '"I will let you get back to it. I just wanted to say that earlier conversation mattered to me."',
+    '"Okay. I will give you the space. Thanks for hearing me before."',
+  ],
+}
+
+const AFTERSHOCK_FAMILY_BEATS: Record<string, BeatSet> = {
+  na_processing: AFTERSHOCK_PROCESSING_BEATS,
+  na_trust_check: AFTERSHOCK_TRUST_BEATS,
+  na_strategic: AFTERSHOCK_STRATEGY_BEATS,
+  na_followup: AFTERSHOCK_FOLLOW_UP_BEATS,
+}
+
+const NOMINEE_UNDERSTANDS_BEATS: BeatSet = {
+  positive: [
+    '"I appreciate you being straight with me. I still hate being on the block, but I understand why you made the call."',
+    '"That explanation helps. I need to see what happens next before I know how much it changes things between us."',
+  ],
+  neutral: [
+    '"I can explain how it looked from my side. I am listening, but I still need time to sort out what it means for us."',
+    '"I am trying to separate the move from our relationship. Tell me what you were weighing when you chose me."',
+  ],
+  negative: [
+    '"I hear that you are standing by it. I will stop looking for an apology and focus on surviving the block."',
+    '"You do not owe me an apology, but I will make my next move with this in mind."',
+  ],
+  dismiss: [
+    '"All right. I will give you space and work out what comes next on my own."',
+    '"I will leave it there for now. The vote is close enough that I have other things to handle."',
+  ],
+}
+
+const NOMINEE_CONFRONTATION_BEATS: BeatSet = {
+  positive: [
+    '"Thank you for hearing how much this hurt. I can listen to your reasons now, even if I am not over it."',
+    '"That is the honest conversation I wanted. Tell me what you were weighing, and do not soften it for me."',
+  ],
+  neutral: [
+    '"I am angry, but I can hear you out if we keep this honest."',
+    '"I will listen to the calculation. Just do not expect it to erase how the nomination landed."',
+  ],
+  negative: [
+    '"Then we are both clear about where we stand. I will protect my game from here."',
+    '"If you want to push back, say it plainly. I am done guessing at your reasons."',
+  ],
+  dismiss: [
+    '"Fine. I am too angry to get anywhere with this right now."',
+    '"I will leave before this turns into a bigger fight. We can deal with it later."',
+  ],
+}
+
+const REPLACEMENT_NOMINEE_BEATS: BeatSet = {
+  positive: [
+    '"I appreciate you explaining it. The replacement still put me in danger, but at least I know why."',
+    '"That helps me understand the decision. I will focus on what I can still change this week."',
+  ],
+  neutral: [
+    '"I want to hear how you reached that choice before I decide what it means for us."',
+    '"I can listen to the logic. I still need a plan for getting off the block."',
+  ],
+  negative: [
+    '"I hear that you are standing by it. I will stop expecting you to undo the damage."',
+    '"Then I know the choice was deliberate. I will campaign without counting on you."',
+  ],
+  dismiss: [
+    '"I cannot do this conversation right now. I need to work out how to survive first."',
+    '"I will take it from here. The block needs my attention more than this argument does."',
+  ],
+}
+
+const PLAYER_NOMINATED_SUPPORT_BEATS: BeatSet = {
+  positive: [
+    '"I am glad you checked in. Having someone beside me makes the block feel a little less heavy."',
+    '"Thank you. I do not need you to fix it; I just needed to know someone noticed."',
+  ],
+  neutral: [
+    '"I am still sorting out what would help. Can we talk through the options before the vote moves?"',
+    '"A straight conversation would help. I need to know what you have heard about the numbers."',
+  ],
+  negative: [
+    '"I understand if you cannot be in my corner. I will look for support somewhere else."',
+    '"All right. I will handle the campaign on my own and stop asking you to carry it."',
+  ],
+  dismiss: [
+    '"I will let you go. I have to keep moving while there is still time."',
+    '"Okay. I will give you space and find someone else to talk to."',
+  ],
+}
+
+const PLAYER_NOMINATED_TENSION_BEATS: BeatSet = {
+  positive: [
+    '"Thank you for being willing to talk plainly. I would rather know the truth than let the tension grow."',
+    '"That is a start. We do not have to agree, but at least we are not pretending nothing is wrong."',
+  ],
+  neutral: [
+    '"I can keep this calm. I want to hear your read before either of us decides what this means."',
+    '"Fair. Let us talk through the tension without turning it into a promise or a fight."',
+  ],
+  negative: [
+    '"I hear the boundary. I will stop pushing and protect my own position from here."',
+    '"Then we should be honest that this has changed things. I will plan accordingly."',
+  ],
+  dismiss: [
+    '"I will leave it there for now. We are not going to solve this while we are both raw."',
+    '"All right. I will give you space, even if the tension is still here."',
   ],
 }
 
@@ -383,17 +562,17 @@ const BEATS_BY_SCENE: Record<string, BeatSet> = {
   alliance_vote_pitch: ALLIANCE_VOTE_BEATS,
   relationship_alliance_follow_up: ALLIANCE_BEATS,
   nomination_aftershock: REPAIR_BEATS,
-  nominee_understands_loh: REPAIR_BEATS,
+  nominee_understands_loh: NOMINEE_UNDERSTANDS_BEATS,
   unavoidable_nominee_reaction: POWER_BEATS,
   automatic_nominee_reaction: POWER_BEATS,
-  nominee_confronts_loh: REPAIR_BEATS,
-  replacement_nominee_reacts_to_loh: REPAIR_BEATS,
+  nominee_confronts_loh: NOMINEE_CONFRONTATION_BEATS,
+  replacement_nominee_reacts_to_loh: REPLACEMENT_NOMINEE_BEATS,
   ignored_warning: REPAIR_BEATS,
   relationship_frustration_follow_up: REPAIR_BEATS,
   relationship_repair_follow_up: REPAIR_BEATS,
   hoh_safety_request: POWER_BEATS,
-  player_nominated_support: POWER_BEATS,
-  player_nominated_tension: POWER_BEATS,
+  player_nominated_support: PLAYER_NOMINATED_SUPPORT_BEATS,
+  player_nominated_tension: PLAYER_NOMINATED_TENSION_BEATS,
   competition_low_finish_support: COMPETITION_SUPPORT_BEATS,
   competition_low_finish_taunt: COMPETITION_TAUNT_BEATS,
   hoh_congratulations: CELEBRATION_BEATS,
@@ -441,7 +620,10 @@ function replaceTokens(line: string, input: IncomingDialogueBeatInput): string {
 
 /** Returns a stable in-character reply, rotating past recently used dialogue where possible. */
 export function getIncomingDialogueBeat(input: IncomingDialogueBeatInput): string | null {
-  const beats = input.scenarioKey ? BEATS_BY_SCENE[input.scenarioKey] : undefined
+  const familyBeats = input.variantFamilyId
+    ? AFTERSHOCK_FAMILY_BEATS[input.variantFamilyId]
+    : undefined
+  const beats = familyBeats ?? (input.scenarioKey ? BEATS_BY_SCENE[input.scenarioKey] : undefined)
   if (!beats) return null
   const options = beats[stanceForResponse(input.responseType)]
   if (!options.length) return null

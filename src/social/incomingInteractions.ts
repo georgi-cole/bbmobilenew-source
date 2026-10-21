@@ -148,6 +148,10 @@ function buildIncomingReactionText(
 
   const beat = getIncomingDialogueBeat({
     scenarioKey,
+    variantFamilyId:
+      typeof interaction.payload?.variantFamilyId === 'string'
+        ? interaction.payload.variantFamilyId
+        : undefined,
     responseType,
     responseLabel,
     fromName,

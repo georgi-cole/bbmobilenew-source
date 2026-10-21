@@ -1,7 +1,7 @@
 import { normalizeAffinity } from './affinityUtils'
 import { getIncomingActionOutcome } from './incomingOutcomeMatrix'
 import { FALLBACK_SCENE, SCENE_DEFINITIONS } from './incomingSceneDefinitionBank'
-import { SCENE_CHOICES } from './incomingSceneChoiceBank'
+import { SCENE_CHOICES, SCENE_FAMILY_CHOICES } from './incomingSceneChoiceBank'
 import { getSocialPersonality } from './socialPersonalityBank'
 import type { SocialMemoryDelta } from './socialMemory'
 import type {
@@ -97,6 +97,20 @@ export function getContextualIncomingChoices(
       : typeof interaction.payload?.secondarySubjectId === 'string'
         ? interaction.payload.secondarySubjectId
         : 'the backup option'
+  const variantFamilyId = interaction.payload?.variantFamilyId
+  const familyChoices =
+    scenarioKey === 'nomination_aftershock' && typeof variantFamilyId === 'string'
+      ? SCENE_FAMILY_CHOICES[variantFamilyId]
+      : undefined
+  if (familyChoices) {
+    const responseTypes = responseTypesFor(interaction.type)
+    return familyChoices.map((label, index) => ({
+      label,
+      responseType: responseTypes[index] ?? 'dismiss',
+      style: styleForResponse(responseTypes[index] ?? 'dismiss'),
+    }))
+  }
+
   const dealResponses = responseTypesFor(interaction.type)
   const strategicChoices: Record<string, readonly (readonly [string, string, string, string])[]> = {
     alliance_power_nomination_huddle: [

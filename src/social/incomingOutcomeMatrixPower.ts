@@ -123,19 +123,55 @@ export const POWER_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     'end the pitch': acts('leaves the deciding vote in your hands without a promise.'),
   },
   nomination_aftershock: {
+    'comfort them': says(
+      'they feel less alone and can steady themselves before planning their next move.'
+    ),
+    'ask what would help': says(
+      'they are still shaken and want a moment to work out what support they need.'
+    ),
+    'keep it focused on the game': says(
+      'they accept that you want to focus on the game and look for comfort elsewhere.'
+    ),
+    'keep it strategic': says('they will treat the damage as game business, not friendship.'),
+    'give them space': acts('takes some time to process the nomination on their own.'),
+    'reassure them': says('they still trust you enough to compare what they hear about the vote.'),
+    'compare vote reads': says(
+      'they trade information with you without treating it as a vote promise.'
+    ),
+    'keep your position private': says(
+      'they stop expecting you to share your strategy and protect their own read.'
+    ),
+    'leave it there': acts('leaves without asking you to reassure them again.'),
+    'share what you know': says('they use your information to sharpen their own campaign.'),
+    'compare reads': says('they compare notes with you while keeping their final move open.'),
+    'protect your own game': says(
+      'they understand you are keeping your strategy private and plan independently.'
+    ),
+    'end the conversation': acts('returns to working the room without a shared plan.'),
+    'tell them you meant it': says(
+      'they believe your earlier support was sincere and feel less isolated.'
+    ),
+    'ask how they are holding up': says(
+      'they tell you the block still weighs on them, but your earlier support helped.'
+    ),
+    'keep things game-focused': says(
+      'they accept the boundary and keep the conversation on the vote.'
+    ),
+    'wrap up the check-in': acts('thanks you for checking in and returns to the game.'),
     'acknowledge the hurt': says(
       'they needed someone to admit the nomination changed the relationship.'
     ),
     'explain carefully': says('they can hear the strategy, but the choice still feels personal.'),
     'stand by the move': says('they understand there is no apology coming and adjust accordingly.'),
-    'end the talk': acts('leaves with the nomination fallout still unresolved.'),
+    'end the talk': acts(
+      'leaves the nomination fallout unresolved and stops asking you for reassurance.'
+    ),
     'offer a path back': says(
       'they are willing to rebuild if your next move shows it was strategic.'
     ),
     'hear their anger': says(
       'they feel exposed and believe someone close to them helped make it happen.'
     ),
-    'keep it strategic': says('they will treat the damage as game business, not friendship.'),
     'walk away': acts('lets the conversation end and keeps the resentment to themselves.'),
   },
   nominee_understands_loh: {
