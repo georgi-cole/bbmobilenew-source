@@ -210,6 +210,7 @@ interface StateWithGame {
     commitments?: import('./types').SocialCommitment[]
     socialMemory?: SocialMemoryMap
     actionHistory?: import('./types').SocialActionLogEntry[]
+    sessionLogs?: import('./types').SocialActionLogEntry[]
     realitySimulation?: RealitySimulationState
     reality?: import('./reality').RealityDomainState
   }
@@ -236,7 +237,7 @@ function archiveCompletedPulseDay(api: MiddlewareAPI, day: number): void {
     humanId: human.id,
     players: state.game.players.map((player) => ({ id: player.id, name: player.name ?? '' })),
     reality: state.social.reality,
-    actionHistory: state.social.actionHistory ?? [],
+    actionHistory: state.social.actionHistory ?? state.social.sessionLogs ?? [],
     weather: resolveWeatherDay(state.game.gameId, day).condition,
     complete: true,
   })
