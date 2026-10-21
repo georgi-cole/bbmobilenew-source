@@ -7,6 +7,7 @@ import majorityRulesReducer, {
   markMajorityRulesOutcomeResolved,
   rollThreeWayDuel,
   setThreeWayDuelPick,
+  skipLegacyRevote,
   useHint,
   type MajorityRulesState,
 } from '../../src/features/majorityRules/majorityRulesSlice';
@@ -293,6 +294,37 @@ describe('majorityRules initialization flow', () => {
     expect(next.currentQuestion?.id).not.toBe(question.id);
     expect(next.revealState).toBeNull();
     expect(next.blockedAnswers).toEqual({});
+    expect(next.roundHintType).toBeNull();
+    expect(next.hintInventories.p1.pollHintUsed).toBe(true);
+  });
+
+  it('discards a saved mid-revote question without using up another hint', () => {
+    const question = MAJORITY_RULES_QUESTIONS[0];
+    const store = makeStore({
+      phase: 'question',
+      roundNumber: 3,
+      revoteNumber: 1,
+      currentQuestion: question,
+      usedQuestionIds: [question.id],
+      activeIds: ['p1', 'p2', 'p3'],
+      eliminatedIds: [],
+      blockedAnswers: { p1: question.options[0].id },
+      hintInventories: {
+        p1: { pollHintUsed: true, peekTwoUsed: false, followPlayerUsed: false },
+      },
+      roundHintType: 'pollHint',
+      roundHintUsedBy: 'p1',
+      roundHintPollEstimate: { a: 33, b: 33, c: 34 },
+    });
+
+    store.dispatch(skipLegacyRevote());
+
+    const next = store.getState().majorityRules;
+    expect(next.phase).toBe('question');
+    expect(next.revoteNumber).toBe(0);
+    expect(next.roundNumber).toBe(4);
+    expect(next.blockedAnswers).toEqual({});
+    expect(next.currentQuestion?.id).not.toBe(question.id);
     expect(next.roundHintType).toBeNull();
     expect(next.hintInventories.p1.pollHintUsed).toBe(true);
   });
