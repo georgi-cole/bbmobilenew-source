@@ -94,6 +94,7 @@ export function migrateSocialState(raw: SocialState): SocialState {
         : [],
     actionHistory:
       historyLimit > 0 ? (legacyHistory as SocialActionLogEntry[]).slice(-historyLimit) : [],
+    inquiryHistory: Array.isArray(input.inquiryHistory) ? input.inquiryHistory.slice(-300) : [],
     intelligenceDeliveries: Array.isArray(input.intelligenceDeliveries)
       ? input.intelligenceDeliveries.slice(-120)
       : [],

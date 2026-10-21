@@ -20,11 +20,12 @@ import type { SocialActionDefinition } from './socialActions'
 import { evaluateSocialActionEligibility } from './socialActionEligibility'
 import { socialConfig } from './socialConfig'
 import { normalizeAffinity } from './affinityUtils'
-import { normalizeActionCost, normalizeActionCosts, normalizeActionYields } from './smExecNormalize'
+import { normalizeActionCosts, normalizeActionYields } from './smExecNormalize'
 import { initEnergyBank, SocialEnergyBank } from './SocialEnergyBank'
 import { computeOutcomeDelta, evaluateOutcome, OUTCOME_THRESHOLDS } from './SocialPolicy'
 import {
   recordSocialAction,
+  recordSocialInquiry,
   updateRelationship,
   applyInfluenceDelta,
   applyInfoDelta,
@@ -37,12 +38,22 @@ import {
 } from './socialAlliance'
 import type { SocialActionLogEntry, SocialState } from './types'
 import { getSocialResourceEffect } from './socialResourceEconomy'
+import {
+  getDynamicInquiryCosts,
+  getInquiryAttempts,
+  getInquiryKind,
+  getInquiryTopicKey,
+  resolveInquiryAnswer,
+} from './socialInquiry'
 import { getEffectiveSocialMode } from './socialMode'
 import { isLohReplacementPending } from './lohReplacementWindow'
 import { formatVagueLohPlan } from './lohConsultationCopy'
 import { isSafetyProtectionOffer } from './protectionOffer'
 import { getCupidPartnerId } from '../features/twists/cupidArrow'
 import { formatLohSafetyConsultation } from './lohSafetyConsultation'
+import { getSocialPersonality } from './socialPersonalityBank'
+import { getEligibleNominationTargets, getNominationTargetScore } from '../store/gameSlice'
+import type { GameState } from '../types'
 import { getPersistentSocialHistory, type SocialStateWithHistory } from './socialHistory'
 import {
   getRuntimeSocialActionById,
@@ -72,6 +83,7 @@ type PartialSocialState = {
   reality?: SocialState['reality']
   sessionLogs: SocialActionLogEntry[]
   actionHistory?: SocialActionLogEntry[]
+  inquiryHistory?: SocialState['inquiryHistory']
 }
 
 interface ManeuverPlayer {
@@ -88,6 +100,7 @@ interface ManeuverPlayer {
   aiGameIdentity?: {
     archetype?: string
     temperament?: string
+    emotionalVolatility?: number
   }
 }
 
@@ -95,6 +108,7 @@ interface ManeuverGameState {
   players: ManeuverPlayer[]
   week?: number
   phase?: string
+  doubleEviction?: { weekActive?: boolean }
   lohId?: string | null
   nomineeIds?: string[]
   replacementNeeded?: boolean
@@ -343,11 +357,114 @@ function buildLohTargetNarrative(
   return `${lohName}: "Right now, ${disclosedPlan.targetName} is my current target."`
 }
 
+function formatInquiryNames(ids: readonly string[], players: readonly ManeuverPlayer[]): string {
+  const names = ids.map((id) => players.find((player) => player.id === id)?.name ?? id)
+  if (names.length < 2) return names[0] ?? 'someone'
+  if (names.length === 2) return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+function buildInquiryTruth(input: {
+  actionId: string
+  askerId: string
+  respondentId: string
+  subjectId?: string
+  game?: ManeuverGameState
+  social: SocialState
+  riskTolerance: number
+  trust: number
+}): {
+  text: string
+  targetIds: string[]
+  coverText?: string
+  coverTargetIds?: string[]
+  conditionalOfferText?: string
+  conditionalOfferTargetIds?: string[]
+  conditionalOfferChance?: number
+} {
+  const players = input.game?.players ?? []
+  if (input.actionId === 'ask_nomination_advice' && input.game) {
+    const game = input.game as unknown as GameState
+    const seatCount = game.doubleEviction?.weekActive ? 3 : 2
+    const ranked = getEligibleNominationTargets(game, input.respondentId)
+      .map((candidate) => ({
+        id: candidate.id,
+        score: getNominationTargetScore(game, input.respondentId, candidate),
+      }))
+      .sort((left, right) => right.score - left.score || left.id.localeCompare(right.id))
+    const targetIds = ranked.slice(0, seatCount).map((candidate) => candidate.id)
+    const cover = ranked.slice(seatCount, seatCount + 1).map((candidate) => candidate.id)
+    const targetNames = formatInquiryNames(targetIds, players)
+    return {
+      text: `My nomination advice is ${targetNames}${cover.length ? `, with ${formatInquiryNames(cover, players)} as another option` : ''}.`,
+      targetIds,
+      ...(cover.length
+        ? {
+            coverText: `The safest person to put up might be ${formatInquiryNames(cover, players)}.`,
+            coverTargetIds: cover,
+          }
+        : {}),
+      conditionalOfferText: `I could volunteer as a pawn, but only if you promise me this is a façade and I am not your real target.`,
+      conditionalOfferTargetIds: [input.respondentId],
+      conditionalOfferChance: Math.min(
+        0.18,
+        Math.max(0, input.riskTolerance * 0.1 + (Math.max(0, input.trust) / 100) * 0.08)
+      ),
+    }
+  }
+
+  const subjectId = input.subjectId
+  const subjectName = players.find((player) => player.id === subjectId)?.name ?? 'them'
+  const edge = subjectId
+    ? input.social.reality.relationships[input.respondentId]?.[subjectId]
+    : undefined
+  const legacy = subjectId ? input.social.relationships[input.respondentId]?.[subjectId] : undefined
+  if (!edge && !legacy) {
+    return {
+      text: `I do not know ${subjectName} well enough to have a strong read yet.`,
+      targetIds: [],
+    }
+  }
+
+  const parts: string[] = []
+  if ((edge?.resentment ?? 0) >= 24 || (edge?.unresolvedGrievanceIds.length ?? 0) > 0) {
+    parts.push(`I am still upset with ${subjectName}`)
+  } else if ((edge?.warmth ?? legacy?.affinity ?? 0) >= 38) {
+    parts.push(`I like ${subjectName}`)
+  } else if ((edge?.warmth ?? legacy?.affinity ?? 0) <= -24) {
+    parts.push(`I have a hard time trusting ${subjectName}`)
+  }
+  if ((edge?.trust ?? legacy?.affinity ?? 0) >= 38) parts.push(`I trust ${subjectName}'s word`)
+  if ((edge?.loyalty ?? 0) >= 42) parts.push(`I would protect ${subjectName}`)
+  if ((edge?.perceivedThreat ?? 0) >= 28) parts.push(`they make me nervous as a competitor`)
+  if ((edge?.respect ?? 0) >= 35) parts.push(`I respect how they have played`)
+  if (parts.length === 0) {
+    parts.push(
+      (edge?.familiarity ?? 0) < 15
+        ? `I do not know ${subjectName} well enough to have a strong read yet`
+        : `my relationship with ${subjectName} is still mixed`
+    )
+  }
+  const opinion = `${parts.join(', but ')}.`
+  const positiveRead =
+    (edge?.warmth ?? legacy?.affinity ?? 0) >= 24 ||
+    (edge?.trust ?? legacy?.affinity ?? 0) >= 30 ||
+    (edge?.loyalty ?? 0) >= 32
+  return {
+    text: opinion,
+    targetIds: [],
+    coverText: positiveRead
+      ? `I am wary of ${subjectName} as a competitor, so I would keep some distance.`
+      : `I like ${subjectName} and think they could be a good person to work with.`,
+  }
+}
+
 function getRepetitionSuccessChances(
   action: SocialActionDefinition,
   delta: number,
   yields: { influence: number; info: number }
 ): readonly number[] | null {
+  if (getInquiryKind(action.id)) return null
   if (action.targetMode === 'none' || action.needsTargets === false) {
     return null
   }
@@ -828,26 +945,48 @@ export function getAvailableActions(
  * Trait modifiers are stubbed for future expansion.
  */
 export function computeActionCost(
-  _actorId: string,
+  actorId: string,
   action: SocialActionDefinition,
-  _targetId: string,
-  _state?: StateForManeuvers,
+  targetId: string,
+  state?: StateForManeuvers,
   targetCount = 0,
-  dramaMode = false
+  dramaMode = false,
+  subjectId?: string
 ): number {
-  return normalizeActionCost(action, targetCount, dramaMode)
+  const baseCosts = normalizeActionCosts(action, targetCount, dramaMode)
+  const resolved = state ?? (_store?.getState() as StateForManeuvers | undefined)
+  return getDynamicInquiryCosts(
+    action,
+    actorId,
+    targetId,
+    subjectId,
+    resolved?.game?.week ?? 0,
+    resolved?.social.inquiryHistory,
+    baseCosts
+  ).energy
 }
 
 /** Return the complete multi-resource price for an action. */
 export function computeActionCosts(
-  _actorId: string,
+  actorId: string,
   action: SocialActionDefinition,
-  _targetId: string,
-  _state?: StateForManeuvers,
+  targetId: string,
+  state?: StateForManeuvers,
   targetCount = 0,
-  dramaMode = false
+  dramaMode = false,
+  subjectId?: string
 ): { energy: number; influence: number; info: number } {
-  return normalizeActionCosts(action, targetCount, dramaMode)
+  const baseCosts = normalizeActionCosts(action, targetCount, dramaMode)
+  const resolved = state ?? (_store?.getState() as StateForManeuvers | undefined)
+  return getDynamicInquiryCosts(
+    action,
+    actorId,
+    targetId,
+    subjectId,
+    resolved?.game?.week ?? 0,
+    resolved?.social.inquiryHistory,
+    baseCosts
+  )
 }
 
 // ── Execution ─────────────────────────────────────────────────────────────
@@ -1032,11 +1171,20 @@ export function executeAction(
     }
   }
   const normalizedCosts = normalizeActionCosts(action, 0, dramaMode)
+  const dynamicCosts = getDynamicInquiryCosts(
+    action,
+    actorId,
+    targetId,
+    options?.subjectId,
+    state.game?.week ?? 0,
+    state.social.inquiryHistory,
+    normalizedCosts
+  )
   const costs = options?.waiveCosts
     ? { energy: 0, influence: 0, info: 0 }
     : (options?.costOverride ?? {
-        ...normalizedCosts,
-        energy: options?.energyCostOverride ?? normalizedCosts.energy,
+        ...dynamicCosts,
+        energy: options?.energyCostOverride ?? dynamicCosts.energy,
       })
   if (action.dramaOnly && !dramaMode) {
     return {
@@ -1236,7 +1384,67 @@ export function executeAction(
           isBackdoor: actualLohDisclosureId === lohPlanState?.backupTargetId,
         }
       : null
-  let outcome = options?.outcome ?? 'success'
+  const inquiryKind = getInquiryKind(actionId)
+  const inquirySubjectId = actionId === 'ask_player_opinion' ? options?.subjectId : undefined
+  const inquiryDay = rootState.game?.week ?? 0
+  const inquiryTopicKey = inquiryKind
+    ? getInquiryTopicKey(actionId, inquirySubjectId, inquiryDay)
+    : undefined
+  const priorInquiryAttempts = inquiryTopicKey
+    ? getInquiryAttempts(state.social.inquiryHistory, actorId, targetId, inquiryTopicKey)
+    : []
+  const inquiryPersonality = inquiryKind ? getSocialPersonality(targetId) : null
+  const realityRespondent = inquiryKind ? rootState.social.reality.contestants[targetId] : undefined
+  const realityTrust = inquiryKind
+    ? (rootState.social.reality.relationships[targetId]?.[actorId]?.trust ?? recipientTrust)
+    : recipientTrust
+  const inquiryTruth = inquiryKind
+    ? buildInquiryTruth({
+        actionId,
+        askerId: actorId,
+        respondentId: targetId,
+        subjectId: inquirySubjectId,
+        game: state.game,
+        social: rootState.social,
+        riskTolerance: inquiryPersonality?.riskTolerance ?? 0,
+        trust: realityTrust,
+      })
+    : null
+  const inquiryAnswer =
+    inquiryTruth && inquiryPersonality
+      ? resolveInquiryAnswer({
+          trueAnswerText: inquiryTruth.text,
+          answerTargetIds: inquiryTruth.targetIds,
+          priorAttempts: priorInquiryAttempts,
+          openness:
+            typeof realityRespondent?.openness === 'number'
+              ? realityRespondent.openness / 100
+              : 0.45 +
+                inquiryPersonality.warmth * 0.35 -
+                inquiryPersonality.strategicCalculation * 0.1,
+          stress: realityRespondent?.stress ?? 0,
+          fear: realityRespondent?.emotions.fear ?? 0,
+          emotionalVolatility:
+            state.game?.players.find((player) => player.id === targetId)?.aiGameIdentity
+              ?.emotionalVolatility ?? inquiryPersonality.emotionalReactivity,
+          trust: realityTrust,
+          coverAnswerText: inquiryTruth.coverText,
+          coverTargetIds: inquiryTruth.coverTargetIds,
+          coverChance: Math.min(
+            0.4,
+            inquiryPersonality.deceptionComfort * inquiryPersonality.strategicCalculation * 0.65
+          ),
+          conditionalOfferText: inquiryTruth.conditionalOfferText,
+          conditionalOfferTargetIds: inquiryTruth.conditionalOfferTargetIds,
+          conditionalOfferChance: inquiryTruth.conditionalOfferChance,
+          random,
+        })
+      : null
+  let outcome: 'success' | 'failure' = inquiryAnswer
+    ? ['CANDID', 'CAUTIOUS', 'CRACKED'].includes(inquiryAnswer.tone)
+      ? 'success'
+      : 'failure'
+    : (options?.outcome ?? 'success')
   let betrayalOccurred = false
   let gaslightOccurred = false
   if (actionId === 'proposeAlliance' && !options?.outcome) {
@@ -1270,8 +1478,11 @@ export function executeAction(
       acceptanceChance = Math.min(0.08, acceptanceChance)
     if (random() >= Math.max(0.02, Math.min(0.94, acceptanceChance))) outcome = 'failure'
   }
-  const baseDelta =
-    actionId === 'proposeAlliance' && outcome === 'failure'
+  const baseDelta = inquiryAnswer
+    ? outcome === 'success'
+      ? computeOutcomeDelta(actionId, actorId, targetId, outcome)
+      : 0
+    : actionId === 'proposeAlliance' && outcome === 'failure'
       ? dramaMode
         ? getAdvancedAllianceFailureDelta(gaslightOccurred, existingAffinity, recipientTrust)
         : getStandardAllianceFailureDelta(gaslightOccurred)
@@ -1306,8 +1517,15 @@ export function executeAction(
   const didBackfire = repetitionResolution.didBackfire
   const repetitionMissed =
     repeatSensitive && !options?.repetitionAlreadyResolved && repetitionResolution.delta <= 0
-  const delta =
-    actionId === 'ask_loh_target' && priorLohAsks >= 2
+  const delta = inquiryAnswer
+    ? inquiryAnswer.tone === 'REFUSED'
+      ? priorInquiryAttempts.some((entry) => entry.hardRefused)
+        ? -1
+        : -4
+      : inquiryAnswer.tone === 'REPEATED'
+        ? -1
+        : baseDelta
+    : actionId === 'ask_loh_target' && priorLohAsks >= 2
       ? -Math.min(4, priorLohAsks)
       : actionId === 'ask_loh_target' && !lohWillDisclose
         ? 0
@@ -1435,7 +1653,7 @@ export function executeAction(
   }
 
   // Apply outcome-sensitive gains or losses after paying the action costs.
-  const resourceEffect = dramaMode
+  const resolvedResourceEffect = dramaMode
     ? getSocialResourceEffect(
         action,
         didBackfire ? 'backfire' : repetitionMissed ? 'failure' : outcome
@@ -1450,6 +1668,12 @@ export function executeAction(
           info: didBackfire ? -scaledYields.info : repetitionMissed ? 0 : scaledYields.info,
         }
       : { influence: 0, info: 0 }
+  const resourceEffect = inquiryAnswer
+    ? {
+        ...resolvedResourceEffect,
+        info: inquiryAnswer.infoReward > 0 ? scaledYields.info : 0,
+      }
+    : resolvedResourceEffect
   const appliedYields = { influence: 0, info: 0 }
   if (resourceEffect.influence !== 0) {
     const appliedInfluenceDelta = clampResourceAdjustment(
@@ -1509,8 +1733,12 @@ export function executeAction(
       ? formatLohSafetyConsultation(rootState.game, actorId)
       : null
 
+  const inquiryNarrative = inquiryAnswer
+    ? `${rootState.game?.players?.find((player) => player.id === targetId)?.name ?? targetId}: “${inquiryAnswer.answerText}”`
+    : undefined
   const narrative =
-    actionId === 'protect'
+    inquiryNarrative ??
+    (actionId === 'protect'
       ? (contextualSummary ?? undefined)
       : outcome !== 'success'
         ? undefined
@@ -1535,7 +1763,7 @@ export function executeAction(
                         }
                       : null
                   )
-              : undefined
+              : undefined)
 
   const entry: SocialActionLogEntry = {
     actionId,
@@ -1676,6 +1904,25 @@ export function executeAction(
   }
 
   _store.dispatch(recordSocialAction({ entry }))
+  if (inquiryAnswer && inquiryKind && inquiryTopicKey) {
+    _store.dispatch(
+      recordSocialInquiry({
+        id: `inquiry:${inquiryDay}:${actorId}:${targetId}:${inquiryTopicKey}:${priorInquiryAttempts.length + 1}`,
+        askerId: actorId,
+        respondentId: targetId,
+        kind: inquiryKind,
+        topicKey: inquiryTopicKey,
+        ...(inquirySubjectId ? { subjectId: inquirySubjectId } : {}),
+        day: inquiryDay,
+        phase: getSocialActivityPhase(stateAfter.game) ?? '',
+        answerTargetIds: [...inquiryAnswer.answerTargetIds],
+        answerText: inquiryAnswer.answerText,
+        tone: inquiryAnswer.tone,
+        hardRefused: inquiryAnswer.hardRefused,
+        infoAwarded: inquiryAnswer.infoReward > 0,
+      })
+    )
+  }
 
   const verb = getOutcomeVerb({
     betrayalOccurred,
@@ -1687,6 +1934,7 @@ export function executeAction(
   const lohName =
     rootState.game?.players?.find((player) => player.id === targetId)?.name ?? 'The LOH'
   const standardSummary =
+    inquiryNarrative ??
     contextualSummary ??
     (actionId === 'ask_loh_target' && priorLohAsks >= 3
       ? `${lohName} shut the conversation down after being asked repeatedly.`

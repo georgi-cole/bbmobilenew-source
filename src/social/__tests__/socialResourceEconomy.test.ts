@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import socialReducer, { setEnergyBankEntry } from '../socialSlice'
 import { SOCIAL_ACTIONS } from '../socialActions'
-import { normalizeActionCosts } from '../smExecNormalize'
+import { normalizeActionCosts, normalizeActionYields } from '../smExecNormalize'
 import { getSocialResourceEffect, nextHumanSocialEnergy } from '../socialResourceEconomy'
 import { executeGroupAction, initManeuvers } from '../SocialManeuvers'
 
@@ -44,6 +44,25 @@ describe('social resource economy', () => {
     }
     expect(getSocialResourceEffect(groupAction(), 'success', 5).influence).toBe(6)
     expect(getSocialResourceEffect(groupAction(), 'backfire', 5).influence).toBeLessThan(0)
+  })
+
+  it('prices the new inquiry actions and awards their agreed Information amounts', () => {
+    const nominationAdvice = SOCIAL_ACTIONS.find((action) => action.id === 'ask_nomination_advice')
+    const playerOpinion = SOCIAL_ACTIONS.find((action) => action.id === 'ask_player_opinion')
+    expect(nominationAdvice).toBeDefined()
+    expect(playerOpinion).toBeDefined()
+    expect(normalizeActionCosts(nominationAdvice!, 1, false)).toEqual({
+      energy: 0,
+      influence: 3,
+      info: 0,
+    })
+    expect(normalizeActionCosts(playerOpinion!, 1, false)).toEqual({
+      energy: 1,
+      influence: 2,
+      info: 0,
+    })
+    expect(normalizeActionYields(nominationAdvice!).info).toBe(25)
+    expect(normalizeActionYields(playerOpinion!).info).toBe(50)
   })
 })
 

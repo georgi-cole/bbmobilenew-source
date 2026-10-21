@@ -243,6 +243,26 @@ export interface SocialActionLogEntry {
   narrative?: string
 }
 
+export type SocialInquiryKind = 'NOMINATION_ADVICE' | 'PLAYER_OPINION'
+export type SocialInquiryTone = 'CANDID' | 'CAUTIOUS' | 'VAGUE' | 'CRACKED' | 'REPEATED' | 'REFUSED'
+
+/** Durable record of what a houseguest told the player, including audience and topic. */
+export interface SocialInquiryRecord {
+  id: string
+  askerId: string
+  respondentId: string
+  kind: SocialInquiryKind
+  topicKey: string
+  subjectId?: string
+  day: number
+  phase: string
+  answerTargetIds: string[]
+  answerText: string
+  tone: SocialInquiryTone
+  hardRefused: boolean
+  infoAwarded: boolean
+}
+
 export type IncomingInteractionType =
   | 'compliment'
   | 'gossip'
@@ -381,6 +401,8 @@ export interface SocialState {
   sessionLogs: SocialActionLogEntry[]
   /** Bounded gameplay history retained after the panel closes. */
   actionHistory?: SocialActionLogEntry[]
+  /** Bounded private inquiry history used to keep repeat answers consistent. */
+  inquiryHistory: SocialInquiryRecord[]
   /** Monotonic display identity; never consumes the gameplay random stream. */
   actionLogSequence?: number
   /** Schema version used by backward-compatible social save migration. */
