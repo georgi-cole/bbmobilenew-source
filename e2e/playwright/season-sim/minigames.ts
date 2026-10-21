@@ -2145,14 +2145,20 @@ export async function playVisibleMinigame(
   if (gameKey === 'wildcardWestern') {
     const interacted = await playWildcardWesternTurn(host, random)
     const results = host.getByRole('heading', {
-      name: /finished|results|wins|exited early|final verdict|last player standing/i,
+      name: /finished|results|wins|exited early|final verdict|last player standing|sheriff champion/i,
     })
+    const completed = await results
+      .first()
+      .isVisible()
+      .catch(() => false)
+    if (completed) {
+      await expect(page.getByTestId('minigame-lab-completion-count')).toHaveText('1', {
+        timeout: 5_000,
+      })
+    }
     return {
       interacted,
-      completed: await results
-        .first()
-        .isVisible()
-        .catch(() => false),
+      completed,
       primaryInput: profile.primaryInput,
     }
   }
@@ -2237,22 +2243,19 @@ export async function playVisibleMinigame(
       if (finish) {
         // The last-player-standing reveal is the terminal state for Majority Rules.
         // Advancing it closes the minigame and returns control to the season flow.
-        await clickWithShortTimeout(finish, random.int(20, 85), true)
-        interacted = true
-        completedByFinalVerdict = true
+        interacted = await clickWithShortTimeout(finish, random.int(20, 85), true)
+        completedByFinalVerdict = interacted
       } else {
         const roll = await firstVisibleEnabled(host.getByRole('button', { name: 'Roll die' }))
         if (roll) {
-          await clickWithShortTimeout(roll, random.int(20, 85), true)
-          interacted = true
+          interacted = await clickWithShortTimeout(roll, random.int(20, 85), true)
         }
 
         const numberPick = await firstVisibleEnabled(
           host.getByRole('button', { name: /^[1-6]$/, exact: true })
         )
         if (!roll && numberPick) {
-          await clickWithShortTimeout(numberPick, random.int(20, 85), true)
-          interacted = true
+          interacted = await clickWithShortTimeout(numberPick, random.int(20, 85), true)
         }
 
         const answer = await firstVisibleEnabled(
