@@ -24,13 +24,16 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Format updated fixtures and narration
+        run: |
+          npx prettier --write src/social/pulseChronicle.ts src/social/socialMiddleware.ts src/social/__tests__/pulseChronicle.test.ts src/components/HousePulse/__tests__/HousePulse.test.tsx
       - name: Run Pulse Chronicle and House Pulse tests
         run: npx vitest run src/social/__tests__/pulseChronicle.test.ts src/components/HousePulse/__tests__/HousePulse.test.tsx
       - name: Remove the temporary test runner
         if: success()
         run: |
           rm .github/workflows/pulse-chronicle-test-run.yml
-          git add .github/workflows/pulse-chronicle-test-run.yml
+          git add .github/workflows/pulse-chronicle-test-run.yml src/social/pulseChronicle.ts src/social/socialMiddleware.ts src/social/__tests__/pulseChronicle.test.ts src/components/HousePulse/__tests__/HousePulse.test.tsx
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "ci(pulse): remove temporary focused-test workflow"
