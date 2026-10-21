@@ -1503,6 +1503,13 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     }
   }
 
+  if (type === 'game/advanceWeek') {
+    const prior = api.getState() as StateWithGame
+    if (prior.game.phase === 'week_end')
+      archiveCompletedPulseDay(api as unknown as MiddlewareAPI, prior.game.week)
+    return next(action)
+  }
+
   if (type === 'game/resetGame') {
     const result = next(action)
     // resetGame builds the active Cupid state inside the reducer, before a
@@ -1954,6 +1961,11 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
     }
     recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase, prevState.game)
+
+    // Some alternate modes can move directly to the next numbered day.
+    // Preserve the previous day's complete story even without a week_end frame.
+    if (afterState.game.week > prevState.game.week)
+      archiveCompletedPulseDay(api as unknown as MiddlewareAPI, prevState.game.week)
 
     if (
       newPhase === 'nomination_results' &&
