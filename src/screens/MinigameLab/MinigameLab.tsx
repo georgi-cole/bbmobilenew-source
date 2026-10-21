@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 
 import MinigameHost, { type MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
+import { getAll as getAllHouseguests } from '../../data/houseguests'
 import { getAllGames, type GameRegistryEntry } from '../../minigames/registry'
 import { setPhase } from '../../store/gameSlice'
 import { store } from '../../store/store'
@@ -42,7 +43,21 @@ function readInitialFlag(name: string, fallback: boolean): boolean {
   return params.has(name) ? getRouteFlag(name) : fallback
 }
 
-function buildParticipants(count: number): MinigameParticipant[] {
+function buildParticipants(count: number, usePortraitRoster = false): MinigameParticipant[] {
+  if (usePortraitRoster) {
+    const roster = getAllHouseguests()
+    return Array.from({ length: clamp(count, MIN_PLAYERS, MAX_PLAYERS) }, (_unused, index) => {
+      const houseguest = roster[index % roster.length]
+      return {
+        id: houseguest?.id ?? `portrait-player-${index + 1}`,
+        name: houseguest?.name ?? `AI ${index}`,
+        isHuman: index === 0,
+        avatar: houseguest?.avatar,
+        precomputedScore: Math.max(0, 100 - index * 9),
+        previousPR: index === 0 ? null : Math.max(0, 90 - index * 7),
+      }
+    })
+  }
   return Array.from({ length: clamp(count, MIN_PLAYERS, MAX_PLAYERS) }, (_unused, index) => ({
     id: `player-${index + 1}`,
     name: index === 0 ? 'You' : `AI ${index}`,
@@ -89,6 +104,10 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const [skipRules, setSkipRules] = useState(() => readInitialFlag('skipRules', true))
   const [skipCountdown, setSkipCountdown] = useState(() => readInitialFlag('skipCountdown', true))
   const [premiumPreview, setPremiumPreview] = useState(() => readInitialFlag('vipPreview', false))
+  const [previewStage, setPreviewStage] = useState(() => {
+    const stage = params.get('stage')
+    return stage === 'final' || stage === 'round6' || stage === 'final2' ? stage : ''
+  })
   const [previewNonce, setPreviewNonce] = useState(0)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [completionCount, setCompletionCount] = useState(0)
@@ -101,8 +120,23 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
     params.get('context') === 'battleBack' ? ('battleBack' as const) : undefined
   const selectedGame =
     activeGames.find((game) => game.key === selectedGameKey) ?? activeGames[0] ?? null
-  const participants = useMemo(() => buildParticipants(playerCount), [playerCount])
-  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${previewNonce}`
+  const usesPortraitRoster =
+    selectedGame?.key === 'cardClash' || selectedGame?.key === 'houseOfDarkness'
+  const participants = useMemo(
+    () => buildParticipants(playerCount, usesPortraitRoster),
+    [playerCount, usesPortraitRoster]
+  )
+  const validPreviewStage =
+    selectedGame?.key === 'cardClash'
+      ? previewStage === 'final'
+        ? previewStage
+        : ''
+      : selectedGame?.key === 'houseOfDarkness'
+        ? previewStage === 'round6' || previewStage === 'final2'
+          ? previewStage
+          : ''
+        : ''
+  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${validPreviewStage}:${previewNonce}`
 
   useEffect(() => {
     if (import.meta.env.DEV && testCompetitionContext === 'loh') {
@@ -117,6 +151,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
 
   const handleGameChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setSelectedGameKey(event.currentTarget.value)
+    setPreviewStage('')
     setPreviewNonce(0)
     clearLastResult()
   }
@@ -170,7 +205,13 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           <MinigameHost
             key={previewKey}
             game={selectedGame}
-            gameOptions={{ seed, capitalizationContext, labPreview: true }}
+            gameOptions={{
+              seed,
+              labPreview: true,
+              minigameLabPreview: true,
+              capitalizationContext,
+              previewStage: validPreviewStage || undefined,
+            }}
             participants={participants}
             skipRules={skipRules}
             skipCountdown={skipCountdown}
@@ -262,6 +303,31 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             </select>
           </label>
 
+          {usesPortraitRoster && (
+            <label className="minigame-lab__field">
+              <span>Preview stage</span>
+              <select
+                value={validPreviewStage}
+                onChange={(event) => {
+                  setPreviewStage(event.currentTarget.value)
+                  clearLastResult()
+                }}
+                aria-label="Portrait preview stage"
+              >
+                <option value="">Normal start</option>
+                {selectedGame?.key === 'cardClash' && (
+                  <option value="final">Deck of Light finale</option>
+                )}
+                {selectedGame?.key === 'houseOfDarkness' && (
+                  <option value="round6">Darkness round six</option>
+                )}
+                {selectedGame?.key === 'houseOfDarkness' && (
+                  <option value="final2">Endless final two</option>
+                )}
+              </select>
+            </label>
+          )}
+
           <label className="minigame-lab__field">
             <span>Seed</span>
             <input
@@ -333,7 +399,13 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
         <MinigameHost
           key={previewKey}
           game={selectedGame}
-          gameOptions={{ seed, capitalizationContext, labPreview: true }}
+          gameOptions={{
+            seed,
+            labPreview: true,
+            minigameLabPreview: true,
+            capitalizationContext,
+            previewStage: validPreviewStage || undefined,
+          }}
           participants={participants}
           skipRules={skipRules}
           skipCountdown={skipCountdown}

@@ -7,7 +7,7 @@ describe('House of Darkness registry integration', () => {
     const game = getGame('houseOfDarkness')
 
     expect(game).toMatchObject({
-      title: 'House of Darkness',
+      title: 'Deck of Darkness',
       resultMode: 'placement',
       authoritative: true,
       scoringAdapter: 'authoritative',

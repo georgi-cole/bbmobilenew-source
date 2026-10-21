@@ -58,6 +58,10 @@ export interface GenericMinigameProps {
   seed?: number
   /** When true the game starts immediately on mount (no Start button needed). */
   autoStart?: boolean
+  /** Host-selected VIP visual treatment; it must not change game state or RNG. */
+  premiumPresentation?: boolean
+  /** Development-only phase preview for the portrait finale stages. */
+  previewStage?: 'final' | 'round6' | 'final2'
   /** Capitalization only: selects standard LOH or Back 2 the Game rules. */
   context?: 'loh' | 'battleBack'
   /** Battery Low only: enable one-shot vote effects in compatible weekly formats. */
