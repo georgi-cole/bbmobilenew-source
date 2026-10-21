@@ -1,7 +1,7 @@
 /**
  * tests/unit/castle-rescue/subroom.test.ts
  *
- * Unit tests for Castle Rescue subroom platform solidity, pipe clearance
+ * Unit tests for Find Your Twin subroom platform solidity, pipe clearance
  * validation, and the factory helpers in castleRescueUtils.ts.
  *
  * Tested:

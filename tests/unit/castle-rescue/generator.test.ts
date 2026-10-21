@@ -1,7 +1,7 @@
 /**
  * tests/unit/castle-rescue/generator.test.ts
  *
- * Tests for the Castle Rescue level-config generator (platformer version).
+ * Tests for the Find Your Twin level-config generator (platformer version).
  *
  * generateLevelConfig(seed) → LevelConfig:
  *  - Always returns exactly 3 correct pipe slots.

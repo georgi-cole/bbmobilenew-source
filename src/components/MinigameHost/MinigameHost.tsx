@@ -763,6 +763,7 @@ export default function MinigameHost({
           participants={participants}
           prizeType={(gameOptions?.prizeType as TiltLabyrinthPrizeType) ?? 'LOH'}
           seed={seed}
+          labPreview={gameOptions?.labPreview === true}
           onComplete={handleAttemptReactComplete}
         />
       )

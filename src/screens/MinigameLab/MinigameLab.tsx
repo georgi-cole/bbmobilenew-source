@@ -1,7 +1,9 @@
-import { useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 
 import MinigameHost, { type MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
 import { getAllGames, type GameRegistryEntry } from '../../minigames/registry'
+import { setPhase } from '../../store/gameSlice'
+import { store } from '../../store/store'
 import { getRouteFlag, getRouteSearchParams } from '../../utils/routeQuery'
 import './MinigameLab.css'
 
@@ -58,6 +60,7 @@ function formatGameLabel(game: GameRegistryEntry | null): string {
 
 export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabProps) {
   const params = useMemo(() => getRouteSearchParams(), [])
+  const testCompetitionContext = params.get('testCompetitionContext')
   const activeGames = useMemo(
     () =>
       getAllGames()
@@ -89,7 +92,9 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const [previewNonce, setPreviewNonce] = useState(0)
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [completionCount, setCompletionCount] = useState(0)
-  const [isMinimized, setIsMinimized] = useState(() => params.has('game'))
+  const [isMinimized, setIsMinimized] = useState(
+    () => params.has('game') && !readInitialFlag('showLab', false)
+  )
 
   const freezeEnabled = getRouteFlag('freeze')
   const capitalizationContext =
@@ -98,6 +103,12 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
     activeGames.find((game) => game.key === selectedGameKey) ?? activeGames[0] ?? null
   const participants = useMemo(() => buildParticipants(playerCount), [playerCount])
   const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${previewNonce}`
+
+  useEffect(() => {
+    if (import.meta.env.DEV && testCompetitionContext === 'loh') {
+      store.dispatch(setPhase('loh_comp'))
+    }
+  }, [testCompetitionContext])
 
   const clearLastResult = () => {
     setLastResult(null)
@@ -159,7 +170,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           <MinigameHost
             key={previewKey}
             game={selectedGame}
-            gameOptions={{ seed, capitalizationContext }}
+            gameOptions={{ seed, capitalizationContext, labPreview: true }}
             participants={participants}
             skipRules={skipRules}
             skipCountdown={skipCountdown}
@@ -322,7 +333,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
         <MinigameHost
           key={previewKey}
           game={selectedGame}
-          gameOptions={{ seed, capitalizationContext }}
+          gameOptions={{ seed, capitalizationContext, labPreview: true }}
           participants={participants}
           skipRules={skipRules}
           skipCountdown={skipCountdown}

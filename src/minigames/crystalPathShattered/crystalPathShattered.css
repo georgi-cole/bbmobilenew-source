@@ -1689,7 +1689,9 @@
     box-sizing: border-box;
     padding: 1.45rem 0.3rem 0.6rem;
     gap: 0.6rem;
-    transform: rotateX(25deg) translateY(0.3rem);
+    /* Lift the nearest tappable row clear of the instruction panel on short
+       phone viewports. */
+    transform: rotateX(25deg) translateY(-1.25rem);
   }
 
   .cps-shell--premium .cps-bridge-track {

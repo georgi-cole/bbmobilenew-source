@@ -27,7 +27,7 @@ import {
   validateAndFixPipeClearance,
 } from '../src/minigames/castleRescue/castleRescueUtils';
 
-describe('Castle Rescue rules', () => {
+describe('Find Your Twin rules', () => {
   it('initialises, starts, and finalizes run state safely', () => {
     const initial = createInitialRunState();
     expect(initial.status).toBe('idle');
