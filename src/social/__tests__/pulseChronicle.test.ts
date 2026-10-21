@@ -77,9 +77,11 @@ describe('The Hub Chronicles', () => {
     const { base } = setup()
     const actionHistory = [
       { id: 'flirt', actionId: 'flirt', actorId: 'human', targetId: 'maya',
-        outcome: 'failure', source: 'manual', week: 2, phase: 'social_1', timestamp: 1 },
+        outcome: 'failure', source: 'manual', week: 2, phase: 'social_1', timestamp: 1,
+        cost: 1, delta: -1, newEnergy: 4 },
       { id: 'pact', actionId: 'propose_pact', actorId: 'human', targetId: 'alex',
-        outcome: 'success', source: 'manual', week: 2, phase: 'social_2', timestamp: 2 },
+        outcome: 'success', source: 'manual', week: 2, phase: 'social_2', timestamp: 2,
+        cost: 1, delta: 1, newEnergy: 3 },
     ] as SocialActionLogEntry[]
     const chapter = composePulseChronicle({ ...base, actionHistory })
     expect(chapter.paragraphs.join(' ')).toMatch(/Maya/)
