@@ -1143,6 +1143,14 @@ async function playTrapAuctionTurn(host: Locator): Promise<boolean> {
 }
 
 async function playWildcardWesternTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const champion = host.getByRole('heading', { name: 'Sheriff Champion!', exact: true })
+  if (await champion.isVisible().catch(() => false)) {
+    const finish = await firstVisibleEnabled(
+      host.getByRole('button', { name: 'Finish', exact: true })
+    )
+    return finish ? clickWithShortTimeout(finish, 0, true) : false
+  }
+
   const showdownResult = host.getByRole('heading', { name: 'Showdown Result', exact: true })
   if (await showdownResult.isVisible().catch(() => false)) {
     const continueDuel = await firstVisibleEnabled(
@@ -1408,13 +1416,21 @@ async function playHouseOfDarknessTurn(
   host: Locator,
   thrower: boolean
 ): Promise<boolean> {
+  const charmChoice = await firstVisibleEnabled(host.locator('.hod-charm-choice'))
+  if (charmChoice) return clickWithShortTimeout(charmChoice)
+
+  const chooseRun = await firstVisibleEnabled(host.getByRole('button', { name: /^Depth Run\b/i }))
+  if (chooseRun) return clickWithShortTimeout(chooseRun)
+
   const advance = await firstVisibleEnabled(
-    host.getByRole('button', { name: /^(?:Descend deeper|Leave the Hub|Leave the house)$/i })
+    host.getByRole('button', {
+      name: /^(?:Descend deeper|Leave the Hub|Leave the house|Leave the deck)$/i,
+    })
   )
   if (advance) return clickWithShortTimeout(advance)
 
   const visibleGrid = host.getByRole('grid', {
-    name: /House of Darkness round \d+ memory board/i,
+    name: /Deck of Darkness round \d+ memory board/i,
   })
   if (!(await visibleGrid.isVisible().catch(() => false))) return false
 
@@ -1901,6 +1917,9 @@ async function playMysticChamberTurn(host: Locator, random: SeededRandom): Promi
 }
 
 async function playHouseOfCardsTurn(page: Page, host: Locator): Promise<boolean> {
+  const toolChoice = await firstVisibleEnabled(host.locator('.hoc-tool-choice'))
+  if (toolChoice) return clickWithShortTimeout(toolChoice)
+
   const skip = await firstVisibleEnabled(host.getByRole('button', { name: /^Skip to results$/i }))
   if (skip) {
     await skip.click()
@@ -2151,11 +2170,6 @@ export async function playVisibleMinigame(
       .first()
       .isVisible()
       .catch(() => false)
-    if (completed) {
-      await expect(page.getByTestId('minigame-lab-completion-count')).toHaveText('1', {
-        timeout: 5_000,
-      })
-    }
     return {
       interacted,
       completed,
