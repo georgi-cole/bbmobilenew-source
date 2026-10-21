@@ -5412,6 +5412,24 @@ const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
+    archivePulseChronicle(state, action: PayloadAction<import('../types').PulseChronicle>) {
+      const chronicle = action.payload
+      if (!chronicle.complete || chronicle.season !== state.season) return
+      const episodes = state.pulseChronicles ?? []
+      const episodeKey = chronicle.episodeKey ?? `day:${chronicle.day}`
+      // Keep each final script stable while allowing a numbered day and its weekend episodes to coexist.
+      if (
+        episodes.some(
+          (entry) =>
+            entry.season === chronicle.season &&
+            (entry.episodeKey ?? `day:${entry.day}`) === episodeKey
+        )
+      )
+        return
+      state.pulseChronicles = [...episodes, { ...chronicle, episodeKey }]
+        .sort((a, b) => a.day - b.day || (a.episodeLabel ?? '').localeCompare(b.episodeLabel ?? ''))
+        .slice(-90)
+    },
     setPhase(state, action: PayloadAction<Phase>) {
       state.phase = action.payload
     },
@@ -13421,6 +13439,7 @@ const gameSlice = createSlice({
 })
 
 export const {
+  archivePulseChronicle,
   setPhase,
   advanceWeek,
   updatePlayer,

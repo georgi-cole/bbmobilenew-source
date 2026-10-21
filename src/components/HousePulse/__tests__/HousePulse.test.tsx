@@ -16,7 +16,7 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
-  it('summarizes the day once instead of repeating each alliance development', () => {
+  it('writes a short producer-style daily chapter rather than reporting counts', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'the-winners',
@@ -62,9 +62,13 @@ describe('HousePulse', () => {
       />
     )
 
+    expect(screen.getByText('Your story in the Hub is unfolding.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.queryByText('Huddle 0.')).toBeNull()
-    expect(screen.getByText(/5 alliance updates were recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Whispers in the Hub|Friends, Favors & Question Marks/ })
+    ).toBeInTheDocument()
     expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
@@ -92,10 +96,8 @@ describe('HousePulse', () => {
       />
     )
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/A new alliance entered your story/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'View alliance' })).toBeNull()
   })
 
@@ -129,7 +131,7 @@ describe('HousePulse', () => {
       publicEligible: false,
       juryEligible: false,
     })
-    const meeting = appendRealityEvent(reality, {
+    appendRealityEvent(reality, {
       day: 2,
       phase: 'social_2',
       type: 'ALLIANCE_STRATEGY_MEETING',
@@ -167,15 +169,13 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/allies compared plans/)).toBeInTheDocument()
     expect(screen.queryByText(/Lia recommends Remy for eviction/)).toBeNull()
     expect(screen.queryByText('You · Consult Alliance · Lia.')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
-    expect(onOpenAlliances).toHaveBeenCalledWith(alliance.id, meeting.id)
+    // Details stay in Intel / alliance history; Today is the narrative, not a second ledger.
+    expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })
   it('opens a short Today briefing with direct Intel and Commitments sections', () => {
     render(
@@ -192,7 +192,9 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/No major developments have reached your radar today/i)
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Today' })).toHaveClass('is-active')
     expect(screen.getByRole('button', { name: 'Intel' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Commitments' })).toBeInTheDocument()
@@ -200,6 +202,167 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Commitments' }))
     expect(screen.getByRole('heading', { name: 'Commitments' })).toBeInTheDocument()
+  })
+
+  it('keeps completed episodes accessible after their source events are gone', () => {
+    const reality = createInitialRealityDomainState()
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={4}
+        season={1}
+        gameId="test-archive"
+        reality={reality}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 3,
+            title: 'A Surprising Goodbye',
+            paragraphs: ['Kai left the Hub after a difficult vote.'],
+            note: 'It was a memorable day.',
+            sourceEventIds: ['eviction:3'],
+            complete: true,
+          },
+        ]}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    fireEvent.click(screen.getByText(/Previous episodes/))
+    expect(screen.getByRole('heading', { name: 'A Surprising Goodbye' })).toBeInTheDocument()
+    expect(screen.getByText(/Kai left the Hub/)).toBeInTheDocument()
+  })
+
+  it('shows the active weekend chapter without replaying the numbered day', () => {
+    const reality = createInitialRealityDomainState()
+    appendRealityEvent(reality, {
+      day: 2,
+      phase: 'loh_results',
+      type: 'CEREMONY_POWER_WON',
+      actorId: 'lia',
+      targetIds: [],
+      participantIds: ['lia'],
+      witnessIds: ['human', 'lia', 'kai'],
+      visibility: 'CEREMONY_PUBLIC',
+      outcome: 'SYSTEM',
+      reason: 'Weekday competition result',
+      tags: ['loh'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: true,
+      juryEligible: true,
+    })
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[
+          {
+            id: 'weekend-action',
+            actionId: 'compliment',
+            actorId: 'human',
+            targetId: 'kai',
+            outcome: 'success',
+            source: 'manual',
+            week: 2,
+            timestamp: 200,
+            cost: 1,
+            delta: 1,
+            newEnergy: 3,
+          },
+        ]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        season={1}
+        gameId="weekend-active"
+        gamePhase="week_end"
+        reality={reality}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 2,
+            episodeKey: 'day:2',
+            episodeLabel: 'Day 2',
+            capturedThroughTimestamp: 100,
+            capturedThroughRealitySequence: 0,
+            title: 'Weekday episode',
+            paragraphs: [],
+            note: '',
+            sourceEventIds: [],
+            complete: true,
+          },
+        ]}
+        weekendInterlude={{
+          active: true,
+          afterDay: 2,
+          weekendNumber: 1,
+          weekendDay: 1,
+          episode: 'hub_says',
+          stage: 'social',
+          wallet: { energy: 10, influence: 0, info: 0 },
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByText(/Weekend 1 · Day 1 · The story so far/)).toBeInTheDocument()
+    expect(screen.getByText(/You took time to connect with Kai/)).toBeInTheDocument()
+    expect(screen.queryByText(/captured the LOH crown/)).toBeNull()
+  })
+
+  it('prefers a later Final Three episode over the finale weekend archive', () => {
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={14}
+        season={1}
+        reality={createInitialRealityDomainState()}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 14,
+            episodeKey: 'weekend:3:14:2',
+            episodeLabel: 'Finale weekend · Day 2',
+            capturedThroughRealitySequence: 2,
+            title: 'The Finale Weekend',
+            paragraphs: ['The Tribunal gathered.'],
+            note: '',
+            sourceEventIds: ['weekend-event'],
+            complete: true,
+          },
+          {
+            season: 1,
+            day: 14,
+            episodeKey: 'day:14',
+            episodeLabel: 'Day 14',
+            capturedThroughRealitySequence: 3,
+            title: 'The Final Two',
+            paragraphs: ['The Final LOH chose Lia to leave.'],
+            note: '',
+            sourceEventIds: ['final-three-eviction'],
+            complete: true,
+          },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByText(/Day 14 · Episode complete/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The Final Two' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/Previous episodes · 1/))
+    expect(screen.getByRole('heading', { name: 'The Finale Weekend' })).toBeInTheDocument()
   })
 
   it('responds to the Reality Social tutorial navigation events', () => {
@@ -220,7 +383,9 @@ describe('HousePulse', () => {
       window.dispatchEvent(new Event('reality-social-tutorial:open-pulse'))
     })
     expect(screen.getByRole('dialog', { name: 'My Pulse' })).toBeInTheDocument()
-    expect(screen.getByText(/nothing important has changed today/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(/No major developments have reached your radar today/i)
+    ).toBeInTheDocument()
 
     act(() => {
       window.dispatchEvent(
@@ -387,13 +552,9 @@ describe('HousePulse', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
-    expect(
-      screen.getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-    ).toBeInTheDocument()
-    expect(screen.getByText(/1 alliance update was recorded today/)).toBeInTheDocument()
+    expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
+    expect(screen.getByText(/The Shield came to an end/)).toBeInTheDocument()
     expect(screen.queryByText('Kai dissolved The Shield.')).toBeNull()
-    expect(screen.queryByText('An alliance ended')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'View alliance history' }))
-    expect(onOpenAlliances).toHaveBeenCalledWith('alliance:shield', 'alliance-ended')
+    expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })
 })

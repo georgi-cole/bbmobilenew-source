@@ -898,6 +898,24 @@ export interface WeekendInterludeState {
   reunionDeparted?: true
 }
 
+/** Persisted, player-visible script for a single in-game day. */
+export interface PulseChronicle {
+  season: number
+  day: number
+  /** Stable within a season; weekdays and weekend days can share a game day. */
+  episodeKey?: string
+  episodeLabel?: string
+  /** Latest social-action timestamp included when this episode was finalized. */
+  capturedThroughTimestamp?: number
+  /** Latest Reality event sequence included when this episode was finalized. */
+  capturedThroughRealitySequence?: number
+  title: string
+  paragraphs: string[]
+  note: string
+  sourceEventIds: string[]
+  complete: boolean
+}
+
 export interface GameState {
   /** Stable unique identifier for this game instance. */
   gameId: string
@@ -939,6 +957,8 @@ export interface GameState {
    */
   competitionSeasonStateByPlayerId?: Record<string, CompetitionSeasonState>
   tvFeed: TvEvent[]
+  /** Completed My Pulse reality-TV episodes, kept independently from rolling event logs. */
+  pulseChronicles?: PulseChronicle[]
   /** Ordered event IDs waiting to be presented by the faux-TV player. */
   broadcastQueue?: string[]
   /** Last consumed plain faux-TV message, retained until another message replaces it. */

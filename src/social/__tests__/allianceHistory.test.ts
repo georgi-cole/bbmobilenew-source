@@ -260,7 +260,7 @@ describe('durable alliance history', () => {
     )
     expect(pending.status).toBe('DECLINED')
     expect(allianceEventText(state, pending.history!.at(-1)!, 'u', name)).toBe(
-      'Lia declined the invitation to The Shield.'
+      "Lia turned down The Shield's invitation."
     )
     const nextDayContext = { ...context, at: { day: 2, phase: 'social_1' as const } }
     const retry = manageAlliance(
@@ -352,6 +352,38 @@ describe('durable alliance history', () => {
         (event) => event.type === 'ALLIANCE_COMMITMENT_CHANGED'
       )
     ).toBe(false)
+  })
+
+  it('keeps earlier commitment event IDs addressable when similar promises share a story entry', () => {
+    const { state, group } = setup()
+    for (const id of ['first-vote-promise', 'second-vote-promise'])
+      upsertRealityPromise(state, {
+        id,
+        kind: 'VOTE',
+        promisorId: 'u',
+        beneficiaryIds: ['k'],
+        witnessIds: [],
+        createdAt: at,
+        stakes: 0.5,
+        scope: {},
+        status: 'ACTIVE',
+        originatingAllianceId: group.id,
+        visibility: 'GROUP_VISIBLE',
+      })
+
+    const sourceEvents = state.events.filter(
+      (event) => event.type === 'ALLIANCE_COMMITMENT_CHANGED'
+    )
+    const entries = allianceHistory(state, group.id, 'u').filter(
+      (event) => event.type === 'ALLIANCE_COMMITMENT_CHANGED'
+    )
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0].relatedPromiseIds).toEqual(['second-vote-promise', 'first-vote-promise'])
+    expect(entries[0].mergedEventIds).toContain(sourceEvents[0].id)
+    expect(allianceEventText(state, entries[0], 'u', name)).toBe(
+      'You made 2 vote promises to Kian in The Shield.'
+    )
   })
 
   it('adopts surviving legacy events without confusing colon-containing IDs or inventing lost history', () => {
