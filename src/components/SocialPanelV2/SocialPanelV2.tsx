@@ -22,7 +22,7 @@ import {
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
-import { resolveWeatherDay } from '../../weather/weatherEngine'
+import { resolveWeatherCardCondition } from '../../weather/weatherCardCondition'
 import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
@@ -277,8 +277,8 @@ export default function SocialPanelV2() {
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const pulseWeather = useMemo(
-    () => resolveWeatherDay(game.gameId, game.week).condition,
-    [game.gameId, game.week]
+    () => resolveWeatherCardCondition(game.gameId, game.week, game.tvFeed),
+    [game.gameId, game.tvFeed, game.week]
   )
   const pulseVoteResult = useMemo(
     () =>

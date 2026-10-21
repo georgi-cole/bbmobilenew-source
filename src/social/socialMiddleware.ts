@@ -91,7 +91,7 @@ import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
 import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
-import { resolveWeatherDay } from '../weather/weatherEngine'
+import { resolveWeatherCardCondition } from '../weather/weatherCardCondition'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
@@ -318,7 +318,7 @@ function archiveCompletedPulseEpisode(
     reality: state.social.reality,
     actionHistory,
     dramaNetwork: state.social.dramaNetwork,
-    weather: resolveWeatherDay(state.game.gameId, day).condition,
+    weather: resolveWeatherCardCondition(state.game.gameId, day, state.game.tvFeed ?? []),
     humanPets,
     voteResult: chronicleVoteResult(state.game, day),
     complete: true,
