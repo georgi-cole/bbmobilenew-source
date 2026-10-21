@@ -64,7 +64,7 @@ function setup() {
 }
 
 describe('The Hub Chronicles', () => {
-  it('connects observed competitions, nominations, saves and evictions without assuming vote counts', () => {
+  it('connects observed competitions, nominations, saves and evictions without inventing vote counts', () => {
     const { base, event } = setup()
     event('CEREMONY_POWER_WON', 'alex', [], ['loh'])
     event('CEREMONY_NOMINATIONS_LOCKED', 'alex', ['maya', 'zara'])
@@ -77,17 +77,17 @@ describe('The Hub Chronicles', () => {
       ['replacement_nominee', 'nomination_stage:REPLACEMENT']
     )
     event('CEREMONY_EVICTION', undefined, ['zara'])
-    const chapter = composePulseChronicle({ ...base, complete: true, weather: 'rainy' })
+    const chapter = composePulseChronicle({ ...base, complete: true })
     const text = chapter.paragraphs.join(' ')
-    expect(text).toMatch(/rain|wet/i)
     expect(text).toContain('Alex')
     expect(text).toContain('Maya')
     expect(text).toContain('Zara')
     expect(text).toMatch(/Safety/)
-    expect(text).not.toMatch(/unanimous|10 votes|secret alliance/i)
+    expect(text).not.toMatch(/unanimous|\d+ votes|secret alliance|camera|housemate/i)
+    expect(chapter.note).toBe('')
     expect(chapter.complete).toBe(true)
     expect(chapter.sourceEventIds.length).toBeGreaterThan(2)
-    expect(composePulseChronicle({ ...base, complete: true, weather: 'rainy' })).toEqual(chapter)
+    expect(composePulseChronicle({ ...base, complete: true })).toEqual(chapter)
   })
 
   it('keeps unwitnessed private events and undiscovered alliances out of Today', () => {
@@ -133,8 +133,11 @@ describe('The Hub Chronicles', () => {
     const chapter = composePulseChronicle({ ...base, actionHistory })
     expect(chapter.paragraphs.join(' ')).toMatch(/Maya/)
     expect(chapter.paragraphs.join(' ')).toMatch(/Alex/)
-    expect(chapter.note).toContain('Maya')
-    expect(chapter.note).toContain('Alex')
+    expect(chapter.paragraphs).toContain(
+      'You tried to flirt with Maya, but they did not return the feeling.'
+    )
+    expect(chapter.paragraphs).toContain('You pitched an alliance to Alex.')
+    expect(chapter.note).toBe('')
     expect(chapter.sourceEventIds).toHaveLength(2)
   })
 
@@ -146,11 +149,20 @@ describe('The Hub Chronicles', () => {
     expect(chapter.paragraphs.join(' ')).not.toMatch(/rescue/)
   })
 
+  it('distinguishes a chosen nominee from an automatic nominee', () => {
+    const { base, event } = setup()
+    event('CEREMONY_NOMINATIONS_LOCKED', 'alex', ['maya', 'zara'], ['automatic_nominee:zara'])
+    const text = composePulseChronicle(base).paragraphs.join(' ')
+    expect(text).toContain('Alex nominated Maya.')
+    expect(text).toContain('Zara was automatically nominated.')
+    expect(text).not.toContain('Alex nominated Maya and Zara.')
+  })
+
   it('narrates a self-save without claiming a contestant rescued another person', () => {
     const { base, event } = setup()
     event('CEREMONY_SAFETY_USED', 'maya', ['maya'])
     const chapter = composePulseChronicle(base)
-    expect(chapter.paragraphs.join(' ')).toContain('Maya used Safety to escape the block')
+    expect(chapter.paragraphs.join(' ')).toContain('Maya used Safety to save themselves.')
     expect(chapter.paragraphs.join(' ')).not.toContain('rescue Maya')
   })
 
@@ -160,6 +172,56 @@ describe('The Hub Chronicles', () => {
     reality.events.push(first)
     const chapter = composePulseChronicle(base)
     expect(chapter.sourceEventIds).toHaveLength(1)
+  })
+
+  it('includes a public vote tally in the eviction beat when the result is available', () => {
+    const { base, event } = setup()
+    event('CEREMONY_VOTES_REVEALED', undefined, ['maya', 'zara'])
+    event('CEREMONY_EVICTION', undefined, ['zara'])
+    const chapter = composePulseChronicle({
+      ...base,
+      voteResult: { mode: 'house', counts: { maya: 2, zara: 4 } },
+    })
+    expect(chapter.paragraphs).toContain(
+      'Zara was eliminated. The vote was 4–2 (4 votes to evict Zara, 2 votes to evict Maya).'
+    )
+  })
+
+  it('does not attach a public tally that conflicts with the recorded eviction', () => {
+    const { base, event } = setup()
+    event('CEREMONY_EVICTION', undefined, ['zara'])
+    const chapter = composePulseChronicle({
+      ...base,
+      voteResult: { mode: 'house', counts: { maya: 4, zara: 2 } },
+    })
+
+    expect(chapter.paragraphs).toContain('Zara was voted out of the Hub.')
+    expect(chapter.paragraphs.join(' ')).not.toContain('The vote was 4–2')
+  })
+
+  it('collapses identical action records into one readable beat', () => {
+    const { base } = setup()
+    const action = {
+      actionId: 'compliment',
+      actorId: 'human',
+      targetId: 'maya',
+      outcome: 'success',
+      source: 'manual',
+      week: 2,
+      phase: 'social_1',
+      cost: 1,
+      delta: 1,
+      newEnergy: 3,
+    }
+    const chapter = composePulseChronicle({
+      ...base,
+      actionHistory: [
+        { ...action, id: 'first', timestamp: 1 },
+        { ...action, id: 'duplicate', timestamp: 2 },
+      ] as SocialActionLogEntry[],
+    })
+    expect(chapter.paragraphs).toEqual(['You had a good conversation with Maya.'])
+    expect(chapter.sourceEventIds).toEqual(['first'])
   })
 
   it('uses action-specific copy for rumors and strategic asks', () => {
@@ -196,7 +258,7 @@ describe('The Hub Chronicles', () => {
       },
     ] as SocialActionLogEntry[]
     const text = composePulseChronicle({ ...base, actionHistory }).paragraphs.join(' ')
-    expect(text).toContain('rumor about Maya to Alex')
+    expect(text).toContain('You told Alex what you had heard about Maya.')
     expect(text).toContain('You asked Zara to use Safety')
     expect(text).not.toContain('reading the room')
   })
@@ -226,7 +288,7 @@ describe('The Hub Chronicles', () => {
     expect(narrate('whisper')).not.toContain('rumor')
     expect(narrate('share_intel')).toContain('traded information')
     expect(narrate('share_intel')).not.toContain('reading the room')
-    expect(narrate('protect')).toContain('offered Maya protection')
+    expect(narrate('protect')).toContain('promised to protect Maya')
     expect(narrate('ask_safety_plan')).toContain('what they planned to do with Safety')
     expect(narrate('ask_hold_safety')).toContain('asked Maya to leave the nominations unchanged')
   })
@@ -352,7 +414,7 @@ describe('The Hub Chronicles', () => {
         juryEligible: false,
       })
     const chronicle = composePulseChronicle({ ...base, reality })
-    expect(chronicle.paragraphs.join(' ')).toContain('A new alliance entered your story')
+    expect(chronicle.paragraphs.join(' ')).toContain('You formed a pact with Alex.')
   })
 
   it('does not pull future or prior-day actions into the current episode', () => {

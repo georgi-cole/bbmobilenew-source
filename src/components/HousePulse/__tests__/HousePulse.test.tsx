@@ -16,7 +16,7 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
-  it('writes a short producer-style daily chapter rather than reporting counts', () => {
+  it('writes a concise player-facing chapter from grounded events', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'the-winners',
@@ -67,8 +67,11 @@ describe('HousePulse', () => {
     expect(screen.queryByText('Huddle 0.')).toBeNull()
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: /Whispers in the Hub|Friends, Favors & Question Marks/ })
+      screen.getByRole('heading', {
+        name: /A Conversation Could Change Things|Alliances and Open Questions/,
+      })
     ).toBeInTheDocument()
+    expect(screen.queryByText(/cameras were rolling|Producer’s Note/i)).toBeNull()
     expect(screen.queryByText(/Earlier today/)).toBeNull()
   })
 
@@ -97,8 +100,122 @@ describe('HousePulse', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
-    expect(screen.getByText(/A new alliance entered your story/)).toBeInTheDocument()
+    expect(screen.getByText(/You formed a pact with Lia\./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'View alliance' })).toBeNull()
+  })
+
+  it('shows one alliance story link when duplicate alliance records share a display name', () => {
+    const reality = createInitialRealityDomainState()
+    let secondAllianceStoryEventId = ''
+    for (const [id, targetId] of [
+      ['shield-first', 'lia'],
+      ['shield-second', 'kai'],
+    ] as const) {
+      const alliance = createRealityAlliance(reality, {
+        id,
+        kind: 'GROUP',
+        founderIds: ['human', 'lia', 'kai'],
+        memberIds: [],
+        name: 'The Shield',
+        purpose: 'Coordinate the vote',
+        at: { day: 2, phase: 'social_1' },
+      })
+      if (id === 'shield-second')
+        secondAllianceStoryEventId =
+          alliance.history?.find((event) => event.type === 'ALLIANCE_FORMED')?.id ?? ''
+      const event = appendRealityEvent(reality, {
+        day: 2,
+        phase: 'social_1',
+        type: 'ALLIANCE_MEMBER_RECRUITED',
+        allianceId: alliance.id,
+        actorId: 'human',
+        targetIds: [targetId],
+        participantIds: ['human', targetId],
+        witnessIds: [],
+        visibility: 'GROUP_VISIBLE',
+        outcome: 'SUCCESS',
+        reason: 'Fixture',
+        tags: ['ALLIANCE'],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: true,
+      })
+      expect(event.id).not.toBe(secondAllianceStoryEventId)
+    }
+    const onOpenAlliances = vi.fn()
+
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={reality}
+        onOpenAlliances={onOpenAlliances}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    const storyLinks = screen.getAllByRole('button', {
+      name: "Read The Shield's alliance story",
+    })
+    expect(storyLinks).toHaveLength(1)
+    fireEvent.click(storyLinks[0])
+    expect(onOpenAlliances).toHaveBeenCalledWith('shield-second', secondAllianceStoryEventId)
+  })
+
+  it('shows the recorded house vote tally with the person who left', () => {
+    const reality = createInitialRealityDomainState()
+    const voteEvents: Array<{ type: string; targetIds: string[] }> = [
+      { type: 'CEREMONY_VOTES_REVEALED', targetIds: ['lia', 'kai'] },
+      { type: 'CEREMONY_EVICTION', targetIds: ['kai'] },
+    ]
+    for (const { type, targetIds } of voteEvents) {
+      appendRealityEvent(reality, {
+        day: 2,
+        phase: 'eviction_results',
+        type,
+        actorId: undefined,
+        targetIds,
+        participantIds: ['human', ...targetIds],
+        witnessIds: ['human'],
+        visibility: 'CEREMONY_PUBLIC',
+        outcome: 'SYSTEM',
+        reason: 'The vote was revealed.',
+        tags: [],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: true,
+        juryEligible: true,
+      })
+    }
+
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        reality={reality}
+        voteResult={{ mode: 'house', counts: { lia: 2, kai: 4 } }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(
+      screen.getByText(
+        'Kai was eliminated. The vote was 4–2 (4 votes to evict Kai, 2 votes to evict Lia).'
+      )
+    ).toBeInTheDocument()
   })
 
   it('shows the consultation result once and opens its highlighted alliance history entry', () => {
@@ -170,7 +287,7 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
-    expect(screen.getByText(/allies compared plans/)).toBeInTheDocument()
+    expect(screen.getByText('You and your allies discussed the next move.')).toBeInTheDocument()
     expect(screen.queryByText(/Lia recommends Remy for eviction/)).toBeNull()
     expect(screen.queryByText('You · Consult Alliance · Lia.')).toBeNull()
 
@@ -313,7 +430,7 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.getByText(/Weekend 1 · Day 1 · The story so far/)).toBeInTheDocument()
-    expect(screen.getByText(/You took time to connect with Kai/)).toBeInTheDocument()
+    expect(screen.getByText('You had a good conversation with Kai.')).toBeInTheDocument()
     expect(screen.queryByText(/captured the LOH crown/)).toBeNull()
   })
 
@@ -553,7 +670,7 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
-    expect(screen.getByText(/The Shield came to an end/)).toBeInTheDocument()
+    expect(screen.getByText('The Shield ended.')).toBeInTheDocument()
     expect(screen.queryByText('Kai dissolved The Shield.')).toBeNull()
     expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })

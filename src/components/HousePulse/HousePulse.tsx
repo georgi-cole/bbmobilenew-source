@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Player, PulseChronicle, WeekendInterludeState } from '../../types'
-import { composePulseChronicle, getPulseChronicleIdentity } from '../../social/pulseChronicle'
+import {
+  composePulseChronicle,
+  getPulseChronicleIdentity,
+  type ChronicleVoteResult,
+} from '../../social/pulseChronicle'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -37,7 +41,7 @@ interface HousePulseProps {
   gamePhase?: string
   pulseChronicles?: readonly PulseChronicle[]
   weekendInterlude?: WeekendInterludeState | null
-  weatherCondition?: string | null
+  voteResult?: ChronicleVoteResult | null
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
@@ -119,7 +123,7 @@ export default function HousePulse({
   gamePhase,
   pulseChronicles,
   weekendInterlude,
-  weatherCondition,
+  voteResult,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -291,11 +295,11 @@ export default function HousePulse({
       players,
       reality,
       actionHistory,
-      weather: weatherCondition,
       complete: gamePhase === 'week_end' && !activeWeekend,
       episode: episodeIdentity,
       actionHistoryAfterTimestamp,
       realityEventsAfterSequence,
+      voteResult,
     })
   }, [
     reality,
@@ -312,7 +316,7 @@ export default function HousePulse({
     humanId,
     players,
     actionHistory,
-    weatherCondition,
+    voteResult,
     gamePhase,
   ])
   const chronicleAllianceLinks = useMemo(() => {
@@ -324,10 +328,21 @@ export default function HousePulse({
       const allianceId = allianceForEvent(reality, event)
       if (allianceId) latestEventByAlliance.set(allianceId, event)
     }
-    return [...latestEventByAlliance.entries()].map(([allianceId, event]) => ({
+    const uniqueByName = new Map<
+      string,
+      { allianceId: string; eventId: string; name: string; sequence: number }
+    >()
+    for (const [allianceId, event] of latestEventByAlliance) {
+      const name = event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance'
+      const nameKey = name.trim().replace(/\s+/g, ' ').toLowerCase()
+      const current = uniqueByName.get(nameKey)
+      if (!current || event.sequence > current.sequence)
+        uniqueByName.set(nameKey, { allianceId, eventId: event.id, name, sequence: event.sequence })
+    }
+    return [...uniqueByName.values()].map(({ allianceId, eventId, name }) => ({
       allianceId,
-      eventId: event.id,
-      name: event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance',
+      eventId,
+      name,
     }))
   }, [dayChronicle, humanId, reality])
   const earlierChronicles = useMemo(
@@ -492,12 +507,6 @@ export default function HousePulse({
                           <p key={index}>{paragraph}</p>
                         ))}
                       </div>
-                      {dayChronicle.note && (
-                        <aside className="house-pulse__producer">
-                          <strong>Producer’s Note</strong>
-                          <p>{dayChronicle.note}</p>
-                        </aside>
-                      )}
                       {onOpenAlliances &&
                         chronicleAllianceLinks.map((link) => (
                           <button
@@ -537,12 +546,6 @@ export default function HousePulse({
                               <p key={index}>{paragraph}</p>
                             ))}
                           </div>
-                          {entry.note && (
-                            <aside className="house-pulse__producer">
-                              <strong>Producer’s Note</strong>
-                              <p>{entry.note}</p>
-                            </aside>
-                          )}
                         </article>
                       ))}
                     </details>

@@ -32,7 +32,6 @@ import GameBackButton from '../ui/GameBackButton/GameBackButton'
 import PlayerList from './PlayerList'
 import RecentActivity from './RecentActivity'
 import HousePulse from '../HousePulse/HousePulse'
-import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
 import { isFormerAllianceMember } from '../../social/reality/allianceHistory'
@@ -260,9 +259,15 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
-  const pulseWeather = useMemo(
-    () => resolveWeatherDay(game.gameId, game.week).condition,
-    [game.gameId, game.week]
+  const pulseVoteResult = useMemo(
+    () =>
+      game.phase === 'eviction_results' && game.voteResults
+        ? {
+            mode: game.voteResultsMode === 'public' ? ('audience' as const) : ('house' as const),
+            counts: game.voteResults,
+          }
+        : null,
+    [game.phase, game.voteResults, game.voteResultsMode]
   )
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
@@ -2098,7 +2103,7 @@ export default function SocialPanelV2() {
               gamePhase={game.phase}
               pulseChronicles={game.pulseChronicles}
               weekendInterlude={game.weekendInterlude}
-              weatherCondition={pulseWeather}
+              voteResult={pulseVoteResult}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}

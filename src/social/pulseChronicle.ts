@@ -10,11 +10,15 @@ export interface ChronicleInput {
   players: readonly Pick<Player, 'id' | 'name'>[]
   reality: RealityDomainState
   actionHistory: readonly SocialActionLogEntry[]
-  weather?: string | null
   complete?: boolean
   episode?: PulseChronicleIdentity
   actionHistoryAfterTimestamp?: number
   realityEventsAfterSequence?: number
+  voteResult?: ChronicleVoteResult | null
+}
+export interface ChronicleVoteResult {
+  mode: 'house' | 'audience'
+  counts: Readonly<Record<string, number>>
 }
 type Category = 'power' | 'nominations' | 'safety' | 'social' | 'eviction'
 interface StoryMoment {
@@ -27,6 +31,7 @@ interface StoryMoment {
   targetId?: string
   outcome?: 'success' | 'failure'
   eventType?: string
+  allianceId?: string
 }
 const phaseOrder: Record<string, number> = {
   week_start: 0,
@@ -41,29 +46,11 @@ const phaseOrder: Record<string, number> = {
   eviction_results: 9,
   week_end: 10,
 }
-const wetWeather = new Set([
-  'rainy',
-  'heavy_rain',
-  'drizzle',
-  'light_showers',
-  'sun_showers',
-  'stormy',
-])
-const descriptors: Record<string, string> = {
-  sunny: 'sunshine',
-  mostly_sunny: 'sunshine',
-  cloudy: 'clouds',
-  overcast: 'grey skies',
-  misty: 'mist',
-  foggy: 'fog',
-  snowy: 'snow',
-  snow_showers: 'snow',
-}
 const safeName = (name: string) =>
   name
     .replace(/[\r\n<>]/g, '')
     .trim()
-    .slice(0, 48) || 'a housemate'
+    .slice(0, 48) || 'a Hubmate'
 function hash(value: string): number {
   let result = 2166136261
   for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619)
@@ -127,85 +114,76 @@ const actionStoryKinds: Record<string, ActionStoryKind> = {
 }
 const actionStoryCopy: Record<ActionStoryKind, { success: string; failure: string }> = {
   bond: {
-    success: 'You took time to connect with {target}. A little goodwill can go a long way.',
-    failure: 'You tried to connect with {target}, but the moment did not quite land.',
+    success: 'You had a good conversation with {target}.',
+    failure: 'You tried to connect with {target}, but it did not go as hoped.',
   },
   romance: {
-    success: 'You made a romantic gesture toward {target}. The next move is theirs.',
-    failure: 'You tried to flirt with {target}, but the sparks did not catch.',
+    success: 'You made a romantic gesture toward {target}.',
+    failure: 'You tried to flirt with {target}, but they did not return the feeling.',
   },
   alliance: {
-    success: 'You put an alliance idea to {target}. Any agreement still has to survive the game.',
-    failure: '{target} was not persuaded by your alliance pitch.',
+    success: 'You pitched an alliance to {target}.',
+    failure: '{target} turned down your alliance pitch.',
   },
   consultation: {
-    success: 'You asked your alliance for a read on the next move. The decision is still yours.',
-    failure: 'Your attempt to get an alliance read did not produce a clear answer.',
+    success: 'You asked your alliance for advice on the next move.',
+    failure: 'Your alliance could not give you a clear answer.',
   },
   'private-intel': {
-    success:
-      'You shared private information with {target}. Trust may grow, but the secret is no longer yours alone.',
-    failure: 'You tried to share private information with {target}, but it did not build trust.',
+    success: 'You shared private information with {target}.',
+    failure: 'You tried to share private information with {target}, but they did not trust it.',
   },
   rumor: {
-    success:
-      'You passed a rumor about {subject} to {target}. A whisper can travel further than intended.',
-    failure: 'Your rumor about {subject} did not get the reaction you hoped for from {target}.',
+    success: 'You told {target} what you had heard about {subject}.',
+    failure: '{target} was not convinced by what you said about {subject}.',
   },
   intel: {
-    success: 'You spent time reading the room around {target}. What you learned may matter later.',
-    failure: 'You tried to learn more from {target}, but came away without a clear read.',
+    success: 'You got a better read on {target}.',
+    failure: 'You tried to get a read on {target}, but came away unsure.',
   },
   'intel-trade': {
-    success:
-      'You traded information with {target} to gain leverage. What you told them is now out of your hands.',
-    failure:
-      'Your attempt to trade information with {target} did not earn the leverage you wanted.',
+    success: 'You traded information with {target}.',
+    failure: 'Your information trade with {target} did not pay off.',
   },
   apology: {
-    success:
-      'You tried to make peace with {target}. Old wounds may take more than one conversation.',
-    failure: 'You tried to make peace with {target}, but the damage was not so easily forgotten.',
+    success: 'You apologized to {target}.',
+    failure: 'You apologized to {target}, but they were not ready to make peace.',
   },
   conflict: {
-    success: 'You challenged {target}, and the tension between you was out in the open.',
-    failure: 'Your confrontation with {target} did not go as planned. The tension remained.',
+    success: 'You confronted {target}.',
+    failure: 'You tried to confront {target}, but the conversation did not go your way.',
   },
   'protection-promise': {
-    success:
-      'You offered {target} protection if the chance comes. Now they know where your loyalties may lie.',
-    failure: '{target} was not convinced by your offer of protection.',
+    success: 'You promised to protect {target}.',
+    failure: '{target} turned down your offer of protection.',
   },
   'safety-request': {
-    success: 'You asked {target} to use Safety. The final call was theirs.',
-    failure: 'You asked {target} to use Safety, but they were not persuaded.',
+    success: 'You asked {target} to use Safety.',
+    failure: 'You asked {target} to use Safety, but they said no.',
   },
   'safety-hold-request': {
-    success: 'You asked {target} to leave the nominations unchanged. The final call was theirs.',
-    failure: '{target} was not persuaded to leave the nominations as they were.',
+    success: 'You asked {target} to leave the nominations unchanged.',
+    failure: '{target} did not agree to leave the nominations unchanged.',
   },
   'safety-intel': {
-    success:
-      'You asked {target} what they planned to do with Safety. The answer gave you a read, not a guarantee.',
-    failure: '{target} kept their Safety intentions close.',
+    success: 'You asked {target} what they planned to do with Safety.',
+    failure: '{target} kept their plans for Safety to themselves.',
   },
   warning: {
-    success:
-      'You warned {target} that they may be in danger. The warning could help them, or expose your hand.',
-    failure: 'Your warning did not land with {target}.',
+    success: 'You warned {target} they might be in danger.',
+    failure: '{target} did not take your warning seriously.',
   },
   'nomination-plan': {
-    success: 'You made your case to {target} about the nominations. The final call was theirs.',
+    success: 'You made your case to {target} about the nominations.',
     failure: '{target} was not convinced by your nomination pitch.',
   },
   'vote-plan': {
-    success:
-      'You tried to build support against {subject}. The votes would decide whether it held.',
-    failure: 'Your attempt to build support against {subject} did not take hold.',
+    success: 'You tried to build support to vote out {subject}.',
+    failure: 'You could not build enough support to vote out {subject}.',
   },
   favor: {
-    success: 'You asked {target} for a favor. Now the two of you know where you stand.',
-    failure: '{target} turned down your request. That answer may shape what comes next.',
+    success: 'You asked {target} for a favor.',
+    failure: '{target} turned down your request.',
   },
 }
 function describeAction(
@@ -219,6 +197,39 @@ function describeAction(
   return (action.outcome === 'success' ? copy.success : copy.failure)
     .replaceAll('{target}', subjectName(action.targetId))
     .replaceAll('{subject}', subjectName(action.subjectId ?? action.targetId))
+}
+
+function voteOutcome(
+  event: RealitySocialEvent,
+  name: (id: string | undefined) => string,
+  voteResult?: ChronicleVoteResult | null
+): string | undefined {
+  if (!voteResult || event.tags.includes('finale_choice')) return undefined
+  const entries = Object.entries(voteResult.counts)
+    .filter(([, count]) => Number.isFinite(count) && count >= 0)
+    .map(([id, count]) => ({ id, count }))
+    .sort((left, right) => right.count - left.count || left.id.localeCompare(right.id))
+  if (entries.length < 2) return undefined
+  const leaders = new Set(
+    entries.filter((entry) => entry.count === entries[0].count).map((entry) => entry.id)
+  )
+  if (!event.targetIds.some((id) => leaders.has(id))) return undefined
+
+  const formatCount = (count: number) =>
+    voteResult.mode === 'audience'
+      ? `${Number(count.toFixed(1))}%`
+      : `${count} ${count === 1 ? 'vote' : 'votes'}`
+  const details = entries.map((entry) =>
+    voteResult.mode === 'audience'
+      ? `${formatCount(entry.count)} of votes to evict ${name(entry.id)}`
+      : `${formatCount(entry.count)} to evict ${name(entry.id)}`
+  )
+
+  if (voteResult.mode === 'audience') return `The audience vote was ${details.join(', ')}`
+
+  const score = entries.map((entry) => entry.count).join('–')
+  const isTied = entries[0].count === entries[1].count
+  return `The vote ${isTied ? 'tied' : 'was'} ${score} (${details.join(', ')})`
 }
 export interface PulseChronicleWeekend {
   afterDay: number
@@ -248,7 +259,8 @@ function chronicleEvent(
   event: RealitySocialEvent,
   name: (id: string | undefined) => string,
   humanId: string,
-  seed: string
+  seed: string,
+  voteResult?: ChronicleVoteResult | null
 ): StoryMoment | null {
   const actor = event.actorId === humanId ? 'you' : name(event.actorId)
   const target = name(event.targetIds[0])
@@ -258,6 +270,8 @@ function chronicleEvent(
     sequence: (phaseOrder[event.phase] ?? 5) * 1000000 + event.sequence,
     actorId: event.actorId,
     targetId: event.targetIds[0],
+    eventType: event.type,
+    allianceId: event.allianceId ?? event.allianceSnapshot?.id,
   }
   switch (event.type) {
     case 'CEREMONY_POWER_WON':
@@ -268,20 +282,11 @@ function chronicleEvent(
           importance: 100,
           text:
             actor === 'you'
-              ? choose(
-                  [
-                    'You claimed the Leader of the Hub crown. Suddenly, everybody had a reason to be nice to you.',
-                    'The LOH title landed in your hands. Power looks good on you. Responsibility may be another matter.',
-                  ],
-                  seed
-                )
+              ? 'You won Leader of the Hub.'
               : choose(
                   [
-                    name(event.actorId) +
-                      ' captured the LOH crown, leaving the rest of the Hub to reconsider their plans.',
-                    'Power changed hands when ' +
-                      name(event.actorId) +
-                      ' won LOH. The real game was about to begin.',
+                    name(event.actorId) + ' won Leader of the Hub.',
+                    name(event.actorId) + ' won the LOH competition.',
                   ],
                   seed
                 ),
@@ -291,10 +296,7 @@ function chronicleEvent(
           ...base,
           category: 'power',
           importance: 95,
-          text:
-            actor === 'you'
-              ? 'You won immunity, buying yourself another day beyond the reach of the vote.'
-              : name(event.actorId) + ' earned immunity. One name the vote could not touch.',
+          text: actor === 'you' ? 'You won immunity.' : name(event.actorId) + ' won immunity.',
         }
       if (event.tags.includes('safety'))
         return {
@@ -303,9 +305,8 @@ function chronicleEvent(
           importance: 92,
           text:
             actor === 'you'
-              ? 'You won the Power of Safety. You could change someone’s fate, including your own.'
-              : name(event.actorId) +
-                ' won the Power of Safety, and the nominations were no longer set in stone.',
+              ? 'You won the Power of Safety.'
+              : name(event.actorId) + ' won the Power of Safety.',
         }
       return null
     case 'CEREMONY_NOMINATIONS_LOCKED': {
@@ -313,29 +314,43 @@ function chronicleEvent(
       const replacement =
         event.tags.includes('replacement_nominee') ||
         event.tags.includes('nomination_stage:REPLACEMENT')
-      const automatic = event.tags.some((tag) => tag.startsWith('automatic_nominee:'))
+      const automaticIds = new Set(
+        event.tags
+          .filter((tag) => tag.startsWith('automatic_nominee:'))
+          .map((tag) => tag.slice('automatic_nominee:'.length))
+      )
+      const automaticTargets = event.targetIds.filter((id) => automaticIds.has(id))
+      const selectedTargets = event.targetIds.filter((id) => !automaticIds.has(id))
+      const selectedNames = selectedTargets.map(name).join(' and ')
+      const automaticNames = automaticTargets.map(name).join(' and ')
+      const automaticCount = automaticTargets.length
+      const automaticLine = automaticCount
+        ? `${automaticNames} ${automaticCount === 1 ? 'was' : 'were'} automatically nominated.`
+        : ''
       return {
         ...base,
         category: 'nominations',
         importance: replacement ? 98 : 96,
         text: replacement
           ? event.actorId === humanId
-            ? 'You had to name ' +
-              targets +
-              ' as a replacement. Another difficult choice, another set of eyes on you.'
+            ? 'You named ' + targets + ' as the replacement nominee.'
             : actor === 'you'
-              ? 'The block shifted again, and ' + targets + ' landed in danger.'
-              : name(event.actorId) + ' put ' + targets + ' on the block as the replacement.'
+              ? targets + ' became the replacement nominee.'
+              : name(event.actorId) + ' named ' + targets + ' as the replacement nominee.'
           : event.tags.includes('secret_ballot')
-            ? 'The secret ballots landed ' + targets + ' on the block. The Hub had made its choice.'
-            : automatic || !event.actorId
-              ? targets + ' ended up on the block as the nominations became official.'
-              : event.actorId === humanId
-                ? 'You nominated ' + targets + '. The first real test of power had arrived.'
-                : name(event.actorId) +
-                  ' nominated ' +
-                  targets +
-                  '. Friendships suddenly felt rather fragile.',
+            ? targets + ' were voted onto the block.'
+            : [
+                selectedTargets.length
+                  ? !event.actorId
+                    ? `${selectedNames} were nominated.`
+                    : event.actorId === humanId
+                      ? `You nominated ${selectedNames}.`
+                      : `${name(event.actorId)} nominated ${selectedNames}.`
+                  : '',
+                automaticLine,
+              ]
+                .filter(Boolean)
+                .join(' '),
       }
     }
     case 'CEREMONY_SAFETY_USED':
@@ -347,18 +362,13 @@ function chronicleEvent(
         text:
           event.targetIds.length === 1 && event.targetIds[0] === event.actorId
             ? actor === 'you'
-              ? 'You used Safety to save yourself. Sometimes the smartest rescue is your own.'
-              : name(event.actorId) + ' used Safety to escape the block. One less reason to panic.'
+              ? 'You used Safety to save yourself.'
+              : name(event.actorId) + ' used Safety to save themselves.'
             : event.targetIds.length
               ? actor === 'you'
-                ? 'You used Safety to pull ' +
-                  targets +
-                  ' out of danger. Someone owes you a very good thank-you.'
-                : name(event.actorId) +
-                  ' used Safety to rescue ' +
-                  targets +
-                  '. The block was no longer what it seemed.'
-              : 'Safety changed the nominations, forcing everyone to rethink the vote.',
+                ? 'You used Safety to save ' + targets + '.'
+                : name(event.actorId) + ' used Safety to save ' + targets + '.'
+              : 'Safety was used, changing the nominations.',
       }
     case 'CEREMONY_SAFETY_DECLINED':
       if (event.tags.includes('safety_decision:partial')) return null
@@ -368,48 +378,69 @@ function chronicleEvent(
         importance: 65,
         text:
           actor === 'you'
-            ? 'You chose not to use Safety. Sometimes doing nothing is the loudest decision.'
-            : name(event.actorId) + ' kept the Power of Safety unused. The block stayed put.',
+            ? 'You chose not to use Safety; the nominations stayed the same.'
+            : name(event.actorId) + ' left Safety unused; the nominations stayed the same.',
       }
-    case 'CEREMONY_EVICTION':
+    case 'CEREMONY_EVICTION': {
       if (!event.targetIds.length) return null
+      const tally = voteOutcome(event, name, voteResult)
       return {
         ...base,
         category: 'eviction',
         importance: 120,
         text: event.targetIds.includes(humanId)
-          ? 'You were eliminated from the Hub. The game moved on without you.'
+          ? `You were eliminated from the Hub.${tally ? ` ${tally}.` : ''}`
           : event.tags.includes('administrative_removal')
-            ? target +
-              ' was removed from the competition by the Big Eye. An unexpected and abrupt goodbye.'
+            ? target + ' was removed from the competition by the Big Eye.'
             : event.tags.includes('self_eviction')
-              ? target + ' decided their Hub journey was over and left on their own terms.'
-              : event.tags.includes('public_vote')
-                ? 'The audience had the final word, and ' +
-                  target +
-                  ' was eliminated. A dream ended under the brightest lights.'
-                : event.tags.includes('finale_choice')
-                  ? 'The Final LOH chose ' +
-                    target +
-                    ' to leave, setting the stage for the Final Two.'
-                  : choose(
-                      [
-                        target +
-                          ' was voted out of the Hub. One fewer housemate, and plenty more unfinished business.',
-                        'The votes were in, and ' +
-                          target +
-                          ' was sent packing. The Hub does not wait for anyone.',
-                      ],
-                      seed
-                    ),
+              ? target + ' chose to leave the Hub.'
+              : event.tags.includes('finale_choice')
+                ? 'The Final LOH chose ' + target + ' to leave.'
+                : (() => {
+                    const departed = event.targetIds.map(name).join(' and ')
+                    if (event.tags.includes('public_vote')) {
+                      const audienceTally =
+                        voteResult?.mode === 'audience' && tally
+                          ? ` (${tally.replace(/^The audience vote was /, '')})`
+                          : ''
+                      return `The audience vote sent ${departed} home${audienceTally}.`
+                    }
+                    const verb = event.targetIds.length === 1 ? 'was' : 'were'
+                    const departure =
+                      event.targetIds.length === 1
+                        ? `${departed} was eliminated.`
+                        : `${departed} were eliminated.`
+                    return tally
+                      ? `${departure} ${tally}.`
+                      : `${departed} ${verb} voted out of the Hub.`
+                  })(),
       }
+    }
     case 'ALLIANCE_FORMED':
       if (!event.participantIds.includes(humanId) && event.actorId !== humanId) return null
-      return {
-        ...base,
-        category: 'social',
-        importance: 88,
-        text: 'A new alliance entered your story. Promises have been made; keeping them may be the harder part.',
+      {
+        const allianceName = safeName(
+          event.allianceSnapshot?.name ??
+            (event.allianceSnapshot?.kind === 'PACT' ? 'a pact' : 'an alliance')
+        )
+        const otherMembers = event.participantIds
+          .filter((id) => id !== event.actorId && id !== humanId)
+          .map(name)
+        const company = [humanId === event.actorId ? '' : 'you', ...otherMembers]
+          .filter(Boolean)
+          .join(' and ')
+        const formedWith = company ? ` with ${company}` : ''
+        return {
+          ...base,
+          category: 'social',
+          importance: 88,
+          text:
+            event.actorId === humanId
+              ? `You formed ${allianceName}${
+                  otherMembers.length ? ` with ${otherMembers.join(' and ')}` : ''
+                }.`
+              : `${name(event.actorId)} formed ${allianceName}${formedWith}.`,
+        }
       }
     case 'ALLIANCE_MEMBER_RECRUITED':
       if (!event.participantIds.includes(humanId)) return null
@@ -417,8 +448,7 @@ function chronicleEvent(
         ...base,
         category: 'social',
         importance: 68,
-        text:
-          target + ' joined an alliance you know. The circle is growing, and so are the stakes.',
+        text: `${event.targetIds[0] === humanId ? 'You' : target} joined ${safeName(event.allianceSnapshot?.name ?? 'your alliance')}.`,
       }
     case 'ALLIANCE_BETRAYAL':
     case 'ALLIANCE_MEMBER_DEFECTED':
@@ -427,7 +457,10 @@ function chronicleEvent(
         ...base,
         category: 'social',
         importance: 105,
-        text: 'Trouble reached an alliance close to you. In the Hub, loyalty can have a very short shelf life.',
+        text:
+          event.type === 'ALLIANCE_MEMBER_DEFECTED'
+            ? `${event.targetIds[0] === humanId ? 'You' : target} left ${safeName(event.allianceSnapshot?.name ?? 'your alliance')}.`
+            : `${event.actorId === humanId ? 'You' : name(event.actorId)} betrayed ${event.targetIds[0] === humanId ? 'you' : target} in ${safeName(event.allianceSnapshot?.name ?? 'your alliance')}.`,
       }
     case 'ALLIANCE_ENDED':
     case 'ALLIANCE_DISSOLVED':
@@ -436,25 +469,19 @@ function chronicleEvent(
         ...base,
         category: 'social',
         importance: 90,
-        text:
-          safeName(event.allianceSnapshot?.name ?? 'An alliance') +
-          ' came to an end. Even strong partnerships have an expiry date in the Hub.',
+        text: safeName(event.allianceSnapshot?.name ?? 'Your alliance') + ' ended.',
       }
     case 'ALLIANCE_REQUEST_ACCEPTED':
-      if (!event.participantIds.includes(humanId)) return null
-      return {
-        ...base,
-        category: 'social',
-        importance: 72,
-        text: 'A new alliance request was accepted. A quiet agreement today could change tomorrow’s vote.',
-      }
+      // Approval is not the same as membership; the confirmed formation or
+      // recruitment event carries the user-facing outcome when it happens.
+      return null
     case 'ALLIANCE_STRATEGY_MEETING':
       if (!event.participantIds.includes(humanId)) return null
       return {
         ...base,
         category: 'social',
         importance: 35,
-        text: 'You and your allies compared plans behind the scenes. The conversation may matter when the next decision arrives.',
+        text: 'You and your allies discussed the next move.',
       }
     default:
       return null
@@ -462,19 +489,21 @@ function chronicleEvent(
 }
 function headline(moments: StoryMoment[], seed: string): string {
   const has = (category: Category) => moments.some((moment) => moment.category === category)
-  if (has('eviction') && has('safety'))
-    return choose(['Power, Panic & a Final Goodbye', 'Safety, Schemes & a Sudden Exit'], seed)
-  if (has('eviction'))
-    return choose(
-      ['A Day of Deals and Goodbyes', 'One Less Housemate, More Unfinished Business'],
-      seed
+  const safetyUsed = moments.some((moment) => moment.eventType === 'CEREMONY_SAFETY_USED')
+  if (has('eviction') && safetyUsed)
+    return choose(['Safety Changed the Block', 'A Save and a Goodbye'], seed)
+  if (has('eviction')) return 'A Goodbye in the Hub'
+  if (has('nominations')) return choose(['The Nominations Are Set', 'The Block Took Shape'], seed)
+  if (has('power')) {
+    const leadershipChanged = moments.some(
+      (moment) =>
+        moment.eventType === 'CEREMONY_POWER_WON' &&
+        (moment.text.includes('Leader of the Hub') || moment.text.includes('LOH competition'))
     )
-  if (has('nominations'))
-    return choose(['The Block Is Open for Business', 'Big Decisions, Bigger Consequences'], seed)
-  if (has('power'))
-    return choose(['The Crown Changes Everything', 'Power Has Entered the Chat'], seed)
+    return leadershipChanged ? 'A New Leader in the Hub' : 'Immunity Is in Play'
+  }
   if (has('social'))
-    return choose(['Whispers in the Hub', 'Friends, Favors & Question Marks'], seed)
+    return choose(['A Conversation Could Change Things', 'Alliances and Open Questions'], seed)
   return 'The Story Is Still Unfolding'
 }
 /** Pure, bounded, deterministic storytelling. Never invents events or reads undiscovered secrets. */
@@ -483,7 +512,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const seed = input.episode ? daySeed + ':' + input.episode.key : daySeed
   const byId = new Map(input.players.map((player) => [player.id, safeName(player.name)]))
   const name = (id: string | undefined) =>
-    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'a housemate')) : 'a housemate'
+    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'a Hubmate')) : 'a Hubmate'
   const eventSources = [
     ...visibleRealityEvents(input.reality, { actorId: input.humanId }),
     ...Object.values(input.reality.alliances).flatMap((alliance) => alliance.history ?? []),
@@ -500,7 +529,9 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     )
     .sort((a, b) => a.sequence - b.sequence)
   const moments = events
-    .map((event) => chronicleEvent(event, name, input.humanId, seed + ':' + event.id))
+    .map((event) =>
+      chronicleEvent(event, name, input.humanId, seed + ':' + event.id, input.voteResult)
+    )
     .filter((moment): moment is StoryMoment => moment !== null)
   const actionMoments = input.actionHistory
     .filter(
@@ -527,12 +558,17 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
       }
     })
     .filter((moment): moment is NonNullable<typeof moment> => moment !== null)
+  const actionById = new Map(
+    input.actionHistory
+      .filter((action): action is typeof action & { id: string } => Boolean(action.id))
+      .map((action) => [action.id, action])
+  )
   const allianceOutcomes = events.filter((event) =>
-    ['ALLIANCE_FORMED', 'ALLIANCE_REQUEST_ACCEPTED'].includes(event.type)
+    ['ALLIANCE_FORMED', 'ALLIANCE_MEMBER_RECRUITED'].includes(event.type)
   )
   const strategyMeetings = events.filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
   const distinctActionMoments = actionMoments.filter((moment) => {
-    const action = input.actionHistory.find((entry) => entry.id === moment.id)
+    const action = actionById.get(moment.id)
     if (!action) return true
     if (
       ['proposeAlliance', 'ally'].includes(action.actionId) &&
@@ -555,25 +591,19 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     return true
   })
   moments.push(...distinctActionMoments)
-  for (const event of events) {
-    if (event.type !== 'ALLIANCE_REQUEST_ACCEPTED') continue
-    const superseded = events.some(
-      (candidate) =>
-        candidate.type === 'ALLIANCE_FORMED' &&
-        candidate.day === event.day &&
-        candidate.allianceId === event.allianceId
-    )
-    if (superseded) {
-      const index = moments.findIndex((moment) => moment.id === event.id)
-      if (index >= 0) moments.splice(index, 1)
-    }
-  }
   // Favour big beats while preserving the actual ceremony order in the final story.
   const unique = new Map<string, StoryMoment>()
   for (const moment of moments) {
     const signature =
-      moment.category + ':' + moment.actorId + ':' + moment.targetId + ':' + moment.id
-    if (!unique.has(signature)) unique.set(signature, moment)
+      moment.eventType === 'ALLIANCE_FORMED' && moment.allianceId
+        ? `alliance-formation:${moment.allianceId}`
+        : moment.category + ':' + moment.text.trim().replace(/\s+/g, ' ').toLowerCase()
+    const current = unique.get(signature)
+    if (
+      !current ||
+      (moment.eventType === 'ALLIANCE_FORMED' && moment.targetId && !current.targetId)
+    )
+      unique.set(signature, moment)
   }
   const all = [...unique.values()]
   const priorityScore = (moment: StoryMoment) =>
@@ -596,81 +626,15 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const featured = [...ceremonyHighlights, ...personalHighlights].sort(
     (a, b) => a.sequence - b.sequence
   )
-  const known = featured.length > 0
-  let introduction = ''
-  if (known && input.weather && wetWeather.has(input.weather))
-    introduction = choose(
-      [
-        'The rain came down, but the real storm was brewing inside the Hub.',
-        'It was wet outside. Inside, the forecast called for drama.',
-      ],
-      seed
-    )
-  else if (known && input.weather && descriptors[input.weather])
-    introduction =
-      'The day opened under ' +
-      descriptors[input.weather] +
-      ', and the Hub had its own weather to contend with.'
-  else if (known)
-    introduction = choose(
-      [
-        'Another day in the Hub, and peace was apparently not on the schedule.',
-        'The cameras were rolling, and the housemates wasted little time giving them something to watch.',
-      ],
-      seed
-    )
-  const paragraphs: string[] = []
-  if (introduction) paragraphs.push(introduction)
-  const group: StoryMoment[][] = []
-  for (const moment of featured) {
-    const latest = group[group.length - 1]
-    if (latest && latest.length < 2 && latest[0].category === moment.category) latest.push(moment)
-    else group.push([moment])
-  }
-  paragraphs.push(...group.map((section) => section.map((beat) => beat.text).join(' ')))
-  let note = ''
-  const personals = all.filter(
-    (moment) => moment.category === 'social' && moment.actorId === input.humanId
-  )
-  const exits = all.filter((moment) => moment.category === 'eviction')
-  if (exits.some((moment) => moment.targetId === input.humanId))
-    note =
-      'You were eliminated from the game today. Take a moment to regroup before deciding what comes next.'
-  else if (
-    personals.some((moment) => moment.outcome === 'failure') &&
-    personals.some((moment) => moment.outcome === 'success')
-  ) {
-    const failed = personals.find((moment) => moment.outcome === 'failure')
-    const succeeded = personals.find((moment) => moment.outcome === 'success')
-    note =
-      'Your move involving ' +
-      name(failed?.targetId) +
-      ' fell flat, while things went better with ' +
-      name(succeeded?.targetId) +
-      '. The Hub rarely gives every plan the same welcome.'
-  } else if (personals.length >= 2)
-    note =
-      'You have been busy working on your place in the Hub. The results of those efforts may matter tomorrow.'
-  else if (
-    all.some((moment) => moment.category === 'nominations' && moment.actorId === input.humanId)
-  )
-    note = 'You held the power today. Now comes the tricky part: living with the choices you made.'
-  else if (all.some((moment) => moment.category === 'safety' && moment.actorId === input.humanId))
-    note = 'You had a hand in someone’s fate today. That kind of moment tends to be remembered.'
-  else if (exits.length)
-    note = 'Another face is gone, and the remaining players have one fewer place to hide.'
-  else if (featured.length)
-    note = 'The pieces are moving. Which of today’s choices will matter most tomorrow?'
+  const paragraphs = featured.map((moment) => moment.text)
   return {
     season: input.season,
     day: input.day,
     episodeKey: input.episode?.key ?? `day:${input.day}`,
     episodeLabel: input.episode?.label ?? `Day ${input.day}`,
     title: headline(featured, seed + ':headline'),
-    paragraphs: paragraphs.length
-      ? paragraphs
-      : ['Not much has reached your radar yet. Even the cameras need a quiet moment sometimes.'],
-    note,
+    paragraphs: paragraphs.length ? paragraphs : ['No major developments reached you today.'],
+    note: '',
     sourceEventIds: featured.map((beat) => beat.id),
     complete: input.complete === true,
   }
