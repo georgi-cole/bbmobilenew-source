@@ -424,7 +424,7 @@ describe('HousePulse', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
     expect(screen.getByText('The Hub Chronicles')).toBeInTheDocument()
-    expect(screen.getByText(/The Shield alliance came to an end/)).toBeInTheDocument()
+    expect(screen.getByText(/The Shield came to an end/)).toBeInTheDocument()
     expect(screen.queryByText('Kai dissolved The Shield.')).toBeNull()
     expect(screen.queryByRole('button', { name: 'View alliance history' })).toBeNull()
   })
