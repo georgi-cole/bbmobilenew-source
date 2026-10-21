@@ -5416,12 +5416,19 @@ const gameSlice = createSlice({
       const chronicle = action.payload
       if (!chronicle.complete || chronicle.season !== state.season) return
       const episodes = state.pulseChronicles ?? []
-      // Keep the first final script stable and bound save growth to a season-sized archive.
+      const episodeKey = chronicle.episodeKey ?? `day:${chronicle.day}`
+      // Keep each final script stable while allowing a numbered day and its weekend episodes to coexist.
       if (
-        episodes.some((entry) => entry.day === chronicle.day && entry.season === chronicle.season)
+        episodes.some(
+          (entry) =>
+            entry.season === chronicle.season &&
+            (entry.episodeKey ?? `day:${entry.day}`) === episodeKey
+        )
       )
         return
-      state.pulseChronicles = [...episodes, chronicle].sort((a, b) => a.day - b.day).slice(-60)
+      state.pulseChronicles = [...episodes, { ...chronicle, episodeKey }]
+        .sort((a, b) => a.day - b.day || (a.episodeLabel ?? '').localeCompare(b.episodeLabel ?? ''))
+        .slice(-90)
     },
     setPhase(state, action: PayloadAction<Phase>) {
       state.phase = action.payload

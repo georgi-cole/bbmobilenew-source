@@ -902,6 +902,13 @@ export interface WeekendInterludeState {
 export interface PulseChronicle {
   season: number
   day: number
+  /** Stable within a season; weekdays and weekend days can share a game day. */
+  episodeKey?: string
+  episodeLabel?: string
+  /** Latest social-action timestamp included when this episode was finalized. */
+  capturedThroughTimestamp?: number
+  /** Latest Reality event sequence included when this episode was finalized. */
+  capturedThroughRealitySequence?: number
   title: string
   paragraphs: string[]
   note: string

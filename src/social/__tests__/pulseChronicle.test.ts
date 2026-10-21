@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { appendRealityEvent, createInitialRealityDomainState } from '../reality'
+import {
+  appendRealityEvent,
+  createInitialRealityDomainState,
+  createRealityAlliance,
+} from '../reality'
 import type { RealitySocialEvent } from '../reality/types'
 import type { SocialActionLogEntry } from '../types'
-import { composePulseChronicle } from '../pulseChronicle'
+import { composePulseChronicle, getPulseChronicleIdentity } from '../pulseChronicle'
 
 const roster = [
   { id: 'human', name: 'Player' },
@@ -113,7 +117,7 @@ describe('The Hub Chronicles', () => {
       },
       {
         id: 'pact',
-        actionId: 'propose_pact',
+        actionId: 'proposeAlliance',
         actorId: 'human',
         targetId: 'alex',
         outcome: 'success',
@@ -156,6 +160,199 @@ describe('The Hub Chronicles', () => {
     reality.events.push(first)
     const chapter = composePulseChronicle(base)
     expect(chapter.sourceEventIds).toHaveLength(1)
+  })
+
+  it('uses action-specific copy for rumors and strategic asks', () => {
+    const { base } = setup()
+    const actionHistory = [
+      {
+        id: 'rumor',
+        actionId: 'rumor',
+        actorId: 'human',
+        targetId: 'alex',
+        subjectId: 'maya',
+        outcome: 'success',
+        source: 'manual',
+        week: 2,
+        phase: 'social_1',
+        timestamp: 1,
+        cost: 1,
+        delta: 1,
+        newEnergy: 3,
+      },
+      {
+        id: 'safety-plan',
+        actionId: 'ask_use_safety',
+        actorId: 'human',
+        targetId: 'zara',
+        outcome: 'success',
+        source: 'manual',
+        week: 2,
+        phase: 'social_2',
+        timestamp: 2,
+        cost: 1,
+        delta: 1,
+        newEnergy: 2,
+      },
+    ] as SocialActionLogEntry[]
+    const text = composePulseChronicle({ ...base, actionHistory }).paragraphs.join(' ')
+    expect(text).toContain('rumor about Maya to Alex')
+    expect(text).toContain('You asked Zara to use Safety')
+    expect(text).not.toContain('reading the room')
+  })
+
+  it('keeps private intel, information trades, and Safety promises distinct', () => {
+    const { base } = setup()
+    const narrate = (actionId: string) =>
+      composePulseChronicle({
+        ...base,
+        actionHistory: [
+          {
+            actionId,
+            actorId: 'human',
+            targetId: 'maya',
+            outcome: 'success',
+            source: 'manual',
+            week: 2,
+            timestamp: 1,
+            cost: 1,
+            delta: 1,
+            newEnergy: 3,
+          },
+        ],
+      }).paragraphs.join(' ')
+
+    expect(narrate('whisper')).toContain('shared private information')
+    expect(narrate('whisper')).not.toContain('rumor')
+    expect(narrate('share_intel')).toContain('traded information')
+    expect(narrate('share_intel')).not.toContain('reading the room')
+    expect(narrate('protect')).toContain('offered Maya protection')
+    expect(narrate('ask_safety_plan')).toContain('what they planned to do with Safety')
+    expect(narrate('ask_hold_safety')).toContain('asked Maya to leave the nominations unchanged')
+  })
+
+  it('keeps the player’s own move in a crowded story while preserving the eviction', () => {
+    const { base, event } = setup()
+    for (let index = 0; index < 7; index += 1)
+      event('ALLIANCE_BETRAYAL', 'human', ['player-' + index], [], 'CEREMONY_PUBLIC')
+    const eviction = event('CEREMONY_EVICTION', undefined, ['maya'])
+    const actionHistory = [
+      {
+        id: 'my-move',
+        actionId: 'compliment',
+        actorId: 'human',
+        targetId: 'zara',
+        outcome: 'success',
+        source: 'manual',
+        week: 2,
+        phase: 'social_2',
+        timestamp: 100,
+        cost: 1,
+        delta: 1,
+        newEnergy: 3,
+      },
+    ] as SocialActionLogEntry[]
+    const chronicle = composePulseChronicle({ ...base, actionHistory })
+    expect(chronicle.sourceEventIds).toContain('my-move')
+    expect(chronicle.sourceEventIds).toContain(eviction.id)
+    expect(chronicle.sourceEventIds.length).toBeLessThanOrEqual(8)
+  })
+
+  it('separates weekend episodes from the numbered day and carries an action cutoff', () => {
+    const { base } = setup()
+    const actionHistory = [
+      {
+        id: 'day-action',
+        actionId: 'compliment',
+        actorId: 'human',
+        targetId: 'alex',
+        outcome: 'success',
+        source: 'manual',
+        week: 2,
+        phase: 'week_end',
+        timestamp: 100,
+        cost: 1,
+        delta: 1,
+        newEnergy: 3,
+      },
+      {
+        id: 'weekend-action',
+        actionId: 'reassure',
+        actorId: 'human',
+        targetId: 'maya',
+        outcome: 'success',
+        source: 'manual',
+        week: 2,
+        phase: 'week_end',
+        timestamp: 200,
+        cost: 1,
+        delta: 1,
+        newEnergy: 2,
+      },
+    ] as SocialActionLogEntry[]
+    const weekend = { afterDay: 2, weekendNumber: 1, weekendDay: 1 }
+    const episode = getPulseChronicleIdentity(2, weekend)
+    const chronicle = composePulseChronicle({
+      ...base,
+      actionHistory,
+      episode,
+      actionHistoryAfterTimestamp: 100,
+    })
+    expect(episode.key).toBe('weekend:1:2:1')
+    expect(chronicle.episodeKey).toBe(episode.key)
+    expect(chronicle.sourceEventIds).toEqual(['weekend-action'])
+  })
+
+  it('reads retained alliance milestones after the rolling event window advances', () => {
+    const { base } = setup()
+    const reality = createInitialRealityDomainState()
+    const alliance = createRealityAlliance(reality, {
+      id: 'persistent-alliance',
+      founderIds: ['human', 'alex'],
+      memberIds: [],
+      purpose: 'Work together',
+      at: { day: 2, phase: 'social_1' },
+    })
+    appendRealityEvent(reality, {
+      day: 2,
+      phase: 'social_1',
+      type: 'ALLIANCE_FORMED',
+      actorId: 'human',
+      targetIds: ['alex'],
+      participantIds: ['human', 'alex'],
+      witnessIds: ['human'],
+      visibility: 'HOUSE_PUBLIC',
+      allianceId: alliance.id,
+      outcome: 'SYSTEM',
+      reason: 'Formation',
+      tags: [],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: true,
+      juryEligible: true,
+    })
+    for (let index = 0; index < 510; index += 1)
+      appendRealityEvent(reality, {
+        day: 2,
+        phase: 'social_1',
+        type: 'SOCIAL_INTERACTION_RESOLVED',
+        actorId: 'alex',
+        targetIds: ['maya'],
+        participantIds: ['alex', 'maya'],
+        witnessIds: [],
+        visibility: 'PRIVATE',
+        outcome: 'SYSTEM',
+        reason: 'Rolling event',
+        tags: [],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: false,
+        juryEligible: false,
+      })
+    const chronicle = composePulseChronicle({ ...base, reality })
+    expect(chronicle.paragraphs.join(' ')).toContain('A new alliance entered your story')
   })
 
   it('does not pull future or prior-day actions into the current episode', () => {

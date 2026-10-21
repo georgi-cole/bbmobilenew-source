@@ -236,6 +236,134 @@ describe('HousePulse', () => {
     expect(screen.getByText(/Kai left the Hub/)).toBeInTheDocument()
   })
 
+  it('shows the active weekend chapter without replaying the numbered day', () => {
+    const reality = createInitialRealityDomainState()
+    appendRealityEvent(reality, {
+      day: 2,
+      phase: 'loh_results',
+      type: 'CEREMONY_POWER_WON',
+      actorId: 'lia',
+      targetIds: [],
+      participantIds: ['lia'],
+      witnessIds: ['human', 'lia', 'kai'],
+      visibility: 'CEREMONY_PUBLIC',
+      outcome: 'SYSTEM',
+      reason: 'Weekday competition result',
+      tags: ['loh'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: true,
+      juryEligible: true,
+    })
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[
+          {
+            id: 'weekend-action',
+            actionId: 'compliment',
+            actorId: 'human',
+            targetId: 'kai',
+            outcome: 'success',
+            source: 'manual',
+            week: 2,
+            timestamp: 200,
+            cost: 1,
+            delta: 1,
+            newEnergy: 3,
+          },
+        ]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        season={1}
+        gameId="weekend-active"
+        gamePhase="week_end"
+        reality={reality}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 2,
+            episodeKey: 'day:2',
+            episodeLabel: 'Day 2',
+            capturedThroughTimestamp: 100,
+            capturedThroughRealitySequence: 0,
+            title: 'Weekday episode',
+            paragraphs: [],
+            note: '',
+            sourceEventIds: [],
+            complete: true,
+          },
+        ]}
+        weekendInterlude={{
+          active: true,
+          afterDay: 2,
+          weekendNumber: 1,
+          weekendDay: 1,
+          episode: 'hub_says',
+          stage: 'social',
+          wallet: { energy: 10, influence: 0, info: 0 },
+        }}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByText(/Weekend 1 · Day 1 · The story so far/)).toBeInTheDocument()
+    expect(screen.getByText(/You took time to connect with Kai/)).toBeInTheDocument()
+    expect(screen.queryByText(/captured the LOH crown/)).toBeNull()
+  })
+
+  it('prefers a later Final Three episode over the finale weekend archive', () => {
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={14}
+        season={1}
+        reality={createInitialRealityDomainState()}
+        pulseChronicles={[
+          {
+            season: 1,
+            day: 14,
+            episodeKey: 'weekend:3:14:2',
+            episodeLabel: 'Finale weekend · Day 2',
+            capturedThroughRealitySequence: 2,
+            title: 'The Finale Weekend',
+            paragraphs: ['The Tribunal gathered.'],
+            note: '',
+            sourceEventIds: ['weekend-event'],
+            complete: true,
+          },
+          {
+            season: 1,
+            day: 14,
+            episodeKey: 'day:14',
+            episodeLabel: 'Day 14',
+            capturedThroughRealitySequence: 3,
+            title: 'The Final Two',
+            paragraphs: ['The Final LOH chose Lia to leave.'],
+            note: '',
+            sourceEventIds: ['final-three-eviction'],
+            complete: true,
+          },
+        ]}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+    expect(screen.getByText(/Day 14 · Episode complete/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'The Final Two' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/Previous episodes · 1/))
+    expect(screen.getByRole('heading', { name: 'The Finale Weekend' })).toBeInTheDocument()
+  })
+
   it('responds to the Reality Social tutorial navigation events', () => {
     render(
       <HousePulse

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Player, PulseChronicle } from '../../types'
-import { composePulseChronicle } from '../../social/pulseChronicle'
+import type { Player, PulseChronicle, WeekendInterludeState } from '../../types'
+import { composePulseChronicle, getPulseChronicleIdentity } from '../../social/pulseChronicle'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -32,6 +32,7 @@ interface HousePulseProps {
   gameId?: string
   gamePhase?: string
   pulseChronicles?: readonly PulseChronicle[]
+  weekendInterlude?: WeekendInterludeState | null
   weatherCondition?: string | null
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
@@ -39,6 +40,8 @@ interface HousePulseProps {
   onOpenIncoming?: () => void
   onOpenAlliances?: (allianceId?: string, eventId?: string) => void
 }
+
+const EMPTY_PULSE_CHRONICLES: readonly PulseChronicle[] = []
 
 const RUMOUR_LABEL: Record<string, string> = {
   secret_alliance: 'Secret pact',
@@ -110,7 +113,8 @@ export default function HousePulse({
   season = 1,
   gameId = 'legacy',
   gamePhase,
-  pulseChronicles = [],
+  pulseChronicles,
+  weekendInterlude,
   weatherCondition,
   reality,
   socialCommitments = [],
@@ -215,39 +219,116 @@ export default function HousePulse({
       weekStartRelSnapshot,
     ]
   )
-  const dayChronicle = useMemo(
-    () =>
-      reality
-        ? (pulseChronicles.find((entry) => entry.season === season && entry.day === currentWeek) ??
-          composePulseChronicle({
-            gameId,
-            season,
-            day: currentWeek,
-            humanId,
-            players,
-            reality,
-            actionHistory,
-            weather: weatherCondition,
-            complete: gamePhase === 'week_end',
-          }))
-        : null,
-    [
-      reality,
-      pulseChronicles,
-      season,
-      currentWeek,
-      gameId,
-      humanId,
-      players,
-      actionHistory,
-      weatherCondition,
-      gamePhase,
-    ]
+  const savedChronicles = pulseChronicles ?? EMPTY_PULSE_CHRONICLES
+  const activeWeekend =
+    weekendInterlude?.active && !weekendInterlude.debug ? weekendInterlude : null
+  const dailyIdentity = useMemo(() => getPulseChronicleIdentity(currentWeek), [currentWeek])
+  const liveIdentity = useMemo(
+    () => getPulseChronicleIdentity(currentWeek, activeWeekend),
+    [currentWeek, activeWeekend]
   )
-  const earlierChronicles = pulseChronicles
-    .filter((entry) => entry.season === season && entry.day < currentWeek)
-    .slice()
-    .sort((left, right) => right.day - left.day)
+  const latestCompletedEpisodeToday = useMemo(
+    () =>
+      !activeWeekend
+        ? [...savedChronicles]
+            .filter((entry) => entry.season === season && entry.day === currentWeek)
+            .sort(
+              (left, right) =>
+                (left.capturedThroughRealitySequence ?? -1) -
+                  (right.capturedThroughRealitySequence ?? -1) ||
+                (left.capturedThroughTimestamp ?? 0) - (right.capturedThroughTimestamp ?? 0)
+            )
+            .at(-1)
+        : undefined,
+    [activeWeekend, savedChronicles, season, currentWeek]
+  )
+  const episodeIdentity = useMemo(
+    () =>
+      activeWeekend
+        ? liveIdentity
+        : latestCompletedEpisodeToday?.episodeKey
+          ? {
+              key: latestCompletedEpisodeToday.episodeKey,
+              label:
+                latestCompletedEpisodeToday.episodeLabel ??
+                `Day ${latestCompletedEpisodeToday.day}`,
+            }
+          : dailyIdentity,
+    [activeWeekend, liveIdentity, latestCompletedEpisodeToday, dailyIdentity]
+  )
+  const earlierEpisodesToday = savedChronicles
+    .filter((entry) => entry.season === season && entry.day === currentWeek)
+    .sort(
+      (left, right) => (left.capturedThroughTimestamp ?? 0) - (right.capturedThroughTimestamp ?? 0)
+    )
+  const priorEpisodes = earlierEpisodesToday.filter(
+    (entry) => (entry.episodeKey ?? `day:${entry.day}`) !== episodeIdentity.key
+  )
+  const actionHistoryAfterTimestamp = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughTimestamp ?? 0),
+    0
+  )
+  const realityEventsAfterSequence = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughRealitySequence ?? -1),
+    -1
+  )
+  const dayChronicle = useMemo(() => {
+    if (!reality) return null
+    return (
+      savedChronicles.find(
+        (entry) =>
+          entry.season === season &&
+          (entry.episodeKey ?? `day:${entry.day}`) === episodeIdentity.key
+      ) ??
+      composePulseChronicle({
+        gameId,
+        season,
+        day: currentWeek,
+        humanId,
+        players,
+        reality,
+        actionHistory,
+        weather: weatherCondition,
+        complete: gamePhase === 'week_end' && !activeWeekend,
+        episode: episodeIdentity,
+        actionHistoryAfterTimestamp,
+        realityEventsAfterSequence,
+      })
+    )
+  }, [
+    reality,
+    savedChronicles,
+    activeWeekend,
+    episodeIdentity,
+    actionHistoryAfterTimestamp,
+    realityEventsAfterSequence,
+    season,
+    currentWeek,
+    gameId,
+    humanId,
+    players,
+    actionHistory,
+    weatherCondition,
+    gamePhase,
+  ])
+  const earlierChronicles = useMemo(
+    () =>
+      savedChronicles
+        .filter(
+          (entry) =>
+            entry.season === season &&
+            (entry.day < currentWeek ||
+              (entry.day === currentWeek &&
+                (entry.episodeKey ?? `day:${entry.day}`) !== episodeIdentity.key))
+        )
+        .slice()
+        .sort(
+          (left, right) =>
+            right.day - left.day ||
+            (right.capturedThroughTimestamp ?? 0) - (left.capturedThroughTimestamp ?? 0)
+        ),
+    [savedChronicles, season, currentWeek, episodeIdentity.key]
+  )
   const todayBeats = reality ? [] : storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
@@ -382,7 +463,7 @@ export default function HousePulse({
                       <div className="house-pulse__chronicle-eyebrow">
                         <span>The Hub Chronicles</span>
                         <span>
-                          Day {dayChronicle.day} ·{' '}
+                          {dayChronicle.episodeLabel ?? `Day ${dayChronicle.day}`} ·{' '}
                           {dayChronicle.complete ? 'Episode complete' : 'The story so far'}
                         </span>
                       </div>
@@ -411,11 +492,11 @@ export default function HousePulse({
                       {earlierChronicles.map((entry) => (
                         <article
                           className="house-pulse__chronicle"
-                          key={entry.season + ':' + entry.day}
+                          key={entry.episodeKey ?? entry.season + ':' + entry.day}
                         >
                           <div className="house-pulse__chronicle-eyebrow">
                             <span>The Hub Chronicles</span>
-                            <span>Day {entry.day}</span>
+                            <span>{entry.episodeLabel ?? `Day ${entry.day}`}</span>
                           </div>
                           <h3>{entry.title}</h3>
                           <div className="house-pulse__chronicle-story">

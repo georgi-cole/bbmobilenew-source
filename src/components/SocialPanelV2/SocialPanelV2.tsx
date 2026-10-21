@@ -2097,6 +2097,7 @@ export default function SocialPanelV2() {
               gameId={game.gameId}
               gamePhase={game.phase}
               pulseChronicles={game.pulseChronicles}
+              weekendInterlude={game.weekendInterlude}
               weatherCondition={pulseWeather}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
