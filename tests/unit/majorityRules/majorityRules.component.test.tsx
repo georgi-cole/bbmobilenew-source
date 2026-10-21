@@ -203,7 +203,7 @@ describe('MajorityRulesComp', () => {
     expect(store.getState().majorityRules.draftAnswers.user).toBe(chosenOptionId)
   })
 
-  it('starts a revote without reopening stale LIVE INTEL and clearly blocks the previous answer', async () => {
+  it('handles an obsolete saved revote reveal by showing Continue and moving to a fresh question', async () => {
     const question = MAJORITY_RULES_QUESTIONS[0]
     const [firstOption, secondOption] = question.options
     const store = makeStore(undefined, {
@@ -274,24 +274,25 @@ describe('MajorityRulesComp', () => {
     )
 
     await act(async () => {})
-    fireEvent.click(screen.getByRole('button', { name: 'Start re-vote' }))
+    expect(screen.getByText('No clear minority. Nobody falls.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start re-vote' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
 
     const state = store.getState().majorityRules
     expect(state.phase).toBe('question')
-    expect(state.revoteNumber).toBe(1)
-    expect(state.blockedAnswers.user).toBe(firstOption.id)
+    expect(state.roundNumber).toBe(2)
+    expect(state.revoteNumber).toBe(0)
+    expect(state.currentQuestion?.id).not.toBe(question.id)
+    expect(state.blockedAnswers).toEqual({})
     expect(state.roundHintUsedBy).toBeNull()
     expect(state.roundHintType).toBeNull()
     expect(state.roundHintPollEstimate).toBeNull()
     expect(state.hintInventories.user.pollHintUsed).toBe(true)
 
     expect(screen.queryByRole('dialog', { name: 'Majority Rules intel' })).not.toBeInTheDocument()
-    expect(await screen.findByText('Pick a different answer.')).toBeInTheDocument()
-    expect(await screen.findByText('Previous answer — unavailable')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Poll/i })).toBeDisabled()
-
-    const blockedOption = screen.getByText(firstOption.text).closest('button')
-    expect(blockedOption).toBeDisabled()
+    expect(screen.queryByText('Pick a different answer.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Previous answer — unavailable')).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Poll/i })).toBeDisabled()
   })
 
   it('pauses after elimination and resumes normal timing when the user continues watching', async () => {
