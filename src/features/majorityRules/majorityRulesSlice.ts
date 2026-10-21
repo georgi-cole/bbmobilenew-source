@@ -280,6 +280,18 @@ const majorityRulesSlice = createSlice({
       state.phase = 'question'
     },
 
+    // Previously saved games may resume during an obsolete tie-break ballot.
+    // Skip that stale ballot and replace it with an unused question.
+    skipLegacyRevote(state) {
+      if (state.phase !== 'question' || state.revoteNumber === 0) return
+      state.roundNumber += 1
+      state.revoteNumber = 0
+      state.blockedAnswers = {}
+      state.previousDistribution = null
+      state.doubleEliminationArmed = false
+      prepareQuestion(state)
+    },
+
     setHumanAnswer(state, action: PayloadAction<{ playerId: string; optionId: string }>) {
       if (state.phase !== 'question' || !state.currentQuestion) return
       const { playerId, optionId } = action.payload
