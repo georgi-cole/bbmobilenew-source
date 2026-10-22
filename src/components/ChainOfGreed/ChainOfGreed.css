@@ -1013,6 +1013,88 @@
   text-align: center;
 }
 
+.chain-of-greed__modal--winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 38rem);
+  max-height: min(90dvh, 52rem);
+  overflow-y: auto;
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  border-color: rgba(237, 198, 118, 0.5);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(221, 176, 98, 0.22), transparent 48%),
+    linear-gradient(155deg, rgba(43, 32, 46, 0.99), rgba(16, 14, 21, 0.99));
+}
+
+.chain-of-greed__winner-mark {
+  display: grid;
+  width: 3.4rem;
+  height: 3.4rem;
+  place-items: center;
+  margin-bottom: 0.4rem;
+  border: 1px solid rgba(237, 198, 118, 0.5);
+  border-radius: 50%;
+  color: #f4d590;
+  background: rgba(237, 198, 118, 0.1);
+  font-size: 1.8rem;
+  box-shadow: 0 0 28px rgba(237, 198, 118, 0.16);
+}
+
+.chain-of-greed__winner-scores {
+  width: 100%;
+  max-width: 30rem;
+  margin: 0.7rem auto 0;
+}
+
+.chain-of-greed__winner-scores > div {
+  justify-items: center;
+  padding: 0.8rem;
+  border: 1px solid rgba(237, 198, 118, 0.22);
+  background: linear-gradient(145deg, rgba(237, 198, 118, 0.1), rgba(255, 255, 255, 0.035));
+}
+
+.chain-of-greed__winner-scores > div > span:first-child {
+  color: #d3b878;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chain-of-greed__winner-scores > div > strong {
+  color: #fff2d2;
+  font-size: clamp(1.15rem, 3vw, 1.65rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.chain-of-greed__winner-footer {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+}
+
+.chain-of-greed__winner-footer .chain-of-greed__continue {
+  width: min(100%, 15rem);
+  min-height: 3.25rem;
+  padding: 0.65rem 1.4rem;
+  border-radius: 999px;
+  transform: none;
+  font-size: 1rem;
+}
+
+.chain-of-greed__winner-footer .chain-of-greed__continue:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.chain-of-greed__immune-tag {
+  margin-left: 0.35rem;
+  color: #a9dfc2;
+  font-size: 0.58rem;
+}
+
 .chain-of-greed__modal--sheet {
   width: min(100%, 36rem);
   border-bottom-left-radius: 0;

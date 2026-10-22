@@ -278,6 +278,9 @@ export function useCompetitionFlow({
         capturedParticipants.includes(reactCompletion.authoritativeWinnerId)
           ? reactCompletion.authoritativeWinnerId
           : null
+      const reportedWinnerIds = (reactCompletion?.authoritativeWinnerIds ?? []).filter((id) =>
+        capturedParticipants.includes(id)
+      )
       const reportedLastPlaceId =
         reactCompletion?.authoritativeLastPlaceId != null &&
         capturedParticipants.includes(reactCompletion.authoritativeLastPlaceId) &&
@@ -470,9 +473,12 @@ export function useCompetitionFlow({
         if (explicitLastPlaceId) return explicitLastPlaceId
         // ranked is sorted best → worst (highest canonical score first).
         // Reverse to find the last non-winner (worst finisher).
+        const confirmedWinners = new Set(
+          reportedWinnerIds.length > 1 ? reportedWinnerIds : [finalWinnerId]
+        )
         const lastNonWinner = [...missionRanked]
           .reverse()
-          .find((result) => result.playerId !== finalWinnerId)
+          .find((result) => !confirmedWinners.has(result.playerId))
         return lastNonWinner?.playerId ?? null
       })()
 
@@ -488,7 +494,14 @@ export function useCompetitionFlow({
         return
       }
 
-      const winnerIds = expandCupidIds(game, [finalWinnerId])
+      const winnerIds = expandCupidIds(
+        game,
+        scheduledWinnerId
+          ? [finalWinnerId]
+          : reportedWinnerIds.length > 1
+            ? reportedWinnerIds
+            : [finalWinnerId]
+      )
       const winnerPlayers = winnerIds
         .map((id) => game.players.find((player) => player.id === id))
         .filter((player): player is Player => Boolean(player))
@@ -497,6 +510,7 @@ export function useCompetitionFlow({
         dispatch(
           applyMinigameWinner({
             winnerId: finalWinnerId,
+            ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
             lastPlaceId: compLastPlaceId,
             skipSeasonUpdate: true,
             ...missionReceipt,
@@ -540,6 +554,7 @@ export function useCompetitionFlow({
         dispatch(
           applyMinigameWinner({
             winnerId: finalWinnerId,
+            ...(reportedWinnerIds.length > 1 ? { coWinnerIds: reportedWinnerIds } : {}),
             lastPlaceId: compLastPlaceId,
             skipSeasonUpdate: true,
             ...missionReceipt,

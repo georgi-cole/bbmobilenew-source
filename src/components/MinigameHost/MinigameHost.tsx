@@ -129,6 +129,7 @@ export interface MinigameParticipant {
 
 export interface ReactMinigameCompletion {
   authoritativeWinnerId?: string | null
+  authoritativeWinnerIds?: string[]
   /** Authoritative worst finisher when the minigame owns its full standings. */
   authoritativeLastPlaceId?: string | null
   /** Complete feature-owned ordering, best to worst, when its scoring has richer tie-breaks. */

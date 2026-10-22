@@ -938,8 +938,10 @@ export function rankPlayersByScore(
 export function rankSoloRushPlayers(
   scores: Record<string, number>,
   players: ChainOfGreedPlayerState[],
-  roundNumber = 1
+  roundNumber = 1,
+  immuneIds: string[] = []
 ) {
+  const immune = new Set(immuneIds)
   const roundPlayers = players.filter((player) => Object.hasOwn(scores, player.id))
   const ordered = [...roundPlayers].sort((left, right) => {
     const bankDelta = (scores[right.id] ?? 0) - (scores[left.id] ?? 0)
@@ -949,14 +951,39 @@ export function rankSoloRushPlayers(
     return left.finalWrongGuesses - right.finalWrongGuesses
   })
   if (roundNumber === 3) {
-    return { ordered, eliminatedIds: ordered.slice(2).map((player) => player.id) }
+    const safeCount = Math.max(2, immune.size)
+    const advancing = new Set([
+      ...immune,
+      ...ordered
+        .filter((player) => !immune.has(player.id))
+        .slice(0, Math.max(0, safeCount - immune.size))
+        .map((player) => player.id),
+    ])
+    return {
+      ordered,
+      eliminatedIds: ordered
+        .filter((player) => !advancing.has(player.id))
+        .map((player) => player.id),
+    }
   }
 
-  const lowestBank = ordered.at(-1)
+  if (roundNumber === 4 && immune.size > 0) {
+    return {
+      ordered,
+      eliminatedIds: ordered.filter((player) => !immune.has(player.id)).map((player) => player.id),
+    }
+  }
+
+  const eligible = ordered.filter((player) => !immune.has(player.id))
+  if (eligible.length === 0) return { ordered, eliminatedIds: [] as string[] }
+
+  const lowestBank = eligible.at(-1)
   if (!lowestBank) return { ordered, eliminatedIds: [] as string[] }
 
   const lowestBankScore = scores[lowestBank.id] ?? 0
-  const tiedForLowestBank = ordered.filter((player) => (scores[player.id] ?? 0) === lowestBankScore)
+  const tiedForLowestBank = eligible.filter(
+    (player) => (scores[player.id] ?? 0) === lowestBankScore
+  )
   const fewestCorrect = Math.min(...tiedForLowestBank.map((player) => player.finalCorrectGuesses))
   const tiedForFewestCorrect = tiedForLowestBank.filter(
     (player) => player.finalCorrectGuesses === fewestCorrect

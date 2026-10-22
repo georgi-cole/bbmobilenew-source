@@ -4294,6 +4294,7 @@ type CompetitionSeasonUpdatePayload = Omit<CompetitionSeasonUpdateInput, 'player
 }
 type ApplyMinigameWinnerPayload = {
   winnerId: string
+  coWinnerIds?: string[]
   participants?: string[]
   scores?: Record<string, number>
   /** Canonical placement order supplied by the competition host (best → worst). */
@@ -6282,6 +6283,7 @@ const gameSlice = createSlice({
     applyMinigameWinner(state, action: PayloadAction<ApplyMinigameWinnerPayload>) {
       const {
         winnerId,
+        coWinnerIds,
         participants,
         scores,
         includePlacementBonuses,
@@ -6333,6 +6335,20 @@ const gameSlice = createSlice({
           })
         }
         applyLohWinner(state, winnerId, '[applyMinigameWinner]')
+        const validCoWinners = [...new Set([winnerId, ...(coWinnerIds ?? [])])].filter((id) =>
+          resolvedParticipants.includes(id)
+        )
+        if (validCoWinners.length > 1) {
+          state.coLohIds = validCoWinners
+          for (const coWinnerId of validCoWinners) {
+            const coWinner = state.players.find((player) => player.id === coWinnerId)
+            if (coWinner && coWinnerId !== winnerId) {
+              coWinner.status = 'loh'
+              if (!coWinner.stats) coWinner.stats = { lohWins: 0, posWins: 0, timesNominated: 0 }
+              coWinner.stats.lohWins += 1
+            }
+          }
+        }
         state.phase = 'loh_results'
         winnerWasApplied = true
         // Track the last-place LOH competition finisher for the third-nominee rule.
@@ -6341,7 +6357,9 @@ const gameSlice = createSlice({
         //      elimination order or actual scores in the feature slice).
         //   2. Score-based derivation when scores are available.
         //   3. nonWinners[0] fallback (arbitrary, kept for backward compat).
-        const winnerUnitIds = new Set(getCupidRoleIds(state, winnerId))
+        const winnerUnitIds = new Set(
+          validCoWinners.flatMap((coWinnerId) => getCupidRoleIds(state, coWinnerId))
+        )
         const nonWinners = resolvedParticipants.filter((id) => !winnerUnitIds.has(id))
         if (nonWinners.length > 0) {
           const validLastPlace =

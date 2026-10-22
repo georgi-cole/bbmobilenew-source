@@ -115,7 +115,7 @@ describe('ChainOfGreed component', () => {
     vi.useFakeTimers()
     render(<ChainOfGreed participants={participants} seed={42} onFinish={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /Solo Rush/ }))
-    expect(screen.getByText(/You and each rival get one minute/i)).toBeInTheDocument()
+    expect(screen.getByText(/Build your bank in one minute/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start Solo Rush' }))
 
     expect(screen.getByLabelText('60 seconds remaining')).toBeInTheDocument()
@@ -145,7 +145,7 @@ describe('ChainOfGreed component', () => {
     expect(ranking).toHaveTextContent('You')
     expect(ranking).toHaveTextContent('Mira')
     expect(ranking.querySelectorAll('.chain-of-greed__solo-ranking-row')).toHaveLength(8)
-    expect(screen.getByText(/Lowest bank is out/i)).toBeInTheDocument()
+    expect(screen.getByText(/Tied banks: fewer correct guesses ranks lower/i)).toBeInTheDocument()
   })
 
   it('allows the player to dismiss the round intro by tapping outside its card', () => {

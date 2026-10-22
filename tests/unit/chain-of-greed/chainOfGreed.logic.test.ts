@@ -124,6 +124,51 @@ describe('chainOfGreedLogic', () => {
     expect(ranking.eliminatedIds).toEqual(['third', 'last'])
   })
 
+  it('keeps immune players safe and eliminates the lowest unprotected bank', () => {
+    const players = [buildPlayer('leader'), buildPlayer('immune'), buildPlayer('unprotected')]
+    const ranking = rankSoloRushPlayers({ leader: 300, immune: 0, unprotected: 0 }, players, 1, [
+      'immune',
+    ])
+    expect(ranking.eliminatedIds).toEqual(['unprotected'])
+  })
+
+  it('eliminates nobody when every player earns immunity', () => {
+    const players = [buildPlayer('one'), buildPlayer('two'), buildPlayer('three')]
+    const ranking = rankSoloRushPlayers({ one: 300, two: 100, three: 0 }, players, 2, [
+      'one',
+      'two',
+      'three',
+    ])
+    expect(ranking.eliminatedIds).toEqual([])
+  })
+
+  it('keeps immune players in Round 3 and fills remaining finalist places by rank', () => {
+    const players = [
+      buildPlayer('leader'),
+      buildPlayer('immune'),
+      buildPlayer('third'),
+      buildPlayer('last'),
+    ]
+    const ranking = rankSoloRushPlayers(
+      { leader: 900, immune: 100, third: 300, last: 50 },
+      players,
+      3,
+      ['immune']
+    )
+    expect(ranking.eliminatedIds).toEqual(['third', 'last'])
+  })
+
+  it('makes every immune finalist a co-winner in the final round', () => {
+    const players = [buildPlayer('immune-one'), buildPlayer('immune-two'), buildPlayer('other')]
+    const ranking = rankSoloRushPlayers(
+      { 'immune-one': 100, 'immune-two': 0, other: 500 },
+      players,
+      4,
+      ['immune-one', 'immune-two']
+    )
+    expect(ranking.eliminatedIds).toEqual(['other'])
+  })
+
   it('eliminates everyone fully tied at the lowest Solo Rush rank', () => {
     const players = [
       buildPlayer('leader'),
