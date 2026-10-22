@@ -955,7 +955,8 @@ export default function MinigameHost({
         launchedGame.reactComponentKey === 'NumberTrivia' ||
         launchedGame.reactComponentKey === 'SnakeGame' ||
         launchedGame.reactComponentKey === 'BlackjackTournament' ||
-        launchedGame.reactComponentKey === 'MysticChamber'
+        launchedGame.reactComponentKey === 'MysticChamber' ||
+        launchedGame.reactComponentKey === 'ChainOfGreed'
           ? 'minigame-host--scrollable-game'
           : '',
       ]
