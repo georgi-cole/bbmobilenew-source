@@ -63,22 +63,20 @@ describe('chainOfGreedLogic', () => {
     expect(resolvePawnedRoundBank(250, 250, false, 25)).toBe(25)
   })
 
-  it('ranks Solo Rush players by bank, then mistakes, then correct calls', () => {
+  it('ranks Solo Rush players by bank, then correct calls, then mistakes', () => {
     const players = [
-      { ...buildPlayer('top'), finalWrongGuesses: 1, finalCorrectGuesses: 1 },
-      { ...buildPlayer('middle'), finalWrongGuesses: 3, finalCorrectGuesses: 1 },
-      { ...buildPlayer('fewer-misses'), finalWrongGuesses: 1, finalCorrectGuesses: 0 },
-      { ...buildPlayer('more-misses'), finalWrongGuesses: 2, finalCorrectGuesses: 4 },
-      { ...buildPlayer('fewest-correct'), finalWrongGuesses: 2, finalCorrectGuesses: 1 },
-      { ...buildPlayer('more-correct'), finalWrongGuesses: 2, finalCorrectGuesses: 3 },
+      { ...buildPlayer('top'), finalWrongGuesses: 8, finalCorrectGuesses: 1 },
+      { ...buildPlayer('middle'), finalWrongGuesses: 0, finalCorrectGuesses: 1 },
+      { ...buildPlayer('fewer-misses'), finalWrongGuesses: 7, finalCorrectGuesses: 0 },
+      { ...buildPlayer('fewest-correct'), finalWrongGuesses: 0, finalCorrectGuesses: 0 },
+      { ...buildPlayer('more-correct'), finalWrongGuesses: 9, finalCorrectGuesses: 4 },
     ]
 
     const ranking = rankSoloRushPlayers(
       {
         top: 300,
-        middle: 100,
+        middle: 50,
         'fewer-misses': 50,
-        'more-misses': 50,
         'fewest-correct': 50,
         'more-correct': 50,
       },
@@ -87,13 +85,43 @@ describe('chainOfGreedLogic', () => {
 
     expect(ranking.ordered.map((player) => player.id)).toEqual([
       'top',
-      'middle',
-      'fewer-misses',
-      'more-misses',
       'more-correct',
+      'middle',
       'fewest-correct',
+      'fewer-misses',
     ])
-    expect(ranking.eliminatedIds).toEqual(['fewest-correct'])
+    expect(ranking.eliminatedIds).toEqual(['fewer-misses'])
+  })
+
+  it('eliminates the inactive player when an equal-bank rival has more correct calls', () => {
+    const players = [
+      buildPlayer('leader'),
+      { ...buildPlayer('human'), finalWrongGuesses: 0, finalCorrectGuesses: 0 },
+      { ...buildPlayer('active-rival'), finalWrongGuesses: 6, finalCorrectGuesses: 5 },
+    ]
+
+    const ranking = rankSoloRushPlayers({ leader: 300, human: 0, 'active-rival': 0 }, players)
+
+    expect(ranking.ordered.map((player) => player.id)).toEqual(['leader', 'active-rival', 'human'])
+    expect(ranking.eliminatedIds).toEqual(['human'])
+  })
+
+  it('cuts Solo Rush to the top two after Round 3', () => {
+    const players = [
+      buildPlayer('leader'),
+      buildPlayer('finalist'),
+      buildPlayer('third'),
+      buildPlayer('last'),
+    ]
+
+    const ranking = rankSoloRushPlayers(
+      { leader: 900, finalist: 700, third: 300, last: 100 },
+      players,
+      3
+    )
+
+    expect(ranking.ordered.slice(0, 2).map((player) => player.id)).toEqual(['leader', 'finalist'])
+    expect(ranking.eliminatedIds).toEqual(['third', 'last'])
   })
 
   it('eliminates everyone fully tied at the lowest Solo Rush rank', () => {

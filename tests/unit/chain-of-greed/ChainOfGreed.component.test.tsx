@@ -119,10 +119,15 @@ describe('ChainOfGreed component', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start Solo Rush' }))
 
     expect(screen.getByLabelText('60 seconds remaining')).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toHaveTextContent('SOLO RUSH · ROUND 1')
-    expect(screen.getByRole('banner')).toHaveTextContent('Your Bank 0')
+    expect(screen.getByRole('banner')).toHaveTextContent('SOLO RUSH · ROUND 1/4')
+    expect(screen.getByRole('banner')).not.toHaveTextContent('Your Bank 0')
     expect(screen.getByRole('button', { name: 'Higher' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Pawn Round Bank/ })).not.toBeInTheDocument()
+    expect(screen.getByTestId('chain-participant-panel')).toHaveTextContent('Round Bank 0')
+    expect(screen.queryByTestId('chain-risk-readout')).not.toBeInTheDocument()
+    expect(screen.getAllByText(/Higher \d+%/)).toHaveLength(1)
+    expect(screen.queryByTestId('chain-inline-status')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('chain-player-rail')).not.toBeInTheDocument()
   })
 
   it('resolves rival Solo Rush rounds together and shows the full ranking when your minute ends', () => {

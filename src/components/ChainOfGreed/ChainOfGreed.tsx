@@ -57,6 +57,7 @@ type Phase =
 
 type TurnPhaseKind = 'standard' | 'semifinal' | 'final'
 type GameMode = 'shared' | 'solo'
+const SOLO_RUSH_ROUND_COUNT = 4
 type TurnPipelineStage =
   | 'decision'
   | 'reveal'
@@ -697,7 +698,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       finalTimerPausedRemaining: null,
       revealedNumber: chains[ids[0] ?? '']?.referenceNumber ?? null,
       eliminatedThisStep: [],
-      statusText: `Solo Rush Round ${roundNumber}. Build your bank in one minute.`,
+      statusText: `Solo Rush Round ${roundNumber} of ${SOLO_RUSH_ROUND_COUNT}. Build your bank in one minute.`,
       helperText: 'Bank your chain, then decide whether to pawn your Round Bank.',
     }))
   }
@@ -1269,9 +1270,13 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       )
     }
 
-    const ranking = rankSoloRushPlayers(nextScores, nextPlayers)
+    const ranking = rankSoloRushPlayers(nextScores, nextPlayers, state.roundNumber)
     const eliminatedIds = ranking.eliminatedIds
-    if (eliminatedIds.length > 0) emitSoundCue('elimination-sting')
+    if (state.roundNumber === SOLO_RUSH_ROUND_COUNT) {
+      if (eliminatedIds.length > 0) emitSoundCue('winner-stinger')
+    } else if (eliminatedIds.length > 0) {
+      emitSoundCue('elimination-sting')
+    }
     const eliminatedIdSet = new Set(eliminatedIds)
     nextPlayers = nextPlayers.map((player) =>
       eliminatedIdSet.has(player.id) ? { ...player, isEliminated: true } : player
@@ -1282,18 +1287,37 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
     const eliminationMessage =
       eliminatedNames.length > 0
         ? `${eliminatedNames.join(' and ')} ${eliminatedNames.length === 1 ? 'has' : 'have'} the lowest final rank and ${eliminatedNames.length === 1 ? 'is' : 'are'} out.`
-        : 'The Solo Rush round could not be ranked.'
+        : state.roundNumber === 3
+          ? 'The top two advance to the final round.'
+          : 'The Solo Rush round could not be ranked.'
+    const soloWinner =
+      state.roundNumber === SOLO_RUSH_ROUND_COUNT
+        ? (nextPlayers.find((player) => !player.isEliminated) ?? null)
+        : null
     const roundResult: Partial<ChainOfGreedState> = {
       players: nextPlayers,
-      phase: 'eliminationReveal',
+      phase: state.roundNumber === SOLO_RUSH_ROUND_COUNT ? 'finalResult' : 'eliminationReveal',
       finalScores: nextScores,
       finalChains: nextChains,
       eliminatedThisStep: eliminatedIds,
+      winnerId: soloWinner?.id ?? null,
       tieBreaks: [],
       finalTimerExpiry: null,
       finalTimerPausedRemaining: null,
-      statusText: eliminationMessage,
-      helperText: 'Lowest bank ranks last; ties use misses, then correct guesses.',
+      statusText:
+        state.roundNumber === SOLO_RUSH_ROUND_COUNT
+          ? soloWinner
+            ? `${soloWinner.name} wins Solo Rush.`
+            : 'Every player shared the lowest final rank. Solo Rush ends in a tie.'
+          : eliminationMessage,
+      helperText:
+        state.roundNumber === SOLO_RUSH_ROUND_COUNT
+          ? soloWinner
+            ? 'The highest Round Bank in the final round wins.'
+            : 'All tied finalists are eliminated by the Round Bank tie-break rules.'
+          : state.roundNumber === 3
+            ? 'The top two advance to Round 4. Equal banks rank by fewer correct calls, then more misses.'
+            : 'Lowest bank ranks last; ties use fewer correct calls, then more misses.',
     }
 
     setPendingTurn(null)
@@ -1808,7 +1832,9 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
   const sortedVoteTally = [...revealedVoteTally.entries()].sort((left, right) => right[1] - left[1])
   const winner = getPlayer(state.players, state.winnerId)
   const soloRoundRanking =
-    state.gameMode === 'solo' ? rankSoloRushPlayers(state.finalScores, state.players).ordered : []
+    state.gameMode === 'solo'
+      ? rankSoloRushPlayers(state.finalScores, state.players, state.roundNumber).ordered
+      : []
   const standardTurnLabels = state.phase === 'playerTurn' && currentTurnPlayer?.isHuman
   const semifinalTurnLabels = state.phase === 'semifinalTurn' && semifinalPlayer?.isHuman
   const finalTurnLabels = state.phase === 'finalTurn' && finalPlayer?.isHuman
@@ -2174,7 +2200,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                   <strong>Solo Rush</strong>
                   <small>
                     Get one minute to build your Round Bank. Pawn it to double it on a hit, or lose
-                    it on a miss. Lowest bank is out.
+                    it on a miss. Four rounds decide the winner.
                   </small>
                   <span className="chain-of-greed__mode-option-cta">
                     {selectedModePreview === 'solo'
@@ -2195,8 +2221,9 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                         Pawn your whole Round Bank before a call: a hit doubles it; a miss wipes it.
                       </li>
                       <li>
-                        After the timer, the lowest bank is out. Ties break on misses, then correct
-                        calls.
+                        Rounds 1 and 2 eliminate the lowest bank. In Round 3, only the top two
+                        advance. Round 4 decides the winner. Bank ties rank by fewer correct calls,
+                        then more misses.
                       </li>
                     </ul>
                     <button
@@ -2281,7 +2308,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
               </strong>
               <small>
                 {state.gameMode === 'solo'
-                  ? `SOLO RUSH · ROUND ${state.roundNumber}`
+                  ? `SOLO RUSH · ROUND ${state.roundNumber}/${SOLO_RUSH_ROUND_COUNT}`
                   : state.phase === 'finalTurn' || state.phase === 'finalIntro'
                     ? 'THE FINAL'
                     : `ROUND ${state.roundNumber}`}
@@ -2291,13 +2318,15 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
               <div className="chain-of-greed__status-pill">
                 <strong>{activePlayers.length} left</strong>
               </div>
-              <div className="chain-of-greed__status-pill chain-of-greed__status-pill--gold">
-                <strong>
-                  {state.gameMode === 'solo'
-                    ? `Your Bank ${humanRoundBank.toLocaleString()}`
-                    : `${state.securedTotal.toLocaleString()} prize pool`}
-                </strong>
-              </div>
+              {state.gameMode === 'solo' && state.phase === 'finalTurn' ? null : (
+                <div className="chain-of-greed__status-pill chain-of-greed__status-pill--gold">
+                  <strong>
+                    {state.gameMode === 'solo'
+                      ? `Your Bank ${humanRoundBank.toLocaleString()}`
+                      : `${state.securedTotal.toLocaleString()} prize pool`}
+                  </strong>
+                </div>
+              )}
             </div>
             <div className="chain-of-greed__header-actions">
               <button
@@ -2344,7 +2373,9 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
             <div className="chain-of-greed__hero-meta">
               <div className="chain-of-greed__hero-topline">
                 <span className="chain-of-greed__status-kicker">{heroKicker}</span>
-                <span className="chain-of-greed__phase-chip">{heroPhaseChip}</span>
+                {!(state.gameMode === 'solo' && state.phase === 'finalTurn') && (
+                  <span className="chain-of-greed__phase-chip">{heroPhaseChip}</span>
+                )}
               </div>
               <p className="chain-of-greed__hero-commentary" data-testid="chain-turn-commentary">
                 {heroCommentary}
@@ -2495,23 +2526,24 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                 <div className="chain-of-greed__participant-number">{panelNumberLabel}</div>
                 <div className="chain-of-greed__participant-status">{panelStatusText}</div>
                 <p className="chain-of-greed__participant-detail">{panelDetailText}</p>
-                {isHumanTurn && baseChain && riskOdds && !pendingTurn && (
-                  <div
-                    className="chain-of-greed__risk-readout"
-                    data-testid="chain-risk-readout"
-                    aria-label={`Estimated next-number odds from ${state.gameMode === 'solo' ? 'your' : 'the shared'} number shoe`}
-                  >
-                    <span>
-                      {state.gameMode === 'solo' ? 'Your shoe' : 'Shared shoe'} ·{' '}
-                      {getRemainingNumberCount(baseChain)} cards left
-                    </span>
-                    <strong>
-                      Higher {Math.round(riskOdds.higher * 100)}% <i /> Equal{' '}
-                      {Math.round(riskOdds.equal * 100)}% <i /> Lower{' '}
-                      {Math.round(riskOdds.lower * 100)}%
-                    </strong>
-                  </div>
-                )}
+                {isHumanTurn &&
+                  state.gameMode !== 'solo' &&
+                  baseChain &&
+                  riskOdds &&
+                  !pendingTurn && (
+                    <div
+                      className="chain-of-greed__risk-readout"
+                      data-testid="chain-risk-readout"
+                      aria-label="Estimated next-number odds from the shared number shoe"
+                    >
+                      <span>Shared shoe · {getRemainingNumberCount(baseChain)} cards left</span>
+                      <strong>
+                        Higher {Math.round(riskOdds.higher * 100)}% <i /> Equal{' '}
+                        {Math.round(riskOdds.equal * 100)}% <i /> Lower{' '}
+                        {Math.round(riskOdds.lower * 100)}%
+                      </strong>
+                    </div>
+                  )}
                 {isHumanTurn && isSafetyArmed && (
                   <div className="chain-of-greed__safety-readout" role="status">
                     Safety armed · miss recovers {Math.floor(activePot / 2).toLocaleString()}, loses{' '}
@@ -2524,25 +2556,29 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                     wipes it.
                   </div>
                 )}
-                <div
-                  className="chain-of-greed__participant-log"
-                  data-testid="chain-participant-log"
-                >
-                  <span>Log</span>
-                  <strong>{participantLogText}</strong>
-                </div>
+                {(lastTurn || state.gameMode !== 'solo') && (
+                  <div
+                    className="chain-of-greed__participant-log"
+                    data-testid="chain-participant-log"
+                  >
+                    <span>Log</span>
+                    <strong>{participantLogText}</strong>
+                  </div>
+                )}
               </aside>
             </div>
             <div className="chain-of-greed__hero-status">
-              <div className="chain-of-greed__inline-status" data-testid="chain-inline-status">
-                <span aria-label={`Step ${currentChainStep} of ${CHAIN_LADDER.length}`}>
-                  {chainStatusText.step}
-                </span>
-                <span aria-label={`Pot ${currentPotLabel}`}>{chainStatusText.pot}</span>
-                <span aria-label={`Next reward ${nextReward.toLocaleString()}`}>
-                  {chainStatusText.next}
-                </span>
-              </div>
+              {!(state.gameMode === 'solo' && state.phase === 'finalTurn') && (
+                <div className="chain-of-greed__inline-status" data-testid="chain-inline-status">
+                  <span aria-label={`Step ${currentChainStep} of ${CHAIN_LADDER.length}`}>
+                    {chainStatusText.step}
+                  </span>
+                  <span aria-label={`Pot ${currentPotLabel}`}>{chainStatusText.pot}</span>
+                  <span aria-label={`Next reward ${nextReward.toLocaleString()}`}>
+                    {chainStatusText.next}
+                  </span>
+                </div>
+              )}
               {finalSecondsRemaining !== null && (
                 <div
                   className={[
@@ -2747,7 +2783,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
             </motion.footer>
           )}
 
-          {playerRail}
+          {state.gameMode !== 'solo' && playerRail}
         </main>
       </div>
 
@@ -3256,7 +3292,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                   {state.gameMode === 'solo'
                     ? getActivePlayers(state.players).length <= 1
                       ? 'See Winner'
-                      : `Next Solo Rush Round`
+                      : `Continue to Round ${state.roundNumber + 1}`
                     : state.roundNumber >= STANDARD_ROUND_COUNT ||
                         getActivePlayers(state.players).length <= 2
                       ? 'Continue to Final'
@@ -3273,13 +3309,16 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
             className={`chain-of-greed__modal${state.gameMode === 'solo' ? ' chain-of-greed__modal--solo-ranking' : ''}`}
           >
             <div className="chain-of-greed__eyebrow">
-              {state.gameMode === 'solo' ? `Solo Rush · Round ${state.roundNumber}` : 'Elimination'}
+              {state.gameMode === 'solo'
+                ? `Solo Rush · Round ${state.roundNumber} of ${SOLO_RUSH_ROUND_COUNT}`
+                : 'Elimination'}
             </div>
             <h2>
-              {state.eliminatedThisStep
-                .map((id) => getPlayer(state.players, id)?.name ?? id)
-                .join(' and ')}{' '}
-              {state.eliminatedThisStep.length === 1 ? 'is' : 'are'} out.
+              {state.gameMode === 'solo' && state.eliminatedThisStep.length === 0
+                ? 'Top two advance.'
+                : `${state.eliminatedThisStep
+                    .map((id) => getPlayer(state.players, id)?.name ?? id)
+                    .join(' and ')} ${state.eliminatedThisStep.length === 1 ? 'is' : 'are'} out.`}
             </h2>
             {state.gameMode === 'solo' && (
               <div
@@ -3314,8 +3353,9 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                   )
                 })}
                 <p className="chain-of-greed__solo-ranking-rules">
-                  Lowest bank is out. Bank ties: more misses ranks lower, then fewer correct calls;
-                  a complete tie eliminates everyone tied.
+                  {state.roundNumber === 3
+                    ? 'Top two advance to Round 4. Tied banks rank by fewer correct calls, then more misses.'
+                    : 'Lowest bank is out. Bank ties: fewer correct calls, then more misses; a full tie eliminates everyone tied.'}
                 </p>
               </div>
             )}
@@ -3373,7 +3413,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                     ? getActivePlayers(state.players).length === 0
                       ? 'See Match Result'
                       : 'See Winner'
-                    : 'Next Solo Rush Round'
+                    : `Continue to Round ${state.roundNumber + 1}`
                   : state.roundNumber >= STANDARD_ROUND_COUNT ||
                       getActivePlayers(state.players).length <= 2
                     ? 'Continue to Final'
@@ -3477,7 +3517,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
             <p>
               {state.gameMode === 'solo'
                 ? winner
-                  ? 'The last player remaining wins Solo Rush.'
+                  ? 'The highest Round Bank in Round 4 wins Solo Rush.'
                   : 'Everyone tied at the lowest Round Bank, mistakes, and correct calls, so the match ends in a tie.'
                 : 'Highest final score wins. Ties use fewer mistakes, then fewer banks.'}
             </p>

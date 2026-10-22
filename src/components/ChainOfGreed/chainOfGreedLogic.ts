@@ -937,28 +937,33 @@ export function rankPlayersByScore(
 
 export function rankSoloRushPlayers(
   scores: Record<string, number>,
-  players: ChainOfGreedPlayerState[]
+  players: ChainOfGreedPlayerState[],
+  roundNumber = 1
 ) {
   const roundPlayers = players.filter((player) => Object.hasOwn(scores, player.id))
   const ordered = [...roundPlayers].sort((left, right) => {
     const bankDelta = (scores[right.id] ?? 0) - (scores[left.id] ?? 0)
     if (bankDelta !== 0) return bankDelta
-    const mistakeDelta = left.finalWrongGuesses - right.finalWrongGuesses
-    if (mistakeDelta !== 0) return mistakeDelta
-    return right.finalCorrectGuesses - left.finalCorrectGuesses
+    const correctDelta = right.finalCorrectGuesses - left.finalCorrectGuesses
+    if (correctDelta !== 0) return correctDelta
+    return left.finalWrongGuesses - right.finalWrongGuesses
   })
+  if (roundNumber === 3) {
+    return { ordered, eliminatedIds: ordered.slice(2).map((player) => player.id) }
+  }
+
   const lowestBank = ordered.at(-1)
   if (!lowestBank) return { ordered, eliminatedIds: [] as string[] }
 
   const lowestBankScore = scores[lowestBank.id] ?? 0
   const tiedForLowestBank = ordered.filter((player) => (scores[player.id] ?? 0) === lowestBankScore)
-  const mostMistakes = Math.max(...tiedForLowestBank.map((player) => player.finalWrongGuesses))
-  const tiedForMostMistakes = tiedForLowestBank.filter(
-    (player) => player.finalWrongGuesses === mostMistakes
+  const fewestCorrect = Math.min(...tiedForLowestBank.map((player) => player.finalCorrectGuesses))
+  const tiedForFewestCorrect = tiedForLowestBank.filter(
+    (player) => player.finalCorrectGuesses === fewestCorrect
   )
-  const fewestCorrect = Math.min(...tiedForMostMistakes.map((player) => player.finalCorrectGuesses))
-  const eliminatedIds = tiedForMostMistakes
-    .filter((player) => player.finalCorrectGuesses === fewestCorrect)
+  const mostMistakes = Math.max(...tiedForFewestCorrect.map((player) => player.finalWrongGuesses))
+  const eliminatedIds = tiedForFewestCorrect
+    .filter((player) => player.finalWrongGuesses === mostMistakes)
     .map((player) => player.id)
 
   return { ordered, eliminatedIds }
