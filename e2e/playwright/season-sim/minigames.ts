@@ -629,6 +629,11 @@ async function acknowledgeHostIntro(page: Page, host: Locator): Promise<void> {
     return
   }
 
+  // The mode picker includes “How to play” copy, so the generic rules-modal
+  // detector below must leave it to the game-specific driver.
+  const chainModeSelection = host.getByRole('dialog', { name: /How will you play the chain/i })
+  if (await chainModeSelection.isVisible().catch(() => false)) return
+
   const investigationGuide = page.getByRole('dialog', { name: 'How to investigate' })
   const skipInvestigationGuide = await firstVisibleEnabled(
     investigationGuide.getByRole('button', { name: 'Skip guide', exact: true })
@@ -798,6 +803,14 @@ async function playColorMatchTurn(host: Locator): Promise<boolean> {
 }
 
 async function playChainOfGreedTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const startSharedChain = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Start Shared Chain', exact: true })
+  )
+  if (startSharedChain) return clickWithShortTimeout(startSharedChain, 0, true)
+
+  const sharedMode = await firstVisibleEnabled(host.getByRole('button', { name: /Shared Chain/ }))
+  if (sharedMode) return clickWithShortTimeout(sharedMode, 0, true)
+
   const roundIntro = host.locator('[data-testid="chain-round-intro"]')
   if (await roundIntro.isVisible().catch(() => false)) {
     try {
