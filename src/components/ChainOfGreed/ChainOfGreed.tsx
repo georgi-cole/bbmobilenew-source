@@ -1884,6 +1884,16 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
   )
     .map((id) => getPlayer(state.players, id))
     .filter((player): player is ChainOfGreedPlayerState => Boolean(player))
+  const soloFinalStandings = state.finalOrder
+    .map((id) => getPlayer(state.players, id))
+    .filter((player): player is ChainOfGreedPlayerState => Boolean(player))
+    .sort((left, right) => {
+      const bankDelta = (state.finalScores[right.id] ?? 0) - (state.finalScores[left.id] ?? 0)
+      if (bankDelta !== 0) return bankDelta
+      const correctDelta = right.finalCorrectGuesses - left.finalCorrectGuesses
+      if (correctDelta !== 0) return correctDelta
+      return left.finalWrongGuesses - right.finalWrongGuesses
+    })
   const soloRoundRanking =
     state.gameMode === 'solo'
       ? rankSoloRushPlayers(
@@ -3608,21 +3618,28 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
                 Prize pool: <strong>{formatInfluence(state.securedTotal)}</strong>
               </p>
             )}
-            <div className="chain-of-greed__summary-grid chain-of-greed__winner-scores">
-              {(state.gameMode === 'solo' && soloWinners.length > 0
-                ? soloWinners.map(
+            <div
+              className="chain-of-greed__summary-grid chain-of-greed__winner-scores"
+              aria-label={state.gameMode === 'solo' ? 'Round 4 finalist scores' : undefined}
+            >
+              {(state.gameMode === 'solo'
+                ? soloFinalStandings.map(
                     (player) => [player.id, state.finalScores[player.id] ?? 0] as [string, number]
                   )
                 : Object.entries(state.finalScores).sort((left, right) => right[1] - left[1])
-              )
-                .slice(0, state.gameMode === 'solo' ? 4 : undefined)
-                .map(([id, score]) => (
-                  <div key={id}>
-                    <span>{state.gameMode === 'solo' ? 'Winner' : 'Final score'}</span>
-                    <span>{getPlayer(state.players, id)?.name ?? id}</span>
-                    <strong>{score.toLocaleString()}</strong>
-                  </div>
-                ))}
+              ).map(([id, score]) => (
+                <div key={id}>
+                  <span>
+                    {state.gameMode === 'solo'
+                      ? state.winnerIds.includes(id) || state.winnerId === id
+                        ? 'Winner'
+                        : 'Finalist'
+                      : 'Final score'}
+                  </span>
+                  <span>{getPlayer(state.players, id)?.name ?? id}</span>
+                  <strong>{score.toLocaleString()}</strong>
+                </div>
+              ))}
             </div>
             {state.finalTieBreak && (
               <>
