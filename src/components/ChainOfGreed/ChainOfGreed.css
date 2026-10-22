@@ -3006,7 +3006,7 @@
 }
 
 .chain-of-greed__modal--solo-ranking {
-  max-height: min(86dvh, 46rem);
+  max-height: min(90dvh, 46rem);
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
@@ -3014,9 +3014,9 @@
 
 .chain-of-greed__solo-ranking {
   display: grid;
-  gap: 0.28rem;
-  margin-top: 0.9rem;
-  font-size: 0.78rem;
+  gap: 0.16rem;
+  margin-top: 0.65rem;
+  font-size: 0.74rem;
 }
 
 .chain-of-greed__solo-ranking-head,
@@ -3027,11 +3027,12 @@
       minmax(2.8rem, auto)
     );
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
+  line-height: 1.12;
 }
 
 .chain-of-greed__solo-ranking-head {
-  padding: 0 0.55rem 0.2rem;
+  padding: 0 0.5rem 0.12rem;
   color: rgba(220, 230, 255, 0.58);
   font-size: 0.58rem;
   font-weight: 800;
@@ -3046,10 +3047,10 @@
 }
 
 .chain-of-greed__solo-ranking-row {
-  min-height: 2.25rem;
-  padding: 0.32rem 0.55rem;
+  min-height: 1.8rem;
+  padding: 0.16rem 0.5rem;
   border: 1px solid rgba(226, 202, 165, 0.1);
-  border-radius: 0.72rem;
+  border-radius: 0.62rem;
   background: rgba(255, 255, 255, 0.035);
   color: rgba(239, 228, 211, 0.82);
 }
@@ -3057,7 +3058,7 @@
 .chain-of-greed__solo-ranking-row strong {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.28rem;
   color: var(--cog-ivory);
 }
 
@@ -3073,10 +3074,10 @@
 }
 
 .chain-of-greed__solo-ranking-rules {
-  margin: 0.45rem 0 0;
+  margin: 0.3rem 0 0;
   color: rgba(239, 228, 211, 0.62);
-  font-size: 0.68rem;
-  line-height: 1.4;
+  font-size: 0.64rem;
+  line-height: 1.28;
 }
 
 .chain-of-greed__modal--vote-reveal {
@@ -3183,11 +3184,11 @@
 .chain-of-greed__modal--solo-ranking > .chain-of-greed__continue {
   display: flex;
   width: min(100%, 18rem);
-  min-height: 2.75rem;
+  min-height: 2.45rem;
   justify-content: center;
   align-items: center;
-  margin: 0.7rem auto 0;
-  padding: 0.55rem 1rem;
+  margin: 0.45rem auto 0;
+  padding: 0.4rem 0.85rem;
   border-radius: 999px;
   transform: none;
   text-align: center;
