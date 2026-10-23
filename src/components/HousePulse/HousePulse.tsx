@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Player, PulseChronicle, WeekendInterludeState } from '../../types'
 import { composePulseChronicle, getPulseChronicleIdentity } from '../../social/pulseChronicle'
+import {
+  normalizePulseStoryTerminology,
+  type PulseChronicleTheme,
+} from '../../social/pulseChronicleCopy'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -39,6 +43,7 @@ interface HousePulseProps {
   pulseChronicles?: readonly PulseChronicle[]
   weekendInterlude?: WeekendInterludeState | null
   weatherCondition?: string | null
+  pulseTheme?: PulseChronicleTheme
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
@@ -121,6 +126,7 @@ export default function HousePulse({
   pulseChronicles,
   weekendInterlude,
   weatherCondition,
+  pulseTheme,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -293,6 +299,7 @@ export default function HousePulse({
       reality,
       actionHistory,
       weather: weatherCondition,
+      theme: pulseTheme,
       complete: gamePhase === 'week_end' && !activeWeekend,
       episode: episodeIdentity,
       actionHistoryAfterTimestamp,
@@ -314,6 +321,7 @@ export default function HousePulse({
     players,
     actionHistory,
     weatherCondition,
+    pulseTheme,
     gamePhase,
   ])
   const chronicleAllianceLinks = useMemo(() => {
@@ -514,16 +522,16 @@ export default function HousePulse({
                           {dayChronicle.complete ? 'Episode complete' : 'The story so far'}
                         </span>
                       </div>
-                      <h3>{dayChronicle.title}</h3>
+                      <h3>{normalizePulseStoryTerminology(dayChronicle.title)}</h3>
                       <div className="house-pulse__chronicle-story">
                         {dayChronicle.paragraphs.map((paragraph, index) => (
-                          <p key={index}>{paragraph}</p>
+                          <p key={index}>{normalizePulseStoryTerminology(paragraph)}</p>
                         ))}
                       </div>
                       {dayChronicle.note && (
                         <aside className="house-pulse__producer">
                           <strong>Producer’s Note</strong>
-                          <p>{dayChronicle.note}</p>
+                          <p>{normalizePulseStoryTerminology(dayChronicle.note)}</p>
                         </aside>
                       )}
                       {onOpenAlliances &&
@@ -801,7 +809,9 @@ export default function HousePulse({
               ? `${pendingActionCount} alliance decision${pendingActionCount === 1 ? '' : 's'} need your attention.`
               : pendingPromiseCount > 0
                 ? `${pendingPromiseCount} commitment${pendingPromiseCount === 1 ? '' : 's'} need your attention.`
-                : (dayChronicle?.title ?? 'Your story in the Hub is unfolding.')
+                : normalizePulseStoryTerminology(
+                    dayChronicle?.title ?? 'Your story in the Hub is unfolding.'
+                  )
             : (latest?.text ?? 'The Hub is still reading the room.')}
         </em>
         <b>{reality ? 'Open My Pulse' : 'Open My Game'}</b>

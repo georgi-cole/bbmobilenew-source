@@ -98,6 +98,22 @@ describe('The Hub Chronicles', () => {
     expect(chapter.sourceEventIds).toHaveLength(0)
   })
 
+  it('frames a Vox audience exit with the format while preserving the actual event', () => {
+    const { base, event } = setup()
+    event('CEREMONY_EVICTION', undefined, ['zara'], ['public_vote'])
+
+    const chapter = composePulseChronicle({
+      ...base,
+      theme: { format: 'voxPopuli' },
+      complete: true,
+    })
+    const text = chapter.paragraphs.join(' ')
+
+    expect(text).toMatch(/Vox Populi|ballots|audience/i)
+    expect(text).toContain('The audience had the final word')
+    expect(text).not.toMatch(/housemates?|houseguests?/i)
+  })
+
   it('shows the user a grounded success and failure without inventing additional agreements', () => {
     const { base } = setup()
     const actionHistory = [

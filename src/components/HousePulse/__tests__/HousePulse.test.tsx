@@ -16,6 +16,42 @@ const players = [
 ] as Player[]
 
 describe('HousePulse', () => {
+  it('normalizes archived story terminology without changing the saved story', () => {
+    const savedChronicle = {
+      season: 1,
+      day: 2,
+      episodeKey: 'day:2',
+      episodeLabel: 'Day 2',
+      title: 'One Less Housemate',
+      paragraphs: ['Two housemates changed the vote in the Hub.'],
+      note: 'The houseguest left a mark on the story.',
+      sourceEventIds: ['archived-event'],
+      complete: true,
+    }
+    render(
+      <HousePulse
+        network={createInitialDramaSocialNetwork()}
+        players={players}
+        humanId="human"
+        actionHistory={[]}
+        relationships={{}}
+        weekStartRelSnapshot={{}}
+        currentWeek={2}
+        season={1}
+        gameId="saved-pulse-vocabulary"
+        pulseChronicles={[savedChronicle]}
+        reality={createInitialRealityDomainState()}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /my pulse/i }))
+
+    expect(screen.getByRole('heading', { name: 'One Less Hubmate' })).toBeInTheDocument()
+    expect(screen.getByText('Two hubmates changed the vote in the Hub.')).toBeInTheDocument()
+    expect(screen.getByText('The hubmate left a mark on the story.')).toBeInTheDocument()
+    expect(savedChronicle.title).toBe('One Less Housemate')
+  })
+
   it('writes a short producer-style daily chapter rather than reporting counts', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {

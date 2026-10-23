@@ -53,6 +53,7 @@ import { validateSocialExecution } from '../../social/socialExecutionGuard'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
 import { executeHumanRealityAction } from '../../social/reality/humanFlow'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { getPulseChronicleTheme } from '../../social/pulseChronicleTheme'
 import {
   ALLIANCE_LIMITS,
   allianceDisplayLabel,
@@ -272,6 +273,7 @@ export default function SocialPanelV2() {
     () => resolveWeatherDay(game.gameId, game.week).condition,
     [game.gameId, game.week]
   )
+  const pulseTheme = useMemo(() => getPulseChronicleTheme(game, game.week), [game])
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
     weekendActive &&
@@ -2170,6 +2172,7 @@ export default function SocialPanelV2() {
               pulseChronicles={game.pulseChronicles}
               weekendInterlude={game.weekendInterlude}
               weatherCondition={pulseWeather}
+              pulseTheme={pulseTheme}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}
@@ -2513,6 +2516,16 @@ export default function SocialPanelV2() {
                     {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
                   </span>
                 </div>
+                <button
+                  className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
+                  type="button"
+                  disabled={!canExecute}
+                  aria-label={executeCopy}
+                  aria-busy={executing}
+                  onClick={handleExecute}
+                >
+                  {executeCopy}
+                </button>
               </div>
               {!selectedReunionGuest && (
                 <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
@@ -2705,9 +2718,6 @@ export default function SocialPanelV2() {
                 )}
               </div>
             )}
-            <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
-              <RecentActivity players={game.players} compact activeReceiptId={activeReceiptId} />
-            </div>
           </section>
         </div>
 
@@ -2717,38 +2727,14 @@ export default function SocialPanelV2() {
               🤰 ✨ 🍼 💜 ✨
             </span>
           )}
-          <div className="sp2-footer__commandbar">
-            <span className="sp2-footer__cost">
-              {totalCosts && selectedAction
-                ? [
-                    totalCosts.energy ? `⚡ ${totalCosts.energy}` : null,
-                    totalCosts.influence ? `🤝 ${totalCosts.influence}` : null,
-                    totalCosts.info ? `💡 ${totalCosts.info}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'No resource cost'
-                : 'Choose a move'}
-            </span>
-            {footerFeedback && (
-              <span className="sp2-footer__feedback" role="status">
-                {footerFeedback}
-              </span>
-            )}
-            {Boolean(activeReceiptId || feedbackMsg) && (
-              <button className="sp2-clear-outcome" type="button" onClick={clearCurrentOutcome}>
-                Clear
-              </button>
-            )}
-            <button
-              className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
-              type="button"
-              disabled={!canExecute}
-              aria-label={executeCopy}
-              aria-busy={executing}
-              onClick={handleExecute}
-            >
-              {executeCopy}
-            </button>
+          <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
+            <RecentActivity
+              players={game.players}
+              compact
+              activeReceiptId={activeReceiptId}
+              feedback={footerFeedback}
+              onDismissResult={clearCurrentOutcome}
+            />
           </div>
         </footer>
       </div>

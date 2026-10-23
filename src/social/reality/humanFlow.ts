@@ -1783,14 +1783,12 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
       // and any Cupid consequences added after the compatibility log was saved.
       if (!entry.id) continue
       if (entry.receipt) {
-        if (Object.keys(relationshipShifts).length > 0) {
-          dispatch(
-            finalizeSocialActionReceipt({
-              entryId: entry.id,
-              receipt: { ...entry.receipt, relationshipShifts },
-            })
-          )
-        }
+        dispatch(
+          finalizeSocialActionReceipt({
+            entryId: entry.id,
+            receipt: { ...entry.receipt, relationshipShifts },
+          })
+        )
         continue
       }
       const relationshipStrain = Object.values(entry.targetDeltas ?? {}).some((delta) => delta < 0)
@@ -1806,7 +1804,7 @@ export function executeHumanRealityAction(input: HumanRealityActionInput) {
           entryId: entry.id,
           receipt: {
             groupId: entries[0].id,
-            ...(Object.keys(relationshipShifts).length > 0 ? { relationshipShifts } : {}),
+            relationshipShifts,
             summary: outcome.summary,
             outcomeLabel: mixedOutcome
               ? 'Mixed result'

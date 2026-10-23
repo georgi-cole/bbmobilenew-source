@@ -659,8 +659,10 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(activity.querySelectorAll('.ra-entry__narrative')).toHaveLength(1)
     expect(activity).not.toHaveTextContent(receipt!.summary)
     expect(document.querySelector('.sp2-moves__selection')).toBeNull()
-    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
+    expect(activity.closest('.sp2-footer')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Dismiss current result' })).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /full response|expand the full result/i })
     ).toBeNull()
@@ -751,13 +753,11 @@ describe('SocialPanelV2 – success pulse', () => {
 
     const btn = screen.getByRole('button', { name: 'Execute' })
     const frozenMoveControls = btn.closest('.sp2-moves__top')
-    expect(frozenMoveControls).toBeNull()
-    const moveControls = document.querySelector('.sp2-moves__top')
-    expect(moveControls).not.toBeNull()
+    expect(frozenMoveControls).not.toBeNull()
     expect(
-      within(moveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
+      within(frozenMoveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
     ).toBeVisible()
-    expect(btn.closest('.sp2-footer')).not.toBeNull()
+    expect(btn.closest('.sp2-footer')).toBeNull()
     expect(document.querySelector('.ra-action-control')).toBeNull()
     expect((btn as HTMLElement).className).toContain('sp2-execute--pulse')
   })
@@ -1341,7 +1341,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     }
     expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
     expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
-    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
     const formedReality = structuredClone(store.getState().social.reality)

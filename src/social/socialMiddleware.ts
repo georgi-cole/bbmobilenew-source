@@ -91,6 +91,7 @@ import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
 import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
+import { getPulseChronicleTheme } from './pulseChronicleTheme'
 import { resolveWeatherDay } from '../weather/weatherEngine'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
@@ -142,9 +143,13 @@ interface GameState {
   coLohNomineeByCoLohId?: Record<string, string> | null
   cupidArrow?: {
     status?: 'inactive' | 'scheduled' | 'active' | 'broken'
+    activatedSeason?: number | null
     pairs?: Array<{ memberIds: [string, string] }>
   }
-  voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
+  voxPopuli?: {
+    status?: 'inactive' | 'scheduled' | 'active' | 'complete'
+    activatedSeason?: number | null
+  } | null
   weekendInterlude?: {
     active?: boolean
     afterDay: number
@@ -261,6 +266,7 @@ function archiveCompletedPulseEpisode(
     reality: state.social.reality,
     actionHistory,
     weather: resolveWeatherDay(state.game.gameId, day).condition,
+    theme: getPulseChronicleTheme(state.game, day),
     complete: true,
     episode: identity,
     actionHistoryAfterTimestamp,

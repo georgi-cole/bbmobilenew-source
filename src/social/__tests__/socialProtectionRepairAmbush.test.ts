@@ -167,6 +167,7 @@ describe('POS protection offers', () => {
     const entry = store.getState().social.sessionLogs.at(-1)
     expect(entry?.narrative).toContain('use Safety')
     expect(entry?.receipt?.summary).toBe(result.summary)
+    expect(entry?.receipt?.relationshipShifts).toBeDefined()
     expect(Object.values(store.getState().social.reality.promises)[0]?.kind).toBe(
       'use_safety_on_player'
     )
