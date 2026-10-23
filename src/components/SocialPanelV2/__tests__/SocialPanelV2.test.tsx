@@ -1413,6 +1413,26 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
       group.name = name
       group.status = 'ACTIVE'
     }
+    const otherCandidates = store
+      .getState()
+      .game.players.filter(
+        (player) =>
+          !player.isUser &&
+          player.status !== 'jury' &&
+          ![allyA.id, allyB.id, candidate.id, otherAlly.id].includes(player.id)
+      )
+      .slice(0, 2)
+    for (const [index, otherCandidate] of otherCandidates.entries()) {
+      const existingGroup = createRealityAlliance(reality, {
+        id: `candidate-existing-group-${index}`,
+        kind: 'GROUP',
+        founderIds: [candidate.id, otherCandidate.id],
+        memberIds: [index === 0 ? allyA.id : otherAlly.id],
+        purpose: 'Mutual protection',
+        at: { day: 1, phase: 'social_1' },
+      })
+      existingGroup.status = 'ACTIVE'
+    }
     store.dispatch(replaceRealityDomain(reality))
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
     store.dispatch(setInfluenceBankEntry({ playerId: human.id, value: 5 }))

@@ -62,7 +62,15 @@ export type AllianceManagementCommand =
       purpose?: string
       commandId?: string
     }
-  | { type: 'RESPOND'; requestId: string; actorId: string; accept: boolean; commandId?: string }
+  | {
+      type: 'RESPOND'
+      requestId: string
+      actorId: string
+      accept: boolean
+      /** Group to leave when an invitee accepts while already at the group limit. */
+      leaveAllianceId?: string
+      commandId?: string
+    }
   | { type: 'WITHDRAW'; requestId: string; actorId: string; commandId?: string }
   | {
       type: 'LEAVE' | 'REMOVE' | 'DISSOLVE' | 'CLEAR_COLEADER'
@@ -205,7 +213,8 @@ function recordAllianceDecision(
   actorId: string,
   accept: boolean,
   at: RealityClock,
-  response?: RealityAllianceResponse
+  response?: RealityAllianceResponse,
+  departureAllianceId?: string
 ): void {
   const voting = request.status === 'VOTING'
   if (voting) request.votes[actorId] = accept
@@ -214,6 +223,8 @@ function recordAllianceDecision(
     request.responsesByActorId ??= {}
     request.responsesByActorId[actorId] = response
   }
+  if (request.kind === 'ADMIT' && request.candidateId === actorId && accept && departureAllianceId)
+    request.candidateDepartureAllianceId = departureAllianceId
   recordAllianceRequestEvent(
     state,
     request,
@@ -387,19 +398,70 @@ function finalize(
   } else if (alliance && request.kind === 'ADMIT' && request.candidateId) {
     const counts = currentAllianceCounts(state, request.candidateId)
     if (
-      counts.groups >= ALLIANCE_LIMITS.groupsPerMember ||
+      alliance.memberIds.includes(request.candidateId) ||
       alliance.memberIds.length >= ALLIANCE_LIMITS.groupMembers
     ) {
       settle(
         state,
         request,
         'INVALIDATED',
-        'The candidate or group has no remaining group slot.',
+        'The group has no remaining member slot or the candidate is already a member.',
         context.at
       )
       return
     }
     const candidateId = request.candidateId
+    if (counts.groups >= ALLIANCE_LIMITS.groupsPerMember) {
+      const departure = request.candidateDepartureAllianceId
+        ? state.alliances[request.candidateDepartureAllianceId]
+        : undefined
+      if (
+        counts.groups !== ALLIANCE_LIMITS.groupsPerMember ||
+        !departure ||
+        departure.id === alliance.id ||
+        !isCurrentAlliance(departure) ||
+        allianceKind(departure) !== 'GROUP' ||
+        !departure.memberIds.includes(candidateId)
+      ) {
+        settle(
+          state,
+          request,
+          'INVALIDATED',
+          'The invitee’s current alliances changed before they could make room.',
+          context.at
+        )
+        return
+      }
+      removeRealityAllianceMember(state, {
+        allianceId: departure.id,
+        memberId: candidateId,
+        actorId: candidateId,
+        kind: 'DEFECTION',
+        at: context.at,
+      })
+    } else if (request.candidateDepartureAllianceId) {
+      settle(
+        state,
+        request,
+        'INVALIDATED',
+        'The invitee’s selected alliance is no longer a current group.',
+        context.at
+      )
+      return
+    }
+    if (
+      currentAllianceCounts(state, candidateId).groups >= ALLIANCE_LIMITS.groupsPerMember ||
+      !isCurrentAlliance(state.alliances[alliance.id])
+    ) {
+      settle(
+        state,
+        request,
+        'INVALIDATED',
+        'The invitee could not make room in time for the new alliance.',
+        context.at
+      )
+      return
+    }
     const resultingRoster = [...alliance.memberIds, candidateId].sort()
     const existingRosterIds = Object.values(state.alliances)
       .filter(
@@ -504,6 +566,82 @@ function allianceDecisionRoll(
   for (const character of `${request.id}:${actorId}:${request.status}`)
     hash = Math.imul(hash ^ character.charCodeAt(0), 16777619) >>> 0
   return hash / 0x1_0000_0000
+}
+
+function groupAlliancePotential(
+  state: RealityDomainState,
+  alliance: RealityAlliance,
+  actorId: string
+): number {
+  const otherMembers = alliance.memberIds.filter((id) => id !== actorId)
+  const relationshipValue =
+    otherMembers.reduce((total, memberId) => {
+      const relationship = state.relationships[actorId]?.[memberId]
+      return (
+        total +
+        (relationship?.trust ?? 0) * 0.28 +
+        (relationship?.loyalty ?? 0) * 0.24 +
+        (relationship?.strategicValue ?? 0) * 0.2 +
+        (relationship?.reliability ?? 0) * 0.14 +
+        (relationship?.respect ?? 0) * 0.08 +
+        (relationship?.warmth ?? 0) * 0.06
+      )
+    }, 0) / Math.max(1, otherMembers.length)
+  const statusValue =
+    alliance.status === 'FRACTURED'
+      ? -18
+      : alliance.status === 'DORMANT'
+        ? -10
+        : alliance.status === 'PROBATIONARY'
+          ? -6
+          : 3
+  const alreadyMember = alliance.memberIds.includes(actorId)
+  const commitmentValue = alreadyMember ? (alliance.memberCommitment[actorId] ?? 0.5) * 12 : 6
+  const roleValue =
+    alreadyMember && alliance.leaderId === actorId
+      ? 12
+      : alreadyMember && alliance.coLeaderId === actorId
+        ? 7
+        : 0
+
+  return (
+    relationshipValue +
+    alliance.cohesion * 18 -
+    alliance.fractureRisk * 16 +
+    commitmentValue +
+    roleValue +
+    statusValue
+  )
+}
+
+function invitationSwitchOption(
+  state: RealityDomainState,
+  request: RealityAllianceRequest,
+  actorId: string
+): { allianceId: string; advantage: number } | undefined {
+  if (request.kind !== 'ADMIT' || request.status !== 'CONSENT' || request.candidateId !== actorId)
+    return undefined
+  const invitedAlliance = request.allianceId ? state.alliances[request.allianceId] : undefined
+  if (!invitedAlliance || !isCurrentAlliance(invitedAlliance)) return undefined
+  const currentGroups = Object.values(state.alliances).filter(
+    (alliance) =>
+      isCurrentAlliance(alliance) &&
+      allianceKind(alliance) === 'GROUP' &&
+      alliance.memberIds.includes(actorId)
+  )
+  if (currentGroups.length !== ALLIANCE_LIMITS.groupsPerMember) return undefined
+
+  const weakest = currentGroups
+    .map((alliance) => ({ alliance, potential: groupAlliancePotential(state, alliance, actorId) }))
+    .sort(
+      (left, right) =>
+        left.potential - right.potential || left.alliance.id.localeCompare(right.alliance.id)
+    )[0]
+  if (!weakest) return undefined
+  return {
+    allianceId: weakest.alliance.id,
+    advantage: groupAlliancePotential(state, invitedAlliance, actorId) - weakest.potential,
+  }
 }
 
 function pactDecision(
@@ -642,7 +780,7 @@ function aiDecision(
   request: RealityAllianceRequest,
   actorId: string,
   seed: number
-): { accepted: boolean; response?: RealityAllianceResponse } {
+): { accepted: boolean; response?: RealityAllianceResponse; departureAllianceId?: string } {
   const otherIds =
     request.kind === 'ADMIT' && request.status === 'VOTING'
       ? [request.candidateId!]
@@ -655,11 +793,54 @@ function aiDecision(
     return { accepted: (state.relationships[actorId]?.[request.candidateId!]?.trust ?? 0) < -10 }
   if (request.kind === 'RENAME_SUGGESTION')
     return { accepted: (state.relationships[actorId]?.[request.proposerId]?.trust ?? 0) >= 0 }
-  return {
-    accepted:
-      allianceDecisionRoll(request, actorId, seed) <
-      Math.max(0.12, Math.min(0.92, 0.62 + trust / 200)),
+  const chance = Math.max(0.12, Math.min(0.92, 0.62 + trust / 200))
+  const isInviteeDecision =
+    request.kind === 'ADMIT' && request.status === 'CONSENT' && request.candidateId === actorId
+  const groupCount = isInviteeDecision ? currentAllianceCounts(state, actorId).groups : 0
+  if (groupCount > ALLIANCE_LIMITS.groupsPerMember)
+    return {
+      accepted: false,
+      response: {
+        style: 'DECLINED',
+        reason: 'I cannot take on another group commitment right now.',
+      },
+    }
+  const switchOption = isInviteeDecision
+    ? invitationSwitchOption(state, request, actorId)
+    : undefined
+  if (groupCount === ALLIANCE_LIMITS.groupsPerMember && !switchOption)
+    return {
+      accepted: false,
+      response: {
+        style: 'DECLINED',
+        reason: 'I cannot make room for another group commitment right now.',
+      },
+    }
+  if (switchOption) {
+    // Switching groups is a higher-risk choice than accepting an open slot.
+    // A healthier current alliance wins unless the proposed group has a clear edge.
+    const requiredAdvantage = 12
+    const decisiveAdvantage = 32
+    const acceptsSwitch =
+      switchOption.advantage >= decisiveAdvantage ||
+      (switchOption.advantage >= requiredAdvantage &&
+        allianceDecisionRoll(request, actorId, seed) <
+          Math.min(
+            0.82,
+            chance + Math.min(0.16, (switchOption.advantage - requiredAdvantage) / 160)
+          ))
+    return {
+      accepted: acceptsSwitch,
+      ...(acceptsSwitch ? { departureAllianceId: switchOption.allianceId } : {}),
+      response: {
+        style: acceptsSwitch ? 'HESITANT' : 'DECLINED',
+        reason: acceptsSwitch
+          ? 'This group offers a stronger path for me, so I am willing to leave a weaker alliance.'
+          : 'My current alliances still feel safer than risking a switch to a new group.',
+      },
+    }
   }
+  return { accepted: allianceDecisionRoll(request, actorId, seed) < chance }
 }
 
 function admissionVoteSummary(
@@ -747,7 +928,8 @@ export function advanceAllianceRequests(
         actorId,
         decision.accepted,
         context.at,
-        decision.response
+        decision.response,
+        decision.departureAllianceId
       )
     }
     const overdue = compareSocialClock(request.deadline, context.at) < 0
@@ -786,7 +968,8 @@ export function advanceAllianceRequests(
           request.candidateId!,
           decision.accepted,
           context.at,
-          decision.response
+          decision.response,
+          decision.departureAllianceId
         )
       }
     }
@@ -943,11 +1126,8 @@ function propose(
       }
     if (!command.candidateId || members.includes(command.candidateId))
       return reject('Choose someone outside this group.')
-    if (
-      members.length >= ALLIANCE_LIMITS.groupMembers ||
-      currentAllianceCounts(state, command.candidateId).groups >= ALLIANCE_LIMITS.groupsPerMember
-    )
-      return reject('The candidate or group has no remaining group slot.')
+    if (members.length >= ALLIANCE_LIMITS.groupMembers)
+      return reject('This group has no remaining member slot.')
   }
   if (command.kind === 'APPOINT' || command.kind === 'TRANSFER') {
     if (alliance?.leaderId !== command.actorId)
@@ -1150,13 +1330,45 @@ export function manageAlliance(
     } else if (!allianceRequestDecisionActors(request).includes(command.actorId))
       result = reject('You have already answered or are not a decision maker for this request.')
     else {
-      recordAllianceDecision(state, request, command.actorId, command.accept, context.at)
-      advanceAllianceRequests(state, context)
-      result = {
-        status: 'APPLIED',
-        reason: request.reason ?? 'Your decision was recorded.',
-        requestId: request.id,
-        allianceId: request.resultAllianceId,
+      const acceptingInvite =
+        request.kind === 'ADMIT' && request.candidateId === command.actorId && command.accept
+      const groupCount = acceptingInvite ? currentAllianceCounts(state, command.actorId).groups : 0
+      const departure = command.leaveAllianceId
+        ? state.alliances[command.leaveAllianceId]
+        : undefined
+      const decisionError = acceptingInvite
+        ? groupCount > ALLIANCE_LIMITS.groupsPerMember
+          ? 'This contestant has too many current group commitments to switch with one departure.'
+          : groupCount === ALLIANCE_LIMITS.groupsPerMember
+            ? !departure ||
+              departure.id === request.allianceId ||
+              !isCurrentAlliance(departure) ||
+              allianceKind(departure) !== 'GROUP' ||
+              !departure.memberIds.includes(command.actorId)
+              ? 'Choose one current alliance to leave before accepting this invitation.'
+              : undefined
+            : command.leaveAllianceId
+              ? 'You do not need to leave an alliance to accept this invitation.'
+              : undefined
+        : undefined
+      if (decisionError) result = reject(decisionError)
+      else {
+        recordAllianceDecision(
+          state,
+          request,
+          command.actorId,
+          command.accept,
+          context.at,
+          undefined,
+          acceptingInvite ? departure?.id : undefined
+        )
+        advanceAllianceRequests(state, context)
+        result = {
+          status: 'APPLIED',
+          reason: request.reason ?? 'Your decision was recorded.',
+          requestId: request.id,
+          allianceId: request.resultAllianceId,
+        }
       }
     }
   } else {

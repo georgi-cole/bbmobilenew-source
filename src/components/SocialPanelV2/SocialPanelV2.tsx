@@ -451,8 +451,6 @@ export default function SocialPanelV2() {
             (alliance) =>
               !alliance.memberIds.includes(primaryTargetId) &&
               alliance.memberIds.length < ALLIANCE_LIMITS.groupMembers &&
-              currentAllianceCounts(socialState.reality, primaryTargetId).groups <
-                ALLIANCE_LIMITS.groupsPerMember &&
               !Object.values(socialState.reality.allianceManagement.requests).some(
                 (request) =>
                   request.kind === 'ADMIT' &&

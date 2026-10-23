@@ -373,6 +373,107 @@ describe('explicit alliance management', () => {
     expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
     expect(alliance.memberIds).toContain('x')
   })
+  it('lets an invitee at the group limit choose which current group to leave only when accepting', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    firstCurrent.name = 'Old Circle'
+    secondCurrent.name = 'Quiet Group'
+
+    const id = request(state, 'x')
+    respond(state, id, 'k')
+    respond(state, id, 'r')
+    respond(state, id, 'u')
+    expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+
+    const withoutChoice = manageAlliance(
+      state,
+      { type: 'RESPOND', requestId: id, actorId: 'x', accept: true },
+      context
+    )
+    expect(withoutChoice.status).toBe('REJECTED')
+    expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+
+    const accepted = manageAlliance(
+      state,
+      {
+        type: 'RESPOND',
+        requestId: id,
+        actorId: 'x',
+        accept: true,
+        leaveAllianceId: firstCurrent.id,
+      },
+      context
+    )
+    expect(accepted.status).toBe('APPLIED')
+    expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
+    expect(firstCurrent.memberIds).not.toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('does not change an invitee’s existing groups when they decline at the group limit', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    const id = request(state, 'x')
+    approve(state, id)
+
+    respond(state, id, 'x', false)
+
+    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).not.toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('does not let an AI invitee trade two healthy alliances for a comparable one by default', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    const id = request(state, 'x', target.id)
+    approve(state, id)
+
+    advanceAllianceRequests(state, { ...context, humanActorIds: ids.filter((id) => id !== 'x') })
+
+    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).not.toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('can accept a strategically stronger invitation when the weakest current group is fractured', () => {
+    const state = setup()
+    const target = group(state)
+    target.status = 'ACTIVE'
+    const fractured = group(state, ['x', 'c', 'd'], 'candidate-fractured', 'c')
+    fractured.status = 'FRACTURED'
+    fractured.cohesion = 0.1
+    fractured.fractureRisk = 0.9
+    const healthy = group(state, ['x', 'e', 'f'], 'candidate-healthy', 'e')
+    healthy.status = 'ACTIVE'
+    healthy.cohesion = 0.8
+    healthy.fractureRisk = 0.05
+    state.relationships.x = Object.fromEntries(
+      target.memberIds.map((memberId) => [memberId, createDirectedRelationship('x', memberId, 100)])
+    )
+    const id = request(state, 'x', target.id)
+    approve(state, id)
+
+    advanceAllianceRequests(state, { ...context, humanActorIds: ids.filter((id) => id !== 'x') })
+
+    expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
+    expect(fractured.memberIds).not.toContain('x')
+    expect(healthy.memberIds).toContain('x')
+    expect(target.memberIds).toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
   it('lets the leader break a two-member admission tie with a yes vote', () => {
     const state = setup()
     const alliance = group(state)
@@ -463,7 +564,7 @@ describe('explicit alliance management', () => {
     respond(state, second, 'c')
     expect(state.alliances.group.memberIds).not.toContain('c')
   })
-  it('rechecks capacity when two invitations compete for a candidate’s final group slot', () => {
+  it('requires a deliberate alliance switch when two invitations compete for a candidate at the group limit', () => {
     const state = setup()
     group(state)
     group(state, ['k', 'c', 'd'], 'second', 'k')
@@ -473,9 +574,25 @@ describe('explicit alliance management', () => {
     approve(state, first)
     approve(state, second)
     respond(state, first, 'x')
-    respond(state, second, 'x')
     expect(state.allianceManagement.requests[first].status).toBe('ACCEPTED')
-    expect(state.allianceManagement.requests[second].status).toBe('INVALIDATED')
+    expect(state.allianceManagement.requests[second].status).toBe('CONSENT')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+
+    const acceptedSwitch = manageAlliance(
+      state,
+      {
+        type: 'RESPOND',
+        requestId: second,
+        actorId: 'x',
+        accept: true,
+        leaveAllianceId: 'existing',
+      },
+      context
+    )
+    expect(acceptedSwitch.status).toBe('APPLIED')
+    expect(state.allianceManagement.requests[second].status).toBe('ACCEPTED')
+    expect(state.alliances.existing.memberIds).not.toContain('x')
+    expect(state.alliances.second.memberIds).toContain('x')
     expect(currentAllianceCounts(state, 'x').groups).toBe(2)
   })
   it('allows additional personal pacts independently of group membership limits', () => {

@@ -522,6 +522,30 @@
   gap: 0.4rem;
 }
 
+.inbox-alliance-switch {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0.55rem;
+  color: rgba(241, 235, 250, 0.82);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.inbox-alliance-switch select {
+  min-height: 42px;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid rgba(191, 156, 255, 0.45);
+  border-radius: 10px;
+  color: #f8f5ff;
+  background: #21182f;
+  font: inherit;
+}
+
+.inbox-alliance-switch select:focus-visible {
+  outline: 2px solid #c3a7ff;
+  outline-offset: 2px;
+}
+
 .inbox-action {
   min-width: 0;
   min-height: 48px;
