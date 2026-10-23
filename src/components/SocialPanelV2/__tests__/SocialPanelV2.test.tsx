@@ -480,6 +480,8 @@ describe('SocialPanelV2 – execute flow', () => {
     ).toBeVisible()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
+    expect(btn).toHaveClass('sp2-moves__execute')
+    expect(btn.closest('.sp2-moves__heading')).not.toBeNull()
   })
 
   it('execute stays disabled until a target and action have both been selected', () => {
@@ -1466,6 +1468,9 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
         .filter((button) => button.getAttribute('aria-pressed') === 'true')
     ).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Start vote' })).toBeDisabled()
+    const startVote = screen.getByRole('button', { name: 'Start vote' })
+    expect(startVote).toHaveClass('sp2-moves__execute')
+    expect(startVote.closest('.sp2-moves__heading')).not.toBeNull()
     expect(Object.keys(store.getState().social.reality.allianceManagement.requests)).toHaveLength(0)
     const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
     expect(picker.getAllByRole('button')).toHaveLength(2)

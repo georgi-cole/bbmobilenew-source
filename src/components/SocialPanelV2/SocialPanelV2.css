@@ -2468,11 +2468,11 @@
 .sp2-moves__execute {
   width: auto;
   max-width: none;
-  min-width: 4.8rem;
+  min-width: 4.4rem;
   min-height: 44px;
-  padding: 0.16rem 0.46rem;
+  padding: 0.12rem 0.36rem;
   border-radius: 0.52rem;
-  font-size: 0.59rem;
+  font-size: 0.56rem;
   line-height: 1;
   flex-shrink: 0;
   white-space: normal;
