@@ -4,6 +4,10 @@ import {
   type HouseOfCardsRoundPerformance,
 } from '../../features/houseOfCards/houseOfCardsAi'
 import type { HouseOfDarknessCharmId } from './houseOfDarknessUtils'
+import {
+  orderMinigameTargets,
+  type MinigameStrategicContext,
+} from '../../ai/competition/allianceMinigameStrategy'
 
 export interface HouseOfDarknessAiAbilityParams {
   baseAbility: number
@@ -61,6 +65,7 @@ export interface HouseOfDarknessAiCharmContext {
   omenFirstMistakeBonus: number
   aliveCount: number
   leaderId?: string
+  strategicContext?: MinigameStrategicContext
   potentialTargets: Array<{ id: string; health: number; queuedCurseCharges: number }>
 }
 
@@ -97,6 +102,7 @@ export function chooseHouseOfDarknessAiCharm(
     omenFirstMistakeBonus,
     aliveCount,
     leaderId,
+    strategicContext,
     potentialTargets,
   } = context
   const rng = mulberry32(
@@ -126,9 +132,15 @@ export function chooseHouseOfDarknessAiCharm(
       omenFirstMistakeBonus / Math.max(1, expectedErrors)
   )
   const completionChance = Math.max(0.36, Math.min(0.94, 0.9 - (expectedErrors / pairCount) * 0.28))
-  const averageTarget = potentialTargets
-    .slice()
-    .sort((a, b) => Number(b.id === leaderId) - Number(a.id === leaderId) || a.health - b.health)[0]
+  const averageTarget = orderMinigameTargets(
+    potentialTargets,
+    playerId,
+    strategicContext ?? {},
+    (target) =>
+      (target.id === leaderId ? 8 : 0) +
+      Math.max(0, 100 - target.health) * 0.04 +
+      Math.min(4, target.queuedCurseCharges) * 0.75
+  )[0]
 
   const scores = offers.map((charm) => {
     let value = 0

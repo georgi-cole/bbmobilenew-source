@@ -6,6 +6,12 @@
  */
 
 import { mulberry32, seededPick } from '../../store/rng';
+import {
+  getAlliancePowerHolderPriority,
+  getMinigameTargetPriority,
+  orderMinigameTargets,
+  type MinigameStrategicContext,
+} from '../../ai/competition/allianceMinigameStrategy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,6 +104,7 @@ export function pickVictimForAi(
   round: number,
   saboteurId: string,
   activeIds: string[],
+  strategicContext?: MinigameStrategicContext,
 ): string {
   const candidates = activeIds.filter((id) => id !== saboteurId);
   if (candidates.length === 0) {
@@ -106,7 +113,12 @@ export function pickVictimForAi(
   }
   const victimSeed = ((seed ^ (round * 0x6b43a9c5) ^ 0xdeadbeef) >>> 0);
   const rng = mulberry32(victimSeed);
-  return seededPick(rng, candidates);
+  return orderMinigameTargets(
+    candidates.map((id) => ({ id, tieBreak: rng() })),
+    saboteurId,
+    strategicContext ?? {},
+    (candidate) => candidate.tieBreak * 8,
+  )[0].id;
 }
 
 // ─── Candidate filtering ──────────────────────────────────────────────────────
@@ -214,6 +226,7 @@ export function pickVoteForAi(
   activeIds: string[],
   victimId?: string | null,
   evidence?: SilentSaboteurRoundEvidence,
+  strategicContext?: MinigameStrategicContext,
 ): string {
   const candidates = getValidSaboteurCandidates(activeIds, voterId, victimId ?? null);
   if (candidates.length === 0) {
@@ -225,13 +238,28 @@ export function pickVoteForAi(
   const idHash = fnv1a32(voterId);
   const voteSeed = ((seed ^ (round * 0x3c6ef35f) ^ idHash) >>> 0);
   const rng = mulberry32(voteSeed);
+  const strategicWeight = (id: string) =>
+    Math.max(0.35, Math.min(1.45, 1 + getMinigameTargetPriority(strategicContext ?? {}, voterId, id) / 100));
   if (!evidence || !candidates.some((id) => evidence[id])) {
-    return seededPick(rng, candidates);
+    const weights = candidates.map((id) => strategicWeight(id) * (1 + rng() * 0.45));
+    const totalWeight = weights.reduce((total, weight) => total + weight, 0);
+    let cursor = rng() * totalWeight;
+    for (let index = 0; index < candidates.length; index++) {
+      cursor -= weights[index];
+      if (cursor <= 0) return candidates[index];
+    }
+    return candidates[candidates.length - 1];
   }
 
   // Leads affect suspicion, not certainty. Even a concerning lead remains
   // only one input, and each voter keeps deterministic individual variation.
-  const weights = candidates.map((id) => 1 + (evidence[id]?.score ?? 40) / 18 + rng() * 1.25);
+  const weights = candidates.map(
+    (id) => {
+      const targetPriority = getMinigameTargetPriority(strategicContext ?? {}, voterId, id);
+      const evidencePreference = Math.max(0.88, Math.min(1.12, 1 + targetPriority / 300));
+      return (1 + (evidence[id]?.score ?? 40) / 18 + rng() * 1.25) * evidencePreference;
+    },
+  );
   const totalWeight = weights.reduce((total, weight) => total + weight, 0);
   let cursor = rng() * totalWeight;
   for (let index = 0; index < candidates.length; index++) {
@@ -252,10 +280,11 @@ export function pickVoteForAiOrAbstain(
   activeIds: string[],
   victimId?: string | null,
   evidence?: SilentSaboteurRoundEvidence,
+  strategicContext?: MinigameStrategicContext,
 ): string | null {
   const candidates = getValidSaboteurCandidates(activeIds, voterId, victimId ?? null);
   if (candidates.length === 0) return null;
-  return pickVoteForAi(seed, round, voterId, activeIds, victimId ?? null, evidence);
+  return pickVoteForAi(seed, round, voterId, activeIds, victimId ?? null, evidence, strategicContext);
 }
 
 /**
@@ -269,10 +298,19 @@ export function buildAiVotes(
   activeIds: string[],
   victimId?: string | null,
   evidence?: SilentSaboteurRoundEvidence,
+  strategicContext?: MinigameStrategicContext,
 ): Record<string, string> {
   const votes: Record<string, string> = {};
   for (const id of aiIds) {
-    const accusedId = pickVoteForAiOrAbstain(seed, round, id, activeIds, victimId ?? null, evidence);
+    const accusedId = pickVoteForAiOrAbstain(
+      seed,
+      round,
+      id,
+      activeIds,
+      victimId ?? null,
+      evidence,
+      strategicContext,
+    );
     if (accusedId == null) continue;
     votes[id] = accusedId;
   }
@@ -433,9 +471,22 @@ export function buildAiJuryVotes(
   jurorIds: string[],
   saboteurId: string,
   victimId: string,
+  strategicContext?: MinigameStrategicContext,
 ): Record<string, string> {
   const votes: Record<string, string> = {};
   for (const jurorId of jurorIds) {
+    if (strategicContext) {
+      votes[jurorId] = pickVoteForAi(
+        seed,
+        9999,
+        jurorId,
+        [saboteurId, victimId],
+        null,
+        undefined,
+        strategicContext,
+      );
+      continue;
+    }
     const idHash = fnv1a32(jurorId);
     const jurySeed = ((seed ^ idHash ^ 0xc001cafe) >>> 0);
     const rng = mulberry32(jurySeed);
@@ -451,13 +502,42 @@ export function buildAiSurvivorJuryVotes(
   seed: number,
   jurorIds: string[],
   finalistIds: [string, string],
+  strategicContext?: MinigameStrategicContext,
 ): Record<string, string> {
   const votes: Record<string, string> = {};
   for (const jurorId of jurorIds) {
-    const jurySeed = ((seed ^ fnv1a32(jurorId) ^ 0x51a7e) >>> 0);
-    votes[jurorId] = seededPick(mulberry32(jurySeed), finalistIds);
+    votes[jurorId] = pickSurvivorJuryVoteForAi(seed, jurorId, finalistIds, strategicContext);
   }
   return votes;
+}
+
+/** Select a survivor-jury winner, favoring committed coalition members without locking votes. */
+export function pickSurvivorJuryVoteForAi(
+  seed: number,
+  jurorId: string,
+  finalistIds: [string, string],
+  strategicContext?: MinigameStrategicContext,
+): string {
+  const jurySeed = ((seed ^ fnv1a32(jurorId) ^ 0x51a7e) >>> 0);
+  const rng = mulberry32(jurySeed);
+  if (!strategicContext) return seededPick(rng, finalistIds);
+
+  const weights = finalistIds.map((finalistId) => {
+    const alliancePriority = getAlliancePowerHolderPriority(
+      strategicContext.alliances,
+      jurorId,
+      finalistId,
+    );
+    const targetPriority = getMinigameTargetPriority(strategicContext, jurorId, finalistId);
+    return Math.max(0.2, 1 + alliancePriority * 2 - targetPriority * 0.025 + rng() * 0.45);
+  });
+  const totalWeight = weights.reduce((total, weight) => total + weight, 0);
+  let cursor = rng() * totalWeight;
+  for (let index = 0; index < finalistIds.length; index++) {
+    cursor -= weights[index];
+    if (cursor <= 0) return finalistIds[index];
+  }
+  return finalistIds[finalistIds.length - 1];
 }
 
 /** Resolve a survivor jury. Tied juries use a seeded tiebreak for one winner. */

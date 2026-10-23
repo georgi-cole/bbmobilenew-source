@@ -228,11 +228,24 @@ export default function MysticChamber(props: GenericMinigameProps) {
     }
     if (actor.isHuman) return undefined
     const timer = window.setTimeout(() => {
-      const choice = chooseChamberAiAction(state, props.relationships, rngRef.current)
+      const choice = chooseChamberAiAction(
+        state,
+        props.relationships,
+        rngRef.current,
+        props.alliances
+      )
       startAction(choice.action, choice.targetId)
     }, AI_CHOICE_DELAY_MS)
     return () => window.clearTimeout(timer)
-  }, [actor.eliminated, actor.isHuman, props.relationships, state, startAction, view])
+  }, [
+    actor.eliminated,
+    actor.isHuman,
+    props.alliances,
+    props.relationships,
+    state,
+    startAction,
+    view,
+  ])
 
   useEffect(() => {
     if (view !== 'activation') return undefined
@@ -283,7 +296,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
           setView('box-target')
           return
         }
-        const target = chooseChamberExecutionTarget(nextState, props.relationships)
+        const target = chooseChamberExecutionTarget(nextState, props.relationships, props.alliances)
         if (target) {
           setPendingBoxTargetId(target.id)
           setView('box-reveal')
@@ -297,7 +310,15 @@ export default function MysticChamber(props: GenericMinigameProps) {
       setView('result')
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [actor.isHuman, pendingAction, pendingBoxTargetId, props.relationships, state, view])
+  }, [
+    actor.isHuman,
+    pendingAction,
+    pendingBoxTargetId,
+    props.alliances,
+    props.relationships,
+    state,
+    view,
+  ])
 
   useEffect(() => {
     if (view !== 'box-reveal') return undefined
@@ -339,7 +360,12 @@ export default function MysticChamber(props: GenericMinigameProps) {
         simulatedState = skipEliminatedTurn(simulatedState, rngRef.current)
         continue
       }
-      const choice = chooseChamberAiAction(simulatedState, props.relationships, rngRef.current)
+      const choice = chooseChamberAiAction(
+        simulatedState,
+        props.relationships,
+        rngRef.current,
+        props.alliances
+      )
       simulatedState = resolveChamberAction(
         simulatedState,
         choice.action,
@@ -347,7 +373,11 @@ export default function MysticChamber(props: GenericMinigameProps) {
         rngRef.current
       )
       if (simulatedState.pendingBox) {
-        const target = chooseChamberExecutionTarget(simulatedState, props.relationships)
+        const target = chooseChamberExecutionTarget(
+          simulatedState,
+          props.relationships,
+          props.alliances
+        )
         if (target)
           simulatedState = resolveChamberBoxTarget(simulatedState, target.id, rngRef.current)
       }
@@ -357,7 +387,7 @@ export default function MysticChamber(props: GenericMinigameProps) {
     setSelectedTargetId(null)
     setHistoryOpen(false)
     setView('finished')
-  }, [props.relationships, state])
+  }, [props.alliances, props.relationships, state])
 
   useEffect(() => {
     if (!autoplay || view !== 'result' || state.lastEvent?.actorId === humanPlayer?.id)

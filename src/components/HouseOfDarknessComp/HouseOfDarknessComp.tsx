@@ -11,6 +11,8 @@ import { createHouseOfCardsAiProfiles } from '../../features/houseOfCards/houseO
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import { useHouseOfCardsAudio } from '../../hooks/useHouseOfCardsAudio'
 import { SoundManager } from '../../services/sound/SoundManager'
+import type { RelationshipsMap } from '../../social/types'
+import type { StrategicAllianceSnapshot } from '../../types'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import {
   HOUSE_OF_DARKNESS_COLUMNS,
@@ -64,6 +66,8 @@ interface Props {
   autoStart?: boolean
   premiumPresentation?: boolean
   previewStage?: 'round6' | 'final2'
+  relationships?: RelationshipsMap
+  alliances?: StrategicAllianceSnapshot[]
   onFinish?: (value: number, tiebreakerMs?: number, completion?: CompletionPayload) => void
 }
 
@@ -234,6 +238,8 @@ export default function HouseOfDarknessComp({
   seed,
   premiumPresentation = false,
   previewStage,
+  relationships,
+  alliances,
   onFinish,
 }: Props) {
   const resolvedIds = useMemo(() => {
@@ -450,6 +456,7 @@ export default function HouseOfDarknessComp({
         omenFirstMistakeBonus: selectedOmen.firstMistakeBonus,
         aliveCount: Object.values(roundStartStates).filter((state) => state.alive).length,
         leaderId,
+        strategicContext: { relationships, alliances },
         potentialTargets: targetCandidates.map(({ id, health, curseCharges }) => ({
           id,
           health,
@@ -534,7 +541,7 @@ export default function HouseOfDarknessComp({
         },
       }
     },
-    [aiProfiles, sessionSeed]
+    [aiProfiles, alliances, relationships, sessionSeed]
   )
 
   const simulateAfterHumanDeath = useCallback(

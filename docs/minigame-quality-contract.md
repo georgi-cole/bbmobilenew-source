@@ -29,6 +29,14 @@ Before play, the real host must show the registry title, objective, instructions
 
 Instructions are a gameplay contract: when wording and implementation disagree, the rule is unresolved until evidence is evaluated and the decision is recorded in `docs/product-rule-decisions.md`.
 
+## Strategic targeting contract
+
+Active minigames that let an AI choose who to eliminate, weaken, accuse, curse, attack, protect, send into a potentially eliminating duel, or select in a terminal vote for power must use the shared minigame targeting policy in `src/ai/competition/allianceMinigameStrategy.ts`. MinigameHost supplies the current relationship and alliance snapshots; the snapshots include active two-player pacts as well as group alliances.
+
+The default preference is to target known enemies first, then neutrals and floaters, then friends and committed pact/alliance members. A weak or friendly opponent can still be targeted when the game evidence or tactical stakes justify it, and personal agendas, betrayal, fractures, infiltrators, and known alliance plans can change the choice. This is a strategic preference, not a guaranteed behavior or a change to fixed-target game rules. Deduction evidence must remain authoritative when a game asks players to identify a hidden role.
+
+Every new active minigame with an elimination, weakening, attack, protection, or duel-target choice must receive the relationship and pact/alliance context, apply the shared targeting policy to its AI choices, and add focused tests for enemy, neutral, and committed-ally cases before release.
+
 ## Host and lifecycle contract
 
 For each active entry the real MinigameHost path must prove that it:

@@ -529,6 +529,18 @@ export default function MinigameHost({
     setPhase(skipCountdown ? 'playing' : 'countdown')
   }, [attempt, launchedGame.reactComponentKey, sessionId, skipCountdown])
 
+  const relationships = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().social.relationships,
+    () => store.getState().social.relationships
+  )
+  const alliances = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().game.strategicAlliances,
+    () => store.getState().game.strategicAlliances
+  )
+  const strategicContext = useMemo(() => ({ relationships, alliances }), [alliances, relationships])
+
   const renderActiveGame = () => {
     const participantIds = (participants ?? []).map((p) => p.id)
     const seed = typeof gameOptions?.seed === 'number' ? gameOptions.seed : 0
@@ -604,6 +616,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as SilentSaboteurPrizeType}
+          strategicContext={strategicContext}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
@@ -675,6 +688,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as BlackjackTournamentCompetitionType) ?? 'LOH'}
+          strategicContext={strategicContext}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
@@ -707,6 +721,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
+          strategicContext={strategicContext}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
@@ -909,9 +924,8 @@ export default function MinigameHost({
           voteEffectsEnabled={gameOptions?.voteEffectsEnabled !== false}
           participantIds={participantIds}
           participants={participants}
-          relationships={
-            key === 'MysticChamber' ? store.getState().social.relationships : undefined
-          }
+          relationships={strategicContext.relationships}
+          alliances={strategicContext.alliances}
           onFinish={(
             value: number,
             tiebreakerMs?: number,

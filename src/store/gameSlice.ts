@@ -1,12 +1,16 @@
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState, AppDispatch } from './store'
+import {
+  getAlliancePowerHolderPriority,
+  getStrategicAllianceDecisionRead as getStrategicAllianceDecisionReadFromAlliances,
+  type StrategicAllianceDecisionRead,
+} from '../ai/competition/allianceMinigameStrategy'
 import type {
   DemocraciaResultDisplay,
   DayStartShockState,
   DepressionShockState,
   GameState,
   Player,
-  StrategicAllianceSnapshot,
   WeekendInterludeState,
   WeekendTribunalSpeech,
   WeekendPartyBeat,
@@ -2039,115 +2043,14 @@ function getKnownRomanticRivalPressure(
   }
 }
 
-export interface StrategicAllianceDecisionRead {
-  sharedProtection: number
-  currentTargetPressure: number
-  fallbackTargetPressure: number
-  betrayalPressure: number
-  sharedAllianceCount: number
-  actorInfiltrator: boolean
-}
+export type { StrategicAllianceDecisionRead } from '../ai/competition/allianceMinigameStrategy'
 
-function clampStrategicAllianceUnit(value: number): number {
-  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
-}
-
-function strategicAllianceStatusWeight(status: StrategicAllianceSnapshot['status']): number {
-  if (status === 'ACTIVE') return 1
-  if (status === 'PROBATIONARY') return 0.78
-  if (status === 'FRACTURED') return 0.32
-  if (status === 'DORMANT') return 0.14
-  return 0
-}
-
-function strategicAllianceMemberWeight(
-  status: 'CORE' | 'REGULAR' | 'PERIPHERAL' | undefined
-): number {
-  if (status === 'CORE') return 1
-  if (status === 'REGULAR') return 0.78
-  return 0.5
-}
-
-function combineStrategicAllianceWeights(values: number[], cap = 1.25): number {
-  const sorted = values.filter((value) => value > 0).sort((left, right) => right - left)
-  if (sorted.length === 0) return 0
-  return Math.min(
-    cap,
-    sorted[0] +
-      (sorted[1] ?? 0) * 0.35 +
-      sorted.slice(2).reduce((sum, value) => sum + value * 0.15, 0)
-  )
-}
-
-/**
- * Convert overlapping Reality alliances into one actor-specific strategic read.
- * Strong core pacts dominate loose secondary coalitions, while conflicting
- * target plans remain able to compete with that protection. Infiltrators keep
- * the appearance of membership but receive very little inward loyalty weight.
- */
 export function getStrategicAllianceDecisionRead(
-  state: GameState,
+  state: Pick<GameState, 'strategicAlliances'>,
   actorId: string,
   targetId: string
 ): StrategicAllianceDecisionRead {
-  const sharedWeights: number[] = []
-  const targetWeights: number[] = []
-  const fallbackWeights: number[] = []
-  const betrayalWeights: number[] = []
-  let sharedAllianceCount = 0
-  let actorInfiltrator = false
-
-  for (const alliance of state.strategicAlliances ?? []) {
-    if (!alliance.memberIds.includes(actorId) || alliance.status === 'DISSOLVED') continue
-
-    const statusWeight = strategicAllianceStatusWeight(alliance.status)
-    const actorCommitment = clampStrategicAllianceUnit(alliance.memberCommitment[actorId] ?? 0.5)
-    const actorRoleWeight = strategicAllianceMemberWeight(alliance.memberPerceivedStatus[actorId])
-    const cohesion = clampStrategicAllianceUnit(alliance.cohesion)
-    const fractureRisk = clampStrategicAllianceUnit(alliance.fractureRisk)
-    const structureWeight =
-      statusWeight *
-      actorCommitment *
-      actorRoleWeight *
-      (0.35 + cohesion * 0.65) *
-      (1 - fractureRisk * 0.55)
-    const infiltrator = alliance.infiltratorIds.includes(actorId)
-    if (infiltrator) actorInfiltrator = true
-
-    const strategicallyLive = alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
-
-    if (alliance.memberIds.includes(targetId)) {
-      sharedAllianceCount += 1
-      betrayalWeights.push(
-        clampStrategicAllianceUnit(
-          (1 - actorCommitment) * 0.35 + fractureRisk * 0.35 + (infiltrator ? 0.55 : 0)
-        )
-      )
-      if (strategicallyLive) {
-        const targetRoleWeight = strategicAllianceMemberWeight(
-          alliance.memberPerceivedStatus[targetId]
-        )
-        sharedWeights.push(structureWeight * targetRoleWeight * (infiltrator ? 0.12 : 1))
-      }
-    }
-
-    if (!strategicallyLive) continue
-    const knowsPlan =
-      alliance.leaderIds.includes(actorId) || (alliance.memberPlanBeliefs[actorId]?.length ?? 0) > 0
-    if (!knowsPlan) continue
-    const planWeight = structureWeight * (infiltrator ? 0.78 : 1)
-    if (alliance.currentTargetIds.includes(targetId)) targetWeights.push(planWeight)
-    if (alliance.fallbackTargetIds.includes(targetId)) fallbackWeights.push(planWeight)
-  }
-
-  return {
-    sharedProtection: combineStrategicAllianceWeights(sharedWeights),
-    currentTargetPressure: combineStrategicAllianceWeights(targetWeights, 1.2),
-    fallbackTargetPressure: combineStrategicAllianceWeights(fallbackWeights, 1),
-    betrayalPressure: Math.max(0, ...betrayalWeights),
-    sharedAllianceCount,
-    actorInfiltrator,
-  }
+  return getStrategicAllianceDecisionReadFromAlliances(state.strategicAlliances, actorId, targetId)
 }
 
 function getAiIdentityMode(state: GameState): AiIdentityMode {
@@ -11464,8 +11367,63 @@ const gameSlice = createSlice({
                       (voter.id.charCodeAt(0) * 31 + voter.id.charCodeAt(voter.id.length - 1))) >>>
                     0
                   const vRng = mulberry32(vSeed)
-                  const voteIdx = Math.floor(vRng() * candidates.length)
-                  state.democracia.votesByVoterId[voter.id] = candidates[voteIdx].id
+                  const weightedCandidates = candidates.map((candidate) => {
+                    const allianceRead = getStrategicAllianceDecisionRead(
+                      state,
+                      voter.id,
+                      candidate.id
+                    )
+                    const powerHolderPriority = getAlliancePowerHolderPriority(
+                      state.strategicAlliances,
+                      voter.id,
+                      candidate.id
+                    )
+                    const relationship = state.strategicRelationships?.[voter.id]?.[candidate.id]
+                    const rawLoyalty = Math.max(
+                      allianceRead.sharedProtection,
+                      powerHolderPriority,
+                      relationship?.tags?.includes('alliance') ? 0.75 : 0
+                    )
+                    const agendaPressure = Math.min(
+                      0.9,
+                      allianceRead.betrayalPressure + (allianceRead.actorInfiltrator ? 0.35 : 0)
+                    )
+                    const loyalty = rawLoyalty * (1 - agendaPressure)
+                    const hostility =
+                      (relationship?.tags?.some((tag) =>
+                        ['betrayal', 'broken_promise', 'rivalry', 'target'].includes(tag)
+                      )
+                        ? 0.8
+                        : 0) +
+                      Math.max(0, -(relationship?.affinity ?? 0)) / 100
+                    return {
+                      candidate,
+                      // Democracia elects the holder of an office. Prefer a trusted,
+                      // committed pact/alliance member while allowing relationships,
+                      // competing pacts, and individual agendas to shift close votes.
+                      weight: Math.max(
+                        0.2,
+                        1 +
+                          loyalty * 3.2 -
+                          allianceRead.currentTargetPressure * 0.8 -
+                          allianceRead.fallbackTargetPressure * 0.3 -
+                          hostility * 1.7 +
+                          vRng() * 1.2
+                      ),
+                    }
+                  })
+                  const totalWeight = weightedCandidates.reduce(
+                    (total, entry) => total + entry.weight,
+                    0
+                  )
+                  let cursor = vRng() * totalWeight
+                  const selected = weightedCandidates.find((entry) => {
+                    cursor -= entry.weight
+                    return cursor <= 0
+                  })
+                  state.democracia.votesByVoterId[voter.id] = (
+                    selected ?? weightedCandidates[weightedCandidates.length - 1]!
+                  ).candidate.id
                 }
               }
             }
