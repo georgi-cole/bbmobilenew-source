@@ -1,0 +1,40 @@
+# Runs only on the isolated feature branch. Writes a verified static file;
+# the app never needs to contact the World Bank at gameplay time.
+name: Percentage Panic source bank
+
+on:
+  push:
+    branches:
+      - feature/percentage-panic-global-quiz
+    paths:
+      - scripts/generate-percentage-panic-bank.mjs
+      - .github/workflows/percentage-panic-bank.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Retrieve and validate 300 international questions
+        run: node scripts/generate-percentage-panic-bank.mjs
+      - name: Commit checked dataset to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/percentagePanicQuestions.json
+          if git diff --cached --quiet; then
+            echo "Question bank already up to date"
+          else
+            git commit -m "data: generate 300 sourced Percentage Panic questions"
+            git push
+          fi
