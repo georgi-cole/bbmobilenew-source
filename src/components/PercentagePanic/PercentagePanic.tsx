@@ -58,8 +58,6 @@ export default function PercentagePanic({
 
   useEffect(() => {
     if (state.phase !== 'question') return
-    changeGuess(50)
-    setTimeLeft(ROUND_SECONDS)
     startRef.current = performance.now()
     if (!humanActive) {
       const timeout = window.setTimeout(() => setState((s) => resolvePercentageRound(s)), 900)
@@ -103,6 +101,13 @@ export default function PercentagePanic({
     )
     return () => window.clearTimeout(timeout)
   }, [state.phase, state.roundNumber, humanActive, watching])
+
+  const nextRound = () => {
+    // Reset input and clock in the user interaction, not synchronously in an effect.
+    changeGuess(50)
+    setTimeLeft(ROUND_SECONDS)
+    setState(advancePercentageRound)
+  }
 
   const lock = () => {
     const responseMs = Math.max(0, Math.min(ROUND_SECONDS * 1000, Math.floor(performance.now() - startRef.current)))
@@ -235,7 +240,7 @@ export default function PercentagePanic({
             <a className="pp-source" href={state.question.sourceUrl} target="_blank" rel="noopener noreferrer">
               Check published source ↗
             </a>
-            <button className="pp-primary" type="button" onClick={() => setState(advancePercentageRound)}>
+            <button className="pp-primary" type="button" onClick={nextRound}>
               {state.winnerId ? 'REVEAL WINNER' : state.finalists ? 'ENTER THE FINAL TWO' : 'NEXT QUESTION'}
             </button>
           </div>
