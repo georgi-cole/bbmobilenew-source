@@ -27,9 +27,9 @@ const INDICATORS = [
   ['SP.POP.0014.TO.ZS', 'were aged 0–14', 'People & places'],
   ['SP.POP.65UP.TO.ZS', 'were aged 65 or older', 'People & places'],
   ['SP.POP.TOTL.FE.ZS', 'were female', 'People & places'],
-  ['AG.LND.FRST.ZS', 'was covered by forests (share of land area)', 'Nature'],
-  ['AG.LND.AGRI.ZS', 'was agricultural land (share of land area)', 'Nature'],
-  ['AG.LND.ARBL.ZS', 'was arable land (share of land area)', 'Nature'],
+  ['AG.LND.FRST.ZS', 'of its land area was covered by forests', 'Nature'],
+  ['AG.LND.AGRI.ZS', 'of its land was agricultural land', 'Nature'],
+  ['AG.LND.ARBL.ZS', 'of its land was arable land', 'Nature'],
   ['EG.ELC.ACCS.ZS', 'had access to electricity', 'Daily life'],
   ['IT.NET.USER.ZS', 'used the internet', 'Technology'],
   ['EG.FEC.RNEW.ZS', 'of final energy consumption came from renewable sources', 'Environment'],
@@ -47,8 +47,8 @@ const INDICATORS = [
   ['SE.ADT.LITR.ZS', 'of adults aged 15+ were literate', 'Education'],
   ['SE.PRM.CMPT.ZS', 'was the primary completion rate', 'Education'],
   ['SG.GEN.PARL.ZS', 'of parliamentary seats were held by women', 'Society'],
-  ['ER.LND.PTLD.ZS', 'of land was designated as protected terrestrial areas', 'Nature'],
-  ['ER.MRN.PTMR.ZS', 'of marine areas were protected', 'Nature'],
+  ['ER.LND.PTLD.ZS', 'of its land was protected terrestrial area', 'Nature'],
+  ['ER.MRN.PTMR.ZS', 'of its marine area was protected', 'Nature'],
   ['NV.AGR.TOTL.ZS', 'of GDP came from agriculture, forestry and fishing', 'Work & money'],
   ['NV.IND.TOTL.ZS', 'of GDP came from industry', 'Work & money'],
   ['NV.SRV.TOTL.ZS', 'of GDP came from services', 'Work & money'],
@@ -116,11 +116,11 @@ for (const [indicator, phrase, category] of INDICATORS) {
     const part = ['SP.URB.TOTL.IN.ZS','SP.RUR.TOTL.ZS','SP.POP.0014.TO.ZS',
       'SP.POP.65UP.TO.ZS','SP.POP.TOTL.FE.ZS','EG.ELC.ACCS.ZS',
       'IT.NET.USER.ZS','SH.H2O.BASW.ZS','SH.STA.BASS.ZS',
-      'SH.STA.SMSS.ZS','SE.ADT.LITR.ZS','SN.ITK.DEFC.ZS']
+      'SH.STA.SMSS.ZS']
       .includes(indicator)
-    const prefix = part
-      ? 'In ' + year + ', what percentage of the population in ' + location + ' '
-      : 'In ' + year + ', what percentage in ' + location + ' '
+    const place = location === 'World' ? 'worldwide' : 'in ' + location
+    const prefix = 'In ' + year + ', ' + place + ', what percentage ' +
+      (part ? 'of the population ' : '')
     return {
       id: 'wb-' + indicator.toLowerCase().replaceAll('.', '-') + '-' + code.toLowerCase() + '-' + year,
       prompt: prefix + phrase + '?',
@@ -137,14 +137,15 @@ for (const [indicator, phrase, category] of INDICATORS) {
   // Rotate geographic picks per indicator; prefer worldwide/regional datasets,
   // then fill from individual countries on different continents.
   const index = INDICATORS.findIndex((item) => item[0] === indicator)
-  const preferred = [
-    ...eligible.filter((x) => x.scope === 'Global'),
-    ...eligible.filter((x) => regionLabels.has(x.id.split('-').at(-2)?.toUpperCase())),
-    ...eligible.filter((x) => !regionLabels.has(x.id.split('-').at(-2)?.toUpperCase())),
-  ]
-  const shift = (index * 7) % Math.max(1, preferred.length)
-  const rotated = [...preferred.slice(shift), ...preferred.slice(0, shift)]
-  for (const item of rotated.slice(0, 14)) byKey.set(item.id, item)
+  const global = eligible.filter((x) => x.scope === 'Global')
+  const regional = eligible.filter((x) => regionLabels.has(x.id.split('-').at(-2)?.toUpperCase()) && x.scope !== 'Global')
+  const countries = eligible.filter((x) => !regionLabels.has(x.id.split('-').at(-2)?.toUpperCase()))
+  const shift = (index * 7) % Math.max(1, countries.length)
+  const rotatedCountries = [...countries.slice(shift), ...countries.slice(0, shift)]
+  // Preserve worldwide and continental coverage before sampling individual countries.
+  for (const item of [...global, ...regional, ...rotatedCountries].slice(0, 14)) {
+    byKey.set(item.id, item)
+  }
   console.info(indicator + ': ' + eligible.length + ' available observations')
 }
 
