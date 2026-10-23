@@ -1398,12 +1398,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   chainOfGreed: {
     key: 'chainOfGreed',
     title: 'Chain of Greed',
-    description: 'Build a higher-or-lower chain, bank your progress, and survive elimination.',
+    description:
+      'Choose a tense shared-chain contest with evidence-based votes or a timed Solo Rush with double-or-nothing stakes.',
     instructions: [
-      'Guess whether the next value will be higher or lower than the current one.',
-      'Keep a correct chain going to build influence, or bank it before you take another risk.',
-      'A wrong guess loses the active chain, so decide when enough is enough.',
-      'Contestants are eliminated as the game progresses, followed by a final head-to-head.',
+      'Choose Shared Chain or Solo Rush before the game begins.',
+      'Shared Chain: contestants call higher or lower on the same revealed number. A correct call climbs the chain.',
+      'Banking secures the current pot and resets the chain, but you must still guess this turn.',
+      'A miss, including an equal number, breaks the chain. One Safety token can recover half the active pot once per match.',
+      'Watch opponents’ calls and results, then vote contestants out after each shared-chain round.',
+      'The remaining contestants each build an individual chain for 30 seconds. The highest final score wins the prize pool.',
+      'Solo Rush: each player gets one minute to build a personal Round Bank. Pawn the whole bank before a guess to double it on a hit; a miss clears it and resets the chain. The lowest Round Bank is eliminated each round.',
     ],
 
     resultMode: 'placement',
