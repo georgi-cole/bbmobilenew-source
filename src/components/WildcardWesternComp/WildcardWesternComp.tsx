@@ -8,6 +8,7 @@ import { resolveAvatar, getDicebear } from '../../utils/avatar';
 import { resolvePresentationAvatar } from '../../utils/presentationAvatar';
 import type { AppDispatch, RootState } from '../../store/store';
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost';
+import type { MinigameStrategicContext } from '../../ai/competition/allianceMinigameStrategy';
 import {
   initWildcardWestern,
   advanceIntro,
@@ -220,6 +221,7 @@ interface WildcardWesternCompProps {
   seed: number;
   onComplete?: (completion?: ReactMinigameCompletion) => void;
   standalone?: boolean;
+  strategicContext?: MinigameStrategicContext;
 }
 
 export default function WildcardWesternComp({
@@ -229,6 +231,7 @@ export default function WildcardWesternComp({
   seed,
   onComplete,
   standalone = false,
+  strategicContext,
 }: WildcardWesternCompProps) {
   const dispatch = useDispatch<AppDispatch>();
   const state = useSelector((root: RootState) => root.wildcardWestern);
@@ -531,6 +534,7 @@ export default function WildcardWesternComp({
       state.aliveIds,
       seed,
       state.duelNumber,
+      strategicContext,
     );
 
     scheduleTimeout(() => {
@@ -538,7 +542,7 @@ export default function WildcardWesternComp({
         dispatch(playerChooseElimination({ targetId }));
       }
     }, AI_ELIMINATION_DELAY_MS);
-  }, [dispatch, isHuman, scheduleTimeout, seed, state.aliveIds, state.duelNumber, state.eliminationChooserId, state.phase]);
+  }, [dispatch, isHuman, scheduleTimeout, seed, state.aliveIds, state.duelNumber, state.eliminationChooserId, state.phase, strategicContext]);
 
   // AI next pair choice
   useEffect(() => {
@@ -546,14 +550,20 @@ export default function WildcardWesternComp({
     if (!state.controllerId) return;
     if (isHuman(state.controllerId)) return;
 
-    const pair = precomputeAiNextPair(state.controllerId, state.aliveIds, seed, state.duelNumber);
+    const pair = precomputeAiNextPair(
+      state.controllerId,
+      state.aliveIds,
+      seed,
+      state.duelNumber,
+      strategicContext,
+    );
 
     scheduleTimeout(() => {
       if (phaseRef.current === 'chooseNextPair') {
         dispatch(playerChooseNextPair({ pair }));
       }
     }, AI_PAIR_CHOICE_DELAY_MS);
-  }, [dispatch, isHuman, scheduleTimeout, seed, state.aliveIds, state.controllerId, state.duelNumber, state.phase]);
+  }, [dispatch, isHuman, scheduleTimeout, seed, state.aliveIds, state.controllerId, state.duelNumber, state.phase, strategicContext]);
 
   // Auto-advance randomPairSelection
   useEffect(() => {
@@ -722,6 +732,7 @@ export default function WildcardWesternComp({
           state.aliveIds,
           seed,
           state.duelNumber,
+          strategicContext,
         );
         dispatch(playerChooseElimination({ targetId }));
       }, SPECTATOR_SKIP_STEP_DELAY_MS);
@@ -733,7 +744,13 @@ export default function WildcardWesternComp({
         if (phaseRef.current !== 'chooseNextPair') return;
         const controllerId = state.controllerId;
         if (!controllerId) return;
-        const pair = precomputeAiNextPair(controllerId, state.aliveIds, seed, state.duelNumber);
+        const pair = precomputeAiNextPair(
+          controllerId,
+          state.aliveIds,
+          seed,
+          state.duelNumber,
+          strategicContext,
+        );
         dispatch(playerChooseNextPair({ pair }));
       }, SPECTATOR_SKIP_STEP_DELAY_MS);
     }
@@ -754,6 +771,7 @@ export default function WildcardWesternComp({
     state.duelNumber,
     state.eliminationChooserId,
     state.phase,
+    strategicContext,
   ]);
 
   // Render

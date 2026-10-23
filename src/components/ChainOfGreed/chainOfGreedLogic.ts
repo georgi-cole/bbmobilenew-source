@@ -1,6 +1,10 @@
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import { mulberry32 } from '../../store/rng'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
+import {
+  getMinigameTargetPriority,
+  type MinigameStrategicContext,
+} from '../../ai/competition/allianceMinigameStrategy'
 
 export const CHAIN_LADDER = [50, 100, 150, 250, 400, 650, 950, 1300] as const
 export const MAX_STANDARD_PLAYERS = 16
@@ -725,8 +729,9 @@ export function buildAiVoteRecords(options: {
   roundNumber: number
   seed: number
   humanVoteTargetId?: string | null
+  strategicContext?: MinigameStrategicContext
 }): ChainOfGreedVoteRecord[] {
-  const { activePlayers, roundNumber, seed, humanVoteTargetId } = options
+  const { activePlayers, roundNumber, seed, humanVoteTargetId, strategicContext = {} } = options
   const votes: ChainOfGreedVoteRecord[] = []
 
   for (const voter of activePlayers) {
@@ -751,8 +756,7 @@ export function buildAiVoteRecords(options: {
     let bestScore = Number.NEGATIVE_INFINITY
     for (const candidate of activePlayers) {
       if (candidate.id === voter.id || candidate.isEliminated) continue
-      const relationRng = createPairRng(seed + roundNumber * 97, voter.id, candidate.id)
-      const relationshipBias = relationRng() * 2 - 1
+      const priority = getMinigameTargetPriority(strategicContext, voter.id, candidate.id)
       const poorPerformance =
         candidate.roundWrongGuesses * 0.9 +
         candidate.roundBusts * 1.4 +
@@ -765,12 +769,14 @@ export function buildAiVoteRecords(options: {
         candidate.totalContribution > voter.totalContribution
           ? candidate.totalContribution / 500
           : 0
-      const social =
-        -relationshipBias * 0.55 +
-        relationRng() * 0.45 +
-        (candidate.totalContribution > 300 ? 0.15 : 0)
+      const performance = Math.min(
+        18,
+        poorPerformance * 0.4 + weakness * 0.25 + recentMistake * 3 + Math.min(10, threat * 0.4)
+      )
       const score =
-        poorPerformance * 0.35 + weakness * 0.2 + recentMistake * 0.15 + threat * 0.1 + social * 0.2
+        priority +
+        performance +
+        createPairRng(seed + roundNumber * 97, voter.id, candidate.id)() * 2
       if (score > bestScore) {
         bestScore = score
         bestTarget = candidate

@@ -3,6 +3,7 @@
  */
 
 import type { WildcardQuestion } from './wildcardWesternQuestions';
+import { orderMinigameTargets, type MinigameStrategicContext } from '../../ai/competition/allianceMinigameStrategy';
 
 export type AiPersonality = 'Gambler' | 'Hunter' | 'Coward' | 'Sniper' | 'Panicker';
 
@@ -122,6 +123,7 @@ export function precomputeAiEliminationChoice(
   aliveIds: string[],
   seed: number,
   duelNumber: number,
+  strategicContext?: MinigameStrategicContext,
 ): string {
   const rng = (() => {
     let s = (seed + duelNumber * 8831 + chooserId.charCodeAt(0) * 1009) >>> 0;
@@ -136,8 +138,12 @@ export function precomputeAiEliminationChoice(
   const eligibleTargets = aliveIds.filter((id) => id !== chooserId);
   if (eligibleTargets.length === 0) return chooserId;
 
-  const idx = Math.floor(rng() * eligibleTargets.length);
-  return eligibleTargets[idx];
+  return orderMinigameTargets(
+    eligibleTargets.map((id) => ({ id, tieBreak: rng() })),
+    chooserId,
+    strategicContext ?? {},
+    (candidate) => candidate.tieBreak * 8,
+  )[0].id;
 }
 
 /**
@@ -148,6 +154,7 @@ export function precomputeAiNextPair(
   aliveIds: string[],
   seed: number,
   duelNumber: number,
+  strategicContext?: MinigameStrategicContext,
 ): [string, string] {
   const rng = (() => {
     let s = (seed + duelNumber * 9337 + chooserId.charCodeAt(0) * 1013) >>> 0;
@@ -166,11 +173,11 @@ export function precomputeAiNextPair(
     return [aliveIds[0] ?? chooserId, aliveIds[1] ?? aliveIds[0] ?? chooserId];
   }
 
-  const shuffled = [...eligibleIds];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  return [shuffled[0], shuffled[1]];
+  const ranked = orderMinigameTargets(
+    eligibleIds.map((id) => ({ id, tieBreak: rng() })),
+    chooserId,
+    strategicContext ?? {},
+    (candidate) => candidate.tieBreak * 8,
+  );
+  return [ranked[0].id, ranked[1].id];
 }

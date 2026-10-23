@@ -40,6 +40,10 @@
  */
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { mulberry32 } from '../../store/rng'
+import {
+  orderMinigameTargets,
+  type MinigameStrategicContext,
+} from '../../ai/competition/allianceMinigameStrategy'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,6 +125,7 @@ export interface BlackjackTournamentState {
   seed: number
   /** Guard: outcome thunk only fires once. */
   outcomeResolved: boolean
+  strategicContext?: MinigameStrategicContext
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -351,7 +356,8 @@ export function aiPickFighters(
   masterSeed: number,
   duelIndex: number,
   controllingPlayerId: string,
-  remainingPlayerIds: string[]
+  remainingPlayerIds: string[],
+  strategicContext?: MinigameStrategicContext
 ): { fighterAId: string; fighterBId: string } | null {
   const opponents = remainingPlayerIds.filter((id) => id !== controllingPlayerId)
   if (opponents.length === 0) return null
@@ -362,10 +368,14 @@ export function aiPickFighters(
   const s =
     ((masterSeed >>> 0) ^ (((duelIndex + 1) * DUEL_SEED_MULT) >>> 0) ^ idHash ^ 0xcafebabe) >>> 0
   const rng = mulberry32(s)
-  const fighterAIndex = Math.floor(rng() * opponents.length)
-  const fighterAId = opponents[fighterAIndex]
-  const remainingOpponents = opponents.filter((_, idx) => idx !== fighterAIndex)
-  const fighterBId = remainingOpponents[Math.floor(rng() * remainingOpponents.length)]
+  const rankedOpponents = orderMinigameTargets(
+    opponents.map((id) => ({ id, tieBreak: rng() })),
+    controllingPlayerId,
+    strategicContext ?? {},
+    (candidate) => candidate.tieBreak * 8
+  )
+  const fighterAId = rankedOpponents[0].id
+  const fighterBId = rankedOpponents[1].id
   return { fighterAId, fighterBId }
 }
 
@@ -584,7 +594,13 @@ function simulateAiFinals(state: BlackjackTournamentState): void {
         state.remainingPlayerIds.length
     )
     const controller = state.remainingPlayerIds[controllerIndex] ?? state.remainingPlayerIds[0]
-    const pair = aiPickFighters(state.seed, state.duelIndex, controller, state.remainingPlayerIds)
+    const pair = aiPickFighters(
+      state.seed,
+      state.duelIndex,
+      controller,
+      state.remainingPlayerIds,
+      state.strategicContext
+    )
     if (!pair) break
 
     let rematch = 0
@@ -679,9 +695,11 @@ const blackjackTournamentSlice = createSlice({
         competitionType: BlackjackTournamentCompetitionType
         seed: number
         humanPlayerId: string | null
+        strategicContext?: MinigameStrategicContext
       }>
     ) {
-      const { participantIds, competitionType, seed, humanPlayerId } = action.payload
+      const { participantIds, competitionType, seed, humanPlayerId, strategicContext } =
+        action.payload
       state.competitionType = competitionType
       state.stage = 'league'
       state.allPlayerIds = [...participantIds]
@@ -713,6 +731,7 @@ const blackjackTournamentSlice = createSlice({
       state.duelIndex = 0
       state.winnerId = null
       state.seed = seed
+      state.strategicContext = strategicContext
       state.outcomeResolved = false
 
       if (participantIds.length <= 1) {

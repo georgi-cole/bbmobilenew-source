@@ -45,6 +45,7 @@ import {
   aiDecisionRng,
 } from '../../features/blackjackTournament/blackjackTournamentSlice'
 import type { BlackjackTournamentCompetitionType } from '../../features/blackjackTournament/blackjackTournamentSlice'
+import type { MinigameStrategicContext } from '../../ai/competition/allianceMinigameStrategy'
 import { resolveBlackjackTournamentOutcome } from '../../features/blackjackTournament/thunks'
 import { resolveAvatar, getDicebear } from '../../utils/avatar'
 import { resolvePresentationAvatar } from '../../utils/presentationAvatar'
@@ -143,6 +144,7 @@ interface Props {
   participants?: ParticipantProp[]
   prizeType: BlackjackTournamentCompetitionType
   seed: number
+  strategicContext?: MinigameStrategicContext
   onComplete?: (completion?: ReactMinigameCompletion) => void
 }
 
@@ -230,6 +232,7 @@ export default function BlackjackTournamentComp({
   participants,
   prizeType,
   seed,
+  strategicContext,
   onComplete,
 }: Props) {
   const dispatch = useAppDispatch()
@@ -319,11 +322,16 @@ export default function BlackjackTournamentComp({
   const getName = useCallback((id: string) => displayName(id, participants), [participants])
 
   // Capture init params once so the init effect doesn't re-fire on prop changes.
-  const initParamsRef = useRef({ participantIds, prizeType, seed })
+  const initParamsRef = useRef({ participantIds, prizeType, seed, strategicContext })
 
   // ── 1. Initialise on mount ─────────────────────────────────────────────────
   useEffect(() => {
-    const { participantIds: pIds, prizeType: pt, seed: s } = initParamsRef.current
+    const {
+      participantIds: pIds,
+      prizeType: pt,
+      seed: s,
+      strategicContext: context,
+    } = initParamsRef.current
     const humanPart = participants?.find((p) => p.isHuman)
     const humanPlayerId = humanPart?.id ?? null
 
@@ -333,6 +341,7 @@ export default function BlackjackTournamentComp({
         competitionType: pt,
         seed: s,
         humanPlayerId,
+        strategicContext: context,
       })
     )
     return () => {
@@ -414,7 +423,8 @@ export default function BlackjackTournamentComp({
           bt.seed,
           bt.duelIndex,
           bt.controllingPlayerId!,
-          bt.remainingPlayerIds
+          bt.remainingPlayerIds,
+          bt.strategicContext
         )
         if (fighters) dispatch(selectPair(fighters))
       }, applySpeed(TIMER_NORMAL_MS))
@@ -434,6 +444,7 @@ export default function BlackjackTournamentComp({
     bt.duelIndex,
     bt.remainingPlayerIds,
     bt.seed,
+    bt.strategicContext,
     dispatch,
     isHuman,
     applySpeed,

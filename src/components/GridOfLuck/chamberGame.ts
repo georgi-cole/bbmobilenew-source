@@ -1,4 +1,9 @@
 import type { RelationshipsMap } from '../../social/types'
+import {
+  getAlliancePowerHolderPriority,
+  getMinigameTargetPriority,
+} from '../../ai/competition/allianceMinigameStrategy'
+import type { StrategicAllianceSnapshot } from '../../types'
 import { mulberry32 } from '../../store/rng'
 
 export type ChamberAction =
@@ -398,16 +403,19 @@ function rankOf(state: ChamberState, playerId: string): number {
 function chooseShareTarget(
   state: ChamberState,
   relationships: RelationshipsMap | undefined,
-  actor: ChamberPlayer
+  actor: ChamberPlayer,
+  alliances?: StrategicAllianceSnapshot[]
 ): ChamberPlayer | undefined {
   return getLivingPlayers(state)
     .filter((player) => player.id !== actor.id)
     .sort((left, right) => {
       const relationDifference =
         affinity(relationships, actor.id, right.id) +
-        (isAlly(relationships, actor.id, right.id) ? 35 : 0) -
+        (isAlly(relationships, actor.id, right.id) ? 35 : 0) +
+        getAlliancePowerHolderPriority(alliances, actor.id, right.id) * 48 -
         (affinity(relationships, actor.id, left.id) +
-          (isAlly(relationships, actor.id, left.id) ? 35 : 0))
+          (isAlly(relationships, actor.id, left.id) ? 35 : 0) +
+          getAlliancePowerHolderPriority(alliances, actor.id, left.id) * 48)
       return relationDifference || left.power - right.power
     })[0]
 }
@@ -415,18 +423,21 @@ function chooseShareTarget(
 function chooseHostileTarget(
   state: ChamberState,
   relationships: RelationshipsMap | undefined,
-  actor: ChamberPlayer
+  actor: ChamberPlayer,
+  alliances?: StrategicAllianceSnapshot[]
 ): ChamberPlayer | undefined {
   return getLivingPlayers(state)
     .filter((player) => player.id !== actor.id)
     .sort((left, right) => {
       const leftValue =
-        left.power +
+        getMinigameTargetPriority({ relationships, alliances }, actor.id, left.id) * 4 +
+        left.power * 0.08 +
         (isRival(relationships, actor.id, left.id) ? 120 : 0) +
         (left.ward ? -250 : 0) +
         (left.immune ? -400 : 0)
       const rightValue =
-        right.power +
+        getMinigameTargetPriority({ relationships, alliances }, actor.id, right.id) * 4 +
+        right.power * 0.08 +
         (isRival(relationships, actor.id, right.id) ? 120 : 0) +
         (right.ward ? -250 : 0) +
         (right.immune ? -400 : 0)
@@ -436,12 +447,13 @@ function chooseHostileTarget(
 
 export function chooseChamberExecutionTarget(
   state: ChamberState,
-  relationships: RelationshipsMap | undefined
+  relationships: RelationshipsMap | undefined,
+  alliances?: StrategicAllianceSnapshot[]
 ): ChamberPlayer | undefined {
   const actor =
     state.players.find((player) => player.id === state.pendingBox?.actorId) ??
     getChamberActor(state)
-  return chooseHostileTarget(state, relationships, actor)
+  return chooseHostileTarget(state, relationships, actor, alliances)
 }
 
 function findLeaderRival(state: ChamberState, actorId: string): ChamberPlayer | undefined {
@@ -454,7 +466,8 @@ function estimateActionValue(
   state: ChamberState,
   actor: ChamberPlayer,
   action: ChamberAction,
-  relationships: RelationshipsMap | undefined
+  relationships: RelationshipsMap | undefined,
+  alliances?: StrategicAllianceSnapshot[]
 ): number {
   const round = getChamberRound(state)
   const rank = rankOf(state, actor.id)
@@ -467,11 +480,15 @@ function estimateActionValue(
 
   if (action === 'surge') return 130 + Math.min(45, behindBy * 0.08)
   if (action === 'share') {
-    const target = chooseShareTarget(state, relationships, actor)
-    return target ? 64 + (isAlly(relationships, actor.id, target.id) ? 32 : 0) : 130
+    const target = chooseShareTarget(state, relationships, actor, alliances)
+    return target
+      ? 64 +
+          (isAlly(relationships, actor.id, target.id) ? 32 : 0) +
+          getAlliancePowerHolderPriority(alliances, actor.id, target.id) * 28
+      : 130
   }
   if (action === 'siphon') {
-    const target = chooseHostileTarget(state, relationships, actor)
+    const target = chooseHostileTarget(state, relationships, actor, alliances)
     return target && !target.ward && !target.immune ? 95 + Math.min(target.power, 80) * 0.8 : 20
   }
   if (action === 'ward') {
@@ -485,7 +502,13 @@ function estimateActionValue(
     return actor.immune ? 15 : 50 + (rank <= 1 ? 42 : 0) + (round < CHAMBER_ROUNDS ? 15 : 0)
   if (action === 'drain') {
     const leader = findLeaderRival(state, actor.id)
-    return leader && !leader.ward && !leader.immune ? 74 + Math.min(40, leader.power * 0.04) : 30
+    const allianceAdjustment = leader
+      ? -getAlliancePowerHolderPriority(alliances, actor.id, leader.id) * 38 +
+        getMinigameTargetPriority({ relationships, alliances }, actor.id, leader.id) * 0.7
+      : 0
+    return leader && !leader.ward && !leader.immune
+      ? 74 + Math.min(40, leader.power * 0.04) + allianceAdjustment
+      : 30
   }
   if (action === 'gamble')
     return 78 + (behindBy > 180 ? 68 : behindBy > 80 ? 35 : 0) - (rank === 0 ? 45 : 0)
@@ -494,7 +517,8 @@ function estimateActionValue(
       state,
       actor,
       getEffectiveChamberAction(action, state),
-      relationships
+      relationships,
+      alliances
     )
   if (action === 'forbidden') {
     const odds = getForbiddenOdds(state, round)
@@ -512,7 +536,8 @@ function estimateActionValue(
 export function chooseChamberAiAction(
   state: ChamberState,
   relationships: RelationshipsMap | undefined,
-  rng: () => number
+  rng: () => number,
+  alliances?: StrategicAllianceSnapshot[]
 ): { action: ChamberAction; targetId?: string } {
   const actor = getChamberActor(state)
   const available = state.offers.filter(
@@ -520,29 +545,35 @@ export function chooseChamberAiAction(
   )
   const scored = available.map((action) => ({
     action,
-    score: estimateActionValue(state, actor, action, relationships) + rng() * 12,
+    score: estimateActionValue(state, actor, action, relationships, alliances) + rng() * 12,
   }))
   const action = scored.sort((left, right) => right.score - left.score)[0]?.action ?? 'surge'
   const effective = getEffectiveChamberAction(action, state)
 
   if (effective === 'share')
-    return { action, targetId: chooseShareTarget(state, relationships, actor)?.id }
+    return { action, targetId: chooseShareTarget(state, relationships, actor, alliances)?.id }
   if (effective === 'siphon' || effective === 'ward') {
     if (effective === 'ward') {
       const target = [...getLivingPlayers(state)].sort((left, right) => {
         const leftValue =
           (left.id === actor.id ? 0 : affinity(relationships, actor.id, left.id)) +
+          (left.id === actor.id
+            ? 0
+            : -getMinigameTargetPriority({ relationships, alliances }, actor.id, left.id) * 2) +
           (left.ward ? -500 : 0) +
           (left.power >= actor.power ? 24 : 0)
         const rightValue =
           (right.id === actor.id ? 0 : affinity(relationships, actor.id, right.id)) +
+          (right.id === actor.id
+            ? 0
+            : -getMinigameTargetPriority({ relationships, alliances }, actor.id, right.id) * 2) +
           (right.ward ? -500 : 0) +
           (right.power >= actor.power ? 24 : 0)
         return rightValue - leftValue
       })[0]
       return { action, targetId: target?.id }
     }
-    return { action, targetId: chooseHostileTarget(state, relationships, actor)?.id }
+    return { action, targetId: chooseHostileTarget(state, relationships, actor, alliances)?.id }
   }
   return { action }
 }

@@ -856,6 +856,7 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       roundNumber: state.roundNumber,
       seed: rngRef.current.seed,
       humanVoteTargetId: state.humanVoteTargetId,
+      strategicContext: { relationships: props.relationships, alliances: props.alliances },
     })
     const elimination = resolveVoteElimination({
       activePlayers,
@@ -879,7 +880,14 @@ export default function ChainOfGreed(props: GenericMinigameProps) {
       statusText: 'The weakest link will now be decided.',
       helperText: 'One bad round can end the game.',
     }))
-  }, [activePlayers, state.humanVoteTargetId, state.roundNumber, state.startingCount])
+  }, [
+    activePlayers,
+    props.alliances,
+    props.relationships,
+    state.humanVoteTargetId,
+    state.roundNumber,
+    state.startingCount,
+  ])
 
   const commitIndividualTurn = useCallback(
     (turn: PendingTurnPipeline) => {

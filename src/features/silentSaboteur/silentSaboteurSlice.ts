@@ -29,6 +29,7 @@
  */
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import type { MinigameStrategicContext } from '../../ai/competition/allianceMinigameStrategy';
 import {
   pickSaboteur,
   resolveRound as resolveRoundHelper,
@@ -128,6 +129,7 @@ export interface SilentSaboteurState {
   winnerId: string | null;
   /** Guard: outcome thunk only fires once. */
   outcomeResolved: boolean;
+  strategicContext?: MinigameStrategicContext;
 }
 
 // ─── Initial state ────────────────────────────────────────────────────────────
@@ -179,9 +181,10 @@ const silentSaboteurSlice = createSlice({
         prizeType: SilentSaboteurPrizeType;
         seed: number;
         humanPlayerId: string | null;
+        strategicContext?: MinigameStrategicContext;
       }>,
     ): SilentSaboteurState {
-      const { participantIds, prizeType, seed, humanPlayerId } = action.payload;
+      const { participantIds, prizeType, seed, humanPlayerId, strategicContext } = action.payload;
       return {
         ...initialState,
         phase: 'intro',
@@ -191,6 +194,7 @@ const silentSaboteurSlice = createSlice({
         activeIds: [...participantIds],
         eliminatedIds: [],
         humanPlayerId,
+        strategicContext,
         round: 0,
       };
     },
@@ -423,7 +427,13 @@ function _fastForwardToWinner(state: SilentSaboteurState) {
     } else if (state.phase === 'round_transition') {
       _startNextRound(state);
     } else if (state.phase === 'select_victim' && state.saboteurId) {
-      const victimId = pickVictimForAi(state.seed, state.round, state.saboteurId, state.activeIds);
+      const victimId = pickVictimForAi(
+        state.seed,
+        state.round,
+        state.saboteurId,
+        state.activeIds,
+        state.strategicContext,
+      );
       state.victimId = victimId;
       state.votes = {};
       state.roundEvidence = state.saboteurId
@@ -439,6 +449,7 @@ function _fastForwardToWinner(state: SilentSaboteurState) {
           state.activeIds,
           state.victimId,
           state.roundEvidence,
+          state.strategicContext,
         );
         if (accusedId !== null) state.votes[voterId] = accusedId;
       }
@@ -447,8 +458,14 @@ function _fastForwardToWinner(state: SilentSaboteurState) {
       const missingJurors = state.juryIds.filter((id) => state.juryVotes[id] === undefined);
       const finalists: [string, string] = [state.final2SaboteurId, state.final2VictimId];
       Object.assign(state.juryVotes, state.final2Kind === 'survivor_jury'
-        ? buildAiSurvivorJuryVotes(state.seed, missingJurors, finalists)
-        : buildAiJuryVotes(state.seed, missingJurors, state.final2SaboteurId, state.final2VictimId));
+        ? buildAiSurvivorJuryVotes(state.seed, missingJurors, finalists, state.strategicContext)
+        : buildAiJuryVotes(
+            state.seed,
+            missingJurors,
+            state.final2SaboteurId,
+            state.final2VictimId,
+            state.strategicContext,
+          ));
       _resolveFinal2Phase(state);
     } else {
       break;

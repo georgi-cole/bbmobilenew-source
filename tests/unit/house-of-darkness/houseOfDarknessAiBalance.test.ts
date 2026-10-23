@@ -81,4 +81,46 @@ describe('House of Darkness AI fatigue', () => {
     expect(choice.charm).toBe('curse')
     expect(choice.targetId).toBe('rival-leader')
   })
+
+  it('curses a committed enemy before a weaker pact member', () => {
+    const choice = chooseHouseOfDarknessAiCharm({
+      playerId: 'actor',
+      seed: 23,
+      offers: ['curse'],
+      ability: 45,
+      round: 4,
+      health: 100,
+      averageRecentMistakes: 1,
+      queuedCurseCharges: 0,
+      omenDamageBonus: 0,
+      omenFirstMistakeBonus: 0,
+      aliveCount: 3,
+      leaderId: 'ally',
+      strategicContext: {
+        alliances: [
+          {
+            id: 'pact-alpha',
+            memberIds: ['actor', 'ally'],
+            leaderIds: ['ally'],
+            status: 'ACTIVE',
+            cohesion: 0.96,
+            fractureRisk: 0.04,
+            currentTargetIds: [],
+            fallbackTargetIds: [],
+            memberCommitment: { actor: 0.98, ally: 0.99 },
+            memberPerceivedStatus: { actor: 'CORE', ally: 'CORE' },
+            memberPlanBeliefs: {},
+            infiltratorIds: [],
+          },
+        ],
+        relationships: { actor: { enemy: { affinity: -60, tags: ['rivalry'] } } },
+      },
+      potentialTargets: [
+        { id: 'ally', health: 18, queuedCurseCharges: 0 },
+        { id: 'enemy', health: 100, queuedCurseCharges: 0 },
+      ],
+    })
+
+    expect(choice.targetId).toBe('enemy')
+  })
 })

@@ -32,6 +32,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 import { lazyWithChunkRecovery } from '../utils/lazyWithChunkRecovery'
 import type { RelationshipsMap } from '../social/types'
+import type { StrategicAllianceSnapshot } from '../types'
 
 /**
  * Minimal prop contract shared by all generic React minigame components.
@@ -80,6 +81,8 @@ export interface GenericMinigameProps {
   }>
   /** Relationship state used by games with social target selection. */
   relationships?: RelationshipsMap
+  /** Current alliances and pacts for strategic targeting. */
+  alliances?: StrategicAllianceSnapshot[]
 }
 
 type LazyGenericMinigame = LazyExoticComponent<ComponentType<GenericMinigameProps>> & {
