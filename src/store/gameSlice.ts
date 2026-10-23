@@ -122,6 +122,7 @@ import {
   canUseVoteDeduction,
   isSecretMissionSuccessful,
   getMissionTaskSetSignature,
+  getFirstSecretMissionScheduledDay,
   pickMissionImmunityDuration,
   repairLegacyMissionTasks,
   type MissionTask,
@@ -551,7 +552,13 @@ function buildSecretMissionTargetCandidates(state: GameState): string[] {
   const humanId = state.players.find((player) => player.isUser)?.id
   return state.players
     .filter(
-      (player) => player.id !== humanId && player.status !== 'evicted' && player.status !== 'jury'
+      (player) =>
+        player.id !== humanId &&
+        player.id !== state.lohId &&
+        player.status !== 'evicted' &&
+        player.status !== 'jury' &&
+        player.status !== 'nominated' &&
+        player.status !== 'nominated+pos'
     )
     .map((player) => player.id)
 }
@@ -562,14 +569,23 @@ function buildSecretMissionTasksForTemplate(
   triggeredDay: number
 ): SecretMissionTaskBuildResult {
   const template = MISSION_TEMPLATES.find((t) => t.id === templateId) ?? MISSION_TEMPLATES[0]
+  const targetCandidateIds = buildSecretMissionTargetCandidates(state)
   return {
     templateId: template.id,
     tasks: buildMissionTasks(template, triggeredDay, {
-      targetCandidateIds: buildSecretMissionTargetCandidates(state),
+      targetCandidateIds,
+      targetCandidateNamesById: Object.fromEntries(
+        state.players
+          .filter((player) => targetCandidateIds.includes(player.id))
+          .map((player) => [player.id, player.name])
+      ),
       capabilities: {
         publicModeEnabled: state.publicModeEnabled === true,
+        gameMode: isVoxPopuliActive(state) ? 'vox_populi' : 'classic',
+        nominationTargetCount: targetCandidateIds.length,
       },
       missionNumber: state.secretMission?.missionNumber,
+      seed: state.seed,
       excludedTaskSetSignatures: state.secretMissionTaskSetHistory ?? [],
     }),
   }
@@ -973,6 +989,7 @@ export function createInitialGameState(options?: {
     secretMissionCount: 0,
     secretMissionLastResolvedDay: null,
     secretMissionTaskSetHistory: [],
+    secretMissionTemplateHistory: seasonArchives[0]?.secretMissionTemplateIds?.slice(-2) ?? [],
     secretMissionSecondChanceResolved: false,
     awaitingFinal3Eviction: false,
     awaitingFinal3Plea: false,
@@ -12913,9 +12930,16 @@ const gameSlice = createSlice({
       state.secretMission = createSecretMissionState(day, {
         maxDaySpan,
         missionNumber: nextMissionNumber,
+        seed: state.seed,
+        season: state.season,
+        previousTemplateIds: state.secretMissionTemplateHistory ?? [],
       })
       state.secretMission.rewardVersion = 2
       state.secretMissionCount = nextMissionNumber
+      state.secretMissionTemplateHistory = [
+        ...(state.secretMissionTemplateHistory ?? []),
+        state.secretMission.templateId,
+      ].slice(-2)
       if (nextMissionNumber >= 2) {
         state.secretMissionSecondChanceResolved = true
       }
@@ -14769,6 +14793,13 @@ export const tryActivateSecretMission =
     }
 
     const override = settings.sim.secretMissionTriggerOverride
+    if (
+      !isSecondMissionAttempt &&
+      override === null &&
+      game.week < getFirstSecretMissionScheduledDay(game.seed, game.season)
+    ) {
+      return false
+    }
     const plan = game.seasonDirectorPlan
     if (plan && override === null) {
       const policy = plan.policy.secretMissions

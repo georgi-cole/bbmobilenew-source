@@ -68,6 +68,8 @@ export interface SeasonArchive {
   playerSummaries: PlayerSeasonSummary[]
   /** Any rewards / achievements earned this season. */
   rewardsEarned?: string[]
+  /** Recent secret mission themes, carried into the next season for variety. */
+  secretMissionTemplateIds?: string[]
   /** True when Cupid's Arrow activated during this season. Used for its cooldown. */
   cupidArrowActivated?: boolean
   /** True when Vox Populi governed this season. Used for its cooldown. */

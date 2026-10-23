@@ -1483,6 +1483,8 @@ export interface GameState {
   secretMissionLastResolvedDay?: number | null
   /** Task-set signatures already generated this season; prevents repeat checklists. */
   secretMissionTaskSetHistory?: string[]
+  /** Most recent mission themes, carried across seasons to prevent immediate repeats. */
+  secretMissionTemplateHistory?: string[]
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
   /** Contestant-specific estimates of social and Tribunal threat, synced at phase boundaries. */
