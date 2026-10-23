@@ -154,11 +154,13 @@ export function resolvePercentageRound(
   const suddenDeath = survivors.length === 0
   const activeIds = suddenDeath ? [...state.activeIds] : survivors
   const finalPair = activeIds.length === 2 ? ([...activeIds] as [string, string]) : null
-  const [first, second] = finalPair ?? []
   const chooserId = finalPair
-    ? scores[first] > scores[second] ? first
-      : scores[second] > scores[first] ? second
-        : responseTotals[first] <= responseTotals[second] ? first : second
+    ? (() => {
+        const [first, second] = finalPair
+        if (scores[first] > scores[second]) return first
+        if (scores[second] > scores[first]) return second
+        return responseTotals[first] <= responseTotals[second] ? first : second
+      })()
     : null
   return {
     ...state, scores, responseTotals, activeIds,
