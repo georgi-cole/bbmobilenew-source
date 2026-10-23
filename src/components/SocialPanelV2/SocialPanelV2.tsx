@@ -1921,6 +1921,8 @@ export default function SocialPanelV2() {
   const focusedPlayer = focusedTargetId
     ? (rosterPlayers.find((player) => player.id === focusedTargetId) ?? null)
     : null
+  const collapseRosterForFocusedPlayer =
+    Boolean(focusedPlayer) && !usesMultipleTargets && !showAlliancePicker && !selectedAlliance
   const selectedReunionGuest = selectedReunionGuestId
     ? (rosterPlayers.find((player) => player.id === selectedReunionGuestId) ?? null)
     : null
@@ -2225,11 +2227,15 @@ export default function SocialPanelV2() {
           )}
         </div>
 
-        <div id="sp2-body" className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}`}>
+        <div
+          id="sp2-body"
+          className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
+        >
           <section
             className="sp2-hubmates"
             aria-label={showPlayerRoster ? 'Player roster' : 'Choose an alliance'}
             data-reality-tutorial="hubmates"
+            hidden={collapseRosterForFocusedPlayer}
           >
             <div className="sp2-section-heading">
               <span>
@@ -2395,6 +2401,15 @@ export default function SocialPanelV2() {
             >
               {focusedPlayer ? (
                 <>
+                  <button
+                    className="sp2-focus__clear"
+                    type="button"
+                    aria-label={`Deselect ${focusedPlayer.name} and show roster`}
+                    title="Deselect hubmate"
+                    onClick={() => handleSelectionChange(new Set(), { primaryTargetId: null })}
+                  >
+                    ×
+                  </button>
                   <div className="sp2-focus__portrait">
                     <PlayerAvatar
                       player={focusedPlayer}
@@ -2404,7 +2419,7 @@ export default function SocialPanelV2() {
                       relationshipTags={focusedTags}
                     />
                   </div>
-                  <div className="sp2-focus__copy">
+                  <div className="sp2-focus__copy sp2-focus__copy--clearable">
                     <span className="sp2-focus__eyebrow">Your read on</span>
                     <h2>{focusedPlayer.name}</h2>
                     <div className="sp2-focus__status-line">
@@ -2512,20 +2527,6 @@ export default function SocialPanelV2() {
                     {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
                   </span>
                 </div>
-                {focusedPlayer && (
-                  <div
-                    className="sp2-moves__target"
-                    role="group"
-                    aria-label={`Selected hubmate: ${focusedPlayer.name}`}
-                  >
-                    <PlayerAvatar
-                      player={focusedPlayer}
-                      size="sm"
-                      showRelationshipOutline={false}
-                    />
-                    <span className="sp2-moves__target-name">{focusedPlayer.name}</span>
-                  </div>
-                )}
                 <button
                   className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
                   type="button"

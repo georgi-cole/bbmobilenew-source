@@ -1438,6 +1438,10 @@
   background: linear-gradient(180deg, rgba(10, 7, 17, 0.08), rgba(10, 7, 17, 0.35));
 }
 
+.sp2-body--focused-target {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .sp2-hubmates,
 .sp2-focus,
 .sp2-moves {
@@ -1460,6 +1464,10 @@
   flex-direction: column;
   gap: 0.34rem;
   padding: 0.52rem;
+}
+
+.sp2-hubmates[hidden] {
+  display: none;
 }
 
 .sp2-section-heading,
@@ -1665,10 +1673,49 @@
   height: 4.75rem;
 }
 
+.sp2-focus__clear {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  z-index: 2;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(239, 68, 68, 0.52);
+  border-radius: 7px;
+  color: #ff8f98;
+  background: rgba(76, 18, 31, 0.72);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sp2-focus__clear:hover {
+  border-color: rgba(255, 87, 103, 0.88);
+  color: #fff0f1;
+  background: rgba(143, 29, 47, 0.82);
+}
+
+.sp2-focus__clear:focus-visible {
+  outline: 2px solid rgba(255, 143, 152, 0.95);
+  outline-offset: 2px;
+}
+
 .sp2-focus__copy {
   position: relative;
   z-index: 1;
   min-width: 0;
+}
+
+.sp2-focus__copy--clearable {
+  padding-right: 1.9rem;
 }
 
 .sp2-focus__eyebrow {
@@ -1998,6 +2045,15 @@
     grid-template-areas:
       'hubmates focus'
       'hubmates moves';
+    overflow: hidden;
+  }
+
+  .sp2-body.sp2-body--focused-target {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'focus'
+      'moves';
     overflow: hidden;
   }
 
@@ -2467,45 +2523,12 @@
   box-shadow: 0 0.45rem 0.8rem rgba(8, 5, 13, 0.5);
 }
 
-.sp2-moves__heading > :first-child {
-  flex: 1 1 auto;
-}
-
-.sp2-moves__target {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 7.4rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.28rem;
-  padding: 0.14rem 0.42rem 0.14rem 0.18rem;
-  border: 1px solid rgba(197, 166, 255, 0.32);
-  border-radius: 999px;
-  color: rgba(247, 239, 255, 0.94);
-  background: rgba(86, 49, 122, 0.54);
-  font-size: 0.62rem;
-  font-weight: 800;
-}
-
-.sp2-moves__target .pa--sm {
-  width: 1.5rem;
-  height: 1.5rem;
-  flex: 0 0 1.5rem;
-}
-
-.sp2-moves__target-name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .sp2-moves__execute {
   width: auto;
   max-width: none;
   min-width: 3.8rem;
-  min-height: 44px;
-  padding: 0.12rem 0.22rem;
+  min-height: 36px;
+  padding: 0.04rem 0.22rem;
   border-radius: 0.52rem;
   font-size: 0.54rem;
   line-height: 1;

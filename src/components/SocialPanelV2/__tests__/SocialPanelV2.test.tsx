@@ -328,10 +328,15 @@ describe('SocialPanelV2 – layout', () => {
       'true'
     )
 
-    fireEvent.click(targetButton)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${target.name} and show roster`,
+      })
+    )
 
     expect(screen.queryByRole('button', { name: /Compliment/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Watch Room/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 
   it('renders player roster placeholder', () => {
@@ -396,8 +401,13 @@ describe('SocialPanelV2 – layout', () => {
     fireEvent.click(card)
     expect(card).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(card)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${player.name} and show roster`,
+      })
+    )
     expect(card).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 })
 
@@ -490,14 +500,17 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
     const player = store.getState().game.players.find((p) => !p.isUser)!
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
-    const selectedHubmate = screen.getByRole('group', {
-      name: `Selected hubmate: ${player.name}`,
-    })
-    expect(within(selectedHubmate).getByText(player.name)).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Player roster' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: player.name })).toBeVisible()
     expect(btn).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect(btn).toBeEnabled()
-    expect(btn.closest('.sp2-moves__top')).toContainElement(selectedHubmate)
+    expect(
+      screen.queryByRole('group', { name: `Selected hubmate: ${player.name}` })
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: `Deselect ${player.name} and show roster` }))
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
+    expect(btn).toBeDisabled()
   })
 
   it('group chat requires two people and its cost grows with the group', () => {
@@ -757,9 +770,15 @@ describe('SocialPanelV2 – execute flow', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(secondTarget.name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${secondTarget.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(firstTarget.name, 'i') })[0], {
       shiftKey: true,
     })
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
     const logs = store.getState().social.sessionLogs
@@ -1045,6 +1064,11 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(outsider.name) }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
 
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${outsider.name} and show roster`,
+      })
+    )
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(ally.name) }))
     expect(screen.getByRole('button', { name: /Consult Alliance/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
@@ -1197,6 +1221,11 @@ describe('SocialPanelV2 – subject picker', () => {
     // Switch primary target to another non-LOH player — action should be cleared
     // because the new target doesn't have LOH status, so pitch_target disappears.
     const altTarget = players.find((p) => p.id !== lohPlayer.id)!
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${lohPlayer.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(altTarget.name, 'i') })[0])
     // After switching to a non-LOH target, pitch_target is no longer available
     // and the subject picker should no longer be rendered.
