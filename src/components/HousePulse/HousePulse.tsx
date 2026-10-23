@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Player, PulseChronicle, WeekendInterludeState } from '../../types'
-import { composePulseChronicle, getPulseChronicleIdentity } from '../../social/pulseChronicle'
+import {
+  composePulseChronicle,
+  getPulseChronicleIdentity,
+  type ChronicleVoteResult,
+} from '../../social/pulseChronicle'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -38,7 +42,9 @@ interface HousePulseProps {
   gamePhase?: string
   pulseChronicles?: readonly PulseChronicle[]
   weekendInterlude?: WeekendInterludeState | null
+  voteResult?: ChronicleVoteResult | null
   weatherCondition?: string | null
+  humanPets?: string | null
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
@@ -120,7 +126,9 @@ export default function HousePulse({
   gamePhase,
   pulseChronicles,
   weekendInterlude,
+  voteResult,
   weatherCondition,
+  humanPets,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -292,11 +300,14 @@ export default function HousePulse({
       players,
       reality,
       actionHistory,
+      dramaNetwork: network,
       weather: weatherCondition,
+      humanPets,
       complete: gamePhase === 'week_end' && !activeWeekend,
       episode: episodeIdentity,
       actionHistoryAfterTimestamp,
       realityEventsAfterSequence,
+      voteResult,
     })
   }, [
     reality,
@@ -313,7 +324,10 @@ export default function HousePulse({
     humanId,
     players,
     actionHistory,
+    network,
     weatherCondition,
+    humanPets,
+    voteResult,
     gamePhase,
   ])
   const chronicleAllianceLinks = useMemo(() => {
@@ -325,23 +339,45 @@ export default function HousePulse({
       const allianceId = allianceForEvent(reality, event)
       if (allianceId) latestEventByAlliance.set(allianceId, event)
     }
-    return [...latestEventByAlliance.entries()].map(([allianceId, event]) => ({
-      allianceId,
-      eventId: event.id,
-      name: event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance',
-      pactCounterpartName:
-        (event.allianceSnapshot?.kind ??
-          (reality.alliances[allianceId]
-            ? allianceKind(reality.alliances[allianceId])
-            : undefined)) === 'PACT'
-          ? (players.find(
-              (player) =>
-                player.id !== humanId &&
-                (reality.alliances[allianceId]?.memberIds.includes(player.id) ??
-                  event.participantIds.includes(player.id))
-            )?.name ?? 'hubmate')
+    const uniqueByName = new Map<
+      string,
+      {
+        allianceId: string
+        event: (typeof reality.events)[number]
+        eventId: string
+        name: string
+        sequence: number
+      }
+    >()
+    for (const [allianceId, event] of latestEventByAlliance) {
+      const name = event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance'
+      const nameKey = name.trim().replace(/\s+/g, ' ').toLowerCase()
+      const current = uniqueByName.get(nameKey)
+      if (!current || event.sequence > current.sequence)
+        uniqueByName.set(nameKey, {
+          allianceId,
+          event,
+          eventId: event.id,
+          name,
+          sequence: event.sequence,
+        })
+    }
+    return [...uniqueByName.values()].map(({ allianceId, eventId, name, event }) => {
+      const alliance = reality.alliances[allianceId]
+      const isPact =
+        (event.allianceSnapshot?.kind ?? (alliance ? allianceKind(alliance) : undefined)) === 'PACT'
+      const counterpartId =
+        alliance?.memberIds.find((id) => id !== humanId) ??
+        event.participantIds.find((id) => id !== humanId)
+      return {
+        allianceId,
+        eventId,
+        name,
+        pactCounterpartName: isPact
+          ? (players.find((player) => player.id === counterpartId)?.name ?? 'another player')
           : null,
-    }))
+      }
+    })
   }, [dayChronicle, humanId, players, reality])
 
   const storyLinkLabel = (allianceId: string, eventId?: string) => {
@@ -352,7 +388,7 @@ export default function HousePulse({
       const counterpartId =
         alliance?.memberIds.find((id) => id !== humanId) ??
         event?.participantIds.find((id) => id !== humanId)
-      const name = players.find((player) => player.id === counterpartId)?.name ?? 'hubmate'
+      const name = players.find((player) => player.id === counterpartId)?.name ?? 'another player'
       return `Read ${name}'s pact story`
     }
     const name = event?.allianceSnapshot?.name ?? alliance?.name ?? 'alliance'

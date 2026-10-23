@@ -22,6 +22,7 @@ import {
   openIncomingInbox,
 } from '../../social/socialSlice'
 import { addTvEvent, setHumanPregnancyRole } from '../../store/gameSlice'
+import { resolveWeatherCardCondition } from '../../weather/weatherCardCondition'
 import { SocialManeuvers, type ExecuteActionResult } from '../../social/SocialManeuvers'
 import { normalizeActionCosts } from '../../social/smExecNormalize'
 import { getSocialNarrative } from './socialNarratives'
@@ -34,7 +35,6 @@ import GameBackButton from '../ui/GameBackButton/GameBackButton'
 import PlayerList from './PlayerList'
 import RecentActivity from './RecentActivity'
 import HousePulse from '../HousePulse/HousePulse'
-import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
 import {
@@ -236,6 +236,14 @@ export default function SocialPanelV2() {
     comparePanelState
   )
   const isGuest = useAppSelector((state) => state.profiles?.isGuest ?? false, comparePanelState)
+  const humanPets = useAppSelector((state) => {
+    const profiles = state.profiles
+    if (!profiles || profiles.isGuest || !profiles.activeProfileId) return null
+    return (
+      profiles.profiles.find((profile) => profile.id === profiles.activeProfileId)?.bio?.pets ??
+      null
+    )
+  }, comparePanelState)
   const energyBank = useAppSelector(selectEnergyBank, comparePanelState)
   const influenceBank = useAppSelector(selectInfluenceBank, comparePanelState)
   const infoBank = useAppSelector(selectInfoBank, comparePanelState)
@@ -269,8 +277,18 @@ export default function SocialPanelV2() {
 
   const humanPlayer = game.players.find((player) => player.isUser)
   const pulseWeather = useMemo(
-    () => resolveWeatherDay(game.gameId, game.week).condition,
-    [game.gameId, game.week]
+    () => resolveWeatherCardCondition(game.gameId, game.week, game.tvFeed),
+    [game.gameId, game.tvFeed, game.week]
+  )
+  const pulseVoteResult = useMemo(
+    () =>
+      game.phase === 'eviction_results' && game.voteResults
+        ? {
+            mode: game.voteResultsMode === 'public' ? ('audience' as const) : ('house' as const),
+            counts: game.voteResults,
+          }
+        : null,
+    [game.phase, game.voteResults, game.voteResultsMode]
   )
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
@@ -2169,7 +2187,9 @@ export default function SocialPanelV2() {
               gamePhase={game.phase}
               pulseChronicles={game.pulseChronicles}
               weekendInterlude={game.weekendInterlude}
+              voteResult={pulseVoteResult}
               weatherCondition={pulseWeather}
+              humanPets={humanPets}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}

@@ -78,6 +78,40 @@ describe('Hub Chronicles episode lifecycle', () => {
         complete: true,
       },
     ]
+    for (const [type, targetIds] of [
+      ['CEREMONY_VOTES_REVEALED', [dayOneTarget.id, earlierTarget.id]],
+      ['CEREMONY_EVICTION', [dayOneTarget.id]],
+    ] as const) {
+      appendRealityEvent(reality, {
+        day: 5,
+        phase: 'eviction_results',
+        type,
+        actorId: undefined,
+        targetIds: [...targetIds],
+        participantIds: [human.id, ...targetIds],
+        witnessIds: game.players.map((player) => player.id),
+        visibility: 'CEREMONY_PUBLIC',
+        outcome: 'SYSTEM',
+        reason: 'The house vote was revealed.',
+        tags: [],
+        relatedFactIds: [],
+        relatedPromiseIds: [],
+        relatedThreadIds: [],
+        publicEligible: true,
+        juryEligible: true,
+      })
+    }
+    game.history = [
+      {
+        type: 'houseVoteResult',
+        week: 5,
+        data: {
+          visibility: 'public_result',
+          voteCounts: { [dayOneTarget.id]: 4, [earlierTarget.id]: 2 },
+        },
+        timestamp: 1,
+      },
+    ]
     const store = makeStore(game, reality)
 
     store.dispatch(
@@ -103,7 +137,10 @@ describe('Hub Chronicles episode lifecycle', () => {
       .getState()
       .game.pulseChronicles?.find((entry) => entry.episodeKey === 'weekend:1:5:1')
     expect(dayOne?.episodeLabel).toBe('Weekend 1 · Day 1')
-    expect(dayOne?.paragraphs.join(' ')).toContain(`connect with ${dayOneTarget.name}`)
+    expect(dayOne?.paragraphs.join(' ')).toContain(`good conversation with ${dayOneTarget.name}`)
+    expect(dayOne?.paragraphs.join(' ')).toContain(
+      `${dayOneTarget.name} was eliminated. The vote was 4–2 (4 votes to evict ${dayOneTarget.name}, 2 votes to evict ${earlierTarget.name}).`
+    )
     expect(dayOne?.paragraphs.join(' ')).not.toContain('captured the LOH crown')
 
     store.dispatch(advanceWeekendDay())
@@ -128,8 +165,10 @@ describe('Hub Chronicles episode lifecycle', () => {
 
     const episodes = store.getState().game.pulseChronicles ?? []
     const dayTwo = episodes.find((entry) => entry.episodeKey === 'weekend:1:5:2')
-    expect(dayTwo?.paragraphs.join(' ')).toContain(`connect with ${dayTwoTarget.name}`)
-    expect(dayTwo?.paragraphs.join(' ')).not.toContain(`connect with ${dayOneTarget.name}`)
+    expect(dayTwo?.paragraphs.join(' ')).toContain(`good conversation with ${dayTwoTarget.name}`)
+    expect(dayTwo?.paragraphs.join(' ')).not.toContain(
+      `good conversation with ${dayOneTarget.name}`
+    )
     expect(dayTwo?.capturedThroughTimestamp).toBe(2_000_000)
     expect(dayTwo?.capturedThroughRealitySequence).toBe(reality.nextSequence - 1)
     expect(episodes.filter((entry) => entry.episodeKey?.startsWith('weekend:1:5:'))).toHaveLength(2)

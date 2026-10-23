@@ -91,7 +91,7 @@ import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
 import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
-import { resolveWeatherDay } from '../weather/weatherEngine'
+import { resolveWeatherCardCondition } from '../weather/weatherCardCondition'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
@@ -131,6 +131,14 @@ interface GameState {
   awaitingPovDecision?: boolean
   awaitingPovSaveTarget?: boolean
   votes?: Record<string, string>
+  voteResults?: Record<string, number> | null
+  voteResultsMode?: 'house' | 'public'
+  history?: Array<{
+    type: string
+    week: number
+    data: Record<string, unknown>
+    timestamp: number
+  }>
   pendingEviction?: { evicteeId: string; evictionMessage: string } | null
   awaitingTieBreak?: boolean
   awaitingPosTieBreak?: boolean
@@ -219,6 +227,49 @@ interface StateWithGame {
 
 type MiddlewareAPI = { dispatch: (a: unknown) => unknown; getState: () => unknown }
 
+function voteCountRecord(value: unknown): Record<string, number> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, number] =>
+      typeof entry[1] === 'number' && Number.isFinite(entry[1]) && entry[1] >= 0
+  )
+  return entries.length ? Object.fromEntries(entries) : null
+}
+
+function chronicleVoteResult(game: GameState, day: number) {
+  if (game.week === day && game.phase === 'eviction_results') {
+    const counts = voteCountRecord(game.voteResults)
+    if (counts)
+      return {
+        mode: game.voteResultsMode === 'public' ? ('audience' as const) : ('house' as const),
+        counts,
+      }
+  }
+
+  const history = game.history ?? []
+  let result: (typeof history)[number] | undefined
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const entry = history[index]
+    if (
+      entry.week === day &&
+      entry.data.visibility === 'public_result' &&
+      (entry.type === 'houseVoteResult' || entry.type === 'voxAudienceVoteResult')
+    ) {
+      result = entry
+      break
+    }
+  }
+  if (!result) return null
+  const counts = voteCountRecord(
+    result.type === 'voxAudienceVoteResult' ? result.data.percentages : result.data.voteCounts
+  )
+  if (!counts) return null
+  return {
+    mode: result.type === 'voxAudienceVoteResult' ? ('audience' as const) : ('house' as const),
+    counts,
+  }
+}
+
 /** Finalize each episode before its source history can roll away. */
 function archiveCompletedPulseEpisode(
   api: MiddlewareAPI,
@@ -240,6 +291,12 @@ function archiveCompletedPulseEpisode(
     return
   const human = state.game.players.find((player) => player.isUser)
   if (!human) return
+  const profileState = state.profiles
+  const humanPets =
+    profileState && !profileState.isGuest && profileState.activeProfileId
+      ? (profileState.profiles.find((profile) => profile.id === profileState.activeProfileId)?.bio
+          ?.pets ?? null)
+      : null
   const priorEpisodes = episodes.filter(
     (entry) => entry.season === state.game.season && entry.day === day
   )
@@ -260,7 +317,10 @@ function archiveCompletedPulseEpisode(
     players: state.game.players.map((player) => ({ id: player.id, name: player.name ?? '' })),
     reality: state.social.reality,
     actionHistory,
-    weather: resolveWeatherDay(state.game.gameId, day).condition,
+    dramaNetwork: state.social.dramaNetwork,
+    weather: resolveWeatherCardCondition(state.game.gameId, day, state.game.tvFeed ?? []),
+    humanPets,
+    voteResult: chronicleVoteResult(state.game, day),
     complete: true,
     episode: identity,
     actionHistoryAfterTimestamp,
