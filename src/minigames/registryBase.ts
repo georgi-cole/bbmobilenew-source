@@ -427,6 +427,37 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
   },
 
+  percentagePanic: {
+    key: 'percentagePanic',
+    title: 'Percentage Panic',
+    description: 'Guess the world in percentages. Last place goes out each round; final two play Higher or Lower.',
+    instructions: [
+      'Everyone estimates the same published percentage with the slider, from 0 to 100.',
+      'You have 20 seconds to lock your estimate; a timeout locks the current slider value.',
+      'Your round score is minus the absolute difference from the published answer.',
+      'The least accurate contestant leaves. Tied errors eliminate the slower respondent.',
+      'Exactly identical worst response times eliminate all tied contestants.',
+      'If everybody would be eliminated, nobody leaves and a new sudden-death question begins.',
+      'The best-scoring finalist chooses who guesses first or second.',
+      'The finalists alternate guesses and see only Higher or Lower until one guesses exactly.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Cumulative points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'PercentagePanic',
+    legacy: false,
+    // Draft feature: stay out of automatic rotation until 300 questions and QA pass.
+    weight: 0,
+    category: 'trivia',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
+  },
+
   majorityRules: {
     key: 'majorityRules',
     title: 'Majority Rules',
