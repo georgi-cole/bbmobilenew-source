@@ -490,9 +490,14 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
     const player = store.getState().game.players.find((p) => !p.isUser)!
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
+    const selectedHubmate = screen.getByRole('group', {
+      name: `Selected hubmate: ${player.name}`,
+    })
+    expect(within(selectedHubmate).getByText(player.name)).toBeVisible()
     expect(btn).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect(btn).toBeEnabled()
+    expect(btn.closest('.sp2-moves__top')).toContainElement(selectedHubmate)
   })
 
   it('group chat requires two people and its cost grows with the group', () => {

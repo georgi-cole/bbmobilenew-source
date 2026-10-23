@@ -2512,6 +2512,20 @@ export default function SocialPanelV2() {
                     {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
                   </span>
                 </div>
+                {focusedPlayer && (
+                  <div
+                    className="sp2-moves__target"
+                    role="group"
+                    aria-label={`Selected hubmate: ${focusedPlayer.name}`}
+                  >
+                    <PlayerAvatar
+                      player={focusedPlayer}
+                      size="sm"
+                      showRelationshipOutline={false}
+                    />
+                    <span className="sp2-moves__target-name">{focusedPlayer.name}</span>
+                  </div>
+                )}
                 <button
                   className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
                   type="button"
