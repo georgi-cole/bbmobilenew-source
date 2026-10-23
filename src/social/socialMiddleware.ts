@@ -114,6 +114,7 @@ const VOX_SOCIAL_BEAT_PHASES = new Set([
 ])
 
 interface GameState {
+  missionPowers?: import('../bb/missionPowers').MissionPowerState
   gameId: string
   season: number
   seed: number
@@ -1978,7 +1979,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     return result
   }
 
-  if (type === 'game/setReplacementNominee') {
+  if (type === 'game/setReplacementNominee' || type === 'game/selectMissionBackup') {
     const prevState = api.getState() as StateWithGame
     const prevNominees = prevState.game?.nomineeIds ?? []
     const result = next(action)
@@ -1989,7 +1990,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     applyReplacementNomineeConsequences(
       api as unknown as MiddlewareAPI,
       replacementIds,
-      afterState.game?.lohId ?? null,
+      type === 'game/selectMissionBackup'
+        ? (afterState.game?.missionPowers?.backupChooserId ?? null)
+        : (afterState.game?.lohId ?? null),
       afterState.game?.posWinnerId ?? null
     )
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)

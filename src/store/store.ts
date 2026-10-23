@@ -1,3 +1,4 @@
+import { missionPowerMiddleware } from './missionPowerMiddleware'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, {
   getNominationTargetScore,
@@ -161,6 +162,7 @@ export const store = configureStore({
       .prepend(gamePerformanceMiddleware)
       .concat(
         weekendSettingsMiddleware,
+        missionPowerMiddleware,
         survivorMiddleware,
         bellaProgressMiddleware,
         eliminatedSeasonResolutionMiddleware,

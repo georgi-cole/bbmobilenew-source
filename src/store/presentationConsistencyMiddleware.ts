@@ -1,3 +1,4 @@
+import { getMissionOutgoingIds } from '../bb/missionPowers'
 import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakdownStorage'
 import { expandCupidIds } from '../features/twists/cupidArrow'
@@ -40,12 +41,12 @@ function currentTemplateEvent(
 }
 
 function outgoingLohEligibilityCopy(game: GameState): string | null {
-  if (!game.prevHohId || game.voxPopuli?.status === 'active') return null
+  if (game.voxPopuli?.status === 'active') return null
 
   const human = game.players.find((player) => player.isUser)
   if (!human) return null
 
-  const outgoingIds = expandCupidIds(game, [game.prevHohId])
+  const outgoingIds = expandCupidIds(game, getMissionOutgoingIds(game))
   if (!outgoingIds.includes(human.id)) return null
 
   const outgoingNames = outgoingIds

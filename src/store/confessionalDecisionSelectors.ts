@@ -15,10 +15,11 @@
 
 import { createSelector } from '@reduxjs/toolkit'
 import type { RootState } from './store'
-import type { Phase } from '../types'
+import type { Phase, GameState } from '../types'
 
 /** All known ceremony decision types that route through the Confessional. */
 export type ConfessionalDecisionType =
+  | 'mission_power' // Versioned earned-power decision
   | 'nominations' // Human LOH picks nominees (multi-select)
   | 'eviction_vote' // Human voter casts single eviction vote
   | 'double_vote_offer' // Big Eye offers stored Double-Vote power
@@ -38,6 +39,18 @@ export interface ActiveConfessionalDecision {
   week: number
   /** Current game phase (informational). */
   phase: Phase
+}
+
+/** Stable across navigation; distinguish repeated steps in the same phase. */
+export function getConfessionalDecisionKey(
+  decision: ActiveConfessionalDecision | null,
+  game: Pick<GameState, 'missionPowers'>
+): string | null {
+  if (!decision) return null
+  const base = `${decision.type}:${decision.week}:${decision.phase}`
+  return decision.type === 'mission_power'
+    ? `${base}:${game.missionPowers?.decision?.id ?? ''}:${game.missionPowers?.decision?.kind ?? ''}`
+    : base
 }
 
 /**
@@ -77,6 +90,7 @@ function getActiveConfessionalDecisionFromGame(
   const humanPlayer = game.players?.find((p) => p.isUser)
   if (!humanPlayer) return null
   if (humanPlayer.status === 'evicted' || humanPlayer.status === 'jury') return null
+  if (game.missionPowers?.decision) return { type: 'mission_power', week, phase }
   if (game.twinShock?.promptStage) return { type: 'twin_shock', week, phase }
 
   // ── Nominations ─────────────────────────────────────────────────────────

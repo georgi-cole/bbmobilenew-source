@@ -600,8 +600,19 @@ const socialSlice = createSlice({
       )
     },
     /** A Secret Mission box grants its three resources as one reducer update. */
-    grantSecretMissionResourceCache(state, action: PayloadAction<{ playerId: string }>) {
-      const { playerId } = action.payload
+    grantSecretMissionResourceCache(
+      state,
+      action: PayloadAction<{ playerId: string; receiptId?: string }>
+    ) {
+      const { playerId, receiptId } = action.payload
+      state.missionResourceReceipts ??= []
+      if (receiptId && state.missionResourceReceipts.includes(receiptId)) return
+      if (receiptId) state.missionResourceReceipts.push(receiptId)
+      const before = {
+        energy: state.energyBank[playerId] ?? 0,
+        influence: state.influenceBank[playerId] ?? 0,
+        info: state.infoBank[playerId] ?? 0,
+      }
       state.energyBank[playerId] = clampSocialResource(
         (state.energyBank[playerId] ?? 0) + 25,
         'energy'
@@ -611,6 +622,14 @@ const socialSlice = createSlice({
         'influence'
       )
       state.infoBank[playerId] = clampSocialResource((state.infoBank[playerId] ?? 0) + 1000, 'info')
+      if (receiptId) {
+        state.missionResourcePayouts ??= {}
+        state.missionResourcePayouts[receiptId] = {
+          energy: state.energyBank[playerId] - before.energy,
+          influence: state.influenceBank[playerId] - before.influence,
+          info: state.infoBank[playerId] - before.info,
+        }
+      }
     },
     /**
      * Append to the current panel session and to a bounded persistent history.

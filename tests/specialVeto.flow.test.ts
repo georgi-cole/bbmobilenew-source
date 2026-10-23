@@ -478,7 +478,7 @@ describe('Diamond POS — Human POS holder names replacement', () => {
     expect(store.getState().game.specialVeto?.awaitingHolderReplacement).toBe(true);
   });
 
-  it('AI uses Halo Exchange when it can upgrade the block and targets the strongest replacement', () => {
+  it('AI does not use Halo Exchange just because a stronger replacement exists', () => {
     const players = makePlayers(8);
     players[0].status = 'loh';
     players[2].status = 'nominated';
@@ -499,9 +499,8 @@ describe('Diamond POS — Human POS holder names replacement', () => {
     store.dispatch(advance());
 
     const state = store.getState().game;
-    expect(state.povSavedId).toBe('p3');
-    expect(state.nomineeIds).toEqual(expect.arrayContaining(['p2', 'p4']));
-    expect(state.nomineeIds).not.toContain('p3');
+    expect(state.povSavedId).toBeNull();
+    expect(state.nomineeIds).toEqual(['p2', 'p3']);
   });
 });
 
@@ -647,7 +646,7 @@ describe('Detox — Human POS holder names two replacements', () => {
     expect(state.specialVeto?.awaitingCoupReplacement2).toBe(true);
   });
 
-  it('submitCoupReplacement allows a protected fallback on the second pick when the first pick is the LOH', () => {
+  it('submitCoupReplacement rejects a protected second replacement even when candidates run out', () => {
     const players = makePlayers(4, 1);
     players[2].status = 'evicted';
     const store = makeStore({
@@ -668,10 +667,9 @@ describe('Detox — Human POS holder names two replacements', () => {
     store.dispatch(submitCoupReplacement('p3'));
 
     const state = store.getState().game;
-    expect(state.nomineeIds).toEqual(['p0', 'p3']);
-    expect(state.players.find((p) => p.id === 'p0')?.status).toBe('loh');
-    expect(state.players.find((p) => p.id === 'p3')?.status).toBe('nominated');
-    expect(state.specialVeto?.awaitingCoupReplacement2).toBe(false);
+    expect(state.nomineeIds).toEqual([]);
+    expect(state.specialVeto?.awaitingCoupReplacement2).toBe(true);
+    expect(state.specialVeto?.coupReplacement1Id).toBe('p0');
   });
 
   it('AI nominee auto-uses Detox and can throw the outgoing LOH onto the block', () => {
@@ -810,7 +808,7 @@ describe('Double Trouble — second use decision (human POS holder)', () => {
     expect(state.nomineeIds).toEqual(['p5', 'p6']);
   });
 
-  it('allows a previously saved nominee as the fallback replacement when nobody else is eligible', () => {
+  it('rejects a previously saved nominee even when nobody else is eligible', () => {
     const players = makePlayers(4, 0); // p0 is human LOH
     players[0].status = 'loh';
     players[1].status = 'pos';
@@ -833,8 +831,8 @@ describe('Double Trouble — second use decision (human POS holder)', () => {
 
     store.dispatch(setReplacementNominee('p3'));
     const state = store.getState().game;
-    expect(state.replacementNeeded).toBe(false);
-    expect(state.nomineeIds).toEqual(['p2', 'p3']);
+    expect(state.replacementNeeded).toBe(true);
+    expect(state.nomineeIds).toEqual(['p2']);
   });
 
   it('AI uses the second save only when it can improve the final block', () => {

@@ -33,7 +33,13 @@ import type { GameState } from '../../../src/types';
 function makeStore() {
   return configureStore({
     reducer: {
-      game: gameReducer,
+      game: (state: Parameters<typeof gameReducer>[0], action: Parameters<typeof gameReducer>[1]) => {
+        const next = gameReducer(state, action);
+        // This suite retains the pre-v2 reward contract for save compatibility.
+        return action.type === 'game/triggerSecretMission' && next.secretMission
+          ? { ...next, secretMission: { ...next.secretMission, rewardVersion: undefined } }
+          : next;
+      },
       settings: settingsReducer,
       social: socialReducer,
       publicOpinion: publicOpinionReducer,

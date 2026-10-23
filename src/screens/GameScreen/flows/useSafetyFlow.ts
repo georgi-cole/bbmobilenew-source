@@ -133,6 +133,11 @@ export function useSafetyFlow({
               ? '👑 Double Trouble used'
               : '🛡️ Power used'
 
+      if (!activeSpecialVeto) {
+        dispatch(submitSaveAction)
+        return
+      }
+
       if (!savedPlayer || !savedRect) {
         // Headless fallback: commit immediately.
         dispatch(submitSaveAction)
@@ -200,14 +205,7 @@ export function useSafetyFlow({
         savedId: id,
       })
     },
-    [
-      dispatch,
-      game,
-      activeSpecialVeto,
-      getTileRect,
-      getSaveCeremonyKey,
-      setConsumedSaveCeremonyKey,
-    ]
+    [dispatch, game, activeSpecialVeto, getTileRect, getSaveCeremonyKey, setConsumedSaveCeremonyKey]
   )
 
   // Confessional and AI Safety choices commit synchronously rather than going
@@ -248,7 +246,8 @@ export function useSafetyFlow({
           rect: getTileRect(player.id),
           badge: '🛡️',
           badgeVariant: isCupidArrowActive(game) ? ('cupid-hug' as const) : undefined,
-          badgeStart: hasDistinctHolder && currentHolderRect ? currentHolderRect : ('center' as const),
+          badgeStart:
+            hasDistinctHolder && currentHolderRect ? currentHolderRect : ('center' as const),
           badgeLabel: `${player.name} saved by Safety`,
           glowTone: 'success' as const,
         })),
@@ -449,13 +448,7 @@ export function useSafetyFlow({
         replacementId: id,
       })
     },
-    [
-      activeSpecialVeto,
-      game,
-      getReplacementCeremonyKey,
-      getTileRect,
-      setAiReplacementConsumedKey,
-    ]
+    [activeSpecialVeto, game, getReplacementCeremonyKey, getTileRect, setAiReplacementConsumedKey]
   )
 
   const handleReplacementNominee = useCallback(

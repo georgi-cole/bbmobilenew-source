@@ -270,13 +270,13 @@ describe('Democracia twist', () => {
       expect(store.getState().game.twistActivatedThisWeek).toBe(true)
     })
 
-    it('pushes a TV event with major=democracia', () => {
+    it('leaves the activation announcement to the managed LOH card', () => {
       const store = makeStore({ week: 5 })
       store.dispatch(activateDemocracia())
       const feed = store.getState().game.tvFeed
-      const democraciaEvent = feed.find((e) => e.major === 'democracia')
-      expect(democraciaEvent).toBeDefined()
-      expect(democraciaEvent?.type).toBe('twist')
+      const democraciaEvent = feed.find((e) => e.meta?.major === 'democracia')
+      expect(democraciaEvent).toBeUndefined()
+      expect(store.getState().game.democracia?.active).toBe(true)
     })
   })
 
@@ -460,9 +460,9 @@ describe('Democracia twist', () => {
       const displayCopy = state.democracia?.resultDisplay?.subtitle ?? ''
       const ballotageEvent = state.tvFeed.find((event) => /BALLOTAGE/i.test(event.text))
 
-      expect(displayCopy).toMatch(/hubmates/i)
+      expect(displayCopy).toMatch(/hub/i)
       expect(displayCopy).not.toMatch(/\bhouse\b|houseguest/i)
-      expect(ballotageEvent?.text).toMatch(/hubmates/i)
+      expect(ballotageEvent?.text).toMatch(/hub/i)
       expect(ballotageEvent?.text).not.toMatch(/houseguest|\bhouse\b/i)
     })
 
