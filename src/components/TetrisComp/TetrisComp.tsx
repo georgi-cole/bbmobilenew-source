@@ -840,19 +840,19 @@ export default function TetrisComp({
 
   if (screen === 'roundResults' && roundResult) {
     const humanStillActive = humanId ? roundResult.split.survivorIds.includes(humanId) : false
+    const continueLabel = simulatingRemainder
+      ? t('fitMeIn.finishingTournament')
+      : humanStillActive
+        ? currentRoundIndex + 1 === tournamentPlan.length - 1
+          ? t('fitMeIn.enterFinal')
+          : t('fitMeIn.nextRound')
+        : t('fitMeIn.revealWinner')
     return (
-      <div className={`tetris-tournament-results tetris-tension-${roundResult.plan.tensionLevel}`}>
-        <div className="tetris-round-results-card">
-          <p className="tetris-round-results-kicker">
-            {t('fitMeIn.round.progress', {
-              current: roundResult.plan.roundNumber,
-              total: roundResult.plan.totalRounds,
-            })}
-          </p>
-          <h2>{t('fitMeIn.round.complete', { round: t(roundResult.plan.labelKey) })}</h2>
-          <p className="tetris-round-results-summary">
-            {humanStillActive ? t('fitMeIn.round.qualified') : t('fitMeIn.round.eliminatedMessage')}
-          </p>
+      <MinigameCompleteWrapper
+        className={`tetris-results-screen tetris-results-screen--round tetris-tension-${roundResult.plan.tensionLevel}`}
+        panelClassName="tetris-results-panel"
+        placementsClassName="tetris-results-placement-list"
+        placementsNode={
           <ol className="tetris-round-standings" aria-label={t('fitMeIn.round.standings')}>
             {roundResult.split.standings.map((entry, index) => {
               const participant = participantById.get(entry.playerId)
@@ -876,7 +876,9 @@ export default function TetrisComp({
                     {participant?.name ?? entry.playerId}
                     {participant?.isHuman ? ` ${t('fitMeIn.youTag')}` : ''}
                   </span>
-                  <strong>{entry.score.toLocaleString()}</strong>
+                  <strong className="tetris-round-standing-score">
+                    {entry.score.toLocaleString()}
+                  </strong>
                   <span className="tetris-round-standing-status">
                     {eliminated ? t('fitMeIn.status.eliminated') : t('fitMeIn.status.safe')}
                   </span>
@@ -884,22 +886,25 @@ export default function TetrisComp({
               )
             })}
           </ol>
-          <button
-            type="button"
-            className="tetris-round-continue"
-            onClick={continueAfterRound}
-            disabled={simulatingRemainder}
-          >
-            {simulatingRemainder
-              ? t('fitMeIn.finishingTournament')
-              : humanStillActive
-                ? currentRoundIndex + 1 === tournamentPlan.length - 1
-                  ? t('fitMeIn.enterFinal')
-                  : t('fitMeIn.nextRound')
-                : t('fitMeIn.revealWinner')}
-          </button>
-        </div>
-      </div>
+        }
+        onContinue={continueAfterRound}
+        continueLabel={continueLabel}
+        continueButtonClassName="tetris-results-continue"
+        continueDisabled={simulatingRemainder}
+      >
+        <header className="tetris-results-hero tetris-results-hero--round">
+          <p className="tetris-round-results-kicker">
+            {t('fitMeIn.round.progress', {
+              current: roundResult.plan.roundNumber,
+              total: roundResult.plan.totalRounds,
+            })}
+          </p>
+          <h2>{t('fitMeIn.round.complete', { round: t(roundResult.plan.labelKey) })}</h2>
+          <p className="tetris-round-results-summary">
+            {humanStillActive ? t('fitMeIn.round.qualified') : t('fitMeIn.round.eliminatedMessage')}
+          </p>
+        </header>
+      </MinigameCompleteWrapper>
     )
   }
 
@@ -907,7 +912,9 @@ export default function TetrisComp({
     const winner = participantById.get(finalResult.winnerId)
     return (
       <MinigameCompleteWrapper
-        className="tetris-results"
+        className="tetris-results-screen tetris-results-screen--final"
+        panelClassName="tetris-results-panel"
+        placementsClassName="tetris-results-placement-list"
         onContinue={() =>
           onComplete({
             rawValue: finalResult.humanScore,
@@ -917,7 +924,7 @@ export default function TetrisComp({
           })
         }
         placementsNode={
-          <ol className="tetris-results-list" role="list" aria-label="Final rankings">
+          <ol className="tetris-results-list" aria-label="Final standings">
             {finalResult.rankingBestFirst.map((playerId, index) => {
               const participant = participantById.get(playerId)
               return (
@@ -952,11 +959,12 @@ export default function TetrisComp({
             })}
           </ol>
         }
-        placementsRole="list"
-        placementsAriaLabel="Final standings"
+        continueButtonClassName="tetris-results-continue"
       >
-        <div className="tetris-results-hero">
-          <div className="tetris-results-trophy">🏆</div>
+        <header className="tetris-results-hero tetris-results-hero--final">
+          <div className="tetris-results-trophy" aria-hidden="true">
+            🏆
+          </div>
           <h2 className="tetris-results-title">
             {winner?.isHuman
               ? t('fitMeIn.youWin')
@@ -966,7 +974,7 @@ export default function TetrisComp({
           <div className="tetris-results-your-score">
             {t('fitMeIn.yourLastScore')} <strong>{finalResult.humanScore.toLocaleString()}</strong>
           </div>
-        </div>
+        </header>
       </MinigameCompleteWrapper>
     )
   }

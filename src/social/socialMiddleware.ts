@@ -24,7 +24,7 @@
 
 import type { Middleware } from '@reduxjs/toolkit'
 import type { StrategicAllianceSnapshot, GameState as FullGameState } from '../types'
-import { settleSecretMissionDay } from '../store/gameSlice'
+import { addTvEvent, settleSecretMissionDay } from '../store/gameSlice'
 import { getCanonicalRelationshipTags } from './relationshipSemantics'
 import { applyNominationBetrayalConsequences } from './realityIntegrityMiddleware'
 import { SocialEngine } from './SocialEngine'
@@ -1445,6 +1445,67 @@ function recordActualVotes(api: MiddlewareAPI): void {
   }
 }
 
+function recordEvictionVoteSummary(api: MiddlewareAPI, game: FullGameState): void {
+  if (game.phase !== 'eviction_results' || !game.voteResults) return
+
+  const tallies = Object.entries(game.voteResults)
+    .map(([playerId, voteCount]) => {
+      const player = game.players.find((candidate) => candidate.id === playerId)
+      return {
+        playerId,
+        name: player?.name ?? playerId,
+        voteCount,
+      }
+    })
+    .filter((entry) => Number.isFinite(entry.voteCount))
+
+  if (tallies.length === 0 || tallies.every((entry) => entry.voteCount <= 0)) return
+
+  const isAudienceVote = game.voteResultsMode === 'public'
+  const orderedTallies = [...tallies].sort(
+    (left, right) => right.voteCount - left.voteCount || left.name.localeCompare(right.name)
+  )
+  const highestVoteCount = orderedTallies[0]?.voteCount ?? 0
+  const leaders = orderedTallies.filter((entry) => entry.voteCount === highestVoteCount)
+  const tallySummary = orderedTallies
+    .map(({ name, voteCount }) =>
+      isAudienceVote ? `${name} ${voteCount.toFixed(1)}%` : `${name} ${Math.round(voteCount)}`
+    )
+    .join(', ')
+  const evictee = game.players.find((player) => player.id === game.pendingEviction?.evicteeId)
+  const resultLabel = isAudienceVote ? 'Audience vote' : 'Vote results'
+  let outcome = ''
+
+  if (leaders.length > 1) {
+    const tiedNames = leaders.map((entry) => entry.name).join(' and ')
+    outcome = game.awaitingTieBreak
+      ? `The vote is tied between ${tiedNames}.`
+      : evictee
+        ? `The tie-break eliminated ${evictee.name}.`
+        : `The vote is tied between ${tiedNames}.`
+  } else if (evictee) {
+    outcome = `${evictee.name} was eliminated.`
+  }
+
+  api.dispatch(
+    addTvEvent({
+      text: `${resultLabel}: ${tallySummary}.${outcome ? ` ${outcome}` : ''}`,
+      type: 'vote',
+      source: 'system',
+      channels: ['mainLog'],
+      meta: {
+        week: game.week,
+        phase: 'eviction_results',
+        evictionVoteResults: true,
+        voteResultsMode: isAudienceVote ? 'public' : 'house',
+        voteCounts: Object.fromEntries(
+          tallies.map(({ playerId, voteCount }) => [playerId, voteCount])
+        ),
+      },
+    })
+  )
+}
+
 function recordPhaseCeremony(
   api: MiddlewareAPI,
   previousPhase: string | undefined,
@@ -1453,6 +1514,8 @@ function recordPhaseCeremony(
 ): void {
   if (!nextPhase || previousPhase === nextPhase) return
   const state = api.getState() as StateWithGame
+  if (nextPhase === 'eviction_results')
+    recordEvictionVoteSummary(api, state.game as unknown as FullGameState)
   if (getEffectiveSocialMode(state) !== 'drama') return
   if (nextPhase === 'loh_results' && state.game.lohId) {
     const voxPopuliActive = state.game.voxPopuli?.status === 'active'

@@ -678,7 +678,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
       'Choose one tool each round: Peek, Shield or Bonus Bet; the same choices apply to every contestant',
       'Match the Bright Pair during the first half of the board for a bounded score bonus',
       'The top two share a player-portrait board in the finale; every matched pair scores one point',
-      'Final turns can claim up to two pairs before passing; each finalist gets one Peek-or-Pass token',
+      'A finalist keeps playing after each match and passes the turn after a miss; each finalist gets one Peek-or-Pass token',
       'Final pairs decide the winner, with rounds 1–4 totals breaking a tie',
     ],
     metricKind: 'points',
