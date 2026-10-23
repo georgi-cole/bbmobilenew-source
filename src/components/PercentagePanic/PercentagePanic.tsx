@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
+import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import {
   advancePercentageRound, choosePercentageDuelOrder, createPercentagePanic,
   percentagePanicRankedIds, pickAiDuelGuess, resolvePercentageDuelGuess,
@@ -30,7 +31,7 @@ export default function PercentagePanic({
 }: Props) {
   const [state, setState] = useState<PercentagePanicState>(() => {
     const humanId = participants.find((p) => p.isHuman)?.id ?? null
-    return createPercentagePanic(participantIds, humanId, seed)
+    return createPercentagePanic(participantIds, humanId, seed || cryptoSeed())
   })
   const [guess, setGuess] = useState(50)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
