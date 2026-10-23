@@ -172,6 +172,7 @@ export function createImmunityReward(
 // ── Mission state ─────────────────────────────────────────────────────────────
 
 export interface SecretMissionState {
+  privateRewardMessages?: string[]
   rewardVersion?: 2
   rewardSet?: import('./missionPowers').MissionRewardSet
   allianceReveal?: {

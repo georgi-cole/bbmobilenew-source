@@ -569,3 +569,21 @@ it('honors both Co-LOH exclusions even if the scalar outgoing leader is no longe
     expect(['human', 'ai1']).not.toContain(result.lohId)
   }
 })
+
+it('keeps the claimed reward and Store tradeoff receipt out of public broadcasts', () => {
+  const game = fixture('noAmbush')
+  game.secretMission!.status = 'rewardPending'
+  game.secretMission!.reward = undefined
+  game.secretMission!.rewardSet!.selectedIndex = undefined
+  const claimed = gameReducer(
+    game,
+    actions.claimMissionBox({ missionId: 'mission-test', index: 0 })
+  )
+  expect(claimed.secretMission?.privateRewardMessages?.join(' ')).toContain('No Ambush')
+  expect(claimed.tvFeed.some((event) => event.text.includes('No Ambush'))).toBe(false)
+  const switched = gameReducer(claimed, actions.recordMissionStoreChoice({ day: 6, mission: true }))
+  expect(switched.secretMission?.privateRewardMessages?.join(' ')).toContain(
+    'returned to inventory'
+  )
+  expect(switched.tvFeed.some((event) => event.text.includes('returned to inventory'))).toBe(false)
+})

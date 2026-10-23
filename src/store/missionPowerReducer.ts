@@ -22,6 +22,13 @@ function announce(game: GameState, text: string) {
   })
 }
 
+/** Ownership and declined choices are known only inside the Confessional. */
+function whisper(game: GameState, text: string) {
+  if (!game.secretMission) return
+  const messages = (game.secretMission.privateRewardMessages ??= [])
+  if (messages.at(-1) !== text) messages.push(text)
+}
+
 /** Pure game-state transitions. Cross-slice effects run only after accepted transitions. */
 export function withMissionPowers(
   base: Reducer<GameState>,
@@ -86,12 +93,12 @@ export function withMissionPowers(
           (id) =>
             !game.tvFeed.some((e) => e.id === id && e.meta?.major === 'secret_mission_complete')
         )
-        announce(
+        whisper(
           game,
           `Big Eye: Your box contains ${MISSION_POWER_LABELS[type]}. Visit the Confessional for the rules and tradeoffs before its opportunity passes.`
         )
         if (power.storeUsedDay === game.week)
-          announce(
+          whisper(
             game,
             'Big Eye: A Store power has already changed today’s game. Your mission power must wait; its deadline keeps counting down.'
           )
@@ -108,7 +115,7 @@ export function withMissionPowers(
         power.decision = undefined
         power.storeChoiceDay = action.payload.day
         if (!action.payload.mission) power.storeDeferredDay = action.payload.day
-        announce(
+        whisper(
           game,
           action.payload.mission
             ? 'Big Eye: Your unused Store powers have been disarmed and returned to inventory. Your mission power has priority today.'
@@ -222,7 +229,7 @@ export function withMissionPowers(
             power.noAmbushDay = game.week
             power.usedDay = game.week
           }
-          announce(
+          ;(action.payload.accept ? announce : whisper)(
             game,
             action.payload.accept
               ? 'Big Eye: No Ambush protects you from Safety backups for this ceremony.'
@@ -252,7 +259,7 @@ export function withMissionPowers(
               game,
               `${human.name} used Overthrow the LOH. ${old.name} won the competition, but the crown and leadership now belong to ${human.name}!`
             )
-          } else announce(game, 'Big Eye: Overthrow the LOH was declined and is now spent.')
+          } else whisper(game, 'Big Eye: Overthrow the LOH was declined and is now spent.')
         }
         if (decision.kind === 'coLoh' && action.payload.accept) {
           const old = game.players.find((p) => p.id === game.lohId)
@@ -321,7 +328,7 @@ export function withMissionPowers(
           reward.eligible = false
         }
         power.decision = undefined
-        announce(game, `Big Eye: ${action.payload}`)
+        whisper(game, `Big Eye: ${action.payload}`)
       }
       if (
         actions.recordMissionAllianceReveal.match(action) &&

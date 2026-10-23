@@ -2227,6 +2227,16 @@ export default function DiaryRoom() {
                         )}
                       </div>
                     )}
+                  {secretMission?.privateRewardMessages?.length ? (
+                    <div
+                      className="diary-room__reward-claimed"
+                      aria-label="Private Big Eye power messages"
+                    >
+                      {secretMission.privateRewardMessages.map((message, index) => (
+                        <p key={`${secretMission.triggeredDay}:${index}`}>{message}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <ChatBubbles
                     key={`${gameState.gameId}:${playerId}`}
                     msgs={messages}
