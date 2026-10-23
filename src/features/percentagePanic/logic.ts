@@ -76,12 +76,15 @@ export function createPercentagePanic(
   if (contestants.length < 2) throw new Error('Percentage Panic requires at least two contestants')
   if (humanId && !contestants.includes(humanId)) throw new Error('Unknown human contestant')
   const question = selectPercentageQuestion(seed, 1, [])
+  const initialFinalists = contestants.length === 2
+    ? ([contestants[0], contestants[1]] as [string, string])
+    : null
   return {
     seed, contestants, activeIds: contestants, eliminatedIds: [], humanId,
     scores: Object.fromEntries(contestants.map((id) => [id, 0])),
     responseTotals: Object.fromEntries(contestants.map((id) => [id, 0])),
-    phase: 'question', roundNumber: 1, usedQuestionIds: [question.id],
-    question, lastRound: null, finalists: null, chooserId: null,
+    phase: initialFinalists ? 'order' : 'question', roundNumber: 1, usedQuestionIds: [question.id],
+    question, lastRound: null, finalists: initialFinalists, chooserId: initialFinalists?.[0] ?? null,
     duelTurnId: null, duelBounds: [0, 100], duelGuesses: [], winnerId: null,
   }
 }
@@ -110,6 +113,15 @@ export function simulatedPercentageGuess(
   }
 }
 
+/** The slowest of the equally inaccurate contestants leaves; exact-ms ties all leave. */
+export function percentageEliminations(answers: PercentageAnswer[]): string[] {
+  if (!answers.length) return []
+  const worstError = Math.max(...answers.map((a) => a.error))
+  const last = answers.filter((a) => a.error === worstError)
+  const slowestMs = Math.max(...last.map((a) => a.responseMs))
+  return last.filter((a) => a.responseMs === slowestMs).map((a) => a.playerId)
+}
+
 export function resolvePercentageRound(
   state: PercentagePanicState,
   humanGuess?: number,
@@ -129,10 +141,7 @@ export function resolvePercentageRound(
     const error = Math.abs(guess - answer)
     return { playerId: id, guess, responseMs: Math.floor(responseMs), error, score: -error }
   })
-  const worstError = Math.max(...answers.map((a) => a.error))
-  const last = answers.filter((a) => a.error === worstError)
-  const slowestMs = Math.max(...last.map((a) => a.responseMs))
-  const eliminatedIds = last.filter((a) => a.responseMs === slowestMs).map((a) => a.playerId)
+  const eliminatedIds = percentageEliminations(answers)
   const scores = { ...state.scores }
   const responseTotals = { ...state.responseTotals }
   for (const a of answers) {
