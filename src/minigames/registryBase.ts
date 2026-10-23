@@ -430,7 +430,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   percentagePanic: {
     key: 'percentagePanic',
     title: 'Percentage Panic',
-    description: 'Guess the world in percentages. Last place goes out each round; final two play Higher or Lower.',
+    description:
+      'Guess the world in percentages. Last place goes out each round; final two play Higher or Lower.',
     instructions: [
       'Everyone estimates the same published percentage with the slider, from 0 to 100.',
       'You have 20 seconds to lock your estimate; a timeout locks the current slider value.',

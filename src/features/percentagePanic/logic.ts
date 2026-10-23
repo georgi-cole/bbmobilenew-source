@@ -59,7 +59,11 @@ export interface PercentagePanicState {
 export const PERCENTAGE_PANIC_QUESTIONS = bank as PercentageQuestion[]
 const isValidPercent = (n: number) => Number.isInteger(n) && n >= 0 && n <= 100
 
-export function selectPercentageQuestion(seed: number, round: number, usedIds: string[]): PercentageQuestion {
+export function selectPercentageQuestion(
+  seed: number,
+  round: number,
+  usedIds: string[]
+): PercentageQuestion {
   const available = PERCENTAGE_PANIC_QUESTIONS.filter((q) => !usedIds.includes(q.id))
   const pool = available.length ? available : PERCENTAGE_PANIC_QUESTIONS
   if (!pool.length) throw new Error('Percentage Panic has no verified questions')
@@ -76,16 +80,27 @@ export function createPercentagePanic(
   if (contestants.length < 2) throw new Error('Percentage Panic requires at least two contestants')
   if (humanId && !contestants.includes(humanId)) throw new Error('Unknown human contestant')
   const question = selectPercentageQuestion(seed, 1, [])
-  const initialFinalists = contestants.length === 2
-    ? ([contestants[0], contestants[1]] as [string, string])
-    : null
+  const initialFinalists =
+    contestants.length === 2 ? ([contestants[0], contestants[1]] as [string, string]) : null
   return {
-    seed, contestants, activeIds: contestants, eliminatedIds: [], humanId,
+    seed,
+    contestants,
+    activeIds: contestants,
+    eliminatedIds: [],
+    humanId,
     scores: Object.fromEntries(contestants.map((id) => [id, 0])),
     responseTotals: Object.fromEntries(contestants.map((id) => [id, 0])),
-    phase: initialFinalists ? 'order' : 'question', roundNumber: 1, usedQuestionIds: [question.id],
-    question, lastRound: null, finalists: initialFinalists, chooserId: initialFinalists?.[0] ?? null,
-    duelTurnId: null, duelBounds: [0, 100], duelGuesses: [], winnerId: null,
+    phase: initialFinalists ? 'order' : 'question',
+    roundNumber: 1,
+    usedQuestionIds: [question.id],
+    question,
+    lastRound: null,
+    finalists: initialFinalists,
+    chooserId: initialFinalists?.[0] ?? null,
+    duelTurnId: null,
+    duelBounds: [0, 100],
+    duelGuesses: [],
+    winnerId: null,
   }
 }
 
@@ -103,7 +118,9 @@ export function simulatedPercentageGuess(
   playerId: string
 ): { guess: number; responseMs: number } {
   // An AI estimate is intentionally noisy. The AI does not answer exactly by default.
-  const rng = mulberry32((state.seed ^ stringSeed(playerId) ^ Math.imul(state.roundNumber, 97001)) >>> 0)
+  const rng = mulberry32(
+    (state.seed ^ stringSeed(playerId) ^ Math.imul(state.roundNumber, 97001)) >>> 0
+  )
   const knowledge = rng()
   const spread = knowledge > 0.85 ? 4 : knowledge > 0.4 ? 16 : 30
   const error = Math.round((rng() + rng() + rng() - 1.5) * spread)
@@ -163,10 +180,19 @@ export function resolvePercentageRound(
       })()
     : null
   return {
-    ...state, scores, responseTotals, activeIds,
+    ...state,
+    scores,
+    responseTotals,
+    activeIds,
     eliminatedIds: [...state.eliminatedIds, ...(suddenDeath ? [] : eliminatedIds)],
-    lastRound: { question: state.question, answers, eliminatedIds: suddenDeath ? [] : eliminatedIds, suddenDeath },
-    finalists: finalPair, chooserId,
+    lastRound: {
+      question: state.question,
+      answers,
+      eliminatedIds: suddenDeath ? [] : eliminatedIds,
+      suddenDeath,
+    },
+    finalists: finalPair,
+    chooserId,
     winnerId: activeIds.length === 1 ? activeIds[0] : null,
     phase: 'reveal',
   }
@@ -179,8 +205,12 @@ export function advancePercentageRound(state: PercentagePanicState): PercentageP
   const nextRound = state.roundNumber + 1
   const question = selectPercentageQuestion(state.seed, nextRound, state.usedQuestionIds)
   return {
-    ...state, phase: 'question', roundNumber: nextRound, question,
-    usedQuestionIds: [...state.usedQuestionIds, question.id], lastRound: null,
+    ...state,
+    phase: 'question',
+    roundNumber: nextRound,
+    question,
+    usedQuestionIds: [...state.usedQuestionIds, question.id],
+    lastRound: null,
   }
 }
 
@@ -188,12 +218,21 @@ export function choosePercentageDuelOrder(
   state: PercentagePanicState,
   firstId: string
 ): PercentagePanicState {
-  if (state.phase !== 'order' || !state.finalists || !state.finalists.includes(firstId)) return state
-  const question = selectPercentageQuestion(state.seed, state.roundNumber + 1, state.usedQuestionIds)
+  if (state.phase !== 'order' || !state.finalists || !state.finalists.includes(firstId))
+    return state
+  const question = selectPercentageQuestion(
+    state.seed,
+    state.roundNumber + 1,
+    state.usedQuestionIds
+  )
   return {
-    ...state, phase: 'duel', question,
+    ...state,
+    phase: 'duel',
+    question,
     usedQuestionIds: [...state.usedQuestionIds, question.id],
-    duelTurnId: firstId, duelBounds: [0, 100], duelGuesses: [],
+    duelTurnId: firstId,
+    duelBounds: [0, 100],
+    duelGuesses: [],
   }
 }
 
@@ -204,8 +243,13 @@ export function resolvePercentageDuelGuess(
 ): PercentagePanicState {
   if (state.phase !== 'duel' || !state.finalists || playerId !== state.duelTurnId) return state
   const [low, high] = state.duelBounds
-  if (!isValidPercent(guess) || guess < low || guess > high ||
-      state.duelGuesses.some((g) => g.guess === guess)) return state
+  if (
+    !isValidPercent(guess) ||
+    guess < low ||
+    guess > high ||
+    state.duelGuesses.some((g) => g.guess === guess)
+  )
+    return state
   const answer = state.question.answerPercent
   const feedback = guess === answer ? 'correct' : guess < answer ? 'higher' : 'lower'
   const duelGuesses: PercentageDuelGuess[] = [...state.duelGuesses, { playerId, guess, feedback }]
@@ -214,7 +258,9 @@ export function resolvePercentageDuelGuess(
   }
   const duelBounds: [number, number] = feedback === 'higher' ? [guess + 1, high] : [low, guess - 1]
   return {
-    ...state, duelGuesses, duelBounds,
+    ...state,
+    duelGuesses,
+    duelBounds,
     duelTurnId: state.finalists.find((id) => id !== playerId) ?? null,
   }
 }

@@ -2,9 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import {
-  advancePercentageRound, choosePercentageDuelOrder, createPercentagePanic,
-  percentagePanicRankedIds, pickAiDuelGuess, resolvePercentageDuelGuess,
-  resolvePercentageRound, type PercentagePanicState,
+  advancePercentageRound,
+  choosePercentageDuelOrder,
+  createPercentagePanic,
+  percentagePanicRankedIds,
+  pickAiDuelGuess,
+  resolvePercentageDuelGuess,
+  resolvePercentageRound,
+  type PercentagePanicState,
 } from '../../features/percentagePanic/logic'
 import './PercentagePanic.css'
 
@@ -27,7 +32,11 @@ const ROUND_SECONDS = 20
 const QUICK_PICKS = [0, 10, 25, 50, 75, 100]
 
 export default function PercentagePanic({
-  participantIds, participants = [], seed = 0, prizeType = 'LOH', onComplete,
+  participantIds,
+  participants = [],
+  seed = 0,
+  prizeType = 'LOH',
+  onComplete,
 }: Props) {
   const [state, setState] = useState<PercentagePanicState>(() => {
     const humanId = participants.find((p) => p.isHuman)?.id ?? null
@@ -64,7 +73,9 @@ export default function PercentagePanic({
       return () => window.clearTimeout(timeout)
     }
     const interval = window.setInterval(() => {
-      setTimeLeft(Math.max(0, Math.ceil(ROUND_SECONDS - (performance.now() - startRef.current) / 1000)))
+      setTimeLeft(
+        Math.max(0, Math.ceil(ROUND_SECONDS - (performance.now() - startRef.current) / 1000))
+      )
     }, 160)
     const timeout = window.setTimeout(() => {
       setState((s) => resolvePercentageRound(s, guessRef.current, ROUND_SECONDS * 1000))
@@ -78,8 +89,10 @@ export default function PercentagePanic({
   useEffect(() => {
     if (state.phase !== 'order' || !state.finalists || state.chooserId === state.humanId) return
     const timeout = window.setTimeout(
-      () => setState((s) => s.chooserId && s.finalists
-        ? choosePercentageDuelOrder(s, s.finalists[0]) : s),
+      () =>
+        setState((s) =>
+          s.chooserId && s.finalists ? choosePercentageDuelOrder(s, s.finalists[0]) : s
+        ),
       1100
     )
     return () => window.clearTimeout(timeout)
@@ -87,18 +100,21 @@ export default function PercentagePanic({
 
   useEffect(() => {
     if (state.phase !== 'duel' || state.duelTurnId === state.humanId) return
-    const timeout = window.setTimeout(() => setState((s) =>
-      s.phase === 'duel' && s.duelTurnId && s.duelTurnId !== s.humanId
-        ? resolvePercentageDuelGuess(s, s.duelTurnId, pickAiDuelGuess(s)) : s
-    ), watching ? 120 : 1050)
+    const timeout = window.setTimeout(
+      () =>
+        setState((s) =>
+          s.phase === 'duel' && s.duelTurnId && s.duelTurnId !== s.humanId
+            ? resolvePercentageDuelGuess(s, s.duelTurnId, pickAiDuelGuess(s))
+            : s
+        ),
+      watching ? 120 : 1050
+    )
     return () => window.clearTimeout(timeout)
   }, [state.phase, state.duelTurnId, state.humanId, state.duelGuesses.length, watching])
 
   useEffect(() => {
     if (state.phase !== 'reveal' || humanActive) return
-    const timeout = window.setTimeout(
-      () => setState(advancePercentageRound), watching ? 120 : 1800
-    )
+    const timeout = window.setTimeout(() => setState(advancePercentageRound), watching ? 120 : 1800)
     return () => window.clearTimeout(timeout)
   }, [state.phase, state.roundNumber, humanActive, watching])
 
@@ -110,7 +126,10 @@ export default function PercentagePanic({
   }
 
   const lock = () => {
-    const responseMs = Math.max(0, Math.min(ROUND_SECONDS * 1000, Math.floor(performance.now() - startRef.current)))
+    const responseMs = Math.max(
+      0,
+      Math.min(ROUND_SECONDS * 1000, Math.floor(performance.now() - startRef.current))
+    )
     setState((s) => resolvePercentageRound(s, guessRef.current, responseMs))
   }
   const duelAnswer = (value: number) => {
@@ -121,13 +140,16 @@ export default function PercentagePanic({
   const finish = () => {
     if (completionRef.current || !state.winnerId) return
     completionRef.current = true
-    onComplete?.({
-      authoritativeWinnerId: state.winnerId,
-      authoritativeLastPlaceId: state.eliminatedIds[0] ?? null,
-      authoritativeRankedIds: percentagePanicRankedIds(state),
-      rawResults: { ...state.scores },
-      rawValue: state.humanId ? state.scores[state.humanId] : 0,
-    }, state.humanId ? state.scores[state.humanId] : 0)
+    onComplete?.(
+      {
+        authoritativeWinnerId: state.winnerId,
+        authoritativeLastPlaceId: state.eliminatedIds[0] ?? null,
+        authoritativeRankedIds: percentagePanicRankedIds(state),
+        rawResults: { ...state.scores },
+        rawValue: state.humanId ? state.scores[state.humanId] : 0,
+      },
+      state.humanId ? state.scores[state.humanId] : 0
+    )
   }
 
   const result = state.lastRound
@@ -142,42 +164,60 @@ export default function PercentagePanic({
 
   return (
     <div className="pp-shell" data-phase={state.phase}>
-      <div className="pp-studio" aria-hidden="true"><span /><span /><span /><span /></div>
+      <div className="pp-studio" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
       <section className="pp-stage" aria-label="Percentage Panic studio">
         <header className="pp-header">
           <div>
             <p className="pp-overline">THE BIG EYE • {prizeType} COMPETITION</p>
-            <h2>PERCENTAGE <em>PANIC</em></h2>
+            <h2>
+              PERCENTAGE <em>PANIC</em>
+            </h2>
           </div>
-          <span className="pp-round">{
-            state.phase === 'duel' || state.phase === 'order' ? 'FINAL TWO'
-              : state.phase === 'winner' ? 'WINNER'
-                : `ROUND ${state.roundNumber}`
-          }</span>
+          <span className="pp-round">
+            {state.phase === 'duel' || state.phase === 'order'
+              ? 'FINAL TWO'
+              : state.phase === 'winner'
+                ? 'WINNER'
+                : `ROUND ${state.roundNumber}`}
+          </span>
         </header>
 
         <div className="pp-roster" aria-label="Contestants">
           {state.contestants.map((id) => {
             const active = state.activeIds.includes(id)
-            return <div className={`pp-contestant ${active ? '' : 'pp-contestant--out'}`} key={id}>
-              <span className="pp-avatar">
-                {players[id]?.avatar && !players[id].avatar?.startsWith('data:') &&
+            return (
+              <div className={`pp-contestant ${active ? '' : 'pp-contestant--out'}`} key={id}>
+                <span className="pp-avatar">
+                  {players[id]?.avatar &&
+                  !players[id].avatar?.startsWith('data:') &&
                   /^https?:|^\//.test(players[id].avatar || '') ? (
                     <img src={players[id].avatar} alt="" />
-                  ) : (nameOf(id)[0] || '?')}
-              </span>
-              <span className="pp-contestant__name">{nameOf(id)}</span>
-              <strong>{state.scores[id]}</strong>
-            </div>
+                  ) : (
+                    nameOf(id)[0] || '?'
+                  )}
+                </span>
+                <span className="pp-contestant__name">{nameOf(id)}</span>
+                <strong>{state.scores[id]}</strong>
+              </div>
+            )
           })}
         </div>
 
         <div className="pp-screen">
-          <span className="pp-screen__badge">{
-            state.phase === 'reveal' ? 'THE TRUTH' :
-            state.phase === 'winner' ? 'CHAMPION REVEALED' :
-            state.phase === 'order' ? 'THE FINAL SHOWDOWN' : 'WORLDWIDE FACT CHECK'
-          }</span>
+          <span className="pp-screen__badge">
+            {state.phase === 'reveal'
+              ? 'THE TRUTH'
+              : state.phase === 'winner'
+                ? 'CHAMPION REVEALED'
+                : state.phase === 'order'
+                  ? 'THE FINAL SHOWDOWN'
+                  : 'WORLDWIDE FACT CHECK'}
+          </span>
           {state.phase === 'winner' ? (
             <>
               <p className="pp-screen__super">THE WINNER IS</p>
@@ -191,7 +231,9 @@ export default function PercentagePanic({
             </>
           ) : (
             <>
-              <p className="pp-screen__super">{state.question.category} · {state.question.regionOrCountry}</p>
+              <p className="pp-screen__super">
+                {state.question.category} · {state.question.regionOrCountry}
+              </p>
               <h3>{state.question.prompt}</h3>
               {state.phase === 'reveal' && (
                 <div className="pp-truth">{state.question.answerPercent}%</div>
@@ -199,71 +241,137 @@ export default function PercentagePanic({
             </>
           )}
           {state.phase !== 'winner' && state.phase !== 'order' && (
-            <span className="pp-screen__source">{state.phase === 'reveal'
-              ? `Source: ${state.question.sourceName} · ${state.question.referenceYear}`
-              : 'LOCK YOUR ESTIMATE BEFORE THE CLOCK RUNS OUT'}</span>
+            <span className="pp-screen__source">
+              {state.phase === 'reveal'
+                ? `Source: ${state.question.sourceName} · ${state.question.referenceYear}`
+                : 'LOCK YOUR ESTIMATE BEFORE THE CLOCK RUNS OUT'}
+            </span>
           )}
         </div>
 
         {state.phase === 'question' && humanActive && (
           <div className="pp-console">
-            <div className="pp-console__top"><span>YOUR ESTIMATE</span><strong>{timeLeft}s</strong></div>
+            <div className="pp-console__top">
+              <span>YOUR ESTIMATE</span>
+              <strong>{timeLeft}s</strong>
+            </div>
             <output className="pp-value">{guess}%</output>
-            <input aria-label="Choose a percentage from zero to one hundred" type="range"
-              min="0" max="100" step="1" value={guess}
-              onChange={(e) => changeGuess(Number(e.target.value))} />
-            <div className="pp-range"><span>0%</span><span>100%</span></div>
-            <div className="pp-picks">{QUICK_PICKS.map((value) => (
-              <button type="button" key={value} onClick={() => changeGuess(value)}>{value}%</button>
-            ))}</div>
-            <button className="pp-primary" type="button" onClick={lock}>LOCK GUESS</button>
+            <input
+              aria-label="Choose a percentage from zero to one hundred"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={guess}
+              onChange={(e) => changeGuess(Number(e.target.value))}
+            />
+            <div className="pp-range">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
+            <div className="pp-picks">
+              {QUICK_PICKS.map((value) => (
+                <button type="button" key={value} onClick={() => changeGuess(value)}>
+                  {value}%
+                </button>
+              ))}
+            </div>
+            <button className="pp-primary" type="button" onClick={lock}>
+              LOCK GUESS
+            </button>
           </div>
         )}
 
         {state.phase === 'question' && !humanActive && (
           <div className="pp-console pp-console--center">
             <p>The remaining contestants are locking their guesses…</p>
-            <button type="button" onClick={() => setWatching(true)}>Fast-forward spectator mode</button>
+            <button type="button" onClick={() => setWatching(true)}>
+              Fast-forward spectator mode
+            </button>
           </div>
         )}
 
         {state.phase === 'reveal' && result && (
           <div className="pp-results">
-            {result.suddenDeath && <p className="pp-alert">All tied! Nobody leaves. New sudden-death question.</p>}
-            <div className="pp-results__header"><span>CONTESTANT</span><span>GUESS</span><span>ERROR</span><span>TOTAL</span></div>
+            {result.suddenDeath && (
+              <p className="pp-alert">All tied! Nobody leaves. New sudden-death question.</p>
+            )}
+            <div className="pp-results__header">
+              <span>CONTESTANT</span>
+              <span>GUESS</span>
+              <span>ERROR</span>
+              <span>TOTAL</span>
+            </div>
             {roundRows.map((a) => (
-              <div className={`pp-results__row ${worst.includes(a.playerId) ? 'pp-results__row--out' : ''}`} key={a.playerId}>
-                <span>{nameOf(a.playerId)}{worst.includes(a.playerId) ? ' • OUT' : ''}</span>
-                <span>{a.guess}%</span><span>−{a.error}</span><strong>{state.scores[a.playerId]}</strong>
+              <div
+                className={`pp-results__row ${worst.includes(a.playerId) ? 'pp-results__row--out' : ''}`}
+                key={a.playerId}
+              >
+                <span>
+                  {nameOf(a.playerId)}
+                  {worst.includes(a.playerId) ? ' • OUT' : ''}
+                </span>
+                <span>{a.guess}%</span>
+                <span>−{a.error}</span>
+                <strong>{state.scores[a.playerId]}</strong>
               </div>
             ))}
-            <a className="pp-source" href={state.question.sourceUrl} target="_blank" rel="noopener noreferrer">
+            <a
+              className="pp-source"
+              href={state.question.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Check published source ↗
             </a>
             <button className="pp-primary" type="button" onClick={nextRound}>
-              {state.winnerId ? 'REVEAL WINNER' : state.finalists ? 'ENTER THE FINAL TWO' : 'NEXT QUESTION'}
+              {state.winnerId
+                ? 'REVEAL WINNER'
+                : state.finalists
+                  ? 'ENTER THE FINAL TWO'
+                  : 'NEXT QUESTION'}
             </button>
           </div>
         )}
 
         {state.phase === 'order' && state.finalists && (
           <div className="pp-console pp-console--center">
-            <div className="pp-finalists">{state.finalists.map((id) =>
-              <div key={id}><strong>{nameOf(id)}</strong><span>{state.scores[id]} pts</span></div>
-            )}</div>
+            <div className="pp-finalists">
+              {state.finalists.map((id) => (
+                <div key={id}>
+                  <strong>{nameOf(id)}</strong>
+                  <span>{state.scores[id]} pts</span>
+                </div>
+              ))}
+            </div>
             {state.chooserId === state.humanId ? (
               <>
                 <p>You have the higher score. Who takes the first guess?</p>
                 <div className="pp-actions">
-                  <button className="pp-primary" onClick={() =>
-                    setState((s) => choosePercentageDuelOrder(s, state.humanId!))}>I GUESS FIRST</button>
-                  <button className="pp-secondary" onClick={() =>
-                    setState((s) => choosePercentageDuelOrder(s, state.finalists!.find((id) => id !== state.humanId)!))}>
+                  <button
+                    className="pp-primary"
+                    onClick={() => setState((s) => choosePercentageDuelOrder(s, state.humanId!))}
+                  >
+                    I GUESS FIRST
+                  </button>
+                  <button
+                    className="pp-secondary"
+                    onClick={() =>
+                      setState((s) =>
+                        choosePercentageDuelOrder(
+                          s,
+                          state.finalists!.find((id) => id !== state.humanId)!
+                        )
+                      )
+                    }
+                  >
                     I GUESS SECOND
                   </button>
                 </div>
               </>
-            ) : <p>{nameOf(state.chooserId || '')} is choosing the order…</p>}
+            ) : (
+              <p>{nameOf(state.chooserId || '')} is choosing the order…</p>
+            )}
           </div>
         )}
 
@@ -271,34 +379,68 @@ export default function PercentagePanic({
           <div className="pp-console">
             <div className="pp-console__top">
               <span>{nameOf(state.duelTurnId || '')}'S TURN</span>
-              <strong>{state.duelBounds[0]}–{state.duelBounds[1]}%</strong>
+              <strong>
+                {state.duelBounds[0]}–{state.duelBounds[1]}%
+              </strong>
             </div>
             <div className="pp-history" aria-label="Final round guess history">
-              {state.duelGuesses.map((g, i) => <div key={i}>
-                <span>{nameOf(g.playerId)}: {g.guess}%</span>
-                <strong>{g.feedback === 'higher' ? 'HIGHER ↑' : g.feedback === 'lower' ? 'LOWER ↓' : 'CORRECT!'}</strong>
-              </div>)}
+              {state.duelGuesses.map((g, i) => (
+                <div key={i}>
+                  <span>
+                    {nameOf(g.playerId)}: {g.guess}%
+                  </span>
+                  <strong>
+                    {g.feedback === 'higher'
+                      ? 'HIGHER ↑'
+                      : g.feedback === 'lower'
+                        ? 'LOWER ↓'
+                        : 'CORRECT!'}
+                  </strong>
+                </div>
+              ))}
             </div>
             {canDuel ? (
               <>
                 <output className="pp-value">{safeGuess}%</output>
-                <input aria-label="Final duel percentage guess" type="range"
-                  min={sliderMin} max={sliderMax} value={safeGuess}
-                  onChange={(e) => changeGuess(Number(e.target.value))} />
-                <div className="pp-range"><span>{sliderMin}%</span><span>{sliderMax}%</span></div>
-                <div className="pp-picks">{[sliderMin, Math.floor((sliderMin + sliderMax) / 2), sliderMax]
-                  .filter((v, i, arr) => arr.indexOf(v) === i).map((v) =>
-                    <button key={v} type="button" onClick={() => changeGuess(v)}>{v}%</button>)}</div>
-                <button className="pp-primary" type="button" onClick={() => duelAnswer(safeGuess)}>SUBMIT GUESS</button>
+                <input
+                  aria-label="Final duel percentage guess"
+                  type="range"
+                  min={sliderMin}
+                  max={sliderMax}
+                  value={safeGuess}
+                  onChange={(e) => changeGuess(Number(e.target.value))}
+                />
+                <div className="pp-range">
+                  <span>{sliderMin}%</span>
+                  <span>{sliderMax}%</span>
+                </div>
+                <div className="pp-picks">
+                  {[sliderMin, Math.floor((sliderMin + sliderMax) / 2), sliderMax]
+                    .filter((v, i, arr) => arr.indexOf(v) === i)
+                    .map((v) => (
+                      <button key={v} type="button" onClick={() => changeGuess(v)}>
+                        {v}%
+                      </button>
+                    ))}
+                </div>
+                <button className="pp-primary" type="button" onClick={() => duelAnswer(safeGuess)}>
+                  SUBMIT GUESS
+                </button>
               </>
-            ) : <p className="pp-wait">Waiting for the next guess…</p>}
+            ) : (
+              <p className="pp-wait">Waiting for the next guess…</p>
+            )}
           </div>
         )}
 
         {state.phase === 'winner' && (
           <div className="pp-console pp-console--center">
-            <p>Final answer: <strong>{state.question.answerPercent}%</strong></p>
-            <button className="pp-primary" type="button" onClick={finish}>CONTINUE</button>
+            <p>
+              Final answer: <strong>{state.question.answerPercent}%</strong>
+            </p>
+            <button className="pp-primary" type="button" onClick={finish}>
+              CONTINUE
+            </button>
           </div>
         )}
       </section>

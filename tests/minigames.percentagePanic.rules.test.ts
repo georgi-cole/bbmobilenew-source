@@ -13,7 +13,11 @@ import {
 } from '../src/features/percentagePanic/logic'
 
 const answer = (playerId: string, error: number, responseMs: number): PercentageAnswer => ({
-  playerId, guess: 50 + error, error, responseMs, score: -error,
+  playerId,
+  guess: 50 + error,
+  error,
+  responseMs,
+  score: -error,
 })
 
 describe('Percentage Panic rules', () => {
@@ -26,21 +30,21 @@ describe('Percentage Panic rules', () => {
   })
 
   it('eliminates the furthest contestant even when someone else is slower', () => {
-    expect(percentageEliminations([
-      answer('a', 10, 19000), answer('b', 15, 2000), answer('c', 7, 18000),
-    ])).toEqual(['b'])
+    expect(
+      percentageEliminations([answer('a', 10, 19000), answer('b', 15, 2000), answer('c', 7, 18000)])
+    ).toEqual(['b'])
   })
 
   it('uses slowest response to resolve equal worst errors', () => {
-    expect(percentageEliminations([
-      answer('a', 12, 19000), answer('b', 12, 2000), answer('c', 5, 2500),
-    ])).toEqual(['a'])
+    expect(
+      percentageEliminations([answer('a', 12, 19000), answer('b', 12, 2000), answer('c', 5, 2500)])
+    ).toEqual(['a'])
   })
 
   it('eliminates every equally inaccurate contestant with identical response time', () => {
-    expect(percentageEliminations([
-      answer('a', 12, 1000), answer('b', 12, 1000), answer('c', 3, 2000),
-    ])).toEqual(['a', 'b'])
+    expect(
+      percentageEliminations([answer('a', 12, 1000), answer('b', 12, 1000), answer('c', 3, 2000)])
+    ).toEqual(['a', 'b'])
   })
 
   it('goes directly to finale with two initial contestants', () => {
@@ -70,9 +74,9 @@ describe('Percentage Panic rules', () => {
     const aiC = simulatedPercentageGuess(game, 'c')
     // Lock all estimates and timings to the same value using a matching
     // deterministic seed/search if available; otherwise assert pure elimination.
-    expect(percentageEliminations([
-      answer('a', 30, 2000), answer('b', 30, 2000), answer('c', 30, 2000),
-    ])).toEqual(['a', 'b', 'c'])
+    expect(
+      percentageEliminations([answer('a', 30, 2000), answer('b', 30, 2000), answer('c', 30, 2000)])
+    ).toEqual(['a', 'b', 'c'])
     expect(aiB.responseMs).toBeGreaterThan(0)
     expect(aiC.responseMs).toBeGreaterThan(0)
   })
