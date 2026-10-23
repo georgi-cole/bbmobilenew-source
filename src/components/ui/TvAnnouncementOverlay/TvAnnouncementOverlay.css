@@ -711,3 +711,69 @@
     animation: none;
   }
 }
+
+/* Compact, viewport-bound post-elimination invitation. Unlike an external modal,
+   its layout stays inside the original Faux TV. */
+.tv-announcement--tribunal-invitation {
+  --announcement-base-top: #171328;
+  --announcement-base-mid: #261b38;
+  --announcement-base-bottom: #0b1020;
+  --announcement-title-color: #fff0c6;
+  --announcement-title-glow: rgba(222, 183, 110, 0.5);
+  --announcement-subtitle-color: #f0eaf8;
+  padding: clamp(6px, 1.5vw, 12px) clamp(10px, 3vw, 18px);
+  gap: 0;
+}
+.tv-announcement--tribunal-invitation .tv-announcement__body {
+  width: 100%;
+  max-width: min(100%, 560px);
+  min-height: 0;
+}
+.tv-announcement--tribunal-invitation .tv-announcement__title {
+  font-size: clamp(0.83rem, 3vw, 1.05rem);
+  line-height: 1.15;
+  margin-bottom: clamp(4px, 1.3vw, 8px);
+  text-wrap: balance;
+}
+.tv-announcement--tribunal-invitation .tv-announcement__subtitle {
+  font-size: clamp(0.67rem, 2.35vw, 0.83rem);
+  line-height: 1.26;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.tv-announcement__tribunal-action {
+  display: block;
+  max-width: 100%;
+  margin: clamp(7px, 1.8vw, 10px) auto 0;
+  padding: clamp(6px, 1.6vw, 9px) clamp(10px, 2.4vw, 18px);
+  border: 1px solid rgba(255, 224, 161, 0.7);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #f9e7b8, #d9b66f);
+  color: #211626;
+  font: inherit;
+  font-size: clamp(0.68rem, 2.3vw, 0.82rem);
+  line-height: 1.15;
+  font-weight: 800;
+  white-space: normal;
+  cursor: pointer;
+}
+.tv-announcement__tribunal-action:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+@media (max-width: 360px) {
+  .tv-announcement--tribunal-invitation {
+    padding: 5px 8px;
+  }
+  .tv-announcement--tribunal-invitation .tv-announcement__title {
+    font-size: 0.8rem;
+  }
+  .tv-announcement--tribunal-invitation .tv-announcement__subtitle {
+    font-size: 0.65rem;
+  }
+  .tv-announcement__tribunal-action {
+    margin-top: 5px;
+    padding: 5px 8px;
+    font-size: 0.64rem;
+  }
+}

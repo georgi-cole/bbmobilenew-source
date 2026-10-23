@@ -994,6 +994,7 @@ export function createInitialGameState(options?: {
     dayStartShock: null,
     dayStartShockUsedThisSeason: false,
     tribunalPhaseAnnounced: false,
+    tribunalInvitationAcknowledged: false,
     twinShock: createInitialTwinShockState(),
     twinShockConsumed,
     twinShockActivatedSeason: null,
@@ -7709,6 +7710,12 @@ const gameSlice = createSlice({
      * (on eviction_splash enter/exit) so AvatarTile can hide itself (isEvicting)
      * during the match-cut, preventing the duplicated fullscreen avatar start.
      */
+    acknowledgeTribunalInvitation(state) {
+      if (state.players.some((player) => player.isUser && player.status === 'jury')) {
+        state.tribunalInvitationAcknowledged = true
+      }
+    },
+
     setEvictionOverlay(state, action: PayloadAction<string | null>) {
       state.evictionOverlayPlayerId = action.payload
     },
@@ -13527,6 +13534,7 @@ export const {
   revealSurvivorReplacement,
   setEvictionOverlay,
   clearEvictionOverlay,
+  acknowledgeTribunalInvitation,
   finalizePendingEviction,
   selfEvict,
   aiReplacementRendered,

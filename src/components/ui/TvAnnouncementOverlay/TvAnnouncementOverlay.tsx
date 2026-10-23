@@ -138,6 +138,7 @@ export default function TvAnnouncementOverlay({
   const isBattleBack =
     announcement.key === 'battle_back' || announcement.key.startsWith('battle_back_')
   const isDoubleEviction = announcement.key === 'double_eviction'
+  const isTribunalInvitation = announcement.key === 'tribunal_invitation'
   const isVipVeto = announcement.key === 'vip_veto'
   const isDiamondPov = announcement.key === 'diamond_pov'
   const isCoupDetat = announcement.key === 'coup_detat'
@@ -291,6 +292,7 @@ export default function TvAnnouncementOverlay({
           themeClass,
           isBattleBack ? 'tv-announcement--battle-back' : '',
           isDoubleEviction ? 'tv-announcement--double-eviction' : '',
+          isTribunalInvitation ? 'tv-announcement--tribunal-invitation' : '',
           isVipVeto ? 'tv-announcement--vip-veto' : '',
           isDiamondPov ? 'tv-announcement--diamond-pov' : '',
           isCoupDetat ? 'tv-announcement--coup-detat' : '',
@@ -325,6 +327,11 @@ export default function TvAnnouncementOverlay({
             </div>
           )}
           {subtitle && <p className="tv-announcement__subtitle">{subtitle}</p>}
+          {isTribunalInvitation && (
+            <button type="button" className="tv-announcement__tribunal-action" onClick={onDismiss}>
+              Continue as Tribunal Member
+            </button>
+          )}
           {announcement.key === 'cupid_arrow' && cupidPairs.length > 0 && (
             <div className="tv-announcement__cupid-pairs" aria-label="Cupid matches">
               {cupidPairs.map((pair, index) => (
