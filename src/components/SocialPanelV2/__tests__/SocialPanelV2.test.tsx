@@ -52,6 +52,7 @@ import {
   type AllianceManagementContext,
 } from '../../../social/reality/allianceManagement'
 import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
+import type { WeekendInterludeState } from '../../../types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ function makeStore(overrides?: {
   playerStatusOverrides?: Record<string, RootState['game']['players'][number]['status']>
   lohId?: string | null
   dramaMode?: boolean
+  weekendInterlude?: WeekendInterludeState | null
   posWinnerId?: string | null
   povSavedId?: string | null
   nomineeIds?: string[]
@@ -101,6 +103,7 @@ function makeStore(overrides?: {
       posWinnerId: overrides?.posWinnerId ?? defaultState.game.posWinnerId,
       povSavedId: overrides?.povSavedId ?? defaultState.game.povSavedId,
       nomineeIds: overrides?.nomineeIds ?? defaultState.game.nomineeIds,
+      weekendInterlude: overrides?.weekendInterlude ?? defaultState.game.weekendInterlude,
     },
     social: defaultState.social,
     settings: {
@@ -221,6 +224,31 @@ describe('SocialPanelV2 – visibility', () => {
     })
     renderPanel(store)
     expect(screen.getByRole('dialog')).toBeDefined()
+  })
+
+  it('keeps weekend resources in the header beside Weekend Social without the subtitle', () => {
+    const store = makeStore({
+      phase: 'social_2',
+      weekendInterlude: {
+        active: true,
+        afterDay: 5,
+        weekendDay: 1,
+        episode: 'party',
+        stage: 'social',
+        wallet: { energy: 23, influence: 999, info: 999 },
+      },
+    })
+    act(() => store.dispatch(openSocialPanel()))
+    renderPanel(store)
+
+    const dialog = screen.getByRole('dialog', { name: 'Weekend Social' })
+    const header = dialog.querySelector('.sp2-header')
+    expect(header).not.toBeNull()
+    expect(within(header as HTMLElement).getByText('Weekend Social')).toBeInTheDocument()
+    expect(within(header as HTMLElement).queryByText(/Weekend Day/)).toBeNull()
+    expect(within(header as HTMLElement).getByLabelText('Energy: 23')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Influence: 999')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Info: 999')).toBeInTheDocument()
   })
 
   it('renders for a nominated human player while still in the house', () => {

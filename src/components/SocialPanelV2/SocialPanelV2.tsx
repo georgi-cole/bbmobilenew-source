@@ -2089,11 +2089,7 @@ export default function SocialPanelV2() {
             <span className="sp2-header__title">
               {weekendActive ? 'Weekend Social' : dramaMode ? 'Reality Mode' : 'Social Phase'}
             </span>
-            <span className="sp2-header__subtitle">
-              {weekendActive
-                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · make the most of the Hub time`
-                : 'Hub relationships'}
-            </span>
+            {!weekendActive && <span className="sp2-header__subtitle">Hub relationships</span>}
           </span>
           <div
             className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}${weekendActive ? ' sp2-header__resources--weekend' : ''}`}
