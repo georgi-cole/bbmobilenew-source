@@ -104,10 +104,18 @@ export interface ChainOfGreedVoteRecord {
 }
 
 export interface ChainOfGreedTieBreakInfo {
-  type: 'stats' | 'duel'
+  type: 'stats' | 'duel' | 'decision'
   message: string
   transcript: string[]
+  candidateIds?: string[]
+  deciderId?: string
+  deciderName?: string
+  eliminationCount?: number
+  decisionPending?: boolean
+  decisionIds?: string[]
 }
+
+export type ChainVoteRelationship = 'ally' | 'rival' | 'neutral'
 
 export interface ChainActionResolution {
   updatedChain: ChainOfGreedChainState
@@ -460,6 +468,14 @@ function performanceComparator(a: ChainOfGreedPlayerState, b: ChainOfGreedPlayer
   return 0
 }
 
+export function rankPlayersByRoundPerformance(players: ChainOfGreedPlayerState[]) {
+  return [...players]
+    .filter((player) => !player.isEliminated)
+    .sort(
+      (left, right) => performanceComparator(right, left) || left.name.localeCompare(right.name)
+    )
+}
+
 export function decideAiAction(options: {
   player: ChainOfGreedPlayerState
   chain: ChainOfGreedChainState
@@ -653,15 +669,29 @@ export function shouldAiUseSafety(
   )
 }
 
-function buildVoteReason(target: ChainOfGreedPlayerState) {
-  if (target.roundBusts > 0)
-    return `Lost ${target.roundLost.toLocaleString()} influence on ${target.roundBusts} broken chain${target.roundBusts === 1 ? '' : 's'}.`
+function buildVoteReason(
+  target: ChainOfGreedPlayerState,
+  relationship: ChainVoteRelationship = 'neutral'
+): string {
+  if (relationship === 'ally') return 'They stood by someone they trust.'
+  if (relationship === 'rival') return 'A personal rivalry shaped this choice.'
+  if (target.roundBusts > 0) return 'A difficult round put them under pressure.'
   if (target.roundWrongGuesses > target.roundCorrectGuesses)
-    return `${target.roundWrongGuesses} misses against ${target.roundCorrectGuesses} correct calls.`
-  if (target.roundContribution <= 0) return 'No influence banked or recovered this round.'
-  if (target.roundContribution >= 400)
-    return `Led the round with ${target.roundContribution.toLocaleString()} influence earned.`
-  return `Earned ${target.roundContribution.toLocaleString()} influence, with ${target.roundCorrectGuesses} correct call${target.roundCorrectGuesses === 1 ? '' : 's'}.`
+    return 'A few tough calls made them a target.'
+  if (target.roundContribution <= 0) return 'They had little impact this round.'
+  return 'The group judged their overall performance this round.'
+}
+
+/** Pair alliances stay consistent for a seeded game instead of changing every round. */
+export function getChainVoteRelationship(
+  seed: number,
+  voterId: string,
+  targetId: string
+): ChainVoteRelationship {
+  const affinity = createPairRng(seed ^ 0x5f3759df, voterId, targetId)()
+  if (affinity < 0.24) return 'ally'
+  if (affinity > 0.82) return 'rival'
+  return 'neutral'
 }
 
 function duelGuess(
@@ -757,6 +787,8 @@ export function buildAiVoteRecords(options: {
     for (const candidate of activePlayers) {
       if (candidate.id === voter.id || candidate.isEliminated) continue
       const priority = getMinigameTargetPriority(strategicContext, voter.id, candidate.id)
+      const relationRng = createPairRng(seed + roundNumber * 97, voter.id, candidate.id)
+      const relationship = getChainVoteRelationship(seed, voter.id, candidate.id)
       const poorPerformance =
         candidate.roundWrongGuesses * 0.9 +
         candidate.roundBusts * 1.4 +
@@ -773,10 +805,11 @@ export function buildAiVoteRecords(options: {
         18,
         poorPerformance * 0.4 + weakness * 0.25 + recentMistake * 3 + Math.min(10, threat * 0.4)
       )
-      const score =
-        priority +
-        performance +
-        createPairRng(seed + roundNumber * 97, voter.id, candidate.id)() * 2
+      const social =
+        (relationship === 'ally' ? -1.1 : relationship === 'rival' ? 0.85 : 0) +
+        relationRng() * 0.28 +
+        (candidate.totalContribution > 300 ? 0.15 : 0)
+      const score = priority + performance + social * 0.35 + relationRng() * 2
       if (score > bestScore) {
         bestScore = score
         bestTarget = candidate
@@ -789,7 +822,10 @@ export function buildAiVoteRecords(options: {
         voterName: voter.name,
         targetId: bestTarget.id,
         targetName: bestTarget.name,
-        reason: buildVoteReason(bestTarget),
+        reason: buildVoteReason(
+          bestTarget,
+          getChainVoteRelationship(seed, voter.id, bestTarget.id)
+        ),
       })
     }
   }
@@ -802,12 +838,13 @@ export function resolveVoteElimination(options: {
   votes: ChainOfGreedVoteRecord[]
   eliminateCount: number
   rng: () => number
+  seed?: number
 }): {
   eliminatedIds: string[]
   updatedPlayers: ChainOfGreedPlayerState[]
   tieBreaks: ChainOfGreedTieBreakInfo[]
 } {
-  const { activePlayers, votes, eliminateCount, rng } = options
+  const { activePlayers, votes, eliminateCount, seed = 0 } = options
   const tally = new Map<string, number>()
   for (const vote of votes) {
     tally.set(vote.targetId, (tally.get(vote.targetId) ?? 0) + 1)
@@ -828,6 +865,7 @@ export function resolveVoteElimination(options: {
   }
 
   const ordered: ChainOfGreedPlayerState[] = []
+  let pendingDecision: ChainOfGreedTieBreakInfo | null = null
   let index = 0
   while (index < candidates.length) {
     const sameVoteCount = candidates[index]!.voteCount
@@ -847,40 +885,66 @@ export function resolveVoteElimination(options: {
       continue
     }
 
-    const unresolved = [...sameVote].sort((left, right) => performanceComparator(left, right))
-    const equalStats = unresolved.every(
-      (candidate, candidateIndex, array) =>
-        candidateIndex === 0 || performanceComparator(array[candidateIndex - 1]!, candidate) === 0
+    const tiedIds = new Set(sameVote.map((player) => player.id))
+    const possibleDeciders = activePlayers.filter(
+      (player) => !player.isEliminated && !tiedIds.has(player.id)
     )
-    if (!equalStats) {
-      tieBreaks.push({
-        type: 'stats',
-        message: 'Tie detected. The weaker record decides it.',
-        transcript: unresolved.map(
-          (candidate) =>
-            `${candidate.name}: contribution ${candidate.roundContribution}, correct ${candidate.roundCorrectGuesses}, banks ${candidate.roundBanks}, busts ${candidate.roundBusts}`
-        ),
-      })
-      ordered.push(...unresolved)
-    } else {
-      const duel = resolveSuddenDeathDuel(unresolved, rng)
-      tieBreaks.push({
-        type: 'duel',
-        message: 'Tie-break duel begins.',
-        transcript: duel.transcript,
-      })
-      // Sudden death returns best-to-worst, but elimination needs worst-first.
-      ordered.push(
-        ...duel.orderedIds
-          .map((id) => unresolved.find((candidate) => candidate.id === id)!)
-          .filter(Boolean)
-          .reverse()
-      )
+    const decider =
+      rankPlayersByRoundPerformance(possibleDeciders)[0] ??
+      rankPlayersByRoundPerformance(activePlayers)[0]
+    const eliminationCountForTie = Math.min(sameVote.length - 1, eliminateCount - ordered.length)
+    const sortedCandidates = [...sameVote].sort((left, right) => {
+      if (!decider || decider.isHuman) return left.name.localeCompare(right.name)
+      const score = (candidate: ChainOfGreedPlayerState) => {
+        const mistakes = candidate.roundWrongGuesses + candidate.roundBusts * 2
+        const alliance = getChainVoteRelationship(seed, decider.id, candidate.id)
+        return (
+          candidate.roundContribution * 0.08 +
+          candidate.roundCorrectGuesses * 8 -
+          mistakes * 18 +
+          (alliance === 'ally' ? -110 : alliance === 'rival' ? 95 : 0) +
+          decider.personality.aggression * candidate.roundContribution * 0.025
+        )
+      }
+      return score(right) - score(left) || left.name.localeCompare(right.name)
+    })
+    const selectedForElimination = decider?.isHuman
+      ? []
+      : sortedCandidates.slice(0, eliminationCountForTie)
+    const tieNames = sameVote.map((player) => player.name).join(' and ')
+    const strength = decider
+      ? `${decider.name} had the strongest round and gets to decide.`
+      : 'The strongest round performer gets to decide.'
+    const tieBreak: ChainOfGreedTieBreakInfo = {
+      type: 'decision',
+      message: `${tieNames} tied for elimination. ${decider?.name ?? 'The house'} decides.`,
+      transcript: decider?.isHuman
+        ? [strength]
+        : [
+            strength,
+            `${decider?.name ?? 'The house'} chooses ${selectedForElimination.map((player) => player.name).join(' and ')} to leave.`,
+          ],
+      candidateIds: sameVote.map((player) => player.id),
+      deciderId: decider?.id,
+      deciderName: decider?.name,
+      eliminationCount: eliminationCountForTie,
+      decisionPending: Boolean(decider?.isHuman),
+      decisionIds: selectedForElimination.map((player) => player.id),
     }
+    tieBreaks.push(tieBreak)
+    if (tieBreak.decisionPending) pendingDecision = tieBreak
+    ordered.push(
+      ...selectedForElimination,
+      ...sortedCandidates.filter((player) => !selectedForElimination.includes(player))
+    )
     index += sameVote.length
   }
 
-  const eliminatedIds = ordered.slice(0, eliminateCount).map((candidate) => candidate.id)
+  const pendingIds = new Set(pendingDecision?.candidateIds ?? [])
+  const eliminatedIds = ordered
+    .slice(0, eliminateCount)
+    .map((candidate) => candidate.id)
+    .filter((id) => !pendingIds.has(id))
   const updatedPlayers = activePlayers.map((player) =>
     eliminatedIds.includes(player.id) ? { ...player, isEliminated: true } : player
   )
