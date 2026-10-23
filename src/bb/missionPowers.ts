@@ -144,10 +144,15 @@ export function missionPowerHasPriority(game: GameState): boolean {
       game.missionPowers?.storeDeferredDay !== game.week)
   )
 }
+/** Season 1 introduces rewards without adding ceremony-changing powers. */
+export function isMissionRewardAllowedForSeason(game: GameState, type: MissionPowerType): boolean {
+  return game.season > 1 || isInstantMissionPower(type)
+}
 export function getMissionPowerPool(game: GameState, hasAlliance: boolean): MissionPowerType[] {
   if (game.mode === 'survival' || game.cupidArrow?.status === 'active') return []
   const vox = game.voxPopuli?.status === 'active'
   return MISSION_POWER_TYPES.filter((type) => {
+    if (!isMissionRewardAllowedForSeason(game, type)) return false
     if (missionPowerEndgameLocked(game, type)) return false
     if (type === 'resourceCache')
       return game.weekendsEnabledAtSeasonStart === false && game.weekendsEnabledForSeason === false

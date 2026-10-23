@@ -61,6 +61,7 @@ function fixture(type: MissionPowerType = 'vetoSafety', count = 8): GameState {
     status: 'active',
     stats: { lohWins: 0, posWins: 0, timesNominated: 0 },
   }))
+  game.season = 2
   game.week = 6
   game.phase = 'pos_ceremony_results'
   game.lohId = 'ai1'
@@ -138,6 +139,41 @@ describe('Secret Mission v2 selection and lifecycle', () => {
     expect(new Set(drawMissionBoxes(pool, 'run:1')).size).toBe(4)
     expect(drawMissionBoxes(['noSkip'], 'run:1')).toEqual(['noSkip', 'noSkip', 'noSkip', 'noSkip'])
     expect(drawMissionBoxes([], 'run:1')).toEqual([])
+  })
+  it('limits Season 1 to eligible introductory rewards and restores the full pool in Season 2', () => {
+    const game = fixture()
+    game.season = 1
+    expect(getMissionPowerPool(game, true)).toEqual(['resourceCache', 'allianceReveal'])
+    expect(getMissionPowerPool(game, false)).toEqual(['resourceCache'])
+    game.weekendsEnabledAtSeasonStart = true
+    expect(getMissionPowerPool(game, true)).toEqual(['allianceReveal'])
+    expect(drawMissionBoxes(getMissionPowerPool(game, true), 'intro')).toEqual(
+      Array(4).fill('allianceReveal')
+    )
+    expect(getMissionPowerPool(game, false)).toEqual([])
+    game.season = 2
+    game.weekendsEnabledAtSeasonStart = false
+    expect(getMissionPowerPool(game, true)).toHaveLength(9)
+  })
+  it('rejects an old unclaimed Season 1 ceremony-power box at the reducer boundary', () => {
+    const game = fixture('noSkip')
+    game.season = 1
+    game.secretMission!.status = 'rewardPending'
+    game.secretMission!.reward = undefined
+    game.secretMission!.rewardSet!.selectedIndex = undefined
+    const result = gameReducer(
+      game,
+      actions.claimMissionBox({ missionId: 'mission-test', index: 0 })
+    )
+    expect(result.secretMission?.status).toBe('rewardPending')
+    expect(result.secretMission?.reward).toBeUndefined()
+    const store = setup(game)
+    store.dispatch({ type: 'test/reconcile' })
+    expect(store.getState().game.secretMission?.rewardSet?.boxes).toEqual(
+      Array(4).fill('resourceCache')
+    )
+    store.dispatch(actions.claimMissionBox({ missionId: 'mission-test', index: 0 }))
+    expect(store.getState().game.secretMission?.reward?.type).toBe('resourceCache')
   })
   it('excludes cache based on both original and current weekend settings', () => {
     const game = fixture()

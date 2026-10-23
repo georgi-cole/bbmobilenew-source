@@ -2,6 +2,10 @@
 
 New missions use version 2 rewards. Existing saved missions retain their legacy reward identifiers and activation rules.
 
+## Season progression
+
+Season 1 offers only Resource Cache and Alliance Revealed, subject to their normal weekend and alliance eligibility. Repeat the eligible types across four hidden boxes; expire the offer if neither is available. Season 2 onward uses the full compatible catalog. Reconcile unclaimed boxes from earlier saves; preserve rewards already claimed.
+
 ## Boxes and timing
 
 - Completing the actual requirements makes the reward available immediately.
@@ -51,3 +55,7 @@ Record the original weekend preference separately from the current season settin
 The new tests exercise deterministic boxes, deadlines and mode filtering, the wrapped AI-planning reducer, social side effects, replayed confirmations, Store returns, leadership transfer, co-leader exclusions, private alliance knowledge, and the actual Confessional chat panel. Legacy suites deliberately hydrate pre-v2 missions to retain save compatibility coverage.
 
 Run the targeted mission, Safety, shared-leadership, Store, weekend, alliance, and Confessional suites, followed by `npm run check:pr` after the final edit. Manifest changes additionally require the repository's production dependency audit.
+
+## Special Safety balance
+
+New season plans retain a 30% overall special Safety chance and at most one scheduled variation. Conditional weights are Double Trouble 30%, Halo Exchange 30%, Detox 15%, and Force Majeure 25%: season scheduling chances of 9%, 9%, 4.5%, and 7.5% respectively. Code defaults and the shipped live configuration agree. Existing saved season plans retain their persisted selections; deployment of the configuration is required to update the hosted override.

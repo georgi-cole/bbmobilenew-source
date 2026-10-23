@@ -7,6 +7,7 @@ import {
   createMissionPowerReward,
   getMissionLeaderIds,
   isMissionPower,
+  isMissionRewardAllowedForSeason,
   missionPowerEndgameLocked,
   MISSION_POWER_LABELS,
 } from '../bb/missionPowers'
@@ -50,6 +51,11 @@ export function withMissionPowers(
         ) {
           const first = !mission.rewardSet
           mission.rewardSet = action.payload
+          if (first && game.season <= 1)
+            whisper(
+              game,
+              'Big Eye: For your debut season, the boxes hold a resource boost or a peek inside a rival alliance, whenever those rewards are available. The bigger power plays unlock from Season 2.'
+            )
           if (first)
             announce(
               game,
@@ -72,6 +78,7 @@ export function withMissionPowers(
           return
         const type = set.boxes[action.payload.index]
         if (
+          !isMissionRewardAllowedForSeason(game, type) ||
           missionPowerEndgameLocked(game, type) ||
           (type === 'resourceCache' &&
             (game.weekendsEnabledAtSeasonStart !== false ||
