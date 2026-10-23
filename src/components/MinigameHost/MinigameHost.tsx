@@ -69,6 +69,9 @@ const FamousFiguresComp = lazyWithChunkRecovery(
 const SilentSaboteurComp = lazyWithChunkRecovery(
   () => import('../SilentSaboteurComp/SilentSaboteurComp')
 )
+const PercentagePanicComp = lazyWithChunkRecovery(
+  () => import('../PercentagePanic/PercentagePanic')
+)
 const MajorityRulesComp = lazyWithChunkRecovery(
   () => import('../MajorityRulesComp/MajorityRulesComp')
 )
@@ -100,6 +103,7 @@ const SPECIAL_MINIGAME_PRELOADERS: Record<string, () => Promise<void>> = {
   FamousFigures: () => FamousFiguresComp.preload(),
   SilentSaboteur: () => SilentSaboteurComp.preload(),
   MajorityRules: () => MajorityRulesComp.preload(),
+  PercentagePanic: () => PercentagePanicComp.preload(),
   GlassBridge: () => GlassBridgeComp.preload(),
   CrystalPathShattered: () => CrystalPathShatteredGame.preload(),
   BlackjackTournament: () => BlackjackTournamentComp.preload(),
@@ -617,6 +621,18 @@ export default function MinigameHost({
           participants={participants}
           prizeType={gameOptions?.prizeType as SilentSaboteurPrizeType}
           strategicContext={strategicContext}
+          seed={seed}
+          onComplete={handleAttemptReactComplete}
+        />
+      )
+    }
+
+    if (game.implementation === 'react' && game.reactComponentKey === 'PercentagePanic') {
+      return (
+        <PercentagePanicComp
+          participantIds={participantIds}
+          participants={participants}
+          prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
