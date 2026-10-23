@@ -312,6 +312,7 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
   if (!game.secretMission) return result
   if (
     actionType === claimMissionReward.type &&
+    prevState.game.secretMission?.status === 'rewardPending' &&
     game.secretMission.status === 'rewardClaimed' &&
     game.secretMission.reward?.type === 'resourceCache'
   ) {

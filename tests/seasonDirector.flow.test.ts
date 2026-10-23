@@ -422,3 +422,15 @@ describe('Director shock orchestration', () => {
     expect(store.getState().game.seasonDirectorPlan).toEqual(plan)
   })
 })
+
+it('keeps special Safety at 30% with the approved unequal variation weights', () => {
+  const safety = DEFAULT_SEASON_DIRECTOR_POLICY.specialSafety
+  expect(safety.seasonChance).toBe(30)
+  expect(safety.maxPerSeason).toBe(1)
+  expect(safety.weights).toEqual({ vip: 30, diamond: 30, coup: 15, spotlight: 25 })
+  const total = Object.values(safety.weights).reduce((sum, weight) => sum + weight, 0)
+  expect((safety.seasonChance * safety.weights.vip) / total).toBe(9)
+  expect((safety.seasonChance * safety.weights.diamond) / total).toBe(9)
+  expect((safety.seasonChance * safety.weights.coup) / total).toBe(4.5)
+  expect((safety.seasonChance * safety.weights.spotlight) / total).toBe(7.5)
+})

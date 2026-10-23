@@ -87,7 +87,9 @@ export type LegacyMissionRewardType =
   | 'emptyBox'
 
 export type MissionRewardType = LegacyMissionRewardType | 'immunity'
-export type CurrentMissionRewardType = MissionRewardType | 'resourceCache'
+export type CurrentMissionRewardType =
+  | MissionRewardType
+  | import('./missionPowers').MissionPowerType
 export type MissionRewardDuration = 1 | 2 | 3
 export type SecretMissionBoxRewardType = Exclude<CurrentMissionRewardType, 'emptyBox'>
 
@@ -106,8 +108,9 @@ export const SECRET_MISSION_BOX_REWARDS: readonly SecretMissionBoxRewardType[] =
 ] as const
 
 export function getSecretMissionBoxRewards(
-  mission: Pick<SecretMissionState, 'triggeredDay' | 'templateId' | 'missionNumber'>
+  mission: Pick<SecretMissionState, 'triggeredDay' | 'templateId' | 'missionNumber' | 'rewardSet'>
 ): SecretMissionBoxRewardType[] {
+  if (mission.rewardSet) return [...mission.rewardSet.boxes]
   const rewards = [...SECRET_MISSION_BOX_REWARDS]
   const rng = createSeededRng(
     hashString(
@@ -130,8 +133,10 @@ export interface SecretMissionReward {
   eligible: boolean
   /** Immunity-only fields. */
   durationDays?: MissionRewardDuration
+  claimPhase?: import('../types').Phase
   claimDay?: number
   activeUntilDay?: number
+  activeFromDay?: number
   usedDay?: number | null
 }
 
@@ -167,6 +172,16 @@ export function createImmunityReward(
 // ── Mission state ─────────────────────────────────────────────────────────────
 
 export interface SecretMissionState {
+  privateRewardMessages?: string[]
+  rewardVersion?: 2
+  rewardSet?: import('./missionPowers').MissionRewardSet
+  allianceReveal?: {
+    missionId: string
+    allianceId: string
+    name: string
+    memberIds: string[]
+    day: number
+  }
   triggeredDay: number
   missionNumber?: number
   startDay: number

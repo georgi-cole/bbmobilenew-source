@@ -1,3 +1,4 @@
+import { isMissionOpeningProtected, isMissionBackupProtected } from '../bb/missionPowers'
 import type { Reducer, UnknownAction } from '@reduxjs/toolkit'
 import type { GameState, Player, TvEvent } from '../types'
 import { getCompetitionPerceptionRead } from '../ai/competition'
@@ -153,6 +154,7 @@ function isStoreNominationProtected(state: GameState, playerId: string): boolean
 function canPlanAgainst(state: GameState, lohId: string, candidate: Player): boolean {
   return (
     candidate.id !== lohId &&
+    !isMissionOpeningProtected(state, candidate.id) &&
     !isTwinPartnerPair(state, lohId, candidate.id) &&
     !isStoreNominationProtected(state, candidate.id)
   )
@@ -604,6 +606,7 @@ function reconcileInitialAiNominations(previous: GameState, state: GameState): G
 }
 
 function isReplacementEligible(state: GameState, playerId: string): boolean {
+  if (isMissionBackupProtected(state, playerId)) return false
   const player = state.players.find((candidate) => candidate.id === playerId)
   if (!player || player.status === 'evicted' || player.status === 'jury') return false
   if (playerId === state.lohId || playerId === state.posWinnerId) return false
@@ -631,6 +634,11 @@ function replaceReplacementEventCopy(state: GameState, replacementId: string): v
 
 function reconcileBackdoorReplacement(previous: GameState, state: GameState): GameState {
   const plan = state.lohNominationPlan
+  if (
+    state.missionPowers?.backupChooserId ||
+    state.missionPowers?.decision?.kind === 'backupTarget'
+  )
+    return state
   if (!isLohAmbushPlan(plan) || plan.week !== state.week || plan.lohId !== state.lohId) {
     return state
   }

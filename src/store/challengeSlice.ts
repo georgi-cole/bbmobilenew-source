@@ -1,3 +1,4 @@
+import { getMissionOutgoingIds } from '../bb/missionPowers'
 // MODULE: src/store/challengeSlice.ts
 // Orchestrates the full challenge flow:
 //   pickGame → rules modal → 3s countdown → run game → compute scores → apply winner
@@ -598,10 +599,9 @@ export const startChallenge =
 
     const isLohChallenge =
       opts.prizeType === 'LOH' || (opts.prizeType == null && gameState.phase === 'loh_comp')
-    const eligibleParticipants =
-      isLohChallenge && gameState.prevHohId
-        ? resolvedParticipants.filter((id) => id !== gameState.prevHohId)
-        : resolvedParticipants
+    const eligibleParticipants = isLohChallenge
+      ? resolvedParticipants.filter((id) => !getMissionOutgoingIds(gameState).includes(id))
+      : resolvedParticipants
     const finalParticipants =
       eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
     const forcedWinnerId =

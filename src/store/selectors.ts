@@ -40,6 +40,7 @@ export const selectIsWaitingForInput = (state: RootState): boolean => {
     game.voteResults == null
 
   return (
+    Boolean(game.missionPowers?.decision) ||
     Boolean(game.replacementNeeded) ||
     Boolean(game.awaitingNominations) ||
     Boolean(game.awaitingPovDecision) ||

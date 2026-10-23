@@ -62,32 +62,43 @@ describe('Weekend preference', () => {
     expect(store.getState().game.weekendsEnabledForSeason).toBe(true)
   })
 
-  it.each([5, 10, 15])('skips the weekend after Day %s when off', (day) => {
-    const store = makeStore(day)
+  it.each([5, 10, 15])('skips the weekend after Day %s when disabled before the lock', (day) => {
+    const store = makeStore(5)
     store.dispatch(setGameUX({ weekendsEnabled: false }))
+    store.dispatch(hydrateGame({ ...store.getState().game, week: day }))
     store.dispatch(advance())
     expect(store.getState().game.weekendInterlude).toBeNull()
     expect(store.getState().game.week).toBe(day + 1)
     expect(store.getState().game.phase).toBe('week_start')
   })
 
-  it.each([5, 10, 15])('activates the weekend after Day %s when switched back on', (day) => {
-    const store = makeStore(day)
-    store.dispatch(setGameUX({ weekendsEnabled: false }))
-    store.dispatch(setGameUX({ weekendsEnabled: true }))
-    store.dispatch(advance())
-    expect(store.getState().game.weekendInterlude?.afterDay).toBe(day)
-  })
+  it.each([5, 10])(
+    'opens the scheduled weekend after Day %s when enabled before the lock',
+    (day) => {
+      const store = makeStore(5)
+      store.dispatch(setGameUX({ weekendsEnabled: false }))
+      store.dispatch(setGameUX({ weekendsEnabled: true }))
+      store.dispatch(hydrateGame({ ...store.getState().game, week: day }))
+      store.dispatch(advance())
+      expect(store.getState().game.weekendInterlude?.afterDay).toBe(day)
+    }
+  )
 
-  it('closes an active weekend without replaying it when re-enabled', () => {
+  it('rejects changing the current season after the first real weekend begins', () => {
     const store = makeStore()
     store.dispatch(advance())
+    const weekend = store.getState().game.weekendInterlude
     store.dispatch(setGameUX({ weekendsEnabled: false }))
-    expect(store.getState().game.weekendInterlude).toBeNull()
+    expect(store.getState().game.weekendsEnabledForSeason).toBe(true)
+    expect(store.getState().game.weekendInterlude).toEqual(weekend)
+  })
+
+  it('cannot enable weekends after Day 6 even if no weekend ever started', () => {
+    const store = makeStore(5)
+    store.dispatch(setGameUX({ weekendsEnabled: false }))
+    store.dispatch(hydrateGame({ ...store.getState().game, week: 6 }))
     store.dispatch(setGameUX({ weekendsEnabled: true }))
-    store.dispatch(advance())
-    expect(store.getState().game.week).toBe(6)
-    expect(store.getState().game.weekendInterlude).toBeNull()
+    expect(store.getState().game.weekendsEnabledForSeason).toBe(false)
   })
 
   it('honours the preference after hydration and a new season reset', () => {

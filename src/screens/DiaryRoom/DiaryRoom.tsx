@@ -1,3 +1,5 @@
+import { claimMissionBox } from '../../store/missionPowerActions'
+import { MISSION_POWER_LABELS, missionPowerDetail, isMissionPower } from '../../bb/missionPowers'
 import { isCurrentAlliance } from '../../social/reality/allianceIdentity'
 /**
  * DiaryRoom — private player confessional / game log screen.
@@ -232,9 +234,8 @@ const REWARD_LABELS: Record<string, string> = {
   immunity: 'Secret Immunity',
 }
 
-const REWARD_REVEAL_COPY: Record<
-  SecretMissionBoxRewardType,
-  (week: number, durationDays?: number) => string
+const REWARD_REVEAL_COPY: Partial<
+  Record<SecretMissionBoxRewardType, (week: number, durationDays?: number) => string>
 > = {
   plus1000Influence: () => 'The Big Eye grants you 1,000 Influence. Spend it wisely.',
   resourceCache: () =>
@@ -564,6 +565,10 @@ export default function DiaryRoom() {
   const playerName = userPlayer?.name ?? 'Hubmate'
   const playerId = userPlayer?.id ?? 'user'
   const secretMission = useAppSelector((s) => s.game.secretMission)
+  const missionPayout = useAppSelector((s) => {
+    const id = s.game.secretMission?.rewardSet?.id
+    return id ? s.social.missionResourcePayouts?.[id] : undefined
+  })
   const currentWeekForMission = useAppSelector((s) => s.game.week)
   const players = useAppSelector((s) => s.game.players)
   const alivePlayers = useAppSelector(selectAlivePlayers)
@@ -2066,6 +2071,15 @@ export default function DiaryRoom() {
                                       type="button"
                                       aria-label={`Open Mystery Box ${index + 1}`}
                                       onClick={() => {
+                                        if (secretMission.rewardSet) {
+                                          dispatch(
+                                            claimMissionBox({
+                                              missionId: secretMission.rewardSet.id,
+                                              index,
+                                            })
+                                          )
+                                          return
+                                        }
                                         const rewardType = assignedRewardBoxes[index]
                                         if (!rewardType) return
                                         if (rewardType === 'immunity') {
@@ -2082,7 +2096,7 @@ export default function DiaryRoom() {
                                           const revealMsg: ChatMessage = {
                                             id: crypto.randomUUID(),
                                             role: 'bb',
-                                            text: REWARD_REVEAL_COPY[rewardType](
+                                            text: REWARD_REVEAL_COPY[rewardType]!(
                                               currentWeekForMission,
                                               durationDays
                                             ),
@@ -2111,7 +2125,7 @@ export default function DiaryRoom() {
                                         const revealMsg: ChatMessage = {
                                           id: crypto.randomUUID(),
                                           role: 'bb',
-                                          text: REWARD_REVEAL_COPY[rewardType](
+                                          text: REWARD_REVEAL_COPY[rewardType]!(
                                             currentWeekForMission
                                           ),
                                           timestamp: Date.now(),
@@ -2147,7 +2161,10 @@ export default function DiaryRoom() {
                         <p className="diary-room__reward-claimed-active">
                           🔮 Secret power stored:{' '}
                           <strong>
-                            {REWARD_LABELS[secretMission.reward.type] ?? secretMission.reward.type}
+                            {(isMissionPower(secretMission.reward.type)
+                              ? MISSION_POWER_LABELS[secretMission.reward.type]
+                              : REWARD_LABELS[secretMission.reward.type]) ??
+                              secretMission.reward.type}
                           </strong>
                           {secretMission.reward.type === 'immunity' &&
                           secretMission.reward.durationDays
@@ -2179,6 +2196,47 @@ export default function DiaryRoom() {
                           )}
                       </div>
                     )}
+                  {secretMission?.rewardSet &&
+                    secretMission.status === 'rewardClaimed' &&
+                    secretMission.reward && (
+                      <div
+                        className="diary-room__reward-claimed"
+                        aria-label="Mission reward details"
+                      >
+                        <strong>
+                          {isMissionPower(secretMission.reward.type)
+                            ? MISSION_POWER_LABELS[secretMission.reward.type]
+                            : secretMission.reward.type}
+                        </strong>
+                        <p>Big Eye: {missionPowerDetail(secretMission.reward)}</p>
+                        {missionPayout && (
+                          <p>
+                            Your arsenal received +{missionPayout.energy} Social Energy, +
+                            {missionPayout.influence} Influence and +{missionPayout.info}{' '}
+                            Information. Your resource caps still apply.
+                          </p>
+                        )}
+                        {secretMission.allianceReveal && (
+                          <p>
+                            Big Eye confirms {secretMission.allianceReveal.name}:{' '}
+                            {secretMission.allianceReveal.memberIds
+                              .map((id) => playerNameById.get(id) ?? id)
+                              .join(', ')}
+                            . Confirmed on Day {secretMission.allianceReveal.day}.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  {secretMission?.privateRewardMessages?.length ? (
+                    <div
+                      className="diary-room__reward-claimed"
+                      aria-label="Private Big Eye power messages"
+                    >
+                      {secretMission.privateRewardMessages.map((message, index) => (
+                        <p key={`${secretMission.triggeredDay}:${index}`}>{message}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <ChatBubbles
                     key={`${gameState.gameId}:${playerId}`}
                     msgs={messages}

@@ -398,6 +398,8 @@ export interface IncomingInteractionDeliveryState {
 
 /** Redux-serialisable state subtree owned by the social module. */
 export interface SocialState {
+  missionResourceReceipts?: string[]
+  missionResourcePayouts?: Record<string, { energy: number; influence: number; info: number }>
   energyBank: SocialEnergyBank
   /** Influence resource bank per player (🤝). */
   influenceBank: SocialEnergyBank

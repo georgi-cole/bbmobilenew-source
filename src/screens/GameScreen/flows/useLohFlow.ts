@@ -1,3 +1,4 @@
+import { getMissionOutgoingIds, getMissionLeaderIds } from '../../../bb/missionPowers'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { commitNominees } from '../../../store/gameSlice'
 import type { AppDispatch, RootState } from '../../../store/store'
@@ -67,24 +68,24 @@ export function useLohFlow({
 
   const aliveIds = useMemo(() => alivePlayers.map((p) => p.id), [alivePlayers])
   const hohCompParticipants = useMemo(() => {
-    if (isVoxPopuli || game.phase !== 'loh_comp' || !game.prevHohId) return aliveIds
-    const outgoingIds = new Set(expandCupidIds(game, [game.prevHohId]))
+    if (isVoxPopuli || game.phase !== 'loh_comp') return aliveIds
+    const outgoingIds = new Set(expandCupidIds(game, getMissionOutgoingIds(game)))
     return aliveIds.filter((id) => !outgoingIds.has(id))
   }, [game, aliveIds, isVoxPopuli])
 
   const humanIsHoH = Boolean(
     !isVoxPopuli &&
     humanPlayer &&
-    (game.lohId === humanPlayer.id || getCupidPartnerId(game, game.lohId) === humanPlayer.id)
+    (getMissionLeaderIds(game).includes(humanPlayer.id) ||
+      getCupidPartnerId(game, game.lohId) === humanPlayer.id)
   )
   const humanIsOutgoingHoh =
     !isVoxPopuli &&
     game.phase === 'loh_comp' &&
-    !!game.prevHohId &&
     Boolean(
       humanPlayer &&
-      (game.prevHohId === humanPlayer.id ||
-        getCupidPartnerId(game, game.prevHohId) === humanPlayer.id)
+      (getMissionOutgoingIds(game).includes(humanPlayer.id) ||
+        getMissionOutgoingIds(game).some((id) => getCupidPartnerId(game, id) === humanPlayer.id))
     )
 
   // Eligibility is now folded into the already-present LOH competition Faux TV
@@ -121,9 +122,7 @@ export function useLohFlow({
   const showNominationDangerSignals =
     game.phase === 'nomination_results' && Boolean(game.awaitingNominations) && !showNomAnim
   const canUsePublicNomineeRule =
-    !isVoxPopuli &&
-    game.publicModeEnabled === true &&
-    game.doubleEviction?.weekActive !== true
+    !isVoxPopuli && game.publicModeEnabled === true && game.doubleEviction?.weekActive !== true
   const publicAutoNomineeId =
     canUsePublicNomineeRule &&
     game.lastHohCompFinisherId &&
@@ -169,9 +168,7 @@ export function useLohFlow({
   const lohCeremonyTileId =
     showNomAnim && game.lohId && game.players.some((p) => p.id === game.lohId) ? game.lohId : null
   const shouldShowNominationCeremony =
-    showNomAnim &&
-    nomCeremonyTileIds.length > 0 &&
-    (isVoxPopuli || lohCeremonyTileId != null)
+    showNomAnim && nomCeremonyTileIds.length > 0 && (isVoxPopuli || lohCeremonyTileId != null)
 
   // ── Human LOH nomination flow (single multi-select modal) ────────────────
   // Shown when the human LOH must pick their two nominees simultaneously.
@@ -193,11 +190,7 @@ export function useLohFlow({
         !(
           game.storeNominationProtections?.some(
             (protection) => protection.week === game.week && protection.targetId === player.id
-          ) &&
-          !(
-            canUsePublicNomineeRule &&
-            game.lastHohCompFinisherId === player.id
-          )
+          ) && !(canUsePublicNomineeRule && game.lastHohCompFinisherId === player.id)
         )
     )
     if (!isCupidArrowActive(game)) return candidates
@@ -254,14 +247,11 @@ export function useLohFlow({
   const nominationLabels: Record<string, string> = useMemo(() => {
     const labels: Record<string, string> = {}
     if (isVoxPopuli) {
-      const automaticNomineeId =
-        game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId ?? null
+      const automaticNomineeId = game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId ?? null
       game.nomineeIds.forEach((id) => {
         const votes = game.voxPopuli?.nominationVoteCounts[id] ?? 0
         labels[id] =
-          id === automaticNomineeId
-            ? 'Last Place'
-            : `${votes} Vote${votes === 1 ? '' : 's'}`
+          id === automaticNomineeId ? 'Last Place' : `${votes} Vote${votes === 1 ? '' : 's'}`
       })
       return labels
     }
@@ -308,13 +298,7 @@ export function useLohFlow({
       setAiNomAnimConsumedKey(`w${game.week}-${[...fullIds].sort().join(',')}`)
       setPendingNominees(devNominees)
     }
-  }, [
-    alivePlayers,
-    publicAutoNomineeId,
-    game.week,
-    setAiNomAnimConsumedKey,
-    setPendingNominees,
-  ])
+  }, [alivePlayers, publicAutoNomineeId, game.week, setAiNomAnimConsumedKey, setPendingNominees])
 
   // ── Co-LOH nomination modal ───────────────────────────────────────────────
   // Shown when the human co-LOH must pick their nomination.

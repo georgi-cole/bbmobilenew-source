@@ -1,3 +1,6 @@
+import RequiredConfessionalDecision from './RequiredConfessionalDecision'
+import { getRequiredConfessionalPresentation } from './requiredConfessionalPresentation'
+import { isMissionOpeningProtected, getMissionLeaderIds } from '../../bb/missionPowers'
 /**
  * ConfessionalDecisionPanel
  *
@@ -28,6 +31,7 @@ import {
   submitPosTieBreak,
   submitDoubleEvictionTieBreak,
   selectAlivePlayers,
+  getEligibleReplacementNominees,
 } from '../../store/gameSlice'
 import { calculateRequiredDoubleEvictionSlots } from '../../features/twists/doubleEvictionTieUtils'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
@@ -168,7 +172,7 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const isDoubleEviction = Boolean(game.doubleEviction?.weekActive)
   const isVoxPopuli = game.voxPopuli?.status === 'active'
   const relationships = useAppSelector((s) => s.social.relationships)
-  const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
+  const lohIds = new Set(expandCupidIds(game, getMissionLeaderIds(game)))
   const humanId = alivePlayers.find((player) => player.isUser)?.id
   const voxAutoNomineeId = isVoxPopuli
     ? (game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId)
@@ -181,6 +185,7 @@ function NominationsPanel({ onDecisionCommitted }: DecisionPanelProps) {
   const options = alivePlayers.filter(
     (player) =>
       !lohIds.has(player.id) &&
+      !isMissionOpeningProtected(game, player.id) &&
       !isBellaHeirImmune(game, player.id) &&
       !(
         game.storeNominationProtections?.some(
@@ -641,37 +646,16 @@ function PosSaveTargetPanel({ onDecisionCommitted }: DecisionPanelProps) {
 function ReplacementNomineePanel({ onDecisionCommitted }: DecisionPanelProps) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game)
-  const alivePlayers = useAppSelector(selectAlivePlayers)
   const isDiamond = Boolean(game.specialVeto?.awaitingHolderReplacement)
   const isCoup1 = Boolean(game.specialVeto?.awaitingCoupReplacement1)
   const isCoup2 = Boolean(game.specialVeto?.awaitingCoupReplacement2)
-
-  const lohUnitIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
-  const posUnitIds = new Set(expandCupidIds(game, game.posWinnerId ? [game.posWinnerId] : []))
-  const replacementBaseOptions = alivePlayers.filter(
-    (p) =>
-      !lohUnitIds.has(p.id) &&
-      !posUnitIds.has(p.id) &&
-      !game.nomineeIds.includes(p.id) &&
-      !isBellaHeirImmune(game, p.id)
-  )
-  const protectedIds = new Set(game.povProtectedIds ?? [])
-  const nonProtected = replacementBaseOptions.filter((p) => !protectedIds.has(p.id))
-  const standardOptions = nonProtected.length > 0 ? nonProtected : replacementBaseOptions
-
-  const coupBaseOptions = alivePlayers.filter(
-    (p) =>
-      !lohUnitIds.has(p.id) &&
-      !posUnitIds.has(p.id) &&
-      !game.nomineeIds.includes(p.id) &&
-      !isBellaHeirImmune(game, p.id) &&
-      p.id !== game.specialVeto?.coupReplacement1Id
-  )
-  const coupNonProtected = coupBaseOptions.filter((p) => !protectedIds.has(p.id))
-  const neededCount = isCoup1 ? 2 : 1
-  const coupOptions = coupNonProtected.length >= neededCount ? coupNonProtected : coupBaseOptions
-
-  const options = isDiamond ? standardOptions : isCoup1 || isCoup2 ? coupOptions : standardOptions
+  const options = getEligibleReplacementNominees(
+    game,
+    isDiamond || isCoup1 || isCoup2
+      ? game.posWinnerId
+      : (game.coLohReplacementOwnerId ?? game.lohId),
+    { neededCount: isCoup1 ? 2 : 1, allowLoh: isCoup1 || isCoup2 }
+  ).filter((p) => p.id !== game.specialVeto?.coupReplacement1Id)
   const optionUnits = buildConfessionalDecisionUnits(game, options)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -799,7 +783,17 @@ interface Props {
 }
 
 export default function ConfessionalDecisionPanel({ decision, onDecisionCommitted }: Props) {
+  const game = useAppSelector((state) => state.game)
   switch (decision.type) {
+    case 'mission_power':
+      return (
+        <RequiredConfessionalDecision
+          key={game.missionPowers?.decision?.id + ':' + game.missionPowers?.decision?.kind}
+          decision={decision}
+          presentation={getRequiredConfessionalPresentation(decision, game)}
+          onDecisionCommitted={(summary) => onDecisionCommitted?.(summary)}
+        />
+      )
     case 'nominations':
       return <NominationsPanel onDecisionCommitted={onDecisionCommitted} />
     case 'eviction_vote':

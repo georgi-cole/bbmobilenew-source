@@ -139,7 +139,10 @@ import {
   saveVoxNominationReveal,
 } from '../../features/voxNominationRevealStorage'
 
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  selectActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
@@ -354,9 +357,7 @@ export default function GameScreen() {
     return () => window.removeEventListener('ui:playPressed', handlePlay)
   }, [dispatch, game.voxPopuli?.finaleStage])
   const pendingPreAdPlacementRef = useRef<AdPlacement | null>(null)
-  const activeConfessionalDecisionKey = activeConfessionalDecision
-    ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
-    : null
+  const activeConfessionalDecisionKey = getConfessionalDecisionKey(activeConfessionalDecision, game)
   useGameScreenImagePreloads({
     activeConfessionalDecisionKey,
     activeConfessionalDecisionType: activeConfessionalDecision?.type,

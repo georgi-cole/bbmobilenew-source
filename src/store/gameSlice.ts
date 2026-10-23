@@ -1,3 +1,16 @@
+import {
+  answerMissionPowerDecision,
+  selectMissionBackup,
+  expireNewMissionReward,
+} from './missionPowerActions'
+import { withMissionPowers } from './missionPowerReducer'
+import {
+  getMissionOutgoingIds,
+  isMissionOpeningProtected,
+  isMissionBackupProtected,
+  getMissionLeaderIds,
+  isMissionPower,
+} from '../bb/missionPowers'
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState, AppDispatch } from './store'
 import {
@@ -266,7 +279,13 @@ function getPhaseOrderIndex(phase: Phase): number {
 function getForcedShockActivationWeek(
   state: Pick<
     GameState,
-    'phase' | 'week' | 'twistActivatedThisWeek' | 'doubleEviction' | 'specialVeto' | 'democracia'
+    | 'phase'
+    | 'week'
+    | 'twistActivatedThisWeek'
+    | 'doubleEviction'
+    | 'specialVeto'
+    | 'democracia'
+    | 'missionPowers'
   >,
   safePhase: Phase
 ): number {
@@ -274,6 +293,7 @@ function getForcedShockActivationWeek(
   const safeIndex = getPhaseOrderIndex(safePhase)
   const phaseWindowPassed = currentIndex === -1 || safeIndex === -1 || currentIndex > safeIndex
   const currentWeekBlocked =
+    state.missionPowers?.usedDay === state.week ||
     state.twistActivatedThisWeek === true ||
     state.doubleEviction?.weekActive === true ||
     state.specialVeto?.activeType != null ||
@@ -907,6 +927,8 @@ export function createInitialGameState(options?: {
     week: 1,
     phase: 'season_start',
     weekendsEnabledForSeason: true,
+    weekendsEnabledAtSeasonStart: true,
+    firstRealWeekendStarted: false,
     completedWeekendDays: [],
     finaleWeekendCompleted: false,
     wildcardOpportunity,
@@ -1481,14 +1503,13 @@ function pushDetoxEvent(state: GameState, text: string) {
 
 function refreshSecretMissionCompletion(
   secretMission: GameState['secretMission'],
-  currentDay: number
+  _currentDay: number
 ) {
   if (!secretMission || secretMission.status !== 'accepted') return
   const allDone = isSecretMissionSuccessful(secretMission.tasks)
-  // A completed mission is deliberately held until the strategic checkpoint
-  // at the beginning of its reward day. This prevents an objective completed
-  // by nominations from surfacing a reward after nominations have already run.
-  if (allDone && currentDay >= secretMission.endDay) {
+  // Deliver the reward immediately when the actual requirements are complete.
+  // The survival task normally supplies the final day boundary.
+  if (allDone) {
     secretMission.status = 'rewardPending'
   }
 }
@@ -1905,8 +1926,11 @@ function getReplacementEligiblePlayers(
     })
   )
   const protectedIds = new Set(getDayNominationProtectedIds(state))
-  return baseEligible.filter((player) =>
-    expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
+  return baseEligible.filter(
+    (player) =>
+      (options.allowLoh === true || !getMissionLeaderIds(state).includes(player.id)) &&
+      !isMissionBackupProtected(state, player.id) &&
+      expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
   )
 }
 
@@ -2954,6 +2978,7 @@ function resolveCurrentVoxNominations(state: GameState) {
     activeIds: alive.map((player) => player.id),
     immunityWinnerId: getVoxNominationImmunityId(state),
     autoNomineeId: state.voxPopuli?.autoNomineeId ?? state.lastHohCompFinisherId ?? null,
+    protectedIds: alive.filter((p) => isMissionOpeningProtected(state, p.id)).map((p) => p.id),
     ballots: state.voxPopuli?.nominationBallots ?? {},
     ballotNomineeCount: getVoxBallotSize(state),
     seed: state.seed,
@@ -3013,6 +3038,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
           candidate.id !== actorId &&
           candidate.id !== immunityWinnerId &&
           candidate.id !== autoNomineeId &&
+          !isMissionOpeningProtected(state, candidate.id) &&
           canPlayerNominatePlayer(state, actorId, candidate.id)
       )
     )
@@ -3030,6 +3056,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
       (candidate) =>
         candidate.id !== actorId &&
         !lohUnitIds.has(candidate.id) &&
+        !isMissionOpeningProtected(state, candidate.id) &&
         canPlayerNominatePlayer(state, actorId, candidate.id)
     )
   )
@@ -3059,6 +3086,7 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
         candidate.id !== voter.id &&
         candidate.id !== immunityWinnerId &&
         candidate.id !== autoNomineeId &&
+        !isMissionOpeningProtected(state, candidate.id) &&
         canPlayerNominatePlayer(state, voter.id, candidate.id)
     )
     state.voxPopuli.nominationBallots[voter.id] = pickStrategicNominationTargets(
@@ -3418,7 +3446,12 @@ function restoreVoxNomineeMinimum(state: GameState): string[] {
   const replacements = resolveVoxReplacementNominees({
     activeIds: alive.map((player) => player.id),
     currentNomineeIds: state.nomineeIds,
-    protectedIds: getDayNominationProtectedIds(state),
+    protectedIds: [
+      ...getDayNominationProtectedIds(state),
+      ...getAlivePlayers(state)
+        .filter((p) => isMissionBackupProtected(state, p.id))
+        .map((p) => p.id),
+    ],
     immunityWinnerId: getVoxNominationImmunityId(state),
     nominationVoteCounts: state.voxPopuli.nominationVoteCounts,
     requiredNomineeCount,
@@ -4715,8 +4748,8 @@ function maybePushTwinShockClue(state: GameState) {
 function resolveCompetitionParticipants(state: GameState): string[] {
   const alive = getAlivePlayers(state)
   const aliveIds = alive.map((p) => p.id)
-  if (state.phase === 'loh_comp' && state.prevHohId && !isVoxPopuliActive(state)) {
-    const outgoingLohIds = new Set(getCupidRoleIds(state, state.prevHohId))
+  if (state.phase === 'loh_comp' && !isVoxPopuliActive(state)) {
+    const outgoingLohIds = new Set(expandCupidIds(state, getMissionOutgoingIds(state)))
     const eligible = alive.filter((p) => !outgoingLohIds.has(p.id))
     if (eligible.length > 0) {
       return eligible.map((p) => p.id)
@@ -6628,7 +6661,10 @@ const gameSlice = createSlice({
       const id = action.payload
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id)) return
       state.pendingNominee1Id = id
@@ -6648,7 +6684,10 @@ const gameSlice = createSlice({
       if (!id1 || id2 === id1 || !areDistinctCupidPairs(state, [id1, id2])) return
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id2)) return
       if (!eligible.some((p) => p.id === id1)) return
@@ -6703,6 +6742,7 @@ const gameSlice = createSlice({
             candidate.id !== human.id &&
             candidate.id !== immunityWinnerId &&
             candidate.id !== autoNomineeId &&
+            !isMissionOpeningProtected(state, candidate.id) &&
             canPlayerNominatePlayer(state, human.id, candidate.id)
         )
         const expectedCount = getVoxHumanBallotSize(state, eligible.length)
@@ -6740,7 +6780,10 @@ const gameSlice = createSlice({
       if (new Set(ids).size !== ids.length) return // duplicates check
       if (!areDistinctCupidPairs(state, ids)) return
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!ids.every((id) => eligible.some((p) => p.id === id))) return
 
@@ -6800,9 +6843,11 @@ const gameSlice = createSlice({
       const hohName = lohPlayer?.name ?? 'the LOH'
       const hohNomineeNames = formatNameList(nominees.map((n) => n.name))
       const autoNomineeReason = autoNomineePlayer
-        ? isVoxPopuliActive(state)
-          ? `${autoNomineePlayer.name} finished last in the immunity competition and takes the first place on the block`
-          : `${autoNomineePlayer.name} was automatically nominated for finishing last in the LOH competition`
+        ? state.missionPowers?.automaticNomineeToId === autoNomineePlayer.id
+          ? `${autoNomineePlayer.name} inherits the automatic nomination as the next eligible finisher because the last-place player is protected`
+          : isVoxPopuliActive(state)
+            ? `${autoNomineePlayer.name} finished last in the immunity competition and takes the first place on the block`
+            : `${autoNomineePlayer.name} was automatically nominated for finishing last in the LOH competition`
         : null
       const autoNomineeClause = autoNomineePlayer
         ? `${hohName} nominated ${hohNomineeNames}, and ${autoNomineeReason}`
@@ -6963,7 +7008,7 @@ const gameSlice = createSlice({
 
       // Save the selected nominee
       const savedUnitIds = removeCupidNomineeUnit(state, saveId)
-      savedPlayer.status = 'active'
+      savedPlayer.status = saveId === state.posWinnerId ? 'pos' : 'active'
       state.awaitingPovSaveTarget = false
       // Track the saved player so they cannot be immediately re-nominated as the replacement
       state.povSavedId = saveId
@@ -7377,6 +7422,7 @@ const gameSlice = createSlice({
       // Validate the nominated player
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       if (!alive.some((p) => p.id === nomineeId)) return
+      if (isMissionOpeningProtected(state, nomineeId)) return
       if (nomineeId === coLohId) return // no self-nomination
       const otherCoLohIds = state.coLohIds.filter((id) => id !== coLohId)
       if (otherCoLohIds.includes(nomineeId)) return // can't nominate other co-LOH
@@ -9559,6 +9605,14 @@ const gameSlice = createSlice({
         status: action.payload.status ?? 'active',
         // Saves created before weekends existed keep the original uninterrupted calendar.
         weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
+        weekendsEnabledAtSeasonStart: action.payload.weekendsEnabledAtSeasonStart,
+        firstRealWeekendStarted:
+          action.payload.firstRealWeekendStarted ??
+          Boolean(
+            action.payload.week >= 6 ||
+            (action.payload.weekendInterlude?.active && !action.payload.weekendInterlude.debug) ||
+            action.payload.completedWeekendDays?.length
+          ),
         completedWeekendDays: action.payload.completedWeekendDays ?? [],
         finaleWeekendCompleted: action.payload.finaleWeekendCompleted ?? false,
         weekendInterlude: action.payload.weekendInterlude ?? null,
@@ -10094,7 +10148,14 @@ const gameSlice = createSlice({
     },
 
     setWeekendsEnabledForSeason(state, action: PayloadAction<boolean>) {
+      if (
+        (state.firstRealWeekendStarted || state.week >= 6) &&
+        state.weekendsEnabledForSeason !== action.payload &&
+        !state.weekendInterlude?.debug
+      )
+        return
       state.weekendsEnabledForSeason = action.payload
+      if (state.phase === 'season_start') state.weekendsEnabledAtSeasonStart = action.payload
       if (!action.payload && state.weekendInterlude?.active) {
         const weekend = state.weekendInterlude
         if (!weekend.debug) {
@@ -10291,6 +10352,8 @@ const gameSlice = createSlice({
       // bypassing mandatory decision steps and leaving state inconsistent.
       if (
         state.weekendInterlude?.active ||
+        state.missionPowers?.decision ||
+        state.missionPowers?.safetyIntent ||
         state.replacementNeeded ||
         state.awaitingNominations ||
         (state.awaitingPublicSave &&
@@ -10365,6 +10428,7 @@ const gameSlice = createSlice({
         isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
         !state.finalThree
       ) {
+        state.firstRealWeekendStarted = true
         state.weekendInterlude = createWeekendInterlude(state, weekendMilestone)
 
         const intro =
@@ -11451,11 +11515,10 @@ const gameSlice = createSlice({
           // completeMinigame() applies the LOH winner inline and advances the phase
           // directly, so minigameResult is always null here.  Always pick randomly.
           // Exclude the outgoing LOH (prevHohId) to respect the ineligibility rule.
-          const outgoingLohIds = new Set(getCupidRoleIds(state, state.prevHohId))
-          const hohPool =
-            state.prevHohId && !isVoxPopuliActive(state)
-              ? alive.filter((p) => !outgoingLohIds.has(p.id))
-              : alive
+          const outgoingLohIds = new Set(expandCupidIds(state, getMissionOutgoingIds(state)))
+          const hohPool = !isVoxPopuliActive(state)
+            ? alive.filter((p) => !outgoingLohIds.has(p.id))
+            : alive
           const hohEligible = hohPool.length > 0 ? hohPool : alive
           const hoh = seededPick(rng, hohEligible)
           applyLohWinner(state, hoh.id, '[advance/loh_results]')
@@ -11511,6 +11574,7 @@ const gameSlice = createSlice({
                     candidate.id !== human.id &&
                     candidate.id !== immunityWinnerId &&
                     candidate.id !== autoNomineeId &&
+                    !isMissionOpeningProtected(state, candidate.id) &&
                     canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
@@ -11545,6 +11609,13 @@ const gameSlice = createSlice({
               (p) => p.status !== 'evicted' && p.status !== 'jury'
             )
             state.coLohNomineeByCoLohId = {}
+            if (
+              state.publicModeEnabled &&
+              state.lastHohCompFinisherId &&
+              !coLohIds.includes(state.lastHohCompFinisherId) &&
+              !isMissionOpeningProtected(state, state.lastHohCompFinisherId)
+            )
+              appendNominee(state, state.lastHohCompFinisherId)
             // AI co-LOHs nominate first
             for (const coLohId of coLohIds) {
               const coLoh = state.players.find((p) => p.id === coLohId)
@@ -11554,6 +11625,7 @@ const gameSlice = createSlice({
                   p.id !== coLohId &&
                   !coLohIds.includes(p.id) &&
                   !state.nomineeIds.includes(p.id) &&
+                  !isMissionOpeningProtected(state, p.id) &&
                   canPlayerNominatePlayer(state, coLohId, p.id)
               )
               if (coPool.length > 0) {
@@ -11602,7 +11674,10 @@ const gameSlice = createSlice({
           const pool = collapseCupidCandidates(
             state,
             alive.filter(
-              (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+              (p) =>
+                p.id !== state.lohId &&
+                !isMissionOpeningProtected(state, p.id) &&
+                canPlayerNominatePlayer(state, state.lohId, p.id)
             )
           )
           if (pool.length < nomineeCount) break
@@ -12827,7 +12902,7 @@ const gameSlice = createSlice({
       state,
       action: PayloadAction<number | { day: number; maxDaySpan?: number }>
     ) {
-      if (isCupidArrowTwistLocked(state) || isVoxPopuliTwistLocked(state)) return
+      if (isCupidArrowTwistLocked(state)) return
       const missionCount = getSeasonSecretMissionCount(state)
       if (missionCount >= 2) return
       if (!canReplaceSecretMissionSlot(state.secretMission)) return
@@ -12839,6 +12914,7 @@ const gameSlice = createSlice({
         maxDaySpan,
         missionNumber: nextMissionNumber,
       })
+      state.secretMission.rewardVersion = 2
       state.secretMissionCount = nextMissionNumber
       if (nextMissionNumber >= 2) {
         state.secretMissionSecondChanceResolved = true
@@ -13066,7 +13142,7 @@ const gameSlice = createSlice({
       >
     ) {
       const sm = state.secretMission
-      if (!sm || sm.status !== 'rewardPending') return
+      if (!sm || sm.status !== 'rewardPending' || sm.rewardVersion === 2) return
       if (typeof action.payload === 'string') {
         sm.reward = createMissionReward(action.payload)
       } else {
@@ -13114,6 +13190,12 @@ const gameSlice = createSlice({
     expireMissionReward(state) {
       const sm = state.secretMission
       if (!sm || !sm.reward) return
+      if (
+        sm.rewardVersion === 2 &&
+        isMissionPower(sm.reward.type) &&
+        ['overthrowLoh', 'noSkip'].includes(sm.reward.type)
+      )
+        return
       if (sm.reward.consumed) return // already used — nothing to expire
       if (!sm.reward.eligible) return // emptyBox or already expired — skip
       sm.reward.expired = true
@@ -13627,7 +13709,7 @@ export const {
   submitCoLohNomination,
   submitPosTieBreak,
 } = gameSlice.actions
-export default gameSlice.reducer
+export default withMissionPowers(gameSlice.reducer, getEligibleReplacementNominees)
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 /** Resolve a pending Vox Populi audience vote from the live Public Opinion model. */
@@ -14016,6 +14098,19 @@ function resolveDebugBlockers(
   rng: () => number
 ): boolean {
   const { game } = rootState
+  if (game.missionPowers?.decision) {
+    const decision = game.missionPowers.decision
+    if (decision.kind === 'backupTarget') {
+      const candidate = getEligibleReplacementNominees(game)[0]
+      if (candidate) dispatch(selectMissionBackup({ id: decision.id, targetId: candidate.id }))
+      else dispatch(expireNewMissionReward('No legal backup remains.'))
+    } else dispatch(answerMissionPowerDecision({ id: decision.id, accept: false }))
+    return true
+  }
+  if (game.missionPowers?.safetyIntent) {
+    dispatch(advance())
+    return true
+  }
   const alive = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
   if (game.voxPopuli?.awaitingPublicVote) {
@@ -14091,7 +14186,7 @@ function resolveDebugBlockers(
   }
 
   if (game.weekendInterlude?.active) {
-    dispatch(setWeekendsEnabledForSeason(false))
+    dispatch({ type: 'game/completeWeekendForSimulation' })
     return true
   }
 
@@ -14634,7 +14729,7 @@ export const tryActivateSecretMission =
   () =>
   (dispatch: AppDispatch, getState: () => RootState): boolean => {
     const { game, settings } = getState()
-    if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
+    if (isCupidArrowTwistLocked(game)) return false
     if (isSeasonDirectorKillSwitched('secretMissions')) return false
 
     const aliveCount = game.players.filter(

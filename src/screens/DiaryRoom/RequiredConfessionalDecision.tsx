@@ -1,6 +1,9 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { isMissionOpeningProtected, getMissionLeaderIds } from '../../bb/missionPowers'
+import { answerMissionPowerDecision, selectMissionBackup } from '../../store/missionPowerActions'
+import { useState, type CSSProperties } from 'react'
 import { useStore } from 'react-redux'
 import {
+  getEligibleReplacementNominees,
   activateDoubleVoteReward,
   activateMissionImmunityReward,
   commitNominees,
@@ -208,7 +211,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
   const isVoxPopuli = game.voxPopuli?.status === 'active'
   const isVoxFinalFour = isVoxPopuli && alivePlayers.length === 4
   const relationships = useAppSelector((state) => state.social.relationships)
-  const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
+  const lohIds = new Set(expandCupidIds(game, getMissionLeaderIds(game)))
   const humanId = alivePlayers.find((player) => player.isUser)?.id
   const voxAutoNomineeId = isVoxPopuli
     ? (game.voxPopuli?.autoNomineeId ?? game.lastHohCompFinisherId)
@@ -224,6 +227,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
     (player) =>
       (!isVoxPopuli || !voxImmunityWinnerId || player.id !== voxImmunityWinnerId) &&
       (isVoxPopuli || !lohIds.has(player.id)) &&
+      !isMissionOpeningProtected(game, player.id) &&
       !isBellaHeirImmune(game, player.id) &&
       !(
         game.storeNominationProtections?.some(
@@ -280,7 +284,7 @@ function NominationsDecision({ presentation, onDecisionCommitted }: Omit<Props, 
   const ready = selectedIds.length === required
   const review = ready
     ? autoNomineeName
-      ? `${formatNameList(selectedNames)} · ${autoNomineeName} finished last`
+      ? `${formatNameList(selectedNames)} · ${autoNomineeName} ${game.missionPowers?.automaticNomineeToId === autoNomineeId ? 'inherits the automatic nomination' : 'finished last'}`
       : formatNameList(selectedNames)
     : `Choose ${required - selectedIds.length} more`
 
@@ -559,6 +563,57 @@ function DoubleVoteOfferDecision({ presentation, onDecisionCommitted }: Omit<Pro
   )
 }
 
+function MissionPowerDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
+  const dispatch = useAppDispatch()
+  const game = useAppSelector((state) => state.game)
+  const store = useStore<RootState>()
+  const pending = game.missionPowers?.decision
+  if (!pending) return null
+  if (pending.kind === 'backupTarget') {
+    const units = buildConfessionalDecisionUnits(
+      game,
+      getEligibleReplacementNominees(game).filter((p) => !p.isUser)
+    )
+    return (
+      <SingleUnitDecision
+        units={units}
+        presentation={presentation}
+        reviewPrefix="Name as backup"
+        emptyReview="Choose an eligible backup"
+        danger
+        onCommit={(unit) => {
+          dispatch(selectMissionBackup({ id: pending.id, targetId: unit.id }))
+          if (store.getState().game.missionPowers?.decision?.id !== pending.id)
+            onDecisionCommitted(`Named ${unit.label} as the backup.`)
+        }}
+      />
+    )
+  }
+  const isStore = pending.kind === 'storeConflict'
+  return (
+    <BinaryDecision
+      presentation={presentation}
+      yesLabel={isStore ? 'Switch to mission power' : 'Use mission power'}
+      noLabel={
+        isStore
+          ? 'Keep Store power'
+          : pending.kind === 'noAmbush' || pending.kind === 'overthrowLoh'
+            ? 'Decline and spend power'
+            : 'Save power'
+      }
+      yesReview={isStore ? 'Return unused Store powers and switch' : 'Activate this mission power'}
+      noReview={isStore ? 'Keep Store priority today' : 'Decline this opportunity'}
+      onCommit={(accept) => {
+        dispatch(answerMissionPowerDecision({ id: pending.id, accept }))
+        if (store.getState().game.missionPowers?.decision?.id !== pending.id)
+          onDecisionCommitted(
+            accept ? 'Mission power decision confirmed.' : 'Declined this opportunity.'
+          )
+      }}
+    />
+  )
+}
+
 function MissionImmunityDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
   return (
@@ -642,7 +697,9 @@ function SaveTargetDecision({ presentation, onDecisionCommitted }: Omit<Props, '
       emptyReview="Select a nominee"
       onCommit={(unit) => {
         dispatch(secondSave ? submitVipSecondSaveTarget(unit.id) : submitPovSaveTarget(unit.id))
-        onDecisionCommitted(`Saved ${unit.label}.`)
+        onDecisionCommitted(
+          !game.specialVeto?.activeType ? `Intends to save ${unit.label}.` : `Saved ${unit.label}.`
+        )
       }}
     />
   )
@@ -651,36 +708,16 @@ function SaveTargetDecision({ presentation, onDecisionCommitted }: Omit<Props, '
 function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 'decision'>) {
   const dispatch = useAppDispatch()
   const game = useAppSelector((state) => state.game)
-  const alivePlayers = useAppSelector(selectAlivePlayers)
   const isDiamond = game.specialVeto?.awaitingHolderReplacement === true
   const isCoup1 = game.specialVeto?.awaitingCoupReplacement1 === true
   const isCoup2 = game.specialVeto?.awaitingCoupReplacement2 === true
-  const protectedIds = useMemo(() => new Set(game.povProtectedIds ?? []), [game.povProtectedIds])
-  const lohIds = new Set(expandCupidIds(game, game.lohId ? [game.lohId] : []))
-  const posIds = new Set(expandCupidIds(game, game.posWinnerId ? [game.posWinnerId] : []))
-
-  const standardBase = alivePlayers.filter(
-    (player) =>
-      !lohIds.has(player.id) &&
-      !posIds.has(player.id) &&
-      !game.nomineeIds.includes(player.id) &&
-      !isBellaHeirImmune(game, player.id)
-  )
-  const standardUnprotected = standardBase.filter((player) => !protectedIds.has(player.id))
-  const standardOptions = standardUnprotected.length > 0 ? standardUnprotected : standardBase
-
-  const coupBase = alivePlayers.filter(
-    (player) =>
-      !lohIds.has(player.id) &&
-      !posIds.has(player.id) &&
-      !game.nomineeIds.includes(player.id) &&
-      !isBellaHeirImmune(game, player.id) &&
-      player.id !== game.specialVeto?.coupReplacement1Id
-  )
-  const coupUnprotected = coupBase.filter((player) => !protectedIds.has(player.id))
-  const coupRequired = isCoup1 ? 2 : 1
-  const coupOptions = coupUnprotected.length >= coupRequired ? coupUnprotected : coupBase
-  const options = isDiamond ? standardOptions : isCoup1 || isCoup2 ? coupOptions : standardOptions
+  const options = getEligibleReplacementNominees(
+    game,
+    isDiamond || isCoup1 || isCoup2
+      ? game.posWinnerId
+      : (game.coLohReplacementOwnerId ?? game.lohId),
+    { neededCount: isCoup1 ? 2 : 1, allowLoh: isCoup1 || isCoup2 }
+  ).filter((player) => player.id !== game.specialVeto?.coupReplacement1Id)
   const units = buildConfessionalDecisionUnits(game, options)
 
   return (
@@ -690,11 +727,6 @@ function ReplacementDecision({ presentation, onDecisionCommitted }: Omit<Props, 
       reviewPrefix="Name as replacement:"
       emptyReview="Select a hubmate"
       danger
-      tagForUnit={(unit) =>
-        unit.memberIds.some((id) => protectedIds.has(id))
-          ? 'Protection override fallback'
-          : undefined
-      }
       onCommit={(unit) => {
         if (isDiamond) dispatch(submitDiamondReplacement(unit.id))
         else if (isCoup1 || isCoup2) dispatch(submitCoupReplacement(unit.id))
@@ -911,6 +943,14 @@ export default function RequiredConfessionalDecision({
     case 'double_vote':
       return (
         <DoubleVoteDecision presentation={presentation} onDecisionCommitted={onDecisionCommitted} />
+      )
+    case 'mission_power':
+      return (
+        <MissionPowerDecision
+          key={presentation.key}
+          presentation={presentation}
+          onDecisionCommitted={onDecisionCommitted}
+        />
       )
     case 'mission_immunity_offer':
       return (
