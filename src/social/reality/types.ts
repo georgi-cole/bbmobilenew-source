@@ -508,6 +508,8 @@ export interface RealityAllianceRequest {
   createdAt: RealityClock
   deadline: RealityClock
   candidateInvitedAt?: RealityClock
+  /** Private acceptance choice when an invitee switches from another group. */
+  candidateDepartureAllianceId?: string
   settledAt?: RealityClock
   reason?: string
   resultAllianceId?: string

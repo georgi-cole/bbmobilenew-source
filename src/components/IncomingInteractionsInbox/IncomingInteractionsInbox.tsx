@@ -19,6 +19,12 @@ import {
   canSeeAllianceRequest,
   isPendingAllianceRequest,
 } from '../../social/reality/allianceManagement'
+import {
+  ALLIANCE_LIMITS,
+  allianceKind,
+  currentAllianceCounts,
+  isCurrentAlliance,
+} from '../../social/reality/allianceIdentity'
 import type { RealityAllianceRequest } from '../../social/reality/types'
 import {
   getIncomingInteractionResponseLabel,
@@ -495,6 +501,9 @@ export default function IncomingInteractionsInbox() {
   const globalDramaMode = getEffectiveSocialMode({ game, settings, vip }) === 'drama'
   const [recentlyResolvedIds, setRecentlyResolvedIds] = useState<Set<string>>(() => new Set())
   const [allianceDecisionFeedback, setAllianceDecisionFeedback] = useState<string | null>(null)
+  const [allianceDepartureChoices, setAllianceDepartureChoices] = useState<Record<string, string>>(
+    {}
+  )
   const [, refreshContextualGuides] = useState(0)
 
   const players = game.players
@@ -758,7 +767,27 @@ export default function IncomingInteractionsInbox() {
                       const roster = rosterIds
                         .map((id) => playerById.get(id)?.name ?? id)
                         .join(' · ')
-                      const [acceptLabel, declineLabel] = allianceDecisionActionLabels(request)
+                      const [defaultAcceptLabel, declineLabel] =
+                        allianceDecisionActionLabels(request)
+                      const inviteeAtGroupLimit =
+                        request.kind === 'ADMIT' &&
+                        request.status === 'CONSENT' &&
+                        request.candidateId === humanPlayer.id &&
+                        currentAllianceCounts(reality, humanPlayer.id).groups >=
+                          ALLIANCE_LIMITS.groupsPerMember
+                      const departureOptions = inviteeAtGroupLimit
+                        ? Object.values(reality.alliances).filter(
+                            (entry) =>
+                              isCurrentAlliance(entry) &&
+                              allianceKind(entry) === 'GROUP' &&
+                              entry.memberIds.includes(humanPlayer.id) &&
+                              entry.id !== request.allianceId
+                          )
+                        : []
+                      const acceptLabel = inviteeAtGroupLimit
+                        ? 'Accept and switch alliances'
+                        : defaultAcceptLabel
+                      const departureChoice = allianceDepartureChoices[request.id] ?? ''
                       return (
                         <article
                           className="inbox-item inbox-item--alliance inbox-item--unread"
@@ -790,11 +819,37 @@ export default function IncomingInteractionsInbox() {
                           <p className="inbox-item__text">
                             {allianceDecisionCopy(request, allianceName, roster, candidateName)}
                           </p>
+                          {inviteeAtGroupLimit && (
+                            <label className="inbox-alliance-switch">
+                              <span>
+                                Joining means leaving one current alliance. Choose which one;
+                                declining leaves your existing groups unchanged.
+                              </span>
+                              <select
+                                aria-label={`Alliance to leave for ${allianceName}`}
+                                value={departureChoice}
+                                onChange={(event) =>
+                                  setAllianceDepartureChoices((current) => ({
+                                    ...current,
+                                    [request.id]: event.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="">Choose an alliance to leave</option>
+                                {departureOptions.map((entry) => (
+                                  <option key={entry.id} value={entry.id}>
+                                    {entry.name ?? 'Unnamed alliance'}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
                           <div className="inbox-item__actions">
                             <button
                               type="button"
                               aria-label={acceptLabel}
                               className="inbox-action inbox-action--positive"
+                              disabled={inviteeAtGroupLimit && !departureChoice}
                               onClick={() => {
                                 const result = dispatch(
                                   executeAllianceManagementCommand({
@@ -802,6 +857,9 @@ export default function IncomingInteractionsInbox() {
                                     requestId: request.id,
                                     actorId: humanPlayer.id,
                                     accept: true,
+                                    ...(inviteeAtGroupLimit
+                                      ? { leaveAllianceId: departureChoice }
+                                      : {}),
                                   })
                                 )
                                 setAllianceDecisionFeedback(result.reason)
@@ -823,6 +881,11 @@ export default function IncomingInteractionsInbox() {
                                   })
                                 )
                                 setAllianceDecisionFeedback(result.reason)
+                                setAllianceDepartureChoices((current) => {
+                                  const next = { ...current }
+                                  delete next[request.id]
+                                  return next
+                                })
                               }}
                             >
                               {declineLabel}

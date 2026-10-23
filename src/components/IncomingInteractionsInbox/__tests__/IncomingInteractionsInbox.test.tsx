@@ -127,6 +127,106 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByRole('status')).toHaveTextContent("You're in! Night Owls now has 4 members.")
   })
 
+  it('requires an invitee at the group limit to choose which alliance to leave', async () => {
+    const store = makeStore()
+    const game = store.getState().game
+    const human = game.players.find((player) => player.isUser)!
+    const activePlayers = game.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    )
+    const nonHuman = activePlayers.filter((player) => !player.isUser)
+    const inviteMembers = nonHuman.slice(0, 3)
+    const firstOldMembers = nonHuman.slice(3, 5)
+    const secondOldMembers = nonHuman.slice(5, 7)
+    const at = { day: game.week, phase: game.phase }
+    const reality = createInitialRealityDomainState()
+    ensureRealityActors(
+      reality,
+      activePlayers.map((player) => player.id)
+    )
+    const invitedAlliance = createRealityAlliance(reality, {
+      id: 'incoming-switch-target',
+      kind: 'GROUP',
+      founderIds: inviteMembers.map((player) => player.id),
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'Night Owls',
+      at,
+    })
+    invitedAlliance.status = 'ACTIVE'
+    const currentAlliances = [
+      createRealityAlliance(reality, {
+        id: 'incoming-switch-old-one',
+        kind: 'GROUP',
+        founderIds: [human.id, firstOldMembers[0].id],
+        memberIds: [firstOldMembers[1].id],
+        purpose: 'Mutual protection',
+        name: 'Old Circle',
+        at,
+      }),
+      createRealityAlliance(reality, {
+        id: 'incoming-switch-old-two',
+        kind: 'GROUP',
+        founderIds: [human.id, secondOldMembers[0].id],
+        memberIds: [secondOldMembers[1].id],
+        purpose: 'Mutual protection',
+        name: 'Quiet Group',
+        at,
+      }),
+    ]
+    currentAlliances.forEach((entry) => (entry.status = 'ACTIVE'))
+    const context = {
+      at,
+      activeActorIds: activePlayers.map((player) => player.id),
+      humanActorIds: activePlayers.map((player) => player.id),
+      seed: game.seed ?? 1,
+    }
+    const proposed = manageAlliance(
+      reality,
+      {
+        type: 'PROPOSE',
+        kind: 'ADMIT',
+        actorId: invitedAlliance.leaderId!,
+        allianceId: invitedAlliance.id,
+        candidateId: human.id,
+      },
+      context
+    )
+    const request = reality.allianceManagement.requests[proposed.requestId!]
+    for (const actorId of allianceRequestDecisionActors(request))
+      manageAlliance(
+        reality,
+        { type: 'RESPOND', requestId: request.id, actorId, accept: true },
+        context
+      )
+    expect(request.status).toBe('CONSENT')
+
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+
+    const departurePicker = await screen.findByRole('combobox', {
+      name: 'Alliance to leave for Night Owls',
+    })
+    const accept = screen.getByRole('button', { name: 'Accept and switch alliances' })
+    expect(accept).toBeDisabled()
+    fireEvent.change(departurePicker, { target: { value: currentAlliances[0].id } })
+    expect(accept).toBeEnabled()
+    fireEvent.click(accept)
+
+    await waitFor(() => {
+      expect(store.getState().social.reality.alliances[invitedAlliance.id].memberIds).toContain(
+        human.id
+      )
+    })
+    expect(
+      store.getState().social.reality.alliances[currentAlliances[0].id].memberIds
+    ).not.toContain(human.id)
+    expect(store.getState().social.reality.alliances[currentAlliances[1].id].memberIds).toContain(
+      human.id
+    )
+  })
+
   it('lets the alliance leader accept a member rename suggestion in Incoming', async () => {
     const store = makeStore()
     const game = store.getState().game
