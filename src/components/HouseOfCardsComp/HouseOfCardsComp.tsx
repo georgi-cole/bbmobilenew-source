@@ -103,28 +103,24 @@ const ROUND_TOOL_CHOICES: Array<{
   title: string
   copy: string
   detail: string
-  symbol: string
 }> = [
   {
     id: 'peek',
     title: 'Peek',
     copy: 'Privately reveal one card you choose for a moment.',
     detail: 'Use the glimpse to plan your next match before the card turns back.',
-    symbol: '◉',
   },
   {
     id: 'shield',
     title: 'Shield',
     copy: 'Your next mismatch still counts, but keeps its streak and avoids one scoring penalty.',
     detail: 'It protects your score on one mismatch while the round keeps moving.',
-    symbol: '⬡',
   },
   {
     id: 'bonus-bet',
     title: 'Bonus Bet',
     copy: 'Choose when to risk a known pair: +150 on a match, −120 on a miss.',
     detail: 'Arm it when you are ready to risk a pair you think you remember.',
-    symbol: '✦',
   },
 ]
 
@@ -256,7 +252,6 @@ export default function HouseOfCardsComp({
   const [finalPoints, setFinalPoints] = useState<Record<string, number>>({})
   const [finalStandings, setFinalStandings] = useState<PlayerOutcome[]>([])
   const [finalAbilitiesUsed, setFinalAbilitiesUsed] = useState<Record<string, boolean>>({})
-  const [finalPairsInTurn, setFinalPairsInTurn] = useState(0)
   const [peekedIndex, setPeekedIndex] = useState<number | null>(null)
   const [roundTool, setRoundTool] = useState<HouseOfCardsRoundToolId | null>(null)
   const [selectedRoundTool, setSelectedRoundTool] = useState<HouseOfCardsRoundToolId | null>(null)
@@ -407,7 +402,6 @@ export default function HouseOfCardsComp({
       setFinalPoints(Object.fromEntries(selected.map((id) => [id, 0])))
       setFinalTurnId(selected[0] ?? null)
       setFinalAbilitiesUsed(Object.fromEntries(selected.map((id) => [id, false])))
-      setFinalPairsInTurn(0)
       setCumulativeScores(scores)
       finalCompletedRef.current = false
       aiTurnRef.current = 0
@@ -763,12 +757,6 @@ export default function HouseOfCardsComp({
             ...points,
             [finalTurnId]: (points[finalTurnId] ?? 0) + 1,
           }))
-          if (finalPairsInTurn + 1 >= 2) {
-            setFinalTurnId(finalists.find((id) => id !== finalTurnId) ?? finalTurnId)
-            setFinalPairsInTurn(0)
-          } else {
-            setFinalPairsInTurn((count) => count + 1)
-          }
         } else {
           if (roundTool === 'bonus-bet' && peekSelecting && !toolUsed) {
             setToolDelta(150)
@@ -821,7 +809,6 @@ export default function HouseOfCardsComp({
         setFlippedIndices([])
         if (phase === 'final_playing') {
           setFinalTurnId((turn) => finalists.find((id) => id !== turn) ?? turn)
-          setFinalPairsInTurn(0)
         }
         setLocked(false)
       }, MISMATCH_REVEAL_MS)
@@ -831,7 +818,6 @@ export default function HouseOfCardsComp({
       board,
       brightPairBonus,
       brightPairSymbol,
-      finalPairsInTurn,
       finalTurnId,
       finalists,
       matchedPairs,
@@ -955,7 +941,6 @@ export default function HouseOfCardsComp({
         if (unmatchedPairs <= 2) return
         setFinalAbilitiesUsed((current) => ({ ...current, [playerId]: true }))
         setFinalTurnId(finalists.find((id) => id !== playerId) ?? playerId)
-        setFinalPairsInTurn(0)
         return
       }
       const hiddenCards = board.filter((card) => !card.isMatched && !card.isFlipped)
@@ -1014,7 +999,6 @@ export default function HouseOfCardsComp({
           if (shouldPass) {
             setFinalAbilitiesUsed((current) => ({ ...current, [finalTurnId]: true }))
             setFinalTurnId(finalists.find((id) => id !== finalTurnId) ?? finalTurnId)
-            setFinalPairsInTurn(0)
             return
           }
           const peekedCard = hiddenCards[Math.floor(rng() * hiddenCards.length)]
@@ -1159,16 +1143,28 @@ export default function HouseOfCardsComp({
               disabled={toolTransition !== null && selectedRoundTool !== choice.id}
               onClick={() => chooseRoundTool(choice.id)}
             >
-              {!premiumPresentation && (
-                <span className="hoc-tool-choice__icon" aria-hidden="true">
-                  {choice.symbol}
-                </span>
-              )}
+              <span className="hoc-tool-choice__icon" aria-hidden="true">
+                {choice.id === 'peek' ? (
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <path d="M4.5 24s6.7-11 19.5-11 19.5 11 19.5 11-6.7 11-19.5 11S4.5 24 4.5 24Z" />
+                    <circle cx="24" cy="24" r="5.5" />
+                  </svg>
+                ) : choice.id === 'shield' ? (
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <path d="M24 4.5 39 10v11.3c0 10-6.2 17.4-15 22.2-8.8-4.8-15-12.2-15-22.2V10l15-5.5Z" />
+                    <path d="m17.5 23.5 4.3 4.3 9-9" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 48 48" focusable="false">
+                    <path d="m24 4.5 5.4 13 13.1 5.5-13.1 5.4L24 41.5l-5.4-13.1L5.5 23l13.1-5.5L24 4.5Z" />
+                    <path d="m38 5 1.5 4.5L44 11l-4.5 1.5L38 17l-1.5-4.5L32 11l4.5-1.5L38 5Z" />
+                  </svg>
+                )}
+              </span>
               <strong>{choice.title}</strong>
-              <span>{choice.copy}</span>
-              {selectedRoundTool === choice.id && (
-                <span className="hoc-tool-choice__detail">{choice.detail}</span>
-              )}
+              <span className="hoc-tool-choice__copy">
+                {selectedRoundTool === choice.id ? choice.detail : choice.copy}
+              </span>
             </button>
           ))}
         </div>
@@ -1245,14 +1241,21 @@ export default function HouseOfCardsComp({
           >
             {premiumPresentation && (
               <span className="hoc-opening-choice__mark" aria-hidden="true">
-                ✦
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <path d="M8 15h23a8 8 0 0 1 8 8v1" />
+                  <path d="m33 18 6 6-6 6" />
+                  <path d="M40 33H17a8 8 0 0 1-8-8v-1" />
+                  <path d="m15 30-6-6 6-6" />
+                </svg>
               </span>
             )}
             {premiumPresentation && (
               <span className="hoc-opening-choice__eyebrow">CLAIM THE MOMENT</span>
             )}
             <strong>Open the duel</strong>
-            <span>Use your finale token and play first.</span>
+            <span className="hoc-opening-choice__description">
+              Use your finale token and play first.
+            </span>
           </button>
           <button
             type="button"
@@ -1261,14 +1264,20 @@ export default function HouseOfCardsComp({
           >
             {premiumPresentation && (
               <span className="hoc-opening-choice__mark" aria-hidden="true">
-                ◌
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <path d="M5 24s6.6-11 19-11 19 11 19 11-6.6 11-19 11S5 24 5 24Z" />
+                  <circle cx="24" cy="24" r="5" />
+                  <path d="M24 4v4M24 40v4M4 24h4M40 24h4" />
+                </svg>
               </span>
             )}
             {premiumPresentation && (
               <span className="hoc-opening-choice__eyebrow">READ THE TABLE</span>
             )}
             <strong>Defer the opening</strong>
-            <span>Let {nameFor(finalists[1] ?? '')} take the first turn.</span>
+            <span className="hoc-opening-choice__description">
+              Let {nameFor(finalists[1] ?? '')} take the first turn.
+            </span>
           </button>
         </div>
       </div>
@@ -1279,6 +1288,7 @@ export default function HouseOfCardsComp({
     return (
       <MinigameCompleteWrapper
         className={`hoc-complete hoc-round-results hoc-complete--${premiumPresentation ? 'premium' : 'standard'}`}
+        panelClassName="hoc-round-results-panel"
         onContinue={continueRound}
         continueLabel={
           humanId && roundSummary.nextActiveIds.includes(humanId)
@@ -1473,7 +1483,7 @@ export default function HouseOfCardsComp({
           </strong>
           <span>
             {nameFor(finalTurnId ?? '')}'s turn
-            {humanCanPlay ? ' — up to two pairs' : ' — choosing…'}
+            {humanCanPlay ? ' — plays until a miss' : ' — choosing…'}
           </span>
           <strong>
             {nameFor(finalists[1] ?? '')}: {finalPoints[finalists[1] ?? ''] ?? 0}

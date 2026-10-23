@@ -52,6 +52,9 @@ describe('ChainOfGreed component', () => {
     expect(screen.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start Shared Chain' }))
     expect(screen.getByRole('button', { name: 'Start round' })).toBeInTheDocument()
+    expect(screen.getByTestId('chain-shared-round-timer').getAttribute('aria-label')).toMatch(
+      /^[1-9]\d* seconds remaining in the round$/
+    )
     expect(screen.getByText(/contestants? faces? the vote after this round/i)).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Build the chain.' })).toBeInTheDocument()
 
@@ -66,13 +69,20 @@ describe('ChainOfGreed component', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Higher' })).toBeInTheDocument()
+    expect(screen.getByTestId('chain-shared-round-timer')).toHaveAttribute(
+      'aria-label',
+      '79 seconds remaining in the round'
+    )
     expect(screen.queryByRole('dialog', { name: 'Build the chain.' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Lower' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Equal' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Bank' })).toBeInTheDocument()
     const header = screen.getByRole('banner')
-    expect(within(header).getByText('8 left')).toBeInTheDocument()
-    expect(within(header).getByText('0 prize pool')).toBeInTheDocument()
+    expect(within(header).queryByText('8 left')).not.toBeInTheDocument()
+    expect(within(header).getByTestId('chain-prize-pool')).toHaveTextContent('0 prize pool')
+    expect(within(header).queryByTestId('chain-header-status')).not.toBeInTheDocument()
+    expect(within(header).queryByTestId('chain-header-timer')).not.toBeInTheDocument()
+    expect(within(header).getByRole('button', { name: 'Speed up AI playback' })).toBeInTheDocument()
     expect(screen.queryByText(/Choose your move/i)).not.toBeInTheDocument()
     expect(
       screen.queryByText(/Bank is safe, but the first correct guess starts the value/i)
@@ -87,9 +97,24 @@ describe('ChainOfGreed component', () => {
     const participantPanel = screen.getByTestId('chain-participant-panel')
     expect(participantPanel).toHaveTextContent(/You/i)
     expect(participantPanel).toHaveTextContent(/Choose move/i)
-    expect(screen.getByTestId('chain-participant-log')).toHaveTextContent(/Live feed/i)
+    expect(screen.queryByTestId('chain-inline-watch-controls')).not.toBeInTheDocument()
+    const participantLog = screen.getByTestId('chain-participant-log')
+    expect(participantLog).toHaveTextContent(/Live feed/i)
+    expect(participantLog).not.toHaveAttribute('open')
+    fireEvent.click(within(participantLog).getByText('Log'))
+    expect(participantLog).toHaveAttribute('open')
     expect(screen.getByTestId('chain-inline-status')).toHaveTextContent(/Step 0\/8/i)
     expect(screen.getByTestId('chain-inline-status')).toHaveTextContent(/Next 50/i)
+    expect(screen.getByTestId('chain-inline-status')).not.toHaveTextContent(/Pot/i)
+    const sharedTimer = screen.getByTestId('chain-shared-round-timer')
+    const currentPot = screen.getByTestId('chain-shared-current-pot')
+    expect(
+      screen.getByTestId('chain-inline-status').compareDocumentPosition(sharedTimer) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      sharedTimer.compareDocumentPosition(currentPot) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
     expect(screen.queryByRole('button', { name: /View full ladder/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open chain ladder board' })).toBeInTheDocument()
     expect(screen.getByLabelText('Current chain ladder')).toBeInTheDocument()
@@ -118,16 +143,63 @@ describe('ChainOfGreed component', () => {
     expect(screen.getByText(/Build your bank in one minute/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start Solo Rush' }))
 
-    expect(screen.getByLabelText('60 seconds remaining')).toBeInTheDocument()
-    expect(screen.getByRole('banner')).toHaveTextContent('SOLO RUSH · ROUND 1/4')
+    expect(screen.getByTestId('chain-solo-round-timer')).toHaveAttribute(
+      'aria-label',
+      '60 seconds remaining'
+    )
+    expect(
+      within(screen.getByRole('banner')).queryByTestId('chain-header-timer')
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('banner')).toHaveTextContent('SOLO RUSH')
+    expect(screen.getByRole('banner')).toHaveTextContent('ROUND 1/4')
+    expect(screen.getByRole('banner')).toHaveTextContent(/SOLO RUSH · ROUND 1\/4/)
     expect(screen.getByRole('banner')).not.toHaveTextContent('Your Bank 0')
     expect(screen.getByRole('button', { name: 'Higher' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Pawn Round Bank/ })).not.toBeInTheDocument()
-    expect(screen.getByTestId('chain-participant-panel')).toHaveTextContent('Round Bank 0')
-    expect(screen.queryByTestId('chain-risk-readout')).not.toBeInTheDocument()
-    expect(screen.getAllByText(/Higher \d+%/)).toHaveLength(1)
-    expect(screen.queryByTestId('chain-inline-status')).not.toBeInTheDocument()
+    const soloPanel = screen.getByTestId('chain-participant-panel')
+    expect(soloPanel).toHaveTextContent('Pot 0')
+    expect(soloPanel).not.toHaveTextContent('Round Bank')
+    expect(screen.getByTestId('chain-inline-status')).toHaveTextContent(/Step 0\/8/i)
+    expect(screen.getByTestId('chain-inline-status')).toHaveTextContent(/At risk/i)
+    expect(screen.getByTestId('chain-inline-status')).toHaveTextContent(/Next 50/i)
+    expect(
+      screen
+        .getByTestId('chain-inline-status')
+        .compareDocumentPosition(screen.getByTestId('chain-solo-round-timer')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      screen
+        .getByTestId('chain-solo-round-timer')
+        .compareDocumentPosition(screen.getByTestId('chain-solo-current-pot')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(screen.getByTestId('chain-risk-readout')).toHaveTextContent(/Higher\s+\d+%/)
+    expect(screen.getByTestId('chain-risk-readout')).not.toHaveTextContent(
+      /Number shoe|cards still in the shoe/i
+    )
+    expect(
+      within(screen.getByTestId('chain-participant-panel')).getByTestId('chain-bank-action')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/cards left/i)).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('chain-risk-readout')).toHaveLength(1)
+    expect(screen.getByTestId('chain-risk-readout')).toHaveTextContent(/Higher\s+\d+%/)
+    expect(screen.getByTestId('chain-inline-status')).toBeInTheDocument()
     expect(screen.queryByTestId('chain-player-rail')).not.toBeInTheDocument()
+  })
+
+  it('closes the player profile from the standard X icon control', async () => {
+    renderSharedGame()
+
+    fireEvent.click(screen.getByTestId('chain-player-mira'))
+
+    const profile = screen.getByRole('dialog', { name: 'Mira round profile' })
+    const closeButton = within(profile).getByRole('button', { name: 'Close player profile' })
+    expect(closeButton).toHaveTextContent('×')
+
+    fireEvent.click(closeButton)
+
+    await waitFor(() => expect(profile).toHaveStyle({ opacity: '0' }))
   })
 
   it('resolves rival Solo Rush rounds together and shows the full ranking when your minute ends', () => {
@@ -172,26 +244,31 @@ describe('ChainOfGreed component', () => {
     expect(profile).toHaveTextContent('Match earned')
   })
 
-  it('offers Story and Quick pacing and can pause the live AI turn', async () => {
+  it('offers a compact playback speed button and can pause the live AI turn', async () => {
     const aiFirstParticipants = [participants[1], participants[0], ...participants.slice(2)]
     renderSharedGame(aiFirstParticipants)
-    expect(screen.queryByRole('group', { name: 'Watch pace' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Speed up AI playback' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Start round' }))
 
-    await screen.findByRole('group', { name: 'Watch pace' }, {}, { timeout: 1_000 })
+    const speedButton = await screen.findByRole('button', { name: 'Speed up AI playback' })
 
-    expect(screen.getByRole('group', { name: 'Watch pace' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Story' })).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(screen.getByRole('button', { name: 'Quick' }))
-    expect(screen.getByRole('button', { name: 'Quick' })).toHaveAttribute('aria-pressed', 'true')
-    const panel = screen.getByTestId('chain-participant-panel')
-    const currentActorBeforePause = panel.textContent
+    expect(speedButton).toBeInTheDocument()
+    fireEvent.click(speedButton)
+    expect(screen.getByRole('button', { name: 'Slow down AI playback' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Pause watch' }))
     expect(await screen.findByRole('button', { name: 'Resume watch' })).toBeInTheDocument()
-    expect(screen.getByTestId('chain-participant-panel').textContent).toBe(currentActorBeforePause)
+    expect(screen.getByTestId('chain-participant-panel')).toHaveTextContent(
+      /Mira is reading the board/i
+    )
+    const watchControls = screen.getByTestId('chain-inline-watch-controls')
+    expect(within(watchControls).queryByRole('button', { name: 'Story' })).not.toBeInTheDocument()
+    expect(within(watchControls).queryByRole('button', { name: 'Quick' })).not.toBeInTheDocument()
   })
 
-  it('wraps back to the start of the turn order instead of stalling after every player has acted once', () => {
+  it('keeps shared play going beyond the old move cap until the round timer ends', () => {
     vi.useFakeTimers()
     renderSharedGame()
 
@@ -202,13 +279,72 @@ describe('ChainOfGreed component', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Higher' }))
 
     act(() => {
-      vi.advanceTimersByTime(participants.length * (TURN_PIPELINE_MS + 2200))
+      vi.advanceTimersByTime(participants.length * (TURN_PIPELINE_MS + 250))
     })
 
     expect(screen.getByRole('button', { name: 'Higher' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Lower' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Bank' })).toBeInTheDocument()
     expect(screen.queryByText(/is reading the board/i)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Higher' }))
+    act(() => {
+      vi.advanceTimersByTime(participants.length * (TURN_PIPELINE_MS + 250))
+    })
+
+    expect(screen.getByRole('button', { name: 'Higher' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Higher' }))
+    act(() => {
+      vi.advanceTimersByTime(TURN_PIPELINE_MS + 250)
+    })
+    expect(screen.queryByText('Round 1 Summary')).not.toBeInTheDocument()
+    expect(screen.getByTestId('chain-shared-round-timer')).not.toHaveTextContent('0:00')
+  })
+
+  it('keeps voting and results in one modal and starts the next round immediately', () => {
+    vi.useFakeTimers()
+    renderSharedGame()
+
+    act(() => {
+      vi.advanceTimersByTime(ROUND_INTRO_MS + 80_000)
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Proceed to Vote' }))
+
+    const voteModal = screen.getByTestId('chain-vote-flow-modal')
+    expect(voteModal).toHaveTextContent('Choose who should leave')
+    expect(voteModal).not.toHaveTextContent('Who had the roughest round, or lost your trust?')
+    expect(within(voteModal).getByTestId('chain-round-standout')).toHaveTextContent(
+      'Strongest this round'
+    )
+    expect(within(voteModal).getByRole('button', { name: 'Review round turns' })).toHaveClass(
+      'chain-of-greed__vote-history-toggle'
+    )
+    fireEvent.click(within(voteModal).getByRole('button', { name: 'Reveal votes' }))
+
+    expect(screen.getByTestId('chain-vote-flow-modal')).toBe(voteModal)
+    expect(voteModal).toHaveTextContent('Vote Reveal')
+
+    for (let voteIndex = 0; voteIndex < participants.length + 2; voteIndex += 1) {
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+    }
+
+    expect(voteModal).toHaveTextContent('Vote Result')
+    expect(within(voteModal).getByRole('button', { name: 'View ballots' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    )
+    expect(
+      within(voteModal).queryByRole('button', { name: 'Hide ballots' })
+    ).not.toBeInTheDocument()
+    expect(voteModal.querySelector('.chain-of-greed__vote-results')).toBeNull()
+
+    fireEvent.click(within(voteModal).getByRole('button', { name: 'Continue to Round 2' }))
+    expect(screen.getByTestId('chain-shared-round-timer').getAttribute('aria-label')).toMatch(
+      /^[1-9]\d* seconds remaining in the round$/
+    )
+    expect(screen.queryByRole('dialog', { name: 'Build the chain.' })).not.toBeInTheDocument()
   })
 
   it('shows a reusable help overlay with the bank, equal-number, and LOH final rules', () => {
@@ -219,6 +355,11 @@ describe('ChainOfGreed component', () => {
     expect(screen.getByText(/Bank secures the active pot/i)).toBeInTheDocument()
     expect(screen.getByText(/A matching Equal call is correct/i)).toBeInTheDocument()
     expect(screen.getByText(/up to five shared-chain rounds/i)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /highest final score wins and receives the entire shared prize pool as Influence/i
+      )
+    ).toBeInTheDocument()
     expect(screen.getByText(/Every remaining player gets 30 seconds/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close Help' }))
     expect(screen.queryByText(/Bank secures the active pot/i)).not.toBeInTheDocument()

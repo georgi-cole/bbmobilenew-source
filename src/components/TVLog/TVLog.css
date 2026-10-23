@@ -26,7 +26,7 @@
   overscroll-behavior: contain;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+  scrollbar-color: var(--tv-log-accent, #9487ff) transparent;
 }
 
 .tv-log::-webkit-scrollbar {
@@ -38,7 +38,7 @@
 }
 
 .tv-log::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
+  background: var(--tv-log-accent, #9487ff);
   border-radius: 4px;
 }
 
@@ -98,7 +98,7 @@
 /* Most-recent non-duplicate item gets a subtle highlight */
 .tv-log__item:first-child {
   color: var(--color-text, #f1f5f9);
-  background: rgba(99, 102, 241, 0.06);
+  background: color-mix(in srgb, var(--tv-log-accent, #9487ff) 8%, transparent);
   animation: tvLogItemIn 0.3s ease;
 }
 
@@ -109,8 +109,13 @@
 }
 
 @keyframes tvLogItemIn {
-  from { opacity: 0; background: rgba(99, 102, 241, 0.18); }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+    background: color-mix(in srgb, var(--tv-log-accent, #9487ff) 18%, transparent);
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .tv-log__icon {
@@ -129,11 +134,21 @@
 }
 
 /* Type-colour left-border accents (mirrors TvZone feed) */
-.tv-log__item--game   { border-left: 2px solid var(--color-accent, #6366f1); }
-.tv-log__item--social { border-left: 2px solid #1fc884; }
-.tv-log__item--vote   { border-left: 2px solid #ef4444; }
-.tv-log__item--twist  { border-left: 2px solid #f59e0b; }
-.tv-log__item--diary  { border-left: 2px solid #8b5cf6; }
+.tv-log__item--game {
+  border-left: 2px solid var(--tv-log-accent, #9487ff);
+}
+.tv-log__item--social {
+  border-left: 2px solid #1fc884;
+}
+.tv-log__item--vote {
+  border-left: 2px solid #ef4444;
+}
+.tv-log__item--twist {
+  border-left: 2px solid #f59e0b;
+}
+.tv-log__item--diary {
+  border-left: 2px solid #b794f4;
+}
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
@@ -180,10 +195,14 @@
 }
 
 /* Activity-center presentation is enabled only for the refined game chrome. */
-.tv-log-shell { display: contents; }
+.tv-log-shell {
+  display: contents;
+}
 .tv-log__toolbar,
 .tv-log__type,
-.tv-log__time { display: none; }
+.tv-log__time {
+  display: none;
+}
 .tv-log__event {
   display: flex;
   width: 100%;
@@ -197,7 +216,9 @@
   text-align: left;
   cursor: pointer;
 }
-.tv-log__copy { display: contents; }
+.tv-log__copy {
+  display: contents;
+}
 
 body.experiment-game-chrome-refined .tv-log-shell {
   display: flex;
@@ -263,9 +284,16 @@ body.experiment-game-chrome-refined .tv-log__filter--active {
   background: var(--game-surface-interactive-active);
   color: rgba(244, 245, 255, 0.94);
 }
-body.experiment-game-chrome-refined .tv-log { border-top-color: rgba(255, 255, 255, 0.035); }
-body.experiment-game-chrome-refined .tv-log__item { padding: 0; }
-body.experiment-game-chrome-refined .tv-log__event { min-height: var(--tv-log-item-h); padding: 5px 10px; }
+body.experiment-game-chrome-refined .tv-log {
+  border-top-color: rgba(255, 255, 255, 0.035);
+}
+body.experiment-game-chrome-refined .tv-log__item {
+  padding: 0;
+}
+body.experiment-game-chrome-refined .tv-log__event {
+  min-height: var(--tv-log-item-h);
+  padding: 5px 10px;
+}
 body.experiment-game-chrome-refined .tv-log__copy {
   display: flex;
   min-width: 0;
@@ -274,7 +302,9 @@ body.experiment-game-chrome-refined .tv-log__copy {
   gap: 1px;
 }
 body.experiment-game-chrome-refined .tv-log__type,
-body.experiment-game-chrome-refined .tv-log__time { display: inline; }
+body.experiment-game-chrome-refined .tv-log__time {
+  display: inline;
+}
 body.experiment-game-chrome-refined .tv-log__type {
   color: rgba(187, 196, 225, 0.48);
   font-size: 0.52rem;
@@ -396,11 +426,18 @@ body.experiment-game-chrome-refined .tv-log__launcher--hidden:focus-visible {
   z-index: 1500;
   display: grid;
   align-items: end;
-  padding: 14px max(14px, var(--safe-right)) max(14px, var(--safe-bottom)) max(14px, var(--safe-left));
-  background: rgba(2, 5, 12, 0.72);
+  padding: 14px max(14px, var(--safe-right)) max(14px, var(--safe-bottom))
+    max(14px, var(--safe-left));
+  background: rgba(9, 5, 18, 0.78);
   backdrop-filter: blur(8px);
 }
 .tv-log-modal {
+  --tv-log-accent: #a78bfa;
+  --game-border-strong: rgba(185, 156, 255, 0.3);
+  --game-surface-interactive: rgba(173, 140, 255, 0.12);
+  --game-surface-interactive-active: rgba(158, 119, 255, 0.24);
+  --game-text-primary: #f7f1ff;
+  --game-text-secondary: rgba(222, 207, 250, 0.72);
   display: flex;
   width: min(100%, 620px);
   max-height: min(78svh, 720px);
@@ -409,8 +446,14 @@ body.experiment-game-chrome-refined .tv-log__launcher--hidden:focus-visible {
   flex-direction: column;
   border: 1px solid var(--game-border-strong);
   border-radius: var(--game-radius-3);
-  background: var(--game-surface-raised);
-  box-shadow: var(--game-shadow-3);
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(111, 63, 184, 0.24), transparent 44%),
+    radial-gradient(ellipse at 100% 100%, rgba(74, 43, 124, 0.2), transparent 48%),
+    linear-gradient(145deg, #211832 0%, #171124 54%, #110d1c 100%);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.58),
+    0 0 36px rgba(112, 71, 184, 0.18),
+    inset 0 1px 0 rgba(231, 215, 255, 0.1);
 }
 .tv-log-modal__header {
   display: flex;
@@ -435,14 +478,62 @@ body.experiment-game-chrome-refined .tv-log__launcher--hidden:focus-visible {
   width: 30px;
   height: 30px;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(198, 171, 255, 0.28);
   border-radius: 8px;
-  background: var(--game-surface-interactive);
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.22), rgba(66, 45, 101, 0.42));
   color: var(--game-text-primary);
   font-size: 1.2rem;
   font-weight: 400;
   line-height: 1;
   cursor: pointer;
+}
+.tv-log-modal__eyebrow {
+  color: #c3a9fa;
+}
+.tv-log-modal .tv-log__toolbar {
+  border-top: 1px solid rgba(195, 169, 250, 0.1);
+}
+.tv-log-modal .tv-log__heading {
+  color: rgba(225, 210, 250, 0.86);
+}
+.tv-log-modal .tv-log__count {
+  background: rgba(167, 139, 250, 0.16);
+  color: rgba(231, 218, 255, 0.86);
+}
+.tv-log-modal .tv-log__filter {
+  color: rgba(211, 196, 238, 0.66);
+}
+.tv-log-modal .tv-log__filter--active {
+  border-color: rgba(188, 159, 255, 0.32);
+  background: linear-gradient(135deg, rgba(137, 92, 246, 0.3), rgba(103, 73, 157, 0.24));
+  color: #f4edff;
+}
+.tv-log-modal .tv-log {
+  border-top-color: rgba(195, 169, 250, 0.14);
+  scrollbar-color: var(--tv-log-accent) transparent;
+}
+.tv-log-modal .tv-log::-webkit-scrollbar-thumb {
+  background: var(--tv-log-accent);
+}
+.tv-log-modal .tv-log__item {
+  border-bottom-color: rgba(195, 169, 250, 0.08);
+  color: rgba(229, 219, 244, 0.84);
+}
+.tv-log-modal .tv-log__item:hover {
+  background: rgba(167, 139, 250, 0.08);
+}
+.tv-log-modal .tv-log__item:first-child {
+  color: #f6efff;
+  background: rgba(167, 139, 250, 0.1);
+}
+.tv-log-modal .tv-log__type {
+  color: rgba(194, 173, 235, 0.7);
+}
+.tv-log-modal .tv-log__time {
+  color: rgba(194, 173, 235, 0.56);
+}
+.tv-log-modal .tv-log__event:focus-visible {
+  outline-color: rgba(190, 164, 255, 0.92);
 }
 body.experiment-game-chrome-refined .tv-log-modal .tv-log__toolbar {
   padding-inline: 16px;
@@ -457,5 +548,7 @@ body.experiment-game-chrome-refined .tv-log-modal .tv-log__event {
   padding-inline: 16px;
 }
 @media (min-width: 700px) {
-  .tv-log-modal__backdrop { align-items: center; }
+  .tv-log-modal__backdrop {
+    align-items: center;
+  }
 }

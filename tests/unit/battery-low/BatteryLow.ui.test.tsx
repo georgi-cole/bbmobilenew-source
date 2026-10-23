@@ -2,7 +2,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import BatteryLow from '../../../src/components/VaultVerdict/VaultVerdict'
-import { createInitialContestant } from '../../../src/components/VaultVerdict/vaultVerdictLogic'
+import {
+  createInitialContestant,
+  getRevealEffectProfile,
+  getSpecialRevealLabel,
+} from '../../../src/components/VaultVerdict/vaultVerdictLogic'
 
 const participants = [
   { id: 'human', name: 'You', isHuman: true, precomputedScore: 90, previousPR: null },
@@ -31,6 +35,27 @@ function seedWithSpecialFifthPick() {
     }
   }
   throw new Error('Could not find a Battery Low seed with a special fifth reveal')
+}
+
+function seedWithMonitorEffectOnFirstPick() {
+  for (let seed = 1; seed <= 1000; seed += 1) {
+    const contestant = createInitialContestant(labParticipants[0]!, 0, seed + 101)
+    const firstPick = contestant.vaults.find((battery) => battery.displayNumber === 1)!
+    const nextPick = contestant.vaults.find((battery) => battery.displayNumber === 2)!
+    const firstProfile = getRevealEffectProfile(firstPick.amount, firstPick.specialEffect)
+    const hasNamedNonHeroDisplay = Boolean(
+      !firstProfile.hero && getSpecialRevealLabel(firstPick.amount, firstPick.specialEffect)
+    )
+    const nextPickHasMonitorEffect = Boolean(
+      getRevealEffectProfile(nextPick.amount, nextPick.specialEffect).hero ||
+      getSpecialRevealLabel(nextPick.amount, nextPick.specialEffect)
+    )
+
+    if (firstPick.amount === 4.04 && hasNamedNonHeroDisplay && !nextPickHasMonitorEffect) {
+      return seed
+    }
+  }
+  throw new Error('Could not find a Battery Low seed with a monitor effect on the first pick')
 }
 
 describe('Battery Low UI', () => {
@@ -80,7 +105,26 @@ describe('Battery Low UI', () => {
     expect(screen.getByRole('dialog', { name: 'Bank Offer' })).toBeInTheDocument()
   })
 
-  it('keeps a special-cell monitor reveal visible for three seconds before the offer', () => {
+  it('keeps a named monitor reveal visible until the next battery is opened', () => {
+    vi.useFakeTimers()
+    render(<BatteryLow seed={seedWithMonitorEffectOnFirstPick()} participants={labParticipants} />)
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Battery 8' })))
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Battery 1' })))
+
+    const heroStage = screen.getByLabelText(/Battery Low broadcast stage/i)
+    const firstReveal = heroStage.querySelector('.vault-verdict__hero-event')
+    expect(firstReveal).toBeInTheDocument()
+    expect(screen.getByText('4.04% · NOT FOUND')).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(15_000))
+    expect(heroStage.querySelector('.vault-verdict__hero-event')).toBe(firstReveal)
+
+    act(() => fireEvent.click(screen.getByRole('button', { name: 'Battery 2' })))
+    expect(heroStage.querySelector('.vault-verdict__hero-event')).not.toBeInTheDocument()
+  })
+
+  it('keeps a special-cell monitor reveal visible while the offer appears', () => {
     vi.useFakeTimers()
     render(<BatteryLow seed={seedWithSpecialFifthPick()} participants={labParticipants} />)
 
@@ -98,10 +142,11 @@ describe('Battery Low UI', () => {
     expect(screen.queryByRole('dialog', { name: 'Bank Offer' })).not.toBeInTheDocument()
 
     act(() => vi.advanceTimersByTime(1))
-    expect(heroStage.querySelector('.vault-verdict__hero-event')).not.toBeInTheDocument()
+    expect(heroStage.querySelector('.vault-verdict__hero-event')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Bank Offer' })).not.toBeInTheDocument()
 
     act(() => vi.advanceTimersByTime(200))
+    expect(heroStage.querySelector('.vault-verdict__hero-event')).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Bank Offer' })).toBeInTheDocument()
   })
 })

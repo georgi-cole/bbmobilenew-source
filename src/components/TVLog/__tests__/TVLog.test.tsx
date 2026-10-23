@@ -163,6 +163,23 @@ describe('TVLog — activity filters', () => {
     expect(screen.getByText('Vote')).toBeDefined()
     expect(container.querySelector('time[datetime]')).toBeTruthy()
   })
+
+  it('shows saved elimination vote totals in the log', () => {
+    const entries: TvEvent[] = [
+      makeEvent({
+        id: 'vote-result',
+        text: 'Vote results: Remy 9, Rae 2. Remy was eliminated.',
+        type: 'vote',
+        channels: ['mainLog'],
+        meta: { evictionVoteResults: true, voteCounts: { remy: 9, rae: 2 } },
+      }),
+    ]
+
+    render(<TVLog entries={entries} />)
+
+    expect(screen.getByText('Vote')).toBeDefined()
+    expect(screen.getByText('Vote results: Remy 9, Rae 2. Remy was eliminated.')).toBeDefined()
+  })
 })
 
 describe('TVLog — bounded rendering', () => {
@@ -242,7 +259,7 @@ describe('TVLog — refined on-demand module', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
     window.dispatchEvent(new CustomEvent('tv:open-game-log'))
     await waitFor(() => expect(screen.getByRole('dialog', { name: 'Game log' })).toBeDefined())
-    expect(screen.getByText('The hub settles in')).toBeDefined()
+    expect(screen.getByText('The Hub settles in')).toBeDefined()
 
     document.body.classList.remove('experiment-game-chrome-refined')
   })

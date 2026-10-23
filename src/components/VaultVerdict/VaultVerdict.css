@@ -805,7 +805,7 @@
       transparent 38%
     ),
     linear-gradient(90deg, rgba(4, 6, 19, 0.72), rgba(4, 7, 22, 0.36), rgba(4, 6, 19, 0.72));
-  animation: vault-verdict-hero-scene 1800ms ease-out both;
+  animation: vault-verdict-hero-scene 360ms ease-out both;
 }
 
 .vault-verdict__hero-event-halo {
@@ -2115,12 +2115,8 @@
   0% {
     opacity: 0;
   }
-  8%,
-  78% {
-    opacity: 1;
-  }
   100% {
-    opacity: 0;
+    opacity: 1;
   }
 }
 
@@ -2153,8 +2149,8 @@
     transform: scale(1) translateY(0);
   }
   100% {
-    opacity: 0;
-    transform: scale(1.04) translateY(-3px);
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
