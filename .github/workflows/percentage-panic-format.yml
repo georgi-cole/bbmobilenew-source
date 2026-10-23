@@ -5,6 +5,11 @@ on:
       - feature/percentage-panic-global-quiz
     paths:
       - .github/workflows/percentage-panic-format.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/percentage-panic-format.yml
 
 permissions:
   contents: write
