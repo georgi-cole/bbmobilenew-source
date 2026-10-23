@@ -1683,29 +1683,27 @@
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(239, 68, 68, 0.52);
-  border-radius: 7px;
-  color: #ff8f98;
-  background: rgba(76, 18, 31, 0.72);
-  font-size: 1.2rem;
-  font-weight: 700;
+  border: 0;
+  border-radius: 0;
+  color: #ff6674;
+  background: transparent;
+  font-size: 1.5rem;
+  font-weight: 600;
   line-height: 1;
   cursor: pointer;
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    text-shadow 0.15s ease;
 }
 
 .sp2-focus__clear:hover {
-  border-color: rgba(255, 87, 103, 0.88);
-  color: #fff0f1;
-  background: rgba(143, 29, 47, 0.82);
+  color: #ffb2b8;
 }
 
 .sp2-focus__clear:focus-visible {
-  outline: 2px solid rgba(255, 143, 152, 0.95);
-  outline-offset: 2px;
+  color: #fff0f1;
+  outline: none;
+  text-shadow: 0 0 0.55rem rgba(255, 102, 116, 0.9);
 }
 
 .sp2-focus__copy {
@@ -2527,8 +2525,9 @@
   width: auto;
   max-width: none;
   min-width: 3.8rem;
-  min-height: 36px;
-  padding: 0.04rem 0.22rem;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 0.22rem;
   border-radius: 0.52rem;
   font-size: 0.54rem;
   line-height: 1;
@@ -2537,7 +2536,14 @@
 }
 
 .sp2-footer--unified .ra-header__actions {
-  margin-right: 3.3rem;
+  margin-right: 0.7rem;
+}
+
+.sp2-footer--unified .ra-history-btn {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 0.5rem;
+  border-radius: 0.52rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2906,6 +2912,39 @@
     overflow: visible;
   }
 
+  .sp2-body--focused-target {
+    --sp2-focused-row-offset: 10rem;
+    --sp2-focused-row-inset: 0.75rem;
+    padding-top: 0;
+    background-color: #0b0810;
+  }
+
+  .sp2-body--focused-target::before {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    flex: 0 0 0.75rem;
+    width: 100%;
+    height: 0.75rem;
+    margin-bottom: -0.75rem;
+    background: #0b0810;
+    content: '';
+    pointer-events: none;
+  }
+
+  .sp2-body--focused-target > .sp2-focus--active {
+    position: sticky;
+    top: var(--sp2-focused-row-inset);
+    z-index: 7;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 92% 0%, rgba(109, 40, 217, 0.1), transparent 44%),
+      linear-gradient(135deg, #29252c 0%, #15121a 42%, #08070c 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .sp2-focus__copy {
     position: relative;
     z-index: 1;
@@ -2927,6 +2966,18 @@
     background: linear-gradient(180deg, #21142f, #170f22);
     box-shadow: 0 0.45rem 0.8rem rgba(8, 5, 13, 0.5);
     border-radius: 0.9rem 0.9rem 0.5rem 0.5rem;
+  }
+
+  .sp2-body--focused-target .sp2-moves__top {
+    top: calc(var(--sp2-focused-row-offset) + var(--sp2-focused-row-inset));
+    background: linear-gradient(180deg, #241633 0%, #170f22 100%);
+    background-color: #170f22;
+  }
+
+  .sp2-body--focused-target .sp2-move-filters {
+    background: #100b18;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .sp2-moves__heading {

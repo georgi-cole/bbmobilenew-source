@@ -545,6 +545,7 @@ export default function SocialPanelV2() {
   const allianceSelectionPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const executeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isExecutingRef = useRef(false)
+  const socialBodyRef = useRef<HTMLDivElement | null>(null)
   const focusPublicRequest = useCallback(() => {
     if (!publicFocus) return
     setPrimaryTargetId(publicFocus.primaryTargetId)
@@ -1868,6 +1869,42 @@ export default function SocialPanelV2() {
     usesMultipleTargets,
   ])
 
+  const hasSocialHumanPlayer = Boolean(humanPlayer)
+  useEffect(() => {
+    const body = socialBodyRef.current
+    const focus = body?.querySelector<HTMLElement>('.sp2-focus--active')
+    if (!body) return
+
+    if (!focus || !body.classList.contains('sp2-body--focused-target')) {
+      body.style.removeProperty('--sp2-focused-row-offset')
+      return
+    }
+
+    const measureStickyOffset = () =>
+      body.style.setProperty(
+        '--sp2-focused-row-offset',
+        `${Math.max(0, focus.getBoundingClientRect().height - 4)}px`
+      )
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureStickyOffset)
+    resizeObserver?.observe(focus)
+    measureStickyOffset()
+
+    return () => {
+      resizeObserver?.disconnect()
+      body.style.removeProperty('--sp2-focused-row-offset')
+    }
+  }, [
+    open,
+    hasSocialHumanPlayer,
+    primaryTargetId,
+    selectedTargets.size,
+    multiSelectActive,
+    selectedAllianceId,
+    selectedActionId,
+  ])
+
   if (!open || !humanPlayer) return null
 
   const allNonUser = game.players.filter((player) => !player.isUser && player.status !== 'evicted')
@@ -2229,6 +2266,7 @@ export default function SocialPanelV2() {
 
         <div
           id="sp2-body"
+          ref={socialBodyRef}
           className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
         >
           <section
