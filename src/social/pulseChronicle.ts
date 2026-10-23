@@ -2,6 +2,7 @@ import type { PulseChronicle, Player } from '../types'
 import type { SocialActionLogEntry } from './types'
 import type { RealityDomainState, RealitySocialEvent } from './reality/types'
 import { canReadAllianceEvent, visibleRealityEvents } from './reality'
+import { getPulseChronicleOpening, type PulseChronicleTheme } from './pulseChronicleCopy'
 export interface ChronicleInput {
   gameId: string
   season: number
@@ -15,6 +16,7 @@ export interface ChronicleInput {
   episode?: PulseChronicleIdentity
   actionHistoryAfterTimestamp?: number
   realityEventsAfterSequence?: number
+  theme?: PulseChronicleTheme
 }
 type Category = 'power' | 'nominations' | 'safety' | 'social' | 'eviction'
 interface StoryMoment {
@@ -63,7 +65,7 @@ const safeName = (name: string) =>
   name
     .replace(/[\r\n<>]/g, '')
     .trim()
-    .slice(0, 48) || 'a housemate'
+    .slice(0, 48) || 'a hubmate'
 function hash(value: string): number {
   let result = 2166136261
   for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619)
@@ -395,7 +397,7 @@ function chronicleEvent(
                   : choose(
                       [
                         target +
-                          ' was voted out of the Hub. One fewer housemate, and plenty more unfinished business.',
+                          ' was voted out of the Hub. One fewer hubmate, and plenty more unfinished business.',
                         'The votes were in, and ' +
                           target +
                           ' was sent packing. The Hub does not wait for anyone.',
@@ -466,7 +468,7 @@ function headline(moments: StoryMoment[], seed: string): string {
     return choose(['Power, Panic & a Final Goodbye', 'Safety, Schemes & a Sudden Exit'], seed)
   if (has('eviction'))
     return choose(
-      ['A Day of Deals and Goodbyes', 'One Less Housemate, More Unfinished Business'],
+      ['A Day of Deals and Goodbyes', 'One Less Hubmate, More Unfinished Business'],
       seed
     )
   if (has('nominations'))
@@ -483,7 +485,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   const seed = input.episode ? daySeed + ':' + input.episode.key : daySeed
   const byId = new Map(input.players.map((player) => [player.id, safeName(player.name)]))
   const name = (id: string | undefined) =>
-    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'a housemate')) : 'a housemate'
+    id ? (id === input.humanId ? 'you' : (byId.get(id) ?? 'a hubmate')) : 'a hubmate'
   const eventSources = [
     ...visibleRealityEvents(input.reality, { actorId: input.humanId }),
     ...Object.values(input.reality.alliances).flatMap((alliance) => alliance.history ?? []),
@@ -598,7 +600,9 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
   )
   const known = featured.length > 0
   let introduction = ''
-  if (known && input.weather && wetWeather.has(input.weather))
+  const themeOpening = getPulseChronicleOpening(input.theme ?? { format: 'classic' }, seed)
+  if (themeOpening) introduction = themeOpening
+  else if (known && input.weather && wetWeather.has(input.weather))
     introduction = choose(
       [
         'The rain came down, but the real storm was brewing inside the Hub.',
@@ -615,7 +619,7 @@ export function composePulseChronicle(input: ChronicleInput): PulseChronicle {
     introduction = choose(
       [
         'Another day in the Hub, and peace was apparently not on the schedule.',
-        'The cameras were rolling, and the housemates wasted little time giving them something to watch.',
+        'The cameras were rolling, and the hubmates wasted little time giving them something to watch.',
       ],
       seed
     )

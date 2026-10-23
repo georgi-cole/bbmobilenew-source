@@ -52,6 +52,7 @@ import {
   type AllianceManagementContext,
 } from '../../../social/reality/allianceManagement'
 import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
+import type { WeekendInterludeState } from '../../../types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ function makeStore(overrides?: {
   playerStatusOverrides?: Record<string, RootState['game']['players'][number]['status']>
   lohId?: string | null
   dramaMode?: boolean
+  weekendInterlude?: WeekendInterludeState | null
   posWinnerId?: string | null
   povSavedId?: string | null
   nomineeIds?: string[]
@@ -101,6 +103,7 @@ function makeStore(overrides?: {
       posWinnerId: overrides?.posWinnerId ?? defaultState.game.posWinnerId,
       povSavedId: overrides?.povSavedId ?? defaultState.game.povSavedId,
       nomineeIds: overrides?.nomineeIds ?? defaultState.game.nomineeIds,
+      weekendInterlude: overrides?.weekendInterlude ?? defaultState.game.weekendInterlude,
     },
     social: defaultState.social,
     settings: {
@@ -223,6 +226,31 @@ describe('SocialPanelV2 – visibility', () => {
     expect(screen.getByRole('dialog')).toBeDefined()
   })
 
+  it('keeps weekend resources in the header beside Weekend Social without the subtitle', () => {
+    const store = makeStore({
+      phase: 'social_2',
+      weekendInterlude: {
+        active: true,
+        afterDay: 5,
+        weekendDay: 1,
+        episode: 'party',
+        stage: 'social',
+        wallet: { energy: 23, influence: 999, info: 999 },
+      },
+    })
+    act(() => store.dispatch(openSocialPanel()))
+    renderPanel(store)
+
+    const dialog = screen.getByRole('dialog', { name: 'Weekend Social' })
+    const header = dialog.querySelector('.sp2-header')
+    expect(header).not.toBeNull()
+    expect(within(header as HTMLElement).getByText('Weekend Social')).toBeInTheDocument()
+    expect(within(header as HTMLElement).queryByText(/Weekend Day/)).toBeNull()
+    expect(within(header as HTMLElement).getByLabelText('Energy: 23')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Influence: 999')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Info: 999')).toBeInTheDocument()
+  })
+
   it('renders for a nominated human player while still in the house', () => {
     const store = makeStore({ phase: 'social_1', humanStatus: 'nominated' })
     act(() => {
@@ -300,10 +328,15 @@ describe('SocialPanelV2 – layout', () => {
       'true'
     )
 
-    fireEvent.click(targetButton)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${target.name} and show roster`,
+      })
+    )
 
     expect(screen.queryByRole('button', { name: /Compliment/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Watch Room/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 
   it('renders player roster placeholder', () => {
@@ -368,8 +401,13 @@ describe('SocialPanelV2 – layout', () => {
     fireEvent.click(card)
     expect(card).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(card)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${player.name} and show roster`,
+      })
+    )
     expect(card).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 })
 
@@ -452,6 +490,8 @@ describe('SocialPanelV2 – execute flow', () => {
     ).toBeVisible()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
+    expect(btn).toHaveClass('sp2-moves__execute')
+    expect(btn.closest('.sp2-moves__heading')).not.toBeNull()
   })
 
   it('execute stays disabled until a target and action have both been selected', () => {
@@ -460,9 +500,17 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
     const player = store.getState().game.players.find((p) => !p.isUser)!
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
+    expect(screen.queryByRole('region', { name: 'Player roster' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: player.name })).toBeVisible()
     expect(btn).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect(btn).toBeEnabled()
+    expect(
+      screen.queryByRole('group', { name: `Selected hubmate: ${player.name}` })
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: `Deselect ${player.name} and show roster` }))
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
+    expect(btn).toBeDisabled()
   })
 
   it('group chat requires two people and its cost grows with the group', () => {
@@ -659,8 +707,10 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(activity.querySelectorAll('.ra-entry__narrative')).toHaveLength(1)
     expect(activity).not.toHaveTextContent(receipt!.summary)
     expect(document.querySelector('.sp2-moves__selection')).toBeNull()
-    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
+    expect(activity.closest('.sp2-footer')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Dismiss current result' })).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /full response|expand the full result/i })
     ).toBeNull()
@@ -720,9 +770,15 @@ describe('SocialPanelV2 – execute flow', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(secondTarget.name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${secondTarget.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(firstTarget.name, 'i') })[0], {
       shiftKey: true,
     })
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
     const logs = store.getState().social.sessionLogs
@@ -751,13 +807,11 @@ describe('SocialPanelV2 – success pulse', () => {
 
     const btn = screen.getByRole('button', { name: 'Execute' })
     const frozenMoveControls = btn.closest('.sp2-moves__top')
-    expect(frozenMoveControls).toBeNull()
-    const moveControls = document.querySelector('.sp2-moves__top')
-    expect(moveControls).not.toBeNull()
+    expect(frozenMoveControls).not.toBeNull()
     expect(
-      within(moveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
+      within(frozenMoveControls as HTMLElement).getByRole('tab', { name: 'All moves' })
     ).toBeVisible()
-    expect(btn.closest('.sp2-footer')).not.toBeNull()
+    expect(btn.closest('.sp2-footer')).toBeNull()
     expect(document.querySelector('.ra-action-control')).toBeNull()
     expect((btn as HTMLElement).className).toContain('sp2-execute--pulse')
   })
@@ -1010,6 +1064,11 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(outsider.name) }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
 
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${outsider.name} and show roster`,
+      })
+    )
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(ally.name) }))
     expect(screen.getByRole('button', { name: /Consult Alliance/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
@@ -1162,6 +1221,11 @@ describe('SocialPanelV2 – subject picker', () => {
     // Switch primary target to another non-LOH player — action should be cleared
     // because the new target doesn't have LOH status, so pitch_target disappears.
     const altTarget = players.find((p) => p.id !== lohPlayer.id)!
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${lohPlayer.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(altTarget.name, 'i') })[0])
     // After switching to a non-LOH target, pitch_target is no longer available
     // and the subject picker should no longer be rendered.
@@ -1341,7 +1405,7 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
     }
     expect(within(foundAllianceCard).getByLabelText('Energy cost: 3')).toBeVisible()
     expect(within(foundAllianceCard).getByLabelText('Influence cost: 5')).toBeVisible()
-    expect(document.querySelector('.sp2-footer__cost')).toBeVisible()
+    expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(screen.getByRole('button', { name: 'Propose group' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Propose group' }))
     const formedReality = structuredClone(store.getState().social.reality)
@@ -1458,6 +1522,9 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
         .filter((button) => button.getAttribute('aria-pressed') === 'true')
     ).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Start vote' })).toBeDisabled()
+    const startVote = screen.getByRole('button', { name: 'Start vote' })
+    expect(startVote).toHaveClass('sp2-moves__execute')
+    expect(startVote.closest('.sp2-moves__heading')).not.toBeNull()
     expect(Object.keys(store.getState().social.reality.allianceManagement.requests)).toHaveLength(0)
     const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
     expect(picker.getAllByRole('button')).toHaveLength(2)

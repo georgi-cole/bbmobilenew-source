@@ -380,6 +380,11 @@
   border-bottom-color: rgba(96, 165, 250, 0.24);
 }
 
+.sp2-modal--weekend .sp2-header__resources {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}
+
 .sp2-header {
   min-width: 0;
   flex: 0 0 auto;
@@ -1433,6 +1438,10 @@
   background: linear-gradient(180deg, rgba(10, 7, 17, 0.08), rgba(10, 7, 17, 0.35));
 }
 
+.sp2-body--focused-target {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .sp2-hubmates,
 .sp2-focus,
 .sp2-moves {
@@ -1455,6 +1464,10 @@
   flex-direction: column;
   gap: 0.34rem;
   padding: 0.52rem;
+}
+
+.sp2-hubmates[hidden] {
+  display: none;
 }
 
 .sp2-section-heading,
@@ -1660,10 +1673,47 @@
   height: 4.75rem;
 }
 
+.sp2-focus__clear {
+  position: absolute;
+  top: 0.42rem;
+  right: 0.42rem;
+  z-index: 2;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #ff6674;
+  background: transparent;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    text-shadow 0.15s ease;
+}
+
+.sp2-focus__clear:hover {
+  color: #ffb2b8;
+}
+
+.sp2-focus__clear:focus-visible {
+  color: #fff0f1;
+  outline: none;
+  text-shadow: 0 0 0.55rem rgba(255, 102, 116, 0.9);
+}
+
 .sp2-focus__copy {
   position: relative;
   z-index: 1;
   min-width: 0;
+}
+
+.sp2-focus__copy--clearable {
+  padding-right: 1.9rem;
 }
 
 .sp2-focus__eyebrow {
@@ -1993,6 +2043,15 @@
     grid-template-areas:
       'hubmates focus'
       'hubmates moves';
+    overflow: hidden;
+  }
+
+  .sp2-body.sp2-body--focused-target {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'focus'
+      'moves';
     overflow: hidden;
   }
 
@@ -2426,6 +2485,8 @@
 .sp2-footer.sp2-footer--unified {
   display: block;
   min-height: 0;
+  max-height: min(46dvh, 22rem);
+  overflow: hidden;
   padding: 0.36rem 0.7rem calc(0.44rem + env(safe-area-inset-bottom));
 }
 
@@ -2439,32 +2500,50 @@
   -webkit-backdrop-filter: none;
 }
 
+.sp2-footer--unified .ra-content {
+  max-height: min(36dvh, 18rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .sp2-moves__top {
   position: sticky;
   top: 0;
   z-index: 4;
+  isolation: isolate;
   margin: -0.52rem -0.52rem 0;
   padding: 0.52rem;
   display: flex;
   flex-direction: column;
   gap: 0.38rem;
-  background: linear-gradient(180deg, rgba(28, 17, 39, 0.98), rgba(20, 13, 29, 0.96));
+  background: linear-gradient(180deg, #21142f, #170f22);
+  box-shadow: 0 0.45rem 0.8rem rgba(8, 5, 13, 0.5);
 }
 
 .sp2-moves__execute {
   width: auto;
   max-width: none;
-  min-width: 4.8rem;
-  min-height: 29px;
-  padding: 0.16rem 0.46rem;
+  min-width: 3.8rem;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 0.22rem;
   border-radius: 0.52rem;
-  font-size: 0.59rem;
+  font-size: 0.54rem;
   line-height: 1;
   flex-shrink: 0;
+  white-space: normal;
 }
 
 .sp2-footer--unified .ra-header__actions {
-  margin-right: 3.3rem;
+  margin-right: 0.7rem;
+}
+
+.sp2-footer--unified .ra-history-btn {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 0.5rem;
+  border-radius: 0.52rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2749,80 +2828,65 @@
   }
 }
 
-/* ─── Weekend resource header fit hardening ────────────────────────────────
- * Weekend values are intentionally large (for example 999 influence/info).
- * Give those values their own row on phones instead of clipping them inside
- * the normal one-line Social header.
- * ─────────────────────────────────────────────────────────────────────────── */
+/* Keep weekend resources compact beside the title on narrow screens. */
 @media (max-width: 699px) {
   .sp2-modal--weekend .sp2-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      'identity close'
-      'resources resources';
+    display: flex;
     align-items: center;
-    column-gap: 0.55rem;
-    row-gap: 0.36rem;
-    padding-bottom: 0.52rem;
+    gap: 0.3rem;
   }
 
   .sp2-modal--weekend .sp2-header__identity {
-    grid-area: identity;
     min-width: 0;
+    flex: 0 1 auto;
     padding-top: 0;
   }
 
-  .sp2-modal--weekend .sp2-header__title,
-  .sp2-modal--weekend .sp2-header__subtitle {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .sp2-modal--weekend .sp2-header__resources {
-    grid-area: resources;
-    width: 100%;
+    width: auto;
     min-width: 0;
     overflow: visible;
     transform: none;
-    justify-content: stretch;
-    gap: 0.36rem;
+    justify-content: flex-end;
+    gap: 0.16rem;
   }
 
   .sp2-modal--weekend .sp2-energy-chip,
   .sp2-modal--weekend .sp2-resource-chip {
     min-width: 0;
-    flex: 1 1 0;
+    flex: 0 0 auto;
     justify-content: center;
-    padding-inline: 0.4rem;
-    font-size: 0.68rem;
-  }
-
-  .sp2-modal--weekend .sp2-header__close {
-    grid-area: close;
-    transform: none;
+    min-height: 1.52rem;
+    padding-inline: 0.24rem;
+    font-size: 0.62rem;
   }
 }
 
 @media (max-width: 359px) {
   .sp2-modal--weekend .sp2-header {
-    row-gap: 0.3rem;
+    gap: 0.2rem;
+  }
+
+  .sp2-modal--weekend .sp2-header__title {
+    max-width: 6.1rem;
+    overflow: hidden;
+    font-size: 0.61rem;
+    letter-spacing: 0.07em;
+    text-overflow: ellipsis;
   }
 
   .sp2-modal--weekend .sp2-header__resources {
-    gap: 0.24rem;
+    gap: 0.12rem;
   }
 
   .sp2-modal--weekend .sp2-energy-chip,
   .sp2-modal--weekend .sp2-resource-chip {
-    padding-inline: 0.26rem;
-    font-size: 0.63rem;
+    padding-inline: 0.16rem;
+    font-size: 0.57rem;
   }
 }
 
-/* Final narrow-screen layout overrides: all content scrolls together, while
- * the result remains beside its Hub Wire history and the command bar stays put. */
+/* Keep move categories and Execute visible while the long action list scrolls. */
 @media (max-width: 699px) {
   .sp2-body {
     display: flex;
@@ -2848,6 +2912,39 @@
     overflow: visible;
   }
 
+  .sp2-body--focused-target {
+    --sp2-focused-row-offset: 10rem;
+    --sp2-focused-row-inset: 0.75rem;
+    padding-top: 0;
+    background-color: #0b0810;
+  }
+
+  .sp2-body--focused-target::before {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    flex: 0 0 0.75rem;
+    width: 100%;
+    height: 0.75rem;
+    margin-bottom: -0.75rem;
+    background: #0b0810;
+    content: '';
+    pointer-events: none;
+  }
+
+  .sp2-body--focused-target > .sp2-focus--active {
+    position: sticky;
+    top: var(--sp2-focused-row-inset);
+    z-index: 7;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 92% 0%, rgba(109, 40, 217, 0.1), transparent 44%),
+      linear-gradient(135deg, #29252c 0%, #15121a 42%, #08070c 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
   .sp2-focus__copy {
     position: relative;
     z-index: 1;
@@ -2860,100 +2957,55 @@
   }
 
   .sp2-moves__top {
-    position: static;
-    z-index: auto;
-    margin: 0;
-    padding: 0;
-    background: transparent;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    isolation: isolate;
+    margin: -0.48rem -0.48rem 0;
+    padding: 0.48rem;
+    background: linear-gradient(180deg, #21142f, #170f22);
+    box-shadow: 0 0.45rem 0.8rem rgba(8, 5, 13, 0.5);
+    border-radius: 0.9rem 0.9rem 0.5rem 0.5rem;
+  }
+
+  .sp2-body--focused-target .sp2-moves__top {
+    top: calc(var(--sp2-focused-row-offset) + var(--sp2-focused-row-inset));
+    background: linear-gradient(180deg, #241633 0%, #170f22 100%);
+    background-color: #170f22;
+  }
+
+  .sp2-body--focused-target .sp2-move-filters {
+    background: #100b18;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .sp2-moves__heading {
     align-items: center;
   }
 
-  .sp2-moves .sp2-recent.sp2-recent--unified {
-    height: auto;
-    min-height: 0;
-    margin-top: 0.4rem;
-    padding: 0.45rem 0.05rem 0.05rem;
-    overflow: visible;
-    border-top: 1px solid rgba(218, 199, 176, 0.13);
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .sp2-moves .ra-container,
-  .sp2-moves .ra-content,
-  .sp2-moves .ra-container--expanded .ra-content {
-    max-height: none;
-    overflow: visible;
-  }
-
   .sp2-footer.sp2-footer--unified {
     display: block;
     min-height: 0;
-    padding: 0.48rem max(0.68rem, env(safe-area-inset-right))
+    max-height: min(48dvh, 24rem);
+    padding: 0.42rem max(0.68rem, env(safe-area-inset-right))
       max(0.48rem, env(safe-area-inset-bottom)) max(0.68rem, env(safe-area-inset-left));
   }
 
-  .sp2-footer__commandbar {
-    display: grid;
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .sp2-footer__cost {
-    min-width: 0;
-    overflow: hidden;
-    color: rgba(244, 235, 255, 0.72);
-    font-size: 0.68rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .sp2-footer__feedback {
-    grid-column: 1 / -1;
-    width: auto;
-    max-height: 3rem;
+  .sp2-footer--unified .ra-content,
+  .sp2-footer--unified .ra-container--expanded .ra-content {
+    max-height: min(36dvh, 18rem);
+    overflow-x: hidden;
     overflow-y: auto;
-    color: rgba(244, 235, 255, 0.9);
-    font-size: 0.68rem;
-    line-height: 1.35;
-  }
-
-  .sp2-clear-outcome {
-    min-width: 3.4rem;
-    min-height: 44px;
-    padding: 0.35rem 0.5rem;
-    border: 1px solid rgba(210, 193, 230, 0.25);
-    border-radius: 0.72rem;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(244, 235, 255, 0.78);
-    font: inherit;
-    font-size: 0.67rem;
-    font-weight: 750;
-    cursor: pointer;
-  }
-
-  .sp2-footer__commandbar .sp2-execute {
-    min-width: 5.1rem;
-    min-height: 44px;
-    max-width: none;
-    padding: 0.42rem 0.7rem;
-    font-size: 0.72rem;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
 @media (max-width: 359px) {
-  .sp2-footer__commandbar {
-    gap: 0.28rem;
-  }
-
-  .sp2-footer__commandbar .sp2-execute {
-    min-width: 4.5rem;
-    padding-inline: 0.45rem;
+  .sp2-moves__execute {
+    min-width: 3.7rem;
+    padding-inline: 0.18rem;
+    font-size: 0.52rem;
   }
 }

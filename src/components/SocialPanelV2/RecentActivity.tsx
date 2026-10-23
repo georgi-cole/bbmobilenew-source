@@ -19,6 +19,8 @@ export interface RecentActivityProps {
   feedback?: string | null
   /** Controls which completed result is shown outside the expanded history. */
   activeReceiptId?: string | null
+  /** Hides the current receipt while preserving it in History. */
+  onDismissResult?: () => void
 }
 
 const GENERIC_OUTCOME_PREFIXES = [
@@ -119,6 +121,7 @@ export default function RecentActivity({
   onExpandedChange,
   feedback,
   activeReceiptId,
+  onDismissResult,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
   const [clearedBefore, setClearedBefore] = useState(0)
@@ -243,12 +246,26 @@ export default function RecentActivity({
 
       <div className="ra-content" ref={contentRef}>
         {feedback && (
-          <p className="ra-feedback" role="status">
-            {feedback}
-          </p>
+          <div className="ra-feedback-wrap">
+            <p className="ra-feedback" role="status">
+              {feedback}
+            </p>
+            {onDismissResult && (
+              <button
+                className="ra-entry__dismiss"
+                type="button"
+                aria-label="Dismiss current result"
+                onClick={onDismissResult}
+              >
+                ×
+              </button>
+            )}
+          </div>
         )}
         {visibleLogs.length === 0 && !feedback ? (
-          <span className="ra-empty">No recent actions.</span>
+          compact && !expanded ? null : (
+            <span className="ra-empty">No recent actions.</span>
+          )
         ) : compact &&
           !expanded &&
           visibleLogs.length > 0 &&
@@ -343,23 +360,14 @@ export default function RecentActivity({
               const narrativeText = narrative.startsWith('You performed')
                 ? `${actionTitle} with ${audienceName}.`
                 : narrative
-              const shiftEntries = Object.entries(entry.receipt?.relationshipShifts ?? {}).filter(
-                ([, delta]) => delta !== 0
+              const hasRelationshipMeasurement = entry.receipt?.relationshipShifts !== undefined
+              const relationshipTargets = Object.entries(entry.receipt?.relationshipShifts ?? {})
+              const isCurrentResult = Boolean(
+                compact &&
+                !expanded &&
+                activeReceiptId &&
+                (entry.id === activeReceiptId || entry.receipt?.groupId === activeReceiptId)
               )
-              const relationshipEffect =
-                shiftEntries.length === 1
-                  ? `Relationship ${shiftEntries[0][1] > 0 ? '+' : '−'}${Math.abs(shiftEntries[0][1])}.`
-                  : shiftEntries.length > 1
-                    ? `Relationship shifts: ${shiftEntries
-                        .map(([playerId, delta]) => {
-                          const name = playerById.get(playerId)?.name ?? playerId
-                          return `${name} ${delta > 0 ? '+' : '−'}${Math.abs(delta)}`
-                        })
-                        .join(', ')}.`
-                    : ''
-              const displayNarrative = relationshipEffect
-                ? `${narrativeText} ${relationshipEffect}`
-                : narrativeText
               const key =
                 entry.id ??
                 `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
@@ -387,7 +395,55 @@ export default function RecentActivity({
                         ? ` · ${audienceName}`
                         : ''} · {outcomeLabel}
                     </span>
-                    <span className="ra-entry__narrative">{displayNarrative}</span>
+                    <span className="ra-entry__narrative">{narrativeText}</span>
+                    {hasRelationshipMeasurement && (
+                      <span className="ra-entry__relationship" aria-label="Relationship effects">
+                        <span className="ra-entry__relationship-label">Relationship</span>
+                        {relationshipTargets.length > 0 ? (
+                          relationshipTargets.map(([playerId, delta]) => {
+                            const name = playerById.get(playerId)?.name ?? playerId
+                            const strength = Math.abs(delta) >= 4 ? 'strong' : 'mild'
+                            const direction = delta === 0 ? 'neutral' : delta > 0 ? 'up' : 'down'
+                            const symbol =
+                              direction === 'neutral'
+                                ? '—'
+                                : direction === 'up'
+                                  ? strength === 'strong'
+                                    ? '↑↑'
+                                    : '↑'
+                                  : strength === 'strong'
+                                    ? '↓↓'
+                                    : '↓'
+                            const effect =
+                              direction === 'neutral'
+                                ? 'unchanged'
+                                : direction === 'up'
+                                  ? strength === 'strong'
+                                    ? 'strongly improved'
+                                    : 'improved'
+                                  : strength === 'strong'
+                                    ? 'strongly worsened'
+                                    : 'worsened'
+                            return (
+                              <span
+                                className={`ra-entry__relationship-change ra-entry__relationship-change--${direction}`}
+                                aria-label={`${name}: relationship ${effect}`}
+                                key={playerId}
+                              >
+                                <span>{name}</span> <span aria-hidden="true">{symbol}</span>
+                              </span>
+                            )
+                          })
+                        ) : (
+                          <span
+                            className="ra-entry__relationship-change ra-entry__relationship-change--neutral"
+                            aria-label="Relationship unchanged"
+                          >
+                            <span aria-hidden="true">—</span> Unchanged
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </span>
                   <span
                     className="ra-entry__time"
@@ -395,6 +451,16 @@ export default function RecentActivity({
                   >
                     {getRelativeTime(entry.timestamp)}
                   </span>
+                  {isCurrentResult && onDismissResult && (
+                    <button
+                      className="ra-entry__dismiss"
+                      type="button"
+                      aria-label="Dismiss current result"
+                      onClick={onDismissResult}
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               )
             })}

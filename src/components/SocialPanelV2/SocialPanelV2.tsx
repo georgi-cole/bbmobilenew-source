@@ -53,6 +53,7 @@ import { validateSocialExecution } from '../../social/socialExecutionGuard'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
 import { executeHumanRealityAction } from '../../social/reality/humanFlow'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { getPulseChronicleTheme } from '../../social/pulseChronicleTheme'
 import {
   ALLIANCE_LIMITS,
   allianceDisplayLabel,
@@ -272,6 +273,7 @@ export default function SocialPanelV2() {
     () => resolveWeatherDay(game.gameId, game.week).condition,
     [game.gameId, game.week]
   )
+  const pulseTheme = useMemo(() => getPulseChronicleTheme(game, game.week), [game])
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
     weekendActive &&
@@ -541,6 +543,7 @@ export default function SocialPanelV2() {
   const allianceSelectionPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const executeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isExecutingRef = useRef(false)
+  const socialBodyRef = useRef<HTMLDivElement | null>(null)
   const focusPublicRequest = useCallback(() => {
     if (!publicFocus) return
     setPrimaryTargetId(publicFocus.primaryTargetId)
@@ -1864,6 +1867,42 @@ export default function SocialPanelV2() {
     usesMultipleTargets,
   ])
 
+  const hasSocialHumanPlayer = Boolean(humanPlayer)
+  useEffect(() => {
+    const body = socialBodyRef.current
+    const focus = body?.querySelector<HTMLElement>('.sp2-focus--active')
+    if (!body) return
+
+    if (!focus || !body.classList.contains('sp2-body--focused-target')) {
+      body.style.removeProperty('--sp2-focused-row-offset')
+      return
+    }
+
+    const measureStickyOffset = () =>
+      body.style.setProperty(
+        '--sp2-focused-row-offset',
+        `${Math.max(0, focus.getBoundingClientRect().height - 4)}px`
+      )
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureStickyOffset)
+    resizeObserver?.observe(focus)
+    measureStickyOffset()
+
+    return () => {
+      resizeObserver?.disconnect()
+      body.style.removeProperty('--sp2-focused-row-offset')
+    }
+  }, [
+    open,
+    hasSocialHumanPlayer,
+    primaryTargetId,
+    selectedTargets.size,
+    multiSelectActive,
+    selectedAllianceId,
+    selectedActionId,
+  ])
+
   if (!open || !humanPlayer) return null
 
   const allNonUser = game.players.filter((player) => !player.isUser && player.status !== 'evicted')
@@ -1917,6 +1956,8 @@ export default function SocialPanelV2() {
   const focusedPlayer = focusedTargetId
     ? (rosterPlayers.find((player) => player.id === focusedTargetId) ?? null)
     : null
+  const collapseRosterForFocusedPlayer =
+    Boolean(focusedPlayer) && !usesMultipleTargets && !showAlliancePicker && !selectedAlliance
   const selectedReunionGuest = selectedReunionGuestId
     ? (rosterPlayers.find((player) => player.id === selectedReunionGuestId) ?? null)
     : null
@@ -2085,11 +2126,7 @@ export default function SocialPanelV2() {
             <span className="sp2-header__title">
               {weekendActive ? 'Weekend Social' : dramaMode ? 'Reality Mode' : 'Social Phase'}
             </span>
-            <span className="sp2-header__subtitle">
-              {weekendActive
-                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · make the most of the Hub time`
-                : 'Hub relationships'}
-            </span>
+            {!weekendActive && <span className="sp2-header__subtitle">Hub relationships</span>}
           </span>
           <div
             className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}${weekendActive ? ' sp2-header__resources--weekend' : ''}`}
@@ -2168,6 +2205,7 @@ export default function SocialPanelV2() {
               pulseChronicles={game.pulseChronicles}
               weekendInterlude={game.weekendInterlude}
               weatherCondition={pulseWeather}
+              pulseTheme={pulseTheme}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}
@@ -2224,11 +2262,16 @@ export default function SocialPanelV2() {
           )}
         </div>
 
-        <div id="sp2-body" className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}`}>
+        <div
+          id="sp2-body"
+          ref={socialBodyRef}
+          className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
+        >
           <section
             className="sp2-hubmates"
             aria-label={showPlayerRoster ? 'Player roster' : 'Choose an alliance'}
             data-reality-tutorial="hubmates"
+            hidden={collapseRosterForFocusedPlayer}
           >
             <div className="sp2-section-heading">
               <span>
@@ -2394,6 +2437,15 @@ export default function SocialPanelV2() {
             >
               {focusedPlayer ? (
                 <>
+                  <button
+                    className="sp2-focus__clear"
+                    type="button"
+                    aria-label={`Deselect ${focusedPlayer.name} and show roster`}
+                    title="Deselect hubmate"
+                    onClick={() => handleSelectionChange(new Set(), { primaryTargetId: null })}
+                  >
+                    ×
+                  </button>
                   <div className="sp2-focus__portrait">
                     <PlayerAvatar
                       player={focusedPlayer}
@@ -2403,7 +2455,7 @@ export default function SocialPanelV2() {
                       relationshipTags={focusedTags}
                     />
                   </div>
-                  <div className="sp2-focus__copy">
+                  <div className="sp2-focus__copy sp2-focus__copy--clearable">
                     <span className="sp2-focus__eyebrow">Your read on</span>
                     <h2>{focusedPlayer.name}</h2>
                     <div className="sp2-focus__status-line">
@@ -2511,6 +2563,16 @@ export default function SocialPanelV2() {
                     {selectedReunionGuest ? 'Choose your response' : 'Set the tone'}
                   </span>
                 </div>
+                <button
+                  className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
+                  type="button"
+                  disabled={!canExecute}
+                  aria-label={executeCopy}
+                  aria-busy={executing}
+                  onClick={handleExecute}
+                >
+                  {executeCopy}
+                </button>
               </div>
               {!selectedReunionGuest && (
                 <div className="sp2-move-filters" role="tablist" aria-label="Action categories">
@@ -2703,9 +2765,6 @@ export default function SocialPanelV2() {
                 )}
               </div>
             )}
-            <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
-              <RecentActivity players={game.players} compact activeReceiptId={activeReceiptId} />
-            </div>
           </section>
         </div>
 
@@ -2715,38 +2774,14 @@ export default function SocialPanelV2() {
               🤰 ✨ 🍼 💜 ✨
             </span>
           )}
-          <div className="sp2-footer__commandbar">
-            <span className="sp2-footer__cost">
-              {totalCosts && selectedAction
-                ? [
-                    totalCosts.energy ? `⚡ ${totalCosts.energy}` : null,
-                    totalCosts.influence ? `🤝 ${totalCosts.influence}` : null,
-                    totalCosts.info ? `💡 ${totalCosts.info}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'No resource cost'
-                : 'Choose a move'}
-            </span>
-            {footerFeedback && (
-              <span className="sp2-footer__feedback" role="status">
-                {footerFeedback}
-              </span>
-            )}
-            {Boolean(activeReceiptId || feedbackMsg) && (
-              <button className="sp2-clear-outcome" type="button" onClick={clearCurrentOutcome}>
-                Clear
-              </button>
-            )}
-            <button
-              className={`sp2-execute sp2-moves__execute${successPulse ? ' sp2-execute--pulse' : ''}`}
-              type="button"
-              disabled={!canExecute}
-              aria-label={executeCopy}
-              aria-busy={executing}
-              onClick={handleExecute}
-            >
-              {executeCopy}
-            </button>
+          <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
+            <RecentActivity
+              players={game.players}
+              compact
+              activeReceiptId={activeReceiptId}
+              feedback={footerFeedback}
+              onDismissResult={clearCurrentOutcome}
+            />
           </div>
         </footer>
       </div>
