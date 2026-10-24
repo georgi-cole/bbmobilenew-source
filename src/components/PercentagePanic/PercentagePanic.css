@@ -634,3 +634,39 @@
   background: linear-gradient(135deg, #bd75ff, #7134c2);
   color: #fff;
 }
+
+/* Preserve the generated backdrops; apply Gamma purple to the game sections. */
+.pp-contestant {
+  border-color: #a56be0b8;
+  background: linear-gradient(155deg, #25113ee8, #130c29ed);
+}
+.pp-avatar {
+  border-color: #bd75ff;
+  background: #47266d;
+}
+.pp-screen {
+  border-color: #a56be0;
+  background: linear-gradient(140deg, #160d2cdd, #281446e8);
+  box-shadow:
+    inset 0 0 30px #8d50c530,
+    0 0 0 3px #26113f,
+    0 14px 40px #0008;
+}
+.pp-screen__badge {
+  border-color: #bd75ffb8;
+  background: #38215c;
+  color: #e0c4ff;
+}
+.pp-console {
+  border-color: #9b68d0;
+  background: linear-gradient(155deg, #1d1235f0, #100b22f2);
+}
+.pp-round,
+.pp-picks button {
+  border-color: #a56be0b8;
+  background: #38215c;
+}
+.pp-primary {
+  background: linear-gradient(135deg, #bd75ff, #7134c2);
+  color: #fff;
+}

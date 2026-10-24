@@ -126,14 +126,22 @@ export function simulatedPercentageGuess(
   const rng = mulberry32(
     (state.seed ^ stringSeed(playerId) ^ Math.imul(state.roundNumber, 97001)) >>> 0
   )
-  // Give contestants distinct, seeded skill profiles. Strong players can be
-  // close, but most estimates should be meaningfully uncertain.
+  // Each contestant has a distinct seeded style: knowledgeable, cautious,
+  // midpoint-anchored, or impulsive. Noise, occasional wild misses, and
+  // different rounding/speed habits keep opponents from acting like clones.
   const profile = mulberry32((state.seed ^ stringSeed(playerId) ^ 0x6d2b79f5) >>> 0)()
-  const spread = profile > 0.88 ? 10 : profile > 0.62 ? 22 : profile > 0.28 ? 36 : 49
-  const error = Math.round((rng() + rng() + rng() - 1.5) * spread)
+  const style = mulberry32((state.seed ^ stringSeed(playerId) ^ 0x27d4eb2d) >>> 0)()
+  const spread = profile > 0.82 ? 14 : profile > 0.55 ? 29 : profile > 0.25 ? 48 : 68
+  const noise = (rng() + rng() + rng() - 1.5) * spread
+  const answer = state.question.answerPercent
+  const midpointPull = style > 0.72 ? (50 - answer) * 0.42 : 0
+  const playerBias = style < 0.24 ? 12 : style < 0.48 ? -9 : 0
+  const wildMiss = rng() < 0.12 ? (rng() < 0.5 ? -1 : 1) * (18 + rng() * 35) : 0
+  const rawGuess = Math.max(0, Math.min(100, answer + noise + midpointPull + playerBias + wildMiss))
+  const rounding = style < 0.35 ? 10 : style < 0.7 ? 5 : 1
   return {
-    guess: Math.max(0, Math.min(100, state.question.answerPercent + error)),
-    responseMs: 1200 + Math.floor(rng() * 14500),
+    guess: Math.max(0, Math.min(100, Math.round(rawGuess / rounding) * rounding)),
+    responseMs: 1800 + Math.floor(style * 9000 + rng() * 6500),
   }
 }
 

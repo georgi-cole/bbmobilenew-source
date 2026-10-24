@@ -109,12 +109,18 @@ export default function PercentagePanic({
   const useHint = () => {
     if (hintsUsed >= 3 || hintChoices || state.phase !== 'question' || !state.humanId) return
     const answer = state.question.answerPercent
-    const offsets = [-20, 20, -35, 35, -12, 12, -28, 28]
     const options = new Set<number>([answer])
-    for (const offset of offsets) {
+    for (const offset of [-5, 5, -10, 10, -15, 15]) {
       const candidate = Math.max(0, Math.min(100, answer + offset))
       if (candidate !== answer) options.add(candidate)
       if (options.size === 3) break
+    }
+    // At the endpoints, fill the remaining slots with the nearest distinct values.
+    for (let distance = 1; options.size < 3 && distance <= 100; distance += 1) {
+      for (const candidate of [answer - distance, answer + distance]) {
+        if (candidate >= 0 && candidate <= 100) options.add(candidate)
+        if (options.size === 3) break
+      }
     }
     const humanId = state.humanId
     setState((s) => ({ ...s, scores: { ...s.scores, [humanId]: s.scores[humanId] - 5 } }))
@@ -135,6 +141,7 @@ export default function PercentagePanic({
       )
     }, 160)
     const timeout = window.setTimeout(() => {
+      setHintChoices(null)
       setState((s) => resolvePercentageRound(s, guessRef.current, ROUND_SECONDS * 1000))
     }, ROUND_SECONDS * 1000)
     return () => {
@@ -194,10 +201,12 @@ export default function PercentagePanic({
     // Reset input and clock in the user interaction, not synchronously in an effect.
     changeGuess(50)
     setTimeLeft(ROUND_SECONDS)
+    setHintChoices(null)
     setState(advancePercentageRound)
   }
 
   const lock = () => {
+    setHintChoices(null)
     const responseMs = Math.max(
       0,
       Math.min(ROUND_SECONDS * 1000, Math.floor(performance.now() - startRef.current))
@@ -374,7 +383,14 @@ export default function PercentagePanic({
               <div className="pp-hint-options" aria-label="Hint answers">
                 <span>Hint used · −5 points · choose the correct percentage</span>
                 {hintChoices.map((value) => (
-                  <button type="button" key={value} onClick={() => changeGuess(value)}>
+                  <button
+                    type="button"
+                    key={value}
+                    onClick={() => {
+                      changeGuess(value)
+                      setHintChoices(null)
+                    }}
+                  >
                     {value}%
                   </button>
                 ))}
