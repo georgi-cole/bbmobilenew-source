@@ -629,44 +629,127 @@
   }
 }
 
-/* Purple Gamma is the defining studio accent, including the primary action. */
-.pp-primary {
-  background: linear-gradient(135deg, #bd75ff, #7134c2);
-  color: #fff;
+/* A balanced studio palette: aubergine panels, teal game accents, and an orange CTA.
+   The generated scene images stay at their original colors. */
+.pp-shell {
+  --pp-accent: #55dfcb;
+  --pp-accent-bright: #a4f5e5;
+  --pp-accent-dark: #167b78;
+  accent-color: var(--pp-accent);
 }
-
-/* Preserve the generated backdrops; apply Gamma purple to the game sections. */
+.pp-header h2 em {
+  color: #d59aff;
+}
+.pp-overline {
+  color: #d7b0ff;
+}
 .pp-contestant {
-  border-color: #a56be0b8;
-  background: linear-gradient(155deg, #25113ee8, #130c29ed);
+  border-color: #9a78c878;
+  background: linear-gradient(155deg, #241a39e8, #131020ed);
 }
 .pp-avatar {
-  border-color: #bd75ff;
-  background: #47266d;
+  border-color: #b98aef;
+  background: #3d2a59;
+}
+.pp-contestant strong,
+.pp-console__top strong {
+  color: #ffc47e;
 }
 .pp-screen {
-  border-color: #a56be0;
-  background: linear-gradient(140deg, #160d2cdd, #281446e8);
+  border-color: #9873c4;
+  background: linear-gradient(140deg, #171329e8, #241733e8);
   box-shadow:
-    inset 0 0 30px #8d50c530,
-    0 0 0 3px #26113f,
+    inset 0 0 30px #9b6bc51c,
+    0 0 0 3px #171020,
     0 14px 40px #0008;
 }
+.pp-screen::after {
+  background: repeating-linear-gradient(transparent 0 4px, #cba9ff0a 5px 6px);
+}
 .pp-screen__badge {
-  border-color: #bd75ffb8;
-  background: #38215c;
-  color: #e0c4ff;
+  border-color: #55dfcb9c;
+  background: #123c43;
+  color: #a4f5e5;
 }
-.pp-console {
-  border-color: #9b68d0;
-  background: linear-gradient(155deg, #1d1235f0, #100b22f2);
+.pp-screen__super {
+  color: #ffc47e;
 }
-.pp-round,
+.pp-screen__source,
+.pp-source {
+  color: #a7e7df;
+}
+.pp-screen .pp-truth {
+  color: #70edda;
+  text-shadow: 0 0 30px #10bfa66b;
+}
+.pp-screen .pp-screen__winner {
+  color: #ffd27a;
+  text-shadow: 0 0 30px #fb923c70;
+}
+.pp-screen > p:not(.pp-screen__super) {
+  color: #ddd6ee;
+}
+.pp-console,
+.pp-results {
+  border-color: #51cbbb80;
+  background: linear-gradient(155deg, #17152cf2, #101824f2);
+}
+.pp-console__top {
+  color: #c7b9df;
+}
+.pp-console input[type='range'] {
+  accent-color: #55dfcb;
+}
+.pp-range {
+  color: #b9cbd2;
+}
 .pp-picks button {
-  border-color: #a56be0b8;
-  background: #38215c;
+  border-color: #50b9b08c;
+  background: #17383f;
+}
+.pp-picks button:hover,
+.pp-hint-options button:hover {
+  border-color: #8af1df;
+  background: #20545a;
 }
 .pp-primary {
-  background: linear-gradient(135deg, #bd75ff, #7134c2);
-  color: #fff;
+  background: linear-gradient(135deg, #ffb45f, #ed6b2c);
+  border-color: #ffd08b;
+  color: #24152a;
+}
+.pp-secondary,
+.pp-hint-options button,
+.pp-hint {
+  border-color: #56c9bd9c;
+  background: #173c43;
+  color: #d8fff6;
+}
+.pp-hint-options {
+  border-color: #56c9bd66;
+  color: #d8fff6;
+}
+.pp-round {
+  border-color: #d19a58b0;
+  background: #43301cc9;
+  color: #ffda9b;
+}
+.pp-results__header {
+  color: #bfece5;
+}
+.pp-results__row {
+  background: #282039db;
+}
+.pp-results__row--out {
+  background: #652c3994;
+}
+.pp-finalists > div {
+  background: linear-gradient(145deg, #1c3a3c, #231931);
+  border-color: #5acbb6;
+}
+.pp-finalists span,
+.pp-history strong {
+  color: #ffd27a;
+}
+.pp-history > div {
+  background: #282039;
 }
