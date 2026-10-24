@@ -42,7 +42,6 @@ import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import useBackgroundTheme from '../../hooks/useBackgroundTheme'
 import KolequantSplash from '../../components/KolequantSplash/KolequantSplash'
 import AssetPreloaderOverlay from '../../components/AssetPreloaderOverlay/AssetPreloaderOverlay'
-import PermissionPrompts from '../../components/PermissionPrompts/PermissionPrompts'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import SurvivorRulesModal from '../../components/ConfirmExitModal/SurvivorRulesModal'
 import { SoundManager } from '../../services/sound/SoundManager'
@@ -56,6 +55,7 @@ import useHomeHubAssets from '../../hooks/useHomeHubAssets'
 import useIntroHubBackground from '../../hooks/useIntroHubBackground'
 import { preloadImage } from '../../utils/preload'
 import { getHolidayTheme } from '../../utils/backgroundTheme'
+import { shouldShowWeatherPermissionRationale } from '../../services/locationAccess'
 import {
   hasShownHomeHubSplashThisSession,
   markHomeHubSplashSeenForGame,
@@ -142,6 +142,7 @@ interface PlaySelectionButton {
 interface HomeHubAssetLayerProps {
   splashDone: boolean
   backgroundReady: boolean
+  showWeatherPermissionRationale: boolean
   holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
@@ -154,6 +155,7 @@ interface HomeHubAssetLayerProps {
 function HomeHubAssetLayer({
   splashDone,
   backgroundReady,
+  showWeatherPermissionRationale,
   holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
@@ -181,9 +183,14 @@ function HomeHubAssetLayer({
 
   return (
     <>
-      {splashDone && assetReady && <PermissionPrompts showSoundPrompt={false} />}
       <div className="homehub-content home-hub">
         <div className="home-hub__hero" aria-hidden="true" />
+        {splashDone && assetReady && showWeatherPermissionRationale && (
+          <p className="home-hub__weather-permission-note" role="status" aria-live="polite">
+            Allow approximate location to match the Home Hub to your local weather. Coordinates go
+            to Open-Meteo only to fetch weather for the background.
+          </p>
+        )}
         {splashDone && assetReady && (
           <nav
             className="home-hub__buttons"
@@ -283,7 +290,7 @@ export default function HomeHub() {
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
-  const { url: bgUrl } = useBackgroundTheme()
+  const { url: bgUrl, requestWeatherLocation } = useBackgroundTheme()
   const playButtonHolidayTheme = getHolidayTheme(new Date())
   const remoteBgUrl = useAppSelector(selectRemoteIntroHubBg)
   const remoteOverlayOpacity = useAppSelector(selectRemoteIntroHubOverlay)
@@ -366,6 +373,7 @@ export default function HomeHub() {
     status: 'Opening the house doors.',
   })
   const splashDone = splashExitRequested && hubAssetState.ready
+  const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -375,6 +383,27 @@ export default function HomeHub() {
   const [survivorRulesOpen, setSurvivorRulesOpen] = useState(false)
   const survivorRulesDismissed = hasSeenSurvivorRules(activeProfileId)
   const gameRoute = '/game'
+
+  useEffect(() => {
+    if (!splashDone || !shouldShowWeatherPermissionRationale()) return undefined
+
+    let cancelled = false
+    const rationaleTimer = window.setTimeout(() => {
+      if (!cancelled) setShowWeatherPermissionRationale(true)
+    }, 0)
+    const requestTimer = window.setTimeout(() => {
+      if (cancelled) return
+      void requestWeatherLocation().finally(() => {
+        if (!cancelled) setShowWeatherPermissionRationale(false)
+      })
+    }, 650)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(rationaleTimer)
+      window.clearTimeout(requestTimer)
+    }
+  }, [requestWeatherLocation, splashDone])
 
   const savedRuns = useMemo(
     () => (!isGuest && activeProfileId ? loadSavedRunProfile(activeProfileId) : null),
@@ -886,6 +915,7 @@ export default function HomeHub() {
           <HomeHubAssetLayer
             splashDone={splashDone}
             backgroundReady={backgroundLayers.ready}
+            showWeatherPermissionRationale={showWeatherPermissionRationale}
             holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}

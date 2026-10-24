@@ -1,6 +1,5 @@
 import {
   getBinaryFallbackKey,
-  getGeolocationPermissionStatus,
   getSkinCandidates,
   hasSkinAsset,
   getPlatformLabel,
@@ -14,6 +13,7 @@ import {
   type WeatherThemeKey,
   type PlatformLabel,
 } from './skinAssets'
+import { getWeatherLocation } from '../services/locationAccess'
 
 /**
  * backgroundTheme.ts
@@ -102,20 +102,7 @@ export interface ResolvedTheme {
 export interface ResolveOptions {
   geolocationTimeoutMs?: number
   forceNoGeo?: boolean
-}
-
-/** Wraps navigator.geolocation.getCurrentPosition in a Promise with timeout. */
-function getPosition(timeoutMs: number): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation not supported'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      timeout: timeoutMs,
-      maximumAge: 10 * 60 * 1000, // accept cached position up to 10 min old
-    })
-  })
+  requestLocationPermission?: boolean
 }
 
 interface CurrentWeather {
@@ -258,10 +245,14 @@ function logBackgroundResolution(details: Record<string, unknown>): void {
 export async function resolveTheme({
   geolocationTimeoutMs = 7000,
   forceNoGeo = false,
+  requestLocationPermission = false,
 }: ResolveOptions = {}): Promise<ResolvedTheme> {
   const now = new Date()
   const platform = getPlatformLabel()
-  const permissionStatus = await getGeolocationPermissionStatus()
+  const location = forceNoGeo
+    ? null
+    : await getWeatherLocation(geolocationTimeoutMs, requestLocationPermission)
+  const permissionStatus = forceNoGeo ? 'unsupported' : (location?.permissionStatus ?? 'unknown')
   const permissionDenied = permissionStatus === 'denied'
   const timeKey = timeOfDayKey(now)
   const binaryFallbackKey = getBinaryFallbackKey(now)
@@ -274,16 +265,10 @@ export async function resolveTheme({
   let windSpeedKmh: number | null = null
   let weatherKey: WeatherThemeKey | null = null
 
-  if (
-    !forceNoGeo &&
-    typeof navigator !== 'undefined' &&
-    navigator.geolocation &&
-    !permissionDenied
-  ) {
+  if (location?.coordinates && !permissionDenied) {
     // 2. Geolocation + weather
     try {
-      const position = await getPosition(geolocationTimeoutMs)
-      const { latitude, longitude } = position.coords
+      const { latitude, longitude } = location.coordinates
       coordinates = { latitude, longitude }
       const currentWeather = await fetchCurrentWeather(latitude, longitude)
       weatherCode = currentWeather.weathercode
@@ -296,15 +281,13 @@ export async function resolveTheme({
     } catch (err) {
       locationError = err instanceof Error ? err.message : String(err)
       selectedKey = selectThemeKey(null, now)
-      reason = permissionDenied ? 'fallback:permission-denied' : 'fallback:location'
+      reason = 'fallback:weather'
     }
   } else {
     // No usable location signal: fall back to a guaranteed day/night asset.
     locationError = forceNoGeo
       ? 'forceNoGeo'
-      : permissionDenied
-        ? 'permission denied'
-        : 'geolocation unavailable'
+      : (location?.error ?? (permissionDenied ? 'permission denied' : 'location unavailable'))
     selectedKey = selectThemeKey(null, now)
     reason = 'fallback:location'
   }

@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 import HomeHub from '../HomeHub'
 import { preloadImage } from '../../../utils/preload'
+import { shouldShowWeatherPermissionRationale } from '../../../services/locationAccess'
 import type { RemoteConfig } from '../../../remoteConfig/remoteConfigTypes'
 
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
+const mockRequestWeatherLocation = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 let mockBackgroundUrl = '/assets/background.jpg'
 const mockState: {
   game: {
@@ -60,7 +62,7 @@ vi.mock('../../../store/hooks', () => ({
 }))
 
 vi.mock('../../../hooks/useBackgroundTheme', () => ({
-  default: () => ({ url: mockBackgroundUrl }),
+  default: () => ({ url: mockBackgroundUrl, requestWeatherLocation: mockRequestWeatherLocation }),
 }))
 
 vi.mock('../../../hooks/useLoadIntroHub', async () => {
@@ -180,6 +182,7 @@ describe('HomeHub', () => {
   beforeEach(() => {
     sessionStorage.clear()
     localStorage.clear()
+    localStorage.setItem('bb:locationPermissionRequested', 'true')
     delete (window as Window & { game?: Record<string, unknown> }).game
     mockState.game = {
       gameId: 'game-A',
@@ -192,6 +195,10 @@ describe('HomeHub', () => {
     mockState.vip.entitlements.survivalMode = false
     mockDispatch.mockReset()
     mockNavigate.mockReset()
+    mockRequestWeatherLocation.mockReset().mockImplementation(() => {
+      localStorage.setItem('bb:locationPermissionRequested', 'true')
+      return Promise.resolve()
+    })
     preloadImageMock.mockReset()
     preloadImageMock.mockImplementation(async (url: string) => ({ url, status: 'loaded' as const }))
   })
@@ -227,6 +234,38 @@ describe('HomeHub', () => {
       },
       { timeout: 5000 }
     )
+  })
+
+  it('explains local weather before the first location prompt and requests it once', async () => {
+    localStorage.removeItem('bb:locationPermissionRequested')
+    expect(shouldShowWeatherPermissionRationale()).toBe(true)
+    const view = renderHomeHub()
+
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Allow approximate location to match the Home Hub to your local weather. Coordinates go to Open-Meteo only to fetch weather for the background.'
+      )
+    })
+    expect(mockRequestWeatherLocation).not.toHaveBeenCalled()
+
+    await waitFor(() => {
+      expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
+    })
+    await waitFor(() => {
+      expect(screen.queryByRole('status')).toBeNull()
+    })
+
+    view.rerender(
+      <MemoryRouter>
+        <HomeHub />
+      </MemoryRouter>
+    )
+    expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
   })
 
   it('shows a zero-minimum readiness splash after a new season starts', async () => {
