@@ -1,5 +1,9 @@
 /* Percentage Panic: a self-contained TV-studio theme; no Majority Rules selectors are changed. */
 .pp-shell {
+  --pp-accent: #bd75ff;
+  --pp-accent-bright: #e0a4ff;
+  --pp-accent-dark: #53218f;
+  accent-color: var(--pp-accent);
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
@@ -12,7 +16,7 @@
     max(0.5rem, var(--minigame-safe-padding-bottom, 0.5rem))
     max(0.5rem, var(--minigame-safe-padding-left, 0.5rem));
   overflow: auto;
-  color: #edf5ff;
+  color: #f5edff;
   font-family: inherit;
 }
 .pp-shell * {
@@ -26,7 +30,7 @@
   justify-items: center;
   gap: 0.9rem;
   padding: 2rem;
-  color: #edf5ff;
+  color: #f5edff;
   background:
     linear-gradient(180deg, #071021d9, #071021f2),
     url('../../assets/percentage-panic/studio.webp') center / cover,
@@ -40,7 +44,7 @@
   width: 2.25rem;
   height: 2.25rem;
   border: 3px solid #9db9e655;
-  border-top-color: #ff9a50;
+  border-top-color: var(--pp-accent-bright);
   border-radius: 50%;
   animation: pp-spin 800ms linear infinite;
 }
@@ -129,14 +133,108 @@
 }
 .pp-header h2 em {
   font-style: normal;
-  color: #ff9a50;
+  color: var(--pp-accent-bright);
 }
 .pp-overline {
   margin: 0 0 0.25rem;
   font-size: 0.65rem;
   letter-spacing: 0.16em;
   font-weight: 900;
-  color: #8fb8fb;
+  color: #d0a5ff;
+}
+
+.pp-screen,
+.pp-console,
+.pp-contestant,
+.pp-round,
+.pp-picks button,
+.pp-hint-options button {
+  border-color: #a56be0b8;
+}
+.pp-screen {
+  background: linear-gradient(140deg, #160d2cdd, #281446e8);
+  box-shadow:
+    inset 0 0 34px #8d50c530,
+    0 10px 28px #08041388;
+}
+.pp-console,
+.pp-contestant {
+  background-color: #180f2edb;
+}
+.pp-round,
+.pp-picks button,
+.pp-hint-options button {
+  background: #38215c;
+}
+.pp-primary {
+  background: linear-gradient(135deg, #bd75ff, #7134c2);
+  color: #fff;
+}
+
+/* Purple Gamma belongs on the game panels; keep generated backdrops untouched. */
+.pp-contestant {
+  border-color: #a56be0b8;
+  background: linear-gradient(155deg, #25113ee8, #130c29ed);
+}
+.pp-avatar {
+  border-color: #bd75ff;
+  background: #47266d;
+}
+.pp-screen {
+  border-color: #a56be0;
+  background: linear-gradient(140deg, #160d2cdd, #281446e8);
+  box-shadow:
+    inset 0 0 30px #8d50c530,
+    0 0 0 3px #26113f,
+    0 14px 40px #0008;
+}
+.pp-screen__badge {
+  border-color: #bd75ffb8;
+  background: #38215c;
+  color: #e0c4ff;
+}
+.pp-console {
+  border-color: #9b68d0;
+  background: linear-gradient(155deg, #1d1235f0, #100b22f2);
+}
+.pp-round,
+.pp-picks button {
+  border-color: #a56be0b8;
+  background: #38215c;
+}
+.pp-primary {
+  background: linear-gradient(135deg, #bd75ff, #7134c2);
+  color: #fff;
+}
+.pp-hint,
+.pp-hint-options {
+  color: #e0c4ff;
+}
+.pp-hint-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border: 1px solid #a56be0b8;
+  border-radius: 0.75rem;
+  background: #1b1033ed;
+}
+.pp-hint-options span {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+}
+.pp-hint-options button,
+.pp-hint {
+  border: 1px solid #a56be0b8;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.7rem;
+  color: #fff;
+}
+.pp-hint {
+  background: #27183f;
 }
 .pp-round {
   flex: none;
@@ -529,4 +627,10 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Purple Gamma is the defining studio accent, including the primary action. */
+.pp-primary {
+  background: linear-gradient(135deg, #bd75ff, #7134c2);
+  color: #fff;
 }

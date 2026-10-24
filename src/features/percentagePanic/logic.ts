@@ -126,8 +126,10 @@ export function simulatedPercentageGuess(
   const rng = mulberry32(
     (state.seed ^ stringSeed(playerId) ^ Math.imul(state.roundNumber, 97001)) >>> 0
   )
-  const knowledge = rng()
-  const spread = knowledge > 0.85 ? 4 : knowledge > 0.4 ? 16 : 30
+  // Give contestants distinct, seeded skill profiles. Strong players can be
+  // close, but most estimates should be meaningfully uncertain.
+  const profile = mulberry32((state.seed ^ stringSeed(playerId) ^ 0x6d2b79f5) >>> 0)()
+  const spread = profile > 0.88 ? 10 : profile > 0.62 ? 22 : profile > 0.28 ? 36 : 49
   const error = Math.round((rng() + rng() + rng() - 1.5) * spread)
   return {
     guess: Math.max(0, Math.min(100, state.question.answerPercent + error)),

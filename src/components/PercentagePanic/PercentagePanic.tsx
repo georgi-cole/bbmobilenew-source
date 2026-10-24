@@ -73,6 +73,8 @@ export default function PercentagePanic({
   const [guess, setGuess] = useState(50)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
   const [watching, setWatching] = useState(false)
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [hintChoices, setHintChoices] = useState<number[] | null>(null)
   const guessRef = useRef(50)
   const startRef = useRef(0)
   const completionRef = useRef(false)
@@ -103,6 +105,21 @@ export default function PercentagePanic({
     const clamped = Math.max(0, Math.min(100, Math.round(value)))
     guessRef.current = clamped
     setGuess(clamped)
+  }
+  const useHint = () => {
+    if (hintsUsed >= 3 || hintChoices || state.phase !== 'question' || !state.humanId) return
+    const answer = state.question.answerPercent
+    const offsets = [-20, 20, -35, 35, -12, 12, -28, 28]
+    const options = new Set<number>([answer])
+    for (const offset of offsets) {
+      const candidate = Math.max(0, Math.min(100, answer + offset))
+      if (candidate !== answer) options.add(candidate)
+      if (options.size === 3) break
+    }
+    const humanId = state.humanId
+    setState((s) => ({ ...s, scores: { ...s.scores, [humanId]: s.scores[humanId] - 5 } }))
+    setHintsUsed((n) => n + 1)
+    setHintChoices([...options].sort((a, b) => a - b))
   }
 
   useEffect(() => {
@@ -353,6 +370,25 @@ export default function PercentagePanic({
                 </button>
               ))}
             </div>
+            {hintChoices ? (
+              <div className="pp-hint-options" aria-label="Hint answers">
+                <span>Hint used · −5 points · choose the correct percentage</span>
+                {hintChoices.map((value) => (
+                  <button type="button" key={value} onClick={() => changeGuess(value)}>
+                    {value}%
+                  </button>
+                ))}
+                <button type="button" onClick={() => setHintChoices(null)}>
+                  Close choices
+                </button>
+              </div>
+            ) : hintsUsed < 3 ? (
+              <button className="pp-hint" type="button" onClick={useHint}>
+                USE HINT ({3 - hintsUsed} left · −5 points)
+              </button>
+            ) : (
+              <span className="pp-hint">No hints remaining</span>
+            )}
             <button className="pp-primary" type="button" onClick={lock}>
               LOCK GUESS
             </button>
