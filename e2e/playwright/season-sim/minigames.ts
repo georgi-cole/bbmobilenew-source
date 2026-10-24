@@ -35,6 +35,7 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   famousFigures: { kind: 'keyboard', primaryInput: 'text guess and hint' },
   silentSaboteur: { kind: 'choice', primaryInput: 'target and vote choice' },
   majorityRules: { kind: 'choice', primaryInput: 'multiple-choice vote' },
+  percentagePanic: { kind: 'choice', primaryInput: 'percentage estimate and final duel guess' },
   pressurePlank: { kind: 'tap', primaryInput: 'timed balance control' },
   colorMatch: { kind: 'memory', primaryInput: 'colour choice' },
   logicLocks: { kind: 'board', primaryInput: 'lock controls' },
@@ -599,6 +600,46 @@ export function assertMinigameDriversCoverRegistry(): void {
     configuredKeys,
     'every playable registry game needs a season-simulation input driver'
   ).toEqual(playableKeys)
+}
+
+async function playPercentagePanicTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const fastForward = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Fast-forward spectator mode', exact: true })
+  )
+  if (fastForward) return clickWithShortTimeout(fastForward, random.int(20, 85), true)
+
+  const phase = await host
+    .locator('.pp-shell')
+    .getAttribute('data-phase')
+    .catch(() => null)
+
+  if (phase === 'question' || phase === 'duel') {
+    const picks = host.locator('.pp-picks button')
+    const pickCount = await picks.count()
+    if (pickCount > 0) {
+      await clickWithShortTimeout(picks.nth(random.int(0, pickCount - 1)), 0, true)
+    }
+    const submit = await firstVisibleEnabled(
+      host.getByRole('button', {
+        name: phase === 'question' ? 'LOCK GUESS' : 'SUBMIT GUESS',
+        exact: true,
+      })
+    )
+    if (submit) return clickWithShortTimeout(submit, random.int(20, 85), true)
+  }
+
+  if (phase === 'order') {
+    const choices = host.getByRole('button', { name: /^I GUESS (FIRST|SECOND)$/ })
+    const choiceCount = await choices.count()
+    if (choiceCount > 0) {
+      return clickWithShortTimeout(choices.nth(random.int(0, choiceCount - 1)), 20, true)
+    }
+  }
+
+  const enterFinal = await firstVisibleEnabled(
+    host.getByRole('button', { name: /^(?:REVEAL WINNER|ENTER ROUND 10 FINAL)$/i })
+  )
+  return enterFinal ? clickWithShortTimeout(enterFinal, random.int(20, 85), true) : false
 }
 
 async function firstVisibleEnabled(locator: Locator): Promise<Locator | null> {
@@ -2313,12 +2354,15 @@ export async function playVisibleMinigame(
         }
       }
     }
+  } else if (gameKey === 'percentagePanic') {
+    interacted = await playPercentagePanicTurn(host, random)
   }
 
   if (
     interacted ||
     [
       'majorityRules',
+      'percentagePanic',
       'batteryLow',
       'blackjackTournament',
       'capitalization',
