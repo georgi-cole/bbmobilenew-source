@@ -306,6 +306,36 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: true,
   },
 
+  boxedOut: {
+    key: 'boxedOut',
+    title: 'BOXED OUT',
+    description: 'Secretly pick one of three boxes. Avoid the crowd, collect points and survive.',
+    instructions: [
+      'Three boxes carry different visible point rewards. Everyone secretly chooses one.',
+      'The uniquely most popular box explodes: its occupants receive zero points and lose one life.',
+      'If the highest selection count is tied, no box explodes and everyone earns their chosen reward.',
+      'Start with three lives. Reach zero and you are eliminated.',
+      'After ten rounds the highest-scoring survivor wins, or win early as the only survivor.',
+      'If all remaining players are eliminated together, highest score among those last-round players wins.',
+      'An exact first-place score tie is resolved by a closest-without-going-over numerical question.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Survival points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'BoxedOut',
+    legacy: false,
+    // Direct access for QA only until balance and visual validation complete.
+    weight: 0,
+    category: 'logic',
+    retired: false,
+    minPlayers: 4,
+    maxPlayers: 12,
+  },
+
   estimationGame: {
     key: 'estimationGame',
     title: 'Estimation',
