@@ -668,6 +668,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as MajorityRulesCompetitionType) ?? 'LOH'}
+          premiumPresentation={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
@@ -47,6 +47,62 @@ function makeStore(
 }
 
 describe('MajorityRulesComp', () => {
+  afterEach(() => {
+    document.body.classList.remove('no-animations')
+  })
+
+  it('keeps the refreshed presentation and question bank behind the VIP flag', async () => {
+    const participantIds = ['user', 'finn', 'mimi', 'rae']
+    const participants = participantIds.map((id, index) => ({
+      id,
+      name: id,
+      isHuman: index === 0,
+      precomputedScore: 0,
+      previousPR: null,
+    }))
+    const standardStore = makeStore()
+    const standardView = render(
+      <Provider store={standardStore}>
+        <MajorityRulesComp
+          participantIds={participantIds}
+          participants={participants}
+          prizeType="LOH"
+          seed={42}
+        />
+      </Provider>
+    )
+
+    await act(async () => {})
+
+    const standardShell = standardView.container.querySelector('.majority-rules-shell')
+    expect(standardShell).toHaveAttribute('data-presentation', 'standard')
+    expect(standardStore.getState().majorityRules.vipExperience).toBe(false)
+    expect(standardStore.getState().majorityRules.currentQuestion?.id).toMatch(/^q\d{3}$/)
+
+    standardView.unmount()
+
+    const vipStore = makeStore()
+    const vipView = render(
+      <Provider store={vipStore}>
+        <MajorityRulesComp
+          participantIds={participantIds}
+          participants={participants}
+          prizeType="LOH"
+          seed={42}
+          premiumPresentation
+        />
+      </Provider>
+    )
+
+    await act(async () => {})
+
+    const vipShell = vipView.container.querySelector('.majority-rules-shell')
+    expect(vipShell).toHaveAttribute('data-presentation', 'vip')
+    expect(vipShell?.getAttribute('style')).toContain('majority-rules-vip-backdrop')
+    expect(vipStore.getState().majorityRules.vipExperience).toBe(true)
+    expect(vipStore.getState().majorityRules.currentQuestion?.id).toMatch(/^vip\d{3}$/)
+  })
+
   it('uses live houseguest names and avatar candidates when participant ids match game players', async () => {
     const store = makeStore()
 
@@ -204,6 +260,7 @@ describe('MajorityRulesComp', () => {
   })
 
   it('starts a revote without reopening stale LIVE INTEL and clearly blocks the previous answer', async () => {
+    document.body.classList.add('no-animations')
     const question = MAJORITY_RULES_QUESTIONS[0]
     const [firstOption, secondOption] = question.options
     const store = makeStore(undefined, {

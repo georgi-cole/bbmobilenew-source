@@ -5,6 +5,7 @@ import {
   buildPeekPreview,
   buildPollEstimate,
   countAnswerDistribution,
+  didReadMajorityRulesRoom,
   initializeDiceDuel,
   pickAiDuelNumber,
   pickMajorityRulesQuestion,
@@ -68,6 +69,10 @@ export interface MajorityRulesState {
   winnerId: string | null
   outcomeResolved: boolean
   aiIdentities: Record<string, AiGameIdentity | undefined>
+  vipExperience: boolean
+  roomReaderStreak: number
+  bestRoomReaderStreak: number
+  lastRoomReadCorrect: boolean | null
 }
 
 const initialState: MajorityRulesState = {
@@ -98,6 +103,10 @@ const initialState: MajorityRulesState = {
   winnerId: null,
   outcomeResolved: false,
   aiIdentities: {},
+  vipExperience: false,
+  roomReaderStreak: 0,
+  bestRoomReaderStreak: 0,
+  lastRoomReadCorrect: null,
 }
 
 function buildHintInventories(participantIds: string[]) {
@@ -122,7 +131,12 @@ function clearRoundHintState(state: MajorityRulesState) {
 }
 
 function prepareQuestion(state: MajorityRulesState) {
-  const question = pickMajorityRulesQuestion(state.seed, state.roundNumber, state.usedQuestionIds)
+  const question = pickMajorityRulesQuestion(
+    state.seed,
+    state.roundNumber,
+    state.usedQuestionIds,
+    state.vipExperience
+  )
   state.currentQuestion = question
   if (!state.usedQuestionIds.includes(question.id)) {
     state.usedQuestionIds.push(question.id)
@@ -239,6 +253,7 @@ const majorityRulesSlice = createSlice({
         seed: number
         humanPlayerId: string | null
         aiIdentities?: Record<string, AiGameIdentity | undefined>
+        vipExperience?: boolean
       }>
     ): MajorityRulesState {
       const { participantIds, competitionType, seed, humanPlayerId } = action.payload
@@ -262,6 +277,7 @@ const majorityRulesSlice = createSlice({
         winnerId: null,
         outcomeResolved: false,
         aiIdentities: action.payload.aiIdentities ?? {},
+        vipExperience: action.payload.vipExperience === true,
       }
       prepareOpeningPhase(state)
       return state
@@ -416,13 +432,24 @@ const majorityRulesSlice = createSlice({
         }
       }
 
+      const result = resolveMajorityRulesBallot({
+        activeIds: state.activeIds,
+        answers: simulation.answers,
+        question: state.currentQuestion,
+        eliminationCount: 1,
+      })
+      if (state.vipExperience && humanId && state.activeIds.includes(humanId)) {
+        const readTheRoom = didReadMajorityRulesRoom(
+          simulation.answers[humanId],
+          result.distribution
+        )
+        state.roomReaderStreak = readTheRoom ? state.roomReaderStreak + 1 : 0
+        state.bestRoomReaderStreak = Math.max(state.bestRoomReaderStreak, state.roomReaderStreak)
+        state.lastRoomReadCorrect = readTheRoom
+      }
+
       state.revealState = {
-        result: resolveMajorityRulesBallot({
-          activeIds: state.activeIds,
-          answers: simulation.answers,
-          question: state.currentQuestion,
-          eliminationCount: 1,
-        }),
+        result,
         revoteNumber: state.revoteNumber,
       }
 

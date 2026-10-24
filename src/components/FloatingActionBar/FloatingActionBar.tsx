@@ -199,6 +199,9 @@ export default function FloatingActionBar({
     game.phase,
     game.aiReplacementStep ?? 0,
     game.aiReplacementWaiting ? 'waiting-for-replacement-render' : 'replacement-ready',
+    // Mission Safety may stage an AI save without advancing the reducer phase.
+    // Re-arm Play for the next press so that the staged save can be committed.
+    game.missionPowers?.safetyIntent?.id ?? 'no-staged-safety',
     game.specialVeto?.vipUseStage ?? 0,
     game.voxPopuli?.finalThreePacingSeen?.join(',') ?? 'no-final-three-pacing',
     isWaiting ? 'waiting-for-input' : 'ready',
