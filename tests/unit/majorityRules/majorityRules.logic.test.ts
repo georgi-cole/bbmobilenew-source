@@ -89,7 +89,7 @@ describe('majorityRules logic', () => {
     expect(foundReorderedQuestion).toBe(true)
   })
 
-  it('keeps sourced, punchier VIP prompts separate from the original non-VIP bank', () => {
+  it('keeps sourced, relatable VIP prompts separate from the original non-VIP bank', () => {
     expect(MAJORITY_RULES_VIP_QUESTION_SET).toHaveLength(48)
     expect(MAJORITY_RULES_VIP_QUESTION_SET.every((entry) => entry.id.startsWith('vip'))).toBe(true)
     expect(
@@ -97,6 +97,15 @@ describe('majorityRules logic', () => {
         entry.revealFact?.sourceUrl.startsWith('https://')
       )
     ).toBe(true)
+
+    const vipCopy = MAJORITY_RULES_VIP_QUESTION_SET.flatMap((entry) => [
+      entry.prompt,
+      ...entry.options.map((option) => option.text),
+    ]).join(' ')
+    expect(vipCopy).not.toMatch(/\bhouse(?:mates?)?\b/i)
+    expect(vipCopy).toContain('Tripping in front of your crush')
+    expect(vipCopy).toContain('Going out with a visible stain')
+    expect(vipCopy).toContain('Realizing you wore mismatched socks')
 
     const standard = pickMajorityRulesQuestion(17, 1, [])
     const vip = pickMajorityRulesQuestion(17, 1, [], true)
