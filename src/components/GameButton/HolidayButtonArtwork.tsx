@@ -15,50 +15,48 @@ const BUTTON_SHAPE = `M 22 18
   Q 6 76, 12 66
   L 22 18`
 
-const holidaySurfaces: Record<
-  HolidayThemeKey,
-  { colors: [string, string, string]; edge: string; glow: string }
-> = {
-  halloween: {
-    colors: ['#241831', '#56375f', '#33203e'],
-    edge: '#F0AA70',
-    glow: 'rgba(240, 145, 73, 0.38)',
-  },
-  christmas: {
-    colors: ['#104B39', '#247454', '#123F3A'],
-    edge: '#E8C978',
-    glow: 'rgba(232, 195, 103, 0.36)',
-  },
-  newYear: {
-    colors: ['#16234F', '#304C83', '#20264D'],
-    edge: '#F0D28C',
-    glow: 'rgba(240, 204, 117, 0.4)',
-  },
-  easter: {
-    colors: ['#635DA4', '#9A70B3', '#568D83'],
-    edge: '#F7E6CC',
-    glow: 'rgba(213, 165, 234, 0.36)',
-  },
-  independenceDay: {
-    colors: ['#182B55', '#683C58', '#263B66'],
-    edge: '#D7DDF4',
-    glow: 'rgba(152, 183, 255, 0.34)',
-  },
+const holidaySurfaces: Record<HolidayThemeKey, { colors: [string, string, string]; glow: string }> =
+  {
+    halloween: {
+      colors: ['#241831', '#56375f', '#33203e'],
+      glow: 'rgba(240, 145, 73, 0.38)',
+    },
+    christmas: {
+      colors: ['#104B39', '#247454', '#123F3A'],
+      glow: 'rgba(232, 195, 103, 0.36)',
+    },
+    newYear: {
+      colors: ['#16234F', '#304C83', '#20264D'],
+      glow: 'rgba(240, 204, 117, 0.4)',
+    },
+    easter: {
+      colors: ['#635DA4', '#9A70B3', '#568D83'],
+      glow: 'rgba(213, 165, 234, 0.36)',
+    },
+    independenceDay: {
+      colors: ['#182B55', '#683C58', '#263B66'],
+      glow: 'rgba(152, 183, 255, 0.34)',
+    },
+  }
+
+function rgba(hex: string, alpha: number): string {
+  const value = hex.replace('#', '')
+  const red = Number.parseInt(value.slice(0, 2), 16)
+  const green = Number.parseInt(value.slice(2, 4), 16)
+  const blue = Number.parseInt(value.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
 }
 
 export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey }) {
   const idPrefix = `holiday-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const surface = holidaySurfaces[theme]
+  const glassBackground = `linear-gradient(90deg, ${rgba(surface.colors[0], 0.98)} 0%, ${rgba(surface.colors[0], 0.98)} 36%, ${rgba(surface.colors[1], 0.78)} 56%, ${rgba(surface.colors[2], 0.2)} 78%, rgba(10, 14, 24, 0.025) 100%)`
 
   return (
     <span className="btn-holiday-artwork" aria-hidden="true">
+      <span className="btn-holiday-artwork__glass" style={{ background: glassBackground }} />
       <svg viewBox="0 0 640 156" preserveAspectRatio="none" data-theme={theme}>
         <defs>
-          <linearGradient id={`${idPrefix}-surface`} x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor={surface.colors[0]} />
-            <stop offset="52%" stopColor={surface.colors[1]} />
-            <stop offset="100%" stopColor={surface.colors[2]} />
-          </linearGradient>
           <linearGradient id={`${idPrefix}-sheen`} x1="0" y1="0" x2="0" y2="1">
             <stop stopColor="#FFFFFF" stopOpacity=".32" />
             <stop offset="75%" stopColor="#FFFFFF" stopOpacity="0" />
@@ -68,20 +66,12 @@ export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey
           </clipPath>
         </defs>
 
-        <path d={BUTTON_SHAPE} fill={`url(#${idPrefix}-surface)`} />
         <g clipPath={`url(#${idPrefix}-clip)`}>
           {renderHolidayArtwork(theme)}
           <path d="M 28 14 L 530 14 L 496 65 L 46 53 Z" fill="#FFFFFF" opacity=".14" />
-          <path d="M 24 87 L 566 80 L 610 138 L 40 146 Z" fill="#090B20" opacity=".24" />
+          <path d="M 24 87 L 566 80 L 610 138 L 40 146 Z" fill="#090B20" opacity=".28" />
           <rect width="640" height="156" fill={`url(#${idPrefix}-sheen)`} opacity=".18" />
         </g>
-        <path
-          d={BUTTON_SHAPE}
-          fill="none"
-          stroke={surface.edge}
-          strokeWidth="2.3"
-          strokeOpacity=".94"
-        />
       </svg>
     </span>
   )

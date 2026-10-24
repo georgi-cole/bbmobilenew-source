@@ -16,8 +16,11 @@ describe('GameButton holiday treatment', () => {
 
     const button = screen.getByRole('button', { name: 'Play' })
     const artwork = button.querySelector('.btn-holiday-artwork svg')
+    const glassSurface = button.querySelector('.btn-holiday-artwork__glass')
     expect(button).toHaveClass(`game-btn--holiday-${key}`)
     expect(artwork).toHaveAttribute('data-theme', key)
+    expect(glassSurface).toBeInTheDocument()
+    expect(glassSurface).toHaveAttribute('style', expect.stringContaining('rgba'))
     expect(button.querySelector('.btn-bg')).toBeNull()
 
     for (const motif of motifs) {
