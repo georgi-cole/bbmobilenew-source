@@ -478,7 +478,7 @@ export default function PressurePlank({
   const outsideSafeZone = absBalance > safeZone + PRESSURE_PLANK_SAFE_ZONE_DAMAGE_GRACE
   const isDanger = absBalance > DANGER_THRESHOLD || stability <= 35
   const isWarning = outsideSafeZone && !isDanger
-  const survivalSeconds = (survivalMs / 1000).toFixed(1)
+  const survivalSeconds = (survivalMs / 1000).toFixed(3)
   /** Needle and safe-zone positions share the same -MAX_BALANCE..+MAX_BALANCE scale. */
   const needlePct = ((balance + MAX_BALANCE) / (2 * MAX_BALANCE)) * 100
   const safeZoneBounds = getPressurePlankGaugeSafeZoneBounds(safeZone, MAX_BALANCE)
@@ -681,7 +681,7 @@ export default function PressurePlank({
                     {entry.name}
                     {entry.isHuman ? ' (you)' : ''}
                   </span>
-                  <span className="pp__player-score">{entry.survivalSeconds.toFixed(1)}s</span>
+                  <span className="pp__player-score">{entry.survivalSeconds.toFixed(3)}s</span>
                 </li>
               ))}
             </ol>
