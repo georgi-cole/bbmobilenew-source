@@ -431,9 +431,9 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     key: 'percentagePanic',
     title: 'Percentage Panic',
     description:
-      'Guess the world in percentages. Last place goes out each round; final two play Higher or Lower.',
+      'Guess what people really admit: dating drama, food feuds, awkward habits, and wild opinions. Final two play Higher or Lower.',
     instructions: [
-      'Everyone estimates the same published percentage with the slider, from 0 to 100.',
+      'Everyone estimates the same published survey percentage, from 0 to 100. Each question names the surveyed group and shows the survey year.',
       'You have 20 seconds to lock your estimate; a timeout locks the current slider value.',
       'Your round score is minus the absolute difference from the published answer.',
       'The least accurate contestant leaves. Tied errors eliminate the slower respondent.',
@@ -451,7 +451,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'PercentagePanic',
     legacy: false,
-    // Draft feature: stay out of automatic rotation until 300 questions and QA pass.
+    // Draft feature: stay out of automatic rotation until season, balance, and accessibility QA pass.
     weight: 0,
     category: 'trivia',
     retired: false,

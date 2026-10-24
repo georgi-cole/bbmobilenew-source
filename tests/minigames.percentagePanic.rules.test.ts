@@ -12,6 +12,7 @@ import {
   resolvePercentageRound,
   selectPercentageQuestion,
   simulatedPercentageGuess,
+  PERCENTAGE_PANIC_QUESTIONS,
   type PercentageAnswer,
 } from '../src/features/percentagePanic/logic'
 
@@ -24,6 +25,41 @@ const answer = (playerId: string, error: number, responseMs: number): Percentage
 })
 
 describe('Percentage Panic rules', () => {
+  it('ships a complete sourced party-survey bank with explicit populations and dates', () => {
+    const questions = PERCENTAGE_PANIC_QUESTIONS
+    expect(questions.length).toBeGreaterThanOrEqual(300)
+    expect(new Set(questions.map((q) => q.prompt)).size).toBe(questions.length)
+    expect(new Set(questions.map((q) => q.sourceUrl)).size).toBeGreaterThanOrEqual(30)
+    expect(new Set(questions.map((q) => q.category)).size).toBeGreaterThanOrEqual(12)
+    for (const q of questions) {
+      expect(q.questionType).toBe('survey')
+      expect(q.sourceUrl).toMatch(/^https:\/\//)
+      expect(q.sourceUrl).not.toContain('worldbank')
+      expect(q.regionOrCountry.length).toBeGreaterThan(0)
+      expect(q.referenceYear).toBeGreaterThanOrEqual(2010)
+      expect(Number.isInteger(q.answerPercent)).toBe(true)
+      expect(q.answerPercent).toBeGreaterThanOrEqual(0)
+      expect(q.answerPercent).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('mixes topics and studies instead of repeating variations of one survey', () => {
+    for (const seed of [1, 42, 424242]) {
+      const picked = []
+      for (let round = 1; round <= 8; round += 1) {
+        picked.push(
+          selectPercentageQuestion(
+            seed,
+            round,
+            picked.map((q) => q.id)
+          )
+        )
+      }
+      expect(new Set(picked.map((q) => q.category)).size).toBe(8)
+      expect(new Set(picked.map((q) => q.sourceUrl)).size).toBe(8)
+    }
+  })
+
   it('uses a deterministic sourced percent question bank', () => {
     const picked = selectPercentageQuestion(16, 1, [])
     expect(picked.answerPercent).toBeGreaterThanOrEqual(0)

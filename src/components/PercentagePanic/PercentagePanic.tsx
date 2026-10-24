@@ -314,12 +314,12 @@ export default function PercentagePanic({
         <div className="pp-screen">
           <span className="pp-screen__badge">
             {state.phase === 'reveal'
-              ? 'THE TRUTH'
+              ? 'SURVEY SAYS'
               : state.phase === 'winner'
                 ? 'CHAMPION REVEALED'
                 : state.phase === 'order'
                   ? 'THE FINAL SHOWDOWN'
-                  : 'WORLDWIDE FACT CHECK'}
+                  : 'PEOPLE ARE UNPREDICTABLE'}
           </span>
           {state.phase === 'winner' ? (
             <>
@@ -335,7 +335,7 @@ export default function PercentagePanic({
           ) : (
             <>
               <p className="pp-screen__super">
-                {state.question.category} · {state.question.regionOrCountry}
+                {state.question.category} · {state.question.referenceYear} survey
               </p>
               <h3>{state.question.prompt}</h3>
               {state.phase === 'reveal' && (

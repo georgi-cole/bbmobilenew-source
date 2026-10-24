@@ -11,6 +11,7 @@ export interface PercentageQuestion {
   referenceYear: number
   sourceName: string
   sourceUrl: string
+  questionType?: 'survey'
   notes?: string
 }
 
@@ -68,8 +69,16 @@ export function selectPercentageQuestion(
   const available = PERCENTAGE_PANIC_QUESTIONS.filter((q) => !usedIds.includes(q.id))
   const pool = available.length ? available : PERCENTAGE_PANIC_QUESTIONS
   if (!pool.length) throw new Error('Percentage Panic has no verified questions')
+  const played = PERCENTAGE_PANIC_QUESTIONS.filter((q) => usedIds.includes(q.id))
+  const freshSources = pool.filter(
+    (q) => !played.some((previous) => previous.sourceUrl === q.sourceUrl)
+  )
+  const sourcePool = freshSources.length ? freshSources : pool
+  const categoryCount = (category: string) => played.filter((q) => q.category === category).length
+  const leastPlayed = Math.min(...sourcePool.map((q) => categoryCount(q.category)))
+  const variedPool = sourcePool.filter((q) => categoryCount(q.category) === leastPlayed)
   const rng = mulberry32((seed ^ Math.imul(round + 1, 0x9e3779b1)) >>> 0)
-  return pool[Math.floor(rng() * pool.length)]
+  return variedPool[Math.floor(rng() * variedPool.length)]
 }
 
 export function createPercentagePanic(
