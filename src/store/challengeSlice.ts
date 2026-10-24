@@ -305,11 +305,14 @@ export const startChallenge =
       if (!modeSpecific) return pickFromRegistry(category, excludeKeys)
 
       // Survivor has its own free-form rotation. The curated Classic campaign
-      // map must not constrain it; only retirement, roster safety, explicit
-      // exclusions, and an optional category filter apply.
-      const availablePool = getPoolByFilter({ retired: false, excludeKeys }).filter(
-        eligibleForRoster
-      )
+      // map must not constrain it; retired games explicitly marked for Survival
+      // remain available alongside the regular roster.
+      const availablePool = [
+        ...getPoolByFilter({ retired: false, excludeKeys }),
+        ...getPoolByFilter({ retired: true, excludeKeys }).filter(
+          (game) => game.survivalModeEligible
+        ),
+      ].filter(eligibleForRoster)
       // Rescue the King is retired from the Surveyeval competition rotation
       // only. It remains available to every other mode and to direct tests.
       const surveyevalPool = availablePool.filter((game) => game.key !== 'rescueTheKing')
@@ -318,7 +321,7 @@ export const startChallenge =
         : surveyevalPool
       const selectionPool = pool.length > 0 ? pool : surveyevalPool
       if (selectionPool.length === 0) {
-        throw new Error('[challengeSlice] No non-retired Survival games are available')
+        throw new Error('[challengeSlice] No eligible Survival games are available')
       }
 
       const usedKeys = modeSpecific.competitionRotation.usedKeys ?? []

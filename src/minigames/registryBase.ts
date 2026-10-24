@@ -60,6 +60,8 @@ export interface GameRegistryEntry {
   category: GameCategory
   /** True if this entry should not be selected for new challenges. */
   retired: boolean
+  /** Retired games with this flag remain available in Surveyeval's rotation. */
+  survivalModeEligible?: boolean
   /** Optional safe participant-count bounds for random scheduling. */
   minPlayers?: number
   maxPlayers?: number
@@ -917,7 +919,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     legacy: false,
     weight: 2,
     category: 'logic',
-    retired: false,
+    retired: true,
+    survivalModeEligible: true,
   },
 
   travelingDots: {
