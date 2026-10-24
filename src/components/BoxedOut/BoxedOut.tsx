@@ -105,7 +105,8 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
   const [remaining, setRemaining] = useState(SELECTION_SECONDS)
   const [numericAnswer, setNumericAnswer] = useState('')
   const [announced, setAnnounced] = useState(false)
-  const startedAt = useRef(Date.now())
+  const startedAt = useRef(0)
+  const chosenBoxRef = useRef<BoxId | null>(null)
   const finishedRef = useRef(false)
   const latest = game?.reveals[game.reveals.length - 1]
   const human = players.find((player) => player.isHuman)
@@ -118,18 +119,19 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
     startedAt.current = Date.now()
     setRemaining(SELECTION_SECONDS)
     setSelected(null)
+    chosenBoxRef.current = null
     const interval = window.setInterval(() => {
       setRemaining(Math.max(0, SELECTION_SECONDS - Math.floor((Date.now() - startedAt.current) / 1000)))
     }, 250)
     const timeout = window.setTimeout(() => {
       setGame((current) => {
         if (!current || current.phase !== 'select') return current
-        const choice = Math.floor(random01(current.seed, 'timeout:' + current.round) * 3) as BoxId
+        const choice = chosenBoxRef.current ?? (Math.floor(random01(current.seed, 'timeout:' + current.round) * 3) as BoxId)
         return resolveBoxedOutRound(current, choice)
       })
     }, SELECTION_SECONDS * 1000)
     return () => { window.clearInterval(interval); window.clearTimeout(timeout) }
-  }, [awaitingHuman, game?.round])
+  }, [awaitingHuman, game])
 
   useEffect(() => {
     if (!game || (game.phase !== 'select' && game.phase !== 'tiebreak')) return
@@ -137,12 +139,25 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
     if (needsHuman) return
     const timeout = window.setTimeout(() => setGame((current) => current ? autoFinishBoxedOut(current) : current), 350)
     return () => window.clearTimeout(timeout)
-  }, [game?.phase, game?.round, humanAlive, awaitingTiebreak])
+  }, [game, humanAlive, awaitingTiebreak])
 
   useEffect(() => {
     if (!awaitingTiebreak) return
     startedAt.current = Date.now()
     setNumericAnswer('')
+  }, [awaitingTiebreak, game?.questionIndex])
+
+  useEffect(() => {
+    if (!awaitingTiebreak) return
+    const currentIndex = game?.questionIndex
+    const timeout = window.setTimeout(() => {
+      setGame((current) =>
+        current && current.phase === 'tiebreak' && current.questionIndex === currentIndex
+          ? resolveBoxedOutTiebreak(current)
+          : current
+      )
+    }, SELECTION_SECONDS * 1000)
+    return () => window.clearTimeout(timeout)
   }, [awaitingTiebreak, game?.questionIndex])
 
   if (!game) {
@@ -221,7 +236,7 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
                 selected={selected === box} locked={reveal || !humanAlive}
                 revealed={reveal} occupancy={latest?.occupancy[box]}
                 exploded={reveal && latest?.exploded === box}
-                onSelect={() => setSelected(box)}
+                onSelect={() => { chosenBoxRef.current = box; setSelected(box) }}
               />
             ))}
           </div>
