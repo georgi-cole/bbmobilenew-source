@@ -2671,24 +2671,24 @@ body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
   line-height: 1.35;
 }
 
-/* Give the VIP vote screen a brighter, varied palette while keeping the studio backdrop subdued. */
+/* Refine the VIP vote palette with restrained coastal, coral and champagne accents. */
 .majority-rules-shell[data-presentation='vip'] .majority-rules-card--question {
   border-color: rgba(108, 174, 255, 0.48);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 0 34px rgba(76, 151, 255, 0.16),
-    0 0 28px rgba(245, 91, 148, 0.1);
+    0 0 34px rgba(76, 151, 255, 0.14),
+    0 0 24px rgba(238, 128, 89, 0.08);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-options .majority-rules-option {
-  --choice-accent: #69caff;
-  --choice-rgb: 105, 202, 255;
-  --choice-border: rgba(105, 202, 255, 0.68);
-  --choice-wash: rgba(17, 92, 145, 0.58);
-  --choice-selected-wash: rgba(21, 112, 177, 0.76);
-  --choice-label-bg: rgba(33, 133, 193, 0.34);
-  --choice-select-text: rgba(164, 225, 255, 0.7);
+  --choice-accent: #71cbd5;
+  --choice-rgb: 113, 203, 213;
+  --choice-border: rgba(113, 203, 213, 0.56);
+  --choice-wash: rgba(20, 87, 111, 0.4);
+  --choice-selected-wash: rgba(22, 107, 135, 0.62);
+  --choice-label-bg: rgba(43, 145, 157, 0.24);
+  --choice-select-text: rgba(173, 232, 235, 0.72);
   border-color: var(--choice-border);
   border-left-color: var(--choice-accent);
   background: linear-gradient(108deg, var(--choice-wash), rgba(7, 17, 31, 0.94) 78%);
@@ -2701,25 +2701,25 @@ body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
 .majority-rules-shell[data-presentation='vip']
   .majority-rules-options
   .majority-rules-option:nth-child(3n + 2) {
-  --choice-accent: #ff83a6;
-  --choice-rgb: 255, 131, 166;
-  --choice-border: rgba(255, 131, 166, 0.7);
-  --choice-wash: rgba(133, 37, 75, 0.6);
-  --choice-selected-wash: rgba(161, 42, 88, 0.78);
-  --choice-label-bg: rgba(194, 63, 111, 0.34);
-  --choice-select-text: rgba(255, 184, 204, 0.76);
+  --choice-accent: #f08b72;
+  --choice-rgb: 240, 139, 114;
+  --choice-border: rgba(240, 139, 114, 0.62);
+  --choice-wash: rgba(123, 48, 40, 0.38);
+  --choice-selected-wash: rgba(156, 53, 42, 0.62);
+  --choice-label-bg: rgba(188, 88, 67, 0.24);
+  --choice-select-text: rgba(255, 197, 177, 0.78);
 }
 
 .majority-rules-shell[data-presentation='vip']
   .majority-rules-options
   .majority-rules-option:nth-child(3n) {
-  --choice-accent: #c7ed70;
-  --choice-rgb: 199, 237, 112;
-  --choice-border: rgba(199, 237, 112, 0.72);
-  --choice-wash: rgba(69, 104, 33, 0.58);
-  --choice-selected-wash: rgba(82, 131, 37, 0.78);
-  --choice-label-bg: rgba(113, 160, 51, 0.34);
-  --choice-select-text: rgba(220, 249, 161, 0.78);
+  --choice-accent: #e9c47b;
+  --choice-rgb: 233, 196, 123;
+  --choice-border: rgba(233, 196, 123, 0.62);
+  --choice-wash: rgba(123, 84, 35, 0.37);
+  --choice-selected-wash: rgba(146, 100, 39, 0.61);
+  --choice-label-bg: rgba(183, 133, 57, 0.25);
+  --choice-select-text: rgba(248, 222, 167, 0.8);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-option::before {
@@ -2727,9 +2727,9 @@ body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-option-label {
-  color: var(--choice-accent, #69caff);
-  background: var(--choice-label-bg, rgba(33, 133, 193, 0.34));
-  box-shadow: inset 0 0 0 1px var(--choice-border, rgba(105, 202, 255, 0.68));
+  color: var(--choice-accent, #71cbd5);
+  background: var(--choice-label-bg, rgba(43, 145, 157, 0.24));
+  box-shadow: inset 0 0 0 1px var(--choice-border, rgba(113, 203, 213, 0.56));
 }
 
 .majority-rules-shell[data-presentation='vip']
@@ -2739,12 +2739,12 @@ body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
   border-left-color: #fff2be;
   background: linear-gradient(
     108deg,
-    var(--choice-selected-wash, rgba(21, 112, 177, 0.76)),
+    var(--choice-selected-wash, rgba(22, 107, 135, 0.62)),
     rgba(9, 21, 38, 0.96) 82%
   );
   box-shadow:
-    0 0 0 1px rgba(var(--choice-rgb, 105, 202, 255), 0.4),
-    0 0 30px rgba(var(--choice-rgb, 105, 202, 255), 0.3),
+    0 0 0 1px rgba(var(--choice-rgb, 113, 203, 213), 0.36),
+    0 0 27px rgba(var(--choice-rgb, 113, 203, 213), 0.24),
     inset 0 1px 0 rgba(255, 248, 224, 0.22);
 }
 
@@ -2761,25 +2761,25 @@ body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
 .majority-rules-shell[data-presentation='vip']
   .majority-rules-hint-actions
   .majority-rules-pill--poll {
-  border-color: rgba(99, 195, 255, 0.72);
-  background: linear-gradient(145deg, rgba(26, 119, 190, 0.58), rgba(12, 39, 68, 0.94));
-  color: #b8e8ff;
+  border-color: rgba(113, 203, 213, 0.6);
+  background: linear-gradient(145deg, rgba(20, 96, 116, 0.52), rgba(12, 39, 52, 0.94));
+  color: #b8edf0;
 }
 
 .majority-rules-shell[data-presentation='vip']
   .majority-rules-hint-actions
   .majority-rules-pill--peek {
-  border-color: rgba(255, 128, 169, 0.72);
-  background: linear-gradient(145deg, rgba(164, 51, 101, 0.58), rgba(54, 22, 48, 0.94));
-  color: #ffd0df;
+  border-color: rgba(240, 139, 114, 0.64);
+  background: linear-gradient(145deg, rgba(134, 59, 47, 0.48), rgba(57, 29, 33, 0.94));
+  color: #ffd0c0;
 }
 
 .majority-rules-shell[data-presentation='vip']
   .majority-rules-hint-actions
   .majority-rules-pill--follow {
-  border-color: rgba(190, 230, 99, 0.72);
-  background: linear-gradient(145deg, rgba(91, 132, 38, 0.58), rgba(30, 49, 27, 0.94));
-  color: #e0f8a5;
+  border-color: rgba(233, 196, 123, 0.64);
+  background: linear-gradient(145deg, rgba(125, 87, 38, 0.5), rgba(55, 39, 28, 0.94));
+  color: #f6dfad;
 }
 
 .majority-rules-shell[data-presentation='vip']
