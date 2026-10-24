@@ -124,7 +124,7 @@ The catalog proves registry completeness and keeps the known evidence/gaps visib
 
 ## Full active challenge-map execution — 2026-10-21
 
-The shared certification predicate selected 37 active registry entries. Retired, legacy, and inactive entries were excluded, including Rescue the King, a retired failed prototype. Four games already completed earlier in this thread—The Crystal Path, Crystal Path: Infinity, Majority Rules, and Quick Tap Race—were reused rather than rerun. The remaining 33 active games received 59 seeded full-playthrough scenarios on desktop Chromium, plus the driver-registry completeness assertion. All 59 gameplay scenarios and the completeness assertion passed.
+The shared certification predicate selected 37 active registry entries, excluding retired, legacy, and inactive games. Four games already completed earlier in this thread—The Crystal Path, Crystal Path: Infinity, Majority Rules, and Quick Tap Race—were reused rather than rerun. The remaining 33 active games received 59 seeded full-playthrough scenarios on desktop Chromium, plus the driver-registry completeness assertion. All 59 gameplay scenarios and the completeness assertion passed.
 
 The 33 remaining games also passed 99 responsive checks: start and partial-result screens, host exit/Continue behavior, and horizontal overflow on desktop Chromium, Pixel 7-sized Chromium, and a 320×568 Chromium viewport. Earlier responsive evidence for the four reused games was not repeated. The focused matrix completeness test passed 6/6 checks. The previously run minigame rule/component suite was reused rather than repeated.
 

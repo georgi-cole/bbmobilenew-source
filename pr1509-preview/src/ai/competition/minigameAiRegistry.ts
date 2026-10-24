@@ -585,13 +585,6 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     volatility: VOLATILITY_PUZZLE,
     weights: WEIGHTS_MENTAL_PRECISION,
   },
-  rescueTheKing: {
-    key: 'rescueTheKing',
-    category: 'mental',
-    scoreDirection: 'higher-is-better',
-    volatility: VOLATILITY_PUZZLE,
-    weights: WEIGHTS_MENTAL_PRECISION,
-  },
   trapAuction: {
     key: 'trapAuction',
     category: 'luck',

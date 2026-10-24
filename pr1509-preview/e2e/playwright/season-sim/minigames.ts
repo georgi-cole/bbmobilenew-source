@@ -46,7 +46,6 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   castleRescue2Remastered: { kind: 'keyboard', primaryInput: 'platform controls' },
   glass_bridge_brutal: { kind: 'path', primaryInput: 'bridge path choice' },
   crystal_path_shattered: { kind: 'path', primaryInput: 'bridge path choice' },
-  rescueTheKing: { kind: 'board', primaryInput: 'board movement' },
   trapAuction: { kind: 'choice', primaryInput: 'bid and target choice' },
   gridOfLuck: { kind: 'choice', primaryInput: 'grid selection' },
   bigSpender: { kind: 'choice', primaryInput: 'spend or bank choice' },

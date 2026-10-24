@@ -1255,31 +1255,6 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
   },
 
-  rescueTheKing: {
-    key: 'rescueTheKing',
-    title: 'Rescue the King',
-    description: 'Clear the match board before the rising water reaches the king.',
-    instructions: [
-      'Swap adjacent tiles to make matches of identical symbols.',
-      'Matched tiles are removed — remaining tiles fall downward.',
-      'Destroy crates and stone blockers by matching tiles next to them.',
-      'Clear the board before time runs out to rescue the king.',
-      'Create cascades and larger combos to improve your score.',
-    ],
-    metricKind: 'points',
-    metricLabel: 'Score',
-    timeLimitMs: 180_000,
-    authoritative: false,
-    scoringAdapter: 'raw',
-    scoringParams: { minRaw: 0, maxRaw: 8000 },
-    implementation: 'react',
-    reactComponentKey: 'RescueTheKing',
-    legacy: false,
-    weight: 1,
-    category: 'logic',
-    retired: false,
-  },
-
   trapAuction: {
     key: 'trapAuction',
     title: 'Trap Auction',
