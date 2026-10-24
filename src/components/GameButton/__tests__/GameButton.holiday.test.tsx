@@ -20,7 +20,8 @@ describe('GameButton holiday treatment', () => {
     expect(button).toHaveClass(`game-btn--holiday-${key}`)
     expect(artwork).toHaveAttribute('data-theme', key)
     expect(glassSurface).toBeInTheDocument()
-    expect(glassSurface).toHaveAttribute('style', expect.stringContaining('rgba'))
+    expect(glassSurface?.getAttribute('style')).toContain('111, 86, 255')
+    expect(glassSurface?.getAttribute('style')).toContain('rgba(10, 14, 24, 0.06)')
     expect(button.querySelector('.btn-bg')).toBeNull()
 
     for (const motif of motifs) {
