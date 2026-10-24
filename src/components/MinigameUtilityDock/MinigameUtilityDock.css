@@ -192,11 +192,11 @@
 .minigame-exit-confirm {
   width: min(100%, 420px);
   padding: 22px;
-  border: 1px solid rgba(241, 83, 112, 0.52);
+  border: 1px solid rgba(193, 184, 255, 0.4);
   border-radius: 18px;
   color: #f7f5ff;
   background:
-    radial-gradient(circle at 85% 0%, rgba(241, 83, 112, 0.16), transparent 34%),
+    radial-gradient(circle at 85% 0%, rgba(128, 99, 255, 0.18), transparent 34%),
     linear-gradient(180deg, rgba(22, 24, 49, 0.98), rgba(8, 10, 28, 0.98));
   box-shadow:
     0 22px 54px rgba(0, 0, 0, 0.52),
