@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
+import { preloadImages } from '../../utils/preloadImages'
+import studioBackdrop from '../../assets/percentage-panic/studio.webp'
+import revealBackdrop from '../../assets/percentage-panic/forest-reveal.webp'
+import eliminationBackdrop from '../../assets/percentage-panic/elimination.webp'
+import finaleBackdrop from '../../assets/percentage-panic/finale.webp'
 import {
   advancePercentageRound,
+  chooseAiPercentageDuelFirst,
   choosePercentageDuelOrder,
   createPercentagePanic,
+  percentagePanicLastPlaceIds,
+  percentagePanicRankedGroups,
   percentagePanicRankedIds,
   pickAiDuelGuess,
   resolvePercentageDuelGuess,
@@ -30,17 +39,36 @@ interface Props {
 
 const ROUND_SECONDS = 20
 const QUICK_PICKS = [0, 10, 25, 50, 75, 100]
+const HIGH_PRIORITY_BACKDROPS = [studioBackdrop, revealBackdrop]
+const LOW_PRIORITY_BACKDROPS = [eliminationBackdrop, finaleBackdrop]
+
+function waitForImage(source: string): Promise<void> {
+  return new Promise((resolve) => {
+    const image = new Image()
+    const timeout = window.setTimeout(done, 6000)
+    function done() {
+      window.clearTimeout(timeout)
+      resolve()
+    }
+    image.onload = done
+    image.onerror = done
+    image.src = source
+    if (image.complete) done()
+  })
+}
 
 export default function PercentagePanic({
   participantIds,
   participants = [],
-  seed = 0,
+  seed,
   prizeType = 'LOH',
   onComplete,
 }: Props) {
+  const [assetsReady, setAssetsReady] = useState(false)
+  const [sessionSeed] = useState(() => seed ?? cryptoSeed())
   const [state, setState] = useState<PercentagePanicState>(() => {
     const humanId = participants.find((p) => p.isHuman)?.id ?? null
-    return createPercentagePanic(participantIds, humanId, seed || cryptoSeed())
+    return createPercentagePanic(participantIds, humanId, sessionSeed)
   })
   const [guess, setGuess] = useState(50)
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS)
@@ -49,6 +77,18 @@ export default function PercentagePanic({
   const startRef = useRef(0)
   const completionRef = useRef(false)
   const humanActive = state.humanId != null && state.activeIds.includes(state.humanId)
+
+  useEffect(() => {
+    let cancelled = false
+    preloadImages(HIGH_PRIORITY_BACKDROPS, 'high')
+    preloadImages(LOW_PRIORITY_BACKDROPS, 'low')
+    void Promise.all(HIGH_PRIORITY_BACKDROPS.map(waitForImage)).then(() => {
+      if (!cancelled) setAssetsReady(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const names = useMemo(
     () => Object.fromEntries(participants.map((p) => [p.id, p.name])),
@@ -66,7 +106,7 @@ export default function PercentagePanic({
   }
 
   useEffect(() => {
-    if (state.phase !== 'question') return
+    if (!assetsReady || state.phase !== 'question') return
     startRef.current = performance.now()
     if (!humanActive) {
       const timeout = window.setTimeout(() => setState((s) => resolvePercentageRound(s)), 900)
@@ -84,22 +124,30 @@ export default function PercentagePanic({
       window.clearInterval(interval)
       window.clearTimeout(timeout)
     }
-  }, [state.phase, state.roundNumber, humanActive])
+  }, [assetsReady, state.phase, state.roundNumber, humanActive])
 
   useEffect(() => {
-    if (state.phase !== 'order' || !state.finalists || state.chooserId === state.humanId) return
+    if (
+      !assetsReady ||
+      state.phase !== 'order' ||
+      !state.finalists ||
+      state.chooserId === state.humanId
+    )
+      return
     const timeout = window.setTimeout(
       () =>
         setState((s) =>
-          s.chooserId && s.finalists ? choosePercentageDuelOrder(s, s.finalists[0]) : s
+          chooseAiPercentageDuelFirst(s)
+            ? choosePercentageDuelOrder(s, chooseAiPercentageDuelFirst(s)!)
+            : s
         ),
       1100
     )
     return () => window.clearTimeout(timeout)
-  }, [state.phase, state.chooserId, state.humanId, state.finalists])
+  }, [assetsReady, state.phase, state.chooserId, state.humanId, state.finalists])
 
   useEffect(() => {
-    if (state.phase !== 'duel' || state.duelTurnId === state.humanId) return
+    if (!assetsReady || state.phase !== 'duel' || state.duelTurnId === state.humanId) return
     const timeout = window.setTimeout(
       () =>
         setState((s) =>
@@ -110,13 +158,20 @@ export default function PercentagePanic({
       watching ? 120 : 1050
     )
     return () => window.clearTimeout(timeout)
-  }, [state.phase, state.duelTurnId, state.humanId, state.duelGuesses.length, watching])
+  }, [
+    assetsReady,
+    state.phase,
+    state.duelTurnId,
+    state.humanId,
+    state.duelGuesses.length,
+    watching,
+  ])
 
   useEffect(() => {
-    if (state.phase !== 'reveal' || humanActive) return
+    if (!assetsReady || state.phase !== 'reveal' || humanActive) return
     const timeout = window.setTimeout(() => setState(advancePercentageRound), watching ? 120 : 1800)
     return () => window.clearTimeout(timeout)
-  }, [state.phase, state.roundNumber, humanActive, watching])
+  }, [assetsReady, state.phase, state.roundNumber, humanActive, watching])
 
   const nextRound = () => {
     // Reset input and clock in the user interaction, not synchronously in an effect.
@@ -143,7 +198,11 @@ export default function PercentagePanic({
     onComplete?.(
       {
         authoritativeWinnerId: state.winnerId,
-        authoritativeLastPlaceId: state.eliminatedIds[0] ?? null,
+        authoritativeLastPlaceId: percentagePanicLastPlaceIds(state)[0] ?? null,
+        authoritativeLastPlaceIds: percentagePanicLastPlaceIds(state),
+        authoritativeTiedGroups: percentagePanicRankedGroups(state).filter(
+          (group) => group.length > 1
+        ),
         authoritativeRankedIds: percentagePanicRankedIds(state),
         rawResults: { ...state.scores },
         rawValue: state.humanId ? state.scores[state.humanId] : 0,
@@ -161,10 +220,28 @@ export default function PercentagePanic({
   const sliderMin = state.phase === 'duel' ? state.duelBounds[0] : 0
   const sliderMax = state.phase === 'duel' ? state.duelBounds[1] : 100
   const safeGuess = Math.max(sliderMin, Math.min(sliderMax, guess))
+  const backdrop =
+    state.phase === 'winner' || state.phase === 'order' || state.phase === 'duel'
+      ? finaleBackdrop
+      : state.phase === 'reveal'
+        ? state.humanId && worst.includes(state.humanId)
+          ? eliminationBackdrop
+          : revealBackdrop
+        : studioBackdrop
+  const studioStyle = { '--pp-backdrop': `url("${backdrop}")` } as CSSProperties
+
+  if (!assetsReady) {
+    return (
+      <div className="pp-loading" role="status" aria-live="polite">
+        <span className="pp-loading__spinner" aria-hidden="true" />
+        <p>Setting the stage…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="pp-shell" data-phase={state.phase}>
-      <div className="pp-studio" aria-hidden="true">
+      <div className="pp-studio" aria-hidden="true" style={studioStyle}>
         <span />
         <span />
         <span />
@@ -293,6 +370,25 @@ export default function PercentagePanic({
 
         {state.phase === 'reveal' && result && (
           <div className="pp-results">
+            {state.humanId && worst.includes(state.humanId) && (
+              <div className="pp-eliminated-callout">
+                <span className="pp-eliminated-callout__avatar">
+                  {players[state.humanId]?.avatar &&
+                  !players[state.humanId].avatar?.startsWith('data:') &&
+                  /^https?:|^\//.test(players[state.humanId].avatar || '') ? (
+                    <img src={players[state.humanId].avatar} alt="" />
+                  ) : (
+                    nameOf(state.humanId)[0] || '?'
+                  )}
+                </span>
+                <strong>ELIMINATED · {nameOf(state.humanId)}</strong>
+                <span>
+                  Your guess was{' '}
+                  {result.answers.find((answer) => answer.playerId === state.humanId)?.error ?? 0}%
+                  away from the correct answer.
+                </span>
+              </div>
+            )}
             {result.suddenDeath && (
               <p className="pp-alert">All tied! Nobody leaves. New sudden-death question.</p>
             )}
@@ -346,7 +442,7 @@ export default function PercentagePanic({
             </div>
             {state.chooserId === state.humanId ? (
               <>
-                <p>You have the higher score. Who takes the first guess?</p>
+                <p>You earned the choice. Who takes the first guess?</p>
                 <div className="pp-actions">
                   <button
                     className="pp-primary"

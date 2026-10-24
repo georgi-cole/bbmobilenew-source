@@ -40,6 +40,7 @@ export interface PercentagePanicState {
   contestants: string[]
   activeIds: string[]
   eliminatedIds: string[]
+  eliminationGroups: string[][]
   humanId: string | null
   scores: Record<string, number>
   responseTotals: Record<string, number>
@@ -82,11 +83,15 @@ export function createPercentagePanic(
   const question = selectPercentageQuestion(seed, 1, [])
   const initialFinalists =
     contestants.length === 2 ? ([contestants[0], contestants[1]] as [string, string]) : null
+  const initialChooser = initialFinalists
+    ? initialFinalists[Math.floor(mulberry32((seed ^ 0x51f15e) >>> 0)() * 2)]
+    : null
   return {
     seed,
     contestants,
     activeIds: contestants,
     eliminatedIds: [],
+    eliminationGroups: [],
     humanId,
     scores: Object.fromEntries(contestants.map((id) => [id, 0])),
     responseTotals: Object.fromEntries(contestants.map((id) => [id, 0])),
@@ -96,7 +101,7 @@ export function createPercentagePanic(
     question,
     lastRound: null,
     finalists: initialFinalists,
-    chooserId: initialFinalists?.[0] ?? null,
+    chooserId: initialChooser,
     duelTurnId: null,
     duelBounds: [0, 100],
     duelGuesses: [],
@@ -176,7 +181,12 @@ export function resolvePercentageRound(
         const [first, second] = finalPair
         if (scores[first] > scores[second]) return first
         if (scores[second] > scores[first]) return second
-        return responseTotals[first] <= responseTotals[second] ? first : second
+        if (responseTotals[first] < responseTotals[second]) return first
+        if (responseTotals[second] < responseTotals[first]) return second
+        const tieIndex = Math.floor(
+          mulberry32((state.seed ^ Math.imul(state.roundNumber, 0x45d9f3b)) >>> 0)() * 2
+        )
+        return finalPair[tieIndex]
       })()
     : null
   return {
@@ -185,6 +195,9 @@ export function resolvePercentageRound(
     responseTotals,
     activeIds,
     eliminatedIds: [...state.eliminatedIds, ...(suddenDeath ? [] : eliminatedIds)],
+    eliminationGroups: suddenDeath
+      ? state.eliminationGroups
+      : [...state.eliminationGroups, eliminatedIds],
     lastRound: {
       question: state.question,
       answers,
@@ -271,10 +284,44 @@ export function pickAiDuelGuess(state: PercentagePanicState): number {
   return Math.floor((low + high) / 2)
 }
 
+export function chooseAiPercentageDuelFirst(state: PercentagePanicState): string | null {
+  if (!state.finalists || !state.chooserId) return null
+  const other = state.finalists.find((id) => id !== state.chooserId)
+  if (!other) return null
+  const chooserHash = stringSeed(state.chooserId)
+  const chooserWantsFirst =
+    (state.seed ^ chooserHash ^ Math.imul(state.roundNumber, 0x27d4eb2d)) & 1
+  return chooserWantsFirst === 0 ? state.chooserId : other
+}
+
+/** Ordered placement groups, with contestants eliminated together sharing one rank. */
+export function percentagePanicRankedGroups(state: PercentagePanicState): string[][] {
+  const groups: string[][] = []
+  const ranked = new Set<string>()
+  const addGroup = (ids: string[]) => {
+    const unranked = ids.filter((id) => !ranked.has(id))
+    if (unranked.length) {
+      groups.push(unranked)
+      unranked.forEach((id) => ranked.add(id))
+    }
+  }
+  if (state.winnerId) addGroup([state.winnerId])
+  const runnersUp = state.finalists?.filter((id) => id !== state.winnerId) ?? []
+  if (runnersUp.length) addGroup(runnersUp)
+  const contestantOrder = new Map(state.contestants.map((id, index) => [id, index]))
+  for (const group of [...state.eliminationGroups].reverse()) {
+    addGroup(
+      [...group].sort((a, b) => (contestantOrder.get(a) ?? 0) - (contestantOrder.get(b) ?? 0))
+    )
+  }
+  return groups
+}
+
 export function percentagePanicRankedIds(state: PercentagePanicState): string[] {
-  const winner = state.winnerId ? [state.winnerId] : []
-  const second = state.finalists?.filter((id) => id !== state.winnerId) ?? []
-  return [...winner, ...second, ...[...state.eliminatedIds].reverse()].filter(
-    (id, index, all) => all.indexOf(id) === index
-  )
+  return percentagePanicRankedGroups(state).flat()
+}
+
+export function percentagePanicLastPlaceIds(state: PercentagePanicState): string[] {
+  if (state.eliminationGroups[0]) return [...state.eliminationGroups[0]]
+  return state.finalists?.filter((id) => id !== state.winnerId) ?? []
 }

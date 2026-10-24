@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   advancePercentageRound,
+  chooseAiPercentageDuelFirst,
   choosePercentageDuelOrder,
   createPercentagePanic,
   percentageEliminations,
+  percentagePanicLastPlaceIds,
+  percentagePanicRankedGroups,
   percentagePanicRankedIds,
   resolvePercentageDuelGuess,
   resolvePercentageRound,
@@ -51,7 +54,8 @@ describe('Percentage Panic rules', () => {
     const game = createPercentagePanic(['a', 'b'], 'a', 4)
     expect(game.phase).toBe('order')
     expect(game.finalists).toEqual(['a', 'b'])
-    expect(game.chooserId).toBe('a')
+    expect(game.chooserId).toBe(createPercentagePanic(['a', 'b'], 'a', 4).chooserId)
+    expect(game.finalists).toContain(game.chooserId)
   })
 
   it('resolves a round consistently and carries negative cumulative scores', () => {
@@ -94,6 +98,41 @@ describe('Percentage Panic rules', () => {
     expect(game.winnerId).toBe('b')
     expect(game.phase).toBe('winner')
     expect(percentagePanicRankedIds(game)).toEqual(['b', 'a'])
+  })
+
+  it('keeps tied elimination groups together in the final standings', () => {
+    const game = createPercentagePanic(['a', 'b', 'c', 'd', 'e', 'f'], 'a', 19)
+    const completed = {
+      ...game,
+      phase: 'winner' as const,
+      activeIds: ['f'],
+      eliminatedIds: ['a', 'b', 'c', 'd'],
+      eliminationGroups: [
+        ['a', 'b'],
+        ['c', 'd'],
+      ],
+      finalists: ['e', 'f'] as [string, string],
+      winnerId: 'f',
+    }
+    expect(percentagePanicRankedGroups(completed)).toEqual([['f'], ['e'], ['c', 'd'], ['a', 'b']])
+    expect(percentagePanicLastPlaceIds(completed)).toEqual(['a', 'b'])
+    expect(percentagePanicRankedIds(completed)).toEqual(['f', 'e', 'c', 'd', 'a', 'b'])
+  })
+
+  it('lets the AI chooser select which finalist guesses first', () => {
+    const initial = createPercentagePanic(['a', 'b'], null, 8)
+    const first = chooseAiPercentageDuelFirst(initial)
+    expect(first).toBeTruthy()
+    expect(initial.finalists).toContain(first)
+    expect(first).toBe(chooseAiPercentageDuelFirst(initial))
+  })
+
+  it('reports the losing finalist as last place when a two-player game skips elimination rounds', () => {
+    const initial = createPercentagePanic(['a', 'b'], 'a', 8)
+    const duel = choosePercentageDuelOrder(initial, 'a')
+    const winner = resolvePercentageDuelGuess(duel, 'a', duel.question.answerPercent)
+    expect(winner.winnerId).toBe('a')
+    expect(percentagePanicLastPlaceIds(winner)).toEqual(['b'])
   })
 
   it('rejects invalid input instead of scoring a malformed guess', () => {
