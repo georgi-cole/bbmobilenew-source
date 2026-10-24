@@ -529,6 +529,12 @@ button.majority-rules-player-card:hover {
 }
 
 .majority-rules-option-copy {
+  /* Keep the old-save blocked-answer notice below the option title, never
+     alongside or overlapping it in the two-column phone option grid. */
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 0.82rem;
   color: #cbd5e1;
 }

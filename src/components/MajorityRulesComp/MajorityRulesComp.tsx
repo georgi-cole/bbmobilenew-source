@@ -19,6 +19,8 @@ import {
   setThreeWayDuelPick,
   setFinalDuelPick,
   setHumanAnswer,
+  setVipExperience,
+  skipLegacyRevote,
   useHint as applyMajorityRulesHint,
   type MajorityRulesCompetitionType,
 } from '../../features/majorityRules/majorityRulesSlice'
@@ -521,6 +523,17 @@ export default function MajorityRulesComp({
   }, [dispatch, initialConfig])
 
   useEffect(() => {
+    if (game.phase !== 'intro' || game.vipExperience === premiumPresentation) return
+    dispatch(setVipExperience(premiumPresentation))
+  }, [dispatch, game.phase, game.vipExperience, premiumPresentation])
+
+  useEffect(() => {
+    if (game.phase === 'question' && game.revoteNumber > 0) {
+      dispatch(skipLegacyRevote())
+    }
+  }, [dispatch, game.phase, game.revoteNumber])
+
+  useEffect(() => {
     if (game.phase !== 'intro') return undefined
     const timeout = window.setTimeout(() => dispatch(advanceIntro()), INTRO_DELAY_MS)
     return () => window.clearTimeout(timeout)
@@ -926,32 +939,24 @@ export default function MajorityRulesComp({
                 }
               : {})}
           >
-            {reveal?.result.kind === 'split'
+            {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'No clear minority. Nobody falls.'
-              : reveal?.result.kind === 'revote'
-                ? reveal.revoteNumber >= 1
-                  ? 'Still tied. This question is over.'
-                  : 'Split house. One re-vote remains.'
-                : reveal?.result.kind === 'unanimous'
-                  ? 'A full sweep. Nobody falls this time.'
-                  : tiedMinorityLabels.length > 0
-                    ? 'Tie at the bottom. No one is eliminated.'
-                    : 'Minority found. The trap door opens.'}
+              : reveal?.result.kind === 'unanimous'
+                ? 'A full sweep. Nobody falls this time.'
+                : tiedMinorityLabels.length > 0
+                  ? 'Tie at the bottom. No one is eliminated.'
+                  : 'Minority found. The trap door opens.'}
           </motion.h2>
           <p className="majority-rules-copy">
-            {reveal?.result.kind === 'split'
+            {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'The vote was too divided for a fair elimination. A fresh question will decide the next minority.'
-              : reveal?.result.kind === 'revote'
-                ? reveal.revoteNumber >= 1
-                  ? 'The re-vote tied again, so a fresh question will replace it.'
-                  : 'Every populated answer tied, so the house votes once more.'
-                : reveal?.result.kind === 'unanimous'
-                  ? 'No elimination this round. The next question starts fresh.'
-                  : tiedMinorityLabels.length > 0
-                    ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
-                    : minorityLabel
-                      ? `The minority answer was “${minorityLabel}”.`
-                      : 'The minority has been eliminated.'}
+              : reveal?.result.kind === 'unanimous'
+                ? 'No elimination this round. The next question starts fresh.'
+                : tiedMinorityLabels.length > 0
+                  ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
+                  : minorityLabel
+                    ? `The minority answer was “${minorityLabel}”.`
+                    : 'The minority has been eliminated.'}
           </p>
         </div>
 
@@ -1086,11 +1091,7 @@ export default function MajorityRulesComp({
           className="majority-rules-primary"
           onClick={() => dispatch(advanceReveal())}
         >
-          {reveal?.result.kind === 'revote'
-            ? reveal.revoteNumber >= 1
-              ? 'New question'
-              : 'Start re-vote'
-            : 'Continue'}
+          Continue
         </button>
       </motion.div>
     )
