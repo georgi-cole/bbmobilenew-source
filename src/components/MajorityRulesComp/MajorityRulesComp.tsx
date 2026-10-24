@@ -742,8 +742,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'pollHint'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--poll majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--poll'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -757,8 +757,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'peekTwo'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--peek majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--peek'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -772,8 +772,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'followPlayer'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--follow majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--follow'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
