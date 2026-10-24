@@ -11,7 +11,9 @@
   padding: 0;
   -webkit-appearance: none;
   appearance: none;
-  transition: transform 150ms ease, opacity 150ms ease;
+  transition:
+    transform 150ms ease,
+    opacity 150ms ease;
   /* Prevent text selection on rapid taps */
   -webkit-user-select: none;
   user-select: none;
@@ -57,6 +59,7 @@
 /* Content (icon + label) overlays above the SVG */
 .btn-content {
   position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -80,6 +83,56 @@
   line-height: 1;
 }
 
+/* Holiday artwork recolors and decorates the primary button face. */
+.game-btn--holiday-halloween {
+  --holiday-glow: rgba(255, 157, 65, 0.48);
+}
+
+.game-btn--holiday-christmas {
+  --holiday-glow: rgba(255, 220, 143, 0.62);
+}
+
+.game-btn--holiday-newYear {
+  --holiday-glow: rgba(255, 217, 122, 0.68);
+}
+
+.game-btn--holiday-easter {
+  --holiday-glow: rgba(235, 187, 255, 0.64);
+}
+
+.game-btn--holiday-independenceDay {
+  --holiday-glow: rgba(157, 193, 255, 0.42);
+}
+
+.btn-holiday-artwork {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.btn-holiday-artwork svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 1px 7px var(--holiday-glow));
+  transition: filter 180ms ease;
+}
+
+.game-btn--holiday .btn-bg {
+  display: none;
+}
+
+.game-btn--holiday:hover:not(.game-btn--disabled) .btn-holiday-artwork svg {
+  filter: brightness(1.06) drop-shadow(0 1px 9px var(--holiday-glow));
+}
+
+.game-btn--holiday:active:not(.game-btn--disabled) .btn-holiday-artwork svg,
+.game-btn--holiday.game-btn--pressed:not(.game-btn--disabled) .btn-holiday-artwork svg {
+  filter: brightness(0.94) drop-shadow(0 1px 5px var(--holiday-glow));
+}
+
 .btn-badge {
   position: absolute;
   /* Sit inside the upper-right bevel: this badge is an in-button lock, not
@@ -91,7 +144,9 @@
   height: 1.3rem;
   filter: drop-shadow(0 0.15rem 0.26rem rgba(10, 7, 28, 0.6));
   transform: rotate(7deg);
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
   z-index: 2;
 }
 
@@ -149,10 +204,18 @@
 }
 
 @media (max-width: 420px) {
-  .game-btn--primary_large    { width: 92%; }
-  .game-btn--secondary_medium { width: 84%; }
-  .game-btn--secondary_wide   { width: 90%; }
-  .game-btn--secondary_small  { width: 78%; }
+  .game-btn--primary_large {
+    width: 92%;
+  }
+  .game-btn--secondary_medium {
+    width: 84%;
+  }
+  .game-btn--secondary_wide {
+    width: 90%;
+  }
+  .game-btn--secondary_small {
+    width: 78%;
+  }
 
   .btn-content {
     padding: 10px 20px;

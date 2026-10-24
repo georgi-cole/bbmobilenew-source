@@ -29,6 +29,17 @@ function isImageFile(filename) {
   return IMAGE_EXTENSIONS.has(path.extname(filename).toLowerCase());
 }
 
+function findImageFiles(directory, prefix = '') {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolutePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      return findImageFiles(absolutePath, relativePath);
+    }
+    return entry.isFile() && isImageFile(entry.name) ? [relativePath] : [];
+  });
+}
+
 function readRegistry() {
   const raw = fs.readFileSync(REGISTRY_PATH, 'utf8');
   const parsed = JSON.parse(raw);
@@ -65,7 +76,11 @@ try {
 }
 
 const themeKeys = Object.keys(registry);
-const allFiles = fs.readdirSync(SKINS_DIR).filter((f) => isImageFile(f));
+const rootFiles = fs.readdirSync(SKINS_DIR).filter((file) => isImageFile(file));
+const themeFiles = fs.existsSync(path.join(SKINS_DIR, 'themes'))
+  ? findImageFiles(path.join(SKINS_DIR, 'themes'), 'themes')
+  : [];
+const allFiles = [...rootFiles, ...themeFiles];
 const fileSet = new Set(allFiles);
 const manifest = {};
 const usedFiles = new Set();
