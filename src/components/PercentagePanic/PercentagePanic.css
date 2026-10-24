@@ -62,7 +62,7 @@
   border-radius: 1.5rem;
   background-color: #070e23;
   background-image:
-    linear-gradient(180deg, #070e2380 0%, #070e234f 40%, #070e23bb 100%), var(--pp-backdrop);
+    linear-gradient(180deg, #070e2399 0%, #070e236e 40%, #070e23cc 100%), var(--pp-backdrop);
   background-position: center;
   background-size: cover;
   transition: background-image 250ms ease;
@@ -316,6 +316,7 @@
     0 14px 40px #0008;
   background: linear-gradient(140deg, #060c24db, #0d2243d9);
   overflow: hidden;
+  animation: pp-panel-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 .pp-screen::after {
   content: '';
@@ -358,6 +359,35 @@
   font-size: 0.63rem;
   line-height: 1.3;
 }
+.pp-poll-detail {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.18rem;
+  width: min(100%, 35rem);
+  padding: 0.48rem 0.7rem;
+  border: 1px solid #55dfcb55;
+  border-radius: 0.65rem;
+  background: #0e292bd9;
+  animation: pp-fact-enter 520ms 120ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+.pp-poll-detail > strong {
+  color: #a4f5e5;
+  font-size: 0.57rem;
+  letter-spacing: 0.12em;
+}
+.pp-poll-detail > p {
+  margin: 0;
+  color: #f5efff;
+  font-size: clamp(0.7rem, 2.6vw, 0.86rem);
+  line-height: 1.3;
+}
+.pp-poll-detail > a {
+  color: #a7e7df;
+  font-size: 0.62rem;
+  text-underline-offset: 2px;
+}
 .pp-screen .pp-truth {
   font-size: clamp(2.4rem, 9vw, 4.2rem);
   font-weight: 1000;
@@ -384,6 +414,7 @@
   display: grid;
   gap: 0.65rem;
   box-shadow: 0 10px 30px #070c1d70;
+  animation: pp-panel-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 .pp-console--center {
   text-align: center;
@@ -655,6 +686,18 @@
 .pp-console__top strong {
   color: #ffc47e;
 }
+.pp-contestant strong {
+  display: inline-block;
+  animation: pp-score-pop 430ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.pp-contestant__style {
+  max-width: 100%;
+  color: #a4f5e5;
+  font-size: 0.47rem;
+  line-height: 1.1;
+  text-align: center;
+  text-transform: uppercase;
+}
 .pp-screen {
   border-color: #9873c4;
   background: linear-gradient(140deg, #171329e8, #241733e8);
@@ -736,8 +779,59 @@
 .pp-results__header {
   color: #bfece5;
 }
+.pp-standings-callout {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-left: 2px solid #55dfcb;
+  border-radius: 0.25rem;
+  background: #123c4355;
+  color: #baf2e9;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
 .pp-results__row {
   background: #282039db;
+  animation: pp-row-enter 400ms calc(var(--row-index, 0) * 48ms) cubic-bezier(0.2, 0.75, 0.25, 1)
+    both;
+}
+.pp-results__rank {
+  color: #a4f5e5;
+  font-weight: 900;
+}
+.pp-results__player {
+  display: grid;
+  gap: 0.12rem;
+  text-align: left;
+}
+.pp-results__identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12rem;
+}
+.pp-results__reaction {
+  color: #c1b5d2;
+  font-size: 0.61rem;
+  font-weight: 500;
+}
+.pp-results__movement {
+  display: inline-block;
+  margin-left: 0.25rem;
+  color: #a4f5e5;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+.pp-results__movement--up {
+  color: #87f0ce;
+  animation: pp-move-up 620ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.pp-results__movement--down {
+  color: #ffab9f;
+  animation: pp-move-down 620ms cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+.pp-results__row--finalist {
+  border: 1px solid #55dfcb;
+  background: #17463fe0;
 }
 .pp-results__row--out {
   background: #652c3994;
@@ -752,4 +846,149 @@
 }
 .pp-history > div {
   background: #282039;
+  animation: pp-row-enter 350ms ease both;
+}
+.pp-suspense {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  padding: 1.05rem 0.65rem;
+  border: 1px solid #f4b65e88;
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(ellipse at center, #70402088, transparent 70%),
+    linear-gradient(120deg, #251825, #33251e, #251825);
+  text-align: center;
+  animation: pp-suspense-enter 360ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+.pp-suspense > strong {
+  color: #ffcf88;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+}
+.pp-suspense > span:not(.pp-suspense__light) {
+  color: #eee4f4;
+  font-size: 0.83rem;
+}
+.pp-suspense__light {
+  position: absolute;
+  inset: 0 auto 0 -40%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, #ffd88730, transparent);
+  animation: pp-suspense-sweep 950ms ease-in-out infinite;
+}
+.pp-shell[data-phase='duel'] .pp-screen {
+  border-color: #d39b61;
+  box-shadow:
+    inset 0 0 30px #9b6bc51c,
+    0 0 0 3px #171020,
+    0 0 28px #f2a84a22,
+    0 14px 40px #0008;
+}
+.pp-shell[data-phase='winner'] .pp-screen__winner {
+  animation: pp-champion-reveal 700ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes pp-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes pp-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pp-fact-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pp-score-pop {
+  0% {
+    transform: scale(0.84);
+    color: #a4f5e5;
+  }
+  65% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+    color: #ffc47e;
+  }
+}
+@keyframes pp-move-up {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.9);
+  }
+  65% {
+    transform: translateY(-2px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes pp-move-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.9);
+  }
+  65% {
+    transform: translateY(2px) scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes pp-suspense-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes pp-suspense-sweep {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(440%);
+  }
+}
+@keyframes pp-champion-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.74);
+    filter: blur(5px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.07);
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1);
+  }
 }

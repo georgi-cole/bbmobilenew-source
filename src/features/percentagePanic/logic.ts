@@ -61,6 +61,65 @@ export interface PercentagePanicState {
 export const PERCENTAGE_PANIC_QUESTIONS = bank as PercentageQuestion[]
 const isValidPercent = (n: number) => Number.isInteger(n) && n >= 0 && n <= 100
 
+export interface PercentagePollDetail {
+  text: string
+  sourceName: string
+  referenceYear: number
+  sourceUrl: string
+  samePoll: boolean
+}
+
+function stableHash(value: string): number {
+  let hash = 2166136261
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function questionClause(question: PercentageQuestion): string {
+  const prefix = `What percentage of ${question.regionOrCountry} `
+  return question.prompt.startsWith(prefix)
+    ? question.prompt.slice(prefix.length).replace(/[?\s]+$/, '')
+    : question.prompt.replace(/^What percentage of /i, '').replace(/[?\s]+$/, '')
+}
+
+/** Find another published result to make the reveal feel like a tiny poll story. */
+export function percentagePollDetail(question: PercentageQuestion): PercentagePollDetail {
+  const otherQuestions = PERCENTAGE_PANIC_QUESTIONS.filter((item) => item.id !== question.id)
+  const samePoll = otherQuestions.filter(
+    (item) =>
+      item.sourceUrl === question.sourceUrl && item.regionOrCountry === question.regionOrCountry
+  )
+  const sourcePeers = samePoll.length
+    ? samePoll
+    : otherQuestions.filter((item) => item.sourceUrl === question.sourceUrl)
+  const relatedPolls = otherQuestions.filter((item) => item.category === question.category)
+  const candidates = sourcePeers.length ? sourcePeers : relatedPolls
+  if (!candidates.length) {
+    return {
+      text: `A ${question.referenceYear} ${question.sourceName} snapshot of ${question.regionOrCountry}; the result reflects what this group reported.`,
+      sourceName: question.sourceName,
+      referenceYear: question.referenceYear,
+      sourceUrl: question.sourceUrl,
+      samePoll: true,
+    }
+  }
+
+  const candidate = candidates[stableHash(`${question.id}:poll-detail`) % candidates.length]
+  const samePollFact = sourcePeers.length > 0
+  return {
+    text: samePollFact
+      ? `${candidate.answerPercent}% of ${candidate.regionOrCountry} ${questionClause(candidate)}.`
+      : `A separate ${candidate.referenceYear} poll found ${candidate.answerPercent}% of ${candidate.regionOrCountry} ${questionClause(candidate)}.`,
+    sourceName: candidate.sourceName,
+    referenceYear: candidate.referenceYear,
+    sourceUrl: candidate.sourceUrl,
+    samePoll: samePollFact,
+  }
+}
+
 export function selectPercentageQuestion(
   seed: number,
   round: number,
@@ -90,11 +149,6 @@ export function createPercentagePanic(
   if (contestants.length < 2) throw new Error('Percentage Panic requires at least two contestants')
   if (humanId && !contestants.includes(humanId)) throw new Error('Unknown human contestant')
   const question = selectPercentageQuestion(seed, 1, [])
-  const initialFinalists =
-    contestants.length === 2 ? ([contestants[0], contestants[1]] as [string, string]) : null
-  const initialChooser = initialFinalists
-    ? initialFinalists[Math.floor(mulberry32((seed ^ 0x51f15e) >>> 0)() * 2)]
-    : null
   return {
     seed,
     contestants,
@@ -104,13 +158,13 @@ export function createPercentagePanic(
     humanId,
     scores: Object.fromEntries(contestants.map((id) => [id, 0])),
     responseTotals: Object.fromEntries(contestants.map((id) => [id, 0])),
-    phase: initialFinalists ? 'order' : 'question',
+    phase: 'question',
     roundNumber: 1,
     usedQuestionIds: [question.id],
     question,
     lastRound: null,
-    finalists: initialFinalists,
-    chooserId: initialChooser,
+    finalists: null,
+    chooserId: null,
     duelTurnId: null,
     duelBounds: [0, 100],
     duelGuesses: [],
@@ -125,6 +179,36 @@ function stringSeed(id: string): number {
     hash = Math.imul(hash, 16777619)
   }
   return hash >>> 0
+}
+
+export function percentagePanicPlayerStyle(seed: number, playerId: string): string {
+  const style = mulberry32((seed ^ stringSeed(playerId) ^ 0x27d4eb2d) >>> 0)()
+  if (style < 0.24) return 'Optimist'
+  if (style < 0.48) return 'Skeptic'
+  if (style < 0.72) return 'Round-number fan'
+  return 'Midpoint magnet'
+}
+
+export function percentagePanicGuessReaction(
+  seed: number,
+  playerId: string,
+  error: number,
+  roundNumber: number
+): string {
+  const reactions =
+    error === 0
+      ? ['Cold-blooded precision.', 'The poll had no chance.', 'Straight down the middle.']
+      : error <= 5
+        ? ['The poll barely had time to disagree.', 'A near-perfect read.', 'That was close.']
+        : error <= 12
+          ? ['A pretty good read.', 'In the neighborhood.', 'Solid instincts.']
+          : error <= 25
+            ? ['Confident. The data had other plans.', 'A bold interpretation.', 'Bit of a reach.']
+            : error <= 40
+              ? ['An adventurous estimate.', 'That guess took the scenic route.', 'Big swing.']
+              : ['A fearless swing.', 'The answer was miles away.', 'Plot twist: not that far.']
+  const rng = mulberry32((seed ^ stringSeed(playerId) ^ Math.imul(roundNumber, 0x45d9f3b)) >>> 0)
+  return reactions[Math.floor(rng() * reactions.length)]
 }
 
 export function simulatedPercentageGuess(
@@ -182,50 +266,52 @@ export function resolvePercentageRound(
     const error = Math.abs(guess - answer)
     return { playerId: id, guess, responseMs: Math.floor(responseMs), error, score: -error }
   })
-  const eliminatedIds = percentageEliminations(answers)
   const scores = { ...state.scores }
   const responseTotals = { ...state.responseTotals }
   for (const a of answers) {
     scores[a.playerId] += a.score
     responseTotals[a.playerId] += a.responseMs
   }
-  const survivors = state.activeIds.filter((id) => !eliminatedIds.includes(id))
-  // If the entire field shares the worst error and timing, the same field
-  // plays a fresh sudden-death question rather than awarding an arbitrary winner.
-  const suddenDeath = survivors.length === 0
-  const activeIds = suddenDeath ? [...state.activeIds] : survivors
-  const finalPair = activeIds.length === 2 ? ([...activeIds] as [string, string]) : null
-  const chooserId = finalPair
-    ? (() => {
-        const [first, second] = finalPair
-        if (scores[first] > scores[second]) return first
-        if (scores[second] > scores[first]) return second
-        if (responseTotals[first] < responseTotals[second]) return first
-        if (responseTotals[second] < responseTotals[first]) return second
-        const tieIndex = Math.floor(
-          mulberry32((state.seed ^ Math.imul(state.roundNumber, 0x45d9f3b)) >>> 0)() * 2
-        )
-        return finalPair[tieIndex]
-      })()
-    : null
+  const isFinalistCut = state.roundNumber >= 9
+  const rankedIds = isFinalistCut
+    ? [...state.activeIds].sort((a, b) => {
+        const scoreDifference = scores[b] - scores[a]
+        if (scoreDifference !== 0) return scoreDifference
+        const responseDifference = responseTotals[a] - responseTotals[b]
+        if (responseDifference !== 0) return responseDifference
+        const tieSeed = (id: string) =>
+          mulberry32(
+            (state.seed ^ stringSeed(id) ^ Math.imul(state.roundNumber, 0x45d9f3b)) >>> 0
+          )()
+        return tieSeed(a) - tieSeed(b)
+      })
+    : [...state.activeIds]
+  const finalPair =
+    isFinalistCut && rankedIds.length >= 2
+      ? ([rankedIds[0], rankedIds[1]] as [string, string])
+      : null
+  const activeIds = finalPair ? [...finalPair] : [...state.activeIds]
+  const eliminatedIds = finalPair ? state.activeIds.filter((id) => !finalPair.includes(id)) : []
+  const chooserId = finalPair?.[0] ?? null
+  const suddenDeath = false
   return {
     ...state,
     scores,
     responseTotals,
     activeIds,
-    eliminatedIds: [...state.eliminatedIds, ...(suddenDeath ? [] : eliminatedIds)],
-    eliminationGroups: suddenDeath
-      ? state.eliminationGroups
-      : [...state.eliminationGroups, eliminatedIds],
+    eliminatedIds: [...state.eliminatedIds, ...eliminatedIds],
+    eliminationGroups: eliminatedIds.length
+      ? [...state.eliminationGroups, eliminatedIds]
+      : state.eliminationGroups,
     lastRound: {
       question: state.question,
       answers,
-      eliminatedIds: suddenDeath ? [] : eliminatedIds,
+      eliminatedIds,
       suddenDeath,
     },
     finalists: finalPair,
     chooserId,
-    winnerId: activeIds.length === 1 ? activeIds[0] : null,
+    winnerId: null,
     phase: 'reveal',
   }
 }
@@ -260,6 +346,7 @@ export function choosePercentageDuelOrder(
   return {
     ...state,
     phase: 'duel',
+    roundNumber: 10,
     question,
     usedQuestionIds: [...state.usedQuestionIds, question.id],
     duelTurnId: firstId,

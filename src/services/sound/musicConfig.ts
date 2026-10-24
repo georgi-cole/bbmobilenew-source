@@ -420,6 +420,7 @@ export const CHALLENGE_GROUP_1_GAME_KEYS = [
   'castleRescue',
   'batteryLow',
   'holdWall',
+  'percentagePanic',
 ] as const
 
 export const DEFAULT_MINIGAME_MUSIC_PROFILES: readonly MinigameMusicProfile[] = [

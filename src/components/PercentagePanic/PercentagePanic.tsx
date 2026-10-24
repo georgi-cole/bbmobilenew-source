@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
@@ -16,10 +16,16 @@ import {
   percentagePanicRankedGroups,
   percentagePanicRankedIds,
   pickAiDuelGuess,
+  percentagePollDetail,
+  percentagePanicGuessReaction,
+  percentagePanicPlayerStyle,
   resolvePercentageDuelGuess,
   resolvePercentageRound,
   type PercentagePanicState,
 } from '../../features/percentagePanic/logic'
+import { SoundManager } from '../../services/sound/SoundManager'
+import { isEmoji } from '../../utils/avatar'
+import ResolvedAvatarImage from '../ResolvedAvatarImage/ResolvedAvatarImage'
 import './PercentagePanic.css'
 
 interface Player {
@@ -57,6 +63,19 @@ function waitForImage(source: string): Promise<void> {
   })
 }
 
+function rankByScore(
+  contestants: string[],
+  scores: Record<string, number>,
+  responseTimes: Record<string, number>
+) {
+  return [...contestants].sort(
+    (a, b) =>
+      scores[b] - scores[a] ||
+      responseTimes[a] - responseTimes[b] ||
+      contestants.indexOf(a) - contestants.indexOf(b)
+  )
+}
+
 export default function PercentagePanic({
   participantIds,
   participants = [],
@@ -75,10 +94,31 @@ export default function PercentagePanic({
   const [watching, setWatching] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
   const [hintChoices, setHintChoices] = useState<number[] | null>(null)
+  const [pendingDuelGuess, setPendingDuelGuess] = useState<{
+    playerId: string
+    guess: number
+  } | null>(null)
   const guessRef = useRef(50)
   const startRef = useRef(0)
+  const duelSuspenseRef = useRef(false)
+  const duelTimerRef = useRef<number | null>(null)
+  const contestantNodesRef = useRef(new Map<string, HTMLDivElement>())
+  const rosterPositionsRef = useRef(new Map<string, DOMRect>())
+  const playedRevealRoundRef = useRef<number | null>(null)
+  const playedWinnerRef = useRef(false)
   const completionRef = useRef(false)
   const humanActive = state.humanId != null && state.activeIds.includes(state.humanId)
+
+  useEffect(() => {
+    if (state.phase === 'reveal' && playedRevealRoundRef.current !== state.roundNumber) {
+      playedRevealRoundRef.current = state.roundNumber
+      void SoundManager.play('minigame:results')
+    }
+    if (state.phase === 'winner' && !playedWinnerRef.current) {
+      playedWinnerRef.current = true
+      void SoundManager.play('minigame:gb_winner')
+    }
+  }, [state.phase, state.roundNumber])
 
   useEffect(() => {
     let cancelled = false
@@ -106,8 +146,32 @@ export default function PercentagePanic({
     guessRef.current = clamped
     setGuess(clamped)
   }
+  const queueDuelAnswer = useCallback((playerId: string, value: number) => {
+    if (duelSuspenseRef.current) return
+    duelSuspenseRef.current = true
+    setPendingDuelGuess({ playerId, guess: value })
+    void SoundManager.play('ui:confirm')
+    duelTimerRef.current = window.setTimeout(() => {
+      setState((current) =>
+        current.phase === 'duel' && current.duelTurnId === playerId
+          ? resolvePercentageDuelGuess(current, playerId, value)
+          : current
+      )
+      setPendingDuelGuess(null)
+      duelSuspenseRef.current = false
+      duelTimerRef.current = null
+    }, 1000)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (duelTimerRef.current != null) window.clearTimeout(duelTimerRef.current)
+    },
+    []
+  )
   const useHint = () => {
     if (hintsUsed >= 3 || hintChoices || state.phase !== 'question' || !state.humanId) return
+    void SoundManager.play('ui:navigate')
     const answer = state.question.answerPercent
     const options = new Set<number>([answer])
     for (const offset of [-5, 5, -10, 10, -15, 15]) {
@@ -171,14 +235,17 @@ export default function PercentagePanic({
   }, [assetsReady, state.phase, state.chooserId, state.humanId, state.finalists])
 
   useEffect(() => {
-    if (!assetsReady || state.phase !== 'duel' || state.duelTurnId === state.humanId) return
+    if (
+      !assetsReady ||
+      state.phase !== 'duel' ||
+      state.duelTurnId === state.humanId ||
+      duelSuspenseRef.current
+    )
+      return
     const timeout = window.setTimeout(
-      () =>
-        setState((s) =>
-          s.phase === 'duel' && s.duelTurnId && s.duelTurnId !== s.humanId
-            ? resolvePercentageDuelGuess(s, s.duelTurnId, pickAiDuelGuess(s))
-            : s
-        ),
+      () => {
+        if (state.duelTurnId) queueDuelAnswer(state.duelTurnId, pickAiDuelGuess(state))
+      },
       watching ? 120 : 1050
     )
     return () => window.clearTimeout(timeout)
@@ -188,6 +255,9 @@ export default function PercentagePanic({
     state.duelTurnId,
     state.humanId,
     state.duelGuesses.length,
+    pendingDuelGuess,
+    queueDuelAnswer,
+    state,
     watching,
   ])
 
@@ -202,11 +272,13 @@ export default function PercentagePanic({
     changeGuess(50)
     setTimeLeft(ROUND_SECONDS)
     setHintChoices(null)
+    void SoundManager.play('ui:navigate')
     setState(advancePercentageRound)
   }
 
   const lock = () => {
     setHintChoices(null)
+    void SoundManager.play('ui:confirm')
     const responseMs = Math.max(
       0,
       Math.min(ROUND_SECONDS * 1000, Math.floor(performance.now() - startRef.current))
@@ -215,7 +287,7 @@ export default function PercentagePanic({
   }
   const duelAnswer = (value: number) => {
     if (!state.duelTurnId) return
-    setState((s) => resolvePercentageDuelGuess(s, state.duelTurnId!, value))
+    queueDuelAnswer(state.duelTurnId, value)
   }
 
   const finish = () => {
@@ -239,8 +311,37 @@ export default function PercentagePanic({
 
   const result = state.lastRound
   const worst = result?.eliminatedIds ?? []
+  const answersByPlayer = new Map(
+    (result?.answers ?? []).map((answer) => [answer.playerId, answer])
+  )
+  const leaderboardIds = useMemo(
+    () => rankByScore(state.contestants, state.scores, state.responseTotals),
+    [state.contestants, state.scores, state.responseTotals]
+  )
+  const leaderboardOrderKey = leaderboardIds.join('|')
+  const pollDetail = state.phase === 'reveal' ? percentagePollDetail(state.question) : null
+  const currentRank = new Map(leaderboardIds.map((id, index) => [id, index + 1]))
+  const scoresBeforeRound = Object.fromEntries(
+    state.contestants.map((id) => [id, state.scores[id] - (answersByPlayer.get(id)?.score ?? 0)])
+  )
+  const timesBeforeRound = Object.fromEntries(
+    state.contestants.map((id) => [
+      id,
+      state.responseTotals[id] - (answersByPlayer.get(id)?.responseMs ?? 0),
+    ])
+  )
+  const previousRankedIds = rankByScore(state.contestants, scoresBeforeRound, timesBeforeRound)
+  const previousRank = new Map(previousRankedIds.map((id, index) => [id, index + 1]))
+  const biggestMover =
+    result && state.roundNumber > 1
+      ? state.contestants
+          .map((id) => ({ id, places: (previousRank.get(id) ?? 0) - (currentRank.get(id) ?? 0) }))
+          .sort((a, b) => b.places - a.places)[0]
+      : null
   const roundRows = result
-    ? [...result.answers].sort((a, b) => a.error - b.error || a.responseMs - b.responseMs)
+    ? [...result.answers].sort(
+        (a, b) => (currentRank.get(a.playerId) ?? 99) - (currentRank.get(b.playerId) ?? 99)
+      )
     : []
   const canDuel = state.phase === 'duel' && state.duelTurnId === state.humanId
   const sliderMin = state.phase === 'duel' ? state.duelBounds[0] : 0
@@ -255,6 +356,28 @@ export default function PercentagePanic({
           : revealBackdrop
         : studioBackdrop
   const studioStyle = { '--pp-backdrop': `url("${backdrop}")` } as CSSProperties
+
+  useLayoutEffect(() => {
+    const previous = rosterPositionsRef.current
+    const next = new Map<string, DOMRect>()
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    for (const id of leaderboardIds) {
+      const node = contestantNodesRef.current.get(id)
+      if (!node) continue
+      const rect = node.getBoundingClientRect()
+      next.set(id, rect)
+      const prior = previous.get(id)
+      const deltaX = prior ? prior.left - rect.left : 0
+      const deltaY = prior ? prior.top - rect.top : 0
+      if (!reduceMotion && (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1)) {
+        node.animate(
+          [{ transform: `translate(${deltaX}px, ${deltaY}px)` }, { transform: 'translate(0, 0)' }],
+          { duration: 460, easing: 'cubic-bezier(0.2, 0.75, 0.25, 1)' }
+        )
+      }
+    }
+    rosterPositionsRef.current = next
+  }, [leaderboardOrderKey, leaderboardIds])
 
   if (!assetsReady) {
     return (
@@ -282,36 +405,54 @@ export default function PercentagePanic({
             </h2>
           </div>
           <span className="pp-round">
-            {state.phase === 'duel' || state.phase === 'order'
-              ? 'FINAL TWO'
-              : state.phase === 'winner'
-                ? 'WINNER'
-                : `ROUND ${state.roundNumber}`}
+            {state.phase === 'duel'
+              ? 'ROUND 10 · FINAL'
+              : state.phase === 'order'
+                ? 'FINAL TWO'
+                : state.phase === 'winner'
+                  ? 'WINNER'
+                  : `ROUND ${state.roundNumber}`}
           </span>
         </header>
 
         <div className="pp-roster" aria-label="Contestants">
-          {state.contestants.map((id) => {
+          {leaderboardIds.map((id) => {
             const active = state.activeIds.includes(id)
             return (
-              <div className={`pp-contestant ${active ? '' : 'pp-contestant--out'}`} key={id}>
+              <div
+                className={`pp-contestant ${active ? '' : 'pp-contestant--out'}`}
+                key={id}
+                ref={(node) => {
+                  if (node) contestantNodesRef.current.set(id, node)
+                  else contestantNodesRef.current.delete(id)
+                }}
+              >
                 <span className="pp-avatar">
-                  {players[id]?.avatar &&
-                  !players[id].avatar?.startsWith('data:') &&
-                  /^https?:|^\//.test(players[id].avatar || '') ? (
-                    <img src={players[id].avatar} alt="" />
+                  {isEmoji(players[id]?.avatar ?? '') ? (
+                    players[id]?.avatar
                   ) : (
-                    nameOf(id)[0] || '?'
+                    <ResolvedAvatarImage
+                      id={id}
+                      name={nameOf(id)}
+                      avatar={players[id]?.avatar}
+                      isUser={players[id]?.isHuman}
+                      alt=""
+                    />
                   )}
                 </span>
                 <span className="pp-contestant__name">{nameOf(id)}</span>
-                <strong>{state.scores[id]}</strong>
+                {!players[id]?.isHuman && (
+                  <small className="pp-contestant__style">
+                    {percentagePanicPlayerStyle(sessionSeed, id)}
+                  </small>
+                )}
+                <strong key={state.scores[id]}>{state.scores[id]}</strong>
               </div>
             )
           })}
         </div>
 
-        <div className="pp-screen">
+        <div className="pp-screen" key={`${state.phase}-${state.roundNumber}`}>
           <span className="pp-screen__badge">
             {state.phase === 'reveal'
               ? 'SURVEY SAYS'
@@ -339,7 +480,20 @@ export default function PercentagePanic({
               </p>
               <h3>{state.question.prompt}</h3>
               {state.phase === 'reveal' && (
-                <div className="pp-truth">{state.question.answerPercent}%</div>
+                <>
+                  <div className="pp-truth">{state.question.answerPercent}%</div>
+                  {pollDetail && (
+                    <div className="pp-poll-detail" aria-label="Poll side quest">
+                      <strong>
+                        {pollDetail.samePoll ? 'SAME POLL, PLOT TWIST' : 'RELATED POLL'}
+                      </strong>
+                      <p>{pollDetail.text}</p>
+                      <a href={pollDetail.sourceUrl} target="_blank" rel="noopener noreferrer">
+                        {pollDetail.sourceName} · {pollDetail.referenceYear} ↗
+                      </a>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -425,24 +579,26 @@ export default function PercentagePanic({
             {state.humanId && worst.includes(state.humanId) && (
               <div className="pp-eliminated-callout">
                 <span className="pp-eliminated-callout__avatar">
-                  {players[state.humanId]?.avatar &&
-                  !players[state.humanId].avatar?.startsWith('data:') &&
-                  /^https?:|^\//.test(players[state.humanId].avatar || '') ? (
-                    <img src={players[state.humanId].avatar} alt="" />
+                  {isEmoji(players[state.humanId]?.avatar ?? '') ? (
+                    players[state.humanId]?.avatar
                   ) : (
-                    nameOf(state.humanId)[0] || '?'
+                    <ResolvedAvatarImage
+                      id={state.humanId}
+                      name={nameOf(state.humanId)}
+                      avatar={players[state.humanId]?.avatar}
+                      isUser={players[state.humanId]?.isHuman}
+                      alt=""
+                    />
                   )}
                 </span>
-                <strong>ELIMINATED · {nameOf(state.humanId)}</strong>
-                <span>
-                  Your guess was{' '}
-                  {result.answers.find((answer) => answer.playerId === state.humanId)?.error ?? 0}%
-                  away from the correct answer.
-                </span>
+                <strong>OUT OF THE FINAL TWO · {nameOf(state.humanId)}</strong>
+                <span>Your cumulative score placed you outside the top two after round 9.</span>
               </div>
             )}
-            {result.suddenDeath && (
-              <p className="pp-alert">All tied! Nobody leaves. New sudden-death question.</p>
+            {!state.finalists && (
+              <p className="pp-alert">
+                No eliminations this round. Everyone stays in until round 9.
+              </p>
             )}
             <div className="pp-results__header">
               <span>CONTESTANT</span>
@@ -450,20 +606,60 @@ export default function PercentagePanic({
               <span>ERROR</span>
               <span>TOTAL</span>
             </div>
-            {roundRows.map((a) => (
-              <div
-                className={`pp-results__row ${worst.includes(a.playerId) ? 'pp-results__row--out' : ''}`}
-                key={a.playerId}
-              >
-                <span>
-                  {nameOf(a.playerId)}
-                  {worst.includes(a.playerId) ? ' • OUT' : ''}
-                </span>
-                <span>{a.guess}%</span>
-                <span>−{a.error}</span>
-                <strong>{state.scores[a.playerId]}</strong>
-              </div>
-            ))}
+            <p className="pp-standings-callout" aria-live="polite">
+              {biggestMover && biggestMover.places > 0
+                ? `${nameOf(biggestMover.id)} climbs ${biggestMover.places} ${biggestMover.places === 1 ? 'place' : 'places'} on the leaderboard.`
+                : state.roundNumber === 1
+                  ? `${nameOf(leaderboardIds[0])} grabs the early lead.`
+                  : `${nameOf(leaderboardIds[0])} holds the lead.`}
+            </p>
+            {roundRows.map((a, index) => {
+              const isFinalist = state.finalists?.includes(a.playerId) ?? false
+              const isOut = worst.includes(a.playerId)
+              const places =
+                (previousRank.get(a.playerId) ?? 0) - (currentRank.get(a.playerId) ?? 0)
+              const movement =
+                state.roundNumber === 1
+                  ? ''
+                  : places > 0
+                    ? `↑ ${places}`
+                    : places < 0
+                      ? `↓ ${Math.abs(places)}`
+                      : '—'
+              return (
+                <div
+                  className={`pp-results__row ${isOut ? 'pp-results__row--out' : ''} ${isFinalist ? 'pp-results__row--finalist' : ''}`}
+                  key={a.playerId}
+                  style={{ '--row-index': index } as CSSProperties}
+                >
+                  <span className="pp-results__player">
+                    <span className="pp-results__identity">
+                      <span className="pp-results__rank">#{currentRank.get(a.playerId)}</span>{' '}
+                      {nameOf(a.playerId)}
+                      {isOut ? ' • OUT' : isFinalist ? ' • FINALIST' : ''}
+                      {movement && (
+                        <small
+                          className={`pp-results__movement ${places > 0 ? 'pp-results__movement--up' : places < 0 ? 'pp-results__movement--down' : ''}`}
+                        >
+                          {movement}
+                        </small>
+                      )}
+                    </span>
+                    <small className="pp-results__reaction">
+                      {percentagePanicGuessReaction(
+                        sessionSeed,
+                        a.playerId,
+                        a.error,
+                        state.roundNumber
+                      )}
+                    </small>
+                  </span>
+                  <span>{a.guess}%</span>
+                  <span>−{a.error}</span>
+                  <strong>{state.scores[a.playerId]}</strong>
+                </div>
+              )
+            })}
             <a
               className="pp-source"
               href={state.question.sourceUrl}
@@ -476,8 +672,8 @@ export default function PercentagePanic({
               {state.winnerId
                 ? 'REVEAL WINNER'
                 : state.finalists
-                  ? 'ENTER THE FINAL TWO'
-                  : 'NEXT QUESTION'}
+                  ? 'ENTER ROUND 10 FINAL'
+                  : 'NEXT ROUND'}
             </button>
           </div>
         )}
@@ -547,7 +743,13 @@ export default function PercentagePanic({
                 </div>
               ))}
             </div>
-            {canDuel ? (
+            {pendingDuelGuess ? (
+              <div className="pp-suspense" role="status" aria-live="assertive">
+                <span className="pp-suspense__light" aria-hidden="true" />
+                <strong>{nameOf(pendingDuelGuess.playerId)} HAS LOCKED IN</strong>
+                <span>Higher… lower… or the exact number?</span>
+              </div>
+            ) : canDuel ? (
               <>
                 <output className="pp-value">{safeGuess}%</output>
                 <input

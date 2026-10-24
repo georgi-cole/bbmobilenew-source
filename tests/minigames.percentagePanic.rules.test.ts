@@ -8,12 +8,14 @@ import {
   percentagePanicLastPlaceIds,
   percentagePanicRankedGroups,
   percentagePanicRankedIds,
+  percentagePollDetail,
   resolvePercentageDuelGuess,
   resolvePercentageRound,
   selectPercentageQuestion,
   simulatedPercentageGuess,
   PERCENTAGE_PANIC_QUESTIONS,
   type PercentageAnswer,
+  type PercentagePanicState,
 } from '../src/features/percentagePanic/logic'
 
 const answer = (playerId: string, error: number, responseMs: number): PercentageAnswer => ({
@@ -23,6 +25,20 @@ const answer = (playerId: string, error: number, responseMs: number): Percentage
   responseMs,
   score: -error,
 })
+
+function reachFinalOrder(initial: PercentagePanicState): PercentagePanicState {
+  let game = initial
+  while (game.roundNumber <= 9) {
+    game = resolvePercentageRound(
+      game,
+      game.humanId ? game.question.answerPercent : undefined,
+      5000
+    )
+    if (game.roundNumber === 9) break
+    game = advancePercentageRound(game)
+  }
+  return advancePercentageRound(game)
+}
 
 describe('Percentage Panic rules', () => {
   it('ships a complete sourced party-survey bank with explicit populations and dates', () => {
@@ -68,6 +84,24 @@ describe('Percentage Panic rules', () => {
     expect(selectPercentageQuestion(16, 1, [])).toEqual(picked)
   })
 
+  it('adds a sourced side-quest detail to each survey reveal', () => {
+    const samePollQuestion = PERCENTAGE_PANIC_QUESTIONS.find((question) =>
+      question.prompt.includes('called chili a soup')
+    )!
+    const samePollDetail = percentagePollDetail(samePollQuestion)
+    expect(samePollDetail.samePoll).toBe(true)
+    expect(samePollDetail.sourceUrl).toBe(samePollQuestion.sourceUrl)
+    expect(samePollDetail.text).toMatch(/^\d+% of American adults /)
+
+    const standaloneQuestion = PERCENTAGE_PANIC_QUESTIONS.find((question) =>
+      question.prompt.includes('admitted having guilty pleasures')
+    )!
+    const comparisonDetail = percentagePollDetail(standaloneQuestion)
+    expect(comparisonDetail.samePoll).toBe(false)
+    expect(comparisonDetail.sourceUrl).toMatch(/^https:\/\//)
+    expect(comparisonDetail.text).toMatch(/^A separate \d{4} poll found /)
+  })
+
   it('eliminates the furthest contestant even when someone else is slower', () => {
     expect(
       percentageEliminations([answer('a', 10, 19000), answer('b', 15, 2000), answer('c', 7, 18000)])
@@ -86,11 +120,27 @@ describe('Percentage Panic rules', () => {
     ).toEqual(['a', 'b'])
   })
 
-  it('goes directly to finale with two initial contestants', () => {
-    const game = createPercentagePanic(['a', 'b'], 'a', 4)
+  it('keeps a two-player game alive through round 9 before choosing finalists', () => {
+    let game = createPercentagePanic(['a', 'b'], 'a', 4)
+    for (let round = 1; round <= 8; round += 1) {
+      game = resolvePercentageRound(game, game.question.answerPercent, 5000)
+      expect(game.phase).toBe('reveal')
+      expect(game.roundNumber).toBe(round)
+      expect(game.activeIds).toEqual(['a', 'b'])
+      expect(game.eliminatedIds).toEqual([])
+      expect(game.finalists).toBeNull()
+      game = advancePercentageRound(game)
+    }
+    game = resolvePercentageRound(game, game.question.answerPercent, 5000)
+    expect(game.roundNumber).toBe(9)
+    expect(game.finalists).toHaveLength(2)
+    expect(game.eliminatedIds).toEqual([])
+    game = advancePercentageRound(game)
     expect(game.phase).toBe('order')
     expect(game.finalists).toEqual(['a', 'b'])
-    expect(game.chooserId).toBe(createPercentagePanic(['a', 'b'], 'a', 4).chooserId)
+    expect(game.chooserId).toBe(
+      reachFinalOrder(createPercentagePanic(['a', 'b'], 'a', 4)).chooserId
+    )
     expect(game.finalists).toContain(game.chooserId)
   })
 
@@ -122,7 +172,8 @@ describe('Percentage Panic rules', () => {
   })
 
   it('constrains Higher/Lower guesses and ends only on the exact answer', () => {
-    const initial = createPercentagePanic(['a', 'b'], 'a', 43)
+    const initial = reachFinalOrder(createPercentagePanic(['a', 'b'], 'a', 43))
+    expect(initial.phase).toBe('order')
     let game = choosePercentageDuelOrder(initial, 'a')
     const real = game.question.answerPercent
     const first = real === 50 ? 49 : 50
@@ -156,15 +207,15 @@ describe('Percentage Panic rules', () => {
   })
 
   it('lets the AI chooser select which finalist guesses first', () => {
-    const initial = createPercentagePanic(['a', 'b'], null, 8)
+    const initial = reachFinalOrder(createPercentagePanic(['a', 'b'], null, 8))
     const first = chooseAiPercentageDuelFirst(initial)
     expect(first).toBeTruthy()
     expect(initial.finalists).toContain(first)
     expect(first).toBe(chooseAiPercentageDuelFirst(initial))
   })
 
-  it('reports the losing finalist as last place when a two-player game skips elimination rounds', () => {
-    const initial = createPercentagePanic(['a', 'b'], 'a', 8)
+  it('reports the losing finalist as last place after round 9 selects the final pair', () => {
+    const initial = reachFinalOrder(createPercentagePanic(['a', 'b'], 'a', 8))
     const duel = choosePercentageDuelOrder(initial, 'a')
     const winner = resolvePercentageDuelGuess(duel, 'a', duel.question.answerPercent)
     expect(winner.winnerId).toBe('a')
