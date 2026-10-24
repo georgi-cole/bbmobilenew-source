@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import type { PermissionState } from '@capacitor/core'
 import skinRegistry from '../data/skinRegistry.json'
 
 export type TimeOfDayKey = 'sunrise' | 'day' | 'sunset' | 'night'
@@ -12,7 +13,7 @@ export type ThemeKey =
 
 export type PlatformLabel = 'web' | 'ios' | 'android'
 export type SkinAssetSource = 'bundled' | 'public'
-export type GeolocationPermissionStatus = PermissionState | 'denied' | 'unsupported' | 'unknown'
+export type GeolocationPermissionStatus = PermissionState | 'unsupported' | 'unknown'
 
 export interface SkinRegistryEntry {
   label: string
@@ -159,19 +160,6 @@ export function getPlatformLabel(): PlatformLabel {
   }
 
   return 'web'
-}
-
-export async function getGeolocationPermissionStatus(): Promise<GeolocationPermissionStatus> {
-  if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
-    return 'unsupported'
-  }
-
-  try {
-    const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
-    return status.state as GeolocationPermissionStatus
-  } catch {
-    return 'unknown'
-  }
 }
 
 export function getBinaryFallbackKey(date: Date): Extract<ThemeKey, 'day' | 'night'> {

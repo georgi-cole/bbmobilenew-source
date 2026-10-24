@@ -1,120 +1,150 @@
 /**
  * useBackgroundTheme.ts
  *
- * React hook that resolves and exposes the dynamic background theme.
- *
- * Usage:
- *   const { url, key, reason } = useBackgroundTheme();
- *
- * When attachToRoot is true the resolved URL is written to the CSS custom
- * property --intro-bg-image on <html> (documentElement) so global styles can consume it.
+ * Resolves the dynamic Home Hub background and refreshes it when the app
+ * returns to the foreground or local time crosses a theme boundary.
  */
-import { useState, useEffect } from 'react';
-import { getNextThemeBoundaryDelay, resolveTheme, timeOfDayKey } from '../utils/backgroundTheme';
-import type { ResolvedTheme, ThemeKey } from '../utils/backgroundTheme';
-import { resolveSkinAsset } from '../utils/skinAssets';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getNextThemeBoundaryDelay, resolveTheme, timeOfDayKey } from '../utils/backgroundTheme'
+import type { ResolvedTheme, ThemeKey } from '../utils/backgroundTheme'
+import { resolveSkinAsset } from '../utils/skinAssets'
 
 interface BackgroundState {
-  url: string | null;
-  key: ThemeKey | null;
-  reason: string | null;
+  url: string | null
+  key: ThemeKey | null
+  reason: string | null
 }
 
 interface UseBackgroundThemeOptions {
-  attachToRoot?: boolean;
+  attachToRoot?: boolean
 }
 
 function resolveInitialBackground(): BackgroundState {
-  const fallbackKey = timeOfDayKey(new Date());
-  const fallbackAsset = resolveSkinAsset(fallbackKey);
+  const fallbackKey = timeOfDayKey(new Date())
+  const fallbackAsset = resolveSkinAsset(fallbackKey)
 
   return {
     url: fallbackAsset.url,
     key: fallbackAsset.key,
     reason: 'fallback:initial-render',
-  };
+  }
 }
 
 export default function useBackgroundTheme(
-  opts: UseBackgroundThemeOptions = {},
-): BackgroundState {
-  const [state, setState] = useState<BackgroundState>(() => resolveInitialBackground());
-
-  const { attachToRoot } = opts;
+  opts: UseBackgroundThemeOptions = {}
+): BackgroundState & { requestWeatherLocation: () => Promise<void> } {
+  const [state, setState] = useState<BackgroundState>(() => resolveInitialBackground())
+  const requestLocationRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  const requestWeatherLocation = useCallback(() => requestLocationRef.current(), [])
+  const { attachToRoot } = opts
 
   useEffect(() => {
-    let cancelled = false;
-    let resolving = false;
-    let lastForegroundRefreshAt = 0;
-    let boundaryTimer: number | undefined;
+    let cancelled = false
+    let activeRefresh: Promise<void> | null = null
+    let locationPermissionRefresh: Promise<void> | null = null
+    let lastForegroundRefreshAt = 0
+    let boundaryTimer: number | undefined
 
     const applyTheme = (resolved: ResolvedTheme) => {
-      if (cancelled) return;
-      setState({ url: resolved.url, key: resolved.key, reason: resolved.reason });
+      if (cancelled) return
+      setState({ url: resolved.url, key: resolved.key, reason: resolved.reason })
       if (attachToRoot) {
-        document.documentElement.style.setProperty('--intro-bg-image', `url("${resolved.url}")`);
+        document.documentElement.style.setProperty('--intro-bg-image', `url("${resolved.url}")`)
       }
-    };
+    }
 
-    const refresh = async (foreground = false) => {
-      if (cancelled || resolving) return;
-      const now = Date.now();
-      if (foreground && now - lastForegroundRefreshAt < 1000) return;
-      if (foreground) lastForegroundRefreshAt = now;
-      resolving = true;
-      try {
-        applyTheme(await resolveTheme());
-      } catch (error) {
-        if (cancelled) return;
-        const fallbackKey = timeOfDayKey(new Date());
-        const fallbackAsset = resolveSkinAsset(fallbackKey);
-        const fallbackReason = `resolveTheme:error:${error instanceof Error ? error.message : String(error)}`;
-        console.warn('[useBackgroundTheme] resolver failed; using emergency fallback', {
-          error, fallbackKey, fallbackAsset,
-        });
-        applyTheme({
-          key: fallbackAsset.key,
-          url: fallbackAsset.url,
-          reason: fallbackReason,
-          assetFile: fallbackAsset.file,
-          assetSource: fallbackAsset.source,
-          platform: 'web',
-          permissionStatus: 'unknown',
-        });
-      } finally {
-        resolving = false;
+    const refresh = (foreground = false, requestLocationPermission = false): Promise<void> => {
+      if (cancelled) return Promise.resolve()
+      if (requestLocationPermission && locationPermissionRefresh) {
+        return locationPermissionRefresh
       }
-    };
+      const now = Date.now()
+      if (foreground && now - lastForegroundRefreshAt < 1000) return Promise.resolve()
+      if (foreground) lastForegroundRefreshAt = now
+
+      if (activeRefresh) {
+        if (!requestLocationPermission) return activeRefresh
+
+        const queued = activeRefresh.then(() => {
+          if (locationPermissionRefresh === queuedRefresh) locationPermissionRefresh = null
+          return refresh(false, true)
+        })
+        const queuedRefresh = queued.finally(() => {
+          if (locationPermissionRefresh === queuedRefresh) locationPermissionRefresh = null
+        })
+        locationPermissionRefresh = queuedRefresh
+        return queuedRefresh
+      }
+
+      const run = async () => {
+        try {
+          applyTheme(await resolveTheme({ requestLocationPermission }))
+        } catch (error) {
+          if (cancelled) return
+          const fallbackKey = timeOfDayKey(new Date())
+          const fallbackAsset = resolveSkinAsset(fallbackKey)
+          const fallbackReason = `resolveTheme:error:${error instanceof Error ? error.message : String(error)}`
+          console.warn('[useBackgroundTheme] resolver failed; using emergency fallback', {
+            error,
+            fallbackKey,
+            fallbackAsset,
+          })
+          applyTheme({
+            key: fallbackAsset.key,
+            url: fallbackAsset.url,
+            reason: fallbackReason,
+            assetFile: fallbackAsset.file,
+            assetSource: fallbackAsset.source,
+            platform: 'web',
+            permissionStatus: 'unknown',
+          })
+        }
+      }
+
+      const running = run().finally(() => {
+        if (activeRefresh === running) activeRefresh = null
+        if (locationPermissionRefresh === running) locationPermissionRefresh = null
+      })
+      activeRefresh = running
+      if (requestLocationPermission) locationPermissionRefresh = running
+      return running
+    }
+
+    requestLocationRef.current = () => refresh(false, true)
 
     const scheduleBoundaryRefresh = () => {
-      if (boundaryTimer != null) window.clearTimeout(boundaryTimer);
-      boundaryTimer = window.setTimeout(() => {
-        void refresh();
-        scheduleBoundaryRefresh();
-      }, getNextThemeBoundaryDelay(new Date()) + 50);
-    };
+      if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
+      boundaryTimer = window.setTimeout(
+        () => {
+          void refresh()
+          scheduleBoundaryRefresh()
+        },
+        getNextThemeBoundaryDelay(new Date()) + 50
+      )
+    }
 
     const refreshOnForeground = () => {
-      if (document.visibilityState === 'visible') void refresh(true);
-    };
+      if (document.visibilityState === 'visible') void refresh(true)
+    }
 
-    void refresh();
-    scheduleBoundaryRefresh();
-    document.addEventListener('visibilitychange', refreshOnForeground);
-    window.addEventListener('focus', refreshOnForeground);
-    window.addEventListener('pageshow', refreshOnForeground);
+    void refresh()
+    scheduleBoundaryRefresh()
+    document.addEventListener('visibilitychange', refreshOnForeground)
+    window.addEventListener('focus', refreshOnForeground)
+    window.addEventListener('pageshow', refreshOnForeground)
 
     return () => {
-      cancelled = true;
-      if (boundaryTimer != null) window.clearTimeout(boundaryTimer);
-      document.removeEventListener('visibilitychange', refreshOnForeground);
-      window.removeEventListener('focus', refreshOnForeground);
-      window.removeEventListener('pageshow', refreshOnForeground);
+      cancelled = true
+      requestLocationRef.current = () => Promise.resolve()
+      if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
+      document.removeEventListener('visibilitychange', refreshOnForeground)
+      window.removeEventListener('focus', refreshOnForeground)
+      window.removeEventListener('pageshow', refreshOnForeground)
       if (attachToRoot) {
-        document.documentElement.style.removeProperty('--intro-bg-image');
+        document.documentElement.style.removeProperty('--intro-bg-image')
       }
-    };
-  }, [attachToRoot]);
+    }
+  }, [attachToRoot])
 
-  return state;
+  return { ...state, requestWeatherLocation }
 }

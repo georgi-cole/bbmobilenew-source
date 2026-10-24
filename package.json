@@ -82,6 +82,7 @@
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",
     "@capacitor/core": "^8.3.0",
+    "@capacitor/geolocation": "^8.2.4",
     "@capgo/native-purchases": "^8.6.4",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
