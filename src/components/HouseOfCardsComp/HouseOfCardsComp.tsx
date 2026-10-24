@@ -516,12 +516,11 @@ export default function HouseOfCardsComp({
       nextScores[id] = (nextScores[id] ?? 0) + roundScores[id].score
     })
     const rankedIds = activeIds.slice().sort((a, b) => {
-      if (round === 4 && nextScores[b] !== nextScores[a]) return nextScores[b] - nextScores[a]
       return (
+        nextScores[b] - nextScores[a] ||
         roundScores[b].score - roundScores[a].score ||
         roundScores[a].mistakes - roundScores[b].mistakes ||
-        roundScores[a].timeMs - roundScores[b].timeMs ||
-        nextScores[b] - nextScores[a]
+        roundScores[a].timeMs - roundScores[b].timeMs
       )
     })
     const nextActiveIds =
@@ -1329,7 +1328,7 @@ export default function HouseOfCardsComp({
                     {roundSummary.roundScores[id].brightPairBonus ? ' · Bright Pair +120' : ''}
                   </span>
                 </div>
-                <strong>{roundSummary.cumulativeScores[id]}</strong>
+                <strong>{roundSummary.cumulativeScores[id].toLocaleString()}</strong>
               </li>
             ))}
           </ol>
