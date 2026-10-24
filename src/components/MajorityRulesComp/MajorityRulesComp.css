@@ -2314,15 +2314,16 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 /* VIP studio, poll receipts and the room-reader/finale beats. */
 .majority-rules-shell[data-presentation='vip'] {
   isolation: isolate;
-  background: #0b0711;
+  --vip-navy: #07111f;
+  background: var(--vip-navy);
 }
 
 .majority-rules-shell[data-presentation='vip']::before {
   inset: 0;
   opacity: 1;
   background-image:
-    linear-gradient(180deg, rgba(8, 5, 16, 0.36), rgba(8, 5, 16, 0.46)),
-    var(--majority-rules-vip-backdrop), linear-gradient(135deg, #24102d, #080b15 64%, #211019);
+    linear-gradient(180deg, rgba(5, 12, 24, 0.34), rgba(5, 12, 24, 0.58)),
+    var(--majority-rules-vip-backdrop), linear-gradient(135deg, #10253a, #07111f 64%, #17202a);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2330,27 +2331,27 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 }
 
 .majority-rules-shell[data-presentation='vip']::after {
-  border-color: rgba(207, 173, 255, 0.28);
-  background: linear-gradient(180deg, rgba(8, 5, 16, 0.02), rgba(8, 5, 16, 0.12));
+  border-color: rgba(115, 183, 237, 0.23);
+  background: linear-gradient(180deg, rgba(5, 12, 24, 0.02), rgba(5, 12, 24, 0.12));
   box-shadow:
     inset 0 0 100px rgba(0, 0, 0, 0.48),
     inset 0 -16vh 15vh rgba(225, 113, 65, 0.08),
-    0 0 28px rgba(178, 112, 222, 0.1);
+    0 0 28px rgba(85, 213, 194, 0.08);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-card {
   align-content: start;
   overflow-y: auto;
-  border: 1px solid rgba(208, 170, 255, 0.34);
+  border: 1px solid rgba(115, 183, 237, 0.34);
   border-radius: 24px;
   background:
-    linear-gradient(145deg, rgba(34, 20, 47, 0.94), rgba(9, 12, 24, 0.94)), rgba(13, 9, 22, 0.94);
+    linear-gradient(145deg, rgba(13, 31, 50, 0.95), rgba(7, 17, 31, 0.96)), rgba(8, 20, 35, 0.94);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 0 32px rgba(157, 91, 213, 0.12);
+    0 0 32px rgba(49, 155, 186, 0.1);
   -webkit-overflow-scrolling: touch;
-  scrollbar-color: rgba(187, 143, 226, 0.55) transparent;
+  scrollbar-color: rgba(85, 213, 194, 0.5) transparent;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-card--center,
@@ -2360,23 +2361,23 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-livebar {
-  border-bottom-color: rgba(220, 176, 255, 0.3);
+  border-bottom-color: rgba(85, 213, 194, 0.3);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-livebar::before {
-  color: rgba(224, 193, 255, 0.78);
+  color: rgba(155, 215, 241, 0.82);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-badge,
 .majority-rules-shell[data-presentation='vip'] .majority-rules-pill,
 .majority-rules-shell[data-presentation='vip'] .majority-rules-number-button {
-  border-color: rgba(195, 155, 235, 0.4);
-  background: rgba(35, 23, 52, 0.88);
-  color: #f8edff;
+  border-color: rgba(115, 183, 237, 0.4);
+  background: rgba(12, 34, 56, 0.9);
+  color: #eff8ff;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-badge--cool {
-  border-color: rgba(71, 211, 190, 0.48);
+  border-color: rgba(85, 213, 194, 0.5);
   background: rgba(18, 106, 98, 0.3);
   color: #adfff0;
 }
@@ -2384,42 +2385,42 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 .majority-rules-shell[data-presentation='vip'] .majority-rules-badge--warn,
 .majority-rules-shell[data-presentation='vip'] .majority-rules-pill--active,
 .majority-rules-shell[data-presentation='vip'] .majority-rules-number-button--active {
-  border-color: rgba(250, 198, 100, 0.72);
+  border-color: rgba(255, 208, 128, 0.72);
   background: rgba(159, 92, 29, 0.3);
   color: #ffe1a1;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-kicker {
-  color: #d9b5fa;
+  color: #ffd08a;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-question {
-  color: #fff8ff;
+  color: #f7fbff;
   text-shadow: 0 2px 20px rgba(0, 0, 0, 0.44);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-copy {
-  color: #e9ddef;
+  color: #dce9f5;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-option {
-  border-color: rgba(185, 146, 222, 0.42);
-  border-left-color: rgba(75, 213, 191, 0.82);
+  border-color: rgba(115, 183, 237, 0.4);
+  border-left-color: rgba(85, 213, 194, 0.84);
   background:
-    linear-gradient(100deg, rgba(91, 47, 117, 0.3), transparent 66%), rgba(12, 12, 25, 0.78);
+    linear-gradient(100deg, rgba(24, 82, 106, 0.22), transparent 66%), rgba(7, 20, 36, 0.86);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 12px 26px rgba(0, 0, 0, 0.2);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-option--selected {
-  border-color: rgba(255, 211, 123, 0.92);
+  border-color: rgba(255, 208, 128, 0.94);
   border-left-color: #64e0cb;
   background:
-    linear-gradient(100deg, rgba(117, 63, 146, 0.5), rgba(20, 20, 35, 0.92)), rgba(15, 11, 24, 0.94);
+    linear-gradient(100deg, rgba(16, 92, 99, 0.38), rgba(12, 30, 48, 0.96)), rgba(7, 18, 31, 0.95);
   box-shadow:
-    0 0 0 1px rgba(255, 211, 123, 0.16),
-    0 0 28px rgba(170, 107, 214, 0.2),
+    0 0 0 1px rgba(255, 208, 128, 0.18),
+    0 0 28px rgba(85, 213, 194, 0.16),
     inset 0 1px 0 rgba(255, 246, 212, 0.15);
 }
 
@@ -2432,21 +2433,21 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 .majority-rules-shell[data-presentation='vip'] .majority-rules-primary {
   border-color: rgba(255, 220, 150, 0.86);
   background: linear-gradient(115deg, #ffd070, #e98c42 66%, #dc6853);
-  color: #251328;
+  color: #10202d;
   box-shadow:
     0 12px 26px rgba(183, 89, 50, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-secondary {
-  border-color: rgba(200, 166, 232, 0.48);
-  background: rgba(37, 24, 54, 0.85);
-  color: #f4e7ff;
+  border-color: rgba(115, 183, 237, 0.42);
+  background: rgba(12, 32, 52, 0.9);
+  color: #edf7ff;
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row {
-  border-color: rgba(185, 152, 214, 0.25);
-  background: rgba(12, 12, 26, 0.66);
+  border-color: rgba(115, 183, 237, 0.23);
+  background: rgba(7, 20, 36, 0.78);
 }
 
 .majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row.is-majority {
@@ -2470,7 +2471,7 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
   .majority-rules-aggregation__row:not(.is-majority):not(.is-minority)
   .majority-rules-aggregation__track
   span {
-  background: linear-gradient(90deg, #a86bd8, #e8b8ff);
+  background: linear-gradient(90deg, #4d89d5, #72d5d0);
 }
 
 .majority-rules-reveal-fact {
@@ -2479,7 +2480,7 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
   padding: 0.78rem 0.92rem;
   border: 1px solid rgba(80, 218, 194, 0.42);
   border-radius: 16px;
-  background: linear-gradient(110deg, rgba(23, 104, 94, 0.2), rgba(24, 15, 37, 0.78));
+  background: linear-gradient(110deg, rgba(23, 104, 94, 0.22), rgba(8, 22, 38, 0.9));
 }
 
 .majority-rules-reveal-fact__eyebrow {
@@ -2491,14 +2492,14 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 }
 
 .majority-rules-reveal-fact__eyebrow i {
-  color: #d6c3e8;
+  color: #c6d8e8;
   font-style: normal;
   letter-spacing: 0.04em;
 }
 
 .majority-rules-reveal-fact p {
   margin: 0;
-  color: #f4eafa;
+  color: #f1f7fc;
   font-size: clamp(0.78rem, 2.15vw, 0.95rem);
   line-height: 1.35;
 }
@@ -2549,7 +2550,7 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 }
 
 .majority-rules-room-reader small {
-  color: #e9ddef;
+  color: #dce9f5;
   font-size: 0.74rem;
   line-height: 1.3;
 }
@@ -2562,7 +2563,7 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
   padding: 0.72rem;
   border: 1px solid rgba(255, 207, 119, 0.54);
   border-radius: 16px;
-  background: radial-gradient(ellipse, rgba(113, 67, 142, 0.48), rgba(24, 14, 35, 0.86));
+  background: radial-gradient(ellipse, rgba(27, 95, 117, 0.32), rgba(8, 20, 35, 0.94));
   color: #ffe3a9;
   font-size: 0.92rem;
   font-weight: 900;
@@ -2582,8 +2583,46 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
 .majority-rules-card--duel.is-final-suspense {
   box-shadow:
     0 0 0 1px rgba(252, 206, 121, 0.2),
-    0 0 40px rgba(177, 104, 219, 0.2),
-    inset 0 0 48px rgba(92, 45, 119, 0.16);
+    0 0 40px rgba(85, 213, 194, 0.16),
+    inset 0 0 48px rgba(16, 82, 104, 0.14);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--question {
+  background: rgba(49, 155, 186, 0.2);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--reveal {
+  background: rgba(85, 213, 194, 0.16);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--duel,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--winner {
+  background: rgba(255, 174, 82, 0.18);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-ring {
+  box-shadow:
+    0 0 0 0.45rem rgba(85, 213, 194, 0.16),
+    0 0 42px rgba(255, 208, 128, 0.3);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-ring::before {
+  border-color: rgba(85, 213, 194, 0.28);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-portrait {
+  background: linear-gradient(145deg, #ffd080, #55d5c2 58%, #368bc2);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.5),
+    0 0 36px rgba(85, 213, 194, 0.28);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-floor {
+  background: rgba(255, 174, 82, 0.22);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--winner .majority-rules-copy {
+  color: #dce9f5;
 }
 
 @keyframes majority-rules-vip-pulse {
