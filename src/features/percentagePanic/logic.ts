@@ -23,6 +23,11 @@ export interface PercentageAnswer {
   score: number
 }
 
+export interface PercentageRoundSpotlights {
+  strongest: PercentageAnswer[]
+  weakest: PercentageAnswer[]
+}
+
 export interface PercentageRound {
   question: PercentageQuestion
   answers: PercentageAnswer[]
@@ -117,6 +122,19 @@ export function percentagePollDetail(question: PercentageQuestion): PercentagePo
     referenceYear: candidate.referenceYear,
     sourceUrl: candidate.sourceUrl,
     samePoll: samePollFact,
+  }
+}
+
+/** Find the closest and furthest estimates, preserving everyone involved in a tie. */
+export function percentageRoundSpotlights(
+  answers: PercentageAnswer[]
+): PercentageRoundSpotlights | null {
+  if (!answers.length) return null
+  const bestError = Math.min(...answers.map((answer) => answer.error))
+  const worstError = Math.max(...answers.map((answer) => answer.error))
+  return {
+    strongest: answers.filter((answer) => answer.error === bestError),
+    weakest: answers.filter((answer) => answer.error === worstError),
   }
 }
 

@@ -17,6 +17,7 @@ import {
   percentagePanicRankedIds,
   pickAiDuelGuess,
   percentagePollDetail,
+  percentageRoundSpotlights,
   percentagePanicGuessReaction,
   percentagePanicPlayerStyle,
   resolvePercentageDuelGuess,
@@ -311,6 +312,7 @@ export default function PercentagePanic({
 
   const result = state.lastRound
   const worst = result?.eliminatedIds ?? []
+  const roundSpotlights = result ? percentageRoundSpotlights(result.answers) : null
   const answersByPlayer = new Map(
     (result?.answers ?? []).map((answer) => [answer.playerId, answer])
   )
@@ -478,10 +480,10 @@ export default function PercentagePanic({
               <p className="pp-screen__super">
                 {state.question.category} · {state.question.referenceYear} survey
               </p>
-              <h3>{state.question.prompt}</h3>
+              <h3 className="pp-screen__question">{state.question.prompt}</h3>
               {state.phase === 'reveal' && (
                 <>
-                  <div className="pp-truth">{state.question.answerPercent}%</div>
+                  <div className="pp-truth pp-answer-reveal">{state.question.answerPercent}%</div>
                   {pollDetail && (
                     <div className="pp-poll-detail" aria-label="Poll side quest">
                       <strong>
@@ -600,12 +602,6 @@ export default function PercentagePanic({
                 No eliminations this round. Everyone stays in until round 9.
               </p>
             )}
-            <div className="pp-results__header">
-              <span>CONTESTANT</span>
-              <span>GUESS</span>
-              <span>ERROR</span>
-              <span>TOTAL</span>
-            </div>
             <p className="pp-standings-callout" aria-live="polite">
               {biggestMover && biggestMover.places > 0
                 ? `${nameOf(biggestMover.id)} climbs ${biggestMover.places} ${biggestMover.places === 1 ? 'place' : 'places'} on the leaderboard.`
@@ -613,53 +609,92 @@ export default function PercentagePanic({
                   ? `${nameOf(leaderboardIds[0])} grabs the early lead.`
                   : `${nameOf(leaderboardIds[0])} holds the lead.`}
             </p>
-            {roundRows.map((a, index) => {
-              const isFinalist = state.finalists?.includes(a.playerId) ?? false
-              const isOut = worst.includes(a.playerId)
-              const places =
-                (previousRank.get(a.playerId) ?? 0) - (currentRank.get(a.playerId) ?? 0)
-              const movement =
-                state.roundNumber === 1
-                  ? ''
-                  : places > 0
-                    ? `↑ ${places}`
-                    : places < 0
-                      ? `↓ ${Math.abs(places)}`
-                      : '—'
-              return (
-                <div
-                  className={`pp-results__row ${isOut ? 'pp-results__row--out' : ''} ${isFinalist ? 'pp-results__row--finalist' : ''}`}
-                  key={a.playerId}
-                  style={{ '--row-index': index } as CSSProperties}
-                >
-                  <span className="pp-results__player">
-                    <span className="pp-results__identity">
-                      <span className="pp-results__rank">#{currentRank.get(a.playerId)}</span>{' '}
-                      {nameOf(a.playerId)}
-                      {isOut ? ' • OUT' : isFinalist ? ' • FINALIST' : ''}
-                      {movement && (
-                        <small
-                          className={`pp-results__movement ${places > 0 ? 'pp-results__movement--up' : places < 0 ? 'pp-results__movement--down' : ''}`}
-                        >
-                          {movement}
-                        </small>
-                      )}
-                    </span>
-                    <small className="pp-results__reaction">
-                      {percentagePanicGuessReaction(
-                        sessionSeed,
-                        a.playerId,
-                        a.error,
-                        state.roundNumber
-                      )}
-                    </small>
-                  </span>
-                  <span>{a.guess}%</span>
-                  <span>−{a.error}</span>
-                  <strong>{state.scores[a.playerId]}</strong>
+            {roundSpotlights && (
+              <div className="pp-spotlights" role="group" aria-label="Round highlights">
+                <div className="pp-spotlight pp-spotlight--strongest">
+                  <span>STRONGEST THIS ROUND</span>
+                  <strong>
+                    {roundSpotlights.strongest.map((a) => nameOf(a.playerId)).join(', ')}
+                  </strong>
+                  <small>
+                    {roundSpotlights.strongest.length > 1
+                      ? `Tied · ${roundSpotlights.strongest[0].error} points off`
+                      : `${roundSpotlights.strongest[0].error} points off · guessed ${roundSpotlights.strongest[0].guess}%`}
+                  </small>
                 </div>
-              )
-            })}
+                <div className="pp-spotlight pp-spotlight--weakest">
+                  <span>WEAKEST THIS ROUND</span>
+                  <strong>
+                    {roundSpotlights.weakest.map((a) => nameOf(a.playerId)).join(', ')}
+                  </strong>
+                  <small>
+                    {roundSpotlights.weakest.length > 1
+                      ? `Tied · ${roundSpotlights.weakest[0].error} points off`
+                      : `${roundSpotlights.weakest[0].error} points off · guessed ${roundSpotlights.weakest[0].guess}%`}
+                  </small>
+                </div>
+              </div>
+            )}
+            <details className="pp-records">
+              <summary>
+                FULL ROUND RECORDS <span>{roundRows.length} players</span>
+              </summary>
+              <div className="pp-records__body">
+                <div className="pp-results__header">
+                  <span>CONTESTANT</span>
+                  <span>GUESS</span>
+                  <span>ERROR</span>
+                  <span>TOTAL</span>
+                </div>
+                {roundRows.map((a, index) => {
+                  const isFinalist = state.finalists?.includes(a.playerId) ?? false
+                  const isOut = worst.includes(a.playerId)
+                  const places =
+                    (previousRank.get(a.playerId) ?? 0) - (currentRank.get(a.playerId) ?? 0)
+                  const movement =
+                    state.roundNumber === 1
+                      ? ''
+                      : places > 0
+                        ? `↑ ${places}`
+                        : places < 0
+                          ? `↓ ${Math.abs(places)}`
+                          : '—'
+                  return (
+                    <div
+                      className={`pp-results__row ${isOut ? 'pp-results__row--out' : ''} ${isFinalist ? 'pp-results__row--finalist' : ''}`}
+                      key={a.playerId}
+                      style={{ '--row-index': index } as CSSProperties}
+                    >
+                      <span className="pp-results__player">
+                        <span className="pp-results__identity">
+                          <span className="pp-results__rank">#{currentRank.get(a.playerId)}</span>{' '}
+                          {nameOf(a.playerId)}
+                          {isOut ? ' • OUT' : isFinalist ? ' • FINALIST' : ''}
+                          {movement && (
+                            <small
+                              className={`pp-results__movement ${places > 0 ? 'pp-results__movement--up' : places < 0 ? 'pp-results__movement--down' : ''}`}
+                            >
+                              {movement}
+                            </small>
+                          )}
+                        </span>
+                        <small className="pp-results__reaction">
+                          {percentagePanicGuessReaction(
+                            sessionSeed,
+                            a.playerId,
+                            a.error,
+                            state.roundNumber
+                          )}
+                        </small>
+                      </span>
+                      <span>{a.guess}%</span>
+                      <span>−{a.error}</span>
+                      <strong>{state.scores[a.playerId]}</strong>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
             <a
               className="pp-source"
               href={state.question.sourceUrl}

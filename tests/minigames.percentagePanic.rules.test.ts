@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getGame } from '../src/minigames/registry'
 import {
   advancePercentageRound,
   chooseAiPercentageDuelFirst,
@@ -9,6 +10,7 @@ import {
   percentagePanicRankedGroups,
   percentagePanicRankedIds,
   percentagePollDetail,
+  percentageRoundSpotlights,
   resolvePercentageDuelGuess,
   resolvePercentageRound,
   selectPercentageQuestion,
@@ -41,6 +43,13 @@ function reachFinalOrder(initial: PercentagePanicState): PercentagePanicState {
 }
 
 describe('Percentage Panic rules', () => {
+  it('shows the round-9 finalist rules in the lab and rules modal', () => {
+    const instructions = getGame('percentagePanic')?.instructions.join(' ') ?? ''
+    expect(instructions).toMatch(/Rounds 1–8 award cumulative points; nobody is eliminated/)
+    expect(instructions).toMatch(/After round 9, the two highest cumulative scores reach the final/)
+    expect(instructions).not.toMatch(/sudden-death|eliminate the slower respondent/i)
+  })
+
   it('ships a complete sourced party-survey bank with explicit populations and dates', () => {
     const questions = PERCENTAGE_PANIC_QUESTIONS
     expect(questions.length).toBeGreaterThanOrEqual(300)
@@ -100,6 +109,18 @@ describe('Percentage Panic rules', () => {
     expect(comparisonDetail.samePoll).toBe(false)
     expect(comparisonDetail.sourceUrl).toMatch(/^https:\/\//)
     expect(comparisonDetail.text).toMatch(/^A separate \d{4} poll found /)
+  })
+
+  it('finds the round standouts and keeps tied players together', () => {
+    const spotlights = percentageRoundSpotlights([
+      answer('close-a', 3, 4000),
+      answer('furthest', 40, 5000),
+      answer('close-b', 3, 3000),
+      answer('middle', 12, 2000),
+    ])
+    expect(spotlights?.strongest.map((row) => row.playerId)).toEqual(['close-a', 'close-b'])
+    expect(spotlights?.weakest.map((row) => row.playerId)).toEqual(['furthest'])
+    expect(percentageRoundSpotlights([])).toBeNull()
   })
 
   it('eliminates the furthest contestant even when someone else is slower', () => {
