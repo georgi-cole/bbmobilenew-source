@@ -1,6 +1,8 @@
 import { mulberry32 } from '../../store/rng'
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import { MAJORITY_RULES_QUESTION_BANK } from './majorityRulesQuestions'
+import { MAJORITY_RULES_VIP_QUESTIONS } from './majorityRulesVipQuestions'
+import type { MajorityRulesVipRevealFact } from './majorityRulesVipQuestions'
 
 export type MajorityRulesHintType = 'pollHint' | 'peekTwo' | 'followPlayer'
 
@@ -15,6 +17,7 @@ export interface MajorityRulesQuestion {
   id: string
   prompt: string
   options: [MajorityRulesQuestionOption, MajorityRulesQuestionOption, MajorityRulesQuestionOption]
+  revealFact?: MajorityRulesVipRevealFact
 }
 
 export interface MajorityRulesHintInventory {
@@ -185,7 +188,9 @@ function normalizeMajorityRulesPrompt(prompt: string) {
 function buildMajorityRulesQuestion(
   id: string,
   prompt: string,
-  options: [string, string, string]
+  options: [string, string, string],
+  revealFact?: MajorityRulesVipRevealFact,
+  baseBiases: [number, number, number] = [...MAJORITY_RULES_OPTION_BIASES]
 ): MajorityRulesQuestion {
   return {
     id,
@@ -194,8 +199,9 @@ function buildMajorityRulesQuestion(
       id: MAJORITY_RULES_OPTION_IDS[index],
       label: MAJORITY_RULES_OPTION_LABELS[index],
       text,
-      baseBias: MAJORITY_RULES_OPTION_BIASES[index],
+      baseBias: baseBiases[index],
     })) as [MajorityRulesQuestionOption, MajorityRulesQuestionOption, MajorityRulesQuestionOption],
+    ...(revealFact ? { revealFact } : {}),
   }
 }
 
@@ -238,6 +244,30 @@ function shuffleMajorityRulesQuestion(
 export const MAJORITY_RULES_QUESTIONS: MajorityRulesQuestion[] = MAJORITY_RULES_QUESTION_BANK.map(
   (question) => buildMajorityRulesQuestion(question.id, question.prompt, question.options)
 )
+
+export const MAJORITY_RULES_VIP_QUESTION_SET: MajorityRulesQuestion[] =
+  MAJORITY_RULES_VIP_QUESTIONS.map((question) =>
+    buildMajorityRulesQuestion(
+      question.id,
+      question.prompt,
+      question.options,
+      question.revealFact,
+      question.baseBiases
+    )
+  )
+
+/** A room-read streak only counts a unique leader; a split ballot is ambiguous. */
+export function didReadMajorityRulesRoom(
+  pickedOptionId: string | null | undefined,
+  distribution: Record<string, number>
+): boolean {
+  if (!pickedOptionId) return false
+  const counts = Object.entries(distribution).filter(([, count]) => count > 0)
+  if (!counts.length) return false
+  const highestCount = Math.max(...counts.map(([, count]) => count))
+  const leaders = counts.filter(([, count]) => count === highestCount)
+  return leaders.length === 1 && leaders[0]?.[0] === pickedOptionId
+}
 
 export function fnv1a32(value: string): number {
   let hash = 0x811c9dc5
@@ -883,15 +913,15 @@ export function resolveMajorityRulesBallot(params: {
 export function pickMajorityRulesQuestion(
   seed: number,
   roundNumber: number,
-  usedQuestionIds: string[]
+  usedQuestionIds: string[],
+  vipExperience = false
 ): MajorityRulesQuestion {
-  const remaining = MAJORITY_RULES_QUESTIONS.filter(
-    (question) => !usedQuestionIds.includes(question.id)
-  )
-  const pool = remaining.length > 0 ? remaining : MAJORITY_RULES_QUESTIONS
+  const questions = vipExperience ? MAJORITY_RULES_VIP_QUESTION_SET : MAJORITY_RULES_QUESTIONS
+  const remaining = questions.filter((question) => !usedQuestionIds.includes(question.id))
+  const pool = remaining.length > 0 ? remaining : questions
   const rng = seededRng(seed, 'question', roundNumber, usedQuestionIds.join('|'))
   const index = Math.floor(rng() * pool.length)
-  const selectedQuestion = pool[index] ?? MAJORITY_RULES_QUESTIONS[0]
+  const selectedQuestion = pool[index] ?? questions[0] ?? MAJORITY_RULES_QUESTIONS[0]
   return shuffleMajorityRulesQuestion(selectedQuestion, seed, roundNumber, usedQuestionIds)
 }
 

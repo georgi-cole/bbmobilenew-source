@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   MAJORITY_RULES_QUESTIONS,
   buildBaseAiAnswers,
+  didReadMajorityRulesRoom,
   initializeDiceDuel,
+  MAJORITY_RULES_VIP_QUESTION_SET,
   pickAiDuelNumber,
   pickMajorityRulesQuestion,
   resolveDiceDuelRoll,
@@ -85,6 +87,31 @@ describe('majorityRules logic', () => {
     })
 
     expect(foundReorderedQuestion).toBe(true)
+  })
+
+  it('keeps sourced, punchier VIP prompts separate from the original non-VIP bank', () => {
+    expect(MAJORITY_RULES_VIP_QUESTION_SET).toHaveLength(48)
+    expect(MAJORITY_RULES_VIP_QUESTION_SET.every((entry) => entry.id.startsWith('vip'))).toBe(true)
+    expect(
+      MAJORITY_RULES_VIP_QUESTION_SET.every((entry) =>
+        entry.revealFact?.sourceUrl.startsWith('https://')
+      )
+    ).toBe(true)
+
+    const standard = pickMajorityRulesQuestion(17, 1, [])
+    const vip = pickMajorityRulesQuestion(17, 1, [], true)
+    expect(standard.id).toMatch(/^q\d{3}$/)
+    expect(standard.revealFact).toBeUndefined()
+    expect(vip.id).toMatch(/^vip\d{3}$/)
+    expect(vip.revealFact?.text).toBeTruthy()
+    expect(pickMajorityRulesQuestion(17, 1, [], true)).toEqual(vip)
+  })
+
+  it('counts a room read only when the player picked the unique leading answer', () => {
+    expect(didReadMajorityRulesRoom('a', { a: 4, b: 2, c: 1 })).toBe(true)
+    expect(didReadMajorityRulesRoom('b', { a: 4, b: 2, c: 1 })).toBe(false)
+    expect(didReadMajorityRulesRoom('a', { a: 3, b: 3, c: 1 })).toBe(false)
+    expect(didReadMajorityRulesRoom(null, { a: 4, b: 2, c: 1 })).toBe(false)
   })
 
   it('flags unanimous rounds without eliminating anyone', () => {
