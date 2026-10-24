@@ -470,7 +470,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
       'Everyone locks in an answer at the same time.',
       'You get 3 hints for the whole game, and each hint can only be used once.',
       'Players in the minority are eliminated.',
-      'A tied ballot gets one re-vote. If it is still tied, that question is discarded and a new one begins.',
+      'If no distinct, small minority is found (including ties), nobody is eliminated and a new question begins.',
       'The last contestants face a final head-to-head to decide the winner.',
     ],
     resultMode: 'placement',

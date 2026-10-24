@@ -20,6 +20,7 @@ import {
   percentageRoundSpotlights,
   percentagePanicGuessReaction,
   percentagePanicPlayerStyle,
+  rankPercentagePanicByScore,
   resolvePercentageDuelGuess,
   resolvePercentageRound,
   type PercentagePanicState,
@@ -62,19 +63,6 @@ function waitForImage(source: string): Promise<void> {
     image.src = source
     if (image.complete) done()
   })
-}
-
-function rankByScore(
-  contestants: string[],
-  scores: Record<string, number>,
-  responseTimes: Record<string, number>
-) {
-  return [...contestants].sort(
-    (a, b) =>
-      scores[b] - scores[a] ||
-      responseTimes[a] - responseTimes[b] ||
-      contestants.indexOf(a) - contestants.indexOf(b)
-  )
 }
 
 export default function PercentagePanic({
@@ -317,7 +305,7 @@ export default function PercentagePanic({
     (result?.answers ?? []).map((answer) => [answer.playerId, answer])
   )
   const leaderboardIds = useMemo(
-    () => rankByScore(state.contestants, state.scores, state.responseTotals),
+    () => rankPercentagePanicByScore(state.contestants, state.scores, state.responseTotals),
     [state.contestants, state.scores, state.responseTotals]
   )
   const leaderboardOrderKey = leaderboardIds.join('|')
@@ -332,7 +320,11 @@ export default function PercentagePanic({
       state.responseTotals[id] - (answersByPlayer.get(id)?.responseMs ?? 0),
     ])
   )
-  const previousRankedIds = rankByScore(state.contestants, scoresBeforeRound, timesBeforeRound)
+  const previousRankedIds = rankPercentagePanicByScore(
+    state.contestants,
+    scoresBeforeRound,
+    timesBeforeRound
+  )
   const previousRank = new Map(previousRankedIds.map((id, index) => [id, index + 1]))
   const biggestMover =
     result && state.roundNumber > 1
