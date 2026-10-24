@@ -427,6 +427,39 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
   },
 
+  percentagePanic: {
+    key: 'percentagePanic',
+    title: 'Percentage Panic',
+    description:
+      'Guess what people really admit: dating drama, food feuds, awkward habits, and wild opinions. Final two play Higher or Lower.',
+    instructions: [
+      'Everyone estimates the same published survey percentage, from 0 to 100. Each question names the surveyed group and shows the survey year.',
+      'You have 20 seconds to lock your estimate; a timeout locks the current slider value.',
+      'Your round score is minus the absolute difference from the published answer.',
+      'Rounds 1–8 award cumulative points; nobody is eliminated.',
+      'After round 9, the two highest cumulative scores reach the final. A tie is broken by faster total response time, then a seeded tie-break.',
+      'The finalist with the higher cumulative score chooses who guesses first or second.',
+      'The finalists alternate guesses and see only Higher or Lower until one guesses exactly.',
+      'Each reveal adds another sourced result from the poll or a related survey.',
+      'You get three hints for the game. Each costs five points and offers three nearby percentages, including the answer.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Cumulative points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'PercentagePanic',
+    legacy: false,
+    // Match Majority Rules in the active pool; the competition director keeps it Day 1-only.
+    weight: 1,
+    category: 'trivia',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
+  },
+
   majorityRules: {
     key: 'majorityRules',
     title: 'Majority Rules',

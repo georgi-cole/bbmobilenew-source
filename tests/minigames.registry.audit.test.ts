@@ -20,6 +20,7 @@ const SPECIAL_CASE_COMPONENT_KEYS = new Set([
   'BiographyBlitz',
   'FamousFigures',
   'SilentSaboteur',
+  'PercentagePanic',
   'MajorityRules',
   'GlassBridge',
   'CrystalPathShattered',

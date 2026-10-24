@@ -49,6 +49,7 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'famousFigures',
   'silentSaboteur',
   'majorityRules',
+  'percentagePanic',
   'pressurePlank',
   'colorMatch',
   'logicLocks',
@@ -106,8 +107,8 @@ export function getApprovedCompetitionGameKeys(
  *
  * - Each regular season day has its own pool, targeting the expected house
  *   count with a one-player tolerance for twists and double evictions.
- * - Day 1 is a fixed two-game premiere: Majority Rules for LOH and Quick Tap
- *   Race for POS.
+ * - Day 1 is a fixed premiere: LOH is a 50/50 draw between Majority Rules and
+ *   Percentage Panic; POS uses Quick Tap Race.
  * - With many housemates, LOH uses fixed-round or simultaneous games and POS
  *   stays short. Sequential/turn-heavy formats remain in the large-cast days.
  * - LOH becomes longer and more technical as the season progresses.
@@ -127,7 +128,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 16,
     minDay: 1,
     maxDay: 1,
-    loh: ['majorityRules'],
+    loh: ['majorityRules', 'percentagePanic'],
     pos: ['quickTap', 'riskWheel'],
   },
   {

@@ -102,7 +102,7 @@ describe('getClassicCampaignPoolForContext', () => {
       compType: 'LOH',
       phase: 'loh_comp',
     })
-    expect(day1).toEqual(['majorityRules'])
+    expect(day1).toEqual(['majorityRules', 'percentagePanic'])
     expect(day2).toContain('holdWall')
     expect(day2.length).toBeGreaterThan(day1.length)
   })

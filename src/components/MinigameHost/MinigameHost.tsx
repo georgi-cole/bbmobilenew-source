@@ -69,6 +69,9 @@ const FamousFiguresComp = lazyWithChunkRecovery(
 const SilentSaboteurComp = lazyWithChunkRecovery(
   () => import('../SilentSaboteurComp/SilentSaboteurComp')
 )
+const PercentagePanicComp = lazyWithChunkRecovery(
+  () => import('../PercentagePanic/PercentagePanic')
+)
 const MajorityRulesComp = lazyWithChunkRecovery(
   () => import('../MajorityRulesComp/MajorityRulesComp')
 )
@@ -100,6 +103,7 @@ const SPECIAL_MINIGAME_PRELOADERS: Record<string, () => Promise<void>> = {
   FamousFigures: () => FamousFiguresComp.preload(),
   SilentSaboteur: () => SilentSaboteurComp.preload(),
   MajorityRules: () => MajorityRulesComp.preload(),
+  PercentagePanic: () => PercentagePanicComp.preload(),
   GlassBridge: () => GlassBridgeComp.preload(),
   CrystalPathShattered: () => CrystalPathShatteredGame.preload(),
   BlackjackTournament: () => BlackjackTournamentComp.preload(),
@@ -134,6 +138,10 @@ export interface ReactMinigameCompletion {
   authoritativeLastPlaceId?: string | null
   /** Complete feature-owned ordering, best to worst, when its scoring has richer tie-breaks. */
   authoritativeRankedIds?: string[]
+  /** Placement groups that share a rank, best to worst. */
+  authoritativeTiedGroups?: string[][]
+  /** All contestants in the last-place tie group when the game supports ties. */
+  authoritativeLastPlaceIds?: string[]
   rawValue?: number
   rawResults?: Record<string, number>
   /** Optional time-based tie-breaker in ms (lower = faster = better rank). */
@@ -394,6 +402,8 @@ export default function MinigameHost({
 
   const getReportedLastPlaceId = useCallback(
     (completion?: ReactMinigameCompletion) => {
+      if (completion?.authoritativeLastPlaceIds?.length)
+        return completion.authoritativeLastPlaceIds[0]
       if (completion?.authoritativeLastPlaceId) return completion.authoritativeLastPlaceId
       if (!completion?.rawResults || !participants?.length) return null
 
@@ -414,11 +424,16 @@ export default function MinigameHost({
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
       const lastPlaceId = getReportedLastPlaceId(completion)
+      const lastPlaceIds = completion?.authoritativeLastPlaceIds?.length
+        ? completion.authoritativeLastPlaceIds
+        : lastPlaceId
+          ? [lastPlaceId]
+          : []
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
       // the human is last so Reverse Time remains available.
-      if (competitionRetryEnabled && humanId && lastPlaceId === humanId && completion) {
+      if (competitionRetryEnabled && humanId && lastPlaceIds.includes(humanId) && completion) {
         setFinalCompletion(completion)
         setFinalValue(completion.rawValue ?? completion.rawResults?.[humanId] ?? fallbackValue)
         setFinalTiebreakerMs(completion.tiebreakerMs ?? fallbackTiebreakerMs ?? null)
@@ -475,6 +490,10 @@ export default function MinigameHost({
       return { ...p, score, isPR }
     })
     entries.sort((a, b) => {
+      const tiedGroup = finalCompletion?.authoritativeTiedGroups?.find(
+        (group) => group.includes(a.id) && group.includes(b.id)
+      )
+      if (tiedGroup) return 0
       const authoritativeRank = finalCompletion?.authoritativeRankedIds
       if (authoritativeRank?.length) {
         const rankA = authoritativeRank.indexOf(a.id)
@@ -618,6 +637,18 @@ export default function MinigameHost({
           prizeType={gameOptions?.prizeType as SilentSaboteurPrizeType}
           strategicContext={strategicContext}
           seed={seed}
+          onComplete={handleAttemptReactComplete}
+        />
+      )
+    }
+
+    if (game.implementation === 'react' && game.reactComponentKey === 'PercentagePanic') {
+      return (
+        <PercentagePanicComp
+          participantIds={participantIds}
+          participants={participants}
+          prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
+          seed={typeof gameOptions?.seed === 'number' ? seed : undefined}
           onComplete={handleAttemptReactComplete}
         />
       )
