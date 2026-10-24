@@ -26,7 +26,7 @@ import {
 } from '../../features/majorityRules/majorityRulesSlice'
 import { resolveMajorityRulesOutcome } from '../../features/majorityRules/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
-import majorityRulesVipStudio from '../../assets/majority-rules-vip/studio.webp'
+import majorityRulesVipStudio from '../../assets/majority-rules-vip/studio-navy.webp'
 import './MajorityRulesComp.css'
 
 const INTRO_DELAY_MS = 5000
@@ -664,7 +664,7 @@ export default function MajorityRulesComp({
 
         <div className="majority-rules-header-copy">
           <span className="majority-rules-kicker">
-            {game.revoteNumber > 0 ? 'Re-vote — choose again' : 'The house is voting'}
+            {game.revoteNumber > 0 ? 'Re-vote — choose again' : 'Everyone is voting'}
           </span>
           <motion.h2
             className="majority-rules-question"
@@ -742,8 +742,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'pollHint'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--poll majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--poll'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -757,8 +757,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'peekTwo'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--peek majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--peek'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -772,8 +772,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'followPlayer'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--follow majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--follow'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
