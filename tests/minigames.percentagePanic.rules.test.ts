@@ -6,6 +6,7 @@ import {
   choosePercentageDuelOrder,
   createPercentagePanic,
   percentageEliminations,
+  percentagePanicPlayerStyle,
   percentagePanicLastPlaceIds,
   percentagePanicRankedGroups,
   percentagePanicRankedIds,
@@ -91,6 +92,44 @@ describe('Percentage Panic rules', () => {
     expect(picked.answerPercent).toBeLessThanOrEqual(100)
     expect(picked.sourceUrl).toMatch(/^https:\/\//)
     expect(selectPercentageQuestion(16, 1, [])).toEqual(picked)
+  })
+
+  it('balances AI guesses across informed reads, rough estimates, and wide misses', () => {
+    const errors: number[] = []
+    const responseTimes: number[] = []
+    const styles = new Set<string>()
+    const contestants = Array.from({ length: 8 }, (_, index) => `ai-${index + 1}`)
+
+    for (let seed = 1; seed <= 120; seed += 1) {
+      const initial = createPercentagePanic(['human', ...contestants], 'human', seed)
+      for (let roundNumber = 1; roundNumber <= 9; roundNumber += 1) {
+        const question =
+          PERCENTAGE_PANIC_QUESTIONS[
+            (seed * 17 + roundNumber * 13) % PERCENTAGE_PANIC_QUESTIONS.length
+          ]!
+        const round = { ...initial, roundNumber, question }
+
+        for (const playerId of contestants) {
+          const estimate = simulatedPercentageGuess(round, playerId)
+          errors.push(Math.abs(estimate.guess - question.answerPercent))
+          responseTimes.push(estimate.responseMs)
+          styles.add(percentagePanicPlayerStyle(seed, playerId))
+        }
+      }
+    }
+
+    const meanError = errors.reduce((sum, error) => sum + error, 0) / errors.length
+    const closeShare = errors.filter((error) => error <= 5).length / errors.length
+    const wideMissShare = errors.filter((error) => error >= 40).length / errors.length
+
+    expect(styles.size).toBe(4)
+    expect(meanError).toBeGreaterThan(21)
+    expect(meanError).toBeLessThan(27)
+    expect(closeShare).toBeGreaterThan(0.1)
+    expect(closeShare).toBeLessThan(0.26)
+    expect(wideMissShare).toBeGreaterThan(0.17)
+    expect(wideMissShare).toBeLessThan(0.28)
+    expect(Math.max(...responseTimes) - Math.min(...responseTimes)).toBeGreaterThan(10000)
   })
 
   it('adds a sourced side-quest detail to each survey reveal', () => {

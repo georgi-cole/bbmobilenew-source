@@ -7,6 +7,7 @@ export const AUTHORITATIVE_COMPONENT_KEYS: Set<string> = new Set([
   'BiographyBlitz',
   'FamousFigures',
   'SilentSaboteur',
+  'PercentagePanic',
   'MajorityRules',
   'GlassBridge',
   'CrystalPathShattered',

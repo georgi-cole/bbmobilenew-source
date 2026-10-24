@@ -452,8 +452,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'PercentagePanic',
     legacy: false,
-    // Draft feature: stay out of automatic rotation until season, balance, and accessibility QA pass.
-    weight: 0,
+    // Match Majority Rules in the active pool; the competition director keeps it Day 1-only.
+    weight: 1,
     category: 'trivia',
     retired: false,
     minPlayers: 2,

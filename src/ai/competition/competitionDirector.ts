@@ -107,6 +107,7 @@ const REQUIRES_ORIGINAL: Readonly<Record<string, string>> = {
 }
 
 const SPECIAL_PURPOSE = new Set(['capitalization', 'finalThreeCircuit', 'downMemoryLane'])
+const DAY_ONE_ONLY_GAME_KEYS = new Set(['percentagePanic'])
 const SIGNATURE_GAMES = new Set([
   'trapAuction',
   'silentSaboteur',
@@ -169,9 +170,9 @@ export function getCompetitionDirectorCandidates(context: DirectorContext): Dire
   const keys =
     context.day === 1
       ? context.compType === 'LOH'
-        ? ['majorityRules']
+        ? ['majorityRules', 'percentagePanic']
         : ['quickTap']
-      : [...BY_PRIZE[context.compType]]
+      : [...BY_PRIZE[context.compType]].filter((key) => !DAY_ONE_ONLY_GAME_KEYS.has(key))
 
   const carry =
     context.compType === 'LOH' && context.democraciaCarry?.day === context.day - 1
@@ -211,11 +212,17 @@ export function pickCompetitionDirectorGame(
   const played = new Set(context.playedGameKeys)
   const unused = candidates.filter(({ game }) => !played.has(game.key))
   const eligible = unused.length ? unused : candidates
+  const balancedDayOnePool = context.day === 1 && context.compType === 'LOH'
   const selected = selectNextCompetitionGame({
     seed,
-    recentGameKeys,
-    lateSeasonBias: context.playerCount <= 6,
-    games: eligible.map(({ game, weight }) => ({ ...game, weight })),
+    // The Day 1 premiere is a true coin-flip between its two featured games.
+    // Avoid category, recency, and small-cast multipliers changing those odds.
+    recentGameKeys: balancedDayOnePool ? [] : recentGameKeys,
+    lateSeasonBias: balancedDayOnePool ? false : context.playerCount <= 6,
+    games: eligible.map(({ game, weight }) => ({
+      ...game,
+      weight: balancedDayOnePool ? 1 : weight,
+    })),
   })
   // Return the canonical registry entry rather than the selection-only weight override.
   return getGame(selected.key)

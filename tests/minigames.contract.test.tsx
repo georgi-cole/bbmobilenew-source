@@ -24,6 +24,9 @@ vi.mock('../src/components/FamousFiguresComp/FamousFiguresComp', () => ({
 vi.mock('../src/components/SilentSaboteurComp/SilentSaboteurComp', () => ({
   default: createCompleteStub('SilentSaboteur'),
 }));
+vi.mock('../src/components/PercentagePanic/PercentagePanic', () => ({
+  default: createCompleteStub('PercentagePanic'),
+}));
 vi.mock('../src/components/MajorityRulesComp/MajorityRulesComp', () => ({
   default: createCompleteStub('MajorityRules'),
 }));

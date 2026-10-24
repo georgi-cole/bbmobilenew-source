@@ -242,13 +242,22 @@ export function simulatedPercentageGuess(
   // different rounding/speed habits keep opponents from acting like clones.
   const profile = mulberry32((state.seed ^ stringSeed(playerId) ^ 0x6d2b79f5) >>> 0)()
   const style = mulberry32((state.seed ^ stringSeed(playerId) ^ 0x27d4eb2d) >>> 0)()
-  const spread = profile > 0.82 ? 14 : profile > 0.55 ? 29 : profile > 0.25 ? 48 : 68
+  const skillBand = profile > 0.82 ? 0 : profile > 0.55 ? 1 : profile > 0.25 ? 2 : 3
+  const spread = ([14, 32, 52, 76] as const)[skillBand]
   const noise = (rng() + rng() + rng() - 1.5) * spread
   const answer = state.question.answerPercent
+  // Only the strongest contestants estimate directly from the poll result.
+  // Less certain players lean toward a generic 50% prior instead of all
+  // orbiting the true answer like they have seen the answer key.
+  const answerConfidence = ([1, 0.78, 0.5, 0.2] as const)[skillBand]
+  const beliefCenter = 50 + (answer - 50) * answerConfidence
   const midpointPull = style > 0.72 ? (50 - answer) * 0.42 : 0
   const playerBias = style < 0.24 ? 12 : style < 0.48 ? -9 : 0
-  const wildMiss = rng() < 0.12 ? (rng() < 0.5 ? -1 : 1) * (18 + rng() * 35) : 0
-  const rawGuess = Math.max(0, Math.min(100, answer + noise + midpointPull + playerBias + wildMiss))
+  const wildMiss = rng() < 0.14 ? (rng() < 0.5 ? -1 : 1) * (20 + rng() * 42) : 0
+  const rawGuess = Math.max(
+    0,
+    Math.min(100, beliefCenter + noise + midpointPull + playerBias + wildMiss)
+  )
   const rounding = style < 0.35 ? 10 : style < 0.7 ? 5 : 1
   return {
     guess: Math.max(0, Math.min(100, Math.round(rawGuess / rounding) * rounding)),
