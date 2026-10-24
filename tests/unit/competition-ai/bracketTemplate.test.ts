@@ -26,7 +26,6 @@ describe('classic campaign map registry integrity', () => {
     const regular = new Set(allKeys(regularBands))
     expect(regular).not.toContain('finalThreeCircuit')
     expect(regular).not.toContain('downMemoryLane')
-    expect(regular).not.toContain('rescueTheKing')
     expect(regular).not.toContain('targetPractice')
   })
 

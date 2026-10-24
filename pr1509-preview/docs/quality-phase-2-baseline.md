@@ -102,7 +102,6 @@ The registry contains 32 active entries:
 | `castleRescue`           | Find Your Twin             |
 | `glass_bridge_brutal`    | The Crystal Path           |
 | `crystal_path_shattered` | Crystal Path: Infinity     |
-| `rescueTheKing`          | Rescue the King            |
 | `trapAuction`            | Trap Auction               |
 | `gridOfLuck`             | Grid of Luck               |
 | `bigSpender`             | Big Spender: Broke or Boom |
