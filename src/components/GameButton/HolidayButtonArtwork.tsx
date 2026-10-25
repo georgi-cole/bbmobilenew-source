@@ -18,7 +18,7 @@ const BUTTON_SHAPE = `M 22 18
 export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey }) {
   const idPrefix = `holiday-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const glassBackground =
-    'linear-gradient(90deg, rgba(111, 86, 255, 0.96) 0%, rgba(111, 86, 255, 0.9) 34%, rgba(123, 106, 217, 0.62) 60%, rgba(54, 61, 91, 0.22) 82%, rgba(10, 14, 24, 0.06) 100%)'
+    'linear-gradient(90deg, rgba(111, 86, 255, 0.9) 0%, rgba(111, 86, 255, 0.57) 32%, rgba(43, 43, 66, 0.16) 72%, rgba(10, 14, 24, 0.05) 100%)'
 
   return (
     <span className="btn-holiday-artwork" aria-hidden="true">
@@ -29,6 +29,10 @@ export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey
             <stop stopColor="#FFFFFF" stopOpacity=".32" />
             <stop offset="75%" stopColor="#FFFFFF" stopOpacity="0" />
           </linearGradient>
+          <linearGradient id={`${idPrefix}-depth`}>
+            <stop offset="60%" stopColor="#090B20" stopOpacity=".28" />
+            <stop offset="100%" stopColor="#090B20" stopOpacity=".14" />
+          </linearGradient>
           <clipPath id={`${idPrefix}-clip`}>
             <path d={BUTTON_SHAPE} />
           </clipPath>
@@ -37,14 +41,14 @@ export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey
         <g clipPath={`url(#${idPrefix}-clip)`}>
           {renderHolidayArtwork(theme)}
           <path d="M 28 14 L 530 14 L 496 65 L 46 53 Z" fill="#FFFFFF" opacity=".14" />
-          <path d="M 24 87 L 566 80 L 610 138 L 40 146 Z" fill="#090B20" opacity=".28" />
+          <path d="M 24 87 L 566 80 L 610 138 L 40 146 Z" fill={`url(#${idPrefix}-depth)`} />
           <rect width="640" height="156" fill={`url(#${idPrefix}-sheen)`} opacity=".18" />
         </g>
         <path
           d={BUTTON_SHAPE}
           fill="none"
-          stroke="rgba(225, 235, 255, 0.42)"
-          strokeWidth="2"
+          stroke="rgba(225, 235, 255, 0.24)"
+          strokeWidth="1.4"
           strokeLinejoin="round"
         />
       </svg>
