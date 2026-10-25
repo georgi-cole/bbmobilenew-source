@@ -62,6 +62,10 @@ export interface GenericMinigameProps {
   autoStart?: boolean
   /** Host-selected VIP visual treatment; it must not change game state or RNG. */
   premiumPresentation?: boolean
+  /** Explicit Quick Tap / Seasons rules variant, selected at session start. */
+  vipQuickTap?: boolean
+  /** Development-only preview override; a real session variant otherwise stays frozen. */
+  quickTapVariantOverride?: 'classic' | 'vip'
   /** Development-only phase preview for the portrait finale stages. */
   previewStage?: 'final' | 'round6' | 'final2'
   /** Capitalization only: selects standard LOH or Back 2 the Game rules. */
@@ -121,8 +125,8 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
       })
     )
   ),
-  QuickTapRace: lazyMinigame(() => import('./quickTapRace/QuickTapRaceCanvasGame')),
-  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasons')),
+  QuickTapRace: lazyMinigame(() => import('../components/QuickTapRace/QuickTapRace')),
+  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasonsEntry')),
   LaneRacers: lazyMinigame(() => import('./laneRacers/LaneRacersCanvasGame')),
   TravelingDots: lazyMinigame(() => import('../components/TravelingDots/TravelingDots')),
   EstimationGame: lazyMinigame(() => import('../components/EstimationGame/EstimationGame')),

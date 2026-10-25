@@ -66,6 +66,8 @@ import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
+import { isEffectiveVipActive } from '../vip/effectiveEntitlements'
+import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import {
@@ -14633,9 +14635,13 @@ export const simulateImmediateEliminationCycle =
 export const startMinigame =
   (opts: { key: string; participants: string[]; seed: number; options: { timeLimit: number } }) =>
   (dispatch: AppDispatch, getState: () => RootState): MinigameResult | undefined => {
-    const state = getState().game
+    const rootState = getState()
+    const state = rootState.game
     const model = getMinigameAiModel(opts.key)
     const isHybrid = isHybridScoredGame(opts.key)
+    const isVipQuickTap =
+      (opts.key === 'quickTap' || opts.key === 'quickTapSeasons') &&
+      isEffectiveVipActive(rootState.vip)
 
     // Generate a fresh per-invocation seed so every new game launch / restart /
     // reload gets a different booster sequence and AI variation, even when the
@@ -14668,7 +14674,23 @@ export const startMinigame =
       })
     }
 
-    if (!isHybrid || !hasHuman) {
+    if (isVipQuickTap && !hasHuman) {
+      const profiles = Object.fromEntries(
+        opts.participants.map((id) => {
+          const player = state.players.find((candidate) => candidate.id === id)
+          return [id, player?.competitionProfile ?? getDefaultCompetitionProfile()]
+        })
+      )
+      Object.assign(
+        aiScores,
+        scoreQuickTapVipAiOnly({
+          seed: invocationSeed,
+          participantIds: opts.participants,
+          profiles,
+          mode: opts.key === 'quickTapSeasons' ? 'seasons' : 'race',
+        })
+      )
+    } else if (!isVipQuickTap && (!isHybrid || !hasHuman)) {
       // Precompute for: (a) AI-only runs, (b) endurance/non-hybrid games,
       // (c) Quick Tap Race and Snake (isHybridScoredGame returns false for them).
       opts.participants.forEach((id, index) => {
@@ -14733,6 +14755,9 @@ export const startMinigame =
       options: opts.options,
       aiScores,
       competitionIntents,
+      ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
+        ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }
+        : {}),
       ...(isHybrid ? { hybridResolveOnComplete: true } : {}),
     }
     dispatch(launchMinigame(session))

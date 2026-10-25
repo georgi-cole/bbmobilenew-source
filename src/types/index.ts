@@ -160,6 +160,8 @@ export interface MinigameSession {
   participants: string[]
   seed: number
   options: { timeLimit: number }
+  /** Quick Tap / Seasons implementation selected when this session was created. */
+  quickTapVariant?: 'classic' | 'vip'
   /**
    * Pre-simulated deterministic scores for every non-human participant.
    * Empty (`{}`) for sessions created by the hybrid resolver path

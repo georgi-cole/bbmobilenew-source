@@ -219,6 +219,15 @@ export default function MinigameHost({
     () => selectIsVipActive(store.getState())
   )
   const usePremiumPresentation = premiumPresentationOverride ?? isVipActive
+  const quickTapVariantPreviewOverride =
+    import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
+      ? gameOptions.quickTapVariantPreview
+        ? ('vip' as const)
+        : ('classic' as const)
+      : undefined
+  const quickTapVipEnabled =
+    (game.key === 'quickTap' || game.key === 'quickTapSeasons') &&
+    (quickTapVariantPreviewOverride ? quickTapVariantPreviewOverride === 'vip' : isVipActive)
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
@@ -279,9 +288,40 @@ export default function MinigameHost({
             : override
               ? { ...launchedGame, ...override }
               : launchedGame
+        if (quickTapVipEnabled) {
+          return {
+            ...resolved,
+            title:
+              resolved.key === 'quickTapSeasons'
+                ? 'Quick Tap Seasons · VIP'
+                : 'Quick Tap Race · VIP',
+            description:
+              resolved.key === 'quickTapSeasons'
+                ? 'Three 28-second rounds. Read the weather, risk mystery boxes, and finish with the most points.'
+                : 'Three 25-second rounds. Charge the Eye, risk mystery boxes, and finish with the most points.',
+            instructions: [
+              resolved.key === 'quickTapSeasons'
+                ? 'Play three 28-second rounds. The season changes every seven seconds, with no preview of what comes next.'
+                : 'Tap the Eye through three 25-second rounds. Your points carry over; short breaks separate the rounds.',
+              resolved.key === 'quickTapSeasons'
+                ? 'Spring taps score 1.25, summer 0.5, autumn 1, and winter −1. Stop tapping in winter. Once per round, Change Season randomly selects another season.'
+                : 'Grab a mystery box or keep tapping. Contents stay hidden until claimed and can include rewards or handicaps.',
+              'All contestants get the same mystery windows and odds. Effects activate immediately; Backfire means stop tapping briefly. Timed effects reset between rounds.',
+              ...(resolved.key === 'quickTapSeasons'
+                ? [
+                    'Mystery contents depend on the current season. Stillness awards 14 points after two seconds without tapping; tapping cancels that bonus.',
+                  ]
+                : []),
+              'The highest point total wins. If points tie, raw taps break the tie.',
+            ],
+            timeLimitMs: resolved.key === 'quickTapSeasons' ? 84_000 : 75_000,
+            metricKind: 'points' as const,
+            metricLabel: 'Points',
+          }
+        }
         return resolved
       })(),
-    [launchedGame]
+    [launchedGame, quickTapVipEnabled]
   )
 
   useEffect(() => {
@@ -947,6 +987,12 @@ export default function MinigameHost({
           seed={seed}
           autoStart={key !== 'HangmanChallenge'}
           premiumPresentation={usePremiumPresentation}
+          vipQuickTap={(key === 'QuickTapRace' || key === 'QuickTapSeasons') && quickTapVipEnabled}
+          quickTapVariantOverride={
+            key === 'QuickTapRace' || key === 'QuickTapSeasons'
+              ? quickTapVariantPreviewOverride
+              : undefined
+          }
           previewStage={
             import.meta.env.DEV &&
             (gameOptions?.previewStage === 'round6' || gameOptions?.previewStage === 'final2')
@@ -1106,14 +1152,28 @@ export default function MinigameHost({
         </div>
       )}
 
-      {utilityView === 'rules' && phase !== 'results' && (
-        <MinigameRules
-          game={rulesGame}
-          mode="reference"
-          confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
-          onConfirm={() => setUtilityView(null)}
-        />
-      )}
+      {utilityView === 'rules' &&
+        phase !== 'results' &&
+        (quickTapVipEnabled ? (
+          createPortal(
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9800 }}>
+              <MinigameRules
+                game={rulesGame}
+                mode="reference"
+                confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+                onConfirm={() => setUtilityView(null)}
+              />
+            </div>,
+            document.body
+          )
+        ) : (
+          <MinigameRules
+            game={rulesGame}
+            mode="reference"
+            confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+            onConfirm={() => setUtilityView(null)}
+          />
+        ))}
 
       {utilityView === 'exit' &&
         phase !== 'results' &&
