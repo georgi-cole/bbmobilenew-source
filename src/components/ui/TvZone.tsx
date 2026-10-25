@@ -1509,7 +1509,7 @@ export default function TvZone(props: TvZoneProps) {
   const activeWeekend = gameState.weekendInterlude
   const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
   const phaseLabel = guestSaveReminderQueued
-    ? 'PLAYER NOTICE'
+    ? 'HOUSE UPDATE'
     : activeWeekend?.active
       ? 'WEEKEND'
       : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
@@ -1518,7 +1518,7 @@ export default function TvZone(props: TvZoneProps) {
           ? 'Final Immunity'
           : formatPhaseLabel(gameState.phase)
   const shortPhaseLabel = guestSaveReminderQueued
-    ? 'NOTICE'
+    ? 'UPDATE'
     : activeWeekend?.active
       ? 'WEEKEND'
       : compactPhaseLabel(gameState.phase)
@@ -1905,28 +1905,21 @@ export default function TvZone(props: TvZoneProps) {
             >
               {guestSaveReminderQueued ? (
                 <section
+                  key={viewportMessageKey}
                   className={`tv-zone__guest-save${hideViewportMessage ? ' tv-zone__guest-save--hidden' : ''}`}
                   aria-label="Guest mode save reminder"
                   role="status"
                 >
-                  <div className="tv-zone__guest-save-brand">
-                    <span className="tv-zone__guest-save-live-dot" aria-hidden="true" />
-                    THE BIG EYE <span>•</span> PLAYER UPDATE
+                  <div className="tv-zone__guest-save-kicker">
+                    <span aria-hidden="true" /> THE BIG EYE <i aria-hidden="true">/</i> HOUSE UPDATE
                   </div>
                   <h2 className="tv-zone__guest-save-title">Keep your season</h2>
                   <p className="tv-zone__guest-save-copy">
-                    You’re playing as a guest, so this progress won’t be saved.
+                    You’re playing as a guest, so your progress won’t be saved.
                   </p>
-                  <div
-                    className="tv-zone__guest-save-path"
-                    aria-label="More, Profile, Create Profile"
-                  >
-                    <span>MORE</span>
-                    <i aria-hidden="true">•</i>
-                    <span>PROFILE</span>
-                    <i aria-hidden="true">•</i>
-                    <strong>CREATE PROFILE</strong>
-                  </div>
+                  <p className="tv-zone__guest-save-route">
+                    Create a profile from <strong>More</strong> to save your season.
+                  </p>
                 </section>
               ) : (
                 <p

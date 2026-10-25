@@ -49,10 +49,12 @@ test('guest Day 1 notice guides profile creation and preserves the current seaso
 
   const reminder = page.getByRole('status', { name: 'Guest mode save reminder' })
   await expect(reminder).toBeVisible()
-  await expect(reminder.getByRole('heading', { name: 'Keep your season' })).toBeVisible()
-  await expect(reminder.getByText('CREATE PROFILE')).toBeVisible()
+  await expect(reminder).toContainText(
+    'You’re playing as a guest, so your progress won’t be saved.'
+  )
+  await expect(reminder).toContainText('Create a profile from More to save your season.')
   await page.screenshot({ path: 'test-results/guest-save-reminder-preview.png' })
-  await expect(page.locator('.tv-zone__phase-chip')).toHaveAttribute('aria-label', 'PLAYER NOTICE')
+  await expect(page.locator('.tv-zone__phase-chip')).toHaveAttribute('aria-label', 'HOUSE UPDATE')
   await expect(page.getByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeHidden()
 
   const mainNavigation = page.getByRole('navigation', { name: 'Main navigation' })

@@ -1384,30 +1384,12 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
 .tv-zone__guest-save {
   position: relative;
   z-index: 3;
-  width: min(92%, 440px);
-  padding: 12px 16px 13px;
-  overflow: hidden;
-  border: 1px solid rgba(222, 187, 111, 0.48);
-  border-radius: 13px;
-  background:
-    radial-gradient(ellipse at 8% 0%, rgba(123, 92, 255, 0.22), transparent 48%),
-    linear-gradient(150deg, rgba(24, 17, 34, 0.94), rgba(7, 8, 14, 0.96));
-  box-shadow:
-    0 10px 26px rgba(0, 0, 0, 0.42),
-    0 0 22px rgba(139, 92, 246, 0.12),
-    inset 0 1px 0 rgba(255, 239, 198, 0.1);
-  text-align: left;
-  animation: guestSaveOnAir 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.tv-zone__guest-save::before {
-  position: absolute;
-  top: 0;
-  left: 12px;
-  width: 54px;
-  height: 2px;
-  background: linear-gradient(90deg, #f4d493, rgba(244, 212, 147, 0));
-  content: '';
+  width: min(90%, 560px);
+  color: #f4f0ff;
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.82);
+  animation: signalLockReveal 380ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
 }
 
 .tv-zone__guest-save--hidden {
@@ -1415,86 +1397,59 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
   visibility: hidden;
 }
 
-.tv-zone__guest-save-brand {
-  display: flex;
+.tv-zone__guest-save-kicker {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: rgba(244, 226, 188, 0.78);
-  font-size: 0.57rem;
+  gap: 7px;
+  margin-bottom: 5px;
+  color: rgba(224, 211, 255, 0.84);
+  font-size: 0.58rem;
   font-weight: 800;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.16em;
 }
 
-.tv-zone__guest-save-brand > span:not(.tv-zone__guest-save-live-dot) {
-  color: rgba(244, 226, 188, 0.42);
-}
-
-.tv-zone__guest-save-live-dot {
+.tv-zone__guest-save-kicker > span {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #e891a8;
-  box-shadow: 0 0 9px rgba(232, 145, 168, 0.72);
+  background: #d98aa9;
+  box-shadow: 0 0 9px rgba(217, 138, 169, 0.76);
 }
 
-.tv-zone__guest-save-title {
-  margin: 4px 0 1px;
-  color: #fff2cf;
-  font-size: clamp(1rem, 3.5vw, 1.25rem);
-  font-weight: 900;
-  letter-spacing: 0.025em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  text-shadow: 0 2px 14px rgba(177, 125, 244, 0.2);
-}
-
-.tv-zone__guest-save-copy {
-  margin: 0 0 8px;
-  color: rgba(244, 241, 248, 0.78);
-  font-size: 0.7rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.tv-zone__guest-save-path {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  color: rgba(232, 225, 244, 0.74);
-  font-size: 0.57rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.tv-zone__guest-save-path > span,
-.tv-zone__guest-save-path > strong {
-  padding: 3px 7px;
-  border: 1px solid rgba(188, 165, 220, 0.2);
-  border-radius: 999px;
-  background: rgba(139, 92, 246, 0.1);
-}
-
-.tv-zone__guest-save-path > strong {
-  border-color: rgba(228, 194, 129, 0.43);
-  background: rgba(206, 165, 91, 0.13);
-  color: #f4d493;
-}
-
-.tv-zone__guest-save-path > i {
-  color: rgba(244, 212, 147, 0.58);
+.tv-zone__guest-save-kicker > i {
+  color: rgba(224, 211, 255, 0.42);
   font-style: normal;
 }
 
-@keyframes guestSaveOnAir {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.tv-zone__guest-save-title {
+  margin: 0 0 5px;
+  color: #fff5dc;
+  font-size: clamp(1.12rem, 4.4vw, 1.55rem);
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.tv-zone__guest-save-copy,
+.tv-zone__guest-save-route {
+  margin: 0;
+  color: rgba(245, 241, 255, 0.9);
+  font-size: clamp(0.73rem, 2.8vw, 0.9rem);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.tv-zone__guest-save-route {
+  margin-top: 3px;
+  color: rgba(223, 214, 244, 0.78);
+  font-size: clamp(0.67rem, 2.55vw, 0.8rem);
+  font-weight: 550;
+}
+
+.tv-zone__guest-save-route strong {
+  color: #e0ceff;
+  font-weight: 800;
 }
 
 @media (prefers-reduced-motion: reduce) {

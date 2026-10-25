@@ -94,11 +94,21 @@
 }
 
 .game-control-dock__more-menu button.game-control-dock__more-profile--guest-save-invite {
-  outline: 1px solid rgba(244, 212, 147, 0.9);
-  outline-offset: 1px;
-  background: rgba(145, 122, 205, 0.38);
-  box-shadow: 0 0 16px rgba(153, 111, 241, 0.52);
-  animation: guestSaveMenuPulse 2.2s ease-in-out infinite;
+  position: relative;
+  background: rgba(145, 122, 205, 0.3);
+}
+.game-control-dock__more-menu button.game-control-dock__more-profile--guest-save-invite::after {
+  position: absolute;
+  inset: -3px;
+  border: 1px solid rgba(232, 216, 255, 0.96);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px rgba(171, 128, 255, 0.2),
+    0 0 24px rgba(166, 116, 255, 0.5),
+    inset 0 0 18px rgba(196, 165, 255, 0.08);
+  content: '';
+  pointer-events: none;
+  animation: season-tutorial-focus-pulse 620ms cubic-bezier(0.18, 0.84, 0.24, 1) 2;
 }
 .game-control-dock__more-menu button img {
   width: 21px;
@@ -305,25 +315,16 @@ body.mode-surveyeval .fab-icon.confessional {
 
 .dock-hit-area--guest-save-invite::after {
   position: absolute;
-  inset: 9%;
-  border: 1px solid rgba(244, 212, 147, 0.9);
+  inset: 4%;
+  border: 1px solid rgba(232, 216, 255, 0.96);
   border-radius: 50%;
   box-shadow:
-    0 0 13px rgba(153, 111, 241, 0.7),
-    inset 0 0 9px rgba(153, 111, 241, 0.2);
+    0 0 0 2px rgba(171, 128, 255, 0.2),
+    0 0 24px rgba(166, 116, 255, 0.5),
+    inset 0 0 18px rgba(196, 165, 255, 0.08);
   content: '';
   pointer-events: none;
-  animation: guestSaveMenuPulse 2.2s ease-in-out infinite;
-}
-
-@keyframes guestSaveMenuPulse {
-  0%,
-  100% {
-    filter: brightness(1);
-  }
-  50% {
-    filter: brightness(1.16);
-  }
+  animation: season-tutorial-focus-pulse 620ms cubic-bezier(0.18, 0.84, 0.24, 1) 2;
 }
 
 .dock-hit-area:hover {

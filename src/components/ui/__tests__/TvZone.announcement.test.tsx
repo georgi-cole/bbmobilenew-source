@@ -1934,7 +1934,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
     expect(screen.getByRole('status', { name: 'Guest mode save reminder' })).toBeDefined()
     expect(screen.getByText('Keep your season')).toBeDefined()
-    expect(screen.getByText('CREATE PROFILE')).toBeDefined()
+    expect(screen.getByText(/Create a profile from/)).toBeDefined()
     expect(screen.queryByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeNull()
     expect(
       store.getState().game.tvFeed.find((event) => event.meta?.guestModeSaveWarning === true)?.major

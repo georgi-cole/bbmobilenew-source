@@ -81,12 +81,13 @@
 }
 
 .profile-screen__guest-link--save-spotlight {
-  border: 1px solid rgba(244, 212, 147, 0.58);
-  border-radius: 999px;
-  padding: 8px 14px;
-  background: linear-gradient(120deg, rgba(116, 82, 174, 0.34), rgba(25, 19, 37, 0.72));
-  color: #f4d493;
-  box-shadow: 0 0 18px rgba(142, 96, 219, 0.24);
+  position: relative;
+  border-color: rgba(232, 216, 255, 0.96);
+  box-shadow:
+    0 0 0 2px rgba(171, 128, 255, 0.2),
+    0 0 24px rgba(166, 116, 255, 0.5),
+    inset 0 0 18px rgba(196, 165, 255, 0.08);
+  animation: season-tutorial-focus-pulse 620ms cubic-bezier(0.18, 0.84, 0.24, 1) 2;
 }
 
 .profile-screen__back-btn {
