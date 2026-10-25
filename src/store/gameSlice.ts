@@ -43,6 +43,7 @@ import type {
   CustomBroadcastMessage,
 } from '../types'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
+import { normalizeGuestSaveReminderEvent } from './guestSaveReminder'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
 import type { LohNominationPlan } from './lohNominationPlanning'
@@ -65,6 +66,8 @@ import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
+import { isEffectiveVipActive } from '../vip/effectiveEntitlements'
+import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import {
@@ -122,6 +125,7 @@ import {
   canUseVoteDeduction,
   isSecretMissionSuccessful,
   getMissionTaskSetSignature,
+  getFirstSecretMissionScheduledDay,
   pickMissionImmunityDuration,
   repairLegacyMissionTasks,
   type MissionTask,
@@ -551,7 +555,13 @@ function buildSecretMissionTargetCandidates(state: GameState): string[] {
   const humanId = state.players.find((player) => player.isUser)?.id
   return state.players
     .filter(
-      (player) => player.id !== humanId && player.status !== 'evicted' && player.status !== 'jury'
+      (player) =>
+        player.id !== humanId &&
+        player.id !== state.lohId &&
+        player.status !== 'evicted' &&
+        player.status !== 'jury' &&
+        player.status !== 'nominated' &&
+        player.status !== 'nominated+pos'
     )
     .map((player) => player.id)
 }
@@ -562,14 +572,23 @@ function buildSecretMissionTasksForTemplate(
   triggeredDay: number
 ): SecretMissionTaskBuildResult {
   const template = MISSION_TEMPLATES.find((t) => t.id === templateId) ?? MISSION_TEMPLATES[0]
+  const targetCandidateIds = buildSecretMissionTargetCandidates(state)
   return {
     templateId: template.id,
     tasks: buildMissionTasks(template, triggeredDay, {
-      targetCandidateIds: buildSecretMissionTargetCandidates(state),
+      targetCandidateIds,
+      targetCandidateNamesById: Object.fromEntries(
+        state.players
+          .filter((player) => targetCandidateIds.includes(player.id))
+          .map((player) => [player.id, player.name])
+      ),
       capabilities: {
         publicModeEnabled: state.publicModeEnabled === true,
+        gameMode: isVoxPopuliActive(state) ? 'vox_populi' : 'classic',
+        nominationTargetCount: targetCandidateIds.length,
       },
       missionNumber: state.secretMission?.missionNumber,
+      seed: state.seed,
       excludedTaskSetSignatures: state.secretMissionTaskSetHistory ?? [],
     }),
   }
@@ -973,6 +992,7 @@ export function createInitialGameState(options?: {
     secretMissionCount: 0,
     secretMissionLastResolvedDay: null,
     secretMissionTaskSetHistory: [],
+    secretMissionTemplateHistory: seasonArchives[0]?.secretMissionTemplateIds?.slice(-2) ?? [],
     secretMissionSecondChanceResolved: false,
     awaitingFinal3Eviction: false,
     awaitingFinal3Plea: false,
@@ -9624,10 +9644,12 @@ const gameSlice = createSlice({
         // campaign snapshot. Never let an older saved run overwrite it.
         broadcastOverrides: state.broadcastOverrides ?? {},
         customBroadcasts: state.customBroadcasts ?? [],
-        tvFeed: (action.payload.tvFeed ?? []).map((event) => ({
-          ...event,
-          meta: event.meta ? { ...event.meta } : undefined,
-        })),
+        tvFeed: (action.payload.tvFeed ?? []).map((event) =>
+          normalizeGuestSaveReminderEvent({
+            ...event,
+            meta: event.meta ? { ...event.meta } : undefined,
+          })
+        ),
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
@@ -12913,9 +12935,16 @@ const gameSlice = createSlice({
       state.secretMission = createSecretMissionState(day, {
         maxDaySpan,
         missionNumber: nextMissionNumber,
+        seed: state.seed,
+        season: state.season,
+        previousTemplateIds: state.secretMissionTemplateHistory ?? [],
       })
       state.secretMission.rewardVersion = 2
       state.secretMissionCount = nextMissionNumber
+      state.secretMissionTemplateHistory = [
+        ...(state.secretMissionTemplateHistory ?? []),
+        state.secretMission.templateId,
+      ].slice(-2)
       if (nextMissionNumber >= 2) {
         state.secretMissionSecondChanceResolved = true
       }
@@ -14606,9 +14635,13 @@ export const simulateImmediateEliminationCycle =
 export const startMinigame =
   (opts: { key: string; participants: string[]; seed: number; options: { timeLimit: number } }) =>
   (dispatch: AppDispatch, getState: () => RootState): MinigameResult | undefined => {
-    const state = getState().game
+    const rootState = getState()
+    const state = rootState.game
     const model = getMinigameAiModel(opts.key)
     const isHybrid = isHybridScoredGame(opts.key)
+    const isVipQuickTap =
+      (opts.key === 'quickTap' || opts.key === 'quickTapSeasons') &&
+      isEffectiveVipActive(rootState.vip)
 
     // Generate a fresh per-invocation seed so every new game launch / restart /
     // reload gets a different booster sequence and AI variation, even when the
@@ -14641,7 +14674,23 @@ export const startMinigame =
       })
     }
 
-    if (!isHybrid || !hasHuman) {
+    if (isVipQuickTap && !hasHuman) {
+      const profiles = Object.fromEntries(
+        opts.participants.map((id) => {
+          const player = state.players.find((candidate) => candidate.id === id)
+          return [id, player?.competitionProfile ?? getDefaultCompetitionProfile()]
+        })
+      )
+      Object.assign(
+        aiScores,
+        scoreQuickTapVipAiOnly({
+          seed: invocationSeed,
+          participantIds: opts.participants,
+          profiles,
+          mode: opts.key === 'quickTapSeasons' ? 'seasons' : 'race',
+        })
+      )
+    } else if (!isVipQuickTap && (!isHybrid || !hasHuman)) {
       // Precompute for: (a) AI-only runs, (b) endurance/non-hybrid games,
       // (c) Quick Tap Race and Snake (isHybridScoredGame returns false for them).
       opts.participants.forEach((id, index) => {
@@ -14706,6 +14755,9 @@ export const startMinigame =
       options: opts.options,
       aiScores,
       competitionIntents,
+      ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
+        ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }
+        : {}),
       ...(isHybrid ? { hybridResolveOnComplete: true } : {}),
     }
     dispatch(launchMinigame(session))
@@ -14769,6 +14821,13 @@ export const tryActivateSecretMission =
     }
 
     const override = settings.sim.secretMissionTriggerOverride
+    if (
+      !isSecondMissionAttempt &&
+      override === null &&
+      game.week < getFirstSecretMissionScheduledDay(game.seed, game.season)
+    ) {
+      return false
+    }
     const plan = game.seasonDirectorPlan
     if (plan && override === null) {
       const policy = plan.policy.secretMissions

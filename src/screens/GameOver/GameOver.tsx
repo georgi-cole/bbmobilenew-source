@@ -104,7 +104,8 @@ function buildArchive(
   cupidArrowActivated: boolean,
   voxPopuliActivated: boolean,
   twinShockConsumed: boolean,
-  bellaCast: boolean
+  bellaCast: boolean,
+  secretMissionTemplateIds: string[]
 ): SeasonArchive {
   return {
     seasonIndex: season,
@@ -115,6 +116,7 @@ function buildArchive(
     voxPopuliActivated,
     twinShockConsumed,
     bellaCast,
+    secretMissionTemplateIds,
   }
 }
 
@@ -135,6 +137,9 @@ export default function GameOver() {
     (s) => s.game.voxPopuli?.activatedSeason === s.game.season
   )
   const twinShockConsumed = useAppSelector((state) => state.game.twinShockConsumed === true)
+  const secretMissionTemplateIds = useAppSelector(
+    (state) => state.game.secretMissionTemplateHistory ?? []
+  )
   const bellaCast = useAppSelector(
     (state) =>
       state.game.players.some((player) => player.id === 'bella') &&
@@ -244,7 +249,8 @@ export default function GameOver() {
             cupidArrowActivated,
             voxPopuliActivated,
             twinShockConsumed,
-            bellaCast
+            bellaCast,
+            secretMissionTemplateIds
           )
         )
       )

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
 import type { HolidayThemeKey } from '../../utils/skinAssets'
 import HolidayButtonArtwork from './HolidayButtonArtwork'
 import './GameButton.css'
@@ -59,6 +59,7 @@ export default function GameButton({
   return (
     <button
       className={`game-btn game-btn--${variant}${holidayTheme ? ' game-btn--holiday' : ''}${holidayClassName}${disabled ? ' game-btn--disabled' : ''}${badge ? ' game-btn--has-badge' : ''}${!disabled && isPressed ? ' game-btn--pressed' : ''}${className ? ` ${className}` : ''}`}
+      style={{ '--button-mask': `url("${src}")` } as CSSProperties}
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}

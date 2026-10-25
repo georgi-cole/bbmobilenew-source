@@ -18,6 +18,10 @@ interface RootLike {
     week: number
     lohId: string | null
     nomineeIds: string[]
+    awaitingNominations?: boolean
+    voxPopuli?: {
+      nominationBallots?: Record<string, string[]>
+    }
     lastCompetitionResolution?: {
       runId: string
       status: 'completed' | 'quit' | 'skipped' | 'interrupted'
@@ -33,6 +37,7 @@ interface RootLike {
       status: string
       missionNumber?: number
       triggeredDay: number
+      startDay?: number
       endDay: number
       reward?: {
         type: string
@@ -617,22 +622,115 @@ export const secretMissionMiddleware: Middleware = (store) => (next) => (action)
   // Nominees can be added by the initial ceremony, a replacement ceremony, or
   // a twist. Observe the resulting state transition rather than a short list of
   // reducer action names, so every real nomination route is covered.
+  if (
+    actionType === 'game/commitNominees' &&
+    prevState.game.awaitingNominations === true &&
+    game.awaitingNominations === false &&
+    game.voxPopuli
+  ) {
+    const mission = game.secretMission
+    const humanBallot = game.voxPopuli.nominationBallots?.[humanId]
+    if (mission && humanBallot?.length && game.week <= mission.endDay) {
+      const missionStartDay = mission.startDay ?? mission.triggeredDay
+      for (const task of tasks) {
+        if (task.type !== 'vox_ballot_cast' || task.completed) continue
+        if (game.week < (task.startDay ?? missionStartDay)) continue
+        if (game.week > (task.endDay ?? mission.endDay)) continue
+        if ((task.completedBallotDays ?? []).includes(game.week)) continue
+        const completedBallotDays = [...(task.completedBallotDays ?? []), game.week]
+        updateTaskProgress(store.dispatch, task, {
+          current: 1,
+          completedBallotDays,
+          completed: true,
+          lastProgressDay: game.week,
+          firstSatisfiedDay: task.firstSatisfiedDay ?? game.week,
+          auditLog: appendAudit(
+            task,
+            `Submitted a valid secret ballot with ${humanBallot.length} choices on Day ${game.week}`
+          ),
+        })
+      }
+    }
+  }
+
   const newlyNominatedIds = game.nomineeIds.filter((id) => !prevState.game.nomineeIds.includes(id))
   if (newlyNominatedIds.length > 0) {
     for (const task of tasks) {
-      if (task.type !== 'target_nominated' || !task.targetPlayerId) continue
+      if (task.type !== 'target_nominated') continue
       // “Before Day N” excludes the reward day itself. This keeps the reward
       // strategically available before that day's nomination ceremony.
       if (game.week >= (task.targetDay ?? game.secretMission.endDay)) continue
-      if (!newlyNominatedIds.includes(task.targetPlayerId)) continue
+      const markedTargetIds = task.targetPlayerIds?.length
+        ? task.targetPlayerIds
+        : task.targetPlayerId
+          ? [task.targetPlayerId]
+          : []
+      const newlyMatchedTargetIds = newlyNominatedIds.filter((id) => markedTargetIds.includes(id))
+      if (newlyMatchedTargetIds.length === 0) continue
+      const completedTargetPlayerIds = Array.from(
+        new Set([...(task.completedTargetPlayerIds ?? []), ...newlyMatchedTargetIds])
+      )
       updateTaskProgress(store.dispatch, task, {
         current: task.target,
         completed: true,
+        completedTargetPlayerIds,
         lastProgressDay: game.week,
         firstSatisfiedDay: task.firstSatisfiedDay ?? game.week,
-        auditLog: appendAudit(task, `${task.targetPlayerId} was nominated on Day ${game.week}`),
+        auditLog: appendAudit(
+          task,
+          `${newlyMatchedTargetIds.join(', ')} was nominated on Day ${game.week}`
+        ),
       })
     }
+  }
+
+  // If a marked nominee leaves the game before the next nomination cycle,
+  // promote another originally eligible houseguest so the challenge still has
+  // two viable pitches/targets when possible.
+  for (const task of tasks) {
+    if (task.type !== 'target_nominated' || task.completed) continue
+    const targetPlayerIds = task.targetPlayerIds?.length
+      ? task.targetPlayerIds
+      : task.targetPlayerId
+        ? [task.targetPlayerId]
+        : []
+    const activeTargets = targetPlayerIds.filter((id) => {
+      const player = game.players.find((candidate) => candidate.id === id)
+      return player && player.status !== 'evicted' && player.status !== 'jury'
+    })
+    const targetSlotCount = Math.min(
+      2,
+      task.targetCandidatePoolIds?.length ?? targetPlayerIds.length
+    )
+    if (activeTargets.length >= targetSlotCount) continue
+
+    const nextTargetPlayerIds = [...activeTargets]
+    for (const id of task.targetCandidatePoolIds ?? []) {
+      if (nextTargetPlayerIds.length >= targetSlotCount) break
+      const player = game.players.find((candidate) => candidate.id === id)
+      const isEligibleReplacement =
+        player &&
+        player.status !== 'evicted' &&
+        player.status !== 'jury' &&
+        !game.nomineeIds.includes(id) &&
+        !nextTargetPlayerIds.includes(id)
+      if (isEligibleReplacement) nextTargetPlayerIds.push(id)
+    }
+    if (nextTargetPlayerIds.length === activeTargets.length) continue
+
+    const nextTargetNames = nextTargetPlayerIds.map(
+      (id) => task.targetCandidateNamesById?.[id] ?? id
+    )
+    const replacementTargets = nextTargetPlayerIds.filter((id) => !activeTargets.includes(id))
+    updateTaskProgress(store.dispatch, task, {
+      targetPlayerIds: nextTargetPlayerIds,
+      targetPlayerId: nextTargetPlayerIds[0],
+      description: `Get one of these marked houseguests nominated before Day ${task.endDay ?? game.secretMission?.endDay ?? game.week}: ${nextTargetNames.join(' or ')}`,
+      auditLog: appendAudit(
+        task,
+        `Replaced unavailable nomination target${replacementTargets.length === 1 ? '' : 's'} with ${replacementTargets.join(', ')}`
+      ),
+    })
   }
 
   const previousApproval = prevState.publicOpinion?.profiles?.[humanId]?.approval

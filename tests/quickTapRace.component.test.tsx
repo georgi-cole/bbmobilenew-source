@@ -75,7 +75,7 @@ function renderQuickTapRace() {
 
   return render(
     <Provider store={store}>
-      <QuickTapRace seed={42} autoStart onFinish={vi.fn()} />
+      <QuickTapRace seed={42} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
     </Provider>,
   );
 }
@@ -162,13 +162,13 @@ describe('QuickTapRace canvas component', () => {
     // Render twice with the same non-zero seed prop (simulates retry with same pendingChallenge.seed).
     render(
       <Provider store={store}>
-        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} />
+        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
       </Provider>,
     );
     cleanup();
     render(
       <Provider store={store}>
-        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} />
+        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
       </Provider>,
     );
     cleanup();

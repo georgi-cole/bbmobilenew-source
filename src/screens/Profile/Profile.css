@@ -80,6 +80,16 @@
   text-align: center;
 }
 
+.profile-screen__guest-link--save-spotlight {
+  position: relative;
+  border-color: rgba(232, 216, 255, 0.96);
+  box-shadow:
+    0 0 0 2px rgba(171, 128, 255, 0.2),
+    0 0 24px rgba(166, 116, 255, 0.5),
+    inset 0 0 18px rgba(196, 165, 255, 0.08);
+  animation: season-tutorial-focus-pulse 620ms cubic-bezier(0.18, 0.84, 0.24, 1) 2;
+}
+
 .profile-screen__back-btn {
   flex: 0 0 30px;
   width: 30px;

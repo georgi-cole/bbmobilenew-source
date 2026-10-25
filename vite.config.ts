@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve, sep } from 'node:path'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
@@ -13,6 +14,9 @@ const { version: appVersion } = JSON.parse(
 //   npm run build:capacitor   →  "./"             (passed via --base ./ CLI flag,
 //                                                   required for Capacitor/WKWebView)
 const mobileModes = new Set(['capacitor', 'ios', 'android'])
+const ignoredNestedWorktreeRoots = ['.worktrees', '.codex-worktrees'].map((directory) =>
+  resolve(process.cwd(), directory)
+)
 
 export default defineConfig(({ mode }) => ({
   base: mobileModes.has(mode) ? './' : process.env.VITE_BASE_PATH || '/bbmobilenew/',
@@ -25,8 +29,13 @@ export default defineConfig(({ mode }) => ({
     watch: {
       // Git worktrees live inside this checkout and contain full copies of the
       // app. Watching them causes a reload storm that can prevent the real app
-      // entry module from ever being served during local development.
-      ignored: ['**/.worktrees/**', '**/.codex-worktrees/**'],
+      // entry module from ever being served during local development. Resolve
+      // exclusions from the active Vite root so a preview running inside a
+      // managed worktree still watches its own source files.
+      ignored: (path) =>
+        ignoredNestedWorktreeRoots.some(
+          (root) => path === root || path.startsWith(`${root}${sep}`)
+        ),
     },
     proxy: {
       '/api': {

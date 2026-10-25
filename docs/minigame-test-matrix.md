@@ -27,7 +27,7 @@ Responsive coverage mounts every playable entry, checks instructions, host exit/
 | Result shape       | Authoritative games return a finite value and participant-owned winner; raw games return a finite human value for host ranking.                   |
 | Season effects     | Result, announcement, reward, history, and phase transition are applied exactly once by the parent.                                               |
 
-The active registry currently omits game-specific participant bounds for most games. The runtime default is minimum 1 with no registry maximum, while the QA lab constrains interactive previews to 2?12. This is recorded as a shared design gap; the matrix does not pretend the default is a verified game-specific maximum.
+The active registry currently omits game-specific participant bounds for most games. The runtime default is minimum 1 with no registry maximum, while the QA lab constrains interactive previews to 2–16. This is recorded as a shared design gap; the matrix does not pretend the default is a verified game-specific maximum.
 
 ## Rules, input, timing, and ties
 

@@ -18,11 +18,15 @@ describe('Majority Rules final duel viewport', () => {
   )
   const appTsx = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8')
 
-  it('overrides the generic clipped viewport only for the final-two duel', () => {
+  it('keeps the legacy scroll fallback scoped to the standard final-two duel', () => {
     expect(componentCss).toContain('overflow-y: hidden;')
     expect(appTsx).toContain("import './styles/majorityRulesFinalDuel.css'")
-    expect(finalDuelCss).toContain(".majority-rules-shell[data-phase='final_duel_pick'],")
-    expect(finalDuelCss).toContain(".majority-rules-shell[data-phase='final_duel_roll'] {")
+    expect(finalDuelCss).toContain(
+      ".majority-rules-shell[data-presentation='standard'][data-phase='final_duel_pick'],"
+    )
+    expect(finalDuelCss).toContain(
+      ".majority-rules-shell[data-presentation='standard'][data-phase='final_duel_roll'] {"
+    )
     expect(finalDuelCss).toContain('align-content: start; overflow-y: auto;')
     expect(finalDuelCss).toContain('height: auto; min-height: 100%; max-height: none;')
     expect(finalDuelCss).toContain('overflow-y: visible;')

@@ -70,6 +70,21 @@ describe('Competition Director V1', () => {
     expect(totals.percentagePanic).toBeLessThan(1100)
   })
 
+  it('reuses Fit Me In’s director priority slots for Bigg Gates', () => {
+    for (const size of [5, 6, 8, 9, 10]) {
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS).toContain('gatesOfTheEye')
+      expect(keys(context(size, 'POS'))).toContain('gatesOfTheEye')
+    }
+  })
+  it('offers Boxpocalypse to LOH casts of 8–16 and never to smaller casts', () => {
+    for (const size of [8, 9, 10, 11, 12, 13, 14, 15, 16]) {
+      expect(keys(context(size, 'LOH'))).toContain('boxedOut')
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.LOH).toContain('boxedOut')
+    }
+    for (const size of [4, 5, 6, 7, 17]) {
+      expect(keys(context(size, 'LOH'))).not.toContain('boxedOut')
+    }
+  })
   it('preserves first-season introduction order for both spinoffs', () => {
     const withoutOriginal = keys(context(8, 'LOH', 10))
     expect(withoutOriginal).not.toContain('crystal_path_shattered')

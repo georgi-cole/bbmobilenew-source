@@ -1,5 +1,5 @@
 import type { Ref } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { setHouseMenuAudioEffect } from '../../services/sound/audioRouteOwnership'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -40,6 +40,34 @@ function useNotificationLed(
   return [active, () => setActive(false)] as const
 }
 
+function GuestSaveSpotlightOverlay({ target }: { target: 'more' | 'profile' }) {
+  const shadeRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const element = document.querySelector<HTMLElement>(`[data-guest-save-step="${target}"]`)
+    const shade = shadeRef.current
+    if (!element || !shade) return undefined
+
+    const rect = element.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const radius = Math.max(rect.width, rect.height) / 2 + 10
+    shade.style.setProperty('--guest-save-x', `${centerX}px`)
+    shade.style.setProperty('--guest-save-y', `${centerY}px`)
+    shade.style.setProperty('--guest-save-clear-radius', `${radius}px`)
+    shade.style.setProperty('--guest-save-feather-radius', `${radius + 22}px`)
+
+    return undefined
+  }, [target])
+
+  return createPortal(
+    <div className="guest-save-spotlight" aria-hidden="true" data-testid="guest-save-spotlight">
+      <div className="guest-save-spotlight__shade" ref={shadeRef} />
+    </div>,
+    document.body
+  )
+}
+
 export interface GameControlDockProps {
   /** Ref to the dock shell for responsive placement within the game screen. */
   dockRef?: Ref<HTMLDivElement>
@@ -67,6 +95,8 @@ export interface GameControlDockProps {
   incomingRequestsBadgeCount?: number
   /** Badge count for the public meter node */
   publicMeterBadgeCount?: number
+  /** Guide a guest from the Day 1 reminder to profile creation. */
+  guestSaveInviteActive?: boolean
   /** Whether the center button should pulse */
   primaryPulse?: boolean
   /** Count of actionable Confessional alerts shown in the Turkish blue badge */
@@ -108,6 +138,7 @@ export default function GameControlDock({
   chatFlash = false,
   incomingRequestsBadgeCount,
   publicMeterBadgeCount,
+  guestSaveInviteActive = false,
   primaryPulse = false,
   confessionalBadgeCount,
   confessionalFlash = false,
@@ -413,7 +444,8 @@ export default function GameControlDock({
         </button>
         <button
           ref={moreButtonRef}
-          className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}`}
+          data-guest-save-step={guestSaveInviteActive ? 'more' : undefined}
+          className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}${guestSaveInviteActive ? ' dock-hit-area--guest-save-invite' : ''}`}
           type="button"
           aria-label="More"
           aria-expanded={moreOpen && !dockDisabled}
@@ -446,6 +478,19 @@ export default function GameControlDock({
                 type="button"
                 role="menuitem"
                 aria-label={label}
+                title={
+                  destination === 'profile' && guestSaveInviteActive
+                    ? 'Create a profile to keep your season'
+                    : label
+                }
+                data-guest-save-step={
+                  destination === 'profile' && guestSaveInviteActive ? 'profile' : undefined
+                }
+                className={
+                  destination === 'profile' && guestSaveInviteActive
+                    ? 'game-control-dock__more-profile--guest-save-invite'
+                    : undefined
+                }
                 onClick={() => {
                   setHouseMenuAudioEffect(true)
                   setMoreOpen(false)
@@ -464,6 +509,12 @@ export default function GameControlDock({
   return (
     <>
       <AllPowerFauxTvEffect />
+      {guestSaveInviteActive && (
+        <GuestSaveSpotlightOverlay
+          key={moreOpen ? 'profile' : 'more'}
+          target={moreOpen ? 'profile' : 'more'}
+        />
+      )}
       {elevatedDuringOverlay ? createPortal(navigation, document.body) : navigation}
     </>
   )

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS,
+  CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS,
+  CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS,
   DEFAULT_BRACKET_TEMPLATE,
   getBracketPoolForContext,
   getClassicCampaignPoolForContext,
@@ -29,6 +31,45 @@ describe('classic campaign map registry integrity', () => {
     expect(regular).not.toContain('targetPractice')
   })
 
+  it('maps Bigg Gates to every former Fit Me In campaign day and cast size', () => {
+    const formerFitMeInBands = [
+      { day: 7, minPlayers: 8, maxPlayers: 10 },
+      { day: 8, minPlayers: 7, maxPlayers: 9 },
+      { day: 9, minPlayers: 6, maxPlayers: 8 },
+      { day: 10, minPlayers: 5, maxPlayers: 5 },
+      { day: 11, minPlayers: 4, maxPlayers: 5 },
+      { day: 12, minPlayers: 3, maxPlayers: 5 },
+    ]
+
+    formerFitMeInBands.forEach(({ day, minPlayers, maxPlayers }) => {
+      for (let playerCount = minPlayers; playerCount <= maxPlayers; playerCount += 1) {
+        const pool = getClassicCampaignPoolForContext({ day, playerCount, compType: 'POS' })
+        expect(pool, `day ${day} / ${playerCount} players`).toContain('gatesOfTheEye')
+        expect(pool, `day ${day} / ${playerCount} players`).not.toContain('tetris')
+      }
+    })
+  })
+  it('maps Boxed Out into large-cast LOH pools only', () => {
+    for (const [day, counts] of [
+      [4, [12]],
+      [5, [11, 12]],
+      [6, [10, 11, 12]],
+      [7, [8, 9, 10]],
+      [8, [8, 9]],
+    ] as const) {
+      for (const playerCount of counts) {
+        expect(getClassicCampaignPoolForContext({ day, playerCount, compType: 'LOH' })).toContain(
+          'boxedOut'
+        )
+        expect(
+          getClassicCampaignPoolForContext({ day, playerCount, compType: 'POS' })
+        ).not.toContain('boxedOut')
+      }
+    }
+    expect(
+      getClassicCampaignPoolForContext({ day: 9, playerCount: 7, compType: 'LOH' })
+    ).not.toContain('boxedOut')
+  })
   it('only maps each game to field sizes its registry entry supports', () => {
     DEFAULT_BRACKET_TEMPLATE.forEach((band) => {
       for (let players = band.minPlayers; players <= band.maxPlayers; players += 1) {
@@ -36,12 +77,41 @@ describe('classic campaign map registry integrity', () => {
           const game = getGame(key)
           expect(game, `${key} is missing from the registry`).toBeDefined()
           expect(
-            supportsPlayerCount(game!, players),
+            supportsPlayerCount(game!, players) ||
+              players <
+                (CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS[
+                  key as keyof typeof CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS
+                ] ?? Number.NEGATIVE_INFINITY) ||
+              players >
+                (CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS[
+                  key as keyof typeof CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS
+                ] ?? Number.POSITIVE_INFINITY),
             `${key} does not support ${players} players`
           ).toBe(true)
         })
       }
     })
+  })
+
+  it('filters games by supported cast size within wider roster bands', () => {
+    expect(
+      getClassicCampaignPoolForContext({ day: 2, playerCount: 16, compType: 'LOH' })
+    ).toContain('boxedOut')
+    expect(
+      getClassicCampaignPoolForContext({ day: 4, playerCount: 12, compType: 'LOH' })
+    ).toContain('boxedOut')
+    expect(
+      getClassicCampaignPoolForContext({ day: 4, playerCount: 13, compType: 'LOH' })
+    ).toContain('boxedOut')
+    expect(
+      getClassicCampaignPoolForContext({ day: 4, playerCount: 17, compType: 'LOH' })
+    ).not.toContain('boxedOut')
+    expect(getClassicCampaignPoolForContext({ day: 9, playerCount: 8, compType: 'LOH' })).toContain(
+      'boxedOut'
+    )
+    expect(
+      getClassicCampaignPoolForContext({ day: 9, playerCount: 7, compType: 'LOH' })
+    ).not.toContain('boxedOut')
   })
 
   it('reserves Final Three Circuit for Parts 1 and 2 and Down Memory Lane for Part 3', () => {
@@ -72,7 +142,7 @@ describe('getBracketPoolForContext compatibility resolver', () => {
     [16, 'LOH', 'holdWall'],
     [13, 'POS', 'quickTap'],
     [10, 'LOH', 'blackjackTournament'],
-    [9, 'POS', 'tetris'],
+    [9, 'POS', 'gatesOfTheEye'],
     [5, 'POS', 'quickTap'],
     [4, 'LOH', 'batteryLow'],
     [3, 'LOH', 'finalThreeCircuit'],

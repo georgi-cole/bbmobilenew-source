@@ -19,6 +19,8 @@ import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import { getClassicCampaignPoolForContext } from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
+import { isEffectiveVipActive } from '../vip/effectiveEntitlements'
+import { simulateQuickTapVipAiRace } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import {
   pickRandomGame,
   getGame,
@@ -305,17 +307,23 @@ export const startChallenge =
       if (!modeSpecific) return pickFromRegistry(category, excludeKeys)
 
       // Survivor has its own free-form rotation. The curated Classic campaign
-      // map must not constrain it; only retirement, roster safety, explicit
-      // exclusions, and an optional category filter apply.
-      const availablePool = getPoolByFilter({ retired: false, excludeKeys }).filter(
-        eligibleForRoster
-      )
+      // map must not constrain it; retired games explicitly marked for Survival
+      // remain available alongside the regular roster.
+      const availablePool = [
+        ...getPoolByFilter({ retired: false, excludeKeys }),
+        ...getPoolByFilter({ retired: true, excludeKeys }).filter(
+          (game) => game.survivalModeEligible
+        ),
+      ].filter(eligibleForRoster)
+      // Rescue the King is retired from the Surveyeval competition rotation
+      // only. It remains available to every other mode and to direct tests.
+      const surveyevalPool = availablePool.filter((game) => game.key !== 'rescueTheKing')
       const pool = category
         ? availablePool.filter((game) => game.category === category)
         : availablePool
       const selectionPool = pool.length > 0 ? pool : availablePool
       if (selectionPool.length === 0) {
-        throw new Error('[challengeSlice] No non-retired Survival games are available')
+        throw new Error('[challengeSlice] No eligible Survival games are available')
       }
 
       const usedKeys = modeSpecific.competitionRotation.usedKeys ?? []
@@ -593,10 +601,14 @@ export const startChallenge =
       : resolvedParticipants
     const finalParticipants =
       eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
-    const forcedWinnerId =
-      managerRule?.outcome === 'player' &&
-      managerRule.winnerId &&
-      finalParticipants.includes(managerRule.winnerId)
+    const vipQuickTap =
+      (gameEntry.key === 'quickTap' || gameEntry.key === 'quickTapSeasons') &&
+      isEffectiveVipActive(latestState.vip)
+    const forcedWinnerId = vipQuickTap
+      ? undefined
+      : managerRule?.outcome === 'player' &&
+          managerRule.winnerId &&
+          finalParticipants.includes(managerRule.winnerId)
         ? managerRule.winnerId
         : managerRule?.outcome === 'random' && finalParticipants.length > 0
           ? finalParticipants[
@@ -629,29 +641,41 @@ export const startChallenge =
           phase: gameState.phase,
           prizeType: opts.prizeType,
           playerStatus: player?.status,
-          forcedWinner: forcedWinnerId === pid,
+          forcedWinner: !vipQuickTap && forcedWinnerId === pid,
         })
         competitionIntents[pid] = intent
-        const simulatedScore = simulateMinigameAiScore({
-          gameKey: gameEntry.key,
-          minigameModel,
-          seed: perChallengeSeed,
-          playerId: pid,
-          participantIndex: index,
-          profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
-          seasonState: getCompetitionSeasonState(gameState?.competitionSeasonStateByPlayerId, pid),
-          aiGameIdentity: player?.aiGameIdentity,
-          identityMode,
-          timeLimitMs,
-          timeLimitSeconds: timeLimitMs ? timeLimitMs / 1000 : undefined,
-        })
-        aiScores[pid] = applyCompetitionIntentToScore(
-          simulatedScore,
-          minigameModel,
-          intent,
-          perChallengeSeed,
-          pid
-        )
+        if (vipQuickTap) {
+          aiScores[pid] = simulateQuickTapVipAiRace({
+            seed: perChallengeSeed,
+            playerId: pid,
+            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            mode: gameEntry.key === 'quickTapSeasons' ? 'seasons' : 'race',
+          }).score
+        } else {
+          const simulatedScore = simulateMinigameAiScore({
+            gameKey: gameEntry.key,
+            minigameModel,
+            seed: perChallengeSeed,
+            playerId: pid,
+            participantIndex: index,
+            profile: player?.competitionProfile ?? getDefaultCompetitionProfile(),
+            seasonState: getCompetitionSeasonState(
+              gameState?.competitionSeasonStateByPlayerId,
+              pid
+            ),
+            aiGameIdentity: player?.aiGameIdentity,
+            identityMode,
+            timeLimitMs,
+            timeLimitSeconds: timeLimitMs ? timeLimitMs / 1000 : undefined,
+          })
+          aiScores[pid] = applyCompetitionIntentToScore(
+            simulatedScore,
+            minigameModel,
+            intent,
+            perChallengeSeed,
+            pid
+          )
+        }
       }
     })
 

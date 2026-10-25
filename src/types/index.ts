@@ -160,6 +160,8 @@ export interface MinigameSession {
   participants: string[]
   seed: number
   options: { timeLimit: number }
+  /** Quick Tap / Seasons implementation selected when this session was created. */
+  quickTapVariant?: 'classic' | 'vip'
   /**
    * Pre-simulated deterministic scores for every non-human participant.
    * Empty (`{}`) for sessions created by the hybrid resolver path
@@ -1483,6 +1485,8 @@ export interface GameState {
   secretMissionLastResolvedDay?: number | null
   /** Task-set signatures already generated this season; prevents repeat checklists. */
   secretMissionTaskSetHistory?: string[]
+  /** Most recent mission themes, carried across seasons to prevent immediate repeats. */
+  secretMissionTemplateHistory?: string[]
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
   /** Contestant-specific estimates of social and Tribunal threat, synced at phase boundaries. */

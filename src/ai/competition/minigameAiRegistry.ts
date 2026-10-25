@@ -708,4 +708,19 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     notes:
       'Deck of Darkness rewards memory and risk management across rising boards, changing omens, charms, and survival pressure.',
   },
+  gatesOfTheEye: {
+    key: 'gatesOfTheEye',
+    category: 'luck',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_LUCK,
+    weights: {
+      physical: 0,
+      mental: 0.3,
+      precision: 0.05,
+      nerve: 0.3,
+      luck: 0.35,
+    },
+    notes:
+      'Bigg Gates gives its rivals contrasting styles: a cautious guardian protects lives and streaks, an analyst weighs expected score and standings, and an opportunist takes higher-variance comeback lines. They share each round profile and collapse draw, and each explores alternatives so no policy is perfect.',
+  },
 }

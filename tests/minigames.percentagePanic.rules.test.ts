@@ -247,23 +247,29 @@ describe('Percentage Panic rules', () => {
     expect(percentagePanicRankedIds(game)).toEqual(['b', 'a'])
   })
 
-  it('keeps tied elimination groups together in the final standings', () => {
+  it('matches final placements to the score leaderboard within an elimination round', () => {
     const game = createPercentagePanic(['a', 'b', 'c', 'd', 'e', 'f'], 'a', 19)
     const completed = {
       ...game,
       phase: 'winner' as const,
       activeIds: ['f'],
       eliminatedIds: ['a', 'b', 'c', 'd'],
-      eliminationGroups: [
-        ['a', 'b'],
-        ['c', 'd'],
-      ],
+      eliminationGroups: [['a', 'b', 'c', 'd']],
       finalists: ['e', 'f'] as [string, string],
       winnerId: 'f',
+      scores: { a: -70, b: -20, c: -50, d: -30, e: -10, f: -40 },
+      responseTotals: { a: 1000, b: 3000, c: 1000, d: 1000, e: 1000, f: 1000 },
     }
-    expect(percentagePanicRankedGroups(completed)).toEqual([['f'], ['e'], ['c', 'd'], ['a', 'b']])
-    expect(percentagePanicLastPlaceIds(completed)).toEqual(['a', 'b'])
-    expect(percentagePanicRankedIds(completed)).toEqual(['f', 'e', 'c', 'd', 'a', 'b'])
+    expect(percentagePanicRankedGroups(completed)).toEqual([
+      ['f'],
+      ['e'],
+      ['b'],
+      ['d'],
+      ['c'],
+      ['a'],
+    ])
+    expect(percentagePanicLastPlaceIds(completed)).toEqual(['a'])
+    expect(percentagePanicRankedIds(completed)).toEqual(['f', 'e', 'b', 'd', 'c', 'a'])
   })
 
   it('lets the AI chooser select which finalist guesses first', () => {

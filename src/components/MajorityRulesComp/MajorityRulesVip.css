@@ -1,0 +1,584 @@
+/* The VIP stage uses the host's usable height, including native safe areas. */
+.majority-rules-shell[data-presentation='vip'] {
+  container: majority-stage / size;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  align-content: stretch;
+  padding: max(0.6rem, var(--minigame-safe-padding-top, 0.6rem))
+    max(0.6rem, var(--minigame-safe-padding-right, 0.6rem))
+    max(0.6rem, var(--minigame-safe-padding-bottom, 0.6rem))
+    max(0.6rem, var(--minigame-safe-padding-left, 0.6rem));
+}
+
+.majority-rules-shell[data-presentation='vip'],
+.majority-rules-shell[data-presentation='vip'] * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.majority-rules-shell[data-presentation='vip']::before {
+  background-image:
+    linear-gradient(180deg, rgba(5, 12, 24, 0.12), rgba(5, 12, 24, 0.3)),
+    var(--majority-rules-vip-backdrop), linear-gradient(135deg, #10253a, #07111f);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card {
+  display: flex;
+  flex-direction: column;
+  align-content: normal;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  padding: clamp(0.65rem, 2cqh, 1.2rem);
+  gap: clamp(0.45rem, 1.3cqh, 0.9rem);
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(12, 28, 45, 0.62), rgba(6, 16, 29, 0.76));
+  backdrop-filter: blur(3px);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card > :not(.majority-rules-glow) {
+  width: 100%;
+  max-width: 48rem;
+  align-self: center;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-header-copy {
+  flex-shrink: 0;
+  gap: 0.35rem;
+  padding-block: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-question {
+  max-width: 28ch;
+  font-size: clamp(1.25rem, 5.4vw, 2rem);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-copy {
+  font-size: 0.84rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-livebar {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  padding-bottom: 0.55rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-livebar .majority-rules-avatar-rail {
+  width: 100%;
+  max-width: none;
+  justify-content: center;
+  gap: 3px;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-livebar
+  .majority-rules-portrait--sm {
+  width: clamp(18px, 4.4cqw, 24px);
+  height: clamp(18px, 4.4cqw, 24px);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--question {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-card--question
+  .majority-rules-options {
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 2px;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-card--question
+  .majority-rules-option {
+  min-height: clamp(3.1rem, 9cqh, 4.5rem);
+  padding: 0.55rem 0.75rem;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option-title {
+  font-size: clamp(0.82rem, 3.5vw, 1.05rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option::before {
+  content: none;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-footer {
+  min-height: 2.8rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-phase-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: clamp(0.45rem, 1.3cqh, 0.8rem);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2px;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 203, 213, 0.4) transparent;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-phase-content > * {
+  flex-shrink: 0;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-phase-actions {
+  flex: 0 0 auto;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(172, 208, 222, 0.16);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-primary {
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--center {
+  justify-content: center;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-card--reveal
+  .majority-rules-header-copy::after,
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-card--duel
+  .majority-rules-header-copy::after {
+  display: none;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-reveal-meta {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.majority-rules-read-streak {
+  color: #efbc9f;
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.majority-rules-read-streak.is-hit {
+  color: #a9ebdc;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-card--reveal
+  .majority-rules-question {
+  font-size: clamp(1.2rem, 5vw, 1.7rem);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation {
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row {
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__label strong {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  line-height: 1.25;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__label span {
+  min-width: 4.5rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.majority-rules-aggregation__label b {
+  display: block;
+  color: #e7f1f5;
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-reveal-fact {
+  gap: 0.4rem;
+  padding: 0.6rem 0.7rem;
+  background: rgba(12, 49, 53, 0.4);
+}
+
+.majority-rules-reveal-fact__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 0.5rem;
+  color: #b1d8d5;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-reveal-fact a {
+  font-size: 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-reveal-fact p {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* Portraits fall below the floor line; player names remain as the round record. */
+.majority-rules-trapdoors {
+  padding: 0.35rem 0.5rem 0;
+  border: 1px solid rgba(240, 139, 114, 0.3);
+  border-radius: 14px;
+  background: rgba(76, 32, 35, 0.28);
+}
+
+.majority-rules-trapdoors__caption {
+  color: #f1c2b3;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.majority-rules-trapdoors__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+  gap: 0.3rem;
+}
+
+.majority-rules-trapdoor {
+  position: relative;
+  height: 4.4rem;
+  margin: 0;
+  text-align: center;
+}
+
+.majority-rules-trapdoor__fall-area {
+  position: relative;
+  height: 3.25rem;
+  overflow: hidden;
+}
+
+.majority-rules-trapdoor__avatar {
+  position: absolute;
+  top: 0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.majority-rules-trapdoor__avatar .majority-rules-portrait {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(250, 193, 169, 0.7);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.majority-rules-trapdoor__well {
+  position: absolute;
+  top: 2.5rem;
+  left: 50%;
+  width: 2.8rem;
+  height: 0.7rem;
+  transform: translateX(-50%);
+  perspective: 100px;
+  border-radius: 50%;
+  background: #020509;
+  box-shadow:
+    0 0 0 1px rgba(240, 139, 114, 0.5),
+    0 0 12px rgba(240, 139, 114, 0.14);
+}
+
+.majority-rules-trapdoor__leaf {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(#526074, #182638);
+  border: 1px solid #718399;
+}
+
+.majority-rules-trapdoor__leaf.is-left {
+  left: 0;
+  border-radius: 100% 0 0 100%;
+  transform-origin: left;
+}
+
+.majority-rules-trapdoor__leaf.is-right {
+  right: 0;
+  border-radius: 0 100% 100% 0;
+  transform-origin: right;
+}
+
+.majority-rules-trapdoor figcaption {
+  color: #e6c8bf;
+  font-size: 0.64rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-trapdoors[data-animated='true'] .majority-rules-trapdoor__avatar {
+  animation: majority-trap-fall 0.75s cubic-bezier(0.48, 0, 0.85, 0.4) var(--drop-delay) both;
+}
+
+.majority-rules-trapdoors[data-animated='true'] .majority-rules-trapdoor__leaf.is-left {
+  animation: majority-trap-left 0.5s ease calc(var(--drop-delay) - 0.12s) both;
+}
+
+.majority-rules-trapdoors[data-animated='true'] .majority-rules-trapdoor__leaf.is-right {
+  animation: majority-trap-right 0.5s ease calc(var(--drop-delay) - 0.12s) both;
+}
+
+@keyframes majority-trap-fall {
+  20% {
+    transform: translate(-50%, -3px) rotate(-4deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 65px) rotate(16deg) scale(0.65);
+    opacity: 0;
+  }
+}
+
+@keyframes majority-trap-left {
+  to {
+    transform: rotateY(-100deg);
+  }
+}
+
+@keyframes majority-trap-right {
+  to {
+    transform: rotateY(100deg);
+  }
+}
+
+.majority-rules-duel-players {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.majority-rules-duel-players[data-players='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.majority-rules-duel-player {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  justify-items: center;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(144, 181, 201, 0.35);
+  border-radius: 16px;
+  background: rgba(8, 24, 41, 0.46);
+}
+
+.majority-rules-duel-player.is-rolling {
+  border-color: #e9c47b;
+  box-shadow: inset 0 0 20px rgba(233, 196, 123, 0.08);
+}
+
+.majority-rules-duel-player.is-pressure {
+  background: rgba(113, 43, 39, 0.25);
+}
+
+.majority-rules-duel-player .majority-rules-portrait {
+  width: 2.6rem;
+  height: 2.6rem;
+}
+
+.majority-rules-duel-player > strong,
+.majority-rules-duel-player > small {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.majority-rules-duel-player > strong {
+  grid-row: 2;
+  font-size: 0.85rem;
+  line-height: 1.15;
+}
+
+.majority-rules-duel-player > small {
+  color: #bdd2dc;
+  font-size: 0.63rem;
+}
+
+.majority-rules-duel-player__target {
+  grid-column: 2;
+  grid-row: 1;
+  color: #f1ce8d;
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-duel-broadcast {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding-block: 0.6rem;
+  text-align: center;
+}
+
+.majority-rules-duel-broadcast p {
+  margin: 0;
+  color: #f0f5f8;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.majority-rules-duel-broadcast small {
+  color: #acc7d0;
+  font-size: 0.75rem;
+}
+
+.majority-rules-duel-die {
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  place-items: center;
+  width: 5rem;
+  height: 5rem;
+  padding: 0.8rem;
+  border: 1px solid #fff4d8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff3d9, #d7bf93);
+  box-shadow:
+    inset 0 -5px 0 rgba(96, 72, 43, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.majority-rules-duel-die i {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #172b3e;
+}
+
+.majority-rules-duel-die__pending {
+  grid-area: 1 / 1 / 4 / 4;
+  color: #172b3e;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.is-suspense .majority-rules-duel-die {
+  animation: majority-duel-shake 0.25s ease-in-out infinite alternate;
+}
+
+@keyframes majority-duel-shake {
+  from {
+    transform: rotate(-7deg) translateY(-2px);
+  }
+  to {
+    transform: rotate(7deg) translateY(2px);
+  }
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-number-picker {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-number-button {
+  width: 100%;
+  height: 2.85rem;
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+@container majority-stage (max-width: 360px) {
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-number-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .majority-rules-duel-player {
+    padding: 0.5rem;
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+  .majority-rules-duel-player .majority-rules-portrait {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+@container majority-stage (max-height: 620px) {
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-card {
+    padding: 0.6rem;
+    gap: 0.4rem;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-phase-content {
+    gap: 0.4rem;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-header-copy {
+    padding-block: 0;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row {
+    padding: 0.4rem 0.5rem;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__label strong {
+    font-size: 0.78rem;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-reveal-fact {
+    padding: 0.45rem 0.55rem;
+  }
+  .majority-rules-shell[data-presentation='vip'] .majority-rules-duel-broadcast {
+    gap: 0.4rem;
+    padding-block: 0.4rem;
+  }
+  .majority-rules-duel-die {
+    width: 4rem;
+    height: 4rem;
+    padding: 0.6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .majority-rules-trapdoors *,
+  .is-suspense .majority-rules-duel-die {
+    animation: none !important;
+  }
+}
+
+body.no-animations .majority-rules-trapdoors *,
+body.no-animations .is-suspense .majority-rules-duel-die {
+  animation: none !important;
+}

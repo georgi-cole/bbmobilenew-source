@@ -427,7 +427,20 @@ export function chooseAiPercentageDuelFirst(state: PercentagePanicState): string
   return chooserWantsFirst === 0 ? state.chooserId : other
 }
 
-/** Ordered placement groups, with contestants eliminated together sharing one rank. */
+export function rankPercentagePanicByScore(
+  contestants: string[],
+  scores: Record<string, number>,
+  responseTotals: Record<string, number>
+): string[] {
+  return [...contestants].sort(
+    (a, b) =>
+      (scores[b] ?? 0) - (scores[a] ?? 0) ||
+      (responseTotals[a] ?? 0) - (responseTotals[b] ?? 0) ||
+      contestants.indexOf(a) - contestants.indexOf(b)
+  )
+}
+
+/** Final placements follow elimination round, then the same score/time order as the live board. */
 export function percentagePanicRankedGroups(state: PercentagePanicState): string[][] {
   const groups: string[][] = []
   const ranked = new Set<string>()
@@ -441,11 +454,15 @@ export function percentagePanicRankedGroups(state: PercentagePanicState): string
   if (state.winnerId) addGroup([state.winnerId])
   const runnersUp = state.finalists?.filter((id) => id !== state.winnerId) ?? []
   if (runnersUp.length) addGroup(runnersUp)
-  const contestantOrder = new Map(state.contestants.map((id, index) => [id, index]))
   for (const group of [...state.eliminationGroups].reverse()) {
-    addGroup(
-      [...group].sort((a, b) => (contestantOrder.get(a) ?? 0) - (contestantOrder.get(b) ?? 0))
-    )
+    const contestantsInGroup = state.contestants.filter((id) => group.includes(id))
+    for (const id of rankPercentagePanicByScore(
+      contestantsInGroup,
+      state.scores,
+      state.responseTotals
+    )) {
+      addGroup([id])
+    }
   }
   return groups
 }
@@ -455,6 +472,5 @@ export function percentagePanicRankedIds(state: PercentagePanicState): string[] 
 }
 
 export function percentagePanicLastPlaceIds(state: PercentagePanicState): string[] {
-  if (state.eliminationGroups[0]) return [...state.eliminationGroups[0]]
-  return state.finalists?.filter((id) => id !== state.winnerId) ?? []
+  return percentagePanicRankedGroups(state).at(-1) ?? []
 }

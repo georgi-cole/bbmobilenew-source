@@ -283,6 +283,13 @@ const majorityRulesSlice = createSlice({
       return state
     },
 
+    setVipExperience(state, action: PayloadAction<boolean>) {
+      if (state.phase !== 'intro' || state.vipExperience === action.payload) return
+      state.vipExperience = action.payload
+      state.usedQuestionIds = []
+      prepareOpeningPhase(state)
+    },
+
     advanceIntro(state) {
       if (state.phase !== 'intro') return
       if (state.activeIds.length === 2) {
@@ -294,6 +301,18 @@ const majorityRulesSlice = createSlice({
         return
       }
       state.phase = 'question'
+    },
+
+    // Previously saved games may resume during an obsolete tie-break ballot.
+    // Skip that stale ballot and replace it with an unused question.
+    skipLegacyRevote(state) {
+      if (state.phase !== 'question' || state.revoteNumber === 0) return
+      state.roundNumber += 1
+      state.revoteNumber = 0
+      state.blockedAnswers = {}
+      state.previousDistribution = null
+      state.doubleEliminationArmed = false
+      prepareQuestion(state)
     },
 
     setHumanAnswer(state, action: PayloadAction<{ playerId: string; optionId: string }>) {
@@ -461,47 +480,14 @@ const majorityRulesSlice = createSlice({
       const { result } = state.revealState
       state.previousDistribution = result.distribution
 
-      if (result.kind === 'revote') {
-        // A tied ballot gets exactly one re-vote. If that also ties, discard
-        // the question so deterministic AI choices cannot repeat forever.
-        if (state.revoteNumber >= 1) {
-          state.roundNumber += 1
-          state.revoteNumber = 0
-          state.previousDistribution = null
-          state.blockedAnswers = {}
-          prepareQuestion(state)
-          state.phase = 'question'
-          return
-        }
-        state.phase = 'question'
-        state.revoteNumber = 1
-        state.blockedAnswers = { ...result.answers }
-        state.draftAnswers = {}
-        state.revealState = null
-        // A re-vote is a fresh ballot on the same question. Clear transient
-        // intel presentation/target state so a consumed hint cannot reopen as
-        // an empty LIVE INTEL overlay or silently carry a Follow choice into
-        // the re-vote. The per-player hint inventory intentionally remains
-        // untouched, so already-used intel stays spent.
-        clearRoundHintState(state)
-        return
-      }
-
-      if (result.kind === 'split') {
+      // No unique, small minority means no elimination and no re-vote.
+      // 'revote' is accepted here only to migrate reveal states saved under
+      // the older rules. New ballots always report such ties as 'split'.
+      if (result.kind === 'revote' || result.kind === 'split' || result.kind === 'unanimous') {
         state.doubleEliminationArmed = false
         state.roundNumber += 1
         state.revoteNumber = 0
         state.previousDistribution = null
-        state.blockedAnswers = {}
-        prepareQuestion(state)
-        state.phase = 'question'
-        return
-      }
-
-      if (result.kind === 'unanimous') {
-        state.doubleEliminationArmed = false
-        state.roundNumber += 1
-        state.revoteNumber = 0
         state.blockedAnswers = {}
         prepareQuestion(state)
         state.phase = 'question'
@@ -632,7 +618,9 @@ const majorityRulesSlice = createSlice({
 
 export const {
   initMajorityRules,
+  setVipExperience,
   advanceIntro,
+  skipLegacyRevote,
   setHumanAnswer,
   useHint,
   lockRound,

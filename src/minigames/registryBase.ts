@@ -60,6 +60,8 @@ export interface GameRegistryEntry {
   category: GameCategory
   /** True if this entry should not be selected for new challenges. */
   retired: boolean
+  /** Retired games with this flag remain available in Surveyeval's rotation. */
+  survivalModeEligible?: boolean
   /** Optional safe participant-count bounds for random scheduling. */
   minPlayers?: number
   maxPlayers?: number
@@ -304,6 +306,35 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: true,
   },
 
+  boxedOut: {
+    key: 'boxedOut',
+    title: 'BOXPOCALYPSE',
+    description: 'Secretly pick one of three boxes. Avoid the crowd, collect points and survive.',
+    instructions: [
+      'Three boxes carry different visible rewards from 100 to 500 points, refreshed each round. Everyone secretly chooses one.',
+      'The uniquely most popular box explodes: its occupants receive zero points and lose one life.',
+      'If the highest selection count is tied, no box explodes and everyone earns their chosen reward.',
+      'Start with three lives. Reach zero and you are eliminated.',
+      'After ten rounds the highest-scoring survivor wins, or win early as the only survivor.',
+      'If all remaining players are eliminated together, highest score among those last-round players wins.',
+      'An exact first-place score tie is resolved by a closest-without-going-over numerical question.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Survival points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'BoxedOut',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 4,
+    maxPlayers: 16,
+  },
+
   estimationGame: {
     key: 'estimationGame',
     title: 'Estimation',
@@ -470,7 +501,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
       'Everyone locks in an answer at the same time.',
       'You get 3 hints for the whole game, and each hint can only be used once.',
       'Players in the minority are eliminated.',
-      'A tied ballot gets one re-vote. If it is still tied, that question is discarded and a new one begins.',
+      'If no distinct, small minority is found (including ties), nobody is eliminated and a new question begins.',
       'The last contestants face a final head-to-head to decide the winner.',
     ],
     resultMode: 'placement',
@@ -917,7 +948,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     legacy: false,
     weight: 2,
     category: 'logic',
-    retired: false,
+    retired: true,
+    survivalModeEligible: true,
   },
 
   travelingDots: {
@@ -1485,6 +1517,36 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     category: 'logic',
     retired: false,
     minPlayers: 2,
+  },
+
+  gatesOfTheEye: {
+    key: 'gatesOfTheEye',
+    title: 'Bigg Gates',
+    description:
+      'Choose among four shifting doors, keep a survival streak for bonus points, and outscore the other players.',
+    instructions: [
+      'Everyone starts with 3 lives. Each round offers four doors with different points and collapse chances.',
+      'Pick one door. Once everyone has chosen, the Eye selects exactly one door to collapse using that round’s displayed odds.',
+      'Everyone who chose the collapsed door loses one life, scores nothing, and resets their streak. Everyone else scores the door’s points plus any streak bonus they have earned.',
+      'Your second consecutive safe crossing adds a 10% bonus to that door’s points. Each later safe crossing adds 5 percentage points to the bonus.',
+      'If you reach 0 lives, you are eliminated. Your points stay banked.',
+      'A tied all-player collapse restores one life to the whole final group. A unique highest score in an all-player collapse wins.',
+      'The last player standing wins. If several players remain after Round 10, highest score wins; a tie continues into overtime.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'GatesOfTheEye',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
   },
 }
 

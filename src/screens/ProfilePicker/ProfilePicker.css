@@ -4,6 +4,7 @@
   padding: 16px;
   max-width: 480px;
   margin: 0 auto;
+  color: var(--color-text, rgba(255, 255, 255, 0.92));
 }
 
 .profile-picker__topbar {
@@ -36,16 +37,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(180deg, #0d1728, #091220);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: linear-gradient(155deg, rgba(32, 25, 44, 0.96), rgba(15, 14, 22, 0.98));
+  border: 1px solid rgba(192, 173, 222, 0.13);
+  border-radius: 14px;
   padding: 12px 14px;
   position: relative;
 }
 
 .profile-picker__card--active {
-  border-color: rgba(107, 183, 255, 0.45);
-  background: linear-gradient(180deg, #0d1d35, #0b1528);
+  border-color: rgba(151, 116, 241, 0.55);
+  background: linear-gradient(155deg, rgba(48, 36, 67, 0.96), rgba(19, 16, 30, 0.98));
+  box-shadow: 0 0 18px rgba(123, 92, 255, 0.1);
 }
 
 .profile-picker__avatar {
@@ -85,7 +87,7 @@
 .profile-picker__badge {
   font-size: 0.68rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #7b5cff, #6fb7ff);
+  background: linear-gradient(135deg, var(--color-accent, #6366f1), var(--color-accent-2, #8b5cf6));
   color: #fff;
   border-radius: 6px;
   padding: 2px 7px;
@@ -108,7 +110,7 @@
 }
 
 .profile-picker__btn--select {
-  background: linear-gradient(135deg, #7b5cff, #6fb7ff);
+  background: linear-gradient(135deg, var(--color-accent, #6366f1), var(--color-accent-2, #8b5cf6));
   color: #fff;
 }
 
@@ -129,7 +131,7 @@
 .profile-picker__divider-line {
   flex: 1;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(90deg, transparent, rgba(202, 180, 226, 0.19), transparent);
 }
 
 .profile-picker__divider-label {
@@ -141,11 +143,97 @@
 
 /* Create new profile form */
 .profile-picker__create {
-  background: linear-gradient(180deg, #0d1728, #091220);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 14px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(139, 92, 246, 0.13), transparent 45%),
+    linear-gradient(155deg, rgba(29, 23, 40, 0.98), rgba(13, 13, 21, 0.99));
+  border: 1px solid rgba(192, 173, 222, 0.16);
+  border-radius: 16px;
+  padding: 16px;
   margin-bottom: 12px;
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.profile-picker__create--save-spotlight {
+  border-color: rgba(170, 139, 244, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(139, 92, 246, 0.12),
+    0 0 28px rgba(123, 92, 255, 0.14),
+    0 12px 34px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: profileSaveSpotlight 3.2s ease-in-out infinite alternate;
+}
+
+.profile-picker__save-invite {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(223, 190, 125, 0.25);
+  border-radius: 11px;
+  background:
+    linear-gradient(100deg, rgba(123, 92, 255, 0.13), rgba(210, 166, 91, 0.07)),
+    rgba(14, 13, 22, 0.68);
+  color: rgba(255, 247, 228, 0.94);
+}
+
+.profile-picker__save-invite-icon {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 9px;
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.3), rgba(220, 182, 109, 0.17));
+  color: #ead3a1;
+  font-size: 1rem;
+}
+
+.profile-picker__save-invite > span:last-child {
+  display: grid;
+  gap: 1px;
+}
+
+.profile-picker__save-invite strong {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.profile-picker__save-invite small {
+  color: rgba(237, 231, 245, 0.62);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+.profile-picker__btn--save-spotlight {
+  box-shadow:
+    0 0 18px rgba(123, 92, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+@keyframes profileSaveSpotlight {
+  from {
+    box-shadow:
+      0 0 0 1px rgba(139, 92, 246, 0.1),
+      0 0 18px rgba(123, 92, 255, 0.1),
+      0 12px 34px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+  to {
+    box-shadow:
+      0 0 0 1px rgba(172, 142, 242, 0.2),
+      0 0 30px rgba(123, 92, 255, 0.2),
+      0 12px 34px rgba(0, 0, 0, 0.24),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-picker__create--save-spotlight {
+    animation: none;
+  }
 }
 
 .profile-picker__create-title {
@@ -175,8 +263,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(207, 190, 231, 0.16);
 }
 
 .profile-picker__create-photo-img {
@@ -196,7 +284,7 @@
   border-radius: 50%;
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, #7b5cff, #6fb7ff);
+  background: linear-gradient(135deg, var(--color-accent, #6366f1), var(--color-accent-2, #8b5cf6));
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -224,15 +312,15 @@
 }
 
 .profile-picker__create-photo-processing {
-  color: rgba(107, 183, 255, 0.85);
+  color: #c4a8ff;
 }
 
 .profile-picker__input {
   width: 100%;
   padding: 9px 12px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(29, 31, 44, 0.86);
+  border: 1px solid rgba(199, 185, 221, 0.14);
   color: #fff;
   font-size: 0.9rem;
   outline: none;
@@ -241,7 +329,8 @@
 }
 
 .profile-picker__input:focus {
-  border-color: rgba(107, 183, 255, 0.4);
+  border-color: rgba(161, 128, 245, 0.72);
+  box-shadow: 0 0 0 3px rgba(123, 92, 255, 0.12);
 }
 
 .profile-picker__create-label {
@@ -278,8 +367,9 @@
 }
 
 .profile-picker__avatar-btn--selected {
-  border-color: rgba(107, 183, 255, 0.6);
-  background: rgba(107, 183, 255, 0.12);
+  border-color: rgba(161, 128, 245, 0.76);
+  background: rgba(123, 92, 255, 0.18);
+  box-shadow: 0 0 12px rgba(123, 92, 255, 0.16);
 }
 
 .profile-picker__create-actions {
@@ -289,7 +379,7 @@
 }
 
 .profile-picker__btn--create {
-  background: linear-gradient(135deg, #7b5cff, #6fb7ff);
+  background: linear-gradient(135deg, var(--color-accent, #6366f1), var(--color-accent-2, #8b5cf6));
   color: #fff;
   padding: 9px 18px;
   border-radius: 9px;
@@ -300,14 +390,15 @@
 }
 
 .profile-picker__btn--create:disabled {
-  opacity: 0.4;
+  opacity: 0.48;
+  filter: saturate(0.58);
   cursor: not-allowed;
 }
 
 .profile-picker__btn--cancel {
   background: transparent;
   color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(199, 185, 221, 0.15);
   padding: 9px 14px;
   border-radius: 9px;
   font-weight: 600;

@@ -90,6 +90,7 @@ interface RoundResult {
 
 interface FinalResult {
   rankingBestFirst: string[]
+  finalistIds: string[]
   visibleScores: Record<string, number>
   outcomeScores: Record<string, number>
   winnerId: string
@@ -391,6 +392,7 @@ export default function TetrisComp({
       dispatch(resolveTetrisOutcome())
       setFinalResult({
         rankingBestFirst: finalRankingBestFirst,
+        finalistIds: finalStandings.map((entry) => entry.playerId),
         visibleScores,
         outcomeScores,
         winnerId,
@@ -927,6 +929,7 @@ export default function TetrisComp({
           <ol className="tetris-results-list" aria-label="Final standings">
             {finalResult.rankingBestFirst.map((playerId, index) => {
               const participant = participantById.get(playerId)
+              const reachedFinal = finalResult.finalistIds.includes(playerId)
               return (
                 <li
                   key={playerId}
@@ -951,8 +954,12 @@ export default function TetrisComp({
                       <span className="tetris-results-you-tag"> {t('fitMeIn.youTag')}</span>
                     )}
                   </span>
-                  <span className="tetris-results-score">
-                    {(finalResult.visibleScores[playerId] ?? 0).toLocaleString()}
+                  <span
+                    className={`tetris-results-score${reachedFinal ? '' : ' tetris-results-score--status'}`}
+                  >
+                    {reachedFinal
+                      ? (finalResult.visibleScores[playerId] ?? 0).toLocaleString()
+                      : t('fitMeIn.status.eliminated')}
                   </span>
                 </li>
               )
@@ -971,9 +978,6 @@ export default function TetrisComp({
               : t('fitMeIn.playerWins', { name: winner?.name ?? finalResult.winnerId })}
           </h2>
           <p className="tetris-results-subtitle">{t('fitMeIn.finalComplete')}</p>
-          <div className="tetris-results-your-score">
-            {t('fitMeIn.yourLastScore')} <strong>{finalResult.humanScore.toLocaleString()}</strong>
-          </div>
         </header>
       </MinigameCompleteWrapper>
     )

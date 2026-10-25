@@ -14,34 +14,40 @@ type PreferredGames = Record<CompetitionType, readonly string[]>
  * remaining housemates (returns, reserves, and outgoing LOHs can change it).
  */
 export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = {
-  16: { LOH: ['majorityRules'], POS: ['quickTap'] },
+  16: { LOH: ['majorityRules', 'boxedOut'], POS: ['quickTap'] },
   15: {
-    LOH: ['trapAuction', 'batteryLow', 'holdWall'],
+    LOH: ['trapAuction', 'batteryLow', 'holdWall', 'boxedOut'],
     POS: ['riskWheel', 'cardClash'],
   },
   14: {
-    LOH: ['batteryLow', 'trapAuction', 'hangman'],
+    LOH: ['batteryLow', 'trapAuction', 'hangman', 'boxedOut'],
     POS: ['colorMatch', 'logicLocks'],
   },
   13: {
-    LOH: ['silentSaboteur', 'hangman', 'trapAuction'],
+    LOH: ['silentSaboteur', 'hangman', 'trapAuction', 'boxedOut'],
     POS: ['cardClash', 'dontGoOver'],
   },
   12: {
-    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'],
+    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow', 'boxedOut'],
     POS: ['riskWheel', 'threeDigitsQuiz'],
   },
   11: {
-    LOH: ['hangman', 'chainOfGreed', 'batteryLow'],
+    LOH: ['hangman', 'chainOfGreed', 'batteryLow', 'boxedOut'],
     POS: ['logicLocks', 'quickTapSeasons'],
   },
   10: {
-    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'],
-    POS: ['tetris', 'quickTapSeasons'],
+    LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow', 'boxedOut'],
+    POS: ['gatesOfTheEye', 'quickTapSeasons'],
   },
   9: {
-    LOH: ['glass_bridge_brutal', 'crystal_path_shattered', 'chainOfGreed', 'trapAuction'],
-    POS: ['tetris', 'minesweeps'],
+    LOH: [
+      'glass_bridge_brutal',
+      'crystal_path_shattered',
+      'chainOfGreed',
+      'trapAuction',
+      'boxedOut',
+    ],
+    POS: ['gatesOfTheEye', 'minesweeps'],
   },
   8: {
     LOH: [
@@ -50,8 +56,9 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
       'crystal_path_shattered',
       'wildcardWestern',
       'trapAuction',
+      'boxedOut',
     ],
-    POS: ['minesweeps', 'tetris'],
+    POS: ['minesweeps', 'gatesOfTheEye'],
   },
   7: {
     LOH: [
@@ -65,11 +72,11 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
   },
   6: {
     LOH: ['wildcardWestern', 'houseOfDarkness', 'castleRescue2'],
-    POS: ['tetris', 'minesweeps'],
+    POS: ['gatesOfTheEye', 'minesweeps'],
   },
   5: {
     LOH: ['castleRescue2', 'houseOfDarkness', 'pressurePlank'],
-    POS: ['mysticChamber', 'tetris'],
+    POS: ['mysticChamber', 'gatesOfTheEye'],
   },
   4: {
     LOH: ['houseOfDarkness', 'castleRescue2', 'holdWall'],
@@ -89,6 +96,8 @@ export const COMPETITION_PACING_LIMITS: Readonly<Record<string, { min: number; m
   castleRescue2: { min: 4, max: 6 },
   houseOfDarkness: { min: 4, max: 8 },
   mysticChamber: { min: 4, max: 5 },
+  gatesOfTheEye: { min: 3, max: 10 },
+  boxedOut: { min: 8, max: 16 },
 }
 
 const STORY_MIN_DAY: Readonly<Record<string, number>> = {
@@ -112,6 +121,7 @@ const SIGNATURE_GAMES = new Set([
   'trapAuction',
   'silentSaboteur',
   'chainOfGreed',
+  'boxedOut',
   'glass_bridge_brutal',
   'crystal_path_shattered',
   'wildcardWestern',
