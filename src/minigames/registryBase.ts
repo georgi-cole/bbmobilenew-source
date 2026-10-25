@@ -308,10 +308,10 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
 
   boxedOut: {
     key: 'boxedOut',
-    title: 'BOXED OUT',
+    title: 'BOXPOCALYPSE',
     description: 'Secretly pick one of three boxes. Avoid the crowd, collect points and survive.',
     instructions: [
-      'Three boxes carry different visible point rewards. Everyone secretly chooses one.',
+      'Three boxes carry different visible rewards from 100 to 500 points, refreshed each round. Everyone secretly chooses one.',
       'The uniquely most popular box explodes: its occupants receive zero points and lose one life.',
       'If the highest selection count is tied, no box explodes and everyone earns their chosen reward.',
       'Start with three lives. Reach zero and you are eliminated.',
@@ -328,12 +328,11 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'BoxedOut',
     legacy: false,
-    // Direct access for QA only until balance and visual validation complete.
-    weight: 0,
+    weight: 1,
     category: 'logic',
     retired: false,
     minPlayers: 4,
-    maxPlayers: 12,
+    maxPlayers: 16,
   },
 
   estimationGame: {

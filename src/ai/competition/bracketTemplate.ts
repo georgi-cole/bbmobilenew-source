@@ -59,6 +59,7 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'tiltLabyrinth',
   'threeDigitsQuiz',
   'gatesOfTheEye',
+  'boxedOut',
   'minesweeps',
   'dontGoOver',
   'capitalization',
@@ -94,6 +95,19 @@ export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
 > = {
   castleRescue2: 'castleRescue',
   crystal_path_shattered: 'glass_bridge_brutal',
+}
+
+/** Registry limits for games whose campaign band spans a wider roster range. */
+export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
+  Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
+> = {
+  boxedOut: 16,
+}
+
+export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
+  Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
+> = {
+  boxedOut: 8,
 }
 
 export function getApprovedCompetitionGameKeys(
@@ -144,6 +158,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'majorityRules',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash', 'dontGoOver', 'tiltLabyrinth'],
   },
@@ -160,6 +175,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'silentSaboteur',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -186,6 +202,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'majorityRules',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -212,6 +229,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -238,6 +256,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -267,6 +286,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'glass_bridge_brutal',
       'crystal_path_shattered',
       'wildcardWestern',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
@@ -298,6 +318,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'houseOfDarkness',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
@@ -326,6 +347,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'houseOfDarkness',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
@@ -501,6 +523,19 @@ function applyGameStoryPrerequisites(
   })
 }
 
+function applyPlayerCountPrerequisites(pool: string[], playerCount: number): string[] {
+  return pool.filter((key) => {
+    const minPlayers =
+      CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS[key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]]
+    const maxPlayers =
+      CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS[key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]]
+    return (
+      (minPlayers === undefined || playerCount >= minPlayers) &&
+      (maxPlayers === undefined || playerCount <= maxPlayers)
+    )
+  })
+}
+
 function getRosterFallbackBand(
   playerCount: number,
   template: BracketTemplate
@@ -548,13 +583,19 @@ export function getClassicCampaignPoolForContext(
     })[0]
   if (matched) {
     const pool = context.compType === 'POS' ? matched.pos : matched.loh
-    return applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys),
+      context.playerCount
+    )
   }
 
   const fallback = getRosterFallbackBand(context.playerCount, template)
   if (fallback) {
     const pool = context.compType === 'POS' ? fallback.pos : fallback.loh
-    return applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys),
+      context.playerCount
+    )
   }
 
   return []
@@ -578,7 +619,10 @@ export function getBracketPoolForContext(
   )
   if (final3Compatibility) {
     const pool = compType === 'POS' ? final3Compatibility.pos : final3Compatibility.loh
-    return applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER),
+      playerCount
+    )
   }
 
   const fallback = getRosterFallbackBand(playerCount, template)
@@ -590,5 +634,8 @@ export function getBracketPoolForContext(
     )
   }
   const pool = compType === 'POS' ? fallback.pos : fallback.loh
-  return applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER)
+  return applyPlayerCountPrerequisites(
+    applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER),
+    playerCount
+  )
 }

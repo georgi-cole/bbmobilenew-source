@@ -37,7 +37,7 @@ export interface BoxedOutState {
 export const BOXED_OUT_LIVES = 3
 export const BOXED_OUT_ROUNDS = 10
 export const BOXED_OUT_MIN_PLAYERS = 4
-export const BOXED_OUT_MAX_PLAYERS = 12
+export const BOXED_OUT_MAX_PLAYERS = 16
 
 export const TIEBREAK_QUESTIONS = [
   { prompt: 'How many minutes are there in exactly seven days?', answer: 10080 },
@@ -64,15 +64,18 @@ export function random01(seed: number, label: string): number {
 }
 
 export function prizesForRound(seed: number, round: number): [number, number, number] {
-  const tier =
-    round <= 3
-      ? [100, 180, 300]
-      : round <= 6
-        ? [140, 250, 420]
-        : round <= 9
-          ? [180, 320, 540]
-          : [240, 420, 700]
-  const rewards = [...tier]
+  // Fresh offers in tens: distinct low/middle/high bands, with varying gaps.
+  // These public values are generated before either humans or AIs choose.
+  const rewards = (
+    [
+      [100, 220],
+      [250, 350],
+      [380, 500],
+    ] as const
+  ).map(
+    ([min, max], band) =>
+      min + Math.floor(random01(seed, `reward:${round}:${band}`) * ((max - min) / 10 + 1)) * 10
+  )
   // Fisher-Yates; box positions change without changing the round's advertised values.
   for (let i = 2; i > 0; i--) {
     const j = Math.floor(random01(seed, 'prize:' + round + ':' + i) * (i + 1))
@@ -133,7 +136,7 @@ export function createBoxedOutState(players: BoxedOutPlayer[], seed: number): Bo
     unique.size !== players.length ||
     players.some((player) => !player.id)
   ) {
-    throw new Error('BOXED OUT requires unique participant IDs and 2–12 valid players.')
+    throw new Error('BOXED OUT requires unique participant IDs and 2–16 valid players.')
   }
   if (players.filter((player) => player.isHuman).length > 1) {
     throw new Error('BOXED OUT accepts at most one human participant.')

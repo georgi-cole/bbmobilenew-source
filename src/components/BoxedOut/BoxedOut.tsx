@@ -1,5 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useGlassBridgeAudio } from '../../hooks/useGlassBridgeAudio'
+import { SoundManager } from '../../services/sound/SoundManager'
+import {
+  BOX_ASSET_BASE,
+  BoxedOutBox,
+  BoxedOutReadiness,
+  EyeGlyph,
+  RoundEvent,
+  ScoreCounter,
+} from './BoxedOutShow'
+import { displayedRound, reached, roundTimeline, type ShowBeat } from './presentation'
 import {
   BOXED_OUT_LIVES,
   BOXED_OUT_ROUNDS,
@@ -17,6 +28,7 @@ import {
   type BoxedOutState,
 } from '../../features/boxedOut/rules'
 import './BoxedOut.css'
+import './BoxedOutShow.css'
 
 interface Props {
   seed?: number
@@ -44,92 +56,7 @@ interface Props {
 }
 
 const BOX_NAMES = ['A', 'B', 'C'] as const
-const BOX_ART = ['amber', 'teal', 'violet'] as const
-const BOX_ASSET_BASE = `${import.meta.env.BASE_URL}assets/minigames/boxed-out/`
 const SELECTION_SECONDS = 15
-const EYE_TEXT = [
-  'Three boxes. One fatal crowd. Trust your instincts.',
-  'A fortune awaits. But greed loves company.',
-  'The Eye has seen your decisions. There is no going back.',
-  'The crowd has spoken. Was it wise?',
-]
-
-function BoxedOutBox({
-  box,
-  value,
-  selected,
-  locked,
-  occupancy,
-  exploded,
-  revealed,
-  revealBeat,
-  onSelect,
-}: {
-  box: BoxId
-  value: number
-  selected: boolean
-  locked: boolean
-  occupancy?: number
-  exploded?: boolean
-  revealed: boolean
-  revealBeat: 'opening' | 'impact' | 'settled'
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      className={[
-        'boxed-out-box',
-        'boxed-out-box--' + box,
-        selected ? 'boxed-out-box--selected' : '',
-        locked ? 'boxed-out-box--locked' : '',
-        revealBeat === 'opening' && locked ? 'boxed-out-box--opening' : '',
-        exploded && revealBeat === 'impact' ? 'boxed-out-box--impact' : '',
-        exploded && revealBeat === 'settled' ? 'boxed-out-box--collapsed' : '',
-        revealed && !exploded ? 'boxed-out-box--safe' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      onClick={onSelect}
-      disabled={locked || revealed}
-      aria-label={
-        'Box ' + BOX_NAMES[box] + ': ' + value + ' points' + (selected ? ', selected' : '')
-      }
-      aria-pressed={selected}
-    >
-      <span className="boxed-out-box__stage">
-        <span className="boxed-out-box__halo" aria-hidden="true" />
-        <span className="boxed-out-box__open-light" aria-hidden="true" />
-        <span className="boxed-out-box__image-wrap">
-          <img
-            className="boxed-out-box__art"
-            src={`${BOX_ASSET_BASE}box-${BOX_ART[box]}.webp`}
-            alt=""
-            draggable={false}
-          />
-        </span>
-        {exploded && revealBeat !== 'opening' && (
-          <span className="boxed-out-box__collapse" aria-hidden="true">
-            <span className="boxed-out-box__collapse-flash" />
-            <span className="boxed-out-box__shockwave" />
-            <i /> <i /> <i /> <i /> <i /> <i /> <i /> <i />
-          </span>
-        )}
-        <span className="boxed-out-box__pedestal" aria-hidden="true" />
-      </span>
-      <span className="boxed-out-box__reward">{value.toLocaleString('en-US')}</span>
-      <span className="boxed-out-box__points">POINTS</span>
-      {revealed && (
-        <span className="boxed-out-box__count">
-          {occupancy} picked · {exploded ? 'COLLAPSED' : 'SAFE'}
-        </span>
-      )}
-      {selected && (
-        <span className="boxed-out-box__selected-tag">{locked ? 'YOUR PICK' : 'SELECTED'}</span>
-      )}
-    </button>
-  )
-}
 
 export default function BoxedOut({ seed = 0, participants, participantIds, onFinish }: Props) {
   const players = useMemo<BoxedOutPlayer[]>(() => {
@@ -147,45 +74,175 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
     }
   })
   const [selected, setSelected] = useState<BoxId | null>(null)
+  const [humanLocked, setHumanLocked] = useState(false)
+  const [readyAiIds, setReadyAiIds] = useState<string[]>([])
   const [remaining, setRemaining] = useState(SELECTION_SECONDS)
-  const [revealBeat, setRevealBeat] = useState<'opening' | 'impact' | 'settled'>('settled')
-  const [finaleBeat, setFinaleBeat] = useState<'idle' | 'judgment' | 'winner'>('idle')
+  const [revealBeat, setRevealBeat] = useState<ShowBeat>('idle')
+  const [finaleBeat, setFinaleBeat] = useState<'idle' | 'apocalypse' | 'judgment' | 'winner'>(
+    'idle'
+  )
+  const [handoff, setHandoff] = useState<{ label: string; stage: 'close' | 'open' } | null>(null)
+  const handoffTimers = useRef<number[]>([])
+  const reducedMotion = useReducedMotion() ?? false
   const [numericAnswer, setNumericAnswer] = useState('')
   const [announced, setAnnounced] = useState(false)
   const startedAt = useRef(0)
   const chosenBoxRef = useRef<BoxId | null>(null)
   const finishedRef = useRef(false)
-  const revealCueRoundRef = useRef<number | null>(null)
+  const revealCues = useRef(new Set<string>())
   const winnerCuePlayedRef = useRef(false)
   const { playDeath, playNewTurn, playSafeStep, playWinner } = useGlassBridgeAudio(false)
   const latest = game?.reveals[game.reveals.length - 1]
   const human = players.find((player) => player.isHuman)
   const humanAlive = Boolean(game && human && game.lives[human.id] > 0)
-  const awaitingHuman = game?.phase === 'select' && humanAlive
+  const awaitingHuman = game?.phase === 'select' && humanAlive && !handoff && !humanLocked
+  const activeAi = useMemo(
+    () =>
+      game ? game.players.filter((player) => !player.isHuman && game.lives[player.id] > 0) : [],
+    [game]
+  )
+  const allAiReady = activeAi.every((player) => readyAiIds.includes(player.id))
   const awaitingTiebreak =
-    game?.phase === 'tiebreak' && Boolean(human && game.finalists.includes(human.id))
+    game?.phase === 'tiebreak' && !handoff && Boolean(human && game.finalists.includes(human.id))
   const humanWasHit = Boolean(
     latest && human && latest.exploded !== null && latest.picks[human.id] === latest.exploded
   )
   const humanWasEliminated = Boolean(humanWasHit && human && latest?.eliminated.includes(human.id))
+  const allOutFinish = Boolean(
+    game &&
+    (game.phase === 'finished' || game.phase === 'tiebreak') &&
+    activePlayerIds(game).length === 0
+  )
+
+  const advanceWithCurtain = useCallback(() => {
+    if (!game || game.phase !== 'reveal' || handoff) return
+    const verdict = game.round >= BOXED_OUT_ROUNDS || activePlayerIds(game).length <= 1
+    if (reducedMotion) {
+      setSelected(null)
+      setHumanLocked(false)
+      setReadyAiIds([])
+      setRemaining(SELECTION_SECONDS)
+      setRevealBeat('idle')
+      setGame((current) => (current ? advanceBoxedOut(current) : current))
+      return
+    }
+    playNewTurn()
+    setHandoff({ label: verdict ? 'THE VERDICT' : `ROUND ${game.round + 1}`, stage: 'close' })
+    handoffTimers.current = [
+      window.setTimeout(() => {
+        setSelected(null)
+        setHumanLocked(false)
+        setReadyAiIds([])
+        chosenBoxRef.current = null
+        setRemaining(SELECTION_SECONDS)
+        setRevealBeat('idle')
+        setGame((current) => (current?.phase === 'reveal' ? advanceBoxedOut(current) : current))
+        setHandoff({ label: verdict ? 'THE VERDICT' : `ROUND ${game.round + 1}`, stage: 'open' })
+      }, 640),
+      window.setTimeout(() => setHandoff(null), 1450),
+    ]
+  }, [game, handoff, playNewTurn, reducedMotion])
+
+  useEffect(() => () => handoffTimers.current.forEach(window.clearTimeout), [])
+
+  useEffect(() => {
+    if (!game || game.phase !== 'select' || handoff) return
+    // Commit times never depend on the human's box or expose an AI's precomputed pick.
+    const timers = activeAi.map((player) =>
+      window.setTimeout(
+        () => {
+          setReadyAiIds((current) =>
+            current.includes(player.id) ? current : [...current, player.id]
+          )
+        },
+        900 + Math.floor(random01(game.seed, `commit:${game.round}:${player.id}`) * 2600)
+      )
+    )
+    return () => timers.forEach(window.clearTimeout)
+  }, [activeAi, game, handoff])
+
+  useEffect(() => {
+    if (
+      !game ||
+      game.phase !== 'select' ||
+      handoff ||
+      !humanLocked ||
+      !allAiReady ||
+      selected === null
+    )
+      return
+    const timer = window.setTimeout(() => {
+      setRevealBeat('sealing')
+      setGame((current) =>
+        current?.phase === 'select' ? resolveBoxedOutRound(current, selected) : current
+      )
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [allAiReady, game, handoff, humanLocked, selected])
+
+  useEffect(() => {
+    for (const file of [
+      'chest-ruins.webp',
+      'chest-ruins-teal.webp',
+      'chest-ruins-violet.webp',
+      'champion-crest.webp',
+      'box-amber-open.webp',
+      'box-teal-open.webp',
+      'box-violet-open.webp',
+    ]) {
+      const image = new Image()
+      image.src = `${BOX_ASSET_BASE}${file}`
+    }
+  }, [])
 
   useEffect(() => {
     if (!game || game.phase !== 'reveal') return
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const impactTimer = window.setTimeout(() => setRevealBeat('impact'), reducedMotion ? 0 : 900)
-    const settleTimer = window.setTimeout(() => setRevealBeat('settled'), reducedMotion ? 0 : 2500)
-    return () => {
-      window.clearTimeout(impactTimer)
-      window.clearTimeout(settleTimer)
-    }
-  }, [game, latest?.round])
+    const timers = roundTimeline(
+      latest?.exploded !== null,
+      Boolean(latest?.eliminated.length),
+      reducedMotion
+    ).map(({ at, beat }) => window.setTimeout(() => setRevealBeat(beat), at))
+    return () => timers.forEach(window.clearTimeout)
+  }, [game, latest?.round, latest?.eliminated.length, latest?.exploded, reducedMotion])
 
   useEffect(() => {
-    if (revealBeat !== 'impact' || !latest || revealCueRoundRef.current === latest.round) return
-    revealCueRoundRef.current = latest.round
-    if (humanWasHit) playDeath()
-    else if (human && latest.participants.includes(human.id)) playSafeStep()
-  }, [human, humanWasHit, latest, playDeath, playSafeStep, revealBeat])
+    if (game?.phase !== 'reveal' || !latest) return
+    const cue = `${latest.round}:${revealBeat}`
+    if (revealCues.current.has(cue)) return
+    revealCues.current.add(cue)
+    if (revealBeat === 'sealing' && !humanLocked)
+      void SoundManager.play('ui:confirm', { volume: 0.45, durationMs: 500 })
+    else if (revealBeat.startsWith('crowd-'))
+      void SoundManager.play('ui:tribunal_vote_reveal', { volume: 0.35, durationMs: 350 })
+    else if (revealBeat === 'danger')
+      void SoundManager.play('minigame:gb_new_turn', { volume: 0.35, durationMs: 850 })
+    else if (revealBeat === 'impact') {
+      void SoundManager.play('minigame:cinematic_thunder', { volume: 0.45, durationMs: 1600 })
+      if (humanWasHit) playDeath()
+    } else if (
+      revealBeat === 'consequence' &&
+      human &&
+      latest.participants.includes(human.id) &&
+      !humanWasHit
+    )
+      playSafeStep()
+    else if (revealBeat === 'elimination')
+      void SoundManager.play('player:wildcard_eliminated', { volume: 0.45, durationMs: 1400 })
+    else if (reducedMotion && revealBeat === 'settled') {
+      if (humanWasHit) playDeath()
+      else if (human && latest.participants.includes(human.id)) playSafeStep()
+    }
+  }, [
+    game?.phase,
+    human,
+    humanLocked,
+    humanWasHit,
+    latest,
+    playDeath,
+    playSafeStep,
+    reducedMotion,
+    revealBeat,
+  ])
 
   useEffect(() => {
     if (game?.phase !== 'finished' || finaleBeat !== 'winner' || winnerCuePlayedRef.current) return
@@ -194,15 +251,35 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
   }, [finaleBeat, game?.phase, playWinner])
 
   useEffect(() => {
-    if (game?.phase !== 'finished') return
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const judgmentTimer = window.setTimeout(() => setFinaleBeat('judgment'), 0)
-    const revealTimer = window.setTimeout(() => setFinaleBeat('winner'), reducedMotion ? 40 : 1850)
+    const tiedAllOut = game?.phase === 'tiebreak' && allOutFinish
+    if ((game?.phase !== 'finished' && !tiedAllOut) || handoff) return
+    const apocalypseTimer = allOutFinish
+      ? window.setTimeout(() => setFinaleBeat('apocalypse'), 0)
+      : undefined
+    if (tiedAllOut) {
+      const dismissTimer = window.setTimeout(
+        () => setFinaleBeat('judgment'),
+        reducedMotion ? 40 : 1250
+      )
+      return () => {
+        if (apocalypseTimer !== undefined) window.clearTimeout(apocalypseTimer)
+        window.clearTimeout(dismissTimer)
+      }
+    }
+    const judgmentTimer = window.setTimeout(
+      () => setFinaleBeat('judgment'),
+      allOutFinish ? (reducedMotion ? 0 : 1050) : 0
+    )
+    const revealTimer = window.setTimeout(
+      () => setFinaleBeat('winner'),
+      reducedMotion ? 40 : allOutFinish ? 3500 : 2450
+    )
     return () => {
+      if (apocalypseTimer !== undefined) window.clearTimeout(apocalypseTimer)
       window.clearTimeout(judgmentTimer)
       window.clearTimeout(revealTimer)
     }
-  }, [game?.phase])
+  }, [allOutFinish, game?.phase, handoff, reducedMotion])
 
   useEffect(() => {
     if (!awaitingHuman || !game) return
@@ -214,7 +291,7 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
       )
     }, 250)
     const timeout = window.setTimeout(() => {
-      setRevealBeat('opening')
+      setRevealBeat('sealing')
       setGame((current) => {
         if (!current || current.phase !== 'select') return current
         const choice =
@@ -230,27 +307,22 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
   }, [awaitingHuman, game])
 
   useEffect(() => {
-    if (!game) return
+    if (!game || handoff) return
 
-    if (game.phase === 'select' && !humanAlive) {
+    if (game.phase === 'select' && !humanAlive && allAiReady) {
       const timeout = window.setTimeout(() => {
-        setRevealBeat('opening')
+        setRevealBeat('sealing')
         setGame((current) =>
           current?.phase === 'select' ? resolveBoxedOutRound(current) : current
         )
-      }, 700)
+      }, 400)
       return () => window.clearTimeout(timeout)
     }
 
     if (game.phase === 'reveal' && !humanAlive && revealBeat === 'settled') {
       const timeout = window.setTimeout(() => {
-        if (game.round < BOXED_OUT_ROUNDS && activePlayerIds(game).length > 1) playNewTurn()
-        setRemaining(SELECTION_SECONDS)
-        setSelected(null)
-        chosenBoxRef.current = null
-        setRevealBeat('opening')
-        setGame((current) => (current?.phase === 'reveal' ? advanceBoxedOut(current) : current))
-      }, 1700)
+        advanceWithCurtain()
+      }, 2200)
       return () => window.clearTimeout(timeout)
     }
 
@@ -262,7 +334,7 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
       }, 1500)
       return () => window.clearTimeout(timeout)
     }
-  }, [awaitingTiebreak, game, humanAlive, playNewTurn, revealBeat])
+  }, [advanceWithCurtain, allAiReady, awaitingTiebreak, game, handoff, humanAlive, revealBeat])
 
   useEffect(() => {
     if (!awaitingTiebreak) return
@@ -285,61 +357,37 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
   if (!game) {
     return (
       <div className="boxed-out boxed-out--error" role="alert">
-        <h2>BOXED OUT</h2>
+        <h2>BOXPOCALYPSE</h2>
         <p>This competition needs at least two valid contestants.</p>
       </div>
     )
   }
 
-  const revealPending = game.phase === 'reveal' && revealBeat !== 'settled' && Boolean(latest)
-  const shownScores = { ...game.scores }
-  const shownLives = { ...game.lives }
-  if (revealPending && latest) {
-    for (const id of latest.participants) {
-      const picked = latest.picks[id]
-      const collapsed = latest.exploded !== null && picked === latest.exploded
-      if (collapsed) shownLives[id] += 1
-      else shownScores[id] -= latest.rewards[picked]
-    }
-  }
-  const rank = standings({ ...game, scores: shownScores, lives: shownLives })
+  const { scores: shownScores, lives: shownLives } = displayedRound(game, revealBeat)
+  const rankingDisplay =
+    game.phase === 'reveal' && revealBeat !== 'settled'
+      ? displayedRound(game, 'sealing')
+      : { scores: shownScores, lives: shownLives }
+  const rank = standings({ ...game, ...rankingDisplay })
   const reveal = game.phase === 'reveal'
   const ended = game.phase === 'finished'
   const totalActive = activePlayerIds(game).length
-  const allOutFinish = ended && totalActive === 0
   const winner = players.find((player) => player.id === game.winnerId)
   const question = game.phase === 'tiebreak' ? tiebreakQuestion(game) : null
   const shownActive = Object.values(shownLives).filter((lives) => lives > 0).length
-  const eyeMessage = ended
-    ? allOutFinish
-      ? 'The final group fell. Banked score decides the last stand.'
-      : 'Only one name shall be remembered.'
-    : reveal && revealBeat === 'opening'
-      ? 'Every choice is sealed. The Eye is watching.'
-      : reveal && revealBeat === 'impact'
-        ? 'The vault answers.'
-        : reveal
-          ? latest?.exploded === null
-            ? 'A perfect split. The crowd escaped this time.'
-            : 'The crowd has chosen its fate.'
-          : question
-            ? 'A final question. Do not go over.'
-            : EYE_TEXT[(game.round - 1) % EYE_TEXT.length]
+  const gain =
+    human && latest && latest.picks[human.id] !== undefined && !humanWasHit
+      ? latest.rewards[latest.picks[human.id]]
+      : 0
   const rootStyle = {
     '--boxed-out-vault': `url("${BOX_ASSET_BASE}vault-mobile.webp")`,
   } as CSSProperties
   const lock = () => {
-    if (selected === null || game.phase !== 'select') return
-    setRevealBeat('opening')
-    setGame((current) => (current ? resolveBoxedOutRound(current, selected) : current))
+    if (selected === null || game.phase !== 'select' || handoff || humanLocked) return
+    void SoundManager.play('ui:confirm', { volume: 0.45, durationMs: 500 })
+    setHumanLocked(true)
   }
-  const nextRound = () => {
-    if (game.round < BOXED_OUT_ROUNDS && totalActive > 1) playNewTurn()
-    setRemaining(SELECTION_SECONDS)
-    setSelected(null)
-    chosenBoxRef.current = null
-    setGame((current) => (current ? advanceBoxedOut(current) : current))
-  }
+  const nextRound = advanceWithCurtain
   const submitTiebreak = () => {
     if (!awaitingTiebreak || numericAnswer.trim() === '') return
     const answer = Number(numericAnswer)
@@ -379,22 +427,18 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
       ]
         .filter(Boolean)
         .join(' ')}
+      data-beat={reveal ? revealBeat : undefined}
+      data-human-result={humanWasHit ? 'hit' : 'safe'}
       style={rootStyle}
     >
       <header className="boxed-out__topbar">
         <span className="boxed-out__logo">
-          THE BIG EYE <span>·</span> BOXED OUT
+          THE BIG EYE <span>·</span> BOXPOCALYPSE
         </span>
         <span className="boxed-out__round">
           ROUND {game.round} / {BOXED_OUT_ROUNDS}
         </span>
       </header>
-      <section className="boxed-out__eye" aria-live="polite">
-        <span className="boxed-out__eye-icon" aria-hidden="true">
-          ◉
-        </span>
-        <p>{eyeMessage}</p>
-      </section>
       <div className="boxed-out__status">
         <div>
           <span className="boxed-out__stat-label">YOUR LIVES</span>
@@ -409,7 +453,11 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
                 key={i}
                 className={[
                   human && i < shownLives[human.id] ? 'is-live' : 'is-spent',
-                  revealBeat === 'impact' && humanWasHit && human && i === game.lives[human.id]
+                  reveal &&
+                  revealBeat === 'consequence' &&
+                  humanWasHit &&
+                  human &&
+                  i === game.lives[human.id]
                     ? 'is-loss'
                     : '',
                 ]
@@ -427,7 +475,9 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
         </div>
         <div className="boxed-out__status-right">
           <span className="boxed-out__stat-label">YOUR SCORE</span>
-          <strong>{human ? shownScores[human.id].toLocaleString('en-US') : '—'}</strong>
+          <strong>
+            <ScoreCounter value={human ? shownScores[human.id] : 0} />
+          </strong>
         </div>
       </div>
 
@@ -435,40 +485,102 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
         <>
           <div className={`boxed-out__instruction${!reveal && remaining <= 5 ? ' is-urgent' : ''}`}>
             {reveal
-              ? revealBeat === 'opening'
-                ? 'THE EYE OPENS'
-                : revealBeat === 'impact'
-                  ? 'THE CROWD IS JUDGED'
-                  : 'THE CHOICES ARE REVEALED'
-              : humanAlive
-                ? 'Pick a box. Avoid the crowd.'
-                : 'The contestants are choosing…'}
-            {!reveal && humanAlive && <span className="boxed-out__timer">{remaining}s</span>}
+              ? revealBeat === 'sealing'
+                ? 'CHOICE SEALED'
+                : revealBeat.startsWith('crowd-')
+                  ? 'WHERE DID EVERYONE GO?'
+                  : revealBeat === 'danger'
+                    ? 'THE CROWD HAS A PRICE'
+                    : revealBeat === 'impact'
+                      ? 'JUDGMENT'
+                      : revealBeat === 'consequence'
+                        ? humanWasHit
+                          ? 'ONE LIGHT LOST'
+                          : 'FORTUNE FAVOURS YOU'
+                        : revealBeat === 'elimination'
+                          ? 'THE FALLEN'
+                          : 'ROUND COMPLETE'
+              : humanLocked
+                ? 'Your choice is sealed.'
+                : humanAlive
+                  ? 'Pick a box. Avoid the crowd.'
+                  : 'The contestants are choosing…'}
+            {!reveal && awaitingHuman && <span className="boxed-out__timer">{remaining}s</span>}
           </div>
-          <div className="boxed-out__boxes">
-            {([0, 1, 2] as const).map((box) => (
-              <BoxedOutBox
-                key={box}
-                box={box}
-                value={game.rewards[box]}
-                selected={
-                  reveal
-                    ? human?.id !== undefined && latest?.picks[human.id] === box
-                    : selected === box
-                }
-                locked={reveal || !humanAlive}
-                revealed={reveal && revealBeat === 'settled'}
-                revealBeat={revealBeat}
-                occupancy={latest?.occupancy[box]}
-                exploded={reveal && latest?.exploded === box}
-                onSelect={() => {
-                  if (selected !== box) playSafeStep()
-                  chosenBoxRef.current = box
-                  setSelected(box)
-                }}
-              />
-            ))}
-          </div>
+          <motion.div
+            layout="size"
+            className="bo-board"
+            key={game.round}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{
+              layout: { duration: 0.55, ease: [0.16, 1, 0.3, 1] },
+              opacity: { duration: 0.45 },
+            }}
+          >
+            <div
+              className="boxed-out__boxes"
+              data-selection={!reveal ? (selected ?? undefined) : undefined}
+            >
+              {([0, 1, 2] as const).map((box) => (
+                <BoxedOutBox
+                  key={box}
+                  box={box}
+                  value={game.rewards[box]}
+                  selected={
+                    reveal
+                      ? human?.id !== undefined && latest?.picks[human.id] === box
+                      : selected === box
+                  }
+                  locked={reveal || !humanAlive || Boolean(handoff) || humanLocked}
+                  reveal={reveal}
+                  beat={revealBeat}
+                  names={
+                    reveal && latest
+                      ? latest.participants
+                          .filter((id) => latest.picks[id] === box)
+                          .map((id) => players.find((p) => p.id === id)?.name ?? id)
+                      : []
+                  }
+                  occupancy={latest?.occupancy[box]}
+                  exploded={Boolean(reveal && latest?.exploded === box)}
+                  onSelect={() => {
+                    if (selected !== box)
+                      void SoundManager.play('ui:wildcard_select', { volume: 0.4, durationMs: 250 })
+                    const choice = selected === box ? null : box
+                    chosenBoxRef.current = choice
+                    setSelected(choice)
+                  }}
+                />
+              ))}
+            </div>
+            <AnimatePresence>
+              {reveal &&
+                (revealBeat === 'consequence' || revealBeat === 'elimination') &&
+                latest && (
+                  <motion.div
+                    className="bo-event-wrap"
+                    key={revealBeat}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.3 }}
+                  >
+                    <RoundEvent
+                      beat={revealBeat}
+                      hit={humanWasHit}
+                      eliminated={humanWasEliminated}
+                      lives={human ? game.lives[human.id] : 0}
+                      gain={gain}
+                      split={latest.exploded === null}
+                      eliminatedNames={latest.eliminated.map(
+                        (id) => players.find((p) => p.id === id)?.name ?? id
+                      )}
+                    />
+                  </motion.div>
+                )}
+            </AnimatePresence>
+          </motion.div>
           {reveal && latest && revealBeat === 'settled' && (
             <div className="boxed-out__reveal" role="status" aria-live="polite">
               <strong>
@@ -503,6 +615,17 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
             <button className="boxed-out__cta boxed-out__cta--lock" type="button" onClick={lock}>
               LOCK MY BOX
             </button>
+          )}
+          {game.phase === 'select' && humanLocked && (
+            <p className="bo-locked-note" role="status">
+              Waiting for the other choices to be sealed…
+            </p>
+          )}
+          {game.phase === 'select' && (
+            <BoxedOutReadiness
+              players={game.players.filter((player) => game.lives[player.id] > 0)}
+              readyIds={new Set([...readyAiIds, ...(humanLocked && human ? [human.id] : [])])}
+            />
           )}
           {reveal && revealBeat === 'settled' && (
             <button
@@ -552,109 +675,181 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
         </section>
       )}
 
-      {ended && finaleBeat === 'judgment' && (
-        <section
-          className="boxed-out__panel boxed-out__judgment"
-          role="status"
-          aria-live="assertive"
+      {(ended || (allOutFinish && finaleBeat === 'apocalypse')) && (
+        <div
+          className={`bo-final-stage bo-final-stage--${finaleBeat}${reducedMotion ? ' bo-final-stage--reduced-motion' : ''}`}
         >
-          <span className="boxed-out__eyebrow">
-            {allOutFinish ? 'THE LAST GROUP HAS FALLEN' : 'THE EYE WEIGHS THE SCORES'}
-          </span>
-          <span className="boxed-out__judgment-eye" aria-hidden="true">
-            ◉
-          </span>
-          <h2>{allOutFinish ? 'Every life is gone.' : 'The verdict is sealed.'}</h2>
-          <p>
-            {allOutFinish
-              ? `The final group fell in Round ${latest?.round ?? game.round}. Banked score decides the last stand.`
-              : 'The Eye has counted every life and every point.'}
-          </p>
-        </section>
-      )}
-
-      {ended && finaleBeat === 'winner' && (
-        <section className="boxed-out__panel boxed-out__winner" role="status">
-          <span className="boxed-out__eyebrow">
-            {allOutFinish ? 'THE LAST STAND SCORE VERDICT' : 'THE BIG EYE DECLARES'}
-          </span>
-          <span className="boxed-out__trophy" aria-hidden="true">
-            ✦
-          </span>
-          <span className="boxed-out__winner-sparks" aria-hidden="true">
-            ✧ ✦ ✧ ✦ ✧
-          </span>
-          <h2>{winner?.name ?? 'Winner'}</h2>
-          <p>
-            {allOutFinish ? 'LAST STAND CHAMPION' : 'BOXED OUT CHAMPION'}
-            {allOutFinish && (
-              <span className="boxed-out__winner-detail">
-                Everyone in the final group lost their last life in Round{' '}
-                {latest?.round ?? game.round}. {winner?.name ?? 'The winner'} had the highest banked
-                score with {game.winnerId ? game.scores[game.winnerId].toLocaleString('en-US') : 0}{' '}
-                points.
-              </span>
-            )}
-          </p>
-          <button
-            className="boxed-out__cta"
-            type="button"
-            disabled={announced || !onFinish}
-            onClick={() => {
-              setAnnounced(true)
-              complete()
-            }}
-          >
-            CONTINUE
-          </button>
-        </section>
-      )}
-      <section className="boxed-out__leaderboard" aria-label="Contestant standings">
-        <div className="boxed-out__leaderboard-title">
-          STANDINGS <span>{game.players.length} CONTESTANTS</span>
-        </div>
-        <div className="boxed-out__rankings">
-          {rank.map((id, i) => {
-            const p = players.find((player) => player.id === id)
-            return (
-              <div
-                key={id}
-                className={[
-                  'boxed-out__ranking',
-                  shownLives[id] === 0 ? 'is-out' : '',
-                  ended && game.winnerId === id ? 'is-champion' : '',
-                  revealPending &&
-                  latest?.exploded !== null &&
-                  latest?.exploded !== undefined &&
-                  latest.picks[id] === latest.exploded
-                    ? 'is-losing-life'
-                    : '',
-                  revealPending && latest?.eliminated.includes(id) ? 'is-eliminating' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
+          <div className="bo-final-rays" aria-hidden="true">
+            {Array.from({ length: 9 }, (_, i) => (
+              <i key={i} style={{ '--ray': i } as CSSProperties} />
+            ))}
+          </div>
+          <AnimatePresence>
+            {allOutFinish && finaleBeat === 'apocalypse' && (
+              <motion.div
+                key="boxpocalypse"
+                className="bo-boxpocalypse-flash"
+                role="status"
+                aria-live="assertive"
+                initial={{ opacity: 0, scale: 1.22, filter: 'blur(12px)' }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, scale: 0.92, filter: 'blur(6px)' }}
+                transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
-                <span>{i + 1}</span>
-                <span className="boxed-out__contestant">
-                  {p?.name ?? id}
-                  {p?.isHuman ? ' (YOU)' : ''}
-                  {(shownLives[id] === 0 || (revealPending && latest?.eliminated.includes(id))) && (
-                    <span className="boxed-out__eliminated-stamp">OUT</span>
-                  )}
-                  {ended && game.winnerId === id && (
-                    <span className="boxed-out__champion-stamp">WIN</span>
-                  )}
+                <span>THE LAST BOXES FALL</span>
+                <strong>BOXPOCALYPSE</strong>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <AnimatePresence>
+            {finaleBeat === 'judgment' && (
+              <motion.section
+                key="judgment"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reducedMotion ? 0 : 0.45 }}
+                className="boxed-out__panel boxed-out__judgment"
+                role="status"
+                aria-live="assertive"
+              >
+                <span className="boxed-out__eyebrow">
+                  {allOutFinish ? 'THE LAST GROUP HAS FALLEN' : 'THE EYE WEIGHS THE SCORES'}
                 </span>
-                <span className="boxed-out__rank-lives">
-                  {'◉'.repeat(shownLives[id])}
-                  {'○'.repeat(BOXED_OUT_LIVES - shownLives[id])}
+                <span className="boxed-out__judgment-eye" aria-hidden="true">
+                  <EyeGlyph />
                 </span>
-                <strong>{shownScores[id].toLocaleString('en-US')}</strong>
-              </div>
-            )
-          })}
+                <h2>{allOutFinish ? 'Every life is gone.' : 'The verdict is sealed.'}</h2>
+                <p>
+                  {allOutFinish
+                    ? `The final group fell in Round ${latest?.round ?? game.round}. Banked score decides the last stand.`
+                    : 'The Eye has counted every life and every point.'}
+                </p>
+              </motion.section>
+            )}
+
+            {finaleBeat === 'winner' && (
+              <motion.section
+                key="winner"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reducedMotion ? 0 : 0.5 }}
+                className="boxed-out__panel boxed-out__winner"
+                role="status"
+              >
+                <span className="boxed-out__eyebrow">
+                  {allOutFinish ? 'THE LAST STAND SCORE VERDICT' : 'THE BIG EYE DECLARES'}
+                </span>
+                <span className="boxed-out__winner-seal" aria-hidden="true">
+                  <img src={`${BOX_ASSET_BASE}champion-crest.webp`} alt="" draggable={false} />
+                </span>
+                <h2 aria-label={winner?.name ?? 'Winner'}>
+                  {Array.from(winner?.name ?? 'Winner').map((letter, i) => (
+                    <span aria-hidden="true" key={i} style={{ '--letter': i } as CSSProperties}>
+                      {letter === ' ' ? ' ' : letter}
+                    </span>
+                  ))}
+                </h2>
+                <p>
+                  {allOutFinish ? 'LAST STAND CHAMPION' : 'BOXPOCALYPSE CHAMPION'}
+                  {allOutFinish && (
+                    <span className="boxed-out__winner-detail">
+                      Everyone in the final group lost their last life in Round{' '}
+                      {latest?.round ?? game.round}. {winner?.name ?? 'The winner'} had the highest
+                      banked score with{' '}
+                      {game.winnerId ? game.scores[game.winnerId].toLocaleString('en-US') : 0}{' '}
+                      points.
+                    </span>
+                  )}
+                </p>
+                <button
+                  className="boxed-out__cta"
+                  type="button"
+                  disabled={announced || !onFinish}
+                  onClick={() => {
+                    setAnnounced(true)
+                    complete()
+                  }}
+                >
+                  CONTINUE
+                </button>
+              </motion.section>
+            )}
+          </AnimatePresence>
         </div>
-      </section>
+      )}
+      {((reveal && revealBeat === 'settled') || ended || game.phase === 'tiebreak') && (
+        <motion.section
+          key="standings"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          layout="position"
+          transition={{ duration: reducedMotion ? 0 : 0.5 }}
+          className="boxed-out__leaderboard"
+          aria-label="Contestant standings"
+        >
+          <div className="boxed-out__leaderboard-title">
+            STANDINGS <span>{game.players.length} CONTESTANTS</span>
+          </div>
+          <div className="boxed-out__rankings">
+            {rank.map((id, i) => {
+              const p = players.find((player) => player.id === id)
+              return (
+                <motion.div
+                  key={id}
+                  layout="position"
+                  transition={{ duration: reducedMotion ? 0 : 0.65, ease: [0.2, 0.8, 0.2, 1] }}
+                  className={[
+                    'boxed-out__ranking',
+                    shownLives[id] === 0 &&
+                    (!reveal ||
+                      !latest?.eliminated.includes(id) ||
+                      reached(revealBeat, 'elimination'))
+                      ? 'is-out'
+                      : '',
+                    ended && finaleBeat === 'winner' && game.winnerId === id ? 'is-champion' : '',
+                    reveal &&
+                    revealBeat === 'consequence' &&
+                    latest?.exploded !== null &&
+                    latest?.exploded !== undefined &&
+                    latest.picks[id] === latest.exploded
+                      ? 'is-losing-life'
+                      : '',
+                    reveal && revealBeat === 'elimination' && latest?.eliminated.includes(id)
+                      ? 'is-eliminating'
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  <span>{i + 1}</span>
+                  <span className="boxed-out__contestant">
+                    {p?.name ?? id}
+                    {p?.isHuman ? ' (YOU)' : ''}
+                    {shownLives[id] === 0 &&
+                      (!reveal ||
+                        !latest?.eliminated.includes(id) ||
+                        reached(revealBeat, 'elimination')) && (
+                        <span className="boxed-out__eliminated-stamp">OUT</span>
+                      )}
+                    {ended && finaleBeat === 'winner' && game.winnerId === id && (
+                      <span className="boxed-out__champion-stamp">WIN</span>
+                    )}
+                  </span>
+                  <span className="boxed-out__rank-lives">
+                    {'◉'.repeat(shownLives[id])}
+                    {'○'.repeat(BOXED_OUT_LIVES - shownLives[id])}
+                  </span>
+                  <strong>
+                    <ScoreCounter value={shownScores[id]} />
+                  </strong>
+                </motion.div>
+              )
+            })}
+          </div>
+        </motion.section>
+      )}
       {!humanAlive && !ended && game.phase !== 'reveal' && (
         <button
           className="boxed-out__secondary"
@@ -663,6 +858,16 @@ export default function BoxedOut({ seed = 0, participants, participantIds, onFin
         >
           SKIP TO FINAL VERDICT
         </button>
+      )}
+      {handoff && (
+        <div className={`bo-handoff bo-handoff--${handoff.stage}`} role="status" aria-live="polite">
+          <span className="bo-handoff__leaf bo-handoff__leaf--left" aria-hidden="true" />
+          <span className="bo-handoff__leaf bo-handoff__leaf--right" aria-hidden="true" />
+          <div className="bo-handoff__title">
+            <EyeGlyph />
+            <span>{handoff.label}</span>
+          </div>
+        </div>
       )}
     </main>
   )

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { getGame, getPoolByFilter, supportsPlayerCount } from '../src/minigames/registry'
 import {
   BOXED_OUT_LIVES,
+  BOXED_OUT_MAX_PLAYERS,
   BOXED_OUT_ROUNDS,
   advanceBoxedOut,
   autoFinishBoxedOut,
@@ -28,13 +30,21 @@ function withSelections(picks: Record<string, BoxId>): BoxedOutState {
 }
 
 describe('BOXED OUT survival rules', () => {
+  it('is active in the shared Classic/Cupid/Survival pool for a full 16-player cast', () => {
+    const game = getGame('boxedOut')
+    expect(game?.retired).toBe(false)
+    expect(game?.weight).toBeGreaterThan(0)
+    expect(supportsPlayerCount(game!, 16)).toBe(true)
+    expect(getPoolByFilter({ retired: false }).map(({ key }) => key)).toContain('boxedOut')
+  })
+
   it('begins with exactly three lives and three different publicly assigned prizes', () => {
     const state = createBoxedOutState(players, 12345)
     expect(Object.values(state.lives)).toEqual([3, 3, 3, 3])
     expect(new Set(state.rewards).size).toBe(3)
     expect(BOXED_OUT_LIVES).toBe(3)
     expect(BOXED_OUT_ROUNDS).toBe(10)
-    expect(prizesForRound(12345, 10).sort((a, b) => a - b)).toEqual([240, 420, 700])
+    expect(prizesForRound(12345, 10).every((reward) => reward >= 100 && reward <= 500)).toBe(true)
   })
 
   it('explodes only the uniquely most popular box, awarding other boxes points', () => {
@@ -130,5 +140,15 @@ describe('BOXED OUT survival rules', () => {
   it('rejects malformed participant sets', () => {
     expect(() => createBoxedOutState([players[0], players[0]], 42)).toThrow()
     expect(() => createBoxedOutState([players[0]], 42)).toThrow()
+    const fullCast = Array.from({ length: 16 }, (_, index) => ({
+      id: `cast-${index}`,
+      name: `Cast ${index}`,
+      isHuman: false,
+    }))
+    expect(createBoxedOutState(fullCast, 42).players).toHaveLength(16)
+    expect(BOXED_OUT_MAX_PLAYERS).toBe(16)
+    expect(() =>
+      createBoxedOutState([...fullCast, { id: 'extra', name: 'Extra', isHuman: false }], 42)
+    ).toThrow()
   })
 })
