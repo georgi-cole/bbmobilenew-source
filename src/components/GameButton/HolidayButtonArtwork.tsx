@@ -40,6 +40,13 @@ export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey
           <path d="M 24 87 L 566 80 L 610 138 L 40 146 Z" fill="#090B20" opacity=".28" />
           <rect width="640" height="156" fill={`url(#${idPrefix}-sheen)`} opacity=".18" />
         </g>
+        <path
+          d={BUTTON_SHAPE}
+          fill="none"
+          stroke="rgba(225, 235, 255, 0.34)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
       </svg>
     </span>
   )
