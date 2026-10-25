@@ -1516,6 +1516,36 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
     minPlayers: 2,
   },
+
+  gatesOfTheEye: {
+    key: 'gatesOfTheEye',
+    title: 'Bigg Gates',
+    description:
+      'Choose among four shifting doors, keep a survival streak for bonus points, and outscore the other players.',
+    instructions: [
+      'Everyone starts with 3 lives. Each round offers four doors with different points and collapse chances.',
+      'Pick one door. Once everyone has chosen, the Eye selects exactly one door to collapse using that round’s displayed odds.',
+      'Everyone who chose the collapsed door loses one life, scores nothing, and resets their streak. Everyone else scores the door’s points plus any streak bonus they have earned.',
+      'Your second consecutive safe crossing adds a 10% bonus to that door’s points. Each later safe crossing adds 5 percentage points to the bonus.',
+      'If you reach 0 lives, you are eliminated. Your points stay banked.',
+      'A tied all-player collapse restores one life to the whole final group. A unique highest score in an all-player collapse wins.',
+      'The last player standing wins. If several players remain after Round 10, highest score wins; a tie continues into overtime.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'GatesOfTheEye',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
+  },
 }
 
 // ─── Helper functions ─────────────────────────────────────────────────────────

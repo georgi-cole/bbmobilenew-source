@@ -70,6 +70,12 @@ describe('Competition Director V1', () => {
     expect(totals.percentagePanic).toBeLessThan(1100)
   })
 
+  it('reuses Fit Me In’s director priority slots for Bigg Gates', () => {
+    for (const size of [5, 6, 8, 9, 10]) {
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS).toContain('gatesOfTheEye')
+      expect(keys(context(size, 'POS'))).toContain('gatesOfTheEye')
+    }
+  })
   it('preserves first-season introduction order for both spinoffs', () => {
     const withoutOriginal = keys(context(8, 'LOH', 10))
     expect(withoutOriginal).not.toContain('crystal_path_shattered')
