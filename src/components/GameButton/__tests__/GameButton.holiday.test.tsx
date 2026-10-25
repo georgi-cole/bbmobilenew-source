@@ -19,6 +19,7 @@ describe('GameButton holiday treatment', () => {
     const glassSurface = button.querySelector('.btn-holiday-artwork__glass')
     expect(button).toHaveClass(`game-btn--holiday-${key}`)
     expect(artwork).toHaveAttribute('data-theme', key)
+    expect(artwork?.lastElementChild).toHaveAttribute('stroke', 'rgba(225, 235, 255, 0.34)')
     expect(glassSurface).toBeInTheDocument()
     expect(glassSurface?.getAttribute('style')).toContain('111, 86, 255')
     expect(glassSurface?.getAttribute('style')).toContain('rgba(10, 14, 24, 0.06)')
