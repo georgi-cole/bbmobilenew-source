@@ -680,7 +680,17 @@ export default function TvZone(props: TvZoneProps) {
     // with that new phase. Preserve that latest visible result in the faux TV
     // instead of presenting an empty viewport during the handoff.
     latestUnconsumedEvent
-  const guestSaveReminderQueued = displayedEvent?.meta?.guestModeSaveWarning === true
+  // Older guest reminders may already be in a browser's persisted TV feed
+  // without the marker added for the branded TV treatment. Recognize that
+  // copy too, so a player who has already reached the reminder sees the new
+  // presentation after updating rather than replaying the plain-text version.
+  const guestSaveReminderQueued = Boolean(
+    displayedEvent &&
+    (displayedEvent.meta?.guestModeSaveWarning === true ||
+      (/playing as a guest/i.test(displayedEvent.text) &&
+        /progress won't be saved|season won't be saved/i.test(displayedEvent.text) &&
+        /more\s*(?:→|then|,).*profile/i.test(displayedEvent.text)))
+  )
   // The weather bulletin has its own full-viewport card. Do not briefly mount
   // the older day-start/day-end transition card underneath it while the
   // bulletin portal resolves its TV target.
