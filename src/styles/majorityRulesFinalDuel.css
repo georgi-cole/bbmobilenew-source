@@ -1,4 +1,4 @@
-/* Majority Rules final-two viewport guard.
+/* Legacy Majority Rules final-two viewport guard.
  *
  * The generic Majority Rules stage intentionally clips vertical overflow so the
  * normal question/reveal phases stay assembled inside the minigame viewport.
@@ -7,15 +7,17 @@
  * action below the viewport.
  */
 
-.majority-rules-shell[data-phase='final_duel_pick'],
-.majority-rules-shell[data-phase='final_duel_roll'] {
+.majority-rules-shell[data-presentation='standard'][data-phase='final_duel_pick'],
+.majority-rules-shell[data-presentation='standard'][data-phase='final_duel_roll'] {
   align-content: start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
 
-.majority-rules-shell[data-phase='final_duel_pick'] .majority-rules-card--duel,
-.majority-rules-shell[data-phase='final_duel_roll'] .majority-rules-card--duel {
+.majority-rules-shell[data-presentation='standard'][data-phase='final_duel_pick']
+  .majority-rules-card--duel,
+.majority-rules-shell[data-presentation='standard'][data-phase='final_duel_roll']
+  .majority-rules-card--duel {
   height: auto;
   min-height: 100%;
   max-height: none;
