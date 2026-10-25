@@ -1119,7 +1119,11 @@ export default function MinigameHost({
         phase !== 'results' &&
         createPortal(
           <div
-            className="minigame-exit-confirm-overlay"
+            className={`minigame-exit-confirm-overlay${
+              launchedGame.reactComponentKey === 'GatesOfTheEye'
+                ? ' minigame-exit-confirm-overlay--obsidian'
+                : ''
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="Leave competition confirmation"

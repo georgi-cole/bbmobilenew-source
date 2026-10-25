@@ -45,8 +45,8 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   tiltLabyrinth: { kind: 'keyboard', primaryInput: 'keyboard/drag direction' },
   threeDigitsQuiz: { kind: 'choice', primaryInput: 'numeric answer choice' },
   capitalization: { kind: 'keyboard', primaryInput: 'capitalized text entry' },
-  tetris: { kind: 'keyboard', primaryInput: 'move and rotate controls' },
   minesweeps: { kind: 'board', primaryInput: 'reveal and flag tiles' },
+  gatesOfTheEye: { kind: 'choice', primaryInput: 'risk-and-reward door choice' },
   dontGoOver: { kind: 'keyboard', primaryInput: 'numeric estimate' },
   blackjackTournament: { kind: 'choice', primaryInput: 'card actions' },
   riskWheel: { kind: 'choice', primaryInput: 'spin and wager choices' },
@@ -642,6 +642,34 @@ async function playPercentagePanicTurn(host: Locator, random: SeededRandom): Pro
   return enterFinal ? clickWithShortTimeout(enterFinal, random.int(20, 85), true) : false
 }
 
+async function playGatesOfTheEyeTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const watchRound = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'Watch this round', exact: true })
+  )
+  if (watchRound) return clickWithShortTimeout(watchRound, random.int(20, 85), true)
+
+  const nextRound = await firstVisibleEnabled(host.getByRole('button', { name: /^Round \d+$/ }))
+  if (nextRound) return clickWithShortTimeout(nextRound, random.int(20, 85), true)
+
+  const doorGroup = host.getByRole('radiogroup', { name: 'Choose a door' })
+  const doors = doorGroup.getByRole('radio')
+  const doorCount = await doors.count()
+  if (doorCount > 0) {
+    if ((await doorGroup.getByRole('radio', { checked: true }).count()) === 0) {
+      await clickWithShortTimeout(doors.nth(random.int(0, doorCount - 1)), 0, true)
+    }
+    const sealDoor = await firstVisibleEnabled(host.getByRole('button', { name: /^Seal Door / }))
+    if (sealDoor) return clickWithShortTimeout(sealDoor, random.int(20, 85), true)
+  }
+
+  // The Eye resolves after its visible opening and collapse beats. Let those
+  // animations settle before the simulation asks the driver for another action.
+  await host
+    .locator('.gate-round-result')
+    .waitFor({ state: 'visible', timeout: 4_500 })
+    .catch(() => undefined)
+  return false
+}
 async function firstVisibleEnabled(locator: Locator): Promise<Locator | null> {
   for (let index = 0; index < (await locator.count()); index += 1) {
     const candidate = locator.nth(index)
@@ -2293,6 +2321,8 @@ export async function playVisibleMinigame(
     interacted = await playRescueTheKingTurn(page, host)
   } else if (gameKey === 'batteryLow') {
     interacted = await playBatteryLowTurn(page, host, random)
+  } else if (gameKey === 'gatesOfTheEye') {
+    interacted = await playGatesOfTheEyeTurn(host, random)
   } else if (gameKey === 'majorityRules') {
     const skipSpectator = await firstVisibleEnabled(
       page.getByRole('button', { name: 'Skip to results', exact: true })

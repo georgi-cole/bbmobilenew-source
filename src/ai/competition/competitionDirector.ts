@@ -37,11 +37,11 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
   },
   10: {
     LOH: ['chainOfGreed', 'silentSaboteur', 'batteryLow'],
-    POS: ['tetris', 'quickTapSeasons'],
+    POS: ['gatesOfTheEye', 'quickTapSeasons'],
   },
   9: {
     LOH: ['glass_bridge_brutal', 'crystal_path_shattered', 'chainOfGreed', 'trapAuction'],
-    POS: ['tetris', 'minesweeps'],
+    POS: ['gatesOfTheEye', 'minesweeps'],
   },
   8: {
     LOH: [
@@ -51,7 +51,7 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
       'wildcardWestern',
       'trapAuction',
     ],
-    POS: ['minesweeps', 'tetris'],
+    POS: ['minesweeps', 'gatesOfTheEye'],
   },
   7: {
     LOH: [
@@ -65,11 +65,11 @@ export const COMPETITION_DIRECTOR_PREFERENCES: Record<number, PreferredGames> = 
   },
   6: {
     LOH: ['wildcardWestern', 'houseOfDarkness', 'castleRescue2'],
-    POS: ['tetris', 'minesweeps'],
+    POS: ['gatesOfTheEye', 'minesweeps'],
   },
   5: {
     LOH: ['castleRescue2', 'houseOfDarkness', 'pressurePlank'],
-    POS: ['mysticChamber', 'tetris'],
+    POS: ['mysticChamber', 'gatesOfTheEye'],
   },
   4: {
     LOH: ['houseOfDarkness', 'castleRescue2', 'holdWall'],
@@ -89,6 +89,7 @@ export const COMPETITION_PACING_LIMITS: Readonly<Record<string, { min: number; m
   castleRescue2: { min: 4, max: 6 },
   houseOfDarkness: { min: 4, max: 8 },
   mysticChamber: { min: 4, max: 5 },
+  gatesOfTheEye: { min: 3, max: 10 },
 }
 
 const STORY_MIN_DAY: Readonly<Record<string, number>> = {
