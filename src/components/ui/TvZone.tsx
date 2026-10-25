@@ -680,6 +680,7 @@ export default function TvZone(props: TvZoneProps) {
     // with that new phase. Preserve that latest visible result in the faux TV
     // instead of presenting an empty viewport during the handoff.
     latestUnconsumedEvent
+  const guestSaveReminderQueued = displayedEvent?.meta?.guestModeSaveWarning === true
   // The weather bulletin has its own full-viewport card. Do not briefly mount
   // the older day-start/day-end transition card underneath it while the
   // bulletin portal resolves its TV target.
@@ -794,6 +795,9 @@ export default function TvZone(props: TvZoneProps) {
 
   // Event-based announcement: only explicit meta.major / ev.major (no text heuristics).
   const eventAnnouncement = useMemo<Announcement | null>(() => {
+    // The Day 1 guest reminder is a regular on-air segment. Let it use the TV
+    // message stage before the competition title card takes over.
+    if (guestSaveReminderQueued) return null
     const announcementEvent =
       seasonStartExpansionEvent ??
       (queuedBroadcastIsCard ? queuedBroadcastEvent : null) ??
@@ -823,6 +827,7 @@ export default function TvZone(props: TvZoneProps) {
     return majorKey ? buildAnnouncement(majorKey, announcementEvent) : null
   }, [
     announcementPrerollEvent,
+    guestSaveReminderQueued,
     seasonStartExpansionEvent,
     queuedBroadcastIsCard,
     priorityBroadcastEvent,
@@ -1010,9 +1015,11 @@ export default function TvZone(props: TvZoneProps) {
     : undefined
   const viewportDisplayText =
     viewportMessageOverride ??
-    (cupidFollowUpVisible
-      ? cupidFollowUpAnnouncement.subtitle
-      : (dailyTransitionTitle ?? displayedEventText))
+    (guestSaveReminderQueued
+      ? 'Guest mode. Create a profile to keep your season.'
+      : cupidFollowUpVisible
+        ? cupidFollowUpAnnouncement.subtitle
+        : (dailyTransitionTitle ?? displayedEventText))
   const baseViewportMessageKey = getViewportMessageKey(displayedEvent)
   const viewportMessageKey = viewportMessageOverride
     ? `override-${viewportMessageOverride}`
@@ -1030,7 +1037,9 @@ export default function TvZone(props: TvZoneProps) {
         ? cupidFollowUpAnnouncement.subtitle
         : activeAnnouncement.title
   } else {
-    mainTvMessage = displayedEventText
+    mainTvMessage = guestSaveReminderQueued
+      ? 'Guest mode. Create a profile to keep your season. Open More, then Profile, then Create Profile.'
+      : displayedEventText
   }
 
   useEffect(() => {
@@ -1878,23 +1887,50 @@ export default function TvZone(props: TvZoneProps) {
                 .filter(Boolean)
                 .join(' ')}
             >
-              <p
-                key={viewportMessageKey}
-                aria-hidden={hideViewportMessage}
-                className={[
-                  'tv-zone__now',
-                  cupidFollowUpVisible ? 'tv-zone__now--cupid-follow-up' : '',
-                  depressionShockRainyTv ? 'tv-zone__now--depression-shock' : '',
-                  !detoxMessageActive && displayedEvent ? 'tv-zone__now--quick-transition' : '',
-                  detoxMessageActive ? 'tv-zone__now--detox-stream' : '',
-                  hideViewportMessage ? 'tv-zone__now--hidden' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={hideViewportMessage ? { opacity: 0 } : undefined}
-              >
-                {viewportDisplayText}
-              </p>
+              {guestSaveReminderQueued ? (
+                <section
+                  className={`tv-zone__guest-save${hideViewportMessage ? ' tv-zone__guest-save--hidden' : ''}`}
+                  aria-label="Guest mode save reminder"
+                  role="status"
+                >
+                  <div className="tv-zone__guest-save-brand">
+                    <span className="tv-zone__guest-save-live-dot" aria-hidden="true" />
+                    THE BIG EYE <span>•</span> PLAYER UPDATE
+                  </div>
+                  <h2 className="tv-zone__guest-save-title">Keep your season</h2>
+                  <p className="tv-zone__guest-save-copy">
+                    You’re playing as a guest, so this progress won’t be saved.
+                  </p>
+                  <div
+                    className="tv-zone__guest-save-path"
+                    aria-label="More, Profile, Create Profile"
+                  >
+                    <span>MORE</span>
+                    <i aria-hidden="true">•</i>
+                    <span>PROFILE</span>
+                    <i aria-hidden="true">•</i>
+                    <strong>CREATE PROFILE</strong>
+                  </div>
+                </section>
+              ) : (
+                <p
+                  key={viewportMessageKey}
+                  aria-hidden={hideViewportMessage}
+                  className={[
+                    'tv-zone__now',
+                    cupidFollowUpVisible ? 'tv-zone__now--cupid-follow-up' : '',
+                    depressionShockRainyTv ? 'tv-zone__now--depression-shock' : '',
+                    !detoxMessageActive && displayedEvent ? 'tv-zone__now--quick-transition' : '',
+                    detoxMessageActive ? 'tv-zone__now--detox-stream' : '',
+                    hideViewportMessage ? 'tv-zone__now--hidden' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={hideViewportMessage ? { opacity: 0 } : undefined}
+                >
+                  {viewportDisplayText}
+                </p>
+              )}
             </div>
 
             {/* Twist badge — broadcast-style corner ribbon anchored to the viewport */}

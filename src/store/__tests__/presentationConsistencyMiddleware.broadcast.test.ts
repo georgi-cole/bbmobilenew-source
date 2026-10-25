@@ -101,7 +101,7 @@ describe('presentationConsistencyMiddleware important broadcasts', () => {
       expect.objectContaining({
         type: 'game/addTvEvent',
         payload: expect.objectContaining({
-          text: expect.stringContaining('More → Profile → Create Profile'),
+          text: expect.stringContaining('Create a profile'),
           channels: ['tv', 'mainLog'],
           meta: expect.objectContaining({
             phase: 'loh_comp_announcement',
@@ -109,6 +109,7 @@ describe('presentationConsistencyMiddleware important broadcasts', () => {
             broadcastDelivery: 'next',
             broadcastLevel: 'minor',
             forceOnTv: true,
+            guestModeSaveWarning: true,
           }),
         }),
       })

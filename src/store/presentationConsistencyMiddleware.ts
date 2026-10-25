@@ -24,7 +24,7 @@ type AddTvEventAction = GenericAction & {
 const VOX_IMMUNITY_COMPETITION_COPY =
   'The Immunity Competition has begun! 🛡️ Who will secure safety today?'
 const GUEST_MODE_SAVE_WARNING =
-  "You're playing as a guest, so your progress won't be saved. Go to More → Profile → Create Profile to save it."
+  "You're playing as a guest, so this season won't be saved. Create a profile from More, then Profile, to keep your progress."
 const AUTHORIZE_VOX_AUDIENCE_VOTE_ACTION = 'presentation/authorizeVoxAudienceVoteResolution'
 const COMMIT_VOX_AUDIENCE_VOTE_ACTION = 'game/commitVoxAudienceVote'
 
@@ -179,6 +179,7 @@ function addGuestModeSaveWarning(
         broadcastDelivery: 'next',
         broadcastLevel: 'minor',
         forceOnTv: true,
+        guestModeSaveWarning: true,
         phase: 'loh_comp_announcement',
         week: 1,
       },

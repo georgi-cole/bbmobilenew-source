@@ -530,6 +530,8 @@ export default function EditProfile() {
             <option value="">Not specified — ask me in-game when needed</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
+            <option value="Other">Other</option>
+            <option value="Prefer not to say">Prefer not to say</option>
           </select>
         </div>
         <div className="edit-profile__field">

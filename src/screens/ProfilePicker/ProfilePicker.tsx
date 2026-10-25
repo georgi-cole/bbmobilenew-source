@@ -34,6 +34,7 @@ import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import './ProfilePicker.css'
 
 const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
+const PROFILE_SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
 
 const SAFE_PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
@@ -97,7 +98,7 @@ export default function ProfilePicker() {
     Number.isInteger(parsedNewAge) &&
     parsedNewAge >= 0 &&
     parsedNewAge <= 120 &&
-    ['Male', 'Female'].includes(newSex)
+    PROFILE_SEX_OPTIONS.includes(newSex as (typeof PROFILE_SEX_OPTIONS)[number])
 
   useEffect(() => {
     async function loadPhotos() {
@@ -417,17 +418,43 @@ export default function ProfilePicker() {
           )}
 
           {!showCreateForm ? (
-            <button
-              type="button"
-              className="profile-picker__btn profile-picker__btn--create"
-              style={{ width: '100%', marginBottom: 12 }}
-              onClick={() => setShowCreateForm(true)}
-            >
-              ➕ Create New Profile
-            </button>
+            <>
+              {isGuest && (
+                <div className="profile-picker__save-invite" role="note">
+                  <span className="profile-picker__save-invite-icon" aria-hidden="true">
+                    ✦
+                  </span>
+                  <span>
+                    <strong>Keep your season</strong>
+                    <small>Create a profile to save your progress.</small>
+                  </span>
+                </div>
+              )}
+              <button
+                type="button"
+                className={`profile-picker__btn profile-picker__btn--create${isGuest ? ' profile-picker__btn--save-spotlight' : ''}`}
+                style={{ width: '100%', marginBottom: 12 }}
+                onClick={() => setShowCreateForm(true)}
+              >
+                ➕ Create New Profile
+              </button>
+            </>
           ) : (
-            <div className="profile-picker__create">
+            <div
+              className={`profile-picker__create${isGuest ? ' profile-picker__create--save-spotlight' : ''}`}
+            >
               <p className="profile-picker__create-title">New Profile</p>
+              {isGuest && (
+                <div className="profile-picker__save-invite" role="note">
+                  <span className="profile-picker__save-invite-icon" aria-hidden="true">
+                    ✦
+                  </span>
+                  <span>
+                    <strong>Save this season to your profile</strong>
+                    <small>Your current progress will stay right where it is.</small>
+                  </span>
+                </div>
+              )}
               <div className="profile-picker__create-photo-section">
                 <div className="profile-picker__create-photo-wrap">
                   {newPhotoPreview ? (
@@ -506,6 +533,8 @@ export default function ProfilePicker() {
                 </option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
               </select>
               <div className="profile-picker__avatar-grid">
                 {AVATAR_OPTIONS.map((em) => (
