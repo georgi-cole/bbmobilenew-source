@@ -1,5 +1,5 @@
 import type { Ref } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { setHouseMenuAudioEffect } from '../../services/sound/audioRouteOwnership'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -38,6 +38,34 @@ function useNotificationLed(
   }, [currentValue, notifyOnAnyChange])
 
   return [active, () => setActive(false)] as const
+}
+
+function GuestSaveSpotlightOverlay({ target }: { target: 'more' | 'profile' }) {
+  const shadeRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const element = document.querySelector<HTMLElement>(`[data-guest-save-step="${target}"]`)
+    const shade = shadeRef.current
+    if (!element || !shade) return undefined
+
+    const rect = element.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const radius = Math.max(rect.width, rect.height) / 2 + 10
+    shade.style.setProperty('--guest-save-x', `${centerX}px`)
+    shade.style.setProperty('--guest-save-y', `${centerY}px`)
+    shade.style.setProperty('--guest-save-clear-radius', `${radius}px`)
+    shade.style.setProperty('--guest-save-feather-radius', `${radius + 22}px`)
+
+    return undefined
+  }, [target])
+
+  return createPortal(
+    <div className="guest-save-spotlight" aria-hidden="true" data-testid="guest-save-spotlight">
+      <div className="guest-save-spotlight__shade" ref={shadeRef} />
+    </div>,
+    document.body
+  )
 }
 
 export interface GameControlDockProps {
@@ -481,6 +509,12 @@ export default function GameControlDock({
   return (
     <>
       <AllPowerFauxTvEffect />
+      {guestSaveInviteActive && (
+        <GuestSaveSpotlightOverlay
+          key={moreOpen ? 'profile' : 'more'}
+          target={moreOpen ? 'profile' : 'more'}
+        />
+      )}
       {elevatedDuringOverlay ? createPortal(navigation, document.body) : navigation}
     </>
   )

@@ -53,6 +53,7 @@ test('guest Day 1 notice guides profile creation and preserves the current seaso
     'You’re playing as a guest, so your progress won’t be saved.'
   )
   await expect(reminder).toContainText('Create a profile from More to save your season.')
+  await expect(page.getByTestId('guest-save-spotlight')).toBeVisible()
   await page.screenshot({ path: 'test-results/guest-save-reminder-preview.png' })
   await expect(page.locator('.tv-zone__phase-chip')).toHaveAttribute('aria-label', 'HUB UPDATE')
   await expect(reminder.locator('.tv-zone__guest-save-copy')).toHaveCSS('white-space', 'nowrap')
@@ -72,6 +73,7 @@ test('guest Day 1 notice guides profile creation and preserves the current seaso
   const moreMenu = page.getByRole('menu', { name: 'More destinations' })
   const profileMenuItem = moreMenu.getByRole('menuitem', { name: 'Profile', exact: true })
   await expect(profileMenuItem).toHaveAttribute('data-guest-save-step', 'profile')
+  await expect(page.getByTestId('guest-save-spotlight')).toBeVisible()
   await profileMenuItem.click()
 
   await expect(page.getByRole('button', { name: 'Create Profile', exact: true })).toBeVisible()

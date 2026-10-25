@@ -330,6 +330,40 @@ body.mode-surveyeval .fab-icon.confessional {
   animation: guestSaveCircularSpotlight 1.3s cubic-bezier(0.22, 1, 0.36, 1) 2;
 }
 
+.guest-save-spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  pointer-events: none;
+}
+
+.guest-save-spotlight__shade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--guest-save-x) var(--guest-save-y),
+    rgba(6, 7, 17, 0) 0,
+    rgba(6, 7, 17, 0) var(--guest-save-clear-radius),
+    rgba(18, 20, 42, 0.08) calc(var(--guest-save-clear-radius) + 8px),
+    rgba(6, 7, 17, 0.58) var(--guest-save-feather-radius),
+    rgba(6, 7, 17, 0.58) 100%
+  );
+  animation: guestSaveSpotlightDim 1.6s ease-out both;
+}
+
+@keyframes guestSaveSpotlightDim {
+  0% {
+    opacity: 0;
+  }
+  22%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes guestSaveCircularSpotlight {
   0% {
     opacity: 0;
