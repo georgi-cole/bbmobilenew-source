@@ -11,7 +11,7 @@ import './MinigameLab.css'
 const DEFAULT_SEED = 424242
 const DEFAULT_PLAYERS = 4
 const MIN_PLAYERS = 2
-const MAX_PLAYERS = 12
+const MAX_PLAYERS = 16
 const MIN_SEED = 0
 const MAX_SEED = Number.MAX_SAFE_INTEGER
 export const KEYBOARD_GAME_KEYS = [
@@ -104,6 +104,9 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
   const [skipRules, setSkipRules] = useState(() => readInitialFlag('skipRules', true))
   const [skipCountdown, setSkipCountdown] = useState(() => readInitialFlag('skipCountdown', true))
   const [premiumPreview, setPremiumPreview] = useState(() => readInitialFlag('vipPreview', false))
+  const [quickTapVipPreview, setQuickTapVipPreview] = useState(() =>
+    readInitialFlag('quickTapVip', false)
+  )
   const [previewStage, setPreviewStage] = useState(() => {
     const stage = params.get('stage')
     return stage === 'final' || stage === 'round6' || stage === 'final2' ? stage : ''
@@ -136,7 +139,7 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
           ? previewStage
           : ''
         : ''
-  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${validPreviewStage}:${previewNonce}`
+  const previewKey = `${selectedGame?.key ?? 'unknown'}:${seed}:${playerCount}:${skipRules ? 1 : 0}:${skipCountdown ? 1 : 0}:${premiumPreview ? 1 : 0}:${quickTapVipPreview ? 1 : 0}:${validPreviewStage}:${previewNonce}`
 
   useEffect(() => {
     if (import.meta.env.DEV && testCompetitionContext === 'loh') {
@@ -185,6 +188,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
     clearLastResult()
   }
 
+  const handleQuickTapVipPreviewChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setQuickTapVipPreview(event.currentTarget.checked)
+    clearLastResult()
+  }
+
   const handleRestartPreview = () => {
     setPreviewNonce((current) => current + 1)
     clearLastResult()
@@ -209,6 +217,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
               seed,
               labPreview: true,
               minigameLabPreview: true,
+              quickTapVariantPreview:
+                import.meta.env.DEV &&
+                (selectedGame.key === 'quickTap' || selectedGame.key === 'quickTapSeasons')
+                  ? quickTapVipPreview
+                  : undefined,
               capitalizationContext,
               previewStage: validPreviewStage || undefined,
             }}
@@ -367,6 +380,18 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             <span>VIP presentation</span>
           </label>
 
+          {(selectedGame?.key === 'quickTap' || selectedGame?.key === 'quickTapSeasons') &&
+            import.meta.env.DEV && (
+              <label className="minigame-lab__toggle">
+                <input
+                  type="checkbox"
+                  checked={quickTapVipPreview}
+                  onChange={handleQuickTapVipPreviewChange}
+                />
+                <span>Quick Tap / Seasons VIP rules</span>
+              </label>
+            )}
+
           <button type="button" className="minigame-lab__restart" onClick={handleRestartPreview}>
             Restart preview
           </button>
@@ -403,6 +428,11 @@ export default function MinigameLab({ keyboardGamesOnly = false }: MinigameLabPr
             seed,
             labPreview: true,
             minigameLabPreview: true,
+            quickTapVariantPreview:
+              import.meta.env.DEV &&
+              (selectedGame.key === 'quickTap' || selectedGame.key === 'quickTapSeasons')
+                ? quickTapVipPreview
+                : undefined,
             capitalizationContext,
             previewStage: validPreviewStage || undefined,
           }}
