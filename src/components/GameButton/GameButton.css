@@ -164,6 +164,7 @@
   inset: 0;
   z-index: 2;
   isolation: isolate;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -186,7 +187,7 @@
   );
   -webkit-backdrop-filter: blur(9px) saturate(165%);
   backdrop-filter: blur(9px) saturate(165%);
-  filter: drop-shadow(0 5px 12px rgba(5, 7, 12, 0.28));
+  filter: drop-shadow(0 4px 8px rgba(5, 7, 12, 0.24));
 }
 
 .btn-holiday-artwork svg {
@@ -264,37 +265,44 @@
 
 /* Variant sizing hints to maintain SVG aspect ratios */
 .game-btn--primary_large {
-  width: min(88%, 320px);
+  width: min(80%, 288px);
   min-height: 60px;
 }
 
+.game-btn--holiday.game-btn--primary_large {
+  width: min(82%, 296px);
+}
+
 .game-btn--secondary_medium {
-  width: min(80%, 260px);
+  width: min(72%, 234px);
   min-height: 52px;
 }
 
 .game-btn--secondary_wide {
-  width: min(86%, 300px);
+  width: min(78%, 270px);
   min-height: 52px;
 }
 
 .game-btn--secondary_small {
-  width: min(72%, 220px);
+  width: min(65%, 198px);
   min-height: 48px;
 }
 
 @media (max-width: 420px) {
   .game-btn--primary_large {
-    width: 92%;
+    width: min(84%, 288px);
+  }
+  .game-btn--holiday.game-btn--primary_large {
+    width: min(86%, 296px);
   }
   .game-btn--secondary_medium {
-    width: 84%;
+    width: min(76%, 234px);
   }
   .game-btn--secondary_wide {
-    width: 90%;
+    width: min(82%, 270px);
   }
   .game-btn--secondary_small {
-    width: 78%;
+    width: min(70%, 198px);
   }
 
   .btn-content {

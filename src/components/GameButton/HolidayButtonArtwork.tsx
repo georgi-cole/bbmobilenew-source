@@ -43,7 +43,7 @@ export default function HolidayButtonArtwork({ theme }: { theme: HolidayThemeKey
         <path
           d={BUTTON_SHAPE}
           fill="none"
-          stroke="rgba(225, 235, 255, 0.34)"
+          stroke="rgba(225, 235, 255, 0.42)"
           strokeWidth="2"
           strokeLinejoin="round"
         />
