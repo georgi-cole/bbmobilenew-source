@@ -61,6 +61,7 @@ export const MINIGAME_DRIVER_PROFILES: Readonly<Record<string, MinigameDriverPro
   mysticChamber: { kind: 'choice', primaryInput: 'power and target choices' },
   chainOfGreed: { kind: 'choice', primaryInput: 'split, steal, vote, or duel choice' },
   batteryLow: { kind: 'choice', primaryInput: 'reserve and bank choices' },
+  boxedOut: { kind: 'choice', primaryInput: 'box choice and lock-in' },
   houseOfDarkness: { kind: 'memory', primaryInput: 'memory-card selection' },
   finalThreeCircuit: { kind: 'finale', primaryInput: 'six visible finale stages' },
   downMemoryLane: { kind: 'choice', primaryInput: 'buzz and season-history answer' },
@@ -668,6 +669,42 @@ async function playGatesOfTheEyeTurn(host: Locator, random: SeededRandom): Promi
     .locator('.gate-round-result')
     .waitFor({ state: 'visible', timeout: 4_500 })
     .catch(() => undefined)
+  return false
+}
+
+async function playBoxpocalypseTurn(host: Locator, random: SeededRandom): Promise<boolean> {
+  const continueButton = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'CONTINUE', exact: true })
+  )
+  if (continueButton) return clickWithShortTimeout(continueButton, random.int(20, 85), true)
+
+  const nextRound = await firstVisibleEnabled(host.getByRole('button', { name: /^ROUND \d+$/ }))
+  if (nextRound) return clickWithShortTimeout(nextRound, random.int(20, 85), true)
+
+  const lockBox = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'LOCK MY BOX', exact: true })
+  )
+  if (lockBox) return clickWithShortTimeout(lockBox, random.int(20, 85), true)
+
+  const boxes = host.getByRole('button', { name: /^Box [ABC]:/ })
+  const boxCount = await boxes.count()
+  if (boxCount > 0) {
+    const unselected = host.locator('.boxed-out-box[aria-pressed="false"]')
+    const availableCount = await unselected.count()
+    const choice = availableCount > 0 ? unselected : boxes
+    const count = await choice.count()
+    if (count > 0) return clickWithShortTimeout(choice.nth(random.int(0, count - 1)), 20, true)
+  }
+
+  const tiebreakSubmit = await firstVisibleEnabled(
+    host.getByRole('button', { name: 'LOCK ANSWER', exact: true })
+  )
+  if (tiebreakSubmit) {
+    const answer = host.getByLabel('Your answer')
+    await answer.fill(String(random.int(1, 100)))
+    return clickWithShortTimeout(tiebreakSubmit, random.int(20, 85), true)
+  }
+
   return false
 }
 async function firstVisibleEnabled(locator: Locator): Promise<Locator | null> {
@@ -2323,6 +2360,8 @@ export async function playVisibleMinigame(
     interacted = await playBatteryLowTurn(page, host, random)
   } else if (gameKey === 'gatesOfTheEye') {
     interacted = await playGatesOfTheEyeTurn(host, random)
+  } else if (gameKey === 'boxedOut') {
+    interacted = await playBoxpocalypseTurn(host, random)
   } else if (gameKey === 'majorityRules') {
     const skipSpectator = await firstVisibleEnabled(
       page.getByRole('button', { name: 'Skip to results', exact: true })
