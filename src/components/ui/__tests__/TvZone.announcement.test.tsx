@@ -35,7 +35,7 @@ import gameReducer, {
   updatePlayer,
 } from '../../../store/gameSlice'
 import socialReducer from '../../../social/socialSlice'
-import profilesReducer from '../../../store/profilesSlice'
+import profilesReducer, { enterGuestMode } from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../../../constants/tvEvents'
 import finaleReducer from '../../../store/finaleSlice'
@@ -1909,6 +1909,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
   it('shows the guest save reminder as a minor TV segment before the LOH title card', () => {
     const store = makeStore()
+    act(() => store.dispatch(enterGuestMode()))
     renderTvZone(store)
 
     act(() => {
@@ -1942,6 +1943,7 @@ describe('TvZone — phase-based announcement triggers', () => {
 
   it('upgrades a previously saved plain-text guest reminder to the TV segment', () => {
     const store = makeStore()
+    act(() => store.dispatch(enterGuestMode()))
     renderTvZone(store)
 
     act(() => {

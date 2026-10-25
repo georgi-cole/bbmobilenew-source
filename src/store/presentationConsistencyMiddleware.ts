@@ -3,6 +3,7 @@ import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakdownStorage'
 import { expandCupidIds } from '../features/twists/cupidArrow'
 import type { GameState, TvEvent } from '../types'
+import { GUEST_SAVE_REMINDER_COPY, isGuestSaveReminderEvent } from './guestSaveReminder'
 import { addTvEvent, consumeBroadcastEvent, updateTvEvent } from './gameSlice'
 
 type PresentationState = {
@@ -23,8 +24,6 @@ type AddTvEventAction = GenericAction & {
 
 const VOX_IMMUNITY_COMPETITION_COPY =
   'The Immunity Competition has begun! 🛡️ Who will secure safety today?'
-const GUEST_MODE_SAVE_WARNING =
-  "You're playing as a guest, so this season won't be saved. Create a profile from More, then Profile, to keep your progress."
 const AUTHORIZE_VOX_AUDIENCE_VOTE_ACTION = 'presentation/authorizeVoxAudienceVoteResolution'
 const COMMIT_VOX_AUDIENCE_VOTE_ACTION = 'game/commitVoxAudienceVote'
 
@@ -171,7 +170,7 @@ function addGuestModeSaveWarning(
 
   api.dispatch(
     addTvEvent({
-      text: GUEST_MODE_SAVE_WARNING,
+      text: GUEST_SAVE_REMINDER_COPY,
       type: 'game',
       channels: ['tv', 'mainLog'],
       source: 'system',
@@ -185,6 +184,16 @@ function addGuestModeSaveWarning(
       },
     })
   )
+}
+
+function consumeGuestSaveReminderForProfile(api: MiddlewareAPI, after: PresentationState): void {
+  if (!after.profiles || after.profiles.isGuest) return
+
+  for (const event of after.game.tvFeed) {
+    if (isGuestSaveReminderEvent(event) && event.meta?.broadcastConsumed !== true) {
+      api.dispatch(consumeBroadcastEvent(event.id))
+    }
+  }
 }
 
 function shouldDeferBackdoorAdvance(state: GameState, action: unknown): boolean {
@@ -334,6 +343,7 @@ export const presentationConsistencyMiddleware: Middleware = (api) => (next) => 
   const result = next(actionForNext)
 
   const after = api.getState() as PresentationState
+  consumeGuestSaveReminderForProfile(api, after)
   addGuestModeSaveWarning(api, actionType, before, after)
   consumePreviousDayBroadcasts(api, before.game, after.game)
 

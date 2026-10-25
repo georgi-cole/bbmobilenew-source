@@ -80,6 +80,15 @@
   text-align: center;
 }
 
+.profile-screen__guest-link--save-spotlight {
+  border: 1px solid rgba(244, 212, 147, 0.58);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: linear-gradient(120deg, rgba(116, 82, 174, 0.34), rgba(25, 19, 37, 0.72));
+  color: #f4d493;
+  box-shadow: 0 0 18px rgba(142, 96, 219, 0.24);
+}
+
 .profile-screen__back-btn {
   flex: 0 0 30px;
   width: 30px;

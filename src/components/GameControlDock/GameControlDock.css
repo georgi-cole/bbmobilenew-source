@@ -92,6 +92,14 @@
   outline: 2px solid rgba(192, 177, 255, 0.9);
   outline-offset: 1px;
 }
+
+.game-control-dock__more-menu button.game-control-dock__more-profile--guest-save-invite {
+  outline: 1px solid rgba(244, 212, 147, 0.9);
+  outline-offset: 1px;
+  background: rgba(145, 122, 205, 0.38);
+  box-shadow: 0 0 16px rgba(153, 111, 241, 0.52);
+  animation: guestSaveMenuPulse 2.2s ease-in-out infinite;
+}
 .game-control-dock__more-menu button img {
   width: 21px;
   height: 21px;
@@ -293,6 +301,29 @@ body.mode-surveyeval .fab-icon.confessional {
   top: 31%;
   width: 11%;
   height: 34%;
+}
+
+.dock-hit-area--guest-save-invite::after {
+  position: absolute;
+  inset: 9%;
+  border: 1px solid rgba(244, 212, 147, 0.9);
+  border-radius: 50%;
+  box-shadow:
+    0 0 13px rgba(153, 111, 241, 0.7),
+    inset 0 0 9px rgba(153, 111, 241, 0.2);
+  content: '';
+  pointer-events: none;
+  animation: guestSaveMenuPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes guestSaveMenuPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.16);
+  }
 }
 
 .dock-hit-area:hover {
@@ -562,6 +593,11 @@ body.mode-surveyeval .fab-icon.confessional {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dock-hit-area--guest-save-invite::after,
+  .game-control-dock__more-menu button.game-control-dock__more-profile--guest-save-invite {
+    animation: none;
+  }
+
   .dock-hit-area--confessional-flash-0 .dock-hit-area__badge--mission,
   .dock-hit-area--confessional-flash-1 .dock-hit-area__badge--mission,
   .dock-hit-area--confessional-persistent .dock-hit-area__badge--mission,

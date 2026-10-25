@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom'
 import type { BroadcastOverride, CupidArrowPair, Phase, Player } from '../../types'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import {
   advance,
@@ -685,11 +686,10 @@ export default function TvZone(props: TvZoneProps) {
   // copy too, so a player who has already reached the reminder sees the new
   // presentation after updating rather than replaying the plain-text version.
   const guestSaveReminderQueued = Boolean(
+    isGuest &&
     displayedEvent &&
-    (displayedEvent.meta?.guestModeSaveWarning === true ||
-      (/playing as a guest/i.test(displayedEvent.text) &&
-        /progress won't be saved|season won't be saved/i.test(displayedEvent.text) &&
-        /more\s*(?:→|then|,).*profile/i.test(displayedEvent.text)))
+    isGuestSaveReminderEvent(displayedEvent) &&
+    displayedEvent.meta?.broadcastConsumed !== true
   )
   // The weather bulletin has its own full-viewport card. Do not briefly mount
   // the older day-start/day-end transition card underneath it while the
@@ -1508,14 +1508,20 @@ export default function TvZone(props: TvZoneProps) {
 
   const activeWeekend = gameState.weekendInterlude
   const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
-  const phaseLabel = activeWeekend?.active
-    ? 'WEEKEND'
-    : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
-      ? 'Final Audience Vote'
-      : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
-        ? 'Final Immunity'
-        : formatPhaseLabel(gameState.phase)
-  const shortPhaseLabel = activeWeekend?.active ? 'WEEKEND' : compactPhaseLabel(gameState.phase)
+  const phaseLabel = guestSaveReminderQueued
+    ? 'PLAYER NOTICE'
+    : activeWeekend?.active
+      ? 'WEEKEND'
+      : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
+        ? 'Final Audience Vote'
+        : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
+          ? 'Final Immunity'
+          : formatPhaseLabel(gameState.phase)
+  const shortPhaseLabel = guestSaveReminderQueued
+    ? 'NOTICE'
+    : activeWeekend?.active
+      ? 'WEEKEND'
+      : compactPhaseLabel(gameState.phase)
   const headerRef = useRef<HTMLDivElement>(null)
   const headerPillsRef = useRef<HTMLUListElement>(null)
   const headerActionsRef = useRef<HTMLDivElement>(null)

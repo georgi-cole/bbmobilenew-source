@@ -57,6 +57,7 @@ import {
   type SocialModuleAvailability,
 } from '../../social/socialModuleAvailability'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
+import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import {
   clearSavedRun,
   clearSeasonSnapshot,
@@ -148,6 +149,14 @@ export default function FloatingActionBar({
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
   const game = useAppSelector((s) => s.game)
+  const guestSaveInviteActive = Boolean(
+    isGuest &&
+    game.week === 1 &&
+    game.phase === 'loh_comp_announcement' &&
+    game.tvFeed.some(
+      (event) => isGuestSaveReminderEvent(event) && event.meta?.broadcastConsumed !== true
+    )
+  )
   const weekend = game.weekendInterlude
   const reunionDepartureInProgress = weekend?.reunionDepartureActive === true
   const hasReunionGuests =
@@ -841,9 +850,14 @@ export default function FloatingActionBar({
         leaderboard: '/leaderboard',
         store: '/store',
       } as const
-      navigate(routes[destination])
+      navigate(routes[destination], {
+        state:
+          destination === 'profile' && guestSaveInviteActive
+            ? { from: '/game', guestSaveInvite: true }
+            : undefined,
+      })
     },
-    [game.phase, game.season, game.week, navigate, voxPopuliActive]
+    [game.phase, game.season, game.week, guestSaveInviteActive, navigate, voxPopuliActive]
   )
 
   // Center the dock in the real rendered space between the content immediately
@@ -978,6 +992,7 @@ export default function FloatingActionBar({
         onToolClick={handleToolClick}
         onHomeClick={handleReturnHome}
         onMoreClick={handleMoreClick}
+        guestSaveInviteActive={guestSaveInviteActive}
         disabled={survivorTerminalActive || finaleOverlayActive || reunionDepartureInProgress}
         navigationDisabled={weekendReunionAnnouncementActive}
         primaryDisabled={primaryDisabled}

@@ -67,6 +67,8 @@ export interface GameControlDockProps {
   incomingRequestsBadgeCount?: number
   /** Badge count for the public meter node */
   publicMeterBadgeCount?: number
+  /** Guide a guest from the Day 1 reminder to profile creation. */
+  guestSaveInviteActive?: boolean
   /** Whether the center button should pulse */
   primaryPulse?: boolean
   /** Count of actionable Confessional alerts shown in the Turkish blue badge */
@@ -108,6 +110,7 @@ export default function GameControlDock({
   chatFlash = false,
   incomingRequestsBadgeCount,
   publicMeterBadgeCount,
+  guestSaveInviteActive = false,
   primaryPulse = false,
   confessionalBadgeCount,
   confessionalFlash = false,
@@ -413,7 +416,8 @@ export default function GameControlDock({
         </button>
         <button
           ref={moreButtonRef}
-          className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}`}
+          data-guest-save-step={guestSaveInviteActive ? 'more' : undefined}
+          className={`dock-hit-area hit-more dock-hit-area--more${moreOpen ? ' dock-hit-area--active' : ''}${guestSaveInviteActive ? ' dock-hit-area--guest-save-invite' : ''}`}
           type="button"
           aria-label="More"
           aria-expanded={moreOpen && !dockDisabled}
@@ -446,6 +450,19 @@ export default function GameControlDock({
                 type="button"
                 role="menuitem"
                 aria-label={label}
+                title={
+                  destination === 'profile' && guestSaveInviteActive
+                    ? 'Create a profile to keep your season'
+                    : label
+                }
+                data-guest-save-step={
+                  destination === 'profile' && guestSaveInviteActive ? 'profile' : undefined
+                }
+                className={
+                  destination === 'profile' && guestSaveInviteActive
+                    ? 'game-control-dock__more-profile--guest-save-invite'
+                    : undefined
+                }
                 onClick={() => {
                   setHouseMenuAudioEffect(true)
                   setMoreOpen(false)

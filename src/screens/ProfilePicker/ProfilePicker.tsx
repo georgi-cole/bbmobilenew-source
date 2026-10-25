@@ -73,7 +73,10 @@ export default function ProfilePicker() {
 
   const [photoCache, setPhotoCache] = useState<Record<string, string>>({})
 
-  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(() => {
+    const routeState = location.state as { openCreate?: boolean } | null
+    return routeState?.openCreate === true && profiles.length < MAX_PROFILES
+  })
   const [newName, setNewName] = useState('')
   const [newAge, setNewAge] = useState('')
   const [newSex, setNewSex] = useState('')

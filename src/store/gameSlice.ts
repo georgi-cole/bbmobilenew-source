@@ -43,6 +43,7 @@ import type {
   CustomBroadcastMessage,
 } from '../types'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
+import { normalizeGuestSaveReminderEvent } from './guestSaveReminder'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
 import type { LohNominationPlan } from './lohNominationPlanning'
@@ -9641,10 +9642,12 @@ const gameSlice = createSlice({
         // campaign snapshot. Never let an older saved run overwrite it.
         broadcastOverrides: state.broadcastOverrides ?? {},
         customBroadcasts: state.customBroadcasts ?? [],
-        tvFeed: (action.payload.tvFeed ?? []).map((event) => ({
-          ...event,
-          meta: event.meta ? { ...event.meta } : undefined,
-        })),
+        tvFeed: (action.payload.tvFeed ?? []).map((event) =>
+          normalizeGuestSaveReminderEvent({
+            ...event,
+            meta: event.meta ? { ...event.meta } : undefined,
+          })
+        ),
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),

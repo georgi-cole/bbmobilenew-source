@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { formatEyeoleans } from '../../economy/eyeoleans'
 import { useAppSelector } from '../../store/hooks'
+import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import {
   PUBLIC_FAVORITE_FORECAST_ACHIEVEMENT,
   selectCurrentProfile,
@@ -463,6 +464,15 @@ export default function Profile() {
   const season = useAppSelector((s) => s.game.season)
   const week = useAppSelector((s) => s.game.week)
   const phase = useAppSelector((s) => s.game.phase)
+  const guestSaveInviteActive = useAppSelector(
+    (s) =>
+      s.profiles.isGuest &&
+      s.game.week === 1 &&
+      s.game.phase === 'loh_comp_announcement' &&
+      s.game.tvFeed.some(
+        (event) => isGuestSaveReminderEvent(event) && event.meta?.broadcastConsumed !== true
+      )
+  )
   const isGameActive = useAppSelector((s) => s.game.status === 'active')
   const lohId = useAppSelector((s) => s.game.lohId)
   const nomineeIds = useAppSelector((s) => s.game.nomineeIds)
@@ -639,10 +649,12 @@ export default function Profile() {
           <p style={{ margin: '8px 0 0' }}>
             <button
               type="button"
-              className="profile-screen__guest-link"
-              onClick={() => navigate('/profile-picker', { state: { from: returnTo } })}
+              className={`profile-screen__guest-link${guestSaveInviteActive ? ' profile-screen__guest-link--save-spotlight' : ''}`}
+              onClick={() =>
+                navigate('/profile-picker', { state: { from: returnTo, openCreate: true } })
+              }
             >
-              Create a profile to save progress -&gt;
+              Create Profile
             </button>
           </p>
         </div>
