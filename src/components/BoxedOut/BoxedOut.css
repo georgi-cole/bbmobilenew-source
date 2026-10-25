@@ -338,7 +338,7 @@
 }
 
 .boxed-out-box--impact .boxed-out-box__image-wrap {
-  animation: boxed-out-box-collapse 0.86s cubic-bezier(0.36, 0, 0.66, -0.2) both;
+  animation: boxed-out-box-collapse 1.18s cubic-bezier(0.36, 0, 0.66, -0.2) both;
 }
 
 .boxed-out-box--impact .boxed-out-box__halo {
@@ -346,7 +346,7 @@
 }
 
 .boxed-out-box--collapsed .boxed-out-box__image-wrap {
-  opacity: 0.18;
+  opacity: 0;
   filter: grayscale(0.82) brightness(0.46);
   transform: translate(5%, 13%) rotate(7deg) scale(0.82);
 }
@@ -373,9 +373,49 @@
 
 .boxed-out-box__collapse {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   inset: 0;
   pointer-events: none;
+}
+
+.boxed-out-box--collapsed .boxed-out-box__collapse {
+  background: linear-gradient(0deg, rgba(235, 142, 70, 0.2), transparent 40%);
+}
+
+.boxed-out-box__collapse-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    #fff3c9 0,
+    #ffb45d 10%,
+    #e55f36 29%,
+    transparent 68%
+  );
+  opacity: 0;
+}
+
+.boxed-out-box__shockwave {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 16%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 239, 197, 0.96);
+  border-radius: 50%;
+  box-shadow:
+    0 0 16px rgba(255, 169, 73, 0.9),
+    inset 0 0 10px rgba(255, 211, 131, 0.7);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+}
+
+.boxed-out-box--impact .boxed-out-box__collapse-flash {
+  animation: boxed-out-collapse-flash 1.3s ease-out both;
+}
+
+.boxed-out-box--impact .boxed-out-box__shockwave {
+  animation: boxed-out-shockwave 1.5s cubic-bezier(0.14, 0.7, 0.25, 1) both;
 }
 
 .boxed-out-box__collapse i {
@@ -397,83 +437,127 @@
 }
 
 .boxed-out-box--impact .boxed-out-box__collapse i {
-  animation: boxed-out-shard-fly 0.78s cubic-bezier(0.17, 0.67, 0.24, 1) both;
+  animation: boxed-out-shard-fly 1.48s cubic-bezier(0.17, 0.67, 0.24, 1) both;
 }
 
-.boxed-out-box__collapse i:nth-child(1) {
+.boxed-out-box__collapse i:nth-of-type(1) {
   --shard-x: -94%;
   --shard-y: -108%;
   --shard-r: -75deg;
 }
-.boxed-out-box__collapse i:nth-child(2) {
+.boxed-out-box__collapse i:nth-of-type(2) {
   --shard-x: 105%;
   --shard-y: -86%;
   --shard-r: 82deg;
   animation-delay: 0.04s;
 }
-.boxed-out-box__collapse i:nth-child(3) {
+.boxed-out-box__collapse i:nth-of-type(3) {
   --shard-x: -126%;
   --shard-y: 58%;
   --shard-r: -128deg;
   animation-delay: 0.08s;
 }
-.boxed-out-box__collapse i:nth-child(4) {
+.boxed-out-box__collapse i:nth-of-type(4) {
   --shard-x: 122%;
   --shard-y: 56%;
   --shard-r: 128deg;
   animation-delay: 0.02s;
 }
-.boxed-out-box__collapse i:nth-child(5) {
+.boxed-out-box__collapse i:nth-of-type(5) {
   --shard-x: -18%;
   --shard-y: -142%;
   --shard-r: 33deg;
   animation-delay: 0.06s;
 }
-.boxed-out-box__collapse i:nth-child(6) {
+.boxed-out-box__collapse i:nth-of-type(6) {
   --shard-x: 34%;
   --shard-y: 132%;
   --shard-r: -38deg;
   animation-delay: 0.1s;
 }
+.boxed-out-box__collapse i:nth-of-type(7) {
+  --shard-x: 86%;
+  --shard-y: 112%;
+  --shard-r: 96deg;
+  animation-delay: 0.12s;
+}
+.boxed-out-box__collapse i:nth-of-type(8) {
+  --shard-x: -92%;
+  --shard-y: 20%;
+  --shard-r: 154deg;
+  animation-delay: 0.14s;
+}
 
-.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-child(1) {
-  top: 63%;
-  left: 30%;
-  width: 15%;
-  height: 8%;
-  opacity: 0.58;
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(1) {
+  top: 60%;
+  left: 18%;
+  width: 25%;
+  height: 13%;
+  opacity: 0.94;
   transform: rotate(-26deg);
 }
 
-.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-child(2) {
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(2) {
   top: 68%;
-  left: 48%;
-  width: 10%;
-  height: 6%;
-  opacity: 0.4;
+  left: 42%;
+  width: 20%;
+  height: 11%;
+  opacity: 0.88;
   transform: rotate(24deg);
 }
 
-.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-child(3) {
-  top: 59%;
-  left: 61%;
-  width: 12%;
-  height: 7%;
-  opacity: 0.5;
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(3) {
+  top: 55%;
+  left: 60%;
+  width: 20%;
+  height: 12%;
+  opacity: 0.92;
   transform: rotate(42deg);
 }
 
-.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-child(4) {
-  top: 71%;
-  left: 36%;
-  width: 8%;
-  height: 5%;
-  opacity: 0.36;
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(4) {
+  top: 73%;
+  left: 32%;
+  width: 17%;
+  height: 9%;
+  opacity: 0.84;
   transform: rotate(-48deg);
 }
 
-.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-child(n + 5) {
-  opacity: 0;
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(5) {
+  top: 76%;
+  left: 59%;
+  width: 17%;
+  height: 9%;
+  opacity: 0.88;
+  transform: rotate(71deg);
+}
+
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(6) {
+  top: 51%;
+  left: 22%;
+  width: 16%;
+  height: 9%;
+  opacity: 0.8;
+  transform: rotate(-68deg);
+}
+
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(7) {
+  top: 55%;
+  left: 46%;
+  width: 12%;
+  height: 7%;
+  opacity: 0.75;
+  transform: rotate(16deg);
+}
+
+.boxed-out-box--collapsed .boxed-out-box__collapse i:nth-of-type(8) {
+  top: 66%;
+  left: 75%;
+  width: 14%;
+  height: 8%;
+  opacity: 0.78;
+  transform: rotate(-18deg);
 }
 
 .boxed-out-box__reward {
@@ -646,6 +730,16 @@
   text-decoration-color: rgba(233, 119, 115, 0.7);
 }
 
+.boxed-out__ranking.is-champion {
+  border-color: rgba(240, 203, 123, 0.44);
+  background: linear-gradient(90deg, rgba(180, 131, 53, 0.13), transparent 82%);
+}
+
+.boxed-out__ranking.is-champion .boxed-out__contestant {
+  color: #ffe2a0;
+  text-decoration: none;
+}
+
 .boxed-out__contestant {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -676,6 +770,66 @@
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   animation: boxed-out-panel-arrive 0.48s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.boxed-out__judgment {
+  position: relative;
+  display: flex;
+  min-height: clamp(250px, 34vh, 370px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-color: rgba(240, 203, 123, 0.8);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(245, 192, 98, 0.26), transparent 45%),
+    linear-gradient(145deg, rgba(9, 11, 17, 0.93), rgba(31, 25, 20, 0.94));
+  box-shadow:
+    0 0 0 1px rgba(248, 214, 141, 0.14),
+    0 0 48px rgba(233, 176, 79, 0.2),
+    0 14px 34px #0009,
+    inset 0 1px rgba(255, 255, 255, 0.08);
+  animation: boxed-out-judgment-arrive 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.boxed-out__judgment::before {
+  position: absolute;
+  top: -75%;
+  left: -55%;
+  width: 210%;
+  height: 90%;
+  background: linear-gradient(180deg, transparent 35%, rgba(255, 221, 160, 0.12), transparent 68%);
+  content: '';
+  opacity: 0;
+  transform: rotate(-18deg);
+  pointer-events: none;
+  animation: boxed-out-judgment-sweep 1.25s 0.15s ease-out both;
+}
+
+.boxed-out__judgment > * {
+  position: relative;
+  z-index: 1;
+}
+
+.boxed-out__judgment-eye {
+  display: block;
+  margin: 18px 0 8px;
+  color: #ffe19c;
+  font-size: clamp(58px, 15vw, 104px);
+  line-height: 1;
+  text-shadow:
+    0 0 16px rgba(255, 199, 92, 0.9),
+    0 0 44px rgba(255, 166, 60, 0.62);
+  animation: boxed-out-verdict-eye 1.5s ease-in-out infinite alternate;
+}
+
+.boxed-out__judgment h2 {
+  margin: 8px 0;
+}
+
+.boxed-out__judgment p {
+  max-width: 330px;
+  margin: 5px auto 0;
 }
 
 .boxed-out__eyebrow {
@@ -723,6 +877,16 @@
   font-size: clamp(24px, 6vw, 38px);
 }
 
+.boxed-out__winner-detail {
+  display: block;
+  max-width: 360px;
+  margin: 12px auto 0;
+  color: #f5e5ca;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .boxed-out__trophy {
   display: block;
   color: #ffdf96;
@@ -759,6 +923,10 @@
 
 .boxed-out--impact .boxed-out__ranking.is-eliminating {
   animation: boxed-out-elimination 0.72s ease-out both;
+}
+
+.boxed-out--impact .boxed-out__ranking.is-eliminating .boxed-out__contestant {
+  animation: boxed-out-name-out 0.72s ease-out both;
 }
 
 .boxed-out--impact .boxed-out__ranking.is-losing-life .boxed-out__rank-lives {
@@ -840,6 +1008,31 @@
     opacity: 0;
     transform: translate(calc(-50% + var(--shard-x)), var(--shard-y)) scale(0.7)
       rotate(var(--shard-r));
+  }
+}
+
+@keyframes boxed-out-collapse-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  16% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes boxed-out-shockwave {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(5.5);
   }
 }
 
@@ -977,7 +1170,7 @@
 }
 
 .boxed-out--impact {
-  animation: boxed-out-screen-hit 0.56s ease-out both;
+  animation: boxed-out-screen-hit 0.7s ease-out both;
 }
 
 .boxed-out::after {
@@ -997,6 +1190,11 @@
 
 .boxed-out--impact::after {
   animation: boxed-out-screen-flash 0.82s ease-out both;
+}
+
+.boxed-out--finale-winner::after {
+  background: radial-gradient(ellipse at 50% 40%, rgba(255, 224, 157, 0.34), transparent 65%);
+  animation: boxed-out-final-verdict-flash 1.15s ease-out both;
 }
 
 .boxed-out--impact .boxed-out-box--impact {
@@ -1041,6 +1239,21 @@
   animation: boxed-out-out-stamp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.boxed-out__champion-stamp {
+  display: inline-block;
+  margin-left: 6px;
+  border: 1px solid rgba(245, 207, 119, 0.56);
+  border-radius: 4px;
+  padding: 1px 4px;
+  background: rgba(118, 84, 29, 0.48);
+  color: #ffe09a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  vertical-align: 1px;
+  text-decoration: none;
+}
+
 .boxed-out__winner {
   position: relative;
   overflow: hidden;
@@ -1053,7 +1266,7 @@
     0 0 44px rgba(233, 176, 79, 0.32),
     0 14px 34px #0008,
     inset 0 1px rgba(255, 255, 255, 0.1);
-  animation: boxed-out-panel-arrive 0.68s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: boxed-out-winner-arrive 1.08s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .boxed-out__winner::before {
@@ -1226,6 +1439,95 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes boxed-out-name-out {
+  0% {
+    color: #fff0c6;
+    transform: translateX(0);
+  }
+  22% {
+    color: #ff8173;
+    transform: translateX(-5px);
+  }
+  44% {
+    transform: translateX(4px);
+  }
+  100% {
+    color: #92909a;
+    transform: translateX(0);
+  }
+}
+
+@keyframes boxed-out-judgment-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.94);
+    filter: brightness(1.8);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes boxed-out-judgment-sweep {
+  0% {
+    opacity: 0;
+    transform: translateY(-55%) rotate(-18deg);
+  }
+  32% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(210%) rotate(-18deg);
+  }
+}
+
+@keyframes boxed-out-verdict-eye {
+  from {
+    opacity: 0.68;
+    transform: scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes boxed-out-winner-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.84) rotateX(8deg);
+    filter: brightness(1.8);
+  }
+  58% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.025) rotateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0);
+    filter: brightness(1);
+  }
+}
+
+@keyframes boxed-out-final-verdict-flash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.42;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
