@@ -127,6 +127,43 @@ describe('ProfilePicker', () => {
     })
   })
 
+  it.each(['Other', 'Prefer not to say'])(
+    'accepts %s as a required profile sex option',
+    async (sex) => {
+      render(<ProfilePicker />)
+
+      fireEvent.click(screen.getByRole('button', { name: /create new profile/i }))
+      fireEvent.change(screen.getByPlaceholderText(/enter display name/i), {
+        target: { value: 'Jordan' },
+      })
+      fireEvent.change(screen.getByLabelText(/age/i), { target: { value: '28' } })
+      fireEvent.change(screen.getByLabelText(/sex/i), { target: { value: sex } })
+      fireEvent.click(screen.getByRole('button', { name: /create profile/i }))
+
+      await waitFor(() => {
+        expect(mockDispatch).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'profiles/createProfile',
+            payload: expect.objectContaining({ bio: { age: '28', sex } }),
+          })
+        )
+      })
+    }
+  )
+
+  it('spotlights profile creation for a guest', () => {
+    mockState.profiles.isGuest = true
+    const { container } = render(<ProfilePicker />)
+
+    expect(screen.getByText('Keep your season')).toBeDefined()
+    expect(container.querySelector('.profile-picker__btn--save-spotlight')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /create new profile/i }))
+
+    expect(screen.getByText('Save this season to your profile')).toBeDefined()
+    expect(container.querySelector('.profile-picker__create--save-spotlight')).not.toBeNull()
+  })
+
   it('adopts an in-progress guest game into the new profile without resetting it', async () => {
     mockState.profiles.isGuest = true
     mockState.game = {

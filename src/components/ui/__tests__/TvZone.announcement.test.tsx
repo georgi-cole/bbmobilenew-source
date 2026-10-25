@@ -35,7 +35,7 @@ import gameReducer, {
   updatePlayer,
 } from '../../../store/gameSlice'
 import socialReducer from '../../../social/socialSlice'
-import profilesReducer from '../../../store/profilesSlice'
+import profilesReducer, { enterGuestMode } from '../../../store/profilesSlice'
 import challengeReducer from '../../../store/challengeSlice'
 import { LIVE_VOTE_PITCHES_EVENT_KEY, LIVE_VOTE_PITCHES_TEXT } from '../../../constants/tvEvents'
 import finaleReducer from '../../../store/finaleSlice'
@@ -1905,6 +1905,69 @@ describe('TvZone — phase-based announcement triggers', () => {
     })
 
     expect(screen.getByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeDefined()
+  })
+
+  it('shows the guest save reminder as a minor TV segment before the LOH title card', () => {
+    const store = makeStore()
+    act(() => store.dispatch(enterGuestMode()))
+    renderTvZone(store)
+
+    act(() => {
+      store.dispatch(setPhase('loh_comp_announcement'))
+      store.dispatch(
+        addTvEvent(
+          makeEvent({
+            id: 'guest-save-reminder',
+            text: 'Guest mode: this season will not be saved.',
+            meta: {
+              phase: 'loh_comp_announcement',
+              week: 1,
+              broadcastDelivery: 'next',
+              broadcastLevel: 'minor',
+              forceOnTv: true,
+              guestModeSaveWarning: true,
+            },
+          })
+        )
+      )
+    })
+
+    expect(screen.getByRole('status', { name: 'Guest mode save reminder' })).toBeDefined()
+    expect(screen.getByText('Keep your season')).toBeDefined()
+    expect(screen.getByText(/Create a profile from/)).toBeDefined()
+    expect(screen.queryByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeNull()
+    expect(
+      store.getState().game.tvFeed.find((event) => event.meta?.guestModeSaveWarning === true)?.major
+    ).toBeUndefined()
+  })
+
+  it('upgrades a previously saved plain-text guest reminder to the TV segment', () => {
+    const store = makeStore()
+    act(() => store.dispatch(enterGuestMode()))
+    renderTvZone(store)
+
+    act(() => {
+      store.dispatch(setPhase('loh_comp_announcement'))
+      store.dispatch(
+        addTvEvent(
+          makeEvent({
+            id: 'legacy-guest-save-reminder',
+            text: "You're playing as a guest, so your progress won't be saved. Go to More → Profile → Create Profile to save it.",
+            meta: {
+              phase: 'loh_comp_announcement',
+              week: 1,
+              broadcastDelivery: 'next',
+              broadcastLevel: 'minor',
+              forceOnTv: true,
+            },
+          })
+        )
+      )
+    })
+
+    expect(screen.getByRole('status', { name: 'Guest mode save reminder' })).toBeDefined()
+    expect(screen.getByText('Keep your season')).toBeDefined()
+    expect(screen.queryByText(/Go to More → Profile/i)).toBeNull()
   })
 
   it('shows Power of Safety overlay when phase transitions to pos_comp_announcement', () => {

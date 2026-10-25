@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 import { existsSync } from 'node:fs'
 
-const baseURL = 'http://127.0.0.1:4173/bbmobilenew/'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173/bbmobilenew/'
+const previewPort = new URL(baseURL).port || '4173'
 const chromiumExecutablePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ??
   (process.platform === 'win32'
@@ -33,7 +34,7 @@ export default defineConfig({
     // Vite directly. `npm run dev` executes `predev`, which regenerates the
     // audio catalog (and other generated runtime config) before the browser
     // ever imports it.
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+    command: `npm run dev -- --host 127.0.0.1 --port ${previewPort} --strictPort`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
