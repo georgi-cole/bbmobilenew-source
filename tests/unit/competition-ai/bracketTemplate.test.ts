@@ -30,6 +30,24 @@ describe('classic campaign map registry integrity', () => {
     expect(regular).not.toContain('targetPractice')
   })
 
+  it('maps Bigg Gates to every former Fit Me In campaign day and cast size', () => {
+    const formerFitMeInBands = [
+      { day: 7, minPlayers: 8, maxPlayers: 10 },
+      { day: 8, minPlayers: 7, maxPlayers: 9 },
+      { day: 9, minPlayers: 6, maxPlayers: 8 },
+      { day: 10, minPlayers: 5, maxPlayers: 5 },
+      { day: 11, minPlayers: 4, maxPlayers: 5 },
+      { day: 12, minPlayers: 3, maxPlayers: 5 },
+    ]
+
+    formerFitMeInBands.forEach(({ day, minPlayers, maxPlayers }) => {
+      for (let playerCount = minPlayers; playerCount <= maxPlayers; playerCount += 1) {
+        const pool = getClassicCampaignPoolForContext({ day, playerCount, compType: 'POS' })
+        expect(pool, `day ${day} / ${playerCount} players`).toContain('gatesOfTheEye')
+        expect(pool, `day ${day} / ${playerCount} players`).not.toContain('tetris')
+      }
+    })
+  })
   it('only maps each game to field sizes its registry entry supports', () => {
     DEFAULT_BRACKET_TEMPLATE.forEach((band) => {
       for (let players = band.minPlayers; players <= band.maxPlayers; players += 1) {
@@ -73,7 +91,7 @@ describe('getBracketPoolForContext compatibility resolver', () => {
     [16, 'LOH', 'holdWall'],
     [13, 'POS', 'quickTap'],
     [10, 'LOH', 'blackjackTournament'],
-    [9, 'POS', 'tetris'],
+    [9, 'POS', 'gatesOfTheEye'],
     [5, 'POS', 'quickTap'],
     [4, 'LOH', 'batteryLow'],
     [3, 'LOH', 'finalThreeCircuit'],
