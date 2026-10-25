@@ -64,7 +64,14 @@ export function random01(seed: number, label: string): number {
 }
 
 export function prizesForRound(seed: number, round: number): [number, number, number] {
-  const tier = round <= 3 ? [100, 180, 300] : round <= 6 ? [140, 250, 420] : round <= 9 ? [180, 320, 540] : [240, 420, 700]
+  const tier =
+    round <= 3
+      ? [100, 180, 300]
+      : round <= 6
+        ? [140, 250, 420]
+        : round <= 9
+          ? [180, 320, 540]
+          : [240, 420, 700]
   const rewards = [...tier]
   // Fisher-Yates; box positions change without changing the round's advertised values.
   for (let i = 2; i > 0; i--) {
@@ -92,9 +99,12 @@ export function chooseAiBox(state: BoxedOutState, id: string): BoxId {
 
   const weights = state.rewards.map((reward, box) => {
     const value = reward / Math.max(...state.rewards)
-    const recentCrowd = previous ? previous.occupancy[box] / Math.max(1, previous.participants.length) : 1 / 3
+    const recentCrowd = previous
+      ? previous.occupancy[box] / Math.max(1, previous.participants.length)
+      : 1 / 3
     const expectedCrowd = 0.65 * value + 0.35 * recentCrowd
-    const appetite = personality < 0.25 ? 0.4 : personality < 0.55 ? 0.85 : personality < 0.8 ? 0.65 : 1.15
+    const appetite =
+      personality < 0.25 ? 0.4 : personality < 0.55 ? 0.85 : personality < 0.8 ? 0.65 : 1.15
     const score = value * (appetite + urgency) - expectedCrowd * (0.5 + caution)
     return Math.exp((score + (noise - 0.5) * 0.25) * 3)
   })
@@ -117,7 +127,12 @@ function lockAiPicks(state: BoxedOutState): Record<string, BoxId> {
 
 export function createBoxedOutState(players: BoxedOutPlayer[], seed: number): BoxedOutState {
   const unique = new Set(players.map((player) => player.id))
-  if (players.length < 2 || players.length > BOXED_OUT_MAX_PLAYERS || unique.size !== players.length || players.some((player) => !player.id)) {
+  if (
+    players.length < 2 ||
+    players.length > BOXED_OUT_MAX_PLAYERS ||
+    unique.size !== players.length ||
+    players.some((player) => !player.id)
+  ) {
     throw new Error('BOXED OUT requires unique participant IDs and 2–12 valid players.')
   }
   if (players.filter((player) => player.isHuman).length > 1) {
@@ -152,11 +167,14 @@ export function resolveBoxedOutRound(state: BoxedOutState, humanPick?: BoxId): B
   if (human) picks[human.id] = humanPick as BoxId
   if (active.some((id) => picks[id] === undefined)) return state
   const occupancy: [number, number, number] = [0, 0, 0]
-  active.forEach((id) => { occupancy[picks[id]] += 1 })
+  active.forEach((id) => {
+    occupancy[picks[id]] += 1
+  })
   const highest = Math.max(...occupancy)
-  const exploded = occupancy.filter((count) => count === highest).length === 1
-    ? (occupancy.indexOf(highest) as BoxId)
-    : null
+  const exploded =
+    occupancy.filter((count) => count === highest).length === 1
+      ? (occupancy.indexOf(highest) as BoxId)
+      : null
   const scores = { ...state.scores }
   const lives = { ...state.lives }
   const eliminatedAt = { ...state.eliminatedAt }
@@ -181,7 +199,14 @@ export function resolveBoxedOutRound(state: BoxedOutState, humanPick?: BoxId): B
     rewards: state.rewards,
     eliminated,
   }
-  return { ...state, scores, lives, eliminatedAt, reveals: [...state.reveals, reveal], phase: 'reveal' }
+  return {
+    ...state,
+    scores,
+    lives,
+    eliminatedAt,
+    reveals: [...state.reveals, reveal],
+    phase: 'reveal',
+  }
 }
 
 export function standings(state: BoxedOutState): string[] {
@@ -231,12 +256,14 @@ export function advanceBoxedOut(state: BoxedOutState): BoxedOutState {
 }
 
 export function tiebreakQuestion(state: BoxedOutState) {
-  return TIEBREAK_QUESTIONS[Math.floor(random01(state.seed, 'question:' + state.questionIndex) * TIEBREAK_QUESTIONS.length)]
+  return TIEBREAK_QUESTIONS[
+    Math.floor(random01(state.seed, 'question:' + state.questionIndex) * TIEBREAK_QUESTIONS.length)
+  ]
 }
 
 function aiTiebreakAnswer(state: BoxedOutState, id: string, correct: number): number {
-  const guess = 0.84 + random01(state.seed, 'tb:guess:' + id + ':' + state.questionIndex) * 0.24
-  return Math.max(0, Math.round(correct * guess))
+  const estimate = 0.72 + random01(state.seed, 'tb:guess:' + id + ':' + state.questionIndex) * 0.25
+  return Math.max(0, Math.min(correct, Math.round(correct * estimate)))
 }
 
 export function resolveBoxedOutTiebreak(
@@ -249,20 +276,31 @@ export function resolveBoxedOutTiebreak(
   const candidates = state.finalists.map((id) => {
     const human = state.players.some((player) => player.id === id && player.isHuman)
     const answer = human ? humanAnswer : aiTiebreakAnswer(state, id, correct)
-    const ms = human ? responseMs : 2500 + Math.floor(random01(state.seed, 'tb:time:' + id + ':' + state.questionIndex) * 7000)
+    const ms = human
+      ? responseMs
+      : 2500 + Math.floor(random01(state.seed, 'tb:time:' + id + ':' + state.questionIndex) * 7000)
     return { id, answer, ms }
   })
   const valid = candidates.filter(
-    (entry) => entry.answer !== undefined &&
-      Number.isSafeInteger(entry.answer) && entry.answer >= 0 &&
-      entry.answer <= correct && Number.isFinite(entry.ms) && (entry.ms as number) >= 0
+    (entry) =>
+      entry.answer !== undefined &&
+      Number.isSafeInteger(entry.answer) &&
+      entry.answer >= 0 &&
+      entry.answer <= correct &&
+      Number.isFinite(entry.ms) &&
+      (entry.ms as number) >= 0
   )
   if (valid.length === 0) return { ...state, questionIndex: state.questionIndex + 1 }
   const bestAnswer = Math.max(...valid.map((entry) => entry.answer as number))
   const closest = valid.filter((entry) => entry.answer === bestAnswer)
   const minMs = Math.min(...closest.map((entry) => entry.ms as number))
   const fastest = closest.filter((entry) => entry.ms === minMs)
-  if (fastest.length !== 1) return { ...state, finalists: fastest.map((entry) => entry.id), questionIndex: state.questionIndex + 1 }
+  if (fastest.length !== 1)
+    return {
+      ...state,
+      finalists: fastest.map((entry) => entry.id),
+      questionIndex: state.questionIndex + 1,
+    }
   return { ...state, winnerId: fastest[0].id, finalists: [fastest[0].id], phase: 'finished' }
 }
 

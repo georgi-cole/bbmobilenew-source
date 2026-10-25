@@ -114,8 +114,14 @@ describe('BOXED OUT survival rules', () => {
   })
 
   it('produces the same AI choices and end result for the same seed', () => {
-    const a = createBoxedOutState(players.filter((p) => !p.isHuman), 999)
-    const b = createBoxedOutState(players.filter((p) => !p.isHuman), 999)
+    const a = createBoxedOutState(
+      players.filter((p) => !p.isHuman),
+      999
+    )
+    const b = createBoxedOutState(
+      players.filter((p) => !p.isHuman),
+      999
+    )
     expect(a.lockedAiPicks).toEqual(b.lockedAiPicks)
     expect(autoFinishBoxedOut(a)).toEqual(autoFinishBoxedOut(b))
     expect(autoFinishBoxedOut(a).winnerId).not.toBeNull()
