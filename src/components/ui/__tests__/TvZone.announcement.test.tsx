@@ -1774,7 +1774,7 @@ describe('TvZone — phase-based announcement triggers', () => {
     const store = makeStore()
     renderTvZone(store)
 
-    // Default state has 12 alive players (GAME_ROSTER_SIZE); pos_ceremony → veto_ceremony
+    // Default state has 16 alive players (GAME_ROSTER_SIZE); pos_ceremony → veto_ceremony
     act(() => {
       store.dispatch(setPhase('pos_ceremony'))
     })

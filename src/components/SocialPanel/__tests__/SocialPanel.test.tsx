@@ -99,7 +99,7 @@ describe('SocialPanel – action execution', () => {
   let store: ReturnType<typeof makeStore>;
 
   beforeEach(() => {
-    // Use the default game store — it has a user player + 11 AI players from the roster
+    // Use the default game store — it has a user player + 15 AI players from the roster
     store = makeStore({ user: 10 });
   });
 
