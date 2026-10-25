@@ -1384,7 +1384,7 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
 .tv-zone__guest-save {
   position: relative;
   z-index: 3;
-  width: min(90%, 560px);
+  width: min(94%, 560px);
   color: #f4f0ff;
   text-align: center;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.82);
@@ -1424,7 +1424,7 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
 .tv-zone__guest-save-title {
   margin: 0 0 5px;
   color: #fff5dc;
-  font-size: clamp(1.12rem, 4.4vw, 1.55rem);
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: 0.015em;
   line-height: 1.15;
@@ -1435,9 +1435,17 @@ body.experiment-game-chrome-refined .tv-zone__viewport--public-results {
 .tv-zone__guest-save-route {
   margin: 0;
   color: rgba(245, 241, 255, 0.9);
-  font-size: clamp(0.73rem, 2.8vw, 0.9rem);
+  font-size: 0.75rem;
   font-weight: 650;
   line-height: 1.45;
+}
+
+.tv-zone__guest-save-copy {
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  font-size: clamp(0.54rem, 2.3vw, 0.75rem);
+  white-space: nowrap;
 }
 
 .tv-zone__guest-save-route {

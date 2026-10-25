@@ -1509,7 +1509,7 @@ export default function TvZone(props: TvZoneProps) {
   const activeWeekend = gameState.weekendInterlude
   const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
   const phaseLabel = guestSaveReminderQueued
-    ? 'HOUSE UPDATE'
+    ? 'HUB UPDATE'
     : activeWeekend?.active
       ? 'WEEKEND'
       : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
@@ -1911,7 +1911,7 @@ export default function TvZone(props: TvZoneProps) {
                   role="status"
                 >
                   <div className="tv-zone__guest-save-kicker">
-                    <span aria-hidden="true" /> THE BIG EYE <i aria-hidden="true">/</i> HOUSE UPDATE
+                    <span aria-hidden="true" /> THE BIG EYE <i aria-hidden="true">/</i> HUB UPDATE
                   </div>
                   <h2 className="tv-zone__guest-save-title">Keep your season</h2>
                   <p className="tv-zone__guest-save-copy">

@@ -54,12 +54,19 @@ test('guest Day 1 notice guides profile creation and preserves the current seaso
   )
   await expect(reminder).toContainText('Create a profile from More to save your season.')
   await page.screenshot({ path: 'test-results/guest-save-reminder-preview.png' })
-  await expect(page.locator('.tv-zone__phase-chip')).toHaveAttribute('aria-label', 'HOUSE UPDATE')
+  await expect(page.locator('.tv-zone__phase-chip')).toHaveAttribute('aria-label', 'HUB UPDATE')
+  await expect(reminder.locator('.tv-zone__guest-save-copy')).toHaveCSS('white-space', 'nowrap')
   await expect(page.getByRole('dialog', { name: /Announcement: LOH Competition/i })).toBeHidden()
 
   const mainNavigation = page.getByRole('navigation', { name: 'Main navigation' })
   const moreButton = mainNavigation.getByRole('button', { name: 'More', exact: true })
   await expect(moreButton).toHaveAttribute('data-guest-save-step', 'more')
+  const spotlight = await moreButton.evaluate((element) => {
+    const style = window.getComputedStyle(element, '::after')
+    return { width: style.width, height: style.height, borderRadius: style.borderRadius }
+  })
+  expect(spotlight.width).toBe(spotlight.height)
+  expect(spotlight.borderRadius).toBe('50%')
   await moreButton.click()
 
   const moreMenu = page.getByRole('menu', { name: 'More destinations' })
