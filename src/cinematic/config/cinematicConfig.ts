@@ -140,16 +140,6 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
     ],
   },
   {
-    id: 'album',
-    fromSecond: 17.1,
-    toSecond: 21.3,
-    lines: [
-      { text: 'From the album', style: 'small' },
-      { text: 'Crushed Velvet', style: 'italic', gapBefore: true },
-      { text: 'Audiosocket Records', style: 'small', gapBefore: true },
-    ],
-  },
-  {
     id: 'music-producers',
     fromSecond: 22.5,
     toSecond: 27.8,
@@ -183,7 +173,16 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
     toSecond: 36.9,
     lines: [
       { text: 'Special Thanks', style: 'label' },
-      { text: 'Dr. Mina T.K.', style: 'name', gapBefore: true },
+      { text: 'Dr. Mina V. Koleva', style: 'name', gapBefore: true },
+    ],
+  },
+  {
+    id: 'quality-assurance',
+    fromSecond: 36.9,
+    toSecond: 39.6,
+    lines: [
+      { text: 'Quality Assurance', style: 'label' },
+      { text: 'Georgi Atanasov', style: 'name', gapBefore: true },
     ],
   },
     {
@@ -195,12 +194,21 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
     ],
   },
   {
-    id: 'closing',
+    id: 'closing-part-one',
     fromSecond: 45.8,
-    toSecond: 49.9,
+    toSecond: 48.9,
     lines: [
-      { text: 'THE BIG EYE IS STILL SCANNING...', style: 'closing-title' },
-      { text: 'More is coming soon', style: 'closing-subtitle', gapBefore: true },
+      { text: 'This was fun, right?', style: 'body' },
+      { text: 'If you feel life is too short, we can change that.', style: 'body', gapBefore: true },
+    ],
+  },
+  {
+    id: 'closing-part-two',
+    fromSecond: 48.9,
+    toSecond: 52.4,
+    lines: [
+      { text: 'Visit Kolequant.xyz', style: 'body' },
+      { text: 'Fun does not need to be cut short.', style: 'body', gapBefore: true },
     ],
   },
 ] as const;

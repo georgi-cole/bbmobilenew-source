@@ -49,6 +49,7 @@
 
 .light-cinematic__city {
   inset: 0;
+  z-index: 2;
   transform-origin: center bottom;
   will-change: transform, opacity;
 }
@@ -123,13 +124,14 @@
 
 .light-cinematic__coast {
   inset: 0;
+  z-index: 1;
   overflow: hidden;
-  background: linear-gradient(180deg, transparent 0 38%, rgba(40, 74, 91, 0.3) 60%, #07121a 100%);
+  background: transparent;
   will-change: opacity, clip-path;
 }
 
 .light-cinematic__sun {
-  z-index: 2;
+  z-index: 0;
   width: 14%;
   min-width: 74px;
   max-width: 146px;
@@ -150,12 +152,13 @@
 }
 
 .light-cinematic__ocean {
+  z-index: 1;
   right: -4%;
   bottom: 0;
   left: -4%;
   height: 61%;
   background:
-    linear-gradient(180deg, rgba(99, 143, 158, 0.68), rgba(15, 55, 70, 0.93) 44%, #061923 100%),
+    linear-gradient(180deg, #638f9e, #0f3746 44%, #061923 100%),
     repeating-linear-gradient(177deg, transparent 0 9px, rgba(223, 244, 239, 0.12) 10px 11px);
   background-blend-mode: screen;
 }
@@ -176,9 +179,11 @@
     transparent 74%
   );
   filter: blur(8px);
+  opacity: var(--sun-reflection-opacity, 0);
 }
 
 .light-cinematic__shore {
+  z-index: 2;
   right: -8%;
   bottom: -9%;
   left: -8%;

@@ -38,6 +38,7 @@ export const CreditsOverlay = ({
   if (cardIndex < 0) return null;
 
   const card = credits[cardIndex];
+  const cameraFly = card.id === 'closing-part-two';
   const from = secondsToFrames(card.fromSecond);
   const to = secondsToFrames(card.toSecond);
   const introFrames = Math.min(18, Math.floor((to - from) / 3));
@@ -48,8 +49,12 @@ export const CreditsOverlay = ({
   const journey = rangeProgress(frame, from, to);
   const motion = motionPresets[cardIndex % motionPresets.length];
   const cardX = lerp(motion.x, -motion.x * 0.18, intro) + lerp(0, motion.x * 0.22, outro);
-  const cardY = lerp(motion.y, 0, intro) + journey * -5;
-  const cardScale = lerp(motion.scale, 1, intro) + journey * 0.012;
+  const cardY = cameraFly
+    ? lerp(-90, 0, intro) + journey * -5
+    : lerp(motion.y, 0, intro) + journey * -5;
+  const cardScale = cameraFly
+    ? lerp(0.42, 1, intro) + journey * 0.08
+    : lerp(motion.scale, 1, intro) + journey * 0.012;
   const cardRotation = lerp(motion.rotation, 0, intro);
 
   const rootStyle: CSSProperties = {
@@ -80,8 +85,9 @@ export const CreditsOverlay = ({
               className={className}
               frame={frame}
               enterFrame={lineFrom}
-              exitFrame={to - Math.max(4, index * 2)}
+              exitFrame={cameraFly ? to : to - Math.max(4, index * 2)}
               seed={cardIndex * 11 + index * 5 + 1}
+              cameraFly={cameraFly}
               style={{
                 opacity: lineReveal,
                 filter: `blur(${(1 - lineReveal) * 3}px)`,
