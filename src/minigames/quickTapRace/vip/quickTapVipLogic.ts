@@ -506,7 +506,9 @@ export function simulateQuickTapVipAiRace(args: {
     consistency = trait('consistency')
   const style = hashIdentity(playerId) % 4
   const form = 0.82 + rng() * 0.36
-  const baseRate = (3.7 + physical * 2 + (style === 1 ? 0.35 : style === 2 ? -0.25 : 0)) * form
+  // Stronger AI should reach a brisk human tapping pace (about 6–9 taps/s)
+  // while player profiles, form, and style still create a varied field.
+  const baseRate = (7.2 + physical * 2.6 + (style === 1 ? 0.35 : style === 2 ? -0.25 : 0)) * form
   const roundMs = quickTapVipRoundMs(mode)
   let state = createQuickTapVipScoreState(seed, mode)
   let observedSeason: TapSeason | null = quickTapVipSeasonAt(state, 0),

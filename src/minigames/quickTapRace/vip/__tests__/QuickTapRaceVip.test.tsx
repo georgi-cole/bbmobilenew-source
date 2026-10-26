@@ -6,7 +6,10 @@ import QuickTapRaceVip from '../QuickTapRaceVip'
 import { buildQuickTapVipSeasons } from '../quickTapVipLogic'
 
 vi.mock('../../../../services/sound/SoundManager', () => ({
-  SoundManager: { play: vi.fn(async () => undefined) },
+  SoundManager: {
+    play: vi.fn(async () => undefined),
+    registerDynamic: vi.fn(),
+  },
 }))
 const participants = Array.from({ length: 16 }, (_, i) => ({
   id: `player-${i}`,
@@ -49,7 +52,7 @@ describe('VIP round lifecycle', () => {
     elapsed = 0
     vi.useFakeTimers({ now: new Date('2026-10-25T12:00:00Z') })
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
-    window.requestAnimationFrame = (cb) => window.setTimeout(() => cb(Date.now()), 16)
+    window.requestAnimationFrame = (cb) => window.setTimeout(() => cb(performance.now()), 16)
     window.cancelAnimationFrame = (id) => window.clearTimeout(id)
   })
   afterEach(() => {
@@ -68,6 +71,9 @@ describe('VIP round lifecycle', () => {
     expect(screen.getByTestId('vip-score')).toHaveTextContent('1')
     await advanceTo(25_100)
     expect(screen.getByText('Take a breath.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'All round results' }).querySelectorAll('li')
+    ).toHaveLength(16)
     tap()
     await advanceTo(25_200)
     expect(screen.getByTestId('vip-score')).toHaveTextContent('1')
@@ -79,6 +85,9 @@ describe('VIP round lifecycle', () => {
     tap()
     await advanceTo(83_100)
     expect(screen.getByText('THE FINAL PULSE')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'All final results' }).querySelectorAll('li')
+    ).toHaveLength(16)
     expect(onFinish).not.toHaveBeenCalled()
     const button = screen.getByRole('button', { name: 'Continue' })
     fireEvent.click(button)
@@ -87,6 +96,17 @@ describe('VIP round lifecycle', () => {
     expect(onFinish.mock.calls[0][0]).toBe(3)
     expect(Object.keys(onFinish.mock.calls[0][2].rawResults)).toHaveLength(16)
     expect(onFinish.mock.calls[0][2].rawResults['player-0']).toBe(3)
+  })
+
+  it('builds visible button heat as a player keeps tapping', async () => {
+    mount('race')
+    await advanceTo(32)
+    const button = screen.getByRole('button', { name: 'Tap the Eye to score points' })
+    for (let tapIndex = 0; tapIndex < 10; tapIndex++) {
+      fireEvent.pointerDown(button, { pointerId: tapIndex, pointerType: 'touch' })
+      fireEvent.pointerUp(button, { pointerId: tapIndex, pointerType: 'touch' })
+    }
+    expect(button).toHaveAttribute('data-heat-level', '5')
   })
 
   it('keeps winter negative, hides next-round weather and resets the seasonal reroll', async () => {

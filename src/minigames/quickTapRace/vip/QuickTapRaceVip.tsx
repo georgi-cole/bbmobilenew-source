@@ -67,12 +67,93 @@ const DEFAULT_TAP_PROFILE: Partial<CompetitionSkillProfile> = {
 }
 const BASE = `${import.meta.env.BASE_URL}assets/minigames/`
 const SEASONS: TapSeason[] = ['spring', 'summer', 'autumn', 'winter']
+const TAP_HEAT_COLORS = ['#66d6e3', '#66e0d1', '#f0cf79', '#ffa45b', '#ff875d', '#ff7955']
+const TAP_SPARK_BATCHES = 8
+const TAP_SPARKS_PER_BATCH = 6
+const CLASSIC_SPARKS_PER_TAP = 4
+const TAP_SPARK_COUNT = TAP_SPARK_BATCHES * TAP_SPARKS_PER_BATCH
+const CLASSIC_HEAT_EMOJIS = ['✨', '✨', '⚡', '🔥', '🔥', '💥']
+const TAP_SPARK_ORIGINS = [
+  [10, 25],
+  [50, 7],
+  [90, 25],
+  [92, 72],
+  [50, 93],
+  [8, 72],
+] as const
+const CLASSIC_SPARK_FLIGHTS: readonly [number, number, number][] = [
+  [-78, -52, -32],
+  [0, -90, 0],
+  [78, -52, 32],
+  [96, 24, 70],
+  [0, 84, 155],
+  [-96, 24, -70],
+]
+const SEASON_PARTICLE_ASSETS: Record<TapSeason, string> = {
+  spring: 'spring-bird.webp',
+  summer: 'summer-sun.webp',
+  autumn: 'autumn-leaf.webp',
+  winter: 'winter-snowflake.webp',
+}
+const SEASON_SPARK_FLIGHTS: Record<TapSeason, readonly [number, number, number][]> = {
+  spring: [
+    [-92, -56, -38],
+    [0, -108, 0],
+    [92, -56, 38],
+    [108, 12, 54],
+    [30, -88, 16],
+    [-108, 12, -54],
+  ],
+  summer: [
+    [-82, -80, -24],
+    [0, -112, 0],
+    [82, -80, 24],
+    [96, -68, 38],
+    [28, -116, 0],
+    [-96, -68, -38],
+  ],
+  autumn: [
+    [-90, 48, -120],
+    [-18, -58, 88],
+    [90, 48, 128],
+    [108, 72, 178],
+    [18, 102, 220],
+    [-108, 70, -168],
+  ],
+  winter: [
+    [-86, -55, -72],
+    [-18, -108, 42],
+    [86, -55, 82],
+    [104, 12, 136],
+    [26, 98, 160],
+    [-104, 12, -120],
+  ],
+}
 const numberText = (value: number) =>
   Number.isInteger(value)
     ? value.toLocaleString()
     : value.toLocaleString(undefined, { maximumFractionDigits: 2 })
 const cue = (key: string) => {
   void SoundManager.play(`minigame:${key}`)
+}
+
+function playReusableAnimation(
+  element: HTMLElement,
+  animationRef: { current: Animation | null },
+  keyframes: Keyframe[],
+  timing: { duration: number; easing: string; fill: 'both' }
+) {
+  const animation = animationRef.current
+  const effect = animation?.effect as KeyframeEffect | null | undefined
+  if (animation && effect && typeof effect.setKeyframes === 'function') {
+    effect.setKeyframes(keyframes)
+    effect.updateTiming(timing)
+    animation.currentTime = 0
+    animation.play()
+    return
+  }
+  animation?.cancel()
+  animationRef.current = element.animate(keyframes, timing)
 }
 
 function paintArena(
@@ -89,15 +170,38 @@ function paintArena(
   const cx = width / 2,
     cy = height / 2,
     r = Math.min(width, height) * 0.36
-  const pulse = Math.max(0, 1 - (now - lastTap) / 240)
+  const pulse = Math.max(0, 1 - (now - lastTap) / 520)
   const color = stop ? '#acdcf1' : season ? VIP_SEASONS[season].color : '#efc878'
-  ctx.strokeStyle = color
-  for (let ring = 0; ring < 3; ring++) {
-    ctx.globalAlpha = 0.12 + pulse * 0.35 - ring * 0.025
-    ctx.lineWidth = ring === 0 ? 2 : 1
-    ctx.beginPath()
-    ctx.arc(cx, cy, r + ring * 14 + pulse * (ring + 1) * 5, 0, Math.PI * 2)
-    ctx.stroke()
+  if (pulse > 0) {
+    const shimmerCount = reduced ? 3 : 7
+    const shimmerTime = reduced ? 0 : now * 0.0018
+    ctx.strokeStyle = color
+    ctx.fillStyle = color
+    ctx.lineCap = 'round'
+    for (let i = 0; i < shimmerCount; i++) {
+      const flicker = 0.45 + (Math.sin(shimmerTime * 2.3 + i * 1.7) + 1) * 0.24
+      const angle = (i / shimmerCount) * Math.PI * 2 + shimmerTime
+      const radius = r + Math.sin(shimmerTime * 1.8 + i) * (1.5 + pulse * 2.5)
+      ctx.globalAlpha = pulse * flicker
+      ctx.lineWidth = 0.8 + pulse * flicker * 1.6
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius, angle, angle + 0.025 + flicker * 0.075)
+      ctx.stroke()
+
+      if (i % 2 === 0) {
+        const glintAngle = angle + 0.16 + flicker * 0.16
+        ctx.globalAlpha = pulse * flicker * 0.82
+        ctx.beginPath()
+        ctx.arc(
+          cx + Math.cos(glintAngle) * radius,
+          cy + Math.sin(glintAngle) * radius,
+          0.75 + pulse * flicker * 1.5,
+          0,
+          Math.PI * 2
+        )
+        ctx.fill()
+      }
+    }
   }
   if (!reduced) {
     for (let i = 0; i < 18; i++) {
@@ -178,13 +282,22 @@ export default function QuickTapRaceVip({
   const startedAt = useRef<number | null>(null)
   const lastWall = useRef(0),
     lastTap = useRef(-1000),
-    pointers = useRef(new Set<number>())
+    pointers = useRef(new Set<number>()),
+    recentTapTimes = useRef<number[]>([]),
+    heatLevel = useRef(0),
+    sparkBatch = useRef(0),
+    lastChirpAt = useRef(0),
+    pressAnimation = useRef<Animation | null>(null),
+    glowAnimation = useRef<Animation | null>(null),
+    sparkAnimations = useRef<Array<{ current: Animation | null }>>([])
   const ended = useRef(false),
     committed = useRef(false),
     lastEvent = useRef(''),
     lastUi = useRef(0)
   const canvas = useRef<HTMLCanvasElement>(null),
-    tapButton = useRef<HTMLButtonElement>(null)
+    tapButton = useRef<HTMLButtonElement>(null),
+    tapGlow = useRef<HTMLSpanElement>(null),
+    tapSparks = useRef<Array<HTMLSpanElement | null>>([])
   const scoreElement = useRef<HTMLElement>(null),
     clockElement = useRef<HTMLElement>(null),
     tapsElement = useRef<HTMLElement>(null)
@@ -215,9 +328,44 @@ export default function QuickTapRaceVip({
   } | null>(null)
   const [finalEntries, setFinalEntries] = useState<Entry[]>([])
   const [finalRoundScores, setFinalRoundScores] = useState<number[]>([0, 0, 0])
+  const captureTapSpark = useCallback((node: HTMLSpanElement | null) => {
+    if (!node) return
+    tapSparks.current[Number(node.dataset.sparkIndex)] = node
+  }, [])
+  const tapSparkElements = useMemo(
+    () =>
+      Array.from({ length: TAP_SPARK_COUNT }, (_, index) => (
+        <span
+          key={`spark-${index}`}
+          ref={captureTapSpark}
+          data-spark-index={index}
+          className="qtr-vip__tap-spark"
+          aria-hidden="true"
+        />
+      )),
+    [captureTapSpark]
+  )
   useEffect(() => {
     finishContext.current = { session, onFinish }
   }, [session, onFinish])
+  useEffect(() => {
+    if (run.mode !== 'seasons') return
+    SoundManager.registerDynamic({
+      key: 'minigame:qtr_spring_chirp',
+      category: 'minigame',
+      src: `${BASE}quick-tap-seasons-vip/sounds/spring-chirp.wav`,
+      preload: false,
+      volume: 0.16,
+    })
+  }, [run.mode])
+  useEffect(
+    () => () => {
+      pressAnimation.current?.cancel()
+      glowAnimation.current?.cancel()
+      sparkAnimations.current.forEach((animationRef) => animationRef.current?.cancel())
+    },
+    []
+  )
 
   const entriesAt = useCallback(
     (atMs: number, round: number): Entry[] =>
@@ -253,13 +401,147 @@ export default function QuickTapRaceVip({
     return getQuickTapVipClock(wall, run.mode)
   }, [run.mode])
 
+  const updateTapHeat = useCallback((now: number, countTap = false) => {
+    const recent = recentTapTimes.current
+    if (countTap) recent.push(now)
+    while (recent.length && recent[0] < now - 2_000) recent.shift()
+    const nextHeat = Math.min(5, Math.floor(recent.length / 2))
+    if (nextHeat === heatLevel.current) return
+    heatLevel.current = nextHeat
+    const button = tapButton.current
+    if (button) {
+      button.dataset.heatLevel = String(nextHeat)
+      button.style.setProperty('--qtr-heat-color', TAP_HEAT_COLORS[nextHeat])
+    }
+  }, [])
+
+  const playTapFeedback = useCallback(() => {
+    const button = tapButton.current
+    if (!button || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    if (typeof button.animate === 'function') {
+      if (pressAnimation.current) {
+        pressAnimation.current.currentTime = 0
+        pressAnimation.current.play()
+      } else {
+        pressAnimation.current = button.animate(
+          [
+            { transform: 'translate3d(0, 0, 0) scale(1)', offset: 0 },
+            { transform: 'translate3d(0, 5px, 0) scale(.96)', offset: 0.24 },
+            { transform: 'translate3d(0, -1px, 0) scale(1.015)', offset: 0.66 },
+            { transform: 'translate3d(0, 0, 0) scale(1)', offset: 1 },
+          ],
+          { duration: 210, easing: 'cubic-bezier(.2, .78, .2, 1)' }
+        )
+      }
+    }
+
+    const glow = tapGlow.current
+    if (!glow || typeof glow.animate !== 'function') return
+    const heat = heatLevel.current
+    const glowPower = 0.22 + heat * 0.03
+    playReusableAnimation(
+      glow,
+      glowAnimation,
+      [
+        {
+          opacity: 0,
+          transform: 'translate(-50%, -50%) scale(.55)',
+        },
+        {
+          opacity: glowPower,
+          transform: 'translate(-50%, -50%) scale(1.05)',
+          offset: 0.24,
+        },
+        {
+          opacity: glowPower * 0.38,
+          transform: 'translate(-50%, -50%) scale(1.34)',
+          offset: 0.52,
+        },
+        {
+          opacity: 0,
+          transform: 'translate(-50%, -50%) scale(1.58)',
+        },
+      ],
+      { duration: 460 + heat * 22, easing: 'cubic-bezier(.18, .7, .24, 1)', fill: 'both' }
+    )
+
+    const season = run.mode === 'seasons' ? displayedSeason.current : null
+    const sparkPower = season ? 0.94 : 0.9
+    const sparkDuration = season ? 780 + heat * 18 : 650 + heat * 22
+    const batch = sparkBatch.current
+    sparkBatch.current = (batch + 1) % TAP_SPARK_BATCHES
+    const chirpNow = Date.now()
+    if (season === 'spring' && chirpNow - lastChirpAt.current >= 1200) {
+      lastChirpAt.current = chirpNow
+      cue('qtr_spring_chirp')
+    }
+    const sparkCount = season ? TAP_SPARK_ORIGINS.length : CLASSIC_SPARKS_PER_TAP
+    for (let index = 0; index < sparkCount; index++) {
+      const sparkIndex = batch * TAP_SPARKS_PER_BATCH + index
+      const spark = tapSparks.current[sparkIndex]
+      if (!spark || typeof spark.animate !== 'function') continue
+      const spread = 1 + heat * 0.08
+      const animationRef =
+        sparkAnimations.current[sparkIndex] ??
+        (sparkAnimations.current[sparkIndex] = { current: null })
+      const rotation = (batch - (TAP_SPARK_BATCHES - 1) / 2) * 3
+      const radians = (rotation * Math.PI) / 180
+      const sparkSlot = (index + batch) % TAP_SPARK_ORIGINS.length
+      const flight = season
+        ? SEASON_SPARK_FLIGHTS[season][sparkSlot]!
+        : CLASSIC_SPARK_FLIGHTS[sparkSlot]!
+      const [dx, dy, endRotation] = flight
+      const [originX, originY] = TAP_SPARK_ORIGINS[sparkSlot]!
+      spark.style.left = `${originX}%`
+      spark.style.top = `${originY}%`
+      spark.textContent = season ? '' : CLASSIC_HEAT_EMOJIS[heat]!
+      const travelX = dx * Math.cos(radians) - dy * Math.sin(radians)
+      const travelY = dx * Math.sin(radians) + dy * Math.cos(radians)
+      const mirrorBird = season === 'spring' && travelX < 0 ? 'scaleX(-1) ' : ''
+      const startRotation = season === 'autumn' ? -18 : season === 'winter' ? -12 : season ? 0 : -8
+      const middleRotation = season === 'autumn' ? endRotation * 0.52 : endRotation * 0.22
+      playReusableAnimation(
+        spark,
+        animationRef,
+        [
+          {
+            opacity: 0,
+            visibility: 'visible',
+            transform: `translate(-50%, -50%) ${mirrorBird}scale(${season ? 0.52 : 0.58}) rotate(${startRotation}deg)`,
+          },
+          {
+            opacity: sparkPower,
+            visibility: 'visible',
+            transform: `translate(calc(-50% + ${travelX * spread * 0.34}px), calc(-50% + ${travelY * spread * 0.34}px)) ${mirrorBird}scale(${season ? 1.08 + heat * 0.035 : 1.04 + heat * 0.055}) rotate(${middleRotation + rotation}deg)`,
+            offset: 0.22,
+          },
+          {
+            opacity: sparkPower * 0.74,
+            transform: `translate(calc(-50% + ${travelX * spread * 0.78}px), calc(-50% + ${travelY * spread * 0.78}px)) ${mirrorBird}scale(${season ? 0.84 : 0.86}) rotate(${endRotation * 0.78 + rotation}deg)`,
+            offset: 0.72,
+          },
+          {
+            opacity: 0,
+            visibility: 'hidden',
+            transform: `translate(calc(-50% + ${travelX * spread * 1.32}px), calc(-50% + ${travelY * spread * 1.32}px)) ${mirrorBird}scale(${season ? 0.52 : 0.56}) rotate(${endRotation + rotation}deg)`,
+          },
+        ],
+        { duration: sparkDuration, easing: 'cubic-bezier(.2, .72, .22, 1)', fill: 'both' }
+      )
+    }
+  }, [run.mode])
+
   const registerTap = useCallback(() => {
     if (phase !== 'playing' || ended.current) return
     const clock = readClock()
     if (clock.intermission || clock.finished) return
     runtime.current = applyQuickTapVipTap(runtime.current, clock.elapsedMs)
-    lastTap.current = performance.now()
-  }, [phase, readClock])
+    const now = performance.now()
+    updateTapHeat(now, true)
+    playTapFeedback()
+    lastTap.current = now
+  }, [phase, readClock, updateTapHeat, playTapFeedback])
 
   const claimBox = useCallback(() => {
     if (phase !== 'playing' || ended.current) return
@@ -380,9 +662,7 @@ export default function QuickTapRaceVip({
         if (clockElement.current)
           clockElement.current.textContent = (clock.roundLeftMs / 1000).toFixed(1)
         if (tapsElement.current) tapsElement.current.textContent = `${current.rawTaps} taps`
-        if (tapButton.current)
-          tapButton.current.style.transform =
-            now - lastTap.current < 75 ? 'scale(.965)' : 'scale(1)'
+        updateTapHeat(now)
         const eventKey = clock.intermission
           ? `break:${clock.round}`
           : `${clock.round}:${season ?? 'race'}`
@@ -444,7 +724,7 @@ export default function QuickTapRaceVip({
       cancelAnimationFrame(raf)
       observer.disconnect()
     }
-  }, [phase, readClock, duration, entriesAt, offers, run.mode])
+  }, [phase, readClock, duration, entriesAt, offers, run.mode, updateTapHeat])
 
   const commitCompletion = () => {
     if (committed.current || !finalEntries.length) return
@@ -474,7 +754,12 @@ export default function QuickTapRaceVip({
   const season = view.season,
     seasonInfo = season ? VIP_SEASONS[season] : null
   const stop = view.tapValue < 0 || view.stillness
-  const rootStyle = { '--qtr-accent': seasonInfo?.color ?? '#f2cc79' } as CSSProperties
+  const rootStyle = {
+    '--qtr-accent': seasonInfo?.color ?? '#f2cc79',
+    '--qtr-season-particle': season
+      ? `url("${BASE}quick-tap-seasons-vip/particles/${SEASON_PARTICLE_ASSETS[season]}")`
+      : 'none',
+  } as CSSProperties
   const title = run.mode === 'seasons' ? 'Quick Tap Seasons' : 'Quick Tap Race'
   const background = (
     <div className="qtr-vip__backdrops" aria-hidden="true">
@@ -553,7 +838,14 @@ export default function QuickTapRaceVip({
               </span>
             ))}
           </div>
-          {standings(finalEntries)}
+          <div
+            className="qtr-vip__results-scroll"
+            role="region"
+            aria-label="All final results"
+            tabIndex={0}
+          >
+            {standings(finalEntries)}
+          </div>
           <button className="qtr-vip__continue" onClick={commitCompletion}>
             Continue
           </button>
@@ -639,6 +931,7 @@ export default function QuickTapRaceVip({
             <button
               ref={tapButton}
               className="qtr-vip__tap-control"
+              data-heat-level="0"
               type="button"
               aria-label={
                 stop
@@ -661,16 +954,18 @@ export default function QuickTapRaceVip({
               }}
               onContextMenu={(event) => event.preventDefault()}
             >
-              <img src={`${BASE}quick-tap-vip/eye-tap-control.webp`} alt="" draggable={false} />
-              <span>
-                {stop ? 'STOP' : 'TAP'}
-                <small>
-                  {view.stillness
-                    ? 'Stay still for the bonus'
-                    : `${view.tapValue > 0 ? '+' : ''}${view.tapValue} per tap`}
-                </small>
-              </span>
+              <span ref={tapGlow} className="qtr-vip__tap-glow" aria-hidden="true" />
+              {tapSparkElements}
+              <img src={`${BASE}quick-tap-vip/eye-tap-control-v2.webp`} alt="" draggable={false} />
             </button>
+            <div className="qtr-vip__tap-caption" aria-hidden="true">
+              {stop ? 'STOP' : 'TAP'}
+              <small>
+                {view.stillness
+                  ? 'Stay still for the bonus'
+                  : `${view.tapValue > 0 ? '+' : ''}${view.tapValue} per tap`}
+              </small>
+            </div>
             {reveal && (
               <div
                 key={reveal.key}
@@ -729,7 +1024,14 @@ export default function QuickTapRaceVip({
               <p>
                 Total {numberText(view.score)} · Position {rank} / {contestants.length}
               </p>
-              {standings(view.entries.slice(0, 5))}
+              <div
+                className="qtr-vip__results-scroll"
+                role="region"
+                aria-label="All round results"
+                tabIndex={0}
+              >
+                {standings(view.entries, true)}
+              </div>
               <div className="qtr-vip__next-round">
                 Round {view.clock.round + 2}
                 <strong>{Math.max(1, Math.ceil(view.clock.breakLeftMs / 1000))}</strong>
