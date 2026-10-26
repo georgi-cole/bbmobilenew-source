@@ -12,6 +12,7 @@ export type RgbSplitGlitchStateInput = {
 // still leaving the credit readable for the overwhelming majority of its card.
 const GLITCH_ENTER_FRAMES = 20
 const GLITCH_EXIT_FRAMES = 12
+export const CAMERA_FLY_EXIT_FRAMES = 48
 const BURST_PATTERN = [0.22, 0.92, 0.46, 1, 0.58, 0.84, 0.3, 0.7] as const
 
 export function getRgbSplitGlitchState({

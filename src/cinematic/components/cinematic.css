@@ -3,6 +3,7 @@
   color: #effbff;
   font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  container-type: inline-size;
 }
 
 .big-eye-cinematic canvas {
@@ -249,7 +250,11 @@
 
 .big-eye-credits__card--closing-part-one,
 .big-eye-credits__card--closing-part-two {
-  margin-top: -1200px;
+  margin-top: -50cqw;
+}
+
+.big-eye-credits__card--closing-part-two {
+  margin-top: -62cqw;
 }
 
 .big-eye-credits__card--closing-part-one .big-eye-credits__line--body,

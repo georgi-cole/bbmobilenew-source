@@ -1,5 +1,5 @@
-const CINEMATIC_FPS = 30;
-const CINEMATIC_DURATION_SECONDS = 54;
+const CINEMATIC_FPS = 30
+const CINEMATIC_DURATION_SECONDS = 54
 
 export const CINEMATIC_CONFIG = {
   compositionId: 'BigEyeCinematic',
@@ -66,7 +66,7 @@ export const CINEMATIC_CONFIG = {
       [0, 30, -650],
     ] as const,
   },
-} as const;
+} as const
 
 export type CreditTextStyle =
   | 'title'
@@ -78,23 +78,23 @@ export type CreditTextStyle =
   | 'small'
   | 'legal'
   | 'closing-title'
-  | 'closing-subtitle';
+  | 'closing-subtitle'
 
 export type CreditLine = {
-  text: string;
-  style: CreditTextStyle;
-  gapBefore?: boolean;
-};
+  text: string
+  style: CreditTextStyle
+  gapBefore?: boolean
+}
 
 export type CreditCard = {
-  id: string;
-  fromSecond: number;
-  toSecond: number;
-  lines: readonly CreditLine[];
-};
+  id: string
+  fromSecond: number
+  toSecond: number
+  lines: readonly CreditLine[]
+}
 
-// Edit this data to change credit copy or timing. The 15–19 second gap is
-// intentional and leaves the city unobstructed before Special Thanks.
+// Edit this data to change credit copy or timing. Keep the credits moving
+// after the main theme and reserve the final sunset for the closing card.
 export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   {
     id: 'thank-you',
@@ -141,8 +141,8 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   },
   {
     id: 'music-producers',
-    fromSecond: 22.5,
-    toSecond: 27.8,
+    fromSecond: 17.1,
+    toSecond: 22.4,
     lines: [
       { text: 'Music producers', style: 'label' },
       { text: 'Joshua Ryan Collopy', style: 'name', gapBefore: true },
@@ -151,8 +151,8 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   },
   {
     id: 'thanks-jaysomeday',
-    fromSecond: 28.8,
-    toSecond: 31.5,
+    fromSecond: 23.4,
+    toSecond: 26.1,
     lines: [
       { text: 'Hubmates theme by:', style: 'label' },
       { text: 'Jay Someday - Midnight', style: 'name', gapBefore: true },
@@ -160,8 +160,8 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   },
   {
     id: 'thanks-newnote',
-    fromSecond: 31.5,
-    toSecond: 34.2,
+    fromSecond: 26.1,
+    toSecond: 28.8,
     lines: [
       { text: 'Special Thanks', style: 'label' },
       { text: 'New Note Music', style: 'name', gapBefore: true },
@@ -169,8 +169,8 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   },
   {
     id: 'thanks-mina',
-    fromSecond: 34.2,
-    toSecond: 36.9,
+    fromSecond: 28.8,
+    toSecond: 31.5,
     lines: [
       { text: 'Special Thanks', style: 'label' },
       { text: 'Dr. Mina V. Koleva', style: 'name', gapBefore: true },
@@ -178,48 +178,55 @@ export const CINEMATIC_CREDITS: readonly CreditCard[] = [
   },
   {
     id: 'quality-assurance',
-    fromSecond: 36.9,
-    toSecond: 39.6,
+    fromSecond: 31.5,
+    toSecond: 34.2,
     lines: [
       { text: 'Quality Assurance', style: 'label' },
       { text: 'Georgi Atanasov', style: 'name', gapBefore: true },
     ],
   },
-    {
+  {
     id: 'disclaimer',
-    fromSecond: 39.6,
-    toSecond: 45.2,
+    fromSecond: 34.2,
+    toSecond: 39.8,
     lines: [
-      { text: 'Any resemblance to actual persons or events is purely coincidental.', style: 'legal' },
+      {
+        text: 'Any resemblance to actual persons or events is purely coincidental.',
+        style: 'legal',
+      },
     ],
   },
   {
     id: 'closing-part-one',
-    fromSecond: 45.8,
-    toSecond: 48.9,
+    fromSecond: 40.4,
+    toSecond: 43.5,
     lines: [
       { text: 'This was fun, right?', style: 'body' },
-      { text: 'If you feel life is too short, we can change that.', style: 'body', gapBefore: true },
+      {
+        text: 'If you feel life is too short, we can change that.',
+        style: 'body',
+        gapBefore: true,
+      },
     ],
   },
   {
     id: 'closing-part-two',
-    fromSecond: 48.9,
-    toSecond: 52.4,
+    fromSecond: 43.5,
+    toSecond: 49.2,
     lines: [
       { text: 'Visit Kolequant.xyz', style: 'body' },
       { text: 'Fun does not need to be cut short.', style: 'body', gapBefore: true },
     ],
   },
-] as const;
+] as const
 
 export const CINEMATIC_AUDIO = {
   source: 'assets/sounds/minigames/move_into_me_alternative.mp3',
-  sourceStartInSeconds: 46,
+  sourceStartInSeconds: 48,
   fadeInSeconds: 1.2,
   fadeOutSeconds: 1.8,
   volume: 0.75,
-} as const;
+} as const
 
 export const OPTIONAL_ASSETS = {
   eye: 'assets/big-eye.png',
@@ -228,4 +235,4 @@ export const OPTIONAL_ASSETS = {
   clouds2: 'assets/clouds-2.png',
   moon: 'assets/moon.png',
   stars: 'assets/stars.png',
-} as const;
+} as const
