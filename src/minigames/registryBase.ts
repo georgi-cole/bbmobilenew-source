@@ -69,6 +69,8 @@ export interface GameRegistryEntry {
   replacedBy?: string
   /** VIP/Premium Challenges version launched in place of this canonical game. */
   premiumReplacementKey?: string
+  /** Premium Challenges/VIP upgrade included in the marketplace's premium minigame catalog. */
+  premiumExperience?: 'presentation' | 'variant'
   /** Direct-access registry entry reserved for VIP/Premium Challenges owners. */
   vipOnly?: boolean
 }
@@ -148,6 +150,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'raw',
     implementation: 'react' as const,
     reactComponentKey: 'QuickTapRace',
+    premiumExperience: 'variant',
     legacy: false,
     weight: 2,
     category: 'arcade',
@@ -178,6 +181,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'raw',
     implementation: 'react' as const,
     reactComponentKey: 'QuickTapSeasons',
+    premiumExperience: 'variant',
     legacy: false,
     weight: 1,
     category: 'arcade',
@@ -752,6 +756,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react' as const,
     reactComponentKey: 'HouseOfCards',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'logic',
@@ -1134,6 +1139,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'RiskWheel',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'arcade',
@@ -1295,6 +1301,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'GlassBridge',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'endurance',
@@ -1321,6 +1328,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'CrystalPathShattered',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'endurance',
@@ -1483,6 +1491,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'ChainOfGreed',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 2,
     category: 'logic',
@@ -1539,6 +1548,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'HouseOfDarkness',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'logic',

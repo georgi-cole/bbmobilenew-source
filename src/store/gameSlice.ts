@@ -66,7 +66,7 @@ import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
-import { isEffectiveVipActive } from '../vip/effectiveEntitlements'
+import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
 import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
@@ -14641,7 +14641,7 @@ export const startMinigame =
     const isHybrid = isHybridScoredGame(opts.key)
     const isVipQuickTap =
       (opts.key === 'quickTap' || opts.key === 'quickTapSeasons') &&
-      isEffectiveVipActive(rootState.vip)
+      hasEffectiveStoreEntitlement(rootState.vip, 'premiumChallenges')
 
     // Generate a fresh per-invocation seed so every new game launch / restart /
     // reload gets a different booster sequence and AI variation, even when the

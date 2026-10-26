@@ -19,7 +19,7 @@ import { selectNextCompetitionGame } from '../ai/competition/scheduling'
 import { getClassicCampaignPoolForContext } from '../ai/competition/bracketTemplate'
 import { pickCompetitionDirectorGame } from '../ai/competition/competitionDirector'
 import { applyCompetitionSeasonUpdate, hydrateGame, selectAlivePlayers } from './gameSlice'
-import { isEffectiveVipActive } from '../vip/effectiveEntitlements'
+import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
 import { simulateQuickTapVipAiRace } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import {
   pickRandomGame,
@@ -611,7 +611,7 @@ export const startChallenge =
       eligibleParticipants.length > 0 ? eligibleParticipants : resolvedParticipants
     const vipQuickTap =
       (gameEntry.key === 'quickTap' || gameEntry.key === 'quickTapSeasons') &&
-      isEffectiveVipActive(latestState.vip)
+      hasEffectiveStoreEntitlement(latestState.vip, 'premiumChallenges')
     const forcedWinnerId = vipQuickTap
       ? undefined
       : managerRule?.outcome === 'player' &&

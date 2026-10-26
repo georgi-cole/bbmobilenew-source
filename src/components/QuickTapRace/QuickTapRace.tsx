@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAppSelector } from '../../store/hooks'
-import { selectIsVipActive } from '../../store/vipSlice'
+import { selectHasPremiumChallengesAccess } from '../../store/vipSlice'
 import type { MinigameSession, Player } from '../../types'
 import type { QTRTimingDiagnostics } from '../../minigames/quickTapRace/engine/types'
 import QuickTapRaceCanvasGame from '../../minigames/quickTapRace/QuickTapRaceCanvasGame'
@@ -43,7 +43,7 @@ export default function QuickTapRace({
   participants,
   experimental,
 }: Props) {
-  const activeVip = useAppSelector(selectIsVipActive)
+  const hasPremiumChallengesAccess = useAppSelector(selectHasPremiumChallengesAccess)
   const [isVipRun] = useState(() =>
     quickTapVariantOverride === 'vip'
       ? true
@@ -53,7 +53,7 @@ export default function QuickTapRace({
           ? true
           : session?.quickTapVariant === 'classic'
             ? false
-            : (vipQuickTap ?? activeVip)
+            : (vipQuickTap ?? hasPremiumChallengesAccess)
   )
 
   if (isVipRun) {

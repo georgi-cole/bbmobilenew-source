@@ -23,7 +23,7 @@ import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
 import { store } from '../../store/store'
-import { selectHasPremiumChallengesAccess, selectIsVipActive } from '../../store/vipSlice'
+import { selectHasPremiumChallengesAccess } from '../../store/vipSlice'
 import MinigameRules from '../MinigameRules/MinigameRules'
 import MinigameTurnDemo, { TURN_DEMO_KEYS } from '../MinigameTurnDemo/MinigameTurnDemo'
 import MinigameUtilityDock from '../MinigameUtilityDock/MinigameUtilityDock'
@@ -213,12 +213,9 @@ export default function MinigameHost({
     () => selectHasPremiumChallengesAccess(store.getState()),
     () => selectHasPremiumChallengesAccess(store.getState())
   )
-  const isVipActive = useSyncExternalStore(
-    store.subscribe,
-    () => selectIsVipActive(store.getState()),
-    () => selectIsVipActive(store.getState())
-  )
-  const usePremiumPresentation = premiumPresentationOverride ?? isVipActive
+  const usePremiumPresentation =
+    premiumPresentationOverride ??
+    (hasPremiumChallengesAccess && game.premiumExperience === 'presentation')
   const quickTapVariantPreviewOverride =
     import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
       ? gameOptions.quickTapVariantPreview
@@ -227,7 +224,9 @@ export default function MinigameHost({
       : undefined
   const quickTapVipEnabled =
     (game.key === 'quickTap' || game.key === 'quickTapSeasons') &&
-    (quickTapVariantPreviewOverride ? quickTapVariantPreviewOverride === 'vip' : isVipActive)
+    (quickTapVariantPreviewOverride
+      ? quickTapVariantPreviewOverride === 'vip'
+      : hasPremiumChallengesAccess)
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
@@ -781,7 +780,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as RiskWheelCompetitionType) ?? 'LOH'}
-          premiumPresentation={isVipActive}
+          premiumPresentation={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )

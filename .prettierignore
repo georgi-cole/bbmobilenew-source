@@ -1,4 +1,7 @@
 dist
+dist-production
+dist-qa
+deployment
 node_modules
 coverage
 playwright-report
