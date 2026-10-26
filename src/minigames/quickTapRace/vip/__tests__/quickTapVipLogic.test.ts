@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  QUICK_TAP_VIP_AI_PACE_BANDS,
   QUICK_TAP_VIP_DURATION_MS,
   VIP_SEASONS,
   advanceQuickTapVipState,
@@ -187,12 +188,33 @@ describe('VIP seasonal rules and mystery pools', () => {
 })
 
 describe('VIP AI parity', () => {
+  it('samples the configured pace probabilities across seeds', () => {
+    const sampleCount = 10_000
+    const counts = new Map<string, number>()
+    for (let seed = 0; seed < sampleCount; seed++) {
+      const race = simulateQuickTapVipAiRace({
+        seed,
+        playerId: 'pace-sample',
+        offers: [],
+        durationMs: 1_000,
+      })
+      counts.set(race.paceBand, (counts.get(race.paceBand) ?? 0) + 1)
+      expect(race.targetTapsPerSecond).toBeGreaterThan(6)
+      expect(race.targetTapsPerSecond).toBeLessThanOrEqual(16.5)
+    }
+    expect(QUICK_TAP_VIP_AI_PACE_BANDS.reduce((sum, band) => sum + band.weight, 0)).toBe(100)
+    for (const band of QUICK_TAP_VIP_AI_PACE_BANDS)
+      expect(Math.abs((counts.get(band.id) ?? 0) / sampleCount - band.weight / 100)).toBeLessThan(
+        0.015
+      )
+  })
+
   it('produces repeatable distinct full races and exact live final scores', () => {
     for (const mode of ['race', 'seasons'] as const) {
       const race = simulateQuickTapVipAiRace({ seed: 424242, playerId: 'steady-ai', mode })
       expect(race).toEqual(simulateQuickTapVipAiRace({ seed: 424242, playerId: 'steady-ai', mode }))
       expect(race.rawTaps).toBeGreaterThan(150)
-      expect(race.rawTaps).toBeLessThan(750)
+      expect(race.rawTaps).toBeLessThan(1_300)
       expect(
         race.progress.every((point, i) => i === 0 || point.atMs >= race.progress[i - 1].atMs)
       ).toBe(true)
@@ -244,20 +266,28 @@ describe('VIP AI parity', () => {
       expect(new Set(Object.values(scores)).size).toBeGreaterThan(20)
     }
   })
-  it('keeps the strongest AI in a full field close to a fast human pace', () => {
+  it('includes fast phone opponents and a varied field even with equal skill profiles', () => {
     for (const mode of ['race', 'seasons'] as const) {
+      const spreads: number[] = []
       const topAiTaps = Array.from({ length: 24 }, (_, seedOffset) => {
         const seed = 1_000 + seedOffset
-        return Math.max(
-          ...Array.from(
-            { length: 15 },
-            (_, i) => simulateQuickTapVipAiRace({ seed, playerId: `player-${i + 1}`, mode }).rawTaps
-          )
+        const taps = Array.from(
+          { length: 15 },
+          (_, i) =>
+            simulateQuickTapVipAiRace({
+              seed,
+              playerId: `player-${i + 1}`,
+              mode,
+              profile: { physical: 50, mental: 50, nerve: 50, consistency: 50 },
+            }).rawTaps
         )
+        spreads.push(Math.max(...taps) - Math.min(...taps))
+        return Math.max(...taps)
       }).sort((a, b) => a - b)
       const medianTopAiTaps = topAiTaps[Math.floor(topAiTaps.length / 2)]
-      expect(medianTopAiTaps).toBeGreaterThan(590)
-      expect(medianTopAiTaps).toBeLessThan(670)
+      expect(medianTopAiTaps).toBeGreaterThan(850)
+      expect(medianTopAiTaps).toBeLessThan(1_150)
+      expect(spreads.every((spread) => spread > 250)).toBe(true)
     }
   })
 })

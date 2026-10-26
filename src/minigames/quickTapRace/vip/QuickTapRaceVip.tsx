@@ -296,6 +296,7 @@ export default function QuickTapRaceVip({
     lastUi = useRef(0)
   const canvas = useRef<HTMLCanvasElement>(null),
     tapButton = useRef<HTMLButtonElement>(null),
+    tapFace = useRef<HTMLImageElement>(null),
     tapGlow = useRef<HTMLSpanElement>(null),
     tapSparks = useRef<Array<HTMLSpanElement | null>>([])
   const scoreElement = useRef<HTMLElement>(null),
@@ -417,24 +418,30 @@ export default function QuickTapRaceVip({
 
   const playTapFeedback = useCallback(() => {
     const button = tapButton.current
-    if (!button || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const face = tapFace.current
+    if (!button || !face) return
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-    if (typeof button.animate === 'function') {
-      if (pressAnimation.current) {
-        pressAnimation.current.currentTime = 0
-        pressAnimation.current.play()
-      } else {
-        pressAnimation.current = button.animate(
-          [
-            { transform: 'translate3d(0, 0, 0) scale(1)', offset: 0 },
-            { transform: 'translate3d(0, 5px, 0) scale(.96)', offset: 0.24 },
-            { transform: 'translate3d(0, -1px, 0) scale(1.015)', offset: 0.66 },
-            { transform: 'translate3d(0, 0, 0) scale(1)', offset: 1 },
-          ],
-          { duration: 210, easing: 'cubic-bezier(.2, .78, .2, 1)' }
-        )
-      }
+    if (typeof face.animate === 'function') {
+      // Start at full compression: restarting a stroke from rest hides it at fast tap rates.
+      // Animate the artwork only so its entire touch target stays under both thumbs.
+      const pressed = reduced
+        ? 'translate3d(0, 3px, 0) scale(.97)'
+        : 'translate3d(0, 12px, 0) scale(.89, .87)'
+      playReusableAnimation(
+        face,
+        pressAnimation,
+        [
+          { transform: pressed, offset: 0 },
+          { transform: pressed, offset: 0.2 },
+          { transform: 'translate3d(0, 0, 0) scale(1)', offset: 0.78 },
+          { transform: 'translate3d(0, 0, 0) scale(1)', offset: 1 },
+        ],
+        { duration: reduced ? 80 : 105, easing: 'linear', fill: 'both' }
+      )
     }
+    // Direct press feedback is still needed with reduced motion; decoration is optional.
+    if (reduced) return
 
     const glow = tapGlow.current
     if (!glow || typeof glow.animate !== 'function') return
@@ -956,7 +963,13 @@ export default function QuickTapRaceVip({
             >
               <span ref={tapGlow} className="qtr-vip__tap-glow" aria-hidden="true" />
               {tapSparkElements}
-              <img src={`${BASE}quick-tap-vip/eye-tap-control-v2.webp`} alt="" draggable={false} />
+              <img
+                ref={tapFace}
+                className="qtr-vip__tap-face"
+                src={`${BASE}quick-tap-vip/eye-tap-control-v2.webp`}
+                alt=""
+                draggable={false}
+              />
             </button>
             <div className="qtr-vip__tap-caption" aria-hidden="true">
               {stop ? 'STOP' : 'TAP'}

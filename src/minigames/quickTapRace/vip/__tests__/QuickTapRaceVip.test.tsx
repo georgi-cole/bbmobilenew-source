@@ -109,6 +109,29 @@ describe('VIP round lifecycle', () => {
     expect(button).toHaveAttribute('data-heat-level', '5')
   })
 
+  it.each(['race', 'seasons'] as const)(
+    'keeps direct press feedback and counts a touch once with reduced motion in %s',
+    async (mode) => {
+      vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList)
+      mount(mode)
+      await advanceTo(32)
+      const button = screen.getByRole('button', { name: /Tap the Eye/ })
+      const face = button.querySelector('img')!
+      const faceAnimation = vi.fn(() => ({ cancel: vi.fn() }))
+      const targetAnimation = vi.fn()
+      Object.defineProperty(face, 'animate', { value: faceAnimation })
+      Object.defineProperty(button, 'animate', { value: targetAnimation })
+      fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.pointerUp(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.click(button, { detail: 1 })
+      await advanceTo(64)
+      expect(faceAnimation).toHaveBeenCalledTimes(1)
+      expect(targetAnimation).not.toHaveBeenCalled()
+      expect(screen.getByText('1 taps')).toBeInTheDocument()
+    }
+  )
+
   it('keeps winter negative, hides next-round weather and resets the seasonal reroll', async () => {
     let seed = 0
     while (buildQuickTapVipSeasons(seed)[0] !== 'winter') seed++
