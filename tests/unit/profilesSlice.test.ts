@@ -202,7 +202,13 @@ describe('loadProfilesState / saveProfilesState', () => {
     };
     saveProfilesState(state);
     const loaded = loadProfilesState();
-    expect(loaded).toEqual(state);
+    expect(loaded).toMatchObject({
+      activeProfileId: 'abc',
+      isGuest: false,
+      profiles: [{ id: 'abc', name: 'Alice', appearanceSelection: { kind: 'legacy' } }],
+    });
+    saveProfilesState(loaded);
+    expect(loadProfilesState()).toEqual(loaded);
   });
 
   it('does not throw on corrupted storage', () => {

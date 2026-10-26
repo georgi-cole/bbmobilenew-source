@@ -1,0 +1,68 @@
+.profile-season-status {
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(190, 164, 230, 0.14);
+}
+
+.profile-season-status__title {
+  margin: 0 0 9px;
+  color: rgba(227, 211, 245, 0.6);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.profile-season-status__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-season-status__pill {
+  max-width: 100%;
+  min-height: 30px;
+  gap: 5px;
+  padding: 6px 9px;
+  font-size: 0.67rem;
+  letter-spacing: 0.02em;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.profile-season-status__pill--revealed {
+  align-items: flex-start;
+  min-width: min(160px, 100%);
+  padding: 8px 10px;
+  white-space: normal;
+}
+
+.profile-season-status__pill-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.profile-season-status__pill-caption {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.profile-season-status__pill-value {
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.profile-season-status__pill-hint {
+  font-size: 0.62rem;
+  font-weight: 600;
+  opacity: 0.86;
+}

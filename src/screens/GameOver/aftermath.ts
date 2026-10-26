@@ -1,5 +1,7 @@
 import { BUNDLED_AFTER_THE_EYE_CONFIG } from './afterTheEyeOutcomeConfig'
 import { resolveRecapTabloidSources } from '../../components/SeasonRecapCinematic/seasonRecapData'
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
+import { joinPublicAssetPath } from '../../utils/avatar'
 import type { PublicOpinionState } from '../../publicOpinion/types'
 import type { SocialState } from '../../social/types'
 import type { GameHistoryEvent, Player } from '../../types'
@@ -604,6 +606,13 @@ function pickTabloidPhoto(
   photos: TabloidPhotoEntry[],
   usedPhotoIds: Set<string>
 ): string | null {
+  if (player?.isUser || player?.id === 'user') {
+    const asset = getAppearanceAsset(
+      player.appearance ?? appearanceFromAssetUrl(player.avatar),
+      'paparazzi'
+    )
+    if (asset) return joinPublicAssetPath(asset)
+  }
   if (photos.length === 0) return null
   const desiredTokens = getTabloidMatchTokens(player)
   const matched = photos.find(

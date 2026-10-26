@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { avatarVariants } from '../../utils/avatarCase'
 import { getLocalAvatarFallback, getProfilePhotoAvatarId } from '../../utils/avatar'
+import { appearanceFromAssetUrl } from '../../appearance/catalog'
 import { imageIdToDataUrl } from '../../utils/imageDb'
 import { getBadgesForPlayer } from '../../utils/statusBadges'
 import styles from './HouseguestGrid.module.css'
@@ -280,7 +281,10 @@ export default function AvatarTile({
   const [isPressing, setIsPressing] = React.useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = React.useState<string | null>(null)
   const normalAvatarUrl = profilePhotoUrl ?? (profilePhotoId ? undefined : avatarUrl)
-  const useSadPortrait = !isYou && !profilePhotoId && depressionShockPortraitMode === 'sad'
+  const useSadPortrait =
+    (!isYou || Boolean(appearanceFromAssetUrl(avatarUrl))) &&
+    !profilePhotoId &&
+    depressionShockPortraitMode === 'sad'
   const sadAvatarUrl = useSadPortrait
     ? buildDepressionShockAvatarCandidates(
         name.toLowerCase(),
@@ -323,7 +327,7 @@ export default function AvatarTile({
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     if (exhaustedRef.current) return
     const img = e.currentTarget
-    if (sadAvatarUrl && img.src.includes('_sad_avatar.') && normalAvatarUrl) {
+    if (sadAvatarUrl && img.getAttribute('src') === sadAvatarUrl && normalAvatarUrl) {
       img.src = normalAvatarUrl
       return
     }

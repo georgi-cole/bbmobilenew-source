@@ -1,0 +1,72 @@
+.dressing-room {
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  max-width: 520px;
+  margin: auto;
+  padding: 16px 16px max(36px, env(safe-area-inset-bottom));
+  overflow: hidden;
+  color: #faf6f1;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(212, 185, 137, 0.11), transparent 35%),
+    linear-gradient(165deg, #27212a 0%, #17141c 46%, #111018 100%);
+}
+
+.dressing-room.placeholder-screen {
+  gap: 2px;
+  padding: 10px 16px max(24px, env(safe-area-inset-bottom));
+}
+
+.dressing-room__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  color: #e4d5b7;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.dressing-room h1 {
+  margin: 0 0 1px;
+  color: #fff8ed;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.4rem, 4.5vw, 1.8rem);
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  text-align: center;
+  text-shadow: 0 2px 18px rgba(235, 212, 176, 0.12);
+}
+
+.dressing-room__subtitle,
+.dressing-room__season-note {
+  color: #c8bdaf;
+  text-align: center;
+}
+
+.dressing-room__subtitle {
+  margin: 0 0 6px;
+  font-size: 0.74rem;
+  letter-spacing: 0.015em;
+}
+
+.dressing-room__season-note {
+  margin: 6px 0 0;
+  color: rgba(220, 211, 197, 0.68);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 360px) {
+  .dressing-room {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .dressing-room__subtitle {
+    margin-bottom: 4px;
+  }
+}

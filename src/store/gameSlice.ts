@@ -75,7 +75,8 @@ import {
   preTribunalExitCount,
   resolveTribunalSize,
 } from '../rules/tribunalPolicy'
-import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
+import { joinPublicAssetPath, profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
+import { getAppearanceAsset } from '../appearance/catalog'
 import {
   getTwinShockActivationSeason,
   MAX_SEASON_ARCHIVES,
@@ -631,12 +632,19 @@ export function resolveProfileSex(
 }
 function buildUserPlayer(): Player {
   const profile = loadActiveProfile()
+  const appearance = profile.appearanceSelection
+  const mainAsset = getAppearanceAsset(appearance, 'main')
   const parsedAge = resolveProfileAge(profile.bio?.age)
   const resolvedSex = resolveProfileSex(profile.bio?.sex, profile.bio?.reproductiveProfile)
   return {
     id: 'user',
     name: profile.name,
-    avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
+    avatar: mainAsset
+      ? joinPublicAssetPath(mainAsset)
+      : profile.photoId
+        ? profilePhotoAvatar(profile.photoId)
+        : profile.avatar,
+    appearance,
     status: 'active',
     isUser: true,
     ...(parsedAge !== undefined ? { age: parsedAge } : {}),
@@ -9614,12 +9622,9 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
-      const profileAge = resolveProfileAge(loadActiveProfile().bio?.age)
       const hydrated: GameState = {
         ...action.payload,
-        players: action.payload.players.map((player) =>
-          player.isUser && profileAge !== undefined ? { ...player, age: profileAge } : player
-        ),
+        players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',

@@ -34,7 +34,7 @@
  * │  splash              App open / KolequantSplash animation                 │
  * │  intro_hub           Home hub after splash, before Play is pressed        │
  * │  intro_hub_rules     /rules sub-module                                    │
- * │  intro_hub_profile   /profile sub-module                                  │
+ * │  intro_hub_profile   /profile sub-module (except its dressing-room route) │
  * │  intro_hub_houseguests /houseguests sub-module                            │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
@@ -97,7 +97,8 @@
  *  D. NO CROSS-PHASE MUSIC REUSE — a track associated with a finished phase
  *     cannot be re-triggered from an unrelated phase.
  *  E. SUBMODULES DO NOT OVERRIDE PHASE MUSIC — houseguests / profile / rules
- *     are intro sub-modules but must not independently start new music.
+ *     inherit Intro Hub music; /profile/dressing-room is an explicit route
+ *     exception with its own centrally resolved lounge loop.
  *  F. MINIGAME AUDIO IS SUB-PHASE-SCOPED — while challenge.pending.phase ===
  *     'playing' the resolver returns the minigame-specific track regardless of
  *     the game phase.  When the minigame ends the resolver falls through to the

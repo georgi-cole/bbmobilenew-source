@@ -25,6 +25,8 @@ export interface Player {
   name: string
   /** Emoji or URL used as avatar face */
   avatar: string
+  /** Captured when this season starts; changing the profile look does not alter this cast. */
+  appearance?: import('../appearance/catalog').AppearanceSelection
   /** Optional cast metadata used by twists that prefer mixed-gender pairings. */
   sex?: string
   /** Canonical age used by adult-only Reality relationship actions. */
