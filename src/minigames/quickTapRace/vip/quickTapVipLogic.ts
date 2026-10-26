@@ -455,6 +455,8 @@ export interface QuickTapVipProgressPoint {
 }
 export interface QuickTapVipAiRace {
   id: string
+  paceBand: string
+  targetTapsPerSecond: number
   score: number
   rawTaps: number
   roundScores: number[]
@@ -463,6 +465,16 @@ export interface QuickTapVipAiRace {
   rerollTimes: number[]
   progress: QuickTapVipProgressPoint[]
 }
+// Per contestant, per match. Active cadence is reduced by fatigue, reaction
+// time, negative effects and pauses to claim mystery boxes.
+export const QUICK_TAP_VIP_AI_PACE_BANDS = [
+  { id: 'steady', weight: 25, min: 7, max: 10 },
+  { id: 'quick', weight: 25, min: 10, max: 12 },
+  { id: 'rapid', weight: 25, min: 12, max: 13.5 },
+  { id: 'fast', weight: 15, min: 13.5, max: 14.5 },
+  { id: 'very-fast', weight: 8, min: 14.5, max: 15.5 },
+  { id: 'elite', weight: 2, min: 15.5, max: 16.5 },
+] as const
 /** Public conditions only. The policy cannot inspect the mystery result. */
 export function shouldQuickTapVipAiGrab(args: {
   roll: number
@@ -505,10 +517,20 @@ export function simulateQuickTapVipAiRace(args: {
     nerve = trait('nerve'),
     consistency = trait('consistency')
   const style = hashIdentity(playerId) % 4
-  const form = 0.82 + rng() * 0.36
-  // Stronger AI should reach a brisk human tapping pace (about 6–9 taps/s)
-  // while player profiles, form, and style still create a varied field.
-  const baseRate = (7.2 + physical * 2.6 + (style === 1 ? 0.35 : style === 2 ? -0.25 : 0)) * form
+  let paceTicket = rng() * 100
+  const paceBand =
+    QUICK_TAP_VIP_AI_PACE_BANDS.find((band) => {
+      paceTicket -= band.weight
+      return paceTicket < 0
+    }) ?? QUICK_TAP_VIP_AI_PACE_BANDS[QUICK_TAP_VIP_AI_PACE_BANDS.length - 1]
+  const form = 0.97 + rng() * 0.06
+  const motorTalent = (hashIdentity(`${playerId}:tap-pace`) % 1_000) / 999
+  // Phone play reaches 12–14 taps/s with alternating thumbs. Include competitors
+  // in that range, while skill, individual dexterity, form and fatigue vary the field.
+  const baseRate = Math.min(
+    16.5,
+    (paceBand.min + (paceBand.max - paceBand.min) * motorTalent + (physical - 0.5) * 1.5) * form
+  )
   const roundMs = quickTapVipRoundMs(mode)
   let state = createQuickTapVipScoreState(seed, mode)
   let observedSeason: TapSeason | null = quickTapVipSeasonAt(state, 0),
@@ -568,13 +590,15 @@ export function simulateQuickTapVipAiRace(args: {
       if (grab) {
         const decision = 360 + (1 - mental) * 250 + rng() * 300
         pendingBox = { offer, atMs: atMs + decision }
-        pauseUntil = atMs + decision + 100 + rng() * 150
       }
     }
     if (pendingBox && atMs >= pendingBox.atMs) {
       const next = claimQuickTapVipBox(state, pendingBox.offer, atMs)
       if (next !== state) {
         state = next
+        // Thinking about an offer does not stop their tapping. Only the actual
+        // reach to collect it costs time, as it does for a human on a phone.
+        pauseUntil = Math.max(pauseUntil, atMs + 100 + rng() * 150)
         claimedOfferIndexes.push(pendingBox.offer.index)
         selectedBoosters.push(state.modifiers[state.modifiers.length - 1])
         lastEffectId = state.activeEffect?.booster.id ?? null
@@ -596,11 +620,11 @@ export function simulateQuickTapVipAiRace(args: {
         (observedSeason === 'autumn' && rng() < nerve * 0.09)
       if (wantsChange && atMs % 7_000 < 5_500 && rng() < 0.65 + mental * 0.3) {
         pendingReroll = atMs + 320 + rng() * 380
-        pauseUntil = Math.max(pauseUntil, pendingReroll + 140)
       }
     }
     if (pendingReroll !== null && atMs >= pendingReroll) {
       state = rerollQuickTapVipSeason(state, atMs)
+      pauseUntil = Math.max(pauseUntil, atMs + 140)
       rerollTimes.push(atMs)
       lastEffectId = null
       observeAt = atMs + 180 + rng() * 220
@@ -615,13 +639,17 @@ export function simulateQuickTapVipAiRace(args: {
       }
       const fatigue = 1 + ((atMs % roundMs) / roundMs) * (style === 1 ? 0.18 : 0.07)
       const jitter = 0.82 + rng() * 0.36 + (1 - consistency) * (rng() - 0.5) * 0.28
-      nextTap = atMs + Math.max(95, (1000 / baseRate) * fatigue * jitter)
+      // Preserve the scheduled time instead of adding a rounded simulation tick
+      // after every tap. At phone tapping speeds that accumulated a large slowdown.
+      nextTap += Math.max(55, (1000 / baseRate) * fatigue * jitter)
     }
   }
   state = advanceQuickTapVipState(state, durationMs)
   record(durationMs)
   return {
     id: playerId,
+    paceBand: paceBand.id,
+    targetTapsPerSecond: baseRate,
     score: state.score,
     rawTaps: state.rawTaps,
     roundScores: state.roundScores,
