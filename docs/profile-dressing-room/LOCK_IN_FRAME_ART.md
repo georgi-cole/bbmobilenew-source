@@ -15,7 +15,7 @@ The reveal uses one motion value over 1,250 ms. A single registered image plane 
 
 Continue adds a consumed-once route marker for a subtle profile entrance. The character and pedestal settle together, with a small pedestal swivel about the shared foot-contact point. Other profile visits stay static.
 
-`src/appearance/portraitFraming.ts` stores normalized face centers and heights for each figure/portrait pair. All 54 face regions were measured offline and visually reviewed. The coordinates keep both faces at the same position and scale throughout the shared-plane transformation. There is no face detection or additional image processing at runtime. Update these coordinates when replacing a look's `casual.webp` or `main.webp`.
+`src/appearance/portraitFraming.ts` stores normalized face centers and heights for each figure/portrait pair. All 70 face regions were measured offline and visually reviewed. The coordinates keep both faces at the same position and scale throughout the shared-plane transformation. There is no face detection or additional image processing at runtime. Update these coordinates when replacing a look's `casual.webp` or `main.webp`.
 
 ## Generation prompt
 

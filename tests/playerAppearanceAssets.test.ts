@@ -14,7 +14,7 @@ describe('published player character assets', () => {
     const root = resolve(process.cwd(), 'public/assets/player_characters')
     expect(
       readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory())
-    ).toHaveLength(27)
+    ).toHaveLength(35)
     let fileCount = 0
     for (const look of SELECTABLE_LOOKS) {
       const folder = resolve(root, look.folder)
@@ -34,6 +34,6 @@ describe('published player character assets', () => {
         fileCount++
       }
     }
-    expect(fileCount).toBe(162)
+    expect(fileCount).toBe(210)
   })
 })
