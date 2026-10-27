@@ -1,12 +1,11 @@
 import { chmod, mkdir, stat, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = dirname(scriptDir)
 const gitDir = join(repoRoot, '.git')
-const hooksDir = join(gitDir, 'hooks')
-const hookPath = join(hooksDir, 'pre-push')
 
 const hook = `#!/bin/sh
 set -eu
@@ -25,7 +24,16 @@ try {
   throw error
 }
 
+// A linked worktree has a .git file; Git resolves its shared hook directory.
+const hooksDir = resolve(
+  repoRoot,
+  execFileSync('git', ['rev-parse', '--git-path', 'hooks'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim()
+)
+const hookPath = join(hooksDir, 'pre-push')
 await mkdir(hooksDir, { recursive: true })
 await writeFile(hookPath, hook, 'utf8')
 await chmod(hookPath, 0o755)
-console.log('Installed .git/hooks/pre-push -> npm run check:pr')
+console.log('Installed pre-push -> npm run check:pr')
