@@ -8,7 +8,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores([
     '**/.cupid-pr*/**',
-    '**/pr-*-preview/**',
+    '**/pr*-preview/**',
     '**/.worktrees/**',
     '**/.codex-worktrees/**',
     '**/coverage/**',
