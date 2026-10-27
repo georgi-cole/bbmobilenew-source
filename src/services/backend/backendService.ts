@@ -5,7 +5,9 @@ import {
   type ProductEvent,
 } from '../liveOps/productTelemetry'
 import { getBackendConfig } from './config'
+import { resolveAppEnvironment } from './appEnvironment'
 import { sanitizeAnalyticsEvent } from './analyticsSchema'
+import { readDeviceAnalyticsContext } from './deviceContext'
 import { serializeProfileBackup } from './profileBackup'
 import { authenticatedBackend } from './supabaseTransport'
 
@@ -13,6 +15,11 @@ const PREFERENCES_KEY = 'bbmobilenew:supabase-profiles:v1'
 const EVENTS_KEY = 'bbmobilenew:supabase-events:v1'
 const MAX_EVENTS = 2000
 const MAX_EVENT_AGE = 7 * 24 * 60 * 60 * 1000
+const APP_ENVIRONMENT = resolveAppEnvironment(
+  import.meta.env.VITE_APP_ENVIRONMENT,
+  import.meta.env.DEV,
+  import.meta.env.VITE_BUILD_TARGET
+)
 type Preferences = { deletedProfiles: string[]; knownProfiles: string[] }
 type QueuedEvent = ProductEvent & { id: string; profileId?: string }
 export type BackupStatus = 'disabled' | 'pending' | 'syncing' | 'synced' | 'error'
@@ -200,7 +207,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
                 session_id: event.sessionId,
                 properties: {
                   ...event.properties,
-                  app_environment: import.meta.env.DEV ? 'development' : 'production',
+                  app_environment: APP_ENVIRONMENT,
                 },
               })),
               { onConflict: 'owner_id,event_id', ignoreDuplicates: true }
@@ -253,19 +260,24 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     }
     previousProfiles = profiles
     const profile = currentProfile()
-    if (!analyticsAllowed()) {
+    if (!profile) {
       measuredSession = false
     } else if (!measuredSession) {
       measuredSession = true
       activeSince = Date.now()
-      trackProductEvent(
-        'session_started',
-        {
-          platform: 'web',
-          app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
-        },
-        profile?.id
-      )
+      const sessionProfileId = profile.id
+      void readDeviceAnalyticsContext().then((deviceContext) => {
+        if (stopped || !analyticsAllowed() || currentProfile()?.id !== sessionProfileId) return
+        trackProductEvent(
+          'session_started',
+          {
+            platform: 'web',
+            app_version: import.meta.env.VITE_APP_VERSION ?? 'unknown',
+            ...deviceContext,
+          },
+          sessionProfileId
+        )
+      })
     }
     if (!profile) setStatus('disabled')
     else if (
