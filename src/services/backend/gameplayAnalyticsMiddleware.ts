@@ -1,5 +1,6 @@
 import { isAction, type Middleware } from '@reduxjs/toolkit'
 import { getAppearanceLook } from '../../appearance/catalog'
+import type { SeasonRuleset } from '../../modes/seasonRulesets'
 import { getSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import type { RootState } from '../../store/store'
 import { getAnalyticsGameMode, getAnalyticsGameModeForRuleset } from './analyticsGameMode'
@@ -27,6 +28,11 @@ type MinigameSession = {
 let currentAnalyticsScreen = 'home'
 let syncMinigameTimers: (() => void) | null = null
 let recordMinigameNavigationExit: (() => void) | null = null
+
+/** Only count resets explicitly initiated as a new season launch. */
+export function shouldTrackSeasonReset(launchIntent: SeasonRuleset | null, hasPlayers: boolean) {
+  return launchIntent !== null && hasPlayers
+}
 
 /** Keep minigame clocks active only while the game screen is visible. */
 export function setAnalyticsRouteScreen(screenId: string) {
@@ -396,7 +402,10 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
           profileId
         )
 
-      if (action.type === 'game/resetGame') {
+      if (
+        action.type === 'game/resetGame' &&
+        shouldTrackSeasonReset(launchIntent, after.game.players.length > 0)
+      ) {
         if (before.game.status === 'active' && before.game.players.length)
           trackProductEvent(
             'season_abandoned',
