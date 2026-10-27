@@ -34,7 +34,7 @@
  * │  splash              App open / KolequantSplash animation                 │
  * │  intro_hub           Home hub after splash, before Play is pressed        │
  * │  intro_hub_rules     /rules sub-module                                    │
- * │  intro_hub_profile   /profile sub-module (except its dressing-room route) │
+ * │  intro_hub_profile   Profile selection and management utilities           │
  * │  intro_hub_houseguests /houseguests sub-module                            │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
@@ -96,9 +96,10 @@
  *     different track the SoundManager replaces the BGM element.
  *  D. NO CROSS-PHASE MUSIC REUSE — a track associated with a finished phase
  *     cannot be re-triggered from an unrelated phase.
- *  E. SUBMODULES DO NOT OVERRIDE PHASE MUSIC — houseguests / profile / rules
- *     inherit Intro Hub music; /profile/dressing-room is an explicit route
- *     exception with its own centrally resolved lounge loop.
+ *  E. SUBMODULES DO NOT OVERRIDE PHASE MUSIC — houseguests and rules inherit
+ *     Intro Hub music. The profile presentation flow (/profile,
+ *     /profile/dressing-room, /profile-edit) shares one centrally resolved
+ *     lounge loop so transitions between its screens remain continuous.
  *  F. MINIGAME AUDIO IS SUB-PHASE-SCOPED — while challenge.pending.phase ===
  *     'playing' the resolver returns the minigame-specific track regardless of
  *     the game phase.  When the minigame ends the resolver falls through to the
@@ -144,7 +145,7 @@ export type AppAudioPhase =
   | 'intro_hub'
   /** /rules sub-module — within intro flow, no independent music. */
   | 'intro_hub_rules'
-  /** /profile sub-module — within intro flow, no independent music. */
+  /** Profile selection/management utilities within the intro flow. */
   | 'intro_hub_profile'
   /** /houseguests sub-module — within intro flow, no independent music. */
   | 'intro_hub_houseguests'

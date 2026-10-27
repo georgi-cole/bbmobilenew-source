@@ -12,6 +12,7 @@ const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 const mockPhoto = vi.fn<() => Promise<string | null>>()
 let mockProfiles: ProfilesState
+let mockLocationState: Record<string, unknown> = { from: '/profile-picker' }
 const bio: ProfileBio = {
   age: '25',
   sex: 'Female',
@@ -32,7 +33,7 @@ const bio: ProfileBio = {
 
 vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ state: { from: '/profile-picker' } }),
+  useLocation: () => ({ state: mockLocationState }),
 }))
 vi.mock('../../store/hooks', () => ({
   useAppDispatch: () => mockDispatch,
@@ -51,6 +52,7 @@ describe('EditProfile details', () => {
     mockDispatch.mockReset()
     mockPhoto.mockReset()
     mockPhoto.mockResolvedValue(null)
+    mockLocationState = { from: '/profile-picker' }
     mockProfiles = profilesReducer(
       undefined,
       createProfile({
@@ -136,5 +138,48 @@ describe('EditProfile details', () => {
       'assets/skins/You.png'
     )
     expect(screen.queryByText('legacy-emoji')).toBeNull()
+  })
+
+  it('creates a profile only after the four required details are complete', async () => {
+    mockProfiles = profilesReducer(undefined, { type: 'test/reset' })
+    mockLocationState = {
+      from: '/',
+      createProfile: true,
+      appearanceSelection: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+    }
+    render(<EditProfile />)
+
+    const save = screen.getByRole('button', { name: 'Save Profile' })
+    expect(screen.getByRole('heading', { name: 'Create your profile' })).toBeDefined()
+    expect(screen.getByRole('img', { name: 'Profile portrait' }).getAttribute('src')).toContain(
+      'character%203/main.webp'
+    )
+    expect(save).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText(/Display Name/), { target: { value: 'Mara' } })
+    fireEvent.change(screen.getByLabelText(/Age/), { target: { value: '24' } })
+    fireEvent.change(screen.getByLabelText(/Location/), { target: { value: 'Sofia' } })
+    fireEvent.change(screen.getByLabelText(/Sex \(Reality storylines\)/), {
+      target: { value: 'Female' },
+    })
+    expect(save).toBeEnabled()
+    fireEvent.click(save)
+
+    await waitFor(() =>
+      expect(mockDispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'profiles/createProfile',
+          payload: expect.objectContaining({
+            name: 'Mara',
+            appearanceSelection: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+            bio: { age: '24', location: 'Sofia', sex: 'Female' },
+          }),
+        })
+      )
+    )
+    expect(mockNavigate).toHaveBeenCalledWith('/profile', {
+      replace: true,
+      state: { from: '/', fromLookReveal: true },
+    })
   })
 })

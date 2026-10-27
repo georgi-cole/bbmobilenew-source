@@ -819,6 +819,12 @@ const INTRO_HUB_ROUTE_PATHS = new Set([
   '/public-meter',
 ])
 
+const PROFILE_EXPERIENCE_ROUTE_PATHS = new Set([
+  '/profile',
+  '/profile/dressing-room',
+  '/profile-edit',
+])
+
 // These screens are utilities layered over an active season, not a return to
 // the home session. The root route remains an intentional Intro Hub screen.
 const ACTIVE_GAME_DETOUR_ROUTE_PATHS = new Set(['/settings', '/store', '/public-meter'])
@@ -911,7 +917,7 @@ export function resolveMusicCue(
   )
   if (sceneCue) return sceneCue
 
-  if (routePath(context.routeHash) === '/profile/dressing-room') {
+  if (PROFILE_EXPERIENCE_ROUTE_PATHS.has(routePath(context.routeHash))) {
     const dressingRoomCue = resolveSelection(
       config.contextMusic.dressingRoom,
       'context.dressing-room',

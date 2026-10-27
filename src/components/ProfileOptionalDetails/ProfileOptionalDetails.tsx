@@ -106,9 +106,11 @@ function DetailsSection({ label, children }: { label: string; children: ReactNod
 export default function ProfileOptionalDetails({
   value,
   onChange,
+  hiddenFields = [],
 }: {
   value: ProfileBio
   onChange: (bio: ProfileBio) => void
+  hiddenFields?: readonly TextKey[]
 }) {
   const id = useId()
   const reproductive = value.reproductiveProfile
@@ -160,26 +162,28 @@ export default function ProfileOptionalDetails({
               </div>
             </>
           )}
-          {section.fields.map((field) => {
-            const props = {
-              id: `${id}-${field.key}`,
-              value: value[field.key] ?? '',
-              maxLength: field.maxLength,
-              placeholder: field.placeholder,
-              onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                onChange({ ...value, [field.key]: event.target.value }),
-            }
-            return (
-              <div className="profile-details__field" key={field.key}>
-                <label htmlFor={props.id}>{field.label}</label>
-                {field.multiline ? (
-                  <textarea {...props} rows={3} />
-                ) : (
-                  <input {...props} type="text" />
-                )}
-              </div>
-            )
-          })}
+          {section.fields
+            .filter((field) => !hiddenFields.includes(field.key))
+            .map((field) => {
+              const props = {
+                id: `${id}-${field.key}`,
+                value: value[field.key] ?? '',
+                maxLength: field.maxLength,
+                placeholder: field.placeholder,
+                onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                  onChange({ ...value, [field.key]: event.target.value }),
+              }
+              return (
+                <div className="profile-details__field" key={field.key}>
+                  <label htmlFor={props.id}>{field.label}</label>
+                  {field.multiline ? (
+                    <textarea {...props} rows={3} />
+                  ) : (
+                    <input {...props} type="text" />
+                  )}
+                </div>
+              )
+            })}
         </DetailsSection>
       ))}
     </div>

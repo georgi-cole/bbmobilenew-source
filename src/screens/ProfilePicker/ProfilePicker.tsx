@@ -82,10 +82,7 @@ export default function ProfilePicker() {
 
   const [photoCache, setPhotoCache] = useState<Record<string, string>>({})
 
-  const [showCreateForm, setShowCreateForm] = useState(() => {
-    const routeState = location.state as { openCreate?: boolean } | null
-    return routeState?.openCreate === true && profiles.length < MAX_PROFILES
-  })
+  const [showCreateForm, setShowCreateForm] = useState(false)
   const [newName, setNewName] = useState('')
   const [createStep, setCreateStep] = useState<'look' | 'details'>('look')
   const [newLookId, setNewLookId] = useState(SELECTABLE_LOOKS[0]?.id ?? '')
@@ -114,6 +111,19 @@ export default function ProfilePicker() {
     parsedNewAge >= 0 &&
     parsedNewAge <= 120 &&
     PROFILE_SEX_OPTIONS.includes(newSex as (typeof PROFILE_SEX_OPTIONS)[number])
+
+  useEffect(() => {
+    const openCreate = (location.state as { openCreate?: boolean } | null)?.openCreate === true
+    if (!openCreate || atLimit) return
+    navigate('/profile/dressing-room', {
+      replace: true,
+      state: {
+        from: '/',
+        createProfile: true,
+        adoptGuestRun: isGuest && hasGuestRunProgress,
+      },
+    })
+  }, [atLimit, hasGuestRunProgress, isGuest, location.state, navigate])
 
   useEffect(() => {
     async function loadPhotos() {
@@ -509,7 +519,19 @@ export default function ProfilePicker() {
                 type="button"
                 className={`profile-picker__btn profile-picker__btn--create${isGuest ? ' profile-picker__btn--save-spotlight' : ''}`}
                 style={{ width: '100%', marginBottom: 12 }}
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => {
+                  // Keep the legacy in-place draft mounted until the router commits the
+                  // transition. In production the Changing room route replaces it in the
+                  // same interaction; this also gives a safe fallback if navigation fails.
+                  setShowCreateForm(true)
+                  navigate('/profile/dressing-room', {
+                    state: {
+                      from: '/',
+                      createProfile: true,
+                      adoptGuestRun: isGuest && hasGuestRunProgress,
+                    },
+                  })
+                }}
               >
                 ➕ Create New Profile
               </button>

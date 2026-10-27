@@ -8,10 +8,11 @@ const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 let mockReducedMotion = false
 let mockProfiles: ProfilesState
+let mockLocationState: Record<string, unknown> = { from: '/' }
 
 vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
-  useLocation: () => ({ state: { from: '/' } }),
+  useLocation: () => ({ state: mockLocationState }),
 }))
 vi.mock('../../store/hooks', () => ({
   useAppDispatch: () => mockDispatch,
@@ -21,14 +22,16 @@ vi.mock('../../appearance/AppearanceCarousel', () => ({
   default: ({
     onConfirm,
     figureRef,
+    confirmLabel,
   }: {
     onConfirm: () => void
     figureRef?: Ref<HTMLImageElement>
+    confirmLabel?: string
   }) => (
     <>
       <img ref={figureRef} alt="Selected figure" />
       <button type="button" onClick={onConfirm}>
-        Use this look
+        {confirmLabel ?? 'Choose this look'}
       </button>
     </>
   ),
@@ -69,6 +72,7 @@ describe('Changing room look lock-in', () => {
     mockNavigate.mockReset()
     mockDispatch.mockReset()
     mockReducedMotion = false
+    mockLocationState = { from: '/' }
     mockProfiles = profilesReducer(
       undefined,
       createProfile({ name: 'Larisa', avatar: '👤', bio: { age: '25' } })
@@ -164,5 +168,28 @@ describe('Changing room look lock-in', () => {
       state: { from: '/', fromLookReveal: true },
     })
     expect(mockDispatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the Changing room as the first profile-creation step', () => {
+    mockProfiles = profilesReducer(undefined, { type: 'test/reset' })
+    mockLocationState = { from: '/', createProfile: true }
+    render(<DressingRoom />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose this look' }))
+    expect(mockDispatch).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Skip reveal' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Look chosen')
+    expect(screen.getByRole('dialog', { name: 'Look 1' })).toHaveTextContent('Now make it yours.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile-edit', {
+      replace: true,
+      state: {
+        from: '/',
+        createProfile: true,
+        appearanceSelection: { kind: 'catalog', lookId: 'pc-001', revision: 1 },
+        adoptGuestRun: false,
+      },
+    })
   })
 })
