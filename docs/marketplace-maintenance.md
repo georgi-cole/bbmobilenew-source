@@ -44,6 +44,9 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-27: Added analytics for Store shelf and product selection, purchase
+  start and result, and Eyeolean purchases. Reviewed the runtime catalog,
+  entitlements, prices, and offer copy; this change does not alter any offers.
 - 2026-10-27: Reviewed the Changing room look-lock reveal and My profile return
   animation. This presentation-only update does not add or alter purchasable
   items, entitlements, prices, or marketplace copy.

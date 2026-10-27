@@ -13,6 +13,7 @@ import { Provider } from 'react-redux'
 import { RouterProvider } from 'react-router/dom'
 import { store } from './store/store'
 import { router } from './routes'
+import { setupRouteAnalytics } from './services/backend/routeAnalytics'
 import { SoundManager } from './services/sound/SoundManager'
 import AudioStateSync from './services/sound/AudioStateSync'
 import RouteLoopAudioSync from './services/sound/RouteLoopAudioSync'
@@ -71,6 +72,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const stopRouteAnalytics = setupRouteAnalytics({
+      getPathname: () => router.state.location.pathname,
+      getProfileId: () => {
+        const profiles = store.getState().profiles
+        return profiles.isGuest ? null : profiles.activeProfileId
+      },
+      subscribeRoute: (listener) => router.subscribe(listener),
+      subscribeProfile: store.subscribe,
+    })
     installGameDiagnostics()
     void SoundManager.init()
     let remoteConfigReady = false
@@ -118,6 +128,7 @@ export default function App() {
       5 * 60 * 1000
     )
     return () => {
+      stopRouteAnalytics()
       window.clearInterval(refreshId)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }

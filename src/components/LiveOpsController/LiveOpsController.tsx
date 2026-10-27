@@ -34,15 +34,6 @@ export default function LiveOpsController() {
   }, [config, refinedChrome]);
 
   useEffect(() => {
-    const trackRoute = () => trackProductEvent('screen_view', {
-      route: window.location.hash.split('?')[0] || '#/',
-    });
-    trackRoute();
-    window.addEventListener('hashchange', trackRoute);
-    return () => window.removeEventListener('hashchange', trackRoute);
-  }, []);
-
-  useEffect(() => {
     if (status !== 'active') return;
     trackProductEvent('game_phase_view', { phase, week });
   }, [phase, status, week]);

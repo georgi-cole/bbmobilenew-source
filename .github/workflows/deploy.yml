@@ -14,6 +14,7 @@ on:
       - 'package-lock.json'
       - 'vite.config.*'
       - 'tsconfig*.json'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -69,7 +70,14 @@ jobs:
           VITE_BUILD_ID: ${{ github.sha }}
           VITE_VIP_DEV_ENTITLEMENT: 'false'
           VITE_BASE_PATH: '/bbmobilenew/'
-        run: npm run build
+          VITE_SUPABASE_ENABLED: ${{ vars.VITE_SUPABASE_ENABLED }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test "$VITE_SUPABASE_ENABLED" = "true"
+          case "$VITE_SUPABASE_URL" in https://*.supabase.co) ;; *) echo "VITE_SUPABASE_URL must be a Supabase HTTPS project URL" >&2; exit 1;; esac
+          case "$VITE_SUPABASE_PUBLISHABLE_KEY" in sb_publishable_*) ;; *) echo "VITE_SUPABASE_PUBLISHABLE_KEY must be a publishable key" >&2; exit 1;; esac
+          npm run build
 
       - name: Preserve production build
         run: mv dist dist-production

@@ -1,6 +1,10 @@
 # Release 1.0 privacy disclosures
 
-These answers describe the offline-first 1.0 mobile binary. Reconfirm them against the exact signed build before completing either store form.
+These answers describe the offline-first 1.0 mobile binary. Reconfirm them against the exact signed build before completing either store form. Supabase builds also need the disclosures below before submission.
+
+## Supabase profile backup and analytics
+
+When configured, the app automatically sends a limited profile backup (profile ID, display name, avatar, selected appearance, achievements, and unlock progress) and pseudonymous gameplay events to Supabase. Events include screen visits and visible time, game mode and day, minigame duration/placement/exits, Social usage and action categories, selected gameplay decisions, elimination and season placement, marketplace product choices and purchase outcomes, and session activity. Purchase prices are not sent. Profile photos, biographies, wallet data, player names, and conversation text are not sent. The analytics profile ID can be joined to a profile backup and display name. Separate anonymous installation identities are used for backup and analytics. The app does not currently provide cross-device account recovery. Assess store categories for user content and usage data against the final signed build and the applicable store forms.
 
 ## On-device data
 

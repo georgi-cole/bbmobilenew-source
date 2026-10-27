@@ -94,6 +94,8 @@ import {
 } from '../broadcasting/broadcastConfigPersistence'
 import { backdoorPresentationMiddleware } from '../broadcasting/backdoorPresentationMiddleware'
 import { setRuntimeSocialActionOverrides } from '../social/socialActionManager'
+import { gameplayAnalyticsMiddleware } from '../services/backend/gameplayAnalyticsMiddleware'
+import { initializeCloudBackend } from '../services/backend/backendService'
 
 const strategicGameReducer = withImmediateVoxPublicMode(
   withLohNominationPlanning(gameReducer, getNominationTargetScore)
@@ -185,7 +187,8 @@ export const store = configureStore({
         secretMissionMiddleware,
         eyeoleanPowerMiddleware,
         minigameSessionMiddleware,
-        gameDiagnosticsMiddleware
+        gameDiagnosticsMiddleware,
+        gameplayAnalyticsMiddleware
       ),
   // A long season can dispatch thousands of actions with a large state tree.
   // Bound Redux DevTools retention in development so gameplay QA does not turn
@@ -524,6 +527,9 @@ if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
     void flushSavePersistence()
   })
 }
+
+// Cloud sync starts automatically when Supabase is configured for this build.
+initializeCloudBackend(store)
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
