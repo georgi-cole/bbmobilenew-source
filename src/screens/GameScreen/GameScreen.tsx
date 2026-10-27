@@ -90,6 +90,7 @@ import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
 import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { getImmediateAutoNomineeId } from './autoNomineeBadge'
 import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
@@ -544,7 +545,7 @@ export default function GameScreen() {
     if (continueVoxPopuli) {
       startNewVoxPopuliSeason(dispatch)
     } else {
-      dispatch(resetGame())
+      withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
     }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
     navigate('/', { replace: true, state: { autoStartGame: true } })
