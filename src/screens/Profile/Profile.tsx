@@ -84,7 +84,9 @@ export default function Profile() {
               type="button"
               className={`profile-screen__guest-link${guestSaveInviteActive ? ' profile-screen__guest-link--save-spotlight' : ''}`}
               onClick={() =>
-                navigate('/profile-picker', { state: { from: returnTo, openCreate: true } })
+                navigate('/profile/dressing-room', {
+                  state: { from: '/', createProfile: true, adoptGuestRun: gameInProgress },
+                })
               }
             >
               Create Profile
@@ -111,10 +113,21 @@ export default function Profile() {
         <button
           type="button"
           className="profile-screen__switch-btn game-button game-button--secondary"
-          onClick={() => navigate('/profile-picker', { state: { from: returnTo } })}
+          onClick={() =>
+            navigate('/profile/dressing-room', {
+              state: { from: '/', createProfile: true },
+            })
+          }
           style={{ marginBottom: 12 }}
         >
-          Select or Create a Profile
+          Create Profile
+        </button>
+        <button
+          type="button"
+          className="profile-screen__switch-btn game-button game-button--secondary"
+          onClick={() => navigate('/profile-picker', { state: { from: '/' } })}
+        >
+          Select Existing Profile
         </button>
       </div>
     )

@@ -3,24 +3,36 @@ import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
   selectCurrentProfile,
+  createProfile,
   updateProfile,
   deleteProfile,
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import { resetGame } from '../../store/gameSlice'
+import { resetGame, updateUserPlayerIdentity } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import { flushPendingRunSnapshots } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
 import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
 import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
+import { coerceAppearanceSelection, type AppearanceSelection } from '../../appearance/catalog'
+import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import './EditProfile.css'
 
 const SAFE_PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const PROFILE_SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
+
+type EditProfileRouteState = {
+  from?: string
+  createProfile?: boolean
+  appearanceSelection?: AppearanceSelection
+  adoptGuestRun?: boolean
+}
 
 function isSafePreviewFile(file: File | Blob): boolean {
   return SAFE_PREVIEW_MIME_TYPES.has(file.type)
@@ -36,7 +48,10 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
-  const requestedReturnTo = (routeLocation.state as { from?: string } | null)?.from
+  const routeState = routeLocation.state as EditProfileRouteState | null
+  const creationSelection = coerceAppearanceSelection(routeState?.appearanceSelection)
+  const creatingProfile = routeState?.createProfile === true && creationSelection.kind === 'catalog'
+  const requestedReturnTo = routeState?.from
   const returnTo =
     requestedReturnTo === '/' ||
     requestedReturnTo === '/profile' ||
@@ -48,17 +63,19 @@ export default function EditProfile() {
 
   // Redirect if no profile is active
   useEffect(() => {
-    if (!profile) navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
-  }, [profile, navigate, editReturnFrom])
+    if (!creatingProfile && !profile)
+      navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
+  }, [creatingProfile, profile, navigate, editReturnFrom])
 
   // --- Form state ---
-  const [name, setName] = useState(profile?.name ?? '')
+  const [name, setName] = useState(creatingProfile ? '' : (profile?.name ?? ''))
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
   const [newPhotoBlob, setNewPhotoBlob] = useState<Blob | null>(null)
   const [processingPhoto, setProcessingPhoto] = useState(false)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
 
-  const [bio, setBio] = useState<ProfileBio>(() => ({ ...profile?.bio }))
+  const [bio, setBio] = useState<ProfileBio>(() => (creatingProfile ? {} : { ...profile?.bio }))
+  const [saving, setSaving] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -116,6 +133,80 @@ export default function EditProfile() {
   }
 
   async function handleSave() {
+    if (saving) return
+
+    if (creatingProfile) {
+      const parsedAge = Number(bio.age)
+      const canCreate =
+        Boolean(name.trim()) &&
+        Boolean(bio.location?.trim()) &&
+        Number.isInteger(parsedAge) &&
+        parsedAge >= 0 &&
+        parsedAge <= 120 &&
+        PROFILE_SEX_OPTIONS.includes(bio.sex as (typeof PROFILE_SEX_OPTIONS)[number])
+      if (!canCreate) return
+
+      setSaving(true)
+      try {
+        let photoId: string | undefined
+        if (newPhotoBlob) {
+          const randomPart = (() => {
+            try {
+              return crypto.randomUUID()
+            } catch {
+              return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+            }
+          })()
+          const nextPhotoId = `profile-photo-${randomPart}`
+          try {
+            await saveImage(nextPhotoId, newPhotoBlob)
+            photoId = nextPhotoId
+          } catch (err) {
+            console.error('Failed to save new profile photo to IndexedDB', err)
+          }
+        }
+
+        const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
+        const profileDetails = {
+          name: name.trim(),
+          avatar: '👤',
+          photoId,
+          bio: normalizedBio,
+          appearanceSelection: creationSelection,
+        }
+        if (routeState?.adoptGuestRun) {
+          withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
+          dispatch(
+            updateUserPlayerIdentity({
+              name: profileDetails.name,
+              avatar: profileDetails.avatar,
+              photoId,
+              age: parsedAge,
+              sex: bio.sex,
+              ...(normalizedBio.reproductiveProfile
+                ? { reproductiveProfile: normalizedBio.reproductiveProfile }
+                : {}),
+            })
+          )
+          flushPendingRunSnapshots()
+          await flushSavePersistence()
+        } else {
+          withRunAutosaveSuspended(() => {
+            dispatch(createProfile(profileDetails))
+            dispatch(resetGame([]))
+          })
+        }
+        void warmSelectedAppearance(creationSelection)
+        navigate('/profile', {
+          replace: true,
+          state: { from: '/', fromLookReveal: true },
+        })
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     if (!profile) return
 
     let photoId = profile.photoId
@@ -172,11 +263,23 @@ export default function EditProfile() {
     navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
   }
 
-  if (!profile) return null
+  if (!creatingProfile && !profile) return null
+
+  const parsedAge = Number(bio.age)
+  const creationFormValid =
+    Boolean(name.trim()) &&
+    Boolean(bio.location?.trim()) &&
+    Boolean(bio.age?.trim()) &&
+    Number.isInteger(parsedAge) &&
+    parsedAge >= 0 &&
+    parsedAge <= 120 &&
+    PROFILE_SEX_OPTIONS.includes(bio.sex as (typeof PROFILE_SEX_OPTIONS)[number])
 
   return (
     <div className="placeholder-screen edit-profile">
-      <h1 className="edit-profile__title">✏️ Edit Profile</h1>
+      <h1 className="edit-profile__title">
+        {creatingProfile ? 'Create your profile' : '✏️ Edit Profile'}
+      </h1>
 
       {/* Profile photo or selected character portrait */}
       <div className="edit-profile__photo-section">
@@ -184,7 +287,7 @@ export default function EditProfile() {
           <ProfilePhotoPreview
             className="edit-profile__photo-img"
             photoUrl={photoDataUrl}
-            appearance={profile.appearanceSelection}
+            appearance={creatingProfile ? creationSelection : profile?.appearanceSelection}
           />
           <button
             type="button"
@@ -212,7 +315,7 @@ export default function EditProfile() {
       {/* Name */}
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-name">
-          Display Name
+          Display Name {creatingProfile && <span aria-hidden="true">*</span>}
         </label>
         <input
           id="ep-name"
@@ -222,26 +325,46 @@ export default function EditProfile() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Your name in the house"
+          required={creatingProfile}
         />
       </div>
 
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-age">
-          Age
+          Age {creatingProfile && <span aria-hidden="true">*</span>}
         </label>
         <input
           id="ep-age"
           className="edit-profile__input"
-          type="text"
-          maxLength={20}
+          type={creatingProfile ? 'number' : 'text'}
+          min={creatingProfile ? 0 : undefined}
+          max={creatingProfile ? 120 : undefined}
           value={bio.age ?? ''}
           onChange={(event) => setBio({ ...bio, age: event.target.value })}
           placeholder="e.g. 28"
+          required={creatingProfile}
         />
       </div>
+      {creatingProfile && (
+        <div className="edit-profile__field">
+          <label className="edit-profile__label" htmlFor="ep-location">
+            Location <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="ep-location"
+            className="edit-profile__input"
+            type="text"
+            maxLength={50}
+            value={bio.location ?? ''}
+            onChange={(event) => setBio({ ...bio, location: event.target.value })}
+            placeholder="City, State"
+            required
+          />
+        </div>
+      )}
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-sex">
-          Sex (Reality storylines)
+          Sex (Reality storylines) {creatingProfile && <span aria-hidden="true">*</span>}
         </label>
         <select
           id="ep-sex"
@@ -249,58 +372,79 @@ export default function EditProfile() {
           value={bio.sex ?? ''}
           onChange={(event) => setBio({ ...bio, sex: event.target.value })}
         >
-          <option value="">Not specified - ask me in-game when needed</option>
+          <option value="" disabled={creatingProfile}>
+            {creatingProfile ? 'Select your sex' : 'Not specified - ask me in-game when needed'}
+          </option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
           <option value="Other">Other</option>
           <option value="Prefer not to say">Prefer not to say</option>
         </select>
       </div>
-      <ProfileOptionalDetails value={bio} onChange={setBio} />
+      <ProfileOptionalDetails
+        value={bio}
+        onChange={setBio}
+        hiddenFields={creatingProfile ? ['location'] : undefined}
+      />
 
-      <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
-        <div>
-          <h2 id="delete-profile-heading" className="edit-profile__danger-title">
+      {!creatingProfile && (
+        <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
+          <div>
+            <h2 id="delete-profile-heading" className="edit-profile__danger-title">
+              Delete Profile
+            </h2>
+            <p className="edit-profile__danger-copy">
+              Permanently remove {profile?.name} and this profile&apos;s saved games from this
+              device.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="edit-profile__delete-btn"
+            onClick={() => setDeleteConfirmationOpen(true)}
+          >
             Delete Profile
-          </h2>
-          <p className="edit-profile__danger-copy">
-            Permanently remove {profile.name} and this profile&apos;s saved games from this device.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="edit-profile__delete-btn"
-          onClick={() => setDeleteConfirmationOpen(true)}
-        >
-          Delete Profile
-        </button>
-      </section>
+          </button>
+        </section>
+      )}
 
       {/* Save / Cancel */}
       <div className="edit-profile__actions">
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--cancel"
-          onClick={() =>
-            navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
-          }
+          onClick={() => {
+            if (creatingProfile) {
+              navigate('/profile/dressing-room', {
+                replace: true,
+                state: {
+                  from: '/',
+                  createProfile: true,
+                  initialLookId: creationSelection.lookId,
+                  adoptGuestRun: routeState?.adoptGuestRun === true,
+                },
+              })
+            } else {
+              navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
+            }
+          }}
         >
-          Cancel
+          {creatingProfile ? 'Back to looks' : 'Cancel'}
         </button>
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--save"
           onClick={() => void handleSave()}
-          disabled={processingPhoto}
+          disabled={processingPhoto || saving || (creatingProfile && !creationFormValid)}
         >
-          Save Profile
+          {saving ? 'Saving…' : 'Save Profile'}
         </button>
       </div>
 
       <ConfirmExitModal
         open={deleteConfirmationOpen}
         title="Delete Profile?"
-        description={`"${profile.name}" and all of its saved games will be permanently removed from this device.`}
+        description={`"${profile?.name ?? ''}" and all of its saved games will be permanently removed from this device.`}
         confirmLabel="Delete Profile"
         cancelLabel="Keep Profile"
         onConfirm={() => void handleDeleteProfile()}

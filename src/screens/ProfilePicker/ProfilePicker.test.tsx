@@ -117,6 +117,9 @@ describe('ProfilePicker', () => {
     render(<ProfilePicker />)
 
     fireEvent.click(screen.getByRole('button', { name: /create new profile/i }))
+    expect(mockNavigate).toHaveBeenCalledWith('/profile/dressing-room', {
+      state: { from: '/', createProfile: true, adoptGuestRun: false },
+    })
     expect(screen.queryByRole('button', { name: /continue as guest/i })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /choose this look/i }))
     fireEvent.change(screen.getByPlaceholderText(/enter display name/i), {

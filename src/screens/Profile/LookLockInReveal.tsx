@@ -13,6 +13,9 @@ export type LockInLook = {
   portraitUrl: string
   headTopPercent: number
   source: { left: number; top: number; width: number; height: number } | null
+  readyEyebrow?: string
+  completionCopy?: string
+  startVeiled?: boolean
 }
 
 export const LOCK_IN_FRAME_URL = joinPublicAssetPath('assets/dressing-room/antique-gold-frame.webp')
@@ -93,7 +96,9 @@ export default function LookLockInReveal({
   const bodyOpacity = useTransform(progress, (value) => (1 - value) * (1 - value))
   const detailsOpacity = useTransform(progress, (value) => value * value)
   const detailsY = useTransform(progress, [0, 1], [8, 0])
-  const veilOpacity = useTransform(progress, (value) => Math.min(1, value * 2))
+  const veilOpacity = useTransform(progress, (value) =>
+    look.startVeiled ? 1 : Math.min(1, value * 2)
+  )
   const chapterOpacity = useTransform(progress, (value) => value * 0.8)
   const ready = Boolean(reducedMotion || skipped || finished)
   const id = useId().replace(/:/g, '')
@@ -236,13 +241,13 @@ export default function LookLockInReveal({
       </motion.div>
       <motion.div className="look-lock__copy" style={{ opacity: detailsOpacity, y: detailsY }}>
         <p className="look-lock__eyebrow" role="status">
-          {ready ? 'Look locked in' : 'Your next chapter'}
+          {ready ? (look.readyEyebrow ?? 'Look locked in') : 'Your next chapter'}
         </p>
         <h2 id={id + '-title'}>{look.displayName || look.label}</h2>
         <div className="look-lock__name-rule" aria-hidden="true">
           <span />
         </div>
-        <p id={id + '-copy'}>Saved for your next season.</p>
+        <p id={id + '-copy'}>{look.completionCopy ?? 'Saved for your next season.'}</p>
         <button
           ref={continueRef}
           type="button"

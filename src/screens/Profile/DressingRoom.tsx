@@ -14,27 +14,36 @@ import './DressingRoom.css'
 export default function DressingRoom() {
   const navigate = useNavigate()
   const location = useLocation()
+  const routeState = location.state as {
+    from?: string
+    createProfile?: boolean
+    initialLookId?: string
+    adoptGuestRun?: boolean
+  } | null
+  const creatingProfile = routeState?.createProfile === true
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
-  const profileIdAtOpen = useRef(profile?.id)
+  const profileIdAtOpen = useRef(creatingProfile ? undefined : profile?.id)
   const figureRef = useRef<HTMLImageElement>(null)
   const [lockIn, setLockIn] = useState<LockInLook | null>(null)
   const [selectedId, setSelectedId] = useState(
-    profile?.appearanceSelection?.kind === 'catalog'
-      ? profile.appearanceSelection.lookId
-      : (SELECTABLE_LOOKS[0]?.id ?? '')
+    creatingProfile && SELECTABLE_LOOKS.some((look) => look.id === routeState?.initialLookId)
+      ? routeState!.initialLookId!
+      : profile?.appearanceSelection?.kind === 'catalog'
+        ? profile.appearanceSelection.lookId
+        : (SELECTABLE_LOOKS[0]?.id ?? '')
   )
-  const returnTo = (location.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
+  const returnTo = routeState?.from === '/' ? '/' : '/game'
 
   useEffect(() => {
     void preloadImage(LOCK_IN_FRAME_URL)
   }, [])
 
   useEffect(() => {
-    if (!profile || profile.id !== profileIdAtOpen.current) {
+    if (!creatingProfile && (!profile || profile.id !== profileIdAtOpen.current)) {
       navigate('/profile-picker', { replace: true, state: { from: returnTo } })
     }
-  }, [navigate, profile, returnTo])
+  }, [creatingProfile, navigate, profile, returnTo])
 
   useEffect(() => {
     const look = SELECTABLE_LOOKS.find((candidate) => candidate.id === selectedId)
@@ -43,10 +52,10 @@ export default function DressingRoom() {
     }
   }, [selectedId])
 
-  if (!profile) return null
+  if (!creatingProfile && !profile) return null
 
   function confirmSelection() {
-    if (!profile || profile.id !== profileIdAtOpen.current || lockIn) return
+    if ((!creatingProfile && (!profile || profile.id !== profileIdAtOpen.current)) || lockIn) return
     const look = SELECTABLE_LOOKS.find((candidate) => candidate.id === selectedId)
     if (!look) return
     const selection = { kind: 'catalog' as const, lookId: look.id, revision: look.revision }
@@ -69,7 +78,7 @@ export default function DressingRoom() {
       )
     }
     // Persistence is independent of the cinematic and of image/network readiness.
-    dispatch(updateProfile({ appearanceSelection: selection }))
+    if (!creatingProfile) dispatch(updateProfile({ appearanceSelection: selection }))
     void warmSelectedAppearance(selection)
     if (!casualAsset || !portraitAsset) {
       finishLockIn()
@@ -78,17 +87,32 @@ export default function DressingRoom() {
     setLockIn({
       lookId: look.id,
       label: look.label,
-      displayName: profile.name,
+      displayName: creatingProfile ? look.label : (profile?.name ?? look.label),
       casualUrl: joinPublicAssetPath(casualAsset),
       portraitUrl: joinPublicAssetPath(portraitAsset),
       headTopPercent: look.headTopPercent,
       source: source
         ? { left: source.left, top: source.top, width: source.width, height: source.height }
         : null,
+      ...(creatingProfile
+        ? { readyEyebrow: 'Look chosen', completionCopy: 'Now make it yours.' }
+        : {}),
     })
   }
 
   function finishLockIn() {
+    if (creatingProfile) {
+      navigate('/profile-edit', {
+        replace: true,
+        state: {
+          from: '/',
+          createProfile: true,
+          appearanceSelection: { kind: 'catalog', lookId: selectedId, revision: 1 },
+          adoptGuestRun: routeState?.adoptGuestRun === true,
+        },
+      })
+      return
+    }
     navigate('/profile', {
       replace: true,
       state: { from: returnTo, fromLookReveal: Boolean(lockIn) },
@@ -104,8 +128,12 @@ export default function DressingRoom() {
       >
         <div className="dressing-room__topbar">
           <GameBackButton
-            onClick={() => navigate('/profile', { state: { from: returnTo } })}
-            label="Back to profile"
+            onClick={() =>
+              navigate(creatingProfile ? '/' : '/profile', {
+                state: creatingProfile ? undefined : { from: returnTo },
+              })
+            }
+            label={creatingProfile ? 'Back to home' : 'Back to profile'}
           />
           <span>Changing room</span>
         </div>
@@ -115,10 +143,12 @@ export default function DressingRoom() {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onConfirm={confirmSelection}
-          confirmLabel="Use this look"
+          confirmLabel={creatingProfile ? 'Choose this look' : 'Use this look'}
           figureRef={figureRef}
         />
-        <p className="dressing-room__season-note">Changes will take effect on new season start</p>
+        {!creatingProfile && (
+          <p className="dressing-room__season-note">Changes will take effect on new season start</p>
+        )}
       </main>
       {lockIn && <LookLockInReveal look={lockIn} onComplete={finishLockIn} />}
     </>
