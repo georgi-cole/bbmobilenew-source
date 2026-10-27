@@ -44,6 +44,7 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   await expect(page.getByRole('heading', { name: /Profiles/ })).toBeVisible()
 
   await page.getByRole('button', { name: /Create New Profile/ }).click()
+  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
   const nameField = page.getByPlaceholder('Enter display name')
   const fieldMetrics = await nameField.evaluate((element) => ({
     coarsePointer: window.matchMedia('(pointer: coarse)').matches,
@@ -60,7 +61,7 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
     element.scrollTop = element.scrollHeight
   })
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible()
   await expect
     .poll(() => page.locator('.app-shell__main').evaluate((element) => element.scrollTop))
     .toBe(0)

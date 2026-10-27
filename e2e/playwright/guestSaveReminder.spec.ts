@@ -80,6 +80,7 @@ test('guest Day 1 notice guides profile creation and preserves the current seaso
   await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
   await expect(page.getByText('New Profile', { exact: true })).toBeVisible()
 
+  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
   await page.getByPlaceholder('Enter display name').fill('Season Saver')
   await page.getByLabel('Age').fill('28')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Other')
