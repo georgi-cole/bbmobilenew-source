@@ -40,12 +40,13 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
     .getByRole('button', { name: 'Profile', exact: true })
     .click()
 
-  await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
+  await page.getByRole('button', { name: 'Select Existing Profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: /Profiles/ })).toBeVisible()
 
   await page.getByRole('button', { name: /Create New Profile/ }).click()
   await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
-  const nameField = page.getByPlaceholder('Enter display name')
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  const nameField = page.getByPlaceholder('Your name in the house')
   const fieldMetrics = await nameField.evaluate((element) => ({
     coarsePointer: window.matchMedia('(pointer: coarse)').matches,
     fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
@@ -53,6 +54,7 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   if (fieldMetrics.coarsePointer) expect(fieldMetrics.fontSize).toBeGreaterThanOrEqual(16)
   await nameField.fill(playerName)
   await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Location').fill('London')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
 
   // Reproduce the persistent-container failure: the long picker is scrolled
@@ -60,7 +62,7 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   await page.locator('.app-shell__main').evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })
-  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await page.getByRole('button', { name: 'Save Profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible()
   await expect
     .poll(() => page.locator('.app-shell__main').evaluate((element) => element.scrollTop))

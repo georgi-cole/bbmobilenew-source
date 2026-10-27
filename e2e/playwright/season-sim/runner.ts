@@ -222,13 +222,15 @@ async function createFreshProfile(page: Page, name: string): Promise<void> {
     .getByRole('navigation', { name: 'Main menu' })
     .getByRole('button', { name: 'Profile', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
+  await page.getByRole('button', { name: 'Select Existing Profile', exact: true }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
   await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
-  await page.getByPlaceholder('Enter display name').fill(name)
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByPlaceholder('Your name in the house').fill(name)
   await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Location').fill('London')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
-  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await page.getByRole('button', { name: 'Save Profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
   if (activeProfileId) {

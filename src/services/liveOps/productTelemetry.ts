@@ -1,13 +1,14 @@
 import type { RemoteOperations } from '../../remoteConfig/remoteConfigTypes'
 
 const EVENT_BUFFER_KEY = 'bbmobilenew:product-events'
-type EventProperties = Record<string, string | number | boolean | null | undefined>
-type ProductEvent = {
+export type EventProperties = Record<string, string | number | boolean | null | undefined>
+export type ProductEvent = {
   name: string
   occurredAt: string
   sessionId: string
   properties: EventProperties
 }
+type ProductEventListener = (event: ProductEvent, profileId?: string) => void
 
 let telemetry: NonNullable<RemoteOperations['telemetry']> | undefined
 let sampled = false
@@ -22,6 +23,13 @@ function createTelemetrySessionId(): string {
 const sessionId = createTelemetrySessionId()
 const sessionSampleBucket =
   Array.from(sessionId).reduce((total, char) => total + char.charCodeAt(0), 0) % 100
+const eventListeners = new Set<ProductEventListener>()
+
+/** Observe product actions for the separately configured Supabase analytics stream. */
+export function subscribeProductEvents(listener: ProductEventListener): () => void {
+  eventListeners.add(listener)
+  return () => eventListeners.delete(listener)
+}
 
 export function configureProductTelemetry(next: RemoteOperations['telemetry']): void {
   telemetry = next
@@ -37,9 +45,20 @@ function bufferEvent(event: ProductEvent): void {
   }
 }
 
-export function trackProductEvent(name: string, properties: EventProperties = {}): void {
-  if (!sampled) return
+export function trackProductEvent(
+  name: string,
+  properties: EventProperties = {},
+  profileId?: string
+): void {
   const event: ProductEvent = { name, occurredAt: new Date().toISOString(), sessionId, properties }
+  eventListeners.forEach((listener) => {
+    try {
+      listener(event, profileId)
+    } catch {
+      // Analytics observers must never interrupt gameplay.
+    }
+  })
+  if (!sampled) return
   bufferEvent(event)
   if (!telemetry?.endpointUrl) return
 

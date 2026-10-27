@@ -93,6 +93,7 @@
     "@remotion/cli": "^4.0.490",
     "@remotion/player": "^4.0.490",
     "@remotion/three": "^4.0.490",
+    "@supabase/supabase-js": "^2.118.0",
     "@types/howler": "^2.2.12",
     "@types/three": "^0.185.1",
     "framer-motion": "^12.34.3",
