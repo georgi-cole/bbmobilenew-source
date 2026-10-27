@@ -231,7 +231,9 @@ export function computeResponsiveGameLayout(
   const compactDockClearance = input.hasDock
     ? compactDockHeight * (1 - ACTION_RAIL_SHELL_TOP_INSET_RATIO) + COMPACT_DOCK_GAP * 2
     : 0
-  const measuredStageAndNavHeight = stageHeight + measuredNavHeight
+  // The integrated dock lives inside the stage. Its home-gesture inset must
+  // come out of the roster budget rather than being added back as navbar space.
+  const measuredStageAndNavHeight = stageHeight + (input.unifiedActionRail ? 0 : measuredNavHeight)
   const normalStageHeight = Math.max(0, measuredStageAndNavHeight - normalNavHeight)
   const compactStageHeight = Math.max(0, measuredStageAndNavHeight - compactNavHeight)
   const shellMaxWidth = 480
@@ -524,7 +526,7 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
   }
 ) {
   const revisionRef = useRef(0)
-  const hasMeasuredRef = useRef(false)
+  const measuredInputRef = useRef<ResponsiveGameLayoutInput | null>(null)
   const {
     hasDock,
     unifiedActionRail = false,
@@ -553,27 +555,37 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
   )
 
   const measure = useCallback(() => {
-    // Tile-targeted ceremony and presentation animations use the current DOM
-    // geometry. Keep their density tier fixed until the flow releases it.
-    if (freezeLayout && hasMeasuredRef.current) return
-    revisionRef.current += 1
-    const next = computeResponsiveGameLayout(
-      readViewportInput(
-        stageRef,
-        {
-          hasDock,
-          unifiedActionRail,
-          playerCount,
-          userCompactRoster,
-          inlineLogVisible,
-        },
-        revisionRef.current
-      )
+    const input = readViewportInput(
+      stageRef,
+      {
+        hasDock,
+        unifiedActionRail,
+        playerCount,
+        userCompactRoster,
+        inlineLogVisible,
+      },
+      revisionRef.current + 1
     )
+    const previous = measuredInputRef.current
+    // Preserve tile geometry during ceremonies, but never freeze an obsolete
+    // phone viewport or safe area. Native insets can arrive after the first
+    // measurement, including while the opening presentation is active.
+    if (
+      freezeLayout &&
+      previous &&
+      previous.viewportWidth === input.viewportWidth &&
+      previous.viewportHeight === input.viewportHeight &&
+      previous.safeTop === input.safeTop &&
+      previous.safeBottom === input.safeBottom
+    ) {
+      return
+    }
+    revisionRef.current += 1
+    measuredInputRef.current = input
+    const next = computeResponsiveGameLayout(input)
     setBudget((prev) =>
       prev.signature === next.signature && prev.debugLabel === next.debugLabel ? prev : next
     )
-    hasMeasuredRef.current = true
   }, [
     freezeLayout,
     hasDock,

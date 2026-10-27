@@ -25,7 +25,7 @@ html.is-capacitor-ios .game-screen {
 }
 
 .game-screen:has(.game-control-dock) {
-  padding-bottom: var(--game-screen-floating-dock-clearance);
+  padding-bottom: calc(var(--game-screen-floating-dock-clearance) + var(--safe-bottom, 0px));
 }
 
 /* The roster owns the full space between the Faux TV and the action rail, but
