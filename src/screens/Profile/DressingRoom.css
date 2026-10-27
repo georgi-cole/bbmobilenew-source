@@ -17,6 +17,11 @@
   padding: 10px 16px max(24px, env(safe-area-inset-bottom));
 }
 
+/* The overlay carries the same figure; keep a stationary copy out of the dissolving room. */
+.dressing-room[aria-hidden='true'] .appearance-carousel__figure {
+  visibility: hidden;
+}
+
 .dressing-room__topbar {
   display: flex;
   align-items: center;

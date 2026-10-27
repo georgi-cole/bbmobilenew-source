@@ -44,6 +44,9 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-27: Reviewed the Changing room look-lock reveal and My profile return
+  animation. This presentation-only update does not add or alter purchasable
+  items, entitlements, prices, or marketplace copy.
 - 2026-10-27: Premium Challenges now grants every premium minigame version,
   matching VIP minigame access. Reviewed host presentation, Quick Tap variants,
   saved-session selection, AI simulation, Store copy, VIP benefits, and release
