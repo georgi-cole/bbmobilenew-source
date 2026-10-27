@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import {
@@ -17,6 +17,9 @@ import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 export default function Profile() {
   const navigate = useNavigate()
   const location = useLocation()
+  const routeState = location.state as { from?: string; fromLookReveal?: boolean } | null
+  const [returnEntrance] = useState(() => routeState?.fromLookReveal === true)
+  const returnConsumed = useRef(false)
   const profile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
 
@@ -37,6 +40,15 @@ export default function Profile() {
     isGameActive || week > 1 || (phase !== 'season_start' && phase !== 'week_start')
   const returnTo = (location.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
   const goBack = () => navigate(returnTo, { replace: true })
+
+  useEffect(() => {
+    if (!routeState?.fromLookReveal || returnConsumed.current) return
+    returnConsumed.current = true
+    const nextState = { ...routeState }
+    delete nextState.fromLookReveal
+    // Consume the entrance marker without remounting this screen or replaying it on Back/refresh.
+    navigate(location.pathname, { replace: true, state: nextState, preventScrollReset: true })
+  }, [location.pathname, navigate, routeState])
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -141,7 +153,12 @@ export default function Profile() {
       JSON.stringify(profile.appearanceSelection ?? { kind: 'legacy' })
 
   return (
-    <div className="placeholder-screen profile-screen profile-screen--overview">
+    <div
+      className={
+        'placeholder-screen profile-screen profile-screen--overview' +
+        (returnEntrance ? ' profile-screen--look-return' : '')
+      }
+    >
       <div className="profile-screen__scene">
         <div className="profile-screen__title-row">
           <h1 className="profile-screen__page-title">My profile</h1>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, Ref } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { joinPublicAssetPath } from '../utils/avatar'
 import { getAppearanceAsset, SELECTABLE_LOOKS } from './catalog'
@@ -13,6 +13,7 @@ interface AppearanceCarouselProps {
   onSelect: (lookId: string) => void
   onConfirm?: () => void
   confirmLabel?: string
+  figureRef?: Ref<HTMLImageElement>
 }
 
 function lookAt(index: number) {
@@ -31,6 +32,7 @@ export default function AppearanceCarousel({
   onSelect,
   onConfirm,
   confirmLabel = 'Choose this look',
+  figureRef,
 }: AppearanceCarouselProps) {
   const reducedMotion = useReducedMotion()
   const touchStartX = useRef<number | null>(null)
@@ -90,6 +92,7 @@ export default function AppearanceCarousel({
         }}
       >
         <motion.img
+          ref={figureRef}
           key={current.id}
           className="appearance-carousel__figure"
           src={figureUrl(current.id)}

@@ -1,4 +1,68 @@
 /* Profile */
+/* A single, quiet entrance after confirming a look. The foot baseline moves as one unit. */
+.profile-screen--look-return .profile-screen__scene {
+  animation: profile-return-page 240ms ease-out both;
+}
+.profile-screen--look-return .profile-screen__character {
+  transform-origin: 50% 100%;
+  animation: profile-return-character 680ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.profile-screen--look-return .profile-screen__character-platform {
+  transform-origin: 50% 46%;
+  animation: profile-return-podium 720ms cubic-bezier(0.2, 0.75, 0.2, 1) both;
+}
+.profile-screen--look-return .profile-screen__hero-copy {
+  animation: profile-return-details 540ms 60ms ease-out both;
+}
+.profile-screen--look-return .profile-screen__quick-actions {
+  animation: profile-return-details 440ms 100ms ease-out both;
+}
+@keyframes profile-return-page {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes profile-return-character {
+  from {
+    opacity: 0.45;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes profile-return-podium {
+  from {
+    transform: perspective(650px) rotateY(-18deg);
+  }
+  to {
+    transform: perspective(650px) rotateY(0deg);
+  }
+}
+@keyframes profile-return-details {
+  from {
+    opacity: 0.35;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-screen--look-return .profile-screen__scene,
+  .profile-screen--look-return .profile-screen__character,
+  .profile-screen--look-return .profile-screen__character-platform,
+  .profile-screen--look-return .profile-screen__hero-copy,
+  .profile-screen--look-return .profile-screen__quick-actions {
+    animation: none;
+  }
+}
+
 .profile-screen {
   --profile-plum-panel: linear-gradient(180deg, rgba(27, 23, 33, 0.97), rgba(13, 11, 18, 0.98));
   padding: 16px;
