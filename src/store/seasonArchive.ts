@@ -11,6 +11,8 @@ export const MAX_SEASON_ARCHIVES = 1000
 export interface PlayerSeasonSummary {
   playerId: string
   displayName: string
+  /** The look worn by this contestant, retained after the profile changes. */
+  appearance?: import('../appearance/catalog').AppearanceSelection
   /** Null means explicitly no placement (e.g. evicted pre-jury). Undefined means not yet determined. */
   finalPlacement?: number | null
   /** Number of LOH competitions won this season. */

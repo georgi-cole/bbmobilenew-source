@@ -5,8 +5,20 @@
  * moments (mini-games and cinematic reveals) use the quieter grey-backed set
  * so portraits remain legible against dark overlays.
  */
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
+
 export function resolvePresentationAvatarCandidates(source: string | null | undefined): string[] {
   if (!source) return source ? [source] : []
+
+  const selection = appearanceFromAssetUrl(source)
+  if (selection) {
+    const grey = getAppearanceAsset(selection, 'grey')
+    if (grey)
+      return [
+        source.replace(/(?:casual|main|grey|formal|sad|paparazzi)\.webp(?:[?#].*)?$/i, 'grey.webp'),
+        source,
+      ]
+  }
 
   const marker = 'assets/skins/'
   const markerIndex = source.indexOf(marker)

@@ -28,6 +28,7 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
     .click()
   await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
+  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
   await page.getByPlaceholder('Enter display name').fill(playerName)
   await page.getByLabel('Age').fill('28')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')

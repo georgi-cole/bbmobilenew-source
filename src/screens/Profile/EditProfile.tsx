@@ -8,21 +8,17 @@ import {
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import {
-  resetGame,
-  resolveProfileAge,
-  resolveProfileSex,
-  updateUserPlayerIdentity,
-} from '../../store/gameSlice'
+import { resetGame } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
 import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
+import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
+import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
+import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
 import './EditProfile.css'
-
-const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
 
 const SAFE_PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
@@ -30,47 +26,8 @@ function isSafePreviewFile(file: File | Blob): boolean {
   return SAFE_PREVIEW_MIME_TYPES.has(file.type)
 }
 
-function CollapsibleSection({
-  label,
-  children,
-  sensitive,
-}: {
-  label: string
-  children: React.ReactNode
-  sensitive?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div>
-      <button
-        type="button"
-        className="edit-profile__collapse-toggle"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {label}
-        <span
-          className={`edit-profile__collapse-arrow${open ? ' edit-profile__collapse-arrow--open' : ''}`}
-        >
-          ▼
-        </span>
-      </button>
-      {open && (
-        <div className="edit-profile__collapse-body">
-          {sensitive && (
-            <p className="edit-profile__sensitive-note">
-              🔒 This info is optional and only stored locally on your device.
-            </p>
-          )}
-          {children}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /**
- * EditProfile — lets the user edit their active profile's name, avatar/photo,
+ * EditProfile — lets the user edit their active profile's name, photo,
  * and biography fields.  Photo uploads are processed (resize + compress) and
  * stored in IndexedDB; a `photoId` reference is kept in the Redux profile.
  */
@@ -79,51 +36,29 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
-  const returnTo = (routeLocation.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
+  const requestedReturnTo = (routeLocation.state as { from?: string } | null)?.from
+  const returnTo =
+    requestedReturnTo === '/' ||
+    requestedReturnTo === '/profile' ||
+    requestedReturnTo === '/profile-picker'
+      ? requestedReturnTo
+      : '/game'
+  const editReturnPath = returnTo === '/profile-picker' ? '/profile-picker' : '/profile'
+  const editReturnFrom = returnTo === '/profile-picker' ? '/profile' : returnTo
 
   // Redirect if no profile is active
   useEffect(() => {
-    if (!profile) navigate('/profile-picker', { replace: true, state: { from: returnTo } })
-  }, [profile, navigate, returnTo])
+    if (!profile) navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
+  }, [profile, navigate, editReturnFrom])
 
   // --- Form state ---
   const [name, setName] = useState(profile?.name ?? '')
-  const [avatar, setAvatar] = useState(profile?.avatar ?? '🧑')
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
   const [newPhotoBlob, setNewPhotoBlob] = useState<Blob | null>(null)
   const [processingPhoto, setProcessingPhoto] = useState(false)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
 
-  // Bio essentials
-  const [story, setStory] = useState(profile?.bio?.story ?? '')
-  const [location, setLocation] = useState(profile?.bio?.location ?? '')
-  const [profession, setProfession] = useState(profile?.bio?.profession ?? '')
-  const [age, setAge] = useState(profile?.bio?.age ?? '')
-  const [sex, setSex] = useState(profile?.bio?.sex ?? '')
-  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(() => {
-    const reproductiveProfile = profile?.bio?.reproductiveProfile
-    if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
-      return 'both'
-    }
-    if (reproductiveProfile?.canBecomePregnant) return 'become'
-    if (reproductiveProfile?.canCausePregnancy) return 'cause'
-    return 'none'
-  })
-
-  // Bio flavor
-  const [motto, setMotto] = useState(profile?.bio?.motto ?? '')
-  const [funFact, setFunFact] = useState(profile?.bio?.funFact ?? '')
-  const [zodiac, setZodiac] = useState(profile?.bio?.zodiac ?? '')
-
-  // Bio extra
-  const [education, setEducation] = useState(profile?.bio?.education ?? '')
-  const [familyStatus, setFamilyStatus] = useState(profile?.bio?.familyStatus ?? '')
-  const [kids, setKids] = useState(profile?.bio?.kids ?? '')
-  const [pets, setPets] = useState(profile?.bio?.pets ?? '')
-
-  // Bio sensitive
-  const [religion, setReligion] = useState(profile?.bio?.religion ?? '')
-  const [sexuality, setSexuality] = useState(profile?.bio?.sexuality ?? '')
+  const [bio, setBio] = useState<ProfileBio>(() => ({ ...profile?.bio }))
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -205,56 +140,17 @@ export default function EditProfile() {
       }
     }
 
-    const reproductiveProfile: ProfileBio['reproductiveProfile'] =
-      pregnancyRole === 'become'
-        ? { canBecomePregnant: true, canCausePregnancy: false }
-        : pregnancyRole === 'cause'
-          ? { canBecomePregnant: false, canCausePregnancy: true }
-          : pregnancyRole === 'both'
-            ? { canBecomePregnant: true, canCausePregnancy: true }
-            : undefined
-    const profileSex = sex.trim() || undefined
-    const parsedAge = resolveProfileAge(age)
-    const liveSex = resolveProfileSex(profileSex, reproductiveProfile)
-
-    const bio: ProfileBio = {
-      story: story.trim() || undefined,
-      location: location.trim() || undefined,
-      profession: profession.trim() || undefined,
-      age: age.trim() || undefined,
-      sex: profileSex,
-      reproductiveProfile,
-      motto: motto.trim() || undefined,
-      funFact: funFact.trim() || undefined,
-      zodiac: zodiac.trim() || undefined,
-      education: education.trim() || undefined,
-      familyStatus: familyStatus.trim() || undefined,
-      kids: kids.trim() || undefined,
-      pets: pets.trim() || undefined,
-      religion: religion.trim() || undefined,
-      sexuality: sexuality.trim() || undefined,
-    }
+    const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
 
     dispatch(
       updateProfile({
         name: name.trim() || profile.name,
-        avatar,
+        avatar: profile.avatar,
         photoId,
-        bio,
+        bio: normalizedBio,
       })
     )
-    dispatch(
-      updateUserPlayerIdentity({
-        name: name.trim() || profile.name,
-        avatar,
-        photoId,
-        age: parsedAge ?? null,
-        sex: liveSex ?? null,
-        reproductiveProfile: reproductiveProfile ?? null,
-      })
-    )
-
-    navigate('/profile', { replace: true, state: { from: returnTo } })
+    navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
   }
 
   async function handleDeleteProfile() {
@@ -273,25 +169,23 @@ export default function EditProfile() {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
     })
-    navigate('/profile-picker', { replace: true, state: { from: returnTo } })
+    navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
   }
 
   if (!profile) return null
-
-  const displayPhoto = photoDataUrl
 
   return (
     <div className="placeholder-screen edit-profile">
       <h1 className="edit-profile__title">✏️ Edit Profile</h1>
 
-      {/* Photo + avatar section */}
+      {/* Profile photo or selected character portrait */}
       <div className="edit-profile__photo-section">
         <div className="edit-profile__photo-wrap">
-          {displayPhoto ? (
-            <img className="edit-profile__photo-img" src={displayPhoto} alt="Profile" />
-          ) : (
-            <span className="edit-profile__avatar-emoji">{avatar}</span>
-          )}
+          <ProfilePhotoPreview
+            className="edit-profile__photo-img"
+            photoUrl={photoDataUrl}
+            appearance={profile.appearanceSelection}
+          />
           <button
             type="button"
             className="edit-profile__photo-btn"
@@ -315,25 +209,6 @@ export default function EditProfile() {
         </div>
       </div>
 
-      {/* Avatar emoji picker */}
-      <div className="edit-profile__avatar-section">
-        <div className="edit-profile__section-label">Emoji Avatar (fallback)</div>
-        <div className="edit-profile__avatar-grid">
-          {AVATAR_OPTIONS.map((em) => (
-            <button
-              key={em}
-              type="button"
-              className={`edit-profile__avatar-btn${avatar === em ? ' edit-profile__avatar-btn--selected' : ''}`}
-              onClick={() => setAvatar(em)}
-              aria-label={em}
-              aria-pressed={avatar === em}
-            >
-              {em}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Name */}
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-name">
@@ -350,50 +225,6 @@ export default function EditProfile() {
         />
       </div>
 
-      {/* Short bio / story */}
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-story">
-          About You
-        </label>
-        <textarea
-          id="ep-story"
-          className="edit-profile__textarea"
-          maxLength={200}
-          value={story}
-          onChange={(e) => setStory(e.target.value)}
-          placeholder="A short bio or personal story…"
-        />
-      </div>
-
-      {/* Location, profession, age */}
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-location">
-          Location
-        </label>
-        <input
-          id="ep-location"
-          className="edit-profile__input"
-          type="text"
-          maxLength={50}
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="City, State"
-        />
-      </div>
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-profession">
-          Profession
-        </label>
-        <input
-          id="ep-profession"
-          className="edit-profile__input"
-          type="text"
-          maxLength={50}
-          value={profession}
-          onChange={(e) => setProfession(e.target.value)}
-          placeholder="What do you do?"
-        />
-      </div>
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-age">
           Age
@@ -403,186 +234,29 @@ export default function EditProfile() {
           className="edit-profile__input"
           type="text"
           maxLength={20}
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
+          value={bio.age ?? ''}
+          onChange={(event) => setBio({ ...bio, age: event.target.value })}
           placeholder="e.g. 28"
         />
       </div>
-
-      {/* Flavor section */}
-      <CollapsibleSection label="Flavor / Personality">
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-motto">
-            Personal Motto
-          </label>
-          <input
-            id="ep-motto"
-            className="edit-profile__input"
-            type="text"
-            maxLength={80}
-            value={motto}
-            onChange={(e) => setMotto(e.target.value)}
-            placeholder="Your motto or catchphrase"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-funfact">
-            Fun Fact
-          </label>
-          <input
-            id="ep-funfact"
-            className="edit-profile__input"
-            type="text"
-            maxLength={100}
-            value={funFact}
-            onChange={(e) => setFunFact(e.target.value)}
-            placeholder="Something surprising about you"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-zodiac">
-            Zodiac Sign
-          </label>
-          <input
-            id="ep-zodiac"
-            className="edit-profile__input"
-            type="text"
-            maxLength={20}
-            value={zodiac}
-            onChange={(e) => setZodiac(e.target.value)}
-            placeholder="e.g. Scorpio"
-          />
-        </div>
-      </CollapsibleSection>
-
-      {/* Extra info section */}
-      <CollapsibleSection label="Background / Family">
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-education">
-            Education
-          </label>
-          <input
-            id="ep-education"
-            className="edit-profile__input"
-            type="text"
-            maxLength={60}
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-            placeholder="e.g. Bachelor's in Psychology"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-family">
-            Family Status
-          </label>
-          <input
-            id="ep-family"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={familyStatus}
-            onChange={(e) => setFamilyStatus(e.target.value)}
-            placeholder="e.g. Single, Married"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-kids">
-            Kids
-          </label>
-          <input
-            id="ep-kids"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={kids}
-            onChange={(e) => setKids(e.target.value)}
-            placeholder="e.g. Two kids, ages 5 and 8"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-pets">
-            Pets
-          </label>
-          <input
-            id="ep-pets"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={pets}
-            onChange={(e) => setPets(e.target.value)}
-            placeholder="e.g. Two cats named Mochi and Boba"
-          />
-        </div>
-      </CollapsibleSection>
-
-      {/* Sensitive section */}
-      <CollapsibleSection label="Optional / Personal" sensitive>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sex">
-            Sex (Reality storylines)
-          </label>
-          <select
-            id="ep-sex"
-            className="edit-profile__input"
-            value={sex}
-            onChange={(e) => setSex(e.target.value)}
-          >
-            <option value="">Not specified — ask me in-game when needed</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-            <option value="Prefer not to say">Prefer not to say</option>
-          </select>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-pregnancy-role">
-            Pregnancy role (optional)
-          </label>
-          <select
-            id="ep-pregnancy-role"
-            className="edit-profile__input"
-            value={pregnancyRole}
-            onChange={(e) =>
-              setPregnancyRole(e.target.value as 'none' | 'become' | 'cause' | 'both')
-            }
-          >
-            <option value="none">Not specified — ask me in-game when needed</option>
-            <option value="become">Can become pregnant</option>
-            <option value="cause">Can cause pregnancy</option>
-            <option value="both">Both</option>
-          </select>
-          <p className="edit-profile__sensitive-note">
-            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the existing
-            one-time in-game role choice.
-          </p>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-religion">
-            Religion
-          </label>
-          <input
-            id="ep-religion"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={religion}
-            onChange={(e) => setReligion(e.target.value)}
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sexuality">
-            Sexuality
-          </label>
-          <input
-            id="ep-sexuality"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={sexuality}
-            onChange={(e) => setSexuality(e.target.value)}
-          />
-        </div>
-      </CollapsibleSection>
+      <div className="edit-profile__field">
+        <label className="edit-profile__label" htmlFor="ep-sex">
+          Sex (Reality storylines)
+        </label>
+        <select
+          id="ep-sex"
+          className="edit-profile__input"
+          value={bio.sex ?? ''}
+          onChange={(event) => setBio({ ...bio, sex: event.target.value })}
+        >
+          <option value="">Not specified - ask me in-game when needed</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+      <ProfileOptionalDetails value={bio} onChange={setBio} />
 
       <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
         <div>
@@ -607,7 +281,9 @@ export default function EditProfile() {
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--cancel"
-          onClick={() => navigate('/profile', { replace: true, state: { from: returnTo } })}
+          onClick={() =>
+            navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
+          }
         >
           Cancel
         </button>

@@ -12,6 +12,11 @@
 //    creating circular Redux dependencies.
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  coerceAppearanceSelection,
+  getAppearanceLook,
+  type AppearanceSelection,
+} from '../appearance/catalog'
 import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../economy/eyeoleans'
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
@@ -131,6 +136,8 @@ export interface StoredProfile {
   avatar: string
   /** IndexedDB key for the uploaded photo blob; undefined when no photo set. */
   photoId?: string
+  /** Default visual identity for newly started seasons. */
+  appearanceSelection?: AppearanceSelection
   /** Extended biography fields. */
   bio?: ProfileBio
   /** ISO timestamp when the profile was created. */
@@ -420,6 +427,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'You',
     avatar: typeof r.avatar === 'string' && r.avatar ? r.avatar : '👤',
     photoId: typeof r.photoId === 'string' && r.photoId ? r.photoId : undefined,
+    appearanceSelection: coerceAppearanceSelection(r.appearanceSelection),
     bio: r.bio && typeof r.bio === 'object' ? (r.bio as ProfileBio) : undefined,
     createdAt: r.createdAt,
     lifetimeXp:
@@ -507,6 +515,7 @@ export function loadActiveProfile(): {
   name: string
   avatar: string
   photoId?: string
+  appearanceSelection?: AppearanceSelection
   bio?: ProfileBio
 } {
   const state = loadProfilesState()
@@ -517,6 +526,7 @@ export function loadActiveProfile(): {
         name: profile.name,
         avatar: profile.avatar,
         photoId: profile.photoId,
+        appearanceSelection: profile.appearanceSelection,
         bio: profile.bio,
       }
     }
@@ -579,7 +589,8 @@ const profilesSlice = createSlice({
         name: string
         avatar: string
         photoId?: string
-        bio?: Pick<ProfileBio, 'age' | 'sex'>
+        appearanceSelection?: AppearanceSelection
+        bio?: ProfileBio
       }>
     ) {
       if (state.profiles.length >= MAX_PROFILES) return
@@ -588,6 +599,7 @@ const profilesSlice = createSlice({
         name: action.payload.name.trim() || 'You',
         avatar: action.payload.avatar || '👤',
         photoId: action.payload.photoId,
+        appearanceSelection: coerceAppearanceSelection(action.payload.appearanceSelection),
         createdAt: new Date().toISOString(),
         bio: action.payload.bio,
         eyeoleans: 0,
@@ -616,11 +628,20 @@ const profilesSlice = createSlice({
     updateProfile(state, action: PayloadAction<Partial<Omit<StoredProfile, 'id' | 'createdAt'>>>) {
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       if (!profile) return
-      const { name, avatar, photoId, bio } = action.payload
+      const { name, avatar, photoId, bio, appearanceSelection } = action.payload
       if (name !== undefined) profile.name = name.trim() || profile.name
       if (avatar !== undefined) profile.avatar = avatar
       if (photoId !== undefined) profile.photoId = photoId
       if (bio !== undefined) profile.bio = { ...profile.bio, ...bio }
+      if (appearanceSelection !== undefined) {
+        const normalized = coerceAppearanceSelection(appearanceSelection)
+        if (
+          normalized.kind === 'legacy' ||
+          getAppearanceLook(normalized.lookId, normalized.revision)?.selectable
+        ) {
+          profile.appearanceSelection = normalized
+        }
+      }
     },
 
     /** Persist the fact that this profile has consumed the Lia/Ali Twin Shock. */

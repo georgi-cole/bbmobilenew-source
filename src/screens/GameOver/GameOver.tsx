@@ -76,6 +76,7 @@ function buildSummaries(
     const summary: PlayerSeasonSummary = {
       playerId: p.id,
       displayName: p.name,
+      appearance: p.appearance,
       finalPlacement: p.finalRank ?? p.seasonPlacement ?? null,
       isEvicted: p.status === 'evicted' || p.status === 'jury',
       lohWins,
