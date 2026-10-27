@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-27: Reviewed the shared native immersive display, screen-awake policy,
+  Game Mode eligibility, and orientation handling for all minigames, including
+  premium versions. These changes apply equally to eligible gameplay and do not
+  change product contents, access gates, prices, benefits, or purchase restoration.
+  The existing Premium Challenges and VIP listings remain accurate.
+
 - 2026-10-27: Reviewed the Changing room look-lock reveal and My profile return
   animation. This presentation-only update does not add or alter purchasable
   items, entitlements, prices, or marketplace copy.

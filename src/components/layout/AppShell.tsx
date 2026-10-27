@@ -62,8 +62,8 @@ export default function AppShell() {
     (pendingMinigameKey != null && LANDSCAPE_FRIENDLY_MINIGAMES.has(pendingMinigameKey)) ||
     (pendingChallengeKey != null && LANDSCAPE_FRIENDLY_MINIGAMES.has(pendingChallengeKey))
 
-  // Gameplay owns the full Android display. Other screens restore the native
-  // status bar and continue to use the measured safe-area inset.
+  // Gameplay owns the full native display. Menus restore the phone controls;
+  // measured cutout and gesture insets still protect interactive content.
   useGameMode(location.pathname === '/game', allowsLandscape)
 
   // React Router keeps this persistent scroll container mounted between
