@@ -44,9 +44,13 @@ export default function Legal() {
           screen visits and visible time, game modes and days reached, minigame duration, placements
           and exits, Social usage and action categories, selected gameplay decisions, elimination
           timing and season placement, marketplace product choices and purchase outcomes, and
-          session time. Purchase prices are not collected. Photos, biographies, and conversation
-          text are not sent. The anonymous backup is tied to this installation and cannot yet be
-          restored on another device. Contact support for data access or deletion requests.
+          session time. Session events also include broad device type and family, operating system,
+          and browser; an exact device model is included only when the browser provides it. A full
+          browser user-agent string is not sent. Events carry a build label (QA, production, or
+          development) so test activity can be distinguished. Purchase prices are not collected.
+          Photos, biographies, and conversation text are not sent. The anonymous backup is tied to
+          this installation and cannot yet be restored on another device. Contact support for data
+          access or deletion requests.
         </p>
         <p>
           Location is optional. If you allow it, coordinates are sent to Open-Meteo to request

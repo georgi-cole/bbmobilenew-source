@@ -46,6 +46,11 @@ import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal
 import SurvivorRulesModal from '../../components/ConfirmExitModal/SurvivorRulesModal'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { beginGameplayAudioExit } from '../../services/sound/audioRouteOwnership'
+import { trackProductEvent } from '../../services/liveOps/productTelemetry'
+import {
+  getAnalyticsGameMode,
+  getAnalyticsGameModeForRuleset,
+} from '../../services/backend/analyticsGameMode'
 import { startCreditsSoundtrackFromGesture } from '../../cinematic/audio/creditsSoundtrack'
 import GameButton, { type GameButtonVariant } from '../../components/GameButton/GameButton'
 import HousematesBioCinematic from '../../components/HousematesBioCinematic/HousematesBioCinematic'
@@ -548,6 +553,12 @@ export default function HomeHub() {
       return
     }
 
+    if (!isGuest && activeProfileId)
+      trackProductEvent(
+        'game_mode_selected',
+        getAnalyticsGameMode(snapshot.game.mode, snapshot.game.expansionMode),
+        activeProfileId
+      )
     beginGameplayAudioExit()
     withRunAutosaveSuspended(() => {
       dispatch(hydrateGame(snapshot.game))
@@ -632,12 +643,22 @@ export default function HomeHub() {
 
   function startSurvivorRun() {
     beginGameplayAudioExit()
+    const analyticsProfileId = !isGuest ? (activeProfileId ?? undefined) : undefined
+    const selectedGameMode = getAnalyticsGameModeForRuleset('survival')
+    if (analyticsProfileId)
+      trackProductEvent('game_mode_selected', selectedGameMode, analyticsProfileId)
     if (!isGuest && activeProfileId) {
       clearSavedRun(activeProfileId, 'survival')
     }
     setSurvivorPrompt(null)
     setPlaySelectionOpen(false)
     dispatch(hydrateGame(createSurvivorRun()))
+    if (analyticsProfileId)
+      trackProductEvent(
+        'season_started',
+        { ...selectedGameMode, week: 0, day: 0, phase: 'survival' },
+        analyticsProfileId
+      )
     setPreloading(true)
   }
 
@@ -662,6 +683,12 @@ export default function HomeHub() {
       setSurvivorPrompt('ended')
       return
     }
+    if (!isGuest && activeProfileId)
+      trackProductEvent(
+        'game_mode_selected',
+        getAnalyticsGameMode(survivorSnapshot.game.mode, survivorSnapshot.game.expansionMode),
+        activeProfileId
+      )
     setSurvivorPrompt(null)
     hydrateSnapshot(survivorSnapshot)
   }

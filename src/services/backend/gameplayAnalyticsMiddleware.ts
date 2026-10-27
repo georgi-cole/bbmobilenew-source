@@ -1,9 +1,13 @@
 import { isAction, type Middleware } from '@reduxjs/toolkit'
+import { getAppearanceLook } from '../../appearance/catalog'
+import { getSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import type { RootState } from '../../store/store'
+import { getAnalyticsGameMode, getAnalyticsGameModeForRuleset } from './analyticsGameMode'
 import { trackProductEvent } from '../liveOps/productTelemetry'
 
 type AnalyticsContext = {
   game_mode: string
+  game_mode_label: string
   week: number
   day: number
   phase: string
@@ -222,10 +226,14 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
     const result = next(action)
     const after = api.getState() as RootState
     const profileId = after.profiles.isGuest ? null : after.profiles.activeProfileId
+    const launchIntent = action.type === 'game/resetGame' ? getSeasonLaunchIntent() : null
+    const selectedGameMode = launchIntent
+      ? getAnalyticsGameModeForRuleset(launchIntent)
+      : getAnalyticsGameMode(after.game.mode, after.game.expansionMode)
     const context: AnalyticsContext = {
       week: after.game.week,
       day: after.game.week,
-      game_mode: after.game.expansionMode ?? after.game.mode ?? 'unknown',
+      ...selectedGameMode,
       phase: after.game.phase,
     }
 
@@ -356,6 +364,13 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
         profile?.appearanceSelection?.kind === 'catalog'
           ? profile.appearanceSelection.lookId
           : 'legacy'
+      const characterLabel =
+        profile?.appearanceSelection?.kind === 'catalog'
+          ? (getAppearanceLook(
+              profile.appearanceSelection.lookId,
+              profile.appearanceSelection.revision
+            )?.label ?? 'Unknown look')
+          : 'Legacy look'
 
       if (
         action.type === 'profiles/createProfile' &&
@@ -375,7 +390,11 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
             JSON.stringify(profile.appearanceSelection) !==
               JSON.stringify(previousProfile?.appearanceSelection)))
       )
-        trackProductEvent('character_selected', { character_id: characterId }, profileId)
+        trackProductEvent(
+          'character_selected',
+          { character_id: characterId, character_label: characterLabel },
+          profileId
+        )
 
       if (action.type === 'game/resetGame') {
         if (before.game.status === 'active' && before.game.players.length)
@@ -384,16 +403,18 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
             {
               week: before.game.week,
               day: before.game.week,
-              game_mode: before.game.expansionMode ?? before.game.mode,
+              ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
             },
             profileId
           )
-        if (after.game.players.length)
+        if (after.game.players.length) {
+          trackProductEvent('game_mode_selected', selectedGameMode, profileId)
           trackProductEvent(
             'season_started',
             { ...context, season_index: after.game.season },
             profileId
           )
+        }
       }
 
       const gameActionId = USER_ACTION_IDS[action.type]
@@ -410,7 +431,7 @@ export const gameplayAnalyticsMiddleware: Middleware = (api) => {
       const beforeHuman = before.game.players.find((player) => player.isUser)
       const afterHuman = after.game.players.find((player) => player.isUser)
       const eliminationContext: AnalyticsContext = {
-        game_mode: before.game.expansionMode ?? before.game.mode ?? 'unknown',
+        ...getAnalyticsGameMode(before.game.mode, before.game.expansionMode),
         week: before.game.week,
         day: before.game.week,
         phase: before.game.phase,
