@@ -240,8 +240,9 @@ test.describe('Finale / Jury flow @release', () => {
       .getByRole('navigation', { name: 'Play menu' })
       .getByRole('button', { name: 'Classic', exact: true })
       .click()
-    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
-    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
+      timeout: 60_000,
+    })
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await openDebugPanel(page)
 

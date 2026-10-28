@@ -52,6 +52,12 @@ function finiteAdapter(
         .getByRole('navigation', { name: 'Play menu' })
         .getByRole('button', { name: label, exact: true })
         .click()
+      if (label === 'Classic') {
+        await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
+          timeout: MODE_LAUNCH_TIMEOUT,
+        })
+        return
+      }
       await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
       await page.getByRole('button', { name: 'Start Season', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
