@@ -1535,6 +1535,7 @@ export default function TvZone(props: TvZoneProps) {
     const phaseMeasure = phaseMeasureRef.current
     if (!header || !pills || !actions || !phaseMeasure) return
 
+    let frameId = 0
     const measure = () => {
       // Full phase text + chip padding, status-chip content, action controls,
       // header padding and inter-column gaps. Shorten only if that real total
@@ -1544,18 +1545,25 @@ export default function TvZone(props: TvZoneProps) {
       const shouldCompact = requiredWidth > header.clientWidth + 0.5
       setCompactPhaseChip((current) => (current === shouldCompact ? current : shouldCompact))
     }
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(measure)
+    }
+    // Settle the first layout before paint; later observer notifications can
+    // share a frame without shifting the roster during its entrance animation.
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(scheduleMeasurement)
     observer.observe(header)
     observer.observe(pills)
     observer.observe(actions)
     observer.observe(phaseMeasure)
     for (const item of [...pills.children, ...actions.children]) observer.observe(item)
-    const contentObserver = new MutationObserver(measure)
+    const contentObserver = new MutationObserver(scheduleMeasurement)
     for (const container of [pills, actions]) {
       contentObserver.observe(container, { childList: true, subtree: true, characterData: true })
     }
     return () => {
+      window.cancelAnimationFrame(frameId)
       observer.disconnect()
       contentObserver.disconnect()
     }

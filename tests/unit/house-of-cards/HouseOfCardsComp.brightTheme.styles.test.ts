@@ -11,12 +11,18 @@ const priorityCss = fs.readFileSync(
   'utf8'
 )
 const mainSource = fs.readFileSync(path.resolve(process.cwd(), 'src/main.tsx'), 'utf8')
+const componentSource = fs.readFileSync(
+  path.resolve(process.cwd(), 'src/components/HouseOfCardsComp/HouseOfCardsComp.tsx'),
+  'utf8'
+)
 
 describe('House of Cards bright theme', () => {
   it('loads a cascade-proof priority layer after the bright theme', () => {
     expect(
-      mainSource.indexOf("import './styles/houseOfCardsBrightThemePriority.css'")
-    ).toBeGreaterThan(mainSource.indexOf("import './styles/houseOfCardsBrightTheme.css'"))
+      componentSource.indexOf("import '../../styles/houseOfCardsBrightThemePriority.css'")
+    ).toBeGreaterThan(componentSource.indexOf("import '../../styles/houseOfCardsBrightTheme.css'"))
+    expect(componentSource).toContain("import '../../styles/houseOfCardsInteractionFix.css'")
+    expect(mainSource).not.toContain("import './styles/houseOfCards")
   })
 
   it('forces the root, board and cards into the vivid light palette', () => {

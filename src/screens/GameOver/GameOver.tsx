@@ -11,7 +11,6 @@ import {
   totalEyeoleanRewards,
 } from '../../economy/eyeoleans'
 import { SoundManager } from '../../services/sound/SoundManager'
-import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
 import {
@@ -35,6 +34,7 @@ import {
   type AftermathIssue,
 } from './aftermath'
 import './GameOver.css'
+import '../../styles/gameOverResponsiveFixes.css'
 import './AftermathTabloid.css'
 
 const CAROUSEL_INTERVAL_MS = 5000
@@ -264,9 +264,8 @@ export default function GameOver() {
     if (!isGuest && activeProfileId) {
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
     }
-    withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
     SoundManager.unlockFromGesture()
-    navigate('/', { state: { autoStartGame: true } })
+    navigate('/new-season?mode=classic')
   }
 
   function exitToHome() {

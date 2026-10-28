@@ -313,6 +313,19 @@ export function flushPendingRunSnapshots(): void {
   runSnapshotAutosave.flush()
 }
 
+/** Explicitly capture a completed launch or attach an intact guest run to its owner. */
+export function persistCurrentRunSnapshot(): void {
+  const current = store.getState()
+  if (
+    !current.profiles.isGuest &&
+    current.profiles.activeProfileId &&
+    hasMeaningfulGameProgress(current.game)
+  ) {
+    scheduleCurrentRunSnapshot(current.profiles.activeProfileId, current)
+  }
+  runSnapshotAutosave.flush()
+}
+
 function scheduleCurrentRunSnapshot(
   profileId: string,
   current: ReturnType<typeof store.getState>

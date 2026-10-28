@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react'
+import { startTransition, useEffect, useMemo, useReducer, useState } from 'react'
 import useLoadIntroHub from './useLoadIntroHub'
 import { preloadImage } from '../utils/preload'
 import {
@@ -89,7 +89,9 @@ export default function useHomeHubAssets(
       await Promise.all(
         criticalAssetUrls.map(async (url) => {
           await preloadImage(url)
-          if (!cancelled) dispatchImages({ type: 'imageLoaded' })
+          // Progress is informational; cached images should not each force an
+          // urgent menu render. The allReady update below remains immediate.
+          if (!cancelled) startTransition(() => dispatchImages({ type: 'imageLoaded' }))
         })
       )
 

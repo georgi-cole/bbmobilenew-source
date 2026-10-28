@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { chmod, mkdir, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -5,8 +6,6 @@ import { fileURLToPath } from 'node:url'
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = dirname(scriptDir)
 const gitDir = join(repoRoot, '.git')
-const hooksDir = join(gitDir, 'hooks')
-const hookPath = join(hooksDir, 'pre-push')
 
 const hook = `#!/bin/sh
 set -eu
@@ -25,6 +24,12 @@ try {
   throw error
 }
 
+const hooksDir = execFileSync(
+  'git',
+  ['rev-parse', '--path-format=absolute', '--git-path', 'hooks'],
+  { cwd: repoRoot, encoding: 'utf8' }
+).trim()
+const hookPath = join(hooksDir, 'pre-push')
 await mkdir(hooksDir, { recursive: true })
 await writeFile(hookPath, hook, 'utf8')
 await chmod(hookPath, 0o755)

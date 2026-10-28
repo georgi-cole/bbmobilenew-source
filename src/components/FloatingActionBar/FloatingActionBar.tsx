@@ -22,7 +22,6 @@ import {
   continueWeekendFeature,
   submitHubSaysVote,
   continueSurvivorAfterAd,
-  hydrateGame,
   revealSurvivorReplacement,
   setHasSeenConfessionalSpotlight,
   resetGame,
@@ -69,11 +68,7 @@ import {
   savedStateKeyForProfile,
   saveRunSnapshot,
 } from '../../store/saveStatePersistence'
-import {
-  createSurvivorRun,
-  getSurvivorCurrentDay,
-  isSurvivorRunTerminal,
-} from '../../modes/survivorRun'
+import { getSurvivorCurrentDay, isSurvivorRunTerminal } from '../../modes/survivorRun'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
 import AdPrompt from '../AdPrompt/AdPrompt'
 import GameControlDock from '../GameControlDock/GameControlDock'
@@ -751,13 +746,8 @@ export default function FloatingActionBar({
   }, [game.publicModeEnabled, navigate, onPublicMeterBlocked, publicRequestCount])
 
   const handleStartNewSurvivor = useCallback(() => {
-    if (!isGuest && activeProfileId) {
-      clearSavedRun(activeProfileId, 'survival')
-    }
-    dispatch({ type: 'challenge/setPendingChallenge', payload: null })
-    dispatch(hydrateGame(createSurvivorRun()))
-    navigate('/game', { replace: true })
-  }, [activeProfileId, dispatch, isGuest, navigate])
+    navigate('/new-season?mode=survival')
+  }, [navigate])
 
   const handleReturnHome = useCallback(() => {
     if (weekend?.debug) {
@@ -890,7 +880,8 @@ export default function FloatingActionBar({
       // On the game screen the nav is deliberately folded into the dock. Its
       // hidden rectangle must not become the dock's lower boundary.
       if (navRect.height <= 0) {
-        dock.style.bottom = `${Math.round(minimumGap)}px`
+        const bottom = `${Math.round(minimumGap)}px`
+        if (dock.style.bottom !== bottom) dock.style.bottom = bottom
         return
       }
       const bottomOffset = resolveBalancedDockBottom({
@@ -900,7 +891,8 @@ export default function FloatingActionBar({
         dockHeight: dockRect.height,
         minimumGap,
       })
-      dock.style.bottom = `${Math.round(bottomOffset)}px`
+      const bottom = `${Math.round(bottomOffset)}px`
+      if (dock.style.bottom !== bottom) dock.style.bottom = bottom
     }
     const scheduleBalance = () => {
       window.cancelAnimationFrame(frameId)

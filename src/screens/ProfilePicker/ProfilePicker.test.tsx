@@ -1,3 +1,4 @@
+import { persistCurrentRunSnapshot } from '../../store/store'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProfilePicker from './ProfilePicker'
@@ -79,13 +80,14 @@ vi.mock('../../store/saveStatePersistence', () => ({
 }))
 
 vi.mock('../../store/store', () => ({
-  flushPendingRunSnapshots: vi.fn(),
+  persistCurrentRunSnapshot: vi.fn(),
 }))
 
 vi.mock('../../utils/imageDb', () => ({
   imageIdToDataUrl: vi.fn(() => Promise.resolve(null)),
   saveImage: vi.fn(() => Promise.resolve()),
   deleteImage: vi.fn(() => Promise.resolve()),
+  pruneProfilePhotos: vi.fn(() => Promise.resolve()),
 }))
 vi.mock('../../utils/imageUtils', () => ({
   resizeAndCompressImage: vi.fn(),
@@ -362,11 +364,9 @@ describe('ProfilePicker', () => {
         }),
       })
     )
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'game/updateUserPlayerIdentity',
-        payload: expect.objectContaining({ age: 28, sex: 'Female' }),
-      })
+    expect(persistCurrentRunSnapshot).toHaveBeenCalled()
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'game/updateUserPlayerIdentity' })
     )
     expect(mockDispatch).not.toHaveBeenCalledWith(
       expect.objectContaining({
@@ -384,7 +384,7 @@ describe('ProfilePicker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
 
-  it('applies an explicit optional storyline role when adopting guest progress', async () => {
+  it('stores optional roles as profile defaults without rewriting the adopted contestant', async () => {
     mockState.profiles.isGuest = true
     mockState.game = { week: 2, phase: 'social_1', runId: 'guest-run-optional-details' }
     render(<ProfilePicker />)
@@ -405,11 +405,13 @@ describe('ProfilePicker', () => {
     await waitFor(() =>
       expect(mockDispatch).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'game/updateUserPlayerIdentity',
+          type: 'profiles/createProfile',
           payload: expect.objectContaining({
-            age: 28,
-            sex: 'Other',
-            reproductiveProfile: { canBecomePregnant: false, canCausePregnancy: true },
+            bio: expect.objectContaining({
+              age: '28',
+              sex: 'Other',
+              reproductiveProfile: { canBecomePregnant: false, canCausePregnancy: true },
+            }),
           }),
         })
       )

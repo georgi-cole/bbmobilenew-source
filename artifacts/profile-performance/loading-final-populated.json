@@ -1,0 +1,1668 @@
+{
+  "label": "loading-final-populated",
+  "measuredAt": "2026-10-28T12:04:59.904Z",
+  "environment": {
+    "browser": "156.0.8078.47",
+    "hostCpu": "Intel(R) Core(TM) Ultra 7 155H",
+    "hostRamBytes": 16664707072,
+    "cpuRate": 6,
+    "samples": 7,
+    "fullApp": true,
+    "viewport": "360x800",
+    "build": "production app and separate production runtime harness",
+    "fixture": "two generated populated run slots per profile; 400 feed entries per slot; 20 completed seasons and 100 wallet records per profile",
+    "limitations": "CPU throttling is not physical low-end hardware. Heap is JavaScript only; excludes native/GPU/process RAM. Runtime startup measures storage and store imports. App startup waits for the visible main menu; app resume waits for gameplay navigation. Warm HTTP cache; fresh browser context per observation. Synthetic bounded-history fixtures are not a substitute for a long-season gameplay trace."
+  },
+  "summary": [
+    {
+      "profiles": 1,
+      "persistenceStartupMedianMs": 24.599999994039536,
+      "runtimeStartupMedianMs": 683.0999999940395,
+      "resumeMedianMs": 81.69999998807907,
+      "resumeRangeMs": [67.39999997615814, 109.7999999821186],
+      "autosaveSyncP95Ms": 11.299999982118607,
+      "autosaveFlushP95Ms": 15.099999994039536,
+      "autosaveFrameGapP95Ms": 16.700000000000045,
+      "startupJsHeapMedianBytes": 5979104,
+      "resumedJsHeapMedianBytes": 6238356,
+      "cachedBytes": 725348,
+      "fixtureBytes": 725348,
+      "appReadyMedianMs": 1740.5,
+      "appResumeMedianMs": 2943.199999988079,
+      "appFullEntryMedianMs": 3325.699999988079,
+      "appStartupJsHeapMedianBytes": 8590320,
+      "appResumedJsHeapMedianBytes": 12535772
+    },
+    {
+      "profiles": 2,
+      "persistenceStartupMedianMs": 30.599999994039536,
+      "runtimeStartupMedianMs": 709.8000000119209,
+      "resumeMedianMs": 82.30000001192093,
+      "resumeRangeMs": [60.900000005960464, 113.5],
+      "autosaveSyncP95Ms": 11.400000005960464,
+      "autosaveFlushP95Ms": 17.5,
+      "autosaveFrameGapP95Ms": 16.700000000000045,
+      "startupJsHeapMedianBytes": 6683564,
+      "resumedJsHeapMedianBytes": 6943276,
+      "cachedBytes": 1450552,
+      "fixtureBytes": 1450552,
+      "appReadyMedianMs": 1812.3999999761581,
+      "appResumeMedianMs": 3015.5,
+      "appFullEntryMedianMs": 3729.699999988079,
+      "appStartupJsHeapMedianBytes": 9310284,
+      "appResumedJsHeapMedianBytes": 13256580
+    },
+    {
+      "profiles": 3,
+      "persistenceStartupMedianMs": 35.5,
+      "runtimeStartupMedianMs": 663.8999999761581,
+      "resumeMedianMs": 83,
+      "resumeRangeMs": [54.5, 95],
+      "autosaveSyncP95Ms": 9.799999982118607,
+      "autosaveFlushP95Ms": 13.400000005960464,
+      "autosaveFrameGapP95Ms": 16.600000000000136,
+      "startupJsHeapMedianBytes": 7410724,
+      "resumedJsHeapMedianBytes": 7671572,
+      "cachedBytes": 2175740,
+      "fixtureBytes": 2175740,
+      "appReadyMedianMs": 1717.9000000059605,
+      "appResumeMedianMs": 2951.9000000059605,
+      "appFullEntryMedianMs": 3394.5999999940395,
+      "appStartupJsHeapMedianBytes": 10015204,
+      "appResumedJsHeapMedianBytes": 14023620
+    },
+    {
+      "profiles": 5,
+      "persistenceStartupMedianMs": 41.39999997615814,
+      "runtimeStartupMedianMs": 676.8999999761581,
+      "resumeMedianMs": 84,
+      "resumeRangeMs": [59, 119.80000001192093],
+      "autosaveSyncP95Ms": 9.900000005960464,
+      "autosaveFlushP95Ms": 12.5,
+      "autosaveFrameGapP95Ms": 16.5,
+      "startupJsHeapMedianBytes": 8814288,
+      "resumedJsHeapMedianBytes": 9074376,
+      "cachedBytes": 3626276,
+      "fixtureBytes": 3626276,
+      "appReadyMedianMs": 1618.4000000059605,
+      "appResumeMedianMs": 2956.4000000059605,
+      "appFullEntryMedianMs": 3469.4000000059605,
+      "appStartupJsHeapMedianBytes": 11405944,
+      "appResumedJsHeapMedianBytes": 15349256
+    }
+  ],
+  "results": [
+    {
+      "sample": 0,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725348 },
+      "startup": {
+        "persistenceStartupMs": 25.700000017881393,
+        "runtimeStartupMs": 767.8000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725348,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5979536,
+      "resumedJsHeapBytes": 6238216,
+      "resumeMs": 87.09999999403954,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          13.199999988079071, 6.4000000059604645, 7.800000011920929, 8.299999982118607,
+          6.199999988079071, 6.300000011920929, 9.300000011920929, 5.0999999940395355, 5.5,
+          8.099999994039536, 5.600000023841858, 6.5999999940395355
+        ],
+        "flushMs": [
+          11, 13.5, 12.599999994039536, 10.800000011920929, 8.200000017881393, 14.199999988079071,
+          10.299999982118607, 9.200000017881393, 8.400000005960464, 7.200000017881393, 12.5, 16
+        ],
+        "frameGapsMs": [
+          25, 4.2000000000000455, 16.700000000000045, 4.099999999999909, 16.700000000000045,
+          4.100000000000136, 12.5, 4.199999999999818, 4.100000000000136, 8.5, 4, 4.2000000000000455,
+          12.5, 4.199999999999818, 4.100000000000136, 16.700000000000045, 4.199999999999818,
+          12.700000000000045, 3.900000000000091, 12.5, 4.2000000000000455, 12.5, 4.199999999999818,
+          12.5, 4.2000000000000455, 4.2000000000000455, 16.59999999999991, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725348,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 15.700000017881393,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 2038.9000000059605,
+        "uiResumeMs": 3788.300000011921,
+        "fullEntryMs": 4204.200000017881,
+        "startupJsHeapBytes": 8542248,
+        "resumedJsHeapBytes": 12583412
+      }
+    },
+    {
+      "sample": 0,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450552 },
+      "startup": {
+        "persistenceStartupMs": 34.79999998211861,
+        "runtimeStartupMs": 570.3000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450552,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683956,
+      "resumedJsHeapBytes": 6943256,
+      "resumeMs": 85.69999998807907,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          10.100000023841858, 4.199999988079071, 3.800000011920929, 6.299999982118607,
+          6.9000000059604645, 5.800000011920929, 5.4000000059604645, 3.0999999940395355,
+          5.5999999940395355, 7.0999999940395355, 3.0999999940395355, 3.399999976158142
+        ],
+        "flushMs": [
+          8.899999976158142, 10.300000011920929, 6.5, 8.600000023841858, 9.599999994039536,
+          9.299999982118607, 6.300000011920929, 6.800000011920929, 8.700000017881393,
+          8.199999988079071, 7.0999999940395355, 6.9000000059604645
+        ],
+        "frameGapsMs": [
+          16.700000000000045, 4.199999999999932, 4.300000000000068, 8.199999999999932,
+          4.2000000000000455, 4.100000000000023, 8.299999999999955, 4.2000000000000455,
+          12.599999999999909, 4, 12.600000000000023, 4.100000000000023, 8.399999999999977,
+          4.100000000000023, 4.2000000000000455, 8.399999999999977, 4.100000000000023,
+          8.299999999999955, 4.2000000000000455, 8.299999999999955, 4.2000000000000455,
+          4.099999999999909, 12.600000000000023, 4.2000000000000455, 8.299999999999955,
+          4.100000000000023, 8.399999999999977, 4.100000000000023
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450552,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 6.5,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1606,
+        "uiResumeMs": 2901.4000000059605,
+        "fullEntryMs": 3743.5,
+        "startupJsHeapBytes": 9310284,
+        "resumedJsHeapBytes": 13256580
+      }
+    },
+    {
+      "sample": 0,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175740 },
+      "startup": {
+        "persistenceStartupMs": 43.39999997615814,
+        "runtimeStartupMs": 798.8999999761581,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175740,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7411080,
+      "resumedJsHeapBytes": 7670592,
+      "resumeMs": 95,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          10.5, 6.299999982118607, 6.700000017881393, 7.700000017881393, 8.5, 6.5999999940395355,
+          11.900000005960464, 5.9000000059604645, 5.0999999940395355, 7.9000000059604645, 4,
+          6.299999982118607
+        ],
+        "flushMs": [
+          8.5, 13.400000005960464, 10.5, 7.5, 11.799999982118607, 9.300000011920929,
+          14.599999994039536, 7.899999976158142, 6.300000011920929, 7.5, 7.800000011920929,
+          9.300000011920929
+        ],
+        "frameGapsMs": [
+          20.800000000000182, 4.199999999999818, 16.600000000000136, 4.2000000000000455,
+          12.399999999999864, 4.2999999999999545, 4.100000000000136, 12.5, 4.2000000000000455, 12.5,
+          4.199999999999818, 4.100000000000136, 12.399999999999864, 4.2000000000000455,
+          20.90000000000009, 4.099999999999909, 4.2000000000000455, 8.400000000000091,
+          4.099999999999909, 4.2000000000000455, 8.299999999999955, 4.2000000000000455, 12.5,
+          4.2000000000000455, 8.199999999999818, 4.2000000000000455, 12.600000000000136,
+          4.199999999999818
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175740,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 9.300000011920929,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1772.699999988079,
+        "uiResumeMs": 3294.0999999940395,
+        "fullEntryMs": 3648.4000000059605,
+        "startupJsHeapBytes": 10021668,
+        "resumedJsHeapBytes": 14070048
+      }
+    },
+    {
+      "sample": 0,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626276 },
+      "startup": {
+        "persistenceStartupMs": 55.900000005960464,
+        "runtimeStartupMs": 857.4000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626276,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814260,
+      "resumedJsHeapBytes": 9075228,
+      "resumeMs": 119.80000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          11.799999982118607, 9.900000005960464, 5.300000011920929, 8.200000017881393,
+          5.0999999940395355, 5.5, 8.400000005960464, 6, 6.699999988079071, 6.5, 4.0999999940395355,
+          8.400000005960464
+        ],
+        "flushMs": [
+          10.800000011920929, 14.900000005960464, 11.299999982118607, 12.5, 6.9000000059604645,
+          8.300000011920929, 6.199999988079071, 14, 8.099999994039536, 8.400000005960464,
+          11.299999982118607, 10.099999994039536
+        ],
+        "frameGapsMs": [
+          21.100000000000136, 4, 20.899999999999864, 4.100000000000136, 4.099999999999909,
+          8.299999999999955, 4.2000000000000455, 4.2000000000000455, 16.59999999999991,
+          4.100000000000136, 12.799999999999955, 4, 8.5, 3.8999999999998636, 4.2000000000000455,
+          8.400000000000091, 4.099999999999909, 4.2000000000000455, 12.5, 4.2000000000000455,
+          4.2999999999999545, 8.200000000000045, 4.2999999999999545, 4.2999999999999545,
+          12.200000000000045, 4.2000000000000455, 12.5, 4.099999999999909, 12.600000000000136,
+          4.199999999999818, 4.100000000000136
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626276,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 10.099999994039536,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 2512.7000000178814,
+        "uiResumeMs": 4874.800000011921,
+        "fullEntryMs": 5514.699999988079,
+        "startupJsHeapBytes": 11442752,
+        "resumedJsHeapBytes": 15667848
+      }
+    },
+    {
+      "sample": 1,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450648 },
+      "startup": {
+        "persistenceStartupMs": 31,
+        "runtimeStartupMs": 714.8000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450648,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683564,
+      "resumedJsHeapBytes": 6943176,
+      "resumeMs": 113.5,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          22.200000017881393, 7.4000000059604645, 6.5, 10.300000011920929, 12.5, 5.200000017881393,
+          7.800000011920929, 4.9000000059604645, 5.5999999940395355, 11.599999994039536,
+          4.4000000059604645, 6
+        ],
+        "flushMs": [
+          17.5, 11.699999988079071, 9.599999994039536, 6.5999999940395355, 9.700000017881393,
+          8.199999988079071, 7, 11.599999994039536, 16.69999998807907, 12.700000017881393,
+          10.199999988079071, 10.600000023841858
+        ],
+        "frameGapsMs": [
+          33.299999999999955, 4.400000000000091, 4, 16.59999999999991, 4.2000000000000455,
+          4.2000000000000455, 12.400000000000091, 4.199999999999818, 12.5, 4.100000000000136,
+          4.2000000000000455, 16.699999999999818, 4.2000000000000455, 4.100000000000136,
+          8.299999999999955, 4.2000000000000455, 4.199999999999818, 12.600000000000136,
+          4.099999999999909, 12.5, 4.100000000000136, 12.5, 4.199999999999818, 4.2000000000000455,
+          20.799999999999955, 4.2000000000000455, 4.100000000000136, 8.299999999999955,
+          4.2000000000000455, 4.199999999999818, 12.5, 4.100000000000136
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450648,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 10.299999982118607,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 3331.100000023842,
+        "uiResumeMs": 4891.199999988079,
+        "fullEntryMs": 5357.5,
+        "startupJsHeapBytes": 9291764,
+        "resumedJsHeapBytes": 13553964
+      }
+    },
+    {
+      "sample": 1,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175848 },
+      "startup": {
+        "persistenceStartupMs": 36.5,
+        "runtimeStartupMs": 663.8999999761581,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175848,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7410604,
+      "resumedJsHeapBytes": 7671932,
+      "resumeMs": 83,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9.300000011920929, 8.599999994039536, 6.699999988079071, 8.5, 5.300000011920929,
+          7.0999999940395355, 5.199999988079071, 6.0999999940395355, 9.199999988079071,
+          9.799999982118607, 5.5999999940395355, 5.5
+        ],
+        "flushMs": [
+          13.5, 11.5, 13, 8, 8.899999976158142, 12, 9.300000011920929, 14.900000005960464,
+          12.800000011920929, 8.700000017881393, 13.099999994039536, 9.5
+        ],
+        "frameGapsMs": [
+          20.700000000000045, 4.099999999999909, 4.2000000000000455, 16.700000000000045,
+          4.099999999999909, 12.5, 4.2000000000000455, 4.2999999999999545, 12.299999999999955,
+          4.2000000000000455, 8.299999999999955, 4.300000000000182, 4, 12.599999999999909,
+          4.2000000000000455, 4.2000000000000455, 12.399999999999864, 4.2000000000000455,
+          12.400000000000091, 4.199999999999818, 4.2000000000000455, 16.700000000000045,
+          4.2000000000000455, 4.099999999999909, 16.799999999999955, 4, 12.5, 4.2000000000000455,
+          4.2000000000000455, 12.5, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175848,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 9.200000017881393,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1695.699999988079,
+        "uiResumeMs": 3079,
+        "fullEntryMs": 3504.4000000059605,
+        "startupJsHeapBytes": 9939088,
+        "resumedJsHeapBytes": 14034476
+      }
+    },
+    {
+      "sample": 1,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626176 },
+      "startup": {
+        "persistenceStartupMs": 35.400000005960464,
+        "runtimeStartupMs": 627.3999999761581,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626176,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814288,
+      "resumedJsHeapBytes": 9073748,
+      "resumeMs": 95.80000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9.700000017881393, 6.0999999940395355, 6.300000011920929, 5.5999999940395355,
+          4.4000000059604645, 4.9000000059604645, 4.300000011920929, 3.4000000059604645,
+          5.100000023841858, 3.9000000059604645, 6.5, 5.699999988079071
+        ],
+        "flushMs": [
+          9.599999994039536, 11.799999982118607, 7.5999999940395355, 5.800000011920929,
+          7.4000000059604645, 6.4000000059604645, 4.699999988079071, 6.700000017881393,
+          8.199999988079071, 5.299999982118607, 11.799999982118607, 8.300000011920929
+        ],
+        "frameGapsMs": [
+          16.5, 4.2999999999999545, 4.300000000000068, 12.199999999999932, 4.2000000000000455,
+          4.2000000000000455, 12.399999999999977, 4.199999999999932, 8.400000000000091,
+          4.199999999999932, 8.5, 4, 8.300000000000068, 4.099999999999909, 4.2000000000000455,
+          4.2999999999999545, 4, 8.400000000000091, 4.2999999999999545, 8.299999999999955,
+          4.2000000000000455, 4, 4.2999999999999545, 4.100000000000136, 4.199999999999818, 12.5,
+          4.100000000000136, 4.399999999999864, 12.300000000000182, 4.099999999999909
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626176,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8.100000023841858,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1618.4000000059605,
+        "uiResumeMs": 2596.9000000059605,
+        "fullEntryMs": 2917.9000000059605,
+        "startupJsHeapBytes": 11386880,
+        "resumedJsHeapBytes": 15520860
+      }
+    },
+    {
+      "sample": 1,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725380 },
+      "startup": {
+        "persistenceStartupMs": 18.700000017881393,
+        "runtimeStartupMs": 671,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725380,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5978784,
+      "resumedJsHeapBytes": 6238348,
+      "resumeMs": 80.40000000596046,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.900000005960464, 4.800000011920929, 4.299999982118607, 6.399999976158142, 7.5,
+          6.5999999940395355, 5.9000000059604645, 4.700000017881393, 5.600000023841858,
+          6.9000000059604645, 6.5999999940395355, 5.899999976158142
+        ],
+        "flushMs": [
+          9, 9.399999976158142, 7.100000023841858, 8.700000017881393, 8.199999988079071,
+          8.599999994039536, 4.899999976158142, 9.5, 9.099999994039536, 10, 11.200000017881393, 11.5
+        ],
+        "frameGapsMs": [
+          20.899999999999977, 4.199999999999932, 12.5, 4.2000000000000455, 8.200000000000045,
+          4.2999999999999545, 12.5, 4.2000000000000455, 12.399999999999864, 4.2000000000000455,
+          12.5, 4.100000000000136, 8.399999999999864, 4.2000000000000455, 8.299999999999955,
+          4.2000000000000455, 4.2999999999999545, 8.299999999999955, 4, 4.300000000000182,
+          12.399999999999864, 4.2999999999999545, 12.300000000000182, 4.199999999999818,
+          4.100000000000136, 12.700000000000045, 4, 4.199999999999818
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725380,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 11.299999982118607,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1506.7999999821186,
+        "uiResumeMs": 2186.5,
+        "fullEntryMs": 2536.7999999821186,
+        "startupJsHeapBytes": 8614392,
+        "resumedJsHeapBytes": 12561036
+      }
+    },
+    {
+      "sample": 2,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175920 },
+      "startup": {
+        "persistenceStartupMs": 21.599999994039536,
+        "runtimeStartupMs": 581.5,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175920,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7411164,
+      "resumedJsHeapBytes": 7672364,
+      "resumeMs": 82.59999999403954,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9.099999994039536, 6, 5.100000023841858, 4.9000000059604645, 4.0999999940395355, 4, 5.5,
+          3.100000023841858, 3.699999988079071, 6.4000000059604645, 5.200000017881393,
+          5.0999999940395355
+        ],
+        "flushMs": [
+          10.5, 11.799999982118607, 9.199999988079071, 7.5, 6.5999999940395355, 5.699999988079071,
+          6.5, 6.299999982118607, 7.300000011920929, 5, 6.799999982118607, 9.400000005960464
+        ],
+        "frameGapsMs": [
+          16.600000000000023, 4.2000000000000455, 12.399999999999977, 4.399999999999977,
+          4.100000000000023, 12.399999999999977, 4.2000000000000455, 8.299999999999955,
+          4.300000000000068, 8.099999999999909, 4.300000000000068, 4.100000000000023,
+          4.199999999999932, 4.100000000000023, 8.600000000000023, 3.8999999999999773, 8.5,
+          4.100000000000023, 8.399999999999977, 4, 8.600000000000023, 4, 8.299999999999955,
+          4.300000000000068, 12.399999999999864, 4.100000000000136
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175920,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 9.400000005960464,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1734.199999988079,
+        "uiResumeMs": 3633.4000000059605,
+        "fullEntryMs": 4006.199999988079,
+        "startupJsHeapBytes": 10032144,
+        "resumedJsHeapBytes": 13920592
+      }
+    },
+    {
+      "sample": 2,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626656 },
+      "startup": {
+        "persistenceStartupMs": 49.5,
+        "runtimeStartupMs": 769.8000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626656,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814660,
+      "resumedJsHeapBytes": 9075824,
+      "resumeMs": 76.09999999403954,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          8, 6.200000017881393, 7.5999999940395355, 6.0999999940395355, 5.800000011920929,
+          4.700000017881393, 8.199999988079071, 5.5, 6.9000000059604645, 9.5, 4.0999999940395355,
+          4.9000000059604645
+        ],
+        "flushMs": [
+          12.300000011920929, 9.699999988079071, 11.5, 7.800000011920929, 11.5, 10.5, 11,
+          12.899999976158142, 12.5, 13.900000005960464, 8.800000011920929, 9.900000005960464
+        ],
+        "frameGapsMs": [
+          16.600000000000136, 4.199999999999818, 4.100000000000136, 12.599999999999909,
+          4.100000000000136, 16.699999999999818, 4.2000000000000455, 8.299999999999955,
+          4.100000000000136, 4.2000000000000455, 12.5, 4.399999999999864, 4, 12.5,
+          4.2000000000000455, 12.5, 4.099999999999909, 4.100000000000136, 12.5, 4.2000000000000455,
+          4.199999999999818, 16.600000000000136, 4.2000000000000455, 16.699999999999818, 4.5,
+          3.800000000000182, 8.299999999999955, 4.2000000000000455, 4.199999999999818,
+          8.300000000000182, 4.199999999999818, 4.100000000000136
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626656,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 9.599999994039536,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1446.699999988079,
+        "uiResumeMs": 3175.199999988079,
+        "fullEntryMs": 3563.9000000059605,
+        "startupJsHeapBytes": 11406632,
+        "resumedJsHeapBytes": 15319600
+      }
+    },
+    {
+      "sample": 2,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725388 },
+      "startup": {
+        "persistenceStartupMs": 22.400000005960464,
+        "runtimeStartupMs": 770.4000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725388,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5979200,
+      "resumedJsHeapBytes": 6238700,
+      "resumeMs": 73.5,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          8.200000017881393, 6, 4.4000000059604645, 6, 7.700000017881393, 5.5, 7, 6.199999988079071,
+          8, 8.300000011920929, 6.9000000059604645, 4
+        ],
+        "flushMs": [
+          9.299999982118607, 9.400000005960464, 9.699999988079071, 8.900000005960464,
+          9.299999982118607, 7.399999976158142, 8, 8.200000017881393, 7.5, 9.599999994039536,
+          8.900000005960464, 10.799999982118607
+        ],
+        "frameGapsMs": [
+          16.600000000000136, 4.2000000000000455, 12.399999999999864, 4.2000000000000455,
+          8.400000000000091, 4.099999999999909, 4.2000000000000455, 8.299999999999955,
+          4.2999999999999545, 4, 12.700000000000045, 4.099999999999909, 8.300000000000182,
+          4.199999999999818, 4.100000000000136, 8.399999999999864, 4.100000000000136,
+          4.2000000000000455, 12.599999999999909, 3.900000000000091, 12.5, 4.2999999999999545,
+          12.399999999999864, 4.2000000000000455, 4.5, 12.299999999999955, 4.100000000000136,
+          8.299999999999955, 4.2000000000000455, 4.2999999999999545
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725388,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 10.599999994039536,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1628.5,
+        "uiResumeMs": 2943.199999988079,
+        "fullEntryMs": 3325.699999988079,
+        "startupJsHeapBytes": 8630020,
+        "resumedJsHeapBytes": 12506952
+      }
+    },
+    {
+      "sample": 2,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450704 },
+      "startup": {
+        "persistenceStartupMs": 28.69999998807907,
+        "runtimeStartupMs": 652.5,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450704,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683504,
+      "resumedJsHeapBytes": 6944672,
+      "resumeMs": 66.09999999403954,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9.599999994039536, 8.699999988079071, 4.9000000059604645, 5, 6, 6.699999988079071, 8.5,
+          6.9000000059604645, 4.799999982118607, 6.100000023841858, 5, 4.5999999940395355
+        ],
+        "flushMs": [
+          10.200000017881393, 11.099999994039536, 11.599999994039536, 11.299999982118607, 11,
+          7.9000000059604645, 8.199999988079071, 12.199999988079071, 9.900000005960464,
+          8.899999976158142, 9, 5.800000011920929
+        ],
+        "frameGapsMs": [
+          16.600000000000023, 4.199999999999932, 4.2000000000000455, 16.600000000000023,
+          4.199999999999932, 12.5, 4.2000000000000455, 12.5, 4.100000000000023, 12.399999999999977,
+          4.2999999999999545, 4.2000000000000455, 12.5, 4.100000000000023, 12.5, 4.2000000000000455,
+          12.399999999999864, 4.2000000000000455, 4.400000000000091, 8.099999999999909,
+          4.2000000000000455, 4.2999999999999545, 12.299999999999955, 4.5, 8.100000000000136,
+          4.099999999999909, 4.2999999999999545, 8.200000000000045, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450704,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 5.800000011920929,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1946.9000000059605,
+        "uiResumeMs": 3015.5,
+        "fullEntryMs": 3362.199999988079,
+        "startupJsHeapBytes": 9327960,
+        "resumedJsHeapBytes": 13444732
+      }
+    },
+    {
+      "sample": 3,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3625876 },
+      "startup": {
+        "persistenceStartupMs": 40.19999998807907,
+        "runtimeStartupMs": 641.3000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3625876,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814348,
+      "resumedJsHeapBytes": 9074204,
+      "resumeMs": 85.80000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.799999982118607, 5.800000011920929, 5.300000011920929, 5.5999999940395355,
+          6.0999999940395355, 4.200000017881393, 9.699999988079071, 2.800000011920929,
+          4.0999999940395355, 5.5, 3, 5.9000000059604645
+        ],
+        "flushMs": [
+          9.300000011920929, 9.699999988079071, 6.5, 6.300000011920929, 8.799999982118607,
+          10.900000005960464, 8.900000005960464, 8.699999988079071, 5.9000000059604645,
+          9.700000017881393, 7.0999999940395355, 8.5
+        ],
+        "frameGapsMs": [
+          20.799999999999955, 4.2000000000000455, 12.5, 4.199999999999932, 8.399999999999977, 4,
+          8.400000000000091, 4.199999999999932, 12.399999999999977, 4.2000000000000455,
+          12.400000000000091, 4.399999999999864, 12.5, 4.100000000000136, 4.2999999999999545,
+          8.200000000000045, 4.099999999999909, 8.299999999999955, 4.400000000000091,
+          12.399999999999864, 4.2000000000000455, 8.299999999999955, 4.100000000000136,
+          8.399999999999864, 4.100000000000136, 4.2999999999999545
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3625876,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8.5,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1501.5999999940395,
+        "uiResumeMs": 2681.5999999940395,
+        "fullEntryMs": 3016.2000000178814,
+        "startupJsHeapBytes": 11381604,
+        "resumedJsHeapBytes": 15313384
+      }
+    },
+    {
+      "sample": 3,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725364 },
+      "startup": {
+        "persistenceStartupMs": 34.900000005960464,
+        "runtimeStartupMs": 717.5999999940395,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725364,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5979260,
+      "resumedJsHeapBytes": 6238956,
+      "resumeMs": 96.30000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          11.299999982118607, 5.200000017881393, 6.4000000059604645, 7, 4.800000011920929,
+          9.199999988079071, 7.399999976158142, 7, 6, 6.0999999940395355, 4.9000000059604645, 4.5
+        ],
+        "flushMs": [
+          9.200000017881393, 11.599999994039536, 11.299999982118607, 7, 13.599999994039536,
+          17.700000017881393, 8, 8.699999988079071, 15.299999982118607, 7.799999982118607,
+          6.5999999940395355, 7.199999988079071
+        ],
+        "frameGapsMs": [
+          20.800000000000182, 4.099999999999909, 12.5, 4.2000000000000455, 12.5, 4.2000000000000455,
+          4.199999999999818, 12.400000000000091, 4.2000000000000455, 12.5, 4.099999999999909,
+          4.2000000000000455, 20.90000000000009, 4.099999999999909, 4.2000000000000455, 12.5,
+          4.2999999999999545, 12.400000000000091, 4.099999999999909, 16.700000000000045,
+          4.2000000000000455, 4.099999999999909, 12.599999999999909, 4.100000000000136,
+          8.399999999999864, 4.100000000000136, 8.299999999999955, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725364,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 6.800000011920929,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1406.4000000059605,
+        "uiResumeMs": 2695.0999999940395,
+        "fullEntryMs": 3158.300000011921,
+        "startupJsHeapBytes": 8544892,
+        "resumedJsHeapBytes": 12535096
+      }
+    },
+    {
+      "sample": 3,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450624 },
+      "startup": {
+        "persistenceStartupMs": 21.80000001192093,
+        "runtimeStartupMs": 569.5,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450624,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683424,
+      "resumedJsHeapBytes": 6942856,
+      "resumeMs": 60.900000005960464,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          8.200000017881393, 6.9000000059604645, 3.2999999821186066, 5.899999976158142,
+          4.800000011920929, 5.9000000059604645, 5.5999999940395355, 3.5, 5.0999999940395355,
+          7.799999982118607, 3.2000000178813934, 6.700000017881393
+        ],
+        "flushMs": [
+          8.599999994039536, 12.5, 6.800000011920929, 9, 8.299999982118607, 7.5999999940395355,
+          5.699999988079071, 8.299999982118607, 17.900000005960464, 9.100000023841858, 11.5,
+          8.400000005960464
+        ],
+        "frameGapsMs": [
+          12.399999999999977, 4.2000000000000455, 4, 12.599999999999909, 4.100000000000023,
+          4.2000000000000455, 8.299999999999955, 4.2000000000000455, 8.5, 4, 4.199999999999932,
+          8.400000000000091, 4, 4.199999999999932, 8.399999999999977, 4.100000000000023,
+          4.2000000000000455, 8.299999999999955, 4.2000000000000455, 8.299999999999955,
+          4.300000000000068, 8.299999999999955, 8.5, 3.8999999999999773, 12.5, 4.5,
+          3.800000000000068, 8.399999999999977, 4.100000000000023, 4.199999999999932,
+          8.600000000000023, 3.8999999999999773, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450624,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8.200000017881393,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1810.4000000059605,
+        "uiResumeMs": 3399,
+        "fullEntryMs": 3729.699999988079,
+        "startupJsHeapBytes": 9289272,
+        "resumedJsHeapBytes": 13211064
+      }
+    },
+    {
+      "sample": 3,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175656 },
+      "startup": {
+        "persistenceStartupMs": 32.70000001788139,
+        "runtimeStartupMs": 542.9000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175656,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7410520,
+      "resumedJsHeapBytes": 7671572,
+      "resumeMs": 54.5,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          6.299999982118607, 4.0999999940395355, 4.399999976158142, 5.300000011920929,
+          5.9000000059604645, 3.5, 6, 5, 8.400000005960464, 0.9000000059604645, 6.299999982118607,
+          7.799999982118607
+        ],
+        "flushMs": [
+          10.900000005960464, 11.300000011920929, 6.600000023841858, 3.899999976158142,
+          6.5999999940395355, 4, 7, 11.800000011920929, 4.9000000059604645, 9.900000005960464,
+          8.700000017881393, 8.200000017881393
+        ],
+        "frameGapsMs": [
+          16, 4.199999999999932, 4.100000000000023, 8.399999999999977, 4, 4.2000000000000455,
+          8.399999999999977, 4.2000000000000455, 8.299999999999955, 4.2000000000000455,
+          8.299999999999955, 4.100000000000023, 4.2999999999999545, 4.2000000000000455, 4,
+          8.299999999999955, 4.300000000000068, 4.100000000000023, 12.599999999999909,
+          4.100000000000023, 4.300000000000068, 12.399999999999977, 4.199999999999932,
+          4.2000000000000455, 3.8999999999999773, 12.800000000000068, 3.8999999999999773,
+          4.399999999999977, 12.299999999999955, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175656,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8.100000023841858,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1374.5999999940395,
+        "uiResumeMs": 2270.7999999821186,
+        "fullEntryMs": 2736.199999988079,
+        "startupJsHeapBytes": 10002648,
+        "resumedJsHeapBytes": 14023620
+      }
+    },
+    {
+      "sample": 4,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725324 },
+      "startup": {
+        "persistenceStartupMs": 24.599999994039536,
+        "runtimeStartupMs": 622,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725324,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5978812,
+      "resumedJsHeapBytes": 6239688,
+      "resumeMs": 81.69999998807907,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.299999982118607, 5.100000023841858, 4.699999988079071, 10.400000005960464, 7.5,
+          4.700000017881393, 4.700000017881393, 3.800000011920929, 4.9000000059604645,
+          5.0999999940395355, 3, 5.4000000059604645
+        ],
+        "flushMs": [
+          12.900000005960464, 15.099999994039536, 11.099999994039536, 8.800000011920929,
+          7.300000011920929, 4.5999999940395355, 6.5999999940395355, 9.400000005960464,
+          5.800000011920929, 5.700000017881393, 7.800000011920929, 10
+        ],
+        "frameGapsMs": [
+          20.699999999999932, 4.300000000000068, 4.099999999999909, 16.600000000000023,
+          4.2000000000000455, 12.5, 4.199999999999932, 16.600000000000023, 4.2000000000000455, 12.5,
+          4.199999999999932, 8.400000000000091, 4, 8.299999999999955, 4.2000000000000455,
+          8.399999999999864, 4.2000000000000455, 4.2000000000000455, 4.099999999999909,
+          4.2000000000000455, 4.2000000000000455, 8.299999999999955, 4.100000000000136,
+          8.299999999999955, 4.2999999999999545, 12.400000000000091, 4.199999999999818
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725324,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 9.699999988079071,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 2107.0999999940395,
+        "uiResumeMs": 4346.200000017881,
+        "fullEntryMs": 4732.800000011921,
+        "startupJsHeapBytes": 8588248,
+        "resumedJsHeapBytes": 13266904
+      }
+    },
+    {
+      "sample": 4,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450632 },
+      "startup": {
+        "persistenceStartupMs": 29.799999982118607,
+        "runtimeStartupMs": 709.8000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450632,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683440,
+      "resumedJsHeapBytes": 6944636,
+      "resumeMs": 80.30000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          11.400000005960464, 6.5999999940395355, 10.400000005960464, 9.200000017881393,
+          11.099999994039536, 7.200000017881393, 5.5, 5, 5.799999982118607, 6.300000011920929, 3.5,
+          6.100000023841858
+        ],
+        "flushMs": [
+          14.400000005960464, 12.800000011920929, 12.099999994039536, 13, 14.100000023841858,
+          9.799999982118607, 6.399999976158142, 7.799999982118607, 7.700000017881393,
+          6.5999999940395355, 8, 11.599999994039536
+        ],
+        "frameGapsMs": [
+          20.700000000000045, 4.2999999999999545, 4.099999999999909, 16.700000000000045,
+          4.2000000000000455, 20.799999999999955, 4.2000000000000455, 16.59999999999991,
+          4.2000000000000455, 4.100000000000136, 20.899999999999864, 4.100000000000136,
+          12.599999999999909, 4.2000000000000455, 4.099999999999909, 8.299999999999955,
+          4.2000000000000455, 8.299999999999955, 4.2000000000000455, 12.5, 4.2000000000000455,
+          8.299999999999955, 4.100000000000136, 4.199999999999818, 8.300000000000182,
+          4.199999999999818, 12.5, 4.2000000000000455, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450632,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 11.199999988079071,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1410.7999999821186,
+        "uiResumeMs": 2997.399999976158,
+        "fullEntryMs": 3396.699999988079,
+        "startupJsHeapBytes": 9314088,
+        "resumedJsHeapBytes": 13342588
+      }
+    },
+    {
+      "sample": 4,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175812 },
+      "startup": {
+        "persistenceStartupMs": 28.900000005960464,
+        "runtimeStartupMs": 477.30000001192093,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175812,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7410556,
+      "resumedJsHeapBytes": 7671520,
+      "resumeMs": 87.10000002384186,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          7.800000011920929, 4.4000000059604645, 4.5, 4.800000011920929, 5.199999988079071,
+          6.9000000059604645, 4.299999982118607, 3.199999988079071, 3.9000000059604645,
+          4.199999988079071, 2.7000000178813934, 2.899999976158142
+        ],
+        "flushMs": [
+          7.199999988079071, 6.9000000059604645, 5.4000000059604645, 6.5, 8.599999994039536,
+          7.5999999940395355, 5.100000023841858, 6.100000023841858, 6.0999999940395355,
+          6.100000023841858, 4.699999988079071, 5.700000017881393
+        ],
+        "frameGapsMs": [
+          12.5, 4, 4.300000000000068, 8.399999999999977, 4, 8.299999999999955, 4.399999999999977,
+          8.400000000000091, 3.8999999999999773, 8.299999999999955, 4.300000000000068,
+          4.099999999999909, 12.5, 4.2000000000000455, 4.2999999999999545, 4, 4.300000000000068,
+          4.100000000000023, 4.199999999999932, 4.100000000000023, 8.299999999999955,
+          4.2000000000000455, 4.2999999999999545, 4, 4.2000000000000455, 4.100000000000023,
+          4.199999999999932, 4.2000000000000455, 4.100000000000023, 4.199999999999932
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175812,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 5.700000017881393,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1435.4000000059605,
+        "uiResumeMs": 2880.7999999821186,
+        "fullEntryMs": 3214.5999999940395,
+        "startupJsHeapBytes": 9972944,
+        "resumedJsHeapBytes": 13990840
+      }
+    },
+    {
+      "sample": 4,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626656 },
+      "startup": {
+        "persistenceStartupMs": 50.5,
+        "runtimeStartupMs": 676.6999999880791,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626656,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814660,
+      "resumedJsHeapBytes": 9074376,
+      "resumeMs": 59,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          6.4000000059604645, 3.800000011920929, 3.5, 4.5, 3.199999988079071, 3.7000000178813934,
+          5.0999999940395355, 2.2000000178813934, 6, 4.300000011920929, 2.300000011920929,
+          2.699999988079071
+        ],
+        "flushMs": [
+          7.300000011920929, 6.899999976158142, 4.5, 5.200000017881393, 5.9000000059604645, 5,
+          6.0999999940395355, 4.699999988079071, 5.9000000059604645, 5.0999999940395355,
+          4.300000011920929, 4.5
+        ],
+        "frameGapsMs": [
+          12.299999999999955, 4.2000000000000455, 8.399999999999977, 4.100000000000023,
+          4.2999999999999545, 4.100000000000023, 8.300000000000068, 4.2999999999999545, 4,
+          4.2000000000000455, 4.199999999999932, 8.200000000000045, 4.399999999999977,
+          8.200000000000045, 4.099999999999909, 4.2999999999999545, 4, 8.400000000000091,
+          4.099999999999909, 8.400000000000091, 4.2000000000000455, 4.099999999999909,
+          4.2000000000000455, 4.2000000000000455, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626656,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 4.5,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1349.5999999940395,
+        "uiResumeMs": 2473.9000000059605,
+        "fullEntryMs": 2911.899999976158,
+        "startupJsHeapBytes": 11404592,
+        "resumedJsHeapBytes": 15363276
+      }
+    },
+    {
+      "sample": 5,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450704 },
+      "startup": {
+        "persistenceStartupMs": 30.599999994039536,
+        "runtimeStartupMs": 724.4000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450704,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6683584,
+      "resumedJsHeapBytes": 6943276,
+      "resumeMs": 91.09999999403954,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.900000005960464, 5.5, 6.9000000059604645, 8.699999988079071, 6.800000011920929,
+          7.299999982118607, 6.700000017881393, 4.800000011920929, 9, 10.900000005960464, 3,
+          5.700000017881393
+        ],
+        "flushMs": [
+          18.5, 8.299999982118607, 8.700000017881393, 10.200000017881393, 8.300000011920929,
+          9.300000011920929, 6.9000000059604645, 8.699999988079071, 18.099999994039536,
+          11.900000005960464, 11.199999988079071, 22.400000005960464
+        ],
+        "frameGapsMs": [
+          25, 4.2000000000000455, 4.199999999999818, 12.400000000000091, 4.2000000000000455, 12.5,
+          4.2000000000000455, 12.699999999999818, 3.900000000000091, 4.400000000000091,
+          12.299999999999955, 4.2000000000000455, 12.399999999999864, 4.2000000000000455,
+          12.599999999999909, 4.100000000000136, 8.299999999999955, 4.2000000000000455,
+          4.099999999999909, 20.799999999999955, 4.300000000000182, 4.099999999999909,
+          16.700000000000045, 4.099999999999909, 4.2000000000000455, 8.299999999999955,
+          4.2000000000000455, 4.2000000000000455, 16.700000000000045, 4.099999999999909,
+          4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450704,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 22.30000001192093,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 2002.9000000059605,
+        "uiResumeMs": 3631.300000011921,
+        "fullEntryMs": 4012.899999976158,
+        "startupJsHeapBytes": 9311920,
+        "resumedJsHeapBytes": 13241872
+      }
+    },
+    {
+      "sample": 5,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175980 },
+      "startup": {
+        "persistenceStartupMs": 36,
+        "runtimeStartupMs": 717.3000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175980,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7410724,
+      "resumedJsHeapBytes": 7671936,
+      "resumeMs": 85.7000000178814,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          11.599999994039536, 5.5999999940395355, 4.300000011920929, 5.600000023841858,
+          5.299999982118607, 4.399999976158142, 7.300000011920929, 6.0999999940395355, 6,
+          5.4000000059604645, 5.899999976158142, 8.599999994039536
+        ],
+        "flushMs": [
+          8.800000011920929, 9.800000011920929, 6.800000011920929, 5.5, 7.5999999940395355, 10.5,
+          12, 9.800000011920929, 10.799999982118607, 8.099999994039536, 10.300000011920929, 9
+        ],
+        "frameGapsMs": [
+          20.899999999999977, 4.300000000000068, 12.299999999999955, 4.099999999999909, 8.5,
+          4.100000000000136, 8.299999999999955, 4.2000000000000455, 8.299999999999955,
+          4.2000000000000455, 4.099999999999909, 8.400000000000091, 4.099999999999909,
+          4.2000000000000455, 12.5, 4.2000000000000455, 4.199999999999818, 12.400000000000091,
+          4.2999999999999545, 8.299999999999955, 4.2000000000000455, 4.100000000000136,
+          8.299999999999955, 4.099999999999909, 4.400000000000091, 12.399999999999864,
+          4.100000000000136, 16.700000000000045, 4.199999999999818
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175980,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8.5,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1717.9000000059605,
+        "uiResumeMs": 2951.9000000059605,
+        "fullEntryMs": 3367.5,
+        "startupJsHeapBytes": 10015204,
+        "resumedJsHeapBytes": 13936668
+      }
+    },
+    {
+      "sample": 5,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626276 },
+      "startup": {
+        "persistenceStartupMs": 37.79999998211861,
+        "runtimeStartupMs": 676.8999999761581,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626276,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814220,
+      "resumedJsHeapBytes": 9075232,
+      "resumeMs": 84,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          10.900000005960464, 6, 4.4000000059604645, 6, 7.800000011920929, 4.9000000059604645,
+          5.700000017881393, 4.0999999940395355, 5.5, 5, 3.2999999821186066, 4.5
+        ],
+        "flushMs": [
+          9.900000005960464, 9.799999982118607, 6.5999999940395355, 9.399999976158142,
+          8.900000005960464, 8.599999994039536, 5.399999976158142, 8.200000017881393,
+          6.299999982118607, 7.300000011920929, 10.099999994039536, 7.4000000059604645
+        ],
+        "frameGapsMs": [
+          20.90000000000009, 4.099999999999909, 12.400000000000091, 4.2999999999999545,
+          8.299999999999955, 4.100000000000136, 8.399999999999864, 4.2000000000000455,
+          4.2000000000000455, 12.399999999999864, 4.2000000000000455, 12.600000000000136, 4, 8.5,
+          4.099999999999909, 8.299999999999955, 4.2999999999999545, 8.200000000000045,
+          4.2000000000000455, 8.299999999999955, 4.2000000000000455, 8.299999999999955,
+          4.100000000000136, 4.199999999999818, 8.300000000000182, 4.199999999999818
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626276,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 7.4000000059604645,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1949.5999999940395,
+        "uiResumeMs": 3091.0999999940395,
+        "fullEntryMs": 3469.4000000059605,
+        "startupJsHeapBytes": 11407176,
+        "resumedJsHeapBytes": 15342324
+      }
+    },
+    {
+      "sample": 5,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725244 },
+      "startup": {
+        "persistenceStartupMs": 24.900000005960464,
+        "runtimeStartupMs": 668.1999999880791,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725244,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5978652,
+      "resumedJsHeapBytes": 6238112,
+      "resumeMs": 109.7999999821186,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.200000017881393, 7.800000011920929, 4.9000000059604645, 5.199999988079071,
+          5.300000011920929, 5.300000011920929, 6.9000000059604645, 3.300000011920929, 5.5,
+          8.099999994039536, 5.9000000059604645, 7.0999999940395355
+        ],
+        "flushMs": [
+          12.199999988079071, 11.900000005960464, 8.699999988079071, 6.200000017881393,
+          8.699999988079071, 10.199999988079071, 7.800000011920929, 6.799999982118607,
+          8.800000011920929, 9.099999994039536, 15.5, 10.400000005960464
+        ],
+        "frameGapsMs": [
+          20.899999999999977, 4.2000000000000455, 4.099999999999909, 16.700000000000045,
+          4.2000000000000455, 8.299999999999955, 4.100000000000136, 4.199999999999818,
+          8.300000000000182, 4.199999999999818, 12.600000000000136, 4.099999999999909,
+          8.299999999999955, 4.2000000000000455, 4.100000000000136, 8.399999999999864,
+          4.100000000000136, 4.199999999999818, 8.300000000000182, 4.199999999999818,
+          8.400000000000091, 4.099999999999909, 4.2000000000000455, 12.5, 4.2000000000000455,
+          4.099999999999909, 12.5, 4.100000000000136, 4.2999999999999545, 16.59999999999991,
+          4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725244,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 10.100000023841858,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1842.0999999940395,
+        "uiResumeMs": 3659.4000000059605,
+        "fullEntryMs": 4057.199999988079,
+        "startupJsHeapBytes": 8619852,
+        "resumedJsHeapBytes": 12526828
+      }
+    },
+    {
+      "sample": 6,
+      "count": 3,
+      "fixture": { "profiles": 3, "bytes": 2175980 },
+      "startup": {
+        "persistenceStartupMs": 35.5,
+        "runtimeStartupMs": 801.8000000119209,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 2175980,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 7410724,
+      "resumedJsHeapBytes": 7670276,
+      "resumeMs": 82.40000000596046,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          12.400000005960464, 7.300000011920929, 6.299999982118607, 7.100000023841858,
+          5.300000011920929, 6.4000000059604645, 8.299999982118607, 5.5, 7.0999999940395355, 8.5,
+          3.199999988079071, 8.400000005960464
+        ],
+        "flushMs": [
+          9.5, 14.599999994039536, 10, 7.0999999940395355, 9.799999982118607, 13.199999988079071,
+          10.200000017881393, 9.199999988079071, 10.300000011920929, 9.199999988079071,
+          11.800000011920929, 8.300000011920929
+        ],
+        "frameGapsMs": [
+          25, 4.100000000000136, 20.899999999999864, 4.2000000000000455, 12.5, 4.099999999999909,
+          12.5, 4.2000000000000455, 8.299999999999955, 4.2000000000000455, 4.2000000000000455,
+          16.59999999999991, 4.2000000000000455, 12.5, 4.100000000000136, 4.199999999999818,
+          12.600000000000136, 4.099999999999909, 12.5, 4.100000000000136, 4.199999999999818,
+          12.600000000000136, 4.099999999999909, 4.2000000000000455, 12.5, 4.099999999999909, 12.5,
+          4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 2175980,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 8,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1747.0999999940395,
+        "uiResumeMs": 2936.7999999821186,
+        "fullEntryMs": 3394.5999999940395,
+        "startupJsHeapBytes": 10022012,
+        "resumedJsHeapBytes": 14115544
+      }
+    },
+    {
+      "sample": 6,
+      "count": 5,
+      "fixture": { "profiles": 5, "bytes": 3626036 },
+      "startup": {
+        "persistenceStartupMs": 41.39999997615814,
+        "runtimeStartupMs": 700.4000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 3626036,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 8814020,
+      "resumedJsHeapBytes": 9073480,
+      "resumeMs": 76.19999998807907,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          11.5, 7.0999999940395355, 4, 7.0999999940395355, 4.4000000059604645, 4.700000017881393,
+          6.0999999940395355, 4.700000017881393, 6.399999976158142, 5.4000000059604645,
+          4.699999988079071, 4.199999988079071
+        ],
+        "flushMs": [
+          9.5, 8.400000005960464, 7.5, 8.099999994039536, 8.199999988079071, 9.599999994039536, 8,
+          7.5, 7.700000017881393, 9.900000005960464, 9.5, 10.300000011920929
+        ],
+        "frameGapsMs": [
+          21, 4.100000000000023, 4.199999999999932, 12.399999999999977, 4.2000000000000455,
+          8.299999999999955, 4.2000000000000455, 12.5, 4.2000000000000455, 8.299999999999955,
+          4.2999999999999545, 4, 8.299999999999955, 4.300000000000182, 4.099999999999909,
+          8.299999999999955, 4.2999999999999545, 4.100000000000136, 8.299999999999955,
+          4.2999999999999545, 12.400000000000091, 4.099999999999909, 8.400000000000091,
+          4.099999999999909, 4.2999999999999545, 8.200000000000045, 4.2000000000000455,
+          4.099999999999909, 8.400000000000091, 4.2000000000000455, 4.2000000000000455
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 3626036,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 10.300000011920929,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1757.5,
+        "uiResumeMs": 2956.4000000059605,
+        "fullEntryMs": 3505.0999999940395,
+        "startupJsHeapBytes": 11405944,
+        "resumedJsHeapBytes": 15349256
+      }
+    },
+    {
+      "sample": 6,
+      "count": 1,
+      "fixture": { "profiles": 1, "bytes": 725292 },
+      "startup": {
+        "persistenceStartupMs": 20.400000005960464,
+        "runtimeStartupMs": 683.0999999940395,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 725292,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 5979104,
+      "resumedJsHeapBytes": 6238356,
+      "resumeMs": 67.39999997615814,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9.299999982118607, 10.599999994039536, 4.4000000059604645, 9.800000011920929,
+          8.599999994039536, 6, 7.4000000059604645, 6.199999988079071, 8.099999994039536,
+          8.100000023841858, 5.600000023841858, 4.0999999940395355
+        ],
+        "flushMs": [
+          13.700000017881393, 12.099999994039536, 9.399999976158142, 10.199999988079071,
+          10.199999988079071, 8.900000005960464, 7.699999988079071, 8.300000011920929,
+          7.800000011920929, 12.299999982118607, 10.299999982118607, 7.300000011920929
+        ],
+        "frameGapsMs": [
+          16.799999999999955, 4, 4.100000000000023, 20.799999999999955, 4.300000000000068,
+          8.199999999999932, 4.2000000000000455, 4.399999999999977, 16.5, 4.2000000000000455,
+          16.59999999999991, 4.2999999999999545, 12.5, 4, 12.5, 4.2000000000000455, 12.5,
+          4.2999999999999545, 12.300000000000182, 4.2999999999999545, 12.5, 4.099999999999909,
+          4.2999999999999545, 12.400000000000091, 4.099999999999909, 8.400000000000091,
+          4.2999999999999545
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 725292,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 7.100000023841858,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1740.5,
+        "uiResumeMs": 2704,
+        "fullEntryMs": 3084.5,
+        "startupJsHeapBytes": 8590320,
+        "resumedJsHeapBytes": 12535772
+      }
+    },
+    {
+      "sample": 6,
+      "count": 2,
+      "fixture": { "profiles": 2, "bytes": 1450720 },
+      "startup": {
+        "persistenceStartupMs": 33.39999997615814,
+        "runtimeStartupMs": 722.4000000059605,
+        "backend": "indexeddb",
+        "initialized": true,
+        "pendingWrites": 0,
+        "cachedBytes": 1450720,
+        "migratedLegacyKeys": 0,
+        "lastFlushMs": 0,
+        "lastFailureReason": null
+      },
+      "startupJsHeapBytes": 6684300,
+      "resumedJsHeapBytes": 6944660,
+      "resumeMs": 82.30000001192093,
+      "runId": "profile-benchmark-benchmark-player-1-classic",
+      "autosave": {
+        "synchronousMs": [
+          9, 9.5, 5.5999999940395355, 6.0999999940395355, 5.5, 6.5999999940395355,
+          10.699999988079071, 9.699999988079071, 5.5, 6.9000000059604645, 5.399999976158142,
+          4.0999999940395355
+        ],
+        "flushMs": [
+          10.300000011920929, 12.800000011920929, 10.099999994039536, 7.5, 13.099999994039536,
+          11.800000011920929, 9.200000017881393, 11.5, 9.700000017881393, 7.800000011920929,
+          9.800000011920929, 7
+        ],
+        "frameGapsMs": [
+          16.800000000000068, 3.9999999999998863, 16.700000000000045, 4.2000000000000455,
+          4.2000000000000455, 12.5, 4.2000000000000455, 12.5, 4, 12.599999999999909,
+          4.099999999999909, 4.400000000000091, 12.299999999999955, 4.2000000000000455,
+          4.2000000000000455, 16.59999999999991, 4.2000000000000455, 16.799999999999955, 4,
+          4.2000000000000455, 8.400000000000091, 4.099999999999909, 4.099999999999909, 12.5,
+          4.2000000000000455, 12.5, 4.100000000000136, 8.399999999999864, 4.2999999999999545
+        ],
+        "diagnostics": {
+          "backend": "indexeddb",
+          "initialized": true,
+          "pendingWrites": 0,
+          "cachedBytes": 1450720,
+          "migratedLegacyKeys": 0,
+          "lastFlushMs": 6.800000011920929,
+          "lastFailureReason": null
+        }
+      },
+      "app": {
+        "readyMs": 1812.3999999761581,
+        "uiResumeMs": 2569.600000023842,
+        "fullEntryMs": 2943,
+        "startupJsHeapBytes": 9252016,
+        "resumedJsHeapBytes": 13233336
+      }
+    }
+  ]
+}
