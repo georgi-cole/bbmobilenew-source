@@ -51,7 +51,6 @@ import TvDecisionModal from '../../components/TvDecisionModal/TvDecisionModal'
 import TvMultiSelectModal from '../../components/TvDecisionModal/TvMultiSelectModal'
 import TvBinaryDecisionModal from '../../components/TvBinaryDecisionModal/TvBinaryDecisionModal'
 import QuickTapRace from '../../components/QuickTapRace/QuickTapRace'
-import LaneRacersCanvasGame from '../../minigames/laneRacers/LaneRacersCanvasGame'
 import PressurePlank from '../../components/PressurePlank/PressurePlank'
 import { rankPressurePlankResults } from '../../components/PressurePlank/pressurePlankLogic'
 import BullseyeBlitz from '../../components/BullseyeBlitz/BullseyeBlitz'
@@ -1070,15 +1069,10 @@ export default function GameScreen() {
   const showBullseyeBlitz = showLohMinigame && pendingMinigame?.key === 'targetPractice'
   // TravelingDots is key-gated to its specific overlay component.
   const showTravelingDots = showLohMinigame && pendingMinigame?.key === 'travelingDots'
-  const showLaneRacers = showLohMinigame && pendingMinigame?.key === 'laneRacers'
   // QuickTapRace handles the 'quickTap' key AND acts as a safe fallback for any
   // unrecognised pendingMinigame key so the human is never left with no UI.
   const showQuickTapRace =
-    showLohMinigame &&
-    !showPressurePlank &&
-    !showBullseyeBlitz &&
-    !showTravelingDots &&
-    !showLaneRacers
+    showLohMinigame && !showPressurePlank && !showBullseyeBlitz && !showTravelingDots
 
   // ── Ad hook: competition_retry ─────────────────────────────────────────────
   // Retry now lives in the MinigameHost results UI itself, so GameScreen only
@@ -1353,7 +1347,6 @@ export default function GameScreen() {
     showFavoriteVoting ||
     showMinigameHost ||
     showQuickTapRace ||
-    showLaneRacers ||
     showPressurePlank ||
     showBullseyeBlitz ||
     showTravelingDots
@@ -1388,7 +1381,7 @@ export default function GameScreen() {
           showTravelingDots,
           spectatorLegacyActive,
         ],
-        blocksControls: [showPressurePlank, showLaneRacers],
+        blocksControls: [showPressurePlank],
       },
       twist: {
         awaitingDecision: [
@@ -2124,9 +2117,6 @@ export default function GameScreen() {
         {/* ── Native LOH/POS minigame overlays (routed by session key) ────────── */}
         {showQuickTapRace && pendingMinigame && (
           <QuickTapRace session={pendingMinigame} players={game.players} />
-        )}
-        {showLaneRacers && pendingMinigame && (
-          <LaneRacersCanvasGame session={pendingMinigame} players={game.players} />
         )}
         {showPressurePlank && pendingMinigame && (
           <PressurePlank session={pendingMinigame} players={game.players} />

@@ -851,7 +851,7 @@ export function simulateMinigameAiScore({
     )
   }
 
-  if (gameKey === 'quickTap' || gameKey === 'laneRacers') {
+  if (gameKey === 'quickTap') {
     const timeLimit =
       typeof timeLimitSeconds === 'number'
         ? timeLimitSeconds

@@ -53,7 +53,7 @@
  * │  minigame            Active competition minigame (sub-tracks per game)   │
  * │    ├─ riskWheel      Risk Wheel                                          │
  * │    ├─ glass_bridge_brutal / crystal_path_shattered  Crystal Path         │
- * │    ├─ quickTap / laneRacers / memoryMatch           Quick Tap family     │
+ * │    ├─ quickTap / memoryMatch                        Quick Tap family     │
  * │    └─ wildcardWestern                               Wildcard Western     │
  * │  live_vote           Live eviction vote       (Safety music ducked)      │
  * │  eviction_results    Eviction cinematic       (Safety music ducked)      │
@@ -287,7 +287,6 @@ export const MINIGAME_KEY_TO_AUDIO_PHASE: Readonly<Record<string, AppAudioPhase>
   glass_bridge_brutal: 'minigame', // track: glass_bridge
   crystal_path_shattered: 'minigame', // track: glass_bridge (shared asset)
   quickTap: 'minigame', // track: quick_tap
-  laneRacers: 'minigame', // track: quick_tap (shared asset)
   memoryMatch: 'minigame', // track: quick_tap (shared asset)
   wildcardWestern: 'minigame', // track: wildcard_western
 }

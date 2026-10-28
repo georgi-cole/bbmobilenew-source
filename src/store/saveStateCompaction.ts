@@ -1,5 +1,6 @@
 import type { SocialState } from '../social/types'
 import type { GameState } from '../types'
+import { removeObsoleteGameData } from './removedMinigameCleanup'
 
 /**
  * Persistence-only retention limits. Runtime state can remain richer; snapshots
@@ -37,7 +38,7 @@ function compactTvFeed(game: GameState): GameState['tvFeed'] {
  */
 export function compactGameStateForPersistence(state: GameState): GameState {
   return {
-    ...state,
+    ...removeObsoleteGameData(state),
     tvFeed: compactTvFeed(state),
     history: state.history?.slice(-PERSISTED_GAME_LIMITS.history),
   }

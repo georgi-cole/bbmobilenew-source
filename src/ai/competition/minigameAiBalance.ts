@@ -58,30 +58,23 @@ function validateBandChances(key: string, tuning: MinigameAiTuning): void {
 /**
  * Per-minigame AI balance configuration.
  *
- * Quick Tap target behaviour (strong human runs can reach 300–350 with a
- * favourable booster sequence):
- *   - AI score bands were reduced by 15% (issue #951) so the field is easier
- *     for the player to catch up to.
- *   - Most AI results land around 155–190 (competitive zone).
- *   - Occasional standout AI performances reach ~225–265.
- *   - A 1% perfect-run outcome can reach 350, matching an exceptional human
- *     run that collects the time, 2×, and 3× boosts cleanly.
- *   - Some weaker outcomes exist (~115–135) so results don't feel scripted.
- *   - Hot-streak / slump modifiers add extra variance without being identity-locked.
+ * Quick Tap uses base-score bands for a 30-second run, followed by jitter
+ * and hot-streak/slump modifiers. Rare high-score bands support strong phone
+ * performances; the ordinary bands keep their relative probability weights.
  */
 export const minigameAiBalance: Record<string, MinigameAiTuning> = {
   quickTap: {
     scoringModel: 'bands',
-    // Bands reduced by 15% vs the original tuning (issue #951, item 6) to make
-    // Quick Tap Race easier for the player to catch up to.
     scoreBands: [
-      { chance: 0.03, min: 89, max: 118 },
-      { chance: 0.17, min: 119, max: 157 },
-      { chance: 0.20, min: 158, max: 187 },
-      { chance: 0.30, min: 187, max: 225 },
-      { chance: 0.25, min: 226, max: 264 },
-      // Rare perfect booster run. With jitter and a hot streak this tops out at 350.
-      { chance: 0.05, min: 300, max: 328 },
+      { chance: 0.02, min: 89, max: 118 },
+      // Redistribute the remaining 91.5% proportionally, rounded to 0.01%.
+      { chance: 0.1691, min: 119, max: 157 },
+      { chance: 0.1989, min: 158, max: 187 },
+      { chance: 0.2984, min: 187, max: 225 },
+      { chance: 0.2486, min: 226, max: 264 },
+      { chance: 0.05, min: 300, max: 350 },
+      { chance: 0.01, min: 350, max: 360 },
+      { chance: 0.005, min: 360, max: 380 },
     ],
     jitter: 4,
     hotStreakChance: 0.10,

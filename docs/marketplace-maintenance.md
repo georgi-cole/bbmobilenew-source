@@ -44,6 +44,11 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-28: Reviewed the non-VIP Quick Tap AI rebalance and removal of the
+  already-retired Lane Racers implementation, catalog entry, and saved score
+  records. Lane Racers was excluded from the premium offer. Released VIP Quick
+  Tap variants, entitlements, products, prices, and Store copy are unchanged.
+
 - 2026-10-27: Reviewed the shared native immersive display, screen-awake policy,
   Game Mode eligibility, and orientation handling for all minigames, including
   premium versions. These changes apply equally to eligible gameplay and do not

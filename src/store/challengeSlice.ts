@@ -9,6 +9,7 @@ import { getMissionOutgoingIds } from '../bb/missionPowers'
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { RootState, AppDispatch } from './store'
 import { mulberry32 } from './rng'
+import { isRemovedMinigameKey, removeObsoleteChallengeData } from './removedMinigameCleanup'
 import {
   getCompetitionSeasonState,
   getDefaultCompetitionProfile,
@@ -172,6 +173,7 @@ const challengeSlice = createSlice({
     },
 
     recordRun(state, action: PayloadAction<ChallengeRun>) {
+      if (isRemovedMinigameKey(action.payload.gameKey)) return
       // Keep at most 50 runs for telemetry.
       state.history = [action.payload, ...state.history].slice(0, 50)
     },
@@ -184,7 +186,7 @@ const challengeSlice = createSlice({
       state.debug = {}
     },
     hydrateChallenge(_state, action: PayloadAction<ChallengeState>) {
-      const restored = action.payload
+      const restored = removeObsoleteChallengeData(action.payload)
       return {
         ...restored,
         pending: restored.pending

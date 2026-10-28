@@ -138,16 +138,6 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       'Season effects add strategic volatility to a 40-second tapping race. ' +
       'The specialist simulator owns the native score range; identity scaling does not clamp it.',
   },
-  laneRacers: {
-    key: 'laneRacers',
-    category: 'physical',
-    scoreDirection: 'higher-is-better',
-    volatility: VOLATILITY_PHYSICAL,
-    weights: WEIGHTS_PHYSICAL_TAP,
-    notes:
-      'Lane Racers shares the Quick Tap band-based simulator so session and ' +
-      'challenge AI scores stay aligned with the canvas race pacing.',
-  },
   memoryMatch: {
     key: 'memoryMatch',
     category: 'mental',

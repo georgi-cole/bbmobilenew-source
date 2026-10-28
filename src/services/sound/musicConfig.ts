@@ -470,7 +470,7 @@ export const DEFAULT_MINIGAME_MUSIC_PROFILES: readonly MinigameMusicProfile[] = 
   {
     id: 'minigame.quick-tap-family',
     modes: ['any'],
-    gameKeys: ['quickTap', 'laneRacers', 'memoryMatch'],
+    gameKeys: ['quickTap', 'memoryMatch'],
     stages: { playing: musicTrack('quick_tap') },
     defaultSelection: INHERIT_MUSIC,
   },

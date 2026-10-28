@@ -14,6 +14,7 @@
 import type { GameState } from '../types'
 import type { GameMode, SeasonExpansionMode } from '../modes/modeTypes'
 import { normalizeGameMode } from '../modes/gameModes'
+import { removeObsoleteGameData, removeObsoleteChallengeData } from './removedMinigameCleanup'
 import { isSurvivorRunTerminal } from '../modes/survivorRun'
 import {
   applySurvivorAchievementProgress,
@@ -244,7 +245,7 @@ export function createSavedSeasonSnapshot(
     finale: state.finale,
     social: compactSocialStateForPersistence(state.social),
     publicOpinion: state.publicOpinion,
-    challenge: state.challenge,
+    challenge: state.challenge ? removeObsoleteChallengeData(state.challenge) : undefined,
   }
 }
 
@@ -350,7 +351,11 @@ function coerceSnapshot(raw: unknown, profileId: string): SavedSeasonSnapshot | 
   if (legacyGame.modeSpecific?.replacementTransition?.mode === 'survivor') {
     legacyGame.modeSpecific.replacementTransition.mode = 'survival'
   }
-  return snapshot
+  return {
+    ...snapshot,
+    game: removeObsoleteGameData(snapshot.game),
+    ...(snapshot.challenge ? { challenge: removeObsoleteChallengeData(snapshot.challenge) } : {}),
+  }
 }
 
 function normalizeRunProfile(

@@ -460,7 +460,6 @@ Each minigame has a dedicated music track. The resolver picks the track from `tr
 | `glass_bridge_brutal` | `glass_bridge` | `music:gb_main` | `glassbridge/glass bridge main 1.mp3` |
 | `crystal_path_shattered` | `glass_bridge` | `music:gb_main` | (shared) |
 | `quickTap` | `quick_tap` | `music:quicktap_main` | `quicktap_main.mp3` |
-| `laneRacers` | `quick_tap` | `music:quicktap_main` | (shared) |
 | `memoryMatch` | `quick_tap` | `music:quicktap_main` | (shared) |
 | `wildcardWestern` | `wildcard_western` | `music:wildcard_western_main` | `wildcard_western_main.mp3` |
 | *(any other key)* | `none` | — | Silence |
@@ -528,7 +527,7 @@ When the social panel closes, no explicit "resume" call is needed. `resolveDesir
 | `veto` | `music:veto_phase` | `veto_phase.mp3` | pos_ceremony, pos_ceremony_results |
 | `risk_wheel` | `music:risk_wheel_loop` | `risk_wheel_loop.mp3` | minigame (riskWheel) |
 | `glass_bridge` | `music:gb_main` | `glassbridge/glass bridge main 1.mp3` | minigame (glass_bridge_*, crystal_path_*) |
-| `quick_tap` | `music:quicktap_main` | `quicktap_main.mp3` | minigame (quickTap, laneRacers, memoryMatch) |
+| `quick_tap` | `music:quicktap_main` | `quicktap_main.mp3` | minigame (quickTap, memoryMatch) |
 | `wildcard_western` | `music:wildcard_western_main` | `wildcard_western_main.mp3` | minigame (wildcardWestern) |
 | `season_recap` | `music:season_recap` | `tribunal_phase/season_recap_music_new.mp3` | finale_recap |
 | `jury_voting` | `music:jury_voting_bg` | `tribunal_phase/Jury_voting_backgound_music.mp3` | tribunal_part1, tribunal_part2, finale_pre_voting |

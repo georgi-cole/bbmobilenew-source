@@ -52,6 +52,7 @@ import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugAct
 import { normalizeGuestSaveReminderEvent } from './guestSaveReminder'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
+import { isRemovedMinigameKey, removeObsoleteGameData } from './removedMinigameCleanup'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
 import {
@@ -6617,6 +6618,7 @@ const gameSlice = createSlice({
       }>
     ) {
       const { gameKey, scores, lowerIsBetter = false } = action.payload
+      if (isRemovedMinigameKey(gameKey)) return
       for (const [id, score] of Object.entries(scores)) {
         const player = state.players.find((p) => p.id === id)
         if (!player) continue
@@ -9763,7 +9765,7 @@ const gameSlice = createSlice({
       }
       hydrated.tvFeed.forEach((event) => refreshManagedBroadcastDefinition(hydrated, event))
       rebuildManagedBroadcastQueue(hydrated, hydrated.phase)
-      return hydrated
+      return removeObsoleteGameData(hydrated)
     },
 
     clearSurvivorReplacementTransition(state) {

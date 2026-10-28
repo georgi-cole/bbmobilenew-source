@@ -127,7 +127,6 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
   ),
   QuickTapRace: lazyMinigame(() => import('../components/QuickTapRace/QuickTapRace')),
   QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasonsEntry')),
-  LaneRacers: lazyMinigame(() => import('./laneRacers/LaneRacersCanvasGame')),
   TravelingDots: lazyMinigame(() => import('../components/TravelingDots/TravelingDots')),
   EstimationGame: lazyMinigame(() => import('../components/EstimationGame/EstimationGame')),
   BullseyeBlitz: lazyMinigame(() => import('../components/BullseyeBlitz/BullseyeBlitz')),
