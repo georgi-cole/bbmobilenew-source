@@ -3,7 +3,7 @@
 // Multi-profile system.
 //
 // Key behaviours:
-//  - Up to MAX_PROFILES (5) saved profiles per device.
+//  - Up to MAX_PROFILES new profiles per device; older extra profiles remain usable.
 //  - "Login" = selecting an active profile (no password/auth).
 //  - Guest mode: no stats/archives saved, warning displayed.
 //  - Switching profiles always prompts a season-reset confirmation (handled in UI).
@@ -17,6 +17,7 @@ import {
   getAppearanceLook,
   type AppearanceSelection,
 } from '../appearance/catalog'
+import { coerceContestantDefaults, type SeasonContestant } from '../appearance/seasonContestant'
 import { PUBLIC_FAVORITE_FORECAST_EYEOLEANS, type EyeoleanRewardLine } from '../economy/eyeoleans'
 import {
   EYEOLEAN_STORE_PRODUCT_KEYS,
@@ -28,7 +29,7 @@ import type { RootState } from './store'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const MAX_PROFILES = 5
+export const MAX_PROFILES = 3
 const PROFILES_STORAGE_KEY = 'bbmobilenew:profiles:v1'
 /** Prefix for per-profile season-archive localStorage keys. */
 export const DEFAULT_ARCHIVE_KEY_PREFIX = 'bbmobilenew:seasonArchives:'
@@ -140,6 +141,8 @@ export interface StoredProfile {
   appearanceSelection?: AppearanceSelection
   /** Extended biography fields. */
   bio?: ProfileBio
+  /** Optional next-season choice; existing saves own independent snapshots. */
+  contestantDefaults?: SeasonContestant
   /** ISO timestamp when the profile was created. */
   createdAt: string
   /**
@@ -429,6 +432,7 @@ function coerceStoredProfile(raw: unknown): StoredProfile | null {
     photoId: typeof r.photoId === 'string' && r.photoId ? r.photoId : undefined,
     appearanceSelection: coerceAppearanceSelection(r.appearanceSelection),
     bio: r.bio && typeof r.bio === 'object' ? (r.bio as ProfileBio) : undefined,
+    contestantDefaults: coerceContestantDefaults(r.contestantDefaults),
     createdAt: r.createdAt,
     lifetimeXp:
       typeof r.lifetimeXp === 'number' && Number.isFinite(r.lifetimeXp)
@@ -629,6 +633,15 @@ const profilesSlice = createSlice({
       const profile = state.profiles.find((p) => p.id === state.activeProfileId)
       if (!profile) return
       const { name, avatar, photoId, bio, appearanceSelection } = action.payload
+      // Explicit profile edits become the defaults for the next season.
+      if (
+        name !== undefined ||
+        avatar !== undefined ||
+        photoId !== undefined ||
+        bio !== undefined ||
+        appearanceSelection !== undefined
+      )
+        delete profile.contestantDefaults
       if (name !== undefined) profile.name = name.trim() || profile.name
       if (avatar !== undefined) profile.avatar = avatar
       if (photoId !== undefined) profile.photoId = photoId
@@ -642,6 +655,15 @@ const profilesSlice = createSlice({
           profile.appearanceSelection = normalized
         }
       }
+    },
+
+    rememberContestant(
+      state,
+      action: PayloadAction<{ profileId: string; contestant: SeasonContestant }>
+    ) {
+      const profile = state.profiles.find((entry) => entry.id === action.payload.profileId)
+      const defaults = coerceContestantDefaults(action.payload.contestant)
+      if (profile && defaults) profile.contestantDefaults = defaults
     },
 
     /** Persist the fact that this profile has consumed the Lia/Ali Twin Shock. */
@@ -1008,6 +1030,7 @@ export const {
   createProfile,
   selectActiveProfile,
   updateProfile,
+  rememberContestant,
   recordBellaTwinShockConsumed,
   recordBellaEncountered,
   recordBellaCompatibleClassicCompleted,

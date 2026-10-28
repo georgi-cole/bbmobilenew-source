@@ -14,7 +14,7 @@ import {
   type StoredProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import { resetGame, hydrateGame, updateUserPlayerIdentity } from '../../store/gameSlice'
+import { resetGame, hydrateGame } from '../../store/gameSlice'
 import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
@@ -27,10 +27,12 @@ import {
 } from '../../store/saveStatePersistence'
 import { getPlayableLastRun } from '../../modes/seasonRulesets'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
-import { flushPendingRunSnapshots } from '../../store/store'
+import { persistCurrentRunSnapshot } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
-import { imageIdToDataUrl, saveImage, deleteImage } from '../../utils/imageDb'
+import { imageIdToDataUrl, saveImage } from '../../utils/imageDb'
+import { pruneProfilePhotos } from '../../utils/imageDb'
+import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
 import GameBackButton from '../../components/ui/GameBackButton/GameBackButton'
 import ProfileSeasonStatus from '../../components/ProfileSeasonStatus/ProfileSeasonStatus'
 import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
@@ -289,21 +291,8 @@ export default function ProfilePicker() {
       }
       if (adoptGuestRun) {
         withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
-        // This action schedules the current, intact guest season under the newly
-        // active profile; flushing both layers makes it available after reload.
-        dispatch(
-          updateUserPlayerIdentity({
-            name: profileDetails.name,
-            avatar: profileDetails.avatar,
-            photoId,
-            age: parsedAge,
-            sex: newSex,
-            ...(profileDetails.bio.reproductiveProfile
-              ? { reproductiveProfile: profileDetails.bio.reproductiveProfile }
-              : {}),
-          })
-        )
-        flushPendingRunSnapshots()
+        // Capture the intact guest contestant under its new owner.
+        persistCurrentRunSnapshot()
         await flushSavePersistence()
       } else {
         withRunAutosaveSuspended(() => {
@@ -382,14 +371,23 @@ export default function ProfilePicker() {
 
   async function commitDelete(id: string) {
     const profile = profiles.find((p) => p.id === id)
-    if (profile?.photoId) {
-      await deleteImage(profile.photoId)
-    }
+    const photoIds = [
+      ...savedProfilePhotoIds(id),
+      ...(profile?.photoId ? [profile.photoId] : []),
+      ...(profile?.contestantDefaults?.photoId ? [profile.contestantDefaults.photoId] : []),
+    ]
 
     clearProfileSaveStorage(id)
     clearSeasonArchives(archiveKeyForProfile(id))
     if (!(await flushSavePersistence())) return
-    dispatch(deleteProfile(id))
+    await pruneProfilePhotos(id, [], photoIds)
+    withRunAutosaveSuspended(() => {
+      dispatch(deleteProfile(id))
+      if (id === activeProfileId) {
+        const next = profiles.find((entry) => entry.id !== id)
+        dispatch(resetGame(next ? (loadSeasonArchives(archiveKeyForProfile(next.id)) ?? []) : []))
+      }
+    })
     setPendingDeleteId(null)
   }
 
@@ -422,7 +420,10 @@ export default function ProfilePicker() {
         />
       </div>
       <h1 className="profile-picker__title">👤 Profiles</h1>
-      <p className="profile-picker__subtitle">Select a profile to play as</p>
+      <p className="profile-picker__subtitle">
+        Separate progress for another player or a fresh career. Contestant changes are optional each
+        new season.
+      </p>
 
       {profiles.length > 0 && (
         <div className="profile-picker__list">
@@ -488,7 +489,10 @@ export default function ProfilePicker() {
       {atLimit && !showCreateForm && (
         <div className="profile-picker__limit-notice">
           <span>⚠️</span>
-          <div>Maximum of 5 profiles. Delete one to create another.</div>
+          <div>
+            Up to {MAX_PROFILES} player profiles. Existing extra profiles and their saves remain
+            available.
+          </div>
         </div>
       )}
 

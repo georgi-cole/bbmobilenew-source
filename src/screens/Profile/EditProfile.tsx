@@ -1,3 +1,4 @@
+import { getProfilePhotoAvatarId } from '../../utils/avatar'
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
@@ -9,13 +10,15 @@ import {
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import { resetGame, updateUserPlayerIdentity } from '../../store/gameSlice'
+import { resetGame } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
-import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
+import { saveImage, imageIdToDataUrl } from '../../utils/imageDb'
+import { pruneProfilePhotos } from '../../utils/imageDb'
+import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
-import { flushPendingRunSnapshots } from '../../store/store'
+import { persistCurrentRunSnapshot } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
 import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
@@ -48,6 +51,11 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
+  const currentRunPhotoId = useAppSelector(
+    (state) =>
+      state.game?.seasonContestant?.photoId ??
+      getProfilePhotoAvatarId(state.game?.players?.find((player) => player.isUser)?.avatar ?? '')
+  )
   const routeState = routeLocation.state as EditProfileRouteState | null
   const creationSelection = coerceAppearanceSelection(routeState?.appearanceSelection)
   const creatingProfile = routeState?.createProfile === true && creationSelection.kind === 'catalog'
@@ -176,19 +184,7 @@ export default function EditProfile() {
         }
         if (routeState?.adoptGuestRun) {
           withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
-          dispatch(
-            updateUserPlayerIdentity({
-              name: profileDetails.name,
-              avatar: profileDetails.avatar,
-              photoId,
-              age: parsedAge,
-              sex: bio.sex,
-              ...(normalizedBio.reproductiveProfile
-                ? { reproductiveProfile: normalizedBio.reproductiveProfile }
-                : {}),
-            })
-          )
-          flushPendingRunSnapshots()
+          persistCurrentRunSnapshot()
           await flushSavePersistence()
         } else {
           withRunAutosaveSuspended(() => {
@@ -211,7 +207,7 @@ export default function EditProfile() {
 
     let photoId = profile.photoId
 
-    // Persist new photo to IndexedDB; delete the old one to avoid storage growth.
+    // Persist new photos before collecting revisions unreferenced by saved or live runs.
     // Only update photoId if the write actually succeeds — if IndexedDB is unavailable
     // (e.g. private browsing, quota exceeded) we keep the existing photoId so the
     // profile does not reference an image that can never be loaded.
@@ -219,10 +215,6 @@ export default function EditProfile() {
       const id = `photo-${profile.id}-${Date.now()}`
       try {
         await saveImage(id, newPhotoBlob)
-        // Clean up the previous photo blob now that the new one is persisted.
-        if (profile.photoId && profile.photoId !== id) {
-          await deleteImage(profile.photoId)
-        }
         photoId = id
       } catch (err) {
         // saveImage failed (e.g. private browsing, quota exceeded).
@@ -241,21 +233,29 @@ export default function EditProfile() {
         bio: normalizedBio,
       })
     )
+    const keepPhotoIds = savedProfilePhotoIds(profile.id)
+    if (photoId) keepPhotoIds.push(photoId)
+    if (currentRunPhotoId) keepPhotoIds.push(currentRunPhotoId)
+    if (photoId !== profile.photoId)
+      await pruneProfilePhotos(profile.id, keepPhotoIds, profile.photoId ? [profile.photoId] : [])
     navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
   }
 
   async function handleDeleteProfile() {
     if (!profile) return
 
-    if (profile.photoId) {
-      await deleteImage(profile.photoId)
-    }
+    const photoIds = [
+      ...savedProfilePhotoIds(profile.id),
+      ...(profile.photoId ? [profile.photoId] : []),
+      ...(profile.contestantDefaults?.photoId ? [profile.contestantDefaults.photoId] : []),
+    ]
 
     // Remove every persistence record owned by the deleted profile. Suspending
     // autosave prevents its in-memory season being saved under the next profile.
     clearProfileSaveStorage(profile.id)
     clearSeasonArchives(archiveKeyForProfile(profile.id))
     if (!(await flushSavePersistence())) return
+    await pruneProfilePhotos(profile.id, [], photoIds)
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
@@ -281,6 +281,9 @@ export default function EditProfile() {
         {creatingProfile ? 'Create your profile' : '✏️ Edit Profile'}
       </h1>
 
+      <p>
+        Saving updates your defaults for future seasons. Existing seasons keep their own contestant.
+      </p>
       {/* Profile photo or selected character portrait */}
       <div className="edit-profile__photo-section">
         <div className="edit-profile__photo-wrap">

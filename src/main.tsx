@@ -22,10 +22,6 @@ import { SoundManager } from './services/sound/SoundManager'
 import { initAdBridge } from './services/ads/adsService'
 import { installE2EStateProbe } from './testSupport/e2eStateProbe'
 import App from './App.tsx'
-import './styles/gameOverResponsiveFixes.css'
-import './styles/houseOfCardsInteractionFix.css'
-import './styles/houseOfCardsBrightTheme.css'
-import './styles/houseOfCardsBrightThemePriority.css'
 
 const BUILD_ID = import.meta.env.VITE_BUILD_ID ?? 'local'
 

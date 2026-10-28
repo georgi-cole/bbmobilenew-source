@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
@@ -25,7 +26,6 @@ import {
   revealVoxTemporaryAudienceVote,
   submitVoxFinalThreeAppeal,
   startVoxFinalVote,
-  resetGame,
 } from '../../store/gameSlice'
 import {
   completeChallenge,
@@ -89,10 +89,10 @@ import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
-import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
-import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { getImmediateAutoNomineeId } from './autoNomineeBadge'
-import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
+const PublicFavoriteOverlay = lazyWithChunkRecovery(
+  () => import('../../components/PublicFavoriteOverlay/PublicFavoriteOverlay')
+)
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
@@ -542,13 +542,8 @@ export default function GameScreen() {
     clearEliminatedRun()
     const continueVoxPopuli =
       game.voxPopuli?.status === 'active' || game.expansionMode === 'voxPopuli'
-    if (continueVoxPopuli) {
-      startNewVoxPopuliSeason(dispatch)
-    } else {
-      withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
-    }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
-    navigate('/', { replace: true, state: { autoStartGame: true } })
+    navigate(`/new-season?mode=${continueVoxPopuli ? 'voxPopuli' : 'classic'}`, { replace: true })
   }, [clearEliminatedRun, dispatch, game.expansionMode, game.voxPopuli?.status, navigate])
   const handlePreJuryReturnHome = useCallback(() => {
     clearEliminatedRun()
@@ -2467,18 +2462,20 @@ export default function GameScreen() {
 
         {/* ── Public's Favorite Player voting overlay ───────────────────────── */}
         {isPublicModeEnabled(game.mode) && showFavoriteVoting && favoritePlayer && (
-          <PublicFavoriteOverlay
-            candidates={game.players.filter((p) =>
-              (favoritePlayer.candidates ?? []).includes(p.id)
-            )}
-            seed={game.seed}
-            awardAmount={favoritePlayer.awardAmount}
-            onComplete={handleFavoriteComplete}
-            onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
-            onForecastAward={handleForecastAward}
-            canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
-            forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
-          />
+          <Suspense fallback={<div role="status">Preparing audience vote…</div>}>
+            <PublicFavoriteOverlay
+              candidates={game.players.filter((p) =>
+                (favoritePlayer.candidates ?? []).includes(p.id)
+              )}
+              seed={game.seed}
+              awardAmount={favoritePlayer.awardAmount}
+              onComplete={handleFavoriteComplete}
+              onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
+              onForecastAward={handleForecastAward}
+              canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
+              forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
+            />
+          </Suspense>
         )}
 
         {/* ── Social Phase Panel (human player actions) ────────────────────── */}
@@ -2833,13 +2830,10 @@ export default function GameScreen() {
         {/* ── Houseguest grid (alive + evicted in one grid) ────────────────── */}
         <HouseguestGrid
           houseguests={presentedRosterPlayers.map(playerToHouseguest)}
-          headerSelector=".tv-zone"
-          footerSelector=".nav-bar"
           overlaySelector=".game-control-dock"
           compact={responsiveGameLayout.compactRoster}
           rosterMode={responsiveGameLayout.rosterMode}
           headerMode={responsiveGameLayout.rosterHeaderMode}
-          layoutRevision={responsiveGameLayout.revision}
           occupancyLabel={inlineHouseFeedVisible ? undefined : housemateOccupancyLabel}
           returningPlayerId={battleBackReturnId}
           onReturnAnimationDone={handleBattleBackReturnDone}

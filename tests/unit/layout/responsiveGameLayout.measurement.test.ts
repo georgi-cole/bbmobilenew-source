@@ -1,4 +1,4 @@
-import { act, cleanup, renderHook } from '@testing-library/react'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useResponsiveGameLayout } from '../../../src/screens/GameScreen/useResponsiveGameLayout'
 
@@ -15,7 +15,7 @@ afterEach(() => {
 })
 
 describe('presentation layout measurements', () => {
-  it('accepts late safe-area changes while a presentation holds tile geometry', () => {
+  it('accepts late safe-area changes while a presentation holds tile geometry', async () => {
     const { result } = renderHook(() =>
       useResponsiveGameLayout(
         { current: null },
@@ -38,21 +38,21 @@ describe('presentation layout measurements', () => {
       document.documentElement.style.setProperty('--safe-area-inset-bottom', '34px')
       window.dispatchEvent(new Event('resize'))
     })
-    expect(result.current.cssVars['--game-safe-bottom']).toBe('34px')
+    await waitFor(() => expect(result.current.cssVars['--game-safe-bottom']).toBe('34px'))
     expect(result.current.revision).toBeGreaterThan(initialRevision)
 
     act(() => {
       document.documentElement.style.setProperty('--safe-area-inset-bottom', '0px')
       window.dispatchEvent(new Event('resize'))
     })
-    expect(result.current.cssVars['--game-safe-bottom']).toBe('0px')
+    await waitFor(() => expect(result.current.cssVars['--game-safe-bottom']).toBe('0px'))
 
     act(() => {
       vi.stubGlobal('innerWidth', 320)
       vi.stubGlobal('innerHeight', 568)
       window.dispatchEvent(new Event('resize'))
     })
-    expect(result.current.layoutSize).toBe('phone-small')
+    await waitFor(() => expect(result.current.layoutSize).toBe('phone-small'))
     expect(result.current.cssVars['--game-cabinet-max-height']).toBe('568px')
   })
 })

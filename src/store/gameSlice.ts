@@ -12,6 +12,12 @@ import {
   isMissionPower,
 } from '../bb/missionPowers'
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  contestantFromPlayer,
+  contestantFromProfile,
+  getLaunchContestant,
+  type SeasonContestant,
+} from '../appearance/seasonContestant'
 import type { RootState, AppDispatch } from './store'
 import {
   getAlliancePowerHolderPriority,
@@ -630,8 +636,7 @@ export function resolveProfileSex(
   if (canCause === canBecome) return undefined
   return canCause ? 'Male' : 'Female'
 }
-function buildUserPlayer(): Player {
-  const profile = loadActiveProfile()
+function buildUserPlayer(profile: SeasonContestant): Player {
   const appearance = profile.appearanceSelection
   const mainAsset = getAppearanceAsset(appearance, 'main')
   const parsedAge = resolveProfileAge(profile.bio?.age)
@@ -693,6 +698,7 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
 }
 
 function buildInitialPlayers(options: {
+  contestant: SeasonContestant
   twinShockConsumed: boolean
   seasonArchives: SeasonArchive[]
   season: number
@@ -716,7 +722,7 @@ function buildInitialPlayers(options: {
     const replaceIndex = options.seed % aiPlayers.length
     aiPlayers[replaceIndex] = buildBellaPoolEntry() as Player
   }
-  return [buildUserPlayer(), ...aiPlayers]
+  return [buildUserPlayer(options.contestant), ...aiPlayers]
 }
 
 function buildInitialCompetitionSeasonState(
@@ -761,11 +767,15 @@ export function createInitialGameState(options?: {
   // sessions always start at Season 1 regardless of any logged-in user data.
   const profilesState = loadProfilesState()
   const isGuest = profilesState.isGuest
-  const activeBellaProgress =
+  const activeStoredProfile =
     !isGuest && profilesState.activeProfileId
       ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)
-          ?.bellaProgress
       : undefined
+  const activeBellaProgress = activeStoredProfile?.bellaProgress
+  const seasonContestant =
+    getLaunchContestant() ??
+    activeStoredProfile?.contestantDefaults ??
+    contestantFromProfile(activeStoredProfile ?? loadActiveProfile())
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
     : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
@@ -813,6 +823,7 @@ export function createInitialGameState(options?: {
     initialVoxPopuli.activatedWeek = 1
   }
   const freshPlayers = buildInitialPlayers({
+    contestant: seasonContestant,
     twinShockConsumed,
     seasonArchives,
     season,
@@ -949,6 +960,7 @@ export function createInitialGameState(options?: {
       : { status: 'none' as const }
   return {
     gameId: crypto.randomUUID(),
+    seasonContestant,
     expansionMode: null,
     season,
     week: 1,
@@ -9412,6 +9424,7 @@ const gameSlice = createSlice({
         reproductiveProfile?: Player['reproductiveProfile'] | null
       }>
     ) {
+      if (state.seasonContestant) return
       const human = state.players.find((player) => player.isUser)
       if (!human) return
       human.name = action.payload.name.trim() || human.name
@@ -9622,8 +9635,12 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
+      const human = action.payload.players.find((player) => player.isUser)
+      const seasonContestant =
+        action.payload.seasonContestant ?? (human ? contestantFromPlayer(human) : undefined)
       const hydrated: GameState = {
         ...action.payload,
+        seasonContestant,
         players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,

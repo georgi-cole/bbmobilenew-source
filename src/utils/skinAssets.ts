@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import type { PermissionState } from '@capacitor/core'
 import skinRegistry from '../data/skinRegistry.json'
+import { AVATAR_ASSET_FILES } from '../data/avatarAssetManifest'
 
 export type TimeOfDayKey = 'sunrise' | 'day' | 'sunset' | 'night'
 export type WeatherThemeKey = 'rain' | 'drizzle' | 'snow' | 'wind' | 'fog' | 'storm' | 'rainbow'
@@ -34,25 +35,9 @@ export interface SkinAssetResolution {
 
 export const SKIN_REGISTRY = skinRegistry as SkinRegistry
 
-const SKIN_ASSET_MODULES = import.meta.glob(
-  '../../public/assets/skins/*.{png,jpg,jpeg,webp,avif,gif,svg,wp2}',
-  {
-    eager: true,
-    import: 'default',
-  }
-) as Record<string, string>
-
-const SKIN_URL_BY_FILENAME = new Map<string, string>(
-  Object.entries(SKIN_ASSET_MODULES).map(([assetPath, url]) => {
-    const normalizedPath = assetPath.replaceAll('\\', '/')
-    const skinsIndex = normalizedPath.lastIndexOf('/skins/')
-    return [
-      skinsIndex >= 0 ? normalizedPath.slice(skinsIndex + '/skins/'.length) : normalizedPath,
-      url,
-    ]
-  })
-)
-
+// Public assets are shipped as files. Filename metadata avoids importing every
+// image module while the player is only opening the home screen.
+const AVATAR_FILES = new Set<string>(AVATAR_ASSET_FILES)
 const REGISTERED_SKIN_FILES = new Set(
   Object.values(SKIN_REGISTRY).flatMap((entry) => [entry.canonicalFile, ...(entry.aliases ?? [])])
 )
@@ -76,11 +61,11 @@ function buildPublicSkinUrl(filename: string): string {
 }
 
 export function resolveSkinAssetPath(filename: string): string {
-  return SKIN_URL_BY_FILENAME.get(filename) ?? buildPublicSkinUrl(filename)
+  return buildPublicSkinUrl(filename)
 }
 
 export function hasSkinAsset(filename: string): boolean {
-  return SKIN_URL_BY_FILENAME.has(filename) || REGISTERED_SKIN_FILES.has(filename)
+  return AVATAR_FILES.has(filename) || REGISTERED_SKIN_FILES.has(filename)
 }
 
 export function resolveSkinAssetPathWithFallback(
@@ -107,8 +92,8 @@ function resolveSkinAssetWithoutFallback(key: ThemeKey): SkinAssetResolution | n
         key,
         label: entry.label,
         file,
-        url: SKIN_URL_BY_FILENAME.get(file) ?? buildPublicSkinUrl(file),
-        source: SKIN_URL_BY_FILENAME.has(file) ? 'bundled' : 'public',
+        url: buildPublicSkinUrl(file),
+        source: 'public',
         candidates,
       }
     }
@@ -148,7 +133,7 @@ export function resolveSkinAsset(key: ThemeKey, fallbackKey?: ThemeKey): SkinAss
     label: entry.label,
     file,
     url: resolveSkinAssetPath(file),
-    source: SKIN_URL_BY_FILENAME.has(file) ? 'bundled' : 'public',
+    source: 'public',
     candidates,
   }
 }

@@ -1,3 +1,4 @@
+import { pruneProfilePhotos } from '../../utils/imageDb'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import profilesReducer, {
@@ -11,6 +12,7 @@ import EditProfile from './EditProfile'
 const mockNavigate = vi.fn()
 const mockDispatch = vi.fn()
 const mockPhoto = vi.fn<() => Promise<string | null>>()
+let mockLivePhotoId: string | undefined
 let mockProfiles: ProfilesState
 let mockLocationState: Record<string, unknown> = { from: '/profile-picker' }
 const bio: ProfileBio = {
@@ -37,17 +39,30 @@ vi.mock('react-router', () => ({
 }))
 vi.mock('../../store/hooks', () => ({
   useAppDispatch: () => mockDispatch,
-  useAppSelector: (selector: (state: unknown) => unknown) => selector({ profiles: mockProfiles }),
+  useAppSelector: (selector: (state: unknown) => unknown) =>
+    selector({
+      profiles: mockProfiles,
+      game: { players: [], seasonContestant: { photoId: mockLivePhotoId } },
+    }),
 }))
 vi.mock('../../utils/imageDb', () => ({
   imageIdToDataUrl: () => mockPhoto(),
   saveImage: vi.fn(),
   deleteImage: vi.fn(),
+  pruneProfilePhotos: vi.fn(async () => {}),
+}))
+vi.mock('../../appearance/profilePhotos', () => ({
+  savedProfilePhotoIds: () => ['saved-season-photo'],
+}))
+vi.mock('../../utils/imageUtils', () => ({
+  resizeAndCompressImage: vi.fn(async (file: File) => file),
 }))
 vi.mock('../../components/ConfirmExitModal/ConfirmExitModal', () => ({ default: () => null }))
 
 describe('EditProfile details', () => {
   beforeEach(() => {
+    mockLivePhotoId = undefined
+    vi.mocked(pruneProfilePhotos).mockClear()
     mockNavigate.mockReset()
     mockDispatch.mockReset()
     mockPhoto.mockReset()
@@ -126,6 +141,36 @@ describe('EditProfile details', () => {
     expect(portrait.getAttribute('src')).toContain('character%202/main.webp')
     fireEvent.error(portrait)
     expect(portrait.getAttribute('src')).toContain('assets/skins/You.png')
+  })
+
+  it('retains live and saved season photos when replacing the profile photo', async () => {
+    mockLivePhotoId = 'live-season-photo'
+    mockProfiles = profilesReducer(mockProfiles, updateProfile({ photoId: 'old-profile-photo' }))
+    const preview = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:new-profile-photo')
+    try {
+      const { container } = render(<EditProfile />)
+      fireEvent.change(container.querySelector('input[type="file"]')!, {
+        target: { files: [new File(['photo'], 'photo.png', { type: 'image/png' })] },
+      })
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Save Profile' })).toBeEnabled()
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Save Profile' }))
+      await waitFor(() =>
+        expect(pruneProfilePhotos).toHaveBeenCalledWith(
+          mockProfiles.activeProfileId,
+          expect.arrayContaining(['live-season-photo', 'saved-season-photo']),
+          ['old-profile-photo']
+        )
+      )
+      expect(pruneProfilePhotos).toHaveBeenCalledWith(
+        mockProfiles.activeProfileId,
+        expect.arrayContaining([expect.stringMatching(/^photo-/)]),
+        ['old-profile-photo']
+      )
+    } finally {
+      preview.mockRestore()
+    }
   })
 
   it('uses the existing standard avatar for a legacy profile without a selected look', () => {

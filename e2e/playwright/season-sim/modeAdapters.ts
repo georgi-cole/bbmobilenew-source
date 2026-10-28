@@ -52,6 +52,8 @@ function finiteAdapter(
         .getByRole('navigation', { name: 'Play menu' })
         .getByRole('button', { name: label, exact: true })
         .click()
+      await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+      await page.getByRole('button', { name: 'Start Season', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
         timeout: MODE_LAUNCH_TIMEOUT,
       })
@@ -95,6 +97,8 @@ const survivalAdapter: ModeAdapter = {
       await expect(continueButton).toBeVisible()
       await continueButton.click()
     }
+    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
       timeout: MODE_LAUNCH_TIMEOUT,
     })

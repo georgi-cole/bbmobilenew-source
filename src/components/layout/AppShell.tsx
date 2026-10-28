@@ -11,6 +11,8 @@ import PortraitOrientationGuard from './PortraitOrientationGuard'
 import SaveRecoveryNotice from '../SaveRecoveryNotice/SaveRecoveryNotice'
 import PhonePreviewSystemChrome from './PhonePreviewSystemChrome'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
+import { IS_RELEASE_BUILD } from '../../config/buildTarget'
+import { isDebugAccessGranted } from '../../utils/debugMode'
 import './AppShell.css'
 
 const lazy = lazyWithChunkRecovery
@@ -46,6 +48,14 @@ const LANDSCAPE_FRIENDLY_MINIGAMES = new Set([
  */
 export default function AppShell() {
   const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const phonePreview =
+    searchParams.get('phonePreview') === 'true' || window.name.startsWith('phone-preview:')
+  const debugToolsVisible =
+    !IS_RELEASE_BUILD &&
+    !phonePreview &&
+    ((window as Window & { __E2E__?: boolean }).__E2E__ === true ||
+      isDebugAccessGranted(searchParams, window.location.hostname))
   const mainRef = useRef<HTMLElement>(null)
   const phase = useAppSelector((s) => s.game.phase)
   const gameMode = useAppSelector((s) => s.game.mode)
@@ -158,26 +168,29 @@ export default function AppShell() {
         <Outlet />
       </main>
       <NavBar />
-      <Suspense fallback={null}>
-        <DebugPanel />
-        <QaManagerShortcuts />
-      </Suspense>
+      {debugToolsVisible && (
+        <Suspense fallback={null}>
+          <DebugPanel />
+          <QaManagerShortcuts />
+        </Suspense>
+      )}
       {/* Mount FinalFaceoff when entering jury so it can initialise the finale.
           Also remount it for the rare recovery case where jury voting already
           completed but the season finale overlay has not started yet. */}
-      {phase === 'jury' &&
+      {location.pathname === '/game' &&
+        phase === 'jury' &&
         seasonFinale == null &&
         (finale.isActive || !finale.hasStarted || finale.isComplete) && (
           <Suspense fallback={null}>
             <FinalFaceoff />
           </Suspense>
         )}
-      {seasonFinale && (
+      {location.pathname === '/game' && seasonFinale && (
         <Suspense fallback={null}>
           <SeasonFinaleOverlay />
         </Suspense>
       )}
-      {!seasonFinale && voxPopuliActive && (
+      {location.pathname === '/game' && !seasonFinale && voxPopuliActive && (
         <Suspense fallback={null}>
           <VoxPopuliFinaleOverlay />
         </Suspense>

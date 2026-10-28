@@ -75,6 +75,8 @@ for (const platform of ['iphone', 'android'] as const) {
       .getByRole('navigation', { name: 'Play menu' })
       .getByRole('button', { name: 'Classic', exact: true })
       .click()
+    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
     const navigation = page.getByRole('navigation', { name: 'Main navigation' })
     await expect(navigation).toBeVisible()
 

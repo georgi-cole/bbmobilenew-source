@@ -9,6 +9,7 @@ import type { ActivityChannel, ActivitySource } from '../services/activityServic
 import type { SeasonArchive } from '../store/seasonArchive'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import type { PregnancyStoryState } from '../social/reality/pregnancy'
+import type { SeasonContestant } from '../appearance/seasonContestant'
 
 export type PlayerStatus =
   | 'active'
@@ -921,6 +922,8 @@ export interface PulseChronicle {
 }
 
 export interface GameState {
+  /** Contestant selected at launch. Profile edits never rewrite this run identity. */
+  seasonContestant?: SeasonContestant
   /** Stable unique identifier for this game instance. */
   gameId: string
   season: number

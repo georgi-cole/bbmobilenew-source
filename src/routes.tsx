@@ -27,6 +27,7 @@ const Profile = lazy(() => import('./screens/Profile/Profile'))
 const EditProfile = lazy(() => import('./screens/Profile/EditProfile'))
 const DressingRoom = lazy(() => import('./screens/Profile/DressingRoom'))
 const ProfilePicker = lazy(() => import('./screens/ProfilePicker/ProfilePicker'))
+const NewSeason = lazy(() => import('./screens/NewSeason/NewSeason'))
 const Leaderboard = lazy(() => import('./screens/Leaderboard/Leaderboard'))
 const Credits = lazy(() => import('./screens/Credits/Credits'))
 const Week = lazy(() => import('./screens/Week/Week'))
@@ -191,6 +192,7 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <HomeHub /> },
       { path: 'game', element: load(<GameRoute />) },
+      { path: 'new-season', element: load(<NewSeason />) },
       { path: 'diary-room', element: load(<ConfessionalRoute />) },
       { path: 'houseguests', element: load(<Houseguests />) },
       { path: 'profile', element: load(<Profile />) },

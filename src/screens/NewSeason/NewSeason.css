@@ -1,0 +1,106 @@
+.new-season {
+  width: min(100%, 38rem);
+  margin: 0 auto;
+  padding: 1.25rem 1rem calc(2rem + env(safe-area-inset-bottom));
+  color: var(--text-primary, #f6f1e8);
+}
+.new-season h1 {
+  margin: 0.3rem 0 0.75rem;
+  font-size: clamp(1.6rem, 6vw, 2.25rem);
+}
+.new-season p {
+  line-height: 1.55;
+}
+.new-season summary {
+  padding: 0.8rem 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+.new-season__eyebrow {
+  color: var(--accent-color, #e9bd68);
+  margin-bottom: 0.25rem;
+}
+.new-season fieldset {
+  border: 1px solid #ffffff24;
+  border-radius: 1rem;
+  padding: 1rem;
+  margin: 1.25rem 0;
+  min-width: 0;
+}
+.new-season legend {
+  padding: 0 0.4rem;
+  font-weight: 700;
+}
+.new-season__looks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+  gap: 0.6rem;
+}
+.new-season__look {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  background: #ffffff08;
+}
+.new-season__look--selected {
+  border-color: #e9bd68;
+  background: #e9bd6814;
+}
+.new-season__look:focus-within {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.new-season__look img {
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+.new-season__profile-avatar {
+  display: grid;
+  place-items: center;
+  height: 72px;
+  width: 72px;
+  font-size: 2.5rem;
+}
+.new-season__fields {
+  display: grid;
+  gap: 0.9rem;
+}
+.new-season__fields label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+.new-season__fields input,
+.new-season__fields select,
+.new-season__fields textarea {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid #ffffff40;
+  border-radius: 0.5rem;
+  padding: 0.65rem;
+  color: #fff;
+  background: #171c2a;
+  font: inherit;
+}
+.new-season__fields textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.new-season__fields small {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  opacity: 0.8;
+}
+.new-season > form > button {
+  width: 100%;
+  min-height: 48px;
+}
+.new-season [role='alert'] {
+  color: #ffb4ab;
+}

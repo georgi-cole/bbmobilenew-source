@@ -226,8 +226,7 @@ describe('HomeHub', () => {
 
     renderHomeHub()
 
-    expect(screen.getByTestId('kolequant-splash')).toHaveAttribute('data-duration', '0')
-    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    expect(screen.queryByTestId('kolequant-splash')).toBeNull()
     await waitFor(
       () => {
         expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
@@ -268,7 +267,7 @@ describe('HomeHub', () => {
     expect(mockRequestWeatherLocation).toHaveBeenCalledOnce()
   })
 
-  it('shows a zero-minimum readiness splash after a new season starts', async () => {
+  it('opens a later season menu without repeating launch artwork', async () => {
     const firstRender = renderHomeHub()
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
@@ -282,20 +281,18 @@ describe('HomeHub', () => {
 
     renderHomeHub()
 
-    expect(screen.getByTestId('kolequant-splash')).toHaveAttribute('data-duration', '0')
-    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    expect(screen.queryByTestId('kolequant-splash')).toBeNull()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
     })
   })
 
-  it('uses a zero-minimum readiness splash after quitting a run without saving', async () => {
+  it('opens the return menu without repeating launch artwork after quitting', async () => {
     sessionStorage.setItem('bb:homeHubSplashShownThisSession', 'true')
 
     renderHomeHub()
 
-    expect(screen.getByTestId('kolequant-splash')).toHaveAttribute('data-duration', '0')
-    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    expect(screen.queryByTestId('kolequant-splash')).toBeNull()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
     })
@@ -501,7 +498,6 @@ describe('HomeHub', () => {
 
     fireEvent.click(screen.getByTestId('kolequant-splash'))
 
-    expect(screen.getByTestId('kolequant-splash')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Play' })).toBeNull()
 
     await act(async () => {

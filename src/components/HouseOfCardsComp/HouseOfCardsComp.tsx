@@ -42,6 +42,9 @@ import {
   type HouseOfCardsRoundToolId,
 } from './houseOfCardsUtils'
 import './HouseOfCardsComp.css'
+import '../../styles/houseOfCardsInteractionFix.css'
+import '../../styles/houseOfCardsBrightTheme.css'
+import '../../styles/houseOfCardsBrightThemePriority.css'
 
 // A mismatch needs to remain readable after the flip animation has settled,
 // especially on slower phones. 760ms could be mostly consumed by rendering.

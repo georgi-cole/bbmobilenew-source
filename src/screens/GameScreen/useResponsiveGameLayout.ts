@@ -597,21 +597,27 @@ export function useResponsiveGameLayout<TStage extends HTMLElement>(
   ])
 
   useEffect(() => {
+    let frameId = 0
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(measure)
+    }
     measure()
-    window.addEventListener('resize', measure)
-    window.visualViewport?.addEventListener('resize', measure)
+    window.addEventListener('resize', scheduleMeasurement)
+    window.visualViewport?.addEventListener('resize', scheduleMeasurement)
     const observed = [stageRef.current, document.querySelector<HTMLElement>('.nav-bar')].filter(
       (el): el is HTMLElement => el instanceof HTMLElement
     )
     let resizeObserver: ResizeObserver | null = null
     if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(measure)
+      resizeObserver = new ResizeObserver(scheduleMeasurement)
       observed.forEach((el) => resizeObserver?.observe(el))
     }
 
     return () => {
-      window.removeEventListener('resize', measure)
-      window.visualViewport?.removeEventListener('resize', measure)
+      window.cancelAnimationFrame(frameId)
+      window.removeEventListener('resize', scheduleMeasurement)
+      window.visualViewport?.removeEventListener('resize', scheduleMeasurement)
       resizeObserver?.disconnect()
     }
   }, [measure, stageRef])
