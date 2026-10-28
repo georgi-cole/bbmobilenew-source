@@ -210,12 +210,12 @@ Optional rewarded opportunities remain available by choice. 75% of this purchase
 
 ## VIP upgrade pricing
 
-Nominal VIP price: 14.99. Standalone credit: 75%. Minimum upgrade price: 4.99. These are the upgrade resolver's nominal values; checkout uses localized native-store prices.
+Nominal VIP price: 19.99. Standalone credit: 75%. Minimum upgrade price: 4.99. These are the upgrade resolver's nominal values; checkout uses localized native-store prices.
 
 | Standalone product      | Nominal credit value |
 | ----------------------- | -------------------: |
 | Premium Challenges Pack |                 1.99 |
-| Surveyeval Mode         |                 3.99 |
+| Surveyeval Mode         |                 6.99 |
 | Public Mode             |                 2.99 |
 | Reality Mode            |                 4.99 |
 | Cupid's Arrow           |                 3.99 |
@@ -224,15 +224,15 @@ Nominal VIP price: 14.99. Standalone credit: 75%. Minimum upgrade price: 4.99. T
 
 | VIP upgrade tier | Product ID                                 |
 | ---------------: | ------------------------------------------ |
-|            13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
-|            12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
-|            11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
+|            18.49 | `com.georgicole.thebigeye.vip.upgrade1849` |
+|            16.99 | `com.georgicole.thebigeye.vip.upgrade1699` |
+|            15.49 | `com.georgicole.thebigeye.vip.upgrade1549` |
+|            13.99 | `com.georgicole.thebigeye.vip.upgrade1399` |
+|            12.49 | `com.georgicole.thebigeye.vip.upgrade1249` |
 |            10.99 | `com.georgicole.thebigeye.vip.upgrade1099` |
-|             9.99 | `com.georgicole.thebigeye.vip.upgrade999`  |
-|             8.99 | `com.georgicole.thebigeye.vip.upgrade899`  |
+|             9.49 | `com.georgicole.thebigeye.vip.upgrade949`  |
 |             7.99 | `com.georgicole.thebigeye.vip.upgrade799`  |
-|             6.99 | `com.georgicole.thebigeye.vip.upgrade699`  |
-|             5.99 | `com.georgicole.thebigeye.vip.upgrade599`  |
+|             6.49 | `com.georgicole.thebigeye.vip.upgrade649`  |
 |             4.99 | `com.georgicole.thebigeye.vip.upgrade499`  |
 
 ## Premium minigame versions

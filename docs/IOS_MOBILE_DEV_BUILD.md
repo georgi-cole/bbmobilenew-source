@@ -34,6 +34,29 @@ The Marketface screen labels this state as **VIP Dev Access** / **Developer acce
 
 The store environment validator rejects `VITE_BUILD_TARGET=mobile-dev` and `VITE_VIP_DEV_ENTITLEMENT=true`, so the development entitlement bypass cannot be used by the validated store-release workflow.
 
+## Test purchases and AdMob together
+
+Use the normal iOS build with `VITE_BUILD_TARGET=release`,
+`VITE_VIP_DEV_ENTITLEMENT=false`, and `VITE_ADMOB_MODE=test` in `.env.ios.local`.
+Run `npm run sync:ios`, then build and run from Xcode. In the game, open
+**Settings → Advertising privacy**, declare the actual adult player's age, and
+enable **Optional advertising**. Google demo ads can then appear at the existing
+automatic breaks or voluntary reward prompts.
+
+For actual purchase-flow testing, use an Apple Sandbox account with the
+development-signed app. Sandbox purchases use the App Store Connect product
+records without charging money; the app does not need to be published first.
+The Paid Applications Agreement and product metadata must be complete. A synced
+StoreKit configuration in Xcode is also available for local transaction testing.
+See [Apple's sandbox setup](https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox)
+and [StoreKit configuration setup](https://developer.apple.com/documentation/xcode/setting-up-storekit-testing-in-xcode).
+
+Test automatic ads before purchasing No Ads or VIP. After either purchase,
+automatic ads should stop while voluntary reward prompts remain available.
+Clear sandbox purchase history or local StoreKit transactions when testing a
+fresh buyer again. `open:ios:dev` is useful for checking all paid gameplay quickly;
+it deliberately bypasses billing and uses simulated rewards instead of SDK ads.
+
 ## Installed game display checks
 
 Both native platforms use the same display policy. Gameplay hides the status and

@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-29: Applied the accepted $6.99 Surveyeval and $19.99 VIP launch prices
+  to the upgrade resolver and documented the matching ten store product IDs
+  ($4.99 through $18.49). Standalone ownership still earns 75% nominal credit.
+  Checkout displays the localized price returned by Apple/Google. Product
+  contents and access remain unchanged; prices must also be set in the consoles.
+
 - 2026-10-29: Reviewed the native AdMob SDK connection, adult advertising opt-in,
   Google UMP privacy choices, and completed-ad reward handling. Existing automatic
   placements remain suppressed by No Ads/VIP; voluntary rewards stay optional.
