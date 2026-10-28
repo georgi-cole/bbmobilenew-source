@@ -1,7 +1,19 @@
-import { createRef } from 'react'
+import { createRef, type ReactElement, type ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render as renderComponent, screen } from '@testing-library/react'
+import { configureStore } from '@reduxjs/toolkit'
+import { Provider } from 'react-redux'
+import gameReducer from '../../../store/gameSlice'
 import GameControlDock from '../GameControlDock'
+
+function render(element: ReactElement) {
+  const store = configureStore({ reducer: { game: gameReducer } })
+  return renderComponent(element, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <Provider store={store}>{children}</Provider>
+    ),
+  })
+}
 
 describe('GameControlDock', () => {
   it('uses the clean glassy dock shell, play, and icon assets', () => {

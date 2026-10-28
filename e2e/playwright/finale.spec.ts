@@ -1,6 +1,7 @@
 import {
   closeDebugPanelIfOpen,
   dismissPermissionPromptIfPresent,
+  E2E_NEW_SEASON_FIXTURE,
   expect,
   readAppState,
   readDurableItem,
@@ -42,7 +43,7 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
   await page.addInitScript(
     ({ fixtureSentinelKey, profileId, profileName, profilesStorageKey, settingsStorageKey }) => {
       // Keep roster selection and all incidental non-game random calls stable.
-      // The game itself starts with its canonical deterministic seed (42).
+      // The season uses the shared deterministic E2E launch fixture.
       let randomState = 0x6d2b79f5
       Math.random = () => {
         randomState = (randomState + 0x6d2b79f5) >>> 0
@@ -88,6 +89,7 @@ async function installDeterministicFinaleFixture(page: Page): Promise<void> {
         })
       )
       localStorage.setItem(fixtureSentinelKey, 'installed')
+      localStorage.setItem(`bbmobilenew_season_tutorial_v1:${profileId}`, 'done')
     },
     {
       fixtureSentinelKey: FIXTURE_SENTINEL_KEY,
@@ -228,11 +230,23 @@ test.describe('Finale / Jury flow @release', () => {
     page,
   }) => {
     await installDeterministicFinaleFixture(page)
-    await page.goto('./#/game?debug=1')
+    await page.goto('./?debug=1', { waitUntil: 'domcontentloaded' })
+    await waitForHome(page)
+    await page
+      .getByRole('navigation', { name: 'Main menu' })
+      .getByRole('button', { name: 'Play', exact: true })
+      .click()
+    await page
+      .getByRole('navigation', { name: 'Play menu' })
+      .getByRole('button', { name: 'Classic', exact: true })
+      .click()
+    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
     await openDebugPanel(page)
 
     const initialState = await readAppState(page)
-    expect(initialState.game.seed).toBe(42)
+    expect(initialState.game.seed).toBe(E2E_NEW_SEASON_FIXTURE.seasonSeed)
     expect(initialState.profiles).toMatchObject({ activeProfileId: PROFILE_ID, isGuest: false })
     expect(initialState.profiles.profiles).toContainEqual(
       expect.objectContaining({ id: PROFILE_ID, name: PROFILE_NAME })

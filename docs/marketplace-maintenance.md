@@ -44,9 +44,16 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-27: Reviewed the shared native immersive display, screen-awake policy,
+  Game Mode eligibility, and orientation handling for all minigames, including
+  premium versions. These changes apply equally to eligible gameplay and do not
+  change product contents, access gates, prices, benefits, or purchase restoration.
+  The existing Premium Challenges and VIP listings remain accurate.
+
 - 2026-10-27: Added analytics for Store shelf and product selection, purchase
   start and result, and Eyeolean purchases. Reviewed the runtime catalog,
   entitlements, prices, and offer copy; this change does not alter any offers.
+
 - 2026-10-27: Added four more included profile looks (32-35) and wired them into
   the Changing room. These are free visual profile choices and do not add or
   alter purchasable items, entitlements, prices, or marketplace copy.

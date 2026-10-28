@@ -878,10 +878,10 @@ export default function FloatingActionBar({
       )
       const minimumGap = Number.isFinite(configuredGap) ? configuredGap : 8
       // On the game screen the nav is deliberately folded into the dock. Its
-      // hidden rectangle must not become the dock's lower boundary.
+      // hidden rectangle must not become the dock's lower boundary. Let CSS
+      // retain ownership of the measured safe inset as well as the dock gap.
       if (navRect.height <= 0) {
-        const bottom = `${Math.round(minimumGap)}px`
-        if (dock.style.bottom !== bottom) dock.style.bottom = bottom
+        if (dock.style.bottom) dock.style.removeProperty('bottom')
         return
       }
       const bottomOffset = resolveBalancedDockBottom({
@@ -918,6 +918,7 @@ export default function FloatingActionBar({
       window.removeEventListener('resize', scheduleBalance)
       window.visualViewport?.removeEventListener('resize', scheduleBalance)
       resizeObserver?.disconnect()
+      dock.style.removeProperty('bottom')
     }
   }, [])
 

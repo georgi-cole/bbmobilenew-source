@@ -11,6 +11,7 @@ import {
   type Page,
   writeDurableItem,
 } from './support/test'
+import { openProfileCreationForm } from './support/profile'
 
 const JOURNEY_TIMEOUT_MS = 90_000
 const SCREEN_TIMEOUT_MS = 30_000
@@ -35,18 +36,8 @@ async function waitForHome(page: Page): Promise<void> {
 }
 
 async function createProfileFromHome(page: Page, playerName: string): Promise<void> {
-  await page
-    .getByRole('navigation', { name: 'Main menu' })
-    .getByRole('button', { name: 'Profile', exact: true })
-    .click()
-
-  await page.getByRole('button', { name: 'Select Existing Profile', exact: true }).click()
-  await expect(page.getByRole('heading', { name: /Profiles/ })).toBeVisible()
-
-  await page.getByRole('button', { name: /Create New Profile/ }).click()
-  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
-  await page.getByRole('button', { name: 'Continue', exact: true }).click()
-  const nameField = page.getByPlaceholder('Your name in the house')
+  await openProfileCreationForm(page)
+  const nameField = page.getByLabel('Display Name')
   const fieldMetrics = await nameField.evaluate((element) => ({
     coarsePointer: window.matchMedia('(pointer: coarse)').matches,
     fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
@@ -54,11 +45,10 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
   if (fieldMetrics.coarsePointer) expect(fieldMetrics.fontSize).toBeGreaterThanOrEqual(16)
   await nameField.fill(playerName)
   await page.getByLabel('Age').fill('28')
-  await page.getByLabel('Location').fill('London')
+  await page.getByLabel('Location', { exact: false }).first().fill('QA Test City')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
 
-  // Reproduce the persistent-container failure: the long picker is scrolled
-  // when profile creation replaces it with the Profile screen.
+  // The creation form can be scrolled when saving replaces it with My profile.
   await page.locator('.app-shell__main').evaluate((element) => {
     element.scrollTop = element.scrollHeight
   })

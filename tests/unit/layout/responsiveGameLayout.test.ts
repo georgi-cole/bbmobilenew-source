@@ -29,6 +29,19 @@ function readCssPx(budget: ReturnType<typeof computeResponsiveGameLayout>, name:
 }
 
 describe('responsive game layout budget', () => {
+  it('reserves the integrated dock safe area exactly once in the roster budget', () => {
+    const withoutInset = computeResponsiveGameLayout(makeInput({ stageHeight: 600, safeBottom: 0 }))
+    const withInset = computeResponsiveGameLayout(makeInput({ stageHeight: 600, safeBottom: 34 }))
+
+    expect(withoutInset.rosterMode).toBe('scroll')
+    expect(withInset.rosterMode).toBe('scroll')
+    expect(
+      readCssPx(withoutInset, '--game-roster-max-height') -
+        readCssPx(withInset, '--game-roster-max-height')
+    ).toBe(34)
+    expect(withInset.avatarTileSize).toBe(withoutInset.avatarTileSize)
+  })
+
   it('uses the measured Android top inset without a device-wide fallback', () => {
     const budget = computeResponsiveGameLayout(
       makeInput({
@@ -65,8 +78,10 @@ describe('responsive game layout budget', () => {
       '--game-action-dock-scale': '1',
       '--game-nav-height': '0px',
       '--game-nav-item-label-display': 'none',
-      '--game-roster-board-height': '367px',
     })
+    expect(readCssPx(budget, '--game-roster-board-height')).toBeGreaterThan(
+      readCssPx(budget, '--game-roster-max-height')
+    )
     expect(readCssPx(budget, '--game-screen-tv-viewport-min-height')).toBeGreaterThanOrEqual(144)
     expect(budget.tvLogRows).toBeGreaterThanOrEqual(1)
   })
@@ -83,7 +98,7 @@ describe('responsive game layout budget', () => {
 
     expect(budget.tvLogRows).toBe(0)
     expect(budget.cssVars).toMatchObject({ '--game-tv-log-rows': '0' })
-    expect(budget.rosterMode).toBe('normal')
+    expect(budget.rosterMode).toBe('compact-small')
   })
 
   it('keeps the selected automatic density tier stable across viewport measurements', () => {
@@ -92,6 +107,7 @@ describe('responsive game layout budget', () => {
         viewportHeight: 852,
         stageHeight: 699,
         navHeight: 94,
+        unifiedActionRail: false,
         dockHeight: 70,
         playerCount: 16,
       })
@@ -101,6 +117,7 @@ describe('responsive game layout budget', () => {
         viewportHeight: 852,
         stageHeight: 713,
         navHeight: 80,
+        unifiedActionRail: false,
         dockHeight: 63,
         playerCount: 16,
       })
@@ -141,7 +158,7 @@ describe('responsive game layout budget', () => {
     expect(liveVoteBudget.cssVars).toMatchObject({
       '--game-avatar-tile-size': `${dayEndBudget.avatarTileSize}px`,
     })
-    expect(dayEndBudget.rosterMode).toBe('normal')
+    expect(dayEndBudget.rosterMode).toBe('compact-small')
     expect(liveVoteBudget.rosterMode).toBe('scroll')
     expect(liveVoteBudget.bottomControlsMode).toBe('compact')
   })
@@ -160,7 +177,7 @@ describe('responsive game layout budget', () => {
     expect(budget.bottomControlsMode).toBe('normal')
     expect(budget.rosterMode).toBe('normal')
     expect(budget.rosterHeaderMode).toBe('persistent')
-    expect(budget.tvLogRows).toBeGreaterThanOrEqual(3)
+    expect(budget.tvLogRows).toBe(2)
     expect(budget.cssVars).toMatchObject({
       '--game-nav-height': '0px',
       '--game-nav-item-label-display': 'block',
@@ -185,7 +202,7 @@ describe('responsive game layout budget', () => {
       '--game-safe-top': '24px',
     })
     expect(budget.bottomControlsMode).toBe('compact')
-    expect(budget.rosterMode).toBe('scroll')
+    expect(budget.rosterMode).toBe('compact-small')
     expect(budget.compactRoster).toBe(true)
     expect(readCssPx(budget, '--game-screen-tv-viewport-min-height')).toBeGreaterThanOrEqual(144)
     const dockGap = readCssPx(budget, '--game-action-dock-gap')
@@ -339,7 +356,7 @@ describe('responsive game layout budget', () => {
     const constrained = computeResponsiveGameLayout(
       makeInput({
         viewportHeight: 852,
-        stageHeight: 700,
+        stageHeight: 750,
         inlineLogVisible: false,
       })
     )

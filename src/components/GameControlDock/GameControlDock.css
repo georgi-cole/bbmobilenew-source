@@ -124,7 +124,7 @@
   left: 50%;
   bottom: calc(
     var(--game-action-dock-height, clamp(56px, 16vw, 76px)) + var(--game-action-dock-gap, 6px) +
-      12px
+      var(--game-safe-bottom, var(--safe-bottom, 0px)) + 12px
   );
   z-index: 115;
   width: min(88%, 420px);
