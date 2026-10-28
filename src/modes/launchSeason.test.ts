@@ -7,6 +7,7 @@ import {
 } from '../appearance/seasonContestant'
 import gameReducer, {
   createInitialGameState,
+  resetGame,
   hydrateGame,
   updateUserPlayerIdentity,
 } from '../store/gameSlice'
@@ -160,6 +161,37 @@ describe('season contestant ownership', () => {
     expect(
       gameReducer(restored, updateUserPlayerIdentity({ name: 'Override', avatar: '👤', age: 28 }))
     ).toBe(restored)
+  })
+
+  it('uses existing profile and Changing room edits on the next direct season launch only', () => {
+    const first = createInitialGameState()
+    const previous = structuredClone(first)
+    saveProfilesState({
+      profiles: [
+        {
+          id: 'owner',
+          name: 'Jordan',
+          avatar: '🧑',
+          createdAt: '2026-10-27',
+          bio: { age: '55', sex: 'Female', location: 'Sofia' },
+          appearanceSelection: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+        },
+      ],
+      activeProfileId: 'owner',
+      isGuest: false,
+    })
+    const next = gameReducer(first, resetGame([]))
+    expect(next.players.find((player) => player.isUser)).toMatchObject({
+      name: 'Jordan',
+      age: 55,
+      sex: 'Female',
+      appearance: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+    })
+    expect(next.seasonContestant?.bio.location).toBe('Sofia')
+    expect(first).toEqual(previous)
+    const resumed = gameReducer(next, hydrateGame(previous))
+    expect(resumed.seasonContestant).toEqual(previous.seasonContestant)
+    expect(resumed.players.find((player) => player.isUser)?.name).toBe('Player')
   })
 
   it('clears launch context after a failed launch', () => {

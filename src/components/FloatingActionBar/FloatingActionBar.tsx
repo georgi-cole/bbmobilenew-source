@@ -21,6 +21,7 @@ import {
   continueHubSays,
   continueWeekendFeature,
   submitHubSaysVote,
+  hydrateGame,
   continueSurvivorAfterAd,
   revealSurvivorReplacement,
   setHasSeenConfessionalSpotlight,
@@ -68,7 +69,11 @@ import {
   savedStateKeyForProfile,
   saveRunSnapshot,
 } from '../../store/saveStatePersistence'
-import { getSurvivorCurrentDay, isSurvivorRunTerminal } from '../../modes/survivorRun'
+import {
+  createSurvivorRun,
+  getSurvivorCurrentDay,
+  isSurvivorRunTerminal,
+} from '../../modes/survivorRun'
 import ConfirmExitModal from '../ConfirmExitModal/ConfirmExitModal'
 import AdPrompt from '../AdPrompt/AdPrompt'
 import GameControlDock from '../GameControlDock/GameControlDock'
@@ -746,8 +751,13 @@ export default function FloatingActionBar({
   }, [game.publicModeEnabled, navigate, onPublicMeterBlocked, publicRequestCount])
 
   const handleStartNewSurvivor = useCallback(() => {
-    navigate('/new-season?mode=survival')
-  }, [navigate])
+    if (!isGuest && activeProfileId) {
+      clearSavedRun(activeProfileId, 'survival')
+    }
+    dispatch({ type: 'challenge/setPendingChallenge', payload: null })
+    dispatch(hydrateGame(createSurvivorRun()))
+    navigate('/game', { replace: true })
+  }, [activeProfileId, dispatch, isGuest, navigate])
 
   const handleReturnHome = useCallback(() => {
     if (weekend?.debug) {

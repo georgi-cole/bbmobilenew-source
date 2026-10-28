@@ -51,8 +51,6 @@ async function startClassicSeason(page: Page): Promise<void> {
   const playMenu = page.getByRole('navigation', { name: 'Play menu' })
   await expect(playMenu).toBeVisible()
   await playMenu.getByRole('button', { name: 'Classic', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
-  await page.getByRole('button', { name: 'Start Season', exact: true }).click()
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({
     timeout: SCREEN_TIMEOUT_MS,
   })

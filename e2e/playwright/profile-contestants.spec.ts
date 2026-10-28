@@ -18,9 +18,10 @@ test('a season retains its chosen contestant after player edits and reload @core
           profiles: [
             {
               id: 'contestant-owner',
-              name: 'Player George',
+              name: 'Maya',
+              appearanceSelection: { kind: 'catalog', lookId: 'pc-002', revision: 1 },
               avatar: '🧑',
-              bio: { age: '35', sex: 'Male' },
+              bio: { age: '41', sex: 'Female', location: 'Sofia' },
               createdAt: '2026-10-27',
               eyeoleans: 900,
             },
@@ -44,19 +45,6 @@ test('a season retains its chosen contestant after player edits and reload @core
     .getByRole('navigation', { name: 'Play menu' })
     .getByRole('button', { name: 'Classic', exact: true })
     .click()
-  await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
-  await expect(page.getByLabel('Contestant name')).toBeHidden()
-  await page.getByText('Change contestant (optional)', { exact: true }).click()
-  await page.getByLabel('Contestant name').fill('Maya')
-  await page.getByLabel('Contestant age').fill('41')
-  await page.getByLabel('Contestant sex').selectOption('Female')
-  await page.getByLabel('Hometown').fill('Sofia')
-  await page.getByRole('radio', { name: 'Look 2', exact: true }).check()
-  await page.screenshot({
-    path: 'artifacts/profile-performance/contestant-setup-mobile.png',
-    fullPage: true,
-  })
-  await page.getByRole('button', { name: 'Start Season', exact: true }).click()
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible({
     timeout: 30000,
   })
@@ -68,9 +56,9 @@ test('a season retains its chosen contestant after player edits and reload @core
     sex: 'Female',
   })
   expect(started.profiles.profiles[0]).toMatchObject({
-    name: 'Player George',
+    name: 'Maya',
     eyeoleans: 900,
-    bio: { age: '35', sex: 'Male' },
+    bio: { age: '41', sex: 'Female', location: 'Sofia' },
   })
   await page
     .getByRole('navigation', { name: 'Main navigation' })
@@ -81,13 +69,24 @@ test('a season retains its chosen contestant after player edits and reload @core
     .getByRole('button', { name: 'Save & Home' })
     .click()
   await expect(page.getByRole('navigation', { name: 'Main menu' })).toBeVisible({ timeout: 60000 })
+  // Existing links recover to the designed Play menu, never the removed form.
   await page.goto('./#/new-season?mode=classic', { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('Maya', { exact: true })).toBeVisible()
-  await expect(page.getByLabel('Contestant name')).toBeHidden()
-  await expect(page.getByRole('button', { name: 'Start Season', exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Play menu' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toHaveCount(0)
   await page.goto('./#/profile-edit', { waitUntil: 'domcontentloaded' })
   await page.getByLabel('Age', { exact: true }).fill('55')
+  await page.getByLabel('Display Name', { exact: true }).fill('Jordan')
+  await page.getByLabel('Sex (Reality storylines)', { exact: true }).selectOption('Male')
   await page.getByRole('button', { name: 'Save Profile', exact: true }).click()
+  await page.goto('./#/profile/dressing-room', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Next look', exact: true }).click()
+  await page.getByRole('button', { name: 'Use this look', exact: true }).click()
+  const reveal = page.getByRole('dialog', { name: 'Jordan', exact: true })
+  await expect(reveal).toBeVisible()
+  const skip = reveal.getByRole('button', { name: 'Skip reveal', exact: true })
+  if (await skip.isVisible()) await skip.click()
+  await reveal.getByRole('button', { name: 'Continue', exact: true }).click()
+
   await page.goto('./', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('navigation', { name: 'Main menu' })).toBeVisible({ timeout: 60000 })
   await closeDebugPanelIfOpen(page)
@@ -107,11 +106,23 @@ test('a season retains its chosen contestant after player edits and reload @core
     sex: 'Female',
   })
   expect(resumed.game.seasonContestant).toMatchObject({
-    presetId: 'pc-002',
-    presetRevision: 1,
+    appearanceSelection: { kind: 'catalog', lookId: 'pc-002', revision: 1 },
     bio: { age: '41', location: 'Sofia' },
   })
-  expect(resumed.profiles.profiles[0].bio?.age).toBe('55')
+  expect(resumed.profiles.profiles[0]).toMatchObject({
+    name: 'Jordan',
+    bio: { age: '55', sex: 'Male' },
+    appearanceSelection: { kind: 'catalog', lookId: 'pc-003', revision: 1 },
+  })
+  expect(resumed.game.players.find((player) => player.isUser)?.appearance).toEqual({
+    kind: 'catalog',
+    lookId: 'pc-002',
+    revision: 1,
+  })
+  await page.screenshot({
+    path: 'artifacts/profile-performance/direct-season-mobile.png',
+    fullPage: true,
+  })
 })
 
 test('legacy five-profile installs remain usable while new creation is capped at three @mobile', async ({

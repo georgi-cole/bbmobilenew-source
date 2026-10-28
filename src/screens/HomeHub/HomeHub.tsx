@@ -1,24 +1,40 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate, type NavigateFunction } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
-import { hydrateGame } from '../../store/gameSlice'
+import {
+  resetGame,
+  hydrateGame,
+  activateCupidArrowNow,
+  activateVoxPopuliNow,
+  setCupidArrowSchedule,
+  setVoxPopuliSchedule,
+  setSeasonExpansion,
+} from '../../store/gameSlice'
+import { loadSeasonArchives } from '../../store/archivePersistence'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
 import {
+  archiveKeyForProfile,
   selectActiveProfileId,
   selectCurrentProfile,
   selectIsGuest,
 } from '../../store/profilesSlice'
-import { loadSavedRunProfile, type SavedSeasonSnapshot } from '../../store/saveStatePersistence'
-import { isSurvivorRunTerminal } from '../../modes/survivorRun'
+import {
+  clearSavedRun,
+  loadSavedRunProfile,
+  type SavedSeasonSnapshot,
+} from '../../store/saveStatePersistence'
+import { createSurvivorRun, isSurvivorRunTerminal } from '../../modes/survivorRun'
 import {
   canOfferSurpriseMe,
   getActiveFiniteSeason,
   getEligibleSeasonRulesets,
   getPlayableLastRun,
   pickSurpriseRuleset,
+  rulesetExpansion,
   rulesetLabel,
   type SeasonRuleset,
 } from '../../modes/seasonRulesets'
@@ -32,7 +48,10 @@ import SurvivorRulesModal from '../../components/ConfirmExitModal/SurvivorRulesM
 import { SoundManager } from '../../services/sound/SoundManager'
 import { beginGameplayAudioExit } from '../../services/sound/audioRouteOwnership'
 import { trackProductEvent } from '../../services/liveOps/productTelemetry'
-import { getAnalyticsGameMode } from '../../services/backend/analyticsGameMode'
+import {
+  getAnalyticsGameMode,
+  getAnalyticsGameModeForRuleset,
+} from '../../services/backend/analyticsGameMode'
 import { startCreditsSoundtrackFromGesture } from '../../cinematic/audio/creditsSoundtrack'
 import GameButton, { type GameButtonVariant } from '../../components/GameButton/GameButton'
 import HousematesBioCinematic from '../../components/HousematesBioCinematic/HousematesBioCinematic'
@@ -361,7 +380,7 @@ export default function HomeHub() {
   })
   const splashDone = splashExitRequested && hubAssetState.ready
   const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
-  const preloading = autoStartGame
+  const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
   const [housematesBioOpen, setHousematesBioOpen] = useState(false)
@@ -568,7 +587,34 @@ export default function HomeHub() {
       return
     }
 
-    navigate(`/new-season?mode=${ruleset}`)
+    beginGameplayAudioExit()
+    // resetGame creates the new run ID. Keep reset + ruleset selection inside a
+    // single autosave-suspended operation so an expansion never briefly saves a
+    // second Classic slot before expansionMode is applied. The transient launch
+    // intent also lets reset-time schedulers distinguish Classic from Vox/Cupid.
+    withRunAutosaveSuspended(() => {
+      withSeasonLaunchIntent(ruleset, () => {
+        if (!isGuest && activeProfileId) {
+          const archives = loadSeasonArchives(archiveKeyForProfile(activeProfileId)) ?? []
+          dispatch(resetGame(archives))
+        } else {
+          dispatch(resetGame(undefined))
+        }
+
+        const expansion = rulesetExpansion(ruleset)
+        dispatch(setSeasonExpansion(expansion))
+        if (expansion === 'cupidArrow') {
+          dispatch(setVoxPopuliSchedule(null))
+          dispatch(activateCupidArrowNow())
+        } else if (expansion === 'voxPopuli') {
+          dispatch(setCupidArrowSchedule(null))
+          dispatch(activateVoxPopuliNow())
+        }
+      })
+    })
+
+    setPlaySelectionOpen(false)
+    setPreloading(true)
   }
 
   function openExpansion(expansion: ExpansionSelection, unlocked: boolean) {
@@ -597,9 +643,24 @@ export default function HomeHub() {
   }
 
   function startSurvivorRun() {
+    beginGameplayAudioExit()
+    const analyticsProfileId = !isGuest ? (activeProfileId ?? undefined) : undefined
+    const selectedGameMode = getAnalyticsGameModeForRuleset('survival')
+    if (analyticsProfileId)
+      trackProductEvent('game_mode_selected', selectedGameMode, analyticsProfileId)
+    if (!isGuest && activeProfileId) {
+      clearSavedRun(activeProfileId, 'survival')
+    }
     setSurvivorPrompt(null)
     setPlaySelectionOpen(false)
-    navigate('/new-season?mode=survival')
+    dispatch(hydrateGame(createSurvivorRun()))
+    if (analyticsProfileId)
+      trackProductEvent(
+        'season_started',
+        { ...selectedGameMode, week: 0, day: 0, phase: 'survival' },
+        analyticsProfileId
+      )
+    setPreloading(true)
   }
 
   function requestSurvivorRunStart() {

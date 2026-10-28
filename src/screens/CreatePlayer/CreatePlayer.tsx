@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppDispatch } from '../../store/hooks'
+import { resetGame } from '../../store/gameSlice'
 import { setUserProfile } from '../../store/userProfileSlice'
 import './CreatePlayer.css'
 
@@ -15,7 +16,8 @@ export default function CreatePlayer() {
   function handleCreate(e: FormEvent) {
     e.preventDefault()
     dispatch(setUserProfile({ name: name.trim() || 'You', avatar }))
-    navigate('/new-season?mode=classic')
+    dispatch(resetGame())
+    navigate('/game')
   }
 
   return (

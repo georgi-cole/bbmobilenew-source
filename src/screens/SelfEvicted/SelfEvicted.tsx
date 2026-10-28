@@ -54,7 +54,7 @@ export default function SelfEvicted() {
 
   function startNewSeason() {
     clearSelfEvictedRun()
-    navigate('/new-season?mode=classic')
+    resetRuntimeAndReturnHome()
   }
 
   function exitToHome() {

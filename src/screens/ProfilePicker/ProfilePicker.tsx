@@ -420,10 +420,7 @@ export default function ProfilePicker() {
         />
       </div>
       <h1 className="profile-picker__title">👤 Profiles</h1>
-      <p className="profile-picker__subtitle">
-        Separate progress for another player or a fresh career. Contestant changes are optional each
-        new season.
-      </p>
+      <p className="profile-picker__subtitle">Select a profile to play as</p>
 
       {profiles.length > 0 && (
         <div className="profile-picker__list">

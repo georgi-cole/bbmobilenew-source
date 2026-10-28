@@ -74,3 +74,5 @@ store listings or change configured prices.
   checks.
 
 - 2026-10-28: Reviewed optional per-season contestant selection and three-profile creation cap across Classic, Cupid, Vox Populi, and SurveyEval. Existing access gates and wallet ownership remain. Deferred public-favorite UI and relocated House of Cards styles preserve rewards, callbacks, and style order. Current character catalog and analytics retained. Products, prices, premium variants, and offer copy are unchanged.
+
+- 2026-10-28: Removed the unrequested contestant-setup page and restored the existing direct Classic, Cupid, Vox Populi, and SurveyEval launch controls. Reviewed existing launch gates, mode initialization, save ownership, and launch analytics; products, prices, entitlements, and gameplay offers are unchanged.

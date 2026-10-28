@@ -558,6 +558,18 @@ describe('HomeHub', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true })
   })
 
+  it('starts Classic directly from Play without a separate contestant setup page', async () => {
+    renderHomeHub()
+    fireEvent.click(screen.getByTestId('kolequant-splash'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Classic' }))
+    expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'game/resetGame' }))
+    expect(screen.getByTestId('asset-preloader-overlay')).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalledWith('/new-season?mode=classic')
+    expect(screen.queryByRole('heading', { name: 'Choose your contestant' })).toBeNull()
+  })
+
   it('keeps the debug launcher out of the player-facing Play menu', async () => {
     renderHomeHub()
     fireEvent.click(screen.getByTestId('kolequant-splash'))

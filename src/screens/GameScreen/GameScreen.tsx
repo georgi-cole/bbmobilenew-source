@@ -1,4 +1,6 @@
 import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
@@ -23,6 +25,7 @@ import {
   submitCoLohNomination,
   submitHumanVote,
   resolvePendingVoxAudienceVote,
+  resetGame,
   revealVoxTemporaryAudienceVote,
   submitVoxFinalThreeAppeal,
   startVoxFinalVote,
@@ -541,8 +544,13 @@ export default function GameScreen() {
     clearEliminatedRun()
     const continueVoxPopuli =
       game.voxPopuli?.status === 'active' || game.expansionMode === 'voxPopuli'
+    if (continueVoxPopuli) {
+      startNewVoxPopuliSeason(dispatch)
+    } else {
+      withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
+    }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
-    navigate(`/new-season?mode=${continueVoxPopuli ? 'voxPopuli' : 'classic'}`, { replace: true })
+    navigate('/', { replace: true, state: { autoStartGame: true } })
   }, [clearEliminatedRun, dispatch, game.expansionMode, game.voxPopuli?.status, navigate])
   const handlePreJuryReturnHome = useCallback(() => {
     clearEliminatedRun()

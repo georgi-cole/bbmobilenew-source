@@ -21,6 +21,20 @@ journeys. The production dependency audit found zero vulnerabilities. Live and
 saved photo retention is covered by a focused profile-edit regression. The Git
 hook installer also handles worktree metadata while keeping pre-push checks active.
 
+## Direct season-start correction
+
+The unrequested contestant-setup page was removed. The existing Play menu starts
+Classic and expansions directly again, and existing end-of-season controls retain
+their previous behavior. Profile and Changing room edits supply future-season
+defaults; the active and saved season retains its original identity and appearance.
+The three-profile cap and loading improvements remain. Legacy setup links return
+to the existing Play menu.
+
+The correction passed 65 focused tests and five compact-mobile journeys, including
+profile/name/age/sex/look edits followed by resume of the unchanged original season.
+The required gate covers 164 core lifecycle tests after removing the setup-form
+suite. The production dependency audit found zero vulnerabilities.
+
 ## Controlled loading comparison
 
 Seven observations per build, three populated profiles, 20 archives per profile.
@@ -72,9 +86,12 @@ profile work also removed a duplicate IndexedDB scan and eager public-image glob
 
 - New profile creation is capped at three. Existing fourth/fifth profiles and their
   saves remain available; new creation requires being below the cap.
-- Character changes are optional for each new season. Start Season reuses the
-  remembered contestant without opening the editing form. Successful launches
-  remember the selection; explicit profile edits update future-season defaults.
+- Season launch uses the existing Play flow directly. Character and background edits
+  stay in the existing profile and Changing room screens and apply to future seasons.
+  The separate contestant-setup page introduced by the first implementation was
+  removed because it was not part of the approved design. Old links to it return to
+  the existing Play menu. Remembered choices from that brief implementation remain
+  readable for compatibility; explicit profile edits replace those defaults.
 - Each saved season retains its own contestant, including gameplay-related age,
   sex, hometown, profession, backstory, and story roles. Editing defaults cannot
   rewrite an active save. Legacy saves derive their contestant from the saved
