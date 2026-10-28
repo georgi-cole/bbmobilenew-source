@@ -53,12 +53,9 @@ import HouseguestInfoDialog from '../../components/HouseguestGrid/HouseguestInfo
 import TvDecisionModal from '../../components/TvDecisionModal/TvDecisionModal'
 import TvMultiSelectModal from '../../components/TvDecisionModal/TvMultiSelectModal'
 import TvBinaryDecisionModal from '../../components/TvBinaryDecisionModal/TvBinaryDecisionModal'
-import QuickTapRace from '../../components/QuickTapRace/QuickTapRace'
-import PressurePlank from '../../components/PressurePlank/PressurePlank'
 import { rankPressurePlankResults } from '../../components/PressurePlank/pressurePlankLogic'
-import BullseyeBlitz from '../../components/BullseyeBlitz/BullseyeBlitz'
-import TravelingDots from '../../components/TravelingDots/TravelingDots'
 import MinigameHost from '../../components/MinigameHost/MinigameHost'
+import MinigameLoadingBoundary from '../../components/MinigameHost/MinigameLoadingBoundary'
 import type { HostPhase, MinigameParticipant } from '../../components/MinigameHost/MinigameHost'
 import type { MusicMinigameVariant } from '../../services/sound/musicConfig'
 import { computeScores } from '../../minigames/scoring'
@@ -81,7 +78,6 @@ import SurvivorAchievementCelebration from '../../components/SurvivorAchievement
 import { FEATURE_SOCIAL_V2, FEATURE_SPECTATOR_REACT } from '../../config/featureFlags'
 import SocialSummaryPopup from '../../components/SocialSummary/SocialSummaryPopup'
 import SpectatorView from '../../components/ui/SpectatorView'
-import Capitalization from '../../components/Capitalization/Capitalization'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import Final3Ceremony from '../../components/Final3Ceremony/Final3Ceremony'
 import FinalThreeBlockReveal from '../../components/FinalPowerBattle/FinalThreeBlockReveal'
@@ -92,6 +88,22 @@ import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
 import { getImmediateAutoNomineeId } from './autoNomineeBadge'
+const QuickTapRace = lazyWithChunkRecovery(
+  () => import('../../components/QuickTapRace/QuickTapRace')
+)
+const PressurePlank = lazyWithChunkRecovery(
+  () => import('../../components/PressurePlank/PressurePlank')
+)
+const BullseyeBlitz = lazyWithChunkRecovery(
+  () => import('../../components/BullseyeBlitz/BullseyeBlitz')
+)
+const TravelingDots = lazyWithChunkRecovery(
+  () => import('../../components/TravelingDots/TravelingDots')
+)
+const Capitalization = lazyWithChunkRecovery(
+  () => import('../../components/Capitalization/Capitalization')
+)
+
 const PublicFavoriteOverlay = lazyWithChunkRecovery(
   () => import('../../components/PublicFavoriteOverlay/PublicFavoriteOverlay')
 )
@@ -2124,20 +2136,28 @@ export default function GameScreen() {
 
         {/* ── Native LOH/POS minigame overlays (routed by session key) ────────── */}
         {showQuickTapRace && pendingMinigame && (
-          <QuickTapRace session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Quick Tap Race">
+            <QuickTapRace session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
         {showPressurePlank && pendingMinigame && (
-          <PressurePlank session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Pressure Plank">
+            <PressurePlank session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── BullseyeBlitz minigame overlay ───────────────────────────────── */}
         {showBullseyeBlitz && pendingMinigame && (
-          <BullseyeBlitz session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Bullseye Blitz">
+            <BullseyeBlitz session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── TravelingDots minigame overlay ───────────────────────────────── */}
         {showTravelingDots && pendingMinigame && (
-          <TravelingDots session={pendingMinigame} players={game.players} />
+          <MinigameLoadingBoundary title="Traveling Dots">
+            <TravelingDots session={pendingMinigame} players={game.players} />
+          </MinigameLoadingBoundary>
         )}
 
         {/* ── Winner tile lift — LOH / POS result without coordinate-space cutouts ── */}
@@ -2417,16 +2437,18 @@ export default function GameScreen() {
             className="game-screen__battle-back-minigame"
             aria-label="Back 2 the Game competition"
           >
-            <Capitalization
-              key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
-              context="battleBack"
-              participantIds={battleBackCandidateIds}
-              participants={battleBackCapitalizationParticipants}
-              seed={battleBackAttemptSeed}
-              onFinish={(_value, _tiebreakerMs, completion) => {
-                handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
-              }}
-            />
+            <MinigameLoadingBoundary title="Capitalization">
+              <Capitalization
+                key={`${battleBackCandidateIds.join('-')}-bb-cap-${battleBackAttemptIndex}`}
+                context="battleBack"
+                participantIds={battleBackCandidateIds}
+                participants={battleBackCapitalizationParticipants}
+                seed={battleBackAttemptSeed}
+                onFinish={(_value, _tiebreakerMs, completion) => {
+                  handleBattleBackComplete(completion?.authoritativeWinnerId ?? null)
+                }}
+              />
+            </MinigameLoadingBoundary>
           </div>
         )}
         {showBattleBackOverlay && !useBattleBackMinigame && (

@@ -112,17 +112,20 @@ describe.each([
     }
   )
 
-  it.each(['race', 'seasons'])('uses the same access for the direct Quick Tap %s entry', (mode) => {
-    store.dispatch(initializeVip.fulfilled(snapshot(vip, pack), 'test', undefined))
-    render(
-      <Provider store={store}>
-        {mode === 'race' ? <QuickTapRace /> : <QuickTapSeasonsEntry />}
-      </Provider>
-    )
-    expect(
-      screen.getByText(expected ? 'Premium Quick Tap' : 'Classic Quick Tap')
-    ).toBeInTheDocument()
-  })
+  it.each(['race', 'seasons'])(
+    'uses the same access for the direct Quick Tap %s entry',
+    async (mode) => {
+      store.dispatch(initializeVip.fulfilled(snapshot(vip, pack), 'test', undefined))
+      render(
+        <Provider store={store}>
+          {mode === 'race' ? <QuickTapRace /> : <QuickTapSeasonsEntry />}
+        </Provider>
+      )
+      expect(
+        await screen.findByText(expected ? 'Premium Quick Tap' : 'Classic Quick Tap')
+      ).toBeInTheDocument()
+    }
+  )
 
   it.each(['quickTap', 'quickTapSeasons'])(
     'uses matching premium AI rules when scheduling %s',

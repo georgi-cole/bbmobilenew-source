@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import CastleRescueGame from '../CastleRescueGame'
 import {
@@ -58,5 +58,32 @@ describe('Find Your Twin production editions', () => {
       )
     }
     expect(onFinish).toHaveBeenCalledExactlyOnceWith(1234)
+  })
+
+  it('keeps the loading presentation until the embedded game confirms it is ready', () => {
+    const { container } = render(<RemasteredCastleRescueGame autoStart={false} />)
+    const frame = container.querySelector('iframe')!
+    expect(frame.style.visibility).toBe('hidden')
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'twin:ready' },
+          origin: location.origin,
+          source: window,
+        })
+      )
+    })
+    expect(frame.style.visibility).toBe('hidden')
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'twin:ready' },
+          origin: location.origin,
+          source: frame.contentWindow,
+        })
+      )
+    })
+    expect(frame.style.visibility).toBe('visible')
+    expect(container.firstElementChild).toHaveAttribute('aria-busy', 'false')
   })
 })

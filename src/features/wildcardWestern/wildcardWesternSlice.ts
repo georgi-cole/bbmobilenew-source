@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { wildcardWesternInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * wildcardWesternSlice.ts – Redux slice for Wildcard Western elimination game.
  */
@@ -87,50 +89,7 @@ export interface WildcardWesternState {
   outcomeResolved: boolean;
 }
 
-const initialState: WildcardWesternState = {
-  phase: 'idle',
-  stage: 'league',
-  prizeType: 'LOH',
-  seed: 0,
-  duelNumber: 0,
 
-  participantIds: [],
-  aliveIds: [],
-  eliminatedIds: [],
-  humanPlayerId: null,
-  playerScores: {},
-  leagueScores: {},
-  leagueRankings: [],
-  leagueOpponentIds: [],
-  leagueOpponentIndex: 0,
-  finalistIds: null,
-
-  cardsByPlayerId: {},
-
-  currentPair: null,
-  duelResolved: false,
-
-  currentQuestionId: null,
-  questionOrder: [],
-  questionCursor: 0,
-
-  buzzedBy: null,
-  buzzWindowUntil: 0,
-  answerWindowUntil: 0,
-
-  selectedAnswerIndex: null,
-
-  controllerId: null,
-  eliminationChooserId: null,
-
-  lastDuelOutcome: null,
-  lastEliminatedId: null,
-  lastDuelWinnerId: null,
-  lastDuelLoserId: null,
-
-  winnerId: null,
-  outcomeResolved: false,
-};
 
 function hashWildcardId(value: string): number {
   let hash = 2166136261;
@@ -506,4 +465,4 @@ export const {
   resetWildcardWestern,
 } = wildcardWesternSlice.actions;
 
-export default wildcardWesternSlice.reducer;
+export default registerMinigameReducer('wildcardWestern', wildcardWesternSlice.reducer)

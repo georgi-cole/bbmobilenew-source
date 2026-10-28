@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { holdTheWallInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Hold the Wall" endurance competition.
  *
@@ -68,19 +70,7 @@ export interface HoldTheWallState {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: HoldTheWallState = {
-  status: 'idle',
-  prizeType: 'LOH',
-  seed: 0,
-  humanId: null,
-  participantIds: [],
-  aiDropSchedule: {},
-  droppedIds: [],
-  winnerId: null,
-  finalTwoDeal: null,
-  dealOpportunityResolved: false,
-  outcomeResolved: false,
-};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -263,4 +253,4 @@ export const {
   resetHoldTheWall,
 } = holdTheWallSlice.actions;
 
-export default holdTheWallSlice.reducer;
+export default registerMinigameReducer('holdTheWall', holdTheWallSlice.reducer)

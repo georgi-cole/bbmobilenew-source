@@ -19,7 +19,27 @@
     ? 'FIND YOUR TWIN 2'
     : 'FIND YOUR TWIN'
   document.querySelector('canvas').dataset.gameEdition = 'remastered'
-  if (new URLSearchParams(location.search).get('autostart') === '1') {
-    window.addEventListener('load', () => document.querySelector('#start').click(), { once: true })
+  const prepare = async () => {
+    const images = [
+      `./assets/${sequel ? 'lost-again-castle' : 'moonlit-park-v2'}.webp`,
+      '../shared/benny-approved-alpha.webp',
+    ].map((source) => {
+      const image = new Image()
+      image.src = source
+      return image
+    })
+    await Promise.allSettled(images.map((image) => image.decode?.()))
+    parent.postMessage({ type: 'twin:ready' }, location.origin)
+    if (new URLSearchParams(location.search).get('autostart') === '1')
+      document.querySelector('#start').click()
   }
+  if (document.readyState === 'complete') void prepare()
+  else
+    window.addEventListener(
+      'load',
+      () => {
+        void prepare()
+      },
+      { once: true }
+    )
 })()

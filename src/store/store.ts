@@ -1,4 +1,5 @@
 import { missionPowerMiddleware } from './missionPowerMiddleware'
+import { hostedMinigameReducers } from '../minigames/sessionReducers'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, {
   getNominationTargetScore,
@@ -56,20 +57,6 @@ import {
 } from './saveStatePersistence'
 import { createRunSnapshotAutosaveController } from './runSnapshotAutosave'
 import { isRunAutosaveSuspended } from './runAutosaveGate'
-import cwgoReducer from '../features/cwgo/cwgoCompetitionSlice'
-import holdTheWallReducer from '../features/holdTheWall/holdTheWallSlice'
-import biographyBlitzReducer from '../features/biographyBlitz/biography_blitz_logic'
-import famousFiguresReducer from '../features/famousFigures/famousFiguresSlice'
-import silentSaboteurReducer from '../features/silentSaboteur/silentSaboteurSlice'
-import majorityRulesReducer from '../features/majorityRules/majorityRulesSlice'
-import glassBridgeReducer from '../features/glassBridge/glassBridgeSlice'
-import blackjackTournamentReducer from '../features/blackjackTournament/blackjackTournamentSlice'
-import riskWheelReducer from '../features/riskWheel/riskWheelSlice'
-import wildcardWesternReducer from '../features/wildcardWestern/wildcardWesternSlice'
-import tetrisReducer from '../features/tetris/tetrisSlice'
-import tiltLabyrinthReducer from '../features/tiltLabyrinth/tiltLabyrinthSlice'
-import houseOfCardsReducer from '../features/houseOfCards/houseOfCardsSlice'
-import memoryColorsReducer from '../features/memoryColors/memoryColorsSlice'
 import { syncRuntimeAudioSettings } from '../services/sound/audioSettingsSync'
 import publicOpinionReducer from '../publicOpinion/publicOpinionSlice'
 import { publicOpinionMiddleware } from '../publicOpinion/publicOpinionMiddleware'
@@ -117,6 +104,7 @@ const DEV_INVARIANT_IGNORED_PATHS = [
 
 export const store = configureStore({
   reducer: {
+    ...hostedMinigameReducers,
     game: strategicGameReducer,
     finale: finaleReducer,
     challenge: challengeReducer,
@@ -125,20 +113,6 @@ export const store = configureStore({
     profiles: profilesReducer,
     social: socialReducer,
     ui: uiReducer,
-    cwgo: cwgoReducer,
-    holdTheWall: holdTheWallReducer,
-    biographyBlitz: biographyBlitzReducer,
-    famousFigures: famousFiguresReducer,
-    silentSaboteur: silentSaboteurReducer,
-    majorityRules: majorityRulesReducer,
-    glassBridge: glassBridgeReducer,
-    blackjackTournament: blackjackTournamentReducer,
-    riskWheel: riskWheelReducer,
-    wildcardWestern: wildcardWesternReducer,
-    tetris: tetrisReducer,
-    tiltLabyrinth: tiltLabyrinthReducer,
-    houseOfCards: houseOfCardsReducer,
-    memoryColors: memoryColorsReducer,
     publicOpinion: publicOpinionReducer,
     ads: adsReducer,
     remoteConfig: remoteConfigReducer,

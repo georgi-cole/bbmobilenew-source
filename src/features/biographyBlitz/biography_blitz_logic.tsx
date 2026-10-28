@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { biographyBlitzInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Biography Blitz" last-player-standing competition.
  *
@@ -111,42 +113,7 @@ const DEBUG = import.meta.env?.DEV ?? true;
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: BiographyBlitzState = {
-  competitionType: 'LOH',
-  phase: 'idle',
-  round: 0,
 
-  contestantIds: [],
-  activeContestantIds: [],
-  eliminatedContestantIds: [],
-
-  humanContestantId: null,
-
-  currentQuestion: null,
-  currentQuestionId: null,
-  correctAnswerId: null,
-
-  questionPool: [],
-  usedQuestionIds: [],
-
-  submissions: {},
-
-  roundWinnerId: null,
-  eliminationTargetId: null,
-  competitionWinnerId: null,
-
-  questionStartedAt: null,
-  hiddenDeadlineAt: null,
-
-  consecutiveRoundWins: {},
-  hotStreakContestantId: null,
-
-  isSpectating: false,
-
-  outcomeResolved: false,
-  seed: 0,
-  testMode: false,
-};
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -739,6 +706,7 @@ export const {
   resetBiographyBlitz,
 } = biographyBlitzSlice.actions;
 
+registerMinigameReducer('biographyBlitz', biographyBlitzSlice.reducer)
 export default biographyBlitzSlice.reducer;
 
 // ─── HOUSEGUESTS name lookup helper (used by UI) ──────────────────────────────

@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { houseOfCardsInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "House of Cards" memory-match competition.
  *
@@ -92,18 +94,7 @@ export interface HouseOfCardsState {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: HouseOfCardsState = {
-  status: 'idle',
-  prizeType: 'LOH',
-  seed: 0,
-  participantIds: [],
-  aiOutcomes: {},
-  humanOutcome: null,
-  standings: [],
-  winnerId: null,
-  lastPlaceId: null,
-  outcomeResolved: false,
-};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -347,4 +338,4 @@ export const {
   resetHouseOfCards,
 } = houseOfCardsSlice.actions;
 
-export default houseOfCardsSlice.reducer;
+export default registerMinigameReducer('houseOfCards', houseOfCardsSlice.reducer)

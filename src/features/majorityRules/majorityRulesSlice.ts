@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { majorityRulesInitialState as initialState } from '../../minigames/sessionInitialStates'
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import {
@@ -73,40 +75,6 @@ export interface MajorityRulesState {
   roomReaderStreak: number
   bestRoomReaderStreak: number
   lastRoomReadCorrect: boolean | null
-}
-
-const initialState: MajorityRulesState = {
-  phase: 'idle',
-  competitionType: 'LOH',
-  seed: 0,
-  participantIds: [],
-  activeIds: [],
-  eliminatedIds: [],
-  humanPlayerId: null,
-  roundNumber: 1,
-  revoteNumber: 0,
-  currentQuestion: null,
-  usedQuestionIds: [],
-  draftAnswers: {},
-  previousDistribution: null,
-  blockedAnswers: {},
-  doubleEliminationArmed: false,
-  hintInventories: {},
-  roundHintUsedBy: null,
-  roundHintType: null,
-  roundHintTargetId: null,
-  roundHintPollEstimate: null,
-  roundHintPeekedAnswers: null,
-  revealState: null,
-  threeWayDuel: null,
-  finalDuel: null,
-  winnerId: null,
-  outcomeResolved: false,
-  aiIdentities: {},
-  vipExperience: false,
-  roomReaderStreak: 0,
-  bestRoomReaderStreak: 0,
-  lastRoomReadCorrect: null,
 }
 
 function buildHintInventories(participantIds: string[]) {
@@ -634,4 +602,4 @@ export const {
   resetMajorityRules,
 } = majorityRulesSlice.actions
 
-export default majorityRulesSlice.reducer
+export default registerMinigameReducer('majorityRules', majorityRulesSlice.reducer)

@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { famousFiguresInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Famous Figures" trivia competition.
  *
@@ -93,33 +95,7 @@ export const FAMOUS_FIGURES: FigureRow[] = figuresData as FigureRow[]
 
 // â”€â”€â”€ Initial state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const initialState: FamousFiguresState = {
-  competitionType: 'LOH',
-  status: 'idle',
-  currentRound: 0,
-  totalRounds: 6,
-  currentFigureIndex: 0,
-  hintsRevealed: 0,
-  playerScores: {},
-  playerRoundScores: {},
-  playerCorrect: {},
-  playerGuesses: {},
-  playerCorrectTimestamp: {},
-  correctPlayers: [],
-  figureOrder: [],
-  round: 0,
-  seed: 0,
-  outcomeResolved: false,
-  winnerId: null,
-  tieBreakOrder: [],
-  aiSubmissions: {},
-  timerPhase: 'clue',
-  roundComplete: false,
-  matchFigureOrder: [],
-  playerFigureQueues: {},
-  playerRoundCursor: {},
-  playerPersonalRoundScores: {},
-}
+
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -887,4 +863,4 @@ export function getPlayerFigureIndex(
   return state.figureOrder[round] ?? state.currentFigureIndex
 }
 
-export default famousFiguresSlice.reducer
+export default registerMinigameReducer('famousFigures', famousFiguresSlice.reducer)

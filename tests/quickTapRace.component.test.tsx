@@ -18,7 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, cleanup } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import QuickTapRace from '../src/components/QuickTapRace/QuickTapRace';
+import QuickTapRace from '../src/minigames/quickTapRace/QuickTapRaceCanvasGame';
 import * as cryptoSpinModule from '../src/features/riskWheel/cryptoSpin';
 
 vi.mock('../src/hooks/useQuickTapRaceAudio', () => ({
@@ -75,7 +75,7 @@ function renderQuickTapRace() {
 
   return render(
     <Provider store={store}>
-      <QuickTapRace seed={42} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
+      <QuickTapRace seed={42} autoStart onFinish={vi.fn()} />
     </Provider>,
   );
 }
@@ -162,13 +162,13 @@ describe('QuickTapRace canvas component', () => {
     // Render twice with the same non-zero seed prop (simulates retry with same pendingChallenge.seed).
     render(
       <Provider store={store}>
-        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
+        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} />
       </Provider>,
     );
     cleanup();
     render(
       <Provider store={store}>
-        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} quickTapVariantOverride="classic" />
+        <QuickTapRace seed={12345} autoStart onFinish={vi.fn()} />
       </Provider>,
     );
     cleanup();

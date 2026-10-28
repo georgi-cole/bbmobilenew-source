@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { memoryColorsInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Memory Colors" sequence-memory competition.
  *
@@ -182,25 +184,7 @@ export function computeRanking(
   });
 }
 
-const initialState: MemoryColorsState = {
-  phase: 'idle',
-  participantIds: [],
-  competitionType: null,
-  seed: 0,
-  humanPlayerId: null,
-  round: 1,
-  sequence: [],
-  inputIndex: 0,
-  stepStartMs: -1,
-  totalResponseMs: 0,
-  mistakesUsed: 0,
-  aiResults: {},
-  humanResult: null,
-  finalRanking: [],
-  winnerId: null,
-  lastPlaceId: null,
-  outcomeResolved: false,
-};
+
 
 const memoryColorsSlice = createSlice({
   name: 'memoryColors',
@@ -353,4 +337,4 @@ export const {
   resetMemoryColors,
 } = memoryColorsSlice.actions;
 
-export default memoryColorsSlice.reducer;
+export default registerMinigameReducer('memoryColors', memoryColorsSlice.reducer)

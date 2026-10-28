@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { silentSaboteurInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Silent Saboteur" elimination minigame.
  *
@@ -134,38 +136,7 @@ export interface SilentSaboteurState {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: SilentSaboteurState = {
-  phase: 'idle',
-  prizeType: 'LOH',
-  seed: 0,
-  round: 0,
 
-  participantIds: [],
-  activeIds: [],
-  eliminatedIds: [],
-
-  humanPlayerId: null,
-
-  saboteurId: null,
-  victimId: null,
-  votes: {},
-  roundEvidence: {},
-
-  final2SaboteurId: null,
-  final2VictimId: null,
-  final2Kind: 'sabotage',
-  juryVotes: {},
-  juryIds: [],
-  final2TieBreakVote: null,
-
-  revealInfo: null,
-  roundHistory: [],
-
-  noJuryFallback: false,
-
-  winnerId: null,
-  outcomeResolved: false,
-};
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
@@ -556,4 +527,4 @@ export const {
   resetSilentSaboteur,
 } = silentSaboteurSlice.actions;
 
-export default silentSaboteurSlice.reducer;
+export default registerMinigameReducer('silentSaboteur', silentSaboteurSlice.reducer)

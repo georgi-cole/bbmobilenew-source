@@ -51,6 +51,7 @@ import type { HouseOfCardsPrizeType } from '../../features/houseOfCards/houseOfC
 import type { MemoryColorsCompetitionType } from '../../features/memoryColors/memoryColorsSlice'
 import reactComponents, { preloadReactMinigame } from '../../minigames/reactComponents'
 import { resetHostedMinigameState } from '../../minigames/resetHostedMinigameState'
+import { prepareMinigameAssets } from '../../minigames/prepareMinigameAssets'
 import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import './MinigameHost.css'
 
@@ -231,13 +232,50 @@ export default function MinigameHost({
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
   const reactComponentKey = launchedGame.reactComponentKey
+  const preparationKey = `${launchedGame.key}:${quickTapVipEnabled}:${usePremiumPresentation}`
+  const [preparedKey, setPreparedKey] = useState<string | null>(null)
+  const [preparationFailure, setPreparationFailure] = useState<string | null>(null)
+  const [preparationAttempt, setPreparationAttempt] = useState(0)
+  const preparationError = preparationFailure === preparationKey
+  const ready =
+    launchedGame.implementation !== 'react' || !reactComponentKey || preparedKey === preparationKey
   useEffect(() => {
     if (launchedGame.implementation !== 'react' || !reactComponentKey) return
+    let cancelled = false
     const preload =
-      SPECIAL_MINIGAME_PRELOADERS[reactComponentKey] ??
-      (() => preloadReactMinigame(reactComponentKey))
-    void preload().catch(() => undefined)
-  }, [launchedGame.implementation, reactComponentKey])
+      launchedGame.implementation === 'react' && reactComponentKey
+        ? (SPECIAL_MINIGAME_PRELOADERS[reactComponentKey] ??
+          (() => preloadReactMinigame(reactComponentKey)))
+        : () => Promise.resolve()
+    if (reactComponentKey) prepareMinigameAssets(reactComponentKey, usePremiumPresentation)
+    const variant =
+      reactComponentKey === 'QuickTapRace'
+        ? import('../../minigames/quickTapRace/presentations').then((module) =>
+            module.preloadQuickTapRace(quickTapVipEnabled)
+          )
+        : Promise.resolve()
+    void Promise.all([preload(), variant])
+      .then(() => {
+        if (!cancelled) {
+          setPreparedKey(preparationKey)
+          if (skipCountdown) setPhase((current) => (current === 'countdown' ? 'playing' : current))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPreparationFailure(preparationKey)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [
+    launchedGame.implementation,
+    preparationKey,
+    preparationAttempt,
+    reactComponentKey,
+    quickTapVipEnabled,
+    usePremiumPresentation,
+    skipCountdown,
+  ])
 
   const [phase, setPhase] = useState<HostPhase>(skipRules ? 'countdown' : 'rules')
   const [utilityView, setUtilityView] = useState<UtilityView>(null)
@@ -338,6 +376,11 @@ export default function MinigameHost({
     setPhase(skipRules ? 'countdown' : 'rules')
     setAttempt(0)
     activeAttemptTokenRef.current = `${sessionId}:0`
+    return () => {
+      activeAttemptTokenRef.current = ''
+      completionReportedRef.current = true
+      resetHostedMinigameState(store.dispatch, launchedGame.reactComponentKey)
+    }
     // The game selection is stable for a challenge session. Do not rerun this
     // boundary when access metadata changes while a game is in progress.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -404,7 +447,7 @@ export default function MinigameHost({
 
   // Pause the host-owned countdown while the menu, rules, or warning is open.
   useEffect(() => {
-    if (phase !== 'countdown' || utilityView !== null) return
+    if (phase !== 'countdown' || utilityView !== null || !ready) return
     if (skipCountdown) {
       const t = setTimeout(() => setPhase('playing'), 0)
       return () => clearTimeout(t)
@@ -415,17 +458,17 @@ export default function MinigameHost({
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
     return () => clearTimeout(t)
-  }, [phase, countdown, skipCountdown, utilityView])
+  }, [phase, countdown, skipCountdown, utilityView, ready])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {
-    if (phase !== 'countdown' || skipCountdown || utilityView !== null) {
+    if (phase !== 'countdown' || skipCountdown || utilityView !== null || !ready) {
       SoundManager.stop(COUNTDOWN_TIMER_KEY)
       return
     }
     void SoundManager.play(COUNTDOWN_TIMER_KEY)
     return () => SoundManager.stop(COUNTDOWN_TIMER_KEY)
-  }, [phase, skipCountdown, utilityView])
+  }, [phase, skipCountdown, utilityView, ready])
 
   const handleComplete = useCallback((result: LegacyRawResult) => {
     setFinalValue(result.value)
@@ -1113,7 +1156,26 @@ export default function MinigameHost({
         <div className="minigame-host-ready">
           <span className="minigame-host-ready-label">Get Ready</span>
           <span className="minigame-host-ready-game">{launchedGame.title}</span>
-          {countdown > 0 ? (
+          {!ready ? (
+            <div className="minigame-host-loading" role="status" aria-live="polite">
+              {preparationError ? (
+                <>
+                  <p>We couldn’t prepare this game. Please try again.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreparationFailure(null)
+                      setPreparationAttempt((current) => current + 1)
+                    }}
+                  >
+                    Try again
+                  </button>
+                </>
+              ) : (
+                `Preparing ${launchedGame.title}…`
+              )}
+            </div>
+          ) : countdown > 0 ? (
             <span className="minigame-host-ready-count" key={countdown}>
               {countdown}
             </span>

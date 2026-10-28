@@ -44,6 +44,17 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-28: Reviewed minigame loading and rendering optimizations. Deferred
+  reducers and question banks retain the current state shapes and content.
+  Screen preparation, retry handling, Twin asset readiness, canvas pixel
+  budgets, timer display cadence, and cooperative Fit Me In calculation retain
+  gameplay, scoring, premium access, prices, and existing Store benefits.
+
+- 2026-10-28: Reviewed lossless skin delivery compression. Existing image URLs,
+  dimensions, visible pixels, transparency, theme selection, and fallback order
+  are preserved. Original artwork is archived outside public delivery. Products,
+  prices, VIP theme access, restoration, and Store copy remain unchanged.
+
 - 2026-10-28: Reviewed the non-VIP Quick Tap AI rebalance and removal of the
   already-retired Lane Racers implementation, catalog entry, and saved score
   records. Lane Racers was excluded from the premium offer. Released VIP Quick

@@ -16,10 +16,7 @@ import {
   type TetrisPrizeType,
 } from '../../features/tetris/tetrisSlice'
 import { resolveTetrisOutcome } from '../../features/tetris/thunks'
-import {
-  simulateTetrisAiRun,
-  simulateTetrisAiRunsInSlices,
-} from '../../ai/competition/tetrisSimulation'
+import { simulateTetrisAiRunsInSlices } from '../../ai/competition/tetrisSimulation'
 import { mulberry32 } from '../../store/rng'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import ResolvedAvatarImage from '../ResolvedAvatarImage/ResolvedAvatarImage'
@@ -223,6 +220,7 @@ export default function TetrisComp({
   const previousRoundScoresRef = useRef<Record<string, number>>({})
   const humanLastScoreRef = useRef(0)
   const simulationGenerationRef = useRef(0)
+  const roundTransitionTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   boardRef.current = board
   currentRef.current = current
@@ -252,6 +250,8 @@ export default function TetrisComp({
 
     return () => {
       simulationGenerationRef.current += 1
+      if (roundTransitionTimerRef.current !== null)
+        window.clearTimeout(roundTransitionTimerRef.current)
       dispatch(resetTetris())
     }
     // Competition inputs are immutable for the mounted minigame instance.
@@ -295,35 +295,6 @@ export default function TetrisComp({
       return { color, avatarId: avatarIds[avatarIndex] }
     },
     [avatarIds, currentRound.useHouseguestCells]
-  )
-
-  const simulateAiRound = useCallback(
-    (ids: readonly string[], roundIndex: number): TetrisRoundPerformance[] => {
-      const round = tournamentPlan[roundIndex]
-      const roundSeed = (seed ^ Math.imul(roundIndex + 1, 0x9e3779b1)) >>> 0
-      return ids.map((playerId) => {
-        const detailRng = mulberry32((roundSeed ^ hashString(playerId) ^ 0x51a7e) >>> 0)
-        const simulated = simulateTetrisAiRun({
-          id: playerId,
-          baselineScore: participantById.get(playerId)?.precomputedScore,
-          seed: roundSeed,
-          durationMs: round.durationMs,
-          speedMultiplier: round.speedMultiplier,
-          tensionLevel: round.tensionLevel,
-        })
-
-        return {
-          playerId,
-          score: simulated.score,
-          lines: simulated.lines,
-          pieces: simulated.pieces,
-          maxStackHeight: simulated.maxStackHeight,
-          previousScore: previousRoundScoresRef.current[playerId] ?? 0,
-          tieBreaker: detailRng(),
-        }
-      })
-    },
-    [participantById, seed, tournamentPlan]
   )
 
   const simulateAiRoundInSlices = useCallback(
@@ -406,12 +377,13 @@ export default function TetrisComp({
   )
 
   const finishRound = useCallback(
-    (reason: RoundEndReason) => {
+    async (reason: RoundEndReason) => {
       if (roundEndingRef.current || gamePhaseRef.current !== 'playing') return
       roundEndingRef.current = true
       setRoundEndReason(reason)
       setGamePhase('gameover')
       gamePhaseRef.current = 'gameover'
+      const simulationGeneration = ++simulationGenerationRef.current
 
       const humanPerformance: TetrisRoundPerformance | null =
         humanId && activeIds.includes(humanId)
@@ -430,10 +402,14 @@ export default function TetrisComp({
 
       if (humanPerformance) humanLastScoreRef.current = humanPerformance.score
       const aiIds = activeIds.filter((id) => id !== humanId)
-      const performances = [
-        ...simulateAiRound(aiIds, currentRoundIndex),
-        ...(humanPerformance ? [humanPerformance] : []),
-      ]
+      const aiPerformances = await simulateAiRoundInSlices(
+        aiIds,
+        currentRoundIndex,
+        simulationGeneration
+      )
+      if (aiPerformances === null || simulationGenerationRef.current !== simulationGeneration)
+        return
+      const performances = [...aiPerformances, ...(humanPerformance ? [humanPerformance] : [])]
       const split = splitTetrisRound(performances, currentRound.survivorCount)
 
       for (const performance of performances) {
@@ -441,10 +417,11 @@ export default function TetrisComp({
       }
 
       if (currentRound.kind === 'final') {
-        window.setTimeout(
-          () => commitTournamentOutcome(split.standings, eliminationOrderWorstFirst),
-          700
-        )
+        roundTransitionTimerRef.current = window.setTimeout(() => {
+          if (simulationGenerationRef.current === simulationGeneration) {
+            commitTournamentOutcome(split.standings, eliminationOrderWorstFirst)
+          }
+        }, 700)
         return
       }
 
@@ -456,7 +433,9 @@ export default function TetrisComp({
         humanScore: humanPerformance?.score ?? humanLastScoreRef.current,
         reason,
       })
-      window.setTimeout(() => setScreen('roundResults'), 650)
+      roundTransitionTimerRef.current = window.setTimeout(() => {
+        if (simulationGenerationRef.current === simulationGeneration) setScreen('roundResults')
+      }, 650)
     },
     [
       activeIds,
@@ -466,7 +445,7 @@ export default function TetrisComp({
       eliminationOrderWorstFirst,
       humanId,
       seed,
-      simulateAiRound,
+      simulateAiRoundInSlices,
     ]
   )
 

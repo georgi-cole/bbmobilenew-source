@@ -1,0 +1,704 @@
+[
+  {
+    "file": "Ali_avatar.svg",
+    "archiveFile": "Ali_avatar.svg",
+    "sha256": "03c5e591f7a414927850308859a7a00484796a94d82ee982c84d5e595f230d12",
+    "bytes": 2571181
+  },
+  {
+    "file": "Ali_lia_sad_avatar.png",
+    "archiveFile": "Ali_lia_sad_avatar.png",
+    "sha256": "517b26831232f2965894804e611271acf81ebea772a6403b08d738beee1c3163",
+    "bytes": 480496
+  },
+  {
+    "file": "Ali_sad_avatar.png",
+    "archiveFile": "Ali_sad_avatar.png",
+    "sha256": "730df3bac2cbc69c70cd4f85468185ed9614251d3a7c62fe2f55f4b6316ccb40",
+    "bytes": 498654
+  },
+  {
+    "file": "Aria_avatar.svg",
+    "archiveFile": "Aria_avatar.svg",
+    "sha256": "a8a667b427fe7a89ffd448a4ee6a6d945e79be683784d3467452353a90d227bb",
+    "bytes": 2343725
+  },
+  {
+    "file": "Aria_sad_avatar.png",
+    "archiveFile": "Aria_sad_avatar.png",
+    "sha256": "af897c93e07d4dc1ffb1a0fdae08c712c8c1b3daa85bcae0816a50d89b45b87c",
+    "bytes": 515636
+  },
+  {
+    "file": "Ash_avatar.svg",
+    "archiveFile": "Ash_avatar.svg",
+    "sha256": "c0d203012b642497be6e0453ca102d106b6e81ba86563209882f3e9149ef34e5",
+    "bytes": 2497149
+  },
+  {
+    "file": "Ash_sad_avatar.png",
+    "archiveFile": "Ash_sad_avatar.png",
+    "sha256": "5fe847382aecb15e47c834b52143995a4dc871568ff05b65caed0631d955f866",
+    "bytes": 460492
+  },
+  {
+    "file": "avatar-grid-black-gold.png",
+    "archiveFile": "avatar-grid-black-gold.png",
+    "sha256": "918395efd46c7b5de2bd0845cafb8ce55d482d013388004f7eedde733251d5ac",
+    "bytes": 1552198
+  },
+  {
+    "file": "avatar-grid-rose-gold.png",
+    "archiveFile": "avatar-grid-rose-gold.png",
+    "sha256": "a4a63ba6e25352a321ba6e6a37ab6e8eda20121ac4d2f075a51d775eb2f0ae02",
+    "bytes": 1490804
+  },
+  {
+    "file": "backup-grey-lux/Ali_avatar.svg",
+    "archiveFile": "Ali_avatar.svg",
+    "sha256": "03c5e591f7a414927850308859a7a00484796a94d82ee982c84d5e595f230d12",
+    "bytes": 2571181
+  },
+  {
+    "file": "backup-grey-lux/Aria_avatar.svg",
+    "archiveFile": "Aria_avatar.svg",
+    "sha256": "a8a667b427fe7a89ffd448a4ee6a6d945e79be683784d3467452353a90d227bb",
+    "bytes": 2343725
+  },
+  {
+    "file": "backup-grey-lux/Ash_avatar.svg",
+    "archiveFile": "Ash_avatar.svg",
+    "sha256": "c0d203012b642497be6e0453ca102d106b6e81ba86563209882f3e9149ef34e5",
+    "bytes": 2497149
+  },
+  {
+    "file": "backup-grey-lux/Bea_avatar.svg",
+    "archiveFile": "backup-grey-lux/Bea_avatar.svg",
+    "sha256": "73140337b5002be1bfbe2c520096a2046559249a0d8e316eafc9d20ff89f8bfe",
+    "bytes": 2292793
+  },
+  {
+    "file": "backup-grey-lux/Blue_avatar.svg",
+    "archiveFile": "backup-grey-lux/Blue_avatar.svg",
+    "sha256": "8e2669caf2aa9848d59a4400546001275a8ff6b61fe99c422e9baaf9010b85df",
+    "bytes": 2240701
+  },
+  {
+    "file": "backup-grey-lux/Dex_avatar.svg",
+    "archiveFile": "backup-grey-lux/Dex_avatar.svg",
+    "sha256": "7ddc7fd12756f85e8359589b7f0f1d136c12c84660a5d8f2eafcac9c0200e75e",
+    "bytes": 2272969
+  },
+  {
+    "file": "backup-grey-lux/Echo_avatar.svg",
+    "archiveFile": "backup-grey-lux/Echo_avatar.svg",
+    "sha256": "6338b46a3cc88acf9f132a0643f90be6e93765e38d368d53cda2dd0722a5f93c",
+    "bytes": 2505337
+  },
+  {
+    "file": "backup-grey-lux/Finn_avatar.svg",
+    "archiveFile": "backup-grey-lux/Finn_avatar.svg",
+    "sha256": "d54e9c92cca52441641e54fea015c742a2ea831d3e28fd00d8ed5f1d17482e25",
+    "bytes": 2821701
+  },
+  {
+    "file": "backup-grey-lux/Ivy_avatar.svg",
+    "archiveFile": "backup-grey-lux/Ivy_avatar.svg",
+    "sha256": "49120b60920364b6cd1df6d11d3e759035d52d5418880878e67f0d4929e49b57",
+    "bytes": 2173085
+  },
+  {
+    "file": "backup-grey-lux/Jax_avatar.svg",
+    "archiveFile": "backup-grey-lux/Jax_avatar.svg",
+    "sha256": "50ce5783ef03efa8fb9711008d912756404ca37a2c60871b778f58a9006f7e0a",
+    "bytes": 2448281
+  },
+  {
+    "file": "backup-grey-lux/Kai_avatar.svg",
+    "archiveFile": "backup-grey-lux/Kai_avatar.svg",
+    "sha256": "a7785fec0cd61c1123cc2530ff1395cba6bf56c2fa8cbacd1fca8e5dd538fc96",
+    "bytes": 2283849
+  },
+  {
+    "file": "backup-grey-lux/Kian_avatar.svg",
+    "archiveFile": "backup-grey-lux/Kian_avatar.svg",
+    "sha256": "bd5ed9d94ab7f150f27e27df85064f0e00d358c739e24381b47083f4e86b79db",
+    "bytes": 2544869
+  },
+  {
+    "file": "backup-grey-lux/Lia_avatar.svg",
+    "archiveFile": "backup-grey-lux/Lia_avatar.svg",
+    "sha256": "6b249d85d3c4c7c8c66a0a38a1788b3e1ff062d824f525842802dead2ac1ef11",
+    "bytes": 2469857
+  },
+  {
+    "file": "backup-grey-lux/Lux_avatar.svg",
+    "archiveFile": "backup-grey-lux/Lux_avatar.svg",
+    "sha256": "346ac660b10f42330919b8e38ae7ac7d6417fe4914ba4d6b9402a66ee81117cd",
+    "bytes": 2363773
+  },
+  {
+    "file": "backup-grey-lux/mimi_avatar.svg",
+    "archiveFile": "backup-grey-lux/mimi_avatar.svg",
+    "sha256": "a4c59bccbb6e20304586d3fd742c57404a7c8429b99ee4c3f1e4c0376f466f6d",
+    "bytes": 2247997
+  },
+  {
+    "file": "backup-grey-lux/Nico_avatar.svg",
+    "archiveFile": "backup-grey-lux/Nico_avatar.svg",
+    "sha256": "987ef5855eb916b975903de85d0de932647e8ecf6a8171cfe124403a5a422f46",
+    "bytes": 2513197
+  },
+  {
+    "file": "backup-grey-lux/Noa_avatar.svg",
+    "archiveFile": "backup-grey-lux/Noa_avatar.svg",
+    "sha256": "5a317301a1644a75e71d431ab60d1504a38127afdd7e4cdab951601cee40526a",
+    "bytes": 2646393
+  },
+  {
+    "file": "backup-grey-lux/Nova_avatar.svg",
+    "archiveFile": "backup-grey-lux/Nova_avatar.svg",
+    "sha256": "90f19ef057a281955dad0871a96a594482172c44d6e4a24aeebe7ca0affafd5e",
+    "bytes": 2472805
+  },
+  {
+    "file": "backup-grey-lux/Pax_avatar.svg",
+    "archiveFile": "backup-grey-lux/Pax_avatar.svg",
+    "sha256": "ffdbe4be7448fc71ce45f32dd85b8dfd6e31b815723209a51291a2abe40bb9ea",
+    "bytes": 2645173
+  },
+  {
+    "file": "backup-grey-lux/Quinn_avatar.svg",
+    "archiveFile": "backup-grey-lux/Quinn_avatar.svg",
+    "sha256": "be987e69a3f22422fa5459a94aac20b6dc062da74ea7557f2c6c6266287dfe40",
+    "bytes": 2596149
+  },
+  {
+    "file": "backup-grey-lux/Rae_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rae_avatar.svg",
+    "sha256": "b31af154ecbf938a884aa28d444fb2c70b26ff583d003fed1dc189e2d23d7168",
+    "bytes": 2301741
+  },
+  {
+    "file": "backup-grey-lux/Remy_avatar.svg",
+    "archiveFile": "backup-grey-lux/Remy_avatar.svg",
+    "sha256": "0d30449148b97ce1a87147387e1f694017a033b4a7720de2c9a4b4d4b3c8ed48",
+    "bytes": 2467061
+  },
+  {
+    "file": "backup-grey-lux/Rey_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rey_avatar.svg",
+    "sha256": "8c4bad333c8ce11c4cea912ad82c4d2f65e99ee219c26674a5d54dca62115d44",
+    "bytes": 2423329
+  },
+  {
+    "file": "backup-grey-lux/Rune_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rune_avatar.svg",
+    "sha256": "65592e8c05eda121d8a9d19d3de8c4acd75f2967e37b6fdd960d338aa24c003f",
+    "bytes": 2398657
+  },
+  {
+    "file": "backup-grey-lux/Sol_avatar.svg",
+    "archiveFile": "backup-grey-lux/Sol_avatar.svg",
+    "sha256": "594957a1fd1e301a0edfa8e214a698c46641f22fda355a79f2342e1d8aca3082",
+    "bytes": 2527601
+  },
+  {
+    "file": "backup-grey-lux/Vee_avatar.svg",
+    "archiveFile": "backup-grey-lux/Vee_avatar.svg",
+    "sha256": "1c27fca225f85bd6c4cdf63cb9789c81a1b852fda95fe8bebec838bc18ce9224",
+    "bytes": 2767221
+  },
+  {
+    "file": "backup-grey-lux/Zed_avatar.svg",
+    "archiveFile": "backup-grey-lux/Zed_avatar.svg",
+    "sha256": "98d77f2ccdfa6d18b28e304e5c88159bac4fff6eb8be01fbcd413773eac30900",
+    "bytes": 2269561
+  },
+  {
+    "file": "Bea_avatar.svg",
+    "archiveFile": "backup-grey-lux/Bea_avatar.svg",
+    "sha256": "73140337b5002be1bfbe2c520096a2046559249a0d8e316eafc9d20ff89f8bfe",
+    "bytes": 2292793
+  },
+  {
+    "file": "Bea_sad_avatar.png",
+    "archiveFile": "Bea_sad_avatar.png",
+    "sha256": "0b1f2795fc41ea685fd35e111cec3b6cee0dfd0861bbb2495d60af922b30eb49",
+    "bytes": 516203
+  },
+  {
+    "file": "Blue_avatar.svg",
+    "archiveFile": "backup-grey-lux/Blue_avatar.svg",
+    "sha256": "8e2669caf2aa9848d59a4400546001275a8ff6b61fe99c422e9baaf9010b85df",
+    "bytes": 2240701
+  },
+  {
+    "file": "Blue_sad_avatar.png",
+    "archiveFile": "Blue_sad_avatar.png",
+    "sha256": "217386caebc06daac200b16cb90dc663f96ebc17601819dfdd7c35bf3b0c0152",
+    "bytes": 412616
+  },
+  {
+    "file": "cupid-love/Ali_avatar_love.png",
+    "archiveFile": "cupid-love/Ali_avatar_love.png",
+    "sha256": "0857422ee1da25f89cbacdfd402c47ed88d268d88bb48060fd68ca3eee169bfb",
+    "bytes": 1973140
+  },
+  {
+    "file": "cupid-love/Ali_lia_avatar_love.png",
+    "archiveFile": "cupid-love/Ali_lia_avatar_love.png",
+    "sha256": "0cec26468e96cf82ef52264de66193075708bc550c6ffdc876474e90014c5641",
+    "bytes": 1904451
+  },
+  {
+    "file": "cupid-love/Aria_avatar_love.png",
+    "archiveFile": "cupid-love/Aria_avatar_love.png",
+    "sha256": "8412b4b7b961df881a64d3c3028f371318381132321aea6cfc0599efc4c89d51",
+    "bytes": 1947367
+  },
+  {
+    "file": "cupid-love/Ash_avatar_love.png",
+    "archiveFile": "cupid-love/Ash_avatar_love.png",
+    "sha256": "d54e3c08f211892ca11c7fbfc38274943eb62da9b48da5fd8230c8edda26f69f",
+    "bytes": 2050392
+  },
+  {
+    "file": "cupid-love/Bea_avatar_love.png",
+    "archiveFile": "cupid-love/Bea_avatar_love.png",
+    "sha256": "1b54dcfed96ef04ffda58c727305f57894ff83093f2c8d5ace9b679d2058f168",
+    "bytes": 1771700
+  },
+  {
+    "file": "cupid-love/Blue_avatar_love.png",
+    "archiveFile": "cupid-love/Blue_avatar_love.png",
+    "sha256": "8e4e6dcd06638e09eaf02fc5093dda3c274111ab580ba73f7125ee0fcad35d39",
+    "bytes": 1928024
+  },
+  {
+    "file": "cupid-love/Dex_avatar_love.png",
+    "archiveFile": "cupid-love/Dex_avatar_love.png",
+    "sha256": "a4f21b4a2f6aead12558cc44cc0fa833a38979f4d0ce0c2b0cb3187afdf0d8b3",
+    "bytes": 1859689
+  },
+  {
+    "file": "cupid-love/Echo_avatar_love.png",
+    "archiveFile": "cupid-love/Echo_avatar_love.png",
+    "sha256": "94ddfe730c619abf18a4ff6745cc41d228ea90a6d0f3a539c07759fe96d84f26",
+    "bytes": 1926639
+  },
+  {
+    "file": "cupid-love/Finn_avatar_love.png",
+    "archiveFile": "cupid-love/Finn_avatar_love.png",
+    "sha256": "60ad417b3955ba59effb1939e358278228852f0c2d9f2a11b5cb1651e07d7912",
+    "bytes": 2081420
+  },
+  {
+    "file": "cupid-love/Ivy_avatar_love.png",
+    "archiveFile": "cupid-love/Ivy_avatar_love.png",
+    "sha256": "ee4a1bec04d2cb93bce4e418c0745d3e3e3a8244e0fa80c2af91d48c36913358",
+    "bytes": 1872742
+  },
+  {
+    "file": "cupid-love/Jax_avatar_love.png",
+    "archiveFile": "cupid-love/Jax_avatar_love.png",
+    "sha256": "d107d4d0c3e86a41bd165a982bb045eba949d1ebd0b81b36d8ab9cdf6935fc0b",
+    "bytes": 1895262
+  },
+  {
+    "file": "cupid-love/Kai_avatar_love.png",
+    "archiveFile": "cupid-love/Kai_avatar_love.png",
+    "sha256": "41fdf2411193f4cc908673f2ad6e8932609f51bb4a8f3f1aa5d9f8dadefb2202",
+    "bytes": 1852616
+  },
+  {
+    "file": "cupid-love/Kian_avatar_love.png",
+    "archiveFile": "cupid-love/Kian_avatar_love.png",
+    "sha256": "39df5872f2f1ce0a39822ce744bde20aed76991da1005b633523735d14471b14",
+    "bytes": 1938195
+  },
+  {
+    "file": "cupid-love/Lia_avatar_love.png",
+    "archiveFile": "cupid-love/Lia_avatar_love.png",
+    "sha256": "e2aab0f003867faf6aae6f007dfc9dd5f7d62418004a5f9e13f64b0428df8615",
+    "bytes": 1917924
+  },
+  {
+    "file": "cupid-love/Lia_flip_avatar_love.png",
+    "archiveFile": "cupid-love/Lia_flip_avatar_love.png",
+    "sha256": "bf8e7a82d97131ef6ae3b2f5f02d6af87bbee14ef38bb735cc1cc8ffb8b205e2",
+    "bytes": 1996589
+  },
+  {
+    "file": "cupid-love/Lux_avatar_love.png",
+    "archiveFile": "cupid-love/Lux_avatar_love.png",
+    "sha256": "7fadbe1df06b6c0a071e500079031e06fbe1b89572478149e5c667ba238cace7",
+    "bytes": 1788440
+  },
+  {
+    "file": "cupid-love/mimi_avatar_love.png",
+    "archiveFile": "cupid-love/mimi_avatar_love.png",
+    "sha256": "60f623a6841480700a3f6150008047cf30629d62c19aae4a9de59777cdaaf91d",
+    "bytes": 2002708
+  },
+  {
+    "file": "cupid-love/Nico_avatar_love.png",
+    "archiveFile": "cupid-love/Nico_avatar_love.png",
+    "sha256": "d0ae74cf56c54719f78e70da7719254e86f0e78f6c265f040b5a8cb4e87cb94f",
+    "bytes": 2017511
+  },
+  {
+    "file": "cupid-love/Noa_avatar_love.png",
+    "archiveFile": "cupid-love/Noa_avatar_love.png",
+    "sha256": "9c8bf4e96b2329a3b38c35ffedb1403c60e899b21beb785a55ef035075477d38",
+    "bytes": 1945627
+  },
+  {
+    "file": "cupid-love/Nova_avatar_love.png",
+    "archiveFile": "cupid-love/Nova_avatar_love.png",
+    "sha256": "70bb5052f6f3ab81e30582f7c3b74d68dcd07953206971f52d553394678430a4",
+    "bytes": 2332220
+  },
+  {
+    "file": "cupid-love/Pax_avatar_love.png",
+    "archiveFile": "cupid-love/Pax_avatar_love.png",
+    "sha256": "5eae222194dd0d30842a131ec9804e8ca94b519fee919f000b4a791c3ed10fa8",
+    "bytes": 1922273
+  },
+  {
+    "file": "cupid-love/Quinn_avatar_love.png",
+    "archiveFile": "cupid-love/Quinn_avatar_love.png",
+    "sha256": "c5bd97f51ea13cd4ea46d36f4c98d4f710f2077730d5fe0d0b754b6fb1669199",
+    "bytes": 1968848
+  },
+  {
+    "file": "cupid-love/Rae_avatar_love.png",
+    "archiveFile": "cupid-love/Rae_avatar_love.png",
+    "sha256": "c6bedb5225bb8bd15db31d16ebe88561c4f740eab5c3d1028ad47ebbce80fa2b",
+    "bytes": 2032018
+  },
+  {
+    "file": "cupid-love/Remy_avatar_love.png",
+    "archiveFile": "cupid-love/Remy_avatar_love.png",
+    "sha256": "a2136b48e44142777e6bf7fb4668538c60b0242772594f2bfdb195977b334c61",
+    "bytes": 1876313
+  },
+  {
+    "file": "cupid-love/Rey_avatar_love.png",
+    "archiveFile": "cupid-love/Rey_avatar_love.png",
+    "sha256": "d138a98474412f1a165d36a675246312b3b25a2e904660283c2948eb7cbe958a",
+    "bytes": 1826485
+  },
+  {
+    "file": "cupid-love/rose-gold-unified.png",
+    "archiveFile": "cupid-love/rose-gold-unified.png",
+    "sha256": "2134ad6c015de6c6b6dea2b8eb10b25917491f776fdcff36604b4795e7998fe3",
+    "bytes": 2361345
+  },
+  {
+    "file": "cupid-love/Rune_avatar_love.png",
+    "archiveFile": "cupid-love/Rune_avatar_love.png",
+    "sha256": "70d58db4d6818323059b830d37395b938f3679ce3fac993ed393f1d38cf88f20",
+    "bytes": 2027402
+  },
+  {
+    "file": "cupid-love/Sol_avatar_love.png",
+    "archiveFile": "cupid-love/Sol_avatar_love.png",
+    "sha256": "1e6fc5dc0a6253406b28b9244ccf8756c78f10381a451f69a1f825135a4e84f6",
+    "bytes": 2079865
+  },
+  {
+    "file": "cupid-love/Vee_avatar_love.png",
+    "archiveFile": "cupid-love/Vee_avatar_love.png",
+    "sha256": "1c50fa107b3972574460761f60007e611e340e8c29449b1e13d71fd8ff6333fe",
+    "bytes": 2095023
+  },
+  {
+    "file": "cupid-love/You_love.png",
+    "archiveFile": "cupid-love/You_love.png",
+    "sha256": "696d7bf702a52274cb54356215373051d760653395225446f598b1fb7a97cdde",
+    "bytes": 2282286
+  },
+  {
+    "file": "cupid-love/Zed_avatar_love.png",
+    "archiveFile": "cupid-love/Zed_avatar_love.png",
+    "sha256": "b2ebacca54a4769abe99cd2dea3ce00dd74d52b3be1964b68f1d8716bab18761",
+    "bytes": 1967074
+  },
+  {
+    "file": "Dex_avatar.svg",
+    "archiveFile": "backup-grey-lux/Dex_avatar.svg",
+    "sha256": "7ddc7fd12756f85e8359589b7f0f1d136c12c84660a5d8f2eafcac9c0200e75e",
+    "bytes": 2272969
+  },
+  {
+    "file": "Dex_sad_avatar.png",
+    "archiveFile": "Dex_sad_avatar.png",
+    "sha256": "f73744066ed5debcde3a1fb4cf1911999ebb181057d8c7028bebd1a165db4e18",
+    "bytes": 450294
+  },
+  {
+    "file": "Echo_avatar.svg",
+    "archiveFile": "backup-grey-lux/Echo_avatar.svg",
+    "sha256": "6338b46a3cc88acf9f132a0643f90be6e93765e38d368d53cda2dd0722a5f93c",
+    "bytes": 2505337
+  },
+  {
+    "file": "Echo_sad_avatar.png",
+    "archiveFile": "Echo_sad_avatar.png",
+    "sha256": "f1855203798045091267fbacf2c917738eec3c2cbea5324eb19fc1a6bf274774",
+    "bytes": 462938
+  },
+  {
+    "file": "Finn_avatar.svg",
+    "archiveFile": "backup-grey-lux/Finn_avatar.svg",
+    "sha256": "d54e9c92cca52441641e54fea015c742a2ea831d3e28fd00d8ed5f1d17482e25",
+    "bytes": 2821701
+  },
+  {
+    "file": "Finn_sad_avatar.png",
+    "archiveFile": "Finn_sad_avatar.png",
+    "sha256": "389ad303b7e4ae5cadce08f514f27259298f7fd4e903ca146b1accdae7de4e00",
+    "bytes": 469956
+  },
+  {
+    "file": "Ivy_avatar.svg",
+    "archiveFile": "backup-grey-lux/Ivy_avatar.svg",
+    "sha256": "49120b60920364b6cd1df6d11d3e759035d52d5418880878e67f0d4929e49b57",
+    "bytes": 2173085
+  },
+  {
+    "file": "Ivy_sad_avatar.png",
+    "archiveFile": "Ivy_sad_avatar.png",
+    "sha256": "aedeb08375eb0ce106148ab274380ef8ff3ae2db45ca4b355cdfa0564604a6de",
+    "bytes": 392164
+  },
+  {
+    "file": "Jax_avatar.svg",
+    "archiveFile": "backup-grey-lux/Jax_avatar.svg",
+    "sha256": "50ce5783ef03efa8fb9711008d912756404ca37a2c60871b778f58a9006f7e0a",
+    "bytes": 2448281
+  },
+  {
+    "file": "Jax_sad_avatar.png",
+    "archiveFile": "Jax_sad_avatar.png",
+    "sha256": "edaf184ad525300a993e1ff5ac1431439c107e0710c2b3d515e3f61d9fad448f",
+    "bytes": 433660
+  },
+  {
+    "file": "Kai_avatar.svg",
+    "archiveFile": "backup-grey-lux/Kai_avatar.svg",
+    "sha256": "a7785fec0cd61c1123cc2530ff1395cba6bf56c2fa8cbacd1fca8e5dd538fc96",
+    "bytes": 2283849
+  },
+  {
+    "file": "Kai_sad_avatar.png",
+    "archiveFile": "Kai_sad_avatar.png",
+    "sha256": "b355634b8142a8ad2f829e2bf3a76b121543f4bf0b2dcb061b34895527a4e4a6",
+    "bytes": 443627
+  },
+  {
+    "file": "Kian_avatar.svg",
+    "archiveFile": "backup-grey-lux/Kian_avatar.svg",
+    "sha256": "bd5ed9d94ab7f150f27e27df85064f0e00d358c739e24381b47083f4e86b79db",
+    "bytes": 2544869
+  },
+  {
+    "file": "Kian_sad_avatar.png",
+    "archiveFile": "Kian_sad_avatar.png",
+    "sha256": "e2c2e2dde2a4534c13b80b2574938c8b886e2a32557449770583d9a767be1f22",
+    "bytes": 439494
+  },
+  {
+    "file": "Lia_avatar.svg",
+    "archiveFile": "backup-grey-lux/Lia_avatar.svg",
+    "sha256": "6b249d85d3c4c7c8c66a0a38a1788b3e1ff062d824f525842802dead2ac1ef11",
+    "bytes": 2469857
+  },
+  {
+    "file": "Lia_flip_avatar.svg",
+    "archiveFile": "Lia_flip_avatar.svg",
+    "sha256": "477a97cba55e76e7234450da404b48470892a3de36bda184c2f01e84354b1a7a",
+    "bytes": 2469341
+  },
+  {
+    "file": "Lia_flip_sad_avatar.png",
+    "archiveFile": "Lia_flip_sad_avatar.png",
+    "sha256": "43e22f8e21dc5247bafe0b86433904201770f4de328cb19c083aaf04823992ea",
+    "bytes": 479506
+  },
+  {
+    "file": "Lia_sad_avatar.png",
+    "archiveFile": "Lia_sad_avatar.png",
+    "sha256": "47fd30ac8a1adf525b2e8ef2076b06c4b226a5a3e39266156b8dd4cd4952730d",
+    "bytes": 501423
+  },
+  {
+    "file": "Lux_avatar.svg",
+    "archiveFile": "backup-grey-lux/Lux_avatar.svg",
+    "sha256": "346ac660b10f42330919b8e38ae7ac7d6417fe4914ba4d6b9402a66ee81117cd",
+    "bytes": 2363773
+  },
+  {
+    "file": "Lux_sad_avatar.png",
+    "archiveFile": "Lux_sad_avatar.png",
+    "sha256": "9c6e02ab04310859951f03ce3954b1dddf577e8cf9149038bb984be700e3fed5",
+    "bytes": 431641
+  },
+  {
+    "file": "mimi_avatar.svg",
+    "archiveFile": "backup-grey-lux/mimi_avatar.svg",
+    "sha256": "a4c59bccbb6e20304586d3fd742c57404a7c8429b99ee4c3f1e4c0376f466f6d",
+    "bytes": 2247997
+  },
+  {
+    "file": "mimi_sad_avatar.png",
+    "archiveFile": "mimi_sad_avatar.png",
+    "sha256": "f68791968f054f2a4e315454662982f2e4c4505d7b9e79e8fde6a6e3ceef7f1f",
+    "bytes": 496307
+  },
+  {
+    "file": "Nico_avatar.svg",
+    "archiveFile": "backup-grey-lux/Nico_avatar.svg",
+    "sha256": "987ef5855eb916b975903de85d0de932647e8ecf6a8171cfe124403a5a422f46",
+    "bytes": 2513197
+  },
+  {
+    "file": "Nico_sad_avatar.png",
+    "archiveFile": "Nico_sad_avatar.png",
+    "sha256": "3d49ad8f3ea491b51e4dccc66a84613ef3cedae32e1b8208d0740455b1435cd0",
+    "bytes": 481643
+  },
+  {
+    "file": "Noa_avatar.svg",
+    "archiveFile": "backup-grey-lux/Noa_avatar.svg",
+    "sha256": "5a317301a1644a75e71d431ab60d1504a38127afdd7e4cdab951601cee40526a",
+    "bytes": 2646393
+  },
+  {
+    "file": "Noa_sad_avatar.png",
+    "archiveFile": "Noa_sad_avatar.png",
+    "sha256": "1db6f69733b5244c6ed2bddbaacb0005fb06993d89e861511b0c0a86e61ac76b",
+    "bytes": 419452
+  },
+  {
+    "file": "Nova_avatar.svg",
+    "archiveFile": "backup-grey-lux/Nova_avatar.svg",
+    "sha256": "90f19ef057a281955dad0871a96a594482172c44d6e4a24aeebe7ca0affafd5e",
+    "bytes": 2472805
+  },
+  {
+    "file": "Nova_sad_avatar.png",
+    "archiveFile": "Nova_sad_avatar.png",
+    "sha256": "a9d7f849dca977b8df82fa02e4ec0cd5c52e9062171985be033707a807be9b22",
+    "bytes": 550775
+  },
+  {
+    "file": "Pax_avatar.svg",
+    "archiveFile": "backup-grey-lux/Pax_avatar.svg",
+    "sha256": "ffdbe4be7448fc71ce45f32dd85b8dfd6e31b815723209a51291a2abe40bb9ea",
+    "bytes": 2645173
+  },
+  {
+    "file": "Pax_sad_avatar.png",
+    "archiveFile": "Pax_sad_avatar.png",
+    "sha256": "f7dc508dfe80e706675f162eabbc9d1931918c5c5f6907c199d71d3240ceb6ec",
+    "bytes": 480879
+  },
+  {
+    "file": "Quinn_avatar.svg",
+    "archiveFile": "backup-grey-lux/Quinn_avatar.svg",
+    "sha256": "be987e69a3f22422fa5459a94aac20b6dc062da74ea7557f2c6c6266287dfe40",
+    "bytes": 2596149
+  },
+  {
+    "file": "Quinn_sad_avatar.png",
+    "archiveFile": "Quinn_sad_avatar.png",
+    "sha256": "2a8d0e1669b622a5b9f5b7b5e1d5f231f3f527bff10cc0a721605f5b6907d329",
+    "bytes": 464469
+  },
+  {
+    "file": "Rae_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rae_avatar.svg",
+    "sha256": "b31af154ecbf938a884aa28d444fb2c70b26ff583d003fed1dc189e2d23d7168",
+    "bytes": 2301741
+  },
+  {
+    "file": "Rae_sad_avatar.png",
+    "archiveFile": "Rae_sad_avatar.png",
+    "sha256": "b0d49162e1b59fcfb9f604c4e78e1a7e113fb314b1197fee9451b523f0504ac1",
+    "bytes": 468664
+  },
+  {
+    "file": "Remy_avatar.svg",
+    "archiveFile": "backup-grey-lux/Remy_avatar.svg",
+    "sha256": "0d30449148b97ce1a87147387e1f694017a033b4a7720de2c9a4b4d4b3c8ed48",
+    "bytes": 2467061
+  },
+  {
+    "file": "Remy_sad_avatar.png",
+    "archiveFile": "Remy_sad_avatar.png",
+    "sha256": "c6c691c992b9845d168a24880ca454160b50697cfa84d79e774d419c511fe12f",
+    "bytes": 443086
+  },
+  {
+    "file": "Rey_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rey_avatar.svg",
+    "sha256": "8c4bad333c8ce11c4cea912ad82c4d2f65e99ee219c26674a5d54dca62115d44",
+    "bytes": 2423329
+  },
+  {
+    "file": "Rey_sad_avatar.png",
+    "archiveFile": "Rey_sad_avatar.png",
+    "sha256": "e522953493ce385061d009fb7da145e1d86a9f8c4fa592fa4df6d934b526ea23",
+    "bytes": 426410
+  },
+  {
+    "file": "Rune_avatar.svg",
+    "archiveFile": "backup-grey-lux/Rune_avatar.svg",
+    "sha256": "65592e8c05eda121d8a9d19d3de8c4acd75f2967e37b6fdd960d338aa24c003f",
+    "bytes": 2398657
+  },
+  {
+    "file": "Rune_sad_avatar.png",
+    "archiveFile": "Rune_sad_avatar.png",
+    "sha256": "d67e7fdca9a9533fab540bcee654b68c085072544cf762d25aab3ebbad7c5d31",
+    "bytes": 383817
+  },
+  {
+    "file": "Sol_avatar.svg",
+    "archiveFile": "backup-grey-lux/Sol_avatar.svg",
+    "sha256": "594957a1fd1e301a0edfa8e214a698c46641f22fda355a79f2342e1d8aca3082",
+    "bytes": 2527601
+  },
+  {
+    "file": "Sol_sad_avatar.png",
+    "archiveFile": "Sol_sad_avatar.png",
+    "sha256": "3d1fe5c8795098c7775fc61ed95f99233a8788f89fbe30bd849e18b6d361e000",
+    "bytes": 520290
+  },
+  {
+    "file": "Vee_avatar.svg",
+    "archiveFile": "backup-grey-lux/Vee_avatar.svg",
+    "sha256": "1c27fca225f85bd6c4cdf63cb9789c81a1b852fda95fe8bebec838bc18ce9224",
+    "bytes": 2767221
+  },
+  {
+    "file": "Vee_sad_avatar.png",
+    "archiveFile": "Vee_sad_avatar.png",
+    "sha256": "4aa37842855f6315c1eb994f4310ac77a134f641f095032c6f11cced7bec8c0a",
+    "bytes": 501847
+  },
+  {
+    "file": "Zed_avatar.svg",
+    "archiveFile": "backup-grey-lux/Zed_avatar.svg",
+    "sha256": "98d77f2ccdfa6d18b28e304e5c88159bac4fff6eb8be01fbcd413773eac30900",
+    "bytes": 2269561
+  },
+  {
+    "file": "Zed_sad_avatar.png",
+    "archiveFile": "Zed_sad_avatar.png",
+    "sha256": "d6eb9e14b9aa23b05c8b537693ffbb987e9b6ff8fbeafb450e3ff9b9f74585b2",
+    "bytes": 407204
+  }
+]

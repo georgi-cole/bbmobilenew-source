@@ -212,7 +212,6 @@ export default function HoldTheWallComp({
   const [roundStartKey, setRoundStartKey] = useState(0)
   const [narrativeMsg, setNarrativeMsg] = useState('Get ready to hold on for dear life…')
   const startTimeRef = useRef<number | null>(null)
-  const animFrameRef = useRef<number | null>(null)
   // Pointer-down and pointer-up can occur before React has committed the
   // isHolding state update. Keep the competition rule in a synchronous ref so
   // a quick release is still an immediate, authoritative fall.
@@ -488,7 +487,7 @@ export default function HoldTheWallComp({
     socialRelationships,
   ])
 
-  // ── Elapsed timer (requestAnimationFrame loop) ────────────────────────────
+  // Only the display and pressure meter need updates; scoring keeps its precise clock.
   useEffect(() => {
     if (htw.status !== 'active') return
 
@@ -496,12 +495,12 @@ export default function HoldTheWallComp({
       if (startTimeRef.current !== null) {
         setElapsedMs(Date.now() - startTimeRef.current)
       }
-      animFrameRef.current = requestAnimationFrame(tick)
     }
-    animFrameRef.current = requestAnimationFrame(tick)
+    tick()
+    const interval = window.setInterval(tick, 100)
 
     return () => {
-      if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current)
+      window.clearInterval(interval)
     }
   }, [htw.status])
 

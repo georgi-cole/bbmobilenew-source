@@ -669,16 +669,16 @@
         reunionScore = 0,
         thorns = []
       const bg = new Image()
-      bg.src = './assets/moonlit-park-v2.png'
+      bg.src = './assets/moonlit-park-v2.webp'
       const hero = new Image()
       let heroClean = null
-      hero.src = './assets/benny-approved-alpha.png'
+      hero.src = '../shared/benny-approved-alpha.webp'
       hero.onload = () => {
         heroClean = hero
       }
       const galleryAvatars = ['Lia', 'Ali', 'Aria', 'Dex'].map((name) => {
         const img = new Image()
-        img.src = './assets/avatars/' + name + '_avatar.webp'
+        img.src = '../shared/avatars/' + name + '_avatar.webp'
         return img
       })
       function fresh() {

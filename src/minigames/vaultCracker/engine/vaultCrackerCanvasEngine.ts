@@ -1,3 +1,5 @@
+import { getMinigamePixelRatio } from '../../canvasQuality'
+
 import {
   CODE_LENGTH,
   evaluateGuess,
@@ -169,7 +171,7 @@ export class VaultCrackerCanvasEngine {
 
   resize(width: number, height: number, dpr: number): void {
     if (this.isDestroyed || width <= 0 || height <= 0) return;
-    const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+    const pixelRatio = getMinigamePixelRatio(width, height, dpr);
     this.layout = createVaultCrackerLayout(width, height, pixelRatio);
     // CSS controls the displayed canvas size; canvas.width/canvas.height only
     // control the internal rendering resolution for crisp high-DPI drawing.

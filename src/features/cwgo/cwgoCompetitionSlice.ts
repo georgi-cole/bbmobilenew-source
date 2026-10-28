@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { cwgoInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Closest Without Going Over" (CWGO) competition.
  *
@@ -101,27 +103,6 @@ export interface CwgoState {
 }
 
 // ─── Initial State ────────────────────────────────────────────────────────────
-
-const initialState: CwgoState = {
-  status: 'idle',
-  stage: 'qualifier',
-  prizeType: 'LOH',
-  seed: 0,
-  playerScores: {},
-  aliveIds: [],
-  questionIdx: 0,
-  questionOrder: [],
-  guesses: {},
-  responseTimesMs: {},
-  revealResults: [],
-  lastEliminated: [],
-  eliminationOrder: [],
-  round: 0,
-  duelPair: null,
-  duelWinnerId: null,
-  leaderId: null,
-  outcomeResolved: false,
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -490,4 +471,4 @@ export const {
   markCwgoOutcomeResolved,
 } = cwgoSlice.actions
 
-export default cwgoSlice.reducer
+export default registerMinigameReducer('cwgo', cwgoSlice.reducer)

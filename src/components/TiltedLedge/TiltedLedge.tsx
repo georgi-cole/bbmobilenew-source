@@ -64,8 +64,11 @@ export const TiltedLedge: React.FC<Props> = ({
         lastTimestampRef.current = ts;
 
         // Update elapsed
+        const previousDisplayTick = Math.floor(elapsedRef.current / 100);
         elapsedRef.current += dt;
-        setElapsedMs(elapsedRef.current);
+        if (Math.floor(elapsedRef.current / 100) !== previousDisplayTick) {
+          setElapsedMs(elapsedRef.current);
+        }
 
         // Game update + render
         updateAndRender(dt);
@@ -102,10 +105,12 @@ export const TiltedLedge: React.FC<Props> = ({
   };
 
   const pause = () => {
+    setElapsedMs(elapsedRef.current);
     setRunning(false);
   };
 
   const stopGame = () => {
+    setElapsedMs(elapsedRef.current);
     setRunning(false);
     const elapsedSeconds = Math.round(elapsedRef.current / 1000);
     // persist local best

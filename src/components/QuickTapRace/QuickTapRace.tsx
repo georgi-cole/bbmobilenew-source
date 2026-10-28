@@ -3,8 +3,8 @@ import { useAppSelector } from '../../store/hooks'
 import { selectHasPremiumChallengesAccess } from '../../store/vipSlice'
 import type { MinigameSession, Player } from '../../types'
 import type { QTRTimingDiagnostics } from '../../minigames/quickTapRace/engine/types'
-import QuickTapRaceCanvasGame from '../../minigames/quickTapRace/QuickTapRaceCanvasGame'
-import QuickTapRaceVip from '../../minigames/quickTapRace/vip/QuickTapRaceVip'
+import { QuickTapRaceCanvasGame, QuickTapRaceVip } from '../../minigames/quickTapRace/presentations'
+import MinigameLoadingBoundary from '../MinigameHost/MinigameLoadingBoundary'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 
 type HostParticipant = NonNullable<GenericMinigameProps['participants']>[number]
@@ -58,29 +58,33 @@ export default function QuickTapRace({
 
   if (isVipRun) {
     return (
-      <QuickTapRaceVip
-        session={session}
-        players={players}
-        onFinish={onFinish}
-        seed={seed}
-        autoStart={autoStart}
-        quickTapVariantOverride={quickTapVariantOverride}
-        participantIds={participantIds}
-        participants={participants}
-      />
+      <MinigameLoadingBoundary title="Quick Tap Race">
+        <QuickTapRaceVip
+          session={session}
+          players={players}
+          onFinish={onFinish}
+          seed={seed}
+          autoStart={autoStart}
+          quickTapVariantOverride={quickTapVariantOverride}
+          participantIds={participantIds}
+          participants={participants}
+        />
+      </MinigameLoadingBoundary>
     )
   }
 
   return (
-    <QuickTapRaceCanvasGame
-      session={session}
-      players={players}
-      onFinish={onFinish ? (value) => onFinish(value) : undefined}
-      seed={seed}
-      autoStart={autoStart}
-      participantIds={participantIds}
-      participants={participants}
-      experimental={experimental}
-    />
+    <MinigameLoadingBoundary title="Quick Tap Race">
+      <QuickTapRaceCanvasGame
+        session={session}
+        players={players}
+        onFinish={onFinish ? (value) => onFinish(value) : undefined}
+        seed={seed}
+        autoStart={autoStart}
+        participantIds={participantIds}
+        participants={participants}
+        experimental={experimental}
+      />
+    </MinigameLoadingBoundary>
   )
 }

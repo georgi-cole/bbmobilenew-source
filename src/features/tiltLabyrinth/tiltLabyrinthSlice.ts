@@ -1,3 +1,5 @@
+import { registerMinigameReducer } from '../../minigames/deferredReducer'
+import { tiltLabyrinthInitialState as initialState } from '../../minigames/sessionInitialStates'
 /**
  * Redux slice for the "Tilt Labyrinth" scored minigame competition.
  *
@@ -65,20 +67,7 @@ export interface TiltLabyrinthState {
 
 // ─── Initial state ────────────────────────────────────────────────────────────
 
-const initialState: TiltLabyrinthState = {
-  phase: 'idle',
-  competitionType: 'LOH',
-  seed: 0,
-  participants: [],
-  humanPlayerId: null,
-  aiScores: {},
-  humanScore: null,
-  finalScores: {},
-  runDetails: {},
-  winnerId: null,
-  lastPlaceId: null,
-  outcomeResolved: false,
-};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -208,4 +197,4 @@ export const {
   markTiltLabyrinthOutcomeResolved,
   resetTiltLabyrinth,
 } = tiltLabyrinthSlice.actions;
-export default tiltLabyrinthSlice.reducer;
+export default registerMinigameReducer('tiltLabyrinth', tiltLabyrinthSlice.reducer)

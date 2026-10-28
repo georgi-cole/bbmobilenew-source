@@ -1,3 +1,5 @@
+import { getMinigamePixelRatio } from '../../canvasQuality'
+
 import { selectBoosterPrompts } from '../../../ai/competition/quickTapSimulation';
 import type { ScheduledBoosterPrompt } from '../../../ai/competition/quickTapSimulation';
 import type {
@@ -247,7 +249,7 @@ export class QuickTapRaceCanvasEngine {
 
   resize(width: number, height: number, dpr: number): void {
     if (this.isDestroyed || width <= 0 || height <= 0) return;
-    const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+    const pixelRatio = getMinigamePixelRatio(width, height, dpr);
     this.layout = makeLayout(width, height, pixelRatio);
     this.canvas.width = Math.max(1, Math.round(width * pixelRatio));
     this.canvas.height = Math.max(1, Math.round(height * pixelRatio));
