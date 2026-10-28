@@ -231,7 +231,7 @@ export default function Profile() {
               />
               <img
                 className="profile-screen__character-platform"
-                src={joinPublicAssetPath('assets/dressing-room/profile-podium.png')}
+                src={joinPublicAssetPath('assets/dressing-room/profile-podium.webp')}
                 alt=""
                 aria-hidden="true"
               />

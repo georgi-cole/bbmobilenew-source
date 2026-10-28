@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-28: Reviewed release performance maintenance for shared minigame
+  hosting, standard/VIP Quick Tap, House of Cards, and presentation assets.
+  Scoring, rules, premium access, products, prices, and offer copy are unchanged.
+  Reduced redundant UI work and decorative activity preserve the premium games
+  and their existing entitlements. The current catalog remains accurate.
+
 - 2026-10-28: Reviewed the non-VIP Quick Tap AI rebalance and removal of the
   already-retired Lane Racers implementation, catalog entry, and saved score
   records. Lane Racers was excluded from the premium offer. Released VIP Quick

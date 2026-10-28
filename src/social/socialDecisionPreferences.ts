@@ -203,6 +203,31 @@ function eventAgeWeight(eventWeek: number | undefined, currentWeek: number | und
   return 0
 }
 
+const experienceEvents = new WeakMap<
+  readonly SocialActionLogEntry[],
+  Map<string, SocialActionLogEntry[]>
+>()
+
+function eventsByActor(
+  events: readonly SocialActionLogEntry[],
+  actorId: string
+): readonly SocialActionLogEntry[] {
+  if (!Object.isFrozen(events)) return events
+  // Store snapshots are immutable. Mutable callers (including import/migration tools)
+  // must never reuse an index after mutating their input.
+  let index = Object.isFrozen(events) ? experienceEvents.get(events) : undefined
+  if (!index) {
+    index = new Map()
+    for (const event of events) {
+      const entries = index.get(event.actorId)
+      if (entries) entries.push(event)
+      else index.set(event.actorId, [event])
+    }
+    if (Object.isFrozen(events)) experienceEvents.set(events, index)
+  }
+  return index.get(actorId) ?? []
+}
+
 /** Reads only events the actor directly experienced or heard about themselves. */
 export function getSocialExperienceRead(
   actorId: string,
@@ -215,7 +240,7 @@ export function getSocialExperienceRead(
 ): SocialExperienceRead {
   const read: SocialExperienceRead = { help: 0, grievance: 0, humiliation: 0, betrayal: 0 }
 
-  for (const event of input.recentActions ?? []) {
+  for (const event of eventsByActor(input.recentActions ?? [], targetId)) {
     const directTarget = event.targetId === actorId || event.targetIds?.includes(actorId) === true
     const namedAsSubject = event.subjectId === actorId
     if (event.actorId !== targetId || (!directTarget && !namedAsSubject)) continue

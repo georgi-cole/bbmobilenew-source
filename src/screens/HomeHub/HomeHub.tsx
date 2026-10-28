@@ -312,6 +312,14 @@ export default function HomeHub() {
     [dayCount, introHubPlayer, phase, seasonArchives]
   )
   const effectiveBgUrl = introHubBgUrl ?? remoteBgUrl ?? bgUrl
+  useEffect(() => {
+    // Warm just the next Profile scene after the hub has painted, never all looks.
+    const timer = window.setTimeout(() => {
+      void preloadImage(`${import.meta.env.BASE_URL}assets/dressing-room/profile-podium.webp`)
+      void preloadImage(`${import.meta.env.BASE_URL}assets/dressing-room/profile-scene.webp`)
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [])
   const [backgroundLayers, setBackgroundLayers] = useState<HomeHubBackgroundState>({
     currentUrl: null,
     previousUrl: null,

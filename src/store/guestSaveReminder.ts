@@ -2,6 +2,7 @@ import type { TvEvent } from '../types'
 
 export const GUEST_SAVE_REMINDER_COPY =
   "You're playing as a guest. Create a profile to save your season."
+const reminderIdentity = new WeakMap<TvEvent, boolean>()
 
 const LEGACY_GUEST_SAVE_REMINDER_COPY = new Set(
   [
@@ -18,10 +19,13 @@ function normalizeReminderCopy(copy: string): string {
 
 export function isGuestSaveReminderEvent(event: TvEvent | null | undefined): event is TvEvent {
   if (!event) return false
-  return (
+  const cached = Object.isFrozen(event) ? reminderIdentity.get(event) : undefined
+  if (cached !== undefined) return cached
+  const result =
     event.meta?.guestModeSaveWarning === true ||
     LEGACY_GUEST_SAVE_REMINDER_COPY.has(normalizeReminderCopy(event.text))
-  )
+  if (Object.isFrozen(event)) reminderIdentity.set(event, result)
+  return result
 }
 
 /** Upgrade only known pre-marker copies while restoring a saved game. */

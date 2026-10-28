@@ -223,7 +223,7 @@ describe('Batch 1 AI and elimination audit', () => {
       ).toBe(true)
     })
 
-    it('keeps sudden-death tie-break winners out of the eliminated set', () => {
+    it('keeps final-score duels separate from the eligible decider of a tied elimination vote', () => {
       const tieA = makeChainPlayer('tie-a', {
         roundContribution: 40,
         totalContribution: 160,
@@ -276,10 +276,18 @@ describe('Batch 1 AI and elimination audit', () => {
         rng: mulberry32(11),
       })
 
-      expect(elimination.tieBreaks[0]?.type).toBe('duel')
+      expect(elimination.tieBreaks[0]).toMatchObject({
+        type: 'decision',
+        deciderId: observer.id,
+        decisionPending: false,
+        eliminationCount: 1,
+      })
       expect(elimination.eliminatedIds).toHaveLength(1)
-      expect(elimination.eliminatedIds[0]).toBe(loserId)
-      expect(elimination.eliminatedIds[0]).not.toBe(winnerId)
+      expect(elimination.eliminatedIds).toEqual(elimination.tieBreaks[0].decisionIds)
+      expect([tieA.id, tieB.id]).toContain(elimination.eliminatedIds[0])
+      expect(
+        elimination.updatedPlayers.find((player) => player.id === observer.id)?.isEliminated
+      ).toBe(false)
     })
   })
 

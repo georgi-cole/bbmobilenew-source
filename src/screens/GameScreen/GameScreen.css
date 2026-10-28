@@ -102,7 +102,7 @@ html.is-capacitor-ios .game-screen {
 
 body:has(.game-screen-shell) .app-shell {
   background-color: var(--color-bg);
-  background-image: url('../../assets/bb-gameplay-bg.svg');
+  background-image: url('../../assets/bb-gameplay-bg.webp');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
@@ -118,7 +118,7 @@ body:has(.game-screen-shell) .app-shell__main {
 
 body:has(.game-screen-shell) {
   background-color: var(--color-bg);
-  background-image: url('../../assets/bb-gameplay-bg.svg');
+  background-image: url('../../assets/bb-gameplay-bg.webp');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
@@ -156,7 +156,7 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
 /* Gameplay background shell */
 .game-screen-shell {
   isolation: isolate;
-  background-image: url('../../assets/bb-gameplay-bg.svg');
+  background-image: url('../../assets/bb-gameplay-bg.webp');
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
@@ -173,7 +173,7 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
     radial-gradient(ellipse at 92% 22%, rgba(255, 214, 133, 0.16), transparent 44%),
     radial-gradient(ellipse at 14% 88%, rgba(111, 221, 194, 0.16), transparent 46%),
     radial-gradient(ellipse at 88% 82%, rgba(143, 157, 255, 0.2), transparent 46%),
-    url('../../assets/bb-gameplay-bg.svg');
+    url('../../assets/bb-gameplay-bg.webp');
   background-size:
     100% 100%,
     100% 100%,
@@ -205,7 +205,7 @@ body.mode-surveyeval .game-control-dock .fab-icon.confessional {
     radial-gradient(ellipse at 92% 22%, rgba(255, 214, 133, 0.16), transparent 44%),
     radial-gradient(ellipse at 14% 88%, rgba(111, 221, 194, 0.16), transparent 46%),
     radial-gradient(ellipse at 88% 82%, rgba(143, 157, 255, 0.2), transparent 46%),
-    url('../../assets/bb-gameplay-bg.svg');
+    url('../../assets/bb-gameplay-bg.webp');
   background-size:
     100% 100%,
     100% 100%,
@@ -265,7 +265,7 @@ body:has(.game-screen--cupid-active) .app-shell {
     radial-gradient(circle at 50% -8%, rgba(191, 91, 132, 0.2), transparent 44%),
     radial-gradient(circle at 0% 54%, rgba(130, 99, 174, 0.1), transparent 36%),
     linear-gradient(180deg, rgba(29, 16, 32, 0.26), rgba(11, 12, 23, 0.12)),
-    url('../../assets/bb-gameplay-bg.svg');
+    url('../../assets/bb-gameplay-bg.webp');
 }
 
 body:has(.game-screen--cupid-active) .tv-zone {

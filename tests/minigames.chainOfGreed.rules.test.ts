@@ -204,12 +204,12 @@ describe('Chain of Greed rules', () => {
     expect(saved.safetyUsed).toBe(true)
   })
 
-  it('builds valid votes and resolves a tied elimination with a duel', () => {
+  it('builds valid votes and lets the strongest eligible performer decide a tied elimination', () => {
     const players = [
       makePlayer('human', { isHuman: true, name: 'You' }),
       makePlayer('ai-1', { name: 'AI 1' }),
       makePlayer('ai-2', { name: 'AI 2' }),
-      makePlayer('ai-3', { name: 'AI 3' }),
+      makePlayer('ai-3', { name: 'AI 3', roundContribution: 1000, totalContribution: 1000 }),
     ]
 
     const votes = buildAiVoteRecords({
@@ -264,7 +264,13 @@ describe('Chain of Greed rules', () => {
       rng: sequenceRng([0.2, 0.6, 0.4, 0.8]),
     })
 
-    expect(elimination.tieBreaks[0]?.type).toBe('duel')
+    expect(elimination.tieBreaks[0]).toMatchObject({
+      type: 'decision',
+      deciderId: 'ai-3',
+      decisionPending: false,
+      eliminationCount: 1,
+    })
+    expect(elimination.eliminatedIds).toEqual(elimination.tieBreaks[0].decisionIds)
     expect(elimination.eliminatedIds).toHaveLength(1)
     expect(['ai-1', 'ai-2']).toContain(elimination.eliminatedIds[0])
     expect(

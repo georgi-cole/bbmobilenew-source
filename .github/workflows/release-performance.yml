@@ -1,0 +1,33 @@
+name: Release performance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'index.html'
+      - 'tests/fixtures/performance/**'
+      - 'scripts/run-release-performance.mjs'
+      - '.github/workflows/release-performance.yml'
+jobs:
+  release-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/run-release-performance.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-performance
+          path: test-results/release-performance/report.json

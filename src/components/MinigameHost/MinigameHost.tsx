@@ -409,13 +409,19 @@ export default function MinigameHost({
       const t = setTimeout(() => setPhase('playing'), 0)
       return () => clearTimeout(t)
     }
-    if (countdown <= 0) {
-      const t = setTimeout(() => setPhase('playing'), 600)
-      return () => clearTimeout(t)
+    // The utility dock intentionally restarts the ready sequence. While active,
+    // elapsed wall time must advance it even if a callback/frame was stalled.
+    const deadline = Date.now() + 3600
+    let timer: ReturnType<typeof setTimeout>
+    const update = () => {
+      const remaining = deadline - Date.now()
+      setCountdown(Math.max(0, Math.ceil((remaining - 600) / 1000)))
+      if (remaining <= 0) setPhase('playing')
+      else timer = setTimeout(update, Math.min(100, remaining))
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [phase, countdown, skipCountdown, utilityView])
+    timer = setTimeout(update, 0)
+    return () => clearTimeout(timer)
+  }, [phase, skipCountdown, utilityView])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {

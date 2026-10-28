@@ -148,6 +148,7 @@ export default function HouseguestGrid({
   onOpenGameLog,
   showNames = true,
 }: Props) {
+  const layoutRevision = `${gridSize}:${compact}:${rosterMode}:${headerMode}:${placeholderCount}:${houseguests.map((guest) => guest.id).join(',')}`
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game, houseguestGridGameEquality)
   const reunionReturnIds = useMemo(() => {
@@ -481,6 +482,7 @@ export default function HouseguestGrid({
                   finalRank={hg.finalRank}
                   showPermanentBadge={hg.showPermanentBadge}
                   layoutId={hg.layoutId}
+                  layoutRevision={layoutRevision}
                   isEvicting={hg.isEvicting}
                   isSurveyevalEvicting={hg.isSurveyevalEvicting}
                   isReunionReturning={isReunionReturning}

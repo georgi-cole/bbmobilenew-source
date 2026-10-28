@@ -17,6 +17,33 @@ function identity(
 }
 
 describe('social decision preferences', () => {
+  it('produces identical indexed reads and invalidates when history or memory changes', () => {
+    const actions = Array.from({ length: 500 }, (_, i) => ({
+      actionId: i % 2 ? 'protect' : 'betray',
+      actorId: `a${i % 16}`,
+      targetId: 'observer',
+      week: 8,
+      cost: 1,
+      delta: i % 2 ? 8 : -10,
+      outcome: 'success' as const,
+      newEnergy: 9,
+      timestamp: i,
+    }))
+    const immutable = Object.freeze(actions)
+    for (let i = 0; i < 16; i++)
+      expect(
+        getSocialExperienceRead('observer', `a${i}`, { recentActions: immutable, week: 8 })
+      ).toEqual(
+        getSocialExperienceRead('observer', `a${i}`, { recentActions: [...actions], week: 8 })
+      )
+    expect(
+      getSocialExperienceRead('observer', 'new', { recentActions: immutable, week: 8 }).help
+    ).toBe(0)
+    const next = Object.freeze([...actions, { ...actions[1], actorId: 'new' }])
+    expect(getSocialExperienceRead('observer', 'new', { recentActions: next, week: 8 }).help).toBe(
+      1
+    )
+  })
   it('gives loyal and calculated contestants different priorities', () => {
     const loyal = getSocialMotivePreferences('loyal-contestant', identity('loyal_anchor'))
     const calculated = getSocialMotivePreferences(

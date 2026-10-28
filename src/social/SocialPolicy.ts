@@ -59,26 +59,22 @@ interface RichPolicyContext extends PolicyContext {
   dramaMode?: boolean
 }
 
-type RecentActionCountIndex = Map<string, number>
+type RecentActionCountIndex = Map<
+  string,
+  Map<number | null, Map<string | null, Map<string | null, number>>>
+>
 
 const recentActionCountIndexes = new WeakMap<
   readonly SocialActionLogEntry[],
   RecentActionCountIndex
 >()
 
-function recentActionCountKey(
-  actorId: string,
-  week: number | null,
-  actionId: string | null,
-  targetId: string | null
-): string {
-  return JSON.stringify([actorId, week, actionId, targetId])
-}
-
 function getRecentActionCountIndex(
   recentActions: readonly SocialActionLogEntry[]
 ): RecentActionCountIndex {
-  const cached = recentActionCountIndexes.get(recentActions)
+  const cached = Object.isFrozen(recentActions)
+    ? recentActionCountIndexes.get(recentActions)
+    : undefined
   if (cached) return cached
 
   const index: RecentActionCountIndex = new Map()
@@ -89,13 +85,18 @@ function getRecentActionCountIndex(
     for (const week of weeks) {
       for (const actionId of actionIds) {
         for (const targetId of targetIds) {
-          const key = recentActionCountKey(entry.actorId, week, actionId, targetId)
-          index.set(key, (index.get(key) ?? 0) + 1)
+          let actor = index.get(entry.actorId)
+          if (!actor) index.set(entry.actorId, (actor = new Map()))
+          let byWeek = actor.get(week)
+          if (!byWeek) actor.set(week, (byWeek = new Map()))
+          let byAction = byWeek.get(actionId)
+          if (!byAction) byWeek.set(actionId, (byAction = new Map()))
+          byAction.set(targetId, (byAction.get(targetId) ?? 0) + 1)
         }
       }
     }
   }
-  recentActionCountIndexes.set(recentActions, index)
+  if (Object.isFrozen(recentActions)) recentActionCountIndexes.set(recentActions, index)
   return index
 }
 
@@ -121,9 +122,11 @@ function recentCount(
   const recentActions = context.recentActions
   if (!recentActions?.length) return 0
   return (
-    getRecentActionCountIndex(recentActions).get(
-      recentActionCountKey(actorId, context.week ?? null, actionId || null, targetId || null)
-    ) ?? 0
+    getRecentActionCountIndex(recentActions)
+      .get(actorId)
+      ?.get(context.week ?? null)
+      ?.get(actionId || null)
+      ?.get(targetId || null) ?? 0
   )
 }
 

@@ -98,7 +98,7 @@ describe('safe-area layout styles', () => {
     )
 
     expect(gameScreenCss).toContain(
-      "body:has(.game-screen-shell) .app-shell { background-color: var(--color-bg); background-image: url('../../assets/bb-gameplay-bg.svg');"
+      "body:has(.game-screen-shell) .app-shell { background-color: var(--color-bg); background-image: url('../../assets/bb-gameplay-bg.webp');"
     )
     expect(gameScreenCss).not.toContain('.safe-game-viewport')
     expect(houseguestGridCss).toContain('grid-auto-rows: max-content;')

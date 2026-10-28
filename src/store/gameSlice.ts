@@ -5911,6 +5911,20 @@ const gameSlice = createSlice({
       }
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => id !== action.payload)
     },
+    /** Day-boundary cleanup preserves ordered consumption in one transaction. */
+    consumeBroadcastEvents(state, action: PayloadAction<string[]>) {
+      if (!action.payload.length) return
+      const events = new Map<string, (typeof state.tvFeed)[number]>()
+      for (const event of state.tvFeed) if (!events.has(event.id)) events.set(event.id, event)
+      for (const id of action.payload) {
+        const event = events.get(id)
+        if (!event) continue
+        event.meta = { ...(event.meta ?? {}), broadcastConsumed: true }
+        if (event.meta.broadcastLevel === 'minor') state.lastPlainBroadcastEventId = event.id
+      }
+      const consumed = new Set(action.payload)
+      state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => !consumed.has(id))
+    },
     addCustomBroadcast(
       state,
       action: PayloadAction<Omit<CustomBroadcastMessage, 'id'> & { id?: string }>
@@ -13576,6 +13590,7 @@ export const {
   replaceBroadcastConfig,
   syncPhaseBroadcasts,
   consumeBroadcastEvent,
+  consumeBroadcastEvents,
   addCustomBroadcast,
   updateCustomBroadcast,
   reorderCustomBroadcasts,

@@ -55,6 +55,14 @@ const HOST_GAMEPLAY_CERTIFICATION = 'e2e/playwright/minigameGameplayCertificatio
  * test requires these keys to match the active registry exactly.
  */
 export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
+  percentagePanic: {
+    input: 'percentage slider, lock estimate, hints, and higher/lower final guesses',
+    scoring: 'placement',
+    tie: 'Higher cumulative accuracy; then faster total response time; then seeded order. Finalists alternate until an exact guess.',
+    logic: 'tests/minigames.percentagePanic.rules.test.ts',
+    component: 'tests/unit/percentagePanic/PercentagePanic.avatars.test.tsx',
+    risk: 'Full round and final timing require real-host browser coverage.',
+  },
   castleRescueRemastered: {
     input: 'touch movement and platform action',
     scoring: 'higher',
@@ -329,9 +337,9 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     risk: 'A real browser playthrough should verify target picking and turn pacing.',
   },
   chainOfGreed: {
-    input: 'pointer/touch split, steal, vote, and duel choices',
+    input: 'pointer/touch split, steal, vote, and tied-vote decisions',
     scoring: 'placement',
-    tie: 'A genuinely tied elimination vote triggers the deterministic duel policy.',
+    tie: 'The strongest eligible round performer decides a tied elimination vote; final-score ties use the seeded duel.',
     logic: 'tests/unit/chain-of-greed/chainOfGreed.logic.test.ts',
     component: 'tests/unit/chain-of-greed/ChainOfGreed.component.test.tsx',
     host: 'tests/integration/minigame.chainOfGreed.integration.test.ts',
@@ -359,6 +367,14 @@ export const ACTIVE_MINIGAME_QUALITY_DETAILS: Record<string, QualityDetail> = {
     logic: 'src/components/GatesOfTheEye/gatesOfTheEyeLogic.ts',
     component: 'src/components/GatesOfTheEye/GatesOfTheEye.tsx',
     risk: 'Focused rules and campaign scheduling tests cover outcomes and availability; a full hosted browser playthrough remains a manual QA item.',
+  },
+  boxedOut: {
+    input: 'secret choice among three visible box rewards',
+    scoring: 'survival',
+    tie: 'Tied selection counts explode no box; final score ties use closest without going over.',
+    logic: 'tests/minigames.boxedOut.rules.test.ts',
+    component: 'tests/boxedOut.presentation.test.tsx',
+    host: 'tests/minigames.contract.test.tsx',
   },
 }
 

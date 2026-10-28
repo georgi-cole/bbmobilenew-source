@@ -76,10 +76,12 @@ function readPersistenceRevision(profileId: string): string | null | undefined {
  */
 export function createRunSnapshotAutosaveController(
   saveRunSnapshot: SaveRunSnapshot,
-  delayMs = RUN_SNAPSHOT_AUTOSAVE_DELAY_MS
+  delayMs = RUN_SNAPSHOT_AUTOSAVE_DELAY_MS,
+  prepareSnapshot?: (snapshot: SavedSeasonSnapshot) => Promise<void>
 ): RunSnapshotAutosaveController {
   const pending = new Map<string, PendingSave>()
   let timer: ReturnType<typeof setTimeout> | null = null
+  const preparing = new Map<string, PendingSave>()
 
   const flush = () => {
     if (timer !== null) {
@@ -117,6 +119,66 @@ export function createRunSnapshotAutosaveController(
     }
   }
 
+  const armTimer = () => {
+    if (timer !== null) return
+    timer = setTimeout(
+      () => {
+        timer = null
+        if (!prepareSnapshot) {
+          flush()
+          return
+        }
+        for (const [key, save] of pending) {
+          if (preparing.get(key) === save) continue
+          const revision = readPersistenceRevision(save.profileId)
+          if (
+            save.persistenceRevision !== undefined &&
+            revision !== undefined &&
+            revision !== save.persistenceRevision
+          ) {
+            pending.delete(key)
+            continue
+          }
+          const factory = save.createSnapshot
+          const snapshot = factory()
+          preparing.set(key, save)
+          void Promise.resolve()
+            .then(() => prepareSnapshot(snapshot))
+            .catch(() => undefined)
+            .then(() => {
+              if (preparing.get(key) === save) preparing.delete(key)
+              // Lifecycle flushes, clears and new runs always beat an old worker.
+              if (pending.get(key) !== save) return
+              const currentRevision = readPersistenceRevision(save.profileId)
+              if (
+                save.persistenceRevision !== undefined &&
+                currentRevision !== undefined &&
+                currentRevision !== save.persistenceRevision
+              ) {
+                pending.delete(key)
+                return
+              }
+              // Commit bounded progress even during continuous churn. If updates
+              // arrived during preparation, keep their latest factory queued.
+              if (save.createSnapshot === factory) pending.delete(key)
+              if (saveRunSnapshot(save.profileId, snapshot)) {
+                const writtenRevision = readPersistenceRevision(save.profileId)
+                for (const queued of pending.values()) {
+                  if (
+                    queued.profileId === save.profileId &&
+                    queued.persistenceRevision === currentRevision
+                  )
+                    queued.persistenceRevision = writtenRevision
+                }
+              }
+              if (pending.size) armTimer()
+            })
+        }
+      },
+      Math.max(0, delayMs)
+    )
+  }
+
   const schedulePending = (
     profileId: string,
     slot: SavedRunSlot,
@@ -125,21 +187,16 @@ export function createRunSnapshotAutosaveController(
   ) => {
     const key = pendingKey(profileId, slot)
     const existing = pending.get(key)
-    const sameRun = existing?.runId === runId
-    pending.set(key, {
-      profileId,
-      slot,
-      runId,
-      createSnapshot,
-      // Rapid Redux updates from one physical Play press reuse the same tiny
-      // revision lookup. A genuinely new run re-reads it so a fresh season can
-      // save normally after an explicit clear in the same JavaScript task.
-      persistenceRevision: sameRun
-        ? existing.persistenceRevision
-        : readPersistenceRevision(profileId),
-    })
-    if (timer !== null) return
-    timer = setTimeout(flush, Math.max(0, delayMs))
+    if (existing && existing.runId === runId) existing.createSnapshot = createSnapshot
+    else
+      pending.set(key, {
+        profileId,
+        slot,
+        runId,
+        createSnapshot,
+        persistenceRevision: readPersistenceRevision(profileId),
+      })
+    armTimer()
   }
 
   const schedule = (profileId: string, snapshot: SavedSeasonSnapshot) => {

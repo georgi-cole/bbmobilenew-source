@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { produce } from 'immer'
 import {
   advanceAllianceRequests,
   finalizeAcceptedPersonalPact,
   manageAlliance,
   type AllianceManagementContext,
 } from '../reality/allianceManagement'
-import { currentAllianceCounts, isCurrentAlliance } from '../reality/allianceIdentity'
+import {
+  currentAllianceCounts,
+  isCurrentAlliance,
+  normalizeAllianceManagement,
+} from '../reality/allianceIdentity'
 import { allianceEventText } from '../reality/allianceHistory'
 import {
   createDirectedRelationship,
@@ -48,6 +53,37 @@ const setup = () => {
   ensureRealityActors(state, ids)
   return state
 }
+
+describe('alliance normalization during progression', () => {
+  it('still repairs a missing legacy pact officer list', () => {
+    const state = setup()
+    const legacy = pact(state)
+    delete (legacy as Partial<typeof legacy>).leaderIds
+    normalizeAllianceManagement(state)
+    expect(legacy.leaderIds).toEqual([])
+  })
+  it('preserves an unchanged normalized world and refreshes knowledge when the roster changes', () => {
+    const state = setup()
+    group(state)
+    pact(state, 'c', 'd')
+    const normalized = produce(state, (draft) => normalizeAllianceManagement(draft))
+    const repeated = produce(normalized, (draft) => normalizeAllianceManagement(draft))
+    expect(repeated).toBe(normalized)
+
+    const changed = produce(normalized, (draft) => {
+      draft.alliances.group.name = 'A new name'
+      draft.alliances.group.memberIds.push('x')
+      draft.alliances.group.rosterRevision!++
+      normalizeAllianceManagement(draft)
+    })
+    expect(changed.alliances.group.rosterKnowledgeByActor?.u).toMatchObject({
+      name: 'A new name',
+      memberIds: ['u', 'k', 'r', 'x'],
+    })
+    expect(changed.alliances.group.rosterKnowledgeByActor?.x).toBeDefined()
+    expect(changed.alliances['pact:c:d']).toBe(normalized.alliances['pact:c:d'])
+  })
+})
 const pact = (state: RealityDomainState, a = 'u', b = 'k', purpose = 'Mutual protection') =>
   createRealityAlliance(state, {
     id: `pact:${a}:${b}`,

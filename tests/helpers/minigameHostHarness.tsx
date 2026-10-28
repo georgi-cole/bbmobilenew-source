@@ -31,6 +31,8 @@ export const AUTHORITATIVE_COMPONENT_KEYS: Set<string> = new Set([
   'BatteryLow',
   'BigSpender',
   'HouseOfDarkness',
+  'BoxedOut',
+  'GatesOfTheEye',
 ])
 
 export type HostStubProps = {
