@@ -319,9 +319,9 @@ export const startChallenge =
       // only. It remains available to every other mode and to direct tests.
       const surveyevalPool = availablePool.filter((game) => game.key !== 'rescueTheKing')
       const pool = category
-        ? surveyevalPool.filter((game) => game.category === category)
-        : surveyevalPool
-      const selectionPool = pool.length > 0 ? pool : surveyevalPool
+        ? availablePool.filter((game) => game.category === category)
+        : availablePool
+      const selectionPool = pool.length > 0 ? pool : availablePool
       if (selectionPool.length === 0) {
         throw new Error('[challengeSlice] No eligible Survival games are available')
       }
@@ -398,10 +398,7 @@ export const startChallenge =
     } else if (managerRule?.selection === 'game') {
       const configured = managerRule.gameKey ? getGame(managerRule.gameKey) : undefined
       gameEntry =
-        configured &&
-        !configured.retired &&
-        eligibleForRoster(configured) &&
-        !(state.game.mode === 'survival' && configured.key === 'rescueTheKing')
+        configured && !configured.retired && eligibleForRoster(configured)
           ? configured
           : state.game.mode === 'survival'
             ? pickSurvivorGame()
@@ -564,11 +561,6 @@ export const startChallenge =
     if (shouldForceTwinShockHintGame(state, opts.prizeType)) {
       const twinHintGame = getGame('castleRescue')
       if (twinHintGame) gameEntry = twinHintGame
-    }
-    // Final Surveyeval eligibility guard. This also covers forced/debug keys
-    // and any future scheduler branch added above.
-    if (state.game.mode === 'survival' && gameEntry.key === 'rescueTheKing') {
-      gameEntry = pickSurvivorGame(opts.category, [...(opts.excludeKeys ?? []), 'rescueTheKing'])
     }
     // The Back 2 the Game returnee flow mounts Capitalization directly; the
     // ordinary LOH/Safety scheduler must never select it, even from saved or

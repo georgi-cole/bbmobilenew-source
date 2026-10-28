@@ -568,7 +568,6 @@ describe('startChallenge – compSelection modes', () => {
       ).length
     const availableKeys = getPoolByFilter({ retired: false })
       .filter((game) => supportsPlayerCount(game, playerCount))
-      .filter((game) => game.key !== 'rescueTheKing')
       .filter((game) => game.key !== 'capitalization')
       .map((game) => game.key)
     const classicKeys = new Set(getApprovedCompetitionGameKeys())
@@ -592,24 +591,6 @@ describe('startChallenge – compSelection modes', () => {
 
     expect([...selectedKeys].some((key) => survivorOnlyKeys.includes(key))).toBe(true)
     expect(selectedKeys.size).toBe(availableKeys.length)
-    expect(selectedKeys.has('rescueTheKing')).toBe(false)
-  })
-
-  it('survivor mode rejects Rescue the King even when it is explicitly forced', () => {
-    const store = makeSurvivorStore()
-
-    dispatchThunk(
-      store,
-      startChallenge(
-        42,
-        store.getState().game.players.map((player) => player.id),
-        {
-          forceGameKey: 'rescueTheKing',
-        }
-      )
-    )
-
-    expect(store.getState().challenge.pending?.game.key).not.toBe('rescueTheKing')
   })
 
   it('debug forceGameKey overrides compSelection mode', () => {

@@ -135,7 +135,6 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
   ColorMatch: lazyMinigame(() => import('../components/ColorMatchComp/ColorMatchComp')),
   BoxedOut: lazyMinigame(() => import('../components/BoxedOut/BoxedOut')),
   SnakeGame: lazyMinigame(() => import('../components/SnakeGame/SnakeGame')),
-  RescueTheKing: lazyMinigame(() => import('./rescueTheKing/RescueTheKingGame')),
   TrapAuction: lazyMinigame(() => import('../components/TrapAuction/TrapAuction')),
   TimingBar: lazyMinigame(() => import('../components/TimingBar/TimingBar')),
   Minesweeps: lazyMinigame(() => import('../components/Minesweeps/Minesweeps')),
