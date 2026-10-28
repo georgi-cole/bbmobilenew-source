@@ -47,11 +47,11 @@ The launch pricing model used by the app's upgrade resolver is:
 | Premium Challenges |          1.99 |
 | Public Mode        |          2.99 |
 | No Ads             |          2.99 |
-| Surveyeval Mode    |          3.99 |
+| Surveyeval Mode    |          6.99 |
 | Cupid's Arrow      |          3.99 |
 | Vox Populi         |          3.99 |
 | Reality Mode       |          4.99 |
-| The Big Eye VIP    |         14.99 |
+| The Big Eye VIP    |         19.99 |
 
 Qualifying standalone ownership earns **75% credit** toward a later VIP purchase. Credit stacks,
 but never grants VIP automatically. The calculated target is mapped to the nearest configured
@@ -61,15 +61,15 @@ Configure these additional non-consumable VIP upgrade products on both platforms
 
 | Nominal tier | Product ID                                 |
 | -----------: | ------------------------------------------ |
-|        13.49 | `com.georgicole.thebigeye.vip.upgrade1349` |
-|        12.99 | `com.georgicole.thebigeye.vip.upgrade1299` |
-|        11.99 | `com.georgicole.thebigeye.vip.upgrade1199` |
+|        18.49 | `com.georgicole.thebigeye.vip.upgrade1849` |
+|        16.99 | `com.georgicole.thebigeye.vip.upgrade1699` |
+|        15.49 | `com.georgicole.thebigeye.vip.upgrade1549` |
+|        13.99 | `com.georgicole.thebigeye.vip.upgrade1399` |
+|        12.49 | `com.georgicole.thebigeye.vip.upgrade1249` |
 |        10.99 | `com.georgicole.thebigeye.vip.upgrade1099` |
-|         9.99 | `com.georgicole.thebigeye.vip.upgrade999`  |
-|         8.99 | `com.georgicole.thebigeye.vip.upgrade899`  |
+|         9.49 | `com.georgicole.thebigeye.vip.upgrade949`  |
 |         7.99 | `com.georgicole.thebigeye.vip.upgrade799`  |
-|         6.99 | `com.georgicole.thebigeye.vip.upgrade699`  |
-|         5.99 | `com.georgicole.thebigeye.vip.upgrade599`  |
+|         6.49 | `com.georgicole.thebigeye.vip.upgrade649`  |
 |         4.99 | `com.georgicole.thebigeye.vip.upgrade499`  |
 
 Each upgrade SKU grants the same permanent VIP entitlement as the normal VIP SKU. The client

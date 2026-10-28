@@ -34,6 +34,7 @@ import {
   readPersistedAftermathIssue,
   type AftermathIssue,
 } from './aftermath'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import './GameOver.css'
 import '../../styles/gameOverResponsiveFixes.css'
 import './AftermathTabloid.css'
@@ -126,6 +127,7 @@ function buildArchive(
 type GameOverPanel = 'results' | 'adPrompt' | 'aftermath'
 
 export default function GameOver() {
+  const aftermathAd = useRewardedAd()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const players = useAppSelector((s) => s.game.players)
@@ -296,6 +298,7 @@ export default function GameOver() {
     setIsAftermathLoading(true)
 
     try {
+      if (window.GameAds && !(await aftermathAd.request('aftermath_unlock'))) return
       let issue = readPersistedAftermathIssue(issueStorageKey)
       if (!issue) {
         const config = await loadAftermathConfig()

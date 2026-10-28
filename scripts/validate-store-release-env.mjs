@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { loadEnv } from 'vite'
 
 const platform = process.argv[2]
 if (platform !== 'android' && platform !== 'ios') {
@@ -8,23 +9,15 @@ if (platform !== 'android' && platform !== 'ios') {
 }
 
 const filePath = resolve(`.env.${platform}`)
-if (!existsSync(filePath)) {
+if (!existsSync(filePath) && !existsSync(`${filePath}.local`)) {
   console.error(
     `Missing .env.${platform}. Copy .env.${platform}.example, replace every placeholder, and keep the real file private.`
   )
   process.exit(1)
 }
 
-const values = Object.fromEntries(
-  readFileSync(filePath, 'utf8')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#') && line.includes('='))
-    .map((line) => {
-      const separator = line.indexOf('=')
-      return [line.slice(0, separator).trim(), line.slice(separator + 1).trim()]
-    })
-)
+// Match Vite's actual build configuration, including .local and process overrides.
+const values = { ...loadEnv(platform, process.cwd(), ''), ...process.env }
 
 const issues = []
 const requiredPublicUrls = ['VITE_PRIVACY_POLICY_URL', 'VITE_TERMS_URL', 'VITE_SUPPORT_URL']
@@ -54,6 +47,28 @@ if (values.VITE_VIP_DEV_ENTITLEMENT === 'true') {
 
 if (values.VITE_BUILD_TARGET === 'mobile-dev') {
   issues.push('VITE_BUILD_TARGET=mobile-dev must not be used in a store build.')
+}
+
+const adsMode = values.VITE_ADMOB_MODE || 'off'
+if (!['off', 'live'].includes(adsMode)) {
+  issues.push(
+    'VITE_ADMOB_MODE must be off or live in a store build; test ads are development-only.'
+  )
+}
+if (adsMode === 'live') {
+  for (const [key, separator] of [
+    ['VITE_ADMOB_APP_ID', '~'],
+    ['VITE_ADMOB_INTERSTITIAL_ID', '/'],
+    ['VITE_ADMOB_REWARDED_ID', '/'],
+  ]) {
+    const value = values[key] || ''
+    if (
+      !new RegExp(`^ca-app-pub-\\d{16}${separator}\\d{10}$`).test(value) ||
+      value.startsWith('ca-app-pub-3940256099942544')
+    ) {
+      issues.push(`${key} must be your real ${platform} AdMob ID, not a Google demo ID.`)
+    }
+  }
 }
 
 for (const key of ['VITE_BIG_EYE_VIP_API_URL', 'VITE_REMOTE_CONFIG_URL']) {

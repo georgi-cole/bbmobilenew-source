@@ -36,6 +36,7 @@ const SelfEvicted = lazy(() => import('./screens/SelfEvicted/SelfEvicted'))
 const Rules = lazy(() => import('./screens/Rules/Rules'))
 const VoxPopuliRules = lazy(() => import('./screens/Rules/VoxPopuliRules'))
 const PublicMeter = lazy(() => import('./screens/PublicMeter/PublicMeter'))
+const AdvertisingPrivacy = lazy(() => import('./services/ads/AdvertisingPrivacy'))
 const Settings = lazy(() => import('./screens/Settings/Settings'))
 const Store = lazy(() => import('./screens/Store/Store'))
 const Legal = lazy(() => import('./screens/Legal/Legal'))
@@ -207,7 +208,11 @@ export const router = createHashRouter([
       { path: 'rules', element: load(<Rules />) },
       { path: 'vox-populi-rules', element: load(<VoxPopuliRules />) },
       { path: 'public-meter', element: load(<PublicMeter />) },
-      { path: 'settings', element: load(<Settings />) },
+      { path: 'player-privacy', element: load(<AdvertisingPrivacy />) },
+      {
+        path: 'settings',
+        element: load(<Settings />),
+      },
       { path: 'store', element: load(<Store />) },
       { path: 'legal', element: load(<Legal />) },
       { path: 'settingsatiste', element: <SettingsAdminRoute /> },

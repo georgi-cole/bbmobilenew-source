@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   endFinaleReunionDebugPreview,
@@ -130,6 +131,7 @@ export default function FloatingActionBar({
   const navigate = useNavigate()
   const location = useLocation()
   const reduxStore = useStore<RootState>()
+  const survivorAd = useRewardedAd()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -978,12 +980,13 @@ export default function FloatingActionBar({
             icon="⚡"
             watchLabel="Watch ad · Reassemble"
             skipLabel="Not now"
-            onWatch={() => {
+            onWatch={async () => {
+              if (window.GameAds && !(await survivorAd.request('survival_continue'))) return
               setShowSurvivorAdContinue(false)
               window.setTimeout(() => dispatch(continueSurvivorAfterAd()), 450)
             }}
             onSkip={() => setShowSurvivorAdContinue(false)}
-            pending={false}
+            pending={survivorAd.pending}
           />
         )}
       <GameControlDock

@@ -24,6 +24,7 @@
 
 import { useEffect, useRef, useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { useStore } from 'react-redux'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
 import {
@@ -530,6 +531,7 @@ export default function GlassBridgeComp({
 }: Props) {
   const dispatch = useAppDispatch()
   const reduxStore = useStore<RootState>()
+  const { pending: hintAdPending, request: requestHintAd } = useRewardedAd()
   const gb = useAppSelector((s: RootState) => s.glassBridge)
   const [sessionSeed] = useState<number>(() =>
     seed !== undefined && seed !== 0 ? seed : cryptoSeed()
@@ -700,11 +702,8 @@ export default function GlassBridgeComp({
   const { playSafeStep, playDeath, playWinner, playNewTurn } = useGlassBridgeAudio(
     gb.phase !== 'idle'
   )
-  const effectivePlaybackSpeed = waitingForSpectatorDecision
-    ? 0
-    : gb.humanSpectating
-      ? playbackSpeed
-      : 1
+  const effectivePlaybackSpeed =
+    waitingForSpectatorDecision || hintAdPending ? 0 : gb.humanSpectating ? playbackSpeed : 1
   const scaleSpectatorDelay = useCallback(
     (ms: number) => Math.max(0, Math.round(ms / Math.max(1, effectivePlaybackSpeed))),
     [effectivePlaybackSpeed]
@@ -1388,8 +1387,8 @@ export default function GlassBridgeComp({
     dispatch(fastForwardRemainingPlayers({ now: getEffectiveNowMs() }))
   }, [dispatch, getEffectiveNowMs])
 
-  const handleRequestHelp = useCallback(() => {
-    if (!humanId) return
+  const handleRequestHelp = useCallback(async () => {
+    if (!humanId || hintAdPending) return
     const humanProgress = gb.progress[humanId]
     if (!humanProgress) return
     const hintsUsed = getHintUses(humanProgress.hintPenaltyMs)
@@ -1399,21 +1398,23 @@ export default function GlassBridgeComp({
     if (rowIdx < 0 || rowIdx >= gb.rows.length) return
     const row = gb.rows[rowIdx]
 
-    // ── Ad-gating placeholder ──────────────────────────────────────────────
-    // TODO: Replace this comment block with real ad-request logic before granting
-    // the hint below.  The hint is intentionally granted unconditionally here so
-    // the mechanic can be tested without a live ad provider.
-    // When real ads are integrated:
-    //   1. Call your ad-provider's showRewardedAd() here.
-    //   2. Only execute the code below inside the "ad completed" callback.
-    // ──────────────────────────────────────────────────────────────────────
+    if (window.GameAds && !(await requestHintAd('glass_bridge_hint'))) return
 
     const sameRowHintCount = hintRequestsForCurrentRow + 1
     const chance = computeHintLeftBreakChance(row.safeSide, sameRowHintCount)
     setCurrentHintMessage(pickRandom(hintMessages)(chance))
     setHintRequestsForCurrentRow(sameRowHintCount)
     dispatch(recordHintUsed({ playerId: humanId }))
-  }, [humanId, gb.progress, gb.currentPlayerRow, gb.rows, dispatch, hintRequestsForCurrentRow])
+  }, [
+    humanId,
+    gb.progress,
+    gb.currentPlayerRow,
+    gb.rows,
+    dispatch,
+    hintRequestsForCurrentRow,
+    hintAdPending,
+    requestHintAd,
+  ])
 
   // ── Derived values ────────────────────────────────────────────────────────
 
@@ -1421,6 +1422,7 @@ export default function GlassBridgeComp({
   const humanProgress = humanId ? gb.progress[humanId] : null
   const isHumanTurn = Boolean(
     humanId &&
+    !hintAdPending &&
     activeId === humanId &&
     !gb.humanSpectating &&
     humanProgress &&
@@ -1647,9 +1649,11 @@ export default function GlassBridgeComp({
                     className="gb-btn-help"
                     onClick={handleRequestHelp}
                     disabled={!canRequestHelp}
-                    aria-label={helpAriaLabel}
+                    aria-label={
+                      window.GameAds ? `Watch an ad for a hint. ${helpAriaLabel}` : helpAriaLabel
+                    }
                   >
-                    {helpButtonText}
+                    {window.GameAds ? `Watch ad · ${helpButtonText}` : helpButtonText}
                   </button>
                 </div>
               )}

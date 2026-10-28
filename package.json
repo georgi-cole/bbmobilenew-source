@@ -30,8 +30,8 @@
     "build:ios": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode ios",
     "build:ios:dev": "npm run generate:audio && npm run generate:after-eye && tsc -b && node scripts/build-ios-dev.mjs",
     "sync": "npm run build:mobile && npx cap sync",
-    "sync:android": "npm run build:android && npx cap sync android",
-    "sync:ios": "npm run build:ios && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
+    "sync:android": "npm run build:android && node scripts/configure-admob.mjs android && npx cap sync android",
+    "sync:ios": "npm run build:ios && node scripts/configure-admob.mjs ios && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
     "sync:ios:dev": "npm run build:ios:dev && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
     "cap:sync": "npm run sync",
     "cap:sync:android": "npm run sync:android",
@@ -84,7 +84,7 @@
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",
-    "@capacitor/core": "^8.3.0",
+    "@capacitor/core": "8.5.3",
     "@capacitor/geolocation": "^8.2.4",
     "@capgo/native-purchases": "^8.6.4",
     "@react-three/drei": "^10.7.7",
@@ -104,12 +104,13 @@
     "react-redux": "^9.2.0",
     "react-router": "8.3.0",
     "remotion": "^4.0.490",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "@capacitor-community/admob": "8.2.1"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.0",
-    "@capacitor/cli": "^8.3.0",
-    "@capacitor/ios": "^8.3.0",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/ios": "8.5.3",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
     "@testing-library/dom": "^10.4.1",
