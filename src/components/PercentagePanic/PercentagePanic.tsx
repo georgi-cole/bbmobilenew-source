@@ -422,7 +422,7 @@ export default function PercentagePanic({
                 }}
               >
                 <span className="pp-avatar">
-                  {isEmoji(players[id]?.avatar ?? '') ? (
+                  {players[id]?.isHuman && isEmoji(players[id]?.avatar ?? '') ? (
                     players[id]?.avatar
                   ) : (
                     <ResolvedAvatarImage
@@ -573,7 +573,8 @@ export default function PercentagePanic({
             {state.humanId && worst.includes(state.humanId) && (
               <div className="pp-eliminated-callout">
                 <span className="pp-eliminated-callout__avatar">
-                  {isEmoji(players[state.humanId]?.avatar ?? '') ? (
+                  {players[state.humanId]?.isHuman &&
+                  isEmoji(players[state.humanId]?.avatar ?? '') ? (
                     players[state.humanId]?.avatar
                   ) : (
                     <ResolvedAvatarImage
