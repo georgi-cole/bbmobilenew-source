@@ -44,6 +44,13 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-29: Reviewed the native AdMob SDK connection, adult advertising opt-in,
+  Google UMP privacy choices, and completed-ad reward handling. Existing automatic
+  placements remain suppressed by No Ads/VIP; voluntary rewards stay optional.
+  Product contents, prices, reward amounts, and daily limits are unchanged, so
+  the existing marketplace listings remain accurate. Demo ads require explicit
+  platform configuration and live builds require the publisher IDs.
+
 - 2026-10-28: Reviewed release performance maintenance for shared minigame
   hosting, standard/VIP Quick Tap, House of Cards, and presentation assets.
   Scoring, rules, premium access, products, prices, and offer copy are unchanged.

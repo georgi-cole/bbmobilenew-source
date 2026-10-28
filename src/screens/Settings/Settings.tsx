@@ -490,6 +490,17 @@ export default function Settings() {
         <button
           type="button"
           className="settings-row settings-row--legal"
+          onClick={() => navigate('/player-privacy')}
+        >
+          <span>
+            <strong>Advertising privacy</strong>
+            <small>Optional ads and Google privacy choices</small>
+          </span>
+          <span aria-hidden="true">&rsaquo;</span>
+        </button>
+        <button
+          type="button"
+          className="settings-row settings-row--legal"
           onClick={() => navigate('/legal')}
         >
           <span>

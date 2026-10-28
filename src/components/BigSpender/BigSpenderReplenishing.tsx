@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import type { GenericMinigameProps } from '../../minigames/reactComponents'
 import { mulberry32 } from '../../store/rng'
 import BigSpenderBoard, {
@@ -77,6 +78,7 @@ function getBroadcastKey(event: BigSpenderState['events'][number]) {
 }
 
 export default function BigSpenderReplenishing(props: GenericMinigameProps) {
+  const rescueAd = useRewardedAd()
   const participants = useMemo(
     () => resolveBigSpenderParticipants(props.participants, props.participantIds),
     [props.participants, props.participantIds]
@@ -592,11 +594,13 @@ export default function BigSpenderReplenishing(props: GenericMinigameProps) {
         showResults={shouldShowResults}
         ranking={ranking}
         resultCommitted={resultCommitted}
-        onResolveAdRescue={(completed) =>
+        adLoading={rescueAd.pending}
+        onResolveAdRescue={async (completed) => {
+          if (completed && window.GameAds && !(await rescueAd.request('big_spender_rescue'))) return
           setState((previous) =>
             resolveBigSpenderAdRescue(previous, completed ? 'completed' : 'declined')
           )
-        }
+        }}
         onContinueRound={() => setState((previous) => continueBigSpenderRound(previous))}
         onSkipToResults={() => setState((previous) => skipBigSpenderToResults(previous))}
         onFinish={finish}

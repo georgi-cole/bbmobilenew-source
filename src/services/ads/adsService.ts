@@ -15,6 +15,7 @@ import { recordAdShown } from '../../store/adsSlice'
 import { hasEffectiveStoreEntitlement } from '../../vip/effectiveEntitlements'
 import { IS_MOBILE_DEV_BUILD } from '../../config/buildTarget'
 import { setEnergyBankEntry } from '../../social/socialSlice'
+import { canUseOptionalFeature, subscribePlayerSafety } from '../../safety/playerSafety'
 
 export const SOCIAL_ENERGY_RECHARGE_REWARD = 6
 
@@ -31,6 +32,10 @@ export type AdPlacement =
   | 'vox_nomination_breakdown'
   | 'vox_audience_preview'
   | 'favorite_player_audience_surge'
+  | 'glass_bridge_hint'
+  | 'big_spender_rescue'
+  | 'survival_continue'
+  | 'aftermath_unlock'
 
 export const INTERSTITIAL_PLACEMENTS = new Set<AdPlacement>([
   'live_vote_auto',
@@ -48,8 +53,9 @@ export const DAILY_LIMITED_PLACEMENTS = new Set<AdPlacement>([
 declare global {
   interface Window {
     GameAds?: {
-      showInterstitial(placement: string): void
-      showRewarded(placement: string): void
+      managesAdLifecycle?: boolean
+      showInterstitial(placement: string): void | Promise<boolean>
+      showRewarded(placement: string): void | Promise<boolean>
     }
     onAdRewardGranted?: (placement: string, payload?: Record<string, unknown>) => void
   }
@@ -57,19 +63,35 @@ declare global {
 
 type RewardHandler = (payload?: Record<string, unknown>) => void
 const rewardHandlers = new Map<AdPlacement, RewardHandler>()
+const dismissalHandlers = new Map<AdPlacement, () => void>()
+subscribePlayerSafety(() => {
+  if (!canUseOptionalFeature('ads')) clearPendingAdRewards()
+})
 
 export function clearRewardHandler(placement: AdPlacement): void {
   rewardHandlers.delete(placement)
+  const dismissed = dismissalHandlers.get(placement)
+  dismissalHandlers.delete(placement)
+  dismissed?.()
+}
+
+export function clearPendingAdRewards(): void {
+  for (const placement of [...rewardHandlers.keys()]) clearRewardHandler(placement)
 }
 
 export function initAdBridge(): void {
   window.onAdRewardGranted = (placement: string, payload?: Record<string, unknown>) => {
+    if (!canUseOptionalFeature('ads')) {
+      clearPendingAdRewards()
+      return
+    }
     if (import.meta.env.DEV) {
       console.log(`[ads] reward granted: ${placement}`, payload ?? {})
     }
     const handler = rewardHandlers.get(placement as AdPlacement)
     if (handler) {
       rewardHandlers.delete(placement as AdPlacement)
+      dismissalHandlers.delete(placement as AdPlacement)
       handler(payload)
     } else if (import.meta.env.DEV) {
       console.log(
@@ -94,6 +116,7 @@ export function canShowAd(
   state: RootState,
   options?: { isFinal3Week?: boolean }
 ): boolean {
+  if (!canUseOptionalFeature('ads')) return false
   const hasNoAdsPack =
     (state.ads?.hasNoAdsPack ?? false) || hasEffectiveStoreEntitlement(state.vip, 'noAds')
 
@@ -146,7 +169,15 @@ export function showInterstitial(
     console.log(`[ads] requesting interstitial: ${placement}`)
   }
   try {
-    window.GameAds.showInterstitial(placement)
+    const result = window.GameAds.showInterstitial(placement)
+    if (result) {
+      void result
+        .then((shown) => {
+          if (shown) dispatch(recordAdShown(placement))
+        })
+        .catch((error: unknown) => console.warn(`[ads] ${placement} failed`, error))
+      return true
+    }
   } catch (error) {
     console.warn(`[ads] ${placement} interstitial bridge failed; request was not recorded`, error)
     return false
@@ -160,7 +191,7 @@ export function showRewarded(
   state: RootState,
   dispatch: AppDispatch,
   onReward: (payload?: Record<string, unknown>) => void,
-  options?: { isFinal3Week?: boolean }
+  options?: { isFinal3Week?: boolean; onDismissed?: () => void }
 ): boolean {
   if (!canShowAd(placement, state, options)) return false
   if (rewardHandlers.has(placement)) {
@@ -175,6 +206,7 @@ export function showRewarded(
       ? state.game.players.find((player) => player.isUser)?.id
       : undefined
   const rewardHandler: RewardHandler = (payload) => {
+    dispatch(recordAdShown(placement))
     onReward(payload)
     if (placement === 'social_energy_recharge' && socialRechargePlayerId) {
       dispatch(
@@ -195,9 +227,11 @@ export function showRewarded(
     }
 
     rewardHandlers.set(placement, rewardHandler)
-    dispatch(recordAdShown(placement))
+    if (options?.onDismissed) dismissalHandlers.set(placement, options.onDismissed)
     window.setTimeout(() => {
-      window.onAdRewardGranted?.(placement, { source: 'mobile-dev-simulator' })
+      if (rewardHandlers.get(placement) === rewardHandler) {
+        window.onAdRewardGranted?.(placement, { source: 'mobile-dev-simulator' })
+      }
     }, 0)
     return true
   }
@@ -206,13 +240,31 @@ export function showRewarded(
     console.log(`[ads] requesting rewarded: ${placement}`)
   }
   rewardHandlers.set(placement, rewardHandler)
+  if (options?.onDismissed) dismissalHandlers.set(placement, options.onDismissed)
   try {
-    window.GameAds.showRewarded(placement)
+    const result = window.GameAds.showRewarded(placement)
+    if (result) {
+      const dismiss = () => {
+        if (rewardHandlers.get(placement) !== rewardHandler) return
+        clearRewardHandler(placement)
+      }
+      void result
+        .then((earned) => {
+          // A cleared handler belongs to an old screen/run or privacy decision.
+          if (rewardHandlers.get(placement) !== rewardHandler) return
+          if (earned && canUseOptionalFeature('ads')) {
+            window.onAdRewardGranted?.(placement, { source: 'admob' })
+          } else dismiss()
+        })
+        .catch((error: unknown) => {
+          console.warn(`[ads] ${placement} failed`, error)
+          dismiss()
+        })
+    }
   } catch (error) {
-    rewardHandlers.delete(placement)
+    clearRewardHandler(placement)
     console.warn(`[ads] ${placement} rewarded bridge failed; request was not recorded`, error)
     return false
   }
-  dispatch(recordAdShown(placement))
   return true
 }
