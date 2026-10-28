@@ -9,7 +9,7 @@ import { appearanceFromAssetUrl } from '../../appearance/catalog'
 import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import { store } from '../../store/store'
 import RouteLoadingScreen from '../RouteLoadingScreen/RouteLoadingScreen'
-import GAMEPLAY_BG from '../../assets/bb-gameplay-bg.svg'
+import GAMEPLAY_BG from '../../assets/bb-gameplay-bg.webp'
 import {
   beginGameplayAudioExit,
   cancelGameplayAudioExit,

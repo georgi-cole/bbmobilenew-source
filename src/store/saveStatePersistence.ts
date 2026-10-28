@@ -12,6 +12,7 @@
 //  - Legacy single-slot and embedded multi-run saves are migrated safely.
 
 import type { GameState } from '../types'
+import { takePreparedSnapshotJson } from './snapshotSerialization'
 import type { GameMode, SeasonExpansionMode } from '../modes/modeTypes'
 import { normalizeGameMode } from '../modes/gameModes'
 import { removeObsoleteGameData, removeObsoleteChallengeData } from './removedMinigameCleanup'
@@ -429,7 +430,7 @@ function serialize(value: unknown): string | null {
       // The normal saved state is JSON-safe. Let the browser's native
       // serializer handle that hot path without invoking a replacer for every
       // property. Keep the defensive path for runtime BigInts and cycles.
-      serialized = JSON.stringify(value)
+      serialized = takePreparedSnapshotJson(value) ?? JSON.stringify(value)
     } catch {
       serialized = JSON.stringify(value, createPersistenceReplacer())
     }

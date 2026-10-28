@@ -1,16 +1,29 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import AvatarTile, { EVICTION_MARK_ANIMATION_FALLBACK_MS } from '../AvatarTile'
 import { setDepressionShockVisualPhase } from '../../../features/twists/depressionShock'
 import { STATUS_BADGE_EMOJI } from '../../../utils/statusBadges'
 
 afterEach(() => {
-  setDepressionShockVisualPhase('inactive')
+  act(() => setDepressionShockVisualPhase('inactive'))
   sessionStorage.clear()
   vi.useRealTimers()
 })
 
 describe('AvatarTile', () => {
+  it('keeps the latest interaction handlers when unchanged portrait props are memoized', () => {
+    const first = vi.fn(),
+      next = vi.fn()
+    const view = render(<AvatarTile name="Taylor" onClick={first} roboStats={{ daysInGame: 8 }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Taylor' }))
+    view.rerender(<AvatarTile name="Taylor" onClick={next} roboStats={{ daysInGame: 8 }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Taylor' }))
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(next).toHaveBeenCalledTimes(1)
+    view.rerender(<AvatarTile name="Renamed" roboStats={{ daysInGame: 9 }} />)
+    expect(screen.queryByRole('button', { name: 'Taylor' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Renamed' })).toBeInTheDocument()
+  })
   it('exposes interaction guidance without an unrelated visual indicator', () => {
     const { container } = render(
       <AvatarTile name="Taylor" onClick={vi.fn()} descriptionId="roster-help" />

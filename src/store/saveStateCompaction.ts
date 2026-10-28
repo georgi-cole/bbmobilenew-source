@@ -21,7 +21,7 @@ export const PERSISTED_SOCIAL_LIMITS = {
 } as const
 
 function compactTvFeed(game: GameState): GameState['tvFeed'] {
-  if (game.tvFeed.length <= PERSISTED_GAME_LIMITS.tvFeed) return [...game.tvFeed]
+  if (game.tvFeed.length <= PERSISTED_GAME_LIMITS.tvFeed) return game.tvFeed
 
   const retainedIds = new Set(
     game.tvFeed.slice(0, PERSISTED_GAME_LIMITS.tvFeed).map((event) => event.id)
@@ -40,13 +40,13 @@ export function compactGameStateForPersistence(state: GameState): GameState {
   return {
     ...removeObsoleteGameData(state),
     tvFeed: compactTvFeed(state),
-    history: state.history?.slice(-PERSISTED_GAME_LIMITS.history),
+    history: tail(state.history, PERSISTED_GAME_LIMITS.history),
   }
 }
 
 function tail<T>(items: readonly T[] | undefined, limit: number): T[] | undefined {
   if (!items) return undefined
-  if (items.length <= limit) return [...items]
+  if (items.length <= limit) return items as T[]
   return items.slice(-limit)
 }
 

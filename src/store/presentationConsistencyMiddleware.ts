@@ -4,7 +4,12 @@ import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakd
 import { expandCupidIds } from '../features/twists/cupidArrow'
 import type { GameState, TvEvent } from '../types'
 import { GUEST_SAVE_REMINDER_COPY, isGuestSaveReminderEvent } from './guestSaveReminder'
-import { addTvEvent, consumeBroadcastEvent, updateTvEvent } from './gameSlice'
+import {
+  addTvEvent,
+  consumeBroadcastEvent,
+  consumeBroadcastEvents,
+  updateTvEvent,
+} from './gameSlice'
 
 type PresentationState = {
   game: GameState
@@ -141,11 +146,10 @@ function consumePreviousDayBroadcasts(
   // Anything that was still waiting at the instant the previous day ended is
   // historical context now. Keep it in the log, but never allow it to surface
   // as the new day's Faux TV "Now" item.
-  for (const event of before.tvFeed) {
-    if (event.meta?.broadcastConsumed !== true) {
-      api.dispatch(consumeBroadcastEvent(event.id))
-    }
-  }
+  const ids = before.tvFeed
+    .filter((event) => event.meta?.broadcastConsumed !== true)
+    .map((event) => event.id)
+  if (ids.length) api.dispatch(consumeBroadcastEvents(ids))
 }
 
 function addGuestModeSaveWarning(
@@ -343,7 +347,9 @@ export const presentationConsistencyMiddleware: Middleware = (api) => (next) => 
   const result = next(actionForNext)
 
   const after = api.getState() as PresentationState
-  consumeGuestSaveReminderForProfile(api, after)
+  if (before.game.tvFeed !== after.game.tvFeed || before.profiles !== after.profiles) {
+    consumeGuestSaveReminderForProfile(api, after)
+  }
   addGuestModeSaveWarning(api, actionType, before, after)
   consumePreviousDayBroadcasts(api, before.game, after.game)
 

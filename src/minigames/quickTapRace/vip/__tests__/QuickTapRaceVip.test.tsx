@@ -109,6 +109,34 @@ describe('VIP round lifecycle', () => {
     expect(button).toHaveAttribute('data-heat-level', '5')
   })
 
+  it('preserves particle origins without reading or moving layout during a tap', async () => {
+    const geometry = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 300, 240))
+    mount('race')
+    await advanceTo(32)
+    const button = screen.getByRole('button', { name: /Tap the Eye/ })
+    const spark = button.querySelector<HTMLElement>('[data-spark-index="0"]')!
+    const firstAnimation = vi.fn((frames: Keyframe[]) => ({ cancel: vi.fn(), frames }))
+    for (const element of button.querySelectorAll<HTMLElement>(
+      '.qtr-vip__tap-glow, .qtr-vip__tap-spark'
+    ))
+      Object.defineProperty(element, 'animate', {
+        configurable: true,
+        value: element === spark ? firstAnimation : vi.fn(() => ({ cancel: vi.fn() })),
+      })
+    geometry.mockClear()
+    fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+    fireEvent.pointerUp(button, { pointerId: 1, pointerType: 'touch' })
+    expect(geometry).not.toHaveBeenCalled()
+    expect(spark.style.left).toBe('')
+    expect(spark.style.top).toBe('')
+    expect(firstAnimation).toHaveBeenCalledOnce()
+    const frames = firstAnimation.mock.calls[0][0] as Keyframe[]
+    // The first origin remains 10% across / 25% down on a 300 × 240 target.
+    expect(frames[0].transform).toContain('translate3d(-120px, -60px, 0)')
+  })
+
   it.each(['race', 'seasons'] as const)(
     'keeps direct press feedback and counts a touch once with reduced motion in %s',
     async (mode) => {

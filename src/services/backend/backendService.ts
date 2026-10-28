@@ -55,7 +55,7 @@ export function subscribeCloudBackend(listener: () => void) {
 export const getBackupStatus = () => status
 export const getLastBackupTime = () => lastSynced
 
-function readEvents(): QueuedEvent[] {
+function loadEvents(): QueuedEvent[] {
   try {
     const value: unknown = JSON.parse(sessionStorage.getItem(EVENTS_KEY) ?? '[]')
     if (!Array.isArray(value)) return []
@@ -88,17 +88,47 @@ function readEvents(): QueuedEvent[] {
   }
 }
 
-function writeEvents(events: QueuedEvent[]) {
-  try {
-    sessionStorage.setItem(EVENTS_KEY, JSON.stringify(events.slice(-MAX_EVENTS)))
-  } catch {
-    // Analytics is best effort and must never block gameplay.
-  }
-}
-
 /** With Supabase configured, locally saved profiles and opted-in gameplay events sync automatically. */
 export function initializeCloudBackend(store: typeof appStore): () => void {
   if (!getBackendConfig()) return () => undefined
+  let events = loadEvents()
+  const earliestExpiry = () =>
+    events.reduce(
+      (expiry, event) => Math.min(expiry, Date.parse(event.occurredAt) + MAX_EVENT_AGE),
+      Infinity
+    )
+  let expiresAt = earliestExpiry()
+  let eventsDirty = false
+  let eventsTimer: ReturnType<typeof setTimeout> | undefined
+  const persistEvents = () => {
+    clearTimeout(eventsTimer)
+    eventsTimer = undefined
+    if (!eventsDirty) return
+    try {
+      sessionStorage.setItem(EVENTS_KEY, JSON.stringify(events))
+      eventsDirty = false
+    } catch {
+      /* Analytics is best effort. */
+    }
+  }
+  const readEvents = () => {
+    if (Date.now() >= expiresAt) {
+      events = events.filter((event) => Date.parse(event.occurredAt) > Date.now() - MAX_EVENT_AGE)
+      expiresAt = earliestExpiry()
+      eventsDirty = true
+    }
+    return events
+  }
+  const writeEvents = (next: QueuedEvent[]) => {
+    events = next.slice(-MAX_EVENTS)
+    eventsDirty = true
+    expiresAt = events.length
+      ? Math.min(expiresAt, Date.parse(events[events.length - 1].occurredAt) + MAX_EVENT_AGE)
+      : Infinity
+    // Bound persistence work per burst, not per accepted event. The queue is
+    // immediately available to uploads/deletion and drained on lifecycle exit.
+    if (!eventsTimer) eventsTimer = setTimeout(persistEvents, 1200)
+  }
   let timer: ReturnType<typeof setTimeout> | undefined
   let busy = false
   let stopped = false
@@ -216,6 +246,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
           if (error) throw error
           const sent = new Set(batch.map((event) => event.id))
           writeEvents(readEvents().filter((event) => !sent.has(event.id)))
+          persistEvents()
           if (readEvents().length) schedule()
         }
       }
@@ -318,6 +349,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
         currentProfile()?.id
       )
     activeSince = Date.now()
+    if (document.visibilityState === 'hidden') persistEvents()
     schedule()
   }
   const interval = setInterval(() => {
@@ -328,11 +360,13 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     schedule()
   }, 60_000)
   window.addEventListener('online', schedule)
+  window.addEventListener('pagehide', persistEvents)
   window.addEventListener('storage', onStorage)
   document.addEventListener('visibilitychange', onVisibility)
   contextChanged()
 
   return () => {
+    persistEvents()
     stopped = true
     controller.abort()
     clearTimeout(timer)
@@ -340,6 +374,7 @@ export function initializeCloudBackend(store: typeof appStore): () => void {
     unsubscribeEvents()
     unsubscribeStore()
     window.removeEventListener('online', schedule)
+    window.removeEventListener('pagehide', persistEvents)
     window.removeEventListener('storage', onStorage)
     document.removeEventListener('visibilitychange', onVisibility)
   }

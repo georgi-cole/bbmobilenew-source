@@ -10,11 +10,11 @@
  */
 
 import { normalizeAffinity } from './affinityUtils'
+import { createDraft, finishDraft } from 'immer'
 import { socialConfig } from './socialConfig'
 import {
   commitRealityDomainUpdate,
   recordSeasonProvocateurScene,
-  replaceRealityDomain,
   scheduleIncomingInteraction,
 } from './socialSlice'
 import {
@@ -33,7 +33,10 @@ import {
   getInteractionDedupeReason,
   getIncomingInteractionPriority,
 } from './incomingInteractionScheduler'
-import { logIncomingInteractionDecision } from './incomingInteractionLogging'
+import {
+  batchIncomingInteractionDecisions,
+  logIncomingInteractionDecision,
+} from './incomingInteractionLogging'
 import { SCENARIO_VARIANT_POOLS, getVoiceProfile, pickVariantText } from './interactionVariantBank'
 import { getNamedInteractionText } from './namedInteractionBank'
 import { createIncomingInteraction } from './incomingInteractionFactory'
@@ -2028,6 +2031,16 @@ export function scheduleIncomingInteractionsForPhase(
   store: AutonomyStore,
   contextOverride?: Partial<AutonomyContext>
 ): void {
+  batchIncomingInteractionDecisions(store.dispatch, () =>
+    scheduleIncomingInteractionsForPhaseInternal(phase, store, contextOverride)
+  )
+}
+
+function scheduleIncomingInteractionsForPhaseInternal(
+  phase: string,
+  store: AutonomyStore,
+  contextOverride?: Partial<AutonomyContext>
+): void {
   if (!ELIGIBLE_PHASES.has(phase)) {
     if (socialConfig.verbose) {
       console.debug(`[autonomy] phase '${phase}' is not an eligible scheduling phase – skipping`)
@@ -2132,10 +2145,11 @@ export function scheduleIncomingInteractionsForPhase(
     if (updatedProvocateurSeason) {
       // Clone the world only when assigning/succeeding a role or recording a
       // new relevant grievance. Ordinary checkpoints keep the existing state.
-      const reality = structuredClone(context.reality)
-      reality.relationshipAutonomy.provocateurSeason = updatedProvocateurSeason
+      const draft = createDraft(context.reality)
+      draft.relationshipAutonomy.provocateurSeason = updatedProvocateurSeason
+      const reality = finishDraft(draft)
       context.reality = reality
-      store.dispatch(replaceRealityDomain(reality))
+      store.dispatch(commitRealityDomainUpdate({ domain: reality, changedRelationshipPairs: [] }))
     }
     context.provocateurSeason = context.reality.relationshipAutonomy.provocateurSeason
   }
@@ -2521,20 +2535,23 @@ export function scheduleIncomingInteractionsForPhase(
     })
 
     if (plan.relationshipBeatId && context.reality) {
-      const domain = structuredClone(context.reality)
-      if (!reserveRelationshipBeat(domain, plan.relationshipBeatId)) continue
+      const draft = createDraft(context.reality)
+      const reserved = reserveRelationshipBeat(draft, plan.relationshipBeatId)
+      const domain = finishDraft(draft)
+      if (!reserved) continue
       context.reality = domain
-      store.dispatch(replaceRealityDomain(domain))
+      store.dispatch(commitRealityDomainUpdate({ domain, changedRelationshipPairs: [] }))
     }
 
     if (plan.provocateurRole && context.reality) {
-      const domain = structuredClone(context.reality)
-      const conflict = registerProvocateurConflict(domain, {
+      const draft = createDraft(context.reality)
+      const conflict = registerProvocateurConflict(draft, {
         actorId: actor.id,
         targetId: playerId,
         at: { day: week, phase },
         cause: plan.provocateurRole.cause,
       })
+      const domain = finishDraft(draft)
       if (conflict) {
         context.reality = domain
         store.dispatch(

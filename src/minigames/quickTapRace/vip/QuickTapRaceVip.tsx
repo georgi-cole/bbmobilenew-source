@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
+import { useCoveredGameScreen } from '../../../hooks/useCoveredGameScreen'
 import type { MinigameSession, Player } from '../../../types'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { completeMinigame } from '../../../store/gameSlice'
@@ -129,10 +130,10 @@ const SEASON_SPARK_FLIGHTS: Record<TapSeason, readonly [number, number, number][
     [-104, 12, -120],
   ],
 }
+const integerFormatter = new Intl.NumberFormat()
+const fractionFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 })
 const numberText = (value: number) =>
-  Number.isInteger(value)
-    ? value.toLocaleString()
-    : value.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  (Number.isInteger(value) ? integerFormatter : fractionFormatter).format(value)
 const cue = (key: string) => {
   void SoundManager.play(`minigame:${key}`)
 }
@@ -141,7 +142,8 @@ function playReusableAnimation(
   element: HTMLElement,
   animationRef: { current: Animation | null },
   keyframes: Keyframe[],
-  timing: { duration: number; easing: string; fill: 'both' }
+  timing: { duration: number; easing: string; fill: 'both' },
+  releaseWhenFinished = false
 ) {
   const animation = animationRef.current
   const effect = animation?.effect as KeyframeEffect | null | undefined
@@ -153,7 +155,12 @@ function playReusableAnimation(
     return
   }
   animation?.cancel()
-  animationRef.current = element.animate(keyframes, timing)
+  const created = element.animate(keyframes, timing)
+  if (releaseWhenFinished)
+    created.onfinish = () => {
+      if (created.playState === 'finished') created.cancel()
+    }
+  animationRef.current = created
 }
 
 function paintArena(
@@ -236,6 +243,7 @@ export default function QuickTapRaceVip({
   onFinish,
   mode = 'race',
 }: Props) {
+  useCoveredGameScreen()
   const dispatch = useAppDispatch()
   const storePlayers = useAppSelector((state) => state.game.players)
   const roster = players.length ? players : storePlayers
@@ -302,6 +310,7 @@ export default function QuickTapRaceVip({
   const scoreElement = useRef<HTMLElement>(null),
     clockElement = useRef<HTMLElement>(null),
     tapsElement = useRef<HTMLElement>(null)
+  const tapControlSize = useRef({ width: 0, height: 0 })
   const finishContext = useRef({ session, onFinish })
   const [phase, setPhase] = useState<'countdown' | 'playing' | 'results'>(
     autoStart ? 'playing' : 'countdown'
@@ -453,24 +462,25 @@ export default function QuickTapRaceVip({
       [
         {
           opacity: 0,
-          transform: 'translate(-50%, -50%) scale(.55)',
+          transform: 'scale(.55)',
         },
         {
           opacity: glowPower,
-          transform: 'translate(-50%, -50%) scale(1.05)',
+          transform: 'scale(1.05)',
           offset: 0.24,
         },
         {
           opacity: glowPower * 0.38,
-          transform: 'translate(-50%, -50%) scale(1.34)',
+          transform: 'scale(1.34)',
           offset: 0.52,
         },
         {
           opacity: 0,
-          transform: 'translate(-50%, -50%) scale(1.58)',
+          transform: 'scale(1.58)',
         },
       ],
-      { duration: 460 + heat * 22, easing: 'cubic-bezier(.18, .7, .24, 1)', fill: 'both' }
+      { duration: 460 + heat * 22, easing: 'cubic-bezier(.18, .7, .24, 1)', fill: 'both' },
+      true
     )
 
     const season = run.mode === 'seasons' ? displayedSeason.current : null
@@ -500,8 +510,8 @@ export default function QuickTapRaceVip({
         : CLASSIC_SPARK_FLIGHTS[sparkSlot]!
       const [dx, dy, endRotation] = flight
       const [originX, originY] = TAP_SPARK_ORIGINS[sparkSlot]!
-      spark.style.left = `${originX}%`
-      spark.style.top = `${originY}%`
+      const startX = (tapControlSize.current.width * (originX - 50)) / 100
+      const startY = (tapControlSize.current.height * (originY - 50)) / 100
       spark.textContent = season ? '' : CLASSIC_HEAT_EMOJIS[heat]!
       const travelX = dx * Math.cos(radians) - dy * Math.sin(radians)
       const travelY = dx * Math.sin(radians) + dy * Math.cos(radians)
@@ -514,27 +524,25 @@ export default function QuickTapRaceVip({
         [
           {
             opacity: 0,
-            visibility: 'visible',
-            transform: `translate(-50%, -50%) ${mirrorBird}scale(${season ? 0.52 : 0.58}) rotate(${startRotation}deg)`,
+            transform: `translate3d(${startX}px, ${startY}px, 0) ${mirrorBird}scale(${season ? 0.52 : 0.58}) rotate(${startRotation}deg)`,
           },
           {
             opacity: sparkPower,
-            visibility: 'visible',
-            transform: `translate(calc(-50% + ${travelX * spread * 0.34}px), calc(-50% + ${travelY * spread * 0.34}px)) ${mirrorBird}scale(${season ? 1.08 + heat * 0.035 : 1.04 + heat * 0.055}) rotate(${middleRotation + rotation}deg)`,
+            transform: `translate3d(${startX + travelX * spread * 0.34}px, ${startY + travelY * spread * 0.34}px, 0) ${mirrorBird}scale(${season ? 1.08 + heat * 0.035 : 1.04 + heat * 0.055}) rotate(${middleRotation + rotation}deg)`,
             offset: 0.22,
           },
           {
             opacity: sparkPower * 0.74,
-            transform: `translate(calc(-50% + ${travelX * spread * 0.78}px), calc(-50% + ${travelY * spread * 0.78}px)) ${mirrorBird}scale(${season ? 0.84 : 0.86}) rotate(${endRotation * 0.78 + rotation}deg)`,
+            transform: `translate3d(${startX + travelX * spread * 0.78}px, ${startY + travelY * spread * 0.78}px, 0) ${mirrorBird}scale(${season ? 0.84 : 0.86}) rotate(${endRotation * 0.78 + rotation}deg)`,
             offset: 0.72,
           },
           {
             opacity: 0,
-            visibility: 'hidden',
-            transform: `translate(calc(-50% + ${travelX * spread * 1.32}px), calc(-50% + ${travelY * spread * 1.32}px)) ${mirrorBird}scale(${season ? 0.52 : 0.56}) rotate(${endRotation + rotation}deg)`,
+            transform: `translate3d(${startX + travelX * spread * 1.32}px, ${startY + travelY * spread * 1.32}px, 0) ${mirrorBird}scale(${season ? 0.52 : 0.56}) rotate(${endRotation + rotation}deg)`,
           },
         ],
-        { duration: sparkDuration, easing: 'cubic-bezier(.2, .72, .22, 1)', fill: 'both' }
+        { duration: sparkDuration, easing: 'cubic-bezier(.2, .72, .22, 1)', fill: 'both' },
+        true
       )
     }
   }, [run.mode])
@@ -615,9 +623,11 @@ export default function QuickTapRaceVip({
   useEffect(() => {
     if (run.mode !== 'seasons') return
     for (const season of SEASONS) {
-      const image = new Image()
-      image.src = `${BASE}quick-tap-seasons-vip/${season}.webp`
-      if (typeof image.decode === 'function') void image.decode().catch(() => undefined)
+      for (const path of [`${season}.webp`, `particles/${SEASON_PARTICLE_ASSETS[season]}`]) {
+        const image = new Image()
+        image.src = `${BASE}quick-tap-seasons-vip/${path}`
+        if (typeof image.decode === 'function') void image.decode().catch(() => undefined)
+      }
     }
   }, [run.mode])
 
@@ -628,6 +638,10 @@ export default function QuickTapRaceVip({
     const ctx = canvas.current?.getContext('2d') ?? null
     let width = 0,
       height = 0
+    let nextArenaPaint = -Infinity
+    let displayedScore: number | undefined,
+      displayedTaps: number | undefined,
+      displayedClock = ''
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const resize = () => {
       if (!canvas.current) return
@@ -638,9 +652,16 @@ export default function QuickTapRaceVip({
       canvas.current.width = Math.round(width * dpr)
       canvas.current.height = Math.round(height * dpr)
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0)
+      // Cache geometry during resize, never while handling a tap. Particle
+      // origins use transforms so rapid input doesn't repeatedly move layout.
+      if (tapButton.current) {
+        const bounds = tapButton.current.getBoundingClientRect()
+        tapControlSize.current = { width: bounds.width, height: bounds.height }
+      }
     }
     const observer = new ResizeObserver(resize)
     if (canvas.current) observer.observe(canvas.current)
+    if (tapButton.current) observer.observe(tapButton.current)
     resize()
     const frame = (now: number) => {
       if (ended.current) return
@@ -665,10 +686,19 @@ export default function QuickTapRaceVip({
             : quickTapVipSeasonAt(current, Math.min(duration - 1, clock.elapsedMs))
         if (!clock.intermission) displayedSeason.current = season
         const value = quickTapVipTapValueAt(current, clock.elapsedMs)
-        if (scoreElement.current) scoreElement.current.textContent = numberText(current.score)
-        if (clockElement.current)
-          clockElement.current.textContent = (clock.roundLeftMs / 1000).toFixed(1)
-        if (tapsElement.current) tapsElement.current.textContent = `${current.rawTaps} taps`
+        if (scoreElement.current && displayedScore !== current.score) {
+          scoreElement.current.textContent = numberText(current.score)
+          displayedScore = current.score
+        }
+        const clockText = (clock.roundLeftMs / 1000).toFixed(1)
+        if (clockElement.current && displayedClock !== clockText) {
+          clockElement.current.textContent = clockText
+          displayedClock = clockText
+        }
+        if (tapsElement.current && displayedTaps !== current.rawTaps) {
+          tapsElement.current.textContent = `${current.rawTaps} taps`
+          displayedTaps = current.rawTaps
+        }
         updateTapHeat(now)
         const eventKey = clock.intermission
           ? `break:${clock.round}`
@@ -685,7 +715,7 @@ export default function QuickTapRaceVip({
           lastEvent.current = eventKey
           lastUi.current = 0
         }
-        if (now - lastUi.current >= 100) {
+        if (now - lastUi.current >= 200) {
           lastUi.current = now
           const offer = !clock.intermission
             ? offers.find(
@@ -713,8 +743,11 @@ export default function QuickTapRaceVip({
           })
           setReveal((previous) => (previous && Date.now() >= previous.until ? null : previous))
         }
-        if (ctx && !clock.intermission)
+        if (ctx && !clock.intermission && now + 0.5 >= nextArenaPaint) {
           paintArena(ctx, width, height, now, lastTap.current, season, value < 0, reduced)
+          nextArenaPaint =
+            nextArenaPaint < now - 1000 / 60 ? now + 1000 / 60 : nextArenaPaint + 1000 / 60
+        }
         if (clock.finished) {
           ended.current = true
           setFinalEntries(entriesAt(duration, 2))

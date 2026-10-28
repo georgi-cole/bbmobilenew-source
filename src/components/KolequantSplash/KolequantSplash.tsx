@@ -13,7 +13,7 @@ interface Props {
 }
 
 const LOGO_SRC = `${import.meta.env.BASE_URL}assets/kolequant.png`
-const SKYLINE_SRC = `${import.meta.env.BASE_URL}assets/splash-city-skyline-photographic.png`
+const SKYLINE_SRC = `${import.meta.env.BASE_URL}assets/splash-city-skyline-photographic.webp`
 const EXIT_MS = 360
 
 const DEFAULT_MESSAGES = [

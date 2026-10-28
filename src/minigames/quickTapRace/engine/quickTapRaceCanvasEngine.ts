@@ -67,6 +67,7 @@ const PARTICLE_SPEED = 0.16;
 // the feedback lively, but bounded when a player taps at a very high rate.
 const MAX_PARTICLES = 24;
 const MAX_PARTICLES_PER_TAP = 2;
+const MAX_EMOJI_SPRITES = 32;
 const INPUT_UI_UPDATE_INTERVAL_MS = 60;
 const BOOSTER_PROMPT_PULSE_BASE = 0.88;
 const BOOSTER_PROMPT_PULSE_AMPLITUDE = 0.12;
@@ -160,6 +161,10 @@ export class QuickTapRaceCanvasEngine {
 
   private particles: QTRParticle[] = [];
 
+  private readonly emojiSprites = new Map<string, HTMLCanvasElement>();
+
+  private emojiWarmup: Array<[string, number, string?]> = [];
+
   /** Accumulated game time during the playing phase (ms). */
   private gameElapsedMs = 0;
 
@@ -171,6 +176,8 @@ export class QuickTapRaceCanvasEngine {
   private rafId = 0;
 
   private lastTimestamp = 0;
+
+  private nextRenderTimestamp = -Infinity;
 
   private isRunning = false;
 
@@ -229,6 +236,7 @@ export class QuickTapRaceCanvasEngine {
     }
     this.isRunning = true;
     this.lastTimestamp = 0;
+    this.nextRenderTimestamp = -Infinity;
     this.render();
     this.rafId = window.requestAnimationFrame(this.tick);
     this.emitTick();
@@ -243,16 +251,19 @@ export class QuickTapRaceCanvasEngine {
     this.isDestroyed = true;
     this.boosterTimeouts.forEach(clearTimeout);
     this.boosterTimeouts.length = 0;
+    this.clearEmojiSprites();
   }
 
   resize(width: number, height: number, dpr: number): void {
     if (this.isDestroyed || width <= 0 || height <= 0) return;
+    this.clearEmojiSprites();
     const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
     this.layout = makeLayout(width, height, pixelRatio);
     this.canvas.width = Math.max(1, Math.round(width * pixelRatio));
     this.canvas.height = Math.max(1, Math.round(height * pixelRatio));
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.scale(pixelRatio, pixelRatio);
+    this.warmEmojiSprites();
     this.render();
   }
 
@@ -520,7 +531,14 @@ export class QuickTapRaceCanvasEngine {
     const dt = Math.min(48, rawDt);
     this.lastTimestamp = timestamp;
     this.update(dt, rawDt);
-    this.render();
+    // Keep simulation/input clocks at native cadence. Drawing beyond 60 fps
+    // only increases raster work and heat on high-refresh displays.
+    if (timestamp + 0.5 >= this.nextRenderTimestamp) {
+      this.warmNextEmojiSprite();
+      this.render();
+      this.nextRenderTimestamp = this.nextRenderTimestamp < timestamp - 1000 / 60
+        ? timestamp + 1000 / 60 : this.nextRenderTimestamp + 1000 / 60;
+    }
     if (this.isDestroyed || !this.isRunning) {
       this.rafId = 0;
       return;
@@ -722,7 +740,7 @@ export class QuickTapRaceCanvasEngine {
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🎁', cx, cy - Math.round(boosterHeight * 0.16));
+    this.renderEmoji('🎁', iconSize, cx, cy - Math.round(boosterHeight * 0.16));
 
     // Keep the pickup mysterious so players still have to gamble on whether to tap.
     const labelSize = Math.max(11, Math.round(boosterHeight * 0.22));
@@ -797,7 +815,8 @@ export class QuickTapRaceCanvasEngine {
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, cx, cy);
+    if (isEmoji) this.renderEmoji(label, fontSize, cx, cy, '900');
+    else ctx.fillText(label, cx, cy);
   }
 
   private renderParticles(): void {
@@ -809,8 +828,72 @@ export class QuickTapRaceCanvasEngine {
       ctx.font = `${size}px system-ui, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(p.emoji, p.x, p.y);
+      this.renderEmoji(p.emoji, size, p.x, p.y);
     }
     ctx.globalAlpha = 1;
+  }
+
+  private clearEmojiSprites(): void {
+    this.emojiWarmup = [];
+    for (const sprite of this.emojiSprites.values()) {
+      sprite.width = 0;
+      sprite.height = 0;
+    }
+    this.emojiSprites.clear();
+  }
+
+  private emojiSprite(emoji: string, size: number, weight = ''): HTMLCanvasElement | undefined {
+    if (typeof this.ctx.drawImage !== 'function') return undefined;
+    const font = `${weight ? weight + ' ' : ''}${size}px system-ui, -apple-system, sans-serif`;
+    const key = `${font}|${emoji}`;
+    const cached = this.emojiSprites.get(key);
+    if (cached) return cached;
+    const sprite = document.createElement('canvas');
+    const side = size * 2;
+    sprite.width = Math.ceil(side * this.layout.dpr);
+    sprite.height = Math.ceil(side * this.layout.dpr);
+    const paint = sprite.getContext('2d', { willReadFrequently: true });
+    if (!paint) return undefined;
+    paint.scale(this.layout.dpr, this.layout.dpr);
+    paint.font = font;
+    paint.fillStyle = '#ffffff';
+    paint.textAlign = 'center';
+    paint.textBaseline = 'middle';
+    paint.fillText(emoji, side / 2, side / 2);
+    if (this.emojiSprites.size >= MAX_EMOJI_SPRITES) {
+      const oldestKey = this.emojiSprites.keys().next().value!;
+      const oldest = this.emojiSprites.get(oldestKey)!;
+      oldest.width = 0;
+      oldest.height = 0;
+      this.emojiSprites.delete(oldestKey);
+    }
+    this.emojiSprites.set(key, sprite);
+    return sprite;
+  }
+
+  /** Rasterize color-font artwork once at native resolution, then reuse it.
+   * Repeating fillText for every moving emoji forced expensive canvas raster
+   * work on every frame. Geometry, opacity, particles and input remain intact. */
+  private renderEmoji(emoji: string, size: number, x: number, y: number, weight = ''): void {
+    const sprite = this.emojiSprite(emoji, size, weight);
+    if (sprite) this.ctx.drawImage(sprite, x - size, y - size, size * 2, size * 2);
+    else this.ctx.fillText(emoji, x, y);
+  }
+
+  private warmEmojiSprites(): void {
+    const particleSize = Math.max(10, Math.round(this.layout.width * 0.04));
+    this.emojiWarmup = [...new Set(HEAT_EMOJIS.flat())].map((emoji) => [emoji, particleSize]);
+    const radius = this.layout.tapBtnRadius;
+    for (let size = Math.round(radius * 0.92 * 0.55); size <= Math.round(radius * 0.55); size++) {
+      this.emojiWarmup.push(['🔥', size, '900'], ['💥', size, '900']);
+    }
+    this.emojiWarmup.push(['🎁', Math.min(28, Math.round(this.layout.boosterHeight * 0.44))]);
+  }
+
+  private warmNextEmojiSprite(): void {
+    // One bounded piece per drawn frame, including countdown frames. Preparing
+    // the entire color-font set in resize would create a new entry-time stall.
+    const next = this.emojiWarmup.shift();
+    if (next) this.emojiSprite(...next);
   }
 }

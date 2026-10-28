@@ -5,6 +5,7 @@ import process from 'node:process'
 const outputDirectory = path.resolve(process.argv[2] ?? 'dist')
 const inspectedExtensions = new Set(['.html', '.js', '.mjs'])
 const forbiddenPatterns = [
+  { label: 'release performance fixture', pattern: /window\.__releasePerf\b/ },
   // Match the legacy browser global itself, not legitimate persisted keys such as
   // player__storeExtraVote used to attribute an additional ballot.
   { label: 'legacy mutable Redux global', pattern: /window\.__store\b/ },

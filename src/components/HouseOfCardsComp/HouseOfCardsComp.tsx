@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { useCoveredGameScreen } from '../../hooks/useCoveredGameScreen'
 import type { RootState } from '../../store/store'
 import {
   completeHouseOfCardsTournament,
@@ -29,6 +30,11 @@ import { mulberry32 } from '../../store/rng'
 import { useHouseOfCardsAudio } from '../../hooks/useHouseOfCardsAudio'
 import MinigameCompleteWrapper from '../MinigameHost/MinigameCompleteWrapper'
 import ResolvedAvatarImage from '../ResolvedAvatarImage/ResolvedAvatarImage'
+import { HouseOfCardsElapsedTime } from './HouseOfCardsElapsedTime'
+import { HouseOfCardsCard } from './HouseOfCardsCard'
+import { getProfilePhotoAvatarId, resolveAvatarCandidates } from '../../utils/avatar'
+import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
+import { preloadImage } from '../../utils/preload'
 import type { ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
 import {
   buildHouseOfCardsBoard,
@@ -210,6 +216,7 @@ export default function HouseOfCardsComp({
   previewStage,
   onComplete,
 }: Props) {
+  useCoveredGameScreen(false)
   const dispatch = useAppDispatch()
   const [sessionSeed] = useState(() => seed ?? cryptoSeed())
   const humanId = useMemo(
@@ -248,7 +255,6 @@ export default function HouseOfCardsComp({
   const [mistakes, setMistakes] = useState(0)
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null)
   const [finalists, setFinalists] = useState<string[]>([])
   const [finalTurnId, setFinalTurnId] = useState<string | null>(null)
@@ -296,6 +302,61 @@ export default function HouseOfCardsComp({
   const targetPairs = isFinal ? finalPairCount : tileCount / 2
   const boardStyle: BoardStyle = { '--hoc-columns': boardColumns(tileCount) }
 
+  useEffect(() => {
+    if (round < 3) return
+    let cancelled = false
+    const priority = [...activeIds]
+      .sort(
+        (a, b) =>
+          (cumulativeScores[b] ?? 0) - (cumulativeScores[a] ?? 0) ||
+          participantIds.indexOf(a) - participantIds.indexOf(b)
+      )
+      .slice(0, 2)
+    const upcoming = buildPortraitPairBoard(
+      sessionSeed ^ Math.imul(5, 0x85ebca6b),
+      finalPairCount,
+      portraitPlayers,
+      priority
+    )
+    const sources = [
+      ...new Set(
+        upcoming.flatMap((card) => {
+          if (
+            !card.portraitPlayerId ||
+            !card.portraitName ||
+            getProfilePhotoAvatarId(card.portraitAvatar)
+          )
+            return []
+          return resolveAvatarCandidates({
+            id: card.portraitPlayerId,
+            name: card.portraitName,
+            avatar: card.portraitAvatar ?? '',
+            isUser: card.portraitPlayerId === humanId,
+          })
+            .flatMap(resolvePresentationAvatarCandidates)
+            .slice(0, 1)
+        })
+      ),
+    ]
+    void (async () => {
+      for (let index = 0; index < sources.length && !cancelled && !document.hidden; index += 2) {
+        await Promise.all(sources.slice(index, index + 2).map((source) => preloadImage(source)))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    activeIds,
+    cumulativeScores,
+    finalPairCount,
+    humanId,
+    participantIds,
+    portraitPlayers,
+    round,
+    sessionSeed,
+  ])
+
   const resetBoardForRound = useCallback(
     (nextRound: number, priorityIds: string[] = finalists) => {
       const nextTiles = HOUSE_OF_CARDS_TILE_COUNTS[nextRound - 1]
@@ -315,7 +376,6 @@ export default function HouseOfCardsComp({
       setMistakes(0)
       setStreak(0)
       setBestStreak(0)
-      setElapsedSeconds(0)
       setRoundSummary(null)
       setRoundTool(null)
       setSelectedRoundTool(null)
@@ -453,14 +513,6 @@ export default function HouseOfCardsComp({
     // A remount defines a new tournament session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  useEffect(() => {
-    if (phase !== 'playing' && phase !== 'final_playing') return
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - roundStartedAtRef.current) / 1_000))
-    }, 250)
-    return () => window.clearInterval(timer)
-  }, [phase, round])
 
   const finishPreliminaryRound = useCallback(() => {
     if (roundCompletedRef.current || round > 4) return
@@ -877,6 +929,12 @@ export default function HouseOfCardsComp({
       toolUsed,
     ]
   )
+
+  const cardHandler = useRef(handleCardClick)
+  useLayoutEffect(() => {
+    cardHandler.current = handleCardClick
+  }, [handleCardClick])
+  const chooseCard = useCallback((index: number) => cardHandler.current(index), [])
 
   const chooseRoundTool = useCallback(
     (tool: HouseOfCardsRoundToolId) => {
@@ -1417,7 +1475,10 @@ export default function HouseOfCardsComp({
           <span>{tileCount} tiles</span>
         </div>
         <div className="hoc-hud-stat">
-          <strong>{elapsedSeconds}s</strong>
+          <HouseOfCardsElapsedTime
+            startedAt={roundStartedAtRef.current}
+            active={phase === 'playing' || phase === 'final_playing'}
+          />
           <span>Elapsed · no limit</span>
         </div>
         <div className="hoc-hud-stat">
@@ -1527,21 +1588,10 @@ export default function HouseOfCardsComp({
           aria-label={isFinal ? 'Shared final card grid' : `Round ${round} card grid`}
         >
           {board.map((card) => (
-            <button
+            <HouseOfCardsCard
               key={card.index}
-              className="hoc-card"
-              style={
-                {
-                  '--hoc-card-index': card.index,
-                } as CSSProperties
-              }
-              type="button"
-              role="gridcell"
-              data-flipped={
-                card.isFlipped || (isFinal && peekedIndex === card.index) ? 'true' : 'false'
-              }
-              data-matched={card.isMatched ? 'true' : 'false'}
-              data-mismatch={card.isMismatch ? 'true' : 'false'}
+              card={card}
+              flipped={card.isFlipped || (isFinal && peekedIndex === card.index)}
               disabled={
                 locked ||
                 card.isMatched ||
@@ -1549,55 +1599,11 @@ export default function HouseOfCardsComp({
                 (isFinal && !finalTurnId) ||
                 toolTransition === 'deal'
               }
-              onClick={() => handleCardClick(card.index)}
-              aria-label={
-                card.isFlipped || card.isMatched || (isFinal && peekedIndex === card.index)
-                  ? (card.portraitName ?? card.symbol)
-                  : 'Hidden card'
-              }
-            >
-              <span className="hoc-card-inner">
-                <span className="hoc-card-face hoc-card-back">
-                  <span className="hoc-card-back-pattern" />
-                  {premiumPresentation && (
-                    <img
-                      className="hoc-premium-card-art"
-                      src={`${import.meta.env.BASE_URL}assets/minigames/deck-of-light-card-back.webp`}
-                      alt=""
-                      aria-hidden="true"
-                    />
-                  )}
-                  <svg className="hoc-card-eye" viewBox="0 0 24 24" aria-hidden="true">
-                    <ellipse cx="12" cy="12" rx="10" ry="6" />
-                    <circle cx="12" cy="12" r="3" />
-                    <circle cx="12" cy="12" r="1.2" className="hoc-card-eye-pupil" />
-                  </svg>
-                </span>
-                <span
-                  className={`hoc-card-face hoc-card-front${card.portraitPlayerId ? ' hoc-portrait-face' : ''}`}
-                >
-                  {card.portraitPlayerId && card.portraitName ? (
-                    <>
-                      <ResolvedAvatarImage
-                        className="hoc-portrait-face__image"
-                        id={card.portraitPlayerId}
-                        name={card.portraitName}
-                        avatar={card.portraitAvatar}
-                        isUser={card.portraitPlayerId === humanId}
-                        alt=""
-                        loading={isFinal ? 'eager' : 'lazy'}
-                      />
-                      <span className="hoc-portrait-face__name">{card.portraitName}</span>
-                      {card.portraitBadge && (
-                        <span className="hoc-portrait-face__badge">{card.portraitBadge}</span>
-                      )}
-                    </>
-                  ) : (
-                    card.symbol
-                  )}
-                </span>
-              </span>
-            </button>
+              premiumPresentation={premiumPresentation}
+              isFinal={isFinal}
+              humanId={humanId}
+              onChoose={chooseCard}
+            />
           ))}
         </div>
         {premiumPresentation && toolTransition === 'deal' && cardCloneFrame && (

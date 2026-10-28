@@ -55,6 +55,8 @@ import {
   saveRunSnapshot,
 } from './saveStatePersistence'
 import { createRunSnapshotAutosaveController } from './runSnapshotAutosave'
+import { prepareSnapshotJson } from './snapshotSerialization'
+import { batchNestedDispatchSubscriptions } from './nestedDispatchBatching'
 import { isRunAutosaveSuspended } from './runAutosaveGate'
 import cwgoReducer from '../features/cwgo/cwgoCompetitionSlice'
 import holdTheWallReducer from '../features/holdTheWall/holdTheWallSlice'
@@ -190,6 +192,8 @@ export const store = configureStore({
         gameDiagnosticsMiddleware,
         gameplayAnalyticsMiddleware
       ),
+  enhancers: (getDefaultEnhancers) =>
+    getDefaultEnhancers().prepend(batchNestedDispatchSubscriptions),
   // A long season can dispatch thousands of actions with a large state tree.
   // Bound Redux DevTools retention in development so gameplay QA does not turn
   // the extension itself into a progressive memory/performance tax.
@@ -306,7 +310,11 @@ function hasMeaningfulGameProgress(game: ReturnType<typeof store.getState>['game
 // slices without repeatedly projecting/serializing/writing the campaign on the
 // same input turn. Snapshot construction itself is deferred until the trailing
 // save window flushes. Lifecycle boundaries still flush immediately.
-const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
+const runSnapshotAutosave = createRunSnapshotAutosaveController(
+  saveRunSnapshot,
+  undefined,
+  typeof Worker === 'undefined' ? undefined : prepareSnapshotJson
+)
 
 /** Flush pending campaign snapshots before leaving a profile adoption flow. */
 export function flushPendingRunSnapshots(): void {
@@ -368,7 +376,7 @@ let prevSeasonArchives = store.getState().game.seasonArchives
 // array happens to be longer than the previous profile's.
 let prevSeasonArchivesLength = prevSeasonArchives?.length ?? 0
 let prevArchiveProfileId: string | null = store.getState().profiles?.activeProfileId ?? null
-store.subscribe(() => {
+store.subscribeImmediate(() => {
   const current = store.getState()
   const remoteBroadcastManager = current.remoteConfig.config?.broadcastManager
   if (
@@ -542,7 +550,7 @@ if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
 }
 
 // Cloud sync starts automatically when Supabase is configured for this build.
-initializeCloudBackend(store)
+initializeCloudBackend({ ...store, subscribe: store.subscribeImmediate })
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch

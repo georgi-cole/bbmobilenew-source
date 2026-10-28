@@ -80,6 +80,46 @@ describe('QuickTapRaceCanvasEngine', () => {
     expect(snap.effectiveScore).toBe(0);
   });
 
+  it('bounds high-refresh drawing while preserving tap scores and elapsed gameplay time', () => {
+    const simulate = (hz: number) => {
+      let clock = 100;
+      const clockSpy = vi.spyOn(performance, 'now').mockImplementation(() => clock);
+      window.requestAnimationFrame = vi.fn(() => 1);
+      const canvas = makeCanvas();
+      const ctx = canvas.getContext('2d') as unknown as ReturnType<typeof makeContextStub>;
+      const engine = new QuickTapRaceCanvasEngine(canvas, {
+        seed: 42, autoStart: true, duration: 30, onTick: vi.fn(), onFinish: vi.fn(),
+      });
+      engine.resize(320, 400, 1);
+      engine.start();
+      ctx.clearRect.mockClear();
+      const frame = (engine as unknown as { tick: (timestamp: number) => void }).tick;
+      let nextTap = 200;
+      for (let index = 0; index <= hz; index++) {
+        const timestamp = 100 + index * 1000 / hz;
+        while (nextTap <= timestamp && nextTap <= 1000) {
+          clock = nextTap;
+          engine.handlePointerDown(nextTap, { x: 160, y: 280 }, clock, clock, 'touch');
+          engine.handlePointerUp(nextTap);
+          nextTap += 100;
+        }
+        clock = timestamp;
+        frame(timestamp);
+      }
+      const snapshot = engine.getSnapshot();
+      const paints = ctx.clearRect.mock.calls.length;
+      engine.destroy();
+      clockSpy.mockRestore();
+      return { snapshot, paints };
+    };
+    const normal = simulate(60), highRefresh = simulate(240);
+    expect(highRefresh.paints).toBeLessThanOrEqual(62);
+    expect(highRefresh.snapshot.tapCount).toBe(normal.snapshot.tapCount);
+    expect(highRefresh.snapshot.effectiveScore).toBe(normal.snapshot.effectiveScore);
+    expect(highRefresh.snapshot.timeLeft).toBeCloseTo(normal.snapshot.timeLeft, 2);
+    expect(highRefresh.snapshot.tapCount).toBe(9);
+  });
+
   it('with autoStart goes directly to playing phase', async () => {
     const onTick = vi.fn();
     const canvas = makeCanvas();
@@ -109,6 +149,54 @@ describe('QuickTapRaceCanvasEngine', () => {
     expect(canvas.height).toBe(960);
     expect(canvas.style.width).toBe('');
     expect(canvas.style.height).toBe('');
+  });
+
+  it('reuses native-resolution emoji artwork, bounds its cache, and releases it on resize and exit', () => {
+    const canvas = makeCanvas();
+    const ctx = canvas.getContext('2d') as unknown as ReturnType<typeof makeContextStub> & { drawImage: ReturnType<typeof vi.fn> };
+    ctx.drawImage = vi.fn();
+    const spriteContexts: ReturnType<typeof makeContextStub>[] = [];
+    const sprites: HTMLCanvasElement[] = [];
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (this: HTMLCanvasElement) {
+      const paint = makeContextStub();
+      spriteContexts.push(paint);
+      sprites.push(this);
+      return paint as unknown as CanvasRenderingContext2D;
+    });
+    const engine = new QuickTapRaceCanvasEngine(canvas, { seed: 42, onTick: vi.fn(), onFinish: vi.fn() });
+    engine.resize(320, 480, 3);
+    const cached = engine as unknown as {
+      emojiSprites: Map<string, HTMLCanvasElement>;
+      emojiWarmup: unknown[];
+      warmNextEmojiSprite: () => void;
+      renderEmoji: (emoji: string, size: number, x: number, y: number, weight?: string) => void;
+    };
+    expect(spriteContexts).toHaveLength(0);
+    expect(cached.emojiWarmup.length).toBeGreaterThan(0);
+    while (cached.emojiWarmup.length) {
+      const before = spriteContexts.length;
+      cached.warmNextEmojiSprite();
+      expect(spriteContexts.length - before).toBeLessThanOrEqual(1);
+    }
+    const rasterCount = spriteContexts.length;
+    for (let frame = 0; frame < 60; frame++) cached.renderEmoji('🔥', 13, 100, 200);
+    expect(spriteContexts).toHaveLength(rasterCount);
+    expect(ctx.drawImage).toHaveBeenCalledTimes(60);
+    expect(ctx.drawImage).toHaveBeenLastCalledWith(expect.any(HTMLCanvasElement), 87, 187, 26, 26);
+    const sprite = ctx.drawImage.mock.calls[0][0] as HTMLCanvasElement;
+    expect(sprite.width).toBe(78);
+    expect(sprite.height).toBe(78);
+    expect(spriteContexts.every((paint) => paint.fillText.mock.calls.length === 1)).toBe(true);
+    expect(spriteContexts.every((paint) => paint.scale.mock.calls[0][0] === 3)).toBe(true);
+    for (let size = 10; size < 100; size++) cached.renderEmoji('✨', size, 100, 200);
+    expect(cached.emojiSprites.size).toBeLessThanOrEqual(32);
+    const previous = [...sprites];
+    engine.resize(320, 480, 2);
+    expect(previous.every((image) => image.width === 0 && image.height === 0)).toBe(true);
+    engine.destroy();
+    expect(cached.emojiSprites.size).toBe(0);
+    expect(cached.emojiWarmup).toHaveLength(0);
+    expect(sprites.every((image) => image.width === 0 && image.height === 0)).toBe(true);
   });
 
   it('keeps a visible GO frame before entering playing in non-autoStart mode', async () => {

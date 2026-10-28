@@ -39,6 +39,27 @@ const relationships: RelationshipsMap = {
 }
 
 describe('Drama Mode story network', () => {
+  it('preserves the entire story network when an action fails', () => {
+    const network = applyDramaActionEffect(createInitialDramaSocialNetwork(), {
+      actionId: 'flirt',
+      actorId: 'lia',
+      targetId: 'kai',
+      week: 8,
+      phase: 'social_1',
+      success: true,
+    })
+    const next = applyDramaActionEffect(network, {
+      actionId: 'betray',
+      actorId: 'lia',
+      targetId: 'kai',
+      week: 8,
+      phase: 'social_1',
+      success: false,
+    })
+    expect(next).toBe(network)
+    expect(next.arcs).toBe(network.arcs)
+    expect(next.events).toBe(network.events)
+  })
   it('keeps backup-plan language reserved for the canonical nomination system', () => {
     const nonCanonicalTargetingCopy = [
       ...DRAMA_DIALOGUE_BANK.rumour.targeting,

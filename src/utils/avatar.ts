@@ -12,6 +12,12 @@ import {
 } from '../data/avatarAssetManifest'
 
 const PROFILE_PHOTO_AVATAR_PREFIX = 'profile-photo:'
+// The bundled filenames and their precedence are static. Resolve the base URL
+// only for the selected file so every roster repaint doesn't rebuild the catalog.
+const avatarAssetCandidates = AVATAR_ASSET_FILES.map((filename) => ({
+  filename,
+  token: normalizeNameToken(filename.replace(/\.[^.]+$/, '').replace(/_avatar$/i, '')),
+}))
 
 export function profilePhotoAvatar(photoId: string): string {
   return `${PROFILE_PHOTO_AVATAR_PREFIX}${photoId}`
@@ -224,12 +230,9 @@ export function resolveAvatarCandidates(
     return candidates
   }
 
-  const folderAvatar = listAvatarAssetCandidates().find(({ basename }) => {
-    const token = normalizeNameToken(basename.replace(/_avatar$/i, ''))
-    return lookupTokens.includes(token)
-  })
+  const folderAvatar = avatarAssetCandidates.find(({ token }) => lookupTokens.includes(token))
   if (folderAvatar) {
-    candidates.push(folderAvatar.source)
+    candidates.push(joinPublicAssetPath(`assets/skins/${folderAvatar.filename}`))
   }
 
   const id = player.id
@@ -366,13 +369,6 @@ function listInformalCutoutCandidates(): Array<{ basename: string; filename: str
   return INFORMAL_CUTOUT_FILES.map((filename) => {
     const basename = filename.replace(/\.[^.]+$/, '')
     return { basename, filename }
-  })
-}
-
-function listAvatarAssetCandidates(): Array<{ basename: string; source: string }> {
-  return AVATAR_ASSET_FILES.map((filename) => {
-    const basename = filename.replace(/\.[^.]+$/, '')
-    return { basename, source: joinPublicAssetPath(`assets/skins/${filename}`) }
   })
 }
 

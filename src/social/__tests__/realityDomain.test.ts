@@ -24,6 +24,7 @@ import {
 } from '../reality'
 import type { RealityFact, RealityMemory, RealityPromise } from '../reality'
 import { SOCIAL_INITIAL_STATE } from '../constants'
+import { getCanonicalRelationshipTags, getSharedFormalAlliances } from '../relationshipSemantics'
 import { createInitialRealitySimulationState } from '../realitySimulation'
 
 function memory(overrides: Partial<RealityMemory> = {}): RealityMemory {
@@ -53,6 +54,102 @@ function memory(overrides: Partial<RealityMemory> = {}): RealityMemory {
 }
 
 describe('Reality domain migration and directed relationships', () => {
+  it('keeps cached canonical reads isolated from caller mutations and new domains', () => {
+    const domain = createInitialRealityDomainState()
+    createRealityAlliance(domain, {
+      id: 'cached',
+      founderIds: ['ava'],
+      memberIds: ['lia'],
+      purpose: 'Protect',
+      at: { day: 8, phase: 'social_1' },
+    }).status = 'ACTIVE'
+    const first = socialReducer(undefined, replaceRealityDomain(domain))
+    const input = {
+      reality: first.reality,
+      relationships: first.relationships,
+      actorId: 'ava',
+      targetId: 'lia',
+    }
+    expect(getCanonicalRelationshipTags(input).has('alliance')).toBe(true)
+    getCanonicalRelationshipTags(input).clear()
+    getSharedFormalAlliances(first.reality, 'lia', 'ava').pop()
+    expect(getSharedFormalAlliances(first.reality, 'lia', 'ava')).toHaveLength(1)
+    getSharedFormalAlliances(first.reality, 'ava', 'lia').pop()
+    expect(getCanonicalRelationshipTags(input).has('alliance')).toBe(true)
+    expect(getSharedFormalAlliances(first.reality, 'ava', 'lia')).toHaveLength(1)
+    const changed = structuredClone(first.reality)
+    changed.alliances.cached.status = 'DISSOLVED'
+    const next = socialReducer(first, replaceRealityDomain(changed))
+    expect(
+      getCanonicalRelationshipTags({
+        ...input,
+        reality: next.reality,
+        relationships: next.relationships,
+      }).has('alliance')
+    ).toBe(false)
+  })
+  it('matches full projection for a duplicate pair batch and preserves unchanged records', () => {
+    const domain = createInitialRealityDomainState()
+    domain.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }
+    domain.relationships.lia = { ava: createDirectedRelationship('lia', 'ava') }
+    createRealityAlliance(domain, {
+      id: 'pair',
+      founderIds: ['ava'],
+      memberIds: ['lia'],
+      purpose: 'Protect',
+      at: { day: 8, phase: 'social_1' },
+    }).status = 'ACTIVE'
+    const pairs = [
+      { sourceId: 'ava', targetId: 'lia' },
+      { sourceId: 'lia', targetId: 'ava' },
+      { sourceId: 'ava', targetId: 'lia' },
+    ]
+    const initial = socialReducer(
+      undefined,
+      commitRealityDomainUpdate({ domain, projectAllRelationships: true })
+    )
+    const batched = socialReducer(
+      initial,
+      commitRealityDomainUpdate({ domain, changedRelationshipPairs: pairs })
+    )
+    expect(batched.relationships).toEqual(initial.relationships)
+    expect(batched.relationships.ava.lia).toBe(initial.relationships.ava.lia)
+    expect(batched.reality.memoriesByOwner).toBe(initial.reality.memoriesByOwner)
+  })
+
+  it('projects betrayal when only the harmed-to-actor direction is requested', () => {
+    const domain = createInitialRealityDomainState()
+    domain.relationships.lia = { ava: createDirectedRelationship('lia', 'ava') }
+    domain.events.push({
+      id: 'betrayal',
+      sequence: 1,
+      day: 8,
+      phase: 'social_1',
+      type: 'ALLIANCE_BETRAYAL',
+      actorId: 'ava',
+      targetIds: ['lia'],
+      participantIds: ['ava', 'lia'],
+      witnessIds: [],
+      visibility: 'PRIVATE',
+      outcome: 'SUCCESS',
+      reason: 'test',
+      tags: ['betrayal'],
+      relatedFactIds: [],
+      relatedPromiseIds: [],
+      relatedThreadIds: [],
+      publicEligible: false,
+      juryEligible: true,
+    })
+    const next = socialReducer(
+      undefined,
+      commitRealityDomainUpdate({
+        domain,
+        changedRelationshipPairs: [{ sourceId: 'lia', targetId: 'ava' }],
+      })
+    )
+    expect(next.relationships.lia.ava.tags).toContain('betrayal')
+    expect(next.relationships.ava).toBeUndefined()
+  })
   it('keeps unchanged legacy relationship records when a full Reality projection repeats', () => {
     const reality = createInitialRealityDomainState()
     reality.relationships.ava = { lia: createDirectedRelationship('ava', 'lia') }

@@ -9,8 +9,34 @@
  * underneath it. The portal is outside .game-screen, so the hidden house UI can
  * be removed from painting/compositing without touching QuickTap's own glass,
  * shadows, heat shake, canvas resolution or effects. */
-body:has(.qtr-canvas--playing) .game-screen {
+body.minigame-portal-active .game-screen {
   visibility: hidden !important;
+  /* Visibility alone still resolves styles throughout the covered house on
+   * every foreground update. Keep its geometry, but skip that subtree's work. */
+  content-visibility: hidden;
+}
+@supports not (content-visibility: hidden) {
+  body.minigame-portal-active .game-screen {
+    display: none !important;
+  }
+}
+
+body.minigame-portal-active .game-screen *,
+body.minigame-portal-active .game-screen::before,
+body.minigame-portal-active .game-screen::after,
+body.minigame-portal-active .game-screen *::before,
+body.minigame-portal-active .game-screen *::after {
+  animation-play-state: paused !important;
+}
+
+/* Keep the card game itself visible: it is mounted inside GameScreen. */
+body.card-minigame-active .tv-zone__viewport::before,
+body.card-minigame-active .tv-zone__viewport::after,
+body.card-minigame-active .tv-zone__daily-fog,
+body.card-minigame-active .tv-zone__daily-cloud,
+body.card-minigame-active .tv-zone__daily-rain,
+body.card-minigame-active .game-control-dock__play {
+  animation-play-state: paused !important;
 }
 
 /* GameScreen already marks live_vote and eviction_results with this class. Keep
@@ -18,6 +44,18 @@ body:has(.qtr-canvas--playing) .game-screen {
  * screen through the infinite evictionSetPulse background-color animation. */
 .game-screen--eviction-atmosphere {
   animation-play-state: paused !important;
+}
+
+/* This header already paints opaque gradients; its backdrop blur is invisible. */
+#root .tv-zone__head {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Cache these moving decorative layers independently from the story text. */
+.tv-zone__viewport::before,
+.tv-announcement::before {
+  will-change: transform, opacity;
 }
 
 /* Pause only the roster and ambient screen layers underneath the foreground
