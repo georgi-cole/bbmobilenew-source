@@ -91,9 +91,9 @@ const survivalAdapter: ModeAdapter = {
       .getByRole('navigation', { name: 'Play menu' })
       .getByRole('button', { name: 'Surveyeval', exact: true })
       .click()
-    const rules = page.getByRole('dialog', { name: /Surveyeval Mode/i })
+    const rules = page.getByRole('dialog', { name: 'How Surveyeval Works', exact: true })
     if (await rules.isVisible().catch(() => false)) {
-      const continueButton = rules.getByRole('button', { name: /continue|start/i }).last()
+      const continueButton = rules.getByRole('button', { name: 'Enter Surveyeval', exact: true })
       await expect(continueButton).toBeVisible()
       await continueButton.click()
     }
