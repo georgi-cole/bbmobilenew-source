@@ -23,7 +23,7 @@ describe('appearance carousel roster', () => {
     expect(screen.queryByText(/included|\d+ of \d+/i)).toBeNull()
   })
 
-  it('cycles through all 27 looks, including repaired and approved packs', () => {
+  it('cycles through all 35 looks, including repaired and approved packs', () => {
     render(<LookPicker />)
     for (const look of SELECTABLE_LOOKS.slice(1)) {
       fireEvent.click(screen.getByRole('button', { name: 'Next look' }))
@@ -32,7 +32,7 @@ describe('appearance carousel roster', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next look' }))
     expect(screen.getByRole('img', { name: 'Look 1' })).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Previous look' }))
-    expect(screen.getByRole('img', { name: 'Look 27' })).toBeDefined()
+    expect(screen.getByRole('img', { name: 'Look 35' })).toBeDefined()
   })
 
   it('preloads only the current and neighboring casual figures while browsing', () => {
@@ -45,7 +45,7 @@ describe('appearance carousel roster', () => {
           role,
         ])
     ).toEqual([
-      ['pc-027', 'casual'],
+      ['pc-035', 'casual'],
       ['pc-001', 'casual'],
       ['pc-002', 'casual'],
     ])

@@ -27,9 +27,9 @@ const selected = { kind: 'catalog' as const, lookId: 'pc-017', revision: 1 as co
 const roles: AppearanceRole[] = ['casual', 'main', 'grey', 'formal', 'sad', 'paparazzi']
 
 describe('player appearance catalogue', () => {
-  it('publishes all 27 repaired or approved looks with six explicit roles', () => {
-    expect(APPEARANCE_LOOKS).toHaveLength(27)
-    expect(SELECTABLE_LOOKS).toHaveLength(27)
+  it('publishes all 35 repaired or approved looks with six explicit roles', () => {
+    expect(APPEARANCE_LOOKS).toHaveLength(35)
+    expect(SELECTABLE_LOOKS).toHaveLength(35)
     expect(SELECTABLE_LOOKS.map((look) => look.id)).toEqual(APPEARANCE_LOOKS.map((look) => look.id))
     for (const role of roles) {
       expect(getAppearanceAsset(selected, role)).toBe(

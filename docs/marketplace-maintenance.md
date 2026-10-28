@@ -54,6 +54,12 @@ store listings or change configured prices.
   start and result, and Eyeolean purchases. Reviewed the runtime catalog,
   entitlements, prices, and offer copy; this change does not alter any offers.
 
+- 2026-10-27: Added four more included profile looks (32-35) and wired them into
+  the Changing room. These are free visual profile choices and do not add or
+  alter purchasable items, entitlements, prices, or marketplace copy.
+- 2026-10-27: Added four included profile looks (28-31) and their standard avatar
+  framing. These are free visual profile choices and do not add or alter
+  purchasable items, entitlements, prices, or marketplace copy.
 - 2026-10-27: Reviewed the Changing room look-lock reveal and My profile return
   animation. This presentation-only update does not add or alter purchasable
   items, entitlements, prices, or marketplace copy.

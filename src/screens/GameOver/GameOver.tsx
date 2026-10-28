@@ -11,6 +11,7 @@ import {
   totalEyeoleanRewards,
 } from '../../economy/eyeoleans'
 import { SoundManager } from '../../services/sound/SoundManager'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
 import {
@@ -263,7 +264,7 @@ export default function GameOver() {
     if (!isGuest && activeProfileId) {
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
     }
-    dispatch(resetGame())
+    withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
     SoundManager.unlockFromGesture()
     navigate('/', { state: { autoStartGame: true } })
   }

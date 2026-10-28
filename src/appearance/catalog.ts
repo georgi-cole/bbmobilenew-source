@@ -50,6 +50,14 @@ const CUTOUT_FOOT_CENTER_X_PERCENT: Record<number, number> = {
   25: 10.61,
   26: 6.25,
   27: 8.66,
+  28: 4.95,
+  29: 10.35,
+  30: 3.13,
+  31: 9.64,
+  32: 6.58,
+  33: -3.84,
+  34: -10.94,
+  35: -5.47,
 }
 
 const CUTOUT_FOOT_BOTTOM_PERCENT: Record<number, number> = {
@@ -80,6 +88,14 @@ const CUTOUT_FOOT_BOTTOM_PERCENT: Record<number, number> = {
   25: 1.74,
   26: 2.95,
   27: 2.78,
+  28: 2.17,
+  29: 1.56,
+  30: 0.87,
+  31: 2.43,
+  32: 2.08,
+  33: 2.26,
+  34: 1.65,
+  35: 2.17,
 }
 
 const CUTOUT_HEAD_TOP_PERCENT: Record<number, number> = {
@@ -110,6 +126,14 @@ const CUTOUT_HEAD_TOP_PERCENT: Record<number, number> = {
   25: 0.69,
   26: 0.87,
   27: 0.61,
+  28: 1.13,
+  29: 0.61,
+  30: 0.78,
+  31: 1.22,
+  32: 0.95,
+  33: 1.56,
+  34: 0.78,
+  35: 1.39,
 }
 
 const PORTRAIT_REPAIR_VERSION = '20261026'
@@ -123,7 +147,7 @@ function hasRepairedPortrait(number: number, role: AppearanceRole): boolean {
 }
 
 export const APPEARANCE_LOOKS: readonly AppearanceLook[] = Array.from(
-  { length: 27 },
+  { length: 35 },
   (_, index) => {
     const number = index + 1
     return {
@@ -174,7 +198,7 @@ export function appearanceFromAssetUrl(
 ): AppearanceSelection | null {
   if (!source) return null
   const match = source.match(
-    /(?:^|\/)assets\/player_characters\/character(?:%20| )([1-9]|1\d|2[0-7])\/(?:casual|main|grey|formal|sad|paparazzi)\.webp(?:[?#].*)?$/i
+    /(?:^|\/)assets\/player_characters\/character(?:%20| )([1-9]|[12]\d|3[0-5])\/(?:casual|main|grey|formal|sad|paparazzi)\.webp(?:[?#].*)?$/i
   )
   if (!match) return null
   const look = getAppearanceLook(`pc-${match[1].padStart(3, '0')}`, 1)
