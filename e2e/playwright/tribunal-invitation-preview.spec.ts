@@ -6,17 +6,17 @@ async function launch(page: Page, arrival: 'normal' | 'first' | 'second' = 'norm
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
   await expect(panel).toBeVisible()
   await dismissPermissionPromptIfPresent(page)
-  await panel
-    .getByRole('button', {
-      name:
-        arrival === 'first'
-          ? 'Load first Tribunal arrival preview'
-          : arrival === 'second'
-            ? 'Load second Tribunal arrival preview'
-            : 'Load Tribunal invitation preview',
-      exact: true,
-    })
-    .click()
+  const fixture = panel.getByRole('button', {
+    name:
+      arrival === 'first'
+        ? 'Load first Tribunal arrival preview'
+        : arrival === 'second'
+          ? 'Load second Tribunal arrival preview'
+          : 'Load Tribunal invitation preview',
+    exact: true,
+  })
+  await expect(fixture).toBeEnabled()
+  await fixture.evaluate((button) => (button as HTMLButtonElement).click())
 }
 
 test.describe('Tribunal invitation preview @visual @mobile', () => {
