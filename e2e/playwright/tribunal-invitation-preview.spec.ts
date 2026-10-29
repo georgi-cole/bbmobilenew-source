@@ -55,18 +55,19 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     })
   })
 
-  test('welcomes the actual player to the waiting Tribunal and resumes the season', async ({
+  test('opens sequester with at most two seated members and resumes the season', async ({
     page,
   }, testInfo) => {
     await launch(page)
     await page.getByRole('button', { name: 'Agree', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.locator('.tdc-member')).toHaveCount(4)
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
+    await expect(dialog.locator('.tdc-scene img')).toHaveCount(1)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 12000,
     })
-    await expect(dialog.locator('.tdc-player img')).toHaveAttribute('data-image-state', 'resolved')
+    await expect(dialog.locator('.tdc-art')).toHaveAttribute('data-image-state', 'resolved')
     const decodedImageBytes = await dialog
       .locator('.tdc-scene img')
       .evaluateAll((images) =>
@@ -79,7 +80,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
           0
         )
       )
-    expect(decodedImageBytes).toBeLessThan(5 * 1024 * 1024)
+    expect(decodedImageBytes).toBeLessThan(3 * 1024 * 1024)
     expect(
       await dialog
         .locator('.tdc-scene')
@@ -109,9 +110,9 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await page.getByRole('button', { name: 'Agree', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog.getByText(/You're the first to arrive/)).toBeVisible()
-    await expect(dialog.locator('.tdc-member')).toHaveCount(0)
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '0')
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
-    await expect(dialog.locator('.tdc-player img')).toHaveAttribute('data-image-state', 'resolved')
+    await expect(dialog.locator('.tdc-art')).toHaveAttribute('data-image-state', 'resolved')
     await page.screenshot({
       path: testInfo.outputPath(`tribunal-first-arrival-${testInfo.project.name}.png`),
     })
@@ -127,7 +128,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'playing', {
       timeout: 6000,
     })
-    await page.waitForTimeout(1800)
+    await page.waitForTimeout(900)
     await page.screenshot({
       path: testInfo.outputPath(`tribunal-exit-${testInfo.project.name}.png`),
     })

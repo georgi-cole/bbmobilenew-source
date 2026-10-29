@@ -1,0 +1,33 @@
+{
+  "mode": "built-in image_gen",
+  "treatment": "First-person photographic establishing frames; anonymous background members; finite fades only.",
+  "size": {
+    "width": 640,
+    "height": 960
+  },
+  "assets": [
+    {
+      "file": "arrival-two-v2.webp",
+      "generation": "exec-6bb48ed4-42ab-4fdf-8970-350618572365.png",
+      "prompt": "Use case: photorealistic-natural.\nAsset type: complete cinematic establishing frame for a premium reality-game sequester arrival, portrait 2:3, full bleed, no UI.\nPrimary request: From the arriving player's first-person eye-level viewpoint at a doorway, look into a quiet, beautifully designed sequester lounge. Two fictional adult Tribunal members are already seated comfortably in the room, waiting. The story must read instantly through composition, with no moving-character cutout needed.\nScene: a restrained contemporary manor interior, dark walnut doorway, subtle brushed champagne brass hardware, warm ivory upholstery, muted charcoal/plum accents, real wood floor, one soft practical lamp. Warm light comes from the lounge into the dim threshold. The open doorway frames the lounge in the upper two-thirds; a darker but detailed foreground floor in the lower quarter provides calm space for live game typography.\nPeople: exactly two adults, one woman and one man, seated naturally in separate chairs at conversational distance, seen in soft focus in three-quarter rear or side views. Ordinary tasteful clothing. Believable body scale, feet on the floor, real contact with the chairs. They are quiet background human presence, not posed heroes or recognizable portraits. The viewer is the arriving player; do not show the viewer's body.\nStyle: a carefully lit still from a prestige television drama, photorealistic architectural photography, realistic fabric and timber grain, soft cinematic contrast, controlled highlights, warm hospitality without ostentation. Deliberate framing and visual depth. Clear enough to read on a phone.\nConstraints: one coherent photographed scene. No text, signage, logos, UI, watermark, floating people, pasted cutouts, illustrated silhouettes, vector suitcase, glowing portals, purple neon, sparkles, smoke, fantasy decor, excessive gold, mirrors, or gaming-chair aesthetics. No animated effect painted into the scene."
+    },
+    {
+      "file": "departure-v2.webp",
+      "generation": "exec-6693d914-5036-400e-a156-48cd9c431497.png",
+      "reference": "arrival-two-v2.webp",
+      "prompt": "Use case: precise-object-edit. Image 1 is the edit target, the exact architectural frame to preserve.\nCreate the matching final departure frame for the same premium television-game sequence. Close both dark walnut door leaves completely across the doorway, in the existing door frame. The seated people and entire lounge are now hidden behind the solid closed doors. Preserve the same camera position, portrait 2:3 composition, perspective, foreground floorboards, walnut grain, natural photographic lighting, subtle brushed brass hardware and quiet tonal palette. Door panels have understated high-quality flat joinery, no ornament. A very faint warm light seam under the closed door is acceptable. The dim foreground floor remains clean and spacious for live game typography.\nIt should feel like the final composed shot of a chapter ending: restrained, tangible, expensive cinematography, not an ominous fantasy portal.\nChange only what the closed doorway and resulting light require. No people in the foreground, no suitcase icon or other props, no captions, UI, text, lettering, logos, halos, neon, smoke, or effects. Real architecture and coherent photographic light."
+    },
+    {
+      "file": "arrival-empty-v2.webp",
+      "generation": "exec-d3f97dc7-d935-4d69-8581-4fa4578ed7f3.png",
+      "reference": "arrival-two-v2.webp",
+      "prompt": "Use case: precise-object-edit. Image 1 is the edit target.\nCreate the empty-lounge version of this EXACT image for the first Tribunal member's arrival. Remove both seated people and restore the upholstery, cushions, carpet and any surfaces they occluded. Both chairs must be naturally empty. Preserve every other element: doorway geometry, open walnut doors, hardware, camera position, portrait 2:3 framing, fireplace, furniture positions, lamps, architecture, foreground floor, materials, lighting, exposure and photographic style. Do not move or add furniture. No people, no text, no UI, no logo, no watermark. This is a precise occupancy variation of the same cinematic establishing shot, not a redesigned room."
+    },
+    {
+      "file": "arrival-one-v2.webp",
+      "generation": "exec-29cc4158-80d6-4825-9bd9-7f9accf72cde.png",
+      "reference": "arrival-two-v2.webp",
+      "prompt": "Use case: precise-object-edit. Image 1 is the edit target.\nMake the exact same sequester-lounge frame with ONE waiting member. Remove only the seated woman on the left and restore her chair upholstery and the carpet behind her feet. Keep the seated man on the right completely unchanged. Preserve the camera, open doorway, door leaves, foreground floor, all furniture positions, lighting, exposure, materials and portrait 2:3 framing. Do not add any people or props. No typography, UI, logo, or watermark. This is a precise one-person occupancy variant of the same photographed room."
+    }
+  ]
+}
