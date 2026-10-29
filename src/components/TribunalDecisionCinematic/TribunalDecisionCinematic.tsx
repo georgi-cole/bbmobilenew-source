@@ -136,7 +136,7 @@ export default function TribunalDecisionCinematic({
         ? 'Your arrival at sequester'
         : 'Your arrival at sequester as its first Tribunal member'
       : `Your arrival at sequester with ${waitingCount} waiting Tribunal member${waitingCount === 1 ? '' : 's'}`
-    : 'Your farewell inside the Hub exit, facing the city outside'
+    : 'Your last look back from outside the Hub as its doors close'
 
   return createPortal(
     <div className="tdc-backdrop">
@@ -185,21 +185,46 @@ export default function TribunalDecisionCinematic({
           role="group"
         >
           <div ref={planeRoot} className="tdc-stage-plane">
-            <div className="tdc-room" aria-hidden="true">
-              <img
-                className="tdc-backplate"
-                src={joinPublicAssetPath(
-                  `assets/tribunal/${arrival ? 'sequester-window-v4' : 'farewell-set-v4'}.webp`
+            <div className="tdc-camera">
+              <div className="tdc-room" aria-hidden="true">
+                <img
+                  className="tdc-backplate"
+                  src={joinPublicAssetPath(
+                    `assets/tribunal/${arrival ? 'sequester-window-v4' : 'farewell-set-v4'}.webp`
+                  )}
+                  alt=""
+                  onLoad={() => settle('backplate')}
+                  onError={(event) => {
+                    event.currentTarget.style.visibility = 'hidden'
+                    settle('backplate')
+                  }}
+                />
+              </div>
+              <div className="tdc-cast">
+                {cast.map((member, index) => (
+                  <TribunalStageFigure
+                    key={member.id}
+                    player={member}
+                    placement={index === 0 ? 'player' : index === 1 ? 'left' : 'right'}
+                    onSettled={settle}
+                  />
+                ))}
+                {!arrival && (
+                  <div className="tdc-luggage" aria-hidden="true">
+                    <img
+                      src={joinPublicAssetPath('assets/tribunal/farewell-luggage-v4.webp')}
+                      alt=""
+                      onLoad={() => settle('luggage')}
+                      onError={(event) => {
+                        event.currentTarget.style.visibility = 'hidden'
+                        settle('luggage')
+                      }}
+                    />
+                  </div>
                 )}
-                alt=""
-                onLoad={() => settle('backplate')}
-                onError={(event) => {
-                  event.currentTarget.style.visibility = 'hidden'
-                  settle('backplate')
-                }}
-              />
+              </div>
               {!arrival && (
-                <div className="tdc-room__portal">
+                <div className="tdc-room__portal" aria-hidden="true">
                   {(['left', 'right'] as const).map((side) => (
                     <div key={side} className={`tdc-room__door tdc-room__door--${side}`}>
                       <img
@@ -216,29 +241,7 @@ export default function TribunalDecisionCinematic({
                 </div>
               )}
             </div>
-            <div className="tdc-cast">
-              {cast.map((member, index) => (
-                <TribunalStageFigure
-                  key={member.id}
-                  player={member}
-                  placement={index === 0 ? 'player' : index === 1 ? 'left' : 'right'}
-                  onSettled={settle}
-                />
-              ))}
-            </div>
-            {!arrival && (
-              <div className="tdc-luggage" aria-hidden="true">
-                <img
-                  src={joinPublicAssetPath('assets/tribunal/farewell-luggage-v4.webp')}
-                  alt=""
-                  onLoad={() => settle('luggage')}
-                  onError={(event) => {
-                    event.currentTarget.style.visibility = 'hidden'
-                    settle('luggage')
-                  }}
-                />
-              </div>
-            )}
+            {arrival && <div className="tdc-near-frame" aria-hidden="true" />}
           </div>
         </div>
         <header className="tdc-header">

@@ -4,6 +4,11 @@ import { dismissPermissionPromptIfPresent, expect, readAppState, test } from './
 async function launch(page: Page, arrival: 'normal' | 'first' | 'second' = 'normal') {
   await page.goto('./#/game?debug=1', { waitUntil: 'domcontentloaded' })
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
+  const toggle = page.getByRole('button', { name: 'Toggle Debug Panel' })
+  await expect(toggle).toBeVisible()
+  if (!(await panel.isVisible())) {
+    await toggle.evaluate((button) => (button as HTMLButtonElement).click())
+  }
   await expect(panel).toBeVisible()
   await dismissPermissionPromptIfPresent(page)
   const fixture = panel.getByRole('button', {
@@ -70,6 +75,19 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
       /sequester-window-v4.webp$/
     )
     await expect(dialog.locator('.tdc-room__portal')).toHaveCount(0)
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'playing')
+    const cameraMotion = await dialog.locator('.tdc-scene').evaluate((scene) =>
+      scene.getAnimations({ subtree: true }).map((animation) => ({
+        name: (animation as CSSAnimation).animationName,
+        fades: (animation.effect as KeyframeEffect)
+          .getKeyframes()
+          .some((frame) => 'opacity' in frame),
+      }))
+    )
+    expect(cameraMotion.map((motion) => motion.name)).toEqual(
+      expect.arrayContaining(['tdc-camera-settle', 'tdc-pass-frame'])
+    )
+    expect(cameraMotion.every((motion) => !motion.fades)).toBe(true)
     await expect(dialog.getByRole('button', { name: 'Continue season' })).toHaveClass(/game-button/)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
     const state = await readAppState(page)
@@ -230,6 +248,18 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
       timeout: 6000,
     })
     await page.waitForTimeout(900)
+    await expect(dialog.locator('.tdc-person')).toHaveCSS('opacity', '1')
+    await expect(dialog.locator('.tdc-luggage')).toHaveCSS('opacity', '1')
+    const departureMotion = await dialog.locator('.tdc-scene').evaluate((scene) =>
+      scene.getAnimations({ subtree: true }).map((animation) => ({
+        name: (animation as CSSAnimation).animationName,
+        fades: (animation.effect as KeyframeEffect)
+          .getKeyframes()
+          .some((frame) => 'opacity' in frame),
+      }))
+    )
+    expect(departureMotion.filter((motion) => motion.name === 'tdc-close')).toHaveLength(2)
+    expect(departureMotion.every((motion) => !motion.fades)).toBe(true)
     await page.screenshot({
       path: testInfo.outputPath(`tribunal-exit-${testInfo.project.name}.png`),
     })
@@ -237,11 +267,69 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
       timeout: 8000,
     })
     await expect(dialog.locator('.tdc-action')).not.toContainText('→')
+    await expect(dialog.locator('.tdc-room')).toBeVisible()
+    await expect(dialog.locator('.tdc-person')).toHaveCSS('opacity', '1')
+    await expect(dialog.locator('.tdc-room__door').first()).toHaveCSS(
+      'transform',
+      'matrix(1, 0, 0, 1, 0, 0)'
+    )
+    const occlusion = await dialog.locator('.tdc-room__portal').evaluate((portal) => {
+      const cast = portal.parentElement!.querySelector('.tdc-cast')!
+      const figure = cast.querySelector('.tdc-person')!.getBoundingClientRect()
+      const opening = portal.getBoundingClientRect()
+      const luggage = cast.querySelector('.tdc-luggage')!.getBoundingClientRect()
+      const contains = (bounds: DOMRect) =>
+        bounds.left >= opening.left &&
+        bounds.right <= opening.right &&
+        bounds.top >= opening.top &&
+        bounds.bottom <= opening.bottom
+      return {
+        doorsInFront:
+          Number(getComputedStyle(portal).zIndex) > Number(getComputedStyle(cast).zIndex),
+        figureBeyondThreshold: contains(figure),
+        luggageBeyondThreshold: contains(luggage),
+      }
+    })
+    expect(occlusion).toEqual({
+      doorsInFront: true,
+      figureBeyondThreshold: true,
+      luggageBeyondThreshold: true,
+    })
     const action = await dialog.locator('.tdc-action').boundingBox()
     if (!action) throw new Error('Home control is unavailable')
     expect(action.width).toBeLessThanOrEqual(180)
     await dialog.getByRole('button', { name: 'Home', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page).toHaveURL(/#\/$/)
+  })
+
+  test('can skip the camera reveal and uses closed doors for reduced-motion departure', async ({
+    page,
+  }) => {
+    await launch(page)
+    await page.getByRole('button', { name: 'Agree', exact: true }).click()
+    const arrival = page.getByRole('dialog', { name: 'Welcome to sequester' })
+    await arrival.getByRole('button', { name: 'Skip animation' }).click()
+    await expect(arrival.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
+    await expect(arrival.locator('.tdc-camera')).toHaveCSS('transform', 'none')
+    await arrival.getByRole('button', { name: 'Continue season' }).click()
+    await expect(arrival).toBeHidden()
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await launch(page)
+    await page.getByRole('button', { name: 'Exit', exact: true }).click()
+    const departure = page.getByRole('dialog', { name: 'One last goodbye' })
+    await expect(departure.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
+    await expect(departure.locator('.tdc-room')).toBeVisible()
+    await expect(departure.locator('.tdc-room__door').first()).toHaveCSS(
+      'transform',
+      'matrix(1, 0, 0, 1, 0, 0)'
+    )
+    expect(
+      await departure
+        .locator('.tdc-scene')
+        .evaluate((scene) => scene.getAnimations({ subtree: true }).length)
+    ).toBe(0)
+    await departure.getByRole('button', { name: 'Home', exact: true }).click()
+    await expect(departure).toBeHidden()
   })
 })
