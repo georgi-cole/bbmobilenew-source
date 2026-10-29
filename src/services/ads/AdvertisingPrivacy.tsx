@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import {
   ageBandForAge,
   declarePlayerAge,
@@ -9,6 +10,10 @@ import { hasAdMobPrivacyOptions, openAdMobPrivacyOptions } from './admobBridge'
 import '../../safety/PlayerSafetyScreen.css'
 
 export default function AdvertisingPrivacy() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const openedFromSettings =
+    (location.state as { fromSettings?: boolean } | null)?.fromSettings === true
   const record = usePlayerSafety()
   const [age, setAge] = useState('')
   const [notice, setNotice] = useState('')
@@ -80,16 +85,25 @@ export default function AdvertisingPrivacy() {
           <p>Advertising is unavailable for players under 18.</p>
         )}
         {notice && <p role="status">{notice}</p>}
-        <a
-          href={`${import.meta.env.BASE_URL}legal/privacy-policy.html`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Privacy policy
-        </a>
-        <a className="player-safety__back" href="#/settings">
-          Back to settings
-        </a>
+        <div className="player-safety__actions">
+          <a
+            href={`${import.meta.env.BASE_URL}legal/privacy-policy.html`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Privacy policy
+          </a>
+          <button
+            type="button"
+            className="player-safety__secondary"
+            onClick={() => {
+              if (openedFromSettings) navigate(-1)
+              else navigate('/settings', { replace: true })
+            }}
+          >
+            Back to settings
+          </button>
+        </div>
       </section>
     </main>
   )

@@ -490,7 +490,7 @@ export default function Settings() {
         <button
           type="button"
           className="settings-row settings-row--legal"
-          onClick={() => navigate('/player-privacy')}
+          onClick={() => navigate('/player-privacy', { state: { fromSettings: true } })}
         >
           <span>
             <strong>Advertising privacy</strong>

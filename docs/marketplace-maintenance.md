@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-29: Reviewed the advertising privacy footer and return navigation.
+  Privacy policy and Back to settings are separate touch targets, and returning
+  from Settings restores the prior history entry. Advertising opt-in, UMP choices,
+  No Ads/VIP behavior, rewards, prices, and product contents remain unchanged;
+  existing marketplace listings remain accurate.
+
 - 2026-10-29: Applied the accepted $6.99 Surveyeval and $19.99 VIP launch prices
   to the upgrade resolver and documented the matching ten store product IDs
   ($4.99 through $18.49). Standalone ownership still earns 75% nominal credit.

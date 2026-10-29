@@ -90,6 +90,20 @@
   color: #dac6ff;
   overflow-wrap: anywhere;
 }
+.player-safety__actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.player-safety__actions > a {
+  display: block;
+  min-height: 44px;
+  padding-block: 10px;
+  box-sizing: border-box;
+}
+.player-safety__actions > button {
+  margin: 0;
+}
 .player-safety details {
   margin-top: 28px;
   border-top: 1px solid #484463;
