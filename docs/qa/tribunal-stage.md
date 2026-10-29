@@ -2,7 +2,7 @@
 
 The production handoff combines generated unoccupied reality-TV architecture with existing cast artwork on independent layers. Typography uses the game's Montserrat stack; both actions use the shared native button component styles with a compact gold treatment.
 
-- Each scene uses one 4:5 art plane inside a portrait-first dialog. All artwork, door hinges and cast anchors share that coordinate system, so resizing never crops a doorway or changes figure alignment.
+- Each scene uses one 4:5 art plane inside a portrait-first dialog. All artwork, door hinges and cast anchors share that coordinate system. A resize observer fits the plane to the available area, with a window-resize fallback; no container-query units are required by the iOS 15 support target.
 - Arrival uses a sophisticated penthouse window wall and detailed city view. The selected player stands in front, with the two most recently eliminated eligible jurors farther back. The chronological `seasonExit` log determines their order before the human's latest exit, including equal timestamps, double eliminations and returnees. Old saves fall back to stamped final placement, then earlier exit weeks. Unknown chronology does not invent a roster-order group.
 - First and second Tribunal arrivals have zero and one waiting members. The QA fixtures record deterministic exit history and include both variants.
 - Departure uses a different empty vestibule facing a real exterior walkway. The original player figure, a generated transparent luggage prop and generated door leaves remain separately controllable. The player and bag dissolve, doors close at the pictured threshold, and the set fades out. Figures retain their existing poses.

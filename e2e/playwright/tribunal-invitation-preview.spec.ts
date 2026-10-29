@@ -2,10 +2,10 @@ import type { Page } from '@playwright/test'
 import { dismissPermissionPromptIfPresent, expect, readAppState, test } from './support/test'
 
 async function launch(page: Page, arrival: 'normal' | 'first' | 'second' = 'normal') {
-  await page.goto('./#/game?debug=1')
-  await dismissPermissionPromptIfPresent(page)
+  await page.goto('./#/game?debug=1', { waitUntil: 'domcontentloaded' })
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
   await expect(panel).toBeVisible()
+  await dismissPermissionPromptIfPresent(page)
   await panel
     .getByRole('button', {
       name:
@@ -112,6 +112,23 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     const action = await dialog.locator('.tdc-action').boundingBox()
     if (!plane || !action) throw new Error('Portrait composition is unavailable')
     expect(plane.width / plane.height).toBeCloseTo(0.8, 2)
+    const originalViewport = page.viewportSize()
+    if (!originalViewport) throw new Error('Viewport geometry is unavailable')
+    await page.setViewportSize({ ...originalViewport, height: originalViewport.height - 60 })
+    await expect
+      .poll(async () => {
+        const resized = await dialog.locator('.tdc-stage-plane').boundingBox()
+        const available = await dialog.locator('.tdc-scene').boundingBox()
+        return resized && available
+          ? {
+              ratio: Math.round((resized.width / resized.height) * 100),
+              fits:
+                resized.width <= available.width + 0.5 && resized.height <= available.height + 0.5,
+            }
+          : null
+      })
+      .toEqual({ ratio: 80, fits: true })
+    await page.setViewportSize(originalViewport)
     expect(action.width).toBeLessThanOrEqual(180)
     expect(action.height).toBeGreaterThanOrEqual(44)
     await expect(dialog.locator('.tdc-action')).not.toContainText('→')

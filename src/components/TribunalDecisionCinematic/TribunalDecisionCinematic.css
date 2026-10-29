@@ -13,6 +13,7 @@
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr) auto;
   width: min(100vw, 480px);
+  height: min(100vh, 980px);
   height: min(100svh, 980px);
   overflow: hidden;
   outline: none;
@@ -48,14 +49,13 @@
   min-height: 0;
   margin: 0 12px 12px;
   pointer-events: none;
-  container-type: size;
   display: grid;
   place-items: center;
 }
 .tdc-stage-plane {
   position: relative;
-  width: min(100cqw, 80cqh);
-  height: min(125cqw, 100cqh);
+  width: 100%;
+  aspect-ratio: 4 / 5;
 }
 .tdc-room,
 .tdc-cast {

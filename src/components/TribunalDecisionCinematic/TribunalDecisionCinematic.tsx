@@ -51,8 +51,32 @@ export default function TribunalDecisionCinematic({
   const [failed, setFailed] = useState(false)
   const completing = useRef(false)
   const root = useRef<HTMLDivElement>(null)
+  const sceneRoot = useRef<HTMLDivElement>(null)
+  const planeRoot = useRef<HTMLDivElement>(null)
   const primary = useRef<HTMLButtonElement>(null)
   const titleId = useId()
+
+  useEffect(() => {
+    const scene = sceneRoot.current
+    const plane = planeRoot.current
+    if (!scene || !plane) return
+    const fit = (width: number, height: number) => {
+      const fittedWidth = Math.max(0, Math.min(width, height * 0.8))
+      plane.style.width = `${fittedWidth}px`
+      plane.style.height = `${fittedWidth * 1.25}px`
+    }
+    const measure = () => fit(scene.clientWidth, scene.clientHeight)
+    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure)
+      return () => window.removeEventListener('resize', measure)
+    }
+    const observer = new ResizeObserver(([entry]) =>
+      fit(entry.contentRect.width, entry.contentRect.height)
+    )
+    observer.observe(scene)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     if (phase !== 'preparing') return
@@ -108,7 +132,9 @@ export default function TribunalDecisionCinematic({
     : 'Your season ends here. Thank you for being part of the Hub.'
   const sceneLabel = arrival
     ? waitingCount === 0
-      ? 'Your arrival at sequester as its first Tribunal member'
+      ? members.some((member) => member.id !== player.id)
+        ? 'Your arrival at sequester'
+        : 'Your arrival at sequester as its first Tribunal member'
       : `Your arrival at sequester with ${waitingCount} waiting Tribunal member${waitingCount === 1 ? '' : 's'}`
     : 'Your farewell inside the Hub exit, facing the city outside'
 
@@ -150,6 +176,7 @@ export default function TribunalDecisionCinematic({
         }}
       >
         <div
+          ref={sceneRoot}
           className="tdc-scene"
           data-phase={phase}
           data-waiting-members={arrival ? waitingCount : 0}
@@ -157,7 +184,7 @@ export default function TribunalDecisionCinematic({
           aria-label={sceneLabel}
           role="group"
         >
-          <div className="tdc-stage-plane">
+          <div ref={planeRoot} className="tdc-stage-plane">
             <div className="tdc-room" aria-hidden="true">
               <img
                 className="tdc-backplate"
@@ -179,7 +206,10 @@ export default function TribunalDecisionCinematic({
                         src={joinPublicAssetPath('assets/tribunal/farewell-door-v4.webp')}
                         alt=""
                         onLoad={() => settle(`door-${side}`)}
-                        onError={() => settle(`door-${side}`)}
+                        onError={(event) => {
+                          event.currentTarget.style.visibility = 'hidden'
+                          settle(`door-${side}`)
+                        }}
                       />
                     </div>
                   ))}
