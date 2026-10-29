@@ -87,7 +87,14 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     expect(cameraMotion.map((motion) => motion.name)).toEqual(
       expect.arrayContaining(['tdc-camera-settle', 'tdc-pass-frame'])
     )
-    expect(cameraMotion.every((motion) => !motion.fades)).toBe(true)
+    expect(
+      cameraMotion
+        .filter((motion) => motion.name !== 'tdc-city-window')
+        .every((motion) => !motion.fades)
+    ).toBe(true)
+    expect(cameraMotion.map((motion) => motion.name)).toEqual(
+      expect.arrayContaining(['tdc-window-approach', 'tdc-pass-cast'])
+    )
     await expect(dialog.getByRole('button', { name: 'Continue season' })).toHaveClass(/game-button/)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
     const state = await readAppState(page)
@@ -150,26 +157,21 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     expect(action.width).toBeLessThanOrEqual(180)
     expect(action.height).toBeGreaterThanOrEqual(44)
     await expect(dialog.locator('.tdc-action')).not.toContainText('→')
-    const sceneBounds = await dialog.locator('.tdc-scene').boundingBox()
-    if (!sceneBounds) throw new Error('Stage geometry is unavailable')
     for (const figure of await dialog.locator('.tdc-person').all()) {
-      const bounds = await figure.boundingBox()
-      if (!bounds) throw new Error('Cast geometry is unavailable')
-      expect(bounds.x).toBeGreaterThanOrEqual(sceneBounds.x)
-      expect(bounds.x + bounds.width).toBeLessThanOrEqual(sceneBounds.x + sceneBounds.width)
-      expect(bounds.y).toBeGreaterThanOrEqual(sceneBounds.y)
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(sceneBounds.y + sceneBounds.height)
+      await expect(figure).not.toBeInViewport()
     }
+    const cityTransform = await dialog
+      .locator('.tdc-room')
+      .evaluate((room) => new DOMMatrixReadOnly(getComputedStyle(room).transform).a)
+    expect(cityTransform).toBeCloseTo(1.8)
     expect(
-      await dialog
-        .locator('.tdc-scene')
-        .evaluate(
-          (scene) =>
-            scene
-              .getAnimations({ subtree: true })
-              .filter((animation) => animation.playState === 'running').length
-        )
-    ).toBe(0)
+      await dialog.locator('.tdc-scene').evaluate((scene) =>
+        scene
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.playState === 'running')
+          .map((animation) => (animation as CSSAnimation).animationName)
+      )
+    ).toEqual(Array(4).fill('tdc-city-window'))
     await testInfo.attach('scene-image-budget', {
       body: JSON.stringify({ decodedImageBytes }),
       contentType: 'application/json',

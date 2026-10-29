@@ -7,7 +7,8 @@ import { joinPublicAssetPath } from '../../utils/avatar'
 import { recentTribunalMembers } from './recentTribunalMembers'
 import './TribunalDecisionCinematic.css'
 
-const DURATION_MS = 2400
+const ARRIVAL_DURATION_MS = 4800
+const EXIT_DURATION_MS = 2400
 
 interface Props {
   destination: 'sequester' | 'exit'
@@ -86,9 +87,12 @@ export default function TribunalDecisionCinematic({
 
   useEffect(() => {
     if (phase !== 'playing') return
-    const timer = window.setTimeout(() => setPhase('ready'), reduced ? 0 : DURATION_MS)
+    const timer = window.setTimeout(
+      () => setPhase('ready'),
+      reduced ? 0 : arrival ? ARRIVAL_DURATION_MS : EXIT_DURATION_MS
+    )
     return () => window.clearTimeout(timer)
-  }, [phase, reduced])
+  }, [arrival, phase, reduced])
 
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
@@ -199,6 +203,14 @@ export default function TribunalDecisionCinematic({
                     settle('backplate')
                   }}
                 />
+                {arrival && (
+                  <div className="tdc-city-lights" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                    <i />
+                  </div>
+                )}
               </div>
               <div className="tdc-cast">
                 {cast.map((member, index) => (
