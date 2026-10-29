@@ -8969,6 +8969,12 @@ const gameSlice = createSlice({
       const otherPlayers = state.players.filter((player) => !player.isUser)
       if (!human || otherPlayers.length < (action.payload.mode === 'battle_back' ? 3 : 1)) return
 
+      // Give legacy QA profiles a visible sample body; preserve selected looks
+      // and uploaded portraits so the same fixture can review both presentations.
+      if (human.appearance?.kind !== 'catalog' && !human.avatar?.startsWith('profile-photo:')) {
+        human.appearance = { kind: 'catalog', lookId: 'pc-001', revision: 1 }
+      }
+
       // Keep enough Tribunal members available for a playable return challenge
       // on small test casts while showing three remaining contestants normally.
       const activeCount = Math.min(3, Math.max(1, otherPlayers.length - 2))
