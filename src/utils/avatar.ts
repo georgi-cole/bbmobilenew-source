@@ -2,6 +2,7 @@
 // Lightweight avatar resolver with Dicebear fallback.
 
 import type { Player } from '../types'
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../appearance/catalog'
 import { getById, findByName } from '../data/houseguests'
 import type { RemotePlayerOverride } from '../remoteConfig/remoteConfigTypes'
 import {
@@ -11,6 +12,12 @@ import {
 } from '../data/avatarAssetManifest'
 
 const PROFILE_PHOTO_AVATAR_PREFIX = 'profile-photo:'
+// The bundled filenames and their precedence are static. Resolve the base URL
+// only for the selected file so every roster repaint doesn't rebuild the catalog.
+const avatarAssetCandidates = AVATAR_ASSET_FILES.map((filename) => ({
+  filename,
+  token: normalizeNameToken(filename.replace(/\.[^.]+$/, '').replace(/_avatar$/i, '')),
+}))
 
 export function profilePhotoAvatar(photoId: string): string {
   return `${PROFILE_PHOTO_AVATAR_PREFIX}${photoId}`
@@ -162,9 +169,15 @@ function capitalize(s: string): string {
  * For numeric ids with no houseguest match, candidates are: assets/skins/{id}_avatar.webp
  */
 export function resolveAvatarCandidates(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser'>>
+  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
 ): string[] {
   const candidates: string[] = []
+  const isUserPlayer = player.isUser === true || player.id === 'user'
+  const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar)
+  const catalogMain = isUserPlayer ? getAppearanceAsset(selection, 'main') : null
+  if (catalogMain) {
+    return [joinPublicAssetPath(catalogMain), getLocalAvatarFallback(player.name, true)]
+  }
 
   // Persisted games created before the combined portrait was wired may still
   // carry Lia's old single portrait. The revealed twin identity is canonical.
@@ -183,7 +196,6 @@ export function resolveAvatarCandidates(
     return candidates
   }
 
-  const isUserPlayer = player.isUser === true || player.id === 'user'
   const lookupTokens = collectAssetLookupTokens(player)
 
   // Synthetic/season-generated contestants intentionally carry a complete
@@ -218,12 +230,9 @@ export function resolveAvatarCandidates(
     return candidates
   }
 
-  const folderAvatar = listAvatarAssetCandidates().find(({ basename }) => {
-    const token = normalizeNameToken(basename.replace(/_avatar$/i, ''))
-    return lookupTokens.includes(token)
-  })
+  const folderAvatar = avatarAssetCandidates.find(({ token }) => lookupTokens.includes(token))
   if (folderAvatar) {
-    candidates.push(folderAvatar.source)
+    candidates.push(joinPublicAssetPath(`assets/skins/${folderAvatar.filename}`))
   }
 
   const id = player.id
@@ -282,7 +291,7 @@ export const getAvatarCandidatesFor = resolveAvatarCandidates
  *  - Second onError (Dicebear unreachable): show emoji / initials fallback
  */
 export function resolveAvatar(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser'>>
+  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
 ): string {
   const candidates = resolveAvatarCandidates(player)
   if (
@@ -327,7 +336,7 @@ function isTwinShockAliIdentity(player: Pick<Player, 'id' | 'name'>): boolean {
 }
 
 function collectAssetLookupTokens(player: Pick<Player, 'id' | 'name'>): string[] {
-  const hg = getById(player.id) ?? findByName(player.name)
+  const hg = player.id === 'user' ? undefined : (getById(player.id) ?? findByName(player.name))
 
   return [hg?.id, hg?.name, player.id, player.name]
     .filter((value): value is string => Boolean(value))
@@ -363,13 +372,6 @@ function listInformalCutoutCandidates(): Array<{ basename: string; filename: str
   })
 }
 
-function listAvatarAssetCandidates(): Array<{ basename: string; source: string }> {
-  return AVATAR_ASSET_FILES.map((filename) => {
-    const basename = filename.replace(/\.[^.]+$/, '')
-    return { basename, source: joinPublicAssetPath(`assets/skins/${filename}`) }
-  })
-}
-
 function resolveFormalCutoutFromFolder(player: Pick<Player, 'id' | 'name'>): string | null {
   const targetTokens = collectTwinShockFullSizeLookupTokens(player)
   if (targetTokens.length === 0) return null
@@ -399,7 +401,14 @@ function resolveFormalCutoutFromFolder(player: Pick<Player, 'id' | 'name'>): str
  * Returns the URL for a housemate's full-body formal cutout from
  * `public/assets/formal_attires/`, or `null` when no cutout exists for this player.
  */
-export function resolveFormalCutout(player: Pick<Player, 'id' | 'name'>): string | null {
+export function resolveFormalCutout(
+  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>>
+): string | null {
+  if (player.id === 'user' || player.isUser) {
+    const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar)
+    const asset = getAppearanceAsset(selection, 'formal')
+    return asset ? joinPublicAssetPath(asset) : null
+  }
   const folderMatch = resolveFormalCutoutFromFolder(player)
   if (folderMatch) {
     return folderMatch
@@ -460,7 +469,14 @@ const MALE_AVATAR_EMOJI = '👨'
  * Usage in a component:
  *   const cutoutSrc = resolveInformalCutout(player) ?? resolveAvatar(player);
  */
-export function resolveInformalCutout(player: Pick<Player, 'id' | 'name'>): string | null {
+export function resolveInformalCutout(
+  player: Pick<Player, 'id' | 'name'> & Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>>
+): string | null {
+  if (player.id === 'user' || player.isUser) {
+    const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar)
+    const asset = getAppearanceAsset(selection, 'casual')
+    return asset ? joinPublicAssetPath(asset) : null
+  }
   const targetTokens = collectTwinShockFullSizeLookupTokens(player)
   if (targetTokens.length === 0) return null
 
@@ -487,20 +503,23 @@ export function resolveSilhouetteFallback(
   if (!player) {
     return joinPublicAssetPath('assets/silhouette_male - Copy.webp')
   }
-  const hg = getById(player.id) ?? findByName(player.name)
+  const hg = player.id === 'user' ? undefined : (getById(player.id) ?? findByName(player.name))
   const isFemale = hg?.sex?.toLowerCase() === 'female' || player.avatar === '👩'
   const file = isFemale ? 'silhouette_female - Copy.webp' : 'silhouette_male - Copy.webp'
   return joinPublicAssetPath(`assets/${file}`)
 }
 
 type FullSizeCutoutFallbackPlayer = Pick<Player, 'id' | 'name'> &
-  Partial<Pick<Player, 'avatar'>> & {
+  Partial<Pick<Player, 'avatar' | 'appearance' | 'isUser'>> & {
     gender?: string
     sex?: string
   }
 
 export function resolveFullSizeCutoutFallback(player: FullSizeCutoutFallbackPlayer): string {
-  const hg = getById(player.id) ?? findByName(player.name)
+  const hg =
+    player.id === 'user' || player.isUser
+      ? undefined
+      : (getById(player.id) ?? findByName(player.name))
   const rawGender = (player.gender ?? player.sex ?? hg?.sex ?? '').toLowerCase().trim()
 
   if (rawGender.includes('female') || rawGender.includes('woman')) {

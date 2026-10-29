@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useStore } from 'react-redux'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import {
   endFinaleReunionDebugPreview,
@@ -21,8 +22,8 @@ import {
   continueHubSays,
   continueWeekendFeature,
   submitHubSaysVote,
-  continueSurvivorAfterAd,
   hydrateGame,
+  continueSurvivorAfterAd,
   revealSurvivorReplacement,
   setHasSeenConfessionalSpotlight,
   resetGame,
@@ -45,7 +46,10 @@ import {
   selectHumanCanUseSocialModules,
   selectHumanCanUseIncomingSocialModule,
 } from '../../store/selectors'
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  selectActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import {
   getBlockedSocialModuleAnnouncementMessage,
   getIncomingSocialModuleAvailability,
@@ -54,6 +58,7 @@ import {
   type SocialModuleAvailability,
 } from '../../social/socialModuleAvailability'
 import { selectActiveProfileId, selectIsGuest } from '../../store/profilesSlice'
+import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import {
   clearSavedRun,
   clearSeasonSnapshot,
@@ -128,6 +133,7 @@ export default function FloatingActionBar({
   const navigate = useNavigate()
   const location = useLocation()
   const reduxStore = useStore<RootState>()
+  const survivorAd = useRewardedAd()
   const canAdvance = useAppSelector(selectAdvanceEnabled)
   const isWaiting = useAppSelector(selectIsWaitingForInput)
   const pendingCount = useAppSelector(selectPendingIncomingInteractionCount)
@@ -147,6 +153,14 @@ export default function FloatingActionBar({
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const isGuest = useAppSelector(selectIsGuest)
   const game = useAppSelector((s) => s.game)
+  const guestSaveInviteActive = Boolean(
+    isGuest &&
+    game.week === 1 &&
+    game.phase === 'loh_comp_announcement' &&
+    game.tvFeed.some(
+      (event) => isGuestSaveReminderEvent(event) && event.meta?.broadcastConsumed !== true
+    )
+  )
   const weekend = game.weekendInterlude
   const reunionDepartureInProgress = weekend?.reunionDepartureActive === true
   const hasReunionGuests =
@@ -198,6 +212,9 @@ export default function FloatingActionBar({
     game.phase,
     game.aiReplacementStep ?? 0,
     game.aiReplacementWaiting ? 'waiting-for-replacement-render' : 'replacement-ready',
+    // Mission Safety may stage an AI save without advancing the reducer phase.
+    // Re-arm Play for the next press so that the staged save can be committed.
+    game.missionPowers?.safetyIntent?.id ?? 'no-staged-safety',
     game.specialVeto?.vipUseStage ?? 0,
     game.voxPopuli?.finalThreePacingSeen?.join(',') ?? 'no-final-three-pacing',
     isWaiting ? 'waiting-for-input' : 'ready',
@@ -322,9 +339,7 @@ export default function FloatingActionBar({
       : null
   const previousSecretMissionRewardPendingKeyRef = useRef<string | null>(null)
   const hasSeenConfessionalSpotlight = game.hasSeenConfessionalSpotlight === true
-  const activeConfessionalDecisionKey = activeConfessionalDecision
-    ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
-    : null
+  const activeConfessionalDecisionKey = getConfessionalDecisionKey(activeConfessionalDecision, game)
 
   useEffect(() => {
     const key = weekendSocialSpotlightKey
@@ -839,9 +854,14 @@ export default function FloatingActionBar({
         leaderboard: '/leaderboard',
         store: '/store',
       } as const
-      navigate(routes[destination])
+      navigate(routes[destination], {
+        state:
+          destination === 'profile' && guestSaveInviteActive
+            ? { from: '/game', guestSaveInvite: true }
+            : undefined,
+      })
     },
-    [game.phase, game.season, game.week, navigate, voxPopuliActive]
+    [game.phase, game.season, game.week, guestSaveInviteActive, navigate, voxPopuliActive]
   )
 
   // Center the dock in the real rendered space between the content immediately
@@ -872,9 +892,10 @@ export default function FloatingActionBar({
       )
       const minimumGap = Number.isFinite(configuredGap) ? configuredGap : 8
       // On the game screen the nav is deliberately folded into the dock. Its
-      // hidden rectangle must not become the dock's lower boundary.
+      // hidden rectangle must not become the dock's lower boundary. Let CSS
+      // retain ownership of the measured safe inset as well as the dock gap.
       if (navRect.height <= 0) {
-        dock.style.bottom = `${Math.round(minimumGap)}px`
+        if (dock.style.bottom) dock.style.removeProperty('bottom')
         return
       }
       const bottomOffset = resolveBalancedDockBottom({
@@ -884,7 +905,8 @@ export default function FloatingActionBar({
         dockHeight: dockRect.height,
         minimumGap,
       })
-      dock.style.bottom = `${Math.round(bottomOffset)}px`
+      const bottom = `${Math.round(bottomOffset)}px`
+      if (dock.style.bottom !== bottom) dock.style.bottom = bottom
     }
     const scheduleBalance = () => {
       window.cancelAnimationFrame(frameId)
@@ -910,6 +932,7 @@ export default function FloatingActionBar({
       window.removeEventListener('resize', scheduleBalance)
       window.visualViewport?.removeEventListener('resize', scheduleBalance)
       resizeObserver?.disconnect()
+      dock.style.removeProperty('bottom')
     }
   }, [])
 
@@ -959,12 +982,13 @@ export default function FloatingActionBar({
             icon="⚡"
             watchLabel="Watch ad · Reassemble"
             skipLabel="Not now"
-            onWatch={() => {
+            onWatch={async () => {
+              if (window.GameAds && !(await survivorAd.request('survival_continue'))) return
               setShowSurvivorAdContinue(false)
               window.setTimeout(() => dispatch(continueSurvivorAfterAd()), 450)
             }}
             onSkip={() => setShowSurvivorAdContinue(false)}
-            pending={false}
+            pending={survivorAd.pending}
           />
         )}
       <GameControlDock
@@ -976,6 +1000,7 @@ export default function FloatingActionBar({
         onToolClick={handleToolClick}
         onHomeClick={handleReturnHome}
         onMoreClick={handleMoreClick}
+        guestSaveInviteActive={guestSaveInviteActive}
         disabled={survivorTerminalActive || finaleOverlayActive || reunionDepartureInProgress}
         navigationDisabled={weekendReunionAnnouncementActive}
         primaryDisabled={primaryDisabled || tribunalDecisionPending}

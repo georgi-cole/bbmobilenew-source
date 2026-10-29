@@ -1,0 +1,185 @@
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { configureStore } from '@reduxjs/toolkit'
+import { Provider } from 'react-redux'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import QuickTapRaceVip from '../QuickTapRaceVip'
+import { buildQuickTapVipSeasons } from '../quickTapVipLogic'
+
+vi.mock('../../../../services/sound/SoundManager', () => ({
+  SoundManager: {
+    play: vi.fn(async () => undefined),
+    registerDynamic: vi.fn(),
+  },
+}))
+const participants = Array.from({ length: 16 }, (_, i) => ({
+  id: `player-${i}`,
+  name: i === 0 ? 'You' : `AI ${i}`,
+  isHuman: i === 0,
+  precomputedScore: 999,
+  previousPR: null,
+}))
+function mount(mode: 'race' | 'seasons', seed = 424242) {
+  const onFinish = vi.fn()
+  const store = configureStore({ reducer: { game: (state = { players: [] }) => state } })
+  render(
+    <Provider store={store}>
+      <QuickTapRaceVip
+        mode={mode}
+        seed={seed}
+        autoStart
+        participants={participants}
+        onFinish={onFinish}
+      />
+    </Provider>
+  )
+  return onFinish
+}
+let elapsed = 0
+async function advanceTo(time: number) {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(time - elapsed)
+  })
+  elapsed = time
+}
+function tap() {
+  fireEvent.keyDown(window, { code: 'Space', key: ' ' })
+}
+
+describe('VIP round lifecycle', () => {
+  const originalRAF = window.requestAnimationFrame,
+    originalCAF = window.cancelAnimationFrame
+  beforeEach(() => {
+    elapsed = 0
+    vi.useFakeTimers({ now: new Date('2026-10-25T12:00:00Z') })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+    window.requestAnimationFrame = (cb) => window.setTimeout(() => cb(performance.now()), 16)
+    window.cancelAnimationFrame = (id) => window.clearTimeout(id)
+  })
+  afterEach(() => {
+    cleanup()
+    window.requestAnimationFrame = originalRAF
+    window.cancelAnimationFrame = originalCAF
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('banks three Race rounds, rejects intermission taps and reports all 16 results once', async () => {
+    const onFinish = mount('race')
+    await advanceTo(32)
+    tap()
+    await advanceTo(64)
+    expect(screen.getByTestId('vip-score')).toHaveTextContent('1')
+    await advanceTo(25_100)
+    expect(screen.getByText('Take a breath.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'All round results' }).querySelectorAll('li')
+    ).toHaveLength(16)
+    tap()
+    await advanceTo(25_200)
+    expect(screen.getByTestId('vip-score')).toHaveTextContent('1')
+    await advanceTo(29_100)
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-round', '2')
+    tap()
+    await advanceTo(58_100)
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-round', '3')
+    tap()
+    await advanceTo(83_100)
+    expect(screen.getByText('THE FINAL PULSE')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'All final results' }).querySelectorAll('li')
+    ).toHaveLength(16)
+    expect(onFinish).not.toHaveBeenCalled()
+    const button = screen.getByRole('button', { name: 'Continue' })
+    fireEvent.click(button)
+    fireEvent.click(button)
+    expect(onFinish).toHaveBeenCalledTimes(1)
+    expect(onFinish.mock.calls[0][0]).toBe(3)
+    expect(Object.keys(onFinish.mock.calls[0][2].rawResults)).toHaveLength(16)
+    expect(onFinish.mock.calls[0][2].rawResults['player-0']).toBe(3)
+  })
+
+  it('builds visible button heat as a player keeps tapping', async () => {
+    mount('race')
+    await advanceTo(32)
+    const button = screen.getByRole('button', { name: 'Tap the Eye to score points' })
+    for (let tapIndex = 0; tapIndex < 10; tapIndex++) {
+      fireEvent.pointerDown(button, { pointerId: tapIndex, pointerType: 'touch' })
+      fireEvent.pointerUp(button, { pointerId: tapIndex, pointerType: 'touch' })
+    }
+    expect(button).toHaveAttribute('data-heat-level', '5')
+  })
+
+  it('preserves particle origins without reading or moving layout during a tap', async () => {
+    const geometry = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 0, 300, 240))
+    mount('race')
+    await advanceTo(32)
+    const button = screen.getByRole('button', { name: /Tap the Eye/ })
+    const spark = button.querySelector<HTMLElement>('[data-spark-index="0"]')!
+    const firstAnimation = vi.fn((frames: Keyframe[]) => ({ cancel: vi.fn(), frames }))
+    for (const element of button.querySelectorAll<HTMLElement>(
+      '.qtr-vip__tap-glow, .qtr-vip__tap-spark'
+    ))
+      Object.defineProperty(element, 'animate', {
+        configurable: true,
+        value: element === spark ? firstAnimation : vi.fn(() => ({ cancel: vi.fn() })),
+      })
+    geometry.mockClear()
+    fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+    fireEvent.pointerUp(button, { pointerId: 1, pointerType: 'touch' })
+    expect(geometry).not.toHaveBeenCalled()
+    expect(spark.style.left).toBe('')
+    expect(spark.style.top).toBe('')
+    expect(firstAnimation).toHaveBeenCalledOnce()
+    const frames = firstAnimation.mock.calls[0][0] as Keyframe[]
+    // The first origin remains 10% across / 25% down on a 300 × 240 target.
+    expect(frames[0].transform).toContain('translate3d(-120px, -60px, 0)')
+  })
+
+  it.each(['race', 'seasons'] as const)(
+    'keeps direct press feedback and counts a touch once with reduced motion in %s',
+    async (mode) => {
+      vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: true } as MediaQueryList)
+      mount(mode)
+      await advanceTo(32)
+      const button = screen.getByRole('button', { name: /Tap the Eye/ })
+      const face = button.querySelector('img')!
+      const faceAnimation = vi.fn(() => ({ cancel: vi.fn() }))
+      const targetAnimation = vi.fn()
+      Object.defineProperty(face, 'animate', { value: faceAnimation })
+      Object.defineProperty(button, 'animate', { value: targetAnimation })
+      fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.pointerDown(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.pointerUp(button, { pointerId: 1, pointerType: 'touch' })
+      fireEvent.click(button, { detail: 1 })
+      await advanceTo(64)
+      expect(faceAnimation).toHaveBeenCalledTimes(1)
+      expect(targetAnimation).not.toHaveBeenCalled()
+      expect(screen.getByText('1 taps')).toBeInTheDocument()
+    }
+  )
+
+  it('keeps winter negative, hides next-round weather and resets the seasonal reroll', async () => {
+    let seed = 0
+    while (buildQuickTapVipSeasons(seed)[0] !== 'winter') seed++
+    const schedule = buildQuickTapVipSeasons(seed)
+    mount('seasons', seed)
+    await advanceTo(32)
+    tap()
+    await advanceTo(64)
+    expect(screen.getByTestId('vip-score')).toHaveTextContent('-1')
+    await advanceTo(7_200)
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-season', schedule[1])
+    fireEvent.click(screen.getByRole('button', { name: /Change season/ }))
+    await advanceTo(7_400)
+    expect(screen.getByRole('button', { name: /Change used/ })).toBeDisabled()
+    await advanceTo(28_100)
+    expect(screen.getByText('Take a breath.')).toBeInTheDocument()
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-season', schedule[3])
+    await advanceTo(32_100)
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-round', '2')
+    expect(screen.getByTestId('quick-tap-vip')).toHaveAttribute('data-season', schedule[4])
+    expect(screen.getByRole('button', { name: /Change season/ })).toBeEnabled()
+  })
+})

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import type { RootState } from '../../store/store'
 import type { AiGameIdentity } from '../../ai/aiGameIdentity'
 import type { PlayerStatus } from '../../types'
 import { isEmoji, resolveAvatarCandidates } from '../../utils/avatar'
 import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar'
+import { preloadImages } from '../../utils/preloadImages'
 import { cryptoSeed } from '../../features/riskWheel/cryptoSpin'
 import {
   advanceIntro,
@@ -18,12 +19,16 @@ import {
   setThreeWayDuelPick,
   setFinalDuelPick,
   setHumanAnswer,
+  setVipExperience,
+  skipLegacyRevote,
   useHint as applyMajorityRulesHint,
   type MajorityRulesCompetitionType,
 } from '../../features/majorityRules/majorityRulesSlice'
 import { resolveMajorityRulesOutcome } from '../../features/majorityRules/thunks'
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost'
+import majorityRulesVipStudio from '../../assets/majority-rules-vip/studio-navy.webp'
 import './MajorityRulesComp.css'
+import './MajorityRulesVip.css'
 
 const INTRO_DELAY_MS = 5000
 const AI_LOCK_DELAY_MS = 950
@@ -55,6 +60,8 @@ interface Props {
   prizeType: MajorityRulesCompetitionType
   /** Explicit seed for deterministic RNG. When omitted or set to 0, a fresh crypto-random seed is generated on mount. */
   seed?: number
+  /** Selects the VIP-only presentation and content variant for this session. */
+  premiumPresentation?: boolean
   onComplete?: (completion?: ReactMinigameCompletion) => void
 }
 
@@ -238,7 +245,8 @@ function PlayerRoster({
 }) {
   const rows = getAvatarGridRows(ids, dense)
   const eliminatedSet = new Set(eliminatedIds)
-  const motionEnabled = !areAnimationsDisabled()
+  const reducedMotion = useReducedMotion()
+  const motionEnabled = !areAnimationsDisabled() && !reducedMotion
   const rosterVariant = variant ?? (shouldUseRosterRail(ids) ? 'rail' : 'cards')
 
   if (rosterVariant === 'rail') {
@@ -389,11 +397,55 @@ function PlayerRoster({
   )
 }
 
+function TrapdoorElimination({
+  ids,
+  getPlayer,
+  animated,
+}: {
+  ids: string[]
+  getPlayer: (id: string) => DisplayPlayer
+  animated: boolean
+}) {
+  return (
+    <section
+      className="majority-rules-trapdoors"
+      data-animated={animated ? 'true' : 'false'}
+      aria-label="Eliminated players"
+    >
+      <span className="majority-rules-trapdoors__caption">{ids.length} eliminated</span>
+      <div className="majority-rules-trapdoors__row">
+        {ids.map((id, index) => {
+          const player = getPlayer(id)
+          return (
+            <figure
+              key={id}
+              className="majority-rules-trapdoor"
+              style={{ '--drop-delay': `${0.6 + Math.min(index, 5) * 0.12}s` } as CSSProperties}
+            >
+              <div className="majority-rules-trapdoor__well" aria-hidden="true">
+                <span className="majority-rules-trapdoor__leaf is-left" />
+                <span className="majority-rules-trapdoor__leaf is-right" />
+              </div>
+              <div className="majority-rules-trapdoor__fall-area" aria-hidden="true">
+                <div className="majority-rules-trapdoor__avatar">
+                  <MajorityRulesPortrait player={player} size="sm" />
+                </div>
+              </div>
+              <figcaption>{player.name}</figcaption>
+            </figure>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function MajorityRulesComp({
   participantIds,
   participants,
   prizeType,
   seed,
+  premiumPresentation = false,
   onComplete,
 }: Props) {
   const dispatch = useAppDispatch()
@@ -401,12 +453,15 @@ export default function MajorityRulesComp({
   const gamePlayers = useAppSelector((state: RootState) => state.game.players)
   const completedRef = useRef(false)
   const [spectatorMode, setSpectatorMode] = useState<SpectatorMode>('playing')
+  const [isFinalRollSuspense, setIsFinalRollSuspense] = useState(false)
+  const finalRollSuspenseTimerRef = useRef<number | null>(null)
   const [initialConfig] = useState<{
     participantIds: string[]
     competitionType: MajorityRulesCompetitionType
     seed: number
     humanPlayerId: string | null
     aiIdentities: Record<string, AiGameIdentity | undefined>
+    vipExperience: boolean
   }>(() => ({
     participantIds: [...participantIds],
     competitionType: prizeType,
@@ -415,13 +470,44 @@ export default function MajorityRulesComp({
     // new hosted game session draws questions in a unique, unpredictable order.
     seed: seed !== undefined && seed !== 0 ? seed : cryptoSeed(),
     humanPlayerId: participants?.find((participant) => participant.isHuman)?.id ?? null,
+    vipExperience: premiumPresentation,
     aiIdentities: Object.fromEntries(
       gamePlayers
         .filter((player) => participantIds.includes(player.id) && player.aiGameIdentity)
         .map((player) => [player.id, player.aiGameIdentity])
     ),
   }))
-  const motionEnabled = !areAnimationsDisabled()
+  const reducedMotion = useReducedMotion()
+  const motionEnabled = !areAnimationsDisabled() && !reducedMotion
+
+  const triggerFinalDuelRoll = useCallback(() => {
+    if (!game.vipExperience || !motionEnabled || spectatorMode === 'skipping') {
+      dispatch(rollFinalDuel())
+      return
+    }
+    if (finalRollSuspenseTimerRef.current != null) return
+
+    setIsFinalRollSuspense(true)
+    finalRollSuspenseTimerRef.current = window.setTimeout(() => {
+      finalRollSuspenseTimerRef.current = null
+      setIsFinalRollSuspense(false)
+      dispatch(rollFinalDuel())
+    }, 950)
+  }, [dispatch, game.vipExperience, motionEnabled, spectatorMode])
+
+  useEffect(() => {
+    if (game.vipExperience) preloadImages([majorityRulesVipStudio], 'high')
+  }, [game.vipExperience])
+
+  useEffect(
+    () => () => {
+      if (finalRollSuspenseTimerRef.current != null) {
+        window.clearTimeout(finalRollSuspenseTimerRef.current)
+        finalRollSuspenseTimerRef.current = null
+      }
+    },
+    []
+  )
 
   const playerMap = useMemo<Record<string, DisplayPlayer>>(() => {
     const livePlayers = Object.fromEntries(gamePlayers.map((player) => [player.id, player]))
@@ -474,13 +560,29 @@ export default function MajorityRulesComp({
       game.phase !== 'winner' &&
       game.phase !== 'complete'
     ) {
+      // Let a VIP player see their trap door open before the watching prompt covers it.
+      if (game.vipExperience && game.phase === 'reveal' && motionEnabled) {
+        const timer = window.setTimeout(() => setSpectatorMode('pending'), 2200)
+        return () => window.clearTimeout(timer)
+      }
       setSpectatorMode('pending')
     }
-  }, [game.phase, humanIsEliminated, spectatorMode])
+  }, [game.phase, game.vipExperience, humanIsEliminated, motionEnabled, spectatorMode])
 
   useEffect(() => {
     dispatch(initMajorityRules(initialConfig))
   }, [dispatch, initialConfig])
+
+  useEffect(() => {
+    if (game.phase !== 'intro' || game.vipExperience === premiumPresentation) return
+    dispatch(setVipExperience(premiumPresentation))
+  }, [dispatch, game.phase, game.vipExperience, premiumPresentation])
+
+  useEffect(() => {
+    if (game.phase === 'question' && game.revoteNumber > 0) {
+      dispatch(skipLegacyRevote())
+    }
+  }, [dispatch, game.phase, game.revoteNumber])
 
   useEffect(() => {
     if (game.phase !== 'intro') return undefined
@@ -503,11 +605,11 @@ export default function MajorityRulesComp({
       return undefined
     if (game.finalDuel.currentRollerId === game.humanPlayerId) return undefined
     const timeout = window.setTimeout(
-      () => dispatch(rollFinalDuel()),
+      triggerFinalDuelRoll,
       spectatorMode === 'skipping' ? FAST_FORWARD_STEP_MS : AI_DUEL_DELAY_MS
     )
     return () => window.clearTimeout(timeout)
-  }, [dispatch, game.finalDuel, game.humanPlayerId, game.phase, spectatorMode])
+  }, [game.finalDuel, game.humanPlayerId, game.phase, spectatorMode, triggerFinalDuelRoll])
 
   useEffect(() => {
     if (game.phase !== 'three_way_duel_roll' || !game.threeWayDuel || spectatorMode === 'pending')
@@ -613,11 +715,20 @@ export default function MajorityRulesComp({
 
         <div className="majority-rules-header-copy">
           <span className="majority-rules-kicker">
-            {game.revoteNumber > 0 ? 'Re-vote — choose again' : 'The house is voting'}
+            {game.revoteNumber > 0 ? 'Re-vote — choose again' : 'Everyone is voting'}
           </span>
-          <h2 className="majority-rules-question">
+          <motion.h2
+            className="majority-rules-question"
+            {...(game.vipExperience && motionEnabled
+              ? {
+                  initial: { opacity: 0, y: 12, filter: 'blur(4px)' },
+                  animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+                  transition: { duration: 0.42, delay: 0.16, ease: 'easeOut' as const },
+                }
+              : {})}
+          >
             {game.currentQuestion?.prompt ?? 'Loading question…'}
-          </h2>
+          </motion.h2>
         </div>
 
         {game.revoteNumber > 0 && (
@@ -682,8 +793,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'pollHint'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--poll majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--poll'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -697,8 +808,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'peekTwo'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--peek majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--peek'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -712,8 +823,8 @@ export default function MajorityRulesComp({
                 type="button"
                 className={
                   game.roundHintType === 'followPlayer'
-                    ? 'majority-rules-pill majority-rules-pill--active'
-                    : 'majority-rules-pill'
+                    ? 'majority-rules-pill majority-rules-pill--follow majority-rules-pill--active'
+                    : 'majority-rules-pill majority-rules-pill--follow'
                 }
                 disabled={
                   (!!game.roundHintUsedBy && game.roundHintUsedBy !== activeHumanId) ||
@@ -856,6 +967,131 @@ export default function MajorityRulesComp({
     const highestCount = populatedCounts.length > 0 ? Math.max(...populatedCounts) : 0
     const lowestCount = populatedCounts.length > 0 ? Math.min(...populatedCounts) : 0
 
+    if (game.vipExperience) {
+      return (
+        <motion.div
+          key="reveal"
+          className="majority-rules-card majority-rules-card--reveal"
+          {...(motionEnabled ? PHASE_MOTION : {})}
+        >
+          <div className="majority-rules-phase-content">
+            <div className="majority-rules-badge-row majority-rules-reveal-meta">
+              <span className="majority-rules-badge">Round {game.roundNumber} · Reveal</span>
+              {game.humanPlayerId && game.lastRoomReadCorrect !== null && (
+                <span
+                  className={`majority-rules-read-streak${game.lastRoomReadCorrect ? ' is-hit' : ''}`}
+                  role="status"
+                >
+                  {game.lastRoomReadCorrect
+                    ? `✦ Room Reader ×${game.roomReaderStreak}`
+                    : 'Room read missed'}
+                </span>
+              )}
+            </div>
+            <div className="majority-rules-header-copy">
+              <motion.h2
+                className="majority-rules-question"
+                {...(motionEnabled
+                  ? { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }
+                  : {})}
+              >
+                {eliminated.length > 0 ? 'The minority drops.' : 'Everyone stays.'}
+              </motion.h2>
+              <p className="majority-rules-copy">
+                {eliminated.length > 0
+                  ? `${eliminated.length} out · ${game.activeIds.filter((id) => !eliminated.includes(id)).length} still in`
+                  : reveal?.result.kind === 'unanimous'
+                    ? 'A unanimous room. On to a fresh question.'
+                    : 'No clear minority. On to a fresh question.'}
+              </p>
+            </div>
+            {game.currentQuestion && totalVotes > 0 && (
+              <div className="majority-rules-aggregation" aria-label="Vote aggregation">
+                {game.currentQuestion.options.map((option, index) => {
+                  const count = distribution[option.id] ?? 0
+                  const percentage = Math.round((count / totalVotes) * 100)
+                  const isOut =
+                    eliminated.length > 0 &&
+                    (reveal?.result.minorityOptionId === option.id ||
+                      reveal?.result.tiedOptionIds.includes(option.id))
+                  const isMajority = count === highestCount && highestCount !== lowestCount
+                  const status = isOut
+                    ? 'Minority'
+                    : count === 0
+                      ? 'No votes'
+                      : highestCount === lowestCount
+                        ? 'Tied'
+                        : isMajority
+                          ? 'Most votes'
+                          : 'Still in'
+                  return (
+                    <div
+                      key={option.id}
+                      className={`majority-rules-aggregation__row${isOut ? ' is-minority' : isMajority ? ' is-majority' : ''}`}
+                    >
+                      <div className="majority-rules-aggregation__label">
+                        <strong>
+                          {option.label}. {option.text}
+                        </strong>
+                        <span>
+                          <b>{status}</b>
+                          {count}/{totalVotes} · {percentage}%
+                        </span>
+                      </div>
+                      <div className="majority-rules-aggregation__track" aria-hidden="true">
+                        <motion.span
+                          style={{ width: `${percentage}%` }}
+                          {...(motionEnabled
+                            ? {
+                                initial: { width: '0%' },
+                                animate: { width: `${percentage}%` },
+                                transition: { duration: 0.6, delay: index * 0.1 },
+                              }
+                            : {})}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {eliminated.length > 0 && (
+              <TrapdoorElimination
+                key={`${game.roundNumber}:${eliminated.join(',')}`}
+                ids={eliminated}
+                getPlayer={getPlayer}
+                animated={motionEnabled && spectatorMode !== 'skipping'}
+              />
+            )}
+            {game.currentQuestion?.revealFact && (
+              <aside className="majority-rules-reveal-fact" aria-label="Sourced poll detail">
+                <div className="majority-rules-reveal-fact__heading">
+                  <span>From a separate poll</span>
+                  <a
+                    href={game.currentQuestion.revealFact.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {game.currentQuestion.revealFact.sourceLabel} ↗
+                  </a>
+                </div>
+                <p>{game.currentQuestion.revealFact.text}</p>
+              </aside>
+            )}
+          </div>
+          <div className="majority-rules-phase-actions">
+            <button
+              type="button"
+              className="majority-rules-primary"
+              onClick={() => dispatch(advanceReveal())}
+            >
+              Continue
+            </button>
+          </div>
+        </motion.div>
+      )
+    }
+
     return (
       <motion.div
         key="reveal"
@@ -869,39 +1105,40 @@ export default function MajorityRulesComp({
 
         <div className="majority-rules-header-copy">
           <span className="majority-rules-kicker">The room speaks.</span>
-          <h2 className="majority-rules-question">
-            {reveal?.result.kind === 'split'
+          <motion.h2
+            className="majority-rules-question"
+            {...(game.vipExperience && motionEnabled
+              ? {
+                  initial: { opacity: 0, y: 14, scale: 0.98, filter: 'blur(5px)' },
+                  animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
+                  transition: { duration: 0.55, delay: 0.12, ease: 'easeOut' as const },
+                }
+              : {})}
+          >
+            {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'No clear minority. Nobody falls.'
-              : reveal?.result.kind === 'revote'
-                ? reveal.revoteNumber >= 1
-                  ? 'Still tied. This question is over.'
-                  : 'Split house. One re-vote remains.'
-                : reveal?.result.kind === 'unanimous'
-                  ? 'A full sweep. Nobody falls this time.'
-                  : tiedMinorityLabels.length > 0
-                    ? 'Tie at the bottom. No one is eliminated.'
-                    : 'Minority found. The trap door opens.'}
-          </h2>
+              : reveal?.result.kind === 'unanimous'
+                ? 'A full sweep. Nobody falls this time.'
+                : tiedMinorityLabels.length > 0
+                  ? 'Tie at the bottom. No one is eliminated.'
+                  : 'Minority found. The trap door opens.'}
+          </motion.h2>
           <p className="majority-rules-copy">
-            {reveal?.result.kind === 'split'
+            {reveal?.result.kind === 'split' || reveal?.result.kind === 'revote'
               ? 'The vote was too divided for a fair elimination. A fresh question will decide the next minority.'
-              : reveal?.result.kind === 'revote'
-                ? reveal.revoteNumber >= 1
-                  ? 'The re-vote tied again, so a fresh question will replace it.'
-                  : 'Every populated answer tied, so the house votes once more.'
-                : reveal?.result.kind === 'unanimous'
-                  ? 'No elimination this round. The next question starts fresh.'
-                  : tiedMinorityLabels.length > 0
-                    ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
-                    : minorityLabel
-                      ? `The minority answer was “${minorityLabel}”.`
-                      : 'The minority has been eliminated.'}
+              : reveal?.result.kind === 'unanimous'
+                ? 'No elimination this round. The next question starts fresh.'
+                : tiedMinorityLabels.length > 0
+                  ? `The tied minority answers were ${formatQuotedList(tiedMinorityLabels)}.`
+                  : minorityLabel
+                    ? `The minority answer was “${minorityLabel}”.`
+                    : 'The minority has been eliminated.'}
           </p>
         </div>
 
         {game.currentQuestion && totalVotes > 0 && (
           <div className="majority-rules-aggregation" aria-label="Vote aggregation">
-            {game.currentQuestion.options.map((option) => {
+            {game.currentQuestion.options.map((option, index) => {
               const count = distribution[option.id] ?? 0
               const percentage = Math.round((count / totalVotes) * 100)
               const tiedBallot = highestCount === lowestCount
@@ -929,7 +1166,20 @@ export default function MajorityRulesComp({
                     </span>
                   </div>
                   <div className="majority-rules-aggregation__track" aria-hidden="true">
-                    <span style={{ width: `${percentage}%` }} />
+                    <motion.span
+                      style={{ width: `${percentage}%` }}
+                      {...(game.vipExperience && motionEnabled
+                        ? {
+                            initial: { width: '0%' },
+                            animate: { width: `${percentage}%` },
+                            transition: {
+                              duration: 0.72,
+                              delay: 0.18 + index * 0.13,
+                              ease: 'easeOut' as const,
+                            },
+                          }
+                        : {})}
+                    />
                   </div>
                 </div>
               )
@@ -958,12 +1208,174 @@ export default function MajorityRulesComp({
           className="majority-rules-primary"
           onClick={() => dispatch(advanceReveal())}
         >
-          {reveal?.result.kind === 'revote'
-            ? reveal.revoteNumber >= 1
-              ? 'New question'
-              : 'Start re-vote'
-            : 'Continue'}
+          Continue
         </button>
+      </motion.div>
+    )
+  }
+
+  const renderVipDuel = (threeWay: boolean) => {
+    const duel = threeWay ? game.threeWayDuel : game.finalDuel
+    const ids: string[] = duel?.finalists ?? []
+    const picking = game.phase.endsWith('_pick')
+    const suspense = !threeWay && isFinalRollSuspense
+    const lastRoll = duel?.lastRoll
+    const pressureId = threeWay ? null : game.finalDuel?.pressureHolderId
+    const pips: Record<number, number[]> = {
+      1: [4],
+      2: [0, 8],
+      3: [0, 4, 8],
+      4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8],
+      6: [0, 2, 3, 5, 6, 8],
+    }
+    return (
+      <motion.div
+        key={game.phase}
+        className="majority-rules-card majority-rules-card--duel majority-rules-card--vip-duel"
+        {...(motionEnabled ? PHASE_MOTION : {})}
+      >
+        <div className="majority-rules-phase-content">
+          <div className="majority-rules-badge-row">
+            <span className="majority-rules-badge">
+              {threeWay ? '3-way tiebreak' : 'Final 2 · Dice duel'}
+            </span>
+            {!threeWay && game.finalDuel?.suddenDeath && (
+              <span className="majority-rules-badge majority-rules-badge--warn">Sudden death</span>
+            )}
+          </div>
+          <div className="majority-rules-header-copy">
+            <h2 className="majority-rules-question">
+              {picking ? 'Choose your number.' : 'Hold your nerve.'}
+            </h2>
+            <p className="majority-rules-copy">
+              {threeWay
+                ? 'Hit your number to win. Two hits send the last pair to the final.'
+                : 'Hit your number. Your rival must hit theirs on the next roll to stay in.'}
+            </p>
+          </div>
+          <div className="majority-rules-duel-players" data-players={ids.length}>
+            {ids.map((id) => (
+              <div
+                key={id}
+                className={`majority-rules-duel-player${pressureId === id ? ' is-pressure' : ''}${!picking && duel?.currentRollerId === id ? ' is-rolling' : ''}`}
+              >
+                <MajorityRulesPortrait player={getPlayer(id)} size="md" />
+                <strong>{getName(id)}</strong>
+                <span
+                  className="majority-rules-duel-player__target"
+                  aria-label={`Chosen number: ${duel?.chosenNumbers[id] ?? 'not chosen'}`}
+                >
+                  {duel?.chosenNumbers[id] ?? '—'}
+                </span>
+                <small>
+                  {picking
+                    ? 'Target number'
+                    : duel?.currentRollerId === id
+                      ? 'Rolling next'
+                      : pressureId === id
+                        ? 'Under pressure'
+                        : 'Standing by'}
+                </small>
+              </div>
+            ))}
+          </div>
+          {!picking && (
+            <div
+              className={`majority-rules-duel-broadcast${suspense ? ' is-suspense' : ''}`}
+              role="status"
+              aria-live="polite"
+            >
+              <span className="majority-rules-kicker">
+                {suspense
+                  ? 'The room holds its breath…'
+                  : lastRoll
+                    ? `${getName(lastRoll.playerId)} rolled`
+                    : 'First roll'}
+              </span>
+              <motion.div
+                key={suspense ? 'rolling' : `${lastRoll?.playerId}:${lastRoll?.value}`}
+                className="majority-rules-duel-die"
+                role="img"
+                aria-label={
+                  suspense
+                    ? 'Dice rolling'
+                    : lastRoll
+                      ? `Die shows ${lastRoll.value}`
+                      : 'Waiting for the first roll'
+                }
+                {...(motionEnabled && !suspense
+                  ? { initial: { scale: 0.8, rotate: -12 }, animate: { scale: 1, rotate: 0 } }
+                  : {})}
+              >
+                {suspense ? (
+                  <span className="majority-rules-duel-die__pending">•••</span>
+                ) : lastRoll ? (
+                  pips[lastRoll.value]?.map((position) => (
+                    <i
+                      key={position}
+                      style={{
+                        gridArea: `${Math.floor(position / 3) + 1} / ${(position % 3) + 1}`,
+                      }}
+                    />
+                  ))
+                ) : (
+                  <span className="majority-rules-duel-die__pending">?</span>
+                )}
+              </motion.div>
+              <p>
+                {suspense
+                  ? 'One roll can change everything.'
+                  : `Next to roll: ${getName(duel?.currentRollerId ?? '')}`}
+              </p>
+              {!suspense && lastRoll && (
+                <small>
+                  {!threeWay && game.finalDuel?.lastRoll?.cancelled
+                    ? 'Pressure cancelled'
+                    : lastRoll.hitTarget
+                      ? 'Target hit'
+                      : 'Target missed'}
+                </small>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="majority-rules-phase-actions">
+          {picking && activeHumanId && ids.includes(activeHumanId) ? (
+            <div className="majority-rules-number-picker" aria-label="Choose your dice number">
+              {[1, 2, 3, 4, 5, 6].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`majority-rules-number-button${duel?.chosenNumbers[activeHumanId] === value ? ' majority-rules-number-button--active' : ''}`}
+                  disabled={ids.some(
+                    (id) => id !== activeHumanId && duel?.chosenNumbers[id] === value
+                  )}
+                  onClick={() =>
+                    dispatch(
+                      threeWay
+                        ? setThreeWayDuelPick({ playerId: activeHumanId, value })
+                        : setFinalDuelPick({ playerId: activeHumanId, value })
+                    )
+                  }
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          ) : (
+            !picking && (
+              <button
+                type="button"
+                className="majority-rules-primary"
+                onClick={() => (threeWay ? dispatch(rollThreeWayDuel()) : triggerFinalDuelRoll())}
+                disabled={suspense || duel?.currentRollerId !== activeHumanId}
+              >
+                {suspense ? 'Rolling…' : 'Roll die'}
+              </button>
+            )
+          )}
+        </div>
       </motion.div>
     )
   }
@@ -971,7 +1383,7 @@ export default function MajorityRulesComp({
   const renderFinalDuel = () => (
     <motion.div
       key={game.phase}
-      className="majority-rules-card majority-rules-card--duel"
+      className={`majority-rules-card majority-rules-card--duel${isFinalRollSuspense ? ' is-final-suspense' : ''}`}
       {...(motionEnabled ? PHASE_MOTION : {})}
     >
       <div className="majority-rules-glow majority-rules-glow--duel" aria-hidden="true" />
@@ -1054,9 +1466,28 @@ export default function MajorityRulesComp({
 
       {game.phase === 'final_duel_roll' && (
         <>
+          {isFinalRollSuspense && game.vipExperience && (
+            <motion.div
+              className="majority-rules-final-suspense"
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <span className="majority-rules-final-suspense__pulse" aria-hidden="true" />
+              The room holds its breath…
+            </motion.div>
+          )}
           <p className="majority-rules-copy">
-            <strong>{getName(game.finalDuel?.currentRollerId ?? '')}</strong> is rolling now.
-            {game.finalDuel?.pressureHolderId &&
+            {isFinalRollSuspense ? (
+              'One last moment before the dice decide it.'
+            ) : (
+              <>
+                <strong>{getName(game.finalDuel?.currentRollerId ?? '')}</strong> is rolling now.
+              </>
+            )}
+            {!isFinalRollSuspense &&
+              game.finalDuel?.pressureHolderId &&
               ` Pressure is on ${getName(game.finalDuel.pressureHolderId)}.`}
           </p>
           {game.finalDuel?.lastRoll && (
@@ -1084,10 +1515,10 @@ export default function MajorityRulesComp({
           <button
             type="button"
             className="majority-rules-primary"
-            onClick={() => dispatch(rollFinalDuel())}
-            disabled={game.finalDuel?.currentRollerId !== activeHumanId}
+            onClick={triggerFinalDuelRoll}
+            disabled={isFinalRollSuspense || game.finalDuel?.currentRollerId !== activeHumanId}
           >
-            Roll die
+            {isFinalRollSuspense ? 'The room is holding its breath…' : 'Roll die'}
           </button>
         </>
       )}
@@ -1261,7 +1692,17 @@ export default function MajorityRulesComp({
   }
 
   return (
-    <div className="majority-rules-shell" data-phase={game.phase}>
+    <div
+      className="majority-rules-shell"
+      data-phase={game.phase}
+      data-presentation={game.vipExperience ? 'vip' : 'standard'}
+      data-final-suspense={isFinalRollSuspense ? 'true' : 'false'}
+      style={
+        game.vipExperience
+          ? ({ '--majority-rules-vip-backdrop': `url(${majorityRulesVipStudio})` } as CSSProperties)
+          : undefined
+      }
+    >
       <div className="majority-rules-ambient majority-rules-ambient--one" aria-hidden="true" />
       <div className="majority-rules-ambient majority-rules-ambient--two" aria-hidden="true" />
       <AnimatePresence mode="wait" initial={false}>
@@ -1293,9 +1734,9 @@ export default function MajorityRulesComp({
         {game.phase === 'question' && renderQuestion()}
         {game.phase === 'reveal' && renderReveal()}
         {(game.phase === 'three_way_duel_pick' || game.phase === 'three_way_duel_roll') &&
-          renderThreeWayDuel()}
+          (game.vipExperience ? renderVipDuel(true) : renderThreeWayDuel())}
         {(game.phase === 'final_duel_pick' || game.phase === 'final_duel_roll') &&
-          renderFinalDuel()}
+          (game.vipExperience ? renderVipDuel(false) : renderFinalDuel())}
         {game.phase === 'winner' && renderWinner()}
         {game.phase === 'complete' && (
           <motion.div

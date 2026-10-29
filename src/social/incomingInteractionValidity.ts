@@ -279,6 +279,12 @@ function violatesDeclarativeRule(
   interaction: IncomingInteraction,
   game: InteractionValidityGameState
 ): boolean {
+  if (
+    getScenarioKey(interaction) === 'alliance_vox_ballot_pitch' &&
+    (game.voxPopuliActive === true || game.voxPopuli?.status === 'active')
+  ) {
+    return true
+  }
   const rule = getIncomingInteractionValidityRule(getScenarioKey(interaction))
   if (!rule) return false
 

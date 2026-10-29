@@ -17,6 +17,10 @@ export interface RecentActivityProps {
   onExpandedChange?: (expanded: boolean) => void
   /** Feedback for attempts that do not produce a gameplay log entry. */
   feedback?: string | null
+  /** Controls which completed result is shown outside the expanded history. */
+  activeReceiptId?: string | null
+  /** Hides the current receipt while preserving it in History. */
+  onDismissResult?: () => void
 }
 
 const GENERIC_OUTCOME_PREFIXES = [
@@ -116,6 +120,8 @@ export default function RecentActivity({
   compact = false,
   onExpandedChange,
   feedback,
+  activeReceiptId,
+  onDismissResult,
 }: RecentActivityProps) {
   const sessionLogs = useAppSelector(selectSessionLogs)
   const [clearedBefore, setClearedBefore] = useState(0)
@@ -138,7 +144,16 @@ export default function RecentActivity({
     )
     return maxEntries === undefined ? entries : entries.slice(-maxEntries)
   }, [sessionLogs, clearedBefore, maxEntries])
-  const displayedLogs = compact && !expanded ? (feedback ? [] : visibleLogs.slice(-1)) : visibleLogs
+  const displayedLogs =
+    compact && !expanded
+      ? feedback
+        ? []
+        : activeReceiptId === undefined
+          ? visibleLogs.slice(-1)
+          : visibleLogs.filter(
+              (entry) => entry.id === activeReceiptId || entry.receipt?.groupId === activeReceiptId
+            )
+      : visibleLogs
 
   function toggleHistory() {
     const next = !expanded
@@ -191,7 +206,7 @@ export default function RecentActivity({
         <div className="ra-header">
           <span className="ra-title">Hub wire</span>
           <span className="ra-header__actions">
-            {compact && (visibleLogs.length > 1 || (feedback && visibleLogs.length > 0)) && (
+            {compact && visibleLogs.length > 0 && (
               <button
                 className="ra-history-btn"
                 type="button"
@@ -211,7 +226,7 @@ export default function RecentActivity({
                 )}
               </button>
             )}
-            {(!compact || expanded) && (
+            {(!compact || (expanded && activeReceiptId === undefined)) && (
               <button
                 className="ra-clear-btn"
                 type="button"
@@ -231,12 +246,32 @@ export default function RecentActivity({
 
       <div className="ra-content" ref={contentRef}>
         {feedback && (
-          <p className="ra-feedback" role="status">
-            {feedback}
-          </p>
+          <div className="ra-feedback-wrap">
+            <p className="ra-feedback" role="status">
+              {feedback}
+            </p>
+            {onDismissResult && (
+              <button
+                className="ra-entry__dismiss"
+                type="button"
+                aria-label="Dismiss current result"
+                onClick={onDismissResult}
+              >
+                ×
+              </button>
+            )}
+          </div>
         )}
         {visibleLogs.length === 0 && !feedback ? (
-          <span className="ra-empty">No recent actions.</span>
+          compact && !expanded ? null : (
+            <span className="ra-empty">No recent actions.</span>
+          )
+        ) : compact &&
+          !expanded &&
+          visibleLogs.length > 0 &&
+          displayedLogs.length === 0 &&
+          !feedback ? (
+          <span className="ra-empty">No current result.</span>
         ) : displayedLogs.length > 0 ? (
           <ul
             className="ra-list"
@@ -322,9 +357,17 @@ export default function RecentActivity({
                       entry.timestamp,
                       narrativeOptions
                     ))
-              const displayNarrative = narrative.startsWith('You performed')
+              const narrativeText = narrative.startsWith('You performed')
                 ? `${actionTitle} with ${audienceName}.`
                 : narrative
+              const hasRelationshipMeasurement = entry.receipt?.relationshipShifts !== undefined
+              const relationshipTargets = Object.entries(entry.receipt?.relationshipShifts ?? {})
+              const isCurrentResult = Boolean(
+                compact &&
+                !expanded &&
+                activeReceiptId &&
+                (entry.id === activeReceiptId || entry.receipt?.groupId === activeReceiptId)
+              )
               const key =
                 entry.id ??
                 `${entry.timestamp}-${entry.actionId}-${entry.targetId}-${entry.subjectId ?? ''}`
@@ -352,7 +395,55 @@ export default function RecentActivity({
                         ? ` · ${audienceName}`
                         : ''} · {outcomeLabel}
                     </span>
-                    <span className="ra-entry__narrative">{displayNarrative}</span>
+                    <span className="ra-entry__narrative">{narrativeText}</span>
+                    {hasRelationshipMeasurement && (
+                      <span className="ra-entry__relationship" aria-label="Relationship effects">
+                        <span className="ra-entry__relationship-label">Relationship</span>
+                        {relationshipTargets.length > 0 ? (
+                          relationshipTargets.map(([playerId, delta]) => {
+                            const name = playerById.get(playerId)?.name ?? playerId
+                            const strength = Math.abs(delta) >= 4 ? 'strong' : 'mild'
+                            const direction = delta === 0 ? 'neutral' : delta > 0 ? 'up' : 'down'
+                            const symbol =
+                              direction === 'neutral'
+                                ? '—'
+                                : direction === 'up'
+                                  ? strength === 'strong'
+                                    ? '↑↑'
+                                    : '↑'
+                                  : strength === 'strong'
+                                    ? '↓↓'
+                                    : '↓'
+                            const effect =
+                              direction === 'neutral'
+                                ? 'unchanged'
+                                : direction === 'up'
+                                  ? strength === 'strong'
+                                    ? 'strongly improved'
+                                    : 'improved'
+                                  : strength === 'strong'
+                                    ? 'strongly worsened'
+                                    : 'worsened'
+                            return (
+                              <span
+                                className={`ra-entry__relationship-change ra-entry__relationship-change--${direction}`}
+                                aria-label={`${name}: relationship ${effect}`}
+                                key={playerId}
+                              >
+                                <span>{name}</span> <span aria-hidden="true">{symbol}</span>
+                              </span>
+                            )
+                          })
+                        ) : (
+                          <span
+                            className="ra-entry__relationship-change ra-entry__relationship-change--neutral"
+                            aria-label="Relationship unchanged"
+                          >
+                            <span aria-hidden="true">—</span> Unchanged
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </span>
                   <span
                     className="ra-entry__time"
@@ -360,6 +451,16 @@ export default function RecentActivity({
                   >
                     {getRelativeTime(entry.timestamp)}
                   </span>
+                  {isCurrentResult && onDismissResult && (
+                    <button
+                      className="ra-entry__dismiss"
+                      type="button"
+                      aria-label="Dismiss current result"
+                      onClick={onDismissResult}
+                    >
+                      ×
+                    </button>
+                  )}
                 </li>
               )
             })}

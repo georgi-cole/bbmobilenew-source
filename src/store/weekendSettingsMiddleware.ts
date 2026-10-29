@@ -9,13 +9,17 @@ export const weekendSettingsMiddleware: Middleware = (api) => {
   return (next) => (action) => {
     const reconcile = () => {
       const state = api.getState() as RootState
-      const enabled = state.settings.gameUX.weekendsEnabled !== false
+      const locked = state.game.firstRealWeekendStarted === true || state.game.week >= 6
+      const enabled = locked
+        ? state.game.weekendsEnabledForSeason !== false
+        : state.settings.gameUX.weekendsEnabled !== false
       if (!enabled && state.game.weekendInterlude?.debug) {
         finishWeekendDebugPreview()(api.dispatch as AppDispatch, api.getState)
       }
       const game = (api.getState() as RootState).game
       if (
         game.weekendsEnabledForSeason !== enabled ||
+        (game.phase === 'season_start' && game.weekendsEnabledAtSeasonStart !== enabled) ||
         (!enabled && game.weekendInterlude?.active)
       ) {
         api.dispatch(setWeekendsEnabledForSeason(enabled))

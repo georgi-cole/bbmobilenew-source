@@ -44,6 +44,7 @@ import type { RootState } from '../../../store/store'
 import type { PublicDirection } from '../../../publicOpinion/types'
 import { createSecretMissionState } from '../../../bb/secretMission'
 import { createInitialVoxPopuliState } from '../../../features/twists/voxPopuli'
+import { clearMissionSafety, stageMissionSafety } from '../../../store/missionPowerActions'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -444,7 +445,7 @@ describe('FloatingActionBar – social module availability', () => {
     expect(store.getState().social.incomingInboxOpen).toBe(true)
   })
 
-  it('keeps outgoing conversations and incoming vote pitches accessible during live vote', () => {
+  it('blocks new outgoing conversations but keeps incoming vote pitches accessible during live vote', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = makeStore(true, { phase: 'live_vote' })
     renderFAB(store)
@@ -454,9 +455,12 @@ describe('FloatingActionBar – social module availability', () => {
       screen.getByRole('button', { name: 'Incoming requests' }).click()
     })
 
-    expect(store.getState().social.panelOpen).toBe(true)
+    expect(store.getState().social.panelOpen).toBe(false)
     expect(store.getState().social.incomingInboxOpen).toBe(true)
-    expect(warnSpy).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Outgoing social module did not open'),
+      expect.objectContaining({ phase: 'live_vote', moduleKind: 'outgoing' })
+    )
 
     warnSpy.mockRestore()
   })
@@ -711,6 +715,35 @@ describe('FloatingActionBar – layout', () => {
 
     expect(store.getState().game.phase).toBe('final3_comp1_minigame')
     expect(store.getState().game.minigameContext?.phaseKey).toBe('final3_comp1')
+  })
+
+  it('re-arms Play when a staged AI Safety announcement has not advanced the phase', () => {
+    const store = makeAiSafetyCeremonyStore()
+    const safetyHolderId = store.getState().game.posWinnerId!
+    renderFAB(store)
+
+    // The mission middleware can stage an AI save on the first Play press.
+    // That action deliberately leaves us on pos_ceremony until the next press.
+    act(() => {
+      store.dispatch(
+        stageMissionSafety({
+          id: 'staged-ai-safety-regression',
+          targetId: safetyHolderId,
+          resolvedSeed: store.getState().game.seed,
+          action: { type: 'game/advance' },
+        })
+      )
+    })
+    const play = screen.getByRole('button', { name: 'Advance to next phase' })
+    act(() => play.click())
+    expect(store.getState().game.phase).toBe('pos_ceremony')
+
+    // A completed/cancelled staging step must unlock the same phase's Play
+    // button, instead of leaving a visible button that ignores further clicks.
+    act(() => store.dispatch(clearMissionSafety()))
+    act(() => play.click())
+    expect(store.getState().game.phase).toBe('pos_ceremony_results')
+    expect(store.getState().game.povSavedId).toBe(safetyHolderId)
   })
 
   it('continues every deterministic AI Safety result step once without locking the phase', () => {

@@ -7,7 +7,10 @@ import {
 
 // Broadcast QA covers both portrait and landscape geometry on the real overlay.
 test.describe('Housemate biographies @core-journey', () => {
-  test('keeps the first housemate full-height with compact side copy', async ({ page }) => {
+  test('keeps Aria and Dex full-height with compact side copy and decodable portraits', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000)
     await page.addInitScript(() => {
       sessionStorage.setItem('bb:homeHubSplashShownThisSession', 'true')
       localStorage.setItem(
@@ -19,7 +22,7 @@ test.describe('Housemate biographies @core-journey', () => {
       )
     })
 
-    await page.goto('./')
+    await page.goto('./', { waitUntil: 'domcontentloaded' })
     const mainMenu = page.getByRole('navigation', { name: 'Main menu' })
     await expect(mainMenu).toBeVisible({ timeout: 30_000 })
     await dismissPermissionPromptIfPresent(page)
@@ -29,9 +32,10 @@ test.describe('Housemate biographies @core-journey', () => {
       .getByRole('button', { name: 'Hubmates', exact: true })
       .evaluate((button) => (button as HTMLButtonElement).click())
 
-    const cinematic = page.getByRole('dialog', { name: 'Meet the Housemates' })
-    await expect(cinematic).toBeVisible()
-    await cinematic.getByRole('button', { name: 'Enter the hub' }).click()
+    const cinematic = page.getByRole('dialog', { name: 'Meet the Hubmates' })
+    await expect(cinematic).toBeVisible({ timeout: 30_000 })
+    const enterHub = cinematic.getByRole('button', { name: 'Enter the hub' })
+    if (await enterHub.isVisible()) await enterHub.click()
     await cinematic.getByRole('button', { name: "Open Aria's full story" }).click()
     await expect(cinematic.getByRole('heading', { name: 'Aria' })).toBeVisible({
       timeout: 10_000,
@@ -66,6 +70,24 @@ test.describe('Housemate biographies @core-journey', () => {
 
     await page.screenshot({
       path: 'test-results/housemates-biography-aria-mobile.png',
+      fullPage: false,
+    })
+
+    await cinematic.getByRole('button', { name: 'All players' }).click()
+    for (let step = 0; step < 4; step += 1) {
+      await cinematic.getByRole('button', { name: 'Next player', exact: true }).click()
+    }
+    await cinematic.getByRole('button', { name: "Open Dex's full story" }).click()
+    await expect(cinematic.getByRole('heading', { name: 'Dex', exact: true })).toBeVisible()
+    await expect(portrait).toHaveAttribute('src', /Dex_informal_v2\.webp$/)
+    const dimensions = await portrait.evaluate(async (element) => {
+      const image = element as HTMLImageElement
+      await image.decode()
+      return { width: image.naturalWidth, height: image.naturalHeight }
+    })
+    expect(dimensions).toEqual({ width: 1024, height: 1536 })
+    await page.screenshot({
+      path: 'test-results/housemates-biography-dex-mobile.png',
       fullPage: false,
     })
   })

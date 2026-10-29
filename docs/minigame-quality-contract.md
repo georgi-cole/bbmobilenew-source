@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This is the release contract for every non-retired entry in `src/minigames/registry.ts`. The executable catalog lives in `tests/helpers/minigameQualityMatrix.ts`; `tests/minigames.qualityMatrix.test.ts` fails when the active registry and catalog differ, when cited evidence disappears, or when this documentation omits an active ID.
+This is the release contract for active entries in `src/minigames/registry.ts`. Retired and legacy games are excluded, as are inactive zero-weight entries without a direct VIP or finale route. Active VIP replacements and finale-only games remain in scope. The executable catalog lives in `tests/helpers/minigameQualityMatrix.ts`; `tests/minigames.qualityMatrix.test.ts` fails when the in-scope registry and catalog differ, when cited evidence disappears, or when this documentation omits an in-scope ID.
 
 A passing render test alone is not sufficient. Protection is only meaningful when the asserted result is the result a player sees and the season stores.
 
@@ -28,6 +28,14 @@ Every accepted minigame completion must satisfy all of these rules:
 Before play, the real host must show the registry title, objective, instructions, metric, and time policy. During play, the player must be able to identify the available action and whether it was accepted. At the terminal state, the player must see the outcome and one obvious next action.
 
 Instructions are a gameplay contract: when wording and implementation disagree, the rule is unresolved until evidence is evaluated and the decision is recorded in `docs/product-rule-decisions.md`.
+
+## Strategic targeting contract
+
+Active minigames that let an AI choose who to eliminate, weaken, accuse, curse, attack, protect, send into a potentially eliminating duel, or select in a terminal vote for power must use the shared minigame targeting policy in `src/ai/competition/allianceMinigameStrategy.ts`. MinigameHost supplies the current relationship and alliance snapshots; the snapshots include active two-player pacts as well as group alliances.
+
+The default preference is to target known enemies first, then neutrals and floaters, then friends and committed pact/alliance members. A weak or friendly opponent can still be targeted when the game evidence or tactical stakes justify it, and personal agendas, betrayal, fractures, infiltrators, and known alliance plans can change the choice. This is a strategic preference, not a guaranteed behavior or a change to fixed-target game rules. Deduction evidence must remain authoritative when a game asks players to identify a hidden role.
+
+Every new active minigame with an elimination, weakening, attack, protection, or duel-target choice must receive the relationship and pact/alliance context, apply the shared targeting policy to its AI choices, and add focused tests for enemy, neutral, and committed-ally cases before release.
 
 ## Host and lifecycle contract
 

@@ -1,10 +1,12 @@
 import type { Player } from '../../types';
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog';
 import type { PublicOpinionState } from '../../publicOpinion/types';
 import {
   resolveAvatarCandidates,
   resolveInformalCutout,
   resolveInformalCutoutCandidates,
   resolveSilhouetteFallback,
+  joinPublicAssetPath,
 } from '../../utils/avatar';
 
 const TABLOID_PHOTO_MODULES = import.meta.glob('../../../public/assets/tabloid_photos/*.{png,jpg,jpeg,jxl,webp,avif}', {
@@ -254,6 +256,17 @@ export function resolveRecapCutoutSources(player: Player): string[] {
 }
 
 export function resolveRecapTabloidSources(player: Player, preferredPhoto?: string | null): string[] {
+  const selection = player.appearance ?? appearanceFromAssetUrl(player.avatar);
+  const pressAsset = player.isUser || player.id === 'user'
+    ? getAppearanceAsset(selection, 'paparazzi')
+    : null;
+  if (pressAsset) {
+    return uniqueSources([
+      joinPublicAssetPath(pressAsset),
+      ...resolveAvatarCandidates(player),
+      resolveSilhouetteFallback(player),
+    ]);
+  }
   const primaryAvatar = resolveAvatarCandidates(player).find((candidate) => !isDicebearCandidate(candidate));
   return uniqueSources([
     preferredPhoto,

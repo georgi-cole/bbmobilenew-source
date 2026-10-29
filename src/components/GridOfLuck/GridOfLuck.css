@@ -1978,6 +1978,7 @@
 }
 
 .mystic-chamber__play-area {
+  z-index: 2;
   min-height: 280px;
   display: grid;
   align-items: start;
@@ -2143,10 +2144,15 @@
 }
 
 .mystic-chamber__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
+  margin: 18px -4px -4px;
+  padding: 10px 4px 4px;
+  background: linear-gradient(180deg, rgba(23, 18, 32, 0), rgba(23, 18, 32, 0.98) 32%);
 }
 
 .mystic-chamber .mystic-chamber__actions .is-secondary {

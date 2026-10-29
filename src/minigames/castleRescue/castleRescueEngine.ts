@@ -1,7 +1,7 @@
 /**
  * castleRescueEngine.ts
  *
- * Core lifecycle functions for the Castle Rescue RunState.
+ * Core lifecycle functions for the Find Your Twin RunState.
  * These are pure (no side-effects) and are shared between the platformer
  * component and the competition system's outcome-resolution layer.
  *

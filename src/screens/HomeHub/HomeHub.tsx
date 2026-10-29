@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate, type NavigateFunction } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
@@ -10,16 +10,17 @@ import {
   setVoxPopuliSchedule,
   setSeasonExpansion,
 } from '../../store/gameSlice'
+import { loadSeasonArchives } from '../../store/archivePersistence'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { hydrateFinale } from '../../store/finaleSlice'
 import { hydrateSocial } from '../../social/socialSlice'
 import { hydratePublicOpinion } from '../../publicOpinion/publicOpinionSlice'
 import { hydrateChallenge } from '../../store/challengeSlice'
-import { loadSeasonArchives } from '../../store/archivePersistence'
 import {
+  archiveKeyForProfile,
   selectActiveProfileId,
   selectCurrentProfile,
   selectIsGuest,
-  archiveKeyForProfile,
 } from '../../store/profilesSlice'
 import {
   clearSavedRun,
@@ -37,16 +38,20 @@ import {
   rulesetLabel,
   type SeasonRuleset,
 } from '../../modes/seasonRulesets'
-import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import useBackgroundTheme from '../../hooks/useBackgroundTheme'
 import KolequantSplash from '../../components/KolequantSplash/KolequantSplash'
+import RouteLoadingScreen from '../../components/RouteLoadingScreen/RouteLoadingScreen'
 import AssetPreloaderOverlay from '../../components/AssetPreloaderOverlay/AssetPreloaderOverlay'
-import PermissionPrompts from '../../components/PermissionPrompts/PermissionPrompts'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
 import SurvivorRulesModal from '../../components/ConfirmExitModal/SurvivorRulesModal'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { beginGameplayAudioExit } from '../../services/sound/audioRouteOwnership'
+import { trackProductEvent } from '../../services/liveOps/productTelemetry'
+import {
+  getAnalyticsGameMode,
+  getAnalyticsGameModeForRuleset,
+} from '../../services/backend/analyticsGameMode'
 import { startCreditsSoundtrackFromGesture } from '../../cinematic/audio/creditsSoundtrack'
 import GameButton, { type GameButtonVariant } from '../../components/GameButton/GameButton'
 import HousematesBioCinematic from '../../components/HousematesBioCinematic/HousematesBioCinematic'
@@ -54,6 +59,9 @@ import StoreProductIcon from '../../components/StoreProductModal/StoreProductIco
 import { MYSTERY_WILDCARD_BIOS } from '../../components/HousematesBioCinematic/housematesBioData'
 import useHomeHubAssets from '../../hooks/useHomeHubAssets'
 import useIntroHubBackground from '../../hooks/useIntroHubBackground'
+import { preloadImage } from '../../utils/preload'
+import { getHolidayTheme } from '../../utils/backgroundTheme'
+import { shouldShowWeatherPermissionRationale } from '../../services/locationAccess'
 import {
   hasShownHomeHubSplashThisSession,
   markHomeHubSplashSeenForGame,
@@ -120,6 +128,13 @@ interface HubAssetState {
   status: string
 }
 
+interface HomeHubBackgroundState {
+  currentUrl: string | null
+  previousUrl: string | null
+  currentVisible: boolean
+  ready: boolean
+}
+
 interface PlaySelectionButton {
   key: string
   label: string
@@ -132,8 +147,9 @@ interface PlaySelectionButton {
 
 interface HomeHubAssetLayerProps {
   splashDone: boolean
-  effectiveBgUrl: string | null
   backgroundReady: boolean
+  showWeatherPermissionRationale: boolean
+  holidayTheme: ReturnType<typeof getHolidayTheme>
   playSelectionOpen: boolean
   playSelectionButtons: PlaySelectionButton[]
   onPlay: () => void
@@ -144,8 +160,9 @@ interface HomeHubAssetLayerProps {
 
 function HomeHubAssetLayer({
   splashDone,
-  effectiveBgUrl,
   backgroundReady,
+  showWeatherPermissionRationale,
+  holidayTheme,
   playSelectionOpen,
   playSelectionButtons,
   onPlay,
@@ -157,7 +174,7 @@ function HomeHubAssetLayer({
     ready: homeHubReady,
     progress: homeHubLoadProgress,
     status: homeHubLoadStatus,
-  } = useHomeHubAssets(effectiveBgUrl)
+  } = useHomeHubAssets(null, splashDone)
   const assetReady = backgroundReady && homeHubReady
   const status = backgroundReady ? homeHubLoadStatus : 'Choosing the right house exterior...'
   const progress = backgroundReady ? homeHubLoadProgress : Math.min(20, homeHubLoadProgress)
@@ -172,9 +189,14 @@ function HomeHubAssetLayer({
 
   return (
     <>
-      {splashDone && assetReady && <PermissionPrompts showSoundPrompt={false} />}
       <div className="homehub-content home-hub">
         <div className="home-hub__hero" aria-hidden="true" />
+        {splashDone && assetReady && showWeatherPermissionRationale && (
+          <p className="home-hub__weather-permission-note" role="status" aria-live="polite">
+            Allow approximate location to match the Home Hub to your local weather. Coordinates go
+            to Open-Meteo only to fetch weather for the background.
+          </p>
+        )}
         {splashDone && assetReady && (
           <nav
             className="home-hub__buttons"
@@ -202,6 +224,7 @@ function HomeHubAssetLayer({
                     label={label}
                     icon={icon ? <HomeHubButtonIcon name={icon} /> : undefined}
                     variant={variant}
+                    holidayTheme={to === '/game' ? holidayTheme : null}
                     onClick={
                       to === '/game'
                         ? onPlay
@@ -273,10 +296,11 @@ export default function HomeHub() {
   const activeProfileId = useAppSelector(selectActiveProfileId)
   const currentProfile = useAppSelector(selectCurrentProfile)
   const isGuest = useAppSelector(selectIsGuest)
-  const { url: bgUrl } = useBackgroundTheme()
+  const { url: bgUrl, requestWeatherLocation } = useBackgroundTheme()
+  const playButtonHolidayTheme = getHolidayTheme(new Date())
   const remoteBgUrl = useAppSelector(selectRemoteIntroHubBg)
   const remoteOverlayOpacity = useAppSelector(selectRemoteIntroHubOverlay)
-  const { url: introHubBgUrl, ready: introHubBgReady } = useIntroHubBackground(remoteBgUrl, bgUrl)
+  const { url: introHubBgUrl } = useIntroHubBackground(remoteBgUrl, bgUrl)
   const achievementSummary = useMemo(
     () =>
       buildAchievementSummary({
@@ -288,14 +312,82 @@ export default function HomeHub() {
     [dayCount, introHubPlayer, phase, seasonArchives]
   )
   const effectiveBgUrl = introHubBgUrl ?? remoteBgUrl ?? bgUrl
+  useEffect(() => {
+    // Warm just the next Profile scene after the hub has painted, never all looks.
+    const timer = window.setTimeout(() => {
+      void preloadImage(`${import.meta.env.BASE_URL}assets/dressing-room/profile-podium.webp`)
+      void preloadImage(`${import.meta.env.BASE_URL}assets/dressing-room/profile-scene.webp`)
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [])
+  const [backgroundLayers, setBackgroundLayers] = useState<HomeHubBackgroundState>({
+    currentUrl: null,
+    previousUrl: null,
+    currentVisible: false,
+    ready: false,
+  })
+  const displayedBackgroundUrl = useRef<string | null>(null)
+  const clearPreviousBackgroundTimer = useRef<number | undefined>(undefined)
+
+  useEffect(() => {
+    if (!effectiveBgUrl) return
+
+    let cancelled = false
+    let revealTimer: number | undefined
+
+    void preloadImage(effectiveBgUrl).then((result) => {
+      if (cancelled || result.status !== 'loaded') return
+
+      const previousUrl = displayedBackgroundUrl.current
+      if (previousUrl === effectiveBgUrl) return
+
+      displayedBackgroundUrl.current = effectiveBgUrl
+      setBackgroundLayers({
+        currentUrl: effectiveBgUrl,
+        previousUrl,
+        currentVisible: previousUrl == null,
+        ready: true,
+      })
+
+      if (previousUrl) {
+        if (clearPreviousBackgroundTimer.current != null) {
+          window.clearTimeout(clearPreviousBackgroundTimer.current)
+        }
+        revealTimer = window.setTimeout(() => {
+          if (displayedBackgroundUrl.current !== effectiveBgUrl) return
+          setBackgroundLayers((current) => ({ ...current, currentVisible: true }))
+        }, 16)
+        clearPreviousBackgroundTimer.current = window.setTimeout(() => {
+          if (displayedBackgroundUrl.current !== effectiveBgUrl) return
+          setBackgroundLayers((current) => ({ ...current, previousUrl: null }))
+          clearPreviousBackgroundTimer.current = undefined
+        }, 440)
+      }
+    })
+
+    return () => {
+      cancelled = true
+      if (revealTimer != null) window.clearTimeout(revealTimer)
+    }
+  }, [effectiveBgUrl])
+
+  useEffect(
+    () => () => {
+      if (clearPreviousBackgroundTimer.current != null) {
+        window.clearTimeout(clearPreviousBackgroundTimer.current)
+      }
+    },
+    []
+  )
   const [isInitialAppSplash] = useState(() => !hasShownHomeHubSplashThisSession())
-  const [splashExitRequested, setSplashExitRequested] = useState(false)
+  const [splashExitRequested, setSplashExitRequested] = useState(!isInitialAppSplash)
   const [hubAssetState, setHubAssetState] = useState<HubAssetState>({
     ready: false,
     progress: 0,
     status: 'Opening the house doors.',
   })
   const splashDone = splashExitRequested && hubAssetState.ready
+  const [showWeatherPermissionRationale, setShowWeatherPermissionRationale] = useState(false)
   const [preloading, setPreloading] = useState(autoStartGame)
   const shouldRestorePlayMenu = new URLSearchParams(location.search).get('menu') === 'play'
   const [playSelectionOpen, setPlaySelectionOpen] = useState(shouldRestorePlayMenu)
@@ -305,6 +397,27 @@ export default function HomeHub() {
   const [survivorRulesOpen, setSurvivorRulesOpen] = useState(false)
   const survivorRulesDismissed = hasSeenSurvivorRules(activeProfileId)
   const gameRoute = '/game'
+
+  useEffect(() => {
+    if (!splashDone || !shouldShowWeatherPermissionRationale()) return undefined
+
+    let cancelled = false
+    const rationaleTimer = window.setTimeout(() => {
+      if (!cancelled) setShowWeatherPermissionRationale(true)
+    }, 0)
+    const requestTimer = window.setTimeout(() => {
+      if (cancelled) return
+      void requestWeatherLocation().finally(() => {
+        if (!cancelled) setShowWeatherPermissionRationale(false)
+      })
+    }, 650)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(rationaleTimer)
+      window.clearTimeout(requestTimer)
+    }
+  }, [requestWeatherLocation, splashDone])
 
   const savedRuns = useMemo(
     () => (!isGuest && activeProfileId ? loadSavedRunProfile(activeProfileId) : null),
@@ -449,6 +562,12 @@ export default function HomeHub() {
       return
     }
 
+    if (!isGuest && activeProfileId)
+      trackProductEvent(
+        'game_mode_selected',
+        getAnalyticsGameMode(snapshot.game.mode, snapshot.game.expansionMode),
+        activeProfileId
+      )
     beginGameplayAudioExit()
     withRunAutosaveSuspended(() => {
       dispatch(hydrateGame(snapshot.game))
@@ -533,12 +652,22 @@ export default function HomeHub() {
 
   function startSurvivorRun() {
     beginGameplayAudioExit()
+    const analyticsProfileId = !isGuest ? (activeProfileId ?? undefined) : undefined
+    const selectedGameMode = getAnalyticsGameModeForRuleset('survival')
+    if (analyticsProfileId)
+      trackProductEvent('game_mode_selected', selectedGameMode, analyticsProfileId)
     if (!isGuest && activeProfileId) {
       clearSavedRun(activeProfileId, 'survival')
     }
     setSurvivorPrompt(null)
     setPlaySelectionOpen(false)
     dispatch(hydrateGame(createSurvivorRun()))
+    if (analyticsProfileId)
+      trackProductEvent(
+        'season_started',
+        { ...selectedGameMode, week: 0, day: 0, phase: 'survival' },
+        analyticsProfileId
+      )
     setPreloading(true)
   }
 
@@ -563,6 +692,12 @@ export default function HomeHub() {
       setSurvivorPrompt('ended')
       return
     }
+    if (!isGuest && activeProfileId)
+      trackProductEvent(
+        'game_mode_selected',
+        getAnalyticsGameMode(survivorSnapshot.game.mode, survivorSnapshot.game.expansionMode),
+        activeProfileId
+      )
     setSurvivorPrompt(null)
     hydrateSnapshot(survivorSnapshot)
   }
@@ -719,15 +854,18 @@ export default function HomeHub() {
 
   return (
     <>
-      {!splashDone && (
-        <KolequantSplash
-          duration={isInitialAppSplash ? 5000 : 0}
-          ready={hubAssetState.ready}
-          progress={hubAssetState.progress}
-          status={hubAssetState.status}
-          onFinish={handleSplashFinish}
-        />
-      )}
+      {!splashDone &&
+        (isInitialAppSplash ? (
+          <KolequantSplash
+            duration={5000}
+            ready={hubAssetState.ready}
+            progress={hubAssetState.progress}
+            status={hubAssetState.status}
+            onFinish={handleSplashFinish}
+          />
+        ) : (
+          <RouteLoadingScreen />
+        ))}
 
       {preloading && <AssetPreloaderOverlay destination={gameRoute} />}
 
@@ -790,11 +928,20 @@ export default function HomeHub() {
 
       <div className="homehub-shell">
         <div className="homehub-frame">
-          <div
-            className="homehub-intro-bg"
-            style={effectiveBgUrl ? { backgroundImage: `url("${effectiveBgUrl}")` } : undefined}
-            aria-hidden="true"
-          />
+          {backgroundLayers.previousUrl && (
+            <div
+              className={`homehub-intro-bg homehub-intro-bg--previous${backgroundLayers.currentVisible ? ' homehub-intro-bg--fading' : ''}`}
+              style={{ backgroundImage: `url("${backgroundLayers.previousUrl}")` }}
+              aria-hidden="true"
+            />
+          )}
+          {backgroundLayers.currentUrl && (
+            <div
+              className={`homehub-intro-bg homehub-intro-bg--active${backgroundLayers.currentVisible ? ' homehub-intro-bg--visible' : ''}`}
+              style={{ backgroundImage: `url("${backgroundLayers.currentUrl}")` }}
+              aria-hidden="true"
+            />
+          )}
 
           {remoteOverlayOpacity != null && remoteOverlayOpacity > 0 && (
             <div
@@ -805,10 +952,10 @@ export default function HomeHub() {
           )}
 
           <HomeHubAssetLayer
-            key={effectiveBgUrl ?? 'default'}
             splashDone={splashDone}
-            effectiveBgUrl={effectiveBgUrl}
-            backgroundReady={introHubBgReady}
+            backgroundReady={backgroundLayers.ready}
+            showWeatherPermissionRationale={showWeatherPermissionRationale}
+            holidayTheme={playButtonHolidayTheme}
             playSelectionOpen={playSelectionOpen}
             playSelectionButtons={playSelectionButtons}
             onPlay={handlePlay}

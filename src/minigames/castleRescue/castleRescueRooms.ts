@@ -1,7 +1,7 @@
 /**
  * castleRescueRooms.ts
  *
- * Factory functions for Castle Rescue side-room instances (bonus room, ambush
+ * Factory functions for Find Your Twin side-room instances (bonus room, ambush
  * room).  Exported from a non-component file to satisfy the
  * react-refresh/only-export-components lint rule that governs CastleRescueGame.tsx.
  *

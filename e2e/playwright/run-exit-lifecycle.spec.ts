@@ -26,12 +26,15 @@ async function createProfileFromHome(page: Page, playerName: string): Promise<vo
     .getByRole('navigation', { name: 'Main menu' })
     .getByRole('button', { name: 'Profile', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
+  await page.getByRole('button', { name: 'Select Existing Profile', exact: true }).click()
   await page.getByRole('button', { name: /Create New Profile/ }).click()
-  await page.getByPlaceholder('Enter display name').fill(playerName)
+  await page.getByRole('button', { name: 'Choose this look', exact: true }).click()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByPlaceholder('Your name in the house').fill(playerName)
   await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Location').fill('London')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
-  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
+  await page.getByRole('button', { name: 'Save Profile', exact: true }).click()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
   await page.evaluate((profileId) => {
     localStorage.setItem(`bbmobilenew_season_tutorial_v1:${profileId}`, 'done')

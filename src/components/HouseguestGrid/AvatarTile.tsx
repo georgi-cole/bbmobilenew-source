@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { avatarVariants } from '../../utils/avatarCase'
 import { getLocalAvatarFallback, getProfilePhotoAvatarId } from '../../utils/avatar'
+import { appearanceFromAssetUrl } from '../../appearance/catalog'
 import { imageIdToDataUrl } from '../../utils/imageDb'
 import { getBadgesForPlayer } from '../../utils/statusBadges'
 import styles from './HouseguestGrid.module.css'
@@ -74,6 +75,8 @@ type Props = {
    * layout animation between the grid tile and EvictionSplash fullscreen portrait.
    */
   layoutId?: string
+  /** Changes when the roster's geometry or ordering changes. */
+  layoutRevision?: string
   /**
    * When true the tile's avatarWrap is hidden (opacity 0) so the shared-layout
    * overlay portrait is the only visible instance during the eviction animation.
@@ -174,7 +177,7 @@ function formatStat(value: number | null | undefined, options: { decimals?: numb
   return options.decimals != null ? value.toFixed(options.decimals) : String(value)
 }
 
-export default function AvatarTile({
+function AvatarTileView({
   name,
   avatarUrl,
   isEvicted,
@@ -187,6 +190,7 @@ export default function AvatarTile({
   finalRank,
   showPermanentBadge = true,
   layoutId,
+  layoutRevision,
   isEvicting,
   isSurveyevalEvicting = false,
   isReturning = false,
@@ -208,6 +212,38 @@ export default function AvatarTile({
   animateNameReveal = false,
   evictionMarkKey,
 }: Props) {
+  // Cosmetic badges and social updates don't move the portrait. Snapshot the
+  // shared layout only for roster geometry and the actual cinematic handoffs.
+  const layoutDependency = React.useMemo(
+    () => ({
+      layoutRevision,
+      isEvicted,
+      isEvicting,
+      isReturning,
+      isReunionReturning,
+      isReunionDeparting,
+      isSurveyevalEvicting,
+      pairIndex,
+      pairLabel,
+      cupidLoveRevealed,
+      cupidLoveReturning,
+      finalRank,
+    }),
+    [
+      layoutRevision,
+      isEvicted,
+      isEvicting,
+      isReturning,
+      isReunionReturning,
+      isReunionDeparting,
+      isSurveyevalEvicting,
+      pairIndex,
+      pairLabel,
+      cupidLoveRevealed,
+      cupidLoveReturning,
+      finalRank,
+    ]
+  )
   const depressionShockPortraitMode = React.useSyncExternalStore(
     subscribeDepressionShockPortraitMode,
     getDepressionShockPortraitSnapshot,
@@ -280,7 +316,10 @@ export default function AvatarTile({
   const [isPressing, setIsPressing] = React.useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = React.useState<string | null>(null)
   const normalAvatarUrl = profilePhotoUrl ?? (profilePhotoId ? undefined : avatarUrl)
-  const useSadPortrait = !isYou && !profilePhotoId && depressionShockPortraitMode === 'sad'
+  const useSadPortrait =
+    (!isYou || Boolean(appearanceFromAssetUrl(avatarUrl))) &&
+    !profilePhotoId &&
+    depressionShockPortraitMode === 'sad'
   const sadAvatarUrl = useSadPortrait
     ? buildDepressionShockAvatarCandidates(
         name.toLowerCase(),
@@ -323,7 +362,7 @@ export default function AvatarTile({
   function handleImgError(e: React.SyntheticEvent<HTMLImageElement>) {
     if (exhaustedRef.current) return
     const img = e.currentTarget
-    if (sadAvatarUrl && img.src.includes('_sad_avatar.') && normalAvatarUrl) {
+    if (sadAvatarUrl && img.getAttribute('src') === sadAvatarUrl && normalAvatarUrl) {
       img.src = normalAvatarUrl
       return
     }
@@ -558,6 +597,7 @@ export default function AvatarTile({
             .filter(Boolean)
             .join(' ')}
           layoutId={layoutId}
+          layoutDependency={layoutDependency}
           data-ceremony-tile="true"
           data-nomination-ceremony-state={nominationCeremonyState}
           animate={
@@ -714,5 +754,49 @@ export default function AvatarTile({
       </div>
       {statsSheet}
     </>
+  )
+}
+
+const MemoAvatarTile = React.memo(AvatarTileView, (before, after) => {
+  const keys = Object.keys(before) as Array<keyof Props>
+  if (keys.length !== Object.keys(after).length) return false
+  return keys.every((key) => {
+    if (key === 'roboStats') {
+      const a = before.roboStats,
+        b = after.roboStats
+      if (!a || !b) return a === b
+      return (
+        Object.keys(a).length === Object.keys(b).length &&
+        (Object.keys(a) as Array<keyof RoboStatsSummary>).every((field) =>
+          Object.is(a[field], b[field])
+        )
+      )
+    }
+    if (key === 'statuses' && Array.isArray(before.statuses) && Array.isArray(after.statuses)) {
+      return (
+        before.statuses.length === after.statuses.length &&
+        before.statuses.every((value, index) => value === after.statuses![index])
+      )
+    }
+    return Object.is(before[key], after[key])
+  })
+})
+
+/** Keep handlers fresh without repainting every portrait on unrelated social updates. */
+export default function AvatarTile(props: Props) {
+  const handlers = React.useRef(props)
+  React.useLayoutEffect(() => {
+    handlers.current = props
+  }, [props])
+  const click = React.useCallback(() => handlers.current.onClick?.(), [])
+  const holdStart = React.useCallback(() => handlers.current.onHoldPreviewStart?.(), [])
+  const holdEnd = React.useCallback(() => handlers.current.onHoldPreviewEnd?.(), [])
+  return (
+    <MemoAvatarTile
+      {...props}
+      onClick={props.onClick ? click : undefined}
+      onHoldPreviewStart={props.onHoldPreviewStart ? holdStart : undefined}
+      onHoldPreviewEnd={props.onHoldPreviewEnd ? holdEnd : undefined}
+    />
   )
 }

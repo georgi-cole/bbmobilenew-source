@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
+import { produce } from 'immer'
 import {
   advanceAllianceRequests,
   finalizeAcceptedPersonalPact,
   manageAlliance,
   type AllianceManagementContext,
 } from '../reality/allianceManagement'
-import { currentAllianceCounts, isCurrentAlliance } from '../reality/allianceIdentity'
+import {
+  currentAllianceCounts,
+  isCurrentAlliance,
+  normalizeAllianceManagement,
+} from '../reality/allianceIdentity'
 import { allianceEventText } from '../reality/allianceHistory'
 import {
   createDirectedRelationship,
@@ -18,6 +23,7 @@ import {
   migrateDramaAlliances,
   reconcileRealityBattleBackReturn,
   refreshRealityAllianceDynamics,
+  removeRealityAllianceMember,
   removeRealityAllianceMembers,
   renameRealityAlliance,
 } from '../reality/relationshipForms'
@@ -47,6 +53,37 @@ const setup = () => {
   ensureRealityActors(state, ids)
   return state
 }
+
+describe('alliance normalization during progression', () => {
+  it('still repairs a missing legacy pact officer list', () => {
+    const state = setup()
+    const legacy = pact(state)
+    delete (legacy as Partial<typeof legacy>).leaderIds
+    normalizeAllianceManagement(state)
+    expect(legacy.leaderIds).toEqual([])
+  })
+  it('preserves an unchanged normalized world and refreshes knowledge when the roster changes', () => {
+    const state = setup()
+    group(state)
+    pact(state, 'c', 'd')
+    const normalized = produce(state, (draft) => normalizeAllianceManagement(draft))
+    const repeated = produce(normalized, (draft) => normalizeAllianceManagement(draft))
+    expect(repeated).toBe(normalized)
+
+    const changed = produce(normalized, (draft) => {
+      draft.alliances.group.name = 'A new name'
+      draft.alliances.group.memberIds.push('x')
+      draft.alliances.group.rosterRevision!++
+      normalizeAllianceManagement(draft)
+    })
+    expect(changed.alliances.group.rosterKnowledgeByActor?.u).toMatchObject({
+      name: 'A new name',
+      memberIds: ['u', 'k', 'r', 'x'],
+    })
+    expect(changed.alliances.group.rosterKnowledgeByActor?.x).toBeDefined()
+    expect(changed.alliances['pact:c:d']).toBe(normalized.alliances['pact:c:d'])
+  })
+})
 const pact = (state: RealityDomainState, a = 'u', b = 'k', purpose = 'Mutual protection') =>
   createRealityAlliance(state, {
     id: `pact:${a}:${b}`,
@@ -372,6 +409,107 @@ describe('explicit alliance management', () => {
     expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
     expect(alliance.memberIds).toContain('x')
   })
+  it('lets an invitee at the group limit choose which current group to leave only when accepting', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    firstCurrent.name = 'Old Circle'
+    secondCurrent.name = 'Quiet Group'
+
+    const id = request(state, 'x')
+    respond(state, id, 'k')
+    respond(state, id, 'r')
+    respond(state, id, 'u')
+    expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+
+    const withoutChoice = manageAlliance(
+      state,
+      { type: 'RESPOND', requestId: id, actorId: 'x', accept: true },
+      context
+    )
+    expect(withoutChoice.status).toBe('REJECTED')
+    expect(state.allianceManagement.requests[id].status).toBe('CONSENT')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+
+    const accepted = manageAlliance(
+      state,
+      {
+        type: 'RESPOND',
+        requestId: id,
+        actorId: 'x',
+        accept: true,
+        leaveAllianceId: firstCurrent.id,
+      },
+      context
+    )
+    expect(accepted.status).toBe('APPLIED')
+    expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
+    expect(firstCurrent.memberIds).not.toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('does not change an invitee’s existing groups when they decline at the group limit', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    const id = request(state, 'x')
+    approve(state, id)
+
+    respond(state, id, 'x', false)
+
+    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).not.toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('does not let an AI invitee trade two healthy alliances for a comparable one by default', () => {
+    const state = setup()
+    const target = group(state)
+    const firstCurrent = group(state, ['x', 'c', 'd'], 'candidate-first', 'c')
+    const secondCurrent = group(state, ['x', 'e', 'f'], 'candidate-second', 'e')
+    const id = request(state, 'x', target.id)
+    approve(state, id)
+
+    advanceAllianceRequests(state, { ...context, humanActorIds: ids.filter((id) => id !== 'x') })
+
+    expect(state.allianceManagement.requests[id].status).toBe('DECLINED')
+    expect(firstCurrent.memberIds).toContain('x')
+    expect(secondCurrent.memberIds).toContain('x')
+    expect(target.memberIds).not.toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
+  it('can accept a strategically stronger invitation when the weakest current group is fractured', () => {
+    const state = setup()
+    const target = group(state)
+    target.status = 'ACTIVE'
+    const fractured = group(state, ['x', 'c', 'd'], 'candidate-fractured', 'c')
+    fractured.status = 'FRACTURED'
+    fractured.cohesion = 0.1
+    fractured.fractureRisk = 0.9
+    const healthy = group(state, ['x', 'e', 'f'], 'candidate-healthy', 'e')
+    healthy.status = 'ACTIVE'
+    healthy.cohesion = 0.8
+    healthy.fractureRisk = 0.05
+    state.relationships.x = Object.fromEntries(
+      target.memberIds.map((memberId) => [memberId, createDirectedRelationship('x', memberId, 100)])
+    )
+    const id = request(state, 'x', target.id)
+    approve(state, id)
+
+    advanceAllianceRequests(state, { ...context, humanActorIds: ids.filter((id) => id !== 'x') })
+
+    expect(state.allianceManagement.requests[id].status).toBe('ACCEPTED')
+    expect(fractured.memberIds).not.toContain('x')
+    expect(healthy.memberIds).toContain('x')
+    expect(target.memberIds).toContain('x')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+  })
   it('lets the leader break a two-member admission tie with a yes vote', () => {
     const state = setup()
     const alliance = group(state)
@@ -462,7 +600,7 @@ describe('explicit alliance management', () => {
     respond(state, second, 'c')
     expect(state.alliances.group.memberIds).not.toContain('c')
   })
-  it('rechecks capacity when two invitations compete for a candidate’s final group slot', () => {
+  it('requires a deliberate alliance switch when two invitations compete for a candidate at the group limit', () => {
     const state = setup()
     group(state)
     group(state, ['k', 'c', 'd'], 'second', 'k')
@@ -472,9 +610,25 @@ describe('explicit alliance management', () => {
     approve(state, first)
     approve(state, second)
     respond(state, first, 'x')
-    respond(state, second, 'x')
     expect(state.allianceManagement.requests[first].status).toBe('ACCEPTED')
-    expect(state.allianceManagement.requests[second].status).toBe('INVALIDATED')
+    expect(state.allianceManagement.requests[second].status).toBe('CONSENT')
+    expect(currentAllianceCounts(state, 'x').groups).toBe(2)
+
+    const acceptedSwitch = manageAlliance(
+      state,
+      {
+        type: 'RESPOND',
+        requestId: second,
+        actorId: 'x',
+        accept: true,
+        leaveAllianceId: 'existing',
+      },
+      context
+    )
+    expect(acceptedSwitch.status).toBe('APPLIED')
+    expect(state.allianceManagement.requests[second].status).toBe('ACCEPTED')
+    expect(state.alliances.existing.memberIds).not.toContain('x')
+    expect(state.alliances.second.memberIds).toContain('x')
     expect(currentAllianceCounts(state, 'x').groups).toBe(2)
   })
   it('allows additional personal pacts independently of group membership limits', () => {
@@ -819,9 +973,56 @@ describe('explicit alliance management', () => {
     expect(compareRealityClock(earlier, later)).toBeLessThan(0)
     expect(compareRealityClock(earlier, later)).toBe(compareIncomingClock(earlier, later))
   })
+  it('keeps the pre-existing alliance when a departure makes another roster identical', () => {
+    const state = setup()
+    const original = group(state, ['u', 'k', 'r'], 'original')
+    const expanded = group(state, ['u', 'k', 'r', 'x'], 'expanded')
+    original.name = 'The Core'
+    expanded.name = 'The Expanded Core'
+
+    removeRealityAllianceMember(state, {
+      allianceId: expanded.id,
+      memberId: 'x',
+      actorId: 'x',
+      kind: 'VOLUNTARY',
+      at: { day: 2, phase: 'social_1' },
+    })
+
+    expect(original.status).toBe('PROBATIONARY')
+    expect(original.memberIds).toEqual(['u', 'k', 'r'])
+    expect(expanded.status).toBe('DISSOLVED')
+    expect(expanded.memberIds).toEqual([])
+    expect(expanded.supersededById).toBe(original.id)
+    const ended = state.events.find(
+      (event) => event.type === 'ALLIANCE_ENDED' && event.allianceId === expanded.id
+    )
+    expect(ended?.allianceSnapshot?.endReason).toBe('DUPLICATE_ROSTER')
+    expect(
+      allianceEventText(
+        state,
+        ended!,
+        'u',
+        (id) => ({ u: 'You', k: 'Kian', r: 'Jax', x: 'Lux' })[id] ?? id
+      )
+    ).toBe('The Expanded Core closed because its roster matched The Core; The Core remains active.')
+  })
 })
 
 describe('alliance save migration', () => {
+  it('collapses legacy duplicate group rosters deterministically and idempotently', () => {
+    const state = setup()
+    const original = group(state, ['u', 'k', 'r'], 'original')
+    const duplicate = group(state, ['u', 'k', 'r'], 'duplicate')
+    original.createdAt = { day: 1, phase: 'social_1' }
+    duplicate.createdAt = { day: 2, phase: 'social_1' }
+
+    const normalized = normalizeRealityDomainState(state)
+
+    expect(normalized.alliances.original.status).toBe('PROBATIONARY')
+    expect(normalized.alliances.duplicate.status).toBe('DISSOLVED')
+    expect(normalized.alliances.duplicate.supersededById).toBe('original')
+    expect(normalizeRealityDomainState(normalized)).toEqual(normalized)
+  })
   it('upgrades a detached old save idempotently while retaining scoped promises and ambiguous pair sources', () => {
     const state = setup()
     const original = pact(state)

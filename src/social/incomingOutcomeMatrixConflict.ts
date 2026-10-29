@@ -45,6 +45,18 @@ export const CONFLICT_OUTCOME_MATRIX: ScenarioOutcomeMatrix = {
     ),
     'let it die': acts('stops pushing once the remark fails to grow into a fight.'),
   },
+  season_provocateur: {
+    'hear them out, guardedly': says(
+      'they lower the temperature a little, but make it clear they still disagree with you.'
+    ),
+    'ask what set them off': says('they point back to the move that started the tension.'),
+    'push back directly': says('they take the pushback as a reason to keep challenging your read.'),
+    'walk away': acts('lets the exchange end without following you.'),
+    'keep your composure': says('they do not get the reaction they were testing for.'),
+    'ask them to be specific': says('they name the decision they believe put you at odds.'),
+    'draw a hard boundary': says('they hear the boundary and decide the disagreement is now open.'),
+    'end the exchange': acts('stops pressing once you close the conversation.'),
+  },
   alliance_reassurance: {
     'reassure them': says('they believe the alliance still has a reliable centre.'),
     'ask what changed': says(

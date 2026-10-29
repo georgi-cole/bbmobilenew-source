@@ -3,20 +3,23 @@ import path from 'node:path'
 
 import { closeDebugPanelIfOpen, expect, test, type Page } from './support/test'
 
-import { getPoolByFilter, type GameRegistryEntry } from '../../src/minigames/registry'
+import { getAllGames, type GameRegistryEntry } from '../../src/minigames/registry'
+import { isInMinigameCertificationScope } from '../../tests/helpers/minigameCertificationScope'
+import { minigameCertificationName } from './support/minigameLabels'
 import { assertNoHorizontalDocumentOverflow } from './support/layoutAssertions'
 
 const writeVisualAudit = process.env.VISUAL_AUDIT_WRITE === '1'
 const resumeVisualAudit = process.env.VISUAL_AUDIT_RESUME === '1'
 const visualAuditRoot = path.resolve(process.cwd(), 'docs/visual-audit/current')
 
-const ACTIVE_GAMES = getPoolByFilter({ retired: false })
+const ACTIVE_GAMES = getAllGames()
+  .filter(isInMinigameCertificationScope)
   .slice()
   .sort((left, right) => left.title.localeCompare(right.title) || left.key.localeCompare(right.key))
 
 async function openLab(page: Page, game: GameRegistryEntry): Promise<void> {
   await page.goto(
-    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1`
+    `./#/minigame-lab?game=${encodeURIComponent(game.key)}&seed=424242&players=4&skipRules=1&skipCountdown=1&freeze=1&showLab=1${game.vipOnly ? '&vipPreview=1' : ''}`
   )
   await closeDebugPanelIfOpen(page)
   await page.addStyleTag({
@@ -24,6 +27,9 @@ async function openLab(page: Page, game: GameRegistryEntry): Promise<void> {
       .minigame-lab__panel {
         visibility: hidden !important;
         pointer-events: none !important;
+      }
+      .dbg-fab {
+        display: none !important;
       }
     `,
   })
@@ -65,7 +71,9 @@ if (writeVisualAudit) {
   test.describe('Minigame visual audit @visual-audit', () => {
     test.describe.configure({ mode: 'parallel', timeout: 60_000 })
     for (const game of ACTIVE_GAMES) {
-      test(`${game.key} captures start and partial-result states`, async ({ page }, testInfo) => {
+      test(`${minigameCertificationName(game)} captures start and partial-result states`, async ({
+        page,
+      }, testInfo) => {
         test.setTimeout(60_000)
         if (resumeVisualAudit && (await hasCompleteGameCapture(testInfo.project.name, game.key))) {
           return
@@ -76,6 +84,29 @@ if (writeVisualAudit) {
           name: new RegExp(`${game.title} minigame`, 'i'),
         })
         await expect(hostDialog).toBeVisible()
+        if (game.key === 'crystal_path_shattered') {
+          await expect(hostDialog.locator('[aria-label="Crystal Path: Infinity"]')).toBeVisible({
+            timeout: 45_000,
+          })
+          const statusTileOverlaps = await hostDialog.evaluate((dialog) => {
+            const status = dialog.querySelector('.cps-status')?.getBoundingClientRect()
+            if (!status) return []
+            return Array.from(
+              dialog.querySelectorAll('.cps-row.is-current .cps-tile:not(:disabled)')
+            )
+              .map((tile) => {
+                const rect = tile.getBoundingClientRect()
+                return (
+                  status.left < rect.right &&
+                  status.right > rect.left &&
+                  status.top < rect.bottom &&
+                  status.bottom > rect.top
+                )
+              })
+              .filter(Boolean)
+          })
+          expect(statusTileOverlaps).toEqual([])
+        }
         await assertNoHorizontalDocumentOverflow(page)
         await writeScreenshot(page, testInfo.project.name, game.key, 'start')
 

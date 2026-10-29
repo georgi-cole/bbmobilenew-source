@@ -5,6 +5,7 @@ import {
   dismissPermissionPromptIfPresent,
   readAppState,
 } from '../support/test'
+import { openProfileCreationForm } from '../support/profile'
 import { CoverageLedger, objectivesForMode } from './coverage'
 import { SeasonAuditor } from './auditor'
 import { getModeAdapter } from './modeAdapters'
@@ -218,17 +219,13 @@ async function waitForHome(page: Page): Promise<void> {
 }
 
 async function createFreshProfile(page: Page, name: string): Promise<void> {
-  await page
-    .getByRole('navigation', { name: 'Main menu' })
-    .getByRole('button', { name: 'Profile', exact: true })
-    .click()
-  await page.getByRole('button', { name: 'Select or Create a Profile' }).click()
-  await page.getByRole('button', { name: /Create New Profile/ }).click()
-  await page.getByPlaceholder('Enter display name').fill(name)
+  await openProfileCreationForm(page)
+  await page.getByLabel('Display Name').fill(name)
   await page.getByLabel('Age').fill('28')
+  await page.getByLabel('Location', { exact: false }).first().fill('QA Test City')
   await page.getByLabel('Sex (Reality storylines)').selectOption('Male')
-  await page.getByRole('button', { name: 'Create Profile', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Save Profile', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible()
   const activeProfileId = (await readAppState(page)).profiles.activeProfileId
   if (activeProfileId) {
     await page.evaluate(

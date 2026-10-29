@@ -1,4 +1,6 @@
-import { type ReactNode, useState } from 'react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
+import type { HolidayThemeKey } from '../../utils/skinAssets'
+import HolidayButtonArtwork from './HolidayButtonArtwork'
 import './GameButton.css'
 
 export type GameButtonVariant =
@@ -16,6 +18,7 @@ interface GameButtonProps {
   variant: GameButtonVariant
   disabled?: boolean
   className?: string
+  holidayTheme?: HolidayThemeKey | null
   onClick?: () => void
 }
 
@@ -32,6 +35,7 @@ export default function GameButton({
   variant,
   disabled = false,
   className = '',
+  holidayTheme = null,
   onClick,
 }: GameButtonProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -49,10 +53,13 @@ export default function GameButton({
         : 'normal'
 
   const src = resolveAsset(variant, state)
+  const holidayClassName = holidayTheme ? ` game-btn--holiday-${holidayTheme}` : ''
+  const showHolidayArtwork = Boolean(holidayTheme && variant === 'primary_large')
 
   return (
     <button
-      className={`game-btn game-btn--${variant}${disabled ? ' game-btn--disabled' : ''}${badge ? ' game-btn--has-badge' : ''}${!disabled && isPressed ? ' game-btn--pressed' : ''}${className ? ` ${className}` : ''}`}
+      className={`game-btn game-btn--${variant}${holidayTheme ? ' game-btn--holiday' : ''}${holidayClassName}${disabled ? ' game-btn--disabled' : ''}${badge ? ' game-btn--has-badge' : ''}${!disabled && isPressed ? ' game-btn--pressed' : ''}${className ? ` ${className}` : ''}`}
+      style={{ '--button-mask': `url("${src}")` } as CSSProperties}
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
@@ -83,7 +90,9 @@ export default function GameButton({
         if (e.key === 'Enter' || e.key === ' ') setIsPressed(false)
       }}
     >
-      <img className="btn-bg" src={src} alt="" aria-hidden="true" draggable={false} />
+      {!showHolidayArtwork && (
+        <img className="btn-bg" src={src} alt="" aria-hidden="true" draggable={false} />
+      )}
       <div className="btn-content">
         {icon && (
           <span className="btn-icon" aria-hidden="true">
@@ -92,6 +101,7 @@ export default function GameButton({
         )}
         <span className="btn-label">{label}</span>
       </div>
+      {showHolidayArtwork && holidayTheme && <HolidayButtonArtwork theme={holidayTheme} />}
       {badge && (
         <span className="btn-badge" aria-hidden="true">
           {badge}

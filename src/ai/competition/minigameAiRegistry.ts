@@ -138,16 +138,6 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       'Season effects add strategic volatility to a 40-second tapping race. ' +
       'The specialist simulator owns the native score range; identity scaling does not clamp it.',
   },
-  laneRacers: {
-    key: 'laneRacers',
-    category: 'physical',
-    scoreDirection: 'higher-is-better',
-    volatility: VOLATILITY_PHYSICAL,
-    weights: WEIGHTS_PHYSICAL_TAP,
-    notes:
-      'Lane Racers shares the Quick Tap band-based simulator so session and ' +
-      'challenge AI scores stay aligned with the canvas race pacing.',
-  },
   memoryMatch: {
     key: 'memoryMatch',
     category: 'mental',
@@ -452,7 +442,7 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
     scoreDirection: 'higher-is-better',
     volatility: VOLATILITY_HYBRID,
     weights: WEIGHTS_HYBRID,
-    // Castle Rescue has a large raw scoring economy (rescue bonus + pickups),
+    // Find Your Twin has a large raw scoring economy (rescue bonus + pickups),
     // but realistic competitive finishes cluster well below the theoretical
     // perfect route. Keep AI competitive while avoiding impossible-looking
     // 2.5k+ finishes from the generic time-scaled fallback.
@@ -468,7 +458,7 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       { minScore: 1501, maxScore: 2000, weight: 5 / 150 },
     ],
     notes:
-      'Castle Rescue — AI score bands normalized from the requested 25/25/40/25/20/10/5 ' +
+      'Find Your Twin — AI score bands normalized from the requested 25/25/40/25/20/10/5 ' +
       'ratio across 0–500, 501–600, 601–800, 801–1000, 1001–1200, 1201–1500, and 1501–2000.',
   },
   castleRescue2: {
@@ -713,6 +703,21 @@ export const minigameAiRegistry: Record<string, MinigameAiModel> = {
       luck: 0.05,
     },
     notes:
-      'House of Darkness rewards memory, precision, and composure while preserving a small amount of board variance.',
+      'Deck of Darkness rewards memory and risk management across rising boards, changing omens, charms, and survival pressure.',
+  },
+  gatesOfTheEye: {
+    key: 'gatesOfTheEye',
+    category: 'luck',
+    scoreDirection: 'higher-is-better',
+    volatility: VOLATILITY_LUCK,
+    weights: {
+      physical: 0,
+      mental: 0.3,
+      precision: 0.05,
+      nerve: 0.3,
+      luck: 0.35,
+    },
+    notes:
+      'Bigg Gates gives its rivals contrasting styles: a cautious guardian protects lives and streaks, an analyst weighs expected score and standings, and an opportunist takes higher-variance comeback lines. They share each round profile and collapse draw, and each explores alternatives so no policy is perfect.',
   },
 }

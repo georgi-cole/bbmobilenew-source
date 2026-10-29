@@ -1,7 +1,7 @@
 /**
  * castleRescueReducer.ts
  *
- * Plain (non-Redux) reducer for Castle Rescue RunState.
+ * Plain (non-Redux) reducer for Find Your Twin RunState.
  * Designed to be used with React's useReducer:
  *
  *   const [state, dispatch] = useReducer(castleRescueReducer, createInitialRunState());

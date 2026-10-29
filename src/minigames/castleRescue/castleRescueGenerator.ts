@@ -1,7 +1,7 @@
 /**
  * castleRescueGenerator.ts
  *
- * Deterministic level-configuration generator for the Castle Rescue platformer.
+ * Deterministic level-configuration generator for the Find Your Twin platformer.
  *
  * The castle level has PIPE_SLOT_COUNT (6) fixed pipe positions.  Each run the
  * seed is used to decide which 3 of those slots are the "correct" route pipes
@@ -36,7 +36,7 @@ import { PIPE_SLOT_COUNT, CORRECT_ROUTE_LENGTH } from './castleRescueConstants';
 export type WrongPipeType = 'setback' | 'bonus' | 'ambush' | 'dead';
 
 /**
- * Seed-derived configuration for one Castle Rescue run.
+ * Seed-derived configuration for one Find Your Twin run.
  *
  * correctPipeSlots[0] is the first pipe the player must enter,
  * correctPipeSlots[1] is the second, correctPipeSlots[2] is the third.

@@ -97,6 +97,7 @@ export interface AudioEventCue {
 
 export interface MusicContextPolicy {
   introHub: MusicSelection
+  dressingRoom: MusicSelection
   weekend1: MusicSelection
   weekend2: MusicSelection
   weekend3: MusicSelection
@@ -202,6 +203,7 @@ export const BUILT_IN_MUSIC_CUE_IDS = {
   publicVoting: 'finale:public-voting',
   finalModal: 'finale:final-modal',
   introHub: 'route:intro-hub',
+  dressingRoom: 'route:dressing-room',
   weekend1: 'weekend:1',
   weekend2: 'weekend:2',
   weekend3: 'weekend:3',
@@ -355,6 +357,14 @@ export const DEFAULT_MUSIC_CUES: Readonly<Record<string, MusicCueDefinition>> = 
     fadeOutMs: 600,
     crossfadeMs: 600,
   },
+  [BUILT_IN_MUSIC_CUE_IDS.dressingRoom]: {
+    ...createDefaultMusicCue('dressing_room'),
+    id: BUILT_IN_MUSIC_CUE_IDS.dressingRoom,
+    displayName: 'Move Into Me — Dressing Room',
+    fadeInMs: 600,
+    fadeOutMs: 650,
+    crossfadeMs: 600,
+  },
 }
 
 /**
@@ -420,6 +430,7 @@ export const CHALLENGE_GROUP_1_GAME_KEYS = [
   'castleRescue',
   'batteryLow',
   'holdWall',
+  'percentagePanic',
 ] as const
 
 export const DEFAULT_MINIGAME_MUSIC_PROFILES: readonly MinigameMusicProfile[] = [
@@ -459,7 +470,7 @@ export const DEFAULT_MINIGAME_MUSIC_PROFILES: readonly MinigameMusicProfile[] = 
   {
     id: 'minigame.quick-tap-family',
     modes: ['any'],
-    gameKeys: ['quickTap', 'laneRacers', 'memoryMatch'],
+    gameKeys: ['quickTap', 'memoryMatch'],
     stages: { playing: musicTrack('quick_tap') },
     defaultSelection: INHERIT_MUSIC,
   },
@@ -524,6 +535,7 @@ export const DEFAULT_MUSIC_CONFIG: MusicConfigDocument = {
   eventSounds: DEFAULT_EVENT_SOUND_POLICY,
   contextMusic: {
     introHub: musicTrack('introhub', BUILT_IN_MUSIC_CUE_IDS.introHub),
+    dressingRoom: musicTrack('dressing_room', BUILT_IN_MUSIC_CUE_IDS.dressingRoom),
     weekend1: musicTrack('weekend_1', BUILT_IN_MUSIC_CUE_IDS.weekend1),
     weekend2: musicTrack('weekend_2', BUILT_IN_MUSIC_CUE_IDS.weekend2),
     weekend3: musicTrack('weekend_3', BUILT_IN_MUSIC_CUE_IDS.weekend3),
@@ -797,6 +809,7 @@ const INTRO_HUB_ROUTE_PATHS = new Set([
   '/rules',
   '/vox-populi-rules',
   '/profile',
+  '/profile/dressing-room',
   '/profile-edit',
   '/profile-picker',
   '/leaderboard',
@@ -804,6 +817,12 @@ const INTRO_HUB_ROUTE_PATHS = new Set([
   '/store',
   '/legal',
   '/public-meter',
+])
+
+const PROFILE_EXPERIENCE_ROUTE_PATHS = new Set([
+  '/profile',
+  '/profile/dressing-room',
+  '/profile-edit',
 ])
 
 // These screens are utilities layered over an active season, not a return to
@@ -897,6 +916,15 @@ export function resolveMusicCue(
     'scene'
   )
   if (sceneCue) return sceneCue
+
+  if (PROFILE_EXPERIENCE_ROUTE_PATHS.has(routePath(context.routeHash))) {
+    const dressingRoomCue = resolveSelection(
+      config.contextMusic.dressingRoom,
+      'context.dressing-room',
+      'route'
+    )
+    if (dressingRoomCue) return dressingRoomCue
+  }
 
   if (context.finalePhase === 'seasonComplete') {
     const finaleCue = resolveSelection(

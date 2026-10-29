@@ -2285,7 +2285,7 @@ export default function CastleRescueGame({
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillText(
-          variant === 'benny-lenny' ? '🏰 Find Your Twin 2: Lost Again' : '🏰 Castle Rescue',
+          variant === 'benny-lenny' ? '🏰 Find Your Twin 2: Lost Again' : '🏰 Find Your Twin',
           CW / 2,
           CH / 2 - 40
         )

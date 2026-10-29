@@ -3,8 +3,10 @@ import {
   executeAllianceManagementCommand,
 } from '../../social/allianceManagementActions'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useStore } from 'react-redux'
 import { useNavigate } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import type { RootState } from '../../store/store'
 import {
   clearSessionLogs,
   closeSocialPanel,
@@ -32,9 +34,15 @@ import GameBackButton from '../ui/GameBackButton/GameBackButton'
 import PlayerList from './PlayerList'
 import RecentActivity from './RecentActivity'
 import HousePulse from '../HousePulse/HousePulse'
+import { resolveWeatherDay } from '../../weather/weatherEngine'
 import RealityLedger from '../RealityLedger/RealityLedger'
 import AllianceRead from './AllianceRead'
-import { isFormerAllianceMember } from '../../social/reality/allianceHistory'
+import {
+  allianceEventText,
+  canReadAllianceEvent,
+  isFormerAllianceMember,
+} from '../../social/reality/allianceHistory'
+import { formatPlayerFacingPhase } from '../../social/reality/presentation'
 import PlayerAvatar from '../PlayerAvatar/PlayerAvatar'
 import type { Player } from '../../types'
 import { resolveActionTargetMode } from '../../social/socialActions'
@@ -45,6 +53,7 @@ import { validateSocialExecution } from '../../social/socialExecutionGuard'
 import { getSocialActionPresentation } from '../../social/socialRuntimeConfig'
 import { executeHumanRealityAction } from '../../social/reality/humanFlow'
 import { getCupidPartnerId, isCupidArrowActive } from '../../features/twists/cupidArrow'
+import { getPulseChronicleTheme } from '../../social/pulseChronicleTheme'
 import {
   ALLIANCE_LIMITS,
   allianceDisplayLabel,
@@ -209,6 +218,7 @@ function getSubjectCandidates(
 
 export default function SocialPanelV2() {
   const dispatch = useAppDispatch()
+  const appStore = useStore<RootState>()
   const navigate = useNavigate()
   const socialPanelOpenForUpdates = useAppSelector(selectSocialPanelOpen)
   const comparePanelState = useCallback(
@@ -259,6 +269,11 @@ export default function SocialPanelV2() {
   )
 
   const humanPlayer = game.players.find((player) => player.isUser)
+  const pulseWeather = useMemo(
+    () => resolveWeatherDay(game.gameId, game.week).condition,
+    [game.gameId, game.week]
+  )
+  const pulseTheme = useMemo(() => getPulseChronicleTheme(game, game.week), [game])
   const weekendActive = game.weekendInterlude?.active === true
   const finaleReunionSocialOpen =
     weekendActive &&
@@ -373,17 +388,23 @@ export default function SocialPanelV2() {
   const [selectedAllianceHistoryEventId, setSelectedAllianceHistoryEventId] = useState<
     string | null
   >(null)
+  const [selectedPactHistoryEventId, setSelectedPactHistoryEventId] = useState<string | null>(null)
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null)
+  const [activeReceiptId, setActiveReceiptId] = useState<string | null>(null)
   const [pregnancyCelebration, setPregnancyCelebration] = useState(false)
   const [successPulse, setSuccessPulse] = useState(false)
   const [relationshipPulseDeltas, setRelationshipPulseDeltas] = useState<
     ReadonlyMap<string, number>
   >(new Map())
   const [moveFilter, setMoveFilter] = useState<(typeof MOVE_FILTERS)[number]['id']>('all')
-  const selectedAlliance = selectedAllianceId
+  const selectedAllianceRecord = selectedAllianceId
     ? socialState.reality.alliances[selectedAllianceId]
     : undefined
+  const selectedAlliance =
+    selectedAllianceRecord && allianceKind(selectedAllianceRecord) === 'GROUP'
+      ? selectedAllianceRecord
+      : undefined
   const activeGroups = useMemo(
     () =>
       Object.values(socialState.reality.alliances).filter(
@@ -432,8 +453,6 @@ export default function SocialPanelV2() {
             (alliance) =>
               !alliance.memberIds.includes(primaryTargetId) &&
               alliance.memberIds.length < ALLIANCE_LIMITS.groupMembers &&
-              currentAllianceCounts(socialState.reality, primaryTargetId).groups <
-                ALLIANCE_LIMITS.groupsPerMember &&
               !Object.values(socialState.reality.allianceManagement.requests).some(
                 (request) =>
                   request.kind === 'ADMIT' &&
@@ -453,7 +472,6 @@ export default function SocialPanelV2() {
     return () =>
       window.removeEventListener('reality-social-tutorial:open-alliances', openAllianceActions)
   }, [])
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [executing, setExecuting] = useState(false)
   const [pregnancyRolePromptOpen, setPregnancyRolePromptOpen] = useState(false)
   const [socialTutorialVariant, setSocialTutorialVariant] = useState<SocialTutorialVariant | null>(
@@ -525,6 +543,7 @@ export default function SocialPanelV2() {
   const allianceSelectionPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const executeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isExecutingRef = useRef(false)
+  const socialBodyRef = useRef<HTMLDivElement | null>(null)
   const focusPublicRequest = useCallback(() => {
     if (!publicFocus) return
     setPrimaryTargetId(publicFocus.primaryTargetId)
@@ -558,15 +577,22 @@ export default function SocialPanelV2() {
     setSelectedActionId(null)
     setSelectedSubjectId(null)
     setFeedbackMsg(null)
+    setActiveReceiptId(null)
     setMultiSelectActive(false)
     setSelectedAllianceId(null)
     setSelectedAllianceHistoryEventId(null)
+    setSelectedPactHistoryEventId(null)
     setAllianceSelectionPulse(false)
     if (allianceSelectionPulseTimerRef.current !== null) {
       clearTimeout(allianceSelectionPulseTimerRef.current)
       allianceSelectionPulseTimerRef.current = null
     }
   }
+
+  const clearCurrentOutcome = useCallback(() => {
+    setFeedbackMsg(null)
+    setActiveReceiptId(null)
+  }, [])
 
   function selectAlliance(id: string | null) {
     setAllianceSelectionPulse(false)
@@ -576,6 +602,7 @@ export default function SocialPanelV2() {
     }
     setSelectedAllianceId(id)
     setSelectedAllianceHistoryEventId(null)
+    setSelectedPactHistoryEventId(null)
     if (
       selectedActionId !== 'consult_alliance' &&
       !selectedActionId?.startsWith('alliance:invite:')
@@ -586,7 +613,7 @@ export default function SocialPanelV2() {
     setSelectedSubjectId(null)
     setAllianceNameDraft('')
     setMultiSelectActive(false)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
   }
 
   const allianceQuickActions = useMemo<AllianceQuickAction[]>(() => {
@@ -991,15 +1018,13 @@ export default function SocialPanelV2() {
       selectedAllianceConsultationTargets[0] ??
       null)
     : (consultationTargetCandidates[0] ?? null)
-  const eligibleConsultationAlliances = useMemo(
-    () =>
-      selectedConsultationMemberId
-        ? consultationAlliances.filter((alliance) =>
-            alliance.memberIds.includes(selectedConsultationMemberId)
-          )
-        : [],
-    [consultationAlliances, selectedConsultationMemberId]
-  )
+  const eligibleConsultationAlliances = useMemo(() => {
+    if (selectedAlliance && !isCurrentAlliance(selectedAlliance)) return []
+    if (!selectedConsultationMemberId) return consultationAlliances
+    return consultationAlliances.filter((alliance) =>
+      alliance.memberIds.includes(selectedConsultationMemberId)
+    )
+  }, [consultationAlliances, selectedAlliance, selectedConsultationMemberId])
   const displayedGroups = isAllianceInvitation
     ? invitationGroups
     : isAllianceConsultation
@@ -1025,6 +1050,23 @@ export default function SocialPanelV2() {
             )
         )
     : null
+  const consultationEligibilityTargetId =
+    (selectedConsultationMemberId &&
+    eligibleConsultationAlliances.some((alliance) =>
+      alliance.memberIds.includes(selectedConsultationMemberId)
+    )
+      ? selectedConsultationMemberId
+      : null) ??
+    (selectedConsultationAlliance ? consultationRepresentativeId : null) ??
+    eligibleConsultationAlliances[0]?.memberIds.find(
+      (memberId) =>
+        memberId !== humanPlayer?.id &&
+        game.players.some(
+          (player) =>
+            player.id === memberId && player.status !== 'evicted' && player.status !== 'jury'
+        )
+    ) ??
+    null
   const usesMultipleTargets = targetMode === 'multi' || (multiSelectActive && isBatchCompatible)
   // A social visit always starts with the roster unselected. Contextual calls
   // can highlight an action, but never choose a housemate on the player's behalf.
@@ -1064,7 +1106,8 @@ export default function SocialPanelV2() {
             effectivePrimaryTargetId ?? humanPlayer?.id ?? '',
             undefined,
             isAllianceConsultation ? 1 : selectedTargetCount,
-            dramaMode
+            dramaMode,
+            selectedSubjectId ?? undefined
           )
       : null
     if (!baseCosts) return null
@@ -1096,6 +1139,7 @@ export default function SocialPanelV2() {
     targetCount,
     isAllianceConsultation,
     usesMultipleTargets,
+    selectedSubjectId,
   ])
 
   const energy = weekendActive
@@ -1336,7 +1380,7 @@ export default function SocialPanelV2() {
         setSelectedSubjectId(null)
         setAllianceNameDraft('')
         setMultiSelectActive(false)
-        setFeedbackMsg(null)
+        clearCurrentOutcome()
         return
       }
 
@@ -1394,7 +1438,7 @@ export default function SocialPanelV2() {
       setSelectedActionId(actionId)
       setAllianceNameDraft(nextAllianceAction?.namePrompt?.initialValue ?? '')
       setSelectedSubjectId(null)
-      setFeedbackMsg(null)
+      clearCurrentOutcome()
     },
     [
       allianceQuickActions,
@@ -1404,6 +1448,7 @@ export default function SocialPanelV2() {
       selectedActionId,
       selectedAllianceId,
       eligibleConsultationAlliances,
+      clearCurrentOutcome,
     ]
   )
 
@@ -1417,8 +1462,9 @@ export default function SocialPanelV2() {
         setPrimaryTargetId(selectedReunionGuest)
         setSelectedActionId(null)
         setSelectedSubjectId(null)
+        setSelectedPactHistoryEventId(null)
         setMultiSelectActive(false)
-        setFeedbackMsg(null)
+        clearCurrentOutcome()
         return
       }
 
@@ -1431,7 +1477,8 @@ export default function SocialPanelV2() {
         setPrimaryTargetId(nextPrimaryTargetId)
       }
       setSelectedSubjectId(null)
-      setFeedbackMsg(null)
+      setSelectedPactHistoryEventId(null)
+      clearCurrentOutcome()
 
       if (
         ids.size === 0 &&
@@ -1459,12 +1506,14 @@ export default function SocialPanelV2() {
       reunionGuestIds,
       selectedAction,
       usesMultipleTargets,
+      clearCurrentOutcome,
     ]
   )
 
   const finishInitialAllianceNaming = useCallback(
     (keepSuggestedName: boolean) => {
       if (!pendingAllianceNaming || !humanPlayer) return
+      clearCurrentOutcome()
       const result = keepSuggestedName
         ? dispatch(
             executeAllianceManagementCommand({
@@ -1487,7 +1536,7 @@ export default function SocialPanelV2() {
       setMoveFilter('alliances')
       setInitialAllianceNameDraftState({ allianceId: null, value: '' })
     },
-    [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming]
+    [dispatch, humanPlayer, initialAllianceNameDraft, pendingAllianceNaming, clearCurrentOutcome]
   )
 
   const handleExecute = useCallback(() => {
@@ -1495,6 +1544,7 @@ export default function SocialPanelV2() {
       selectedReunionGuestId &&
       REUNION_ACTION_IDS.includes(selectedActionId as (typeof REUNION_ACTION_IDS)[number])
     ) {
+      clearCurrentOutcome()
       const targetName =
         game.players.find((player) => player.id === selectedReunionGuestId)?.name ??
         'Your former Hubmate'
@@ -1523,13 +1573,13 @@ export default function SocialPanelV2() {
       game.pregnancyStory?.humanRoleChoice === undefined
     ) {
       setPregnancyRolePromptOpen(true)
-      setFeedbackMsg(null)
+      clearCurrentOutcome()
       return
     }
 
     isExecutingRef.current = true
     setExecuting(true)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
     setPregnancyCelebration(false)
 
     const targetIds =
@@ -1567,6 +1617,9 @@ export default function SocialPanelV2() {
         return
       }
       if (selectedAllianceAction) {
+        const previousLogIds = new Set(
+          appStore.getState().social.sessionLogs.map((entry) => entry.id)
+        )
         const managed = dispatch(
           executeAllianceManagementCommand(
             selectedAllianceAction.buildCommand(targetIds),
@@ -1574,6 +1627,15 @@ export default function SocialPanelV2() {
           )
         )
         setFeedbackMsg(managed.receiptRecorded ? '' : managed.reason)
+        const newReceipt = appStore
+          .getState()
+          .social.sessionLogs.filter(
+            (entry) => entry.id && !previousLogIds.has(entry.id) && entry.source === 'manual'
+          )
+          .at(-1)
+        setActiveReceiptId(
+          managed.receiptRecorded ? (newReceipt?.receipt?.groupId ?? newReceipt?.id ?? null) : null
+        )
         if (managed.status !== 'REJECTED') {
           setSelectedActionId(null)
           setAllianceNameDraft('')
@@ -1635,6 +1697,9 @@ export default function SocialPanelV2() {
               consultationAllianceId: selectedConsultationAlliance?.id,
             }
           : {}
+      const previousLogIds = new Set(
+        appStore.getState().social.sessionLogs.map((entry) => entry.id)
+      )
       const results: ExecuteActionResult[] =
         targetMode === 'multi'
           ? [
@@ -1696,6 +1761,13 @@ export default function SocialPanelV2() {
       // An empty string keeps the saved result visible even if spending the
       // last resource makes the selected action unavailable for another try.
       setFeedbackMsg(firstResult.receiptRecorded ? '' : firstResult.summary)
+      const newReceipt = appStore
+        .getState()
+        .social.sessionLogs.filter((entry) => entry.id && !previousLogIds.has(entry.id))
+        .at(-1)
+      setActiveReceiptId(
+        firstResult.receiptId ?? newReceipt?.receipt?.groupId ?? newReceipt?.id ?? null
+      )
 
       if (successfulResults.length > 0) {
         const targetNames = targetIds.map(
@@ -1710,6 +1782,8 @@ export default function SocialPanelV2() {
           selectedActionId === 'group_chat'
             ? `You hosted a group chat with ${formatPlayerNames(targetNames)}.`
             : selectedActionId === 'ask_loh_target' ||
+                selectedActionId === 'ask_nomination_advice' ||
+                selectedActionId === 'ask_player_opinion' ||
                 selectedActionId === 'share_pregnancy_news' ||
                 selectedActionId === 'pregnancy_test_self' ||
                 selectedActionId === 'paternity_test_self'
@@ -1769,6 +1843,8 @@ export default function SocialPanelV2() {
     }
   }, [
     dispatch,
+    appStore,
+    clearCurrentOutcome,
     effectivePrimaryTargetId,
     energy,
     executionEligibility,
@@ -1789,6 +1865,42 @@ export default function SocialPanelV2() {
     targetMode,
     totalCosts,
     usesMultipleTargets,
+  ])
+
+  const hasSocialHumanPlayer = Boolean(humanPlayer)
+  useEffect(() => {
+    const body = socialBodyRef.current
+    const focus = body?.querySelector<HTMLElement>('.sp2-focus--active')
+    if (!body) return
+
+    if (!focus || !body.classList.contains('sp2-body--focused-target')) {
+      body.style.removeProperty('--sp2-focused-row-offset')
+      return
+    }
+
+    const measureStickyOffset = () =>
+      body.style.setProperty(
+        '--sp2-focused-row-offset',
+        `${Math.max(0, focus.getBoundingClientRect().height - 4)}px`
+      )
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measureStickyOffset)
+    resizeObserver?.observe(focus)
+    measureStickyOffset()
+
+    return () => {
+      resizeObserver?.disconnect()
+      body.style.removeProperty('--sp2-focused-row-offset')
+    }
+  }, [
+    open,
+    hasSocialHumanPlayer,
+    primaryTargetId,
+    selectedTargets.size,
+    multiSelectActive,
+    selectedAllianceId,
+    selectedActionId,
   ])
 
   if (!open || !humanPlayer) return null
@@ -1844,6 +1956,8 @@ export default function SocialPanelV2() {
   const focusedPlayer = focusedTargetId
     ? (rosterPlayers.find((player) => player.id === focusedTargetId) ?? null)
     : null
+  const collapseRosterForFocusedPlayer =
+    Boolean(focusedPlayer) && !usesMultipleTargets && !showAlliancePicker && !selectedAlliance
   const selectedReunionGuest = selectedReunionGuestId
     ? (rosterPlayers.find((player) => player.id === selectedReunionGuestId) ?? null)
     : null
@@ -1891,7 +2005,8 @@ export default function SocialPanelV2() {
       ? getRealityRelationshipLabel(
           focusedRealityEdge,
           focusedCanonical?.alliance?.operational,
-          game.week
+          game.week,
+          focusedCanonical?.isNemesis
         )
       : focusedAffinity === undefined
         ? null
@@ -1921,6 +2036,18 @@ export default function SocialPanelV2() {
           : (alliance.name ?? 'Alliance group')
       )
     : []
+  const selectedPactHistoryEvent = selectedPactHistoryEventId
+    ? socialState.reality.events.find((event) => event.id === selectedPactHistoryEventId)
+    : undefined
+  const canShowSelectedPactEvent = Boolean(
+    selectedPactHistoryEvent &&
+    canReadAllianceEvent(selectedPactHistoryEvent, humanPlayer.id) &&
+    (selectedPactHistoryEvent.allianceSnapshot?.kind === 'PACT' ||
+      (selectedPactHistoryEvent.allianceId &&
+        socialState.reality.alliances[selectedPactHistoryEvent.allianceId] &&
+        allianceKind(socialState.reality.alliances[selectedPactHistoryEvent.allianceId]) ===
+          'PACT'))
+  )
 
   const hasSeenAllianceGuide = hasSeenContextualGuide('alliance', activeProfileId, isGuest)
   const hasSeenAllianceConsultGuide = hasSeenContextualGuide(
@@ -1935,6 +2062,9 @@ export default function SocialPanelV2() {
   }
 
   const executeCopy = selectedAllianceAction?.executeLabel ?? 'Execute'
+  const footerFeedback =
+    feedbackMsg ??
+    (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
   const showSocialTutorialPrompt =
     socialTutorialVariant !== null && socialPanelOpen && !socialTutorialTourOpen
   const showSocialTutorialTour =
@@ -1968,7 +2098,7 @@ export default function SocialPanelV2() {
     setSelectedTargets(new Set([sample.id]))
     setSelectedActionId(null)
     setSelectedSubjectId(null)
-    setFeedbackMsg(null)
+    clearCurrentOutcome()
   }
 
   const completeSocialTutorial = () => {
@@ -1996,11 +2126,7 @@ export default function SocialPanelV2() {
             <span className="sp2-header__title">
               {weekendActive ? 'Weekend Social' : dramaMode ? 'Reality Mode' : 'Social Phase'}
             </span>
-            <span className="sp2-header__subtitle">
-              {weekendActive
-                ? `Weekend Day ${game.weekendInterlude?.weekendDay ?? 1} of 2 · make the most of the Hub time`
-                : 'Hub relationships'}
-            </span>
+            {!weekendActive && <span className="sp2-header__subtitle">Hub relationships</span>}
           </span>
           <div
             className={`sp2-header__resources${dramaMode ? '' : ' sp2-header__resources--normal'}${weekendActive ? ' sp2-header__resources--weekend' : ''}`}
@@ -2073,6 +2199,13 @@ export default function SocialPanelV2() {
               relationships={relationships ?? {}}
               weekStartRelSnapshot={weekStartRelSnapshot}
               currentWeek={game.week}
+              season={game.season}
+              gameId={game.gameId}
+              gamePhase={game.phase}
+              pulseChronicles={game.pulseChronicles}
+              weekendInterlude={game.weekendInterlude}
+              weatherCondition={pulseWeather}
+              pulseTheme={pulseTheme}
               reality={socialState.reality}
               socialCommitments={socialCommitments}
               pendingActionCount={pendingAllianceDecisionCount}
@@ -2081,7 +2214,41 @@ export default function SocialPanelV2() {
                 dispatch(openIncomingInbox())
               }}
               onOpenAlliances={(allianceId, eventId) => {
+                const linkedAlliance = allianceId
+                  ? socialState.reality.alliances[allianceId]
+                  : undefined
+                const linkedEvent = eventId
+                  ? socialState.reality.events.find((event) => event.id === eventId)
+                  : undefined
+                const isPactLink = Boolean(
+                  linkedAlliance
+                    ? allianceKind(linkedAlliance) === 'PACT'
+                    : linkedEvent?.allianceSnapshot?.kind === 'PACT'
+                )
+                clearCurrentOutcome()
                 setMoveFilter('alliances')
+                if (isPactLink) {
+                  const counterpartId =
+                    linkedAlliance?.memberIds.find((id) => id !== humanPlayer.id) ??
+                    linkedEvent?.participantIds.find((id) => id !== humanPlayer.id)
+                  setSelectedAllianceId(null)
+                  setSelectedAllianceHistoryEventId(null)
+                  setSelectedPactHistoryEventId(eventId ?? null)
+                  if (counterpartId) {
+                    setPrimaryTargetId(counterpartId)
+                    setSelectedTargets(new Set([counterpartId]))
+                  }
+                  setSelectedActionId(null)
+                  setSelectedSubjectId(null)
+                  setMultiSelectActive(false)
+                  requestAnimationFrame(() => {
+                    document
+                      .querySelector('.sp2-focus__full-read')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  })
+                  return
+                }
+                setSelectedPactHistoryEventId(null)
                 selectAlliance(allianceId ?? null)
                 setSelectedAllianceHistoryEventId(eventId ?? null)
                 setSelectedActionId(null)
@@ -2095,11 +2262,16 @@ export default function SocialPanelV2() {
           )}
         </div>
 
-        <div id="sp2-body" className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}`}>
+        <div
+          id="sp2-body"
+          ref={socialBodyRef}
+          className={`sp2-body${selectedAlliance ? ' sp2-body--alliance' : ''}${collapseRosterForFocusedPlayer ? ' sp2-body--focused-target' : ''}`}
+        >
           <section
             className="sp2-hubmates"
             aria-label={showPlayerRoster ? 'Player roster' : 'Choose an alliance'}
             data-reality-tutorial="hubmates"
+            hidden={collapseRosterForFocusedPlayer}
           >
             <div className="sp2-section-heading">
               <span>
@@ -2254,7 +2426,8 @@ export default function SocialPanelV2() {
                 setPrimaryTargetId(id)
                 setSelectedTargets(new Set([id]))
                 setSelectedActionId(null)
-                setFeedbackMsg(null)
+                setSelectedPactHistoryEventId(null)
+                clearCurrentOutcome()
               }}
             />
           ) : (
@@ -2264,6 +2437,15 @@ export default function SocialPanelV2() {
             >
               {focusedPlayer ? (
                 <>
+                  <button
+                    className="sp2-focus__clear"
+                    type="button"
+                    aria-label={`Deselect ${focusedPlayer.name} and show roster`}
+                    title="Deselect hubmate"
+                    onClick={() => handleSelectionChange(new Set(), { primaryTargetId: null })}
+                  >
+                    ×
+                  </button>
                   <div className="sp2-focus__portrait">
                     <PlayerAvatar
                       player={focusedPlayer}
@@ -2273,7 +2455,7 @@ export default function SocialPanelV2() {
                       relationshipTags={focusedTags}
                     />
                   </div>
-                  <div className="sp2-focus__copy">
+                  <div className="sp2-focus__copy sp2-focus__copy--clearable">
                     <span className="sp2-focus__eyebrow">Your read on</span>
                     <h2>{focusedPlayer.name}</h2>
                     <div className="sp2-focus__status-line">
@@ -2317,8 +2499,27 @@ export default function SocialPanelV2() {
                       </div>
                     )}
                     {dramaMode && focusedPlayer && (
-                      <details className="sp2-focus__full-read">
+                      <details
+                        className="sp2-focus__full-read"
+                        open={Boolean(selectedPactHistoryEventId)}
+                      >
                         <summary>Open full relationship read</summary>
+                        {canShowSelectedPactEvent && selectedPactHistoryEvent && (
+                          <div className="sp2-pact-history-event" role="status">
+                            <small>
+                              Day {selectedPactHistoryEvent.day} ·{' '}
+                              {formatPlayerFacingPhase(selectedPactHistoryEvent.phase)}
+                            </small>
+                            <span>
+                              {allianceEventText(
+                                socialState.reality,
+                                selectedPactHistoryEvent,
+                                humanPlayer.id,
+                                (id) => game.players.find((player) => player.id === id)?.name ?? id
+                              )}
+                            </span>
+                          </div>
+                        )}
                         <RealityLedger
                           reality={socialState.reality}
                           players={game.players}
@@ -2386,6 +2587,7 @@ export default function SocialPanelV2() {
                         filter.id === 'alliances' ? 'alliance-actions' : undefined
                       }
                       onClick={() => {
+                        clearCurrentOutcome()
                         setMoveFilter(filter.id)
                         if (filter.id !== 'alliances') {
                           setSelectedAllianceId(null)
@@ -2417,8 +2619,8 @@ export default function SocialPanelV2() {
               onPremiumLockedClick={handleRealityUpgrade}
               selectedTargetIds={selectedPlayerIds}
               consultationTargetIds={
-                eligibleConsultationAlliances.length > 0 && selectedConsultationMemberId
-                  ? new Set([selectedConsultationMemberId])
+                eligibleConsultationAlliances.length > 0 && consultationEligibilityTargetId
+                  ? new Set([consultationEligibilityTargetId])
                   : new Set()
               }
               players={orderedPlayers}
@@ -2458,13 +2660,52 @@ export default function SocialPanelV2() {
                             moveFilter === 'alliances' ||
                             entry.action.id.startsWith('alliance:invite:')
                         )
-                        .map(({ action, allowWithoutTarget, buildCommand }) => ({
-                          action,
-                          allowWithoutTarget,
-                          costs:
-                            allianceProposalPrice(buildCommand([...selectedTargets])) ??
-                            normalizeActionCosts(action, selectedTargetCount, dramaMode),
-                        }))
+                        .map(({ action, allowWithoutTarget, buildCommand }) => {
+                          const command = buildCommand([...selectedTargets])
+                          const costs =
+                            allianceProposalPrice(command) ??
+                            normalizeActionCosts(action, selectedTargetCount, dramaMode)
+                          if (command.type !== 'PROPOSE' || command.kind !== 'FOUND') {
+                            return { action, allowWithoutTarget, costs }
+                          }
+
+                          const proposedRoster = [...new Set(command.memberIds ?? [])].sort()
+                          const rosterKey = proposedRoster.join('~')
+                          const existingGroups = Object.values(
+                            socialState.reality.alliances
+                          ).filter(
+                            (alliance) =>
+                              isCurrentAlliance(alliance) && allianceKind(alliance) === 'GROUP'
+                          )
+                          const exactMatch = existingGroups.find(
+                            (alliance) => [...alliance.memberIds].sort().join('~') === rosterKey
+                          )
+                          if (exactMatch) {
+                            return {
+                              action,
+                              allowWithoutTarget,
+                              costs,
+                              disabled: true,
+                              availabilityReason: `An alliance with these hubmates already exists: ${exactMatch.name ?? 'the existing alliance'}.`,
+                            }
+                          }
+
+                          const nestedMatch = existingGroups.find(
+                            (alliance) =>
+                              alliance.memberIds.length < proposedRoster.length &&
+                              alliance.memberIds.every((id) => proposedRoster.includes(id))
+                          )
+                          return {
+                            action,
+                            allowWithoutTarget,
+                            costs,
+                            ...(nestedMatch
+                              ? {
+                                  availabilityReason: `You already have ${nestedMatch.name ?? 'an alliance'} with some of this group. You can invite the additional hubmate into it, or form this separate alliance.`,
+                                }
+                              : {}),
+                          }
+                        })
                     : undefined
               }
             />
@@ -2486,43 +2727,46 @@ export default function SocialPanelV2() {
                 <span id="sp2-alliance-name-hint">{selectedAllianceAction.namePrompt.hint}</span>
               </div>
             )}
-          </section>
-        </div>
-
-        {needsSubject && effectivePrimaryTargetId && (
-          <div className="sp2-subject-picker" aria-label="Choose subject">
-            <span className="sp2-subject-picker__label">Talking about:</span>
-            {subjectCandidates.length === 0 ? (
-              <span className="sp2-subject-picker__empty">No eligible targets</span>
-            ) : (
-              <div
-                className="sp2-subject-picker__chips"
-                role="group"
-                aria-label="Subject candidates"
-              >
-                {subjectCandidates.map((candidate) => (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    className={`sp2-subject-chip${
-                      selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
-                    }`}
-                    aria-pressed={selectedSubjectId === candidate.id}
-                    onClick={() => {
-                      setSelectedSubjectId((previous) =>
-                        previous === candidate.id ? null : candidate.id
-                      )
-                      setFeedbackMsg(null)
-                    }}
+            {needsSubject && effectivePrimaryTargetId && (
+              <div className="sp2-subject-picker" aria-label="Choose subject">
+                <span className="sp2-subject-picker__label">Talking about:</span>
+                {subjectCandidates.length === 0 ? (
+                  <span className="sp2-subject-picker__empty">No eligible targets</span>
+                ) : (
+                  <div
+                    className="sp2-subject-picker__chips"
+                    role="group"
+                    aria-label="Subject candidates"
                   >
-                    <PlayerAvatar player={candidate} size="sm" showRelationshipOutline={false} />
-                    <span className="sp2-subject-chip__name">{candidate.name}</span>
-                  </button>
-                ))}
+                    {subjectCandidates.map((candidate) => (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={`sp2-subject-chip${
+                          selectedSubjectId === candidate.id ? ' sp2-subject-chip--selected' : ''
+                        }`}
+                        aria-pressed={selectedSubjectId === candidate.id}
+                        onClick={() => {
+                          setSelectedSubjectId((previous) =>
+                            previous === candidate.id ? null : candidate.id
+                          )
+                          clearCurrentOutcome()
+                        }}
+                      >
+                        <PlayerAvatar
+                          player={candidate}
+                          size="sm"
+                          showRelationshipOutline={false}
+                        />
+                        <span className="sp2-subject-chip__name">{candidate.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
+          </section>
+        </div>
 
         <footer className="sp2-footer sp2-footer--unified" data-reality-tutorial="footer">
           {pregnancyCelebration && (
@@ -2530,18 +2774,13 @@ export default function SocialPanelV2() {
               🤰 ✨ 🍼 💜 ✨
             </span>
           )}
-          <div
-            className={`sp2-recent sp2-recent--unified${historyOpen ? ' sp2-recent--expanded' : ''}`}
-            aria-label="Recent Activity log"
-          >
+          <div className="sp2-recent sp2-recent--unified" aria-label="Recent Activity log">
             <RecentActivity
               players={game.players}
               compact
-              feedback={
-                feedbackMsg ??
-                (selectedActionId && !selectedReunionGuestId ? executionEligibility.reason : null)
-              }
-              onExpandedChange={setHistoryOpen}
+              activeReceiptId={activeReceiptId}
+              feedback={footerFeedback}
+              onDismissResult={clearCurrentOutcome}
             />
           </div>
         </footer>

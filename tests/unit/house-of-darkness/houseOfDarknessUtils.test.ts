@@ -8,11 +8,13 @@ import {
   recoverHouseOfDarknessHealth,
 } from '../../../src/components/HouseOfDarknessComp/houseOfDarknessUtils'
 
-describe('House of Darkness survival rules', () => {
-  it('starts at four pairs and adds one pair per round', () => {
+describe('Deck of Darkness survival rules', () => {
+  it('starts at four pairs, then caps escalating boards at eight pairs', () => {
     expect(getHouseOfDarknessPairCount(1)).toBe(4)
     expect(getHouseOfDarknessPairCount(2)).toBe(5)
-    expect(getHouseOfDarknessPairCount(HOUSE_OF_DARKNESS_MAX_ROUNDS)).toBe(15)
+    expect(getHouseOfDarknessPairCount(4)).toBe(7)
+    expect(getHouseOfDarknessPairCount(HOUSE_OF_DARKNESS_MAX_ROUNDS)).toBe(8)
+    expect(getHouseOfDarknessPairCount(50)).toBe(8)
   })
 
   it('pads a five-pair board with two sealed placeholders for four-column symmetry', () => {
@@ -32,13 +34,22 @@ describe('House of Darkness survival rules', () => {
     expect([...symbolCounts.values()].every((count) => count === 2)).toBe(true)
   })
 
-  it('keeps every deterministic mistake hit between three and five percent', () => {
-    const hits = Array.from({ length: 40 }, (_, index) =>
+  it('raises deterministic mistake damage by round while keeping each band bounded', () => {
+    const openingHits = Array.from({ length: 40 }, (_, index) =>
+      getHouseOfDarknessMistakeDamage(9876, 'player-a', 1, index)
+    )
+    const lateHits = Array.from({ length: 40 }, (_, index) =>
       getHouseOfDarknessMistakeDamage(9876, 'player-a', 4, index)
     )
 
-    expect(hits.every((hit) => hit >= 3 && hit <= 5)).toBe(true)
-    expect(hits).toEqual(
+    expect(openingHits.every((hit) => hit >= 3 && hit <= 5)).toBe(true)
+    expect(lateHits.every((hit) => hit >= 6 && hit <= 8)).toBe(true)
+    expect(openingHits).toEqual(
+      Array.from({ length: 40 }, (_, index) =>
+        getHouseOfDarknessMistakeDamage(9876, 'player-a', 1, index)
+      )
+    )
+    expect(lateHits).toEqual(
       Array.from({ length: 40 }, (_, index) =>
         getHouseOfDarknessMistakeDamage(9876, 'player-a', 4, index)
       )

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Player } from '../../types'
+import type { Player, PulseChronicle, WeekendInterludeState } from '../../types'
+import { composePulseChronicle, getPulseChronicleIdentity } from '../../social/pulseChronicle'
+import {
+  normalizePulseStoryTerminology,
+  type PulseChronicleTheme,
+} from '../../social/pulseChronicleCopy'
 import { buildSocialStoryStream, type SocialStoryBeat } from '../../social/socialStoryStream'
 import type {
   DramaSocialNetwork,
@@ -8,12 +13,11 @@ import type {
   SocialActionLogEntry,
   SocialCommitment,
 } from '../../social/types'
-import type { RealityDomainState } from '../../social/reality'
 import {
-  allianceEventText,
-  allianceForEvent,
   allianceKind,
+  allianceForEvent,
   canReadAllianceEvent,
+  type RealityDomainState,
 } from '../../social/reality'
 import {
   getSocialCommitmentDueCopy,
@@ -33,12 +37,21 @@ interface HousePulseProps {
   relationships: RelationshipsMap
   weekStartRelSnapshot: Record<string, Record<string, number>>
   currentWeek: number
+  season?: number
+  gameId?: string
+  gamePhase?: string
+  pulseChronicles?: readonly PulseChronicle[]
+  weekendInterlude?: WeekendInterludeState | null
+  weatherCondition?: string | null
+  pulseTheme?: PulseChronicleTheme
   reality?: RealityDomainState
   socialCommitments?: readonly SocialCommitment[]
   pendingActionCount?: number
   onOpenIncoming?: () => void
   onOpenAlliances?: (allianceId?: string, eventId?: string) => void
 }
+
+const EMPTY_PULSE_CHRONICLES: readonly PulseChronicle[] = []
 
 const RUMOUR_LABEL: Record<string, string> = {
   secret_alliance: 'Secret pact',
@@ -99,144 +112,6 @@ function titleCase(value: string): string {
 
 type PulseStoryBeat = SocialStoryBeat & { allianceId?: string; sourceEventId?: string }
 
-function buildRealityPulseDaySummary(
-  beats: PulseStoryBeat[],
-  humanId: string,
-  currentWeek: number
-): PulseStoryBeat[] {
-  if (beats.length === 0) return []
-  const allianceUpdates = beats.filter((beat) => beat.eventType?.startsWith('ALLIANCE_')).length
-  const relationshipUpdates = beats.length - allianceUpdates
-  const details = [
-    allianceUpdates ? `${allianceUpdates} alliance update${allianceUpdates === 1 ? '' : 's'}` : '',
-    relationshipUpdates
-      ? `${relationshipUpdates} relationship update${relationshipUpdates === 1 ? '' : 's'}`
-      : '',
-  ].filter(Boolean)
-  const latest = beats.find((beat) => beat.eventType?.startsWith('ALLIANCE_')) ?? beats[0]
-  const totalUpdates = allianceUpdates + relationshipUpdates
-  return [
-    {
-      ...latest,
-      id: `reality-day-summary-${currentWeek}`,
-      title: 'Today’s alliance and relationship summary',
-      text: `${details.join(' · ')} ${totalUpdates === 1 ? 'was' : 'were'} recorded today. ${allianceUpdates ? 'Open the full alliance read' : 'Open Intel'} for event details.`,
-      eventType: 'DAY_SUMMARY',
-      participantIds: [humanId],
-      week: currentWeek,
-      phase: 'social',
-      dedupeKey: `reality-day-summary-${currentWeek}`,
-      sourceEventId: latest.id,
-    },
-  ]
-}
-
-/** Today is a concise, chronological feed of only events the player could know. */
-function buildRealityPulseStream(
-  reality: RealityDomainState,
-  humanId: string,
-  currentWeek: number,
-  playerName: (id: string) => string
-): PulseStoryBeat[] {
-  const records = [
-    ...new Map(
-      [
-        ...reality.events.filter((event) => event.day === currentWeek),
-        ...Object.values(reality.alliances).flatMap((alliance) =>
-          (alliance.history ?? []).filter((event) => event.day === currentWeek)
-        ),
-        ...Object.values(reality.allianceManagement.requests).flatMap((request) =>
-          (request.history ?? []).filter((event) => event.day === currentWeek)
-        ),
-      ].map((event) => [event.id, event])
-    ).values(),
-  ]
-  const consultationEventIds = new Set(
-    records
-      .filter((event) => event.type === 'ALLIANCE_STRATEGY_MEETING')
-      .map((event) => event.reason.split(':').at(-1))
-      .filter((id): id is string => Boolean(id && id.startsWith('reality-event-')))
-  )
-  return records
-    .filter((event) => {
-      if (!canReadAllianceEvent(event, humanId)) return false
-      // The strategy meeting is the useful story record; hide its low-value
-      // interaction-log twin once the huddle has a durable outcome event.
-      if (
-        event.type === 'SOCIAL_INTERACTION_RESOLVED' &&
-        event.actionId === 'consult_alliance' &&
-        consultationEventIds.has(event.id)
-      )
-        return false
-      if (
-        ['ALLIANCE_REQUEST_VOTE', 'ALLIANCE_REQUEST_CONSENT', 'ALLIANCE_REQUEST_ACCEPTED'].includes(
-          event.type
-        )
-      )
-        return false
-      // Synchronous voting and AI acceptance produce one outcome in Today; the full read retains every step.
-      if (
-        ['ALLIANCE_REQUEST_SUBMITTED', 'ALLIANCE_INVITATION_SENT'].includes(event.type) &&
-        event.allianceRequestId
-      ) {
-        const request = reality.allianceManagement.requests[event.allianceRequestId]
-        if (request?.settledAt?.day === event.day && request.settledAt.phase === event.phase)
-          return false
-      }
-      return true
-    })
-    .sort((left, right) => right.sequence - left.sequence)
-    .map((event) => {
-      const allianceId = allianceForEvent(reality, event)
-      const alliance = allianceId ? reality.alliances[allianceId] : undefined
-      const isAllianceEvent = event.type.startsWith('ALLIANCE_')
-      const signal = `${event.type} ${event.tags.join(' ')}`.toLowerCase()
-      const kind: SocialStoryBeat['kind'] = /betray|conflict|confront|target|nomination/.test(
-        signal
-      )
-        ? 'conflict'
-        : /repair|apolog|reassure/.test(signal)
-          ? 'repair'
-          : isAllianceEvent || /deal|promise|vote|strategy/.test(signal)
-            ? 'strategy'
-            : event.publicEligible
-              ? 'public'
-              : 'bond'
-      const actor =
-        event.actorId === humanId ? 'You' : event.actorId ? playerName(event.actorId) : 'The hub'
-      const allianceName = event.allianceSnapshot?.name ?? alliance?.name ?? 'the alliance'
-      const targets = event.targetIds
-        .filter((id) => id !== event.actorId)
-        .map((id) => (id === humanId ? 'you' : playerName(id)))
-        .join(' and ')
-      const text = isAllianceEvent
-        ? allianceEventText(reality, event, humanId, playerName)
-        : `${actor} · ${titleCase(event.actionId ?? event.type)}${targets ? ` · ${targets}` : ''}.`
-      const isConsultation = event.type === 'ALLIANCE_STRATEGY_MEETING'
-      const title = isConsultation ? `${actor} consulted ${allianceName}.` : text
-      const consultationDetail = isConsultation
-        ? (event.allianceConsultationSummary ??
-          (event.targetIds.length
-            ? `The recorded huddle focused on ${event.targetIds.map((id) => (id === humanId ? 'you' : playerName(id))).join(' and ')}, but its recommendation details were not saved.`
-            : 'The outcome was not recorded for this earlier huddle.'))
-        : text
-      return {
-        id: event.id,
-        kind,
-        title,
-        text: consultationDetail,
-        eventType: event.type,
-        allianceId: alliance && allianceKind(alliance) === 'GROUP' ? allianceId : undefined,
-        participantIds: event.participantIds,
-        week: event.day,
-        phase: event.phase,
-        severity: event.visibility === 'CEREMONY_PUBLIC' ? 'major' : 'notable',
-        createdAt: event.sequence,
-        dedupeKey: event.id,
-      }
-    })
-}
-
 export default function HousePulse({
   network,
   players,
@@ -245,6 +120,13 @@ export default function HousePulse({
   relationships,
   weekStartRelSnapshot,
   currentWeek,
+  season = 1,
+  gameId = 'legacy',
+  gamePhase,
+  pulseChronicles,
+  weekendInterlude,
+  weatherCondition,
+  pulseTheme,
   reality,
   socialCommitments = [],
   pendingActionCount = 0,
@@ -327,7 +209,7 @@ export default function HousePulse({
   const storyBeats = useMemo<PulseStoryBeat[]>(
     () =>
       reality
-        ? buildRealityPulseStream(reality, humanId, currentWeek, playerName)
+        ? []
         : buildSocialStoryStream({
             network,
             actionHistory,
@@ -342,16 +224,167 @@ export default function HousePulse({
       currentWeek,
       humanId,
       network,
-      playerName,
       players,
       reality,
       relationships,
       weekStartRelSnapshot,
     ]
   )
-  const todayBeats = reality
-    ? buildRealityPulseDaySummary(storyBeats, humanId, currentWeek)
-    : storyBeats
+  const savedChronicles = pulseChronicles ?? EMPTY_PULSE_CHRONICLES
+  const activeWeekend =
+    weekendInterlude?.active && !weekendInterlude.debug ? weekendInterlude : null
+  const dailyIdentity = useMemo(() => getPulseChronicleIdentity(currentWeek), [currentWeek])
+  const liveIdentity = useMemo(
+    () => getPulseChronicleIdentity(currentWeek, activeWeekend),
+    [currentWeek, activeWeekend]
+  )
+  const latestCompletedEpisodeToday = useMemo(
+    () =>
+      !activeWeekend
+        ? [...savedChronicles]
+            .filter((entry) => entry.season === season && entry.day === currentWeek)
+            .sort(
+              (left, right) =>
+                (left.capturedThroughRealitySequence ?? -1) -
+                  (right.capturedThroughRealitySequence ?? -1) ||
+                (left.capturedThroughTimestamp ?? 0) - (right.capturedThroughTimestamp ?? 0)
+            )
+            .at(-1)
+        : undefined,
+    [activeWeekend, savedChronicles, season, currentWeek]
+  )
+  const episodeIdentity = useMemo(
+    () =>
+      activeWeekend
+        ? liveIdentity
+        : latestCompletedEpisodeToday?.episodeKey
+          ? {
+              key: latestCompletedEpisodeToday.episodeKey,
+              label:
+                latestCompletedEpisodeToday.episodeLabel ??
+                `Day ${latestCompletedEpisodeToday.day}`,
+            }
+          : dailyIdentity,
+    [activeWeekend, liveIdentity, latestCompletedEpisodeToday, dailyIdentity]
+  )
+  const earlierEpisodesToday = savedChronicles
+    .filter((entry) => entry.season === season && entry.day === currentWeek)
+    .sort(
+      (left, right) => (left.capturedThroughTimestamp ?? 0) - (right.capturedThroughTimestamp ?? 0)
+    )
+  const priorEpisodes = earlierEpisodesToday.filter(
+    (entry) => (entry.episodeKey ?? `day:${entry.day}`) !== episodeIdentity.key
+  )
+  const actionHistoryAfterTimestamp = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughTimestamp ?? 0),
+    0
+  )
+  const realityEventsAfterSequence = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughRealitySequence ?? -1),
+    -1
+  )
+  const dayChronicle = useMemo(() => {
+    if (!reality) return null
+    const savedEpisode = savedChronicles.find(
+      (entry) =>
+        entry.season === season && (entry.episodeKey ?? `day:${entry.day}`) === episodeIdentity.key
+    )
+    if (savedEpisode || !open || tab !== 'today') return savedEpisode ?? null
+    return composePulseChronicle({
+      gameId,
+      season,
+      day: currentWeek,
+      humanId,
+      players,
+      reality,
+      actionHistory,
+      weather: weatherCondition,
+      theme: pulseTheme,
+      complete: gamePhase === 'week_end' && !activeWeekend,
+      episode: episodeIdentity,
+      actionHistoryAfterTimestamp,
+      realityEventsAfterSequence,
+    })
+  }, [
+    reality,
+    open,
+    tab,
+    savedChronicles,
+    activeWeekend,
+    episodeIdentity,
+    actionHistoryAfterTimestamp,
+    realityEventsAfterSequence,
+    season,
+    currentWeek,
+    gameId,
+    humanId,
+    players,
+    actionHistory,
+    weatherCondition,
+    pulseTheme,
+    gamePhase,
+  ])
+  const chronicleAllianceLinks = useMemo(() => {
+    if (!dayChronicle || !reality) return []
+    const sourceIds = new Set(dayChronicle.sourceEventIds)
+    const latestEventByAlliance = new Map<string, (typeof reality.events)[number]>()
+    for (const event of reality.events) {
+      if (!sourceIds.has(event.id) || !canReadAllianceEvent(event, humanId)) continue
+      const allianceId = allianceForEvent(reality, event)
+      if (allianceId) latestEventByAlliance.set(allianceId, event)
+    }
+    return [...latestEventByAlliance.entries()].map(([allianceId, event]) => ({
+      allianceId,
+      eventId: event.id,
+      name: event.allianceSnapshot?.name ?? reality.alliances[allianceId]?.name ?? 'alliance',
+      pactCounterpartName:
+        (event.allianceSnapshot?.kind ??
+          (reality.alliances[allianceId]
+            ? allianceKind(reality.alliances[allianceId])
+            : undefined)) === 'PACT'
+          ? (players.find(
+              (player) =>
+                player.id !== humanId &&
+                (reality.alliances[allianceId]?.memberIds.includes(player.id) ??
+                  event.participantIds.includes(player.id))
+            )?.name ?? 'hubmate')
+          : null,
+    }))
+  }, [dayChronicle, humanId, players, reality])
+
+  const storyLinkLabel = (allianceId: string, eventId?: string) => {
+    const alliance = reality?.alliances[allianceId]
+    const event = eventId ? reality?.events.find((entry) => entry.id === eventId) : undefined
+    const kind = alliance ? allianceKind(alliance) : event?.allianceSnapshot?.kind
+    if (kind === 'PACT') {
+      const counterpartId =
+        alliance?.memberIds.find((id) => id !== humanId) ??
+        event?.participantIds.find((id) => id !== humanId)
+      const name = players.find((player) => player.id === counterpartId)?.name ?? 'hubmate'
+      return `Read ${name}'s pact story`
+    }
+    const name = event?.allianceSnapshot?.name ?? alliance?.name ?? 'alliance'
+    return `Read ${name}'s alliance story`
+  }
+  const earlierChronicles = useMemo(
+    () =>
+      savedChronicles
+        .filter(
+          (entry) =>
+            entry.season === season &&
+            (entry.day < currentWeek ||
+              (entry.day === currentWeek &&
+                (entry.episodeKey ?? `day:${entry.day}`) !== episodeIdentity.key))
+        )
+        .slice()
+        .sort(
+          (left, right) =>
+            right.day - left.day ||
+            (right.capturedThroughTimestamp ?? 0) - (left.capturedThroughTimestamp ?? 0)
+        ),
+    [savedChronicles, season, currentWeek, episodeIdentity.key]
+  )
+  const todayBeats = reality ? [] : storyBeats
   const latest = todayBeats[0]
   const pendingPromises = socialCommitments.filter(
     (commitment) =>
@@ -478,7 +511,82 @@ export default function HousePulse({
                   </button>
                 </article>
               )}
-              {todayBeats.length ? (
+              {reality && dayChronicle ? (
+                <>
+                  {dayChronicle.sourceEventIds.length ? (
+                    <article className="house-pulse__chronicle" aria-label="The Hub Chronicles">
+                      <div className="house-pulse__chronicle-eyebrow">
+                        <span>The Hub Chronicles</span>
+                        <span>
+                          {dayChronicle.episodeLabel ?? `Day ${dayChronicle.day}`} ·{' '}
+                          {dayChronicle.complete ? 'Episode complete' : 'The story so far'}
+                        </span>
+                      </div>
+                      <h3>{normalizePulseStoryTerminology(dayChronicle.title)}</h3>
+                      <div className="house-pulse__chronicle-story">
+                        {dayChronicle.paragraphs.map((paragraph, index) => (
+                          <p key={index}>{normalizePulseStoryTerminology(paragraph)}</p>
+                        ))}
+                      </div>
+                      {dayChronicle.note && (
+                        <aside className="house-pulse__producer">
+                          <strong>Producer’s Note</strong>
+                          <p>{normalizePulseStoryTerminology(dayChronicle.note)}</p>
+                        </aside>
+                      )}
+                      {onOpenAlliances &&
+                        chronicleAllianceLinks.map((link) => (
+                          <button
+                            key={link.allianceId}
+                            type="button"
+                            className="house-pulse__link"
+                            onClick={() => {
+                              setOpen(false)
+                              onOpenAlliances(link.allianceId, link.eventId)
+                            }}
+                          >
+                            {link.pactCounterpartName
+                              ? `Read ${link.pactCounterpartName}'s pact story`
+                              : `Read ${link.name}'s alliance story`}
+                          </button>
+                        ))}
+                    </article>
+                  ) : (
+                    <p className="house-pulse__empty">
+                      No major developments have reached your radar today. Your story is still
+                      unfolding.
+                    </p>
+                  )}
+                  {earlierChronicles.length > 0 && (
+                    <details className="house-pulse__history house-pulse__chronicle-archive">
+                      <summary>Previous episodes · {earlierChronicles.length}</summary>
+                      {earlierChronicles.map((entry) => (
+                        <article
+                          className="house-pulse__chronicle"
+                          key={entry.episodeKey ?? entry.season + ':' + entry.day}
+                        >
+                          <div className="house-pulse__chronicle-eyebrow">
+                            <span>The Hub Chronicles</span>
+                            <span>{entry.episodeLabel ?? `Day ${entry.day}`}</span>
+                          </div>
+                          <h3>{entry.title}</h3>
+                          <div className="house-pulse__chronicle-story">
+                            {entry.paragraphs.map((paragraph, index) => (
+                              <p key={index}>{paragraph}</p>
+                            ))}
+                          </div>
+                          {entry.note && (
+                            <aside className="house-pulse__producer">
+                              <strong>Producer’s Note</strong>
+                              <p>{entry.note}</p>
+                            </aside>
+                          )}
+                        </article>
+                      ))}
+                    </details>
+                  )}
+                </>
+              ) : todayBeats.length ? (
                 <>
                   {todayBeats.slice(0, 3).map((beat) => (
                     <article
@@ -503,7 +611,7 @@ export default function HousePulse({
                             onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                           }}
                         >
-                          View alliance history
+                          {storyLinkLabel(beat.allianceId, beat.sourceEventId ?? beat.id)}
                         </button>
                       )}
                       {reality &&
@@ -540,7 +648,7 @@ export default function HousePulse({
                                   onOpenAlliances(beat.allianceId, beat.sourceEventId ?? beat.id)
                                 }}
                               >
-                                View alliance history
+                                {storyLinkLabel(beat.allianceId, beat.sourceEventId ?? beat.id)}
                               </button>
                             )}
                             {reality && beat.eventType === 'ALLIANCE_STRATEGY_MEETING' && (
@@ -691,7 +799,7 @@ export default function HousePulse({
           <strong>My Pulse</strong>
           <small>
             {reality
-              ? `Today · ${storyBeats.length} development${storyBeats.length === 1 ? '' : 's'}`
+              ? `Day ${currentWeek} · The Hub Chronicles`
               : `Today · ${storyBeats.length} visible shift${storyBeats.length === 1 ? '' : 's'}`}
           </small>
         </span>
@@ -701,7 +809,9 @@ export default function HousePulse({
               ? `${pendingActionCount} alliance decision${pendingActionCount === 1 ? '' : 's'} need your attention.`
               : pendingPromiseCount > 0
                 ? `${pendingPromiseCount} commitment${pendingPromiseCount === 1 ? '' : 's'} need your attention.`
-                : (latest?.title ?? 'Your latest Hub developments and commitments.')
+                : normalizePulseStoryTerminology(
+                    dayChronicle?.title ?? 'Your story in the Hub is unfolding.'
+                  )
             : (latest?.text ?? 'The Hub is still reading the room.')}
         </em>
         <b>{reality ? 'Open My Pulse' : 'Open My Game'}</b>

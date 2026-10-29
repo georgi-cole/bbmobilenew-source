@@ -39,7 +39,6 @@ import type {
 import './VaultVerdict.css'
 
 const FINAL_FEED_LIMIT = 18
-const HERO_REVEAL_DURATION_MS = 3000
 const BANK_OFFER_REVEAL_HOLD_MS = 2600
 const SPECIAL_OFFER_REVEAL_HOLD_MS = 3200
 
@@ -254,7 +253,6 @@ export default function BatteryLow(props: GenericMinigameProps) {
   const [sessionSeed] = useState(() => createVaultVerdictRng(seedProp).seed)
   const rng = useMemo(() => createVaultVerdictRng(sessionSeed).rng, [sessionSeed])
   const startTimeRef = useRef<number | null>(null)
-  const heroTimerRef = useRef<number | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [feed, setFeed] = useState<BroadcastEvent[]>([])
   const [feedIndex, setFeedIndex] = useState(0)
@@ -264,7 +262,6 @@ export default function BatteryLow(props: GenericMinigameProps) {
   const [finaleComplete, setFinaleComplete] = useState(false)
   const [pendingOfferKey, setPendingOfferKey] = useState<string | null>(null)
   const [presentedOfferKey, setPresentedOfferKey] = useState<string | null>(null)
-  const [heroEventVaultId, setHeroEventVaultId] = useState<string | null>(null)
   const { play } = useSound()
 
   const initialContestants = useMemo(() => {
@@ -324,13 +321,14 @@ export default function BatteryLow(props: GenericMinigameProps) {
       : `${human.currentRound}:${human.offerHistory.length}:${human.currentOffer}`
   const offerPresentationKey =
     human.currentOffer == null ? null : `${human.currentRound}:${human.offerHistory.length}`
-  const offerRevealDelayMs = latestRevealProfile?.hero
-    ? SPECIAL_OFFER_REVEAL_HOLD_MS
-    : BANK_OFFER_REVEAL_HOLD_MS
+  const offerRevealDelayMs =
+    latestRevealProfile?.hero || latestRevealLabel
+      ? SPECIAL_OFFER_REVEAL_HOLD_MS
+      : BANK_OFFER_REVEAL_HOLD_MS
   const offerVisible = offerPresentationKey != null && presentedOfferKey === offerPresentationKey
   const decisionPending = offerKey != null && pendingOfferKey === offerKey
   const activeHeroProfile =
-    heroEventVaultId === latestRevealVaultId && latestRevealProfile?.hero
+    latestRevealProfile && (latestRevealProfile.hero || latestRevealLabel)
       ? latestRevealProfile
       : null
   const bankProfile = getBankMoodProfile(human.bankMood)
@@ -361,13 +359,6 @@ export default function BatteryLow(props: GenericMinigameProps) {
           (human.personalVaultId
             ? 'Choose the next battery to reveal.'
             : 'Choose one battery to protect as your Reserve.'))
-  useEffect(
-    () => () => {
-      if (heroTimerRef.current != null) window.clearTimeout(heroTimerRef.current)
-    },
-    []
-  )
-
   useEffect(() => {
     if (offerPresentationKey == null) return
     const timer = window.setTimeout(
@@ -443,18 +434,13 @@ export default function BatteryLow(props: GenericMinigameProps) {
     const battery = human.vaults.find((entry) => entry.vaultId === vaultId)
     if (battery) {
       const profile = getRevealEffectProfile(battery.amount, battery.specialEffect)
-      if (profile.hero) {
-        if (heroTimerRef.current != null) window.clearTimeout(heroTimerRef.current)
-        setHeroEventVaultId(vaultId)
+      const hasSpecialDisplay = Boolean(
+        profile.hero || getSpecialRevealLabel(battery.amount, battery.specialEffect)
+      )
+      if (hasSpecialDisplay) {
         if (profile.soundKey) {
           play(profile.soundKey, { volume: profile.soundVolume ?? 0.42 })
         }
-        heroTimerRef.current = window.setTimeout(() => {
-          setHeroEventVaultId((current) => (current === vaultId ? null : current))
-          heroTimerRef.current = null
-        }, HERO_REVEAL_DURATION_MS)
-      } else {
-        setHeroEventVaultId(null)
       }
     }
 
@@ -674,7 +660,7 @@ export default function BatteryLow(props: GenericMinigameProps) {
 
                 {activeHeroProfile && (
                   <div
-                    key={`hero-${heroEventVaultId}`}
+                    key={`hero-${latestRevealVaultId}`}
                     className={`vault-verdict__hero-event is-${activeHeroProfile.key}`}
                     aria-live="polite"
                   >

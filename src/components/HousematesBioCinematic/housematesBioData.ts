@@ -51,7 +51,7 @@ const PRESENTATION_BY_ID: Record<string, HousematePresentation> = {
   dex: {
     accent: '#c9ffde',
     backdrop: 'design-studio',
-    portraitFile: 'Dex_informal.webp',
+    portraitFile: 'Dex_informal_v2.webp',
     prizePlan:
       'I want to make room for real life. I’d launch affordable, beautiful furniture for small homes.',
   },

@@ -11,6 +11,8 @@ export const MAX_SEASON_ARCHIVES = 1000
 export interface PlayerSeasonSummary {
   playerId: string
   displayName: string
+  /** The look worn by this contestant, retained after the profile changes. */
+  appearance?: import('../appearance/catalog').AppearanceSelection
   /** Null means explicitly no placement (e.g. evicted pre-jury). Undefined means not yet determined. */
   finalPlacement?: number | null
   /** Number of LOH competitions won this season. */
@@ -68,6 +70,8 @@ export interface SeasonArchive {
   playerSummaries: PlayerSeasonSummary[]
   /** Any rewards / achievements earned this season. */
   rewardsEarned?: string[]
+  /** Recent secret mission themes, carried into the next season for variety. */
+  secretMissionTemplateIds?: string[]
   /** True when Cupid's Arrow activated during this season. Used for its cooldown. */
   cupidArrowActivated?: boolean
   /** True when Vox Populi governed this season. Used for its cooldown. */

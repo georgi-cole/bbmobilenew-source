@@ -9,7 +9,7 @@ function externalUrl(value: string | undefined): string | null {
 
 const privacyUrl =
   externalUrl(import.meta.env.VITE_PRIVACY_POLICY_URL) ??
-  'https://georgi-cole.github.io/big-eye-legal/privacy-policy.html'
+  `${import.meta.env.BASE_URL}legal/privacy-policy.html`
 const termsUrl =
   externalUrl(import.meta.env.VITE_TERMS_URL) ??
   'https://georgi-cole.github.io/big-eye-legal/terms-of-use.html'
@@ -38,15 +38,26 @@ export default function Legal() {
           local data.
         </p>
         <p>
+          When the online backend is enabled, profile display names, avatars, selected appearance,
+          achievements, and unlock progress are automatically backed up to Supabase. Gameplay events
+          include a profile ID so they can be joined to the matching profile backup; events record
+          screen visits and visible time, game modes and days reached, minigame duration, placements
+          and exits, Social usage and action categories, selected gameplay decisions, elimination
+          timing and season placement, marketplace product choices and purchase outcomes, and
+          session time. Session events also include broad device type and family, operating system,
+          and browser; an exact device model is included only when the browser provides it. A full
+          browser user-agent string is not sent. Events carry a build label (QA, production, or
+          development) so test activity can be distinguished. Purchase prices are not collected.
+          Photos, biographies, and conversation text are not sent. The anonymous backup is tied to
+          this installation and cannot yet be restored on another device. Contact support for data
+          access or deletion requests.
+        </p>
+        <p>
           Location is optional. If you allow it, coordinates are sent to Open-Meteo to request
           current weather and choose a matching background. The game does not use location for
           advertising or tracking and does not intentionally retain coordinates after that request.
         </p>
-        <p>
-          The release is offline-first. Confessional text is processed on-device unless an optional
-          online director is explicitly enabled in a later build; that build must update this notice
-          and the store disclosures before release.
-        </p>
+        <p>Confessional text is processed on-device. It is not sent to Supabase.</p>
         {privacyUrl && (
           <a href={privacyUrl} target="_blank" rel="noreferrer">
             Open the full privacy policy
@@ -86,7 +97,7 @@ export default function Legal() {
         )}
       </section>
 
-      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated July 30, 2026</p>
+      <p className="legal-screen__version">The Big Eye 1.0.0 · Updated October 27, 2026</p>
     </main>
   )
 }

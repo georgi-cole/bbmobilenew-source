@@ -1,7 +1,7 @@
 /**
  * castleRescueConstants.ts
  *
- * Shared numeric/string constants for the Castle Rescue minigame.
+ * Shared numeric/string constants for the Find Your Twin minigame.
  * Import these values instead of inlining magic numbers so that
  * balance tuning only requires changes in one place.
  */

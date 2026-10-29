@@ -17,7 +17,7 @@
  * 13. maxEntries limits the displayed entries.
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
@@ -219,6 +219,80 @@ describe('RecentActivity – unified receipts', () => {
     expect(screen.getAllByText('Reached 2 hubmates.')).toHaveLength(1)
     expect(screen.queryByText('⚡2 spent')).toBeNull()
     expect(screen.queryByText(/Relationship changes:/)).toBeNull()
+  })
+
+  it('shows the relationship shift on its own row without mechanics in the narrative', () => {
+    renderActivity(
+      makeStore([
+        makeEntry({
+          id: 'relationship-shift',
+          receipt: {
+            summary: 'The conversation felt more open.',
+            outcomeLabel: 'Completed',
+            tone: 'positive',
+            relationshipShifts: { p1: 4 },
+          },
+        }),
+      ]),
+      {
+        compact: true,
+        players: [{ id: 'p1', name: 'Lia', avatar: '', status: 'active' }],
+      }
+    )
+
+    expect(screen.getByText('The conversation felt more open.')).toBeVisible()
+    expect(screen.getByLabelText('Lia: relationship strongly improved')).toHaveTextContent('Lia ↑↑')
+  })
+
+  it('shows a neutral marker only when the receipt records a measured zero change', () => {
+    const store = makeStore([
+      makeEntry({
+        id: 'neutral-result',
+        receipt: {
+          summary: 'The talk stayed friendly.',
+          outcomeLabel: 'Completed',
+          tone: 'neutral',
+          relationshipShifts: {},
+        },
+      }),
+    ])
+    renderActivity(store, {
+      compact: true,
+      activeReceiptId: 'neutral-result',
+      players: [{ id: 'p1', name: 'Lia', avatar: '', status: 'active' }],
+    })
+
+    expect(screen.getByLabelText('Relationship unchanged')).toHaveTextContent('— Unchanged')
+  })
+
+  it('dismisses the current result without removing it from History', () => {
+    const store = makeStore([
+      makeEntry({
+        id: 'current-result',
+        narrative: 'The current result remains available in history.',
+      }),
+    ])
+    const onDismissResult = vi.fn()
+    renderActivity(store, { compact: true, activeReceiptId: 'current-result', onDismissResult })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss current result' }))
+    expect(onDismissResult).toHaveBeenCalledOnce()
+    expect(store.getState().social.sessionLogs).toHaveLength(1)
+  })
+
+  it('keeps a cleared result out of the compact view while preserving the History route', () => {
+    const store = makeStore([
+      makeEntry({
+        id: 'older-result',
+        narrative: 'The earlier result remains in the log.',
+      }),
+    ])
+    renderActivity(store, { compact: true, activeReceiptId: null })
+
+    expect(screen.queryByText('The earlier result remains in the log.')).toBeNull()
+    expect(screen.getByText('No current result.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 1' }))
+    expect(screen.getByText('The earlier result remains in the log.')).toBeVisible()
   })
   it('shows the full final response and actual spending instead of the shorter log narrative', () => {
     const summary =

@@ -50,6 +50,23 @@ export default function LightweightCinematicWorld({
   const apertureOpening = lerp(54, 2.5, state.apertureClosure)
   const sunLeft = lerp(50, 67, state.sunHorizonProgress)
   const sunTop = lerp(43, 30, state.sunPositionProgress) + state.sunsetProgress * 27
+  const sunMorph = clamp01(state.sunMorph)
+  const oceanDepth = state.oceanRevealProgress
+  const oceanOpacity = clamp01(state.oceanRevealProgress)
+  const eyePupilStyle: CSSProperties = {
+    background: `linear-gradient(rgba(6, 18, 30, ${1 - sunMorph}), rgba(6, 18, 30, ${1 - sunMorph})), radial-gradient(circle at 42% 38%, #fff5bd 0 14%, #ffbd50 38%, #ff692c 70%, #cc271c 100%)`,
+    borderColor: `rgba(157, 225, 237, ${0.66 * (1 - sunMorph)})`,
+    boxShadow: `inset 0 0 0 ${8 * (1 - sunMorph)}px rgba(82, 152, 181, ${0.28 * (1 - sunMorph)}), 0 0 28px rgba(255, 177, 66, ${0.45 * sunMorph})`,
+    transform: `translate(-50%, -50%) scale(${1 + sunMorph * 0.12})`,
+  }
+  const oceanStyle = {
+    position: 'absolute',
+    opacity: oceanOpacity,
+    clipPath: `inset(0 0 ${(1 - oceanDepth) * 100}% 0)`,
+    backgroundPosition: `0 ${sampledFrame * 0.12}px`,
+    filter: `brightness(${1 - state.sunsetProgress * 0.45}) saturate(${1 + state.goldenHourProgress * 0.28})`,
+    '--sun-reflection-opacity': state.sunReflectionProgress,
+  } as CSSProperties
   const cloudShift = sampledFrame * 0.018
   const rainShift = sampledFrame * 1.8
 
@@ -121,36 +138,24 @@ export default function LightweightCinematicWorld({
         />
       </div>
 
-      <div
-        className="light-cinematic__coast"
-        style={{
-          opacity: coastVisibility,
-          clipPath: `polygon(0 ${100 - coastVisibility * 100}%, 100% ${100 - coastVisibility * 100}%, 100% 100%, 0 100%)`,
-        }}
-      >
+      <div className="light-cinematic__coast" style={{ opacity: 1 }}>
         <div
           className="light-cinematic__sun"
           style={{
             position: 'absolute',
             left: `${sunLeft}%`,
             top: `${sunTop}%`,
-            opacity: clamp01(state.sunRevealProgress * state.sunIntensity * 1.18),
+            opacity: clamp01(state.sunIntensity * 1.18),
             transform: `translate(-50%, -50%) scale(${lerp(0.72, 1.34, state.sunHorizonProgress)})`,
             filter: `hue-rotate(${state.sunsetProgress * -18}deg)`,
           }}
         />
-        <div
-          className="light-cinematic__ocean"
-          style={{
-            position: 'absolute',
-            backgroundPosition: `0 ${sampledFrame * 0.12}px`,
-            filter: `brightness(${1 - state.sunsetProgress * 0.45}) saturate(${1 + state.goldenHourProgress * 0.28})`,
-          }}
-        />
+        <div className="light-cinematic__ocean" style={oceanStyle} />
         <div
           className="light-cinematic__shore"
           style={{
             position: 'absolute',
+            opacity: coastVisibility,
             filter: `brightness(${1 - state.sunsetProgress * 0.38})`,
           }}
         />
@@ -163,7 +168,7 @@ export default function LightweightCinematicWorld({
           transform: `translate(-50%, -50%) scaleY(${eyeOpen})`,
         }}
       >
-        <span />
+        <span style={eyePupilStyle} />
       </div>
 
       <div

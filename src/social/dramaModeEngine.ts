@@ -421,9 +421,11 @@ export function applyDramaActionEffect(
   current: DramaSocialNetwork,
   input: DramaActionEffectInput
 ): DramaSocialNetwork {
+  // A failed action has no story consequences. Keep the existing network and
+  // its references instead of copying every historical arc, rumour and event.
+  if (input.success === false) return current
   const network = clone(current)
   const subject = input.subjectId ?? input.targetId
-  if (input.success === false) return network
   if (
     isPublicDramaAction(input.actionId) &&
     !getPublicDramaActionAvailability(network, input.week).available

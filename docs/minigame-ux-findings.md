@@ -83,7 +83,7 @@ The six configured projects are desktop Chromium at 1366×768, Pixel 7 mobile Ch
 ### UX-O04 — Mobile, accessibility, and interruption risks are mostly untested
 
 - **Severity:** High.
-- **Minigame/screen:** All minigames; highest concern for Snake, Hangman, Tetris, Tilt Labyrinth, Castle Rescue, Hold the Wall, Crystal Path, and other timed/touch-heavy games.
+- **Minigame/screen:** All minigames; highest concern for Snake, Hangman, Tetris, Tilt Labyrinth, Find Your Twin, Hold the Wall, Crystal Path, and other timed/touch-heavy games.
 - **Viewport/browser:** Pixel 7 Chromium, iPhone 13 WebKit, 320×568 and 360×800 stress projects are configured; orientation-resize variants are missing.
 - **Reproduction:** Inspect the shared layout assertion and smoke. It checks document width, but not 44×44 touch targets, primary-control containment, clipped text, visible focus, modal focus containment, safe areas, keyboard/touch parity, reduced motion, blocked audio, visibility changes, or orientation resize.
 - **Expected player experience:** Controls are reachable and named, status remains readable, modality is correct, and resizing/backgrounding cannot corrupt or block progress.
@@ -95,9 +95,9 @@ The six configured projects are desktop Chromium at 1366×768, Pixel 7 mobile Ch
 ### UX-O05 — Participant limits are not a reliable player-facing contract
 
 - **Severity:** Medium, potentially High if a season supplies an unsupported field.
-- **Minigame/screen:** 31 active registry entries; Grid of Luck is the exception with an explicit 2–4 range.
+- **Minigame/screen:** Active registry entries still need reviewed participant bounds; Mystic Chamber currently declares 2–5 players.
 - **Viewport/browser:** All.
-- **Reproduction:** Read the active registry through `tests/helpers/minigameQualityMatrix.ts`. Most entries fall back to minimum 1 and no maximum; the lab separately constrains previews to 2–12.
+- **Reproduction:** Read the active registry through `tests/helpers/minigameQualityMatrix.ts`. Most entries fall back to minimum 1 and no maximum; the lab separately constrains previews to 2–16.
 - **Expected player experience:** The host schedules only a supported number of players and explains any qualification/cutoff before play.
 - **Observed experience:** Registry metadata cannot currently reject an unsupported field or document the intended maximum. The generic fallback may not match a component's actual geometry or rules.
 - **Evidence:** The executable matrix and the shared-gap note in `docs/minigame-test-matrix.md`.
@@ -132,40 +132,40 @@ The six configured projects are desktop Chromium at 1366×768, Pixel 7 mobile Ch
 
 All Browser entries below mean **configured, not executed**. Existing evidence paths are enumerated in `docs/minigame-test-matrix.md`; this table identifies the next player-facing proof needed.
 
-| Registry ID              | Display name               | Primary UX risk to close                                                 | Minimum acceptance evidence                                              |
-| ------------------------ | -------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `quickTap`               | Quick Tap Race             | Rapid taps, timeout boundary, and duplicate Finish through the real host | Desktop and Pixel host completion; one result and one Continue           |
-| `memoryMatch`            | Memory Colors              | Current component evidence is mostly structural                          | Behavioral component completion plus mobile ordered-input journey        |
-| `timingBar`              | Timing Bar                 | Lock timing and post-lock callback/store agreement                       | Real-host deterministic lock, result, and reload-safe hand-off           |
-| `estimationGame`         | Estimation                 | Numeric keyboard, validation, and result clarity                         | Mobile numeric entry; invalid/valid submit; host result matches display  |
-| `holdWall`               | Hold the Wall              | Background/visibility interruption while holding                         | Pixel visibility-change case and exactly-once terminal result            |
-| `famousFigures`          | Famous Figures             | Hint/guess flow has no dedicated host evidence                           | Host start, hint, guess feedback, terminal result, Continue              |
-| `silentSaboteur`         | Silent Saboteur            | Dense final-two decision presentation                                    | Pixel/iPhone final-two selection with readable tie explanation           |
-| `majorityRules`          | Majority Rules             | Long rounds and changing vote feedback on mobile                         | Mobile multi-round progress and no dead-end after elimination            |
-| `pressurePlank`          | Pressure Plank             | Raw result must stay consistent with host/store winner                   | Hosted completion across desktop/mobile and one authoritative hand-off   |
-| `colorMatch`             | Color Match                | Timeout/input boundary and color-only state                              | Named state feedback plus before/after-timeout input behavior            |
-| `logicLocks`             | Vault Cracker              | Lock controls on a short viewport                                        | 320×568 control containment, named controls, valid completion            |
-| `snake`                  | Serpentine                 | Simultaneous key/touch input and resize                                  | Keyboard/touch parity, resize survival, no duplicate movement/completion |
-| `cardClash`              | House of Cards             | Late peek/animation after exit                                           | Exit during animation; no late callback or covered Continue              |
-| `hangman`                | Verdict Board              | Physical keyboard and on-screen key overlap                              | Mixed-input case with one accepted letter and reachable result           |
-| `tiltLabyrinth`          | Tilt Labyrinth             | Browser fallback and native motion sensor behavior                       | Browser drag/key completion plus later native sensor validation          |
-| `threeDigitsQuiz`        | Number Trivia              | Numeric choice clarity without focused component evidence                | Behavioral component and Pixel choice/feedback/result path               |
-| `capitalization`         | Capitalization             | Text keyboard and authoritative standings agreement                      | Mobile text entry and component = host = store winner proof              |
-| `tetris`                 | Fit Me In                  | Held-key/touch geometry and short viewport                               | Repeat-input case; controls visible at 320×568; clean dismissal          |
-| `minesweeps`             | Minesweeps                 | Long-press/right-click parity and accidental reveal                      | Desktop right-click and mobile long-press with equivalent visible state  |
-| `dontGoOver`             | Don't go over              | Three-life flow, all-over repeat, and final explanation                  | Full interactive final with lives/status and deterministic winner        |
-| `blackjackTournament`    | Blackjack Tournament       | Structural component evidence does not prove card actions                | Behavioral card-action round and mobile tournament progression           |
-| `riskWheel`              | Risk Wheel                 | Animation must not own correctness                                       | Reduced-motion completion with identical accepted result                 |
-| `wildcardWestern`        | Wildcard Western           | Duel callback/store path lacks dedicated host evidence                   | Real-host duel, displayed winner agreement, one exit                     |
-| `castleRescue`           | Find Your Twin             | Long canvas lifecycle and small-screen controls                          | Mobile control containment, unmount cleanup, terminal Continue           |
-| `glass_bridge_brutal`    | The Crystal Path           | Short viewport and final-minute concurrent movers                        | Pixel/320×568 staged-release run with readable status and result         |
-| `crystal_path_shattered` | Crystal Path: Infinity     | Delayed timers after unmount                                             | Route-away/unmount case proves no late result overwrite                  |
-| `rescueTheKing`          | Rescue the King            | No focused component or host protection                                  | Real-component host test plus desktop/Pixel board interaction            |
-| `trapAuction`            | Trap Auction               | Repeated bid and store idempotency                                       | Double-submit case, one debit/result, clear disabled reason              |
-| `gridOfLuck`             | Grid of Luck               | One reveal is configured, but full result/Continue is not                | Complete 2- and 4-player runs; CTA remains visible on mobile             |
-| `bigSpender`             | Big Spender: Broke or Boom | No focused component/host test; debit clarity                            | Real host with double-tap protection and exact visible balance           |
-| `chainOfGreed`           | Chain of Greed             | Double vote/duel input and tie explanation                               | Genuine tied vote, one duel result, no second submit                     |
-| `batteryLow`             | Battery Low                | No focused component/host test; allocation feedback                      | Real host allocation, timeout, one elimination, readable charge state    |
+| Registry ID              | Display name               | Primary UX risk to close                                                    | Minimum acceptance evidence                                                        |
+| ------------------------ | -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `quickTap`               | Quick Tap Race             | Rapid taps, timeout boundary, and duplicate Finish through the real host    | Desktop and Pixel host completion; one result and one Continue                     |
+| `memoryMatch`            | Memory Colors              | Current component evidence is mostly structural                             | Behavioral component completion plus mobile ordered-input journey                  |
+| `timingBar`              | Timing Bar                 | Lock timing and post-lock callback/store agreement                          | Real-host deterministic lock, result, and reload-safe hand-off                     |
+| `estimationGame`         | Estimation                 | Numeric keyboard, validation, and result clarity                            | Mobile numeric entry; invalid/valid submit; host result matches display            |
+| `holdWall`               | Hold the Wall              | Background/visibility interruption while holding                            | Pixel visibility-change case and exactly-once terminal result                      |
+| `famousFigures`          | Famous Figures             | Hint/guess flow has no dedicated host evidence                              | Host start, hint, guess feedback, terminal result, Continue                        |
+| `silentSaboteur`         | Silent Saboteur            | Dense final-two decision presentation                                       | Pixel/iPhone final-two selection with readable tie explanation                     |
+| `majorityRules`          | Majority Rules             | Long rounds and changing vote feedback on mobile                            | Mobile multi-round progress and no dead-end after elimination                      |
+| `pressurePlank`          | Pressure Plank             | Raw result must stay consistent with host/store winner                      | Hosted completion across desktop/mobile and one authoritative hand-off             |
+| `colorMatch`             | Color Match                | Timeout/input boundary and color-only state                                 | Named state feedback plus before/after-timeout input behavior                      |
+| `logicLocks`             | Vault Cracker              | Lock controls on a short viewport                                           | 320×568 control containment, named controls, valid completion                      |
+| `snake`                  | Serpentine                 | Simultaneous key/touch input and resize                                     | Keyboard/touch parity, resize survival, no duplicate movement/completion           |
+| `cardClash`              | House of Cards             | Late peek/animation after exit                                              | Exit during animation; no late callback or covered Continue                        |
+| `hangman`                | Verdict Board              | Physical keyboard and on-screen key overlap                                 | Mixed-input case with one accepted letter and reachable result                     |
+| `tiltLabyrinth`          | Tilt Labyrinth             | Browser fallback and native motion sensor behavior                          | Browser drag/key completion plus later native sensor validation                    |
+| `threeDigitsQuiz`        | Number Trivia              | Numeric choice clarity without focused component evidence                   | Behavioral component and Pixel choice/feedback/result path                         |
+| `capitalization`         | Capitalization             | Text keyboard and authoritative standings agreement                         | Mobile text entry and component = host = store winner proof                        |
+| `tetris`                 | Fit Me In                  | Held-key/touch geometry and short viewport                                  | Repeat-input case; controls visible at 320×568; clean dismissal                    |
+| `minesweeps`             | Minesweeps                 | Long-press/right-click parity and accidental reveal                         | Desktop right-click and mobile long-press with equivalent visible state            |
+| `dontGoOver`             | Don't go over              | Three-life flow, all-over repeat, and final explanation                     | Full interactive final with lives/status and deterministic winner                  |
+| `blackjackTournament`    | Blackjack Tournament       | Structural component evidence does not prove card actions                   | Behavioral card-action round and mobile tournament progression                     |
+| `riskWheel`              | Risk Wheel                 | Animation must not own correctness                                          | Reduced-motion completion with identical accepted result                           |
+| `wildcardWestern`        | Wildcard Western           | Duel callback/store path lacks dedicated host evidence                      | Real-host duel, displayed winner agreement, one exit                               |
+| `castleRescue`           | Find Your Twin             | Long canvas lifecycle and small-screen controls                             | Mobile control containment, unmount cleanup, terminal Continue                     |
+| `glass_bridge_brutal`    | The Crystal Path           | Short viewport and final-minute concurrent movers                           | Pixel/320×568 staged-release run with readable status and result                   |
+| `crystal_path_shattered` | Crystal Path: Infinity     | Delayed timers after unmount                                                | Route-away/unmount case proves no late result overwrite                            |
+| `rescueTheKing`          | Rescue the King            | No focused component or host protection                                     | Real-component host test plus desktop/Pixel board interaction                      |
+| `trapAuction`            | Trap Auction               | Repeated bid and store idempotency                                          | Double-submit case, one debit/result, clear disabled reason                        |
+| `mysticChamber`          | Mystic Chamber             | Six-round result and target-confirmation controls need full roster coverage | Complete the seeded 2- and 5-player runs; keep decision controls visible on mobile |
+| `bigSpender`             | Big Spender: Broke or Boom | No focused component/host test; debit clarity                               | Real host with double-tap protection and exact visible balance                     |
+| `chainOfGreed`           | Chain of Greed             | Double vote/duel input and tie explanation                                  | Genuine tied vote, one duel result, no second submit                               |
+| `batteryLow`             | Battery Low                | No focused component/host test; allocation feedback                         | Real host allocation, timeout, one elimination, readable charge state              |
 
 ## Prioritized actionable work
 

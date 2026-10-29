@@ -34,7 +34,7 @@
  * │  splash              App open / KolequantSplash animation                 │
  * │  intro_hub           Home hub after splash, before Play is pressed        │
  * │  intro_hub_rules     /rules sub-module                                    │
- * │  intro_hub_profile   /profile sub-module                                  │
+ * │  intro_hub_profile   Profile selection and management utilities           │
  * │  intro_hub_houseguests /houseguests sub-module                            │
  * └───────────────────────────────────────────────────────────────────────────┘
  *
@@ -52,8 +52,8 @@
  * │  social              Social module open (panel or inbox)                 │
  * │  minigame            Active competition minigame (sub-tracks per game)   │
  * │    ├─ riskWheel      Risk Wheel                                          │
- * │    ├─ glass_bridge_brutal / crystal_path_shattered  Glass Bridge         │
- * │    ├─ quickTap / laneRacers / memoryMatch           Quick Tap family     │
+ * │    ├─ glass_bridge_brutal / crystal_path_shattered  Crystal Path         │
+ * │    ├─ quickTap / memoryMatch                        Quick Tap family     │
  * │    └─ wildcardWestern                               Wildcard Western     │
  * │  live_vote           Live eviction vote       (Safety music ducked)      │
  * │  eviction_results    Eviction cinematic       (Safety music ducked)      │
@@ -96,8 +96,10 @@
  *     different track the SoundManager replaces the BGM element.
  *  D. NO CROSS-PHASE MUSIC REUSE — a track associated with a finished phase
  *     cannot be re-triggered from an unrelated phase.
- *  E. SUBMODULES DO NOT OVERRIDE PHASE MUSIC — houseguests / profile / rules
- *     are intro sub-modules but must not independently start new music.
+ *  E. SUBMODULES DO NOT OVERRIDE PHASE MUSIC — houseguests and rules inherit
+ *     Intro Hub music. The profile presentation flow (/profile,
+ *     /profile/dressing-room, /profile-edit) shares one centrally resolved
+ *     lounge loop so transitions between its screens remain continuous.
  *  F. MINIGAME AUDIO IS SUB-PHASE-SCOPED — while challenge.pending.phase ===
  *     'playing' the resolver returns the minigame-specific track regardless of
  *     the game phase.  When the minigame ends the resolver falls through to the
@@ -143,7 +145,7 @@ export type AppAudioPhase =
   | 'intro_hub'
   /** /rules sub-module — within intro flow, no independent music. */
   | 'intro_hub_rules'
-  /** /profile sub-module — within intro flow, no independent music. */
+  /** Profile selection/management utilities within the intro flow. */
   | 'intro_hub_profile'
   /** /houseguests sub-module — within intro flow, no independent music. */
   | 'intro_hub_houseguests'
@@ -285,7 +287,6 @@ export const MINIGAME_KEY_TO_AUDIO_PHASE: Readonly<Record<string, AppAudioPhase>
   glass_bridge_brutal: 'minigame', // track: glass_bridge
   crystal_path_shattered: 'minigame', // track: glass_bridge (shared asset)
   quickTap: 'minigame', // track: quick_tap
-  laneRacers: 'minigame', // track: quick_tap (shared asset)
   memoryMatch: 'minigame', // track: quick_tap (shared asset)
   wildcardWestern: 'minigame', // track: wildcard_western
 }

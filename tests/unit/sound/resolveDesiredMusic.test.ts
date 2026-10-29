@@ -130,7 +130,7 @@ describe('resolveDesiredMusic', () => {
     expect(resolveDesiredMusic(state, '#/game')).toBe('glass_bridge')
   })
 
-  it('reuses the glass bridge music track for Crystal Path: Infinity', () => {
+  it('reuses the Crystal Path music track for Crystal Path: Infinity', () => {
     const state = makeState({
       challenge: {
         pending: {
@@ -176,6 +176,13 @@ describe('resolveDesiredMusic', () => {
     expect(resolveDesiredMusic(makeState(), '#/')).toBe('introhub')
     expect(resolveDesiredMusic(makeState(), '#/leaderboard')).toBe('introhub')
   })
+
+  it.each(['#/profile/dressing-room', '#/profile-edit', '#/profile'])(
+    'keeps Changing room music continuous on %s',
+    (route) => {
+      expect(resolveDesiredMusic(makeState(), route)).toBe('dressing_room')
+    }
+  )
 
   it('keeps gameplay music during a Store detour from an active game', () => {
     const state = makeState({ game: { status: 'active', phase: 'nominations' } })

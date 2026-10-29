@@ -1,5 +1,5 @@
 /**
- * useGlassBridgeAudio — returns one-shot SFX callbacks for the Glass Bridge
+ * useGlassBridgeAudio — returns one-shot SFX callbacks for The Crystal Path
  * minigame. Background music is resolved centrally at the app root.
  */
 

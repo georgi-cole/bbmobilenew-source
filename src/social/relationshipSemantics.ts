@@ -10,6 +10,15 @@ import type {
 } from './reality/types'
 
 const LIVE_ALLIANCE_STATUSES = new Set(['ACTIVE', 'PROBATIONARY'])
+const sharedAlliances = new WeakMap<
+  RealityDomainState['alliances'],
+  Map<string, Map<string, RealityAlliance[]>>
+>()
+const canonicalTags = new WeakMap<
+  RealityDomainState,
+  WeakMap<RelationshipsMap, Map<string, Map<string, string[]>>>
+>()
+const emptyRelationships: RelationshipsMap = Object.freeze({})
 const REPAIRABLE_LEGACY_TAGS = new Set(['betrayal', 'broken_alliance', 'rivalry', 'strained'])
 export const RELATIONSHIP_FORMING_GRACE_DAYS = 3
 const ALLIANCE_STATUS_PRIORITY: Record<RealityAllianceStatus, number> = {
@@ -79,7 +88,8 @@ export function isBetrayalBetween(
 export function getCanonicalRelationshipLabel(
   edge: DirectedRelationship | undefined,
   hasOperationalAlliance = false,
-  currentDay?: number
+  currentDay?: number,
+  hasActiveNemesis = false
 ): string {
   const isEarlyRead =
     !edge ||
@@ -87,6 +97,7 @@ export function getCanonicalRelationshipLabel(
     edge.perceivedLabel === 'ACQUAINTANCE' ||
     edge.perceivedLabel === 'FRIENDLY'
 
+  if (hasActiveNemesis) return 'Nemesis'
   if (hasOperationalAlliance && isEarlyRead) return 'Ally'
   if (isEarlyRead && currentDay !== undefined && currentDay > RELATIONSHIP_FORMING_GRACE_DAYS) {
     return getFirstImpressionLabel(edge)
@@ -144,7 +155,11 @@ export function getSharedFormalAlliances(
   targetId: string
 ): RealityAlliance[] {
   if (!reality || actorId === targetId) return []
-  return Object.values(reality.alliances)
+  const immutable = Object.isFrozen(reality.alliances)
+  let actors = immutable ? sharedAlliances.get(reality.alliances) : undefined
+  const cached = actors?.get(actorId)?.get(targetId)
+  if (cached) return [...cached]
+  const result = Object.values(reality.alliances)
     .filter(
       (alliance) =>
         (alliance.memberIds.includes(actorId) && alliance.memberIds.includes(targetId)) ||
@@ -161,6 +176,13 @@ export function getSharedFormalAlliances(
           (ALLIANCE_STATUS_PRIORITY[left.status] ?? -1) ||
         left.id.localeCompare(right.id)
     )
+  if (immutable) {
+    if (!actors) sharedAlliances.set(reality.alliances, (actors = new Map()))
+    let targets = actors.get(actorId)
+    if (!targets) actors.set(actorId, (targets = new Map()))
+    targets.set(targetId, [...result])
+  }
+  return result
 }
 
 /** The canonical display record is the highest-priority shared record. */
@@ -210,11 +232,13 @@ export function selectCanonicalRelationshipView(input: {
   affinity?: number
   visibleTags: Set<string>
   alliance: { id: string; status: string; operational: boolean } | null
+  isNemesis: boolean
 } {
   const outward = input.relationships?.[input.actorId]?.[input.targetId]
   const inward = input.relationships?.[input.targetId]?.[input.actorId]
   const formalAlliance = selectCanonicalAlliance(input.reality, input.actorId, input.targetId)
   const visibleTags = getCanonicalRelationshipTags(input)
+  const isNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
 
   if (formalAlliance?.status === 'PROBATIONARY') {
     visibleTags.delete('strained_alliance')
@@ -234,6 +258,7 @@ export function selectCanonicalRelationshipView(input: {
         ? Math.round(((outward?.affinity ?? 0) + (inward?.affinity ?? 0)) / 2)
         : undefined,
     visibleTags,
+    isNemesis,
     alliance: formalAlliance
       ? {
           id: formalAlliance.id,
@@ -244,12 +269,47 @@ export function selectCanonicalRelationshipView(input: {
   }
 }
 
+function hasActiveNemesisBetween(
+  reality: RealityDomainState | undefined,
+  actorId: string,
+  targetId: string
+): boolean {
+  return Object.values(reality?.relationshipAutonomy.nemeses ?? {}).some(
+    (nemesis) =>
+      nemesis.status === 'ACTIVE' &&
+      ((nemesis.ownerId === actorId && nemesis.targetId === targetId) ||
+        (nemesis.ownerId === targetId && nemesis.targetId === actorId))
+  )
+}
+
 /**
  * Returns the relationship truth used by action availability. Once a Reality
  * domain exists, a formal alliance is the only source for the alliance tag;
  * a stale projected legacy tag must never advertise a non-executable huddle.
  */
-export function getCanonicalRelationshipTags(input: {
+export function getCanonicalRelationshipTags(
+  input: Parameters<typeof readCanonicalRelationshipTags>[0]
+): Set<string> {
+  const reality = input.reality,
+    relationships = input.relationships ?? emptyRelationships
+  if (!reality || !Object.isFrozen(reality) || !Object.isFrozen(relationships))
+    return readCanonicalRelationshipTags(input)
+  let byRelationships = canonicalTags.get(reality)
+  if (!byRelationships) canonicalTags.set(reality, (byRelationships = new WeakMap()))
+  let actors = byRelationships.get(relationships)
+  if (!actors) byRelationships.set(relationships, (actors = new Map()))
+  let targets = actors.get(input.actorId)
+  if (!targets) actors.set(input.actorId, (targets = new Map()))
+  let tags = targets.get(input.targetId)
+  if (!tags) {
+    tags = [...readCanonicalRelationshipTags(input)]
+    targets.set(input.targetId, tags)
+  }
+  // Consumers intentionally add/remove presentation tags. Never expose cached sets.
+  return new Set(tags)
+}
+
+function readCanonicalRelationshipTags(input: {
   relationships?: RelationshipsMap
   reality?: RealityDomainState
   actorId: string
@@ -259,6 +319,7 @@ export function getCanonicalRelationshipTags(input: {
   const edge = input.reality?.relationships[input.actorId]?.[input.targetId]
   const reverseEdge = input.reality?.relationships[input.targetId]?.[input.actorId]
   const hasLiveAlliance = hasCanonicalLiveAlliance(input.reality, input.actorId, input.targetId)
+  const hasActiveNemesis = hasActiveNemesisBetween(input.reality, input.actorId, input.targetId)
 
   if (input.reality) {
     tags.delete('alliance')
@@ -271,6 +332,8 @@ export function getCanonicalRelationshipTags(input: {
       tags.add('betrayal')
     }
   }
+
+  if (hasActiveNemesis) tags.add('rivalry')
 
   for (const relationship of [edge, reverseEdge]) {
     if (!relationship) continue

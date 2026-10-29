@@ -12,8 +12,10 @@
 //  - Legacy single-slot and embedded multi-run saves are migrated safely.
 
 import type { GameState } from '../types'
+import { takePreparedSnapshotJson } from './snapshotSerialization'
 import type { GameMode, SeasonExpansionMode } from '../modes/modeTypes'
 import { normalizeGameMode } from '../modes/gameModes'
+import { removeObsoleteGameData, removeObsoleteChallengeData } from './removedMinigameCleanup'
 import { isSurvivorRunTerminal } from '../modes/survivorRun'
 import {
   applySurvivorAchievementProgress,
@@ -244,7 +246,7 @@ export function createSavedSeasonSnapshot(
     finale: state.finale,
     social: compactSocialStateForPersistence(state.social),
     publicOpinion: state.publicOpinion,
-    challenge: state.challenge,
+    challenge: state.challenge ? removeObsoleteChallengeData(state.challenge) : undefined,
   }
 }
 
@@ -350,7 +352,11 @@ function coerceSnapshot(raw: unknown, profileId: string): SavedSeasonSnapshot | 
   if (legacyGame.modeSpecific?.replacementTransition?.mode === 'survivor') {
     legacyGame.modeSpecific.replacementTransition.mode = 'survival'
   }
-  return snapshot
+  return {
+    ...snapshot,
+    game: removeObsoleteGameData(snapshot.game),
+    ...(snapshot.challenge ? { challenge: removeObsoleteChallengeData(snapshot.challenge) } : {}),
+  }
 }
 
 function normalizeRunProfile(
@@ -424,7 +430,7 @@ function serialize(value: unknown): string | null {
       // The normal saved state is JSON-safe. Let the browser's native
       // serializer handle that hot path without invoking a replacer for every
       // property. Keep the defensive path for runtime BigInts and cycles.
-      serialized = JSON.stringify(value)
+      serialized = takePreparedSnapshotJson(value) ?? JSON.stringify(value)
     } catch {
       serialized = JSON.stringify(value, createPersistenceReplacer())
     }

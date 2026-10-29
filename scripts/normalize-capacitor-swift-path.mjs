@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 
 const packageFile = resolve('ios/App/CapApp-SPM/Package.swift')
 const current = readFileSync(packageFile, 'utf8')
-const normalized = current.replaceAll(
-  '..\\..\\..\\node_modules\\@capgo\\native-purchases',
-  '../../../node_modules/@capgo/native-purchases'
+const normalized = current.replace(
+  /path: "([^"]+)"/g,
+  (_match, path) => `path: "${path.replaceAll('\\', '/')}"`
 )
 
 if (normalized !== current) {

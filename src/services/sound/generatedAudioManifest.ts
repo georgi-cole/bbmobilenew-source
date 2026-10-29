@@ -185,6 +185,21 @@ export const GENERATED_AUDIO_ASSETS = [
     ]
   },
   {
+    "key": "music:dressing_room",
+    "category": "music",
+    "relativePath": "music/dressing_room.mp3",
+    "preload": false,
+    "volume": 0.38,
+    "loop": true,
+    "trackId": "dressing_room",
+    "displayName": "Move Into Me — Dressing Room",
+    "fallbackTrack": "introhub",
+    "tags": [
+      "ambient",
+      "social"
+    ]
+  },
+  {
     "key": "music:final_modal",
     "category": "music",
     "relativePath": "music/final_modal.mp3",
@@ -691,6 +706,7 @@ export const GENERATED_AUDIO_ASSETS = [
 
 export const GENERATED_MUSIC_TRACK_IDS = [
   "challenge_group_1",
+  "dressing_room",
   "final_modal",
   "final_three_week",
   "glass_bridge",
@@ -723,6 +739,15 @@ export const GENERATED_MUSIC_TRACKS = {
     "tags": [
       "competition",
       "minigame"
+    ]
+  },
+  "dressing_room": {
+    "displayName": "Move Into Me — Dressing Room",
+    "soundKey": "music:dressing_room",
+    "fallbackTrack": "introhub",
+    "tags": [
+      "ambient",
+      "social"
     ]
   },
   "final_modal": {

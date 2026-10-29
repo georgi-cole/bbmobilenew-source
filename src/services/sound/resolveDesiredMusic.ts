@@ -19,6 +19,7 @@ import { resolveSpecialMusicCue } from './specialMusicCues'
 const HOUSE_MENU_DESTINATION_ROUTES = new Set([
   'settings',
   'profile',
+  'profile/dressing-room',
   'rules',
   'vox-populi-rules',
   'leaderboard',

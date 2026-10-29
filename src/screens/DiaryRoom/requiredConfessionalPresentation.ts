@@ -1,3 +1,4 @@
+import { getMissionPowerPresentation } from './missionPowerPresentation'
 import { calculateRequiredDoubleEvictionSlots } from '../../features/twists/doubleEvictionTieUtils'
 import type { ActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
 import type { GameState } from '../../types'
@@ -43,6 +44,16 @@ export function getRequiredConfessionalPresentation(
   const key = buildKey(decision, game)
 
   switch (decision.type) {
+    case 'mission_power':
+      return {
+        ...getMissionPowerPresentation(game),
+        eyebrow: dayLabel,
+        confirmLabel: 'Confirm decision',
+        confirmation: 'Your decision is recorded.',
+        tone: 'power',
+        returnCue: 'game',
+      }
+
     case 'nominations': {
       const isVoxPopuli = game.voxPopuli?.status === 'active'
       const human = game.players.find(

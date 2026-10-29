@@ -49,6 +49,7 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'famousFigures',
   'silentSaboteur',
   'majorityRules',
+  'percentagePanic',
   'pressurePlank',
   'colorMatch',
   'logicLocks',
@@ -57,7 +58,8 @@ export const CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS = [
   'hangman',
   'tiltLabyrinth',
   'threeDigitsQuiz',
-  'tetris',
+  'gatesOfTheEye',
+  'boxedOut',
   'minesweeps',
   'dontGoOver',
   'capitalization',
@@ -95,6 +97,19 @@ export const CLASSIC_CAMPAIGN_GAME_REQUIRED_PREVIOUS: Partial<
   crystal_path_shattered: 'glass_bridge_brutal',
 }
 
+/** Registry limits for games whose campaign band spans a wider roster range. */
+export const CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS: Partial<
+  Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
+> = {
+  boxedOut: 16,
+}
+
+export const CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS: Partial<
+  Record<(typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number], number>
+> = {
+  boxedOut: 8,
+}
+
 export function getApprovedCompetitionGameKeys(
   template: BracketTemplate = DEFAULT_BRACKET_TEMPLATE
 ): string[] {
@@ -106,8 +121,8 @@ export function getApprovedCompetitionGameKeys(
  *
  * - Each regular season day has its own pool, targeting the expected house
  *   count with a one-player tolerance for twists and double evictions.
- * - Day 1 is a fixed two-game premiere: Majority Rules for LOH and Quick Tap
- *   Race for POS.
+ * - Day 1 is a fixed premiere: LOH is a 50/50 draw between Majority Rules and
+ *   Percentage Panic; POS uses Quick Tap Race.
  * - With many housemates, LOH uses fixed-round or simultaneous games and POS
  *   stays short. Sequential/turn-heavy formats remain in the large-cast days.
  * - LOH becomes longer and more technical as the season progresses.
@@ -127,7 +142,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
     maxPlayers: 16,
     minDay: 1,
     maxDay: 1,
-    loh: ['majorityRules'],
+    loh: ['majorityRules', 'percentagePanic'],
     pos: ['quickTap', 'riskWheel'],
   },
   {
@@ -143,6 +158,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'majorityRules',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: ['quickTap', 'riskWheel', 'colorMatch', 'cardClash', 'dontGoOver', 'tiltLabyrinth'],
   },
@@ -159,6 +175,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'silentSaboteur',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -185,6 +202,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'majorityRules',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -211,6 +229,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -237,6 +256,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'trapAuction',
+      'boxedOut',
     ],
     pos: [
       'quickTap',
@@ -266,6 +286,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'glass_bridge_brutal',
       'crystal_path_shattered',
       'wildcardWestern',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
@@ -275,7 +296,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'minesweeps',
       'dontGoOver',
       'threeDigitsQuiz',
-      'tetris',
+      'gatesOfTheEye',
     ],
   },
   {
@@ -297,13 +318,14 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'houseOfDarkness',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
       'logicLocks',
       'riskWheel',
       'minesweeps',
-      'tetris',
+      'gatesOfTheEye',
       'threeDigitsQuiz',
       'dontGoOver',
     ],
@@ -325,13 +347,14 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'chainOfGreed',
       'batteryLow',
       'houseOfDarkness',
+      'boxedOut',
     ],
     pos: [
       'quickTapSeasons',
       'logicLocks',
       'riskWheel',
       'minesweeps',
-      'tetris',
+      'gatesOfTheEye',
       'threeDigitsQuiz',
       'dontGoOver',
       'quickTap',
@@ -363,7 +386,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'logicLocks',
       'riskWheel',
       'minesweeps',
-      'tetris',
+      'gatesOfTheEye',
       'threeDigitsQuiz',
       'dontGoOver',
       'quickTap',
@@ -397,7 +420,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'logicLocks',
       'riskWheel',
       'minesweeps',
-      'tetris',
+      'gatesOfTheEye',
       'threeDigitsQuiz',
       'dontGoOver',
       'quickTap',
@@ -431,7 +454,7 @@ export const DEFAULT_BRACKET_TEMPLATE: BracketTemplate = [
       'logicLocks',
       'riskWheel',
       'minesweeps',
-      'tetris',
+      'gatesOfTheEye',
       'threeDigitsQuiz',
       'dontGoOver',
       'quickTap',
@@ -500,6 +523,19 @@ function applyGameStoryPrerequisites(
   })
 }
 
+function applyPlayerCountPrerequisites(pool: string[], playerCount: number): string[] {
+  return pool.filter((key) => {
+    const minPlayers =
+      CLASSIC_CAMPAIGN_GAME_MIN_PLAYERS[key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]]
+    const maxPlayers =
+      CLASSIC_CAMPAIGN_GAME_MAX_PLAYERS[key as (typeof CLASSIC_CAMPAIGN_ELIGIBLE_GAME_KEYS)[number]]
+    return (
+      (minPlayers === undefined || playerCount >= minPlayers) &&
+      (maxPlayers === undefined || playerCount <= maxPlayers)
+    )
+  })
+}
+
 function getRosterFallbackBand(
   playerCount: number,
   template: BracketTemplate
@@ -547,13 +583,19 @@ export function getClassicCampaignPoolForContext(
     })[0]
   if (matched) {
     const pool = context.compType === 'POS' ? matched.pos : matched.loh
-    return applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys),
+      context.playerCount
+    )
   }
 
   const fallback = getRosterFallbackBand(context.playerCount, template)
   if (fallback) {
     const pool = context.compType === 'POS' ? fallback.pos : fallback.loh
-    return applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, context.day, context.playedGameKeys),
+      context.playerCount
+    )
   }
 
   return []
@@ -577,7 +619,10 @@ export function getBracketPoolForContext(
   )
   if (final3Compatibility) {
     const pool = compType === 'POS' ? final3Compatibility.pos : final3Compatibility.loh
-    return applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER)
+    return applyPlayerCountPrerequisites(
+      applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER),
+      playerCount
+    )
   }
 
   const fallback = getRosterFallbackBand(playerCount, template)
@@ -589,5 +634,8 @@ export function getBracketPoolForContext(
     )
   }
   const pool = compType === 'POS' ? fallback.pos : fallback.loh
-  return applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER)
+  return applyPlayerCountPrerequisites(
+    applyGameStoryPrerequisites(pool, Number.MAX_SAFE_INTEGER),
+    playerCount
+  )
 }

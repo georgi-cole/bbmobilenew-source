@@ -1,0 +1,146 @@
+.player-safety {
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  background: #080c20;
+  color: #f4f2ff;
+  display: grid;
+  place-items: center;
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+}
+.player-safety__card {
+  box-sizing: border-box;
+  width: min(100%, 620px);
+  padding: clamp(20px, 5vw, 40px);
+  border: 1px solid #484463;
+  border-radius: 24px;
+  background: #14172d;
+}
+.player-safety h1 {
+  font-size: clamp(26px, 6vw, 36px);
+  line-height: 1.2;
+  margin: 0 0 24px;
+}
+.player-safety__eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: #d1c0ff;
+}
+.player-safety label {
+  display: block;
+  font-weight: 600;
+}
+.player-safety input[type='number'] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0 16px;
+  background: #080c20;
+  color: inherit;
+  border: 1px solid #9a8cb9;
+  border-radius: 10px;
+  font: inherit;
+}
+.player-safety button {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  border: 1px solid #bda1ff;
+  border-radius: 12px;
+  background: #d3bdff;
+  color: #161027;
+  font:
+    600 16px/1.4 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.player-safety button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.player-safety button.player-safety__secondary {
+  color: #ece4ff;
+  background: transparent;
+}
+.player-safety .player-safety__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 24px 0;
+}
+.player-safety__check input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  margin-top: 3px;
+  accent-color: #c9a9ff;
+}
+.player-safety small,
+.player-safety__detail {
+  display: block;
+  color: #c7c2d7;
+  font-size: 14px;
+  font-weight: 400;
+}
+.player-safety a {
+  color: #dac6ff;
+  overflow-wrap: anywhere;
+}
+.player-safety__actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.player-safety__actions > a {
+  display: block;
+  min-height: 44px;
+  padding-block: 10px;
+  box-sizing: border-box;
+}
+.player-safety__actions > button {
+  margin: 0;
+}
+.player-safety details {
+  margin-top: 28px;
+  border-top: 1px solid #484463;
+  padding-top: 16px;
+  font-size: 14px;
+}
+.player-safety details > a {
+  display: block;
+  margin-top: 12px;
+}
+.player-safety summary {
+  cursor: pointer;
+}
+.player-safety__notice {
+  padding: 12px;
+  border: 1px solid #bda1ff;
+  border-radius: 12px;
+}
+.player-safety :focus-visible {
+  outline: 3px solid #ffde87;
+  outline-offset: 4px;
+}
+.player-safety__dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  box-sizing: border-box;
+  overflow: auto;
+  background: #080c20f5;
+}
+.player-safety select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 10px;
+  color: inherit;
+  background: #080c20;
+  font: inherit;
+}

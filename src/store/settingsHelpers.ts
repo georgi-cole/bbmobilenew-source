@@ -1,7 +1,7 @@
 import { loadSettings, type SettingsState } from './settingsSlice';
 
 /** Default cast / roster size used when no valid persisted value exists. */
-export const DEFAULT_ROSTER_SIZE = 12;
+export const DEFAULT_ROSTER_SIZE = 16;
 
 /**
  * Read the configured cast size from persisted settings.

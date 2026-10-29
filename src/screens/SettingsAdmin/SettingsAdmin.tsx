@@ -86,6 +86,8 @@ export default function SettingsAdmin() {
   const [activeTab, setActiveTab] = useState<Tab>('audio')
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
+  const weekendGame = useAppSelector((state) => state.game)
+  const weekendsLocked = weekendGame.firstRealWeekendStarted === true || weekendGame.week >= 6
   const settings = useAppSelector(selectSettings)
   const realityAgeEligibility = useAppSelector((state) =>
     getProfileRealityAgeEligibility(state.profiles)
@@ -384,7 +386,17 @@ export default function SettingsAdmin() {
                 <input
                   type="checkbox"
                   className="settings-toggle"
-                  checked={settings.gameUX.weekendsEnabled}
+                  checked={
+                    weekendsLocked
+                      ? weekendGame.weekendsEnabledForSeason !== false
+                      : settings.gameUX.weekendsEnabled
+                  }
+                  disabled={weekendsLocked}
+                  title={
+                    weekendsLocked
+                      ? 'Locked after the first weekend begins or Day 6 starts.'
+                      : undefined
+                  }
                   onChange={(e) => dispatch(setGameUX({ weekendsEnabled: e.target.checked }))}
                   aria-label="Toggle weekends"
                 />

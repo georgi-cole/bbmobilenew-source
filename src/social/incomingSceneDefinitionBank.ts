@@ -93,7 +93,27 @@ export const SCENE_DEFINITIONS: Record<string, SceneDefinition> = {
   betrayal_warning: { topic: 'a possible betrayal', stakes: 'high', kind: 'intel' },
   ignored_warning: { topic: 'the distance between you', stakes: 'meaningful', kind: 'bond' },
   targeted_snark: { topic: 'their read on your game', stakes: 'meaningful', kind: 'conflict' },
+  season_provocateur: {
+    topic: 'their challenge to your position in the Hub',
+    stakes: 'high',
+    kind: 'conflict',
+  },
   alliance_reassurance: { topic: 'the state of your alliance', stakes: 'meaningful', kind: 'bond' },
+  alliance_nomination_pitch: {
+    topic: 'an alliance recommendation for the nomination slate',
+    stakes: 'high',
+    kind: 'strategy',
+  },
+  alliance_safety_pitch: {
+    topic: 'an alliance recommendation for the Safety replacement',
+    stakes: 'high',
+    kind: 'strategy',
+  },
+  alliance_vote_pitch: {
+    topic: 'an alliance read on the eviction vote',
+    stakes: 'meaningful',
+    kind: 'strategy',
+  },
   generic_gossip: { topic: 'a Hub rumour', stakes: 'meaningful', kind: 'intel' },
   generic_check_in: { topic: 'where things stand', stakes: 'quiet', kind: 'bond' },
   relationship_friendship_check_in: {

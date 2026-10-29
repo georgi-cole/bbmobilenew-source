@@ -1,11 +1,22 @@
+import { getMissionOutgoingIds } from '../bb/missionPowers'
 import type { Middleware, MiddlewareAPI } from '@reduxjs/toolkit'
 import { clearEvictionVoteBreakdownUnlock } from '../features/evictionVoteBreakdownStorage'
 import { expandCupidIds } from '../features/twists/cupidArrow'
 import type { GameState, TvEvent } from '../types'
-import { consumeBroadcastEvent, updateTvEvent } from './gameSlice'
+import { GUEST_SAVE_REMINDER_COPY, isGuestSaveReminderEvent } from './guestSaveReminder'
+import {
+  addTvEvent,
+  consumeBroadcastEvent,
+  consumeBroadcastEvents,
+  updateTvEvent,
+} from './gameSlice'
 
 type PresentationState = {
   game: GameState
+  profiles?: {
+    activeProfileId?: string | null
+    isGuest?: boolean
+  }
 }
 
 type GenericAction = {
@@ -40,12 +51,12 @@ function currentTemplateEvent(
 }
 
 function outgoingLohEligibilityCopy(game: GameState): string | null {
-  if (!game.prevHohId || game.voxPopuli?.status === 'active') return null
+  if (game.voxPopuli?.status === 'active') return null
 
   const human = game.players.find((player) => player.isUser)
   if (!human) return null
 
-  const outgoingIds = expandCupidIds(game, [game.prevHohId])
+  const outgoingIds = expandCupidIds(game, getMissionOutgoingIds(game))
   if (!outgoingIds.includes(human.id)) return null
 
   const outgoingNames = outgoingIds
@@ -135,8 +146,55 @@ function consumePreviousDayBroadcasts(
   // Anything that was still waiting at the instant the previous day ended is
   // historical context now. Keep it in the log, but never allow it to surface
   // as the new day's Faux TV "Now" item.
-  for (const event of before.tvFeed) {
-    if (event.meta?.broadcastConsumed !== true) {
+  const ids = before.tvFeed
+    .filter((event) => event.meta?.broadcastConsumed !== true)
+    .map((event) => event.id)
+  if (ids.length) api.dispatch(consumeBroadcastEvents(ids))
+}
+
+function addGuestModeSaveWarning(
+  api: MiddlewareAPI,
+  actionType: string | undefined,
+  before: PresentationState,
+  after: PresentationState
+): void {
+  const profile = after.profiles
+  const canSaveRun = Boolean(profile && !profile.isGuest && profile.activeProfileId)
+  if (
+    actionType !== 'game/advance' ||
+    before.game.phase !== 'week_start' ||
+    before.game.week !== 1 ||
+    after.game.phase !== 'loh_comp_announcement' ||
+    after.game.week !== 1 ||
+    !profile ||
+    canSaveRun
+  ) {
+    return
+  }
+
+  api.dispatch(
+    addTvEvent({
+      text: GUEST_SAVE_REMINDER_COPY,
+      type: 'game',
+      channels: ['tv', 'mainLog'],
+      source: 'system',
+      meta: {
+        broadcastDelivery: 'next',
+        broadcastLevel: 'minor',
+        forceOnTv: true,
+        guestModeSaveWarning: true,
+        phase: 'loh_comp_announcement',
+        week: 1,
+      },
+    })
+  )
+}
+
+function consumeGuestSaveReminderForProfile(api: MiddlewareAPI, after: PresentationState): void {
+  if (!after.profiles || after.profiles.isGuest) return
+
+  for (const event of after.game.tvFeed) {
+    if (isGuestSaveReminderEvent(event) && event.meta?.broadcastConsumed !== true) {
       api.dispatch(consumeBroadcastEvent(event.id))
     }
   }
@@ -289,6 +347,10 @@ export const presentationConsistencyMiddleware: Middleware = (api) => (next) => 
   const result = next(actionForNext)
 
   const after = api.getState() as PresentationState
+  if (before.game.tvFeed !== after.game.tvFeed || before.profiles !== after.profiles) {
+    consumeGuestSaveReminderForProfile(api, after)
+  }
+  addGuestModeSaveWarning(api, actionType, before, after)
   consumePreviousDayBroadcasts(api, before.game, after.game)
 
   if (!isPendingVoxEvictionAudienceVote(after.game)) {

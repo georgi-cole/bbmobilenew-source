@@ -1,23 +1,23 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
-import { useAppDispatch } from '../../store/hooks';
-import { setUserProfile } from '../../store/userProfileSlice';
-import { resetGame } from '../../store/gameSlice';
-import './CreatePlayer.css';
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
+import { useAppDispatch } from '../../store/hooks'
+import { resetGame } from '../../store/gameSlice'
+import { setUserProfile } from '../../store/userProfileSlice'
+import './CreatePlayer.css'
 
 export default function CreatePlayer() {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🧑');
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const [name, setName] = useState('')
+  const [avatar, setAvatar] = useState('🧑')
 
-  const AVATAR_OPTIONS = ['🧑','👱','👩','🧔','👧','🧓','👩‍🦱','🧑‍🦰','🧑‍🦳','🧑‍🦲','👦','👴'];
+  const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
 
   function handleCreate(e: FormEvent) {
-    e.preventDefault();
-    dispatch(setUserProfile({ name: name.trim() || 'You', avatar }));
-    dispatch(resetGame());
-    navigate('/game');
+    e.preventDefault()
+    dispatch(setUserProfile({ name: name.trim() || 'You', avatar }))
+    dispatch(resetGame())
+    navigate('/game')
   }
 
   return (
@@ -55,14 +55,10 @@ export default function CreatePlayer() {
           </div>
         </fieldset>
 
-        <button
-          className="create-player-screen__submit"
-          type="submit"
-          disabled={!name.trim()}
-        >
+        <button className="create-player-screen__submit" type="submit" disabled={!name.trim()}>
           Create &amp; Play
         </button>
       </form>
     </div>
-  );
+  )
 }

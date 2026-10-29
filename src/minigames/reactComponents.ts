@@ -32,6 +32,7 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 import { lazyWithChunkRecovery } from '../utils/lazyWithChunkRecovery'
 import type { RelationshipsMap } from '../social/types'
+import type { StrategicAllianceSnapshot } from '../types'
 
 /**
  * Minimal prop contract shared by all generic React minigame components.
@@ -46,6 +47,7 @@ export interface GenericMinigameProps {
     tiebreakerMs?: number,
     completion?: {
       authoritativeWinnerId?: string | null
+      authoritativeWinnerIds?: string[]
       authoritativeLastPlaceId?: string | null
       authoritativeRankedIds?: string[]
       rawValue?: number
@@ -58,6 +60,14 @@ export interface GenericMinigameProps {
   seed?: number
   /** When true the game starts immediately on mount (no Start button needed). */
   autoStart?: boolean
+  /** Host-selected VIP visual treatment; it must not change game state or RNG. */
+  premiumPresentation?: boolean
+  /** Explicit Quick Tap / Seasons rules variant, selected at session start. */
+  vipQuickTap?: boolean
+  /** Development-only preview override; a real session variant otherwise stays frozen. */
+  quickTapVariantOverride?: 'classic' | 'vip'
+  /** Development-only phase preview for the portrait finale stages. */
+  previewStage?: 'final' | 'round6' | 'final2'
   /** Capitalization only: selects standard LOH or Back 2 the Game rules. */
   context?: 'loh' | 'battleBack'
   /** Battery Low only: enable one-shot vote effects in compatible weekly formats. */
@@ -75,6 +85,8 @@ export interface GenericMinigameProps {
   }>
   /** Relationship state used by games with social target selection. */
   relationships?: RelationshipsMap
+  /** Current alliances and pacts for strategic targeting. */
+  alliances?: StrategicAllianceSnapshot[]
 }
 
 type LazyGenericMinigame = LazyExoticComponent<ComponentType<GenericMinigameProps>> & {
@@ -113,14 +125,14 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
       })
     )
   ),
-  QuickTapRace: lazyMinigame(() => import('./quickTapRace/QuickTapRaceCanvasGame')),
-  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasons')),
-  LaneRacers: lazyMinigame(() => import('./laneRacers/LaneRacersCanvasGame')),
+  QuickTapRace: lazyMinigame(() => import('../components/QuickTapRace/QuickTapRace')),
+  QuickTapSeasons: lazyMinigame(() => import('../screens/QuickTapSeasons/QuickTapSeasonsEntry')),
   TravelingDots: lazyMinigame(() => import('../components/TravelingDots/TravelingDots')),
   EstimationGame: lazyMinigame(() => import('../components/EstimationGame/EstimationGame')),
   BullseyeBlitz: lazyMinigame(() => import('../components/BullseyeBlitz/BullseyeBlitz')),
   PressurePlank: lazyMinigame(() => import('../components/PressurePlank/PressurePlank')),
   ColorMatch: lazyMinigame(() => import('../components/ColorMatchComp/ColorMatchComp')),
+  BoxedOut: lazyMinigame(() => import('../components/BoxedOut/BoxedOut')),
   SnakeGame: lazyMinigame(() => import('../components/SnakeGame/SnakeGame')),
   RescueTheKing: lazyMinigame(() => import('./rescueTheKing/RescueTheKingGame')),
   TrapAuction: lazyMinigame(() => import('../components/TrapAuction/TrapAuction')),
@@ -144,6 +156,7 @@ const reactComponents: Record<string, LazyGenericMinigame> = {
     () => import('../components/FinalThreeCircuit/FinalThreeCircuit')
   ),
   DownMemoryLane: lazyMinigame(() => import('../components/DownMemoryLane/DownMemoryLane')),
+  GatesOfTheEye: lazyMinigame(() => import('../components/GatesOfTheEye/GatesOfTheEye')),
 }
 
 export default reactComponents

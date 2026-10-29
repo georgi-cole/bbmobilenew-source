@@ -34,6 +34,7 @@ import {
   TEMPORARY_STORE_UNLOCKS_ENABLED,
 } from '../../vip/effectiveEntitlements'
 import { resolveVipUpgradeOffer } from '../../vip/vipUpgrade'
+import { trackProductEvent } from '../../services/liveOps/productTelemetry'
 import './Store.css'
 import './StoreProductList.css'
 
@@ -127,6 +128,7 @@ export default function Store() {
     setNotice(null)
     setModalError(null)
     setSelectedProductKey(productKey)
+    trackProductEvent('store_product_selected', { product_key: productKey }, currentProfile?.id)
   }
 
   async function handlePurchase(productKey: StoreProductKey) {
@@ -134,17 +136,27 @@ export default function Store() {
     purchaseLockRef.current = true
     setNotice(null)
     setModalError(null)
+    trackProductEvent('store_purchase_started', { product_key: productKey }, currentProfile?.id)
     try {
       const result = await dispatch(purchaseStoreItem(productKey))
       if (purchaseStoreItem.fulfilled.match(result)) {
+        trackProductEvent(
+          'store_purchase_completed',
+          { product_key: productKey },
+          currentProfile?.id
+        )
         const definition = getStoreProductDefinition(productKey)
         if (productKey === 'dramaMode' || productKey === 'vip') {
           dispatch(setGameUX({ dramaMode: true }))
         }
         setNotice(`${definition.title} is now permanently unlocked and active.`)
       } else if (purchaseStoreItem.rejected.match(result)) {
+        trackProductEvent('store_purchase_failed', { product_key: productKey }, currentProfile?.id)
         setModalError(result.payload ?? 'The purchase could not be completed.')
       }
+    } catch (error) {
+      trackProductEvent('store_purchase_failed', { product_key: productKey }, currentProfile?.id)
+      throw error
     } finally {
       purchaseLockRef.current = false
     }
@@ -194,6 +206,16 @@ export default function Store() {
         gameId: game.gameId,
         season: game.season,
       })
+    )
+    trackProductEvent(
+      'eyeolean_purchase_completed',
+      {
+        item_key: productKey,
+        game_mode: game.expansionMode ?? game.mode,
+        week: game.week,
+        day: game.week,
+      },
+      currentProfile.id
     )
     setEyeoleanNotice(`${product.title} added to your inventory.`)
   }
@@ -245,7 +267,10 @@ export default function Store() {
             type="button"
             key={shelf.id}
             aria-pressed={activeShelf === shelf.id}
-            onClick={() => setActiveShelf(shelf.id)}
+            onClick={() => {
+              setActiveShelf(shelf.id)
+              trackProductEvent('store_shelf_selected', { shelf_id: shelf.id }, currentProfile?.id)
+            }}
           >
             {shelf.label}
           </button>

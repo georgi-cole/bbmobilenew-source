@@ -5,8 +5,11 @@ import { resolveAvatar } from '../../utils/avatar'
 import { getPresentationAvatarPreloadUrls } from '../../utils/avatarPreloadCandidates'
 import { preloadImage, preloadImages } from '../../utils/preload'
 import { buildDepressionShockAvatarCandidates } from '../../features/twists/depressionShock'
+import { appearanceFromAssetUrl } from '../../appearance/catalog'
+import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
+import { store } from '../../store/store'
 import RouteLoadingScreen from '../RouteLoadingScreen/RouteLoadingScreen'
-import GAMEPLAY_BG from '../../assets/bb-gameplay-bg.svg'
+import GAMEPLAY_BG from '../../assets/bb-gameplay-bg.webp'
 import {
   beginGameplayAudioExit,
   cancelGameplayAudioExit,
@@ -47,6 +50,17 @@ export default function AssetPreloaderOverlay({
     async function run() {
       await preloadImage(GAMEPLAY_BG)
       if (cancelled) return
+
+      const state = store.getState()
+      const human = state.game.players.find((player) => player.isUser)
+      const profile = state.profiles.profiles.find(
+        (candidate) => candidate.id === state.profiles.activeProfileId
+      )
+      const selection =
+        (state.game.status === 'active' &&
+          (human?.appearance ?? appearanceFromAssetUrl(human?.avatar))) ||
+        profile?.appearanceSelection
+      if (selection?.kind === 'catalog') void warmSelectedAppearance(selection)
 
       const avatarUrls = [...new Set([...getAvatarUrls(), ...getThemedAvatarUrls()])]
       const results = await preloadImages(avatarUrls)

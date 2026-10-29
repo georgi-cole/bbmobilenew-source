@@ -1,3 +1,4 @@
+import { isMissionPower, MISSION_POWER_LABELS, missionPowerDetail } from '../../bb/missionPowers'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
@@ -71,9 +72,12 @@ export default function ConfessionalWallet() {
     ) {
       return {
         source: 'Secret Mission',
-        title: EARNED_POWER_LABELS[reward.type] ?? reward.type,
-        detail:
-          reward.type === 'doubleVote'
+        title: isMissionPower(reward.type)
+          ? MISSION_POWER_LABELS[reward.type]
+          : (EARNED_POWER_LABELS[reward.type] ?? reward.type),
+        detail: isMissionPower(reward.type)
+          ? missionPowerDetail(reward)
+          : reward.type === 'doubleVote'
             ? 'Offered automatically at the next eligible live vote.'
             : reward.type === 'voteDeduction'
               ? 'Can reduce one vote when you are nominated at an eligible elimination vote.'

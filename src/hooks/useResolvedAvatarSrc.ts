@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import type { Player } from '../types'
+import { appearanceFromAssetUrl } from '../appearance/catalog'
 import { getProfilePhotoAvatarId, resolveAvatar, resolveAvatarCandidates } from '../utils/avatar'
 import { imageIdToDataUrl } from '../utils/imageDb'
 import {
@@ -14,7 +15,7 @@ type PhotoState = {
 }
 
 export function useResolvedAvatarSrc(
-  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser'>>
+  player: Pick<Player, 'id' | 'name' | 'avatar'> & Partial<Pick<Player, 'isUser' | 'appearance'>>
 ) {
   const depressionShockPortraitMode = useSyncExternalStore(
     subscribeDepressionShockPortraitMode,
@@ -24,8 +25,8 @@ export function useResolvedAvatarSrc(
   const profilePhotoId = getProfilePhotoAvatarId(player.avatar)
   const fallbackCandidates = resolveAvatarCandidates(player)
   const useSadPortrait =
-    player.isUser !== true &&
-    player.id !== 'user' &&
+    ((player.isUser !== true && player.id !== 'user') ||
+      Boolean(player.appearance?.kind === 'catalog' || appearanceFromAssetUrl(player.avatar))) &&
     !profilePhotoId &&
     depressionShockPortraitMode === 'sad'
   const candidates = useSadPortrait

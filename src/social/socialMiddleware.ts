@@ -24,7 +24,7 @@
 
 import type { Middleware } from '@reduxjs/toolkit'
 import type { StrategicAllianceSnapshot, GameState as FullGameState } from '../types'
-import { settleSecretMissionDay } from '../store/gameSlice'
+import { addTvEvent, settleSecretMissionDay } from '../store/gameSlice'
 import { getCanonicalRelationshipTags } from './relationshipSemantics'
 import { applyNominationBetrayalConsequences } from './realityIntegrityMiddleware'
 import { SocialEngine } from './SocialEngine'
@@ -90,6 +90,9 @@ import { createIncomingInteraction } from './incomingInteractionFactory'
 import { BELLA_ID } from '../features/twists/bellasWill'
 import { getClassicEvictionTieBreakerId } from '../store/criticalGameRules'
 import { formatHistoricalIntel } from './intelligenceSystem'
+import { composePulseChronicle, getPulseChronicleIdentity } from './pulseChronicle'
+import { getPulseChronicleTheme } from './pulseChronicleTheme'
+import { resolveWeatherDay } from '../weather/weatherEngine'
 import { getUnavailableRealityFactParticipantIds } from './intelligenceEligibility'
 import { buildTieBreakerCampaignPitch } from './tieBreakerStrategy'
 
@@ -111,9 +114,11 @@ const VOX_SOCIAL_BEAT_PHASES = new Set([
 ])
 
 interface GameState {
+  missionPowers?: import('../bb/missionPowers').MissionPowerState
   gameId: string
   season: number
   seed: number
+  pulseChronicles?: import('../types').PulseChronicle[]
   phase: string
   week: number
   mode?: 'classic' | 'survival'
@@ -139,15 +144,20 @@ interface GameState {
   coLohNomineeByCoLohId?: Record<string, string> | null
   cupidArrow?: {
     status?: 'inactive' | 'scheduled' | 'active' | 'broken'
+    activatedSeason?: number | null
     pairs?: Array<{ memberIds: [string, string] }>
   }
-  voxPopuli?: { status?: 'inactive' | 'scheduled' | 'active' | 'complete' } | null
+  voxPopuli?: {
+    status?: 'inactive' | 'scheduled' | 'active' | 'complete'
+    activatedSeason?: number | null
+  } | null
   weekendInterlude?: {
     active?: boolean
     afterDay: number
     weekendNumber?: 1 | 2 | 3
     finaleWeekend?: true
     weekendDay: 1 | 2
+    debug?: true
     stage:
       | 'intro'
       | 'instructions'
@@ -206,12 +216,91 @@ interface StateWithGame {
     dramaNetwork?: DramaSocialNetwork
     commitments?: import('./types').SocialCommitment[]
     socialMemory?: SocialMemoryMap
+    actionHistory?: import('./types').SocialActionLogEntry[]
+    sessionLogs?: import('./types').SocialActionLogEntry[]
     realitySimulation?: RealitySimulationState
     reality?: import('./reality').RealityDomainState
   }
 }
 
 type MiddlewareAPI = { dispatch: (a: unknown) => unknown; getState: () => unknown }
+
+/** Finalize each episode before its source history can roll away. */
+function archiveCompletedPulseEpisode(
+  api: MiddlewareAPI,
+  day: number,
+  weekend?: NonNullable<GameState['weekendInterlude']> | null
+): void {
+  const state = api.getState() as StateWithGame
+  if (getEffectiveSocialMode(state) !== 'drama' || !state.social?.reality) return
+  if (weekend?.debug) return
+  const identity = getPulseChronicleIdentity(day, weekend)
+  const episodes = state.game.pulseChronicles ?? []
+  const episodeKey = (entry: import('../types').PulseChronicle) =>
+    entry.episodeKey ?? `day:${entry.day}`
+  if (
+    episodes.some(
+      (entry) => entry.season === state.game.season && episodeKey(entry) === identity.key
+    )
+  )
+    return
+  const human = state.game.players.find((player) => player.isUser)
+  if (!human) return
+  const priorEpisodes = episodes.filter(
+    (entry) => entry.season === state.game.season && entry.day === day
+  )
+  const actionHistory = state.social.actionHistory ?? state.social.sessionLogs ?? []
+  const actionHistoryAfterTimestamp = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughTimestamp ?? 0),
+    0
+  )
+  const realityEventsAfterSequence = priorEpisodes.reduce(
+    (latest, entry) => Math.max(latest, entry.capturedThroughRealitySequence ?? -1),
+    -1
+  )
+  const chronicle = composePulseChronicle({
+    gameId: state.game.gameId,
+    season: state.game.season,
+    day,
+    humanId: human.id,
+    players: state.game.players.map((player) => ({ id: player.id, name: player.name ?? '' })),
+    reality: state.social.reality,
+    actionHistory,
+    weather: resolveWeatherDay(state.game.gameId, day).condition,
+    theme: getPulseChronicleTheme(state.game, day),
+    complete: true,
+    episode: identity,
+    actionHistoryAfterTimestamp,
+    realityEventsAfterSequence,
+  })
+  const capturedThroughTimestamp = actionHistory
+    .filter((entry) => entry.week === day && entry.timestamp > actionHistoryAfterTimestamp)
+    .reduce((latest, entry) => Math.max(latest, entry.timestamp), actionHistoryAfterTimestamp)
+  api.dispatch({
+    type: 'game/archivePulseChronicle',
+    payload: {
+      ...chronicle,
+      capturedThroughTimestamp,
+      capturedThroughRealitySequence: Math.max(-1, state.social.reality.nextSequence - 1),
+    },
+  })
+}
+
+function recordFinalThreeEviction(
+  api: MiddlewareAPI,
+  day: number,
+  actorId: string | undefined,
+  evicteeId: string | undefined
+): void {
+  if (!evicteeId) return
+  recordCeremony(api, 'EVICTION', {
+    actorId,
+    targetIds: [evicteeId],
+    reason: 'The Final LOH chose who would leave at the Final Three ceremony.',
+    tags: ['finale_choice'],
+  })
+  archiveCompletedPulseEpisode(api, day)
+}
 
 const CUPID_PAIR_INITIAL_AFFINITY = 55
 
@@ -1357,6 +1446,67 @@ function recordActualVotes(api: MiddlewareAPI): void {
   }
 }
 
+function recordEvictionVoteSummary(api: MiddlewareAPI, game: FullGameState): void {
+  if (game.phase !== 'eviction_results' || !game.voteResults) return
+
+  const tallies = Object.entries(game.voteResults)
+    .map(([playerId, voteCount]) => {
+      const player = game.players.find((candidate) => candidate.id === playerId)
+      return {
+        playerId,
+        name: player?.name ?? playerId,
+        voteCount,
+      }
+    })
+    .filter((entry) => Number.isFinite(entry.voteCount))
+
+  if (tallies.length === 0 || tallies.every((entry) => entry.voteCount <= 0)) return
+
+  const isAudienceVote = game.voteResultsMode === 'public'
+  const orderedTallies = [...tallies].sort(
+    (left, right) => right.voteCount - left.voteCount || left.name.localeCompare(right.name)
+  )
+  const highestVoteCount = orderedTallies[0]?.voteCount ?? 0
+  const leaders = orderedTallies.filter((entry) => entry.voteCount === highestVoteCount)
+  const tallySummary = orderedTallies
+    .map(({ name, voteCount }) =>
+      isAudienceVote ? `${name} ${voteCount.toFixed(1)}%` : `${name} ${Math.round(voteCount)}`
+    )
+    .join(', ')
+  const evictee = game.players.find((player) => player.id === game.pendingEviction?.evicteeId)
+  const resultLabel = isAudienceVote ? 'Audience vote' : 'Vote results'
+  let outcome = ''
+
+  if (leaders.length > 1) {
+    const tiedNames = leaders.map((entry) => entry.name).join(' and ')
+    outcome = game.awaitingTieBreak
+      ? `The vote is tied between ${tiedNames}.`
+      : evictee
+        ? `The tie-break eliminated ${evictee.name}.`
+        : `The vote is tied between ${tiedNames}.`
+  } else if (evictee) {
+    outcome = `${evictee.name} was eliminated.`
+  }
+
+  api.dispatch(
+    addTvEvent({
+      text: `${resultLabel}: ${tallySummary}.${outcome ? ` ${outcome}` : ''}`,
+      type: 'vote',
+      source: 'system',
+      channels: ['mainLog'],
+      meta: {
+        week: game.week,
+        phase: 'eviction_results',
+        evictionVoteResults: true,
+        voteResultsMode: isAudienceVote ? 'public' : 'house',
+        voteCounts: Object.fromEntries(
+          tallies.map(({ playerId, voteCount }) => [playerId, voteCount])
+        ),
+      },
+    })
+  )
+}
+
 function recordPhaseCeremony(
   api: MiddlewareAPI,
   previousPhase: string | undefined,
@@ -1365,6 +1515,8 @@ function recordPhaseCeremony(
 ): void {
   if (!nextPhase || previousPhase === nextPhase) return
   const state = api.getState() as StateWithGame
+  if (nextPhase === 'eviction_results')
+    recordEvictionVoteSummary(api, state.game as unknown as FullGameState)
   if (getEffectiveSocialMode(state) !== 'drama') return
   if (nextPhase === 'loh_results' && state.game.lohId) {
     const voxPopuliActive = state.game.voxPopuli?.status === 'active'
@@ -1474,6 +1626,61 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     ) {
       return action
     }
+  }
+
+  if (type === 'game/beginWeekendDayTransition') {
+    const prior = api.getState() as StateWithGame
+    if (prior.game.weekendInterlude?.active && prior.game.weekendInterlude.weekendDay === 1)
+      archiveCompletedPulseEpisode(
+        api as unknown as MiddlewareAPI,
+        prior.game.weekendInterlude.afterDay,
+        prior.game.weekendInterlude
+      )
+    return next(action)
+  }
+
+  if (type === 'game/completeWeekendInterlude') {
+    const prior = api.getState() as StateWithGame
+    if (prior.game.weekendInterlude?.active && prior.game.weekendInterlude.weekendDay === 2)
+      archiveCompletedPulseEpisode(
+        api as unknown as MiddlewareAPI,
+        prior.game.weekendInterlude.afterDay,
+        prior.game.weekendInterlude
+      )
+    return next(action)
+  }
+
+  if (type === 'game/finalizeFinal3Eviction' || type === 'game/finalizeFinal3Decision') {
+    const before = api.getState() as StateWithGame
+    const payload = (action as { payload?: unknown }).payload
+    const evicteeId =
+      typeof payload === 'string'
+        ? payload
+        : payload && typeof payload === 'object' && 'evicteeId' in payload
+          ? String((payload as { evicteeId: unknown }).evicteeId)
+          : undefined
+    const actorId =
+      payload && typeof payload === 'object' && 'hohWinnerId' in payload
+        ? String((payload as { hohWinnerId: unknown }).hohWinnerId)
+        : (before.game.lohId ?? undefined)
+    const result = next(action)
+    const after = api.getState() as StateWithGame
+    const evictee = after.game.players.find((player) => player.id === evicteeId)
+    if (
+      before.game.phase.startsWith('final3') &&
+      after.game.phase === 'week_end' &&
+      evictee &&
+      (evictee.status === 'evicted' || evictee.status === 'jury')
+    )
+      recordFinalThreeEviction(api as unknown as MiddlewareAPI, after.game.week, actorId, evicteeId)
+    return result
+  }
+
+  if (type === 'game/advanceWeek') {
+    const prior = api.getState() as StateWithGame
+    if (prior.game.phase === 'week_end')
+      archiveCompletedPulseEpisode(api as unknown as MiddlewareAPI, prior.game.week)
+    return next(action)
   }
 
   if (type === 'game/resetGame') {
@@ -1641,6 +1848,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     if (nextPhase === 'week_end' && prevPhase !== nextPhase) {
       api.dispatch(settleSecretMissionDay({ day: day }) as never)
+      archiveCompletedPulseEpisode(api as unknown as MiddlewareAPI, day)
     }
     if (prevPhase !== nextPhase) {
       runDramaPhase(api as unknown as MiddlewareAPI, nextPhase)
@@ -1771,7 +1979,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     return result
   }
 
-  if (type === 'game/setReplacementNominee') {
+  if (type === 'game/setReplacementNominee' || type === 'game/selectMissionBackup') {
     const prevState = api.getState() as StateWithGame
     const prevNominees = prevState.game?.nomineeIds ?? []
     const result = next(action)
@@ -1782,7 +1990,9 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     applyReplacementNomineeConsequences(
       api as unknown as MiddlewareAPI,
       replacementIds,
-      afterState.game?.lohId ?? null,
+      type === 'game/selectMissionBackup'
+        ? (afterState.game?.missionPowers?.backupChooserId ?? null)
+        : (afterState.game?.lohId ?? null),
       afterState.game?.posWinnerId ?? null
     )
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
@@ -1926,6 +2136,28 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
       clearCupidPairSocialLinks(api as unknown as MiddlewareAPI)
     }
     recordPhaseCeremony(api as unknown as MiddlewareAPI, prevPhase, newPhase, prevState.game)
+    if (prevPhase?.startsWith('final3') && newPhase === 'week_end') {
+      const evictee = prevState.game.players.find((player) => {
+        const current = afterState.game.players.find((candidate) => candidate.id === player.id)
+        return (
+          player.status !== 'evicted' &&
+          player.status !== 'jury' &&
+          (current?.status === 'evicted' || current?.status === 'jury')
+        )
+      })
+      if (evictee)
+        recordFinalThreeEviction(
+          api as unknown as MiddlewareAPI,
+          afterState.game.week,
+          afterState.game.lohId ?? undefined,
+          evictee.id
+        )
+    }
+
+    // Some alternate modes can move directly to the next numbered day.
+    // Preserve the previous day's complete story even without a week_end frame.
+    if (afterState.game.week > prevState.game.week)
+      archiveCompletedPulseEpisode(api as unknown as MiddlewareAPI, prevState.game.week)
 
     if (
       newPhase === 'nomination_results' &&
@@ -2000,6 +2232,7 @@ export const socialMiddleware: Middleware = (api) => (next) => (action) => {
     syncInvalidIncomingInteractions(api as unknown as MiddlewareAPI)
     if (newPhase === 'week_end' && prevPhase !== newPhase) {
       api.dispatch(settleSecretMissionDay({ day: afterState.game?.week ?? 1 }) as never)
+      archiveCompletedPulseEpisode(api as unknown as MiddlewareAPI, afterState.game?.week ?? 1)
     }
 
     return result

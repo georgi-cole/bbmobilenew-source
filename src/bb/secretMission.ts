@@ -30,6 +30,7 @@ export type SecretMissionRequirementType =
   | 'easter_egg_discovery'
   | 'incoming_response_streak'
   | 'target_nominated'
+  | 'vox_ballot_cast'
 
 export type MissionTaskType = LegacyMissionTaskType | SecretMissionRequirementType
 
@@ -60,6 +61,16 @@ export interface MissionTask {
   creditedCompetitionRunIds?: string[]
   /** Target player for nomination requirements. */
   targetPlayerId?: string
+  /** Alternative marked targets: any one can satisfy a nomination objective. */
+  targetPlayerIds?: string[]
+  /** Eligible reserve targets used if a marked houseguest is eliminated early. */
+  targetCandidatePoolIds?: string[]
+  /** Names for the marked and reserve targets, used to keep task copy readable. */
+  targetCandidateNamesById?: Record<string, string>
+  /** Target ids that were nominated and credited for this objective. */
+  completedTargetPlayerIds?: string[]
+  /** Vox ballot days already credited, so replay cannot double-count a ballot. */
+  completedBallotDays?: number[]
   /** Max placement that counts as success (1 = win, 2 = top 2, etc.). */
   placementThreshold?: number
   /** Starting approval captured when the mission is accepted. */
@@ -76,6 +87,8 @@ export interface MissionTask {
   firstSatisfiedDay?: number
   lastProgressDay?: number
   optional?: boolean
+  /** New bonus discoveries no longer waive a required objective; missing means legacy behavior. */
+  waivesOneIncompleteTask?: boolean
 }
 
 // ── Reward types ──────────────────────────────────────────────────────────────
@@ -87,7 +100,9 @@ export type LegacyMissionRewardType =
   | 'emptyBox'
 
 export type MissionRewardType = LegacyMissionRewardType | 'immunity'
-export type CurrentMissionRewardType = MissionRewardType | 'resourceCache'
+export type CurrentMissionRewardType =
+  | MissionRewardType
+  | import('./missionPowers').MissionPowerType
 export type MissionRewardDuration = 1 | 2 | 3
 export type SecretMissionBoxRewardType = Exclude<CurrentMissionRewardType, 'emptyBox'>
 
@@ -106,8 +121,9 @@ export const SECRET_MISSION_BOX_REWARDS: readonly SecretMissionBoxRewardType[] =
 ] as const
 
 export function getSecretMissionBoxRewards(
-  mission: Pick<SecretMissionState, 'triggeredDay' | 'templateId' | 'missionNumber'>
+  mission: Pick<SecretMissionState, 'triggeredDay' | 'templateId' | 'missionNumber' | 'rewardSet'>
 ): SecretMissionBoxRewardType[] {
+  if (mission.rewardSet) return [...mission.rewardSet.boxes]
   const rewards = [...SECRET_MISSION_BOX_REWARDS]
   const rng = createSeededRng(
     hashString(
@@ -130,8 +146,10 @@ export interface SecretMissionReward {
   eligible: boolean
   /** Immunity-only fields. */
   durationDays?: MissionRewardDuration
+  claimPhase?: import('../types').Phase
   claimDay?: number
   activeUntilDay?: number
+  activeFromDay?: number
   usedDay?: number | null
 }
 
@@ -167,6 +185,16 @@ export function createImmunityReward(
 // ── Mission state ─────────────────────────────────────────────────────────────
 
 export interface SecretMissionState {
+  privateRewardMessages?: string[]
+  rewardVersion?: 2
+  rewardSet?: import('./missionPowers').MissionRewardSet
+  allianceReveal?: {
+    missionId: string
+    allianceId: string
+    name: string
+    memberIds: string[]
+    day: number
+  }
   triggeredDay: number
   missionNumber?: number
   startDay: number
@@ -185,18 +213,28 @@ export interface SecretMissionState {
 
 // ── Mission templates ────────────────────────────────────────────────────────
 
-type WeightedRequirementType = Exclude<SecretMissionRequirementType, 'survive_days'>
+type TemplateRequirementType = Exclude<
+  SecretMissionRequirementType,
+  'survive_days' | 'vox_ballot_cast'
+>
+type MissionObjectiveType = TemplateRequirementType | 'vox_ballot_cast'
 
 export interface MissionCapabilities {
   /** Public Meter objectives require Public Mode to be active for this season. */
   publicModeEnabled: boolean
+  /** Vox Populi has no LOH; its nomination objective must use the player's secret ballot. */
+  gameMode?: 'classic' | 'vox_populi'
+  /** Strategic nomination objectives need at least two eligible marked targets. */
+  nominationTargetCount?: number
 }
 
 export interface MissionBuildContext {
   triggeredDay: number
   templateId: string
   targetCandidateIds?: string[]
+  targetCandidateNamesById?: Record<string, string>
   variant?: number
+  seed?: number
 }
 
 export interface MissionTemplate {
@@ -204,10 +242,10 @@ export interface MissionTemplate {
   title: string
   description: string
   daySpan: number
-  requirementWeights: Record<WeightedRequirementType, number>
+  requirementWeights: Record<TemplateRequirementType, number>
 }
 
-const EXTRA_REQUIREMENT_TYPES: WeightedRequirementType[] = [
+const EXTRA_REQUIREMENT_TYPES: TemplateRequirementType[] = [
   'competition_placement',
   'avoid_last_place',
   'public_approval_gain',
@@ -218,15 +256,22 @@ const EXTRA_REQUIREMENT_TYPES: WeightedRequirementType[] = [
   'target_nominated',
 ]
 
-function getEligibleRequirementTypes(
-  capabilities?: MissionCapabilities
-): WeightedRequirementType[] {
-  return EXTRA_REQUIREMENT_TYPES.filter((type) => {
+function getEligibleRequirementTypes(capabilities?: MissionCapabilities): MissionObjectiveType[] {
+  const types: MissionObjectiveType[] = EXTRA_REQUIREMENT_TYPES.filter((type) => {
     if (type === 'public_approval_gain') {
       return capabilities?.publicModeEnabled !== false
     }
+    if (type === 'target_nominated') {
+      return (
+        capabilities?.gameMode !== 'vox_populi' &&
+        (capabilities?.nominationTargetCount === undefined ||
+          capabilities.nominationTargetCount >= 2)
+      )
+    }
     return true
   })
+  if (capabilities?.gameMode === 'vox_populi') types.push('vox_ballot_cast')
+  return types
 }
 
 function hashString(value: string): number {
@@ -247,24 +292,26 @@ function createSeededRng(seed: number): () => number {
 }
 
 function weightedPickDistinct(
-  weights: Record<WeightedRequirementType, number>,
+  weights: Record<TemplateRequirementType, number>,
   count: number,
   rng: () => number,
-  eligibleTypes: readonly WeightedRequirementType[] = EXTRA_REQUIREMENT_TYPES
-): WeightedRequirementType[] {
-  const selected: WeightedRequirementType[] = []
+  eligibleTypes: readonly MissionObjectiveType[] = EXTRA_REQUIREMENT_TYPES
+): MissionObjectiveType[] {
+  const selected: MissionObjectiveType[] = []
   const remaining = [...eligibleTypes]
 
   while (selected.length < count && remaining.length > 0) {
-    const total = remaining.reduce((sum, key) => sum + Math.max(0, weights[key] ?? 0), 0)
+    const getWeight = (key: MissionObjectiveType) =>
+      Math.max(0, weights[key === 'vox_ballot_cast' ? 'target_nominated' : key] ?? 0)
+    const total = remaining.reduce((sum, key) => sum + getWeight(key), 0)
     if (total <= 0) {
       selected.push(remaining.shift()!)
       continue
     }
     let roll = rng() * total
-    let picked: WeightedRequirementType | null = null
+    let picked: MissionObjectiveType | null = null
     for (const key of remaining) {
-      roll -= Math.max(0, weights[key] ?? 0)
+      roll -= getWeight(key)
       if (roll <= 0) {
         picked = key
         break
@@ -278,19 +325,11 @@ function weightedPickDistinct(
   return selected
 }
 
-function pickTargetCandidate(context: MissionBuildContext, rng: () => number): string {
-  const candidates = context.targetCandidateIds?.length
-    ? context.targetCandidateIds
-    : ['target-a', 'target-b', 'target-c']
-  return candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]
-}
-
 interface SocialActionTaskBlueprint {
-  description: (params: { endDay: number; targetLabel?: string }) => string
+  description: (params: { endDay: number }) => string
   target: number
   requiredActionIds: string[]
   requireDistinctActionIds?: boolean
-  needsTarget?: boolean
 }
 
 const SOCIAL_ACTION_TASK_BLUEPRINTS: readonly SocialActionTaskBlueprint[] = [
@@ -308,7 +347,36 @@ const SOCIAL_ACTION_TASK_BLUEPRINTS: readonly SocialActionTaskBlueprint[] = [
     requiredActionIds: ['reassure', 'apologize', 'confront'],
     requireDistinctActionIds: true,
   },
+  {
+    description: ({ endDay }) =>
+      `Build your social position before Day ${endDay}: reassure, compliment, and whisper`,
+    target: 3,
+    requiredActionIds: ['reassure', 'compliment', 'whisper'],
+    requireDistinctActionIds: true,
+  },
+  {
+    description: ({ endDay }) =>
+      `Work the room before Day ${endDay}: group chat, apologize, and reassure`,
+    target: 3,
+    requiredActionIds: ['group_chat', 'apologize', 'reassure'],
+    requireDistinctActionIds: true,
+  },
 ] as const
+
+function pickTargetCandidates(context: MissionBuildContext, rng: () => number): string[] {
+  const candidates = Array.from(
+    new Set(
+      context.targetCandidateIds?.length
+        ? context.targetCandidateIds
+        : ['target-a', 'target-b', 'target-c']
+    )
+  )
+  for (let index = candidates.length - 1; index > 0; index -= 1) {
+    const next = Math.floor(rng() * (index + 1))
+    ;[candidates[index], candidates[next]] = [candidates[next], candidates[index]]
+  }
+  return candidates.slice(0, 2)
+}
 
 /**
  * Repair the one historical social set that included the AI-only `vote_rally`
@@ -425,14 +493,10 @@ function buildRequirementTask(
     case 'social_action_count': {
       const blueprint =
         SOCIAL_ACTION_TASK_BLUEPRINTS[Math.floor(rng() * SOCIAL_ACTION_TASK_BLUEPRINTS.length)]
-      const targetPlayerId = blueprint.needsTarget ? pickTargetCandidate(context, rng) : undefined
       return {
         id: `social_action_count_${context.templateId}`,
         type,
-        description: blueprint.description({
-          endDay,
-          targetLabel: targetPlayerId ? 'your marked target' : undefined,
-        }),
+        description: blueprint.description({ endDay }),
         target: blueprint.target,
         startDay,
         endDay,
@@ -440,7 +504,6 @@ function buildRequirementTask(
         requiredActionIds: [...blueprint.requiredActionIds],
         requireDistinctActionIds: blueprint.requireDistinctActionIds,
         completedActionIds: [],
-        targetPlayerId,
       }
     }
     case 'easter_egg_discovery':
@@ -454,6 +517,7 @@ function buildRequirementTask(
         targetDay: endDay,
         discoveredEggIds: [],
         optional: true,
+        waivesOneIncompleteTask: false,
       }
     case 'incoming_response_streak': {
       const streak = rng() < 0.5 ? 2 : 3
@@ -471,20 +535,36 @@ function buildRequirementTask(
       }
     }
     case 'target_nominated': {
-      const targetPlayerId = pickTargetCandidate(context, rng)
+      const targetPlayerIds = pickTargetCandidates(context, rng)
+      const targetLabels = targetPlayerIds.map((id) => context.targetCandidateNamesById?.[id] ?? id)
       return {
         id: `target_nominated_${context.templateId}`,
         type,
         // The reward becomes available at the start of endDay, so a target
         // nomination on that day is too late to satisfy this objective.
-        description: `Get your marked target nominated before Day ${endDay}`,
+        description: `Get one of these two marked houseguests nominated before Day ${endDay}: ${targetLabels.join(' or ')}`,
         target: 1,
         startDay,
         endDay,
         targetDay: endDay,
-        targetPlayerId,
+        targetPlayerId: targetPlayerIds[0],
+        targetPlayerIds,
+        targetCandidatePoolIds: [...(context.targetCandidateIds ?? targetPlayerIds)],
+        targetCandidateNamesById: { ...(context.targetCandidateNamesById ?? {}) },
+        completedTargetPlayerIds: [],
       }
     }
+    case 'vox_ballot_cast':
+      return {
+        id: `vox_ballot_cast_${context.templateId}`,
+        type,
+        description: `At the next secret nomination ballot, mark two eligible houseguests before Day ${endDay}; your ballot counts when submitted, regardless of who the house nominates`,
+        target: 1,
+        startDay,
+        endDay,
+        targetDay: endDay,
+        completedBallotDays: [],
+      }
     default:
       return {
         id: `survive_days_${context.templateId}`,
@@ -501,12 +581,14 @@ function buildRequirementTask(
 function buildWeightedTaskStack(
   context: MissionBuildContext,
   daySpan: number,
-  weights: Record<WeightedRequirementType, number>,
+  weights: Record<TemplateRequirementType, number>,
   capabilities?: MissionCapabilities
 ): Omit<MissionTask, 'completed' | 'current'>[] {
   const endDay = context.triggeredDay + daySpan
   const rng = createSeededRng(
-    hashString(`${context.templateId}:${context.triggeredDay}:${endDay}:${context.variant ?? 0}`)
+    hashString(
+      `${context.seed ?? 0}:${context.templateId}:${context.triggeredDay}:${endDay}:${context.variant ?? 0}`
+    )
   )
   const eligibleTypes = getEligibleRequirementTypes(capabilities)
   if (eligibleTypes.length < 4) {
@@ -514,10 +596,36 @@ function buildWeightedTaskStack(
       `Secret mission requires 4 eligible objectives, but only ${eligibleTypes.length} are available`
     )
   }
-  const chosenTypes = weightedPickDistinct(weights, 4, rng, eligibleTypes)
+  const selectedTypes: MissionObjectiveType[] = []
+  const chooseFromFamily = (family: readonly MissionObjectiveType[]) => {
+    const remaining = family.filter(
+      (type) => eligibleTypes.includes(type) && !selectedTypes.includes(type)
+    )
+    const picked = weightedPickDistinct(weights, 1, rng, remaining)[0]
+    if (picked) selectedTypes.push(picked)
+  }
+
+  // Every checklist deliberately touches competitions, Social, and one more
+  // player-facing system. The fourth objective remains a weighted wildcard.
+  chooseFromFamily(['competition_placement', 'avoid_last_place'])
+  chooseFromFamily(['social_action_count', 'social_energy_empty_streak'])
+  if (capabilities?.gameMode === 'vox_populi') {
+    chooseFromFamily(['vox_ballot_cast'])
+  } else {
+    chooseFromFamily([
+      'incoming_response_streak',
+      'target_nominated',
+      'public_approval_gain',
+      'easter_egg_discovery',
+    ])
+  }
+  const remainingTypes = eligibleTypes.filter((type) => !selectedTypes.includes(type))
+  const wildcard = weightedPickDistinct(weights, 1, rng, remainingTypes)[0]
+  if (wildcard) selectedTypes.push(wildcard)
+
   return [
     buildRequirementTask('survive_days', context, endDay, rng),
-    ...chosenTypes.map((type) => buildRequirementTask(type, context, endDay, rng)),
+    ...selectedTypes.map((type) => buildRequirementTask(type, context, endDay, rng)),
   ]
 }
 
@@ -611,9 +719,11 @@ export function buildMissionTasks(
   triggeredDay: number,
   options?: {
     targetCandidateIds?: string[]
+    targetCandidateNamesById?: Record<string, string>
     missionNumber?: number
     excludedTaskSetSignatures?: string[]
     capabilities?: MissionCapabilities
+    seed?: number
   }
 ): MissionTask[] {
   const excluded = new Set(options?.excludedTaskSetSignatures ?? [])
@@ -624,7 +734,9 @@ export function buildMissionTasks(
       triggeredDay,
       templateId: template.id,
       targetCandidateIds: options?.targetCandidateIds,
+      targetCandidateNamesById: options?.targetCandidateNamesById,
       variant: (options?.missionNumber ?? 1) * 101 + attempt,
+      seed: options?.seed,
     }
     candidate = buildWeightedTaskStack(
       context,
@@ -678,7 +790,7 @@ export function getSecretMissionTaskHint(task: MissionTask, taskNumber: number):
       return `${prefix}, use the Social module until your Social Energy badge (⚡) reaches 0 on each required day. The checklist updates when that day ends.`
     case 'social_action_count':
       return task.requiredActionIds?.length
-        ? `${prefix}, open the Social module and perform each listed interaction once: ${task.requiredActionIds.join(', ')}. Repeating the same listed action does not replace a missing one.`
+        ? `${prefix}, open the Social module and perform each listed interaction once: ${task.requiredActionIds.map(humanizeMissionActionId).join(', ')}. Repeating the same listed action does not replace a missing one.`
         : `${prefix}, use the Social module for the requested number of successful interactions before the deadline.`
     case 'incoming_response_streak':
       return `${prefix}, open Incoming Requests and answer every request on each required day. Ignoring even one request breaks that day's streak.`
@@ -689,7 +801,9 @@ export function getSecretMissionTaskHint(task: MissionTask, taskNumber: number):
     case 'public_approval_gain':
       return `${prefix}, raise your Public Meter approval by ${task.requiredDelta ?? task.target} percentage points above the rating you had when you accepted the mission.`
     case 'target_nominated':
-      return `${prefix}, use social strategy such as Pitch Target or Vote Rally to help put your marked player on the block before the deadline.`
+      return `${prefix}, use Pitch Target or Vote Rally with either marked houseguest. If the first pitch is passed over, try your other marked target at the next nomination opportunity.`
+    case 'vox_ballot_cast':
+      return `${prefix}, cast your next valid secret ballot and mark two eligible houseguests. The task counts when your ballot is submitted; the house-wide result does not decide whether you earn credit.`
     case 'easter_egg_discovery':
       return `${prefix}, talk naturally with the Big Eye and explore unusual topics or phrases. Hidden discoveries count automatically when you uncover them.`
     case 'survive_days':
@@ -699,13 +813,34 @@ export function getSecretMissionTaskHint(task: MissionTask, taskNumber: number):
   }
 }
 
+function humanizeMissionActionId(actionId: string): string {
+  const labels: Record<string, string> = {
+    compliment: 'compliment a houseguest',
+    whisper: 'send a private whisper',
+    group_chat: 'join a group chat',
+    reassure: 'reassure a houseguest',
+    apologize: 'apologize to a houseguest',
+    confront: 'confront a houseguest',
+    rumor: 'spread a rumour',
+    rally_votes_against: 'rally votes against a target',
+    favor_request: 'request a favour',
+    observe: 'observe the house',
+    share_intel: 'share information',
+  }
+  return labels[actionId] ?? actionId.replaceAll('_', ' ')
+}
+
 export function isSecretMissionSuccessful(tasks: readonly MissionTask[]): boolean {
   if (tasks.length === 0) return false
   const incompleteRequiredTasks = tasks.filter((task) => !task.completed && !task.optional)
   if (incompleteRequiredTasks.length === 0) return true
 
   const hasCompletedOptionalEasterEggTask = tasks.some(
-    (task) => task.type === 'easter_egg_discovery' && task.optional && task.completed
+    (task) =>
+      task.type === 'easter_egg_discovery' &&
+      task.optional &&
+      task.waivesOneIncompleteTask !== false &&
+      task.completed
   )
 
   return hasCompletedOptionalEasterEggTask && incompleteRequiredTasks.length === 1
@@ -762,7 +897,16 @@ export function checkSecretMissionTrigger(
   return rng() < chance
 }
 
-export function pickMissionTemplate(day: number, maxDaySpan?: number): MissionTemplate {
+export function pickMissionTemplate(
+  day: number,
+  maxDaySpan?: number,
+  options?: {
+    seed?: number
+    season?: number
+    missionNumber?: number
+    previousTemplateIds?: string[]
+  }
+): MissionTemplate {
   const eligibleTemplates =
     typeof maxDaySpan === 'number'
       ? MISSION_TEMPLATES.filter((template) => template.daySpan <= maxDaySpan)
@@ -773,16 +917,42 @@ export function pickMissionTemplate(day: number, maxDaySpan?: number): MissionTe
       `No secret mission template fits within ${maxDaySpan} days (minimum required: ${minRequiredDaySpan})`
     )
   }
-  const pool = eligibleTemplates
-  const idx = (day * 3) % pool.length
+  const recentTemplates = new Set((options?.previousTemplateIds ?? []).slice(-2))
+  const novelTemplates = eligibleTemplates.filter((template) => !recentTemplates.has(template.id))
+  const pool = novelTemplates.length > 0 ? novelTemplates : eligibleTemplates
+  const seed =
+    (options?.seed ?? day) ^
+    Math.imul(options?.season ?? 0, 0x9e3779b1) ^
+    Math.imul(options?.missionNumber ?? 1, 0x85ebca6b)
+  const rng = createSeededRng(hashString(`${seed}:${day}:mission-template`))
+  const idx = Math.floor(rng() * pool.length)
   return pool[idx]
+}
+
+/** Deterministically spreads first-mission offers across Days 3–5 per season. */
+export function getFirstSecretMissionScheduledDay(seed: number, season: number): number {
+  return 3 + (hashString(`${seed}:${season}:secret-mission-first-day`) % 3)
 }
 
 export function createSecretMissionState(
   day: number,
-  options?: { maxDaySpan?: number; missionNumber?: number }
+  options?: {
+    maxDaySpan?: number
+    missionNumber?: number
+    templateId?: string
+    seed?: number
+    season?: number
+    previousTemplateIds?: string[]
+  }
 ): SecretMissionState {
-  const template = pickMissionTemplate(day, options?.maxDaySpan)
+  const requestedTemplate = options?.templateId
+    ? MISSION_TEMPLATES.find((candidate) => candidate.id === options.templateId)
+    : undefined
+  const template =
+    requestedTemplate &&
+    (typeof options?.maxDaySpan !== 'number' || requestedTemplate.daySpan <= options.maxDaySpan)
+      ? requestedTemplate
+      : pickMissionTemplate(day, options?.maxDaySpan, options)
   const endDay = day + template.daySpan
   return {
     triggeredDay: day,

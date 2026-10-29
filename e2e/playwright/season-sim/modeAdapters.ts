@@ -52,6 +52,14 @@ function finiteAdapter(
         .getByRole('navigation', { name: 'Play menu' })
         .getByRole('button', { name: label, exact: true })
         .click()
+      if (label === 'Classic') {
+        await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
+          timeout: MODE_LAUNCH_TIMEOUT,
+        })
+        return
+      }
+      await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+      await page.getByRole('button', { name: 'Start Season', exact: true }).click()
       await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
         timeout: MODE_LAUNCH_TIMEOUT,
       })
@@ -89,12 +97,14 @@ const survivalAdapter: ModeAdapter = {
       .getByRole('navigation', { name: 'Play menu' })
       .getByRole('button', { name: 'Surveyeval', exact: true })
       .click()
-    const rules = page.getByRole('dialog', { name: /Surveyeval Mode/i })
+    const rules = page.getByRole('dialog', { name: 'How Surveyeval Works', exact: true })
     if (await rules.isVisible().catch(() => false)) {
-      const continueButton = rules.getByRole('button', { name: /continue|start/i }).last()
+      const continueButton = rules.getByRole('button', { name: 'Enter Surveyeval', exact: true })
       await expect(continueButton).toBeVisible()
       await continueButton.click()
     }
+    await expect(page.getByRole('heading', { name: 'Choose your contestant' })).toBeVisible()
+    await page.getByRole('button', { name: 'Start Season', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Game action zone' })).toBeVisible({
       timeout: MODE_LAUNCH_TIMEOUT,
     })

@@ -1,6 +1,7 @@
 import { isCurrentAlliance } from './reality/allianceIdentity'
 import { isBetrayalBetween } from './relationshipSemantics'
 import { createSlice } from '@reduxjs/toolkit'
+import { original, produce } from 'immer'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type {
   IncomingInteraction,
@@ -13,6 +14,7 @@ import type {
   SocialCommitment,
   SocialMemoryEvent,
   SocialPhaseReport,
+  SocialInquiryRecord,
   SocialState,
 } from './types'
 import type { RealityDeadline } from './reality/types'
@@ -65,6 +67,7 @@ import type {
   RealityThread,
 } from './reality'
 import { pruneEvictedAiPrivateState as pruneEvictedAiPrivateRealityState } from './reality/evictedAiRetention'
+import { applyProvocateurResponse, recordProvocateurSceneDelivered } from './seasonProvocateurs'
 import {
   addRealityFact,
   applyLegacyRelationshipUpdateToReality,
@@ -251,9 +254,10 @@ function createRealityProjectionIndex(
     ) {
       if (event.actorId) {
         for (const targetId of event.targetIds) {
-          if (!hasRelationshipPair(projectedPairs, event.actorId, targetId)) continue
-          addRelationshipPair(index.betrayals, event.actorId, targetId)
-          addRelationshipPair(index.betrayals, targetId, event.actorId)
+          if (hasRelationshipPair(projectedPairs, event.actorId, targetId))
+            addRelationshipPair(index.betrayals, event.actorId, targetId)
+          if (hasRelationshipPair(projectedPairs, targetId, event.actorId))
+            addRelationshipPair(index.betrayals, targetId, event.actorId)
         }
       }
     }
@@ -494,6 +498,28 @@ function projectRealityRelationshipsIntoLegacy(
   }
 }
 
+/** Share the scans across a commit, and read its plain domain rather than an Immer proxy. */
+function projectRealityPairsIntoLegacy(
+  reality: RealityDomainState,
+  relationships: SocialState['relationships'],
+  pairs: readonly ProjectedRelationshipPair[]
+): void {
+  if (!pairs.length) return
+  const projectedPairs: RelationshipPairSet = new Map()
+  for (const { sourceId, targetId } of pairs)
+    addRelationshipPair(projectedPairs, sourceId, targetId)
+  const index = createRealityProjectionIndex(
+    reality,
+    Object.values(reality.alliances),
+    projectedPairs
+  )
+  for (const [sourceId, targets] of projectedPairs) {
+    for (const targetId of targets) {
+      projectRealityEdgeIntoLegacy(reality, relationships, sourceId, targetId, index)
+    }
+  }
+}
+
 type WeekSeedRelationshipUpdate = {
   source: string
   target: string
@@ -598,8 +624,19 @@ const socialSlice = createSlice({
       )
     },
     /** A Secret Mission box grants its three resources as one reducer update. */
-    grantSecretMissionResourceCache(state, action: PayloadAction<{ playerId: string }>) {
-      const { playerId } = action.payload
+    grantSecretMissionResourceCache(
+      state,
+      action: PayloadAction<{ playerId: string; receiptId?: string }>
+    ) {
+      const { playerId, receiptId } = action.payload
+      state.missionResourceReceipts ??= []
+      if (receiptId && state.missionResourceReceipts.includes(receiptId)) return
+      if (receiptId) state.missionResourceReceipts.push(receiptId)
+      const before = {
+        energy: state.energyBank[playerId] ?? 0,
+        influence: state.influenceBank[playerId] ?? 0,
+        info: state.infoBank[playerId] ?? 0,
+      }
       state.energyBank[playerId] = clampSocialResource(
         (state.energyBank[playerId] ?? 0) + 25,
         'energy'
@@ -609,6 +646,14 @@ const socialSlice = createSlice({
         'influence'
       )
       state.infoBank[playerId] = clampSocialResource((state.infoBank[playerId] ?? 0) + 1000, 'info')
+      if (receiptId) {
+        state.missionResourcePayouts ??= {}
+        state.missionResourcePayouts[receiptId] = {
+          energy: state.energyBank[playerId] - before.energy,
+          influence: state.influenceBank[playerId] - before.influence,
+          info: state.infoBank[playerId] - before.info,
+        }
+      }
     },
     /**
      * Append to the current panel session and to a bounded persistent history.
@@ -626,6 +671,9 @@ const socialSlice = createSlice({
         state.sessionLogs = state.sessionLogs.slice(-sessionLimit)
       }
       appendPersistentSocialHistory(state as unknown as SocialStateWithHistory, entry)
+    },
+    recordSocialInquiry(state, action: PayloadAction<SocialInquiryRecord>) {
+      state.inquiryHistory = [...(state.inquiryHistory ?? []), action.payload].slice(-300)
     },
     /** Enrich the display receipt without replaying gameplay or audience effects. */
     finalizeSocialActionReceipt(
@@ -667,8 +715,27 @@ const socialSlice = createSlice({
       }
     },
     replaceRealityDomain(state, action: PayloadAction<RealityDomainState>) {
-      state.reality = normalizeRealityDomainState(action.payload, state.relationships)
-      projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+      const domain = normalizeRealityDomainState(action.payload, state.relationships)
+      state.reality = domain
+      projectRealityRelationshipsIntoLegacy(domain, state.relationships)
+    },
+    recordSeasonProvocateurScene(state, action: PayloadAction<{ actorId: string; day: number }>) {
+      recordProvocateurSceneDelivered(
+        state.reality.relationshipAutonomy.provocateurSeason,
+        action.payload.actorId,
+        action.payload.day
+      )
+    },
+    recordSeasonProvocateurResponse(
+      state,
+      action: PayloadAction<{ targetId: string; actorId: string; responseType: string }>
+    ) {
+      applyProvocateurResponse(
+        state.reality,
+        action.payload.targetId,
+        action.payload.actorId,
+        action.payload.responseType
+      )
     },
     /** Commits an orchestrator-produced domain that already shares unchanged branches. */
     commitRealityDomainUpdate(
@@ -680,12 +747,12 @@ const socialSlice = createSlice({
       }>
     ) {
       const { domain, changedRelationshipPairs, projectAllRelationships } = action.payload
-      state.reality = retainResolvedRealityInteractionHistory(domain)
-      for (const { sourceId, targetId } of changedRelationshipPairs ?? []) {
-        projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
-      }
+      const retained = retainResolvedRealityInteractionHistory(domain)
+      state.reality = retained
       if (projectAllRelationships) {
-        projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+        projectRealityRelationshipsIntoLegacy(retained, state.relationships)
+      } else {
+        projectRealityPairsIntoLegacy(retained, state.relationships, changedRelationshipPairs ?? [])
       }
     },
     /**
@@ -722,13 +789,12 @@ const socialSlice = createSlice({
       // normalized in-memory domain. Keep its structural sharing instead of
       // normalizing/copying every collection again. Hydration and migrations
       // still use replaceRealityDomain's full normalization/projection path.
-      state.reality = retainResolvedRealityInteractionHistory(domain)
+      const retained = retainResolvedRealityInteractionHistory(domain)
+      state.reality = retained
       if (changedRelationshipPairs) {
-        for (const { sourceId, targetId } of changedRelationshipPairs) {
-          projectRealityEdgeIntoLegacy(state.reality, state.relationships, sourceId, targetId)
-        }
+        projectRealityPairsIntoLegacy(retained, state.relationships, changedRelationshipPairs)
       } else {
-        projectRealityRelationshipsIntoLegacy(state.reality, state.relationships)
+        projectRealityRelationshipsIntoLegacy(retained, state.relationships)
       }
       state.realitySimulation = normalizeRealitySimulationState(simulation)
       state.energyBank[actorId] = clampSocialResource(
@@ -893,11 +959,13 @@ const socialSlice = createSlice({
       upsertRealityThread(state.reality as RealityDomainState, action.payload)
     },
     recordRealityCeremony(state, action: PayloadAction<RealityCeremonyInput>) {
-      recordRealityCeremonyOutcome(state.reality as RealityDomainState, action.payload)
-      projectRealityRelationshipsIntoLegacy(
-        state.reality as RealityDomainState,
-        state.relationships
-      )
+      // This standalone action owns one Reality transaction. Finish it before
+      // the read-heavy legacy projection so scans don't proxy the entire world.
+      const domain = produce(original(state.reality) ?? state.reality, (draft) => {
+        recordRealityCeremonyOutcome(draft as RealityDomainState, action.payload)
+      })
+      state.reality = domain
+      projectRealityRelationshipsIntoLegacy(domain as RealityDomainState, state.relationships)
     },
     reconcileRealityBattleBackReturn(
       state,
@@ -1025,6 +1093,16 @@ const socialSlice = createSlice({
       }
     },
     /** Clear incoming interaction decision logs. */
+    recordIncomingInteractionDecisions(
+      state,
+      action: PayloadAction<IncomingInteractionDecisionLogEntry[]>
+    ) {
+      const limit = socialConfig.incomingInteractionDebugConfig.maxLogEntries
+      if (limit <= 0 || !action.payload.length) return
+      state.incomingInteractionLogs = [...state.incomingInteractionLogs, ...action.payload].slice(
+        -limit
+      )
+    },
     clearIncomingInteractionLogs(state) {
       state.incomingInteractionLogs = []
     },
@@ -1486,10 +1564,13 @@ export const {
   applyInfoDelta,
   grantSecretMissionResourceCache,
   recordSocialAction,
+  recordSocialInquiry,
   finalizeSocialActionReceipt,
   initializeRealitySimulation,
   replaceRealitySimulation,
   replaceRealityDomain,
+  recordSeasonProvocateurScene,
+  recordSeasonProvocateurResponse,
   pruneEvictedAiPrivateState,
   commitRealityDomainUpdate,
   commitRealityOutcome,
@@ -1517,6 +1598,7 @@ export const {
   pushIncomingInteraction,
   scheduleIncomingInteraction,
   recordIncomingInteractionDecision,
+  recordIncomingInteractionDecisions,
   clearIncomingInteractionLogs,
   applyScheduledIncomingInteractionDelivery,
   markIncomingInteractionRead,

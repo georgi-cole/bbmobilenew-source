@@ -113,10 +113,11 @@ describe('Quick Tap Race 2: Seasons', () => {
     }
 
     // These are synthetic model outputs, not measured human win rates.
-    expect(wins.threeAverageAis / 10).toBeGreaterThanOrEqual(35)
-    expect(wins.threeAverageAis / 10).toBeLessThanOrEqual(70)
-    expect(wins.elevenAverageAis / 10).toBeGreaterThanOrEqual(8)
-    expect(wins.elevenAverageAis / 10).toBeLessThanOrEqual(30)
+    // The wider 8.9–13 taps/s field now challenges the synthetic 10-taps/s player.
+    expect(wins.threeAverageAis / 10).toBeGreaterThanOrEqual(10)
+    expect(wins.threeAverageAis / 10).toBeLessThanOrEqual(25)
+    expect(wins.elevenAverageAis / 10).toBeGreaterThanOrEqual(0.2)
+    expect(wins.elevenAverageAis / 10).toBeLessThanOrEqual(5)
   })
   it('keeps hidden timing and reroll mechanics out of player-facing rules', () => {
     const rules = getGame('quickTapSeasons')?.instructions.join(' ').toLowerCase() ?? ''

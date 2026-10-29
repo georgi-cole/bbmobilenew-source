@@ -194,7 +194,8 @@ export default function PlayerList({
             relationshipLabel = getRealityRelationshipLabel(
               edge,
               view.alliance?.operational,
-              currentDay
+              currentDay,
+              view.isNemesis
             )
             relationshipTags = [...view.visibleTags]
           } else if (playerLimitedRead) {

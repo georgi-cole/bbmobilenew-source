@@ -529,6 +529,12 @@ button.majority-rules-player-card:hover {
 }
 
 .majority-rules-option-copy {
+  /* Keep the old-save blocked-answer notice below the option title, never
+     alongside or overlapping it in the two-column phone option grid. */
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 0.82rem;
   color: #cbd5e1;
 }
@@ -2305,6 +2311,344 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
   }
 }
 
+/* VIP studio, poll receipts and the room-reader/finale beats. */
+.majority-rules-shell[data-presentation='vip'] {
+  isolation: isolate;
+  --vip-navy: #07111f;
+  background: var(--vip-navy);
+}
+
+.majority-rules-shell[data-presentation='vip']::before {
+  inset: 0;
+  opacity: 1;
+  background-image:
+    linear-gradient(180deg, rgba(5, 12, 24, 0.34), rgba(5, 12, 24, 0.58)),
+    var(--majority-rules-vip-backdrop), linear-gradient(135deg, #10253a, #07111f 64%, #17202a);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  mix-blend-mode: normal;
+}
+
+.majority-rules-shell[data-presentation='vip']::after {
+  border-color: rgba(115, 183, 237, 0.23);
+  background: linear-gradient(180deg, rgba(5, 12, 24, 0.02), rgba(5, 12, 24, 0.12));
+  box-shadow:
+    inset 0 0 100px rgba(0, 0, 0, 0.48),
+    inset 0 -16vh 15vh rgba(225, 113, 65, 0.08),
+    0 0 28px rgba(85, 213, 194, 0.08);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card {
+  align-content: start;
+  overflow-y: auto;
+  border: 1px solid rgba(115, 183, 237, 0.34);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(13, 31, 50, 0.95), rgba(7, 17, 31, 0.96)), rgba(8, 20, 35, 0.94);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 32px rgba(49, 155, 186, 0.1);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: rgba(85, 213, 194, 0.5) transparent;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--center,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--intro,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--winner {
+  align-content: center;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-livebar {
+  border-bottom-color: rgba(85, 213, 194, 0.3);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-livebar::before {
+  color: rgba(155, 215, 241, 0.82);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-badge,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-pill,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-number-button {
+  border-color: rgba(115, 183, 237, 0.4);
+  background: rgba(12, 34, 56, 0.9);
+  color: #eff8ff;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-badge--cool {
+  border-color: rgba(85, 213, 194, 0.5);
+  background: rgba(18, 106, 98, 0.3);
+  color: #adfff0;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-badge--warn,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-pill--active,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-number-button--active {
+  border-color: rgba(255, 208, 128, 0.72);
+  background: rgba(159, 92, 29, 0.3);
+  color: #ffe1a1;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-kicker {
+  color: #ffd08a;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-question {
+  color: #f7fbff;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.44);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-copy {
+  color: #dce9f5;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option {
+  border-color: rgba(115, 183, 237, 0.4);
+  border-left-color: rgba(85, 213, 194, 0.84);
+  background:
+    linear-gradient(100deg, rgba(24, 82, 106, 0.22), transparent 66%), rgba(7, 20, 36, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 26px rgba(0, 0, 0, 0.2);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option--selected {
+  border-color: rgba(255, 208, 128, 0.94);
+  border-left-color: #64e0cb;
+  background:
+    linear-gradient(100deg, rgba(16, 92, 99, 0.38), rgba(12, 30, 48, 0.96)), rgba(7, 18, 31, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(255, 208, 128, 0.18),
+    0 0 28px rgba(85, 213, 194, 0.16),
+    inset 0 1px 0 rgba(255, 246, 212, 0.15);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option-label {
+  color: #d7fff4;
+  background: rgba(44, 152, 139, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(85, 220, 194, 0.25);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-primary {
+  border-color: rgba(255, 220, 150, 0.86);
+  background: linear-gradient(115deg, #ffd070, #e98c42 66%, #dc6853);
+  color: #10202d;
+  box-shadow:
+    0 12px 26px rgba(183, 89, 50, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-secondary {
+  border-color: rgba(115, 183, 237, 0.42);
+  background: rgba(12, 32, 52, 0.9);
+  color: #edf7ff;
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row {
+  border-color: rgba(115, 183, 237, 0.23);
+  background: rgba(7, 20, 36, 0.78);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row.is-majority {
+  border-color: rgba(82, 218, 190, 0.56);
+  background: rgba(22, 115, 98, 0.17);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-aggregation__row.is-majority
+  .majority-rules-aggregation__track
+  span {
+  background: linear-gradient(90deg, #52d9c0, #a5f4db);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-aggregation__row.is-minority {
+  border-color: rgba(242, 113, 120, 0.48);
+  background: rgba(124, 38, 58, 0.2);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-aggregation__row:not(.is-majority):not(.is-minority)
+  .majority-rules-aggregation__track
+  span {
+  background: linear-gradient(90deg, #4d89d5, #72d5d0);
+}
+
+.majority-rules-reveal-fact {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.78rem 0.92rem;
+  border: 1px solid rgba(80, 218, 194, 0.42);
+  border-radius: 16px;
+  background: linear-gradient(110deg, rgba(23, 104, 94, 0.22), rgba(8, 22, 38, 0.9));
+}
+
+.majority-rules-reveal-fact__eyebrow {
+  color: #a9f7e6;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.majority-rules-reveal-fact__eyebrow i {
+  color: #c6d8e8;
+  font-style: normal;
+  letter-spacing: 0.04em;
+}
+
+.majority-rules-reveal-fact p {
+  margin: 0;
+  color: #f1f7fc;
+  font-size: clamp(0.78rem, 2.15vw, 0.95rem);
+  line-height: 1.35;
+}
+
+.majority-rules-reveal-fact a {
+  justify-self: start;
+  color: #9cebdc;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-underline-offset: 0.18em;
+}
+
+.majority-rules-room-reader {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.82rem;
+  border: 1px solid rgba(242, 181, 91, 0.44);
+  border-radius: 15px;
+  background: rgba(101, 60, 26, 0.26);
+  color: #ffe1a9;
+}
+
+.majority-rules-room-reader.is-hit {
+  border-color: rgba(82, 218, 190, 0.56);
+  background: rgba(23, 112, 96, 0.22);
+  color: #baffed;
+}
+
+.majority-rules-room-reader__icon {
+  display: grid;
+  flex: 0 0 1.7rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 220, 146, 0.14);
+  font-size: 1rem;
+}
+
+.majority-rules-room-reader > span:last-child {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.majority-rules-room-reader strong {
+  font-size: 0.84rem;
+}
+
+.majority-rules-room-reader small {
+  color: #dce9f5;
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.majority-rules-final-suspense {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.72rem;
+  border: 1px solid rgba(255, 207, 119, 0.54);
+  border-radius: 16px;
+  background: radial-gradient(ellipse, rgba(27, 95, 117, 0.32), rgba(8, 20, 35, 0.94));
+  color: #ffe3a9;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.majority-rules-final-suspense__pulse {
+  width: 0.56rem;
+  height: 0.56rem;
+  border-radius: 50%;
+  background: #66e2ce;
+  box-shadow: 0 0 18px rgba(102, 226, 206, 0.9);
+  animation: majority-rules-vip-pulse 0.72s ease-in-out infinite alternate;
+}
+
+.majority-rules-card--duel.is-final-suspense {
+  box-shadow:
+    0 0 0 1px rgba(252, 206, 121, 0.2),
+    0 0 40px rgba(85, 213, 194, 0.16),
+    inset 0 0 48px rgba(16, 82, 104, 0.14);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--question {
+  background: rgba(49, 155, 186, 0.2);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--reveal {
+  background: rgba(85, 213, 194, 0.16);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--duel,
+.majority-rules-shell[data-presentation='vip'] .majority-rules-glow--winner {
+  background: rgba(255, 174, 82, 0.18);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-ring {
+  box-shadow:
+    0 0 0 0.45rem rgba(85, 213, 194, 0.16),
+    0 0 42px rgba(255, 208, 128, 0.3);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-ring::before {
+  border-color: rgba(85, 213, 194, 0.28);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-portrait {
+  background: linear-gradient(145deg, #ffd080, #55d5c2 58%, #368bc2);
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.5),
+    0 0 36px rgba(85, 213, 194, 0.28);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-winner-floor {
+  background: rgba(255, 174, 82, 0.22);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--winner .majority-rules-copy {
+  color: #dce9f5;
+}
+
+@keyframes majority-rules-vip-pulse {
+  to {
+    transform: scale(1.45);
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .majority-rules-shell[data-presentation='vip'] *,
+  .majority-rules-shell[data-presentation='vip'] *::before,
+  .majority-rules-shell[data-presentation='vip'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body.no-animations .majority-rules-shell[data-presentation='vip'] *,
+body.no-animations .majority-rules-shell[data-presentation='vip'] *::before,
+body.no-animations .majority-rules-shell[data-presentation='vip'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
 
 /* Re-vote guidance */
 .majority-rules-revote-notice {
@@ -2325,4 +2669,126 @@ body.no-animations .majority-rules-avatar-chip--pulse .majority-rules-portrait {
   color: #e2e8f0;
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+/* Refine the VIP vote palette with restrained coastal, coral and champagne accents. */
+.majority-rules-shell[data-presentation='vip'] .majority-rules-card--question {
+  border-color: rgba(108, 174, 255, 0.48);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 34px rgba(76, 151, 255, 0.14),
+    0 0 24px rgba(238, 128, 89, 0.08);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-options .majority-rules-option {
+  --choice-accent: #71cbd5;
+  --choice-rgb: 113, 203, 213;
+  --choice-border: rgba(113, 203, 213, 0.56);
+  --choice-wash: rgba(20, 87, 111, 0.4);
+  --choice-selected-wash: rgba(22, 107, 135, 0.62);
+  --choice-label-bg: rgba(43, 145, 157, 0.24);
+  --choice-select-text: rgba(173, 232, 235, 0.72);
+  border-color: var(--choice-border);
+  border-left-color: var(--choice-accent);
+  background: linear-gradient(108deg, var(--choice-wash), rgba(7, 17, 31, 0.94) 78%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 4px 0 22px rgba(var(--choice-rgb), 0.12),
+    0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-options
+  .majority-rules-option:nth-child(3n + 2) {
+  --choice-accent: #f08b72;
+  --choice-rgb: 240, 139, 114;
+  --choice-border: rgba(240, 139, 114, 0.62);
+  --choice-wash: rgba(123, 48, 40, 0.38);
+  --choice-selected-wash: rgba(156, 53, 42, 0.62);
+  --choice-label-bg: rgba(188, 88, 67, 0.24);
+  --choice-select-text: rgba(255, 197, 177, 0.78);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-options
+  .majority-rules-option:nth-child(3n) {
+  --choice-accent: #e9c47b;
+  --choice-rgb: 233, 196, 123;
+  --choice-border: rgba(233, 196, 123, 0.62);
+  --choice-wash: rgba(123, 84, 35, 0.37);
+  --choice-selected-wash: rgba(146, 100, 39, 0.61);
+  --choice-label-bg: rgba(183, 133, 57, 0.25);
+  --choice-select-text: rgba(248, 222, 167, 0.8);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option::before {
+  color: var(--choice-select-text, rgba(164, 225, 255, 0.7));
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-option-label {
+  color: var(--choice-accent, #71cbd5);
+  background: var(--choice-label-bg, rgba(43, 145, 157, 0.24));
+  box-shadow: inset 0 0 0 1px var(--choice-border, rgba(113, 203, 213, 0.56));
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-options
+  .majority-rules-option:nth-child(n).majority-rules-option--selected {
+  border-color: var(--choice-accent, #69caff);
+  border-left-color: #fff2be;
+  background: linear-gradient(
+    108deg,
+    var(--choice-selected-wash, rgba(22, 107, 135, 0.62)),
+    rgba(9, 21, 38, 0.96) 82%
+  );
+  box-shadow:
+    0 0 0 1px rgba(var(--choice-rgb, 113, 203, 213), 0.36),
+    0 0 27px rgba(var(--choice-rgb, 113, 203, 213), 0.24),
+    inset 0 1px 0 rgba(255, 248, 224, 0.22);
+}
+
+.majority-rules-shell[data-presentation='vip'] .majority-rules-hint-actions .majority-rules-pill {
+  min-height: 2.7rem;
+  border-width: 1px;
+  border-radius: 12px;
+  font-weight: 850;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-hint-actions
+  .majority-rules-pill--poll {
+  border-color: rgba(113, 203, 213, 0.6);
+  background: linear-gradient(145deg, rgba(20, 96, 116, 0.52), rgba(12, 39, 52, 0.94));
+  color: #b8edf0;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-hint-actions
+  .majority-rules-pill--peek {
+  border-color: rgba(240, 139, 114, 0.64);
+  background: linear-gradient(145deg, rgba(134, 59, 47, 0.48), rgba(57, 29, 33, 0.94));
+  color: #ffd0c0;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-hint-actions
+  .majority-rules-pill--follow {
+  border-color: rgba(233, 196, 123, 0.64);
+  background: linear-gradient(145deg, rgba(125, 87, 38, 0.5), rgba(55, 39, 28, 0.94));
+  color: #f6dfad;
+}
+
+.majority-rules-shell[data-presentation='vip']
+  .majority-rules-hint-actions
+  .majority-rules-pill--active {
+  border-color: #fff0ba;
+  box-shadow:
+    0 0 0 1px rgba(255, 240, 186, 0.32),
+    0 0 20px rgba(255, 202, 100, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  filter: saturate(1.2);
 }

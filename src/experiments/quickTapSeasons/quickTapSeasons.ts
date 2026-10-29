@@ -200,9 +200,9 @@ function createSeasonsAiOpponent(
   return {
     id,
     name,
-    // Stronger contestants can briefly exceed ten taps per second, while
+    // Active cadence spans 8.9–13 taps/s before fatigue and pauses, while
     // fatigue, short pauses, and imperfect box reads keep average AI in range.
-    tapsPerSecond: 8.9 + physical * 1.6 + consistency * 0.55 + rng() * 0.35,
+    tapsPerSecond: 8.9 + physical * 3.2 + consistency * 0.55 + rng() * 0.35,
     fatigueLoss: 0.2 - consistency * 0.04 + rng() * 0.02,
     pauseRatePerSecond: 0.095 - consistency * 0.015,
     minPauseSeconds: 0.18,

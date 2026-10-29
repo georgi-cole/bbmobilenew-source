@@ -52,6 +52,7 @@ import {
   type AllianceManagementContext,
 } from '../../../social/reality/allianceManagement'
 import { markSocialTutorialHandled } from '../../../onboarding/tutorialGuidePreference'
+import type { WeekendInterludeState } from '../../../types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ function makeStore(overrides?: {
   playerStatusOverrides?: Record<string, RootState['game']['players'][number]['status']>
   lohId?: string | null
   dramaMode?: boolean
+  weekendInterlude?: WeekendInterludeState | null
   posWinnerId?: string | null
   povSavedId?: string | null
   nomineeIds?: string[]
@@ -101,6 +103,7 @@ function makeStore(overrides?: {
       posWinnerId: overrides?.posWinnerId ?? defaultState.game.posWinnerId,
       povSavedId: overrides?.povSavedId ?? defaultState.game.povSavedId,
       nomineeIds: overrides?.nomineeIds ?? defaultState.game.nomineeIds,
+      weekendInterlude: overrides?.weekendInterlude ?? defaultState.game.weekendInterlude,
     },
     social: defaultState.social,
     settings: {
@@ -223,6 +226,31 @@ describe('SocialPanelV2 – visibility', () => {
     expect(screen.getByRole('dialog')).toBeDefined()
   })
 
+  it('keeps weekend resources in the header beside Weekend Social without the subtitle', () => {
+    const store = makeStore({
+      phase: 'social_2',
+      weekendInterlude: {
+        active: true,
+        afterDay: 5,
+        weekendDay: 1,
+        episode: 'party',
+        stage: 'social',
+        wallet: { energy: 23, influence: 999, info: 999 },
+      },
+    })
+    act(() => store.dispatch(openSocialPanel()))
+    renderPanel(store)
+
+    const dialog = screen.getByRole('dialog', { name: 'Weekend Social' })
+    const header = dialog.querySelector('.sp2-header')
+    expect(header).not.toBeNull()
+    expect(within(header as HTMLElement).getByText('Weekend Social')).toBeInTheDocument()
+    expect(within(header as HTMLElement).queryByText(/Weekend Day/)).toBeNull()
+    expect(within(header as HTMLElement).getByLabelText('Energy: 23')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Influence: 999')).toBeInTheDocument()
+    expect(within(header as HTMLElement).getByLabelText('Info: 999')).toBeInTheDocument()
+  })
+
   it('renders for a nominated human player while still in the house', () => {
     const store = makeStore({ phase: 'social_1', humanStatus: 'nominated' })
     act(() => {
@@ -300,10 +328,15 @@ describe('SocialPanelV2 – layout', () => {
       'true'
     )
 
-    fireEvent.click(targetButton)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${target.name} and show roster`,
+      })
+    )
 
     expect(screen.queryByRole('button', { name: /Compliment/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Watch Room/i })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 
   it('renders player roster placeholder', () => {
@@ -368,8 +401,13 @@ describe('SocialPanelV2 – layout', () => {
     fireEvent.click(card)
     expect(card).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(card)
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${player.name} and show roster`,
+      })
+    )
     expect(card).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
   })
 })
 
@@ -452,6 +490,8 @@ describe('SocialPanelV2 – execute flow', () => {
     ).toBeVisible()
     const btn = screen.getByRole('button', { name: 'Execute' })
     expect((btn as HTMLButtonElement).disabled).toBe(false)
+    expect(btn).toHaveClass('sp2-moves__execute')
+    expect(btn.closest('.sp2-moves__heading')).not.toBeNull()
   })
 
   it('execute stays disabled until a target and action have both been selected', () => {
@@ -460,9 +500,17 @@ describe('SocialPanelV2 – execute flow', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true)
     const player = store.getState().game.players.find((p) => !p.isUser)!
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(player.name, 'i') })[0])
+    expect(screen.queryByRole('region', { name: 'Player roster' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: player.name })).toBeVisible()
     expect(btn).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     expect(btn).toBeEnabled()
+    expect(
+      screen.queryByRole('group', { name: `Selected hubmate: ${player.name}` })
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: `Deselect ${player.name} and show roster` }))
+    expect(screen.getByRole('region', { name: 'Player roster' })).toBeInTheDocument()
+    expect(btn).toBeDisabled()
   })
 
   it('group chat requires two people and its cost grows with the group', () => {
@@ -661,6 +709,8 @@ describe('SocialPanelV2 – execute flow', () => {
     expect(document.querySelector('.sp2-moves__selection')).toBeNull()
     expect(document.querySelector('.sp2-footer__cost')).toBeNull()
     expect(document.querySelector('.sp2-footer__feedback')).toBeNull()
+    expect(activity.closest('.sp2-footer')).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Dismiss current result' })).toBeVisible()
     expect(
       screen.queryByRole('button', { name: /full response|expand the full result/i })
     ).toBeNull()
@@ -720,9 +770,15 @@ describe('SocialPanelV2 – execute flow', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(secondTarget.name, 'i') })[0])
     fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${secondTarget.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(firstTarget.name, 'i') })[0], {
       shiftKey: true,
     })
+    fireEvent.click(screen.getByRole('button', { name: /Compliment/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
 
     const logs = store.getState().social.sessionLogs
@@ -758,6 +814,26 @@ describe('SocialPanelV2 – success pulse', () => {
     expect(btn.closest('.sp2-footer')).toBeNull()
     expect(document.querySelector('.ra-action-control')).toBeNull()
     expect((btn as HTMLElement).className).toContain('sp2-execute--pulse')
+  })
+
+  it('clears the current action result when the player changes action tabs and keeps it in History', () => {
+    const store = makeStore({ phase: 'social_1' })
+    const humanId = store.getState().game.players.find((player) => player.isUser)!.id
+    store.dispatch(setEnergyBankEntry({ playerId: humanId, value: 5 }))
+    store.dispatch(openSocialPanel())
+    initManeuvers(store)
+    renderPanel(store)
+
+    fireEvent.click(screen.getByRole('button', { name: /Lay Low/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }))
+    const activity = screen.getByLabelText('Recent Activity')
+    const currentResult = activity.querySelector('.ra-entry__narrative')?.textContent
+    expect(currentResult).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Strategy' }))
+    expect(activity.querySelector('.ra-entry__narrative')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'History · 1' }))
+    expect(activity.querySelector('.ra-entry__narrative')?.textContent).toBe(currentResult)
   })
 
   it('execute button pulse class is removed after 850 ms', () => {
@@ -842,12 +918,19 @@ describe('SocialPanelV2 – accessibility', () => {
 
 describe('SocialPanelV2 – scoped alliance consultation', () => {
   it('consults one selected official alliance as a group and keeps pacts out of the picker', () => {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+    const seedStore = makeStore({ phase: 'social_1', dramaMode: true })
+    const lohId = seedStore.getState().game.players.filter((player) => !player.isUser)[0]!.id
+    const store = makeStore({
+      phase: 'social_1',
+      dramaMode: true,
+      lohId,
+      playerStatusOverrides: { [lohId]: 'loh' },
+    })
     const humanId = store.getState().game.players.find((player) => player.isUser)!.id
     const allies = store
       .getState()
       .game.players.filter((player) => !player.isUser)
-      .slice(0, 2)
+      .slice(0, 3)
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'consult-scope-ui',
@@ -861,7 +944,7 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     const otherAlliance = createRealityAlliance(reality, {
       id: 'consult-scope-ui-overlap',
       founderIds: [humanId, allies[0].id],
-      memberIds: [allies[1].id],
+      memberIds: [allies[2].id],
       purpose: 'Mutual protection',
       at: { day: 1, phase: 'social_1' },
     })
@@ -949,11 +1032,18 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     ).toBe(true)
   })
 
-  it('consults a current fractured alliance after the returning member is readmitted', () => {
-    const store = makeStore({ phase: 'social_1', dramaMode: true })
+  it('consults a current fractured alliance after the returning LOH member is readmitted', () => {
+    const seedStore = makeStore({ phase: 'social_1', dramaMode: true })
+    const lohId = seedStore.getState().game.players.find((player) => !player.isUser)!.id
+    const store = makeStore({
+      phase: 'social_1',
+      dramaMode: true,
+      lohId,
+      playerStatusOverrides: { [lohId]: 'loh' },
+    })
     const human = store.getState().game.players.find((player) => player.isUser)!
     const candidates = store.getState().game.players.filter((player) => !player.isUser)
-    const ally = candidates[0]!
+    const ally = candidates.find((player) => player.id === lohId)!
     const outsider = candidates[1]!
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
@@ -974,6 +1064,11 @@ describe('SocialPanelV2 – scoped alliance consultation', () => {
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(outsider.name) }))
     expect(screen.queryByRole('button', { name: /Consult Alliance/i })).not.toBeInTheDocument()
 
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${outsider.name} and show roster`,
+      })
+    )
     fireEvent.click(within(roster).getByRole('button', { name: new RegExp(ally.name) }))
     expect(screen.getByRole('button', { name: /Consult Alliance/i })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Consult Alliance/i }))
@@ -1126,6 +1221,11 @@ describe('SocialPanelV2 – subject picker', () => {
     // Switch primary target to another non-LOH player — action should be cleared
     // because the new target doesn't have LOH status, so pitch_target disappears.
     const altTarget = players.find((p) => p.id !== lohPlayer.id)!
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Deselect ${lohPlayer.name} and show roster`,
+      })
+    )
     fireEvent.click(screen.getAllByRole('button', { name: new RegExp(altTarget.name, 'i') })[0])
     // After switching to a non-LOH target, pitch_target is no longer available
     // and the subject picker should no longer be rendered.
@@ -1358,24 +1458,44 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
   it('invites a selected player from All moves only after selecting one eligible alliance', () => {
     const store = makeStore({ phase: 'social_1', dramaMode: true })
     const human = store.getState().game.players.find((player) => player.isUser)!
-    const [allyA, allyB, candidate] = store
+    const [allyA, allyB, candidate, otherAlly] = store
       .getState()
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
-      .slice(0, 3)
+      .slice(0, 4)
     const reality = createInitialRealityDomainState()
-    for (const [id, name] of [
-      ['compact-shield', 'The Shield'],
-      ['compact-circle', 'The Circle'],
+    for (const [id, name, thirdMemberId] of [
+      ['compact-shield', 'The Shield', allyB.id],
+      ['compact-circle', 'The Circle', otherAlly.id],
     ]) {
       const group = createRealityAlliance(reality, {
         id,
         founderIds: [human.id, allyA.id],
-        memberIds: [allyB.id],
+        memberIds: [thirdMemberId],
         purpose: 'Mutual protection',
         at: { day: 1, phase: 'social_1' },
       })
       group.name = name
       group.status = 'ACTIVE'
+    }
+    const otherCandidates = store
+      .getState()
+      .game.players.filter(
+        (player) =>
+          !player.isUser &&
+          player.status !== 'jury' &&
+          ![allyA.id, allyB.id, candidate.id, otherAlly.id].includes(player.id)
+      )
+      .slice(0, 2)
+    for (const [index, otherCandidate] of otherCandidates.entries()) {
+      const existingGroup = createRealityAlliance(reality, {
+        id: `candidate-existing-group-${index}`,
+        kind: 'GROUP',
+        founderIds: [candidate.id, otherCandidate.id],
+        memberIds: [index === 0 ? allyA.id : otherAlly.id],
+        purpose: 'Mutual protection',
+        at: { day: 1, phase: 'social_1' },
+      })
+      existingGroup.status = 'ACTIVE'
     }
     store.dispatch(replaceRealityDomain(reality))
     store.dispatch(setEnergyBankEntry({ playerId: human.id, value: 5 }))
@@ -1402,6 +1522,9 @@ describe('SocialPanelV2 – integrated alliance actions', () => {
         .filter((button) => button.getAttribute('aria-pressed') === 'true')
     ).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Start vote' })).toBeDisabled()
+    const startVote = screen.getByRole('button', { name: 'Start vote' })
+    expect(startVote).toHaveClass('sp2-moves__execute')
+    expect(startVote.closest('.sp2-moves__heading')).not.toBeNull()
     expect(Object.keys(store.getState().social.reality.allianceManagement.requests)).toHaveLength(0)
     const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
     expect(picker.getAllByRole('button')).toHaveLength(2)
@@ -1514,17 +1637,17 @@ describe('SocialPanelV2 – alliance context and history', () => {
       .game.players.filter((player) => !player.isUser && player.status !== 'jury')
       .slice(0, 3)
     const reality = createInitialRealityDomainState()
-    for (const [id, name, leaderId] of [
-      ['scope-shield', 'The Shield', human.id],
-      ['scope-circle', 'The Circle', a.id],
+    for (const [id, name, leaderId, thirdMemberId] of [
+      ['scope-shield', 'The Shield', human.id, b.id],
+      ['scope-circle', 'The Circle', a.id, candidate.id],
     ]) {
       createRealityAlliance(reality, {
         id,
         name,
         kind: 'GROUP',
         leaderId,
-        founderIds: [human.id, a.id, b.id],
-        memberIds: [],
+        founderIds: [human.id, a.id],
+        memberIds: [thirdMemberId],
         purpose: 'Protection',
         at: { day: 1, phase: 'social_1' },
       }).status = 'ACTIVE'
@@ -1553,7 +1676,7 @@ describe('SocialPanelV2 – alliance context and history', () => {
     expect(
       grid.queryByRole('button', { name: /Found an alliance|Propose Personal Pact/i })
     ).toBeNull()
-    fireEvent.click(screen.getByText('Open full alliance read'))
+    fireEvent.click(screen.getByText("Read your alliance's story"))
     fireEvent.click(
       within(screen.getByRole('group', { name: 'Alliance members' })).getByRole('button', {
         name: new RegExp(a.name),
@@ -1601,7 +1724,7 @@ describe('SocialPanelV2 – alliance context and history', () => {
     const picker = within(screen.getByRole('group', { name: 'Official alliances' }))
     fireEvent.click(picker.getByRole('button', { name: 'The Shield' }))
     expect(screen.getByText('Founded Day 1')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Open full alliance read'))
+    fireEvent.click(screen.getByText("Read your alliance's story"))
     expect(screen.getByText(/You founded The Shield with/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Rename The Shield/i }))
     fireEvent.change(screen.getByRole('textbox', { name: 'New alliance name' }), {
@@ -1662,10 +1785,10 @@ describe('SocialPanelV2 – alliance context and history', () => {
     fireEvent.click(screen.getByRole('button', { name: 'All alliance actions' }))
     fireEvent.click(screen.getByRole('button', { name: /My Pulse/i }))
     const pulse = within(screen.getByRole('dialog', { name: 'My Pulse' }))
-    const dailySummary = pulse
-      .getByRole('heading', { name: 'Today’s alliance and relationship summary' })
-      .closest('article')!
-    fireEvent.click(within(dailySummary).getByRole('button', { name: 'View alliance history' }))
+    const chronicle = pulse.getByRole('article', { name: 'The Hub Chronicles' })
+    fireEvent.click(
+      within(chronicle).getByRole('button', { name: "Read The Shield's alliance story" })
+    )
     expect(screen.getByRole('region', { name: 'Selected alliance' })).toHaveTextContent(
       'The Shield'
     )

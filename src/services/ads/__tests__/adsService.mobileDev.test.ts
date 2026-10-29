@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { installSafetyFixture } from '../../../safety/__tests__/safetyFixture'
 import type { RootState } from '../../../store/store'
 
 vi.mock('../../../config/buildTarget', () => ({
@@ -35,6 +36,9 @@ function makeState(): RootState {
 }
 
 describe('adsService mobile-dev simulator', () => {
+  beforeEach(() => {
+    installSafetyFixture(28, ['ads'])
+  })
   afterEach(() => {
     vi.useRealTimers()
     clearRewardHandler('eviction_vote_breakdown')
@@ -50,14 +54,15 @@ describe('adsService mobile-dev simulator', () => {
 
     expect(showRewarded('eviction_vote_breakdown', makeState(), dispatch, onReward)).toBe(true)
 
+    expect(dispatch).not.toHaveBeenCalled()
+    await vi.runAllTimersAsync()
+
     expect(dispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'ads/recordAdShown',
         payload: 'eviction_vote_breakdown',
       })
     )
-
-    await vi.runAllTimersAsync()
 
     expect(onReward).toHaveBeenCalledTimes(1)
     expect(onReward).toHaveBeenCalledWith({ source: 'mobile-dev-simulator' })

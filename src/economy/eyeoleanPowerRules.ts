@@ -1,4 +1,5 @@
 import type { GameState } from '../types'
+import { missionPowerHasPriority } from '../bb/missionPowers'
 import {
   getEyeoleanPowerModeRule,
   type EyeoleanPowerModeRule,
@@ -62,6 +63,11 @@ export function getEyeoleanPowerArmAvailability(
   game: GameState,
   productKey: EyeoleanStoreProductKey
 ): EyeoleanPowerAvailability {
+  if (missionPowerHasPriority(game))
+    return {
+      available: false,
+      reason: 'A Secret Mission power has priority today. Arm Store powers on another day.',
+    }
   const human = game.players.find((player) => player.isUser)
   if (!human || human.status === 'evicted' || human.status === 'jury') {
     return { available: false, reason: 'Unavailable after you leave the House.' }

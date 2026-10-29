@@ -86,9 +86,11 @@ export function resolveVoxNominations(options: {
   autoNomineeId: string | null
   ballots: Record<string, string[]>
   ballotNomineeCount: number
+  protectedIds?: string[]
   seed: number
 }): VoxNominationResolution {
   const { activeIds, immunityWinnerId, autoNomineeId, ballots, ballotNomineeCount, seed } = options
+  const protectedIds = new Set(options.protectedIds ?? [])
   const activeSet = new Set(activeIds)
   const voteCounts: Record<string, number> = Object.fromEntries(activeIds.map((id) => [id, 0]))
 
@@ -96,6 +98,7 @@ export function resolveVoxNominations(options: {
     if (!activeSet.has(voterId)) return
     new Set(targets).forEach((targetId) => {
       if (
+        !protectedIds.has(targetId) &&
         targetId !== voterId &&
         targetId !== immunityWinnerId &&
         targetId !== autoNomineeId &&
@@ -107,7 +110,10 @@ export function resolveVoxNominations(options: {
   })
 
   const nominees =
-    autoNomineeId && activeSet.has(autoNomineeId) && autoNomineeId !== immunityWinnerId
+    autoNomineeId &&
+    activeSet.has(autoNomineeId) &&
+    !protectedIds.has(autoNomineeId) &&
+    autoNomineeId !== immunityWinnerId
       ? [autoNomineeId]
       : []
   const nomineeSet = new Set(nominees)
@@ -117,7 +123,7 @@ export function resolveVoxNominations(options: {
   const tieRng = mulberry32((seed ^ 0x4e_4f_4d_53) >>> 0)
   const tieRanks = Object.fromEntries(activeIds.map((id) => [id, tieRng()]))
   const ranked = activeIds
-    .filter((id) => id !== immunityWinnerId && !nomineeSet.has(id))
+    .filter((id) => id !== immunityWinnerId && !protectedIds.has(id) && !nomineeSet.has(id))
     .sort((left, right) => {
       const voteDiff = (voteCounts[right] ?? 0) - (voteCounts[left] ?? 0)
       if (voteDiff !== 0) return voteDiff

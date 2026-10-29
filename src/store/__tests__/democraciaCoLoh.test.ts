@@ -3,6 +3,7 @@ import type { GameState, Player } from '../../types'
 import gameReducer, {
   advance,
   createInitialGameState,
+  applyMinigameWinner,
   submitPosTieBreak,
   submitPovSaveTarget,
 } from '../gameSlice'
@@ -62,6 +63,29 @@ function coLohFixture(stage: 'replacement' | 'voting' | 'tie'): GameState {
 }
 
 describe('Democracia co-LOH rules', () => {
+  it('records multiple Solo Rush immune finalists as co-LOHs', () => {
+    const state = createInitialGameState({ seed: 7331 })
+    const first = state.players[0]!
+    const second = state.players[1]!
+    state.phase = 'loh_comp'
+
+    const next = gameReducer(
+      state,
+      applyMinigameWinner({
+        winnerId: first.id,
+        coWinnerIds: [first.id, second.id],
+        participants: [first.id, second.id],
+        skipSeasonUpdate: true,
+      })
+    )
+
+    expect(next.phase).toBe('loh_results')
+    expect(next.lohId).toBe(first.id)
+    expect(next.coLohIds).toEqual([first.id, second.id])
+    expect(next.players.find((player) => player.id === first.id)?.status).toBe('loh')
+    expect(next.players.find((player) => player.id === second.id)?.status).toBe('loh')
+  })
+
   it('assigns replacement responsibility to the co-LOH who owned the saved nominee', () => {
     const state = coLohFixture('replacement')
     const next = gameReducer(state, submitPovSaveTarget('nova'))

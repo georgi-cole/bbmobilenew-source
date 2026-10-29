@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom'
 import type { BroadcastOverride, CupidArrowPair, Phase, Player } from '../../types'
 import { useStore } from 'react-redux'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { isGuestSaveReminderEvent } from '../../store/guestSaveReminder'
 import { createGameFieldEquality } from '../../store/gameFieldEquality'
 import {
   advance,
@@ -103,8 +104,11 @@ import VoxAudiencePulseReveal, {
   type VoxAudiencePulseExit,
 } from '../VoxAudiencePulseReveal/VoxAudiencePulseReveal'
 import WeekendInterludeOverlay from '../WeekendInterludeOverlay/WeekendInterludeOverlay'
+import { WeekendArtworkCover } from '../WeekendPartyAtmosphere/WeekendPartyAtmosphere'
+import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
 import './TvZone.css'
 import './TvZoneEnhancements.css'
+import './WeekendTvAtmosphere.css'
 import './ShockDangerMode.css'
 import {
   decorateDepressionShockFauxTvText,
@@ -679,6 +683,16 @@ export default function TvZone(props: TvZoneProps) {
     // with that new phase. Preserve that latest visible result in the faux TV
     // instead of presenting an empty viewport during the handoff.
     latestUnconsumedEvent
+  // Older guest reminders may already be in a browser's persisted TV feed
+  // without the marker added for the branded TV treatment. Recognize that
+  // copy too, so a player who has already reached the reminder sees the new
+  // presentation after updating rather than replaying the plain-text version.
+  const guestSaveReminderQueued = Boolean(
+    isGuest &&
+    displayedEvent &&
+    isGuestSaveReminderEvent(displayedEvent) &&
+    displayedEvent.meta?.broadcastConsumed !== true
+  )
   // The weather bulletin has its own full-viewport card. Do not briefly mount
   // the older day-start/day-end transition card underneath it while the
   // bulletin portal resolves its TV target.
@@ -793,6 +807,9 @@ export default function TvZone(props: TvZoneProps) {
 
   // Event-based announcement: only explicit meta.major / ev.major (no text heuristics).
   const eventAnnouncement = useMemo<Announcement | null>(() => {
+    // The Day 1 guest reminder is a regular on-air segment. Let it use the TV
+    // message stage before the competition title card takes over.
+    if (guestSaveReminderQueued) return null
     const announcementEvent =
       seasonStartExpansionEvent ??
       (queuedBroadcastIsCard ? queuedBroadcastEvent : null) ??
@@ -822,6 +839,7 @@ export default function TvZone(props: TvZoneProps) {
     return majorKey ? buildAnnouncement(majorKey, announcementEvent) : null
   }, [
     announcementPrerollEvent,
+    guestSaveReminderQueued,
     seasonStartExpansionEvent,
     queuedBroadcastIsCard,
     priorityBroadcastEvent,
@@ -1009,9 +1027,11 @@ export default function TvZone(props: TvZoneProps) {
     : undefined
   const viewportDisplayText =
     viewportMessageOverride ??
-    (cupidFollowUpVisible
-      ? cupidFollowUpAnnouncement.subtitle
-      : (dailyTransitionTitle ?? displayedEventText))
+    (guestSaveReminderQueued
+      ? 'Guest mode. Create a profile to keep your season.'
+      : cupidFollowUpVisible
+        ? cupidFollowUpAnnouncement.subtitle
+        : (dailyTransitionTitle ?? displayedEventText))
   const baseViewportMessageKey = getViewportMessageKey(displayedEvent)
   const viewportMessageKey = viewportMessageOverride
     ? `override-${viewportMessageOverride}`
@@ -1029,7 +1049,9 @@ export default function TvZone(props: TvZoneProps) {
         ? cupidFollowUpAnnouncement.subtitle
         : activeAnnouncement.title
   } else {
-    mainTvMessage = displayedEventText
+    mainTvMessage = guestSaveReminderQueued
+      ? 'Guest mode. Create a profile to keep your season. Open More, then Profile, then Create Profile.'
+      : displayedEventText
   }
 
   useEffect(() => {
@@ -1496,14 +1518,21 @@ export default function TvZone(props: TvZoneProps) {
   }, [])
 
   const activeWeekend = gameState.weekendInterlude
-  const phaseLabel = activeWeekend?.active
-    ? 'WEEKEND'
-    : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
-      ? 'Final Audience Vote'
-      : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
-        ? 'Final Immunity'
-        : formatPhaseLabel(gameState.phase)
-  const shortPhaseLabel = activeWeekend?.active ? 'WEEKEND' : compactPhaseLabel(gameState.phase)
+  const weekendVisualTheme = resolveWeekendVisualTheme(activeWeekend)
+  const phaseLabel = guestSaveReminderQueued
+    ? 'HUB UPDATE'
+    : activeWeekend?.active
+      ? 'WEEKEND'
+      : gameState.voxPopuli?.status === 'active' && gameState.phase === 'final3_decision'
+        ? 'Final Audience Vote'
+        : gameState.voxPopuli?.status === 'active' && gameState.phase.startsWith('final3_comp')
+          ? 'Final Immunity'
+          : formatPhaseLabel(gameState.phase)
+  const shortPhaseLabel = guestSaveReminderQueued
+    ? 'UPDATE'
+    : activeWeekend?.active
+      ? 'WEEKEND'
+      : compactPhaseLabel(gameState.phase)
   const headerRef = useRef<HTMLDivElement>(null)
   const headerPillsRef = useRef<HTMLUListElement>(null)
   const headerActionsRef = useRef<HTMLDivElement>(null)
@@ -1517,6 +1546,7 @@ export default function TvZone(props: TvZoneProps) {
     const phaseMeasure = phaseMeasureRef.current
     if (!header || !pills || !actions || !phaseMeasure) return
 
+    let frameId = 0
     const measure = () => {
       // Full phase text + chip padding, status-chip content, action controls,
       // header padding and inter-column gaps. Shorten only if that real total
@@ -1526,18 +1556,25 @@ export default function TvZone(props: TvZoneProps) {
       const shouldCompact = requiredWidth > header.clientWidth + 0.5
       setCompactPhaseChip((current) => (current === shouldCompact ? current : shouldCompact))
     }
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(measure)
+    }
+    // Settle the first layout before paint; later observer notifications can
+    // share a frame without shifting the roster during its entrance animation.
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(scheduleMeasurement)
     observer.observe(header)
     observer.observe(pills)
     observer.observe(actions)
     observer.observe(phaseMeasure)
     for (const item of [...pills.children, ...actions.children]) observer.observe(item)
-    const contentObserver = new MutationObserver(measure)
+    const contentObserver = new MutationObserver(scheduleMeasurement)
     for (const container of [pills, actions]) {
       contentObserver.observe(container, { childList: true, subtree: true, characterData: true })
     }
     return () => {
+      window.cancelAnimationFrame(frameId)
       observer.disconnect()
       contentObserver.disconnect()
     }
@@ -1618,6 +1655,7 @@ export default function TvZone(props: TvZoneProps) {
         gameState.weekendInterlude?.active && gameState.weekendInterlude.episode === 'party'
           ? 'tv-zone--party-led'
           : '',
+        weekendVisualTheme ? `tv-zone--weekend-${weekendVisualTheme}` : '',
         gameState.weekendInterlude?.active &&
         gameState.weekendInterlude.stage === 'finale_battle_ready'
           ? 'tv-zone--finale-power-ready'
@@ -1850,6 +1888,15 @@ export default function TvZone(props: TvZoneProps) {
             aria-atomic="true"
           >
             {gameState.weekendInterlude?.active && <WeekendInterludeOverlay />}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'fireside' && (
+              <WeekendArtworkCover artwork="fireside-tv" surface="tv" />
+            )}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'reunion' && (
+              <WeekendArtworkCover artwork="reunion-tv" surface="tv" />
+            )}
+            {gameState.weekendInterlude?.active && weekendVisualTheme === 'fireside' && (
+              <div className="tv-zone__firelight" aria-hidden="true" />
+            )}
             {((visualDailyTransitionPhase && presentedDailyAtmosphere) ||
               depressionShockRainyTv ||
               depressionShockSunnyTv) && (
@@ -1886,23 +1933,43 @@ export default function TvZone(props: TvZoneProps) {
                 .filter(Boolean)
                 .join(' ')}
             >
-              <p
-                key={viewportMessageKey}
-                aria-hidden={hideViewportMessage}
-                className={[
-                  'tv-zone__now',
-                  cupidFollowUpVisible ? 'tv-zone__now--cupid-follow-up' : '',
-                  depressionShockRainyTv ? 'tv-zone__now--depression-shock' : '',
-                  !detoxMessageActive && displayedEvent ? 'tv-zone__now--quick-transition' : '',
-                  detoxMessageActive ? 'tv-zone__now--detox-stream' : '',
-                  hideViewportMessage ? 'tv-zone__now--hidden' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                style={hideViewportMessage ? { opacity: 0 } : undefined}
-              >
-                {viewportDisplayText}
-              </p>
+              {guestSaveReminderQueued ? (
+                <section
+                  key={viewportMessageKey}
+                  className={`tv-zone__guest-save${hideViewportMessage ? ' tv-zone__guest-save--hidden' : ''}`}
+                  aria-label="Guest mode save reminder"
+                  role="status"
+                >
+                  <div className="tv-zone__guest-save-kicker">
+                    <span aria-hidden="true" /> THE BIG EYE <i aria-hidden="true">/</i> HUB UPDATE
+                  </div>
+                  <h2 className="tv-zone__guest-save-title">Keep your season</h2>
+                  <p className="tv-zone__guest-save-copy">
+                    You’re playing as a guest, so your progress won’t be saved.
+                  </p>
+                  <p className="tv-zone__guest-save-route">
+                    Create a profile from <strong>More</strong> to save your season.
+                  </p>
+                </section>
+              ) : (
+                <p
+                  key={viewportMessageKey}
+                  aria-hidden={hideViewportMessage}
+                  className={[
+                    'tv-zone__now',
+                    cupidFollowUpVisible ? 'tv-zone__now--cupid-follow-up' : '',
+                    depressionShockRainyTv ? 'tv-zone__now--depression-shock' : '',
+                    !detoxMessageActive && displayedEvent ? 'tv-zone__now--quick-transition' : '',
+                    detoxMessageActive ? 'tv-zone__now--detox-stream' : '',
+                    hideViewportMessage ? 'tv-zone__now--hidden' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  style={hideViewportMessage ? { opacity: 0 } : undefined}
+                >
+                  {viewportDisplayText}
+                </p>
+              )}
             </div>
 
             {/* Twist badge — broadcast-style corner ribbon anchored to the viewport */}

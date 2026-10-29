@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react'
+import { Suspense, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
+import { lazyWithChunkRecovery } from '../../utils/lazyWithChunkRecovery'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
@@ -24,10 +27,10 @@ import {
   submitCoLohNomination,
   submitHumanVote,
   resolvePendingVoxAudienceVote,
+  resetGame,
   revealVoxTemporaryAudienceVote,
   submitVoxFinalThreeAppeal,
   startVoxFinalVote,
-  resetGame,
 } from '../../store/gameSlice'
 import {
   completeChallenge,
@@ -55,7 +58,6 @@ import TvDecisionModal from '../../components/TvDecisionModal/TvDecisionModal'
 import TvMultiSelectModal from '../../components/TvDecisionModal/TvMultiSelectModal'
 import TvBinaryDecisionModal from '../../components/TvBinaryDecisionModal/TvBinaryDecisionModal'
 import QuickTapRace from '../../components/QuickTapRace/QuickTapRace'
-import LaneRacersCanvasGame from '../../minigames/laneRacers/LaneRacersCanvasGame'
 import PressurePlank from '../../components/PressurePlank/PressurePlank'
 import { rankPressurePlankResults } from '../../components/PressurePlank/pressurePlankLogic'
 import BullseyeBlitz from '../../components/BullseyeBlitz/BullseyeBlitz'
@@ -67,6 +69,7 @@ import { computeScores } from '../../minigames/scoring'
 import FloatingActionBar from '../../components/FloatingActionBar/FloatingActionBar'
 import { shouldRenderGameControlDock } from './gameScreenUiGuards'
 import WeekendPartyAtmosphere from '../../components/WeekendPartyAtmosphere/WeekendPartyAtmosphere'
+import { resolveWeekendVisualTheme } from '../../utils/weekendVisualTheme'
 import SpotlightEvictionOverlay from '../../components/Eviction/SpotlightEvictionOverlay'
 import SurveyevalTileEvictionEffect from '../../components/Eviction/SurveyevalTileEvictionEffect'
 import DayStartShockPopup from '../../components/DayStartShockPopup/DayStartShockPopup'
@@ -92,9 +95,10 @@ import { getProfilePhotoAvatarId, joinPublicAssetPath, resolveAvatar } from '../
 import { statusBadgeImageSrc } from '../../utils/statusBadges'
 import type { Player } from '../../types'
 import { isSurvivorRunTerminal } from '../../modes/survivorRun'
-import { startNewVoxPopuliSeason } from '../../modes/seasonContinuation'
 import { getImmediateAutoNomineeId } from './autoNomineeBadge'
-import PublicFavoriteOverlay from '../../components/PublicFavoriteOverlay/PublicFavoriteOverlay'
+const PublicFavoriteOverlay = lazyWithChunkRecovery(
+  () => import('../../components/PublicFavoriteOverlay/PublicFavoriteOverlay')
+)
 import JuryPhaseRevealOverlay from '../../components/JuryPhaseRevealOverlay/JuryPhaseRevealOverlay'
 import TwinShockRevealOverlay from '../../components/TwinShockRevealOverlay/TwinShockRevealOverlay'
 import TwinShockIntroCinematic from '../../components/TwinShockIntroCinematic/TwinShockIntroCinematic'
@@ -142,7 +146,10 @@ import {
   saveVoxNominationReveal,
 } from '../../features/voxNominationRevealStorage'
 
-import { selectActiveConfessionalDecision } from '../../store/confessionalDecisionSelectors'
+import {
+  getConfessionalDecisionKey,
+  selectActiveConfessionalDecision,
+} from '../../store/confessionalDecisionSelectors'
 import { shouldAutomaticallyAdvanceAfterConfessionalVote } from './confessionalReturnResume'
 import { useCompetitionFlow } from './flows/useCompetitionFlow'
 import { coordinateGameFlows } from './flows/gameFlowCoordinator'
@@ -161,7 +168,7 @@ export {
   POST_VOTE_ANNOUNCEMENT_MS,
 } from './flows/useEvictionFlow'
 import './GameScreen.css'
-const TribunalDecisionCinematic = lazy(
+const TribunalDecisionCinematic = lazyWithChunkRecovery(
   () => import('../../components/TribunalDecisionCinematic/TribunalDecisionCinematic')
 )
 
@@ -360,9 +367,7 @@ export default function GameScreen() {
     return () => window.removeEventListener('ui:playPressed', handlePlay)
   }, [dispatch, game.voxPopuli?.finaleStage])
   const pendingPreAdPlacementRef = useRef<AdPlacement | null>(null)
-  const activeConfessionalDecisionKey = activeConfessionalDecision
-    ? `${activeConfessionalDecision.type}:${activeConfessionalDecision.week}:${activeConfessionalDecision.phase}`
-    : null
+  const activeConfessionalDecisionKey = getConfessionalDecisionKey(activeConfessionalDecision, game)
   useGameScreenImagePreloads({
     activeConfessionalDecisionKey,
     activeConfessionalDecisionType: activeConfessionalDecision?.type,
@@ -549,7 +554,7 @@ export default function GameScreen() {
     if (continueVoxPopuli) {
       startNewVoxPopuliSeason(dispatch)
     } else {
-      dispatch(resetGame())
+      withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
     }
     dispatch({ type: 'challenge/setPendingChallenge', payload: null })
     navigate('/', { replace: true, state: { autoStartGame: true } })
@@ -1079,15 +1084,10 @@ export default function GameScreen() {
   const showBullseyeBlitz = showLohMinigame && pendingMinigame?.key === 'targetPractice'
   // TravelingDots is key-gated to its specific overlay component.
   const showTravelingDots = showLohMinigame && pendingMinigame?.key === 'travelingDots'
-  const showLaneRacers = showLohMinigame && pendingMinigame?.key === 'laneRacers'
   // QuickTapRace handles the 'quickTap' key AND acts as a safe fallback for any
   // unrecognised pendingMinigame key so the human is never left with no UI.
   const showQuickTapRace =
-    showLohMinigame &&
-    !showPressurePlank &&
-    !showBullseyeBlitz &&
-    !showTravelingDots &&
-    !showLaneRacers
+    showLohMinigame && !showPressurePlank && !showBullseyeBlitz && !showTravelingDots
 
   // ── Ad hook: competition_retry ─────────────────────────────────────────────
   // Retry now lives in the MinigameHost results UI itself, so GameScreen only
@@ -1393,7 +1393,6 @@ export default function GameScreen() {
     showMinigameHost ||
     showTribunalInvitation ||
     showQuickTapRace ||
-    showLaneRacers ||
     showPressurePlank ||
     showBullseyeBlitz ||
     showTravelingDots
@@ -1428,7 +1427,7 @@ export default function GameScreen() {
           showTravelingDots,
           spectatorLegacyActive,
         ],
-        blocksControls: [showPressurePlank, showLaneRacers],
+        blocksControls: [showPressurePlank],
       },
       twist: {
         awaitingDecision: [
@@ -1489,6 +1488,7 @@ export default function GameScreen() {
   })
   const { showGameControlDock, awaitingHumanDecision } = flowCoordination
   const weekendInterludeActive = game.weekendInterlude?.active === true
+  const weekendVisualTheme = resolveWeekendVisualTheme(game.weekendInterlude)
   const weekendSocialAvailable =
     !weekendInterludeActive ||
     game.weekendInterlude?.stage === 'social' ||
@@ -1586,10 +1586,12 @@ export default function GameScreen() {
         data-layout-revision={responsiveGameLayout.revision}
         data-active-flow={flowCoordination.activeFlow ?? undefined}
         data-game-mode={game.mode}
+        data-weekend-theme={weekendVisualTheme ?? undefined}
       >
         <WeekendPartyAtmosphere
           active={weekendInterludeActive && game.weekendInterlude?.episode === 'party'}
           animate={settings.gameUX.animations && !settings.display.reduceMotion}
+          theme={weekendVisualTheme}
         />
         {showPublicSaveReveal && publicSaveWinnerId ? (
           <TvZone
@@ -2191,9 +2193,6 @@ export default function GameScreen() {
         {showQuickTapRace && pendingMinigame && (
           <QuickTapRace session={pendingMinigame} players={game.players} />
         )}
-        {showLaneRacers && pendingMinigame && (
-          <LaneRacersCanvasGame session={pendingMinigame} players={game.players} />
-        )}
         {showPressurePlank && pendingMinigame && (
           <PressurePlank session={pendingMinigame} players={game.players} />
         )}
@@ -2528,18 +2527,20 @@ export default function GameScreen() {
 
         {/* ── Public's Favorite Player voting overlay ───────────────────────── */}
         {isPublicModeEnabled(game.mode) && showFavoriteVoting && favoritePlayer && (
-          <PublicFavoriteOverlay
-            candidates={game.players.filter((p) =>
-              (favoritePlayer.candidates ?? []).includes(p.id)
-            )}
-            seed={game.seed}
-            awardAmount={favoritePlayer.awardAmount}
-            onComplete={handleFavoriteComplete}
-            onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
-            onForecastAward={handleForecastAward}
-            canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
-            forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
-          />
+          <Suspense fallback={<div role="status">Preparing audience vote…</div>}>
+            <PublicFavoriteOverlay
+              candidates={game.players.filter((p) =>
+                (favoritePlayer.candidates ?? []).includes(p.id)
+              )}
+              seed={game.seed}
+              awardAmount={favoritePlayer.awardAmount}
+              onComplete={handleFavoriteComplete}
+              onAudienceSurgeRequest={handleFavoriteAudienceSurgeRequest}
+              onForecastAward={handleForecastAward}
+              canBankEyeoleans={!isGuest && Boolean(activeProfileId)}
+              forecastEventScope={game.gameId ?? `season-${game.season}-${game.seed}`}
+            />
+          </Suspense>
         )}
 
         {/* ── Social Phase Panel (human player actions) ────────────────────── */}
@@ -2895,13 +2896,10 @@ export default function GameScreen() {
         {/* ── Houseguest grid (alive + evicted in one grid) ────────────────── */}
         <HouseguestGrid
           houseguests={presentedRosterPlayers.map(playerToHouseguest)}
-          headerSelector=".tv-zone"
-          footerSelector=".nav-bar"
           overlaySelector=".game-control-dock"
           compact={responsiveGameLayout.compactRoster}
           rosterMode={responsiveGameLayout.rosterMode}
           headerMode={responsiveGameLayout.rosterHeaderMode}
-          layoutRevision={responsiveGameLayout.revision}
           occupancyLabel={inlineHouseFeedVisible ? undefined : housemateOccupancyLabel}
           returningPlayerId={battleBackReturnId}
           onReturnAnimationDone={handleBattleBackReturnDone}

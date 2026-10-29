@@ -87,7 +87,7 @@ The final source passed both full suites without retries. The jsdom `HTMLMediaEl
 - Reward success handles concurrent requests, a reentrant callback, and a delayed duplicate callback while granting exactly +3 once and recording one use.
 - Reward bridge failure grants zero, records no use, remains visible/retryable, and stays correct after save/reload.
 - Finale flow double-activates Continue and protects one result, reward, recap, and archive.
-- Final 4/Final 3, Grid of Luck, route recovery, responsive viewports, and browser error collection are included.
+- Final 4/Final 3, Mystic Chamber, route recovery, responsive viewports, and browser error collection are included.
 - All 32 active minigames have a registry-driven host smoke for instructions, mount, partial Exit/result, double Continue idempotence, and overlay cleanup.
 
 The minigame smoke does **not** prove normal game-specific completion. Primary-input drivers and terminal-result assertions remain open, especially for the gaps listed in `minigame-test-matrix.md`.

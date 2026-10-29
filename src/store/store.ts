@@ -1,3 +1,4 @@
+import { missionPowerMiddleware } from './missionPowerMiddleware'
 import { configureStore } from '@reduxjs/toolkit'
 import gameReducer, {
   getNominationTargetScore,
@@ -54,6 +55,8 @@ import {
   saveRunSnapshot,
 } from './saveStatePersistence'
 import { createRunSnapshotAutosaveController } from './runSnapshotAutosave'
+import { prepareSnapshotJson } from './snapshotSerialization'
+import { batchNestedDispatchSubscriptions } from './nestedDispatchBatching'
 import { isRunAutosaveSuspended } from './runAutosaveGate'
 import cwgoReducer from '../features/cwgo/cwgoCompetitionSlice'
 import holdTheWallReducer from '../features/holdTheWall/holdTheWallSlice'
@@ -93,6 +96,8 @@ import {
 } from '../broadcasting/broadcastConfigPersistence'
 import { backdoorPresentationMiddleware } from '../broadcasting/backdoorPresentationMiddleware'
 import { setRuntimeSocialActionOverrides } from '../social/socialActionManager'
+import { gameplayAnalyticsMiddleware } from '../services/backend/gameplayAnalyticsMiddleware'
+import { initializeCloudBackend } from '../services/backend/backendService'
 
 const strategicGameReducer = withImmediateVoxPublicMode(
   withLohNominationPlanning(gameReducer, getNominationTargetScore)
@@ -161,6 +166,7 @@ export const store = configureStore({
       .prepend(gamePerformanceMiddleware)
       .concat(
         weekendSettingsMiddleware,
+        missionPowerMiddleware,
         survivorMiddleware,
         bellaProgressMiddleware,
         eliminatedSeasonResolutionMiddleware,
@@ -183,8 +189,11 @@ export const store = configureStore({
         secretMissionMiddleware,
         eyeoleanPowerMiddleware,
         minigameSessionMiddleware,
-        gameDiagnosticsMiddleware
+        gameDiagnosticsMiddleware,
+        gameplayAnalyticsMiddleware
       ),
+  enhancers: (getDefaultEnhancers) =>
+    getDefaultEnhancers().prepend(batchNestedDispatchSubscriptions),
   // A long season can dispatch thousands of actions with a large state tree.
   // Bound Redux DevTools retention in development so gameplay QA does not turn
   // the extension itself into a progressive memory/performance tax.
@@ -301,10 +310,27 @@ function hasMeaningfulGameProgress(game: ReturnType<typeof store.getState>['game
 // slices without repeatedly projecting/serializing/writing the campaign on the
 // same input turn. Snapshot construction itself is deferred until the trailing
 // save window flushes. Lifecycle boundaries still flush immediately.
-const runSnapshotAutosave = createRunSnapshotAutosaveController(saveRunSnapshot)
+const runSnapshotAutosave = createRunSnapshotAutosaveController(
+  saveRunSnapshot,
+  undefined,
+  typeof Worker === 'undefined' ? undefined : prepareSnapshotJson
+)
 
 /** Flush pending campaign snapshots before leaving a profile adoption flow. */
 export function flushPendingRunSnapshots(): void {
+  runSnapshotAutosave.flush()
+}
+
+/** Explicitly capture a completed launch or attach an intact guest run to its owner. */
+export function persistCurrentRunSnapshot(): void {
+  const current = store.getState()
+  if (
+    !current.profiles.isGuest &&
+    current.profiles.activeProfileId &&
+    hasMeaningfulGameProgress(current.game)
+  ) {
+    scheduleCurrentRunSnapshot(current.profiles.activeProfileId, current)
+  }
   runSnapshotAutosave.flush()
 }
 
@@ -350,7 +376,7 @@ let prevSeasonArchives = store.getState().game.seasonArchives
 // array happens to be longer than the previous profile's.
 let prevSeasonArchivesLength = prevSeasonArchives?.length ?? 0
 let prevArchiveProfileId: string | null = store.getState().profiles?.activeProfileId ?? null
-store.subscribe(() => {
+store.subscribeImmediate(() => {
   const current = store.getState()
   const remoteBroadcastManager = current.remoteConfig.config?.broadcastManager
   if (
@@ -522,6 +548,9 @@ if (typeof window !== 'undefined' && !skipUnloadAutosaveForE2E) {
     void flushSavePersistence()
   })
 }
+
+// Cloud sync starts automatically when Supabase is configured for this build.
+initializeCloudBackend({ ...store, subscribe: store.subscribeImmediate })
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch

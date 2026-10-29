@@ -138,8 +138,12 @@
 .credits-overlay-track .big-eye-credits__card--record-label .big-eye-credits__line--body {
   font-size: 2.87cqw;
 }
-.credits-overlay-track .big-eye-credits__card--closing {
-  margin-top: -35.19cqw;
+.credits-overlay-track .big-eye-credits__card--closing-part-one,
+.credits-overlay-track .big-eye-credits__card--closing-part-two {
+  margin-top: -50cqw;
+}
+.credits-overlay-track .big-eye-credits__card--closing-part-two {
+  margin-top: -62cqw;
 }
 
 .credits-start-prompt:focus-visible,

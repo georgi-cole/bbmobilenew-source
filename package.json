@@ -11,7 +11,7 @@
     "bootstrap": "npm ci && cd server && npm ci",
     "bootstrap:root": "npm ci",
     "bootstrap:server": "cd server && npm ci",
-    "predev": "npm run generate:audio && npm run generate:after-eye",
+    "predev": "npm run generate:marketplace && npm run generate:audio && npm run generate:after-eye",
     "dev": "vite",
     "dev:admin": "vite --mode admin",
     "generate:after-eye": "node scripts/generate-after-the-eye-config.mjs",
@@ -22,16 +22,16 @@
     "cinematic:frames": "remotion render src/remotion/index.ts BigEyeCinematic renders/frames --sequence --image-format=png --image-sequence-pattern=renders/frames/frame-[frame].[ext]",
     "cinematic:encode": "ffmpeg -framerate 30 -start_number 0 -i renders/frames/frame-%06d.png -c:v libx264 -crf 17 -pix_fmt yuv420p -r 30 renders/big-eye-cinematic-frames.mp4",
     "build": "npm run build:release",
-    "build:admin": "npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode admin",
-    "build:release": "npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode release && npm run check:production-debug-globals",
-    "build:mobile": "npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode capacitor && npm run check:production-debug-globals",
+    "build:admin": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode admin",
+    "build:release": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode release && npm run check:production-debug-globals",
+    "build:mobile": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode capacitor && npm run check:production-debug-globals",
     "build:capacitor": "npm run build:mobile",
-    "build:android": "npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode android",
-    "build:ios": "npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode ios",
+    "build:android": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode android",
+    "build:ios": "node scripts/sync-marketplace-catalog.mjs --check && npm run generate:audio && npm run generate:after-eye && tsc -b && vite build --mode ios",
     "build:ios:dev": "npm run generate:audio && npm run generate:after-eye && tsc -b && node scripts/build-ios-dev.mjs",
     "sync": "npm run build:mobile && npx cap sync",
-    "sync:android": "npm run build:android && npx cap sync android",
-    "sync:ios": "npm run build:ios && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
+    "sync:android": "npm run build:android && node scripts/configure-admob.mjs android && npx cap sync android",
+    "sync:ios": "npm run build:ios && node scripts/configure-admob.mjs ios && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
     "sync:ios:dev": "npm run build:ios:dev && npx cap sync ios && node scripts/normalize-capacitor-swift-path.mjs",
     "cap:sync": "npm run sync",
     "cap:sync:android": "npm run sync:android",
@@ -57,8 +57,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:guard": "node scripts/check-disabled-tests.mjs",
-    "test:pr-core": "vitest run src/store/durablePersistence.test.ts src/modes/seasonRulesets.test.ts src/screens/ProfilePicker/ProfilePicker.test.tsx src/screens/HomeHub/__tests__/HomeHub.test.tsx src/store/__tests__/criticalGameIntegrity.test.ts src/store/__tests__/nominationStatusConsistency.test.ts src/store/__tests__/criticalShockRuleMatrix.test.ts tests/seasonDirector.flow.test.ts tests/battleBack.flow.test.ts",
-    "check:pr": "npm run format:check && npm run test:guard && npm run lint:ci && npm run typecheck && npm run test:pr-core",
+    "test:pr-core": "vitest run src/store/durablePersistence.test.ts src/modes/seasonRulesets.test.ts src/screens/ProfilePicker/ProfilePicker.test.tsx src/screens/HomeHub/__tests__/HomeHub.test.tsx src/store/__tests__/criticalGameIntegrity.test.ts src/store/__tests__/nominationStatusConsistency.test.ts src/store/__tests__/criticalShockRuleMatrix.test.ts tests/seasonDirector.flow.test.ts tests/battleBack.flow.test.ts src/modes/launchSeason.test.ts src/appearance/profilePhotos.test.ts tests/unit/profilesSlice.test.ts",
+    "check:pr": "npm run format:check && npm run test:guard && npm run check:marketplace && npm run lint:ci && npm run typecheck && npm run test:pr-core",
     "test:coverage": "vitest run --coverage --maxWorkers=2 --testTimeout=60000 --coverage.reporter=text --coverage.reporter=json-summary",
     "coverage:check": "node scripts/check-risk-coverage.mjs",
     "check:production-debug-globals": "node scripts/check-production-debug-globals.mjs",
@@ -77,11 +77,15 @@
     "start:famous-figures": "vite --open",
     "generate:audio": "node scripts/generate-audio-manifest.mjs",
     "validate:audio": "npm run generate:audio && git diff --exit-code -- src/services/sound/generatedAudioManifest.ts",
-    "pretest": "npm run generate:audio"
+    "pretest": "npm run generate:audio",
+    "generate:marketplace": "node scripts/sync-marketplace-catalog.mjs",
+    "test:marketplace": "vitest run src/vip/marketplaceCatalog.test.ts src/screens/Store/Store.test.tsx src/minigames/__tests__/premiumGameAccess.test.ts src/store/__tests__/vipPremiumChallenges.test.ts src/vip/premiumMinigameLaunch.test.tsx && node --test scripts/marketplace-review-policy.test.mjs",
+    "check:marketplace": "node scripts/sync-marketplace-catalog.mjs --check && node scripts/check-marketplace-review.mjs && npm run test:marketplace"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "^8.1.1",
-    "@capacitor/core": "^8.3.0",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/geolocation": "^8.2.4",
     "@capgo/native-purchases": "^8.6.4",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
@@ -89,6 +93,7 @@
     "@remotion/cli": "^4.0.490",
     "@remotion/player": "^4.0.490",
     "@remotion/three": "^4.0.490",
+    "@supabase/supabase-js": "^2.118.0",
     "@types/howler": "^2.2.12",
     "@types/three": "^0.185.1",
     "framer-motion": "^12.34.3",
@@ -99,12 +104,13 @@
     "react-redux": "^9.2.0",
     "react-router": "8.3.0",
     "remotion": "^4.0.490",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "@capacitor-community/admob": "8.2.1"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.0",
-    "@capacitor/cli": "^8.3.0",
-    "@capacitor/ios": "^8.3.0",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/ios": "8.5.3",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.58.2",
     "@testing-library/dom": "^10.4.1",
@@ -129,6 +135,8 @@
     "vitest": "^4.1.2"
   },
   "overrides": {
-    "postcss": "8.5.23"
+    "fast-uri": "3.1.9",
+    "postcss": "8.5.23",
+    "zod": "4.6.7"
   }
 }

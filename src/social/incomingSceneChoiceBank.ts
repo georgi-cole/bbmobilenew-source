@@ -1,5 +1,34 @@
 export type ChoiceLabels = readonly [string, string, string, string]
 
+/** Nomination aftermath openings can be emotional, strategic, or grateful; keep
+ * the choices tied to the intent of the actual incoming line. */
+export const SCENE_FAMILY_CHOICES: Record<string, ChoiceLabels> = {
+  na_processing: [
+    'Comfort them',
+    'Ask what would help',
+    'Keep it focused on the game',
+    'Give them space',
+  ],
+  na_trust_check: [
+    'Reassure them',
+    'Compare vote reads',
+    'Keep your position private',
+    'Leave it there',
+  ],
+  na_strategic: [
+    'Share what you know',
+    'Compare reads',
+    'Protect your own game',
+    'End the conversation',
+  ],
+  na_followup: [
+    'Tell them you meant it',
+    'Ask how they are holding up',
+    'Keep things game-focused',
+    'Wrap up the check-in',
+  ],
+}
+
 export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
   week_start_ally_check_in: [
     ['Share your read', 'Ask what changed', 'Keep your cards close', 'Leave it for later'],
@@ -142,6 +171,10 @@ export const SCENE_CHOICES: Record<string, readonly ChoiceLabels[]> = {
   targeted_snark: [
     ['Ask what they mean', 'Stay unreadable', 'Call it out', 'Walk away'],
     ['Defuse the jab', 'Keep your cool', 'Push back directly', 'Let it die'],
+  ],
+  season_provocateur: [
+    ['Hear them out, guardedly', 'Ask what set them off', 'Push back directly', 'Walk away'],
+    ['Keep your composure', 'Ask them to be specific', 'Draw a hard boundary', 'End the exchange'],
   ],
   alliance_reassurance: [
     ['Reassure them', 'Compare your plans', 'Set a boundary', 'End the check-in'],

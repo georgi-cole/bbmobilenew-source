@@ -3,7 +3,6 @@
 // Each entry includes metadata, scoring adapter, and module path for dynamic import.
 
 import { mulberry32 } from '../store/rng'
-import { DEFAULT_LANE_RACERS_DURATION_MS } from './laneRacers/constants'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +59,8 @@ export interface GameRegistryEntry {
   category: GameCategory
   /** True if this entry should not be selected for new challenges. */
   retired: boolean
+  /** Retired games with this flag remain available in Surveyeval's rotation. */
+  survivalModeEligible?: boolean
   /** Optional safe participant-count bounds for random scheduling. */
   minPlayers?: number
   maxPlayers?: number
@@ -67,6 +68,8 @@ export interface GameRegistryEntry {
   replacedBy?: string
   /** VIP/Premium Challenges version launched in place of this canonical game. */
   premiumReplacementKey?: string
+  /** Premium Challenges/VIP upgrade included in the marketplace's premium minigame catalog. */
+  premiumExperience?: 'presentation' | 'variant'
   /** Direct-access registry entry reserved for VIP/Premium Challenges owners. */
   vipOnly?: boolean
 }
@@ -146,6 +149,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'raw',
     implementation: 'react' as const,
     reactComponentKey: 'QuickTapRace',
+    premiumExperience: 'variant',
     legacy: false,
     weight: 2,
     category: 'arcade',
@@ -176,36 +180,11 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'raw',
     implementation: 'react' as const,
     reactComponentKey: 'QuickTapSeasons',
+    premiumExperience: 'variant',
     legacy: false,
     weight: 1,
     category: 'arcade',
     retired: false,
-  },
-
-  laneRacers: {
-    key: 'laneRacers',
-    title: 'Lane Racers',
-    description:
-      'A premium canvas lane sprint where rapid taps power your racer through boosters and mystery gifts.',
-    instructions: [
-      'A broadcast-style countdown starts before the race goes live',
-      'Tap rapidly in the lower zone or use the TAP button to build speed and momentum',
-      'Use DODGE to skip the next pickup so boosters and gifts are not pure luck',
-      'Booster pickups and mystery gifts can trigger short surges, shields, or risky lane effects',
-      'AI racers have their own rhythm swings, so leads can change quickly',
-      'Highest score at the finish wins the sprint',
-    ],
-    metricKind: 'count',
-    metricLabel: 'Points',
-    timeLimitMs: DEFAULT_LANE_RACERS_DURATION_MS,
-    authoritative: false,
-    scoringAdapter: 'raw',
-    implementation: 'react' as const,
-    reactComponentKey: 'LaneRacers',
-    legacy: false,
-    weight: 1,
-    category: 'arcade',
-    retired: true,
   },
 
   memoryMatch: {
@@ -302,6 +281,35 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     weight: 1,
     category: 'arcade',
     retired: true,
+  },
+
+  boxedOut: {
+    key: 'boxedOut',
+    title: 'BOXPOCALYPSE',
+    description: 'Secretly pick one of three boxes. Avoid the crowd, collect points and survive.',
+    instructions: [
+      'Three boxes carry different visible rewards from 100 to 500 points, refreshed each round. Everyone secretly chooses one.',
+      'The uniquely most popular box explodes: its occupants receive zero points and lose one life.',
+      'If the highest selection count is tied, no box explodes and everyone earns their chosen reward.',
+      'Start with three lives. Reach zero and you are eliminated.',
+      'After ten rounds the highest-scoring survivor wins, or win early as the only survivor.',
+      'If all remaining players are eliminated together, highest score among those last-round players wins.',
+      'An exact first-place score tie is resolved by a closest-without-going-over numerical question.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Survival points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'BoxedOut',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 4,
+    maxPlayers: 16,
   },
 
   estimationGame: {
@@ -427,6 +435,39 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     retired: false,
   },
 
+  percentagePanic: {
+    key: 'percentagePanic',
+    title: 'Percentage Panic',
+    description:
+      'Guess what people really admit: dating drama, food feuds, awkward habits, and wild opinions. Final two play Higher or Lower.',
+    instructions: [
+      'Everyone estimates the same published survey percentage, from 0 to 100. Each question names the surveyed group and shows the survey year.',
+      'You have 20 seconds to lock your estimate; a timeout locks the current slider value.',
+      'Your round score is minus the absolute difference from the published answer.',
+      'Rounds 1–8 award cumulative points; nobody is eliminated.',
+      'After round 9, the two highest cumulative scores reach the final. A tie is broken by faster total response time, then a seeded tie-break.',
+      'The finalist with the higher cumulative score chooses who guesses first or second.',
+      'The finalists alternate guesses and see only Higher or Lower until one guesses exactly.',
+      'Each reveal adds another sourced result from the poll or a related survey.',
+      'You get three hints for the game. Each costs five points and offers three nearby percentages, including the answer.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Cumulative points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'PercentagePanic',
+    legacy: false,
+    // Match Majority Rules in the active pool; the competition director keeps it Day 1-only.
+    weight: 1,
+    category: 'trivia',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
+  },
+
   majorityRules: {
     key: 'majorityRules',
     title: 'Majority Rules',
@@ -437,7 +478,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
       'Everyone locks in an answer at the same time.',
       'You get 3 hints for the whole game, and each hint can only be used once.',
       'Players in the minority are eliminated.',
-      'A tied ballot gets one re-vote. If it is still tied, that question is discarded and a new one begins.',
+      'If no distinct, small minority is found (including ties), nobody is eliminated and a new question begins.',
       'The last contestants face a final head-to-head to decide the winner.',
     ],
     resultMode: 'placement',
@@ -670,14 +711,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
 
   cardClash: {
     key: 'cardClash',
-    title: 'House of Cards',
-    description: 'A memory tournament that builds to a shared-board final.',
+    title: 'Deck of Light',
+    description:
+      'A rising memory tournament with tactical tools, a changing objective and a portrait-card duel.',
     instructions: [
-      'Rounds use 8, 12, 16, 20, then 24 tiles with an elapsed timer and no cutoff',
-      'The lowest scorer leaves after rounds 1–3; only the top two survive round 4',
-      'The finalists share one board and take turns in round 5',
-      'A correct pair scores 1 point and keeps the turn; a miss passes the turn',
-      'Final points decide the winner, with rounds 1–4 totals breaking a tie',
+      'Four rounds build from 8 to 20 tiles; the lowest scorer drops after round 3, then round 4 sends the top two to the finale',
+      'Choose one tool each round: Peek, Shield or Bonus Bet; the same choices apply to every contestant',
+      'Match the Bright Pair during the first half of the board for a bounded score bonus',
+      'The top two share a player-portrait board in the finale; every matched pair scores one point',
+      'A finalist keeps playing after each match and passes the turn after a miss; each finalist gets one Peek-or-Pass token',
+      'Final pairs decide the winner, with rounds 1–4 totals breaking a tie',
     ],
     metricKind: 'points',
     metricLabel: 'Clash Score',
@@ -686,6 +729,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react' as const,
     reactComponentKey: 'HouseOfCards',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'logic',
@@ -882,7 +926,8 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     legacy: false,
     weight: 2,
     category: 'logic',
-    retired: false,
+    retired: true,
+    survivalModeEligible: true,
   },
 
   travelingDots: {
@@ -1067,6 +1112,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'RiskWheel',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'arcade',
@@ -1228,6 +1274,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'GlassBridge',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'endurance',
@@ -1254,6 +1301,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'CrystalPathShattered',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'endurance',
@@ -1280,9 +1328,11 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     implementation: 'react',
     reactComponentKey: 'RescueTheKing',
     legacy: false,
-    weight: 1,
+    // Retired failed prototype; keep its implementation available for history,
+    // but exclude it from active challenge selection and release certification.
+    weight: 0,
     category: 'logic',
-    retired: false,
+    retired: true,
   },
 
   trapAuction: {
@@ -1394,12 +1444,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
   chainOfGreed: {
     key: 'chainOfGreed',
     title: 'Chain of Greed',
-    description: 'Build a higher-or-lower chain, bank your progress, and survive elimination.',
+    description:
+      'Choose a tense shared-chain contest with evidence-based votes or a timed Solo Rush with double-or-nothing stakes.',
     instructions: [
-      'Guess whether the next value will be higher or lower than the current one.',
-      'Keep a correct chain going to build influence, or bank it before you take another risk.',
-      'A wrong guess loses the active chain, so decide when enough is enough.',
-      'Contestants are eliminated as the game progresses, followed by a final head-to-head.',
+      'Choose Shared Chain or Solo Rush before the game begins.',
+      'Shared Chain: contestants call higher or lower on the same revealed number. A correct call climbs the chain.',
+      'Banking secures the current pot and resets the chain, but you must still guess this turn.',
+      'A miss, including an equal number, breaks the chain. One Safety token can recover half the active pot once per match.',
+      'Watch opponents’ calls and results, then vote contestants out after each shared-chain round.',
+      'The remaining contestants each build an individual chain for 30 seconds. The highest final score wins the prize pool.',
+      'Solo Rush: each player gets one minute to build a personal Round Bank. Pawn the whole bank before a guess to double it on a hit; a miss clears it and resets the chain. The lowest Round Bank is eliminated each round.',
     ],
 
     resultMode: 'placement',
@@ -1410,6 +1464,7 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'ChainOfGreed',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 2,
     category: 'logic',
@@ -1447,13 +1502,16 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
 
   houseOfDarkness: {
     key: 'houseOfDarkness',
-    title: 'House of Darkness',
-    description: 'Survive a haunted memory challenge where mistakes drain your lifespan.',
+    title: 'Deck of Darkness',
+    description:
+      'A dangerous survival spinoff where memory, charms and rising damage decide who lasts.',
     instructions: [
-      'Reveal cards to find matching pairs on your haunted board.',
-      'Each mismatch costs lifespan, so remember what you have seen.',
-      'Completing a board earns some recovery, but damage can carry into the next round.',
-      'Outlast the other contestants, or finish with the most lifespan when the ritual ends.',
+      'Choose a six-round Depth Run or an Endless descent that ends with one survivor.',
+      'Pick one of three contextual charms before each board; rivals choose from the same offers.',
+      'Each descent brings a changing omen, larger boards up to 8 pairs and more dangerous mistakes.',
+      'Heal, Shield, Bargain, Peek, Curse, Cleanse and Last Chance reward different situations.',
+      'In Endless, the final two play portrait cards; Curse effects and lifespan are shown between boards.',
+      'In Depth Run, the highest remaining lifespan wins after round six.',
     ],
     resultMode: 'placement',
     metricKind: 'endurance',
@@ -1463,11 +1521,42 @@ const REGISTRY: Record<string, GameRegistryEntry> = {
     scoringAdapter: 'authoritative',
     implementation: 'react',
     reactComponentKey: 'HouseOfDarkness',
+    premiumExperience: 'presentation',
     legacy: false,
     weight: 1,
     category: 'logic',
     retired: false,
     minPlayers: 2,
+  },
+
+  gatesOfTheEye: {
+    key: 'gatesOfTheEye',
+    title: 'Bigg Gates',
+    description:
+      'Choose among four shifting doors, keep a survival streak for bonus points, and outscore the other players.',
+    instructions: [
+      'Everyone starts with 3 lives. Each round offers four doors with different points and collapse chances.',
+      'Pick one door. Once everyone has chosen, the Eye selects exactly one door to collapse using that round’s displayed odds.',
+      'Everyone who chose the collapsed door loses one life, scores nothing, and resets their streak. Everyone else scores the door’s points plus any streak bonus they have earned.',
+      'Your second consecutive safe crossing adds a 10% bonus to that door’s points. Each later safe crossing adds 5 percentage points to the bonus.',
+      'If you reach 0 lives, you are eliminated. Your points stay banked.',
+      'A tied all-player collapse restores one life to the whole final group. A unique highest score in an all-player collapse wins.',
+      'The last player standing wins. If several players remain after Round 10, highest score wins; a tie continues into overtime.',
+    ],
+    resultMode: 'placement',
+    metricKind: 'points',
+    metricLabel: 'Points',
+    timeLimitMs: 0,
+    authoritative: true,
+    scoringAdapter: 'authoritative',
+    implementation: 'react',
+    reactComponentKey: 'GatesOfTheEye',
+    legacy: false,
+    weight: 1,
+    category: 'logic',
+    retired: false,
+    minPlayers: 2,
+    maxPlayers: 16,
   },
 }
 

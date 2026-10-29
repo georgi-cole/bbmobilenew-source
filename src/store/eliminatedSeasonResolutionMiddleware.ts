@@ -29,6 +29,7 @@ function baseSummary(player: Player, week: number): PlayerSeasonSummary {
   return {
     playerId: player.id,
     displayName: player.name,
+    appearance: player.appearance,
     finalPlacement: player.finalRank ?? player.seasonPlacement ?? null,
     isEvicted: player.status === 'evicted' || player.status === 'jury',
     lohWins,

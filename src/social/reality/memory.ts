@@ -1,6 +1,9 @@
 import type { RealityDomainState, RealityMemory } from './types'
+import { current as readCurrent, isDraft } from 'immer'
 
 export const MAX_REALITY_MEMORIES_PER_ACTOR = 160
+type RecallEntry = { memory: RealityMemory; score: number; index: number }
+const recallOrder = new WeakMap<RealityMemory[], { day: number; entries: RecallEntry[] }>()
 
 export function memoryRecallScore(memory: RealityMemory, day: number): number {
   const age = Math.max(0, day - memory.day)
@@ -16,18 +19,36 @@ export function memoryRecallScore(memory: RealityMemory, day: number): number {
 }
 
 export function remember(state: RealityDomainState, memory: RealityMemory): void {
-  state.memoriesByOwner[memory.ownerId] ??= []
-  const current = state.memoriesByOwner[memory.ownerId]
+  const stored = state.memoriesByOwner[memory.ownerId] ?? []
+  // Read the current transaction's values without creating a proxy for every
+  // historical memory. The complete retained list is assigned once below.
+  const current = [...(isDraft(stored) ? readCurrent(stored) : stored)]
   const existingIndex = current.findIndex((entry) => entry.id === memory.id)
   if (existingIndex >= 0) current[existingIndex] = memory
   else current.push(memory)
-  state.memoriesByOwner[memory.ownerId] = current
+  // Read proxy-backed dimensions once per record, rather than once per sort
+  // comparison. Preserve the exact pair-dependent clock and arithmetic order.
+  const ranked = current.map((entry) => ({
+    memory: entry,
+    day: entry.day,
+    id: entry.id,
+    strength: entry.recallStrength,
+    weight:
+      0.35 +
+      entry.importance * 0.25 +
+      entry.emotionalIntensity * 0.2 +
+      entry.strategicRelevance * 0.2,
+  }))
+  const score = (entry: (typeof ranked)[number], day: number) =>
+    entry.strength * Math.max(0.15, 1 - Math.max(0, day - entry.day) * 0.035) * entry.weight
+  state.memoriesByOwner[memory.ownerId] = ranked
     .sort(
       (left, right) =>
-        memoryRecallScore(left, Math.max(left.day, right.day)) -
-          memoryRecallScore(right, Math.max(left.day, right.day)) || left.id.localeCompare(right.id)
+        score(left, Math.max(left.day, right.day)) - score(right, Math.max(left.day, right.day)) ||
+        left.id.localeCompare(right.id)
     )
     .slice(-MAX_REALITY_MEMORIES_PER_ACTOR)
+    .map((entry) => entry.memory)
 }
 
 export function retrieveMemories(
@@ -42,19 +63,41 @@ export function retrieveMemories(
 ): RealityMemory[] {
   const participants = new Set(input.participantIds ?? [])
   const tags = new Set(input.tags ?? [])
-  return [...(state.memoriesByOwner[ownerId] ?? [])]
-    .filter(
-      (memory) =>
-        participants.size === 0 ||
-        memory.participantIds.some((id) => participants.has(id)) ||
-        memory.tags.some((tag) => tags.has(tag))
-    )
-    .sort(
-      (left, right) =>
-        memoryRecallScore(right, input.day) - memoryRecallScore(left, input.day) ||
-        left.id.localeCompare(right.id)
-    )
-    .slice(0, input.limit ?? 8)
+  const matches = (memory: RealityMemory) =>
+    participants.size === 0 ||
+    memory.participantIds.some((id) => participants.has(id)) ||
+    memory.tags.some((tag) => tags.has(tag))
+  const stored = state.memoriesByOwner[ownerId] ?? []
+  const draft = isDraft(stored)
+  const memories = draft ? readCurrent(stored) : stored
+  const selectedMemories = (entries: RecallEntry[]) =>
+    entries
+      .filter(({ memory }) => matches(memory))
+      .slice(0, input.limit ?? 8)
+      .map(({ memory, index }) => (draft ? stored[index] : memory))
+  const immutable = Object.isFrozen(memories)
+  let ranked = immutable ? recallOrder.get(memories) : undefined
+  if (!ranked || ranked.day !== input.day) {
+    const scored = memories.map((memory, index) => ({
+      memory,
+      index,
+      score: memoryRecallScore(memory, input.day),
+    }))
+    // Legacy malformed scores can make the old comparator non-transitive.
+    // Preserve its exact filtered-input behavior for those saves.
+    if (scored.some(({ score }) => !Number.isFinite(score)))
+      return selectedMemories(
+        scored
+          .filter(({ memory }) => matches(memory))
+          .sort((a, b) => b.score - a.score || a.memory.id.localeCompare(b.memory.id))
+      )
+    ranked = {
+      day: input.day,
+      entries: scored.sort((a, b) => b.score - a.score || a.memory.id.localeCompare(b.memory.id)),
+    }
+    if (immutable && memories.every(Object.isFrozen)) recallOrder.set(memories, ranked)
+  }
+  return selectedMemories(ranked.entries)
 }
 
 export function decayMemories(state: RealityDomainState, day: number): void {

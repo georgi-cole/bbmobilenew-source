@@ -23,7 +23,7 @@ import { createPortal } from 'react-dom'
 import { isPlacementRankingGame, type GameRegistryEntry } from '../../minigames/registry'
 import { resolvePremiumGameForAccess } from '../../minigames/premiumGameAccess'
 import { store } from '../../store/store'
-import { selectHasPremiumChallengesAccess, selectIsVipActive } from '../../store/vipSlice'
+import { selectHasPremiumChallengesAccess } from '../../store/vipSlice'
 import MinigameRules from '../MinigameRules/MinigameRules'
 import MinigameTurnDemo, { TURN_DEMO_KEYS } from '../MinigameTurnDemo/MinigameTurnDemo'
 import MinigameUtilityDock from '../MinigameUtilityDock/MinigameUtilityDock'
@@ -69,6 +69,9 @@ const FamousFiguresComp = lazyWithChunkRecovery(
 const SilentSaboteurComp = lazyWithChunkRecovery(
   () => import('../SilentSaboteurComp/SilentSaboteurComp')
 )
+const PercentagePanicComp = lazyWithChunkRecovery(
+  () => import('../PercentagePanic/PercentagePanic')
+)
 const MajorityRulesComp = lazyWithChunkRecovery(
   () => import('../MajorityRulesComp/MajorityRulesComp')
 )
@@ -100,6 +103,7 @@ const SPECIAL_MINIGAME_PRELOADERS: Record<string, () => Promise<void>> = {
   FamousFigures: () => FamousFiguresComp.preload(),
   SilentSaboteur: () => SilentSaboteurComp.preload(),
   MajorityRules: () => MajorityRulesComp.preload(),
+  PercentagePanic: () => PercentagePanicComp.preload(),
   GlassBridge: () => GlassBridgeComp.preload(),
   CrystalPathShattered: () => CrystalPathShatteredGame.preload(),
   BlackjackTournament: () => BlackjackTournamentComp.preload(),
@@ -129,10 +133,15 @@ export interface MinigameParticipant {
 
 export interface ReactMinigameCompletion {
   authoritativeWinnerId?: string | null
+  authoritativeWinnerIds?: string[]
   /** Authoritative worst finisher when the minigame owns its full standings. */
   authoritativeLastPlaceId?: string | null
   /** Complete feature-owned ordering, best to worst, when its scoring has richer tie-breaks. */
   authoritativeRankedIds?: string[]
+  /** Placement groups that share a rank, best to worst. */
+  authoritativeTiedGroups?: string[][]
+  /** All contestants in the last-place tie group when the game supports ties. */
+  authoritativeLastPlaceIds?: string[]
   rawValue?: number
   rawResults?: Record<string, number>
   /** Optional time-based tie-breaker in ms (lower = faster = better rank). */
@@ -204,12 +213,20 @@ export default function MinigameHost({
     () => selectHasPremiumChallengesAccess(store.getState()),
     () => selectHasPremiumChallengesAccess(store.getState())
   )
-  const isVipActive = useSyncExternalStore(
-    store.subscribe,
-    () => selectIsVipActive(store.getState()),
-    () => selectIsVipActive(store.getState())
-  )
-  const usePremiumPresentation = premiumPresentationOverride ?? isVipActive
+  const usePremiumPresentation =
+    premiumPresentationOverride ??
+    (hasPremiumChallengesAccess && game.premiumExperience === 'presentation')
+  const quickTapVariantPreviewOverride =
+    import.meta.env.DEV && typeof gameOptions.quickTapVariantPreview === 'boolean'
+      ? gameOptions.quickTapVariantPreview
+        ? ('vip' as const)
+        : ('classic' as const)
+      : undefined
+  const quickTapVipEnabled =
+    (game.key === 'quickTap' || game.key === 'quickTapSeasons') &&
+    (quickTapVariantPreviewOverride
+      ? quickTapVariantPreviewOverride === 'vip'
+      : hasPremiumChallengesAccess)
   const launchedGame = useMemo(() => {
     return resolvePremiumGameForAccess(game, hasPremiumChallengesAccess)
   }, [game, hasPremiumChallengesAccess])
@@ -270,9 +287,40 @@ export default function MinigameHost({
             : override
               ? { ...launchedGame, ...override }
               : launchedGame
+        if (quickTapVipEnabled) {
+          return {
+            ...resolved,
+            title:
+              resolved.key === 'quickTapSeasons'
+                ? 'Quick Tap Seasons · VIP'
+                : 'Quick Tap Race · VIP',
+            description:
+              resolved.key === 'quickTapSeasons'
+                ? 'Three 28-second rounds. Read the weather, risk mystery boxes, and finish with the most points.'
+                : 'Three 25-second rounds. Charge the Eye, risk mystery boxes, and finish with the most points.',
+            instructions: [
+              resolved.key === 'quickTapSeasons'
+                ? 'Play three 28-second rounds. The season changes every seven seconds, with no preview of what comes next.'
+                : 'Tap the Eye through three 25-second rounds. Your points carry over; short breaks separate the rounds.',
+              resolved.key === 'quickTapSeasons'
+                ? 'Spring taps score 1.25, summer 0.5, autumn 1, and winter −1. Stop tapping in winter. Once per round, Change Season randomly selects another season.'
+                : 'Grab a mystery box or keep tapping. Contents stay hidden until claimed and can include rewards or handicaps.',
+              'All contestants get the same mystery windows and odds. Effects activate immediately; Backfire means stop tapping briefly. Timed effects reset between rounds.',
+              ...(resolved.key === 'quickTapSeasons'
+                ? [
+                    'Mystery contents depend on the current season. Stillness awards 14 points after two seconds without tapping; tapping cancels that bonus.',
+                  ]
+                : []),
+              'The highest point total wins. If points tie, raw taps break the tie.',
+            ],
+            timeLimitMs: resolved.key === 'quickTapSeasons' ? 84_000 : 75_000,
+            metricKind: 'points' as const,
+            metricLabel: 'Points',
+          }
+        }
         return resolved
       })(),
-    [launchedGame]
+    [launchedGame, quickTapVipEnabled]
   )
 
   useEffect(() => {
@@ -361,13 +409,19 @@ export default function MinigameHost({
       const t = setTimeout(() => setPhase('playing'), 0)
       return () => clearTimeout(t)
     }
-    if (countdown <= 0) {
-      const t = setTimeout(() => setPhase('playing'), 600)
-      return () => clearTimeout(t)
+    // The utility dock intentionally restarts the ready sequence. While active,
+    // elapsed wall time must advance it even if a callback/frame was stalled.
+    const deadline = Date.now() + 3600
+    let timer: ReturnType<typeof setTimeout>
+    const update = () => {
+      const remaining = deadline - Date.now()
+      setCountdown(Math.max(0, Math.ceil((remaining - 600) / 1000)))
+      if (remaining <= 0) setPhase('playing')
+      else timer = setTimeout(update, Math.min(100, remaining))
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [phase, countdown, skipCountdown, utilityView])
+    timer = setTimeout(update, 0)
+    return () => clearTimeout(timer)
+  }, [phase, skipCountdown, utilityView])
 
   // Keep the countdown SFX synchronized with the reset/paused visual countdown.
   useEffect(() => {
@@ -393,6 +447,8 @@ export default function MinigameHost({
 
   const getReportedLastPlaceId = useCallback(
     (completion?: ReactMinigameCompletion) => {
+      if (completion?.authoritativeLastPlaceIds?.length)
+        return completion.authoritativeLastPlaceIds[0]
       if (completion?.authoritativeLastPlaceId) return completion.authoritativeLastPlaceId
       if (!completion?.rawResults || !participants?.length) return null
 
@@ -413,11 +469,16 @@ export default function MinigameHost({
     (completion?: ReactMinigameCompletion, fallbackValue = 1, fallbackTiebreakerMs?: number) => {
       const humanId = participants?.find((participant) => participant.isHuman)?.id
       const lastPlaceId = getReportedLastPlaceId(completion)
+      const lastPlaceIds = completion?.authoritativeLastPlaceIds?.length
+        ? completion.authoritativeLastPlaceIds
+        : lastPlaceId
+          ? [lastPlaceId]
+          : []
 
       // Feature-owned placement games can provide their final standings before
       // a season result has been applied. Keep the outcome inside the host when
       // the human is last so Reverse Time remains available.
-      if (competitionRetryEnabled && humanId && lastPlaceId === humanId && completion) {
+      if (competitionRetryEnabled && humanId && lastPlaceIds.includes(humanId) && completion) {
         setFinalCompletion(completion)
         setFinalValue(completion.rawValue ?? completion.rawResults?.[humanId] ?? fallbackValue)
         setFinalTiebreakerMs(completion.tiebreakerMs ?? fallbackTiebreakerMs ?? null)
@@ -474,6 +535,10 @@ export default function MinigameHost({
       return { ...p, score, isPR }
     })
     entries.sort((a, b) => {
+      const tiedGroup = finalCompletion?.authoritativeTiedGroups?.find(
+        (group) => group.includes(a.id) && group.includes(b.id)
+      )
+      if (tiedGroup) return 0
       const authoritativeRank = finalCompletion?.authoritativeRankedIds
       if (authoritativeRank?.length) {
         const rankA = authoritativeRank.indexOf(a.id)
@@ -527,6 +592,18 @@ export default function MinigameHost({
     setAttempt((current) => current + 1)
     setPhase(skipCountdown ? 'playing' : 'countdown')
   }, [attempt, launchedGame.reactComponentKey, sessionId, skipCountdown])
+
+  const relationships = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().social.relationships,
+    () => store.getState().social.relationships
+  )
+  const alliances = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().game.strategicAlliances,
+    () => store.getState().game.strategicAlliances
+  )
+  const strategicContext = useMemo(() => ({ relationships, alliances }), [alliances, relationships])
 
   const renderActiveGame = () => {
     const participantIds = (participants ?? []).map((p) => p.id)
@@ -603,7 +680,20 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={gameOptions?.prizeType as SilentSaboteurPrizeType}
+          strategicContext={strategicContext}
           seed={seed}
+          onComplete={handleAttemptReactComplete}
+        />
+      )
+    }
+
+    if (game.implementation === 'react' && game.reactComponentKey === 'PercentagePanic') {
+      return (
+        <PercentagePanicComp
+          participantIds={participantIds}
+          participants={participants}
+          prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
+          seed={typeof gameOptions?.seed === 'number' ? seed : undefined}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -623,6 +713,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as MajorityRulesCompetitionType) ?? 'LOH'}
+          premiumPresentation={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -674,6 +765,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as BlackjackTournamentCompetitionType) ?? 'LOH'}
+          strategicContext={strategicContext}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
@@ -694,7 +786,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as RiskWheelCompetitionType) ?? 'LOH'}
-          premiumPresentation={isVipActive}
+          premiumPresentation={usePremiumPresentation}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -706,6 +798,7 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as 'LOH' | 'POS') ?? 'LOH'}
+          strategicContext={strategicContext}
           seed={seed}
           onComplete={handleAttemptReactComplete}
         />
@@ -737,10 +830,12 @@ export default function MinigameHost({
     }
 
     if (game.implementation === 'react' && game.reactComponentKey === 'HouseOfCards') {
+      const isLabPreview = import.meta.env.DEV && gameOptions?.minigameLabPreview === true
       if (import.meta.env.DEV) {
         console.log('HOUSE_OF_CARDS_NEW_SESSION', {
           source: 'MinigameHost',
-          challengeSeedIgnored: seed,
+          challengeSeedIgnored: isLabPreview ? undefined : seed,
+          labSeed: isLabPreview ? seed : undefined,
           participantIds,
           prizeType: gameOptions?.prizeType ?? 'LOH',
         })
@@ -750,6 +845,11 @@ export default function MinigameHost({
           participantIds={participantIds}
           participants={participants}
           prizeType={(gameOptions?.prizeType as HouseOfCardsPrizeType) ?? 'LOH'}
+          seed={isLabPreview ? seed : undefined}
+          premiumPresentation={usePremiumPresentation}
+          previewStage={
+            import.meta.env.DEV && gameOptions?.previewStage === 'final' ? 'final' : undefined
+          }
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -763,6 +863,7 @@ export default function MinigameHost({
           participants={participants}
           prizeType={(gameOptions?.prizeType as TiltLabyrinthPrizeType) ?? 'LOH'}
           seed={seed}
+          labPreview={gameOptions?.labPreview === true}
           onComplete={handleAttemptReactComplete}
         />
       )
@@ -890,12 +991,24 @@ export default function MinigameHost({
         <GenericComp
           seed={seed}
           autoStart={key !== 'HangmanChallenge'}
+          premiumPresentation={usePremiumPresentation}
+          vipQuickTap={(key === 'QuickTapRace' || key === 'QuickTapSeasons') && quickTapVipEnabled}
+          quickTapVariantOverride={
+            key === 'QuickTapRace' || key === 'QuickTapSeasons'
+              ? quickTapVariantPreviewOverride
+              : undefined
+          }
+          previewStage={
+            import.meta.env.DEV &&
+            (gameOptions?.previewStage === 'round6' || gameOptions?.previewStage === 'final2')
+              ? gameOptions.previewStage
+              : undefined
+          }
           voteEffectsEnabled={gameOptions?.voteEffectsEnabled !== false}
           participantIds={participantIds}
           participants={participants}
-          relationships={
-            key === 'MysticChamber' ? store.getState().social.relationships : undefined
-          }
+          relationships={strategicContext.relationships}
+          alliances={strategicContext.alliances}
           onFinish={(
             value: number,
             tiebreakerMs?: number,
@@ -940,7 +1053,8 @@ export default function MinigameHost({
         launchedGame.reactComponentKey === 'NumberTrivia' ||
         launchedGame.reactComponentKey === 'SnakeGame' ||
         launchedGame.reactComponentKey === 'BlackjackTournament' ||
-        launchedGame.reactComponentKey === 'MysticChamber'
+        launchedGame.reactComponentKey === 'MysticChamber' ||
+        launchedGame.reactComponentKey === 'ChainOfGreed'
           ? 'minigame-host--scrollable-game'
           : '',
       ]
@@ -1043,20 +1157,38 @@ export default function MinigameHost({
         </div>
       )}
 
-      {utilityView === 'rules' && phase !== 'results' && (
-        <MinigameRules
-          game={rulesGame}
-          mode="reference"
-          confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
-          onConfirm={() => setUtilityView(null)}
-        />
-      )}
+      {utilityView === 'rules' &&
+        phase !== 'results' &&
+        (quickTapVipEnabled ? (
+          createPortal(
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9800 }}>
+              <MinigameRules
+                game={rulesGame}
+                mode="reference"
+                confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+                onConfirm={() => setUtilityView(null)}
+              />
+            </div>,
+            document.body
+          )
+        ) : (
+          <MinigameRules
+            game={rulesGame}
+            mode="reference"
+            confirmLabel={phase === 'countdown' ? 'Return to countdown' : 'Return to game'}
+            onConfirm={() => setUtilityView(null)}
+          />
+        ))}
 
       {utilityView === 'exit' &&
         phase !== 'results' &&
         createPortal(
           <div
-            className="minigame-exit-confirm-overlay"
+            className={`minigame-exit-confirm-overlay${
+              launchedGame.reactComponentKey === 'GatesOfTheEye'
+                ? ' minigame-exit-confirm-overlay--obsidian'
+                : ''
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="Leave competition confirmation"

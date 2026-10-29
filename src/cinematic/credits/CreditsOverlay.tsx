@@ -1,28 +1,24 @@
-import type { CSSProperties } from 'react';
-import {
-  CINEMATIC_CONFIG,
-  CINEMATIC_CREDITS,
-  type CreditCard,
-} from '../config/cinematicConfig';
-import type { TimelineState } from '../timeline/timeline';
-import { easedRange, lerp, rangeProgress } from '../utils/math';
-import { RgbSplitGlitchText } from './RgbSplitGlitchText';
+import type { CSSProperties } from 'react'
+import { CINEMATIC_CONFIG, CINEMATIC_CREDITS, type CreditCard } from '../config/cinematicConfig'
+import type { TimelineState } from '../timeline/timeline'
+import { easedRange, lerp, rangeProgress } from '../utils/math'
+import { RgbSplitGlitchText } from './RgbSplitGlitchText'
+import { CAMERA_FLY_EXIT_FRAMES } from './rgbSplitGlitchState'
 
 type CreditsOverlayProps = {
-  frame: number;
-  state: TimelineState;
-  credits?: readonly CreditCard[];
-};
+  frame: number
+  state: TimelineState
+  credits?: readonly CreditCard[]
+}
 
-const secondsToFrames = (seconds: number): number =>
-  Math.round(seconds * CINEMATIC_CONFIG.fps);
+const secondsToFrames = (seconds: number): number => Math.round(seconds * CINEMATIC_CONFIG.fps)
 
 const motionPresets = [
   { x: -14, y: 12, rotation: -0.12, scale: 0.988 },
   { x: 14, y: 8, rotation: 0.12, scale: 0.992 },
   { x: -8, y: 14, rotation: 0, scale: 0.986 },
   { x: 8, y: 10, rotation: 0, scale: 0.994 },
-] as const;
+] as const
 
 export const CreditsOverlay = ({
   frame,
@@ -30,37 +26,43 @@ export const CreditsOverlay = ({
   credits = CINEMATIC_CREDITS,
 }: CreditsOverlayProps) => {
   const cardIndex = credits.findIndex((candidate) => {
-    const from = secondsToFrames(candidate.fromSecond);
-    const to = secondsToFrames(candidate.toSecond);
-    return frame >= from && frame < to;
-  });
+    const from = secondsToFrames(candidate.fromSecond)
+    const to = secondsToFrames(candidate.toSecond)
+    return frame >= from && frame < to
+  })
 
-  if (cardIndex < 0) return null;
+  if (cardIndex < 0) return null
 
-  const card = credits[cardIndex];
-  const from = secondsToFrames(card.fromSecond);
-  const to = secondsToFrames(card.toSecond);
-  const introFrames = Math.min(18, Math.floor((to - from) / 3));
-  const outroFrames = Math.min(16, Math.floor((to - from) / 3));
-  const intro = easedRange(frame, from, from + introFrames);
-  const outro = easedRange(frame, to - outroFrames, to);
-  const cardOpacity = intro * (1 - outro);
-  const journey = rangeProgress(frame, from, to);
-  const motion = motionPresets[cardIndex % motionPresets.length];
-  const cardX = lerp(motion.x, -motion.x * 0.18, intro) + lerp(0, motion.x * 0.22, outro);
-  const cardY = lerp(motion.y, 0, intro) + journey * -5;
-  const cardScale = lerp(motion.scale, 1, intro) + journey * 0.012;
-  const cardRotation = lerp(motion.rotation, 0, intro);
+  const card = credits[cardIndex]
+  const cameraFly = card.id === 'closing-part-two'
+  const from = secondsToFrames(card.fromSecond)
+  const to = secondsToFrames(card.toSecond)
+  const introFrames = Math.min(18, Math.floor((to - from) / 3))
+  const outroFrames = Math.min(16, Math.floor((to - from) / 3))
+  const intro = easedRange(frame, from, from + introFrames)
+  const outro = easedRange(frame, to - outroFrames, to)
+  const cardOpacity = intro * (1 - outro)
+  const journey = rangeProgress(frame, from, to)
+  const cameraExit = cameraFly ? easedRange(frame, to - CAMERA_FLY_EXIT_FRAMES, to) : 0
+  const motion = motionPresets[cardIndex % motionPresets.length]
+  const cardX = lerp(motion.x, -motion.x * 0.18, intro) + lerp(0, motion.x * 0.22, outro)
+  const cardY = cameraFly
+    ? lerp(-90, 0, intro) + journey * -5
+    : lerp(motion.y, 0, intro) + journey * -5
+  const cardScale = cameraFly
+    ? lerp(0.42, 1, intro) + journey * 0.08
+    : lerp(motion.scale, 1, intro) + journey * 0.012
+  const cardRotation = lerp(motion.rotation, 0, intro)
 
   const rootStyle: CSSProperties = {
     opacity: state.creditsOpacity * cardOpacity,
     '--credit-progress': journey,
-  } as CSSProperties;
+  } as CSSProperties
 
   const cardStyle: CSSProperties = {
     filter: `blur(${lerp(5, 0, intro) + outro * 3}px)`,
-    transform: `translate3d(${cardX}px, ${cardY}px, 0) scale(${cardScale}) rotate(${cardRotation}deg)`,
-  };
+    transform: `translate3d(${cardX}px, calc(${cardY}px + ${cameraExit * 48}cqw), 0) scale(${cardScale}) rotate(${cardRotation}deg)`,
+  }
 
   return (
     <div className="big-eye-credits" style={rootStyle} aria-label="Cinematic credits">
@@ -69,10 +71,10 @@ export const CreditsOverlay = ({
         style={cardStyle}
       >
         {card.lines.map((line, index) => {
-          const lineFrom = from + 4 + index * 5;
-          const lineReveal = easedRange(frame, lineFrom, lineFrom + 13);
-          const lineOffset = (1 - lineReveal) * (index % 2 === 0 ? 10 : -10);
-          const className = `big-eye-credits__line big-eye-credits__line--${line.style}${line.gapBefore ? ' has-gap' : ''}`;
+          const lineFrom = from + 4 + index * 5
+          const lineReveal = easedRange(frame, lineFrom, lineFrom + 13)
+          const lineOffset = (1 - lineReveal) * (index % 2 === 0 ? 10 : -10)
+          const className = `big-eye-credits__line big-eye-credits__line--${line.style}${line.gapBefore ? ' has-gap' : ''}`
 
           return (
             <RgbSplitGlitchText
@@ -80,8 +82,9 @@ export const CreditsOverlay = ({
               className={className}
               frame={frame}
               enterFrame={lineFrom}
-              exitFrame={to - Math.max(4, index * 2)}
+              exitFrame={cameraFly ? to : to - Math.max(4, index * 2)}
               seed={cardIndex * 11 + index * 5 + 1}
+              cameraFly={cameraFly}
               style={{
                 opacity: lineReveal,
                 filter: `blur(${(1 - lineReveal) * 3}px)`,
@@ -90,9 +93,9 @@ export const CreditsOverlay = ({
             >
               {line.text}
             </RgbSplitGlitchText>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}

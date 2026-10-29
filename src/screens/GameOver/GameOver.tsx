@@ -10,6 +10,7 @@ import {
   formatEyeoleans,
   totalEyeoleanRewards,
 } from '../../economy/eyeoleans'
+import { withSeasonLaunchIntent } from '../../modes/seasonLaunchIntent'
 import { SoundManager } from '../../services/sound/SoundManager'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { resetGame, archiveSeason } from '../../store/gameSlice'
@@ -33,7 +34,9 @@ import {
   readPersistedAftermathIssue,
   type AftermathIssue,
 } from './aftermath'
+import { useRewardedAd } from '../../services/ads/useRewardedAd'
 import './GameOver.css'
+import '../../styles/gameOverResponsiveFixes.css'
 import './AftermathTabloid.css'
 
 const CAROUSEL_INTERVAL_MS = 5000
@@ -76,6 +79,7 @@ function buildSummaries(
     const summary: PlayerSeasonSummary = {
       playerId: p.id,
       displayName: p.name,
+      appearance: p.appearance,
       finalPlacement: p.finalRank ?? p.seasonPlacement ?? null,
       isEvicted: p.status === 'evicted' || p.status === 'jury',
       lohWins,
@@ -104,7 +108,8 @@ function buildArchive(
   cupidArrowActivated: boolean,
   voxPopuliActivated: boolean,
   twinShockConsumed: boolean,
-  bellaCast: boolean
+  bellaCast: boolean,
+  secretMissionTemplateIds: string[]
 ): SeasonArchive {
   return {
     seasonIndex: season,
@@ -115,12 +120,14 @@ function buildArchive(
     voxPopuliActivated,
     twinShockConsumed,
     bellaCast,
+    secretMissionTemplateIds,
   }
 }
 
 type GameOverPanel = 'results' | 'adPrompt' | 'aftermath'
 
 export default function GameOver() {
+  const aftermathAd = useRewardedAd()
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const players = useAppSelector((s) => s.game.players)
@@ -135,6 +142,9 @@ export default function GameOver() {
     (s) => s.game.voxPopuli?.activatedSeason === s.game.season
   )
   const twinShockConsumed = useAppSelector((state) => state.game.twinShockConsumed === true)
+  const secretMissionTemplateIds = useAppSelector(
+    (state) => state.game.secretMissionTemplateHistory ?? []
+  )
   const bellaCast = useAppSelector(
     (state) =>
       state.game.players.some((player) => player.id === 'bella') &&
@@ -244,7 +254,8 @@ export default function GameOver() {
             cupidArrowActivated,
             voxPopuliActivated,
             twinShockConsumed,
-            bellaCast
+            bellaCast,
+            secretMissionTemplateIds
           )
         )
       )
@@ -256,7 +267,7 @@ export default function GameOver() {
     if (!isGuest && activeProfileId) {
       clearSeasonSnapshot(savedStateKeyForProfile(activeProfileId))
     }
-    dispatch(resetGame())
+    withSeasonLaunchIntent('classic', () => dispatch(resetGame()))
     SoundManager.unlockFromGesture()
     navigate('/', { state: { autoStartGame: true } })
   }
@@ -287,6 +298,7 @@ export default function GameOver() {
     setIsAftermathLoading(true)
 
     try {
+      if (window.GameAds && !(await aftermathAd.request('aftermath_unlock'))) return
       let issue = readPersistedAftermathIssue(issueStorageKey)
       if (!issue) {
         const config = await loadAftermathConfig()

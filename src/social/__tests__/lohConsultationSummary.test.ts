@@ -98,8 +98,28 @@ describe('LOH consultation summary', () => {
     )
 
     expect(summary).toBe(
-      'My planned opening nominees are Remy and Nova. If Safety changes the block, Lux is my replacement option. I want to try to get them out, but Safety and the vote decide what happens.'
+      'My planned opening nominees are Remy and Nova. If Safety changes the block, Lux would be my replacement option. I want to try to get them out, but Safety and the vote decide what happens.'
     )
+  })
+
+  it('addresses the listener directly when the LOH plan names them', () => {
+    const state = makeBackdoorState('truthful', 'human')
+    state.game.lohNominationPlan = {
+      ...state.game.lohNominationPlan!,
+      targetId: 'human',
+      backupTargetId: null,
+      initialNomineeIds: ['human', 'remy'],
+      strategy: 'direct',
+    }
+    const summary = buildLohConsultationSummary(
+      state,
+      { actorId: 'human', targetId: 'echo', actionId: 'ask_loh_target' },
+      'fallback'
+    )
+
+    expect(summary).toContain('you')
+    expect(summary).not.toContain('You is')
+    expect(summary).not.toContain('Your name is human')
   })
 
   it('keeps a deliberate decoy answer without leaking the canonical target', () => {
@@ -133,7 +153,7 @@ describe('LOH consultation summary', () => {
     )
   })
 
-  it('explains that a two-member alliance needs the caller to choose before a vote is set', () => {
+  it('reports member advice without claiming a group decision before the block strategy is set', () => {
     const reality = createInitialRealityDomainState()
     const alliance = createRealityAlliance(reality, {
       id: 'two-person-alliance',
@@ -166,7 +186,7 @@ describe('LOH consultation summary', () => {
 
     expect(consultation?.agenda).toBe('block_strategy')
     expect(consultation?.summary).toMatch(
-      /Echo recommends (Remy|Nova) for elimination\. You have not chosen a position, so no alliance vote is set yet\./
+      /Block strategy: Echo recommends (Remy|Nova)\. You have not chosen a position, so the alliance has no decision yet\./
     )
     expect(consultation?.summary).not.toContain('→')
   })

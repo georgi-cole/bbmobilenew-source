@@ -1,12 +1,35 @@
+import {
+  answerMissionPowerDecision,
+  selectMissionBackup,
+  expireNewMissionReward,
+} from './missionPowerActions'
+import { withMissionPowers } from './missionPowerReducer'
+import {
+  getMissionOutgoingIds,
+  isMissionOpeningProtected,
+  isMissionBackupProtected,
+  getMissionLeaderIds,
+  isMissionPower,
+} from '../bb/missionPowers'
 import { createSlice, createSelector, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  contestantFromPlayer,
+  contestantFromProfile,
+  getLaunchContestant,
+  type SeasonContestant,
+} from '../appearance/seasonContestant'
 import type { RootState, AppDispatch } from './store'
+import {
+  getAlliancePowerHolderPriority,
+  getStrategicAllianceDecisionRead as getStrategicAllianceDecisionReadFromAlliances,
+  type StrategicAllianceDecisionRead,
+} from '../ai/competition/allianceMinigameStrategy'
 import type {
   DemocraciaResultDisplay,
   DayStartShockState,
   DepressionShockState,
   GameState,
   Player,
-  StrategicAllianceSnapshot,
   WeekendInterludeState,
   WeekendTribunalSpeech,
   WeekendPartyBeat,
@@ -26,8 +49,10 @@ import type {
   CustomBroadcastMessage,
 } from '../types'
 import { restoreWeekendDebugSnapshot } from '../features/weekend/weekendDebugActions'
+import { normalizeGuestSaveReminderEvent } from './guestSaveReminder'
 import type { IncomingInteraction, SocialActionLogEntry } from '../social/types'
 import { chooseFinalThreeEvictee } from '../social/finalThreeDecision'
+import { isRemovedMinigameKey, removeObsoleteGameData } from './removedMinigameCleanup'
 import type { LohNominationPlan } from './lohNominationPlanning'
 import { mulberry32, seededPick, seededPickN } from './rng'
 import {
@@ -48,6 +73,8 @@ import { loadActiveProfile, archiveKeyForActiveProfile, loadProfilesState } from
 import { loadSettings } from './settingsSlice'
 import { getConfiguredCastSize, DEFAULT_ROSTER_SIZE } from './settingsHelpers'
 import { hasCachedStoreAccess } from '../vip/vipStorage'
+import { hasEffectiveStoreEntitlement } from '../vip/effectiveEntitlements'
+import { scoreQuickTapVipAiOnly } from '../minigames/quickTapRace/vip/quickTapVipLogic'
 import { canAccessSpecialSettings } from '../utils/debugMode'
 import { pickPhrase, NOMINEE_PLEA_TEMPLATES } from '../utils/juryUtils'
 import {
@@ -55,7 +82,8 @@ import {
   preTribunalExitCount,
   resolveTribunalSize,
 } from '../rules/tribunalPolicy'
-import { profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
+import { joinPublicAssetPath, profilePhotoAvatar, resolveAvatar } from '../utils/avatar'
+import { getAppearanceAsset } from '../appearance/catalog'
 import {
   getTwinShockActivationSeason,
   MAX_SEASON_ARCHIVES,
@@ -105,6 +133,7 @@ import {
   canUseVoteDeduction,
   isSecretMissionSuccessful,
   getMissionTaskSetSignature,
+  getFirstSecretMissionScheduledDay,
   pickMissionImmunityDuration,
   repairLegacyMissionTasks,
   type MissionTask,
@@ -262,7 +291,13 @@ function getPhaseOrderIndex(phase: Phase): number {
 function getForcedShockActivationWeek(
   state: Pick<
     GameState,
-    'phase' | 'week' | 'twistActivatedThisWeek' | 'doubleEviction' | 'specialVeto' | 'democracia'
+    | 'phase'
+    | 'week'
+    | 'twistActivatedThisWeek'
+    | 'doubleEviction'
+    | 'specialVeto'
+    | 'democracia'
+    | 'missionPowers'
   >,
   safePhase: Phase
 ): number {
@@ -270,6 +305,7 @@ function getForcedShockActivationWeek(
   const safeIndex = getPhaseOrderIndex(safePhase)
   const phaseWindowPassed = currentIndex === -1 || safeIndex === -1 || currentIndex > safeIndex
   const currentWeekBlocked =
+    state.missionPowers?.usedDay === state.week ||
     state.twistActivatedThisWeek === true ||
     state.doubleEviction?.weekActive === true ||
     state.specialVeto?.activeType != null ||
@@ -527,7 +563,13 @@ function buildSecretMissionTargetCandidates(state: GameState): string[] {
   const humanId = state.players.find((player) => player.isUser)?.id
   return state.players
     .filter(
-      (player) => player.id !== humanId && player.status !== 'evicted' && player.status !== 'jury'
+      (player) =>
+        player.id !== humanId &&
+        player.id !== state.lohId &&
+        player.status !== 'evicted' &&
+        player.status !== 'jury' &&
+        player.status !== 'nominated' &&
+        player.status !== 'nominated+pos'
     )
     .map((player) => player.id)
 }
@@ -538,14 +580,23 @@ function buildSecretMissionTasksForTemplate(
   triggeredDay: number
 ): SecretMissionTaskBuildResult {
   const template = MISSION_TEMPLATES.find((t) => t.id === templateId) ?? MISSION_TEMPLATES[0]
+  const targetCandidateIds = buildSecretMissionTargetCandidates(state)
   return {
     templateId: template.id,
     tasks: buildMissionTasks(template, triggeredDay, {
-      targetCandidateIds: buildSecretMissionTargetCandidates(state),
+      targetCandidateIds,
+      targetCandidateNamesById: Object.fromEntries(
+        state.players
+          .filter((player) => targetCandidateIds.includes(player.id))
+          .map((player) => [player.id, player.name])
+      ),
       capabilities: {
         publicModeEnabled: state.publicModeEnabled === true,
+        gameMode: isVoxPopuliActive(state) ? 'vox_populi' : 'classic',
+        nominationTargetCount: targetCandidateIds.length,
       },
       missionNumber: state.secretMission?.missionNumber,
+      seed: state.seed,
       excludedTaskSetSignatures: state.secretMissionTaskSetHistory ?? [],
     }),
   }
@@ -586,14 +637,20 @@ export function resolveProfileSex(
   if (canCause === canBecome) return undefined
   return canCause ? 'Male' : 'Female'
 }
-function buildUserPlayer(): Player {
-  const profile = loadActiveProfile()
+function buildUserPlayer(profile: SeasonContestant): Player {
+  const appearance = profile.appearanceSelection
+  const mainAsset = getAppearanceAsset(appearance, 'main')
   const parsedAge = resolveProfileAge(profile.bio?.age)
   const resolvedSex = resolveProfileSex(profile.bio?.sex, profile.bio?.reproductiveProfile)
   return {
     id: 'user',
     name: profile.name,
-    avatar: profile.photoId ? profilePhotoAvatar(profile.photoId) : profile.avatar,
+    avatar: mainAsset
+      ? joinPublicAssetPath(mainAsset)
+      : profile.photoId
+        ? profilePhotoAvatar(profile.photoId)
+        : profile.avatar,
+    appearance,
     status: 'active',
     isUser: true,
     ...(parsedAge !== undefined ? { age: parsedAge } : {}),
@@ -642,6 +699,7 @@ function pickHouseguests(rosterSize = GAME_ROSTER_SIZE, twinShockConsumed = fals
 }
 
 function buildInitialPlayers(options: {
+  contestant: SeasonContestant
   twinShockConsumed: boolean
   seasonArchives: SeasonArchive[]
   season: number
@@ -665,7 +723,7 @@ function buildInitialPlayers(options: {
     const replaceIndex = options.seed % aiPlayers.length
     aiPlayers[replaceIndex] = buildBellaPoolEntry() as Player
   }
-  return [buildUserPlayer(), ...aiPlayers]
+  return [buildUserPlayer(options.contestant), ...aiPlayers]
 }
 
 function buildInitialCompetitionSeasonState(
@@ -710,11 +768,15 @@ export function createInitialGameState(options?: {
   // sessions always start at Season 1 regardless of any logged-in user data.
   const profilesState = loadProfilesState()
   const isGuest = profilesState.isGuest
-  const activeBellaProgress =
+  const activeStoredProfile =
     !isGuest && profilesState.activeProfileId
       ? profilesState.profiles.find((profile) => profile.id === profilesState.activeProfileId)
-          ?.bellaProgress
       : undefined
+  const activeBellaProgress = activeStoredProfile?.bellaProgress
+  const seasonContestant =
+    getLaunchContestant() ??
+    activeStoredProfile?.contestantDefaults ??
+    contestantFromProfile(activeStoredProfile ?? loadActiveProfile())
   const seasonArchives: SeasonArchive[] = isGuest
     ? []
     : (options?.seasonArchives ?? loadSeasonArchives(archiveKeyForActiveProfile()) ?? [])
@@ -762,6 +824,7 @@ export function createInitialGameState(options?: {
     initialVoxPopuli.activatedWeek = 1
   }
   const freshPlayers = buildInitialPlayers({
+    contestant: seasonContestant,
     twinShockConsumed,
     seasonArchives,
     season,
@@ -898,11 +961,14 @@ export function createInitialGameState(options?: {
       : { status: 'none' as const }
   return {
     gameId: crypto.randomUUID(),
+    seasonContestant,
     expansionMode: null,
     season,
     week: 1,
     phase: 'season_start',
     weekendsEnabledForSeason: true,
+    weekendsEnabledAtSeasonStart: true,
+    firstRealWeekendStarted: false,
     completedWeekendDays: [],
     finaleWeekendCompleted: false,
     wildcardOpportunity,
@@ -947,6 +1013,7 @@ export function createInitialGameState(options?: {
     secretMissionCount: 0,
     secretMissionLastResolvedDay: null,
     secretMissionTaskSetHistory: [],
+    secretMissionTemplateHistory: seasonArchives[0]?.secretMissionTemplateIds?.slice(-2) ?? [],
     secretMissionSecondChanceResolved: false,
     awaitingFinal3Eviction: false,
     awaitingFinal3Plea: false,
@@ -1478,14 +1545,13 @@ function pushDetoxEvent(state: GameState, text: string) {
 
 function refreshSecretMissionCompletion(
   secretMission: GameState['secretMission'],
-  currentDay: number
+  _currentDay: number
 ) {
   if (!secretMission || secretMission.status !== 'accepted') return
   const allDone = isSecretMissionSuccessful(secretMission.tasks)
-  // A completed mission is deliberately held until the strategic checkpoint
-  // at the beginning of its reward day. This prevents an objective completed
-  // by nominations from surfacing a reward after nominations have already run.
-  if (allDone && currentDay >= secretMission.endDay) {
+  // Deliver the reward immediately when the actual requirements are complete.
+  // The survival task normally supplies the final day boundary.
+  if (allDone) {
     secretMission.status = 'rewardPending'
   }
 }
@@ -1902,8 +1968,11 @@ function getReplacementEligiblePlayers(
     })
   )
   const protectedIds = new Set(getDayNominationProtectedIds(state))
-  return baseEligible.filter((player) =>
-    expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
+  return baseEligible.filter(
+    (player) =>
+      (options.allowLoh === true || !getMissionLeaderIds(state).includes(player.id)) &&
+      !isMissionBackupProtected(state, player.id) &&
+      expandCupidIds(state, [player.id]).every((id) => !protectedIds.has(id))
   )
 }
 
@@ -2040,115 +2109,14 @@ function getKnownRomanticRivalPressure(
   }
 }
 
-export interface StrategicAllianceDecisionRead {
-  sharedProtection: number
-  currentTargetPressure: number
-  fallbackTargetPressure: number
-  betrayalPressure: number
-  sharedAllianceCount: number
-  actorInfiltrator: boolean
-}
+export type { StrategicAllianceDecisionRead } from '../ai/competition/allianceMinigameStrategy'
 
-function clampStrategicAllianceUnit(value: number): number {
-  return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0))
-}
-
-function strategicAllianceStatusWeight(status: StrategicAllianceSnapshot['status']): number {
-  if (status === 'ACTIVE') return 1
-  if (status === 'PROBATIONARY') return 0.78
-  if (status === 'FRACTURED') return 0.32
-  if (status === 'DORMANT') return 0.14
-  return 0
-}
-
-function strategicAllianceMemberWeight(
-  status: 'CORE' | 'REGULAR' | 'PERIPHERAL' | undefined
-): number {
-  if (status === 'CORE') return 1
-  if (status === 'REGULAR') return 0.78
-  return 0.5
-}
-
-function combineStrategicAllianceWeights(values: number[], cap = 1.25): number {
-  const sorted = values.filter((value) => value > 0).sort((left, right) => right - left)
-  if (sorted.length === 0) return 0
-  return Math.min(
-    cap,
-    sorted[0] +
-      (sorted[1] ?? 0) * 0.35 +
-      sorted.slice(2).reduce((sum, value) => sum + value * 0.15, 0)
-  )
-}
-
-/**
- * Convert overlapping Reality alliances into one actor-specific strategic read.
- * Strong core pacts dominate loose secondary coalitions, while conflicting
- * target plans remain able to compete with that protection. Infiltrators keep
- * the appearance of membership but receive very little inward loyalty weight.
- */
 export function getStrategicAllianceDecisionRead(
-  state: GameState,
+  state: Pick<GameState, 'strategicAlliances'>,
   actorId: string,
   targetId: string
 ): StrategicAllianceDecisionRead {
-  const sharedWeights: number[] = []
-  const targetWeights: number[] = []
-  const fallbackWeights: number[] = []
-  const betrayalWeights: number[] = []
-  let sharedAllianceCount = 0
-  let actorInfiltrator = false
-
-  for (const alliance of state.strategicAlliances ?? []) {
-    if (!alliance.memberIds.includes(actorId) || alliance.status === 'DISSOLVED') continue
-
-    const statusWeight = strategicAllianceStatusWeight(alliance.status)
-    const actorCommitment = clampStrategicAllianceUnit(alliance.memberCommitment[actorId] ?? 0.5)
-    const actorRoleWeight = strategicAllianceMemberWeight(alliance.memberPerceivedStatus[actorId])
-    const cohesion = clampStrategicAllianceUnit(alliance.cohesion)
-    const fractureRisk = clampStrategicAllianceUnit(alliance.fractureRisk)
-    const structureWeight =
-      statusWeight *
-      actorCommitment *
-      actorRoleWeight *
-      (0.35 + cohesion * 0.65) *
-      (1 - fractureRisk * 0.55)
-    const infiltrator = alliance.infiltratorIds.includes(actorId)
-    if (infiltrator) actorInfiltrator = true
-
-    const strategicallyLive = alliance.status === 'ACTIVE' || alliance.status === 'PROBATIONARY'
-
-    if (alliance.memberIds.includes(targetId)) {
-      sharedAllianceCount += 1
-      betrayalWeights.push(
-        clampStrategicAllianceUnit(
-          (1 - actorCommitment) * 0.35 + fractureRisk * 0.35 + (infiltrator ? 0.55 : 0)
-        )
-      )
-      if (strategicallyLive) {
-        const targetRoleWeight = strategicAllianceMemberWeight(
-          alliance.memberPerceivedStatus[targetId]
-        )
-        sharedWeights.push(structureWeight * targetRoleWeight * (infiltrator ? 0.12 : 1))
-      }
-    }
-
-    if (!strategicallyLive) continue
-    const knowsPlan =
-      alliance.leaderIds.includes(actorId) || (alliance.memberPlanBeliefs[actorId]?.length ?? 0) > 0
-    if (!knowsPlan) continue
-    const planWeight = structureWeight * (infiltrator ? 0.78 : 1)
-    if (alliance.currentTargetIds.includes(targetId)) targetWeights.push(planWeight)
-    if (alliance.fallbackTargetIds.includes(targetId)) fallbackWeights.push(planWeight)
-  }
-
-  return {
-    sharedProtection: combineStrategicAllianceWeights(sharedWeights),
-    currentTargetPressure: combineStrategicAllianceWeights(targetWeights, 1.2),
-    fallbackTargetPressure: combineStrategicAllianceWeights(fallbackWeights, 1),
-    betrayalPressure: Math.max(0, ...betrayalWeights),
-    sharedAllianceCount,
-    actorInfiltrator,
-  }
+  return getStrategicAllianceDecisionReadFromAlliances(state.strategicAlliances, actorId, targetId)
 }
 
 function getAiIdentityMode(state: GameState): AiIdentityMode {
@@ -3052,6 +3020,7 @@ function resolveCurrentVoxNominations(state: GameState) {
     activeIds: alive.map((player) => player.id),
     immunityWinnerId: getVoxNominationImmunityId(state),
     autoNomineeId: state.voxPopuli?.autoNomineeId ?? state.lastHohCompFinisherId ?? null,
+    protectedIds: alive.filter((p) => isMissionOpeningProtected(state, p.id)).map((p) => p.id),
     ballots: state.voxPopuli?.nominationBallots ?? {},
     ballotNomineeCount: getVoxBallotSize(state),
     seed: state.seed,
@@ -3111,6 +3080,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
           candidate.id !== actorId &&
           candidate.id !== immunityWinnerId &&
           candidate.id !== autoNomineeId &&
+          !isMissionOpeningProtected(state, candidate.id) &&
           canPlayerNominatePlayer(state, actorId, candidate.id)
       )
     )
@@ -3128,6 +3098,7 @@ export function getEligibleNominationTargets(state: GameState, actorId: string):
       (candidate) =>
         candidate.id !== actorId &&
         !lohUnitIds.has(candidate.id) &&
+        !isMissionOpeningProtected(state, candidate.id) &&
         canPlayerNominatePlayer(state, actorId, candidate.id)
     )
   )
@@ -3157,6 +3128,7 @@ function castVoxAiNominationBallots(state: GameState, rng: () => number) {
         candidate.id !== voter.id &&
         candidate.id !== immunityWinnerId &&
         candidate.id !== autoNomineeId &&
+        !isMissionOpeningProtected(state, candidate.id) &&
         canPlayerNominatePlayer(state, voter.id, candidate.id)
     )
     state.voxPopuli.nominationBallots[voter.id] = pickStrategicNominationTargets(
@@ -3516,7 +3488,12 @@ function restoreVoxNomineeMinimum(state: GameState): string[] {
   const replacements = resolveVoxReplacementNominees({
     activeIds: alive.map((player) => player.id),
     currentNomineeIds: state.nomineeIds,
-    protectedIds: getDayNominationProtectedIds(state),
+    protectedIds: [
+      ...getDayNominationProtectedIds(state),
+      ...getAlivePlayers(state)
+        .filter((p) => isMissionBackupProtected(state, p.id))
+        .map((p) => p.id),
+    ],
     immunityWinnerId: getVoxNominationImmunityId(state),
     nominationVoteCounts: state.voxPopuli.nominationVoteCounts,
     requiredNomineeCount,
@@ -4295,6 +4272,7 @@ type CompetitionSeasonUpdatePayload = Omit<CompetitionSeasonUpdateInput, 'player
 }
 type ApplyMinigameWinnerPayload = {
   winnerId: string
+  coWinnerIds?: string[]
   participants?: string[]
   scores?: Record<string, number>
   /** Canonical placement order supplied by the competition host (best → worst). */
@@ -4812,8 +4790,8 @@ function maybePushTwinShockClue(state: GameState) {
 function resolveCompetitionParticipants(state: GameState): string[] {
   const alive = getAlivePlayers(state)
   const aliveIds = alive.map((p) => p.id)
-  if (state.phase === 'loh_comp' && state.prevHohId && !isVoxPopuliActive(state)) {
-    const outgoingLohIds = new Set(getCupidRoleIds(state, state.prevHohId))
+  if (state.phase === 'loh_comp' && !isVoxPopuliActive(state)) {
+    const outgoingLohIds = new Set(expandCupidIds(state, getMissionOutgoingIds(state)))
     const eligible = alive.filter((p) => !outgoingLohIds.has(p.id))
     if (eligible.length > 0) {
       return eligible.map((p) => p.id)
@@ -5413,6 +5391,24 @@ const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
+    archivePulseChronicle(state, action: PayloadAction<import('../types').PulseChronicle>) {
+      const chronicle = action.payload
+      if (!chronicle.complete || chronicle.season !== state.season) return
+      const episodes = state.pulseChronicles ?? []
+      const episodeKey = chronicle.episodeKey ?? `day:${chronicle.day}`
+      // Keep each final script stable while allowing a numbered day and its weekend episodes to coexist.
+      if (
+        episodes.some(
+          (entry) =>
+            entry.season === chronicle.season &&
+            (entry.episodeKey ?? `day:${entry.day}`) === episodeKey
+        )
+      )
+        return
+      state.pulseChronicles = [...episodes, { ...chronicle, episodeKey }]
+        .sort((a, b) => a.day - b.day || (a.episodeLabel ?? '').localeCompare(b.episodeLabel ?? ''))
+        .slice(-90)
+    },
     setPhase(state, action: PayloadAction<Phase>) {
       state.phase = action.payload
     },
@@ -5916,6 +5912,20 @@ const gameSlice = createSlice({
       }
       state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => id !== action.payload)
     },
+    /** Day-boundary cleanup preserves ordered consumption in one transaction. */
+    consumeBroadcastEvents(state, action: PayloadAction<string[]>) {
+      if (!action.payload.length) return
+      const events = new Map<string, (typeof state.tvFeed)[number]>()
+      for (const event of state.tvFeed) if (!events.has(event.id)) events.set(event.id, event)
+      for (const id of action.payload) {
+        const event = events.get(id)
+        if (!event) continue
+        event.meta = { ...(event.meta ?? {}), broadcastConsumed: true }
+        if (event.meta.broadcastLevel === 'minor') state.lastPlainBroadcastEventId = event.id
+      }
+      const consumed = new Set(action.payload)
+      state.broadcastQueue = (state.broadcastQueue ?? []).filter((id) => !consumed.has(id))
+    },
     addCustomBroadcast(
       state,
       action: PayloadAction<Omit<CustomBroadcastMessage, 'id'> & { id?: string }>
@@ -6265,6 +6275,7 @@ const gameSlice = createSlice({
     applyMinigameWinner(state, action: PayloadAction<ApplyMinigameWinnerPayload>) {
       const {
         winnerId,
+        coWinnerIds,
         participants,
         scores,
         includePlacementBonuses,
@@ -6316,6 +6327,20 @@ const gameSlice = createSlice({
           })
         }
         applyLohWinner(state, winnerId, '[applyMinigameWinner]')
+        const validCoWinners = [...new Set([winnerId, ...(coWinnerIds ?? [])])].filter((id) =>
+          resolvedParticipants.includes(id)
+        )
+        if (validCoWinners.length > 1) {
+          state.coLohIds = validCoWinners
+          for (const coWinnerId of validCoWinners) {
+            const coWinner = state.players.find((player) => player.id === coWinnerId)
+            if (coWinner && coWinnerId !== winnerId) {
+              coWinner.status = 'loh'
+              if (!coWinner.stats) coWinner.stats = { lohWins: 0, posWins: 0, timesNominated: 0 }
+              coWinner.stats.lohWins += 1
+            }
+          }
+        }
         state.phase = 'loh_results'
         winnerWasApplied = true
         // Track the last-place LOH competition finisher for the third-nominee rule.
@@ -6324,7 +6349,9 @@ const gameSlice = createSlice({
         //      elimination order or actual scores in the feature slice).
         //   2. Score-based derivation when scores are available.
         //   3. nonWinners[0] fallback (arbitrary, kept for backward compat).
-        const winnerUnitIds = new Set(getCupidRoleIds(state, winnerId))
+        const winnerUnitIds = new Set(
+          validCoWinners.flatMap((coWinnerId) => getCupidRoleIds(state, coWinnerId))
+        )
         const nonWinners = resolvedParticipants.filter((id) => !winnerUnitIds.has(id))
         if (nonWinners.length > 0) {
           const validLastPlace =
@@ -6606,6 +6633,7 @@ const gameSlice = createSlice({
       }>
     ) {
       const { gameKey, scores, lowerIsBetter = false } = action.payload
+      if (isRemovedMinigameKey(gameKey)) return
       for (const [id, score] of Object.entries(scores)) {
         const player = state.players.find((p) => p.id === id)
         if (!player) continue
@@ -6690,7 +6718,10 @@ const gameSlice = createSlice({
       const id = action.payload
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id)) return
       state.pendingNominee1Id = id
@@ -6710,7 +6741,10 @@ const gameSlice = createSlice({
       if (!id1 || id2 === id1 || !areDistinctCupidPairs(state, [id1, id2])) return
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!eligible.some((p) => p.id === id2)) return
       if (!eligible.some((p) => p.id === id1)) return
@@ -6765,6 +6799,7 @@ const gameSlice = createSlice({
             candidate.id !== human.id &&
             candidate.id !== immunityWinnerId &&
             candidate.id !== autoNomineeId &&
+            !isMissionOpeningProtected(state, candidate.id) &&
             canPlayerNominatePlayer(state, human.id, candidate.id)
         )
         const expectedCount = getVoxHumanBallotSize(state, eligible.length)
@@ -6802,7 +6837,10 @@ const gameSlice = createSlice({
       if (new Set(ids).size !== ids.length) return // duplicates check
       if (!areDistinctCupidPairs(state, ids)) return
       const eligible = alive.filter(
-        (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+        (p) =>
+          p.id !== state.lohId &&
+          !isMissionOpeningProtected(state, p.id) &&
+          canPlayerNominatePlayer(state, state.lohId, p.id)
       )
       if (!ids.every((id) => eligible.some((p) => p.id === id))) return
 
@@ -6862,9 +6900,11 @@ const gameSlice = createSlice({
       const hohName = lohPlayer?.name ?? 'the LOH'
       const hohNomineeNames = formatNameList(nominees.map((n) => n.name))
       const autoNomineeReason = autoNomineePlayer
-        ? isVoxPopuliActive(state)
-          ? `${autoNomineePlayer.name} finished last in the immunity competition and takes the first place on the block`
-          : `${autoNomineePlayer.name} was automatically nominated for finishing last in the LOH competition`
+        ? state.missionPowers?.automaticNomineeToId === autoNomineePlayer.id
+          ? `${autoNomineePlayer.name} inherits the automatic nomination as the next eligible finisher because the last-place player is protected`
+          : isVoxPopuliActive(state)
+            ? `${autoNomineePlayer.name} finished last in the immunity competition and takes the first place on the block`
+            : `${autoNomineePlayer.name} was automatically nominated for finishing last in the LOH competition`
         : null
       const autoNomineeClause = autoNomineePlayer
         ? `${hohName} nominated ${hohNomineeNames}, and ${autoNomineeReason}`
@@ -7025,7 +7065,7 @@ const gameSlice = createSlice({
 
       // Save the selected nominee
       const savedUnitIds = removeCupidNomineeUnit(state, saveId)
-      savedPlayer.status = 'active'
+      savedPlayer.status = saveId === state.posWinnerId ? 'pos' : 'active'
       state.awaitingPovSaveTarget = false
       // Track the saved player so they cannot be immediately re-nominated as the replacement
       state.povSavedId = saveId
@@ -7439,6 +7479,7 @@ const gameSlice = createSlice({
       // Validate the nominated player
       const alive = state.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
       if (!alive.some((p) => p.id === nomineeId)) return
+      if (isMissionOpeningProtected(state, nomineeId)) return
       if (nomineeId === coLohId) return // no self-nomination
       const otherCoLohIds = state.coLohIds.filter((id) => id !== coLohId)
       if (otherCoLohIds.includes(nomineeId)) return // can't nominate other co-LOH
@@ -9561,6 +9602,7 @@ const gameSlice = createSlice({
         reproductiveProfile?: Player['reproductiveProfile'] | null
       }>
     ) {
+      if (state.seasonContestant) return
       const human = state.players.find((player) => player.isUser)
       if (!human) return
       human.name = action.payload.name.trim() || human.name
@@ -9771,17 +9813,26 @@ const gameSlice = createSlice({
      * seasonFinale field is always preserved as-is from the snapshot.
      */
     hydrateGame(state, action: PayloadAction<GameState>) {
-      const profileAge = resolveProfileAge(loadActiveProfile().bio?.age)
+      const human = action.payload.players.find((player) => player.isUser)
+      const seasonContestant =
+        action.payload.seasonContestant ?? (human ? contestantFromPlayer(human) : undefined)
       const hydrated: GameState = {
         ...action.payload,
-        players: action.payload.players.map((player) =>
-          player.isUser && profileAge !== undefined ? { ...player, age: profileAge } : player
-        ),
+        seasonContestant,
+        players: action.payload.players,
         gameId: action.payload.gameId ?? crypto.randomUUID(),
         hasSeenConfessionalSpotlight: action.payload.hasSeenConfessionalSpotlight ?? false,
         status: action.payload.status ?? 'active',
         // Saves created before weekends existed keep the original uninterrupted calendar.
         weekendsEnabledForSeason: action.payload.weekendsEnabledForSeason ?? false,
+        weekendsEnabledAtSeasonStart: action.payload.weekendsEnabledAtSeasonStart,
+        firstRealWeekendStarted:
+          action.payload.firstRealWeekendStarted ??
+          Boolean(
+            action.payload.week >= 6 ||
+            (action.payload.weekendInterlude?.active && !action.payload.weekendInterlude.debug) ||
+            action.payload.completedWeekendDays?.length
+          ),
         completedWeekendDays: action.payload.completedWeekendDays ?? [],
         finaleWeekendCompleted: action.payload.finaleWeekendCompleted ?? false,
         weekendInterlude: action.payload.weekendInterlude ?? null,
@@ -9793,10 +9844,12 @@ const gameSlice = createSlice({
         // campaign snapshot. Never let an older saved run overwrite it.
         broadcastOverrides: state.broadcastOverrides ?? {},
         customBroadcasts: state.customBroadcasts ?? [],
-        tvFeed: (action.payload.tvFeed ?? []).map((event) => ({
-          ...event,
-          meta: event.meta ? { ...event.meta } : undefined,
-        })),
+        tvFeed: (action.payload.tvFeed ?? []).map((event) =>
+          normalizeGuestSaveReminderEvent({
+            ...event,
+            meta: event.meta ? { ...event.meta } : undefined,
+          })
+        ),
         broadcastQueue: action.payload.broadcastQueue ?? [],
         lastPlainBroadcastEventId: action.payload.lastPlainBroadcastEventId ?? null,
         twinShock: action.payload.twinShock ?? createInitialTwinShockState(),
@@ -9888,7 +9941,7 @@ const gameSlice = createSlice({
       }
       hydrated.tvFeed.forEach((event) => refreshManagedBroadcastDefinition(hydrated, event))
       rebuildManagedBroadcastQueue(hydrated, hydrated.phase)
-      return hydrated
+      return removeObsoleteGameData(hydrated)
     },
 
     clearSurvivorReplacementTransition(state) {
@@ -10317,7 +10370,14 @@ const gameSlice = createSlice({
     },
 
     setWeekendsEnabledForSeason(state, action: PayloadAction<boolean>) {
+      if (
+        (state.firstRealWeekendStarted || state.week >= 6) &&
+        state.weekendsEnabledForSeason !== action.payload &&
+        !state.weekendInterlude?.debug
+      )
+        return
       state.weekendsEnabledForSeason = action.payload
+      if (state.phase === 'season_start') state.weekendsEnabledAtSeasonStart = action.payload
       if (!action.payload && state.weekendInterlude?.active) {
         const weekend = state.weekendInterlude
         if (!weekend.debug) {
@@ -10515,6 +10575,8 @@ const gameSlice = createSlice({
       if (
         state.tribunalInvitationTransition ||
         state.weekendInterlude?.active ||
+        state.missionPowers?.decision ||
+        state.missionPowers?.safetyIntent ||
         state.replacementNeeded ||
         state.awaitingNominations ||
         (state.awaitingPublicSave &&
@@ -10589,6 +10651,7 @@ const gameSlice = createSlice({
         isPlayerActiveInHouse(state, getHumanPlayer(state)?.id ?? '') &&
         !state.finalThree
       ) {
+        state.firstRealWeekendStarted = true
         state.weekendInterlude = createWeekendInterlude(state, weekendMilestone)
 
         const intro =
@@ -11591,8 +11654,63 @@ const gameSlice = createSlice({
                       (voter.id.charCodeAt(0) * 31 + voter.id.charCodeAt(voter.id.length - 1))) >>>
                     0
                   const vRng = mulberry32(vSeed)
-                  const voteIdx = Math.floor(vRng() * candidates.length)
-                  state.democracia.votesByVoterId[voter.id] = candidates[voteIdx].id
+                  const weightedCandidates = candidates.map((candidate) => {
+                    const allianceRead = getStrategicAllianceDecisionRead(
+                      state,
+                      voter.id,
+                      candidate.id
+                    )
+                    const powerHolderPriority = getAlliancePowerHolderPriority(
+                      state.strategicAlliances,
+                      voter.id,
+                      candidate.id
+                    )
+                    const relationship = state.strategicRelationships?.[voter.id]?.[candidate.id]
+                    const rawLoyalty = Math.max(
+                      allianceRead.sharedProtection,
+                      powerHolderPriority,
+                      relationship?.tags?.includes('alliance') ? 0.75 : 0
+                    )
+                    const agendaPressure = Math.min(
+                      0.9,
+                      allianceRead.betrayalPressure + (allianceRead.actorInfiltrator ? 0.35 : 0)
+                    )
+                    const loyalty = rawLoyalty * (1 - agendaPressure)
+                    const hostility =
+                      (relationship?.tags?.some((tag) =>
+                        ['betrayal', 'broken_promise', 'rivalry', 'target'].includes(tag)
+                      )
+                        ? 0.8
+                        : 0) +
+                      Math.max(0, -(relationship?.affinity ?? 0)) / 100
+                    return {
+                      candidate,
+                      // Democracia elects the holder of an office. Prefer a trusted,
+                      // committed pact/alliance member while allowing relationships,
+                      // competing pacts, and individual agendas to shift close votes.
+                      weight: Math.max(
+                        0.2,
+                        1 +
+                          loyalty * 3.2 -
+                          allianceRead.currentTargetPressure * 0.8 -
+                          allianceRead.fallbackTargetPressure * 0.3 -
+                          hostility * 1.7 +
+                          vRng() * 1.2
+                      ),
+                    }
+                  })
+                  const totalWeight = weightedCandidates.reduce(
+                    (total, entry) => total + entry.weight,
+                    0
+                  )
+                  let cursor = vRng() * totalWeight
+                  const selected = weightedCandidates.find((entry) => {
+                    cursor -= entry.weight
+                    return cursor <= 0
+                  })
+                  state.democracia.votesByVoterId[voter.id] = (
+                    selected ?? weightedCandidates[weightedCandidates.length - 1]!
+                  ).candidate.id
                 }
               }
             }
@@ -11620,11 +11738,10 @@ const gameSlice = createSlice({
           // completeMinigame() applies the LOH winner inline and advances the phase
           // directly, so minigameResult is always null here.  Always pick randomly.
           // Exclude the outgoing LOH (prevHohId) to respect the ineligibility rule.
-          const outgoingLohIds = new Set(getCupidRoleIds(state, state.prevHohId))
-          const hohPool =
-            state.prevHohId && !isVoxPopuliActive(state)
-              ? alive.filter((p) => !outgoingLohIds.has(p.id))
-              : alive
+          const outgoingLohIds = new Set(expandCupidIds(state, getMissionOutgoingIds(state)))
+          const hohPool = !isVoxPopuliActive(state)
+            ? alive.filter((p) => !outgoingLohIds.has(p.id))
+            : alive
           const hohEligible = hohPool.length > 0 ? hohPool : alive
           const hoh = seededPick(rng, hohEligible)
           applyLohWinner(state, hoh.id, '[advance/loh_results]')
@@ -11680,6 +11797,7 @@ const gameSlice = createSlice({
                     candidate.id !== human.id &&
                     candidate.id !== immunityWinnerId &&
                     candidate.id !== autoNomineeId &&
+                    !isMissionOpeningProtected(state, candidate.id) &&
                     canPlayerNominatePlayer(state, human.id, candidate.id)
                 )
               : []
@@ -11714,6 +11832,13 @@ const gameSlice = createSlice({
               (p) => p.status !== 'evicted' && p.status !== 'jury'
             )
             state.coLohNomineeByCoLohId = {}
+            if (
+              state.publicModeEnabled &&
+              state.lastHohCompFinisherId &&
+              !coLohIds.includes(state.lastHohCompFinisherId) &&
+              !isMissionOpeningProtected(state, state.lastHohCompFinisherId)
+            )
+              appendNominee(state, state.lastHohCompFinisherId)
             // AI co-LOHs nominate first
             for (const coLohId of coLohIds) {
               const coLoh = state.players.find((p) => p.id === coLohId)
@@ -11723,6 +11848,7 @@ const gameSlice = createSlice({
                   p.id !== coLohId &&
                   !coLohIds.includes(p.id) &&
                   !state.nomineeIds.includes(p.id) &&
+                  !isMissionOpeningProtected(state, p.id) &&
                   canPlayerNominatePlayer(state, coLohId, p.id)
               )
               if (coPool.length > 0) {
@@ -11771,7 +11897,10 @@ const gameSlice = createSlice({
           const pool = collapseCupidCandidates(
             state,
             alive.filter(
-              (p) => p.id !== state.lohId && canPlayerNominatePlayer(state, state.lohId, p.id)
+              (p) =>
+                p.id !== state.lohId &&
+                !isMissionOpeningProtected(state, p.id) &&
+                canPlayerNominatePlayer(state, state.lohId, p.id)
             )
           )
           if (pool.length < nomineeCount) break
@@ -12996,7 +13125,7 @@ const gameSlice = createSlice({
       state,
       action: PayloadAction<number | { day: number; maxDaySpan?: number }>
     ) {
-      if (isCupidArrowTwistLocked(state) || isVoxPopuliTwistLocked(state)) return
+      if (isCupidArrowTwistLocked(state)) return
       const missionCount = getSeasonSecretMissionCount(state)
       if (missionCount >= 2) return
       if (!canReplaceSecretMissionSlot(state.secretMission)) return
@@ -13007,8 +13136,16 @@ const gameSlice = createSlice({
       state.secretMission = createSecretMissionState(day, {
         maxDaySpan,
         missionNumber: nextMissionNumber,
+        seed: state.seed,
+        season: state.season,
+        previousTemplateIds: state.secretMissionTemplateHistory ?? [],
       })
+      state.secretMission.rewardVersion = 2
       state.secretMissionCount = nextMissionNumber
+      state.secretMissionTemplateHistory = [
+        ...(state.secretMissionTemplateHistory ?? []),
+        state.secretMission.templateId,
+      ].slice(-2)
       if (nextMissionNumber >= 2) {
         state.secretMissionSecondChanceResolved = true
       }
@@ -13235,7 +13372,7 @@ const gameSlice = createSlice({
       >
     ) {
       const sm = state.secretMission
-      if (!sm || sm.status !== 'rewardPending') return
+      if (!sm || sm.status !== 'rewardPending' || sm.rewardVersion === 2) return
       if (typeof action.payload === 'string') {
         sm.reward = createMissionReward(action.payload)
       } else {
@@ -13283,6 +13420,12 @@ const gameSlice = createSlice({
     expireMissionReward(state) {
       const sm = state.secretMission
       if (!sm || !sm.reward) return
+      if (
+        sm.rewardVersion === 2 &&
+        isMissionPower(sm.reward.type) &&
+        ['overthrowLoh', 'noSkip'].includes(sm.reward.type)
+      )
+        return
       if (sm.reward.consumed) return // already used — nothing to expire
       if (!sm.reward.eligible) return // emptyBox or already expired — skip
       sm.reward.expired = true
@@ -13584,6 +13727,7 @@ const gameSlice = createSlice({
 })
 
 export const {
+  archivePulseChronicle,
   setPhase,
   advanceWeek,
   updatePlayer,
@@ -13609,6 +13753,7 @@ export const {
   replaceBroadcastConfig,
   syncPhaseBroadcasts,
   consumeBroadcastEvent,
+  consumeBroadcastEvents,
   addCustomBroadcast,
   updateCustomBroadcast,
   reorderCustomBroadcasts,
@@ -13798,7 +13943,7 @@ export const {
   submitCoLohNomination,
   submitPosTieBreak,
 } = gameSlice.actions
-export default gameSlice.reducer
+export default withMissionPowers(gameSlice.reducer, getEligibleReplacementNominees)
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 /** Resolve a pending Vox Populi audience vote from the live Public Opinion model. */
@@ -14187,6 +14332,19 @@ function resolveDebugBlockers(
   rng: () => number
 ): boolean {
   const { game } = rootState
+  if (game.missionPowers?.decision) {
+    const decision = game.missionPowers.decision
+    if (decision.kind === 'backupTarget') {
+      const candidate = getEligibleReplacementNominees(game)[0]
+      if (candidate) dispatch(selectMissionBackup({ id: decision.id, targetId: candidate.id }))
+      else dispatch(expireNewMissionReward('No legal backup remains.'))
+    } else dispatch(answerMissionPowerDecision({ id: decision.id, accept: false }))
+    return true
+  }
+  if (game.missionPowers?.safetyIntent) {
+    dispatch(advance())
+    return true
+  }
   const alive = game.players.filter((p) => p.status !== 'evicted' && p.status !== 'jury')
 
   if (game.voxPopuli?.awaitingPublicVote) {
@@ -14262,7 +14420,7 @@ function resolveDebugBlockers(
   }
 
   if (game.weekendInterlude?.active) {
-    dispatch(setWeekendsEnabledForSeason(false))
+    dispatch({ type: 'game/completeWeekendForSimulation' })
     return true
   }
 
@@ -14682,9 +14840,13 @@ export const simulateImmediateEliminationCycle =
 export const startMinigame =
   (opts: { key: string; participants: string[]; seed: number; options: { timeLimit: number } }) =>
   (dispatch: AppDispatch, getState: () => RootState): MinigameResult | undefined => {
-    const state = getState().game
+    const rootState = getState()
+    const state = rootState.game
     const model = getMinigameAiModel(opts.key)
     const isHybrid = isHybridScoredGame(opts.key)
+    const isVipQuickTap =
+      (opts.key === 'quickTap' || opts.key === 'quickTapSeasons') &&
+      hasEffectiveStoreEntitlement(rootState.vip, 'premiumChallenges')
 
     // Generate a fresh per-invocation seed so every new game launch / restart /
     // reload gets a different booster sequence and AI variation, even when the
@@ -14717,7 +14879,23 @@ export const startMinigame =
       })
     }
 
-    if (!isHybrid || !hasHuman) {
+    if (isVipQuickTap && !hasHuman) {
+      const profiles = Object.fromEntries(
+        opts.participants.map((id) => {
+          const player = state.players.find((candidate) => candidate.id === id)
+          return [id, player?.competitionProfile ?? getDefaultCompetitionProfile()]
+        })
+      )
+      Object.assign(
+        aiScores,
+        scoreQuickTapVipAiOnly({
+          seed: invocationSeed,
+          participantIds: opts.participants,
+          profiles,
+          mode: opts.key === 'quickTapSeasons' ? 'seasons' : 'race',
+        })
+      )
+    } else if (!isVipQuickTap && (!isHybrid || !hasHuman)) {
       // Precompute for: (a) AI-only runs, (b) endurance/non-hybrid games,
       // (c) Quick Tap Race and Snake (isHybridScoredGame returns false for them).
       opts.participants.forEach((id, index) => {
@@ -14782,6 +14960,9 @@ export const startMinigame =
       options: opts.options,
       aiScores,
       competitionIntents,
+      ...(opts.key === 'quickTap' || opts.key === 'quickTapSeasons'
+        ? { quickTapVariant: isVipQuickTap ? ('vip' as const) : ('classic' as const) }
+        : {}),
       ...(isHybrid ? { hybridResolveOnComplete: true } : {}),
     }
     dispatch(launchMinigame(session))
@@ -14805,7 +14986,7 @@ export const tryActivateSecretMission =
   () =>
   (dispatch: AppDispatch, getState: () => RootState): boolean => {
     const { game, settings } = getState()
-    if (isCupidArrowTwistLocked(game) || isVoxPopuliTwistLocked(game)) return false
+    if (isCupidArrowTwistLocked(game)) return false
     if (isSeasonDirectorKillSwitched('secretMissions')) return false
 
     const aliveCount = game.players.filter(
@@ -14845,6 +15026,13 @@ export const tryActivateSecretMission =
     }
 
     const override = settings.sim.secretMissionTriggerOverride
+    if (
+      !isSecondMissionAttempt &&
+      override === null &&
+      game.week < getFirstSecretMissionScheduledDay(game.seed, game.season)
+    ) {
+      return false
+    }
     const plan = game.seasonDirectorPlan
     if (plan && override === null) {
       const policy = plan.policy.secretMissions

@@ -1,120 +1,150 @@
 /**
  * useBackgroundTheme.ts
  *
- * React hook that resolves and exposes the dynamic background theme.
- *
- * Usage:
- *   const { url, key, reason } = useBackgroundTheme();
- *
- * When attachToRoot is true the resolved URL is written to the CSS custom
- * property --intro-bg-image on <html> (documentElement) so global styles can consume it.
+ * Resolves the dynamic Home Hub background and refreshes it when the app
+ * returns to the foreground or local time crosses a theme boundary.
  */
-import { useState, useEffect } from 'react';
-import { resolveTheme } from '../utils/backgroundTheme';
-import type { ResolvedTheme, ThemeKey } from '../utils/backgroundTheme';
-import { getBinaryFallbackKey, resolveSkinAsset } from '../utils/skinAssets';
-import { preloadImage } from '../utils/preload';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { getNextThemeBoundaryDelay, resolveTheme, timeOfDayKey } from '../utils/backgroundTheme'
+import type { ResolvedTheme, ThemeKey } from '../utils/backgroundTheme'
+import { resolveSkinAsset } from '../utils/skinAssets'
 
 interface BackgroundState {
-  url: string | null;
-  key: ThemeKey | null;
-  reason: string | null;
+  url: string | null
+  key: ThemeKey | null
+  reason: string | null
 }
 
 interface UseBackgroundThemeOptions {
-  attachToRoot?: boolean;
+  attachToRoot?: boolean
 }
 
 function resolveInitialBackground(): BackgroundState {
-  const fallbackKey = getBinaryFallbackKey(new Date());
-  const fallbackAsset = resolveSkinAsset(fallbackKey);
+  const fallbackKey = timeOfDayKey(new Date())
+  const fallbackAsset = resolveSkinAsset(fallbackKey)
 
   return {
     url: fallbackAsset.url,
     key: fallbackAsset.key,
     reason: 'fallback:initial-render',
-  };
+  }
 }
 
 export default function useBackgroundTheme(
-  opts: UseBackgroundThemeOptions = {},
-): BackgroundState {
-  const [state, setState] = useState<BackgroundState>(() => resolveInitialBackground());
-
-  const { attachToRoot } = opts;
+  opts: UseBackgroundThemeOptions = {}
+): BackgroundState & { requestWeatherLocation: () => Promise<void> } {
+  const [state, setState] = useState<BackgroundState>(() => resolveInitialBackground())
+  const requestLocationRef = useRef<() => Promise<void>>(() => Promise.resolve())
+  const requestWeatherLocation = useCallback(() => requestLocationRef.current(), [])
+  const { attachToRoot } = opts
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
+    let activeRefresh: Promise<void> | null = null
+    let locationPermissionRefresh: Promise<void> | null = null
+    let lastForegroundRefreshAt = 0
+    let boundaryTimer: number | undefined
 
-    resolveTheme()
-      .then((resolved: ResolvedTheme) => {
-        if (cancelled) return;
+    const applyTheme = (resolved: ResolvedTheme) => {
+      if (cancelled) return
+      setState({ url: resolved.url, key: resolved.key, reason: resolved.reason })
+      if (attachToRoot) {
+        document.documentElement.style.setProperty('--intro-bg-image', `url("${resolved.url}")`)
+      }
+    }
 
-        setState({
-          url: resolved.url,
-          key: resolved.key,
-          reason: resolved.reason,
-        });
-        console.info(
-          '[useBackgroundTheme] background applied:',
-          resolved.key,
-          resolved.url,
-          `(${resolved.reason})`,
-          `[${resolved.assetSource}:${resolved.assetFile}]`,
-        );
+    const refresh = (foreground = false, requestLocationPermission = false): Promise<void> => {
+      if (cancelled) return Promise.resolve()
+      if (requestLocationPermission && locationPermissionRefresh) {
+        return locationPermissionRefresh
+      }
+      const now = Date.now()
+      if (foreground && now - lastForegroundRefreshAt < 1000) return Promise.resolve()
+      if (foreground) lastForegroundRefreshAt = now
 
-        if (attachToRoot) {
-          document.documentElement.style.setProperty(
-            '--intro-bg-image',
-            `url("${resolved.url}")`,
-          );
+      if (activeRefresh) {
+        if (!requestLocationPermission) return activeRefresh
+
+        const queued = activeRefresh.then(() => {
+          if (locationPermissionRefresh === queuedRefresh) locationPermissionRefresh = null
+          return refresh(false, true)
+        })
+        const queuedRefresh = queued.finally(() => {
+          if (locationPermissionRefresh === queuedRefresh) locationPermissionRefresh = null
+        })
+        locationPermissionRefresh = queuedRefresh
+        return queuedRefresh
+      }
+
+      const run = async () => {
+        try {
+          applyTheme(await resolveTheme({ requestLocationPermission }))
+        } catch (error) {
+          if (cancelled) return
+          const fallbackKey = timeOfDayKey(new Date())
+          const fallbackAsset = resolveSkinAsset(fallbackKey)
+          const fallbackReason = `resolveTheme:error:${error instanceof Error ? error.message : String(error)}`
+          console.warn('[useBackgroundTheme] resolver failed; using emergency fallback', {
+            error,
+            fallbackKey,
+            fallbackAsset,
+          })
+          applyTheme({
+            key: fallbackAsset.key,
+            url: fallbackAsset.url,
+            reason: fallbackReason,
+            assetFile: fallbackAsset.file,
+            assetSource: fallbackAsset.source,
+            platform: 'web',
+            permissionStatus: 'unknown',
+          })
         }
+      }
 
-        // Preload the background image in parallel so it's in cache when used,
-        // but do not gate state updates on this completing.
-        preloadImage(resolved.url).then(() => {
-          if (cancelled) return;
-          // Optional: could add debug logging here if desired.
-        });
+      const running = run().finally(() => {
+        if (activeRefresh === running) activeRefresh = null
+        if (locationPermissionRefresh === running) locationPermissionRefresh = null
       })
-      .catch((error: unknown) => {
-        if (cancelled) return;
+      activeRefresh = running
+      if (requestLocationPermission) locationPermissionRefresh = running
+      return running
+    }
 
-        const fallbackKey = getBinaryFallbackKey(new Date());
-        const fallbackAsset = resolveSkinAsset(fallbackKey);
-        const fallbackReason = `resolveTheme:error:${error instanceof Error ? error.message : String(error)}`;
+    requestLocationRef.current = () => refresh(false, true)
 
-        console.warn('[useBackgroundTheme] resolver failed; using emergency fallback', {
-          error,
-          fallbackKey,
-          fallbackAsset,
-        });
+    const scheduleBoundaryRefresh = () => {
+      if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
+      boundaryTimer = window.setTimeout(
+        () => {
+          void refresh()
+          scheduleBoundaryRefresh()
+        },
+        getNextThemeBoundaryDelay(new Date()) + 50
+      )
+    }
 
-        setState({
-          url: fallbackAsset.url,
-          key: fallbackAsset.key,
-          reason: fallbackReason,
-        });
+    const refreshOnForeground = () => {
+      if (document.visibilityState === 'visible') void refresh(true)
+    }
 
-        if (attachToRoot) {
-          document.documentElement.style.setProperty(
-            '--intro-bg-image',
-            `url("${fallbackAsset.url}")`,
-          );
-        }
-
-        preloadImage(fallbackAsset.url).catch(() => {
-          // If even the emergency fallback fails, the background layer still has a URL.
-        });
-      });
+    void refresh()
+    scheduleBoundaryRefresh()
+    document.addEventListener('visibilitychange', refreshOnForeground)
+    window.addEventListener('focus', refreshOnForeground)
+    window.addEventListener('pageshow', refreshOnForeground)
 
     return () => {
-      cancelled = true;
+      cancelled = true
+      requestLocationRef.current = () => Promise.resolve()
+      if (boundaryTimer != null) window.clearTimeout(boundaryTimer)
+      document.removeEventListener('visibilitychange', refreshOnForeground)
+      window.removeEventListener('focus', refreshOnForeground)
+      window.removeEventListener('pageshow', refreshOnForeground)
       if (attachToRoot) {
-        document.documentElement.style.removeProperty('--intro-bg-image');
+        document.documentElement.style.removeProperty('--intro-bg-image')
       }
-    };
-  }, [attachToRoot]);
+    }
+  }, [attachToRoot])
 
-  return state;
+  return { ...state, requestWeatherLocation }
 }

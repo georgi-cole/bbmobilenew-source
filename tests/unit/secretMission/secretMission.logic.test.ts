@@ -17,6 +17,7 @@ import {
   createSecretMissionState,
   getSecretMissionBoxRewards,
   getMissionTaskSetSignature,
+  getFirstSecretMissionScheduledDay,
   findSecretMissionTaskReference,
   getSecretMissionTaskHint,
   getSecretMissionTriggerChance,
@@ -32,7 +33,15 @@ import { SOCIAL_ACTIONS } from '../../../src/social/socialActions'
 function makeStore() {
   return configureStore({
     reducer: {
-      game: gameReducer,
+      game: (
+        state: Parameters<typeof gameReducer>[0],
+        action: Parameters<typeof gameReducer>[1]
+      ) => {
+        const next = gameReducer(state, action)
+        return action.type === 'game/triggerSecretMission' && next.secretMission
+          ? { ...next, secretMission: { ...next.secretMission, rewardVersion: undefined } }
+          : next
+      },
       settings: settingsReducer,
     },
   })
@@ -134,10 +143,40 @@ describe('checkSecretMissionTrigger', () => {
 })
 
 describe('mission generation', () => {
-  it('keeps five deterministic templates in rotation', () => {
+  it('keeps five templates and spreads first-mission timing across Days 3–5', () => {
     expect(MISSION_TEMPLATES).toHaveLength(5)
     expect(new Set(MISSION_TEMPLATES.map((template) => template.id)).size).toBe(5)
-    expect(pickMissionTemplate(3).id).toBe(pickMissionTemplate(8).id)
+    expect(
+      new Set(Array.from({ length: 50 }, (_, seed) => getFirstSecretMissionScheduledDay(seed, 1)))
+    ).toEqual(new Set([3, 4, 5]))
+  })
+
+  it('selects themes deterministically and avoids recent mission themes', () => {
+    const first = pickMissionTemplate(5, undefined, { seed: 341, season: 4 })
+    const repeated = pickMissionTemplate(5, undefined, { seed: 341, season: 4 })
+    const next = pickMissionTemplate(5, undefined, {
+      seed: 341,
+      season: 5,
+      previousTemplateIds: [first.id],
+    })
+
+    expect(repeated.id).toBe(first.id)
+    expect(next.id).not.toBe(first.id)
+  })
+
+  it('persists each selected theme and avoids reusing it for the next mission', () => {
+    const initial = gameReducer(undefined, { type: '@@INIT' })
+    const previousTheme = MISSION_TEMPLATES[0].id
+    const withHistory = {
+      ...initial,
+      season: 4,
+      seed: 187,
+      secretMissionTemplateHistory: [previousTheme],
+    }
+    const next = gameReducer(withHistory, triggerSecretMission(5))
+
+    expect(next.secretMission?.templateId).not.toBe(previousTheme)
+    expect(next.secretMissionTemplateHistory?.at(-1)).toBe(next.secretMission?.templateId)
   })
 
   it('creates mission state with explicit mission window metadata', () => {
@@ -176,6 +215,49 @@ describe('mission generation', () => {
     const taskTypes = tasks.map((task) => task.type)
     expect(taskTypes).toContain('survive_days')
     expect(new Set(taskTypes).size).toBe(5)
+  })
+
+  it('keeps missions multi-module and replaces leader strategy with a Vox ballot objective', () => {
+    const template = MISSION_TEMPLATES[0]
+    const common = {
+      seed: 292,
+      targetCandidateIds: ['p1', 'p2', 'p3', 'p4'],
+      capabilities: { publicModeEnabled: false, nominationTargetCount: 4 },
+    }
+    const classicTasks = buildMissionTasks(template, 4, {
+      ...common,
+      capabilities: { ...common.capabilities, gameMode: 'classic' },
+    })
+    const voxTasks = buildMissionTasks(template, 4, {
+      ...common,
+      capabilities: { ...common.capabilities, gameMode: 'vox_populi' },
+    })
+
+    expect(
+      classicTasks.some(
+        (task) => task.type === 'competition_placement' || task.type === 'avoid_last_place'
+      )
+    ).toBe(true)
+    expect(
+      classicTasks.some(
+        (task) => task.type === 'social_action_count' || task.type === 'social_energy_empty_streak'
+      )
+    ).toBe(true)
+    expect(
+      voxTasks.some(
+        (task) => task.type === 'competition_placement' || task.type === 'avoid_last_place'
+      )
+    ).toBe(true)
+    expect(
+      voxTasks.some(
+        (task) => task.type === 'social_action_count' || task.type === 'social_energy_empty_streak'
+      )
+    ).toBe(true)
+    expect(voxTasks.some((task) => task.type === 'vox_ballot_cast')).toBe(true)
+    expect(voxTasks.some((task) => task.type === 'target_nominated')).toBe(false)
+    expect(voxTasks.map((task) => task.description).join(' ')).not.toMatch(
+      /\bLOH\b|Leader of the House/i
+    )
   })
 
   it('generates a different checklist when the prior task-set signature is excluded', () => {
@@ -254,7 +336,9 @@ describe('mission generation', () => {
     expect(socialTask).toBeDefined()
     expect(socialTask?.description).not.toContain('Complete 3 social interactions')
     expect(
-      /Form an alliance|Start a fight|Complete this social set/.test(socialTask?.description ?? '')
+      /Form an alliance|Start a fight|Complete this social set|Build your social position|Work the room/.test(
+        socialTask?.description ?? ''
+      )
     ).toBe(true)
   })
 
@@ -338,6 +422,48 @@ describe('mission generation', () => {
     ] as const
 
     expect(isSecretMissionSuccessful(tasks)).toBe(true)
+  })
+
+  it('does not let a new optional Big Eye discovery replace an unfinished objective', () => {
+    const tasks = [
+      { id: '1', type: 'survive_days', description: '', current: 1, target: 1, completed: true },
+      {
+        id: '2',
+        type: 'competition_placement',
+        description: '',
+        current: 0,
+        target: 1,
+        completed: false,
+      },
+      {
+        id: '3',
+        type: 'avoid_last_place',
+        description: '',
+        current: 2,
+        target: 2,
+        completed: true,
+      },
+      {
+        id: '4',
+        type: 'public_approval_gain',
+        description: '',
+        current: 5,
+        target: 5,
+        completed: true,
+      },
+      {
+        id: '5',
+        type: 'easter_egg_discovery',
+        description: '',
+        current: 1,
+        target: 1,
+        completed: true,
+        optional: true,
+        waivesOneIncompleteTask: false,
+      },
+    ] as const
+
+    expect(isSecretMissionSuccessful(tasks)).toBe(false)
   })
 
   it('does not let the easter egg cover more than one incomplete required task', () => {
@@ -455,15 +581,22 @@ describe('tryActivateSecretMission', () => {
     )
   }
 
-  it('guarantees the first mission from day 3 onward while above final 5', () => {
+  it('waits until its seeded Day 3–5 reveal date before triggering the first mission', () => {
     const store = makeStore()
-    setWeek(store, 3, 6)
+    const current = store.getState().game
+    const scheduledDay = getFirstSecretMissionScheduledDay(current.seed, current.season)
+    if (scheduledDay > 3) {
+      setWeek(store, scheduledDay - 1, 6)
+      expect(store.dispatch(tryActivateSecretMission())).toBe(false)
+    }
+    setWeek(store, scheduledDay, 6)
     expect(store.dispatch(tryActivateSecretMission())).toBe(true)
   })
 
   it('can trigger a second mission after the first one is resolved', () => {
     const store = makeStore()
-    setWeek(store, 3, 9)
+    const initial = store.getState().game
+    setWeek(store, getFirstSecretMissionScheduledDay(initial.seed, initial.season), 9)
     expect(store.dispatch(tryActivateSecretMission())).toBe(true)
 
     const current = store.getState().game

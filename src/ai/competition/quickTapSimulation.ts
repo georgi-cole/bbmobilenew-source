@@ -103,12 +103,14 @@ export interface SimulateQuickTapAiScoreArgs {
  * — edit that file to rebalance AI scoring without touching logic here.
  *
  * Distribution (default 30 s game, from minigameAiBalance.ts):
- *  - 89–118   →  3%   (occasional weak outcome)
- *  - 119–157  → 17%   (below-competitive)
- *  - 158–187  → 20%   (competitive)
- *  - 187–225  → 30%   (strong finish)
- *  - 226–264  → 25%   (standout performance)
- *  - 300–328  →  5%   (rare perfect booster run; can reach 350 with bonuses)
+ *  - 89–118   →  2%     (occasional weak outcome)
+ *  - 119–157  → 16.91%  (below-competitive)
+ *  - 158–187  → 19.89%  (competitive)
+ *  - 187–225  → 29.84%  (strong finish)
+ *  - 226–264  → 24.86%  (standout performance)
+ *  - 300–350  →  5%     (excellent run)
+ *  - 350–360  →  1%     (rare exceptional run)
+ *  - 360–380  →  0.5%   (rare peak run)
  * plus optional ±jitter, hot-streak bonus and slump penalty.
  *
  * Profile stats (physical, consistency, luck) only bias the *position within*

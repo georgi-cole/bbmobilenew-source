@@ -22,6 +22,7 @@ import {
   useCallback,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useCoveredGameScreen } from '../../hooks/useCoveredGameScreen';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { completeMinigame } from '../../store/gameSlice';
 import type { CompleteMinigamePayload, MinigameSession, Player } from '../../types';
@@ -112,6 +113,7 @@ export default function QuickTapRaceCanvasGame({
   autoStart = false,
   experimental,
 }: Props) {
+  useCoveredGameScreen();
   const dispatch = useAppDispatch();
   const humanId = useAppSelector((s) => s.game.players.find((p) => p.isUser)?.id);
 

@@ -1,5 +1,25 @@
 import type { RealityAlliance, RealityDomainState, RealitySocialEvent } from './types'
 
+const LEGACY_ALLIANCE_REASON_PREFIXES = [
+  'management',
+  'renamed',
+  'voluntary',
+  'expelled',
+  'defection',
+  'evicted',
+  'strategy_meeting',
+  'vote_defiance',
+  'nomination',
+  'vote',
+  'replacement',
+  'secondary_to_stronger_pact',
+] as const
+
+export type AllianceHistoryEvent = RealitySocialEvent & {
+  /** Older source IDs represented by this collapsed commitment row. */
+  mergedEventIds?: string[]
+}
+
 export function canReadAllianceEvent(event: RealitySocialEvent, actorId: string): boolean {
   return (
     event.participantIds.includes(actorId) ||
@@ -20,27 +40,25 @@ export function allianceForEvent(
     ? state.allianceManagement.requests[event.allianceRequestId]
     : undefined
   if (request) return request.allianceId ?? request.resultAllianceId
-  const matches = Object.values(state.alliances).filter((alliance) =>
-    [
-      'management',
-      'renamed',
-      'voluntary',
-      'expelled',
-      'defection',
-      'evicted',
-      'strategy_meeting',
-      'vote_defiance',
-      'nomination',
-      'vote',
-      'replacement',
-      'secondary_to_stronger_pact',
-    ].some(
-      (prefix) =>
-        event.reason === `${prefix}:${alliance.id}` ||
-        event.reason.startsWith(`${prefix}:${alliance.id}:`)
+  const mayBeLegacyAllianceEvent =
+    event.type === 'ALLIANCE_FORMED' ||
+    LEGACY_ALLIANCE_REASON_PREFIXES.some((prefix) => event.reason.startsWith(`${prefix}:`))
+  if (!mayBeLegacyAllianceEvent) return undefined
+
+  let match: RealityAlliance | undefined
+  for (const alliance of Object.values(state.alliances)) {
+    if (
+      !LEGACY_ALLIANCE_REASON_PREFIXES.some(
+        (prefix) =>
+          event.reason === `${prefix}:${alliance.id}` ||
+          event.reason.startsWith(`${prefix}:${alliance.id}:`)
+      )
     )
-  )
-  if (matches.length === 1) return matches[0].id
+      continue
+    if (match) return undefined
+    match = alliance
+  }
+  if (match) return match.id
   if (event.type === 'ALLIANCE_FORMED') {
     const formed = Object.values(state.alliances).filter(
       (alliance) =>
@@ -58,7 +76,7 @@ export function allianceHistory(
   state: RealityDomainState,
   allianceId: string,
   actorId: string
-): RealitySocialEvent[] {
+): AllianceHistoryEvent[] {
   const records = [
     ...state.events,
     ...(state.alliances[allianceId]?.history ?? []),
@@ -78,8 +96,8 @@ export function allianceHistory(
         .map((event) => [event.id, event])
     ).values(),
   ].sort((left, right) => right.sequence - left.sequence)
-  const commitments = new Map<string, RealitySocialEvent>()
-  const result: RealitySocialEvent[] = []
+  const commitments = new Map<string, number>()
+  const result: AllianceHistoryEvent[] = []
   for (const event of visible) {
     if (event.type !== 'ALLIANCE_COMMITMENT_CHANGED') {
       result.push(event)
@@ -93,18 +111,20 @@ export function allianceHistory(
       event.allianceCommitmentSnapshot?.status ?? '',
       [...event.targetIds].sort().join(','),
     ].join(':')
-    const prior = commitments.get(key)
-    if (!prior) {
-      commitments.set(key, event)
+    const priorIndex = commitments.get(key)
+    if (priorIndex === undefined) {
+      commitments.set(key, result.length)
       result.push(event)
       continue
     }
-    const combined: RealitySocialEvent = {
-      ...prior,
-      relatedPromiseIds: [...new Set([...prior.relatedPromiseIds, ...event.relatedPromiseIds])],
+    const combined: AllianceHistoryEvent = {
+      ...result[priorIndex],
+      mergedEventIds: [...(result[priorIndex].mergedEventIds ?? []), event.id],
+      relatedPromiseIds: [
+        ...new Set([...result[priorIndex].relatedPromiseIds, ...event.relatedPromiseIds]),
+      ],
     }
-    commitments.set(key, combined)
-    result[result.indexOf(prior)] = combined
+    result[priorIndex] = combined
   }
   return result.sort((left, right) => right.sequence - left.sequence)
 }
@@ -152,15 +172,33 @@ export function allianceEventText(
       const promises = event.relatedPromiseIds
         .map((promiseId) => state.promises[promiseId])
         .filter((promise) => Boolean(promise))
-      const beneficiaryIds = [...new Set(promises.flatMap((promise) => promise.beneficiaryIds))]
+      const beneficiaryIds = [
+        ...new Set([...promises.flatMap((promise) => promise.beneficiaryIds), ...event.targetIds]),
+      ]
       const kind =
         promises[0]?.kind ??
         event.allianceCommitmentSnapshot?.kind.toLowerCase().replaceAll('_', ' ') ??
-        'commitment'
-      const count = event.relatedPromiseIds.length
-      const countLabel = count > 1 ? ` (${count} commitments)` : ''
-      const recipient = beneficiaryIds.length ? ` for ${names(beneficiaryIds, listedPerson)}` : ''
-      return `${actor} · ${kind.toLowerCase().replaceAll('_', ' ')}${recipient} in ${name} · ${event.allianceCommitmentSnapshot?.status.toLowerCase() ?? 'updated'}${countLabel}.`
+        'alliance'
+      const count = Math.max(event.relatedPromiseIds.length, 1)
+      const promiseKind = kind.toLowerCase().replaceAll('_', ' ')
+      const recipient = beneficiaryIds.length ? ` to ${names(beneficiaryIds, listedPerson)}` : ''
+      const status = event.allianceCommitmentSnapshot?.status ?? 'ACTIVE'
+      const pronoun = event.actorId === humanId ? 'your' : 'their'
+      const verb =
+        status === 'PROPOSED'
+          ? 'proposed'
+          : status === 'ACTIVE'
+            ? 'made'
+            : status === 'KEPT'
+              ? `kept ${pronoun}`
+              : status === 'BROKEN'
+                ? `broke ${pronoun}`
+                : `let go of ${pronoun}`
+      const promiseLabel =
+        count === 1
+          ? `${status === 'ACTIVE' || status === 'PROPOSED' ? 'a ' : `${pronoun} `}${promiseKind} promise`
+          : `${status === 'ACTIVE' || status === 'PROPOSED' ? count : `${pronoun} ${count}`} ${promiseKind} promises`
+      return `${actor} ${verb} ${promiseLabel}${recipient} in ${name}.`
     }
     case 'ALLIANCE_FORMED':
       return kind === 'PACT'
@@ -204,47 +242,55 @@ export function allianceEventText(
         )}.`
       if (reason === 'TOO_FEW_MEMBERS')
         return `${name} dissolved after ${target === 'You' ? 'you' : target} ${event.allianceSnapshot?.exitKind === 'EXPELLED' ? 'was removed' : event.allianceSnapshot?.exitKind === 'ELIMINATED' ? 'left the game' : 'left'}; too few members remained.`
+      if (reason === 'DUPLICATE_ROSTER') {
+        const survivingName = event.allianceSnapshot?.supersededByName ?? 'the matching alliance'
+        return `${name} closed because its roster matched ${survivingName}; ${survivingName} remains active.`
+      }
       return `${name} ended${reason === 'SUPERSEDED' ? ' when it was replaced' : reason === 'RECONCILED' ? ' when the pact was renewed' : ''}.`
     }
     case 'ALLIANCE_REQUEST_SUBMITTED':
       if (request?.kind === 'ADMIT')
-        return `${actor} asked ${name} to vote on admitting ${candidate === 'You' ? 'you' : candidate}.`
+        return `${actor} asked ${name} to vote on welcoming ${candidate === 'You' ? 'you' : candidate}.`
       if (request?.kind === 'RENAME_SUGGESTION')
-        return `${actor} suggested renaming ${name} to ${request.proposedName}.`
-      if (request?.kind === 'FOUND') return `${actor} proposed founding ${name}.`
+        return `${actor} suggested changing ${name}'s name to ${request.proposedName}.`
+      if (request?.kind === 'FOUND') return `${actor} proposed starting ${name}.`
       if (request?.kind === 'APPOINT' || request?.kind === 'TRANSFER')
         return `${actor} offered ${candidate === 'You' ? 'you' : candidate} ${request.kind === 'APPOINT' ? 'co-leadership' : 'leadership'} of ${name}.`
       if (request?.kind === 'REMOVE_SUGGESTION')
-        return `${actor} suggested removing ${candidate === 'You' ? 'you' : candidate} from ${name}.`
+        return `${actor} suggested that ${candidate === 'You' ? 'you' : candidate} leave ${name}.`
       return `${actor} proposed a personal pact.`
     case 'ALLIANCE_REQUEST_VOTE':
+      if (request?.kind === 'ADMIT')
+        return `${actor} voted ${request.accepted ? 'to welcome' : 'against welcoming'} ${candidate === 'You' ? 'you' : candidate} into ${name}.`
       return `${actor} voted ${request?.accepted ? 'yes' : 'no'} on admitting ${candidate === 'You' ? 'you' : candidate} to ${name}.`
     case 'ALLIANCE_INVITATION_SENT':
-      return `${name} approved ${candidate === 'You' ? 'your' : `${candidate}'s`} admission and sent an invitation.`
+      return `${name} agreed to welcome ${candidate === 'You' ? 'you' : candidate} and sent an invitation.`
     case 'ALLIANCE_REQUEST_CONSENT':
       if (request?.responseReason)
         return `${actor} ${request.accepted ? 'accepted' : 'declined'}: “${request.responseReason}”`
       return `${actor} ${request?.accepted ? 'accepted' : 'declined'} ${request?.kind === 'ADMIT' ? `the invitation to ${name}` : `the proposal for ${name}`}.`
     case 'ALLIANCE_REQUEST_ACCEPTED':
-      return `${name}'s ${request?.kind === 'ADMIT' ? 'admission' : 'proposal'} was agreed.`
+      return request?.kind === 'ADMIT'
+        ? `${name} agreed to welcome ${candidate === 'You' ? 'you' : candidate}.`
+        : `${name} agreed to the proposal.`
     case 'ALLIANCE_REQUEST_DECLINED':
       return request?.kind === 'ADMIT'
         ? event.reason.includes('candidate declined')
-          ? `${candidate} declined the invitation to ${name}.`
-          : `${name} rejected the proposal to admit ${candidate === 'You' ? 'you' : candidate}.`
+          ? `${candidate} turned down ${name}'s invitation.`
+          : `${name} voted against welcoming ${candidate === 'You' ? 'you' : candidate}.`
         : `${name}'s proposal was declined.`
     case 'ALLIANCE_REQUEST_EXPIRED':
-      return `${name}'s proposal expired without all required decisions.`
+      return `${name}'s proposal expired before everyone could decide.`
     case 'ALLIANCE_REQUEST_WITHDRAWN':
-      return `${actor} withdrew ${name}'s proposal.`
+      return `${actor} withdrew the proposal for ${name}.`
     case 'ALLIANCE_REQUEST_INVALIDATED':
-      return `${name}'s proposal was cancelled: ${event.reason}`
+      return `${name}'s proposal could no longer go ahead.`
     case 'ALLIANCE_STRATEGY_MEETING':
       return `${actor} consulted ${name}. ${event.allianceConsultationSummary ?? (event.targetIds.length ? `The recorded huddle focused on ${names(event.targetIds, listedPerson)}, but its recommendation details were not saved.` : 'The outcome was not recorded for this earlier huddle.')}`
     case 'ALLIANCE_TARGET_COORDINATED':
       return `${actor} agreed a plan in ${name}${event.targetIds.length ? ` involving ${names(event.targetIds, listedPerson)}` : ''}.`
     case 'ALLIANCE_PLAN_DEFIED':
-      return `${actor} voted against ${name}'s agreed plan.`
+      return `${actor} went against ${name}'s plan.`
     case 'ALLIANCE_BETRAYAL':
       return `${actor} betrayed ${target === 'You' ? 'you' : target} in ${name}.`
     case 'ALLIANCE_LEAKED':

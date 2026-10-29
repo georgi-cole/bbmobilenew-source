@@ -1,10 +1,17 @@
+import { useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
 import { AdditiveBlending, Color } from 'three';
+import { PerspectiveCamera, Vector2, Vector3 } from 'three';
+import { sampleCamera } from '../camera/cameraPath';
+import { CINEMATIC_CONFIG } from '../config/cinematicConfig';
 import {
   CELESTIAL_DISC_RADIUS,
   getCelestialBreath,
   getCelestialEyePosition,
+  getVisibleSunFraction,
 } from '../celestial/celestialGeometry';
 import type { CinematicQuality } from '../config/cinematicQuality';
+import { OCEAN_HALF_WIDTH, OCEAN_HORIZON_Z, OCEAN_SURFACE_Y } from '../environment/coastline';
 import type { TimelineState } from '../timeline/timeline';
 import { clamp01, lerp, smootherstep } from '../utils/math';
 
@@ -29,12 +36,26 @@ const HALO_VERTEX = `
   }
 `;
 
+const SUN_HALO_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
 const HALO_FRAGMENT = `
   uniform vec3 uColor;
   uniform float uOpacity;
   uniform float uTime;
+  uniform float uHorizonMask;
+  uniform vec2 uHorizonLine;
+  uniform vec2 uViewportSize;
   varying vec2 vUv;
   void main() {
+    vec2 screenNdc = gl_FragCoord.xy / uViewportSize * 2.0 - 1.0;
+    float horizonY = uHorizonLine.x * screenNdc.x + uHorizonLine.y;
+    float horizonAlpha = mix(1.0, smoothstep(-0.0012, 0.0012, screenNdc.y - horizonY), uHorizonMask);
     vec2 p = vUv - vec2(0.5);
     float radius = length(p) * 2.0;
     float angle = atan(p.y, p.x);
@@ -42,7 +63,7 @@ const HALO_FRAGMENT = `
     float inner = pow(1.0 - smoothstep(0.0, 0.58, radius), 1.35);
     float corona = 0.94 + cos(angle * 9.0 + uTime * 0.018) * 0.06;
     vec3 color = uColor * (1.02 + inner * 0.72);
-    gl_FragColor = vec4(color, (bloom * corona + inner * 0.28) * uOpacity);
+    gl_FragColor = vec4(color, (bloom * corona + inner * 0.28) * uOpacity * horizonAlpha);
   }
 `;
 const APERTURE_FRAGMENT = `
@@ -76,8 +97,11 @@ const CELESTIAL_FRAGMENT = `
   uniform float uSunset;
   uniform float uTime;
   uniform float uOpacity;
+  uniform float uHorizonMask;
   varying vec2 vUv;
   varying vec3 vNormal;
+  uniform vec2 uHorizonLine;
+  uniform vec2 uViewportSize;
 
   float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -92,6 +116,9 @@ const CELESTIAL_FRAGMENT = `
   }
 
   void main() {
+    vec2 screenNdc = gl_FragCoord.xy / uViewportSize * 2.0 - 1.0;
+    float horizonY = uHorizonLine.x * screenNdc.x + uHorizonLine.y;
+    float horizonAlpha = mix(1.0, smoothstep(-0.0012, 0.0012, screenNdc.y - horizonY), uHorizonMask);
     float grain = sin(vUv.x * 83.0 + sin(vUv.y * 57.0)) * 0.5 + 0.5;
     float fineGrain = sin((vUv.x + vUv.y) * 137.0 + sin(vUv.x * 41.0)) * 0.5 + 0.5;
     float broad = sin(vUv.x * 31.0 + sin(vUv.y * 17.0)) * 0.035;
@@ -100,11 +127,11 @@ const CELESTIAL_FRAGMENT = `
       + crater(vec2(0.43, 0.36), 0.067)
       + crater(vec2(0.71, 0.41), 0.043);
     vec3 lightDirection = normalize(vec3(-0.52, 0.62, 0.95));
-    float lunarLight = 0.34 + max(0.0, dot(normalize(vNormal), lightDirection)) * 0.66;
+    float lunarLight = 0.28 + max(0.0, dot(normalize(vNormal), lightDirection)) * 0.72;
     float lunarRim = pow(1.0 - abs(vNormal.z), 3.2);
-    vec3 moonBase = mix(vec3(0.42, 0.48, 0.56), vec3(0.68, 0.73, 0.79), lunarLight);
-    vec3 moon = moonBase * (0.93 + (grain - 0.5) * 0.055 + (fineGrain - 0.5) * 0.025 + broad - craters * 0.16);
-    moon += vec3(0.18, 0.28, 0.42) * lunarRim * 0.28;
+    vec3 moonBase = mix(vec3(0.39, 0.39, 0.37), vec3(0.78, 0.76, 0.71), lunarLight);
+    vec3 moon = moonBase * (0.94 + (grain - 0.5) * 0.12 + (fineGrain - 0.5) * 0.065 + broad * 1.6 - craters * 0.3);
+    moon += vec3(0.14, 0.14, 0.13) * lunarRim * 0.22;
 
     float solarCellA = sin(vUv.x * 47.0 + uTime * 0.012)
       * sin(vUv.y * 39.0 - uTime * 0.009);
@@ -122,7 +149,7 @@ const CELESTIAL_FRAGMENT = `
     sun *= 0.94 + solarCellA * 0.065 + solarCellB * 0.034 + driftingCells * 0.075;
     sun += vec3(1.0, 0.62, 0.18) * pow(solarLimb, 2.7) * 0.2;
     sun *= mix(0.76, 1.08, limbDepth);
-    gl_FragColor = vec4(mix(moon, sun, uSunMorph), uOpacity);
+    gl_FragColor = vec4(mix(moon, sun, uSunMorph), uOpacity * horizonAlpha);
   }
 `;
 const CelestialAperture = ({ closure, quality }: { closure: number; quality: CinematicQuality }) => {
@@ -158,7 +185,23 @@ const CelestialAperture = ({ closure, quality }: { closure: number; quality: Cin
     </group>
   );
 };
-const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: number; quality: CinematicQuality }) => {
+const CelestialBody = ({
+  state,
+  sunX,
+  sunY,
+  horizonMask,
+  quality,
+  horizonLine,
+  viewportSize,
+}: {
+  state: TimelineState;
+  sunX: number;
+  sunY: number;
+  horizonMask: number;
+  quality: CinematicQuality;
+  horizonLine: Vector2;
+  viewportSize: Vector2;
+}) => {
   const sunsetOcclusion = 1 - smootherstep(clamp01((state.sunsetProgress - 0.72) / 0.28));
   const sunMorph = state.sunMorph;
   const lunarStrength = 1 - sunMorph;
@@ -167,14 +210,15 @@ const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: n
   const celestialVisibility = Math.min(1, moonVisibility + sunVisibility) * sunsetOcclusion;
   const x = lerp(0, sunX, state.sunHorizonProgress);
   const [eyeY, eyeZ] = getCelestialEyePosition(state);
-  const y = lerp(eyeY, 7.5, state.sunHorizonProgress) - state.sunsetProgress * 34;
+  const y = lerp(eyeY, sunY, horizonMask);
   const breathe = getCelestialBreath(state.frame);
-  const z = lerp(eyeZ, -1135, state.sunHorizonProgress);
+  const z = lerp(eyeZ, OCEAN_HORIZON_Z, state.sunHorizonProgress);
   const bodyScale = breathe;
   const sunVisualScale = lerp(1, 3.15, state.sunHorizonProgress);
+  const moonScale = lerp(1.18, 1, state.moonProgress);
   const haloScale = lerp(1, 2.25, state.sunHorizonProgress);
   const glowColor = mixColor(
-    mixColor('#afc9e3', '#ffc25f', sunMorph),
+    mixColor('#8996aa', '#ffc25f', sunMorph),
     '#ff5b24',
     state.sunsetProgress * 0.82,
   );
@@ -185,13 +229,16 @@ const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: n
       <mesh position={[0, 0, -2]} scale={[haloScale, haloScale, haloScale]}>
         <planeGeometry args={[62, 62]} />
         <shaderMaterial
-          vertexShader={HALO_VERTEX}
+          vertexShader={SUN_HALO_VERTEX}
           fragmentShader={HALO_FRAGMENT}
           uniforms={{
             uColor: { value: new Color(glowColor) },
+            uHorizonMask: { value: horizonMask },
+            uHorizonLine: { value: horizonLine },
+            uViewportSize: { value: viewportSize },
             uOpacity: {
               value: celestialVisibility
-                * (lunarStrength * 0.18 + sunMorph * state.sunRevealProgress * 0.44)
+                * (lunarStrength * 0.035 + sunMorph * state.sunRevealProgress * 0.44)
                 * coronaPulse,
             },
           }}
@@ -201,7 +248,7 @@ const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: n
           toneMapped={false}
         />
       </mesh>
-      <mesh scale={[sunVisualScale, sunVisualScale, sunVisualScale]}>
+      <mesh scale={[sunVisualScale * moonScale, sunVisualScale * moonScale, sunVisualScale * moonScale]}>
         <sphereGeometry args={[CELESTIAL_DISC_RADIUS, quality === 'high' ? 48 : 36, quality === 'high' ? 34 : 24]} />
         <shaderMaterial
           vertexShader={CELESTIAL_VERTEX}
@@ -211,6 +258,9 @@ const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: n
             uSunset: { value: state.sunsetProgress },
             uTime: { value: state.frame },
             uOpacity: { value: celestialVisibility },
+            uHorizonMask: { value: horizonMask },
+            uHorizonLine: { value: horizonLine },
+            uViewportSize: { value: viewportSize },
           }}
           transparent
           depthWrite={false}
@@ -228,6 +278,30 @@ const CelestialBody = ({ state, sunX, quality }: { state: TimelineState; sunX: n
 };
 
 export const CinematicLighting = ({ state, quality }: { state: TimelineState; quality: CinematicQuality }) => {
+  const size = useThree((threeState) => threeState.size);
+  const gl = useThree((threeState) => threeState.gl);
+  const cameraSample = sampleCamera(state.progress, state.frame);
+  const horizonCamera = new PerspectiveCamera(
+    cameraSample.fov,
+    size.width / size.height,
+    CINEMATIC_CONFIG.camera.near,
+    CINEMATIC_CONFIG.camera.far,
+  );
+  const horizonLine = useMemo(() => new Vector2(), []);
+  const viewportSize = useMemo(() => new Vector2(), []);
+  horizonCamera.position.copy(cameraSample.position);
+  horizonCamera.up.set(0, 1, 0);
+  horizonCamera.lookAt(cameraSample.target);
+  horizonCamera.rotateZ(cameraSample.bank);
+  horizonCamera.updateProjectionMatrix();
+  horizonCamera.updateMatrixWorld();
+
+  const horizonLeft = new Vector3(-OCEAN_HALF_WIDTH, OCEAN_SURFACE_Y, OCEAN_HORIZON_Z).project(horizonCamera);
+  const horizonRight = new Vector3(OCEAN_HALF_WIDTH, OCEAN_SURFACE_Y, OCEAN_HORIZON_Z).project(horizonCamera);
+  const horizonSlope = (horizonRight.y - horizonLeft.y) / Math.max(0.0001, horizonRight.x - horizonLeft.x);
+  horizonLine.set(horizonSlope, horizonLeft.y - horizonSlope * horizonLeft.x);
+  gl.getDrawingBufferSize(viewportSize);
+
   const sunX = 22;
   const sunY = 15;
   const moonY = lerp(-42, 138, state.moonProgress);
@@ -235,6 +309,31 @@ export const CinematicLighting = ({ state, quality }: { state: TimelineState; qu
   const ambientColor = mixColor('#8ea3d4', '#9b6670', state.sunsetProgress * 0.72);
   const hemisphereSky = mixColor('#8ba6e4', '#513b55', state.sunsetProgress * 0.78);
   const hemisphereGround = mixColor('#080b15', '#1b0d14', state.sunsetProgress * 0.75);
+  const visibleSunFraction = getVisibleSunFraction(state);
+  const sunHorizonMask = smootherstep(clamp01((state.sunMorph - 0.82) / 0.18));
+  const sunXAtHorizon = lerp(0, sunX, state.sunHorizonProgress);
+  const [eyeY, eyeZ] = getCelestialEyePosition(state);
+  const sunZAtHorizon = lerp(eyeZ, OCEAN_HORIZON_Z, state.sunHorizonProgress);
+  const sunScaleAtHorizon = lerp(1, 3.15, state.sunHorizonProgress) * getCelestialBreath(state.frame);
+  const sunRadius = CELESTIAL_DISC_RADIUS * sunScaleAtHorizon;
+  const cameraUp = new Vector3(0, 1, 0).applyQuaternion(horizonCamera.quaternion).normalize();
+  let sunYAtHorizon = lerp(eyeY, OCEAN_SURFACE_Y, state.sunHorizonProgress);
+
+  // Keep the sun's visible cap moving steadily against the camera's projected
+  // ocean horizon, even while the camera banks and the sun travels sideways.
+  for (let adjustment = 0; adjustment < 4; adjustment += 1) {
+    const center = new Vector3(sunXAtHorizon, sunYAtHorizon, sunZAtHorizon).project(horizonCamera);
+    const top = new Vector3(sunXAtHorizon, sunYAtHorizon, sunZAtHorizon)
+      .addScaledVector(cameraUp, sunRadius)
+      .project(horizonCamera);
+    const radiusNdc = Math.abs(top.y - center.y);
+    const horizonYAtSun = horizonSlope * center.x + horizonLine.y;
+    const targetCenterY = horizonYAtSun + (visibleSunFraction * 2 - 1) * radiusNdc;
+    const oneUnitAbove = new Vector3(sunXAtHorizon, sunYAtHorizon + 1, sunZAtHorizon).project(horizonCamera);
+    const screenYPerWorldUnit = oneUnitAbove.y - center.y;
+    if (Math.abs(screenYPerWorldUnit) < 0.00001) break;
+    sunYAtHorizon += (targetCenterY - center.y) / screenYPerWorldUnit;
+  }
 
   return (
     <>
@@ -250,7 +349,15 @@ export const CinematicLighting = ({ state, quality }: { state: TimelineState; qu
         intensity={state.moonIntensity * 0.36}
         position={[-120, moonY, -310]}
       />
-      <CelestialBody state={state} sunX={sunX} quality={quality} />
+      <CelestialBody
+        state={state}
+        sunX={sunX}
+        sunY={sunYAtHorizon}
+        horizonMask={sunHorizonMask}
+        quality={quality}
+        horizonLine={horizonLine}
+        viewportSize={viewportSize}
+      />
     </>
   );
 };

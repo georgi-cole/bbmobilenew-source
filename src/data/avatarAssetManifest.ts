@@ -68,7 +68,7 @@ export const FORMAL_CUTOUT_FILES = [
 ] as const
 
 export const INFORMAL_CUTOUT_FILES = [
-  'Dex_informal.webp',
+  'Dex_informal_v2.webp',
   'Aria_informal.png',
   'Ash_informal.png',
   'Bea_informal.png',

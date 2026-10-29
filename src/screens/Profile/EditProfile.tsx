@@ -1,76 +1,48 @@
+import { getProfilePhotoAvatarId } from '../../utils/avatar'
 import { useState, useRef, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useAppSelector, useAppDispatch } from '../../store/hooks'
 import {
   selectCurrentProfile,
+  createProfile,
   updateProfile,
   deleteProfile,
   archiveKeyForProfile,
   type ProfileBio,
 } from '../../store/profilesSlice'
-import {
-  resetGame,
-  resolveProfileAge,
-  resolveProfileSex,
-  updateUserPlayerIdentity,
-} from '../../store/gameSlice'
+import { resetGame } from '../../store/gameSlice'
 import { resizeAndCompressImage } from '../../utils/imageUtils'
-import { saveImage, imageIdToDataUrl, deleteImage } from '../../utils/imageDb'
+import { saveImage, imageIdToDataUrl } from '../../utils/imageDb'
+import { pruneProfilePhotos } from '../../utils/imageDb'
+import { savedProfilePhotoIds } from '../../appearance/profilePhotos'
 import { clearProfileSaveStorage, flushSavePersistence } from '../../store/saveStatePersistence'
 import { clearSeasonArchives } from '../../store/archivePersistence'
 import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
+import { persistCurrentRunSnapshot } from '../../store/store'
 import ConfirmExitModal from '../../components/ConfirmExitModal/ConfirmExitModal'
+import ProfileOptionalDetails from '../../components/ProfileOptionalDetails/ProfileOptionalDetails'
+import { normalizeProfileBio } from '../../components/ProfileOptionalDetails/profileBio'
+import ProfilePhotoPreview from '../../components/ProfilePhotoPreview/ProfilePhotoPreview'
+import { coerceAppearanceSelection, type AppearanceSelection } from '../../appearance/catalog'
+import { warmSelectedAppearance } from '../../appearance/preloadAppearance'
 import './EditProfile.css'
 
-const AVATAR_OPTIONS = ['🧑', '👱', '👩', '🧔', '👧', '🧓', '👩‍🦱', '🧑‍🦰', '🧑‍🦳', '🧑‍🦲', '👦', '👴']
-
 const SAFE_PREVIEW_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const PROFILE_SEX_OPTIONS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
+
+type EditProfileRouteState = {
+  from?: string
+  createProfile?: boolean
+  appearanceSelection?: AppearanceSelection
+  adoptGuestRun?: boolean
+}
 
 function isSafePreviewFile(file: File | Blob): boolean {
   return SAFE_PREVIEW_MIME_TYPES.has(file.type)
 }
 
-function CollapsibleSection({
-  label,
-  children,
-  sensitive,
-}: {
-  label: string
-  children: React.ReactNode
-  sensitive?: boolean
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div>
-      <button
-        type="button"
-        className="edit-profile__collapse-toggle"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        {label}
-        <span
-          className={`edit-profile__collapse-arrow${open ? ' edit-profile__collapse-arrow--open' : ''}`}
-        >
-          ▼
-        </span>
-      </button>
-      {open && (
-        <div className="edit-profile__collapse-body">
-          {sensitive && (
-            <p className="edit-profile__sensitive-note">
-              🔒 This info is optional and only stored locally on your device.
-            </p>
-          )}
-          {children}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /**
- * EditProfile — lets the user edit their active profile's name, avatar/photo,
+ * EditProfile — lets the user edit their active profile's name, photo,
  * and biography fields.  Photo uploads are processed (resize + compress) and
  * stored in IndexedDB; a `photoId` reference is kept in the Redux profile.
  */
@@ -79,51 +51,39 @@ export default function EditProfile() {
   const routeLocation = useLocation()
   const dispatch = useAppDispatch()
   const profile = useAppSelector(selectCurrentProfile)
-  const returnTo = (routeLocation.state as { from?: string } | null)?.from === '/' ? '/' : '/game'
+  const currentRunPhotoId = useAppSelector(
+    (state) =>
+      state.game?.seasonContestant?.photoId ??
+      getProfilePhotoAvatarId(state.game?.players?.find((player) => player.isUser)?.avatar ?? '')
+  )
+  const routeState = routeLocation.state as EditProfileRouteState | null
+  const creationSelection = coerceAppearanceSelection(routeState?.appearanceSelection)
+  const creatingProfile = routeState?.createProfile === true && creationSelection.kind === 'catalog'
+  const requestedReturnTo = routeState?.from
+  const returnTo =
+    requestedReturnTo === '/' ||
+    requestedReturnTo === '/profile' ||
+    requestedReturnTo === '/profile-picker'
+      ? requestedReturnTo
+      : '/game'
+  const editReturnPath = returnTo === '/profile-picker' ? '/profile-picker' : '/profile'
+  const editReturnFrom = returnTo === '/profile-picker' ? '/profile' : returnTo
 
   // Redirect if no profile is active
   useEffect(() => {
-    if (!profile) navigate('/profile-picker', { replace: true, state: { from: returnTo } })
-  }, [profile, navigate, returnTo])
+    if (!creatingProfile && !profile)
+      navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
+  }, [creatingProfile, profile, navigate, editReturnFrom])
 
   // --- Form state ---
-  const [name, setName] = useState(profile?.name ?? '')
-  const [avatar, setAvatar] = useState(profile?.avatar ?? '🧑')
+  const [name, setName] = useState(creatingProfile ? '' : (profile?.name ?? ''))
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
   const [newPhotoBlob, setNewPhotoBlob] = useState<Blob | null>(null)
   const [processingPhoto, setProcessingPhoto] = useState(false)
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
 
-  // Bio essentials
-  const [story, setStory] = useState(profile?.bio?.story ?? '')
-  const [location, setLocation] = useState(profile?.bio?.location ?? '')
-  const [profession, setProfession] = useState(profile?.bio?.profession ?? '')
-  const [age, setAge] = useState(profile?.bio?.age ?? '')
-  const [sex, setSex] = useState(profile?.bio?.sex ?? '')
-  const [pregnancyRole, setPregnancyRole] = useState<'none' | 'become' | 'cause' | 'both'>(() => {
-    const reproductiveProfile = profile?.bio?.reproductiveProfile
-    if (reproductiveProfile?.canBecomePregnant && reproductiveProfile?.canCausePregnancy) {
-      return 'both'
-    }
-    if (reproductiveProfile?.canBecomePregnant) return 'become'
-    if (reproductiveProfile?.canCausePregnancy) return 'cause'
-    return 'none'
-  })
-
-  // Bio flavor
-  const [motto, setMotto] = useState(profile?.bio?.motto ?? '')
-  const [funFact, setFunFact] = useState(profile?.bio?.funFact ?? '')
-  const [zodiac, setZodiac] = useState(profile?.bio?.zodiac ?? '')
-
-  // Bio extra
-  const [education, setEducation] = useState(profile?.bio?.education ?? '')
-  const [familyStatus, setFamilyStatus] = useState(profile?.bio?.familyStatus ?? '')
-  const [kids, setKids] = useState(profile?.bio?.kids ?? '')
-  const [pets, setPets] = useState(profile?.bio?.pets ?? '')
-
-  // Bio sensitive
-  const [religion, setReligion] = useState(profile?.bio?.religion ?? '')
-  const [sexuality, setSexuality] = useState(profile?.bio?.sexuality ?? '')
+  const [bio, setBio] = useState<ProfileBio>(() => (creatingProfile ? {} : { ...profile?.bio }))
+  const [saving, setSaving] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -181,11 +141,73 @@ export default function EditProfile() {
   }
 
   async function handleSave() {
+    if (saving) return
+
+    if (creatingProfile) {
+      const parsedAge = Number(bio.age)
+      const canCreate =
+        Boolean(name.trim()) &&
+        Boolean(bio.location?.trim()) &&
+        Number.isInteger(parsedAge) &&
+        parsedAge >= 0 &&
+        parsedAge <= 120 &&
+        PROFILE_SEX_OPTIONS.includes(bio.sex as (typeof PROFILE_SEX_OPTIONS)[number])
+      if (!canCreate) return
+
+      setSaving(true)
+      try {
+        let photoId: string | undefined
+        if (newPhotoBlob) {
+          const randomPart = (() => {
+            try {
+              return crypto.randomUUID()
+            } catch {
+              return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+            }
+          })()
+          const nextPhotoId = `profile-photo-${randomPart}`
+          try {
+            await saveImage(nextPhotoId, newPhotoBlob)
+            photoId = nextPhotoId
+          } catch (err) {
+            console.error('Failed to save new profile photo to IndexedDB', err)
+          }
+        }
+
+        const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
+        const profileDetails = {
+          name: name.trim(),
+          avatar: '👤',
+          photoId,
+          bio: normalizedBio,
+          appearanceSelection: creationSelection,
+        }
+        if (routeState?.adoptGuestRun) {
+          withRunAutosaveSuspended(() => dispatch(createProfile(profileDetails)))
+          persistCurrentRunSnapshot()
+          await flushSavePersistence()
+        } else {
+          withRunAutosaveSuspended(() => {
+            dispatch(createProfile(profileDetails))
+            dispatch(resetGame([]))
+          })
+        }
+        void warmSelectedAppearance(creationSelection)
+        navigate('/profile', {
+          replace: true,
+          state: { from: '/', fromLookReveal: true },
+        })
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     if (!profile) return
 
     let photoId = profile.photoId
 
-    // Persist new photo to IndexedDB; delete the old one to avoid storage growth.
+    // Persist new photos before collecting revisions unreferenced by saved or live runs.
     // Only update photoId if the write actually succeeds — if IndexedDB is unavailable
     // (e.g. private browsing, quota exceeded) we keep the existing photoId so the
     // profile does not reference an image that can never be loaded.
@@ -193,10 +215,6 @@ export default function EditProfile() {
       const id = `photo-${profile.id}-${Date.now()}`
       try {
         await saveImage(id, newPhotoBlob)
-        // Clean up the previous photo blob now that the new one is persisted.
-        if (profile.photoId && profile.photoId !== id) {
-          await deleteImage(profile.photoId)
-        }
         photoId = id
       } catch (err) {
         // saveImage failed (e.g. private browsing, quota exceeded).
@@ -205,93 +223,75 @@ export default function EditProfile() {
       }
     }
 
-    const reproductiveProfile: ProfileBio['reproductiveProfile'] =
-      pregnancyRole === 'become'
-        ? { canBecomePregnant: true, canCausePregnancy: false }
-        : pregnancyRole === 'cause'
-          ? { canBecomePregnant: false, canCausePregnancy: true }
-          : pregnancyRole === 'both'
-            ? { canBecomePregnant: true, canCausePregnancy: true }
-            : undefined
-    const profileSex = sex.trim() || undefined
-    const parsedAge = resolveProfileAge(age)
-    const liveSex = resolveProfileSex(profileSex, reproductiveProfile)
-
-    const bio: ProfileBio = {
-      story: story.trim() || undefined,
-      location: location.trim() || undefined,
-      profession: profession.trim() || undefined,
-      age: age.trim() || undefined,
-      sex: profileSex,
-      reproductiveProfile,
-      motto: motto.trim() || undefined,
-      funFact: funFact.trim() || undefined,
-      zodiac: zodiac.trim() || undefined,
-      education: education.trim() || undefined,
-      familyStatus: familyStatus.trim() || undefined,
-      kids: kids.trim() || undefined,
-      pets: pets.trim() || undefined,
-      religion: religion.trim() || undefined,
-      sexuality: sexuality.trim() || undefined,
-    }
+    const normalizedBio = normalizeProfileBio(bio, { clearEmptyFields: true })
 
     dispatch(
       updateProfile({
         name: name.trim() || profile.name,
-        avatar,
+        avatar: profile.avatar,
         photoId,
-        bio,
+        bio: normalizedBio,
       })
     )
-    dispatch(
-      updateUserPlayerIdentity({
-        name: name.trim() || profile.name,
-        avatar,
-        photoId,
-        age: parsedAge ?? null,
-        sex: liveSex ?? null,
-        reproductiveProfile: reproductiveProfile ?? null,
-      })
-    )
-
-    navigate('/profile', { replace: true, state: { from: returnTo } })
+    const keepPhotoIds = savedProfilePhotoIds(profile.id)
+    if (photoId) keepPhotoIds.push(photoId)
+    if (currentRunPhotoId) keepPhotoIds.push(currentRunPhotoId)
+    if (photoId !== profile.photoId)
+      await pruneProfilePhotos(profile.id, keepPhotoIds, profile.photoId ? [profile.photoId] : [])
+    navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
   }
 
   async function handleDeleteProfile() {
     if (!profile) return
 
-    if (profile.photoId) {
-      await deleteImage(profile.photoId)
-    }
+    const photoIds = [
+      ...savedProfilePhotoIds(profile.id),
+      ...(profile.photoId ? [profile.photoId] : []),
+      ...(profile.contestantDefaults?.photoId ? [profile.contestantDefaults.photoId] : []),
+    ]
 
     // Remove every persistence record owned by the deleted profile. Suspending
     // autosave prevents its in-memory season being saved under the next profile.
     clearProfileSaveStorage(profile.id)
     clearSeasonArchives(archiveKeyForProfile(profile.id))
     if (!(await flushSavePersistence())) return
+    await pruneProfilePhotos(profile.id, [], photoIds)
     withRunAutosaveSuspended(() => {
       dispatch(deleteProfile(profile.id))
       dispatch(resetGame([]))
     })
-    navigate('/profile-picker', { replace: true, state: { from: returnTo } })
+    navigate('/profile-picker', { replace: true, state: { from: editReturnFrom } })
   }
 
-  if (!profile) return null
+  if (!creatingProfile && !profile) return null
 
-  const displayPhoto = photoDataUrl
+  const parsedAge = Number(bio.age)
+  const creationFormValid =
+    Boolean(name.trim()) &&
+    Boolean(bio.location?.trim()) &&
+    Boolean(bio.age?.trim()) &&
+    Number.isInteger(parsedAge) &&
+    parsedAge >= 0 &&
+    parsedAge <= 120 &&
+    PROFILE_SEX_OPTIONS.includes(bio.sex as (typeof PROFILE_SEX_OPTIONS)[number])
 
   return (
     <div className="placeholder-screen edit-profile">
-      <h1 className="edit-profile__title">✏️ Edit Profile</h1>
+      <h1 className="edit-profile__title">
+        {creatingProfile ? 'Create your profile' : '✏️ Edit Profile'}
+      </h1>
 
-      {/* Photo + avatar section */}
+      <p>
+        Saving updates your defaults for future seasons. Existing seasons keep their own contestant.
+      </p>
+      {/* Profile photo or selected character portrait */}
       <div className="edit-profile__photo-section">
         <div className="edit-profile__photo-wrap">
-          {displayPhoto ? (
-            <img className="edit-profile__photo-img" src={displayPhoto} alt="Profile" />
-          ) : (
-            <span className="edit-profile__avatar-emoji">{avatar}</span>
-          )}
+          <ProfilePhotoPreview
+            className="edit-profile__photo-img"
+            photoUrl={photoDataUrl}
+            appearance={creatingProfile ? creationSelection : profile?.appearanceSelection}
+          />
           <button
             type="button"
             className="edit-profile__photo-btn"
@@ -315,29 +315,10 @@ export default function EditProfile() {
         </div>
       </div>
 
-      {/* Avatar emoji picker */}
-      <div className="edit-profile__avatar-section">
-        <div className="edit-profile__section-label">Emoji Avatar (fallback)</div>
-        <div className="edit-profile__avatar-grid">
-          {AVATAR_OPTIONS.map((em) => (
-            <button
-              key={em}
-              type="button"
-              className={`edit-profile__avatar-btn${avatar === em ? ' edit-profile__avatar-btn--selected' : ''}`}
-              onClick={() => setAvatar(em)}
-              aria-label={em}
-              aria-pressed={avatar === em}
-            >
-              {em}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Name */}
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-name">
-          Display Name
+          Display Name {creatingProfile && <span aria-hidden="true">*</span>}
         </label>
         <input
           id="ep-name"
@@ -347,282 +328,126 @@ export default function EditProfile() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Your name in the house"
+          required={creatingProfile}
         />
       </div>
 
-      {/* Short bio / story */}
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-story">
-          About You
-        </label>
-        <textarea
-          id="ep-story"
-          className="edit-profile__textarea"
-          maxLength={200}
-          value={story}
-          onChange={(e) => setStory(e.target.value)}
-          placeholder="A short bio or personal story…"
-        />
-      </div>
-
-      {/* Location, profession, age */}
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-location">
-          Location
-        </label>
-        <input
-          id="ep-location"
-          className="edit-profile__input"
-          type="text"
-          maxLength={50}
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="City, State"
-        />
-      </div>
-      <div className="edit-profile__field">
-        <label className="edit-profile__label" htmlFor="ep-profession">
-          Profession
-        </label>
-        <input
-          id="ep-profession"
-          className="edit-profile__input"
-          type="text"
-          maxLength={50}
-          value={profession}
-          onChange={(e) => setProfession(e.target.value)}
-          placeholder="What do you do?"
-        />
-      </div>
       <div className="edit-profile__field">
         <label className="edit-profile__label" htmlFor="ep-age">
-          Age
+          Age {creatingProfile && <span aria-hidden="true">*</span>}
         </label>
         <input
           id="ep-age"
           className="edit-profile__input"
-          type="text"
-          maxLength={20}
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
+          type={creatingProfile ? 'number' : 'text'}
+          min={creatingProfile ? 0 : undefined}
+          max={creatingProfile ? 120 : undefined}
+          value={bio.age ?? ''}
+          onChange={(event) => setBio({ ...bio, age: event.target.value })}
           placeholder="e.g. 28"
+          required={creatingProfile}
         />
       </div>
-
-      {/* Flavor section */}
-      <CollapsibleSection label="Flavor / Personality">
+      {creatingProfile && (
         <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-motto">
-            Personal Motto
+          <label className="edit-profile__label" htmlFor="ep-location">
+            Location <span aria-hidden="true">*</span>
           </label>
           <input
-            id="ep-motto"
+            id="ep-location"
             className="edit-profile__input"
             type="text"
-            maxLength={80}
-            value={motto}
-            onChange={(e) => setMotto(e.target.value)}
-            placeholder="Your motto or catchphrase"
+            maxLength={50}
+            value={bio.location ?? ''}
+            onChange={(event) => setBio({ ...bio, location: event.target.value })}
+            placeholder="City, State"
+            required
           />
         </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-funfact">
-            Fun Fact
-          </label>
-          <input
-            id="ep-funfact"
-            className="edit-profile__input"
-            type="text"
-            maxLength={100}
-            value={funFact}
-            onChange={(e) => setFunFact(e.target.value)}
-            placeholder="Something surprising about you"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-zodiac">
-            Zodiac Sign
-          </label>
-          <input
-            id="ep-zodiac"
-            className="edit-profile__input"
-            type="text"
-            maxLength={20}
-            value={zodiac}
-            onChange={(e) => setZodiac(e.target.value)}
-            placeholder="e.g. Scorpio"
-          />
-        </div>
-      </CollapsibleSection>
-
-      {/* Extra info section */}
-      <CollapsibleSection label="Background / Family">
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-education">
-            Education
-          </label>
-          <input
-            id="ep-education"
-            className="edit-profile__input"
-            type="text"
-            maxLength={60}
-            value={education}
-            onChange={(e) => setEducation(e.target.value)}
-            placeholder="e.g. Bachelor's in Psychology"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-family">
-            Family Status
-          </label>
-          <input
-            id="ep-family"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={familyStatus}
-            onChange={(e) => setFamilyStatus(e.target.value)}
-            placeholder="e.g. Single, Married"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-kids">
-            Kids
-          </label>
-          <input
-            id="ep-kids"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={kids}
-            onChange={(e) => setKids(e.target.value)}
-            placeholder="e.g. Two kids, ages 5 and 8"
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-pets">
-            Pets
-          </label>
-          <input
-            id="ep-pets"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={pets}
-            onChange={(e) => setPets(e.target.value)}
-            placeholder="e.g. Two cats named Mochi and Boba"
-          />
-        </div>
-      </CollapsibleSection>
-
-      {/* Sensitive section */}
-      <CollapsibleSection label="Optional / Personal" sensitive>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sex">
-            Sex (Reality storylines)
-          </label>
-          <select
-            id="ep-sex"
-            className="edit-profile__input"
-            value={sex}
-            onChange={(e) => setSex(e.target.value)}
-          >
-            <option value="">Not specified — ask me in-game when needed</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-          </select>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-pregnancy-role">
-            Pregnancy role (optional)
-          </label>
-          <select
-            id="ep-pregnancy-role"
-            className="edit-profile__input"
-            value={pregnancyRole}
-            onChange={(e) =>
-              setPregnancyRole(e.target.value as 'none' | 'become' | 'cause' | 'both')
-            }
-          >
-            <option value="none">Not specified — ask me in-game when needed</option>
-            <option value="become">Can become pregnant</option>
-            <option value="cause">Can cause pregnancy</option>
-            <option value="both">Both</option>
-          </select>
-          <p className="edit-profile__sensitive-note">
-            Used only for adult Reality pregnancy storylines. Leaving these unset keeps the existing
-            one-time in-game role choice.
-          </p>
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-religion">
-            Religion
-          </label>
-          <input
-            id="ep-religion"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={religion}
-            onChange={(e) => setReligion(e.target.value)}
-          />
-        </div>
-        <div className="edit-profile__field">
-          <label className="edit-profile__label" htmlFor="ep-sexuality">
-            Sexuality
-          </label>
-          <input
-            id="ep-sexuality"
-            className="edit-profile__input"
-            type="text"
-            maxLength={40}
-            value={sexuality}
-            onChange={(e) => setSexuality(e.target.value)}
-          />
-        </div>
-      </CollapsibleSection>
-
-      <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
-        <div>
-          <h2 id="delete-profile-heading" className="edit-profile__danger-title">
-            Delete Profile
-          </h2>
-          <p className="edit-profile__danger-copy">
-            Permanently remove {profile.name} and this profile&apos;s saved games from this device.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="edit-profile__delete-btn"
-          onClick={() => setDeleteConfirmationOpen(true)}
+      )}
+      <div className="edit-profile__field">
+        <label className="edit-profile__label" htmlFor="ep-sex">
+          Sex (Reality storylines) {creatingProfile && <span aria-hidden="true">*</span>}
+        </label>
+        <select
+          id="ep-sex"
+          className="edit-profile__input"
+          value={bio.sex ?? ''}
+          onChange={(event) => setBio({ ...bio, sex: event.target.value })}
         >
-          Delete Profile
-        </button>
-      </section>
+          <option value="" disabled={creatingProfile}>
+            {creatingProfile ? 'Select your sex' : 'Not specified - ask me in-game when needed'}
+          </option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+          <option value="Prefer not to say">Prefer not to say</option>
+        </select>
+      </div>
+      <ProfileOptionalDetails
+        value={bio}
+        onChange={setBio}
+        hiddenFields={creatingProfile ? ['location'] : undefined}
+      />
+
+      {!creatingProfile && (
+        <section className="edit-profile__danger-zone" aria-labelledby="delete-profile-heading">
+          <div>
+            <h2 id="delete-profile-heading" className="edit-profile__danger-title">
+              Delete Profile
+            </h2>
+            <p className="edit-profile__danger-copy">
+              Permanently remove {profile?.name} and this profile&apos;s saved games from this
+              device.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="edit-profile__delete-btn"
+            onClick={() => setDeleteConfirmationOpen(true)}
+          >
+            Delete Profile
+          </button>
+        </section>
+      )}
 
       {/* Save / Cancel */}
       <div className="edit-profile__actions">
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--cancel"
-          onClick={() => navigate('/profile', { replace: true, state: { from: returnTo } })}
+          onClick={() => {
+            if (creatingProfile) {
+              navigate('/profile/dressing-room', {
+                replace: true,
+                state: {
+                  from: '/',
+                  createProfile: true,
+                  initialLookId: creationSelection.lookId,
+                  adoptGuestRun: routeState?.adoptGuestRun === true,
+                },
+              })
+            } else {
+              navigate(editReturnPath, { replace: true, state: { from: editReturnFrom } })
+            }
+          }}
         >
-          Cancel
+          {creatingProfile ? 'Back to looks' : 'Cancel'}
         </button>
         <button
           type="button"
           className="edit-profile__btn edit-profile__btn--save"
           onClick={() => void handleSave()}
-          disabled={processingPhoto}
+          disabled={processingPhoto || saving || (creatingProfile && !creationFormValid)}
         >
-          Save Profile
+          {saving ? 'Saving…' : 'Save Profile'}
         </button>
       </div>
 
       <ConfirmExitModal
         open={deleteConfirmationOpen}
         title="Delete Profile?"
-        description={`"${profile.name}" and all of its saved games will be permanently removed from this device.`}
+        description={`"${profile?.name ?? ''}" and all of its saved games will be permanently removed from this device.`}
         confirmLabel="Delete Profile"
         cancelLabel="Keep Profile"
         onConfirm={() => void handleDeleteProfile()}

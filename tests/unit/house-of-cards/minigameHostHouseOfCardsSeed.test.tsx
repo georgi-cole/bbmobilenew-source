@@ -5,15 +5,16 @@
  * seed) directly to `HouseOfCardsComp`. When `game.seed` stayed the same on a
  * restart, the card layout and AI outcomes repeated every session.
  *
- * Fix: MinigameHost no longer passes `seed` to `HouseOfCardsComp`. The
- * component now generates a fresh crypto-random session seed when no explicit
- * non-zero seed is provided, while still honouring explicit dev/test seeds.
+ * Fix: MinigameHost ignores challenge seeds for HouseOfCardsComp so ordinary
+ * sessions get fresh layouts, while explicitly marked Minigame Lab previews
+ * retain their fixed seed for replayable visual testing.
  *
  * Tests verify:
  *  1. Hosted HouseOfCards receives seed=undefined even for a non-zero
  *     challenge seed.
  *  2. Hosted HouseOfCards also receives seed=undefined for seed=0.
- *  3. Other React minigames remain unaffected and still receive the challenge
+ *  3. An explicit development Lab preview receives its exact seed, including 0.
+ *  4. Other React minigames remain unaffected and still receive the challenge
  *     seed unchanged.
  */
 
@@ -123,7 +124,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it('HouseOfCardsComp receives seed=undefined even when gameOptions.seed is non-zero', async () => {
+  it('HouseOfCardsComp receives a fresh-session seed even when gameOptions.seed is non-zero', async () => {
     const CHALLENGE_SEED = 99999;
     render(
       <Provider store={makeStore()}>
@@ -144,7 +145,7 @@ describe('MinigameHost — House of Cards seed isolation', () => {
     expect(capturedHouseOfCardsSeed).toBeUndefined();
   });
 
-  it('HouseOfCardsComp receives seed=undefined for seed=0 as well', async () => {
+  it('HouseOfCardsComp receives a fresh-session seed for challenge seed=0 as well', async () => {
     render(
       <Provider store={makeStore()}>
         <MinigameHost
@@ -162,6 +163,26 @@ describe('MinigameHost — House of Cards seed isolation', () => {
 
     expect(screen.getByTestId('hoc-comp')).toBeTruthy();
     expect(capturedHouseOfCardsSeed).toBeUndefined();
+  });
+
+  it.each([424242, 0])('HouseOfCardsComp receives its exact Lab seed %i in development preview', async (LAB_SEED) => {
+    render(
+      <Provider store={makeStore()}>
+        <MinigameHost
+          game={HOUSE_OF_CARDS_GAME}
+          gameOptions={{ seed: LAB_SEED, minigameLabPreview: true }}
+          participants={PARTICIPANTS}
+          onDone={vi.fn()}
+          skipRules
+          skipCountdown
+        />
+      </Provider>,
+    );
+
+    await act(async () => { vi.runAllTimers(); });
+
+    expect(screen.getByTestId('hoc-comp')).toBeTruthy();
+    expect(capturedHouseOfCardsSeed).toBe(LAB_SEED);
   });
 
   it('ClosestWithoutGoingOver (non-HouseOfCards) still receives the challenge seed unchanged', async () => {

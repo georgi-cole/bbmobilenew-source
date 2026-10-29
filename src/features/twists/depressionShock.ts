@@ -1,4 +1,6 @@
 import type { GameState, Player } from '../../types'
+import { appearanceFromAssetUrl, getAppearanceAsset } from '../../appearance/catalog'
+import { joinPublicAssetPath } from '../../utils/avatar'
 
 export const DEPRESSION_SHOCK_ROLL_DAY = 7
 export const DEPRESSION_SHOCK_LAST_ROLL_DAY = 10
@@ -671,6 +673,11 @@ export function buildDepressionShockAvatarCandidates(
   resolvedAvatarCandidates: readonly string[] = [],
   playerName = ''
 ): string[] {
+  const catalogSad = resolvedAvatarCandidates.flatMap((candidate) => {
+    const selection = appearanceFromAssetUrl(candidate)
+    const asset = getAppearanceAsset(selection, 'sad')
+    return asset ? [joinPublicAssetPath(asset)] : []
+  })
   const base = import.meta.env.BASE_URL ?? '/'
   const prefix = base.endsWith('/') ? base : `${base}/`
   const sourceStems = resolvedAvatarCandidates.flatMap((candidate) => {
@@ -683,11 +690,14 @@ export function buildDepressionShockAvatarCandidates(
   const nameStem = playerName.trim().replace(/\s+/g, '_')
   const stems = [...new Set([...sourceStems, nameStem, playerId].filter(Boolean))]
 
-  return stems.flatMap((stem) => [
-    `${prefix}assets/skins/${stem}_sad_avatar.webp`,
-    `${prefix}assets/skins/${stem}_sad_avatar.png`,
-    `${prefix}assets/skins/${stem}_depressed_avatar.webp`,
-  ])
+  return [
+    ...catalogSad,
+    ...stems.flatMap((stem) => [
+      `${prefix}assets/skins/${stem}_sad_avatar.webp`,
+      `${prefix}assets/skins/${stem}_sad_avatar.png`,
+      `${prefix}assets/skins/${stem}_depressed_avatar.webp`,
+    ]),
+  ]
 }
 
 export function subscribeDepressionShockVisualPhase(listener: Subscriber): () => void {

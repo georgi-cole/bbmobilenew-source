@@ -21,7 +21,13 @@ export interface RelationshipEntry {
   }
 }
 
-/** Full relationship graph: outer key = source player ID, inner key = target player ID. */
+/**
+ * Compact compatibility relationship graph: outer key = source player ID, inner key = target
+ * player ID. In Reality Mode, RealityDomainState.relationships is canonical and this map is its
+ * lossy affinity/tag projection for older consumers. Relationship mutations that affect shared
+ * game meaning must pass through the social reducers/adapters so both representations stay in
+ * step; do not add a direct write path to only one map.
+ */
 export type RelationshipsMap = Record<string, Record<string, RelationshipEntry>>
 
 export type DramaArcType = 'romance' | 'bromance' | 'rivalry' | 'betrayal'
@@ -184,6 +190,8 @@ export interface SocialPhaseReport {
 export interface SocialActionReceipt {
   /** Groups compatibility logs belonging to one multi-recipient move. */
   groupId?: string
+  /** Change in the compact, player-visible relationship read caused by this move. */
+  relationshipShifts?: Record<string, number>
   summary: string
   outcomeLabel: string
   tone: 'positive' | 'negative' | 'neutral' | 'warning'
@@ -241,6 +249,26 @@ export interface SocialActionLogEntry {
   /** Signed resource effect applied after the action outcome. */
   yieldsApplied?: { influence?: number; info?: number }
   narrative?: string
+}
+
+export type SocialInquiryKind = 'NOMINATION_ADVICE' | 'PLAYER_OPINION'
+export type SocialInquiryTone = 'CANDID' | 'CAUTIOUS' | 'VAGUE' | 'CRACKED' | 'REPEATED' | 'REFUSED'
+
+/** Durable record of what a houseguest told the player, including audience and topic. */
+export interface SocialInquiryRecord {
+  id: string
+  askerId: string
+  respondentId: string
+  kind: SocialInquiryKind
+  topicKey: string
+  subjectId?: string
+  day: number
+  phase: string
+  answerTargetIds: string[]
+  answerText: string
+  tone: SocialInquiryTone
+  hardRefused: boolean
+  infoAwarded: boolean
 }
 
 export type IncomingInteractionType =
@@ -370,17 +398,22 @@ export interface IncomingInteractionDeliveryState {
 
 /** Redux-serialisable state subtree owned by the social module. */
 export interface SocialState {
+  missionResourceReceipts?: string[]
+  missionResourcePayouts?: Record<string, { energy: number; influence: number; info: number }>
   energyBank: SocialEnergyBank
   /** Influence resource bank per player (🤝). */
   influenceBank: SocialEnergyBank
   /** Info resource bank per player (💡). */
   infoBank: SocialEnergyBank
+  /** Compact compatibility view; see RealityDomainState.relationships for the canonical Reality graph. */
   relationships: RelationshipsMap
   lastReport?: SocialPhaseReport | null
   /** Actions executed during the currently open Social panel session. */
   sessionLogs: SocialActionLogEntry[]
   /** Bounded gameplay history retained after the panel closes. */
   actionHistory?: SocialActionLogEntry[]
+  /** Bounded private inquiry history used to keep repeat answers consistent. */
+  inquiryHistory: SocialInquiryRecord[]
   /** Monotonic display identity; never consumes the gameplay random stream. */
   actionLogSequence?: number
   /** Schema version used by backward-compatible social save migration. */
@@ -391,7 +424,10 @@ export interface SocialState {
    * paths while the new causal engine is introduced in slices.
    */
   realitySimulation: RealitySimulationState
-  /** Causal Reality Mode v3 world, perception, relationship, and lifecycle state. */
+  /**
+   * Causal Reality Mode v3 world, perception, relationship, and lifecycle state. Its relationship
+   * graph is canonical in Reality Mode and is projected to `relationships` for legacy consumers.
+   */
   reality: RealityDomainState
   /** Bounded delivery ledger used to pace and deduplicate player-facing intelligence. */
   intelligenceDeliveries?: IntelligenceDelivery[]

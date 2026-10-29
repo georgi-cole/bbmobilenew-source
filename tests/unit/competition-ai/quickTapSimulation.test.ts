@@ -185,11 +185,11 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     const scores = seeds.map((seed) =>
       simulateQuickTapAiScore({ seed, playerId: `p${seed}`, profile: DEFAULT_PROFILE }),
     );
-    // Bands reduced 15% (issue #951). Absolute minimum is the lowest band (89)
+    // Absolute minimum is the lowest band (89)
     // minus max jitter (4) minus max slump (14) = 71. Absolute maximum is the
-    // rare perfect-run band (328) plus max jitter (4) plus max hot-streak bonus (18) = 350.
+    // rare peak band (380) plus max jitter (4) plus max hot-streak bonus (18) = 402.
     expect(Math.min(...scores)).toBeGreaterThanOrEqual(60);
-    expect(Math.max(...scores)).toBeLessThanOrEqual(350);
+    expect(Math.max(...scores)).toBeLessThanOrEqual(402);
   });
 
   it('competitive zone scores dominate — majority fall in the competitive range', () => {
@@ -198,13 +198,13 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
       simulateQuickTapAiScore({ seed, playerId: 'distribution-check', profile: DEFAULT_PROFILE }),
     );
 
-    // Bands from minigameAiBalance.ts, reduced 15% (issue #951). Grouped to the
+    // Bands from minigameAiBalance.ts. Grouped to the
     // configured (scaled) band edges so each range maps to its nominal chance:
-    //   band1: ≤118        →  3% nominal
-    //   band2: 119–157     → 17% nominal
-    //   band3: 158–187     → 20% nominal
-    //   band4: 188–225     → 30% nominal
-    //   band5: ≥226        → 30% nominal (including the 5% perfect-run tier)
+    //   band1: ≤118        →  2% nominal
+    //   band2: 119–157     → 16.91% nominal
+    //   band3: 158–187     → 19.89% nominal
+    //   band4: 188–225     → 29.84% nominal
+    //   band5: ≥226        → 31.36% nominal (including rare high-score tiers)
     //
     // Jitter (±4) and hot-streak/slump (±6–18) can shift individual scores across
     // band edges, so tolerances are intentionally wider than the nominal percentage.
@@ -220,7 +220,7 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     // Sanity: all 1000 scores are captured (exhaustive + non-overlapping).
     expect(counts.band1 + counts.band2 + counts.band3 + counts.band4 + counts.band5).toBe(1000);
 
-    // band1 (~3% nominal): allow generous tolerance for jitter + slump spillover
+    // band1 (~2% nominal): allow generous tolerance for jitter + slump spillover
     expect(counts.band1).toBeGreaterThanOrEqual(5);
     expect(counts.band1).toBeLessThanOrEqual(100);
 
@@ -236,7 +236,7 @@ describe('simulateQuickTapAiScore — realism and competitiveness', () => {
     expect(counts.band4).toBeGreaterThanOrEqual(230);
     expect(counts.band4).toBeLessThanOrEqual(400);
 
-    // band5 (~30% nominal): includes standout and perfect-run outcomes
+    // band5 (~31% nominal): includes standout and rare high-score outcomes
     expect(counts.band5).toBeGreaterThanOrEqual(180);
     expect(counts.band5).toBeLessThanOrEqual(400);
 

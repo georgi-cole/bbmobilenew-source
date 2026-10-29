@@ -36,8 +36,9 @@ describe('Competition Director V1', () => {
   })
 
   it('keeps the premiere fixed and retired/special-purpose games excluded', () => {
-    expect(keys(context(16, 'LOH', 1))).toEqual(['majorityRules'])
+    expect(keys(context(16, 'LOH', 1))).toEqual(['majorityRules', 'percentagePanic'])
     expect(keys(context(16, 'POS', 1))).toEqual(['quickTap'])
+    expect(keys(context(16, 'LOH', 2))).not.toContain('percentagePanic')
 
     for (const size of [4, 5, 6, 8, 10, 12, 16]) {
       for (const type of ['LOH', 'POS'] as const) {
@@ -51,6 +52,39 @@ describe('Competition Director V1', () => {
     }
   })
 
+  it('draws Day 1 LOH from Majority Rules and Percentage Panic at equal odds', () => {
+    const premiere = context(16, 'LOH', 1)
+    const candidates = getCompetitionDirectorCandidates(premiere)
+    expect(candidates.map(({ game }) => game.key)).toEqual(['majorityRules', 'percentagePanic'])
+
+    const totals = { majorityRules: 0, percentagePanic: 0 }
+    for (let seed = 1; seed <= 2000; seed += 1) {
+      const selected = pickCompetitionDirectorGame(premiere, seed)
+      if (selected?.key === 'majorityRules') totals.majorityRules += 1
+      if (selected?.key === 'percentagePanic') totals.percentagePanic += 1
+    }
+
+    expect(totals.majorityRules).toBeGreaterThan(900)
+    expect(totals.majorityRules).toBeLessThan(1100)
+    expect(totals.percentagePanic).toBeGreaterThan(900)
+    expect(totals.percentagePanic).toBeLessThan(1100)
+  })
+
+  it('reuses Fit Me In’s director priority slots for Bigg Gates', () => {
+    for (const size of [5, 6, 8, 9, 10]) {
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.POS).toContain('gatesOfTheEye')
+      expect(keys(context(size, 'POS'))).toContain('gatesOfTheEye')
+    }
+  })
+  it('offers Boxpocalypse to LOH casts of 8–16 and never to smaller casts', () => {
+    for (const size of [8, 9, 10, 11, 12, 13, 14, 15, 16]) {
+      expect(keys(context(size, 'LOH'))).toContain('boxedOut')
+      expect(COMPETITION_DIRECTOR_PREFERENCES[size]?.LOH).toContain('boxedOut')
+    }
+    for (const size of [4, 5, 6, 7, 17]) {
+      expect(keys(context(size, 'LOH'))).not.toContain('boxedOut')
+    }
+  })
   it('preserves first-season introduction order for both spinoffs', () => {
     const withoutOriginal = keys(context(8, 'LOH', 10))
     expect(withoutOriginal).not.toContain('crystal_path_shattered')

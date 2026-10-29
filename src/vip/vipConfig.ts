@@ -1,3 +1,5 @@
+import { PREMIUM_GAME_LABEL, PREMIUM_GAME_UPGRADES } from './paidGameCatalog'
+
 export type StoreEntitlementKey =
   | 'survivalMode'
   | 'publicMode'
@@ -40,6 +42,8 @@ export interface StoreProductDefinition {
   visualTheme: StoreProductTheme
   ownershipType: 'one-time'
   category: StoreProductCategory
+  shelf: 'all-access' | 'game-modes' | 'season-expansions' | 'extras'
+  vipBenefitLabel?: string
   badge: string
   accessInstructions: string
   accessRoute?: string
@@ -79,53 +83,18 @@ export const PREMIUM_CHALLENGES_PRODUCT_ID =
 export const VIP_UPGRADE_CREDIT_NOTE =
   '75% of this purchase counts toward a future VIP upgrade. The final upgrade price is rounded to the nearest supported store tier.'
 
-export const VIP_BENEFITS = [
-  'Public Mode controls',
-  'Surveyeval Mode',
-  'Reality Mode',
-  "Cupid's Arrow expansion",
-  'Vox Populi expansion',
-  'Premium Challenges remasters',
-  'No automatic ads',
-  'VIP themes',
-] as const
-
-export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
-  {
-    key: 'vip',
-    productId: VIP_PRODUCT_ID,
-    title: 'The Big Eye VIP',
-    description: 'Permanently unlock every VIP feature for one bundle price.',
-    entitlement: null,
-    shortTagline: 'Every premium advantage. One permanent unlock.',
-    fullDescription:
-      'Own the complete premium collection in one purchase, including every current Store feature and VIP theme.',
-    benefits: VIP_BENEFITS,
-    icon: 'vip',
-    visualTheme: 'spotlight',
-    ownershipType: 'one-time',
-    category: 'bundle',
-    badge: 'Best value',
-    accessInstructions:
-      'Your included modes and controls are available from the Home screen and Settings.',
-    accessRoute: '/settings',
-    accessLabel: 'Manage VIP features',
-    legalNote:
-      'A permanent, non-consumable purchase. Existing eligible standalone purchases receive 75% credit toward the nearest supported VIP upgrade tier, with a minimum upgrade price.',
-    availableInRelease: true,
-  },
+const STANDALONE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
   {
     key: 'premiumChallenges',
     productId: PREMIUM_CHALLENGES_PRODUCT_ID,
     title: 'Premium Challenges Pack',
-    description: 'Unlock the remastered Find Your Twin adventures permanently.',
+    description: 'Permanently unlock every premium minigame version.',
     entitlement: 'premiumChallenges',
-    shortTagline: 'Two familiar rescues, rebuilt as premium adventures.',
+    shortTagline: `${PREMIUM_GAME_LABEL}. Every premium version, one permanent unlock.`,
     fullDescription:
-      'Replaces Find Your Twin and Find Your Twin 2: Lost Again with their remastered editions while keeping the original gameplay, scoring, and season progression.',
+      'Unlock every premium minigame version, including remasters, enhanced presentations, and the Quick Tap variants. Premium versions launch automatically in eligible competitions.',
     benefits: [
-      'Find Your Twin — Remastered',
-      'Find Your Twin 2: Lost Again — Remastered',
+      ...PREMIUM_GAME_UPGRADES.map((game) => game.title),
       'Automatic replacement in every competition',
       'Original editions remain available without access',
     ],
@@ -133,8 +102,9 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'spotlight',
     ownershipType: 'one-time',
     category: 'game-mode',
-    badge: '2 VIP games',
-    accessInstructions: 'The remastered games launch automatically in competitions.',
+    shelf: 'extras',
+    badge: PREMIUM_GAME_LABEL,
+    accessInstructions: 'Premium versions launch automatically in eligible competitions.',
     legalNote: VIP_UPGRADE_CREDIT_NOTE,
     availableInRelease: true,
   },
@@ -157,6 +127,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'survival',
     ownershipType: 'one-time',
     category: 'game-mode',
+    shelf: 'game-modes',
     badge: 'Game mode',
     accessInstructions: 'Choose Surveyeval from the Home screen.',
     accessRoute: '/',
@@ -183,6 +154,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'public',
     ownershipType: 'one-time',
     category: 'house-feature',
+    shelf: 'season-expansions',
     badge: 'Game feature',
     accessInstructions: 'Turn Public Mode on or off in Settings before starting a season.',
     accessRoute: '/settings',
@@ -208,6 +180,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'tribunal',
     ownershipType: 'one-time',
     category: 'house-feature',
+    shelf: 'season-expansions',
     badge: 'Game feature',
     accessInstructions: 'Manage Tribunal Mode from Settings when the feature is available.',
     accessRoute: '/settings',
@@ -235,6 +208,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'drama',
     ownershipType: 'one-time',
     category: 'house-feature',
+    shelf: 'season-expansions',
     badge: 'Your social game, amplified',
     accessInstructions: 'Choose how real you want the season to feel in Settings.',
     accessRoute: '/settings',
@@ -261,6 +235,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'cupid',
     ownershipType: 'one-time',
     category: 'expansion',
+    shelf: 'game-modes',
     badge: 'Season expansion',
     accessInstructions:
       "Cupid's Arrow enters eligible new seasons automatically once the expansion is active.",
@@ -288,6 +263,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'vox',
     ownershipType: 'one-time',
     category: 'expansion',
+    shelf: 'game-modes',
     badge: 'Season expansion',
     accessInstructions:
       'Vox Populi enters eligible new seasons automatically once the expansion is active.',
@@ -300,6 +276,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     key: 'noAds',
     productId: NO_ADS_PRODUCT_ID,
     title: 'No Ads',
+    vipBenefitLabel: 'No automatic ads',
     description: 'Permanently remove automatic ads.',
     entitlement: 'noAds',
     shortTagline: 'Keep your season moving without interruptions.',
@@ -314,6 +291,7 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
     visualTheme: 'quiet',
     ownershipType: 'one-time',
     category: 'utility',
+    shelf: 'extras',
     badge: 'Permanent unlock',
     accessInstructions:
       'No setup is needed. Automatic ads are removed as soon as this unlock is active.',
@@ -323,28 +301,60 @@ export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
   },
 ]
 
+export const VIP_BENEFIT_DETAILS = [
+  ...STANDALONE_PRODUCT_CATALOG.filter((product) => product.availableInRelease).map((product) => ({
+    title: product.vipBenefitLabel ?? product.title,
+    detail: product.shortTagline,
+  })),
+  { title: 'VIP themes', detail: 'Give every season a premium finish.' },
+]
+
+export const VIP_BENEFITS = VIP_BENEFIT_DETAILS.map((benefit) => benefit.title)
+
+export const STORE_PRODUCT_CATALOG: readonly StoreProductDefinition[] = [
+  {
+    key: 'vip',
+    productId: VIP_PRODUCT_ID,
+    title: 'The Big Eye VIP',
+    description: 'Permanently unlock every VIP feature for one bundle price.',
+    entitlement: null,
+    shortTagline: 'Every premium advantage. One permanent unlock.',
+    fullDescription:
+      'Own the complete premium collection in one purchase, including every current Store feature and VIP theme.',
+    benefits: VIP_BENEFITS,
+    icon: 'vip',
+    visualTheme: 'spotlight',
+    ownershipType: 'one-time',
+    category: 'bundle',
+    shelf: 'all-access',
+    badge: 'Best value',
+    accessInstructions:
+      'Your included modes and controls are available from the Home screen and Settings.',
+    accessRoute: '/settings',
+    accessLabel: 'Manage VIP features',
+    legalNote:
+      'A permanent, non-consumable purchase. Existing eligible standalone purchases receive 75% credit toward the nearest supported VIP upgrade tier, with a minimum upgrade price.',
+    availableInRelease: true,
+  },
+  ...STANDALONE_PRODUCT_CATALOG,
+]
+
 export const STANDALONE_PRODUCT_KEYS: readonly StoreEntitlementKey[] =
   STORE_PRODUCT_CATALOG.flatMap((product) =>
     product.entitlement == null || !product.availableInRelease ? [] : [product.entitlement]
   )
 
-// The Store groups products by the player's choice, rather than their internal feature type.
-// Vox Populi and Cupid's Arrow are distinct ways to play; Public and Reality deepen a season.
-export const GAME_MODE_PRODUCT_KEYS = [
-  'survivalMode',
-  'voxPopuli',
-  'cupidArrow',
-] as const satisfies readonly StoreEntitlementKey[]
+function getProductKeysOnShelf(shelf: StoreProductDefinition['shelf']): StoreEntitlementKey[] {
+  return STANDALONE_PRODUCT_CATALOG.flatMap((product) =>
+    product.availableInRelease && product.shelf === shelf && product.entitlement
+      ? [product.entitlement]
+      : []
+  )
+}
 
-export const EXPANSION_PRODUCT_KEYS = [
-  'publicMode',
-  'dramaMode',
-] as const satisfies readonly StoreEntitlementKey[]
-
-export const UTILITY_PRODUCT_KEYS = [
-  'premiumChallenges',
-  'noAds',
-] as const satisfies readonly StoreEntitlementKey[]
+export const GAME_MODE_PRODUCT_KEYS = getProductKeysOnShelf('game-modes')
+export const EXPANSION_PRODUCT_KEYS = getProductKeysOnShelf('season-expansions')
+export const UTILITY_PRODUCT_KEYS = getProductKeysOnShelf('extras')
 
 export function getStoreProductDefinition(key: StoreProductKey): StoreProductDefinition {
   const definition = STORE_PRODUCT_CATALOG.find((product) => product.key === key)

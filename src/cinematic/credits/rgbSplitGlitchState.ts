@@ -5,12 +5,14 @@ export type RgbSplitGlitchStateInput = {
   enterFrame: number
   exitFrame: number
   seed: number
+  exitDurationFrames?: number
 }
 
 // Long enough to register as an intentional cinematic reveal at 30fps, while
 // still leaving the credit readable for the overwhelming majority of its card.
 const GLITCH_ENTER_FRAMES = 20
 const GLITCH_EXIT_FRAMES = 12
+export const CAMERA_FLY_EXIT_FRAMES = 48
 const BURST_PATTERN = [0.22, 0.92, 0.46, 1, 0.58, 0.84, 0.3, 0.7] as const
 
 export function getRgbSplitGlitchState({
@@ -18,9 +20,10 @@ export function getRgbSplitGlitchState({
   enterFrame,
   exitFrame,
   seed,
+  exitDurationFrames = GLITCH_EXIT_FRAMES,
 }: RgbSplitGlitchStateInput) {
   const enter = easedRange(frame, enterFrame, enterFrame + GLITCH_ENTER_FRAMES)
-  const exit = easedRange(frame, exitFrame - GLITCH_EXIT_FRAMES, exitFrame)
+  const exit = easedRange(frame, exitFrame - exitDurationFrames, exitFrame)
   const enteringAmount = 1 - enter
   const amount = clamp01(Math.max(enteringAmount, exit))
   const patternIndex = Math.abs(Math.floor(frame + seed * 3)) % BURST_PATTERN.length
@@ -33,5 +36,6 @@ export function getRgbSplitGlitchState({
     amount,
     burst,
     displacement,
+    exitProgress: exit,
   } as const
 }

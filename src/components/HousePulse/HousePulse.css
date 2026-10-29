@@ -391,3 +391,82 @@
     border-radius: 11px;
   }
 }
+
+/* The Hub Chronicles: editorial reading surface, not another telemetry card. */
+.house-pulse__chronicle {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(255, 189, 98, 0.22);
+  border-radius: 16px;
+  background: linear-gradient(150deg, rgba(113, 68, 152, 0.23), rgba(23, 16, 37, 0.76));
+}
+.house-pulse__chronicle-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  color: #ffbf73;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.house-pulse__chronicle h3 {
+  margin: 12px 0 15px;
+  font-size: clamp(20px, 5vw, 26px);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.house-pulse__chronicle-story {
+  display: grid;
+  gap: 12px;
+}
+.house-pulse__chronicle-story p {
+  margin: 0;
+  color: #ede4f2;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.house-pulse__producer {
+  margin-top: 17px;
+  padding: 12px 13px;
+  border-left: 3px solid #ffbd62;
+  border-radius: 8px;
+  background: rgba(255, 182, 76, 0.075);
+}
+.house-pulse__producer strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #ffc988;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.house-pulse__producer p {
+  margin: 0;
+  color: #ded0e6;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.house-pulse__chronicle-archive {
+  min-width: 0;
+}
+.house-pulse__chronicle-archive > summary {
+  color: #ffc988;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+.house-pulse__chronicle-archive > .house-pulse__chronicle {
+  margin-top: 10px;
+}
+@media (max-width: 400px) {
+  .house-pulse__chronicle {
+    padding: 13px;
+  }
+  .house-pulse__chronicle-story p {
+    font-size: 12px;
+  }
+}

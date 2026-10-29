@@ -45,9 +45,29 @@ body:has(.homehub-shell) .app-shell {
   background-position: center;
   background-repeat: no-repeat;
   pointer-events: none;
-  transition:
-    opacity 300ms ease,
-    transform 350ms ease;
+  transition: opacity 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.homehub-intro-bg--active {
+  opacity: 0;
+}
+
+.homehub-intro-bg--active.homehub-intro-bg--visible {
+  opacity: 1;
+}
+
+.homehub-intro-bg--previous {
+  opacity: 1;
+}
+
+.homehub-intro-bg--previous.homehub-intro-bg--fading {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homehub-intro-bg {
+    transition: none;
+  }
 }
 
 .homehub-intro-bg::after {
@@ -102,6 +122,23 @@ body:has(.homehub-shell) .app-shell {
   flex-direction: column;
   align-items: center;
   margin-bottom: 4px;
+}
+
+.home-hub__weather-permission-note {
+  width: min(100%, 360px);
+  box-sizing: border-box;
+  margin: 0 0 -6px;
+  padding: 10px 14px;
+  border: 1px solid rgba(221, 230, 255, 0.22);
+  border-radius: 14px;
+  color: rgba(247, 249, 255, 0.94);
+  background: rgba(10, 15, 31, 0.72);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(12px);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: center;
+  animation: hub-nav-enter 240ms ease both;
 }
 
 .home-hub__title {

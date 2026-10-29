@@ -1,7 +1,9 @@
 name: Minigame Certification
 
 on:
-  pull_request:
+  schedule:
+    # GitHub Actions schedules use UTC. This runs at 04:00–05:00 in Sofia.
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -9,41 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changed:
-    name: Detect minigame changes
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      changed: ${{ steps.filter.outputs.changed }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: filter
-        name: Check the pull request diff
-        shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
-          if grep -Eq '^(src/minigames/|tests/.*(minigame|bullseyeBlitz|cardClash|codeBreaker|colorMatch|crystalPath|laneRacers)|e2e/playwright/minigame|scripts/run-visual-audit|playwright.config.ts|package.json|package-lock.json)' <<< "$changed_files"; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
   audit:
     name: UI, logic, visual, and AI audit
-    needs: changed
-    if: needs.changed.outputs.changed == 'true'
     runs-on: ubuntu-latest
     # The visual audit covers every minigame on three viewport projects sequentially.
     # Keep full coverage while allowing the suite to complete on hosted runners.
@@ -63,6 +32,8 @@ jobs:
         env:
           VISUAL_AUDIT_PROJECTS: desktop-chromium,mobile-chromium,narrow-chromium
         run: npm run audit:minigames
+      - name: Run seeded complete-gameplay matrix
+        run: npx playwright test --grep @full-playthrough --project=desktop-chromium
       - name: Upload minigame evidence
         if: always()
         uses: actions/upload-artifact@v4

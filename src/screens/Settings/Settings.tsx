@@ -58,6 +58,7 @@ type ToggleItem = {
   label: string
   badge?: string
   description?: string
+  disabled?: boolean
   gated?: boolean
   lockedFeature?: LockedFeature
   get: (s: SettingsState) => boolean
@@ -85,6 +86,8 @@ export default function Settings() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const settings = useAppSelector(selectSettings)
+  const weekendGame = useAppSelector((state) => state.game)
+  const weekendsLocked = weekendGame.firstRealWeekendStarted === true || weekendGame.week >= 6
   const isVipActive = useAppSelector(selectIsVipActive)
   const hasDramaMode = useAppSelector(selectHasDramaModeAccess)
   const hasPublicMode = useAppSelector(selectHasPublicModeAccess)
@@ -175,6 +178,10 @@ export default function Settings() {
         {
           type: 'toggle',
           id: 'weekends',
+          disabled: weekendsLocked,
+          description: weekendsLocked
+            ? 'Weekends are locked for this season. Choose this setting before the first weekend begins or Day 6 starts.'
+            : undefined,
           label: t('settings.weekends'),
           get: (s) => s.gameUX.weekendsEnabled,
           onChange: (settingsDispatch, val) =>
@@ -333,7 +340,12 @@ export default function Settings() {
             : item.id === 'publicMode'
               ? hasPublicMode || settings.sim.publicModeAdminOverride
               : true
-        const checked = item.gated && !hasAccess ? false : item.get(settings)
+        const checked =
+          item.id === 'weekends' && weekendsLocked
+            ? weekendGame.weekendsEnabledForSeason !== false
+            : item.gated && !hasAccess
+              ? false
+              : item.get(settings)
         const toggleControl = (
           <>
             <label className="settings-row__label">
@@ -344,6 +356,7 @@ export default function Settings() {
               type="checkbox"
               className="settings-toggle"
               checked={checked}
+              disabled={item.disabled}
               onChange={(event) => {
                 if (item.gated && !hasAccess) {
                   event.preventDefault()
@@ -474,6 +487,17 @@ export default function Settings() {
           <p className="settings-helper-text">Turn off and on to replay the guides.</p>
         </div>
         {orderedItems.slice(8).map(renderItem)}
+        <button
+          type="button"
+          className="settings-row settings-row--legal"
+          onClick={() => navigate('/player-privacy', { state: { fromSettings: true } })}
+        >
+          <span>
+            <strong>Advertising privacy</strong>
+            <small>Optional ads and Google privacy choices</small>
+          </span>
+          <span aria-hidden="true">&rsaquo;</span>
+        </button>
         <button
           type="button"
           className="settings-row settings-row--legal"

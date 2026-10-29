@@ -3,7 +3,7 @@
  *
  * Tests for the platformer pipe-sequence system.
  *
- * The Castle Rescue platformer places PIPE_SLOT_COUNT (6) physical pipes in
+ * The Find Your Twin platformer places PIPE_SLOT_COUNT (6) physical pipes in
  * the castle level.  generateLevelConfig() assigns exactly 3 of them as the
  * correct route (I, II, III) per seed.  These tests verify:
  *

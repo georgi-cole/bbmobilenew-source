@@ -7,7 +7,7 @@
  *   3. Add a <Route> inside the AppShell layout route
  *   That's it — no other files need changing.
  */
-import { createHashRouter } from 'react-router'
+import { createHashRouter, Navigate } from 'react-router'
 
 import AppShell from './components/layout/AppShell'
 import RouteErrorBoundary from './components/RouteErrorBoundary/RouteErrorBoundary'
@@ -25,6 +25,7 @@ const ConfessionalRoute = lazy(() => import('./screens/DiaryRoom/ConfessionalRou
 const Houseguests = lazy(() => import('./screens/Houseguests/Houseguests'))
 const Profile = lazy(() => import('./screens/Profile/Profile'))
 const EditProfile = lazy(() => import('./screens/Profile/EditProfile'))
+const DressingRoom = lazy(() => import('./screens/Profile/DressingRoom'))
 const ProfilePicker = lazy(() => import('./screens/ProfilePicker/ProfilePicker'))
 const Leaderboard = lazy(() => import('./screens/Leaderboard/Leaderboard'))
 const Credits = lazy(() => import('./screens/Credits/Credits'))
@@ -35,6 +36,7 @@ const SelfEvicted = lazy(() => import('./screens/SelfEvicted/SelfEvicted'))
 const Rules = lazy(() => import('./screens/Rules/Rules'))
 const VoxPopuliRules = lazy(() => import('./screens/Rules/VoxPopuliRules'))
 const PublicMeter = lazy(() => import('./screens/PublicMeter/PublicMeter'))
+const AdvertisingPrivacy = lazy(() => import('./services/ads/AdvertisingPrivacy'))
 const Settings = lazy(() => import('./screens/Settings/Settings'))
 const Store = lazy(() => import('./screens/Store/Store'))
 const Legal = lazy(() => import('./screens/Legal/Legal'))
@@ -190,10 +192,12 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <HomeHub /> },
       { path: 'game', element: load(<GameRoute />) },
+      { path: 'new-season', element: <Navigate to="/?menu=play" replace /> },
       { path: 'diary-room', element: load(<ConfessionalRoute />) },
       { path: 'houseguests', element: load(<Houseguests />) },
       { path: 'profile', element: load(<Profile />) },
       { path: 'profile-edit', element: load(<EditProfile />) },
+      { path: 'profile/dressing-room', element: load(<DressingRoom />) },
       { path: 'profile-picker', element: load(<ProfilePicker />) },
       { path: 'leaderboard', element: load(<Leaderboard />) },
       { path: 'credits', element: load(<Credits />) },
@@ -204,7 +208,11 @@ export const router = createHashRouter([
       { path: 'rules', element: load(<Rules />) },
       { path: 'vox-populi-rules', element: load(<VoxPopuliRules />) },
       { path: 'public-meter', element: load(<PublicMeter />) },
-      { path: 'settings', element: load(<Settings />) },
+      { path: 'player-privacy', element: load(<AdvertisingPrivacy />) },
+      {
+        path: 'settings',
+        element: load(<Settings />),
+      },
       { path: 'store', element: load(<Store />) },
       { path: 'legal', element: load(<Legal />) },
       { path: 'settingsatiste', element: <SettingsAdminRoute /> },

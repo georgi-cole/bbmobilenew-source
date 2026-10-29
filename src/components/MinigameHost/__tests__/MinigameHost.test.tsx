@@ -113,6 +113,29 @@ describe('MinigameHost competition retry', () => {
     vi.clearAllMocks()
   })
 
+  it('finishes the ready sequence by elapsed time after a stalled callback', () => {
+    render(
+      <MinigameHost
+        game={baseGame}
+        onDone={vi.fn()}
+        skipRules
+        participants={makeParticipants(1, 2)}
+      />
+    )
+    act(() => {
+      vi.advanceTimersByTime(250)
+    })
+    act(() => {
+      vi.setSystemTime(Date.now() + 2500)
+      vi.advanceTimersByTime(1)
+    })
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    expect(screen.queryByText('Get Ready')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Finish Test Game' })).toBeInTheDocument()
+  })
+
   it('offers retry in the results panel when the human exits early and finishes last', () => {
     const onWatch = vi.fn((onReward: () => void) => onReward())
     const onContinueWithoutRetry = vi.fn()

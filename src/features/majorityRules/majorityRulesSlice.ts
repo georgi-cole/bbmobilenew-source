@@ -5,6 +5,7 @@ import {
   buildPeekPreview,
   buildPollEstimate,
   countAnswerDistribution,
+  didReadMajorityRulesRoom,
   initializeDiceDuel,
   pickAiDuelNumber,
   pickMajorityRulesQuestion,
@@ -68,6 +69,10 @@ export interface MajorityRulesState {
   winnerId: string | null
   outcomeResolved: boolean
   aiIdentities: Record<string, AiGameIdentity | undefined>
+  vipExperience: boolean
+  roomReaderStreak: number
+  bestRoomReaderStreak: number
+  lastRoomReadCorrect: boolean | null
 }
 
 const initialState: MajorityRulesState = {
@@ -98,6 +103,10 @@ const initialState: MajorityRulesState = {
   winnerId: null,
   outcomeResolved: false,
   aiIdentities: {},
+  vipExperience: false,
+  roomReaderStreak: 0,
+  bestRoomReaderStreak: 0,
+  lastRoomReadCorrect: null,
 }
 
 function buildHintInventories(participantIds: string[]) {
@@ -122,7 +131,12 @@ function clearRoundHintState(state: MajorityRulesState) {
 }
 
 function prepareQuestion(state: MajorityRulesState) {
-  const question = pickMajorityRulesQuestion(state.seed, state.roundNumber, state.usedQuestionIds)
+  const question = pickMajorityRulesQuestion(
+    state.seed,
+    state.roundNumber,
+    state.usedQuestionIds,
+    state.vipExperience
+  )
   state.currentQuestion = question
   if (!state.usedQuestionIds.includes(question.id)) {
     state.usedQuestionIds.push(question.id)
@@ -239,6 +253,7 @@ const majorityRulesSlice = createSlice({
         seed: number
         humanPlayerId: string | null
         aiIdentities?: Record<string, AiGameIdentity | undefined>
+        vipExperience?: boolean
       }>
     ): MajorityRulesState {
       const { participantIds, competitionType, seed, humanPlayerId } = action.payload
@@ -262,9 +277,17 @@ const majorityRulesSlice = createSlice({
         winnerId: null,
         outcomeResolved: false,
         aiIdentities: action.payload.aiIdentities ?? {},
+        vipExperience: action.payload.vipExperience === true,
       }
       prepareOpeningPhase(state)
       return state
+    },
+
+    setVipExperience(state, action: PayloadAction<boolean>) {
+      if (state.phase !== 'intro' || state.vipExperience === action.payload) return
+      state.vipExperience = action.payload
+      state.usedQuestionIds = []
+      prepareOpeningPhase(state)
     },
 
     advanceIntro(state) {
@@ -278,6 +301,18 @@ const majorityRulesSlice = createSlice({
         return
       }
       state.phase = 'question'
+    },
+
+    // Previously saved games may resume during an obsolete tie-break ballot.
+    // Skip that stale ballot and replace it with an unused question.
+    skipLegacyRevote(state) {
+      if (state.phase !== 'question' || state.revoteNumber === 0) return
+      state.roundNumber += 1
+      state.revoteNumber = 0
+      state.blockedAnswers = {}
+      state.previousDistribution = null
+      state.doubleEliminationArmed = false
+      prepareQuestion(state)
     },
 
     setHumanAnswer(state, action: PayloadAction<{ playerId: string; optionId: string }>) {
@@ -416,13 +451,24 @@ const majorityRulesSlice = createSlice({
         }
       }
 
+      const result = resolveMajorityRulesBallot({
+        activeIds: state.activeIds,
+        answers: simulation.answers,
+        question: state.currentQuestion,
+        eliminationCount: 1,
+      })
+      if (state.vipExperience && humanId && state.activeIds.includes(humanId)) {
+        const readTheRoom = didReadMajorityRulesRoom(
+          simulation.answers[humanId],
+          result.distribution
+        )
+        state.roomReaderStreak = readTheRoom ? state.roomReaderStreak + 1 : 0
+        state.bestRoomReaderStreak = Math.max(state.bestRoomReaderStreak, state.roomReaderStreak)
+        state.lastRoomReadCorrect = readTheRoom
+      }
+
       state.revealState = {
-        result: resolveMajorityRulesBallot({
-          activeIds: state.activeIds,
-          answers: simulation.answers,
-          question: state.currentQuestion,
-          eliminationCount: 1,
-        }),
+        result,
         revoteNumber: state.revoteNumber,
       }
 
@@ -434,47 +480,14 @@ const majorityRulesSlice = createSlice({
       const { result } = state.revealState
       state.previousDistribution = result.distribution
 
-      if (result.kind === 'revote') {
-        // A tied ballot gets exactly one re-vote. If that also ties, discard
-        // the question so deterministic AI choices cannot repeat forever.
-        if (state.revoteNumber >= 1) {
-          state.roundNumber += 1
-          state.revoteNumber = 0
-          state.previousDistribution = null
-          state.blockedAnswers = {}
-          prepareQuestion(state)
-          state.phase = 'question'
-          return
-        }
-        state.phase = 'question'
-        state.revoteNumber = 1
-        state.blockedAnswers = { ...result.answers }
-        state.draftAnswers = {}
-        state.revealState = null
-        // A re-vote is a fresh ballot on the same question. Clear transient
-        // intel presentation/target state so a consumed hint cannot reopen as
-        // an empty LIVE INTEL overlay or silently carry a Follow choice into
-        // the re-vote. The per-player hint inventory intentionally remains
-        // untouched, so already-used intel stays spent.
-        clearRoundHintState(state)
-        return
-      }
-
-      if (result.kind === 'split') {
+      // No unique, small minority means no elimination and no re-vote.
+      // 'revote' is accepted here only to migrate reveal states saved under
+      // the older rules. New ballots always report such ties as 'split'.
+      if (result.kind === 'revote' || result.kind === 'split' || result.kind === 'unanimous') {
         state.doubleEliminationArmed = false
         state.roundNumber += 1
         state.revoteNumber = 0
         state.previousDistribution = null
-        state.blockedAnswers = {}
-        prepareQuestion(state)
-        state.phase = 'question'
-        return
-      }
-
-      if (result.kind === 'unanimous') {
-        state.doubleEliminationArmed = false
-        state.roundNumber += 1
-        state.revoteNumber = 0
         state.blockedAnswers = {}
         prepareQuestion(state)
         state.phase = 'question'
@@ -605,7 +618,9 @@ const majorityRulesSlice = createSlice({
 
 export const {
   initMajorityRules,
+  setVipExperience,
   advanceIntro,
+  skipLegacyRevote,
   setHumanAnswer,
   useHint,
   lockRound,

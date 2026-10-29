@@ -9,6 +9,7 @@ import type { ActivityChannel, ActivitySource } from '../services/activityServic
 import type { SeasonArchive } from '../store/seasonArchive'
 import type { AiGameIdentity } from '../ai/aiGameIdentity'
 import type { PregnancyStoryState } from '../social/reality/pregnancy'
+import type { SeasonContestant } from '../appearance/seasonContestant'
 
 export type PlayerStatus =
   | 'active'
@@ -25,6 +26,8 @@ export interface Player {
   name: string
   /** Emoji or URL used as avatar face */
   avatar: string
+  /** Captured when this season starts; changing the profile look does not alter this cast. */
+  appearance?: import('../appearance/catalog').AppearanceSelection
   /** Optional cast metadata used by twists that prefer mixed-gender pairings. */
   sex?: string
   /** Canonical age used by adult-only Reality relationship actions. */
@@ -160,6 +163,8 @@ export interface MinigameSession {
   participants: string[]
   seed: number
   options: { timeLimit: number }
+  /** Quick Tap / Seasons implementation selected when this session was created. */
+  quickTapVariant?: 'classic' | 'vip'
   /**
    * Pre-simulated deterministic scores for every non-human participant.
    * Empty (`{}`) for sessions created by the hybrid resolver path
@@ -898,7 +903,27 @@ export interface WeekendInterludeState {
   reunionDeparted?: true
 }
 
+/** Persisted, player-visible script for a single in-game day. */
+export interface PulseChronicle {
+  season: number
+  day: number
+  /** Stable within a season; weekdays and weekend days can share a game day. */
+  episodeKey?: string
+  episodeLabel?: string
+  /** Latest social-action timestamp included when this episode was finalized. */
+  capturedThroughTimestamp?: number
+  /** Latest Reality event sequence included when this episode was finalized. */
+  capturedThroughRealitySequence?: number
+  title: string
+  paragraphs: string[]
+  note: string
+  sourceEventIds: string[]
+  complete: boolean
+}
+
 export interface GameState {
+  /** Contestant selected at launch. Profile edits never rewrite this run identity. */
+  seasonContestant?: SeasonContestant
   /** Stable unique identifier for this game instance. */
   gameId: string
   season: number
@@ -939,6 +964,8 @@ export interface GameState {
    */
   competitionSeasonStateByPlayerId?: Record<string, CompetitionSeasonState>
   tvFeed: TvEvent[]
+  /** Completed My Pulse reality-TV episodes, kept independently from rolling event logs. */
+  pulseChronicles?: PulseChronicle[]
   /** Ordered event IDs waiting to be presented by the faux-TV player. */
   broadcastQueue?: string[]
   /** Last consumed plain faux-TV message, retained until another message replaces it. */
@@ -1467,6 +1494,8 @@ export interface GameState {
   secretMissionLastResolvedDay?: number | null
   /** Task-set signatures already generated this season; prevents repeat checklists. */
   secretMissionTaskSetHistory?: string[]
+  /** Most recent mission themes, carried across seasons to prevent immediate repeats. */
+  secretMissionTemplateHistory?: string[]
   /** Latest social graph snapshot used by synchronous POS and eviction AI decisions. */
   strategicRelationships?: import('../social/types').RelationshipsMap
   /** Contestant-specific estimates of social and Tribunal threat, synced at phase boundaries. */

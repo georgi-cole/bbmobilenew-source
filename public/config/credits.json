@@ -45,19 +45,9 @@
       ]
     },
     {
-      "id": "album",
-      "fromSecond": 17.1,
-      "toSecond": 21.3,
-      "lines": [
-        { "text": "From the album", "style": "small" },
-        { "text": "Crushed Velvet", "style": "italic", "gapBefore": true },
-        { "text": "Audiosocket Records", "style": "small", "gapBefore": true }
-      ]
-    },
-    {
       "id": "music-producers",
-      "fromSecond": 22.5,
-      "toSecond": 27.8,
+      "fromSecond": 17.1,
+      "toSecond": 22.4,
       "lines": [
         { "text": "Music producers", "style": "label" },
         { "text": "Joshua Ryan Collopy", "style": "name", "gapBefore": true },
@@ -66,8 +56,8 @@
     },
     {
       "id": "thanks-jaysomeday",
-      "fromSecond": 28.8,
-      "toSecond": 31.5,
+      "fromSecond": 23.4,
+      "toSecond": 26.1,
       "lines": [
         { "text": "Hubmates theme by:", "style": "label" },
         { "text": "Jay Someday - Midnight", "style": "name", "gapBefore": true }
@@ -75,8 +65,8 @@
     },
     {
       "id": "thanks-newnote",
-      "fromSecond": 31.5,
-      "toSecond": 34.2,
+      "fromSecond": 26.1,
+      "toSecond": 28.8,
       "lines": [
         { "text": "Special Thanks", "style": "label" },
         { "text": "New Note Music", "style": "name", "gapBefore": true }
@@ -84,17 +74,26 @@
     },
     {
       "id": "thanks-mina",
-      "fromSecond": 34.2,
-      "toSecond": 36.9,
+      "fromSecond": 28.8,
+      "toSecond": 31.5,
       "lines": [
         { "text": "Special Thanks", "style": "label" },
-        { "text": "Dr. Mina T.K.", "style": "name", "gapBefore": true }
+        { "text": "Dr. Mina V. Koleva", "style": "name", "gapBefore": true }
+      ]
+    },
+    {
+      "id": "quality-assurance",
+      "fromSecond": 31.5,
+      "toSecond": 34.2,
+      "lines": [
+        { "text": "Quality Assurance", "style": "label" },
+        { "text": "Georgi Atanasov", "style": "name", "gapBefore": true }
       ]
     },
     {
       "id": "disclaimer",
-      "fromSecond": 39.6,
-      "toSecond": 45.2,
+      "fromSecond": 34.2,
+      "toSecond": 39.8,
       "lines": [
         {
           "text": "Any resemblance to actual persons or events is purely coincidental.",
@@ -103,12 +102,25 @@
       ]
     },
     {
-      "id": "closing",
-      "fromSecond": 45.8,
-      "toSecond": 49.9,
+      "id": "closing-part-one",
+      "fromSecond": 40.4,
+      "toSecond": 43.5,
       "lines": [
-        { "text": "THE BIG EYE IS STILL SCANNING...", "style": "closing-title" },
-        { "text": "More is coming soon", "style": "closing-subtitle", "gapBefore": true }
+        { "text": "This was fun, right?", "style": "body" },
+        {
+          "text": "If you feel life is too short, we can change that.",
+          "style": "body",
+          "gapBefore": true
+        }
+      ]
+    },
+    {
+      "id": "closing-part-two",
+      "fromSecond": 43.5,
+      "toSecond": 49.2,
+      "lines": [
+        { "text": "Visit Kolequant.xyz", "style": "body" },
+        { "text": "Fun does not need to be cut short.", "style": "body", "gapBefore": true }
       ]
     }
   ]

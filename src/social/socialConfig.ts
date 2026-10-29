@@ -28,6 +28,23 @@ export const socialConfig = {
     share_intel: 1,
     ask_use_safety: 1,
     confront: 1,
+    // Give less-used moves a chance to appear; the driver filters these by
+    // mode, phase, actor role, and season format before choosing one.
+    apologize: 0.85,
+    favor_request: 0.45,
+    pitch_target: 0.5,
+    suggest_replacement: 0.45,
+    consult_alliance: 0.55,
+    ask_safety_plan: 0.35,
+    ask_hold_safety: 0.3,
+    ask_why_nominated: 0.35,
+    ask_loh_target: 0.55,
+    ask_nomination_advice: 0.35,
+    ask_player_opinion: 0.55,
+    warn_about_player: 0.4,
+    rally_votes_against: 0.5,
+    build_quiet_bond: 0.6,
+    share_personal_story: 0.6,
   } as Record<string, number>,
   /** Affinity thresholds that classify a relationship as ally or enemy. */
   relationshipThresholds: {

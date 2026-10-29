@@ -127,6 +127,106 @@ describe('IncomingInteractionsInbox', () => {
     expect(screen.getByRole('status')).toHaveTextContent("You're in! Night Owls now has 4 members.")
   })
 
+  it('requires an invitee at the group limit to choose which alliance to leave', async () => {
+    const store = makeStore()
+    const game = store.getState().game
+    const human = game.players.find((player) => player.isUser)!
+    const activePlayers = game.players.filter(
+      (player) => player.status !== 'evicted' && player.status !== 'jury'
+    )
+    const nonHuman = activePlayers.filter((player) => !player.isUser)
+    const inviteMembers = nonHuman.slice(0, 3)
+    const firstOldMembers = nonHuman.slice(3, 5)
+    const secondOldMembers = nonHuman.slice(5, 7)
+    const at = { day: game.week, phase: game.phase }
+    const reality = createInitialRealityDomainState()
+    ensureRealityActors(
+      reality,
+      activePlayers.map((player) => player.id)
+    )
+    const invitedAlliance = createRealityAlliance(reality, {
+      id: 'incoming-switch-target',
+      kind: 'GROUP',
+      founderIds: inviteMembers.map((player) => player.id),
+      memberIds: [],
+      purpose: 'Mutual protection',
+      name: 'Night Owls',
+      at,
+    })
+    invitedAlliance.status = 'ACTIVE'
+    const currentAlliances = [
+      createRealityAlliance(reality, {
+        id: 'incoming-switch-old-one',
+        kind: 'GROUP',
+        founderIds: [human.id, firstOldMembers[0].id],
+        memberIds: [firstOldMembers[1].id],
+        purpose: 'Mutual protection',
+        name: 'Old Circle',
+        at,
+      }),
+      createRealityAlliance(reality, {
+        id: 'incoming-switch-old-two',
+        kind: 'GROUP',
+        founderIds: [human.id, secondOldMembers[0].id],
+        memberIds: [secondOldMembers[1].id],
+        purpose: 'Mutual protection',
+        name: 'Quiet Group',
+        at,
+      }),
+    ]
+    currentAlliances.forEach((entry) => (entry.status = 'ACTIVE'))
+    const context = {
+      at,
+      activeActorIds: activePlayers.map((player) => player.id),
+      humanActorIds: activePlayers.map((player) => player.id),
+      seed: game.seed ?? 1,
+    }
+    const proposed = manageAlliance(
+      reality,
+      {
+        type: 'PROPOSE',
+        kind: 'ADMIT',
+        actorId: invitedAlliance.leaderId!,
+        allianceId: invitedAlliance.id,
+        candidateId: human.id,
+      },
+      context
+    )
+    const request = reality.allianceManagement.requests[proposed.requestId!]
+    for (const actorId of allianceRequestDecisionActors(request))
+      manageAlliance(
+        reality,
+        { type: 'RESPOND', requestId: request.id, actorId, accept: true },
+        context
+      )
+    expect(request.status).toBe('CONSENT')
+
+    store.dispatch(replaceRealityDomain(reality))
+    store.dispatch(openIncomingInbox())
+    renderInbox(store)
+
+    const departurePicker = await screen.findByRole('combobox', {
+      name: 'Alliance to leave for Night Owls',
+    })
+    const accept = screen.getByRole('button', { name: 'Accept and switch alliances' })
+    expect(accept).toBeDisabled()
+    fireEvent.change(departurePicker, { target: { value: currentAlliances[0].id } })
+    expect(accept).toBeEnabled()
+    fireEvent.click(accept)
+
+    await waitFor(() => {
+      expect(store.getState().social.reality.alliances[invitedAlliance.id].memberIds).toContain(
+        human.id
+      )
+    })
+    expect(
+      store.getState().social.reality.alliances[currentAlliances[0].id].memberIds
+    ).not.toContain(human.id)
+    expect(store.getState().social.reality.alliances[currentAlliances[1].id].memberIds).toContain(
+      human.id
+    )
+  })
+
   it('lets the alliance leader accept a member rename suggestion in Incoming', async () => {
     const store = makeStore()
     const game = store.getState().game
@@ -340,7 +440,7 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.outcomeText).not.toMatch(/your choice/i)
   })
 
-  it('groups the authored reaction and action-specific consequence into one response card', () => {
+  it('prefers the authored reply over a second relationship summary', () => {
     const store = makeStore()
     store.dispatch(setPhase('week_start'))
     store.dispatch(openIncomingInbox())
@@ -373,16 +473,69 @@ describe('IncomingInteractionsInbox', () => {
     expect(entry?.reactionText).toContain('"')
     expect(entry?.outcomeText).toContain('appreciate the direct answer')
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
-    expect(screen.getByText(entry!.outcomeText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
     const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
     expect(responseCard).not.toBeNull()
-    expect(responseCard).toContainElement(screen.getByText(entry!.outcomeText!))
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
     expect(
       screen
         .getByText(entry!.reactionText!)
         .closest('[role="listitem"]')
         ?.querySelectorAll('.inbox-item__feedback')
     ).toHaveLength(1)
+  })
+
+  it('hides a campaign paraphrase but keeps a concrete pact outcome beside the reply', () => {
+    const store = makeStore()
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    const campaignReply = `${otherPlayer.name} replies: "My case is that I am a number you can work with. If you keep me safe, I will show you that in the next decision."`
+    const campaignSummary = `${otherPlayer.name} says they need one firm vote before they can pressure the fence-sitters.`
+    const pactReply = `${otherPlayer.name} replies: "I will remember that you chose to work with me."`
+    const pactOutcome = `The alliance with ${otherPlayer.name} is now active. Later votes and nominations will show whether it holds.`
+    const resolvedBase = {
+      fromId: otherPlayer.id,
+      createdWeek: 1,
+      expiresAtWeek: 1,
+      read: true,
+      requiresResponse: true,
+      resolved: true,
+      resolvedAt: 200,
+      resolvedWeek: 1,
+      resolvedWith: 'positive' as const,
+    }
+
+    store.dispatch(
+      pushIncomingInteraction({
+        ...resolvedBase,
+        id: 'campaign-response-summary',
+        type: 'check_in',
+        text: 'Keep me over the other nominee and you will not regret it.',
+        payload: { scenarioKey: 'nominee_campaign' },
+        createdAt: 200,
+        reactionText: campaignReply,
+        outcomeText: campaignSummary,
+      })
+    )
+    store.dispatch(
+      pushIncomingInteraction({
+        ...resolvedBase,
+        id: 'pact-response-state-change',
+        type: 'alliance_proposal',
+        text: 'Want to make a pact?',
+        createdAt: 201,
+        reactionText: pactReply,
+        outcomeText: pactOutcome,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByText('History · 2'))
+
+    expect(screen.getByText(campaignReply)).toBeInTheDocument()
+    expect(screen.queryByText(campaignSummary)).not.toBeInTheDocument()
+    expect(screen.getByText(pactReply)).toBeInTheDocument()
+    expect(screen.getByText(pactOutcome)).toBeInTheDocument()
   })
 
   it('hides an emotional outcome that only repeats the spoken relationship reaction', () => {
@@ -425,6 +578,48 @@ describe('IncomingInteractionsInbox', () => {
     expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
   })
 
+  it('shows an action-specific reaction once without repeating its relationship paraphrase', () => {
+    const store = makeStoreWithSocialMiddleware()
+    store.dispatch(setPhase('week_start'))
+    store.dispatch(openIncomingInbox())
+    const otherPlayer = getNonUserPlayer(store)
+    store.dispatch(
+      pushIncomingInteraction({
+        id: 'action-specific-apology-reaction',
+        fromId: otherPlayer.id,
+        type: 'check_in',
+        text: 'I owe you an apology. I handled that badly, and I want to own it.',
+        payload: {
+          originActionId: 'apologize',
+          scenarioKey: 'relationship_repair_follow_up',
+          variantId: 'apologize:repair:1',
+        },
+        createdAt: 304,
+        createdWeek: 1,
+        expiresAtWeek: 1,
+        read: false,
+        requiresResponse: true,
+        resolved: false,
+      })
+    )
+
+    renderInbox(store)
+    fireEvent.click(screen.getByRole('button', { name: 'Try to repair it' }))
+
+    const entry = store
+      .getState()
+      .social.incomingInteractions.find(
+        (interaction) => interaction.id === 'action-specific-apology-reaction'
+      )
+    expect(entry?.reactionText).toMatch(new RegExp(`^${otherPlayer.name} reacts:`))
+    expect(entry?.reactionText).not.toContain('"')
+    expect(entry?.outcomeText).toMatch(/willing to reset|pause the feud/i)
+    expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
+    expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
+    const responseCard = screen.getByText(entry!.reactionText!).closest('.inbox-item__feedback')
+    expect(responseCard?.querySelectorAll('p')).toHaveLength(1)
+  })
+
   it('hides a summary that restates uncertainty already expressed in the reply', () => {
     const store = makeStoreWithSocialMiddleware()
     store.dispatch(setPhase('week_start'))
@@ -447,14 +642,14 @@ describe('IncomingInteractionsInbox', () => {
     )
 
     renderInbox(store)
-    fireEvent.click(screen.getByRole('button', { name: 'Play it cool' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Compare what they saw' }))
 
     const entry = store
       .getState()
       .social.incomingInteractions.find(
         (interaction) => interaction.id === 'social-momentum-no-paraphrase'
       )
-    expect(entry?.outcomeText).toContain('helping you or making you a target')
+    expect(entry?.outcomeText).toContain('watching who approaches you')
     expect(screen.getByText(entry!.reactionText!)).toBeInTheDocument()
     expect(screen.queryByText(entry!.outcomeText!)).not.toBeInTheDocument()
   })

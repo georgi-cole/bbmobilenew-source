@@ -89,8 +89,6 @@ export type Houseguest = {
 type Props = {
   houseguests: Houseguest[]
   showCountInHeader?: boolean
-  headerSelector?: string
-  footerSelector?: string
   overlaySelector?: string | null
   /** Total grid size (12 or 16). Placeholder tiles will pad to this count. */
   gridSize?: number
@@ -102,8 +100,6 @@ type Props = {
   rosterMode?: 'normal' | 'compact-small' | 'scroll'
   /** Whether the HOUSEMATES row stays above the board or moves into the TV chip. */
   headerMode?: 'tv-chip' | 'persistent'
-  /** Changes when the measured layout budget changes. */
-  layoutRevision?: number
   /** Optional alive/total chip shown beside the section heading. */
   occupancyLabel?: string
   /** Active player whose eviction cinematic is being played in reverse. */
@@ -117,13 +113,6 @@ type Props = {
   /** Holds visual player names until the season-opening reveal has played. */
   showNames?: boolean
 }
-
-/** Minimum grid height (px) even when available space is very tight */
-const MIN_GRID_HEIGHT = 220
-/** Fallback nav-bar height (px) matching --nav-bar-height CSS variable */
-const DEFAULT_FOOTER_HEIGHT = 60
-/** Extra vertical margin subtracted from available height */
-const GRID_VERTICAL_MARGIN = 4
 
 function resolveSurvivorStandoutMode(options: {
   compact: boolean
@@ -146,15 +135,12 @@ function resolveSurvivorStandoutMode(options: {
 export default function HouseguestGrid({
   houseguests,
   showCountInHeader = false,
-  headerSelector = '.tv-zone',
-  footerSelector = '.nav-bar',
   overlaySelector,
   gridSize,
   placeholderCount = 0,
   compact = false,
   rosterMode = 'normal',
   headerMode = 'tv-chip',
-  layoutRevision = 0,
   occupancyLabel,
   returningPlayerId = null,
   onReturnAnimationDone,
@@ -162,7 +148,7 @@ export default function HouseguestGrid({
   onOpenGameLog,
   showNames = true,
 }: Props) {
-  const containerRef = useRef<HTMLElement | null>(null)
+  const layoutRevision = `${gridSize}:${compact}:${rosterMode}:${headerMode}:${placeholderCount}:${houseguests.map((guest) => guest.id).join(',')}`
   const dispatch = useAppDispatch()
   const game = useAppSelector((s) => s.game, houseguestGridGameEquality)
   const reunionReturnIds = useMemo(() => {
@@ -361,58 +347,6 @@ export default function HouseguestGrid({
     return () => window.clearTimeout(timer)
   }, [dispatch, survivorReplacementTransition])
 
-  useEffect(() => {
-    function setAvailableHeight() {
-      const visualViewport = window.visualViewport
-      const viewportHeight = visualViewport?.height ?? window.innerHeight
-      const viewportTop = visualViewport?.offsetTop ?? 0
-      let listTop = 0
-      let footerH = DEFAULT_FOOTER_HEIGHT
-      let bottomBoundary = viewportTop + viewportHeight - footerH
-
-      const footerEl = document.querySelector(footerSelector)
-      const overlayEl = overlaySelector ? document.querySelector(overlaySelector) : null
-
-      if (containerRef.current instanceof HTMLElement) {
-        const listEl = containerRef.current.querySelector('ul[role="list"]')
-        listTop =
-          listEl instanceof HTMLElement
-            ? listEl.getBoundingClientRect().top
-            : containerRef.current.getBoundingClientRect().top
-      } else {
-        const headerEl = document.querySelector(headerSelector)
-        if (headerEl instanceof HTMLElement) {
-          listTop = headerEl.getBoundingClientRect().bottom
-        }
-      }
-
-      if (footerEl instanceof HTMLElement) {
-        const footerRect = footerEl.getBoundingClientRect()
-        footerH = footerRect.height
-        bottomBoundary = Math.min(bottomBoundary, footerRect.top)
-      }
-
-      if (overlayEl instanceof HTMLElement) {
-        bottomBoundary = Math.min(bottomBoundary, overlayEl.getBoundingClientRect().top)
-      }
-
-      const available = Math.max(MIN_GRID_HEIGHT, bottomBoundary - listTop - GRID_VERTICAL_MARGIN)
-      if (containerRef.current) {
-        containerRef.current.style.setProperty('--grid-available-height', `${available}px`)
-      }
-    }
-
-    setAvailableHeight()
-    window.addEventListener('resize', setAvailableHeight)
-    window.visualViewport?.addEventListener('resize', setAvailableHeight)
-    window.visualViewport?.addEventListener('scroll', setAvailableHeight)
-    return () => {
-      window.removeEventListener('resize', setAvailableHeight)
-      window.visualViewport?.removeEventListener('resize', setAvailableHeight)
-      window.visualViewport?.removeEventListener('scroll', setAvailableHeight)
-    }
-  }, [headerSelector, footerSelector, layoutRevision, overlaySelector])
-
   const gridSizeClass = gridSize === 16 ? styles.hgGrid16 : gridSize === 12 ? styles.hgGrid12 : ''
   const effectiveCompactLayout = compact ? 'small' : 'default'
   const listClassName = `${styles.grid}${gridSizeClass ? ` ${gridSizeClass}` : ''}`
@@ -429,7 +363,6 @@ export default function HouseguestGrid({
   return (
     <>
       <section
-        ref={containerRef}
         className={sectionClassName}
         aria-labelledby="houseguests-heading"
         data-compact-layout={effectiveCompactLayout}
@@ -549,6 +482,7 @@ export default function HouseguestGrid({
                   finalRank={hg.finalRank}
                   showPermanentBadge={hg.showPermanentBadge}
                   layoutId={hg.layoutId}
+                  layoutRevision={layoutRevision}
                   isEvicting={hg.isEvicting}
                   isSurveyevalEvicting={hg.isSurveyevalEvicting}
                   isReunionReturning={isReunionReturning}

@@ -47,6 +47,92 @@ afterEach(() => {
 })
 
 describe('runSnapshotAutosave', () => {
+  it('keeps legitimate slots for the same owner when a background save updates metadata', async () => {
+    vi.useFakeTimers()
+    setRunIdentity(null, null)
+    const save = vi.fn<SaveRunSnapshot>((_profile, value) => {
+      setRunIdentity(value.game.runId ?? null, value.game.runId ?? null)
+      return true
+    })
+    const controller = createRunSnapshotAutosaveController(save, 10, async () => undefined)
+    controller.schedule('profile-1', snapshot('classic', 8))
+    controller.schedule('profile-1', snapshot('survival', 30, 'survival'))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save.mock.calls.map(([, value]) => value.game.mode)).toEqual(['classic', 'survival'])
+    expect(controller.pendingCount()).toBe(0)
+  })
+  it('commits bounded progress during churn and retains newer work until its own save', async () => {
+    vi.useFakeTimers()
+    const finish: Array<() => void> = []
+    const save = createSaveSpy()
+    const controller = createRunSnapshotAutosaveController(
+      save,
+      10,
+      () => new Promise<void>((resolve) => finish.push(resolve))
+    )
+    controller.schedule('profile-1', snapshot('run', 8))
+    await vi.advanceTimersByTimeAsync(10)
+    controller.schedule('profile-1', snapshot('run', 9))
+    finish[0]()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save.mock.calls[0][1].game.week).toBe(8)
+    expect(controller.pendingCount()).toBe(1)
+    await vi.advanceTimersByTimeAsync(10)
+    finish[1]()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save.mock.calls.map(([, value]) => value.game.week)).toEqual([8, 9])
+    expect(controller.pendingCount()).toBe(0)
+  })
+  it('ignores stale background results and immediately flushes the latest snapshot on exit', async () => {
+    vi.useFakeTimers()
+    let finish: (() => void) | undefined
+    const prepare = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
+    const save = createSaveSpy()
+    const controller = createRunSnapshotAutosaveController(save, 10, prepare)
+    controller.schedule('profile-1', snapshot('run', 8))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(save).not.toHaveBeenCalled()
+    controller.schedule('profile-1', snapshot('run', 9))
+    controller.flush()
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save.mock.calls[0][1].game.week).toBe(9)
+    finish?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(controller.pendingCount()).toBe(0)
+  })
+  it('rechecks run ownership after background serialization and falls back after a worker failure', async () => {
+    vi.useFakeTimers()
+    let finish: (() => void) | undefined
+    const save = createSaveSpy()
+    const controller = createRunSnapshotAutosaveController(
+      save,
+      10,
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve
+        })
+    )
+    setRunIdentity('run', 'run')
+    controller.schedule('profile-1', snapshot('run', 8))
+    await vi.advanceTimersByTimeAsync(10)
+    setRunIdentity('replacement', 'replacement')
+    finish?.()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save).not.toHaveBeenCalled()
+    const fallback = createRunSnapshotAutosaveController(save, 10, () =>
+      Promise.reject(new Error('worker unavailable'))
+    )
+    fallback.schedule('profile-1', snapshot('replacement', 1))
+    await vi.advanceTimersByTimeAsync(10)
+    expect(save).toHaveBeenCalledTimes(1)
+  })
   it('coalesces rapid updates for one run and persists only the newest snapshot', () => {
     vi.useFakeTimers()
     const save = createSaveSpy()

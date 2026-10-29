@@ -139,10 +139,10 @@ export const DEFAULT_SEASON_DIRECTOR_POLICY: SeasonDirectorPolicy = {
     maxPlayers: 9,
     minPlayers: 6,
     weights: {
-      vip: 1,
-      diamond: 1,
-      coup: 1,
-      spotlight: 1,
+      vip: 30,
+      diamond: 30,
+      coup: 15,
+      spotlight: 25,
     },
   },
   morningShock: {

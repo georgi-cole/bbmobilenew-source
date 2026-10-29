@@ -30,13 +30,14 @@ import {
   advanceWinner,
 } from '../../features/silentSaboteur/silentSaboteurSlice';
 import { resolveSilentSaboteurOutcome } from '../../features/silentSaboteur/thunks';
-import { pickVictimForAi, pickVoteForAi, pickVoteForAiOrAbstain, getValidSaboteurCandidates, fnv1a32 } from '../../features/silentSaboteur/helpers';
+import { pickVictimForAi, pickVoteForAi, pickVoteForAiOrAbstain, pickSurvivorJuryVoteForAi, getValidSaboteurCandidates, fnv1a32 } from '../../features/silentSaboteur/helpers';
 import type { SilentSaboteurRoundEvidence } from '../../features/silentSaboteur/helpers';
 import type {
   SilentSaboteurPrizeType,
   SilentSaboteurRoundHistoryEntry,
 } from '../../features/silentSaboteur/silentSaboteurSlice';
 import type { MinigameParticipant, ReactMinigameCompletion } from '../MinigameHost/MinigameHost';
+import type { MinigameStrategicContext } from '../../ai/competition/allianceMinigameStrategy';
 import { resolveAvatarCandidates, isEmoji } from '../../utils/avatar';
 import { resolvePresentationAvatarCandidates } from '../../utils/presentationAvatar';
 import './SilentSaboteurComp.css';
@@ -163,6 +164,7 @@ interface Props {
   participants?: MinigameParticipant[];
   prizeType: SilentSaboteurPrizeType;
   seed: number;
+  strategicContext?: MinigameStrategicContext;
   onComplete?: (completion?: ReactMinigameCompletion) => void;
   standalone?: boolean;
 }
@@ -353,6 +355,7 @@ export default function SilentSaboteurComp({
   participants,
   prizeType,
   seed,
+  strategicContext,
   onComplete,
   standalone = false,
 }: Props) {
@@ -515,6 +518,7 @@ export default function SilentSaboteurComp({
         prizeType,
         seed,
         humanPlayerId: humanId,
+        strategicContext,
       }),
     );
     setSessionReady(true);
@@ -555,7 +559,7 @@ export default function SilentSaboteurComp({
     if (!isHumanSaboteur) {
       // AI saboteur: hold on the anonymous cinematic screen before acting.
       const t = setTimeout(() => {
-        const victim = pickVictimForAi(seed, round, saboteurId, activeIds);
+        const victim = pickVictimForAi(seed, round, saboteurId, activeIds, strategicContext);
         dispatch(selectVictim({ victimId: victim }));
       }, fastForwarding ? 350 : SILENT_SABOTEUR_TIMINGS.SABOTEUR_CHOOSING_MS);
       return () => clearTimeout(t);
@@ -565,7 +569,7 @@ export default function SilentSaboteurComp({
     const t = setTimeout(() => {
       const candidates = activeIds.filter((id) => id !== saboteurId);
       if (candidates.length > 0) {
-        const victim = pickVictimForAi(seed, round, saboteurId, activeIds);
+        const victim = pickVictimForAi(seed, round, saboteurId, activeIds, strategicContext);
         dispatch(selectVictim({ victimId: victim }));
       }
     }, SILENT_SABOTEUR_TIMINGS.SELECT_VICTIM_TIMEOUT_MS);
@@ -598,7 +602,15 @@ export default function SilentSaboteurComp({
       if (votes[voterId] !== undefined) continue;
       const t = setTimeout(() => {
         // AI vote: valid suspects = activePlayers - self - victim
-        const accused = pickVoteForAiOrAbstain(seed, round, voterId, activeIds, victimId, roundEvidence);
+        const accused = pickVoteForAiOrAbstain(
+          seed,
+          round,
+          voterId,
+          activeIds,
+          victimId,
+          roundEvidence,
+          strategicContext,
+        );
         if (accused == null) return;
         dispatch(submitVote({ voterId, accusedId: accused }));
       }, fastForwarding ? Math.max(180, delay * 0.06) : delay);
@@ -717,8 +729,11 @@ export default function SilentSaboteurComp({
     const delay = fastForwarding ? 900 : SILENT_SABOTEUR_TIMINGS.JURY_TIMER_MS;
     const t = setTimeout(() => {
       if (!humanPlayerId) return;
-      const finalists = [final2SaboteurId, final2VictimId];
-      const accused = pickVoteForAi(seed, 9999, humanPlayerId, finalists, null);
+      const finalists: [string, string] = [final2SaboteurId, final2VictimId];
+      const accused =
+        final2Kind === 'survivor_jury'
+          ? pickSurvivorJuryVoteForAi(seed, humanPlayerId, finalists, strategicContext)
+          : pickVoteForAi(seed, 9999, humanPlayerId, finalists, null, undefined, strategicContext);
       const safeAccused = finalists.includes(accused) ? accused : finalists[0];
       dispatch(submitJuryVote({ jurorId: humanPlayerId, accusedId: safeAccused }));
     }, delay);
@@ -758,10 +773,13 @@ export default function SilentSaboteurComp({
     if (aiJurors.length === 0) return;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
-    const finalists = [final2SaboteurId, final2VictimId];
+    const finalists: [string, string] = [final2SaboteurId, final2VictimId];
     for (const { id: jurorId, delay } of buildStaggeredDelays(aiJurors, seed ^ 9999 ^ round)) {
       const t = setTimeout(() => {
-        const accused = pickVoteForAi(seed, 9999, jurorId, finalists, null);
+        const accused =
+          final2Kind === 'survivor_jury'
+            ? pickSurvivorJuryVoteForAi(seed, jurorId, finalists, strategicContext)
+            : pickVoteForAi(seed, 9999, jurorId, finalists, null, undefined, strategicContext);
         const safeAccused = finalists.includes(accused) ? accused : finalists[0];
         dispatch(submitJuryVote({ jurorId, accusedId: safeAccused }));
       }, fastForwarding ? Math.max(150, delay * 0.05) : delay);
