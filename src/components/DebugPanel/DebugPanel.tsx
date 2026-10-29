@@ -9,6 +9,7 @@ import {
   forceHoH,
   forceNominees,
   forcePovWinner,
+  prepareTribunalInvitationTest,
   prepareLohBackdoorTest,
   forcePlayerStatus,
   prepareVoxFinalThreeTest,
@@ -360,6 +361,17 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
     setIsOpen(false)
   }
 
+  function handlePrepareTribunalInvitationTest(mode: 'invitation' | 'battle_back') {
+    dispatch(
+      prepareTribunalInvitationTest({
+        gameId: `tribunal-qa-${Date.now()}`,
+        mode,
+      })
+    )
+    setIsOpen(false)
+    navigate('/game')
+  }
+
   function handleActivateDepressionShock() {
     activateDepressionShockForDebug(game.gameId, game.week)
     dispatch(
@@ -493,6 +505,34 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                 {/* i18n-ignore: Debug-only navigation control intentionally uses canonical English */}
                 Open Remote Manager
               </button>
+
+              <div className="dbg-row dbg-row--col" aria-label="Tribunal invitation QA scenario">
+                <h3 className="dbg-section__title">Tribunal invitation preview</h3>
+                <p className="dbg-help">
+                  Load the real post-elimination Faux TV invitation, or start Back 2 the Game to
+                  confirm the invitation waits until the return challenge finishes.
+                </p>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  type="button"
+                  disabled={
+                    !game.players.some((player) => player.isUser) || game.players.length < 2
+                  }
+                  onClick={() => handlePrepareTribunalInvitationTest('invitation')}
+                >
+                  Load Tribunal invitation preview
+                </button>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  type="button"
+                  disabled={
+                    !game.players.some((player) => player.isUser) || game.players.length < 4
+                  }
+                  onClick={() => handlePrepareTribunalInvitationTest('battle_back')}
+                >
+                  Load Back 2 the Game suppression preview
+                </button>
+              </div>
 
               <details className="dbg-players">
                 <summary>Players ({game.players.length})</summary>
