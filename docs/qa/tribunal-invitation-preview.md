@@ -5,15 +5,15 @@ Use the local development build to review the production choice and cinematic ha
 1. Run `npm run dev` and open `http://localhost:5173/bbmobilenew/#/game?debug=1`.
 2. In the QA Control Center, choose **Load Tribunal invitation preview**.
 3. Check the **Agree** and **Exit** controls inside the Faux TV at 320 × 568 and desktop widths. Play waits for the decision.
-4. **Agree** reveals the actual player's chosen figure and up to two current Tribunal members inside a lounge with a wide city window. Names identify the cast. The figures remain in their existing standing poses. The selected occupancy matches zero, one, or at least two available members.
-5. **Continue season** resumes the current phase. **Exit** shows the departing player beside a separate outward-facing Hub exit with the city beyond. The player dissolves, the doors close, then the scene fades to dark. **Return home** retires the run using the existing durable Abandon Season flow.
-6. Reload the QA fixture to try both choices. **Load first Tribunal arrival preview** checks the empty lounge. **Load Back 2 the Game suppression preview** checks that the offer waits for the return competition.
+4. **Agree** reveals the actual player's chosen figure and the two Tribunal members eliminated immediately before them. The exit history determines order, including same-week double eliminations and returning contestants. First and second arrivals show zero and one waiting jurors. Names identify the cast; their existing standing poses remain intact.
+5. The compact gold **Continue season** button resumes the current phase. **Exit** shows the departing player and a separate luggage cutout beside an outward-facing Hub exit. Generated walnut door leaves close after the player dissolves; the set then fades to dark. The compact gold **Home** button retires the run through the existing durable Abandon Season flow. Neither button has an arrow.
+6. Reload the QA fixture to try both choices. **Load first Tribunal arrival preview** checks no waiting jurors; **Load second Tribunal arrival preview** checks one. **Load Back 2 the Game suppression preview** checks that the offer waits for the return competition.
 
 The fixtures reset the current local season. Access remains behind the existing development/debug controls. A legacy QA profile receives sample Look 1; a selected catalogue look or uploaded portrait is preserved.
 
-The setting uses CSS architecture and existing game figures on independent layers. No generated background or bespoke character pose is needed. The cast reveals through short opacity fades with stable placement and contact shadows. Uploaded photos, legacy profiles without a body, and failed body assets use framed portraits. There is no walking simulation, particle system, video, canvas, or ongoing animation in gameplay. Skip and reduced-motion/animation-off settings are supported. The selected handoff survives a saved-run reload; failed storage cleanup keeps Exit available for retry.
+The scenes use generated empty architectural backplates, with the actual cast on independent layers. A fixed 4:5 composition preserves the window, doorway and figure anchors across portrait phone sizes. Uploaded photos, legacy profiles without a body, and failed body assets use framed portraits. There is no walking simulation, particle system, video, runtime canvas, or ongoing animation. Skip and reduced-motion/animation-off settings are supported. The selected handoff survives a saved-run reload; failed storage cleanup keeps Exit available for retry.
 
-Only the selected cast loads when a scene mounts: one player plus at most two waiting members. Prepared WebPs are bounded at 400 × 600 pixels each. The browser test checks a 3 MiB decoded-image budget for the catalogue fixture, actual roster identities, figure containment, and no running scene animations once settled. Real-device performance has not been measured.
+Only the selected scene and cast load. Cast WebPs are bounded at 400 × 600 pixels; backplates are 800 × 1000. The window is about 131 KiB; the exit set, shared door leaf, and luggage total about 138 KiB. The browser tests check a 6 MiB conservative decoded-image budget for the catalogue arrival, chronological juror identities, portrait geometry, compact controls, figure containment, and no running scene animations once settled. Review at 320 × 568 and 402 × 874 first; desktop remains a portrait presentation. Real-device performance has not been measured.
 
 The reusable placement and asset contract is recorded in [tribunal-stage.md](tribunal-stage.md). To prepare compact derivatives after changing existing casual cast artwork, run:
 
@@ -21,8 +21,14 @@ The reusable placement and asset contract is recorded in [tribunal-stage.md](tri
 node scripts/prepare-tribunal-artwork.mjs
 ```
 
+The complete built-in generation prompts and source filenames are in [tribunal-artwork-v4.json](tribunal-artwork-v4.json). Encode approved PNG masters named `sequester-window.png`, `farewell-set.png`, `farewell-door.png`, and `farewell-luggage.png` with:
+
+```bash
+node scripts/prepare-tribunal-environment.mjs <source-directory>
+```
+
 Repeat the browser review with saved screenshots:
 
 ```bash
-npx playwright test e2e/playwright/tribunal-invitation-preview.spec.ts --project=narrow-chromium --project=wide-desktop-chromium
+npx playwright test e2e/playwright/tribunal-invitation-preview.spec.ts --project=narrow-chromium --project=iphone-17-chromium --project=wide-desktop-chromium
 ```

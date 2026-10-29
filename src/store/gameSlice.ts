@@ -8960,7 +8960,7 @@ const gameSlice = createSlice({
       state,
       action: PayloadAction<{
         gameId: string
-        mode: 'invitation' | 'first_arrival' | 'battle_back'
+        mode: 'invitation' | 'first_arrival' | 'second_arrival' | 'battle_back'
       }>
     ) {
       if (!import.meta.env.DEV) return
@@ -9094,10 +9094,30 @@ const gameSlice = createSlice({
         if (action.payload.mode === 'first_arrival' && !player.isUser && !isActiveContestant) {
           player.status = 'evicted'
         }
+        if (
+          action.payload.mode === 'second_arrival' &&
+          !player.isUser &&
+          !isActiveContestant &&
+          player.id !== juryIds.at(-1)?.id
+        ) {
+          player.status = 'evicted'
+        }
         player.finalRank = undefined
         player.seasonPlacement = undefined
         player.isWinner = false
         player.evictedAtWeek = player.status === 'jury' ? 8 : undefined
+      })
+      // A real chronological exit log makes the production arrival's latest
+      // two jurors reviewable independently of roster order.
+      const departures = [
+        ...state.players.filter((player) => !player.isUser && !activeIds.has(player.id)),
+        human,
+      ]
+      state.history = departures.map((player, index) => {
+        const week = Math.max(1, state.week - (departures.length - index - 1))
+        player.evictedAtWeek = week
+        player.seasonPlacement = activeCount + departures.length - index
+        return { type: 'seasonExit', week, data: { playerId: player.id }, timestamp: 1617 + index }
       })
     },
     /**

@@ -2946,6 +2946,7 @@ export default function GameScreen() {
             destination={game.tribunalInvitationTransition}
             player={humanPlayer}
             members={tribunalPlayers}
+            history={game.history ?? []}
             onComplete={finishTribunalDecision}
           />
         </Suspense>

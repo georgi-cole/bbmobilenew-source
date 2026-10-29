@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Player } from '../../types'
+import type { GameHistoryEvent, Player } from '../../types'
 import { useAppSelector } from '../../store/hooks'
 import TribunalStageFigure from './TribunalStageFigure'
-import CityView from './CityView'
+import { joinPublicAssetPath } from '../../utils/avatar'
+import { recentTribunalMembers } from './recentTribunalMembers'
 import './TribunalDecisionCinematic.css'
 
 const DURATION_MS = 2400
@@ -12,6 +13,7 @@ interface Props {
   destination: 'sequester' | 'exit'
   player: Player
   members: Player[]
+  history: readonly GameHistoryEvent[]
   onComplete: () => Promise<boolean>
 }
 
@@ -20,6 +22,7 @@ export default function TribunalDecisionCinematic({
   destination,
   player,
   members,
+  history,
   onComplete,
 }: Props) {
   const settings = useAppSelector((state) => state.settings)
@@ -28,14 +31,22 @@ export default function TribunalDecisionCinematic({
     !settings.gameUX.animations ||
     (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
   const arrival = destination === 'sequester'
-  const waiting = members.filter((member) => member.id !== player.id).slice(0, 2)
+  const waiting = recentTribunalMembers(player, members, history)
   const waitingCount = waiting.length
   const cast = arrival ? [player, ...waiting] : [player]
   const [phase, setPhase] = useState<'preparing' | 'playing' | 'ready'>(
     reduced ? 'ready' : 'preparing'
   )
   const [settled, setSettled] = useState<string[]>([])
-  const artState = cast.every((member) => settled.includes(member.id)) ? 'resolved' : 'pending'
+  const requiredArt = arrival ? ['backplate'] : ['backplate', 'door-left', 'door-right', 'luggage']
+  const artState = [...cast.map((member) => member.id), ...requiredArt].every((id) =>
+    settled.includes(id)
+  )
+    ? 'resolved'
+    : 'pending'
+  function settle(id: string) {
+    setSettled((current) => (current.includes(id) ? current : [...current, id]))
+  }
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const completing = useRef(false)
@@ -88,7 +99,9 @@ export default function TribunalDecisionCinematic({
   const title = arrival ? 'Welcome to sequester' : 'One last goodbye'
   const description = arrival
     ? waitingCount === 0
-      ? "You're the first to arrive. Your seat is ready."
+      ? members.some((member) => member.id !== player.id)
+        ? 'Your seat is ready. Settle in.'
+        : "You're the first to arrive. Your seat is ready."
       : waitingCount === 1
         ? 'A fellow Tribunal member is waiting. Settle in.'
         : 'Settle in. Your fellow Tribunal members are waiting.'
@@ -144,38 +157,58 @@ export default function TribunalDecisionCinematic({
           aria-label={sceneLabel}
           role="group"
         >
-          <div className="tdc-room" aria-hidden="true">
-            <div className="tdc-room__wall" />
-            {arrival ? (
-              <div className="tdc-room__window">
-                <CityView />
-                <div className="tdc-room__mullions" />
-              </div>
-            ) : (
-              <div className="tdc-room__portal">
-                <CityView />
-                <span>
-                  Exit <span aria-hidden="true">↗</span>
-                </span>
-                <div className="tdc-room__door tdc-room__door--left" />
-                <div className="tdc-room__door tdc-room__door--right" />
+          <div className="tdc-stage-plane">
+            <div className="tdc-room" aria-hidden="true">
+              <img
+                className="tdc-backplate"
+                src={joinPublicAssetPath(
+                  `assets/tribunal/${arrival ? 'sequester-window-v4' : 'farewell-set-v4'}.webp`
+                )}
+                alt=""
+                onLoad={() => settle('backplate')}
+                onError={(event) => {
+                  event.currentTarget.style.visibility = 'hidden'
+                  settle('backplate')
+                }}
+              />
+              {!arrival && (
+                <div className="tdc-room__portal">
+                  {(['left', 'right'] as const).map((side) => (
+                    <div key={side} className={`tdc-room__door tdc-room__door--${side}`}>
+                      <img
+                        src={joinPublicAssetPath('assets/tribunal/farewell-door-v4.webp')}
+                        alt=""
+                        onLoad={() => settle(`door-${side}`)}
+                        onError={() => settle(`door-${side}`)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="tdc-cast">
+              {cast.map((member, index) => (
+                <TribunalStageFigure
+                  key={member.id}
+                  player={member}
+                  placement={index === 0 ? 'player' : index === 1 ? 'left' : 'right'}
+                  onSettled={settle}
+                />
+              ))}
+            </div>
+            {!arrival && (
+              <div className="tdc-luggage" aria-hidden="true">
+                <img
+                  src={joinPublicAssetPath('assets/tribunal/farewell-luggage-v4.webp')}
+                  alt=""
+                  onLoad={() => settle('luggage')}
+                  onError={(event) => {
+                    event.currentTarget.style.visibility = 'hidden'
+                    settle('luggage')
+                  }}
+                />
               </div>
             )}
-            <div className="tdc-room__sconce tdc-room__sconce--left" />
-            <div className="tdc-room__sconce tdc-room__sconce--right" />
-            <div className="tdc-room__floor" />
-          </div>
-          <div className="tdc-cast">
-            {cast.map((member, index) => (
-              <TribunalStageFigure
-                key={member.id}
-                player={member}
-                placement={index === 0 ? 'player' : index === 1 ? 'left' : 'right'}
-                onSettled={(id) =>
-                  setSettled((current) => (current.includes(id) ? current : [...current, id]))
-                }
-              />
-            ))}
           </div>
         </div>
         <header className="tdc-header">
@@ -210,21 +243,14 @@ export default function TribunalDecisionCinematic({
           {failed && <p role="alert">Your season could not be closed. Please try again.</p>}
           <button
             ref={primary}
-            className="tdc-action game-button game-button--primary"
+            className="tdc-action game-button"
             type="button"
             disabled={phase !== 'ready' || busy}
             onClick={() => void finish()}
           >
             <span>
-              {busy
-                ? 'Finishing…'
-                : arrival
-                  ? 'Continue season'
-                  : failed
-                    ? 'Retry exit'
-                    : 'Return home'}
+              {busy ? 'Finishing…' : arrival ? 'Continue season' : failed ? 'Retry exit' : 'Home'}
             </span>
-            <span aria-hidden="true">→</span>
           </button>
         </footer>
       </div>

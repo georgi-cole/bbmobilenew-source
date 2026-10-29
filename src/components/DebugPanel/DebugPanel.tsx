@@ -362,7 +362,7 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
   }
 
   function handlePrepareTribunalInvitationTest(
-    mode: 'invitation' | 'first_arrival' | 'battle_back'
+    mode: 'invitation' | 'first_arrival' | 'second_arrival' | 'battle_back'
   ) {
     dispatch(
       prepareTribunalInvitationTest({
@@ -533,6 +533,16 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                   onClick={() => handlePrepareTribunalInvitationTest('first_arrival')}
                 >
                   Load first Tribunal arrival preview
+                </button>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  type="button"
+                  disabled={
+                    !game.players.some((player) => player.isUser) || game.players.length < 3
+                  }
+                  onClick={() => handlePrepareTribunalInvitationTest('second_arrival')}
+                >
+                  Load second Tribunal arrival preview
                 </button>
                 <button
                   className="dbg-btn dbg-btn--wide"

@@ -1,16 +1,19 @@
 import type { Page } from '@playwright/test'
 import { dismissPermissionPromptIfPresent, expect, readAppState, test } from './support/test'
 
-async function launch(page: Page, firstArrival = false) {
+async function launch(page: Page, arrival: 'normal' | 'first' | 'second' = 'normal') {
   await page.goto('./#/game?debug=1')
   await dismissPermissionPromptIfPresent(page)
   const panel = page.getByRole('complementary', { name: 'Debug Panel' })
   await expect(panel).toBeVisible()
   await panel
     .getByRole('button', {
-      name: firstArrival
-        ? 'Load first Tribunal arrival preview'
-        : 'Load Tribunal invitation preview',
+      name:
+        arrival === 'first'
+          ? 'Load first Tribunal arrival preview'
+          : arrival === 'second'
+            ? 'Load second Tribunal arrival preview'
+            : 'Load Tribunal invitation preview',
       exact: true,
     })
     .click()
@@ -62,23 +65,31 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await page.getByRole('button', { name: 'Agree', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.locator('.tdc-room__window')).toHaveCount(1)
-    await expect(dialog.locator('.tdc-room__portal')).toHaveCount(0)
-    await expect(dialog.getByRole('button', { name: 'Continue season' })).toHaveClass(
-      /game-button--primary/
+    await expect(dialog.locator('.tdc-backplate')).toHaveAttribute(
+      'src',
+      /sequester-window-v4.webp$/
     )
+    await expect(dialog.locator('.tdc-room__portal')).toHaveCount(0)
+    await expect(dialog.getByRole('button', { name: 'Continue season' })).toHaveClass(/game-button/)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
     const state = await readAppState(page)
     const human = state.game.players.find((player) => player.isUser)!
-    const jurors = state.game.players
-      .filter((player) => player.status === 'jury' && player.id !== human.id)
-      .slice(0, 2)
+    const juryIds = new Set(
+      state.game.players
+        .filter((player) => player.status === 'jury' && player.id !== human.id)
+        .map((player) => player.id)
+    )
+    const jurors = state.game.history
+      .filter((event) => event.type === 'seasonExit' && juryIds.has(String(event.data.playerId)))
+      .slice(-2)
+      .reverse()
+      .map((event) => String(event.data.playerId))
     await expect(dialog.locator('.tdc-person')).toHaveCount(3)
     expect(
       await dialog
         .locator('.tdc-person')
         .evaluateAll((figures) => figures.map((figure) => (figure as HTMLElement).dataset.playerId))
-    ).toEqual([human.id, ...jurors.map((player) => player.id)])
+    ).toEqual([human.id, ...jurors])
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 12000,
     })
@@ -96,7 +107,14 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
           0
         )
       )
-    expect(decodedImageBytes).toBeLessThan(3 * 1024 * 1024)
+    expect(decodedImageBytes).toBeLessThan(6 * 1024 * 1024)
+    const plane = await dialog.locator('.tdc-stage-plane').boundingBox()
+    const action = await dialog.locator('.tdc-action').boundingBox()
+    if (!plane || !action) throw new Error('Portrait composition is unavailable')
+    expect(plane.width / plane.height).toBeCloseTo(0.8, 2)
+    expect(action.width).toBeLessThanOrEqual(180)
+    expect(action.height).toBeGreaterThanOrEqual(44)
+    await expect(dialog.locator('.tdc-action')).not.toContainText('→')
     const sceneBounds = await dialog.locator('.tdc-scene').boundingBox()
     if (!sceneBounds) throw new Error('Stage geometry is unavailable')
     for (const figure of await dialog.locator('.tdc-person').all()) {
@@ -132,7 +150,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
 
   test('handles the first juror with reduced motion', async ({ page }, testInfo) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await launch(page, true)
+    await launch(page, 'first')
     await page.getByRole('button', { name: 'Agree', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog.getByText(/You're the first to arrive/)).toBeVisible()
@@ -166,12 +184,28 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await expect(dialog).toBeHidden()
   })
 
+  test('welcomes the second arrival with just the previous eliminated juror', async ({
+    page,
+  }, testInfo) => {
+    await launch(page, 'second')
+    await page.getByRole('button', { name: 'Agree', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '1')
+    await expect(dialog.locator('.tdc-person')).toHaveCount(2)
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
+    await page.screenshot({
+      path: testInfo.outputPath(`tribunal-second-arrival-${testInfo.project.name}.png`),
+    })
+    await dialog.getByRole('button', { name: 'Continue season' }).click()
+    await expect(dialog).toBeHidden()
+  })
+
   test('plays the exit scene and ends the local run', async ({ page }, testInfo) => {
     await launch(page)
     await page.getByRole('button', { name: 'Exit', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'One last goodbye' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.locator('.tdc-room__window')).toHaveCount(0)
+    await expect(dialog.locator('.tdc-backplate')).toHaveAttribute('src', /farewell-set-v4.webp$/)
     await expect(dialog.locator('.tdc-room__portal')).toHaveCount(1)
     await expect(dialog.getByText('Leaving the Hub')).toBeVisible()
     await expect(dialog.locator('.tdc-person')).toHaveCount(1)
@@ -185,7 +219,11 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 8000,
     })
-    await dialog.getByRole('button', { name: 'Return home' }).click()
+    await expect(dialog.locator('.tdc-action')).not.toContainText('→')
+    const action = await dialog.locator('.tdc-action').boundingBox()
+    if (!action) throw new Error('Home control is unavailable')
+    expect(action.width).toBeLessThanOrEqual(180)
+    await dialog.getByRole('button', { name: 'Home', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page).toHaveURL(/#\/$/)
   })

@@ -8,7 +8,9 @@ import gameReducer, {
 } from '../src/store/gameSlice'
 import { getTribunalMembers } from '../src/rules/tribunalPolicy'
 
-function fixture(mode: 'invitation' | 'first_arrival' | 'battle_back' = 'invitation') {
+function fixture(
+  mode: 'invitation' | 'first_arrival' | 'second_arrival' | 'battle_back' = 'invitation'
+) {
   return gameReducer(undefined, prepareTribunalInvitationTest({ gameId: 'tribunal-choice', mode }))
 }
 
@@ -46,5 +48,10 @@ describe('Tribunal invitation choice lifecycle', () => {
   it('offers a first arrival without inventing waiting Tribunal members', () => {
     const first = fixture('first_arrival')
     expect(getTribunalMembers(first.players).map((player) => player.isUser)).toEqual([true])
+  })
+  it('offers a second arrival with one preceding juror in the recorded exit sequence', () => {
+    const second = fixture('second_arrival')
+    expect(getTribunalMembers(second.players)).toHaveLength(2)
+    expect(second.history.at(-1)?.data.playerId).toBe(second.players.find((p) => p.isUser)?.id)
   })
 })
