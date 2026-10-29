@@ -44,6 +44,12 @@ store listings or change configured prices.
 
 ## Review log
 
+- 2026-10-29: Reviewed the Tribunal Agree/Exit choice and its sequester arrival
+  and season departure scenes. These are base post-elimination presentations.
+  They add no purchasable content and change no premium access gates, prices,
+  reward amounts, or product copy; the current marketplace listings remain
+  accurate.
+
 - 2026-10-29: Reviewed the advertising privacy footer and return navigation.
   Privacy policy and Back to settings are separate touch targets, and returning
   from Settings restores the prior history entry. Advertising opt-in, UMP choices,
