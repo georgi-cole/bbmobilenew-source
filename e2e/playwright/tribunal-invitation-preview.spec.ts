@@ -95,7 +95,57 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     expect(cameraMotion.map((motion) => motion.name)).toEqual(
       expect.arrayContaining(['tdc-window-approach', 'tdc-pass-cast'])
     )
-    await expect(dialog.getByRole('button', { name: 'Continue season' })).toHaveClass(/game-button/)
+    const cityHold = dialog.locator('.tdc-room').evaluate(
+      (room) =>
+        new Promise<{ phase: string | undefined; copy: string }>((resolve) => {
+          room.addEventListener(
+            'animationend',
+            (event) => {
+              if ((event as AnimationEvent).animationName !== 'tdc-window-approach') return
+              const dialog = room.closest<HTMLElement>('.tdc-dialog')!
+              resolve({
+                phase: dialog.dataset.phase,
+                copy: getComputedStyle(dialog.querySelector('.tdc-copy')!).visibility,
+              })
+            },
+            { once: true }
+          )
+        })
+    )
+    const groundedPass = dialog.locator('.tdc-person--player').evaluate(
+      (player) =>
+        new Promise<{ scale: number; clear: boolean; grounded: boolean; onFloor: boolean }>(
+          (resolve) => {
+            const scene = player.closest('.tdc-scene')!
+            const cast = [...scene.querySelectorAll('.tdc-person')]
+            const initialFeet = cast.map((figure) => figure.getBoundingClientRect().bottom)
+            player.addEventListener(
+              'animationend',
+              () => {
+                const frame = scene.getBoundingClientRect()
+                const room = scene.querySelector('.tdc-room')!.getBoundingClientRect()
+                resolve({
+                  scale: new DOMMatrixReadOnly(
+                    getComputedStyle(scene.querySelector('.tdc-room')!).transform
+                  ).a,
+                  clear: cast.every((figure) => {
+                    const bounds = figure.getBoundingClientRect()
+                    return bounds.right <= frame.left || bounds.left >= frame.right
+                  }),
+                  grounded: cast.every(
+                    (figure, index) =>
+                      Math.abs(figure.getBoundingClientRect().bottom - initialFeet[index]) < 1
+                  ),
+                  onFloor: initialFeet.every((feet) => feet >= room.top + room.height * 0.66),
+                })
+              },
+              { once: true }
+            )
+          }
+        )
+    )
+    await expect(dialog.locator('.tdc-action')).toHaveClass(/game-button/)
+    await expect(dialog.locator('figcaption')).toHaveCount(0)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '2')
     const state = await readAppState(page)
     const human = state.game.players.find((player) => player.isUser)!
@@ -115,6 +165,13 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
         .locator('.tdc-person')
         .evaluateAll((figures) => figures.map((figure) => (figure as HTMLElement).dataset.playerId))
     ).toEqual([human.id, ...jurors])
+    const pass = await groundedPass
+    expect(pass.clear).toBe(true)
+    expect(pass.grounded).toBe(true)
+    expect(pass.onFloor).toBe(true)
+    expect(pass.scale).toBeGreaterThan(1.1)
+    expect(pass.scale).toBeLessThanOrEqual(1.28)
+    expect(await cityHold).toEqual({ phase: 'playing', copy: 'hidden' })
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 12000,
     })
@@ -132,11 +189,23 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
           0
         )
       )
-    expect(decodedImageBytes).toBeLessThan(6 * 1024 * 1024)
+    expect(decodedImageBytes).toBeLessThan(14 * 1024 * 1024)
+    const cityDensity = await dialog
+      .locator('.tdc-city-view > img')
+      .evaluate(
+        (image) => (image as HTMLImageElement).naturalWidth / image.getBoundingClientRect().width
+      )
+    expect(cityDensity).toBeGreaterThanOrEqual((page.viewportSize()?.width ?? 0) <= 480 ? 2 : 1.5)
+    await expect(dialog.locator('.tdc-city-view')).toHaveCSS('transform', 'none')
     const plane = await dialog.locator('.tdc-stage-plane').boundingBox()
+    const film = await dialog.boundingBox()
     const action = await dialog.locator('.tdc-action').boundingBox()
-    if (!plane || !action) throw new Error('Portrait composition is unavailable')
-    expect(plane.width / plane.height).toBeCloseTo(0.8, 2)
+    if (!plane || !action || !film) throw new Error('Portrait composition is unavailable')
+    expect(plane.width).toBeCloseTo(film.width, 0)
+    expect(plane.height).toBeCloseTo(film.height, 0)
+    expect(plane.x).toBeCloseTo(film.x, 0)
+    expect(plane.y).toBeCloseTo(film.y, 0)
+    await expect(dialog.locator('.tdc-copy')).toBeVisible()
     const originalViewport = page.viewportSize()
     if (!originalViewport) throw new Error('Viewport geometry is unavailable')
     await page.setViewportSize({ ...originalViewport, height: originalViewport.height - 60 })
@@ -146,13 +215,13 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
         const available = await dialog.locator('.tdc-scene').boundingBox()
         return resized && available
           ? {
-              ratio: Math.round((resized.width / resized.height) * 100),
-              fits:
-                resized.width <= available.width + 0.5 && resized.height <= available.height + 0.5,
+              fills:
+                Math.abs(resized.width - available.width) < 0.5 &&
+                Math.abs(resized.height - available.height) < 0.5,
             }
           : null
       })
-      .toEqual({ ratio: 80, fits: true })
+      .toEqual({ fills: true })
     await page.setViewportSize(originalViewport)
     expect(action.width).toBeLessThanOrEqual(180)
     expect(action.height).toBeGreaterThanOrEqual(44)
@@ -163,7 +232,7 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     const cityTransform = await dialog
       .locator('.tdc-room')
       .evaluate((room) => new DOMMatrixReadOnly(getComputedStyle(room).transform).a)
-    expect(cityTransform).toBeCloseTo(1.8)
+    expect(cityTransform).toBeCloseTo(2.05)
     expect(
       await dialog.locator('.tdc-scene').evaluate((scene) =>
         scene
@@ -192,7 +261,9 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog.getByText(/You're the first to arrive/)).toBeVisible()
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '0')
-    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
+      timeout: 12000,
+    })
     await expect(dialog.locator('.tdc-person')).toHaveCount(1)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-image-state', 'resolved')
     await page.screenshot({
@@ -229,7 +300,9 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-waiting-members', '1')
     await expect(dialog.locator('.tdc-person')).toHaveCount(2)
-    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready')
+    await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
+      timeout: 12000,
+    })
     await page.screenshot({
       path: testInfo.outputPath(`tribunal-second-arrival-${testInfo.project.name}.png`),
     })
@@ -242,13 +315,33 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     await page.getByRole('button', { name: 'Exit', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'One last goodbye' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.locator('.tdc-backplate')).toHaveAttribute('src', /farewell-set-v4.webp$/)
+    await expect(dialog.locator('.tdc-room > .tdc-backplate')).toHaveAttribute(
+      'src',
+      /farewell-window-v7.webp$/
+    )
     await expect(dialog.locator('.tdc-room__portal')).toHaveCount(1)
     await expect(dialog.getByText('Leaving the Hub')).toBeVisible()
     await expect(dialog.locator('.tdc-person')).toHaveCount(1)
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'playing', {
       timeout: 6000,
     })
+    const finalCity = dialog.locator('.tdc-set-content').evaluate(
+      (camera) =>
+        new Promise<string>((resolve) => {
+          camera.addEventListener('animationend', (event) => {
+            if ((event as AnimationEvent).animationName !== 'tdc-exit-push') return
+            resolve(
+              getComputedStyle(camera.closest('.tdc-dialog')!.querySelector('.tdc-copy')!)
+                .visibility
+            )
+          })
+        })
+    )
+    const doorway = await dialog.locator('.tdc-room__portal').boundingBox()
+    const film = await dialog.boundingBox()
+    if (!doorway || !film) throw new Error('Departure shot is unavailable')
+    expect(doorway.x).toBeGreaterThanOrEqual(film.x)
+    expect(doorway.x + doorway.width).toBeLessThanOrEqual(film.x + film.width)
     await page.waitForTimeout(900)
     await expect(dialog.locator('.tdc-person')).toHaveCSS('opacity', '1')
     await expect(dialog.locator('.tdc-luggage')).toHaveCSS('opacity', '1')
@@ -261,10 +354,15 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
       }))
     )
     expect(departureMotion.filter((motion) => motion.name === 'tdc-close')).toHaveLength(2)
-    expect(departureMotion.every((motion) => !motion.fades)).toBe(true)
+    expect(
+      departureMotion
+        .filter((motion) => motion.name !== 'tdc-city-window')
+        .every((motion) => !motion.fades)
+    ).toBe(true)
     await page.screenshot({
       path: testInfo.outputPath(`tribunal-exit-${testInfo.project.name}.png`),
     })
+    expect(await finalCity).toBe('hidden')
     await expect(dialog.locator('.tdc-scene')).toHaveAttribute('data-phase', 'ready', {
       timeout: 8000,
     })
@@ -333,5 +431,62 @@ test.describe('Tribunal invitation preview @visual @mobile', () => {
     ).toBe(0)
     await departure.getByRole('button', { name: 'Home', exact: true }).click()
     await expect(departure).toBeHidden()
+  })
+
+  test('uses the complete title card without scenic or cue requests when data saving is enabled', async ({
+    page,
+  }, testInfo) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', {
+        configurable: true,
+        value: { saveData: true, effectiveType: '4g' },
+      })
+    })
+    const scenery: string[] = []
+    page.on('request', (request) => {
+      if (/assets\/tribunal\/|Twin_shock_presentation/.test(request.url()))
+        scenery.push(request.url())
+    })
+    await launch(page)
+    await page.getByRole('button', { name: 'Agree', exact: true }).click()
+    const arrival = page.getByRole('dialog', { name: 'Welcome to sequester' })
+    await expect(arrival).toHaveAttribute('data-presentation', 'slate')
+    await expect(arrival.locator('img')).toHaveCount(0)
+    await page.screenshot({ path: testInfo.outputPath('tribunal-data-saving-card.png') })
+    await arrival.getByRole('button', { name: 'Continue season' }).click()
+    await launch(page)
+    await page.getByRole('button', { name: 'Exit', exact: true }).click()
+    const departure = page.getByRole('dialog', { name: 'One last goodbye' })
+    await expect(departure).toHaveAttribute('data-presentation', 'slate')
+    await departure.getByRole('button', { name: 'Home', exact: true }).click()
+    expect(scenery).toEqual([])
+  })
+
+  test('holds the title card when scenery arrives after the loading deadline', async ({ page }) => {
+    await page.route('**/assets/tribunal/**', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 3500))
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j1ioAAAAASUVORK5CYII=',
+          'base64'
+        ),
+      })
+    })
+    const cues: string[] = []
+    page.on('request', (request) => {
+      if (request.url().includes('Twin_shock_presentation')) cues.push(request.url())
+    })
+    await launch(page)
+    await page.getByRole('button', { name: 'Agree', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Welcome to sequester' })
+    await expect(dialog).toHaveAttribute('data-presentation', 'slate')
+    await expect(dialog.getByRole('button', { name: 'Continue season' })).toBeEnabled()
+    await page.waitForTimeout(2000)
+    await expect(dialog).toHaveAttribute('data-presentation', 'slate')
+    await expect(dialog.locator('img')).toHaveCount(0)
+    expect(cues).toEqual([])
+    await dialog.getByRole('button', { name: 'Continue season' }).click()
   })
 })

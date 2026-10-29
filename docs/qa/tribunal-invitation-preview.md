@@ -1,31 +1,37 @@
 # Tribunal invitation preview
 
-Use the local development build to review the production choice and cinematic handoffs.
+Use the development build to review the actual invitation and cinematic handoffs.
 
 1. Run `npm run dev` and open `http://localhost:5173/bbmobilenew/#/game?debug=1`.
 2. In the QA Control Center, choose **Load Tribunal invitation preview**.
-3. Check the **Agree** and **Exit** controls inside the Faux TV at 320 × 568 and desktop widths. Play waits for the decision.
-4. **Agree** reveals the actual player's chosen figure and the two Tribunal members eliminated immediately before them. A nearby doorframe passes the camera, then the camera moves past the cast toward the window and settles on the city lights. Four small windows vary gently in brightness. The welcome copy appears on this held final view, with Continue available after 4.8 seconds. The exit history determines order, including same-week double eliminations and returning contestants. First and second arrivals show zero and one waiting jurors. Names identify the cast; their existing standing poses remain intact.
-5. The compact gold **Continue season** button resumes the current phase. **Exit** shows a final look back: the player and luggage stand beyond the outward-facing Hub threshold, then generated walnut doors close in front of them. The doors hide both figures through physical overlap; the closed set remains visible. The compact gold **Home** button retires the run through the existing durable Abandon Season flow. Neither button has an arrow.
-6. Reload the QA fixture to try both choices. **Load first Tribunal arrival preview** checks no waiting jurors; **Load second Tribunal arrival preview** checks one. **Load Back 2 the Game suppression preview** checks that the offer waits for the return competition.
+3. Check **Agree** and **Exit** inside the Faux TV at 320 × 568 and 402 × 874. Play waits for the decision.
+4. **Agree** reveals the actual selected player and the two jurors eliminated immediately before them. The camera moves past the cast toward the window, keeps feet on the floor until figures clear, then holds the sharp city view. The welcome message and compact gold **Continue season** appear after the hold.
+5. **Exit** frames the complete departure doorway, closes the doors over the player and luggage, then pans and pushes toward a separate city window. The city holds before the goodbye message and compact gold **Home** appear. Home retires the run through the existing durable Abandon Season flow.
+6. Keep Music enabled to hear the existing Twin Shock presentation cue. It continues on the held city view until Continue season or Home is clicked, when a short fade starts immediately. Skip finishes the camera sequence while retaining that cue.
+7. Reload the fixture to try both choices. **Load first Tribunal arrival preview** checks zero waiting jurors; **Load second Tribunal arrival preview** checks one. **Load Back 2 the Game suppression preview** checks that the offer waits for the return competition.
 
-The fixtures reset the current local season. Access remains behind the existing development/debug controls. A legacy QA profile receives sample Look 1; a selected catalogue look or uploaded portrait is preserved.
+The fixtures replace the current local season and stay behind the development/debug controls. A legacy QA profile receives sample Look 1; a selected catalogue look or uploaded portrait is preserved.
 
-The scenes use generated empty architectural backplates, with the actual cast on independent layers. A fixed 4:5 composition preserves the window, doorway and figure anchors across portrait phone sizes. Uploaded photos, legacy profiles without a body, and failed body assets use framed portraits. There is no walking simulation, particle system, video or runtime canvas. Camera and door motion stop at the final composition; only four tiny light-opacity animations continue on the city. Skip shows the final city view or closed doorway immediately. Reduced-motion/animation-off settings also keep the lights static. The selected handoff survives a saved-run reload; failed storage cleanup keeps Exit available for retry.
+Both films fill a portrait phone screen. Names have no visual tags; actual cast identity remains available through image alternatives. The gold actions are at most 180 pixels wide, at least 44 pixels tall, and have no arrow. Reduced-motion and animations-off settings show the final city with static lights. The chosen handoff survives a saved-run reload; failed durable cleanup keeps Exit available for retry.
 
-Only the selected scene and cast load. Cast WebPs are bounded at 400 × 600 pixels; backplates are 800 × 1000. The window is about 131 KiB; the exit set, shared door leaf, and luggage total about 138 KiB. The browser tests check a 6 MiB conservative decoded-image budget for the catalogue arrival, chronological juror identities, portrait geometry, compact controls, the final city framing, door occlusion, and only four light animations after settling. Review at 320 × 568 and 402 × 874 first; desktop remains a portrait presentation. Real-device performance has not been measured.
+A browser-reported data-saving preference or 2G/slow-2G connection selects a complete charcoal-and-gold title card without requesting scene images or a new cinematic cue. Elsewhere, the same card takes over if artwork misses its 1.8-second preparation deadline or critical scene art fails. It stays in place if late images arrive. To review this manually, use a data-saving browser where available or throttle uncached artwork past that deadline. The automated browser cases emulate both paths. Uploaded portraits and failed body derivatives retain the normal portrait presentation when scene art is available.
 
-The reusable placement and asset contract is recorded in [tribunal-stage.md](tribunal-stage.md). To prepare compact derivatives after changing existing casual cast artwork, run:
+Only the chosen scene and cast load. A native tall phone city is revealed through masked window openings, so the final image is not an enlarged crop of a small room backplate. Cast images are bounded at 400 × 600; architectural backplates are 800 × 1000. Browser checks enforce a conservative 14 MiB decoded-image budget and sufficient native pixels for the phone close-up. Four small window lights animate gently after the camera stops; reduced motion disables them. There is no gameplay video, canvas or continuous camera loop. Real-device performance has not been measured.
+
+The placement, camera and audio contract is in [tribunal-stage.md](tribunal-stage.md). Prepare compact cast derivatives with:
 
 ```bash
 node scripts/prepare-tribunal-artwork.mjs
 ```
 
-The complete built-in generation prompts and source filenames are in [tribunal-artwork-v4.json](tribunal-artwork-v4.json). Encode approved PNG masters named `sequester-window.png`, `farewell-set.png`, `farewell-door.png`, and `farewell-luggage.png` with:
+Generated architecture prompts and source filenames are in [tribunal-artwork-v4.json](tribunal-artwork-v4.json) and [tribunal-artwork-v8.json](tribunal-artwork-v8.json). Keep the approved PNG masters together and encode the current departure/window and phone-city derivatives with:
 
 ```bash
-node scripts/prepare-tribunal-environment.mjs <source-directory>
+node scripts/prepare-tribunal-environment.mjs <source-directory> farewell-window
+node scripts/prepare-tribunal-environment.mjs <source-directory> phone-city
 ```
+
+The native phone-city master is named `phone-city.png`; the departure master is `farewell-window.png`. Originals remain unchanged. Omitting the optional asset name also prepares the existing v4 masters found in that source directory.
 
 Repeat the browser review with saved screenshots:
 

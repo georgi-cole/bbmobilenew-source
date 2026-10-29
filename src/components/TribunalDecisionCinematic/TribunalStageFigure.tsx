@@ -54,7 +54,6 @@ export default function TribunalStageFigure({
           </div>
         )}
       </div>
-      <figcaption>{player.name}</figcaption>
     </figure>
   )
 }

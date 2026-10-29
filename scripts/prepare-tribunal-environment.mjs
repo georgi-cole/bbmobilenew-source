@@ -5,8 +5,11 @@ import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const source = process.argv[2]
+const selectedAsset = process.argv[3]
 if (!source)
-  throw new Error('Usage: node scripts/prepare-tribunal-environment.mjs <source-directory>')
+  throw new Error(
+    'Usage: node scripts/prepare-tribunal-environment.mjs <source-directory> [asset-name]'
+  )
 const executablePath =
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ??
   (process.platform === 'win32'
@@ -19,15 +22,19 @@ const executablePath =
 const browser = await chromium.launch({ executablePath, headless: true })
 try {
   const page = await browser.newPage()
-  for (const [name, width, height, trim] of [
+  for (const [name, width, height, trim, version = 'v4'] of [
     ['sequester-window', 800, 1000, false],
     ['farewell-set', 800, 1000, false],
     ['farewell-door', 240, 720, true],
     ['farewell-luggage', 200, 320, true],
+    ['farewell-window', 800, 1000, false, 'v7'],
+    ['phone-city', 0, 0, false, 'v8'],
   ]) {
+    if (selectedAsset && name !== selectedAsset) continue
+    if (version !== 'v4' && !existsSync(path.join(source, name + '.png'))) continue
     const input = await readFile(path.join(source, name + '.png'))
     const encoded = await page.evaluate(
-      async ({ data, width, height, trim }) => {
+      async ({ data, width, height, trim, quality }) => {
         const image = new Image()
         image.src = data
         await image.decode()
@@ -57,8 +64,8 @@ try {
         }
         const canvas = document.createElement('canvas')
         const scale = trim ? Math.min(width / (right - left + 1), height / (bottom - top + 1)) : 1
-        canvas.width = trim ? Math.round((right - left + 1) * scale) : width
-        canvas.height = trim ? Math.round((bottom - top + 1) * scale) : height
+        canvas.width = trim ? Math.round((right - left + 1) * scale) : width || image.width
+        canvas.height = trim ? Math.round((bottom - top + 1) * scale) : height || image.height
         canvas
           .getContext('2d')
           .drawImage(
@@ -72,12 +79,18 @@ try {
             canvas.width,
             canvas.height
           )
-        return canvas.toDataURL('image/webp', 0.86).split(',')[1]
+        return canvas.toDataURL('image/webp', quality).split(',')[1]
       },
-      { data: 'data:image/png;base64,' + input.toString('base64'), width, height, trim }
+      {
+        data: 'data:image/png;base64,' + input.toString('base64'),
+        width,
+        height,
+        trim,
+        quality: version === 'v8' ? 0.92 : 0.86,
+      }
     )
     const bytes = Buffer.from(encoded, 'base64')
-    await writeFile('public/assets/tribunal/' + name + '-v4.webp', bytes)
+    await writeFile('public/assets/tribunal/' + name + '-' + version + '.webp', bytes)
     console.log(name + ': ' + Math.round(bytes.length / 1024) + ' KiB')
   }
 } finally {
