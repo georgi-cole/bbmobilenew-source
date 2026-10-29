@@ -27,6 +27,7 @@ export interface TvAnnouncementOverlayProps {
   announcement: Announcement
   onInfo?: () => void
   onDismiss?: () => void
+  onTribunalChoice?: (choice: 'agree' | 'exit') => void
   /** When true, the auto-dismiss countdown is paused (e.g. while info modal is open). */
   paused?: boolean
   /** Optional ref forwarded to the ℹ️ info button for external spotlight targeting. */
@@ -119,6 +120,7 @@ export default function TvAnnouncementOverlay({
   announcement,
   onInfo,
   onDismiss,
+  onTribunalChoice,
   paused = false,
   infoButtonRef,
   showInfoButton = true,
@@ -328,9 +330,22 @@ export default function TvAnnouncementOverlay({
           )}
           {subtitle && <p className="tv-announcement__subtitle">{subtitle}</p>}
           {isTribunalInvitation && (
-            <button type="button" className="tv-announcement__tribunal-action" onClick={onDismiss}>
-              Continue as Tribunal Member
-            </button>
+            <div className="tv-announcement__tribunal-actions" aria-label="Your Tribunal decision">
+              <button
+                type="button"
+                className="tv-announcement__tribunal-action"
+                onClick={() => onTribunalChoice?.('agree')}
+              >
+                Agree
+              </button>
+              <button
+                type="button"
+                className="tv-announcement__tribunal-action tv-announcement__tribunal-action--exit"
+                onClick={() => onTribunalChoice?.('exit')}
+              >
+                Exit
+              </button>
+            </div>
           )}
           {announcement.key === 'cupid_arrow' && cupidPairs.length > 0 && (
             <div className="tv-announcement__cupid-pairs" aria-label="Cupid matches">

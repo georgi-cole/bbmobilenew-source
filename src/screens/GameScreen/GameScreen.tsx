@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from 'react'
 import { getTribunalMembers } from '../../rules/tribunalPolicy'
 import { LayoutGroup, AnimatePresence } from 'framer-motion'
 import { useStore } from 'react-redux'
@@ -8,7 +8,8 @@ import { getPresentedRosterPlayers } from '../../features/reserveEntrants/wildca
 import {
   addTvEvent,
   advance,
-  acknowledgeTribunalInvitation,
+  chooseTribunalInvitation,
+  completeTribunalArrival,
   applyMinigameWinner,
   finalizeFinal4Eviction,
   finalizeFinal3Eviction,
@@ -42,7 +43,9 @@ import {
   getSavedRunSlot,
   clearSeasonSnapshot,
   savedStateKeyForProfile,
+  flushSavePersistence,
 } from '../../store/saveStatePersistence'
+import { withRunAutosaveSuspended } from '../../store/runAutosaveGate'
 import { selectSocialSummaryOpen } from '../../store/uiSlice'
 import TvZone from '../../components/ui/TvZone'
 import TVLog from '../../components/TVLog/TVLog'
@@ -158,6 +161,9 @@ export {
   POST_VOTE_ANNOUNCEMENT_MS,
 } from './flows/useEvictionFlow'
 import './GameScreen.css'
+const TribunalDecisionCinematic = lazy(
+  () => import('../../components/TribunalDecisionCinematic/TribunalDecisionCinematic')
+)
 
 const LOH_BADGE_SRC = statusBadgeImageSrc('loh')
 const NOMINATION_BADGE_SRC = statusBadgeImageSrc('nominated')
@@ -1470,6 +1476,7 @@ export default function GameScreen() {
       },
       presentation: {
         blocksControls: [
+          Boolean(game.tribunalInvitationTransition),
           showEnergyRechargePrompt,
           showAudienceInsightPrompt,
           audienceInsightAnnouncement !== null,
@@ -1542,24 +1549,30 @@ export default function GameScreen() {
         }
       : null
 
-  const futureReturnPossible =
-    game.seasonDirectorPlan?.policy.battleBack.enabled === true &&
-    game.seasonDirectorPlan.policy.battleBack.human.guaranteedOpportunityAfterEviction === true &&
-    game.seasonDirectorHumanReturnUsed !== true &&
-    game.battleBack?.used !== true &&
-    settings.sim.enableTwists === true
   const tribunalInvitationAnnouncement = showTribunalInvitation
     ? {
         key: 'tribunal_invitation',
-        title: "Your Story Isn't Over",
-        subtitle: futureReturnPossible
-          ? "You're on the Tribunal. Your vote helps crown the winner. Rewards and a possible comeback still await."
-          : "You're on the Tribunal. Your vote helps crown the winner, and you can still earn rewards.",
+        title: "You've earned a spot in the Tribunal",
+        subtitle:
+          "If you agree to stay, you'll help choose this season's winner alongside the other Tribunal members. If you choose to exit, your season ends here.",
         isLive: false,
         autoDismissMs: null,
       }
     : null
-  const acknowledgeTribunalInvitationMessage = () => dispatch(acknowledgeTribunalInvitation())
+  const finishTribunalDecision = async () => {
+    if (game.tribunalInvitationTransition === 'sequester') {
+      dispatch(completeTribunalArrival())
+      return true
+    }
+    // Use the same durable-slot retirement as Abandon Season. Queued autosaves
+    // cannot resurrect a run after this explicit Exit choice.
+    clearEliminatedRun()
+    if (!isGuest && activeProfileId && !(await flushSavePersistence())) return false
+    dispatch({ type: 'challenge/setPendingChallenge', payload: null })
+    withRunAutosaveSuspended(() => dispatch(resetGame()))
+    navigate('/', { replace: true })
+    return true
+  }
 
   return (
     <LayoutGroup id="game-layout">
@@ -1699,10 +1712,9 @@ export default function GameScreen() {
             }
             priorityAnnouncement={tribunalInvitationAnnouncement ?? confessionalTvAnnouncement}
             onPriorityAnnouncementDismiss={
-              tribunalInvitationAnnouncement
-                ? acknowledgeTribunalInvitationMessage
-                : dismissConfessionalTvPrompt
+              tribunalInvitationAnnouncement ? undefined : dismissConfessionalTvPrompt
             }
+            onTribunalInvitationChoice={(choice) => dispatch(chooseTribunalInvitation(choice))}
             externalAnnouncement={
               socialModuleUnavailableAnnouncement ??
               battleBackReturnAnnouncement ??
@@ -2868,6 +2880,7 @@ export default function GameScreen() {
         {/* ── Floating Action Bar ───────────────────────────────────────────── */}
         {shouldRenderGameControlDock(showGameControlDock, Boolean(game.seasonFinale)) && (
           <FloatingActionBar
+            tribunalDecisionPending={showTribunalInvitation}
             onPublicMeterBlocked={handlePublicMeterBlocked}
             onSocialModuleBlocked={handleSocialModuleBlocked}
             finaleOverlayActive={finaleOverlayActive}
@@ -2912,6 +2925,33 @@ export default function GameScreen() {
           <HouseguestInfoDialog player={previewPlayer} onClose={() => setPreviewPlayer(null)} />
         )}
       </div>
+      {game.tribunalInvitationTransition && humanPlayer && (
+        <Suspense
+          fallback={
+            <div
+              role="status"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 2000,
+                background: '#08060e',
+                color: '#f5eddc',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              Preparing your next chapter…
+            </div>
+          }
+        >
+          <TribunalDecisionCinematic
+            destination={game.tribunalInvitationTransition}
+            player={humanPlayer}
+            members={tribunalPlayers}
+            onComplete={finishTribunalDecision}
+          />
+        </Suspense>
+      )}
     </LayoutGroup>
   )
 }

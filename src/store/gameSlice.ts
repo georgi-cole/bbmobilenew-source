@@ -7674,9 +7674,21 @@ const gameSlice = createSlice({
      * (on eviction_splash enter/exit) so AvatarTile can hide itself (isEvicting)
      * during the match-cut, preventing the duplicated fullscreen avatar start.
      */
-    acknowledgeTribunalInvitation(state) {
-      if (state.players.some((player) => player.isUser && player.status === 'jury')) {
-        state.tribunalInvitationAcknowledged = true
+    chooseTribunalInvitation(state, action: PayloadAction<'agree' | 'exit'>) {
+      if (
+        state.tribunalInvitationAcknowledged ||
+        state.battleBack?.active ||
+        state.battleBack?.returnAnimationPending ||
+        !state.players.some((player) => player.isUser && player.status === 'jury')
+      )
+        return
+      state.tribunalInvitationAcknowledged = true
+      state.tribunalInvitationTransition = action.payload === 'agree' ? 'sequester' : 'exit'
+    },
+
+    completeTribunalArrival(state) {
+      if (state.tribunalInvitationTransition === 'sequester') {
+        state.tribunalInvitationTransition = null
       }
     },
 
@@ -8907,7 +8919,7 @@ const gameSlice = createSlice({
       state,
       action: PayloadAction<{
         gameId: string
-        mode: 'invitation' | 'battle_back'
+        mode: 'invitation' | 'first_arrival' | 'battle_back'
       }>
     ) {
       if (!import.meta.env.DEV) return
@@ -8920,7 +8932,10 @@ const gameSlice = createSlice({
       // on small test casts while showing three remaining contestants normally.
       const activeCount = Math.min(3, Math.max(1, otherPlayers.length - 2))
       const activeIds = new Set(otherPlayers.slice(0, activeCount).map((player) => player.id))
-      const juryIds = otherPlayers.filter((player) => !activeIds.has(player.id))
+      const juryIds = otherPlayers
+        .filter((player) => !activeIds.has(player.id))
+        .slice(-Math.max(2, (state.cfg?.tribunalSize ?? 9) - 1))
+      const juryMemberIds = new Set(juryIds.map((player) => player.id))
       const candidateIds =
         action.payload.mode === 'battle_back'
           ? [human.id, ...juryIds.slice(0, 2).map((player) => player.id)]
@@ -8981,6 +8996,7 @@ const gameSlice = createSlice({
       state.pendingPublicModeEnabled = null
       state.twistActive = action.payload.mode === 'battle_back'
       state.tribunalInvitationAcknowledged = false
+      state.tribunalInvitationTransition = null
       state.tribunalPhaseAnnounced = false
       state.seasonDirectorHumanReturnUsed = false
       state.doubleEviction = {
@@ -9022,7 +9038,15 @@ const gameSlice = createSlice({
 
       state.players.forEach((player) => {
         const isActiveContestant = activeIds.has(player.id)
-        player.status = player.isUser || !isActiveContestant ? 'jury' : 'active'
+        player.status =
+          player.isUser || juryMemberIds.has(player.id)
+            ? 'jury'
+            : isActiveContestant
+              ? 'active'
+              : 'evicted'
+        if (action.payload.mode === 'first_arrival' && !player.isUser && !isActiveContestant) {
+          player.status = 'evicted'
+        }
         player.finalRank = undefined
         player.seasonPlacement = undefined
         player.isWinner = false
@@ -10489,6 +10513,7 @@ const gameSlice = createSlice({
       // This protects against programmatic dispatches (debug tools, fastForward)
       // bypassing mandatory decision steps and leaving state inconsistent.
       if (
+        state.tribunalInvitationTransition ||
         state.weekendInterlude?.active ||
         state.replacementNeeded ||
         state.awaitingNominations ||
@@ -13628,7 +13653,8 @@ export const {
   revealSurvivorReplacement,
   setEvictionOverlay,
   clearEvictionOverlay,
-  acknowledgeTribunalInvitation,
+  chooseTribunalInvitation,
+  completeTribunalArrival,
   finalizePendingEviction,
   selfEvict,
   aiReplacementRendered,

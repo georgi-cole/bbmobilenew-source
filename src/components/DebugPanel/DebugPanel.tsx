@@ -361,7 +361,9 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
     setIsOpen(false)
   }
 
-  function handlePrepareTribunalInvitationTest(mode: 'invitation' | 'battle_back') {
+  function handlePrepareTribunalInvitationTest(
+    mode: 'invitation' | 'first_arrival' | 'battle_back'
+  ) {
     dispatch(
       prepareTribunalInvitationTest({
         gameId: `tribunal-qa-${Date.now()}`,
@@ -521,6 +523,16 @@ function DebugPanelContent({ searchParams }: { searchParams: URLSearchParams }) 
                   onClick={() => handlePrepareTribunalInvitationTest('invitation')}
                 >
                   Load Tribunal invitation preview
+                </button>
+                <button
+                  className="dbg-btn dbg-btn--wide"
+                  type="button"
+                  disabled={
+                    !game.players.some((player) => player.isUser) || game.players.length < 2
+                  }
+                  onClick={() => handlePrepareTribunalInvitationTest('first_arrival')}
+                >
+                  Load first Tribunal arrival preview
                 </button>
                 <button
                   className="dbg-btn dbg-btn--wide"

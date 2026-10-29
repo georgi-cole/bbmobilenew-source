@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { configureStore } from '@reduxjs/toolkit'
 import { Provider } from 'react-redux'
 import { MemoryRouter } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as persistence from '../../src/store/saveStatePersistence'
 import adsReducer from '../../src/store/adsSlice'
 import challengeReducer from '../../src/store/challengeSlice'
 import finaleReducer from '../../src/store/finaleSlice'
@@ -32,8 +33,10 @@ vi.mock('../../src/components/ui/SpectatorView', () => ({
 vi.mock('../../src/components/ui/TvZone', () => ({
   default: function TvZoneMock({
     priorityAnnouncement,
+    onTribunalInvitationChoice,
   }: {
     priorityAnnouncement?: { key?: string; title?: string; subtitle?: string } | null
+    onTribunalInvitationChoice?: (choice: 'agree' | 'exit') => void
   }) {
     return (
       <div data-testid="tv-zone">
@@ -41,6 +44,9 @@ vi.mock('../../src/components/ui/TvZone', () => ({
           <div data-testid="tribunal-invitation-announcement">
             <p>{priorityAnnouncement.title}</p>
             <p>{priorityAnnouncement.subtitle}</p>
+            <button onClick={() => onTribunalInvitationChoice?.('exit')}>
+              Exit Tribunal offer
+            </button>
           </div>
         )}
       </div>
@@ -48,7 +54,13 @@ vi.mock('../../src/components/ui/TvZone', () => ({
   },
 }))
 
-function makeStore() {
+vi.mock('../../src/components/TribunalDecisionCinematic/TribunalDecisionCinematic', () => ({
+  default: ({ onComplete }: { onComplete: () => Promise<boolean> }) => (
+    <button onClick={() => void onComplete()}>Finish Tribunal scene</button>
+  ),
+}))
+
+function makeStore(profileId?: string) {
   return configureStore({
     reducer: {
       ads: adsReducer,
@@ -62,10 +74,20 @@ function makeStore() {
       ui: uiReducer,
       vip: vipReducer,
     },
+    preloadedState: profileId
+      ? {
+          profiles: {
+            ...profilesReducer(undefined, { type: 'init' }),
+            activeProfileId: profileId,
+            isGuest: false,
+          },
+        }
+      : undefined,
   })
 }
 
 describe('Tribunal invitation QA scenario', () => {
+  afterEach(() => vi.restoreAllMocks())
   it('loads the production invitation and keeps it suppressed during Back 2 the Game', async () => {
     const user = userEvent.setup()
     const store = makeStore()
@@ -82,7 +104,7 @@ describe('Tribunal invitation QA scenario', () => {
     await user.click(screen.getByRole('button', { name: 'Load Tribunal invitation preview' }))
 
     const invitation = screen.getByTestId('tribunal-invitation-announcement')
-    expect(invitation).toHaveTextContent("Your Story Isn't Over")
+    expect(invitation).toHaveTextContent("You've earned a spot in the Tribunal")
     expect(store.getState().game.players.find((player) => player.isUser)?.status).toBe('jury')
     expect(store.getState().game.tribunalInvitationAcknowledged).toBe(false)
     expect(screen.queryByRole('complementary', { name: 'Debug Panel' })).toBeNull()
@@ -96,5 +118,35 @@ describe('Tribunal invitation QA scenario', () => {
     expect(store.getState().game.battleBack?.candidates).toContain('user')
     expect(screen.queryByTestId('tribunal-invitation-announcement')).toBeNull()
     expect(screen.getByTestId('battle-back-minigame')).toBeInTheDocument()
+  })
+
+  it('retires the saved run only after Exit and waits for durable storage before resetting', async () => {
+    const user = userEvent.setup()
+    const store = makeStore('tribunal-profile')
+    const clearRun = vi.spyOn(persistence, 'clearSavedRun').mockImplementation(() => {})
+    const clearLegacy = vi.spyOn(persistence, 'clearSeasonSnapshot').mockImplementation(() => {})
+    const flush = vi.spyOn(persistence, 'flushSavePersistence').mockResolvedValue(false)
+    render(
+      <Provider store={store}>
+        <MemoryRouter initialEntries={['/game?debug=1&qa=1']}>
+          <DebugPanel />
+          <GameScreen />
+        </MemoryRouter>
+      </Provider>
+    )
+    await user.click(screen.getByRole('button', { name: 'Load Tribunal invitation preview' }))
+    const gameId = store.getState().game.gameId
+    await user.click(screen.getByRole('button', { name: 'Exit Tribunal offer' }))
+    expect(clearRun).not.toHaveBeenCalled()
+    await user.click(await screen.findByRole('button', { name: 'Finish Tribunal scene' }))
+    expect(clearRun).toHaveBeenCalledWith('tribunal-profile', 'classic')
+    expect(clearLegacy).toHaveBeenCalled()
+    expect(flush).toHaveBeenCalled()
+    expect(store.getState().game.gameId).toBe(gameId)
+    expect(store.getState().game.tribunalInvitationTransition).toBe('exit')
+    flush.mockResolvedValue(true)
+    await user.click(screen.getByRole('button', { name: 'Finish Tribunal scene' }))
+    expect(store.getState().game.gameId).not.toBe(gameId)
+    expect(screen.queryByRole('button', { name: 'Finish Tribunal scene' })).toBeNull()
   })
 })

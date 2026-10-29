@@ -260,6 +260,11 @@
   isolation: isolate;
 }
 
+/* Reserve room for the explicit season decision at narrow phone sizes. */
+.tv-zone--tribunal-choice .tv-zone__viewport {
+  min-height: max(var(--tv-zone-viewport-min-height, 192px), 180px);
+}
+
 .tv-zone__audience-preview-chip {
   display: inline-flex;
   align-items: center;
